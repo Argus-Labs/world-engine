@@ -441,7 +441,7 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 				row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 5, Y: 1}})
 				row.V.Set(physics.Velocity2D{})
 				row.PB.Set(newRigid(physics.BodyTypeStatic,
-					physics.Box(0.5, 0.5).Material(0.5, 0, 0).Filter(0x0001, 0xFFFF).Spawn(&state.Boxes)))
+					mustSpawn(physics.Box(0.5, 0.5).Material(0.5, 0, 0).Filter(0x0001, 0xFFFF).Spawn(&state.Boxes))))
 				harness.NewBox = id
 			}
 		}

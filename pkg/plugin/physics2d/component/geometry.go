@@ -18,10 +18,14 @@ type CircleGeom struct {
 // Name returns the ECS component name.
 func (CircleGeom) Name() string { return "circle_geom_2d" }
 
-// Validate checks Radius for NaN/Inf.
+// Validate checks that Radius is finite and positive. Box2D asserts on a radius of zero or
+// less, so a shape carrying one can never build a fixture.
 func (g CircleGeom) Validate() error {
 	if !isFinite(g.Radius) {
 		return fmt.Errorf("radius: must be finite, got %v", g.Radius)
+	}
+	if g.Radius <= 0 {
+		return fmt.Errorf("radius: must be positive, got %v", g.Radius)
 	}
 	return nil
 }
@@ -34,9 +38,17 @@ type BoxGeom struct {
 // Name returns the ECS component name.
 func (BoxGeom) Name() string { return "box_geom_2d" }
 
-// Validate checks HalfExtents for NaN/Inf.
+// Validate checks that HalfExtents are finite and positive. A zero extent makes Box2D build a
+// polygon with a NaN centroid rather than rejecting it, so the check has to happen here.
 func (g BoxGeom) Validate() error {
-	return validateVec2("half_extents", g.HalfExtents)
+	if err := validateVec2("half_extents", g.HalfExtents); err != nil {
+		return err
+	}
+	if g.HalfExtents.X <= 0 || g.HalfExtents.Y <= 0 {
+		return fmt.Errorf("half_extents: must be positive, got (%v, %v)",
+			g.HalfExtents.X, g.HalfExtents.Y)
+	}
+	return nil
 }
 
 // MaxPolygonVertices is Box2D's convex polygon vertex limit. PolygonGeom stores exactly that
@@ -127,6 +139,9 @@ func (g CapsuleGeom) Validate() error {
 	}
 	if !isFinite(g.Radius) {
 		return fmt.Errorf("radius: must be finite, got %v", g.Radius)
+	}
+	if g.Radius <= 0 {
+		return fmt.Errorf("radius: must be positive, got %v", g.Radius)
 	}
 	return nil
 }

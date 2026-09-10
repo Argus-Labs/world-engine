@@ -73,21 +73,30 @@ type spawnState struct {
 	Capsules physics.CapsuleShapes
 }
 
+// mustSpawn unwraps a Spawn call. Every shape in these tests is a literal, so a rejection is
+// a typo in the test rather than something a caller could handle.
+func mustSpawn(slot physics.ShapeSlot, err error) physics.ShapeSlot {
+	if err != nil {
+		panic(err)
+	}
+	return slot
+}
+
 // spawnShape spawns def through the search matching its geometry kind and returns the slot.
 func spawnShape[G physics.Geometry](s *spawnState, def physics.ShapeDef[G]) physics.ShapeSlot {
 	switch d := any(def).(type) {
 	case physics.ShapeDef[physics.CircleGeom]:
-		return d.Spawn(&s.Circles)
+		return mustSpawn(d.Spawn(&s.Circles))
 	case physics.ShapeDef[physics.BoxGeom]:
-		return d.Spawn(&s.Boxes)
+		return mustSpawn(d.Spawn(&s.Boxes))
 	case physics.ShapeDef[physics.PolygonGeom]:
-		return d.Spawn(&s.Polygons)
+		return mustSpawn(d.Spawn(&s.Polygons))
 	case physics.ShapeDef[physics.ChainGeom]:
-		return d.Spawn(&s.Chains)
+		return mustSpawn(d.Spawn(&s.Chains))
 	case physics.ShapeDef[physics.EdgeGeom]:
-		return d.Spawn(&s.Edges)
+		return mustSpawn(d.Spawn(&s.Edges))
 	case physics.ShapeDef[physics.CapsuleGeom]:
-		return d.Spawn(&s.Capsules)
+		return mustSpawn(d.Spawn(&s.Capsules))
 	}
 	panic("spawnShape: unknown geometry kind")
 }

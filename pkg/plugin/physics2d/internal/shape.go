@@ -17,6 +17,7 @@ type Geometry interface {
 	component.CircleGeom | component.BoxGeom | component.PolygonGeom |
 		component.ChainGeom | component.EdgeGeom | component.CapsuleGeom
 	Name() string
+	Validate() error
 	MarshalWire() []byte
 	UnmarshalWire([]byte) (any, error)
 }

@@ -40,13 +40,27 @@ type ShapeSpec struct {
 	Common   physics.ShapeCommon
 	Offset   physics.Vec2
 	Rotation float64
-	spawn    func(c *harness.Ctx, common physics.ShapeCommon) physics.ShapeSlot
+	spawn    func(c *harness.Ctx, common physics.ShapeCommon) (physics.ShapeSlot, error)
 }
 
 // Spawn creates the shape entity and returns its slot, placed at the spec's
-// offset and rotation.
+// offset and rotation. It panics on a definition the plugin rejects; scenarios
+// that build one on purpose use TrySpawn.
 func (s ShapeSpec) Spawn(c *harness.Ctx) physics.ShapeSlot {
-	return s.spawn(c, s.Common).At(s.Offset, s.Rotation)
+	slot, err := s.TrySpawn(c)
+	if err != nil {
+		panic(err)
+	}
+	return slot
+}
+
+// TrySpawn is Spawn, reporting the plugin's rejection instead of panicking.
+func (s ShapeSpec) TrySpawn(c *harness.Ctx) (physics.ShapeSlot, error) {
+	slot, err := s.spawn(c, s.Common)
+	if err != nil {
+		return physics.ShapeSlot{}, err
+	}
+	return slot.At(s.Offset, s.Rotation), nil
 }
 
 // baseCommon is the default material with an all-layers filter.
@@ -64,8 +78,8 @@ func baseCommon() physics.ShapeCommon {
 func spec[G physics.Geometry](geom G) ShapeSpec {
 	return ShapeSpec{
 		Common: baseCommon(),
-		spawn: func(c *harness.Ctx, common physics.ShapeCommon) physics.ShapeSlot {
-			return harness.Shape(c, physics.ShapeDef[G]{Common: common, Geom: geom})
+		spawn: func(c *harness.Ctx, common physics.ShapeCommon) (physics.ShapeSlot, error) {
+			return harness.TryShape(c, physics.ShapeDef[G]{Common: common, Geom: geom})
 		},
 	}
 }

@@ -245,6 +245,59 @@ func checkValidation(c *harness.Ctx) {
 		physics.PolygonGeom{Count: physics.MaxPolygonVertices + 1}.Validate())
 	c.NoError("ChainGeom.Validate accepts finite points",
 		physics.ChainGeom{Points: immutable.SliceOf(vec(0, 0), vec(1, 0))}.Validate())
+	c.HasError("CircleGeom.Validate rejects a zero radius", physics.CircleGeom{Radius: 0}.Validate())
+	c.HasError("CircleGeom.Validate rejects a negative radius", physics.CircleGeom{Radius: -1}.Validate())
+	c.HasError("BoxGeom.Validate rejects a zero half-extent",
+		physics.BoxGeom{HalfExtents: vec(0, 1)}.Validate())
+	c.HasError("BoxGeom.Validate rejects a negative half-extent",
+		physics.BoxGeom{HalfExtents: vec(1, -1)}.Validate())
+	c.HasError("CapsuleGeom.Validate rejects a zero radius",
+		physics.CapsuleGeom{A: vec(0, 0), B: vec(0, 1), Radius: 0}.Validate())
+
+	checkJSONRoundTrip(c)
+}
+
+// checkJSONRoundTrip pins the JSON codec on the three components holding an immutable.Slice.
+// The elements live in an unexported field, so without a codec on the slice each of these
+// encodes as {} and silently loses its list, while the surrounding struct still looks fine.
+func checkJSONRoundTrip(c *harness.Ctx) {
+	body := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic,
+		physcomp.Slot(7), physcomp.Slot(9).At(vec(1, 2), 0.5))
+	if data, err := json.Marshal(body); c.NoError("a body with slots marshals", err) {
+		var back physics.PhysicsBody2D
+		if c.NoError("a body with slots unmarshals", json.Unmarshal(data, &back)) {
+			c.True("a body keeps its slot list through JSON",
+				immutable.Equal(body.Shapes, back.Shapes),
+				"%d slots became %d: %s", body.Shapes.Len(), back.Shapes.Len(), data)
+		}
+	}
+
+	chain := physcomp.ChainGeom{Points: immutable.SliceOf(vec(0, 0), vec(1, 0), vec(2, 1)), Loop: true}
+	if data, err := json.Marshal(chain); c.NoError("a chain marshals", err) {
+		var back physcomp.ChainGeom
+		if c.NoError("a chain unmarshals", json.Unmarshal(data, &back)) {
+			c.True("a chain keeps its points through JSON",
+				immutable.Equal(chain.Points, back.Points) && chain.Loop == back.Loop,
+				"%d points became %d: %s", chain.Points.Len(), back.Points.Len(), data)
+		}
+	}
+
+	contacts := physcomp.ActiveContacts{Pairs: immutable.SliceOf(
+		physcomp.ContactPairEntry{EntityA: 1, ShapeIndexA: 0, EntityB: 2, ShapeIndexB: 1})}
+	if data, err := json.Marshal(contacts); c.NoError("active contacts marshal", err) {
+		var back physcomp.ActiveContacts
+		if c.NoError("active contacts unmarshal", json.Unmarshal(data, &back)) {
+			c.True("active contacts keep their pairs through JSON",
+				immutable.Equal(contacts.Pairs, back.Pairs),
+				"%d pairs became %d: %s", contacts.Pairs.Len(), back.Pairs.Len(), data)
+		}
+	}
+
+	var emptyBody physics.PhysicsBody2D
+	if data, err := json.Marshal(emptyBody); c.NoError("an empty body marshals", err) {
+		var back physics.PhysicsBody2D
+		c.NoError("an empty slot list decodes rather than erroring", json.Unmarshal(data, &back))
+	}
 
 	c.NoError("Transform2D.Validate accepts finite values",
 		physics.Transform2D{Position: vec(1, 2), Rotation: 0.5}.Validate())

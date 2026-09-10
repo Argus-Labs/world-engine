@@ -1,6 +1,8 @@
 package physics2d
 
 import (
+	"fmt"
+
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
@@ -20,12 +22,16 @@ import (
 //	}
 //
 //	func Spawn(state *SpawnState) {
-//	    ball := physics2d.Circle(0.5).Material(0.3, 0.1, 1).Spawn(&state.Circles)
+//	    ball, err := physics2d.Circle(0.5).Material(0.3, 0.1, 1).Spawn(&state.Circles)
+//	    if err != nil {
+//	        return // the definition is unusable; nothing was created
+//	    }
 //	    _, row := state.Balls.Create()
 //	    row.Body.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic, ball))
 //	}
 //
 // Spawn returns the slot; keep it (or its Shape id) to put the same shape on more bodies.
+// It validates first, so a definition Box2D could never build never becomes an entity.
 
 // Geometry is the constraint satisfied by the geometry components: CircleGeom, BoxGeom,
 // PolygonGeom, ChainGeom, EdgeGeom and CapsuleGeom.
@@ -128,13 +134,24 @@ func (d ShapeDef[G]) Group(index int32) ShapeDef[G] {
 	return d
 }
 
-// Spawn creates the shape entity through shapes and returns a slot referencing it at the
-// body origin. Chain At on the slot to place it.
-func (d ShapeDef[G]) Spawn(shapes *ShapeSearch[G]) ShapeSlot {
+// Spawn validates the definition, creates the shape entity through shapes, and returns a slot
+// referencing it at the body origin. Chain At on the slot to place it.
+//
+// A definition that fails validation creates nothing and reports the reason. Checking here is
+// what keeps a shape entity from existing in a state no body could ever attach: the reconciler
+// would otherwise reject that body once per tick, with nothing left to point at the line that
+// built it.
+func (d ShapeDef[G]) Spawn(shapes *ShapeSearch[G]) (ShapeSlot, error) {
+	if err := d.Common.Validate(); err != nil {
+		return ShapeSlot{}, fmt.Errorf("physics2d: shape material: %w", err)
+	}
+	if err := d.Geom.Validate(); err != nil {
+		return ShapeSlot{}, fmt.Errorf("physics2d: %s: %w", d.Geom.Name(), err)
+	}
 	id, row := shapes.Create()
 	row.Common.Set(d.Common)
 	row.Geom.Set(d.Geom)
-	return component.Slot(id)
+	return component.Slot(id), nil
 }
 
 // Slot references an existing shape entity at the body origin. Chain At to place it.

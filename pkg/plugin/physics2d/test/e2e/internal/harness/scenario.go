@@ -104,8 +104,18 @@ func editShapeIn[G physics.Geometry](
 }
 
 // Shape spawns def as a shape entity through the search matching its geometry
-// kind and returns the slot that references it.
+// kind and returns the slot that references it. A definition the plugin rejects
+// panics, so scenarios that build a deliberately bad one use TryShape.
 func Shape[G physics.Geometry](c *Ctx, def physics.ShapeDef[G]) physics.ShapeSlot {
+	slot, err := TryShape(c, def)
+	if err != nil {
+		panic(err)
+	}
+	return slot
+}
+
+// TryShape is Shape, reporting the plugin's rejection instead of panicking.
+func TryShape[G physics.Geometry](c *Ctx, def physics.ShapeDef[G]) (physics.ShapeSlot, error) {
 	switch d := any(def).(type) {
 	case physics.ShapeDef[physics.CircleGeom]:
 		return d.Spawn(c.shapes.Circles)
@@ -120,7 +130,7 @@ func Shape[G physics.Geometry](c *Ctx, def physics.ShapeDef[G]) physics.ShapeSlo
 	case physics.ShapeDef[physics.CapsuleGeom]:
 		return d.Spawn(c.shapes.Capsules)
 	}
-	panic("harness.Shape: unknown geometry kind")
+	panic("harness.TryShape: unknown geometry kind")
 }
 
 // Step is one scheduled action or assertion, run on the given tick after the

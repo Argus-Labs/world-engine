@@ -54,32 +54,26 @@ func hostileCases() []harness.Scenario {
 			"a chain loop of 3 points (Box2D asserts count >= 4)",
 			physics.BodyTypeStatic,
 			chainLoop(vec(-3, 0), vec(0, 3), vec(3, 0))),
-		hostileBadShape("zero-radius-circle",
+		hostileRejectedShape("zero-radius-circle",
 			"a circle of radius 0",
-			physics.BodyTypeDynamic,
 			circle(0)),
-		hostileBadShape("negative-radius-circle",
+		hostileRejectedShape("negative-radius-circle",
 			"a circle of radius -1",
-			physics.BodyTypeDynamic,
 			circle(-1)),
-		hostileBadShape("zero-extent-box",
+		hostileRejectedShape("zero-extent-box",
 			"a box with zero half-extents",
-			physics.BodyTypeDynamic,
 			box(0, 0)),
-		hostileBadShape("polygon-too-many-vertices",
+		hostileRejectedShape("polygon-too-many-vertices",
 			"a convex polygon of 9 vertices (Box2D's limit is 8)",
-			physics.BodyTypeDynamic,
 			polygon(
 				vec(1, 0), vec(0.77, 0.64), vec(0.17, 0.98), vec(-0.5, 0.87),
 				vec(-0.94, 0.34), vec(-0.94, -0.34), vec(-0.5, -0.87),
 				vec(0.17, -0.98), vec(0.77, -0.64))),
-		hostileBadShape("polygon-two-vertices",
+		hostileRejectedShape("polygon-two-vertices",
 			"a convex polygon of 2 vertices",
-			physics.BodyTypeDynamic,
 			polygon(vec(-1, 0), vec(1, 0))),
-		hostileBadShape("polygon-no-vertices",
+		hostileRejectedShape("polygon-no-vertices",
 			"a convex polygon with no vertices at all",
-			physics.BodyTypeDynamic,
 			polygon()),
 		hostileBadShape("degenerate-capsule",
 			"a capsule whose two centers are the same point",
@@ -87,6 +81,8 @@ func hostileCases() []harness.Scenario {
 			capsule(vec(0, 0), vec(0, 0), 0.5)),
 		hostileMissingShape(),
 		hostileDeletedShape(),
+		hostileFailingBodyBlocksShapeEdit(),
+		hostileFailedAttachKeepsShapes(),
 		hostileBadShape("chain-on-dynamic-body",
 			"a chain fixture on a dynamic body, which has no mass",
 			physics.BodyTypeDynamic,
@@ -138,6 +134,131 @@ func hostileDestroyDuringContact() harness.Scenario {
 // body is created mid-run rather than at Init because InitPhysicsSystem panics on
 // any FullRebuildFromECS error, which would hide which shape was at fault behind
 // a stack trace for the whole scene.
+// hostileRejectedShape spawns a shape the plugin refuses to build. Nothing must reach the
+// engine: Spawn reports the reason, no shape entity is created, and the shard keeps running
+// with the bystander untouched. These are the cases a game would otherwise only find out
+// about a tick later, as a body that fails to attach every tick.
+// hostileFailingBodyBlocksShapeEdit covers the reconcile pass having to reach every body even
+// after one of them fails. A body whose shape entity was deleted fails its reconcile on every
+// tick. A second body with a higher entity id shares a different shape, and that shape's
+// material is edited while the first body is failing.
+//
+// The edit is marked dirty for exactly one tick: the next SyncShapes clears the marks, and the
+// mirror already matches the component, so nothing re-marks it. If the failing body ends the
+// pass, the second body never sees the mark and Box2D keeps the old friction for good, with no
+// error after the first tick. It runs alone because the broken body logs every tick.
+func hostileFailingBodyBlocksShapeEdit() harness.Scenario {
+	var (
+		doomed  physics.ShapeSlot
+		shared  physics.ShapeSlot
+		healthy cardinal.EntityID
+	)
+	const editedFriction = 0.9
+	return harness.Scenario{
+		Name: "failing-body-blocks-shape-edit",
+		Setup: func(c *harness.Ctx) {
+			// Spawned first, so its entity id sorts ahead of the healthy body's and it is
+			// reconciled first.
+			doomed = box(1, 1).Spawn(c)
+			c.Spawn("broken", 0, 10, physics.NewPhysicsBody2D(physics.BodyTypeStatic, doomed))
+
+			shared = withFriction(box(1, 1), 0.3).Spawn(c)
+			healthy = c.Spawn("healthy", 20, 10,
+				physics.NewPhysicsBody2D(physics.BodyTypeStatic, shared))
+		},
+		Steps: []harness.Step{
+			{Tick: 3, Do: func(c *harness.Ctx) {
+				ids, ok := c.Plugin().ShapeIDs(healthy)
+				if c.True("the healthy body has a fixture", ok && len(ids) > 0, "no fixture") {
+					c.Near("it starts at the friction it was spawned with",
+						c.Plugin().Engine().ShapeFriction(ids[0]), 0.3, 0)
+				}
+			}},
+			{Tick: 5, Do: func(c *harness.Ctx) {
+				c.Note("deleting shape entity %d so the first body fails every tick", doomed.Shape)
+				c.True("deleting the doomed shape succeeds", c.DestroyShape(doomed.Shape),
+					"Destroy returned false")
+			}},
+			{Tick: 10, Do: func(c *harness.Ctx) {
+				c.True("editing the shared shape succeeds",
+					harness.EditShape(c, shared, func(common *physics.ShapeCommon, _ *physics.BoxGeom) {
+						common.Friction = editedFriction
+					}), "EditShape found no box behind the slot")
+			}},
+			{Tick: 15, Do: func(c *harness.Ctx) {
+				ids, ok := c.Plugin().ShapeIDs(healthy)
+				if c.True("the healthy body still has its fixture", ok && len(ids) > 0, "no fixture") {
+					c.Near("a body past a failing one still receives a shape edit",
+						c.Plugin().Engine().ShapeFriction(ids[0]), editedFriction, 0)
+				}
+			}},
+		},
+	}
+}
+
+// hostileFailedAttachKeepsShapes covers a body that fails to attach keeping its shapes. The
+// body names two shapes; one is deleted, so the rebuild fails and the body is dropped. The
+// other shape is still named by that body and must survive, or the retry on the next tick has
+// nothing to point at and the body can never recover. It runs alone because the dropped body
+// logs every tick.
+func hostileFailedAttachKeepsShapes() harness.Scenario {
+	var keeper, doomed physics.ShapeSlot
+	return harness.Scenario{
+		Name: "failed-attach-keeps-shapes",
+		Setup: func(c *harness.Ctx) {
+			keeper = box(1, 1).Spawn(c)
+			doomed = box(2, 2).Spawn(c).At(vec(5, 0), 0)
+			c.Spawn("two-shapes", 0, 10,
+				physics.NewPhysicsBody2D(physics.BodyTypeStatic, keeper, doomed))
+		},
+		Steps: []harness.Step{
+			{Tick: 3, Do: func(c *harness.Ctx) {
+				c.True("both shapes exist before the deletion",
+					c.ShapeAlive(keeper.Shape) && c.ShapeAlive(doomed.Shape), "a shape is missing")
+			}},
+			{Tick: 5, Do: func(c *harness.Ctx) {
+				c.Note("deleting shape entity %d, one of the body's two", doomed.Shape)
+				c.True("deleting one of the body's shapes succeeds", c.DestroyShape(doomed.Shape),
+					"Destroy returned false")
+			}},
+			{Tick: 10, Do: func(c *harness.Ctx) {
+				c.True("a shape the failing body still names is not swept",
+					c.ShapeAlive(keeper.Shape),
+					"shape entity %d was destroyed while a body still named it", keeper.Shape)
+			}},
+			{Tick: 30, Do: func(c *harness.Ctx) {
+				c.True("it is still there after many failing ticks", c.ShapeAlive(keeper.Shape),
+					"shape entity %d was destroyed later", keeper.Shape)
+			}},
+		},
+	}
+}
+
+func hostileRejectedShape(name, description string, shape ShapeSpec) harness.Scenario {
+	var bystander cardinal.EntityID
+	return harness.Scenario{
+		Name: name,
+		Setup: func(c *harness.Ctx) {
+			bystander = c.Spawn("bystander", 0, 0, body(c, physics.BodyTypeStatic, box(5, 1)))
+		},
+		Steps: []harness.Step{
+			{Tick: 5, Do: func(c *harness.Ctx) {
+				c.Note("spawning %s", description)
+				slot, err := shape.TrySpawn(c)
+				c.HasError("Spawn refuses "+description, err)
+				c.True("a refused shape creates no entity", slot.Shape == 0,
+					"Spawn handed back shape entity %d", slot.Shape)
+			}},
+			{Tick: 20, Do: func(c *harness.Ctx) {
+				c.True("the shard survives "+description, true, "unreachable")
+				c.True("the bystander still has its fixture",
+					c.OverlapHits(c.OverlapAABB(-5, -1, 5, 1, nil), bystander),
+					"the bystander lost its body")
+			}},
+		},
+	}
+}
+
 func hostileBadShape(
 	name, description string, kind physics.BodyType, shape ShapeSpec,
 ) harness.Scenario {

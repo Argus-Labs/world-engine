@@ -45,12 +45,24 @@ func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 		return err
 	}
 	rt.destroyOrphanBodies(sorted)
+	// Count what every body declares before reconciling any of them, so the shape reference
+	// counts never depend on how far this pass got.
+	for i := range sorted {
+		rt.noteDeclared(sorted[i].EntityID, sorted[i].PhysicsBody.Shapes)
+	}
+	// One failing entity must not skip the rest. Two things break if it does: a shape edited
+	// this tick loses its dirty mark before the bodies past the failure ever see it (the next
+	// SyncShapes clears the map and the mirror already matches the component, so nothing
+	// re-marks it, and Box2D keeps the old material for good), and a body past the failure
+	// never re-references a shape whose last other reference just went away, so the sweep
+	// deletes it. Each entity's failure path already leaves that entity in a clean state.
+	var errs []error
 	for _, e := range sorted {
 		if err := rt.reconcileOneEntry(e); err != nil {
-			return err
+			errs = append(errs, err)
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // cloneSortAndCheckDuplicateReconcileEntries returns entries sorted by EntityID or an error if
@@ -76,8 +88,8 @@ func (rt *Runtime) cloneSortAndCheckDuplicateReconcileEntries(
 }
 
 // destroyOrphanBodies removes bodies (and shadow/active-contact rows) for entities not present
-// in sorted. Membership uses binary search on the EntityID-sorted entries, avoiding a per-tick
-// set allocation.
+// in sorted, and releases the shape references of every entity that left ECS. Membership uses
+// binary search on the EntityID-sorted entries, avoiding a per-tick set allocation.
 func (rt *Runtime) destroyOrphanBodies(sorted []PhysicsRebuildEntry) {
 	var orphans []cardinal.EntityID
 	for id := range rt.KnownEntities {
@@ -89,8 +101,17 @@ func (rt *Runtime) destroyOrphanBodies(sorted []PhysicsRebuildEntry) {
 	for _, id := range orphans {
 		rt.DestroyEntityBody(id)
 		delete(rt.KnownEntities, id)
-		rt.dropShadow(id)
+		delete(rt.Shadow, id)
 		rt.PruneActiveContactsInvolvingEntity(id)
+	}
+	// Shape references are released here rather than in the loop above, because they are not
+	// keyed on the same set. A body whose attach failed is no longer a known entity but still
+	// declares its slots, so if it then leaves ECS this scan is the only thing that frees them.
+	// Order does not matter: SweepUnusedShapes sorts what this queues.
+	for id := range rt.declaredSlots {
+		if !sortedEntriesContainID(sorted, id) {
+			rt.forgetDeclared(id)
+		}
 	}
 }
 
@@ -131,7 +152,7 @@ func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
 	if err := rt.reconcileExistingBody(hadPrev, prev, e); err != nil {
 		return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
 	}
-	rt.setShadow(e.EntityID, NewShadowState(e.Transform, e.Velocity, e.PhysicsBody))
+	rt.Shadow[e.EntityID] = NewShadowState(e.Transform, e.Velocity, e.PhysicsBody)
 	return nil
 }
 
@@ -146,7 +167,7 @@ func (rt *Runtime) createBodyForEntry(e PhysicsRebuildEntry) error {
 		return err
 	}
 	rt.KnownEntities[e.EntityID] = struct{}{}
-	rt.setShadow(e.EntityID, NewShadowState(e.Transform, e.Velocity, e.PhysicsBody))
+	rt.Shadow[e.EntityID] = NewShadowState(e.Transform, e.Velocity, e.PhysicsBody)
 	return nil
 }
 
@@ -160,7 +181,7 @@ func (rt *Runtime) reconcileExistingBody(
 		// No shadow: treat as inconsistent; rebuild this body from scratch.
 		rt.DestroyEntityBody(e.EntityID)
 		delete(rt.KnownEntities, e.EntityID)
-		rt.dropShadow(e.EntityID)
+		delete(rt.Shadow, e.EntityID)
 		rt.PruneActiveContactsInvolvingEntity(e.EntityID)
 		return rt.createBodyForEntry(e)
 	}
@@ -222,10 +243,12 @@ func (rt *Runtime) reconcileShapesChange(
 	rt.destroyAllShapesForEntity(entityID)
 	if err := rt.AttachColliderFixtures(entityID, live); err != nil {
 		// Half a body is worse than none: drop it entirely so the next tick treats the entity
-		// as new, retries the attach, and logs the same failure until the game fixes it.
+		// as new, retries the attach, and logs the same failure until the game fixes it. The
+		// shadow goes but the declared slots stay, so the shapes this body still names are not
+		// swept out from under the retry.
 		rt.DestroyEntityBody(entityID)
 		delete(rt.KnownEntities, entityID)
-		rt.dropShadow(entityID)
+		delete(rt.Shadow, entityID)
 		rt.PruneActiveContactsInvolvingEntity(entityID)
 		return err
 	}
@@ -299,13 +322,13 @@ func (rt *Runtime) applyMutableShapeFixtures(
 	for i, slot := range live.All() {
 		sh, err := rt.validateSlot(slot)
 		if err != nil {
+			rt.resolvedScratch = clearScratchTail(resolved)
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 		resolved = append(resolved, sh)
 	}
-	rt.resolvedScratch = resolved
+	rt.resolvedScratch = clearScratchTail(resolved)
 	slots := rt.Shapes[entityID]
-	var densityTouched bool
 	for i, l := range live.All() {
 		p := prev.At(i)
 		_, dirty := rt.dirtyShapes[l.Shape]
@@ -313,9 +336,6 @@ func (rt *Runtime) applyMutableShapeFixtures(
 			continue
 		}
 		sh := resolved[i]
-		if old, ok := rt.ShapeMirror[p.Shape]; !ok || old.Common.Density != sh.Common.Density {
-			densityTouched = true
-		}
 		// Chain slots hold a null ShapeID and are skipped, matching the CGO bridge
 		// (its per-shape setters could not resolve chain shape indices either).
 		if i >= len(slots) || slots[i].IsNull() {
@@ -325,17 +345,14 @@ func (rt *Runtime) applyMutableShapeFixtures(
 		c := sh.Common
 		rt.World.SetShapeFriction(sid, c.Friction)
 		rt.World.SetShapeRestitution(sid, c.Restitution)
+		// The trailing true is Box2D's updateBodyMass: a density change re-derives the body's
+		// mass here, so nothing further up needs to track whether density moved.
 		rt.World.SetShapeDensity(sid, c.Density, true)
 		rt.World.SetShapeFilter(sid, box2d.Filter{
 			CategoryBits: c.CategoryBits,
 			MaskBits:     c.MaskBits,
 			GroupIndex:   int(c.GroupIndex),
 		})
-	}
-	if densityTouched {
-		if bodyID, ok := rt.Bodies[entityID]; ok {
-			rt.World.ApplyBodyMassFromShapes(bodyID)
-		}
 	}
 	return nil
 }

@@ -11,42 +11,40 @@ import (
 // Shape cleanup.
 //
 // Shape entities are shared, so no single body may delete one. The runtime counts, per shape
-// entity, how many attached bodies reference it (shapeRefs). The counts are derived from the
-// shadows: every shadow write goes through setShadow / dropShadow, which adjust the counts by
-// the slots that changed, so the counts are exact in steady state and cost nothing on ticks
-// where no body changes its slots.
+// entity, how many body entities name it in a slot (shapeRefs). The counts come from what each
+// body declares in ECS (declaredSlots), not from what Box2D accepted: a body whose attach
+// fails still holds its shapes, so the retry on the next tick still has them to point at.
 //
-// A shape gets a count entry the first time a body uses it. When its count reaches zero it is
-// queued, and SweepUnusedShapes destroys the queued shapes still at zero after the whole
-// reconcile pass — so a shape moving between two bodies in one tick is never deleted. A shape
-// that was spawned but never used has no entry and is never touched, and after a full rebuild
-// (Reset, restore) the counts start from the bodies that exist then, so anything unreferenced
-// at that moment counts as never used and is kept.
-//
-// One known gap: a body whose attach fails has no shadow, so its shapes are not counted.
+// A shape gets a count entry the first time a body declares it. When its count reaches zero the
+// entry stays (the shape is "armed": it was used once) and the id is queued. SweepUnusedShapes
+// destroys the queued shapes still at zero after the whole reconcile pass, so a shape moving
+// between two bodies in one tick is never deleted. A shape spawned but never used has no entry
+// and is never touched, and after a full rebuild (Reset, restore) the counts start from the
+// bodies that exist then, so anything unreferenced at that moment counts as never used.
 
-// setShadow stores the shadow for entityID, adjusting shape reference counts by the slots that
-// changed since the shadow it replaces.
-func (rt *Runtime) setShadow(entityID cardinal.EntityID, s ShadowState) {
-	if prev, ok := rt.Shadow[entityID]; ok {
-		if !immutable.Equal(prev.PhysicsBody.Shapes, s.PhysicsBody.Shapes) {
-			rt.unrefSlots(prev.PhysicsBody.Shapes)
-			rt.refSlots(s.PhysicsBody.Shapes)
-		}
-	} else {
-		rt.refSlots(s.PhysicsBody.Shapes)
-	}
-	rt.Shadow[entityID] = s
-}
-
-// dropShadow removes entityID's shadow, releasing its slots' references.
-func (rt *Runtime) dropShadow(entityID cardinal.EntityID) {
-	prev, ok := rt.Shadow[entityID]
-	if !ok {
+// noteDeclared records the slot list a body entity declares this tick, adjusting the counts by
+// what changed since the last list it declared. Declaring the same list again costs one compare.
+func (rt *Runtime) noteDeclared(entityID cardinal.EntityID, slots immutable.Slice[component.ShapeSlot]) {
+	prev, seen := rt.declaredSlots[entityID]
+	if seen && immutable.Equal(prev, slots) {
 		return
 	}
-	rt.unrefSlots(prev.PhysicsBody.Shapes)
-	delete(rt.Shadow, entityID)
+	if seen {
+		rt.unrefSlots(prev)
+	}
+	rt.refSlots(slots)
+	rt.declaredSlots[entityID] = slots
+}
+
+// forgetDeclared drops a body entity's slot list, releasing its references. Called when the
+// entity leaves ECS, never when its body merely fails to attach.
+func (rt *Runtime) forgetDeclared(entityID cardinal.EntityID) {
+	prev, seen := rt.declaredSlots[entityID]
+	if !seen {
+		return
+	}
+	rt.unrefSlots(prev)
+	delete(rt.declaredSlots, entityID)
 }
 
 func (rt *Runtime) refSlots(slots immutable.Slice[component.ShapeSlot]) {
@@ -72,12 +70,13 @@ func (rt *Runtime) unrefSlots(slots immutable.Slice[component.ShapeSlot]) {
 	}
 }
 
-// rebuildShapeRefs recomputes the counts from every shadow, after a full rebuild.
-func (rt *Runtime) rebuildShapeRefs() {
+// rebuildShapeRefs recomputes the declared lists and counts from entries, after a full rebuild.
+func (rt *Runtime) rebuildShapeRefs(entries []PhysicsRebuildEntry) {
+	clear(rt.declaredSlots)
 	clear(rt.shapeRefs)
 	rt.shapeSweepScratch = rt.shapeSweepScratch[:0]
-	for _, s := range rt.Shadow {
-		rt.refSlots(s.PhysicsBody.Shapes)
+	for i := range entries {
+		rt.noteDeclared(entries[i].EntityID, entries[i].PhysicsBody.Shapes)
 	}
 }
 

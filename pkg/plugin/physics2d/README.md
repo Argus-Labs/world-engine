@@ -83,6 +83,12 @@ density 1, category 1, mask all). `Spawn` returns the slot; chain
 `At(offset, rotation)` onto the slot to place it, and reuse the slot (or its
 `Shape` id via `Slot(id)`) on as many bodies as you like.
 
+`Spawn` validates first and returns `(ShapeSlot, error)`. A definition Box2D
+could never build — a radius of zero or less, a box with a zero extent, a
+polygon outside 3..8 vertices, any NaN — creates nothing and tells you why,
+at the line that built it, instead of becoming a shape entity that fails to
+attach on every tick from then on.
+
 ```go
 import (
     "github.com/argus-labs/world-engine/pkg/cardinal"
@@ -107,14 +113,22 @@ func SpawnSystem(state *SpawnState) {
         return
     }
     // World geometry: a static floor box.
-    floor := physics2d.Box(25, 1).Material(0.5, 0, 0).Filter(0x0002, 0xFFFF).Spawn(&state.Boxes)
+    floor, err := physics2d.Box(25, 1).Material(0.5, 0, 0).Filter(0x0002, 0xFFFF).Spawn(&state.Boxes)
+    if err != nil {
+        state.Logger().Error().Err(err).Msg("floor shape rejected")
+        return
+    }
     _, f := state.Balls.Create()
     f.T.Set(physics2d.Transform2D{})
     f.V.Set(physics2d.Velocity2D{})
     f.PB.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeStatic, floor))
 
     // One ball shape, shared by every ball.
-    ball := physics2d.Circle(0.5).Material(0.3, 0.2, 1).Filter(0x0001, 0xFFFF).Spawn(&state.Circles)
+    ball, err := physics2d.Circle(0.5).Material(0.3, 0.2, 1).Filter(0x0001, 0xFFFF).Spawn(&state.Circles)
+    if err != nil {
+        state.Logger().Error().Err(err).Msg("ball shape rejected")
+        return
+    }
     for i := range 10 {
         _, b := state.Balls.Create()
         b.T.Set(physics2d.Transform2D{Position: physics2d.Vec2{X: float64(i), Y: 10}})

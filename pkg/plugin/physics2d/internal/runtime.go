@@ -63,8 +63,13 @@ type Runtime struct {
 	dirtyShapes map[cardinal.EntityID]shapeChange
 
 	// shapeRefs counts, per shape entity, the attached bodies (shadows) whose slots reference
-	// it. Maintained by setShadow / dropShadow; see shape_sweep.go.
+	// it. Maintained by noteDeclared / forgetDeclared; see shape_sweep.go.
 	shapeRefs map[cardinal.EntityID]int
+
+	// declaredSlots is the slot list each body entity last declared in ECS, whether or not the
+	// body attached. shapeRefs is derived from these, so a body whose attach fails still holds
+	// its shapes and a tick that fails partway through releases nothing it did not reach.
+	declaredSlots map[cardinal.EntityID]immutable.Slice[component.ShapeSlot]
 
 	// shapeSweepScratch queues shape ids whose count reached zero this tick, for
 	// SweepUnusedShapes. Ids only.
@@ -237,6 +242,7 @@ func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps, workers int) 
 		ShapeMirror:          make(map[cardinal.EntityID]ResolvedShape),
 		dirtyShapes:          make(map[cardinal.EntityID]shapeChange),
 		shapeRefs:            make(map[cardinal.EntityID]int),
+		declaredSlots:        make(map[cardinal.EntityID]immutable.Slice[component.ShapeSlot]),
 		KnownEntities:        make(map[cardinal.EntityID]struct{}),
 		Shadow:               make(map[cardinal.EntityID]ShadowState),
 		BufferedContacts:     make([]BufferedContactEvent, 0),
@@ -259,6 +265,7 @@ func (rt *Runtime) Reset() {
 	rt.ShapeMirror = make(map[cardinal.EntityID]ResolvedShape)
 	rt.dirtyShapes = make(map[cardinal.EntityID]shapeChange)
 	rt.shapeRefs = make(map[cardinal.EntityID]int)
+	rt.declaredSlots = make(map[cardinal.EntityID]immutable.Slice[component.ShapeSlot])
 	rt.shapeSweepScratch = nil
 	rt.resolvedScratch = nil
 	rt.KnownEntities = make(map[cardinal.EntityID]struct{})

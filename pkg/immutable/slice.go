@@ -14,6 +14,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/goccy/go-json"
+
 	"github.com/argus-labs/world-engine/pkg/assert"
 )
 
@@ -401,6 +403,31 @@ func Concat[T any](ss ...Slice[T]) Slice[T] {
 // Collect returns a Slice holding every element of seq, in order.
 func Collect[T any](seq iter.Seq[T]) Slice[T] {
 	return Slice[T]{items: slices.Collect(seq)}
+}
+
+// -------------------------------------------------------------------------------------------------
+// JSON
+// -------------------------------------------------------------------------------------------------
+
+// MarshalJSON encodes the elements as a JSON array. The elements live in an unexported field, so
+// without this a Slice would encode as {} and drop everything it holds. An empty or zero Slice
+// encodes as [], never null, so a component that has never been appended to still reads as a list.
+func (s Slice[T]) MarshalJSON() ([]byte, error) {
+	if len(s.items) == 0 {
+		return []byte("[]"), nil
+	}
+	return json.Marshal(s.items)
+}
+
+// UnmarshalJSON decodes a JSON array into a new Slice, replacing whatever the receiver held. Both
+// [] and null decode to an empty Slice, which Equal treats as the same list as a nil one.
+func (s *Slice[T]) UnmarshalJSON(data []byte) error {
+	var items []T
+	if err := json.Unmarshal(data, &items); err != nil {
+		return err
+	}
+	s.items = items
+	return nil
 }
 
 // -------------------------------------------------------------------------------------------------

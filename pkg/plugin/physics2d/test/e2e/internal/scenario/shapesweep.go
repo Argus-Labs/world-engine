@@ -9,7 +9,9 @@ import (
 // ShapeSweep covers automatic shape cleanup: a shape entity is deleted on the tick its last
 // body reference goes away, and only after being used once. Staged shapes are never touched,
 // a slot swap releases the old shape, a shape traded between two bodies in one tick survives,
-// and a Reset starts the counts over so an unreferenced shape is kept.
+// and a Reset starts the counts over so an unreferenced shape is kept. References follow what
+// a body declares in ECS rather than what it attached, so a body that stops attaching keeps
+// its shapes and only releases them when the entity itself leaves.
 //
 // The Reset happens on the same tick the reset scenario uses, so a run that puts every
 // scenario in one world sees one rebuild, not two.
@@ -23,14 +25,18 @@ func ShapeSweep() harness.Scenario {
 		a, b                   cardinal.EntityID
 		shapeA, shapeB         physics.ShapeSlot
 		survivor, survivorSlot cardinal.EntityID
+		broken                 cardinal.EntityID
+		brokenKeep, brokenGone physics.ShapeSlot
 	}
 
 	const (
-		destroyTick = 5
-		swapTick    = 5
-		firstGone   = 3
-		secondGone  = 6
-		resetTick   = 450 // must match scenario.Reset
+		brokenShapeGone = 5
+		brokenBodyGone  = 9
+		destroyTick     = 5
+		swapTick        = 5
+		firstGone       = 3
+		secondGone      = 6
+		resetTick       = 450 // must match scenario.Reset
 	)
 
 	wall := func(c *harness.Ctx, label string, x, y float64, slot physics.ShapeSlot) cardinal.EntityID {
@@ -63,6 +69,14 @@ func ShapeSweep() harness.Scenario {
 			s.a = wall(c, "trade-a", -5, 30, s.shapeA)
 			s.b = wall(c, "trade-b", 5, 30, s.shapeB)
 
+			// Row y=50 — a body that stops attaching, then leaves. It names two shapes; one is
+			// deleted, so its rebuild fails every tick and it holds no shadow. The shapes it
+			// still names must live until the entity itself goes, and go with it.
+			s.brokenKeep = box(1, 1).Spawn(c)
+			s.brokenGone = box(1, 1).Spawn(c).At(vec(5, 0), 0)
+			s.broken = c.Spawn("broken-then-gone", 0, 50,
+				physics.NewPhysicsBody2D(physics.BodyTypeStatic, s.brokenKeep, s.brokenGone))
+
 			// Row y=40 — its body dies in the tick the world is reset.
 			slot = box(1, 1).Spawn(c)
 			s.survivorSlot = slot.Shape
@@ -71,10 +85,26 @@ func ShapeSweep() harness.Scenario {
 		Steps: []harness.Step{
 			{Tick: 2, Do: func(c *harness.Ctx) {
 				for _, id := range []cardinal.EntityID{s.loneShape, s.swapOld.Shape, s.shared, s.staged,
-					s.shapeA.Shape, s.shapeB.Shape, s.survivorSlot} {
+					s.shapeA.Shape, s.shapeB.Shape, s.survivorSlot, s.brokenKeep.Shape} {
 					c.True("every shape exists before anything is released", c.ShapeAlive(id),
 						"shape entity %d is missing", id)
 				}
+			}},
+			{Tick: brokenShapeGone, Do: func(c *harness.Ctx) {
+				c.True("deleting one of the broken body's shapes succeeds",
+					c.DestroyShape(s.brokenGone.Shape), "Destroy returned false")
+			}},
+			{Tick: brokenShapeGone + 2, Do: func(c *harness.Ctx) {
+				c.True("a shape a failing body still names is kept", c.ShapeAlive(s.brokenKeep.Shape),
+					"shape entity %d was swept while its body was failing", s.brokenKeep.Shape)
+			}},
+			{Tick: brokenBodyGone, Do: func(c *harness.Ctx) {
+				c.True("destroying the failing body succeeds", c.Destroy(s.broken), "Destroy returned false")
+			}},
+			{Tick: brokenBodyGone + 2, Do: func(c *harness.Ctx) {
+				c.False("its shapes are released once the entity itself is gone",
+					c.ShapeAlive(s.brokenKeep.Shape),
+					"shape entity %d outlived the only body that named it", s.brokenKeep.Shape)
 			}},
 			{Tick: firstGone, Do: func(c *harness.Ctx) {
 				c.True("destroying the first sharer succeeds", c.Destroy(s.first), "Destroy returned false")

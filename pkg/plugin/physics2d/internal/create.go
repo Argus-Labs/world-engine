@@ -83,11 +83,12 @@ func (rt *Runtime) AttachColliderFixtures(
 	for i, slot := range slots.All() {
 		sh, err := rt.validateSlot(slot)
 		if err != nil {
+			rt.resolvedScratch = clearScratchTail(resolved)
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 		resolved = append(resolved, sh)
 	}
-	rt.resolvedScratch = resolved
+	rt.resolvedScratch = clearScratchTail(resolved)
 	for i, slot := range slots.All() {
 		if err := rt.attachShape(entityID, i, slot, resolved[i]); err != nil {
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)

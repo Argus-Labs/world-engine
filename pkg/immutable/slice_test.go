@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/immutable"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/require"
 )
 
@@ -479,4 +480,56 @@ func TestSlice_DerivationsWriteThrough(t *testing.T) {
 			require.Equal(t, c.receiver, collect(s), "receiver after %s", c.name)
 		})
 	}
+}
+
+func TestSlice_JSONRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	s := immutable.SliceOf(point{X: 1, Y: 2}, point{X: 3, Y: 4})
+	data, err := json.Marshal(s)
+	require.NoError(t, err)
+	require.JSONEq(t, `[{"X":1,"Y":2},{"X":3,"Y":4}]`, string(data))
+
+	var back immutable.Slice[point]
+	require.NoError(t, json.Unmarshal(data, &back))
+	require.True(t, immutable.Equal(s, back))
+}
+
+func TestSlice_JSONEmptyAndNullAreEmptyLists(t *testing.T) {
+	t.Parallel()
+
+	// The zero value carries no backing array; it must still encode as a list, not as null
+	// or as the {} an unexported field would otherwise produce.
+	var zero immutable.Slice[point]
+	data, err := json.Marshal(zero)
+	require.NoError(t, err)
+	require.Equal(t, "[]", string(data))
+
+	for _, in := range []string{"[]", "null"} {
+		var back immutable.Slice[point]
+		require.NoError(t, json.Unmarshal([]byte(in), &back))
+		require.Zero(t, back.Len())
+		require.True(t, immutable.Equal(zero, back))
+	}
+}
+
+func TestSlice_JSONInsideAStruct(t *testing.T) {
+	t.Parallel()
+
+	// The field is unexported, so without the codec the whole list would be dropped here
+	// while the surrounding struct still marshalled cleanly.
+	type holder struct {
+		Name   string                  `json:"name"`
+		Points immutable.Slice[point]  `json:"points"`
+		Tags   immutable.Slice[string] `json:"tags"`
+	}
+	in := holder{Name: "h", Points: immutable.SliceOf(point{X: 5}), Tags: immutable.SliceOf("a", "b")}
+	data, err := json.Marshal(in)
+	require.NoError(t, err)
+
+	var out holder
+	require.NoError(t, json.Unmarshal(data, &out))
+	require.Equal(t, in.Name, out.Name)
+	require.True(t, immutable.Equal(in.Points, out.Points))
+	require.True(t, immutable.Equal(in.Tags, out.Tags))
 }
