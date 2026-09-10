@@ -28,6 +28,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
@@ -317,6 +318,9 @@ func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 		}
 		v.SetString(string(b))
 	case reflect.Struct:
+		if fillImmutableSlice(prng, v, liveEntityIDs) {
+			return
+		}
 		for i := range v.NumField() {
 			if v.Field(i).CanSet() {
 				fillRandom(prng, v.Field(i), liveEntityIDs)
@@ -334,6 +338,34 @@ func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 			fillRandom(prng, v.Index(i), liveEntityIDs)
 		}
 	}
+}
+
+// fillImmutableSlice fills v with random elements when it is an immutable.Slice, and reports whether
+// it was one. The struct walk in fillRandom cannot do it: a Slice's only field is unexported, so
+// CanSet is false and the Slice would stay empty, leaving every command that carries one untested.
+//
+// immutable.SliceElem identifies the Slice and its element type, a random []T is built with the
+// ordinary recursion, and Append takes it in one call — Append is variadic, so CallSlice hands it the
+// whole slice at once. That is the Slice's own API, so immutable needs no setter and no codec.
+func fillImmutableSlice(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) bool {
+	t := v.Type()
+	elem, ok := immutable.SliceElem(t)
+	if !ok {
+		return false
+	}
+	// A Slice has no settable field, so the struct walk would pass it by in silence — the exact
+	// failure this function exists to prevent.
+	if !v.CanSet() {
+		panic("dst: " + t.String() + " is not settable, so it cannot be filled")
+	}
+
+	n := prng.IntN(5)
+	items := reflect.MakeSlice(reflect.SliceOf(elem), n, n)
+	for i := range n {
+		fillRandom(prng, items.Index(i), liveEntityIDs)
+	}
+	v.Set(v.MethodByName("Append").CallSlice([]reflect.Value{items})[0])
+	return true
 }
 
 // -------------------------------------------------------------------------------------------------

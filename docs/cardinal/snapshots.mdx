@@ -5,7 +5,9 @@ title: 'Snapshots & Durability'
 A Cardinal shard keeps its whole world in memory. A **snapshot** is the only durable copy of that
 world: every `SnapshotRate` ticks the shard serializes its state and writes it to snapshot storage,
 replacing the previous snapshot. On boot the shard loads it back and continues from the tick it was
-taken at.
+taken at. A snapshot holds exactly the component data that went through `Set`, which is why
+components hold values only (see
+[What a Component May Hold](/cardinal/ecs#what-a-component-may-hold)).
 
 ## Configuration
 

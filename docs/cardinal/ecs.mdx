@@ -68,6 +68,126 @@ func (Position) Name() string {
   underscores (e.g. `Health`, `player_health`).
 </Note>
 
+### What a Component May Hold
+
+Components are copied. `Get` hands you a copy and `Set` stores one, and every snapshot is built
+from what went through `Set`. That only works if a copy is independent of the original, so a
+component may hold values only:
+
+- Numbers, booleans, and strings
+- Structs of those
+- Fixed-size arrays such as `[8]Vec2`, at any depth
+- `immutable.Slice[T]` for a list with no fixed bound (see below)
+- `time.Time`, the one sanctioned exception. It carries a location pointer, but it travels as a
+  protobuf Timestamp, so a restored value comes back in UTC with no monotonic reading. Compare
+  times with `Equal`, never `==`.
+
+A component may **not** hold pointers, maps, plain slices (`[]T`), interfaces, channels, or funcs.
+A plain slice inside a copy still shares its backing array with the stored component, so writing
+through it changes the world without a `Set`. `world sdk generate` refuses such fields and prints
+the fix for each one. The same rule applies to commands and events, which cross the same generator.
+
+A list with a known upper bound is a fixed array plus a count:
+
+```go
+const MaxItems = 16
+
+type Inventory struct {
+	Items [MaxItems]Item `json:"items"`
+	Count int            `json:"count"`
+}
+```
+
+### Lists Without a Bound: `immutable.Slice`
+
+When the length has no bound you can defend, hold the list in `immutable.Slice[T]` from
+`github.com/argus-labs/world-engine/pkg/immutable`. On the wire it is the same repeated field a
+`[]T` would be. The difference is that the backing array is hidden: no other package can index into
+it, reslice it, or hold on to it, and every reader hands back a copy of the element.
+
+```go
+import "github.com/argus-labs/world-engine/pkg/immutable"
+
+type Buff struct {
+	Kind      string `json:"kind"`
+	ExpiresAt uint64 `json:"expires_at"` // tick
+}
+
+type Buffs struct {
+	Active immutable.Slice[Buff] `json:"active"`
+}
+
+func (Buffs) Name() string {
+	return "buffs"
+}
+```
+
+The API follows Go's `slices` package closely. Operations are named for their result rather than for
+an action on the receiver — `Reverse` becomes `Reversed`, and `Sort` and `SortFunc` become `Sorted`
+and `SortedFunc`.
+
+Reads such as `At`, `All`, `IndexFunc`, and `MinFunc` are methods, and so are derivations such as
+`Append`, `Insert`, `With`, `Without`, `Sub`, `Filter`, `Delete`, `Reversed`, and `SortedFunc`.
+Anything that needs a type constraint is a package function, for example `Equal`, `Contains`,
+`Sorted`, `Min`, `Map`, and `Concat`.
+
+Derive, then `Set` the component that holds it:
+
+```go
+func BuffSystem(state *BuffSystemState) error {
+	now := state.Tick()
+	for _, mob := range state.Mobs.Iter() {
+		buffs := mob.Buffs.Get()
+
+		// Drop expired buffs and add a new one.
+		buffs.Active = buffs.Active.
+			Filter(func(b Buff) bool { return b.ExpiresAt > now }).
+			Append(Buff{Kind: "haste", ExpiresAt: now + 60})
+
+		mob.Buffs.Set(buffs)
+	}
+	return nil
+}
+```
+
+`immutable.SliceOf(items...)` builds a Slice from a plain slice and copies it, so later changes to
+that slice never reach the component. To go the other way — a plain `[]T` for an API that needs one —
+range over `Values`, or use `immutable.Collect` to build a fresh Slice from the result: there is no
+`Clone` method, since a copy taken that way could look like it protects the original while
+derivations write through it regardless.
+
+<Warning>
+  **Derivations do not copy, so the `Set` is not optional.** Most of them edit the hidden array in
+  place and return a Slice over that same array, which means the component has already changed by the
+  time the derivation returns. Deriving and then dropping the result does not leave the world alone —
+  it leaves the world holding an edit that no snapshot recorded.
+
+  `Append`, `Repeat`, and `Sub` leave the receiver alone; `Insert` and `Replace` leave it alone only
+  when they have to grow. The rest — `With`, `Without`, `Filter`, `Delete`, `Reversed`, `SortedFunc`,
+  `CompactFunc`, `Sorted`, and `Compact` — always write through. Ones that shrink leave the receiver
+  at its old length over a zero-filled tail, so the receiver is not just reordered but wrong.
+
+  Two rules follow. Call `Set` after every derivation, even one you think is read-only:
+  `s.SortedFunc(cmp).At(0)` reorders the stored list. And when the original has to survive, derive
+  from a copy instead: `immutable.SliceOf(slices.Collect(s.Values())...)`.
+
+  Each method's Go doc says whether it writes through.
+</Warning>
+
+<Note>
+  `immutable.Slice` needs a World CLI new enough to generate it. An older one reports the field as an
+  unsupported type when you run `world sdk generate`.
+
+  A Slice has no JSON form of its own — the wire format is protobuf. Keep a `json` tag on the field if
+  you like, but do not expect a Slice to survive `encoding/json`.
+</Note>
+
+<Note>
+  The element type follows the same rule as any field: values only. A Slice directly inside another
+  Slice has no protobuf form, so wrap the inner one in a named struct, for example
+  `immutable.Slice[Row]` where `Row` holds `immutable.Slice[Cell]`.
+</Note>
+
 ### Tag Components
 
 Components don't need to contain data. You can use empty structs as "tags" to mark entities:
@@ -225,7 +345,9 @@ func MobSystem(state *MobSystemState) error {
 
 ### Reading and Writing Components
 
-Use `Get` and `Set` on component references to read and write component data:
+Use `Get` and `Set` on component references to read and write component data. `Get` returns a
+copy, so nothing you do to it reaches the world until you `Set` it back (see
+[What a Component May Hold](#what-a-component-may-hold)):
 
 ```go
 func MobSystem(state *MobSystemState) error {
