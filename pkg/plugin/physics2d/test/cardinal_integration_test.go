@@ -12,6 +12,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	"github.com/stretchr/testify/require"
 )
@@ -182,15 +183,14 @@ func sceneInitSystem(state *struct {
 	harness.Triangle = mustCreate("triangle",
 		physics.Transform2D{Position: physics.Vec2{X: -8, Y: 1}},
 		newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-			ShapeType: physics.ShapeTypeConvexPolygon,
-			Vertices: []physics.Vec2{
-				{X: 0, Y: 0}, {X: 2, Y: 0}, {X: 1, Y: 1.5},
-			},
+			ShapeType:    physics.ShapeTypeConvexPolygon,
 			Friction:     0.5,
 			Density:      0,
 			CategoryBits: 0x0001,
 			MaskBits:     0xFFFF,
-		}),
+		}.WithVertices(
+			physics.Vec2{X: 0, Y: 0}, physics.Vec2{X: 2, Y: 0}, physics.Vec2{X: 1, Y: 1.5},
+		)),
 	)
 
 	// Static chain segment (extra shape-type coverage); not referenced by assertions.
@@ -198,9 +198,10 @@ func sceneInitSystem(state *struct {
 		physics.Transform2D{Position: physics.Vec2{X: -15, Y: 0}},
 		newRigid(physics.BodyTypeStatic, physics.ColliderShape{
 			ShapeType: physics.ShapeTypeStaticChain,
-			ChainPoints: []physics.Vec2{
-				{X: 0, Y: 0}, {X: 1.5, Y: 0.2}, {X: 3, Y: 0.4}, {X: 4, Y: 0.5},
-			},
+			ChainPoints: immutable.SliceOf(
+				physics.Vec2{X: 0, Y: 0}, physics.Vec2{X: 1.5, Y: 0.2},
+				physics.Vec2{X: 3, Y: 0.4}, physics.Vec2{X: 4, Y: 0.5},
+			),
 			Friction:     0.4,
 			Density:      0,
 			CategoryBits: 0x0001,

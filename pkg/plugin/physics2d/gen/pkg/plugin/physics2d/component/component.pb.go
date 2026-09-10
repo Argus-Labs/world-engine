@@ -76,8 +76,9 @@ type ColliderShape struct {
 	IsSensor      bool                   `protobuf:"varint,4,opt,name=IsSensor,proto3" json:"IsSensor,omitempty"`
 	Radius        float64                `protobuf:"fixed64,5,opt,name=Radius,proto3" json:"Radius,omitempty"`
 	HalfExtents   *Vec2                  `protobuf:"bytes,6,opt,name=HalfExtents,proto3" json:"HalfExtents,omitempty"`
-	Vertices      []*Vec2                `protobuf:"bytes,7,rep,name=Vertices,proto3" json:"Vertices,omitempty"`
-	ChainPoints   []*Vec2                `protobuf:"bytes,8,rep,name=ChainPoints,proto3" json:"ChainPoints,omitempty"`
+	// Go: [8]Vec2, 8 elements
+	Vertices    []*Vec2 `protobuf:"bytes,7,rep,name=Vertices,proto3" json:"Vertices,omitempty"`
+	ChainPoints []*Vec2 `protobuf:"bytes,8,rep,name=ChainPoints,proto3" json:"ChainPoints,omitempty"`
 	// Go: [2]Vec2, 2 elements
 	EdgeVertices   []*Vec2 `protobuf:"bytes,9,rep,name=EdgeVertices,proto3" json:"EdgeVertices,omitempty"`
 	CapsuleCenter1 *Vec2   `protobuf:"bytes,10,opt,name=CapsuleCenter1,proto3" json:"CapsuleCenter1,omitempty"`
@@ -88,6 +89,7 @@ type ColliderShape struct {
 	CategoryBits   uint64  `protobuf:"varint,15,opt,name=CategoryBits,proto3" json:"CategoryBits,omitempty"`
 	MaskBits       uint64  `protobuf:"varint,16,opt,name=MaskBits,proto3" json:"MaskBits,omitempty"`
 	GroupIndex     int32   `protobuf:"varint,17,opt,name=GroupIndex,proto3" json:"GroupIndex,omitempty"`
+	VertexCount    int64   `protobuf:"varint,18,opt,name=VertexCount,proto3" json:"VertexCount,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -237,6 +239,13 @@ func (x *ColliderShape) GetMaskBits() uint64 {
 func (x *ColliderShape) GetGroupIndex() int32 {
 	if x != nil {
 		return x.GroupIndex
+	}
+	return 0
+}
+
+func (x *ColliderShape) GetVertexCount() int64 {
+	if x != nil {
+		return x.VertexCount
 	}
 	return 0
 }
@@ -683,7 +692,7 @@ const file_pkg_plugin_physics2d_component_component_proto_rawDesc = "" +
 	"\n" +
 	".pkg/plugin/physics2d/component/component.proto\x12Agithub_com.argus_labs.world_engine.pkg.plugin.physics2d.component\"{\n" +
 	"\x0eActiveContacts\x12i\n" +
-	"\x05Pairs\x18\x01 \x03(\v2S.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ContactPairEntryR\x05Pairs\"\xb4\b\n" +
+	"\x05Pairs\x18\x01 \x03(\v2S.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.ContactPairEntryR\x05Pairs\"\xd6\b\n" +
 	"\rColliderShape\x12\x1c\n" +
 	"\tShapeType\x18\x01 \x01(\rR\tShapeType\x12i\n" +
 	"\vLocalOffset\x18\x02 \x01(\v2G.github_com.argus_labs.world_engine.pkg.plugin.physics2d.component.Vec2R\vLocalOffset\x12$\n" +
@@ -704,7 +713,8 @@ const file_pkg_plugin_physics2d_component_component_proto_rawDesc = "" +
 	"\bMaskBits\x18\x10 \x01(\x04R\bMaskBits\x12\x1e\n" +
 	"\n" +
 	"GroupIndex\x18\x11 \x01(\x05R\n" +
-	"GroupIndex\"\xba\x03\n" +
+	"GroupIndex\x12 \n" +
+	"\vVertexCount\x18\x12 \x01(\x03R\vVertexCount\"\xba\x03\n" +
 	"\x10ContactPairEntry\x12\x18\n" +
 	"\aEntityA\x18\x01 \x01(\rR\aEntityA\x12 \n" +
 	"\vShapeIndexA\x18\x02 \x01(\x03R\vShapeIndexA\x12\x18\n" +
