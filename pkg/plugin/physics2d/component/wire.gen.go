@@ -6,6 +6,7 @@ package component
 
 import (
 	pkg_cardinal "github.com/argus-labs/world-engine/pkg/cardinal"
+	pkg_immutable "github.com/argus-labs/world-engine/pkg/immutable"
 	pbcomponent "github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/component"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -13,8 +14,8 @@ import (
 
 func (c ActiveContacts) ToProto() *pbcomponent.ActiveContacts {
 	p := &pbcomponent.ActiveContacts{}
-	for i := range c.Pairs {
-		p.Pairs = append(p.Pairs, c.Pairs[i].ToProto())
+	for v := range c.Pairs.Values() {
+		p.Pairs = append(p.Pairs, v.ToProto())
 	}
 	return p
 }
@@ -23,10 +24,14 @@ func (c ActiveContacts) FromProto(p *pbcomponent.ActiveContacts) ActiveContacts 
 	if p == nil {
 		return c
 	}
-	for _, e := range p.Pairs {
-		var v ContactPairEntry
-		v = v.FromProto(e)
-		c.Pairs = append(c.Pairs, v)
+	if len(p.Pairs) > 0 {
+		itemsPairs := make([]ContactPairEntry, 0, len(p.Pairs))
+		for _, e := range p.Pairs {
+			var v ContactPairEntry
+			v = v.FromProto(e)
+			itemsPairs = append(itemsPairs, v)
+		}
+		c.Pairs = pkg_immutable.SliceOf(itemsPairs...)
 	}
 	return c
 }
@@ -59,11 +64,11 @@ func (c ColliderShape) ToProto() *pbcomponent.ColliderShape {
 	p.IsSensor = bool(c.IsSensor)
 	p.Radius = float64(c.Radius)
 	p.HalfExtents = c.HalfExtents.ToProto()
-	for i := range c.Vertices {
-		p.Vertices = append(p.Vertices, c.Vertices[i].ToProto())
+	for i0 := range c.Vertices {
+		p.Vertices = append(p.Vertices, c.Vertices[i0].ToProto())
 	}
-	for i := range c.ChainPoints {
-		p.ChainPoints = append(p.ChainPoints, c.ChainPoints[i].ToProto())
+	for v := range c.ChainPoints.Values() {
+		p.ChainPoints = append(p.ChainPoints, v.ToProto())
 	}
 	for i0 := range c.EdgeVertices {
 		p.EdgeVertices = append(p.EdgeVertices, c.EdgeVertices[i0].ToProto())
@@ -76,6 +81,7 @@ func (c ColliderShape) ToProto() *pbcomponent.ColliderShape {
 	p.CategoryBits = uint64(c.CategoryBits)
 	p.MaskBits = uint64(c.MaskBits)
 	p.GroupIndex = int32(c.GroupIndex)
+	p.VertexCount = int64(c.VertexCount)
 	return p
 }
 
@@ -89,15 +95,21 @@ func (c ColliderShape) FromProto(p *pbcomponent.ColliderShape) ColliderShape {
 	c.IsSensor = bool(p.IsSensor)
 	c.Radius = float64(p.Radius)
 	c.HalfExtents = c.HalfExtents.FromProto(p.HalfExtents)
-	for _, e := range p.Vertices {
+	for i, e := range p.Vertices {
+		if i >= 8 {
+			break
+		}
 		var v Vec2
-		v = v.FromProto(e)
-		c.Vertices = append(c.Vertices, v)
+		c.Vertices[i] = v.FromProto(e)
 	}
-	for _, e := range p.ChainPoints {
-		var v Vec2
-		v = v.FromProto(e)
-		c.ChainPoints = append(c.ChainPoints, v)
+	if len(p.ChainPoints) > 0 {
+		itemsChainPoints := make([]Vec2, 0, len(p.ChainPoints))
+		for _, e := range p.ChainPoints {
+			var v Vec2
+			v = v.FromProto(e)
+			itemsChainPoints = append(itemsChainPoints, v)
+		}
+		c.ChainPoints = pkg_immutable.SliceOf(itemsChainPoints...)
 	}
 	for i, e := range p.EdgeVertices {
 		if i >= 2 {
@@ -114,6 +126,7 @@ func (c ColliderShape) FromProto(p *pbcomponent.ColliderShape) ColliderShape {
 	c.CategoryBits = uint64(p.CategoryBits)
 	c.MaskBits = uint64(p.MaskBits)
 	c.GroupIndex = int32(p.GroupIndex)
+	c.VertexCount = int(p.VertexCount)
 	return c
 }
 
@@ -162,8 +175,8 @@ func (c PhysicsBody2D) ToProto() *pbcomponent.PhysicsBody2D {
 	p.SleepingAllowed = bool(c.SleepingAllowed)
 	p.Bullet = bool(c.Bullet)
 	p.FixedRotation = bool(c.FixedRotation)
-	for i := range c.Shapes {
-		p.Shapes = append(p.Shapes, c.Shapes[i].ToProto())
+	for v := range c.Shapes.Values() {
+		p.Shapes = append(p.Shapes, v.ToProto())
 	}
 	return p
 }
@@ -181,10 +194,14 @@ func (c PhysicsBody2D) FromProto(p *pbcomponent.PhysicsBody2D) PhysicsBody2D {
 	c.SleepingAllowed = bool(p.SleepingAllowed)
 	c.Bullet = bool(p.Bullet)
 	c.FixedRotation = bool(p.FixedRotation)
-	for _, e := range p.Shapes {
-		var v ColliderShape
-		v = v.FromProto(e)
-		c.Shapes = append(c.Shapes, v)
+	if len(p.Shapes) > 0 {
+		itemsShapes := make([]ColliderShape, 0, len(p.Shapes))
+		for _, e := range p.Shapes {
+			var v ColliderShape
+			v = v.FromProto(e)
+			itemsShapes = append(itemsShapes, v)
+		}
+		c.Shapes = pkg_immutable.SliceOf(itemsShapes...)
 	}
 	return c
 }

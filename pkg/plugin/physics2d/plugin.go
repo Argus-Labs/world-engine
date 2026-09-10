@@ -56,6 +56,10 @@ const (
 	BodyTypeManual    = component.BodyTypeManual
 )
 
+// MaxPolygonVertices is the most vertices a ShapeTypeConvexPolygon collider can hold, matching
+// the bound Box2D compiles in. ColliderShape.Vertices has exactly this many slots.
+const MaxPolygonVertices = component.MaxPolygonVertices
+
 // Collider shape kinds (ColliderShape).
 const (
 	ShapeTypeCircle          = component.ShapeTypeCircle
