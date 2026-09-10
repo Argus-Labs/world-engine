@@ -15,11 +15,11 @@ import (
 // vertices, a box with no extent. Destroying an entity that still holds a live
 // contact is here too, from a completely different direction.
 //
-// A polygon with too MANY vertices used to be one of these. It is not expressible any
-// more: Vertices holds MaxPolygonVertices slots, WithVertices panics past them, and a
-// VertexCount past the bound fails ColliderShape.Validate rather than reaching Box2D —
-// so it no longer belongs to the family of inputs that pass Validate and then misbehave.
-// See TestValidate_ColliderShape_VertexCountPastBound.
+// A polygon with too MANY vertices used to be one of these. It no longer belongs here:
+// Vertices holds only MaxPolygonVertices slots, so a polygon claiming more fails
+// ColliderShape.Validate and never reaches Box2D — which puts it outside the family this
+// file is about, inputs that PASS Validate and then misbehave. It is still rejected rather
+// than fatal; see TestWithVertices_ReportsPastBoundInsteadOfPanicking.
 //
 // Validate only checks that numbers are finite, so all of these reach the
 // engine. Against the cgo bridge four of them tripped a fatal Box2D assertion

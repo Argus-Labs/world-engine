@@ -59,8 +59,8 @@ func box(halfWidth, halfHeight float64) physics.ColliderShape {
 }
 
 // polygon builds a convex polygon collider. Box2D welds and hulls the points, so
-// they need not be given in a particular winding order. WithVertices sets VertexCount to match
-// and panics past MaxPolygonVertices, which for a scenario literal is a typo rather than data.
+// they need not be given in a particular winding order. WithVertices sets VertexCount to match;
+// past MaxPolygonVertices the shape comes back failing Validate rather than panicking.
 func polygon(vertices ...physics.Vec2) physics.ColliderShape {
 	return base(physics.ShapeTypeConvexPolygon).WithVertices(vertices...)
 }
