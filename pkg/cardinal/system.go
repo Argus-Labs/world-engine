@@ -882,9 +882,11 @@ func (s SearchResult[E, C]) Single() (E, C, error) {
 // Re-exported immutable types
 // -------------------------------------------------------------------------------------------------
 
-// Slice is world-engine's immutable sequence, re-exported so a component can declare one without a
-// second import. It is an alias, so cardinal.Slice[T] and immutable.Slice[T] are the same type and
-// either spelling works.
+// Slice is world-engine's sequence with a private backing array, re-exported so a component can
+// declare one without a second import. It is an alias, so cardinal.Slice[T] and immutable.Slice[T]
+// are the same type and either spelling works.
+//
+// Its derivations edit in place; see immutable.Slice for what that means at a call site.
 type Slice[T any] = immutable.Slice[T]
 
 // SliceOf returns a Slice holding a copy of items. See immutable.SliceOf.

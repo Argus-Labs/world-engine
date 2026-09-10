@@ -102,8 +102,8 @@ type Inventory struct {
 
 When the length has no bound you can defend, hold the list in `immutable.Slice[T]` from
 `github.com/argus-labs/world-engine/pkg/immutable`. On the wire it is the same repeated field a
-`[]T` would be. The difference is that nothing can write through it: the backing array is hidden,
-every reader returns a copy, and every change produces a new value.
+`[]T` would be. The difference is that the backing array is hidden: no other package can index into
+it, reslice it, or hold on to it, and every reader hands back a copy of the element.
 
 ```go
 import "github.com/argus-labs/world-engine/pkg/immutable"
@@ -122,15 +122,16 @@ func (Buffs) Name() string {
 }
 ```
 
-The API follows Go's `slices` package closely, with one difference: nothing mutates in place, so an
-operation that would rewrite a slice returns a new Slice and is named for the result — `Reverse`
-becomes `Reversed`, and `Sort` and `SortFunc` become `Sorted` and `SortedFunc`.
+The API follows Go's `slices` package closely. Operations are named for their result rather than for
+an action on the receiver — `Reverse` becomes `Reversed`, and `Sort` and `SortFunc` become `Sorted`
+and `SortedFunc`.
 
 Reads such as `At`, `All`, `IndexFunc`, and `MinFunc` are methods, and so are derivations such as
 `Append`, `Insert`, `With`, `Without`, `Sub`, `Filter`, `Delete`, `Reversed`, and `SortedFunc`.
 Anything that needs a type constraint is a package function, for example `Equal`, `Contains`,
-`Sorted`, `Min`, `Map`, and `Concat`. Every derivation returns a new Slice. Derive, then `Set` the
-component that holds it:
+`Sorted`, `Min`, `Map`, and `Concat`.
+
+Derive, then `Set` the component that holds it:
 
 ```go
 func BuffSystem(state *BuffSystemState) error {
@@ -152,6 +153,24 @@ func BuffSystem(state *BuffSystemState) error {
 `immutable.SliceOf(items...)` builds a Slice from a plain slice and copies it, so later changes to
 that slice never reach the component. `Clone` goes the other way: a plain `[]T` for APIs that need
 one, and changes to it never reach the Slice.
+
+<Warning>
+  **Derivations do not copy, so the `Set` is not optional.** Most of them edit the hidden array in
+  place and return a Slice over that same array, which means the component has already changed by the
+  time the derivation returns. Deriving and then dropping the result does not leave the world alone —
+  it leaves the world holding an edit that no snapshot recorded.
+
+  `Append`, `Repeat`, and `Sub` leave the receiver alone; `Insert` and `Replace` leave it alone only
+  when they have to grow. The rest — `With`, `Without`, `Filter`, `Delete`, `Reversed`, `SortedFunc`,
+  `CompactFunc`, `Sorted`, and `Compact` — always write through. Ones that shrink leave the receiver
+  at its old length over a zero-filled tail, so the receiver is not just reordered but wrong.
+
+  Two rules follow. Call `Set` after every derivation, even one you think is read-only:
+  `s.SortedFunc(cmp).At(0)` reorders the stored list. And when the original has to survive, derive
+  from a copy with `immutable.SliceOf(s.Clone()...)`.
+
+  Each method's Go doc says whether it writes through.
+</Warning>
 
 <Note>
   `immutable.Slice` needs a World CLI new enough to generate it. An older one reports the field as an
