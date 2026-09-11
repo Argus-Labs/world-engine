@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"unsafe"
@@ -90,7 +91,7 @@ func capture(probes *Probes, singleton *cardinal.Contains[SingletonRow], into *C
 	count := 0
 	for _, row := range singleton.Iter() {
 		count++
-		pairs = append(pairs, row.ActiveContacts.Get().Pairs...)
+		pairs = slices.AppendSeq(pairs, row.ActiveContacts.Get().Pairs.Values())
 	}
 	// Entry order is an implementation detail of the plugin's map iteration, so
 	// sort before comparing two worlds.
@@ -190,19 +191,18 @@ func DecodeSnapshot(raw []byte) (any, error) {
 // SnapshotWorld serializes a world exactly the way Cardinal's snapshot writer
 // does, component bytes and all.
 func SnapshotWorld(world *cardinal.World) (any, error) {
-	m := innerWorld(world).MethodByName("ToProto")
+	m := innerWorld(world).MethodByName("EncodeState")
 	if !m.IsValid() {
-		panic("ecs.World: no ToProto method; the snapshot shim needs updating")
+		panic("ecs.World: no EncodeState method; the snapshot shim needs updating")
 	}
-	out := m.Call(nil)
-	// ecs.World.ToProto returns the state alone; tolerate a trailing error if one
-	// is ever added so the shim keeps working across that change.
-	if len(out) == 2 {
-		if err, _ := out[1].Interface().(error); err != nil {
-			return nil, err
-		}
+	out := m.Call([]reflect.Value{reflect.ValueOf([]byte(nil))})
+	data, ok := out[0].Interface().([]byte)
+	if !ok {
+		return nil, fmt.Errorf("EncodeState returned %T, want []byte", out[0].Interface())
 	}
-	return out[0].Interface(), nil
+	// The world encodes straight to wire bytes now, but RestoreWorld still feeds
+	// FromProto, so decode back into the message the rest of the shim passes around.
+	return DecodeSnapshot(data)
 }
 
 // RestoreWorld loads a serialized world state, the way World.restore does after
@@ -294,12 +294,12 @@ func compareRow(label string, w, g CaptureRow, tol float64) []Diff {
 	boolean("Body.Bullet", g.Body.Bullet, w.Body.Bullet)
 	boolean("Body.FixedRotation", g.Body.FixedRotation, w.Body.FixedRotation)
 
-	if len(g.Body.Shapes) != len(w.Body.Shapes) {
-		add("Body.Shapes<len>", len(g.Body.Shapes), len(w.Body.Shapes))
+	if g.Body.Shapes.Len() != w.Body.Shapes.Len() {
+		add("Body.Shapes<len>", g.Body.Shapes.Len(), w.Body.Shapes.Len())
 		return diffs
 	}
-	for i := range w.Body.Shapes {
-		diffs = append(diffs, compareShape(label, i, w.Body.Shapes[i], g.Body.Shapes[i], tol)...)
+	for i, want := range w.Body.Shapes.All() {
+		diffs = append(diffs, compareShape(label, i, want, g.Body.Shapes.At(i), tol)...)
 	}
 	return diffs
 }
@@ -347,18 +347,19 @@ func compareShape(label string, i int, w, g physics.ColliderShape, tol float64) 
 		add("GroupIndex", g.GroupIndex, w.GroupIndex)
 	}
 
-	if len(g.Vertices) != len(w.Vertices) {
-		add("Vertices<len>", len(g.Vertices), len(w.Vertices))
-	} else {
-		for k := range w.Vertices {
-			pt(fmt.Sprintf("Vertices[%d]", k), g.Vertices[k], w.Vertices[k])
-		}
+	if g.VertexCount != w.VertexCount {
+		add("VertexCount", g.VertexCount, w.VertexCount)
 	}
-	if len(g.ChainPoints) != len(w.ChainPoints) {
-		add("ChainPoints<len>", len(g.ChainPoints), len(w.ChainPoints))
+	// The whole array is compared, not just the live prefix: every slot travels on the wire, so a
+	// restore that lost a slot past VertexCount is still a restore that lost data.
+	for k := range w.Vertices {
+		pt(fmt.Sprintf("Vertices[%d]", k), g.Vertices[k], w.Vertices[k])
+	}
+	if g.ChainPoints.Len() != w.ChainPoints.Len() {
+		add("ChainPoints<len>", g.ChainPoints.Len(), w.ChainPoints.Len())
 	} else {
-		for k := range w.ChainPoints {
-			pt(fmt.Sprintf("ChainPoints[%d]", k), g.ChainPoints[k], w.ChainPoints[k])
+		for k, want := range w.ChainPoints.All() {
+			pt(fmt.Sprintf("ChainPoints[%d]", k), g.ChainPoints.At(k), want)
 		}
 	}
 	for k := range w.EdgeVertices {

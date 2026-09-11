@@ -6,6 +6,7 @@ package component
 
 import (
 	pbcomponent "github.com/argus-labs/world-engine/pkg/plugin/lobby/gen/pkg/plugin/lobby/component"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -77,6 +78,80 @@ func (c LobbyComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.LobbyComponent{}).ProtoReflect().Descriptor()
 }
 
+func (c LobbyComponent) SizeWire() int {
+	n := 0
+	if len(c.ID) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.ID))
+	}
+	if len(c.LeaderID) > 0 {
+		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.LeaderID))
+	}
+	for i0 := range c.PlayerIDs {
+		n += protowire.SizeTag(3) + protowire.SizeBytes(len(c.PlayerIDs[i0]))
+	}
+	if c.PlayerCount != 0 {
+		n += protowire.SizeTag(4) + protowire.SizeVarint(uint64(c.PlayerCount))
+	}
+	for i0 := range c.Teams {
+		n += protowire.SizeTag(5) + protowire.SizeBytes(c.Teams[i0].SizeWire())
+	}
+	if c.TeamCount != 0 {
+		n += protowire.SizeTag(6) + protowire.SizeVarint(uint64(c.TeamCount))
+	}
+	if len(c.InviteCode) > 0 {
+		n += protowire.SizeTag(7) + protowire.SizeBytes(len(c.InviteCode))
+	}
+	n += protowire.SizeTag(8) + protowire.SizeBytes(c.GameWorld.SizeWire())
+	n += protowire.SizeTag(9) + protowire.SizeBytes(c.Session.SizeWire())
+	if c.CreatedAt != 0 {
+		n += protowire.SizeTag(10) + protowire.SizeVarint(uint64(c.CreatedAt))
+	}
+	return n
+}
+
+func (c LobbyComponent) AppendWire(b []byte) []byte {
+	if len(c.ID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ID))
+	}
+	if len(c.LeaderID) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LeaderID))
+	}
+	for i0 := range c.PlayerIDs {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.PlayerIDs[i0]))
+	}
+	if c.PlayerCount != 0 {
+		b = protowire.AppendTag(b, 4, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.PlayerCount))
+	}
+	for i0 := range c.Teams {
+		b = protowire.AppendTag(b, 5, protowire.BytesType)
+		b = protowire.AppendVarint(b, uint64(c.Teams[i0].SizeWire()))
+		b = c.Teams[i0].AppendWire(b)
+	}
+	if c.TeamCount != 0 {
+		b = protowire.AppendTag(b, 6, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.TeamCount))
+	}
+	if len(c.InviteCode) > 0 {
+		b = protowire.AppendTag(b, 7, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.InviteCode))
+	}
+	b = protowire.AppendTag(b, 8, protowire.BytesType)
+	b = protowire.AppendVarint(b, uint64(c.GameWorld.SizeWire()))
+	b = c.GameWorld.AppendWire(b)
+	b = protowire.AppendTag(b, 9, protowire.BytesType)
+	b = protowire.AppendVarint(b, uint64(c.Session.SizeWire()))
+	b = c.Session.AppendWire(b)
+	if c.CreatedAt != 0 {
+		b = protowire.AppendTag(b, 10, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.CreatedAt))
+	}
+	return b
+}
+
 func (c PlayerComponent) ToProto() *pbcomponent.PlayerComponent {
 	p := &pbcomponent.PlayerComponent{}
 	p.PlayerID = string(c.PlayerID)
@@ -121,6 +196,57 @@ func (c PlayerComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.PlayerComponent{}).ProtoReflect().Descriptor()
 }
 
+func (c PlayerComponent) SizeWire() int {
+	n := 0
+	if len(c.PlayerID) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.PlayerID))
+	}
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.LobbyID))
+	}
+	if len(c.TeamID) > 0 {
+		n += protowire.SizeTag(3) + protowire.SizeBytes(len(c.TeamID))
+	}
+	if c.IsReady {
+		n += protowire.SizeTag(4) + 1
+	}
+	if len(c.PassthroughData) > 0 {
+		n += protowire.SizeTag(5) + protowire.SizeBytes(len(c.PassthroughData))
+	}
+	if c.JoinedAt != 0 {
+		n += protowire.SizeTag(6) + protowire.SizeVarint(uint64(c.JoinedAt))
+	}
+	return n
+}
+
+func (c PlayerComponent) AppendWire(b []byte) []byte {
+	if len(c.PlayerID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.PlayerID))
+	}
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	if len(c.TeamID) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.TeamID))
+	}
+	if c.IsReady {
+		b = protowire.AppendTag(b, 4, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if len(c.PassthroughData) > 0 {
+		b = protowire.AppendTag(b, 5, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.PassthroughData))
+	}
+	if c.JoinedAt != 0 {
+		b = protowire.AppendTag(b, 6, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.JoinedAt))
+	}
+	return b
+}
+
 func (c Session) ToProto() *pbcomponent.Session {
 	p := &pbcomponent.Session{}
 	p.State = string(c.State)
@@ -139,6 +265,43 @@ func (c Session) FromProto(p *pbcomponent.Session) Session {
 	c.PendingRequestID = string(p.PendingRequestID)
 	c.PendingStartedAt = int64(p.PendingStartedAt)
 	return c
+}
+
+func (c Session) SizeWire() int {
+	n := 0
+	if len(c.State) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.State))
+	}
+	if len(c.PassthroughData) > 0 {
+		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.PassthroughData))
+	}
+	if len(c.PendingRequestID) > 0 {
+		n += protowire.SizeTag(3) + protowire.SizeBytes(len(c.PendingRequestID))
+	}
+	if c.PendingStartedAt != 0 {
+		n += protowire.SizeTag(4) + protowire.SizeVarint(uint64(c.PendingStartedAt))
+	}
+	return n
+}
+
+func (c Session) AppendWire(b []byte) []byte {
+	if len(c.State) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.State))
+	}
+	if len(c.PassthroughData) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.PassthroughData))
+	}
+	if len(c.PendingRequestID) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.PendingRequestID))
+	}
+	if c.PendingStartedAt != 0 {
+		b = protowire.AppendTag(b, 4, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.PendingStartedAt))
+	}
+	return b
 }
 
 func (c ShardAddress) ToProto() *pbcomponent.ShardAddress {
@@ -161,6 +324,43 @@ func (c ShardAddress) FromProto(p *pbcomponent.ShardAddress) ShardAddress {
 	return c
 }
 
+func (c ShardAddress) SizeWire() int {
+	n := 0
+	if len(c.Region) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Region))
+	}
+	if len(c.Organization) > 0 {
+		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.Organization))
+	}
+	if len(c.Project) > 0 {
+		n += protowire.SizeTag(3) + protowire.SizeBytes(len(c.Project))
+	}
+	if len(c.ShardID) > 0 {
+		n += protowire.SizeTag(4) + protowire.SizeBytes(len(c.ShardID))
+	}
+	return n
+}
+
+func (c ShardAddress) AppendWire(b []byte) []byte {
+	if len(c.Region) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Region))
+	}
+	if len(c.Organization) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Organization))
+	}
+	if len(c.Project) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Project))
+	}
+	if len(c.ShardID) > 0 {
+		b = protowire.AppendTag(b, 4, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ShardID))
+	}
+	return b
+}
+
 func (c Team) ToProto() *pbcomponent.Team {
 	p := &pbcomponent.Team{}
 	p.TeamID = string(c.TeamID)
@@ -177,4 +377,34 @@ func (c Team) FromProto(p *pbcomponent.Team) Team {
 	c.MaxPlayers = int(p.MaxPlayers)
 	c.PlayerCount = int(p.PlayerCount)
 	return c
+}
+
+func (c Team) SizeWire() int {
+	n := 0
+	if len(c.TeamID) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.TeamID))
+	}
+	if c.MaxPlayers != 0 {
+		n += protowire.SizeTag(2) + protowire.SizeVarint(uint64(c.MaxPlayers))
+	}
+	if c.PlayerCount != 0 {
+		n += protowire.SizeTag(3) + protowire.SizeVarint(uint64(c.PlayerCount))
+	}
+	return n
+}
+
+func (c Team) AppendWire(b []byte) []byte {
+	if len(c.TeamID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.TeamID))
+	}
+	if c.MaxPlayers != 0 {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.MaxPlayers))
+	}
+	if c.PlayerCount != 0 {
+		b = protowire.AppendTag(b, 3, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.PlayerCount))
+	}
+	return b
 }

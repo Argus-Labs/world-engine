@@ -9,6 +9,8 @@ package scenario
 import (
 	"fmt"
 
+	"github.com/argus-labs/world-engine/pkg/immutable"
+
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 )
@@ -57,11 +59,10 @@ func box(halfWidth, halfHeight float64) physics.ColliderShape {
 }
 
 // polygon builds a convex polygon collider. Box2D welds and hulls the points, so
-// they need not be given in a particular winding order.
+// they need not be given in a particular winding order. WithVertices sets VertexCount to match;
+// past MaxPolygonVertices the shape comes back failing Validate rather than panicking.
 func polygon(vertices ...physics.Vec2) physics.ColliderShape {
-	s := base(physics.ShapeTypeConvexPolygon)
-	s.Vertices = vertices
-	return s
+	return base(physics.ShapeTypeConvexPolygon).WithVertices(vertices...)
 }
 
 // capsule builds a capsule collider between two local centers.
@@ -76,14 +77,14 @@ func capsule(c1, c2 physics.Vec2, radius float64) physics.ColliderShape {
 // chain builds an open static chain collider through the given points.
 func chain(points ...physics.Vec2) physics.ColliderShape {
 	s := base(physics.ShapeTypeStaticChain)
-	s.ChainPoints = points
+	s.ChainPoints = immutable.SliceOf(points...)
 	return s
 }
 
 // chainLoop builds a closed static chain collider; the last point joins the first.
 func chainLoop(points ...physics.Vec2) physics.ColliderShape {
 	s := base(physics.ShapeTypeStaticChainLoop)
-	s.ChainPoints = points
+	s.ChainPoints = immutable.SliceOf(points...)
 	return s
 }
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/goccy/go-json"
 )
 
@@ -53,9 +54,11 @@ import (
 // literals leave bool fields at false and GravityScale at 0, which produces an inactive,
 // sleeping body with no gravity — almost never what you want.
 //
-// When deserializing from JSON (e.g. snapshot recovery), missing fields are defaulted to
-// their Box2D values automatically via a custom UnmarshalJSON. Explicitly serialized false
-// values are preserved exactly.
+// When deserializing from JSON, missing fields are defaulted to their Box2D values automatically
+// via a custom UnmarshalJSON. Explicitly serialized false values are preserved exactly. Snapshots
+// go through MarshalWire/UnmarshalWire (protobuf) rather than JSON: JSON is for hand-written
+// payloads and for logging, not for round-tripping a body the world is holding. (A Slice field such
+// as Shapes or ColliderShape.ChainPoints encodes as a plain JSON array — see immutable.Slice.)
 //
 // Bullet and FixedRotation default to false (off), matching Box2D defaults.
 //
@@ -74,7 +77,7 @@ type PhysicsBody2D struct {
 	Bullet          bool     `json:"bullet"`
 	FixedRotation   bool     `json:"fixed_rotation"`
 
-	Shapes []ColliderShape `json:"shapes"`
+	Shapes immutable.Slice[ColliderShape] `json:"shapes"`
 }
 
 // NewPhysicsBody2D returns a PhysicsBody2D with the given body type, Box2D-compatible defaults
@@ -86,7 +89,7 @@ func NewPhysicsBody2D(bodyType BodyType, shapes ...ColliderShape) PhysicsBody2D 
 		Active:          true,
 		Awake:           true,
 		SleepingAllowed: true,
-		Shapes:          shapes,
+		Shapes:          immutable.SliceOf(shapes...),
 	}
 }
 
@@ -121,7 +124,7 @@ func (p *PhysicsBody2D) UnmarshalJSON(data []byte) error {
 		SleepingAllowed: true,
 		Bullet:          aux.Bullet,
 		FixedRotation:   aux.FixedRotation,
-		Shapes:          aux.Shapes,
+		Shapes:          immutable.SliceOf(aux.Shapes...),
 	}
 	if aux.GravityScale != nil {
 		p.GravityScale = *aux.GravityScale
@@ -157,11 +160,11 @@ func (p PhysicsBody2D) Validate() error {
 	if !isFinite(p.GravityScale) {
 		return fmt.Errorf("physics_body_2d.gravity_scale: must be finite, got %v", p.GravityScale)
 	}
-	if len(p.Shapes) == 0 {
+	if p.Shapes.Len() == 0 {
 		return errors.New("physics_body_2d.shapes: at least one ColliderShape is required")
 	}
-	for i := range p.Shapes {
-		if err := p.Shapes[i].Validate(); err != nil {
+	for i, shape := range p.Shapes.All() {
+		if err := shape.Validate(); err != nil {
 			return fmt.Errorf("physics_body_2d.shapes[%d]: %w", i, err)
 		}
 	}

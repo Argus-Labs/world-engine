@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 )
 
@@ -32,12 +33,12 @@ const (
 // restoreSnapshotEntries is a ground plane plus crates that settled and fell asleep,
 // as a snapshot would hold them (Awake=false, mirrored from the solver).
 func restoreSnapshotEntries() []PhysicsRebuildEntry {
-	box := func(hw, hh float64) []component.ColliderShape {
-		return []component.ColliderShape{{
+	box := func(hw, hh float64) ShapeSlice {
+		return immutable.SliceOf(component.ColliderShape{
 			ShapeType: component.ShapeTypeBox, Density: 1, Friction: 0.6,
 			HalfExtents:  component.Vec2{X: hw, Y: hh},
 			CategoryBits: 1, MaskBits: ^uint64(0),
-		}}
+		})
 	}
 	out := []PhysicsRebuildEntry{{
 		EntityID:  1,
@@ -74,7 +75,7 @@ func restoreBaseline() component.ActiveContacts {
 			FilterBCategoryBits: 1, FilterBMaskBits: ^uint64(0),
 		})
 	}
-	return component.ActiveContacts{Pairs: pairs}
+	return component.ActiveContacts{Pairs: immutable.SliceOf(pairs...)}
 }
 
 // restoreAndFingerprint runs the real restore path — FullRebuildFromECS,

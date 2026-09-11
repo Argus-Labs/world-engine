@@ -14,6 +14,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/data"
 	"github.com/argus-labs/world-engine/pkg/plugin/data/component"
 	"github.com/stretchr/testify/require"
@@ -177,6 +178,14 @@ func TestPlugin_LoadsRegisteredKind(t *testing.T) {
 // Tests — manifest component lifecycle
 // -------------------------------------------------------------------------------------------------
 
+// abilitiesManifest builds the one-file manifest every test here pins the component against: the
+// harness registers a single kind, Abilities, so the manifest always holds exactly its file.
+func abilitiesManifest(hash string) component.ConfigManifest {
+	return component.ConfigManifest{Files: immutable.SliceOf(
+		component.ConfigFileHash{Path: "testdata/abilities.json", Hash: hash},
+	)}
+}
+
 // TestPlugin_ManifestComponentOnFreshWorld verifies the reconcile system creates a ConfigManifest
 // singleton on the first tick of a fresh world, populated from the plugin's per-file manifest.
 func TestPlugin_ManifestComponentOnFreshWorld(t *testing.T) {
@@ -204,7 +213,7 @@ func TestPlugin_ManifestComponentOnFreshWorld(t *testing.T) {
 	tickOnce(t, w)
 
 	require.NoError(t, observeErr, "expected ConfigManifest singleton to exist after first tick")
-	require.Equal(t, map[string]string{"testdata/abilities.json": expectedHash}, observed.Files)
+	require.Equal(t, abilitiesManifest(expectedHash), observed)
 }
 
 // TestPlugin_ReconcileReFetchesChangedFileAtSnapshotHash simulates a snapshot restore whose
@@ -235,7 +244,7 @@ func TestPlugin_ReconcileReFetchesChangedFileAtSnapshotHash(t *testing.T) {
 	// Pre-seed at Init: a ConfigManifest referencing the OLD hash, as if restored from a snapshot.
 	cardinal.RegisterSystem(w, func(state *manifestPreseedState) {
 		_, ent := state.Manifest.Create()
-		ent.Item.Set(component.ConfigManifest{Files: map[string]string{"testdata/abilities.json": h1}})
+		ent.Item.Set(abilitiesManifest(h1))
 	}, cardinal.WithHook(cardinal.Init))
 
 	var observed component.ConfigManifest
@@ -252,7 +261,7 @@ func TestPlugin_ReconcileReFetchesChangedFileAtSnapshotHash(t *testing.T) {
 	// Catalog reconciled to v1 content.
 	require.Equal(t, []AbilityRecord{{ID: "oldfire", Cooldown: 1.0}}, data.Get[Abilities]().Items)
 	// Component reflects the reconciled manifest (now equal to plugin.manifest).
-	require.Equal(t, map[string]string{"testdata/abilities.json": h1}, observed.Files)
+	require.Equal(t, abilitiesManifest(h1), observed)
 }
 
 // TestPlugin_EmbedMismatchWarnsAndKeepsCurrent simulates a rebuilt-binary case: a single-version
@@ -275,7 +284,7 @@ func TestPlugin_EmbedMismatchWarnsAndKeepsCurrent(t *testing.T) {
 	const staleHash = "0000000000000000000000000000000000000000000000000000000000000000"
 	cardinal.RegisterSystem(w, func(state *manifestPreseedState) {
 		_, ent := state.Manifest.Create()
-		ent.Item.Set(component.ConfigManifest{Files: map[string]string{"testdata/abilities.json": staleHash}})
+		ent.Item.Set(abilitiesManifest(staleHash))
 	}, cardinal.WithHook(cardinal.Init))
 
 	var observed component.ConfigManifest
@@ -292,11 +301,11 @@ func TestPlugin_EmbedMismatchWarnsAndKeepsCurrent(t *testing.T) {
 	// Catalog unchanged (current bytes).
 	require.Equal(t, []AbilityRecord{{ID: "current", Cooldown: 1.0}}, data.Get[Abilities]().Items)
 	// Component rewritten to current hash.
-	require.Equal(t, map[string]string{"testdata/abilities.json": currentHash}, observed.Files)
+	require.Equal(t, abilitiesManifest(currentHash), observed)
 
 	// Second tick: steady state, component still matches plugin manifest.
 	tickOnce(t, w)
-	require.Equal(t, map[string]string{"testdata/abilities.json": currentHash}, observed.Files)
+	require.Equal(t, abilitiesManifest(currentHash), observed)
 }
 
 // TestPlugin_ReconcileFailurePanicsOnVersionedSource verifies the fail-loud path: when a versioned
@@ -318,7 +327,7 @@ func TestPlugin_ReconcileFailurePanicsOnVersionedSource(t *testing.T) {
 	const missingHash = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 	cardinal.RegisterSystem(w, func(state *manifestPreseedState) {
 		_, ent := state.Manifest.Create()
-		ent.Item.Set(component.ConfigManifest{Files: map[string]string{"testdata/abilities.json": missingHash}})
+		ent.Item.Set(abilitiesManifest(missingHash))
 	}, cardinal.WithHook(cardinal.Init))
 
 	initCardinalECS(t, w)

@@ -1,11 +1,14 @@
 package immutable_test
 
 import (
+	"encoding/json"
 	"reflect"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
+
+	gojson "github.com/goccy/go-json"
 
 	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/stretchr/testify/require"
@@ -479,4 +482,85 @@ func TestSlice_DerivationsWriteThrough(t *testing.T) {
 			require.Equal(t, c.receiver, collect(s), "receiver after %s", c.name)
 		})
 	}
+}
+
+// -------------------------------------------------------------------------------------------------
+// JSON
+// -------------------------------------------------------------------------------------------------
+
+func TestSlice_JSONEncodesAsArray(t *testing.T) {
+	t.Parallel()
+
+	out, err := json.Marshal(immutable.SliceOf(point{1, 2}, point{3, 4}))
+	require.NoError(t, err)
+	require.JSONEq(t, `[{"X":1,"Y":2},{"X":3,"Y":4}]`, string(out))
+}
+
+func TestSlice_JSONZeroValueIsEmptyArray(t *testing.T) {
+	t.Parallel()
+
+	var s immutable.Slice[int]
+	out, err := json.Marshal(s)
+	require.NoError(t, err)
+	require.Equal(t, "[]", string(out), "a Slice is never absent, only empty")
+}
+
+func TestSlice_JSONRoundTrips(t *testing.T) {
+	t.Parallel()
+
+	in := immutable.SliceOf("a", "", "c")
+	out, err := json.Marshal(in)
+	require.NoError(t, err)
+
+	var back immutable.Slice[string]
+	require.NoError(t, json.Unmarshal(out, &back))
+	require.Equal(t, in, back)
+}
+
+// A decoded empty array or null must be the zero value, not an empty allocation, so a restored
+// component compares equal to a fresh one — the same rule the generated FromProto follows.
+func TestSlice_JSONEmptyDecodesToZeroValue(t *testing.T) {
+	t.Parallel()
+
+	for _, text := range []string{"[]", "null"} {
+		var got immutable.Slice[point]
+		require.NoError(t, json.Unmarshal([]byte(text), &got))
+		require.Equal(t, immutable.Slice[point]{}, got, text)
+		require.True(t, reflect.DeepEqual(immutable.Slice[point]{}, got), text)
+	}
+}
+
+func TestSlice_JSONRejectsNonArray(t *testing.T) {
+	t.Parallel()
+
+	var got immutable.Slice[int]
+	require.Error(t, json.Unmarshal([]byte(`{"items":[1]}`), &got))
+	require.Error(t, json.Unmarshal([]byte(`"nope"`), &got))
+}
+
+// The methods are what make a Slice FIELD usable, and both JSON libraries the engine uses must
+// see them: encoding/json in cardinal, goccy/go-json in physics2d's hand-written payloads.
+func TestSlice_JSONAsStructFieldUnderBothEncoders(t *testing.T) {
+	t.Parallel()
+
+	type holder struct {
+		Name  string                 `json:"name"`
+		Items immutable.Slice[point] `json:"items"`
+	}
+	in := holder{Name: "h", Items: immutable.SliceOf(point{5, 6})}
+	const want = `{"name":"h","items":[{"X":5,"Y":6}]}`
+
+	std, err := json.Marshal(in)
+	require.NoError(t, err)
+	require.JSONEq(t, want, string(std))
+	var backStd holder
+	require.NoError(t, json.Unmarshal(std, &backStd))
+	require.Equal(t, in, backStd)
+
+	gc, err := gojson.Marshal(in)
+	require.NoError(t, err)
+	require.JSONEq(t, want, string(gc))
+	var backGc holder
+	require.NoError(t, gojson.Unmarshal(gc, &backGc))
+	require.Equal(t, in, backGc)
 }

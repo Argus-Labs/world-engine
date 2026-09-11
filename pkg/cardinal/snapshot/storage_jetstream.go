@@ -7,7 +7,6 @@ import (
 	"math"
 
 	"github.com/argus-labs/world-engine/pkg/micro"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/caarlos0/env/v11"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/rotisserie/eris"
@@ -81,25 +80,16 @@ func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error
 	return &JetStreamStorage{os: os}, nil
 }
 
-// Store writes the envelope to the ObjectStore. Per Store's ownership rule the caller's message is
-// consumed here and now: marshalSnapshot copies it into data, and only data reaches the network.
-func (j *JetStreamStorage) Store(ctx context.Context, snapshot *cardinalv1.Snapshot) error {
-	data, err := marshalSnapshot(snapshot)
-	if err != nil {
-		return err
-	}
-
-	// Overwrite the existing snapshot if any.
-	if _, err = j.os.PutBytes(ctx, defaultObjectName, data); err != nil {
+// Store writes the snapshot bytes to the ObjectStore, overwriting the previous snapshot.
+func (j *JetStreamStorage) Store(ctx context.Context, _ uint64, data []byte) error {
+	if _, err := j.os.PutBytes(ctx, defaultObjectName, data); err != nil {
 		return eris.Wrap(err, "failed to store snapshot in ObjectStore")
 	}
-
 	return nil
 }
 
-// Load reads the stored object. The returned message is decoded fresh from those bytes on every
-// call and kept nowhere, which is what Load's ownership rule asks for.
-func (j *JetStreamStorage) Load(ctx context.Context) (*cardinalv1.Snapshot, error) {
+// Load reads the stored snapshot bytes.
+func (j *JetStreamStorage) Load(ctx context.Context) ([]byte, error) {
 	object, err := j.os.Get(ctx, defaultObjectName)
 	if err != nil {
 		if eris.Is(err, jetstream.ErrObjectNotFound) {
@@ -115,8 +105,7 @@ func (j *JetStreamStorage) Load(ctx context.Context) (*cardinalv1.Snapshot, erro
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to read from object")
 	}
-
-	return unmarshalSnapshot(data)
+	return data, nil
 }
 
 // -------------------------------------------------------------------------------------------------

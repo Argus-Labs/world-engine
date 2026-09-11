@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"buf.build/go/protovalidate"
-	"github.com/argus-labs/world-engine/pkg/assert"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
@@ -33,45 +32,32 @@ func ValidateVersion(version uint32) error {
 	return eris.Wrapf(ErrUnsupportedVersion, "expected version %d, got %d", CurrentVersion, version)
 }
 
-// Storage persists shard snapshots.
+// Storage persists shard snapshots as opaque bytes.
 //
-// Implementations serialize Snapshot messages. Store and Load define ownership of their messages.
+// The bytes are a fully encoded Snapshot envelope, produced by the engine's streaming encoder.
+// Storage never decodes them: writing and reading are pure byte transport, so the encoder's
+// zero-allocation work isn't undone at the boundary.
 type Storage interface {
-	// Store saves the snapshot, atomically replacing any existing snapshot.
+	// Store saves the snapshot bytes, atomically replacing any existing snapshot. The tick is
+	// metadata for logging and keys; the bytes are the record.
 	//
-	// Ownership: The caller keeps the message. Store must treat it as read-only.
-	//
-	// Before Store returns, it must marshal the message or make a deep copy. It must not retain or
-	// use the caller's message, or its data, after it returns.
+	// Ownership: data is handed off. The caller never touches it again, so Store may retain it,
+	// but must not modify it.
 	//
 	// Cardinal calls Store synchronously, with the newest snapshot first. Store must not start a
 	// background write that can change this order.
-	Store(ctx context.Context, snapshot *cardinalv1.Snapshot) error
+	Store(ctx context.Context, tick uint64, data []byte) error
 
-	// Load retrieves the current snapshot, returns an error if no snapshot exists.
-	//
-	// Ownership: The returned message belongs only to the caller. Load must return a newly decoded
-	// message or a deep copy. It must not read or write the message after it returns.
-	Load(ctx context.Context) (*cardinalv1.Snapshot, error)
+	// Load retrieves the current snapshot bytes, or an error wrapping ErrSnapshotNotFound if no
+	// snapshot exists. The caller owns the returned slice.
+	Load(ctx context.Context) ([]byte, error)
 }
 
-// marshalSnapshot encodes a snapshot into independent bytes.
-func marshalSnapshot(snapshot *cardinalv1.Snapshot) ([]byte, error) {
-	assert.That(snapshot.GetVersion() == CurrentVersion,
-		"snapshot version must be %d, got %d", CurrentVersion, snapshot.GetVersion())
-
-	// Deterministic only sorts map entries, and neither Snapshot nor WorldState declares a map
-	// field today, so it is currently a no-op that costs nothing. It is kept so the intent
-	// survives if a map field is ever added to the envelope.
-	data, err := proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to marshal snapshot")
-	}
-	return data, nil
-}
-
-// unmarshalSnapshot decodes and validates bytes previously written by marshalSnapshot.
-func unmarshalSnapshot(data []byte) (*cardinalv1.Snapshot, error) {
+// Decode parses and validates snapshot bytes into the envelope message.
+//
+// This is the one decode boundary: bytes from storage become a world-state graph here or not at
+// all, so version refusal happens before any interpretation. A boot path — allocations are fine.
+func Decode(data []byte) (*cardinalv1.Snapshot, error) {
 	snapshot := &cardinalv1.Snapshot{}
 	if err := proto.Unmarshal(data, snapshot); err != nil {
 		return nil, eris.Wrap(err, "failed to unmarshal snapshot")
@@ -79,8 +65,6 @@ func unmarshalSnapshot(data []byte) (*cardinalv1.Snapshot, error) {
 	if err := protovalidate.Validate(snapshot); err != nil {
 		return nil, eris.Wrap(err, "failed to validate snapshot")
 	}
-	// Checked here, at the decode boundary, so bytes this build cannot interpret never become a
-	// world state graph. Callers holding a Snapshot from elsewhere must call ValidateVersion too.
 	if err := ValidateVersion(snapshot.GetVersion()); err != nil {
 		return nil, err
 	}
