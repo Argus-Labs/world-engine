@@ -125,11 +125,11 @@ func TestColumn_WireRoundTrip(t *testing.T) {
 		col1.set(i, testutils.SimpleComponent{Value: i})
 	}
 
-	// Encode every row (rowWireSize stages, appendRowWire emits), decode into a fresh column.
+	// Encode every row (rowWireSize measures, appendRowWire emits), decode into a fresh column.
 	col2 := newColumn[testutils.SimpleComponent]()
 	for i := range length {
 		size := col1.rowWireSize(i)
-		require.Equal(t, size, col1.stagedRowWireSize(i))
+		require.Equal(t, size, col1.rowWireSize(i), "rowWireSize must be repeatable, not one-shot")
 
 		payload := col1.appendRowWire(nil, i)
 		require.Len(t, payload, size, "appendRowWire must write exactly rowWireSize bytes")

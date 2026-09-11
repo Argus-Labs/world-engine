@@ -11,7 +11,7 @@ import (
 
 // Component is the interface that all components must implement.
 // Components are pure data containers that can be attached to entities.
-type Component interface { //nolint:iface // may extend later
+type Component interface {
 	// Name returns a unique string identifier for the component type.
 	// This should be consistent across program executions.
 	//
@@ -25,6 +25,13 @@ type Component interface { //nolint:iface // may extend later
 	//
 	// These rules ensure component names work correctly in query expressions.
 	schema.Serializable
+
+	// SizeWire reports the exact encoded size of this value, and AppendWire writes exactly that
+	// many bytes onto b. Neither allocates. They are what the snapshot writes through: it sizes
+	// every component of every entity in one pass and writes them all into one buffer in a second,
+	// so MarshalWire's per-row proto graph would be the dominant allocation of a tick.
+	SizeWire() int
+	AppendWire(b []byte) []byte
 }
 
 // ComponentID is a unique identifier for a component type.

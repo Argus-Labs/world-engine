@@ -6,9 +6,11 @@ package component
 
 import (
 	pbcomponent "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/component"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"time"
 )
 
 func (c Chat) ToProto() *pbcomponent.Chat {
@@ -49,6 +51,26 @@ func (c Chat) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.Chat{}).ProtoReflect().Descriptor()
 }
 
+func (c Chat) SizeWire() int {
+	n := 0
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Message))
+	}
+	n += protowire.SizeTag(2) + protowire.SizeBytes(sizeWireTimestamp(c.Timestamp))
+	return n
+}
+
+func (c Chat) AppendWire(b []byte) []byte {
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	b = protowire.AppendTag(b, 2, protowire.BytesType)
+	b = protowire.AppendVarint(b, uint64(sizeWireTimestamp(c.Timestamp)))
+	b = appendWireTimestamp(b, c.Timestamp)
+	return b
+}
+
 func (c UserTag) ToProto() *pbcomponent.UserTag {
 	p := &pbcomponent.UserTag{}
 	p.ArgusAuthID = string(c.ArgusAuthID)
@@ -83,4 +105,52 @@ func (c UserTag) UnmarshalWire(data []byte) (any, error) {
 
 func (c UserTag) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.UserTag{}).ProtoReflect().Descriptor()
+}
+
+func (c UserTag) SizeWire() int {
+	n := 0
+	if len(c.ArgusAuthID) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.ArgusAuthID))
+	}
+	if len(c.ArgusAuthName) > 0 {
+		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.ArgusAuthName))
+	}
+	return n
+}
+
+func (c UserTag) AppendWire(b []byte) []byte {
+	if len(c.ArgusAuthID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ArgusAuthID))
+	}
+	if len(c.ArgusAuthName) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ArgusAuthName))
+	}
+	return b
+}
+
+// sizeWireTimestamp is the encoded size of the google.protobuf.Timestamp holding t.
+func sizeWireTimestamp(t time.Time) int {
+	n := 0
+	if s := t.Unix(); s != 0 {
+		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(s))
+	}
+	if ns := t.Nanosecond(); ns != 0 {
+		n += protowire.SizeTag(2) + protowire.SizeVarint(uint64(ns))
+	}
+	return n
+}
+
+// appendWireTimestamp writes the google.protobuf.Timestamp holding t.
+func appendWireTimestamp(b []byte, t time.Time) []byte {
+	if s := t.Unix(); s != 0 {
+		b = protowire.AppendTag(b, 1, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(s))
+	}
+	if ns := t.Nanosecond(); ns != 0 {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(ns))
+	}
+	return b
 }

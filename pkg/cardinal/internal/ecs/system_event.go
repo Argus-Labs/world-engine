@@ -20,7 +20,7 @@ const maxSystemEventID = math.MaxUint32 - 1
 // in-process, they implement the same Serializable interface as the other wire kinds (generated
 // MarshalWire/UnmarshalWire) so they can be consumed uniformly — e.g. streamed as typed values to a
 // telemetry/debug service — without a special-case interface.
-type SystemEvent interface { //nolint:iface // may extend later
+type SystemEvent interface {
 	schema.Serializable
 }
 

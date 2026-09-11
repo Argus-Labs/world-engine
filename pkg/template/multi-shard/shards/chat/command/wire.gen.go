@@ -6,6 +6,7 @@ package command
 
 import (
 	pbcommand "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/command"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -46,4 +47,34 @@ func (c UserChat) UnmarshalWire(data []byte) (any, error) {
 
 func (c UserChat) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcommand.UserChat{}).ProtoReflect().Descriptor()
+}
+
+func (c UserChat) SizeWire() int {
+	n := 0
+	if len(c.ArgusAuthID) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.ArgusAuthID))
+	}
+	if len(c.ArgusAuthName) > 0 {
+		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.ArgusAuthName))
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + protowire.SizeBytes(len(c.Message))
+	}
+	return n
+}
+
+func (c UserChat) AppendWire(b []byte) []byte {
+	if len(c.ArgusAuthID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ArgusAuthID))
+	}
+	if len(c.ArgusAuthName) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ArgusAuthName))
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	return b
 }

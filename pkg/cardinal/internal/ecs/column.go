@@ -21,9 +21,6 @@ type abstractColumn interface {
 	rowWireSize(row int) int
 	appendRowWire(b []byte, row int) []byte
 	decodeRow(row int, data []byte) error
-
-	//TODO: removed when maps and slices are gone
-	stagedRowWireSize(row int) int
 }
 
 var _ abstractColumn = &column[Component]{}
@@ -33,10 +30,6 @@ var _ abstractColumn = &column[Component]{}
 type column[T Component] struct {
 	compName   string // The name of the component stored in this column
 	components []T    // Array containing the component data
-
-	//TODO: removed when maps and slices are gone
-	direct    bool     // Whether T carries the generated zero-alloc encoders.
-	wireCache [][]byte // The per-row staging area for types that don't (see rowWireSize).
 }
 
 const columnCapacity = 16
@@ -44,11 +37,9 @@ const columnCapacity = 16
 // newColumn creates a new column with the specified type.
 func newColumn[T Component]() column[T] {
 	var zero T
-	_, direct := any((*T)(nil)).(directWire) // Probs if contains pointer types, to be removed.
 	return column[T]{
 		compName:   zero.Name(),
 		components: make([]T, 0, columnCapacity),
-		direct:     direct,
 	}
 }
 
@@ -129,95 +120,18 @@ func (c *column[T]) remove(row int) {
 	c.components = c.components[:lastIndex]
 }
 
-// directWire is the generated fast encoding path: SizeWire reports the exact encoded size and
-// AppendWire writes exactly that many bytes into the caller's buffer, both without allocating.
-// The generator emits the pair only for value-shaped types (no slices, maps, or JSON-fallback
-// fields), so its presence is probed once per column and everything else takes the MarshalWire
-// fallback below.
-// TODO: remove when maps and slices removed.
-type directWire interface {
-	SizeWire() int
-	AppendWire([]byte) []byte
-}
-
-// rowWireSize returns the encoded size of one row and stages what appendRowWire needs.
-//
-// Direct components are pure arithmetic. Fallback components must be encoded to be sized, so the
-// bytes are kept in wireCache (reused across snapshots, grow-only) and appendRowWire copies them
-// out — one allocation per row inside MarshalWire, the same cost the old path paid, gone entirely
-// once the component becomes value-shaped and picks up the generated encoders.
-//
-// TODO: delete the fallback path once every component is guaranteed direct. That needs two things
-// to land first: plugins regenerated with the SizeWire/AppendWire generator, and the slice/map
-// removal from component schemas — ineligible types are the only reason a generated component
-// lacks the direct encoders. Then SizeWire/AppendWire move onto the Component contract, the
-// directWire interface and its runtime probe disappear, and this whole function becomes:
-//
-//	func (c *column[T]) rowWireSize(row int) int {
-//		assert.That(row < len(c.components), "component doesn't exist")
-//		return c.components[row].SizeWire()
-//	}
-//
-// Going with it: the c.direct field and probe, wireCache, stagedRowWireSize (identical to
-// rowWireSize once nothing stages), the marshal-failure assert, and the pointer-boxing dance —
-// which only exists to keep the runtime type assertion allocation-free.
+// rowWireSize returns the encoded size of one row. Pure arithmetic over the component's fields —
+// no encoding happens here, and nothing is cached between the two passes, so the size pass and the
+// append pass can each ask for it independently.
 func (c *column[T]) rowWireSize(row int) int {
 	assert.That(row < len(c.components), "component doesn't exist")
-	if c.direct {
-		dw, ok := any(&c.components[row]).(directWire)
-		assert.That(ok, "direct column element lost its wire encoders")
-		return dw.SizeWire()
-	}
-
-	// A component that cannot encode panics inside MarshalWire rather than reporting an error (see
-	// schema.Serializable): the failure is a bug in its generated code or a value protobuf rejects,
-	// and either repeats every tick, so there is nothing to recover to.
-	data := c.components[row].MarshalWire()
-	for len(c.wireCache) <= row {
-		c.wireCache = append(c.wireCache, nil)
-	}
-	c.wireCache[row] = data
-	return len(data)
+	return c.components[row].SizeWire()
 }
 
-// stagedRowWireSize returns the size rowWireSize staged, without re-encoding: the append pass
-// needs each payload's length prefix a second time, and re-marshaling a fallback component there
-// would both allocate and race the size the first pass reported.
-// TODO: removed with slices and maps gone
-func (c *column[T]) stagedRowWireSize(row int) int {
-	assert.That(row < len(c.components), "component doesn't exist")
-	if c.direct {
-		dw, ok := any(&c.components[row]).(directWire)
-		assert.That(ok, "direct column element lost its wire encoders")
-		return dw.SizeWire()
-	}
-	assert.That(row < len(c.wireCache) && c.wireCache[row] != nil,
-		"stagedRowWireSize called without a staging rowWireSize call")
-	return len(c.wireCache[row])
-}
-
-// appendRowWire writes one row's encoded bytes. The caller must have called rowWireSize for this
-// row since the last world mutation — that call either proved the direct path or staged the
-// fallback bytes this one copies.
-//
-// TODO: with the fallback gone (see rowWireSize), the staging precondition goes with it and this
-// becomes:
-//
-//	func (c *column[T]) appendRowWire(b []byte, row int) []byte {
-//		assert.That(row < len(c.components), "component doesn't exist")
-//		return c.components[row].AppendWire(b)
-//	}
+// appendRowWire writes one row's encoded bytes onto b, exactly rowWireSize of them.
 func (c *column[T]) appendRowWire(b []byte, row int) []byte {
 	assert.That(row < len(c.components), "component doesn't exist")
-	if c.direct {
-		dw, ok := any(&c.components[row]).(directWire)
-		assert.That(ok, "direct column element lost its wire encoders")
-		return dw.AppendWire(b)
-	}
-
-	assert.That(row < len(c.wireCache) && c.wireCache[row] != nil,
-		"appendRowWire called without a staging rowWireSize call")
-	return append(b, c.wireCache[row]...)
+	return c.components[row].AppendWire(b)
 }
 
 // decodeRow deserializes one component payload into an existing row.

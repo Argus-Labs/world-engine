@@ -6,6 +6,7 @@ package system
 
 import (
 	pbsystem "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/system"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -46,6 +47,29 @@ func (c AttackPlayerCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.AttackPlayerCommand{}).ProtoReflect().Descriptor()
 }
 
+func (c AttackPlayerCommand) SizeWire() int {
+	n := 0
+	if len(c.Target) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Target))
+	}
+	if c.Damage != 0 {
+		n += protowire.SizeTag(2) + protowire.SizeVarint(uint64(c.Damage))
+	}
+	return n
+}
+
+func (c AttackPlayerCommand) AppendWire(b []byte) []byte {
+	if len(c.Target) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Target))
+	}
+	if c.Damage != 0 {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.Damage))
+	}
+	return b
+}
+
 func (c CallExternalCommand) ToProto() *pbsystem.CallExternalCommand {
 	p := &pbsystem.CallExternalCommand{}
 	p.Message = string(c.Message)
@@ -80,6 +104,22 @@ func (c CallExternalCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.CallExternalCommand{}).ProtoReflect().Descriptor()
 }
 
+func (c CallExternalCommand) SizeWire() int {
+	n := 0
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Message))
+	}
+	return n
+}
+
+func (c CallExternalCommand) AppendWire(b []byte) []byte {
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	return b
+}
+
 func (c CreatePlayerCommand) ToProto() *pbsystem.CreatePlayerCommand {
 	p := &pbsystem.CreatePlayerCommand{}
 	p.Nickname = string(c.Nickname)
@@ -112,4 +152,20 @@ func (c CreatePlayerCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c CreatePlayerCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.CreatePlayerCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c CreatePlayerCommand) SizeWire() int {
+	n := 0
+	if len(c.Nickname) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Nickname))
+	}
+	return n
+}
+
+func (c CreatePlayerCommand) AppendWire(b []byte) []byte {
+	if len(c.Nickname) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Nickname))
+	}
+	return b
 }
