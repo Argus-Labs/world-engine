@@ -39,6 +39,12 @@ func (harnessTag) UnmarshalWire(b []byte) (any, error) {
 	return v, err
 }
 
+// SizeWire and AppendWire are the snapshot encoding path. A generated component sizes itself
+// without encoding; this fixture has to encode to know, so both go through MarshalWire.
+func (c harnessTag) SizeWire() int { return len(c.MarshalWire()) }
+
+func (c harnessTag) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
 type spawnArchetype = cardinal.Exact[struct {
 	Tag cardinal.WithComponent[harnessTag]
 	T   cardinal.WithComponent[physics.Transform2D]

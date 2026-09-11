@@ -51,19 +51,39 @@ func (ComponentC) Name() string {
 	return "component_c"
 }
 
+func (c SimpleComponent) SizeWire() int              { return gobSize(c) }
+func (c SimpleComponent) AppendWire(b []byte) []byte { return gobAppend(b, c) }
+
 func (c SimpleComponent) MarshalWire() []byte { return gobMarshal(c) }
 func (SimpleComponent) UnmarshalWire(b []byte) (any, error) {
 	return gobUnmarshal[SimpleComponent](b)
 }
 
+func (c ComponentA) SizeWire() int              { return gobSize(c) }
+func (c ComponentA) AppendWire(b []byte) []byte { return gobAppend(b, c) }
+
 func (c ComponentA) MarshalWire() []byte               { return gobMarshal(c) }
 func (ComponentA) UnmarshalWire(b []byte) (any, error) { return gobUnmarshal[ComponentA](b) }
+
+func (c ComponentB) SizeWire() int              { return gobSize(c) }
+func (c ComponentB) AppendWire(b []byte) []byte { return gobAppend(b, c) }
 
 func (c ComponentB) MarshalWire() []byte               { return gobMarshal(c) }
 func (ComponentB) UnmarshalWire(b []byte) (any, error) { return gobUnmarshal[ComponentB](b) }
 
+func (c ComponentC) SizeWire() int              { return gobSize(c) }
+func (c ComponentC) AppendWire(b []byte) []byte { return gobAppend(b, c) }
+
 func (c ComponentC) MarshalWire() []byte               { return gobMarshal(c) }
 func (ComponentC) UnmarshalWire(b []byte) (any, error) { return gobUnmarshal[ComponentC](b) }
+
+// gobSize and gobAppend give a gob double the ecs.Component encoding pair. A generated component
+// sizes itself without encoding; a gob one cannot, so both go through gobMarshal and the size pass
+// pays an allocation. That is fine here and nowhere else: these fixtures exist to exercise the
+// engine, not to be fast. What matters is that the bytes equal MarshalWire's, which they do.
+func gobSize(v any) int { return len(gobMarshal(v)) }
+
+func gobAppend(b []byte, v any) []byte { return append(b, gobMarshal(v)...) }
 
 // mustWrite panics on an encoding failure. These are test doubles: a fixture that cannot encode
 // itself is a broken fixture, not a condition callers should handle.

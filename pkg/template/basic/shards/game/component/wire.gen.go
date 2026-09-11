@@ -6,6 +6,7 @@ package component
 
 import (
 	pbcomponent "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/component"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -44,6 +45,22 @@ func (c Gravestone) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.Gravestone{}).ProtoReflect().Descriptor()
 }
 
+func (c Gravestone) SizeWire() int {
+	n := 0
+	if len(c.Nickname) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Nickname))
+	}
+	return n
+}
+
+func (c Gravestone) AppendWire(b []byte) []byte {
+	if len(c.Nickname) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Nickname))
+	}
+	return b
+}
+
 func (c Health) ToProto() *pbcomponent.Health {
 	p := &pbcomponent.Health{}
 	p.HP = int64(c.HP)
@@ -78,6 +95,22 @@ func (c Health) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.Health{}).ProtoReflect().Descriptor()
 }
 
+func (c Health) SizeWire() int {
+	n := 0
+	if c.HP != 0 {
+		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(c.HP))
+	}
+	return n
+}
+
+func (c Health) AppendWire(b []byte) []byte {
+	if c.HP != 0 {
+		b = protowire.AppendTag(b, 1, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.HP))
+	}
+	return b
+}
+
 func (c PlayerTag) ToProto() *pbcomponent.PlayerTag {
 	p := &pbcomponent.PlayerTag{}
 	p.Nickname = string(c.Nickname)
@@ -110,4 +143,20 @@ func (c PlayerTag) UnmarshalWire(data []byte) (any, error) {
 
 func (c PlayerTag) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.PlayerTag{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerTag) SizeWire() int {
+	n := 0
+	if len(c.Nickname) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Nickname))
+	}
+	return n
+}
+
+func (c PlayerTag) AppendWire(b []byte) []byte {
+	if len(c.Nickname) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Nickname))
+	}
+	return b
 }

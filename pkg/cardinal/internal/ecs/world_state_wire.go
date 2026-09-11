@@ -24,9 +24,6 @@ import (
 // this build's numbering, so registration-order files load correctly across code changes. What
 // registration order must be is deterministic per build — it is: registration happens in explicit
 // call order, never map iteration — or identical worlds would stop producing identical bytes.
-//
-// Fallback components (no generated SizeWire/AppendWire yet) still allocate inside MarshalWire —
-// see column.rowWireSize.
 
 // stateWire is the encoder's cross-pass state, owned by worldState and touched only by the tick
 // goroutine.
@@ -133,8 +130,8 @@ func (ws *worldState) appendEntityWire(buf []byte, arch *archetype, eid EntityID
 	row, ok := arch.rows.get(eid)
 	assert.That(ok, "entity has an archetype but no row")
 
-	// The entity's body size, recomputed the same way the size pass did. Direct components rerun
-	// SizeWire (pure arithmetic); fallback components read their staged bytes.
+	// The entity's body size, recomputed the same way the size pass did — SizeWire is arithmetic,
+	// so recomputing costs less than remembering.
 	inner := 0
 	if eid != 0 {
 		inner += protowire.SizeTag(1) + protowire.SizeVarint(uint64(eid))
@@ -146,7 +143,7 @@ func (ws *worldState) appendEntityWire(buf []byte, arch *archetype, eid EntityID
 		}
 		inner += protowire.SizeTag(2) + protowire.SizeBytes(packed)
 		for _, col := range arch.columns {
-			inner += protowire.SizeTag(3) + protowire.SizeBytes(col.stagedRowWireSize(row))
+			inner += protowire.SizeTag(3) + protowire.SizeBytes(col.rowWireSize(row))
 		}
 	}
 
@@ -169,7 +166,7 @@ func (ws *worldState) appendEntityWire(buf []byte, arch *archetype, eid EntityID
 
 	for _, col := range arch.columns {
 		buf = protowire.AppendTag(buf, 3, protowire.BytesType)
-		buf = protowire.AppendVarint(buf, uint64(col.stagedRowWireSize(row))) //nolint:gosec // sizes are non-negative
+		buf = protowire.AppendVarint(buf, uint64(col.rowWireSize(row))) //nolint:gosec // sizes are non-negative
 		buf = col.appendRowWire(buf, row)
 	}
 	return buf

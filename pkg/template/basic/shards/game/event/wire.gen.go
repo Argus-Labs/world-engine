@@ -6,6 +6,7 @@ package event
 
 import (
 	pbevent "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/event"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -44,6 +45,22 @@ func (c NewPlayer) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbevent.NewPlayer{}).ProtoReflect().Descriptor()
 }
 
+func (c NewPlayer) SizeWire() int {
+	n := 0
+	if len(c.Nickname) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Nickname))
+	}
+	return n
+}
+
+func (c NewPlayer) AppendWire(b []byte) []byte {
+	if len(c.Nickname) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Nickname))
+	}
+	return b
+}
+
 func (c PlayerDeath) ToProto() *pbevent.PlayerDeath {
 	p := &pbevent.PlayerDeath{}
 	p.Nickname = string(c.Nickname)
@@ -76,4 +93,20 @@ func (c PlayerDeath) UnmarshalWire(data []byte) (any, error) {
 
 func (c PlayerDeath) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbevent.PlayerDeath{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerDeath) SizeWire() int {
+	n := 0
+	if len(c.Nickname) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Nickname))
+	}
+	return n
+}
+
+func (c PlayerDeath) AppendWire(b []byte) []byte {
+	if len(c.Nickname) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Nickname))
+	}
+	return b
 }

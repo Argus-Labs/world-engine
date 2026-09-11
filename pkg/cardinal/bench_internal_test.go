@@ -20,6 +20,13 @@ func benchGobMarshal[T any](v T) []byte {
 	return b.Bytes()
 }
 
+// benchGobSize / benchGobAppend give these doubles the ecs.Component encoding pair. They encode to
+// measure, unlike a generated component; the benchmarks that care about allocation measure the
+// engine around them, not the fixture's own codec.
+func benchGobSize[T any](v T) int { return len(benchGobMarshal(v)) }
+
+func benchGobAppend[T any](b []byte, v T) []byte { return append(b, benchGobMarshal(v)...) }
+
 func benchGobUnmarshal[T any](b []byte) (any, error) {
 	var v T
 	if err := gob.NewDecoder(bytes.NewReader(b)).Decode(&v); err != nil {
@@ -27,6 +34,27 @@ func benchGobUnmarshal[T any](b []byte) (any, error) {
 	}
 	return v, nil
 }
+
+func (c Position3D) SizeWire() int               { return benchGobSize(c) }
+func (c Position3D) AppendWire(b []byte) []byte  { return benchGobAppend(b, c) }
+func (c Velocity3D) SizeWire() int               { return benchGobSize(c) }
+func (c Velocity3D) AppendWire(b []byte) []byte  { return benchGobAppend(b, c) }
+func (c Health2) SizeWire() int                  { return benchGobSize(c) }
+func (c Health2) AppendWire(b []byte) []byte     { return benchGobAppend(b, c) }
+func (c Transform) SizeWire() int                { return benchGobSize(c) }
+func (c Transform) AppendWire(b []byte) []byte   { return benchGobAppend(b, c) }
+func (c Inventory) SizeWire() int                { return benchGobSize(c) }
+func (c Inventory) AppendWire(b []byte) []byte   { return benchGobAppend(b, c) }
+func (c PlayerStats) SizeWire() int              { return benchGobSize(c) }
+func (c PlayerStats) AppendWire(b []byte) []byte { return benchGobAppend(b, c) }
+func (c AIBehavior) SizeWire() int               { return benchGobSize(c) }
+func (c AIBehavior) AppendWire(b []byte) []byte  { return benchGobAppend(b, c) }
+func (c Renderer) SizeWire() int                 { return benchGobSize(c) }
+func (c Renderer) AppendWire(b []byte) []byte    { return benchGobAppend(b, c) }
+func (c Physics) SizeWire() int                  { return benchGobSize(c) }
+func (c Physics) AppendWire(b []byte) []byte     { return benchGobAppend(b, c) }
+func (c NetworkSync) SizeWire() int              { return benchGobSize(c) }
+func (c NetworkSync) AppendWire(b []byte) []byte { return benchGobAppend(b, c) }
 
 func (c Position3D) MarshalWire() []byte                { return benchGobMarshal(c) }
 func (Position3D) UnmarshalWire(b []byte) (any, error)  { return benchGobUnmarshal[Position3D](b) }
