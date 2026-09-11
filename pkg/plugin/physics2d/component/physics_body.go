@@ -56,9 +56,9 @@ import (
 //
 // When deserializing from JSON, missing fields are defaulted to their Box2D values automatically
 // via a custom UnmarshalJSON. Explicitly serialized false values are preserved exactly. Snapshots
-// go through MarshalWire/UnmarshalWire (protobuf) rather than JSON, and ColliderShape.ChainPoints
-// has no JSON form at all, so JSON is for hand-written payloads rather than for round-tripping a
-// body the world is holding.
+// go through MarshalWire/UnmarshalWire (protobuf) rather than JSON: JSON is for hand-written
+// payloads and for logging, not for round-tripping a body the world is holding. (A Slice field such
+// as Shapes or ColliderShape.ChainPoints encodes as a plain JSON array — see immutable.Slice.)
 //
 // Bullet and FixedRotation default to false (off), matching Box2D defaults.
 //
