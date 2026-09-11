@@ -14,6 +14,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/goccy/go-json"
+
 	"github.com/argus-labs/world-engine/pkg/assert"
 )
 
@@ -404,8 +406,38 @@ func Collect[T any](seq iter.Seq[T]) Slice[T] {
 }
 
 // -------------------------------------------------------------------------------------------------
-// Reflection
+// JSON and Reflection
 // -------------------------------------------------------------------------------------------------
+// A Slice is a list, so on the wire it is a JSON array — the same text a []T would produce. Without
+// these two methods the encoder sees a struct with one unexported field and writes `{}`, and the
+// decoder refuses an array outright, so a component holding a Slice could neither be logged nor
+// read back from a hand-written payload. Both encoding/json and goccy/go-json dispatch on these
+// method signatures, so one implementation serves whichever the caller uses. (goccy is imported
+// here only because the repo's lint policy prefers it; the methods are library-neutral.)
+
+// MarshalJSON encodes the Slice as a JSON array of its items. The zero value encodes as `[]`, not
+// `null`: a Slice is never "absent", only empty.
+func (s Slice[T]) MarshalJSON() ([]byte, error) {
+	if len(s.items) == 0 {
+		return []byte("[]"), nil
+	}
+	return json.Marshal(s.items)
+}
+
+// UnmarshalJSON replaces the Slice with the array in data. An empty array and `null` both yield the
+// zero value — nil items, not an empty allocation — so a decoded empty Slice compares equal to a
+// fresh one under reflect.DeepEqual, the same rule the generated FromProto follows.
+func (s *Slice[T]) UnmarshalJSON(data []byte) error {
+	var items []T
+	if err := json.Unmarshal(data, &items); err != nil {
+		return err
+	}
+	if len(items) == 0 {
+		items = nil
+	}
+	s.items = items
+	return nil
+}
 
 // SliceElem reports whether t is an instantiation of Slice and, if so, returns its element type.
 // It exists so tooling that works through reflection, such as the DST random filler, can recognise
