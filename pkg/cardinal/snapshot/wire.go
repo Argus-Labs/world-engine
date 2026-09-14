@@ -1,9 +1,9 @@
 package snapshot
 
 import (
+	"fmt"
 	"time"
 
-	"github.com/argus-labs/world-engine/pkg/assert"
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
@@ -23,9 +23,7 @@ func EnvelopeSize(tick uint64, timestamp time.Time, bodySize int) int {
 	if tick != 0 {
 		n += protowire.SizeTag(1) + protowire.SizeVarint(tick)
 	}
-	if ts := timestampWireSize(timestamp); ts > 0 {
-		n += protowire.SizeTag(2) + protowire.SizeBytes(ts)
-	}
+	n += protowire.SizeTag(2) + protowire.SizeBytes(timestampWireSize(timestamp))
 	n += protowire.SizeTag(3) + protowire.SizeBytes(bodySize)
 	n += protowire.SizeTag(4) + protowire.SizeVarint(uint64(CurrentVersion))
 	return n
@@ -39,11 +37,9 @@ func AppendEnvelopeHeader(buf []byte, tick uint64, timestamp time.Time, bodySize
 		buf = protowire.AppendTag(buf, 1, protowire.VarintType)
 		buf = protowire.AppendVarint(buf, tick)
 	}
-	if ts := timestampWireSize(timestamp); ts > 0 {
-		buf = protowire.AppendTag(buf, 2, protowire.BytesType)
-		buf = protowire.AppendVarint(buf, uint64(ts))
-		buf = appendTimestampWire(buf, timestamp)
-	}
+	buf = protowire.AppendTag(buf, 2, protowire.BytesType)
+	buf = protowire.AppendVarint(buf, uint64(timestampWireSize(timestamp))) //nolint:gosec // non-negative
+	buf = appendTimestampWire(buf, timestamp)
 	buf = protowire.AppendTag(buf, 3, protowire.BytesType)
 	buf = protowire.AppendVarint(buf, uint64(bodySize)) //nolint:gosec // sizes are non-negative
 	return buf
@@ -56,8 +52,9 @@ func AppendEnvelopeFooter(buf []byte) []byte {
 	return buf
 }
 
-// timestampWireSize is the encoded size of a google.protobuf.Timestamp message body:
-// {int64 seconds = 1; int32 nanos = 2}, zero-valued fields skipped.
+// timestampWireSize is the encoded size of a google.protobuf.Timestamp message BODY:
+// {int64 seconds = 1; int32 nanos = 2}, zero-valued fields skipped. Zero at the Unix epoch, where
+// both fields are zero — the field itself is still written, with that zero length.
 func timestampWireSize(t time.Time) int {
 	n := 0
 	if s := t.Unix(); s != 0 {
@@ -82,8 +79,12 @@ func appendTimestampWire(buf []byte, t time.Time) []byte {
 }
 
 // Encode assembles a complete snapshot: envelope around the body produced by appendBody, in one
-// exactly-sized buffer. appendBody must append exactly bodySize bytes — the assert holds the whole
-// scheme together, converting a size/bytes divergence into a crash instead of a corrupt snapshot.
+// exactly-sized buffer. appendBody must append exactly bodySize bytes.
+//
+// The two checks below are plain panics, not assert.That, because assert compiles to nothing under
+// the release tag. The header already wrote bodySize as field 3's length prefix, so a divergence
+// here is a snapshot that cannot be decoded — it has to fail before reaching storage, in every
+// build, rather than be written and discovered at the next restore.
 //
 // The returned buffer is freshly allocated and handed to the caller: ownership transfers to
 // storage with no reuse, so nothing downstream can race a reused buffer. One allocation per
@@ -95,10 +96,13 @@ func Encode(tick uint64, timestamp time.Time, bodySize int, appendBody func([]by
 
 	bodyStart := len(buf)
 	buf = appendBody(buf)
-	assert.That(len(buf)-bodyStart == bodySize, "snapshot body wrote %d bytes, size pass computed %d",
-		len(buf)-bodyStart, bodySize)
+	if got := len(buf) - bodyStart; got != bodySize {
+		panic(fmt.Sprintf("snapshot body wrote %d bytes, size pass computed %d", got, bodySize))
+	}
 
 	buf = AppendEnvelopeFooter(buf)
-	assert.That(len(buf) == total, "snapshot envelope wrote %d bytes, computed %d", len(buf), total)
+	if len(buf) != total {
+		panic(fmt.Sprintf("snapshot envelope wrote %d bytes, computed %d", len(buf), total))
+	}
 	return buf
 }

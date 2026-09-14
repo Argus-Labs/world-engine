@@ -240,14 +240,14 @@ const file_worldengine_cardinal_v1_snapshot_proto_rawDesc = "" +
 	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12L\n" +
 	"\vworld_state\x18\x03 \x01(\v2#.worldengine.cardinal.v1.WorldStateB\x06\xbaH\x03\xc8\x01\x01R\n" +
 	"worldState\x12\x18\n" +
-	"\aversion\x18\x04 \x01(\rR\aversion\"\x90\x01\n" +
+	"\aversion\x18\x04 \x01(\rR\aversion\"\x96\x01\n" +
 	"\n" +
 	"WorldState\x12\x17\n" +
 	"\anext_id\x18\x01 \x01(\rR\x06nextId\x12,\n" +
 	"\n" +
 	"components\x18\x02 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02\x10\x01R\n" +
 	"components\x12;\n" +
-	"\bentities\x18\x03 \x03(\v2\x1f.worldengine.cardinal.v1.EntityR\bentities\"T\n" +
+	"\bentities\x18\x03 \x03(\v2\x1f.worldengine.cardinal.v1.EntityR\bentitiesJ\x04\b\x04\x10\x05\"T\n" +
 	"\x06Entity\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1e\n" +
 	"\n" +

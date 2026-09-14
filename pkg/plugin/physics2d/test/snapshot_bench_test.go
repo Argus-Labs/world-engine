@@ -225,9 +225,15 @@ func BenchmarkSnapshotTick(b *testing.B) {
 //
 //	LegacyDoubleMarshal — the pre-optimization path: cardinal marshals the WorldState, the backend
 //	                      unmarshals it, rebuilds the envelope and marshals it again.
-//	SingleMarshal       — the current path: cardinal hands the envelope over, the backend marshals
-//	                      it exactly once (what JetStreamStorage and S3Storage now do).
-//	Nop                 — the default storage type; with no caller-side marshal it is free.
+//	SingleMarshal       — one marshal of the whole envelope, the intermediate step: the backend was
+//	                      handed a message and serialized it exactly once.
+//	Nop                 — the default storage type, handed bytes and doing nothing with them.
+//
+// None of the three is the current engine path. Storage now takes []byte and marshals nothing at
+// all; the one serialization left is cardinal's own hand-rolled snapshot.Encode, which never builds
+// a proto graph and so is not proto.Marshal of anything. These rows measure what a BACKEND does
+// with what it is given, which is why SingleMarshal is the ceiling the byte interface removed
+// rather than a description of today. For the engine-side cost see BenchmarkSnapshotTick.
 //
 // What the current path saves, measured 2026-08-02 on darwin/arm64, Apple M5 Max, go1.26.5:
 // five runs at -benchtime=200x, per-run LegacyDoubleMarshal minus SingleMarshal, median taken
@@ -287,25 +293,22 @@ func BenchmarkSnapshotStore(b *testing.B) {
 	ctx := context.Background()
 	for _, bodies := range []int{1000, 5000} {
 		snap := snapshotBenchEnvelope(b, bodies)
-		size, err := proto.MarshalOptions{Deterministic: true}.Marshal(snap)
+		encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(snap)
 		if err != nil {
 			b.Fatal(err)
 		}
-		snapshotBytes := float64(len(size))
+		snapshotBytes := float64(len(encoded))
 
 		nop := snapshot.NewNopStorage()
 		stores := []struct {
 			name  string
 			store func(context.Context, *cardinalv1.Snapshot) error
 		}{
-			// The engine now hands storage pre-encoded bytes; marshaling here stands in for the
-			// encoder so the store-side comparison stays meaningful.
+			// Handed bytes the engine already encoded, exactly as production does, so this row is
+			// the free baseline it claims to be. Marshaling here instead would just re-measure
+			// SingleMarshal, and with proto.Marshal — which is not how the engine encodes.
 			{"Nop", func(ctx context.Context, s *cardinalv1.Snapshot) error {
-				data, err := proto.Marshal(s)
-				if err != nil {
-					return err
-				}
-				return nop.Store(ctx, s.GetTickHeight(), data)
+				return nop.Store(ctx, s.GetTickHeight(), encoded)
 			}},
 			{"SingleMarshal", (&singleMarshalStorage{}).Store},
 			{"LegacyDoubleMarshal", (&legacyDoubleMarshalStorage{}).Store},

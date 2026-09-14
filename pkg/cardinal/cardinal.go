@@ -250,8 +250,8 @@ func (w *World) persistState(timestamp time.Time) {
 
 	data := w.encodeSnapshot(timestamp)
 
-	// Publish state only when the debug service is enabled. The decode allocates, so it happens
-	// only on this dev path — and before Write, which takes ownership of the bytes.
+	// Hand the debug service the same frozen bytes. Nobody writes to them, so sharing with the
+	// writer below is safe.
 	w.debug.publishState(data)
 
 	if snapshotDue {
@@ -294,7 +294,7 @@ func (w *World) restore(ctx context.Context) error {
 	w.currentTick.height = snap.GetTickHeight() + 1
 
 	// Publish the restored state for GetState; a no-op when the debug service is disabled.
-	w.debug.publishSnapshot(snap)
+	w.debug.publishState(data)
 	return nil
 }
 

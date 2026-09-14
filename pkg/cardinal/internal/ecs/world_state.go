@@ -73,14 +73,8 @@ func (ws *worldState) newEntity() EntityID {
 	defer ws.mu.Unlock()
 
 	var eid EntityID
-	if len(ws.free) > 0 { // Reuse free IDs if any
-		eid = ws.free[0]
-		if len(ws.free) == 1 {
-			// Retain the last slot for repeated create/destroy cycles, preserving FIFO reuse.
-			ws.free = ws.free[:0]
-		} else {
-			ws.free = ws.free[1:]
-		}
+	if len(ws.free) > 0 { // Reuse the smallest free id (see pushFree)
+		eid = ws.popFree()
 	} else { // Else get the next ID
 		eid = ws.nextID
 		ws.nextID++
@@ -126,10 +120,47 @@ func (ws *worldState) removeEntity(eid EntityID) bool {
 	ok := ws.entityArch.remove(eid)
 	assert.That(ok, "entity isn't removed from sparse set")
 
-	// Add the removed ID to the free list for reuse.
-	ws.free = append(ws.free, eid)
+	ws.pushFree(eid)
 
 	return true
+}
+
+// free is a min-heap, so newEntity always reuses the smallest id. A snapshot stores only the gaps
+// and restore rebuilds them ascending, so reuse order must not depend on the order ids were freed.
+// A heap rather than a sorted slice: inserting kept the list readable but cost an O(n) memmove per
+// removal, which is milliseconds a tick once a shrunken world leaves a large free list behind.
+func (ws *worldState) pushFree(eid EntityID) {
+	ws.free = append(ws.free, eid)
+	for i := len(ws.free) - 1; i > 0; {
+		parent := (i - 1) / 2
+		if ws.free[parent] <= ws.free[i] {
+			break
+		}
+		ws.free[parent], ws.free[i] = ws.free[i], ws.free[parent]
+		i = parent
+	}
+}
+
+// popFree removes and returns the smallest free id. The caller must check that free is non-empty.
+func (ws *worldState) popFree() EntityID {
+	smallest := ws.free[0]
+	last := len(ws.free) - 1
+	ws.free[0] = ws.free[last]
+	ws.free = ws.free[:last]
+	for i := 0; ; {
+		left, right, lowest := 2*i+1, 2*i+2, i
+		if left < len(ws.free) && ws.free[left] < ws.free[lowest] {
+			lowest = left
+		}
+		if right < len(ws.free) && ws.free[right] < ws.free[lowest] {
+			lowest = right
+		}
+		if lowest == i {
+			return smallest
+		}
+		ws.free[i], ws.free[lowest] = ws.free[lowest], ws.free[i]
+		i = lowest
+	}
 }
 
 // moveEntity moves an entity to a new archetype with the given components. Returns a ponter to the

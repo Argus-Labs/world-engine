@@ -62,11 +62,11 @@ func Decode(data []byte) (*cardinalv1.Snapshot, error) {
 	if err := proto.Unmarshal(data, snapshot); err != nil {
 		return nil, eris.Wrap(err, "failed to unmarshal snapshot")
 	}
-	if err := protovalidate.Validate(snapshot); err != nil {
-		return nil, eris.Wrap(err, "failed to validate snapshot")
-	}
 	if err := ValidateVersion(snapshot.GetVersion()); err != nil {
 		return nil, err
+	}
+	if err := protovalidate.Validate(snapshot); err != nil {
+		return nil, eris.Wrap(err, "failed to validate snapshot")
 	}
 	return snapshot, nil
 }

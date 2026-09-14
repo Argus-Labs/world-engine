@@ -38,8 +38,11 @@ func TestEnvelopeCanonical(t *testing.T) {
 	}{
 		"typical":        {tick: 42, ts: time.Unix(1_700_000_000, 123_456_789).UTC()},
 		"zero tick":      {tick: 0, ts: time.Unix(1_700_000_000, 0).UTC()},
-		"zero timestamp": {tick: 9, ts: time.Time{}},
+		"zero timestamp": {tick: 9, ts: time.Time{}}, // Unix() is very negative, so still encoded
 		"nanos only":     {tick: 1, ts: time.Unix(0, 5).UTC()},
+		// The only timestamp whose BODY is empty. The field is still present, so it must be written
+		// with a zero length; skipping it decodes as no timestamp at all.
+		"unix epoch": {tick: 3, ts: time.Unix(0, 0).UTC()},
 	}
 
 	for name, tc := range cases {
@@ -142,6 +145,34 @@ func TestDecodeRejects(t *testing.T) {
 			assert.True(t, eris.Is(err, ErrUnsupportedVersion))
 		})
 	}
+
+	// A format this build cannot read is unlikely to satisfy this build's schema, which is the
+	// whole point of the version field. The refusal must still name the version, not describe how
+	// the file differs from today's shape.
+	t.Run("wrong version that also fails the current schema", func(t *testing.T) {
+		t.Parallel()
+		snap, err := Decode(encode(&cardinalv1.Snapshot{
+			Version: CurrentVersion + 1, // WorldState omitted: required under the current schema
+		}))
+		assert.Nil(t, snap)
+		require.Error(t, err)
+		assert.True(t, eris.Is(err, ErrUnsupportedVersion), "got %v", err)
+	})
+}
+
+// TestEncodeRefusesBodySizeMismatch pins that the integrity check survives the release tag. It used
+// to be an assert.That, which compiles to nothing there, so a divergence returned an undecodable
+// snapshot instead of failing.
+func TestEncodeRefusesBodySizeMismatch(t *testing.T) {
+	t.Parallel()
+
+	assert.Panics(t, func() {
+		Encode(7, time.Unix(1, 0), 10, func(b []byte) []byte { return append(b, 1, 2, 3) })
+	}, "a body shorter than the size pass promised must fail before reaching storage")
+
+	assert.Panics(t, func() {
+		Encode(7, time.Unix(1, 0), 1, func(b []byte) []byte { return append(b, 1, 2, 3) })
+	}, "a body longer than the size pass promised must fail too")
 }
 
 // TestValidateVersion pins the acceptance policy: exactly the version this build writes is

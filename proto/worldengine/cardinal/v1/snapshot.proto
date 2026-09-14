@@ -27,6 +27,14 @@ message Snapshot {
 // Order is part of the format: the name table is sorted, entity ids ascend, and each entity's
 // component indices ascend. Identical worlds produce identical bytes.
 message WorldState {
+  // Tag 4 held `repeated Archetype` before this message was reshaped; never reuse it.
+  //
+  // Tags 2 and 3 WERE reused, for unrelated types, without bumping snapshot.CurrentVersion. That is
+  // safe only while no persisted snapshot predates the reshape, because an older file still reads as
+  // the current version and parses as garbage rather than being refused. Bump the version before
+  // that stops being true, and reserve rather than reuse from here on.
+  reserved 4;
+
   // Entity ID counter: the next never-used ID. The free list is not stored — it is every ID below
   // next_id that has no entity entry.
   uint32 next_id = 1;
