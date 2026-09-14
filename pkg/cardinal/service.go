@@ -18,6 +18,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
@@ -470,9 +471,7 @@ func (s *service) publishDefaultEvent(evt event.Event) error {
 		return eris.Errorf("invalid event payload type: %T", evt.Payload)
 	}
 
-	// Proto via the event's generated MarshalWire (dispatch by type, no registry). payload is an
-	// event.Payload (schema.Serializable), so MarshalWire is guaranteed by the type — no fallback.
-	payloadPb := payload.MarshalWire()
+	payloadPb := schema.Marshal(payload)
 
 	eventPb := &iscv1.Event{
 		Name:    payload.Name(),
@@ -588,10 +587,7 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 	}
 	assert.That(isc.Address != nil, "inter shard command has nil address")
 
-	// No encoding-failure branch: MarshalWire panics rather than returning an error (see
-	// schema.Serializable), and on success proto.Marshal returns a non-nil empty slice even for an
-	// empty message — so a nil check here would never fire.
-	payload := isc.Payload.MarshalWire()
+	payload := schema.Marshal(isc.Payload)
 
 	commandPb := &iscv1.Command{
 		Name:    isc.Payload.Name(),

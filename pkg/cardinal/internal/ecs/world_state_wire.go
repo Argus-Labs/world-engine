@@ -28,17 +28,13 @@ import (
 // stateWire is the encoder's cross-pass state, owned by worldState and touched only by the tick
 // goroutine.
 type stateWire struct {
-	// pendingSize is the body size staged by wireBodySize for appendWireBody to enforce,
-	// -1 when no size pass is staged. The two passes must observe identical world state; the
-	// asserts downstream of this are what turn a mutation between them into a crash instead of a
-	// corrupt snapshot.
+	// pendingSize is the body size wireBodySize computed, for appendWireBody to enforce, and -1
+	// when no size pass is outstanding.
 	pendingSize int
 }
 
-// wireBodySize computes the exact encoded size of the WorldState message and stages the
-// snapshot: every fallback component is pre-encoded, and the result is remembered for
-// appendWireBody to verify against. Encoding cannot fail: a component that cannot marshal asserts
-// inside column.rowWireSize rather than reporting an error nobody could act on.
+// wireBodySize computes the exact encoded size of the WorldState message, and remembers it for
+// appendWireBody to verify against.
 func (ws *worldState) wireBodySize() int {
 	n := 0
 	if ws.nextID != 0 {
@@ -66,8 +62,7 @@ func (ws *worldState) wireBodySize() int {
 	return n
 }
 
-// entityWireSize is the encoded size of one Entity message body. It also stages fallback
-// components (see column.rowWireSize).
+// entityWireSize is the encoded size of one Entity message body.
 func (ws *worldState) entityWireSize(arch *archetype, eid EntityID) int {
 	row, ok := arch.rows.get(eid)
 	assert.That(ok, "entity has an archetype but no row")
@@ -94,11 +89,11 @@ func (ws *worldState) entityWireSize(arch *archetype, eid EntityID) int {
 	return n
 }
 
-// appendWireBody writes the WorldState message staged by the wireBodySize call directly
-// before it. The world must not change between the two calls; the final assert is what catches it
+// appendWireBody writes the WorldState message that the wireBodySize call directly before it
+// measured. The world must not change between the two calls; the final assert is what catches it
 // if it does.
 func (ws *worldState) appendWireBody(buf []byte) []byte {
-	assert.That(ws.wire.pendingSize >= 0, "appendWireBody called without a staging wireBodySize call")
+	assert.That(ws.wire.pendingSize >= 0, "appendWireBody called without a preceding wireBodySize call")
 	start := len(buf)
 
 	if ws.nextID != 0 {

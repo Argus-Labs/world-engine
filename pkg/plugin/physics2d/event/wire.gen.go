@@ -27,11 +27,7 @@ func (c ContactBeginEvent) FromProto(p *pbevent.ContactBeginEvent) ContactBeginE
 }
 
 func (c ContactBeginEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal ContactBeginEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c ContactBeginEvent) UnmarshalWire(data []byte) (any, error) {
@@ -74,11 +70,7 @@ func (c ContactEndEvent) FromProto(p *pbevent.ContactEndEvent) ContactEndEvent {
 }
 
 func (c ContactEndEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal ContactEndEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c ContactEndEvent) UnmarshalWire(data []byte) (any, error) {
@@ -268,11 +260,7 @@ func (c TriggerBeginEvent) FromProto(p *pbevent.TriggerBeginEvent) TriggerBeginE
 }
 
 func (c TriggerBeginEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal TriggerBeginEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c TriggerBeginEvent) UnmarshalWire(data []byte) (any, error) {
@@ -315,11 +303,7 @@ func (c TriggerEndEvent) FromProto(p *pbevent.TriggerEndEvent) TriggerEndEvent {
 }
 
 func (c TriggerEndEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal TriggerEndEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c TriggerEndEvent) UnmarshalWire(data []byte) (any, error) {

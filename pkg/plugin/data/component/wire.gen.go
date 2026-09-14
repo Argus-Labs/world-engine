@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"unicode/utf8"
 )
 
 func (c ConfigFileHash) ToProto() *pbcomponent.ConfigFileHash {
@@ -31,10 +32,10 @@ func (c ConfigFileHash) FromProto(p *pbcomponent.ConfigFileHash) ConfigFileHash 
 func (c ConfigFileHash) SizeWire() int {
 	n := 0
 	if len(c.Path) > 0 {
-		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Path))
+		n += protowire.SizeTag(1) + wireStringSize("ConfigFileHash.Path", string(c.Path))
 	}
 	if len(c.Hash) > 0 {
-		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.Hash))
+		n += protowire.SizeTag(2) + wireStringSize("ConfigFileHash.Hash", string(c.Hash))
 	}
 	return n
 }
@@ -76,11 +77,7 @@ func (c ConfigManifest) FromProto(p *pbcomponent.ConfigManifest) ConfigManifest 
 }
 
 func (c ConfigManifest) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal ConfigManifest: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c ConfigManifest) UnmarshalWire(data []byte) (any, error) {
@@ -110,4 +107,20 @@ func (c ConfigManifest) AppendWire(b []byte) []byte {
 		b = x.AppendWire(b)
 	}
 	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check
+// proto.Marshal performs.
+//
+// proto3 forbids a string field holding bytes that are not valid UTF-8, and every decoder
+// rejects such a payload — so writing one produces a snapshot that cannot be restored. The size
+// pass runs over the whole world before a single byte is appended, so panicking here fails the
+// write rather than committing a file that only fails later, at restore, where nothing can be
+// done about it. proto.Marshal made the same check; keeping it is what makes the direct
+// encoders a drop-in for it.
+func wireStringSize(field, s string) int {
+	if !utf8.ValidString(s) {
+		panic("failed to encode " + field + ": string field contains invalid UTF-8")
+	}
+	return protowire.SizeBytes(len(s))
 }

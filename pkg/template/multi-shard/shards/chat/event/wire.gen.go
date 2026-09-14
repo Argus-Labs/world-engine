@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"time"
+	"unicode/utf8"
 )
 
 func (c UserChat) ToProto() *pbevent.UserChat {
@@ -36,11 +37,7 @@ func (c UserChat) FromProto(p *pbevent.UserChat) UserChat {
 }
 
 func (c UserChat) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal UserChat: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c UserChat) UnmarshalWire(data []byte) (any, error) {
@@ -58,13 +55,13 @@ func (c UserChat) ProtoDescriptor() protoreflect.MessageDescriptor {
 func (c UserChat) SizeWire() int {
 	n := 0
 	if len(c.ArgusAuthID) > 0 {
-		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.ArgusAuthID))
+		n += protowire.SizeTag(1) + wireStringSize("UserChat.ArgusAuthID", string(c.ArgusAuthID))
 	}
 	if len(c.ArgusAuthName) > 0 {
-		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.ArgusAuthName))
+		n += protowire.SizeTag(2) + wireStringSize("UserChat.ArgusAuthName", string(c.ArgusAuthName))
 	}
 	if len(c.Message) > 0 {
-		n += protowire.SizeTag(3) + protowire.SizeBytes(len(c.Message))
+		n += protowire.SizeTag(3) + wireStringSize("UserChat.Message", string(c.Message))
 	}
 	n += protowire.SizeTag(4) + protowire.SizeBytes(sizeWireTimestamp(c.Timestamp))
 	return n
@@ -112,4 +109,20 @@ func appendWireTimestamp(b []byte, t time.Time) []byte {
 		b = protowire.AppendVarint(b, uint64(ns))
 	}
 	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check
+// proto.Marshal performs.
+//
+// proto3 forbids a string field holding bytes that are not valid UTF-8, and every decoder
+// rejects such a payload — so writing one produces a snapshot that cannot be restored. The size
+// pass runs over the whole world before a single byte is appended, so panicking here fails the
+// write rather than committing a file that only fails later, at restore, where nothing can be
+// done about it. proto.Marshal made the same check; keeping it is what makes the direct
+// encoders a drop-in for it.
+func wireStringSize(field, s string) int {
+	if !utf8.ValidString(s) {
+		panic("failed to encode " + field + ": string field contains invalid UTF-8")
+	}
+	return protowire.SizeBytes(len(s))
 }

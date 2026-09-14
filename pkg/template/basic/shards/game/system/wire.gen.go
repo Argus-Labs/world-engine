@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"unicode/utf8"
 )
 
 func (c AttackPlayerCommand) ToProto() *pbsystem.AttackPlayerCommand {
@@ -28,11 +29,7 @@ func (c AttackPlayerCommand) FromProto(p *pbsystem.AttackPlayerCommand) AttackPl
 }
 
 func (c AttackPlayerCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal AttackPlayerCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c AttackPlayerCommand) UnmarshalWire(data []byte) (any, error) {
@@ -50,7 +47,7 @@ func (c AttackPlayerCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 func (c AttackPlayerCommand) SizeWire() int {
 	n := 0
 	if len(c.Target) > 0 {
-		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Target))
+		n += protowire.SizeTag(1) + wireStringSize("AttackPlayerCommand.Target", string(c.Target))
 	}
 	if c.Damage != 0 {
 		n += protowire.SizeTag(2) + protowire.SizeVarint(uint64(c.Damage))
@@ -85,11 +82,7 @@ func (c CallExternalCommand) FromProto(p *pbsystem.CallExternalCommand) CallExte
 }
 
 func (c CallExternalCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal CallExternalCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c CallExternalCommand) UnmarshalWire(data []byte) (any, error) {
@@ -107,7 +100,7 @@ func (c CallExternalCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 func (c CallExternalCommand) SizeWire() int {
 	n := 0
 	if len(c.Message) > 0 {
-		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Message))
+		n += protowire.SizeTag(1) + wireStringSize("CallExternalCommand.Message", string(c.Message))
 	}
 	return n
 }
@@ -135,11 +128,7 @@ func (c CreatePlayerCommand) FromProto(p *pbsystem.CreatePlayerCommand) CreatePl
 }
 
 func (c CreatePlayerCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal CreatePlayerCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c CreatePlayerCommand) UnmarshalWire(data []byte) (any, error) {
@@ -157,7 +146,7 @@ func (c CreatePlayerCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 func (c CreatePlayerCommand) SizeWire() int {
 	n := 0
 	if len(c.Nickname) > 0 {
-		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Nickname))
+		n += protowire.SizeTag(1) + wireStringSize("CreatePlayerCommand.Nickname", string(c.Nickname))
 	}
 	return n
 }
@@ -168,4 +157,20 @@ func (c CreatePlayerCommand) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.Nickname))
 	}
 	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check
+// proto.Marshal performs.
+//
+// proto3 forbids a string field holding bytes that are not valid UTF-8, and every decoder
+// rejects such a payload — so writing one produces a snapshot that cannot be restored. The size
+// pass runs over the whole world before a single byte is appended, so panicking here fails the
+// write rather than committing a file that only fails later, at restore, where nothing can be
+// done about it. proto.Marshal made the same check; keeping it is what makes the direct
+// encoders a drop-in for it.
+func wireStringSize(field, s string) int {
+	if !utf8.ValidString(s) {
+		panic("failed to encode " + field + ": string field contains invalid UTF-8")
+	}
+	return protowire.SizeBytes(len(s))
 }
