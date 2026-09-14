@@ -30,16 +30,10 @@ type TickRequest struct {
 	Input        []byte
 }
 
-// QueryRequest contains an application-defined query. Query borrows Input only for the call.
-type QueryRequest struct {
-	Kind  uint32
-	Input []byte
-}
-
 // Runner owns one isolated module instance.
 //
-// Tick, Query, and Snapshot write to output buffers that the caller owns. Each method returns the
-// number of bytes that it writes. Tick, Query, and Snapshot return BufferSizeError if an output
+// Tick and Snapshot write to output buffers that the caller owns. Each method returns the
+// number of bytes that it writes. Tick and Snapshot return BufferSizeError if an output
 // buffer is too small. A call that returns BufferSizeError does not change the module state or the
 // output buffer.
 //
@@ -50,7 +44,6 @@ type Runner interface {
 	Contract() Contract
 	Initialize(InitRequest) error
 	Tick(TickRequest, []byte) (int, error)
-	Query(QueryRequest, []byte) (int, error)
 	Snapshot([]byte) (int, error)
 	Restore([]byte) error
 	Close() error

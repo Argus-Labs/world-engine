@@ -42,7 +42,6 @@ RUN for symbol in \
       cardinal_runtime_v1_create \
       cardinal_runtime_v1_initialize \
       cardinal_runtime_v1_tick \
-      cardinal_runtime_v1_query \
       cardinal_runtime_v1_snapshot \
       cardinal_runtime_v1_restore \
       cardinal_runtime_v1_last_error \
