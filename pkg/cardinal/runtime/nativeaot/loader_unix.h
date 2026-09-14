@@ -56,16 +56,6 @@ cardinal_nativeaot_call_result_v1 cardinal_nativeaot_tick(
     uint64_t output_capacity
 );
 
-cardinal_nativeaot_call_result_v1 cardinal_nativeaot_query(
-    cardinal_nativeaot_library_v1 *library,
-    cardinal_runtime_handle_v1 handle,
-    uint32_t kind,
-    const uint8_t *input,
-    uint64_t input_len,
-    uint8_t *output,
-    uint64_t output_capacity
-);
-
 cardinal_nativeaot_call_result_v1 cardinal_nativeaot_snapshot(
     cardinal_nativeaot_library_v1 *library,
     cardinal_runtime_handle_v1 handle,

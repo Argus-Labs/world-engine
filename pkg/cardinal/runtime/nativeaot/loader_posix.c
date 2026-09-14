@@ -29,15 +29,6 @@ typedef int32_t (*tick_fn)(
     uint64_t output_capacity,
     uint64_t *output_len
 );
-typedef int32_t (*query_fn)(
-    cardinal_runtime_handle_v1 handle,
-    uint32_t kind,
-    const uint8_t *input,
-    uint64_t input_len,
-    uint8_t *output,
-    uint64_t output_capacity,
-    uint64_t *output_len
-);
 typedef int32_t (*snapshot_fn)(
     cardinal_runtime_handle_v1 handle,
     uint8_t *output,
@@ -62,7 +53,6 @@ struct cardinal_nativeaot_library_v1 {
     create_fn create;
     initialize_fn initialize;
     tick_fn tick;
-    query_fn query;
     snapshot_fn snapshot;
     restore_fn restore;
     last_error_fn last_error;
@@ -163,14 +153,6 @@ cardinal_nativeaot_library_v1 *cardinal_nativeaot_library_open(
         dl_handle,
         tick,
         "cardinal_runtime_v1_tick",
-        error,
-        error_capacity
-    );
-    LOAD_SYMBOL(
-        library,
-        dl_handle,
-        query,
-        "cardinal_runtime_v1_query",
         error,
         error_capacity
     );
@@ -286,34 +268,6 @@ cardinal_nativeaot_call_result_v1 cardinal_nativeaot_tick(
         &result.output_len
     );
 
-    return result;
-}
-
-cardinal_nativeaot_call_result_v1 cardinal_nativeaot_query(
-    cardinal_nativeaot_library_v1 *library,
-    cardinal_runtime_handle_v1 handle,
-    uint32_t kind,
-    const uint8_t *input,
-    uint64_t input_len,
-    uint8_t *output,
-    uint64_t output_capacity
-) {
-    assert(handle != 0);
-    assert(library != NULL);
-
-    cardinal_nativeaot_call_result_v1 result = {
-        .status = CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT,
-        .output_len = 0,
-    };
-    result.status = library->query(
-        handle,
-        kind,
-        input,
-        input_len,
-        output,
-        output_capacity,
-        &result.output_len
-    );
     return result;
 }
 

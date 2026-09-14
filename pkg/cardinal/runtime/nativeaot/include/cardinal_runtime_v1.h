@@ -43,7 +43,7 @@ typedef struct cardinal_runtime_contract_v1 {
 /*
  * A module borrows each input pointer for one call. The caller owns each output buffer.
  *
- * For tick, query, and snapshot, the module sets output_len to the number of bytes that it writes.
+ * For tick and snapshot, the module sets output_len to the number of bytes that it writes.
  * If the output buffer is too small, the module sets output_len to the required capacity. It then
  * returns BUFFER_TOO_SMALL. A call that returns BUFFER_TOO_SMALL must not change the module state or
  * the output buffer. The host can retry the call. Output can be NULL only when the output capacity
@@ -80,16 +80,6 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_tick(
     cardinal_runtime_handle_v1 handle,
     uint64_t tick,
     uint64_t fixed_delta_ns,
-    const uint8_t *input,
-    uint64_t input_len,
-    uint8_t *output,
-    uint64_t output_capacity,
-    uint64_t *output_len
-);
-
-CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_query(
-    cardinal_runtime_handle_v1 handle,
-    uint32_t kind,
     const uint8_t *input,
     uint64_t input_len,
     uint8_t *output,
