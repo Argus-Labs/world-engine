@@ -194,52 +194,6 @@ namespace WorldEngine.Runtime.NativeAot
         }
 
         [UnmanagedCallersOnly(
-            EntryPoint = "cardinal_runtime_v1_query",
-            CallConvs = new[] { typeof(CallConvCdecl) })]
-        internal static int Query(
-            ulong handle,
-            uint kind,
-            byte* input,
-            ulong inputLength,
-            byte* output,
-            ulong outputCapacity,
-            ulong* outputLength)
-        {
-            Debug.Assert(handle != 0);
-            Debug.Assert(outputLength != null);
-
-            ReadOnlySpan<byte> inputSpan = CreateReadOnlySpan(input, inputLength);
-            Span<byte> outputSpan = CreateSpan(output, outputCapacity);
-            *outputLength = 0;
-            bool found = s_modules.TryGetValue(handle, out ModuleEntry? entry);
-            Debug.Assert(found);
-            Debug.Assert(entry != null);
-
-            lock (entry.Gate)
-            {
-                try
-                {
-                    RuntimeStatus status = entry.Module.Query(
-                        kind,
-                        inputSpan,
-                        outputSpan,
-                        out int length);
-                    return CompleteOutputStatus(
-                        entry,
-                        status,
-                        length,
-                        outputSpan.Length,
-                        outputLength);
-                }
-                catch (Exception exception)
-                {
-                    entry.LastError = FormatException(exception);
-                    return (int)RuntimeStatus.ExecutionFailed;
-                }
-            }
-        }
-
-        [UnmanagedCallersOnly(
             EntryPoint = "cardinal_runtime_v1_snapshot",
             CallConvs = new[] { typeof(CallConvCdecl) })]
         internal static int Snapshot(

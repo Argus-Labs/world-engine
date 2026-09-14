@@ -22,12 +22,6 @@ namespace WorldEngine.Runtime
             Span<byte> output,
             out int outputLength);
 
-        RuntimeStatus Query(
-            uint kind,
-            ReadOnlySpan<byte> input,
-            Span<byte> output,
-            out int outputLength);
-
         RuntimeStatus Snapshot(Span<byte> output, out int outputLength);
 
         RuntimeStatus Restore(ReadOnlySpan<byte> snapshot);

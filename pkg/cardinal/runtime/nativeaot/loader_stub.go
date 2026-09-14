@@ -39,10 +39,6 @@ func (*Runner) Tick(cardinalruntime.TickRequest, []byte) (int, error) {
 	return 0, ErrUnavailable
 }
 
-func (*Runner) Query(cardinalruntime.QueryRequest, []byte) (int, error) {
-	return 0, ErrUnavailable
-}
-
 func (*Runner) Snapshot([]byte) (int, error) {
 	return 0, ErrUnavailable
 }

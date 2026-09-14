@@ -71,10 +71,7 @@ func TestNativeAOTModule(t *testing.T) {
 	})
 	require.NoError(t, restored.Restore(snapshot))
 
-	written, err = restored.Query(
-		cardinalruntime.QueryRequest{Kind: 1},
-		output,
-	)
+	written, err = restored.Snapshot(output)
 	require.NoError(t, err)
 	require.Equal(t, len(output), written)
 	assert.Equal(t, uint64(5), binary.LittleEndian.Uint64(output))

@@ -23,7 +23,7 @@ typedef struct fixture_state {
 
 static fixture_state states[FIXTURE_MAX_HANDLES];
 static char global_error[FIXTURE_ERROR_CAPACITY];
-static atomic_int active_probe_queries;
+static atomic_int active_probe_ticks;
 
 static void set_error(char *destination, const char *message) {
     (void)snprintf(destination, FIXTURE_ERROR_CAPACITY, "%s", message);
@@ -48,12 +48,6 @@ static uint64_t hash_bytes(const uint8_t *data, uint64_t data_len) {
         hash *= UINT64_C(1099511628211);
     }
     return hash;
-}
-
-static void write_uint32_le(uint8_t *output, uint32_t value) {
-    for (size_t index = 0; index < 4; index++) {
-        output[index] = (uint8_t)(value >> (index * 8));
-    }
 }
 
 static void write_uint64_le(uint8_t *output, uint64_t value) {
@@ -197,6 +191,34 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_tick(
         return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
     }
 
+    if (tick == UINT64_MAX) {
+        set_error(state->error, "fixture tick failure");
+        return CARDINAL_RUNTIME_STATUS_EXECUTION_FAILED;
+    }
+    if (tick == 77) {
+        int previous =
+            atomic_fetch_add_explicit(&active_probe_ticks, 1, memory_order_acq_rel);
+        if (previous != 0) {
+            (void)atomic_fetch_sub_explicit(
+                &active_probe_ticks,
+                1,
+                memory_order_acq_rel
+            );
+            set_error(state->error, "fixture observed concurrent calls");
+            return CARDINAL_RUNTIME_STATUS_EXECUTION_FAILED;
+        }
+        const struct timespec delay = {
+            .tv_sec = 0,
+            .tv_nsec = 2 * 1000 * 1000,
+        };
+        (void)nanosleep(&delay, NULL);
+        (void)atomic_fetch_sub_explicit(
+            &active_probe_ticks,
+            1,
+            memory_order_acq_rel
+        );
+    }
+
     uint64_t required = 16 + input_len;
     int32_t status =
         prepare_output(output, output_capacity, required, output_len);
@@ -210,71 +232,6 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_tick(
     write_uint64_le(output + 8, fixed_delta_ns);
     if (input_len > 0) {
         memcpy(output + 16, input, input_len);
-    }
-    state->error[0] = '\0';
-    return CARDINAL_RUNTIME_STATUS_SUCCESS;
-}
-
-CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_query(
-    cardinal_runtime_handle_v1 handle,
-    uint32_t kind,
-    const uint8_t *input,
-    uint64_t input_len,
-    uint8_t *output,
-    uint64_t output_capacity,
-    uint64_t *output_len
-) {
-    fixture_state *state = find_state(handle);
-    if (state == NULL) {
-        set_error(global_error, "fixture handle is invalid");
-        return CARDINAL_RUNTIME_STATUS_INVALID_HANDLE;
-    }
-    if (!state->initialized) {
-        set_error(state->error, "fixture is not initialized");
-        return CARDINAL_RUNTIME_STATUS_INVALID_STATE;
-    }
-    if (!valid_input(input, input_len)) {
-        set_error(state->error, "query input pointer is null");
-        return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
-    }
-    if (kind == UINT32_MAX) {
-        set_error(state->error, "fixture query failure");
-        return CARDINAL_RUNTIME_STATUS_EXECUTION_FAILED;
-    }
-    if (kind == 77) {
-        int previous =
-            atomic_fetch_add_explicit(&active_probe_queries, 1, memory_order_acq_rel);
-        if (previous != 0) {
-            (void)atomic_fetch_sub_explicit(
-                &active_probe_queries,
-                1,
-                memory_order_acq_rel
-            );
-            set_error(state->error, "fixture observed concurrent calls");
-            return CARDINAL_RUNTIME_STATUS_EXECUTION_FAILED;
-        }
-        const struct timespec delay = {
-            .tv_sec = 0,
-            .tv_nsec = 2 * 1000 * 1000,
-        };
-        (void)nanosleep(&delay, NULL);
-        (void)atomic_fetch_sub_explicit(
-            &active_probe_queries,
-            1,
-            memory_order_acq_rel
-        );
-    }
-
-    uint64_t required = 4 + input_len;
-    int32_t status =
-        prepare_output(output, output_capacity, required, output_len);
-    if (status != CARDINAL_RUNTIME_STATUS_SUCCESS) {
-        return status;
-    }
-
-    write_uint32_le(output, kind);
-    if (input_len > 0) {
-        memcpy(output + 4, input, input_len);
     }
     state->error[0] = '\0';
     return CARDINAL_RUNTIME_STATUS_SUCCESS;

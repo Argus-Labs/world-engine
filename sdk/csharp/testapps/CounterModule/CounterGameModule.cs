@@ -54,21 +54,6 @@ namespace WorldEngine.Runtime.CounterFixture
             return RuntimeStatus.Success;
         }
 
-        public RuntimeStatus Query(
-            uint kind,
-            ReadOnlySpan<byte> input,
-            Span<byte> output,
-            out int outputLength)
-        {
-            if (kind != 1 || !input.IsEmpty)
-            {
-                outputLength = 0;
-                return RuntimeStatus.Unsupported;
-            }
-
-            return WriteValue(output, out outputLength);
-        }
-
         public RuntimeStatus Snapshot(Span<byte> output, out int outputLength) =>
             WriteValue(output, out outputLength);
 

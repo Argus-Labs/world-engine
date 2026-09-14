@@ -76,16 +76,6 @@ func TestRunnerLifecycle(t *testing.T) {
 	assert.Equal(t, uint64(50_000_000), binary.LittleEndian.Uint64(output[8:16]))
 	assert.Equal(t, input, output[16:written])
 
-	queryInput := []byte("query")
-	written, err = runner.Query(cardinalruntime.QueryRequest{
-		Kind:  7,
-		Input: queryInput,
-	}, output)
-	require.NoError(t, err)
-	require.Equal(t, 4+len(queryInput), written)
-	assert.Equal(t, uint32(7), binary.LittleEndian.Uint32(output[0:4]))
-	assert.Equal(t, queryInput, output[4:written])
-
 	snapshot := make([]byte, 16)
 	written, err = runner.Snapshot(snapshot)
 	require.NoError(t, err)
@@ -201,12 +191,12 @@ func TestRunnerTranslatesModuleErrors(t *testing.T) {
 	require.ErrorContains(t, err, "fixture is not initialized")
 
 	require.NoError(t, runner.Initialize(cardinalruntime.InitRequest{}))
-	_, err = runner.Query(
-		cardinalruntime.QueryRequest{Kind: ^uint32(0)},
+	_, err = runner.Tick(
+		cardinalruntime.TickRequest{Tick: ^uint64(0)},
 		make([]byte, 32),
 	)
 	require.ErrorIs(t, err, cardinalruntime.ErrExecutionFailed)
-	require.ErrorContains(t, err, "fixture query failure")
+	require.ErrorContains(t, err, "fixture tick failure")
 
 	err = runner.Restore([]byte("bad"))
 	require.ErrorIs(t, err, cardinalruntime.ErrInvalidArgument)
@@ -253,9 +243,9 @@ func TestRunnerSerializesCalls(t *testing.T) {
 		go func() {
 			defer waitGroup.Done()
 			<-start
-			_, err := runner.Query(
-				cardinalruntime.QueryRequest{Kind: 77},
-				make([]byte, 4),
+			_, err := runner.Tick(
+				cardinalruntime.TickRequest{Tick: 77},
+				make([]byte, 16),
 			)
 			errors <- err
 		}()

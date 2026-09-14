@@ -217,28 +217,6 @@ func (r *Runner) Tick(request cardinalruntime.TickRequest, output []byte) (int, 
 	return r.outputResultLocked("tick", result, len(output))
 }
 
-// Query runs an application-defined query. It writes the result to output. The caller owns output.
-func (r *Runner) Query(request cardinalruntime.QueryRequest, output []byte) (int, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	assert.That(!r.closed, "runtime runner is closed")
-
-	result := C.cardinal_nativeaot_query(
-		r.library,
-		r.handle,
-		C.uint32_t(request.Kind),
-		bytePointer(request.Input),
-		C.uint64_t(len(request.Input)),
-		bytePointer(output),
-		C.uint64_t(len(output)),
-	)
-	goruntime.KeepAlive(request.Input)
-	goruntime.KeepAlive(output)
-
-	return r.outputResultLocked("query", result, len(output))
-}
-
 // Snapshot writes the handle state to output. The caller owns output.
 func (r *Runner) Snapshot(output []byte) (int, error) {
 	r.mu.Lock()

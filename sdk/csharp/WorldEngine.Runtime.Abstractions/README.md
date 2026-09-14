@@ -54,19 +54,6 @@ namespace Rampage.Gameplay
             return RuntimeStatus.Success;
         }
 
-        public RuntimeStatus Query(
-            uint kind,
-            ReadOnlySpan<byte> input,
-            Span<byte> output,
-            out int outputLength)
-        {
-            _ = kind;
-            _ = input;
-            _ = output;
-            outputLength = 0;
-            return RuntimeStatus.Success;
-        }
-
         public RuntimeStatus Snapshot(Span<byte> output, out int outputLength)
         {
             _ = output;
@@ -118,6 +105,6 @@ Git URL above.
 - Input memory is borrowed only for the call.
 - Output memory belongs to the caller and should be reused.
 - `BufferTooSmall` leaves module state and output unchanged; the host may retry.
-- Every module implements `Initialize`, `Tick`, `Query`, `Snapshot`, `Restore`, and `Dispose`;
+- Every module implements `Initialize`, `Tick`, `Snapshot`, `Restore`, and `Dispose`;
   operations the module does not need return `Success` without doing work.
 - Mutable module state is process-local and is not persisted by Cardinal snapshots.
