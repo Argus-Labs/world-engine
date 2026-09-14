@@ -555,6 +555,36 @@ func TestUnmarshalPhysicsBody2D_FullPayload(t *testing.T) {
 	require.InDelta(t, 2.0, pb.Shapes.At(0).Density, 1e-12)
 }
 
+// ChainPoints is an immutable.Slice, which carries its own MarshalJSON/UnmarshalJSON, so a
+// hand-written chain payload decodes and a body holding one round-trips. The ColliderShape doc
+// once said ChainPoints had no JSON form at all; this keeps that claim from coming back.
+func TestPhysicsBody2D_ChainPointsJSONRoundTrips(t *testing.T) {
+	t.Parallel()
+
+	// shape_type 4 is ShapeTypeStaticChain; a chain rides a static body.
+	data := `{
+		"body_type": 1,
+		"shapes": [{"shape_type": 4, "chain_points": [{"x":0,"y":0},{"x":1,"y":0},{"x":2,"y":1}]}]
+	}`
+	var pb phycomp.PhysicsBody2D
+	require.NoError(t, json.Unmarshal([]byte(data), &pb))
+	require.Equal(t, 1, pb.Shapes.Len())
+
+	shape := pb.Shapes.At(0)
+	require.Equal(t, phycomp.ShapeTypeStaticChain, shape.ShapeType)
+	require.Equal(t, immutable.SliceOf(
+		phycomp.Vec2{X: 0, Y: 0},
+		phycomp.Vec2{X: 1, Y: 0},
+		phycomp.Vec2{X: 2, Y: 1},
+	), shape.ChainPoints, "hand-written chain_points decode in order")
+
+	out, err := json.Marshal(pb)
+	require.NoError(t, err)
+	var back phycomp.PhysicsBody2D
+	require.NoError(t, json.Unmarshal(out, &back))
+	require.Equal(t, pb, back, "a body holding chain points survives a JSON round trip")
+}
+
 // ---------------------------------------------------------------------------
 // Component Name() methods
 // ---------------------------------------------------------------------------

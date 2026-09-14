@@ -193,6 +193,16 @@ func (s *State) Reconcile(rs *ReconcileState, primary, resolverSource Source) {
 		return
 	}
 
+	// A duplicate path would load the last entry's bytes but record the first entry's hash, leaving
+	// the catalog and the manifest on different versions. This system only ever writes each path once.
+	seen := make(map[string]struct{}, snap.Files.Len())
+	for e := range snap.Files.Values() {
+		if _, dup := seen[e.Path]; dup {
+			panic(eris.Errorf("data: config-manifest lists %q more than once", e.Path))
+		}
+		seen[e.Path] = struct{}{}
+	}
+
 	ctx := context.Background()
 	temp := map[string]Definition{}
 	for e := range snap.Files.Values() {

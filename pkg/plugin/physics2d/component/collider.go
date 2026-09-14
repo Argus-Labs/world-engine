@@ -63,8 +63,8 @@ const (
 // field a []Vec2 would, and its backing array cannot be indexed or resliced. Its derivations (With,
 // Filter, ...) still write through to the world's column, so always Set the component after one.
 //
-// ChainPoints has no encoding/json form — the wire format is protobuf, and a Slice keeps its
-// storage private. Build a ColliderShape in Go, or restore one through UnmarshalWire.
+// ChainPoints encodes as a plain JSON array ("chain_points": [{"x":0,"y":0}, ...]), so a
+// hand-written payload can carry one; snapshots still travel as protobuf via MarshalWire.
 type ColliderShape struct {
 	ShapeType     ShapeType `json:"shape_type"`
 	LocalOffset   Vec2      `json:"local_offset"`

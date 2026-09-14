@@ -488,33 +488,63 @@ func TestSlice_DerivationsWriteThrough(t *testing.T) {
 // JSON
 // -------------------------------------------------------------------------------------------------
 
+// jsonLibs is every JSON library the engine decodes a Slice with: encoding/json in cardinal,
+// goccy/go-json in physics2d's hand-written payloads. Both dispatch on the same method signatures,
+// so every rule below has to hold identically under each.
+var jsonLibs = []struct {
+	name      string
+	marshal   func(any) ([]byte, error)
+	unmarshal func([]byte, any) error
+}{
+	{"encoding_json", json.Marshal, json.Unmarshal},
+	{"goccy_go_json", gojson.Marshal, gojson.Unmarshal},
+}
+
 func TestSlice_JSONEncodesAsArray(t *testing.T) {
 	t.Parallel()
 
-	out, err := json.Marshal(immutable.SliceOf(point{1, 2}, point{3, 4}))
-	require.NoError(t, err)
-	require.JSONEq(t, `[{"X":1,"Y":2},{"X":3,"Y":4}]`, string(out))
+	for _, lib := range jsonLibs {
+		t.Run(lib.name, func(t *testing.T) {
+			t.Parallel()
+
+			out, err := lib.marshal(immutable.SliceOf(point{1, 2}, point{3, 4}))
+			require.NoError(t, err)
+			require.JSONEq(t, `[{"X":1,"Y":2},{"X":3,"Y":4}]`, string(out))
+		})
+	}
 }
 
 func TestSlice_JSONZeroValueIsEmptyArray(t *testing.T) {
 	t.Parallel()
 
-	var s immutable.Slice[int]
-	out, err := json.Marshal(s)
-	require.NoError(t, err)
-	require.Equal(t, "[]", string(out), "a Slice is never absent, only empty")
+	for _, lib := range jsonLibs {
+		t.Run(lib.name, func(t *testing.T) {
+			t.Parallel()
+
+			var s immutable.Slice[int]
+			out, err := lib.marshal(s)
+			require.NoError(t, err)
+			require.Equal(t, "[]", string(out), "a Slice is never absent, only empty")
+		})
+	}
 }
 
 func TestSlice_JSONRoundTrips(t *testing.T) {
 	t.Parallel()
 
-	in := immutable.SliceOf("a", "", "c")
-	out, err := json.Marshal(in)
-	require.NoError(t, err)
+	for _, lib := range jsonLibs {
+		t.Run(lib.name, func(t *testing.T) {
+			t.Parallel()
 
-	var back immutable.Slice[string]
-	require.NoError(t, json.Unmarshal(out, &back))
-	require.Equal(t, in, back)
+			in := immutable.SliceOf("a", "", "c")
+			out, err := lib.marshal(in)
+			require.NoError(t, err)
+
+			var back immutable.Slice[string]
+			require.NoError(t, lib.unmarshal(out, &back))
+			require.Equal(t, in, back)
+		})
+	}
 }
 
 // A decoded empty array or null must be the zero value, not an empty allocation, so a restored
@@ -522,25 +552,60 @@ func TestSlice_JSONRoundTrips(t *testing.T) {
 func TestSlice_JSONEmptyDecodesToZeroValue(t *testing.T) {
 	t.Parallel()
 
-	for _, text := range []string{"[]", "null"} {
-		var got immutable.Slice[point]
-		require.NoError(t, json.Unmarshal([]byte(text), &got))
-		require.Equal(t, immutable.Slice[point]{}, got, text)
-		require.True(t, reflect.DeepEqual(immutable.Slice[point]{}, got), text)
+	for _, lib := range jsonLibs {
+		t.Run(lib.name, func(t *testing.T) {
+			t.Parallel()
+
+			for _, text := range []string{"[]", "null"} {
+				var got immutable.Slice[point]
+				require.NoError(t, lib.unmarshal([]byte(text), &got), text)
+				require.Equal(t, immutable.Slice[point]{}, got, text)
+				require.True(t, reflect.DeepEqual(immutable.Slice[point]{}, got), text)
+			}
+		})
+	}
+}
+
+// Decoding into a Slice that already holds elements must leave the zero value too, not the old
+// items: a field decoded from `[]` or null is empty however the target started.
+func TestSlice_JSONEmptyClearsExistingItems(t *testing.T) {
+	t.Parallel()
+
+	type holder struct {
+		Items immutable.Slice[point] `json:"items"`
+	}
+
+	for _, lib := range jsonLibs {
+		t.Run(lib.name, func(t *testing.T) {
+			t.Parallel()
+
+			for _, text := range []string{`{"items":[]}`, `{"items":null}`} {
+				h := holder{Items: immutable.SliceOf(point{1, 2})}
+				require.NoError(t, lib.unmarshal([]byte(text), &h), text)
+				require.Equal(t, immutable.Slice[point]{}, h.Items, text)
+				require.True(t, reflect.DeepEqual(immutable.Slice[point]{}, h.Items), text)
+			}
+		})
 	}
 }
 
 func TestSlice_JSONRejectsNonArray(t *testing.T) {
 	t.Parallel()
 
-	var got immutable.Slice[int]
-	require.Error(t, json.Unmarshal([]byte(`{"items":[1]}`), &got))
-	require.Error(t, json.Unmarshal([]byte(`"nope"`), &got))
+	for _, lib := range jsonLibs {
+		t.Run(lib.name, func(t *testing.T) {
+			t.Parallel()
+
+			var got immutable.Slice[int]
+			require.Error(t, lib.unmarshal([]byte(`{"items":[1]}`), &got))
+			require.Error(t, lib.unmarshal([]byte(`"nope"`), &got))
+		})
+	}
 }
 
-// The methods are what make a Slice FIELD usable, and both JSON libraries the engine uses must
-// see them: encoding/json in cardinal, goccy/go-json in physics2d's hand-written payloads.
-func TestSlice_JSONAsStructFieldUnderBothEncoders(t *testing.T) {
+// The methods are what make a Slice FIELD usable — a bare Slice is dispatched to directly, but a
+// field goes through the encoder's struct walk, which is where a library can disagree.
+func TestSlice_JSONAsStructField(t *testing.T) {
 	t.Parallel()
 
 	type holder struct {
@@ -550,17 +615,17 @@ func TestSlice_JSONAsStructFieldUnderBothEncoders(t *testing.T) {
 	in := holder{Name: "h", Items: immutable.SliceOf(point{5, 6})}
 	const want = `{"name":"h","items":[{"X":5,"Y":6}]}`
 
-	std, err := json.Marshal(in)
-	require.NoError(t, err)
-	require.JSONEq(t, want, string(std))
-	var backStd holder
-	require.NoError(t, json.Unmarshal(std, &backStd))
-	require.Equal(t, in, backStd)
+	for _, lib := range jsonLibs {
+		t.Run(lib.name, func(t *testing.T) {
+			t.Parallel()
 
-	gc, err := gojson.Marshal(in)
-	require.NoError(t, err)
-	require.JSONEq(t, want, string(gc))
-	var backGc holder
-	require.NoError(t, gojson.Unmarshal(gc, &backGc))
-	require.Equal(t, in, backGc)
+			out, err := lib.marshal(in)
+			require.NoError(t, err)
+			require.JSONEq(t, want, string(out))
+
+			var back holder
+			require.NoError(t, lib.unmarshal(out, &back))
+			require.Equal(t, in, back)
+		})
+	}
 }

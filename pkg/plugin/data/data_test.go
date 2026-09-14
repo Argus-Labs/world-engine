@@ -334,6 +334,39 @@ func TestPlugin_ReconcileFailurePanicsOnVersionedSource(t *testing.T) {
 	require.Panics(t, func() { tickOnce(t, w) })
 }
 
+// TestPlugin_ReconcileDuplicatePathPanics verifies a restored manifest listing the same path twice
+// is rejected rather than reconciled: the loop would load the last entry's bytes into the catalog
+// while the rewrite recorded the first entry's hash, and the two would never re-converge.
+func TestPlugin_ReconcileDuplicatePathPanics(t *testing.T) {
+	w := newWorld(t)
+
+	v1Bytes := []byte(`{"items":[{"id":"oldfire","cooldown":1.0}]}`)
+	v2Bytes := []byte(`{"items":[{"id":"newfire","cooldown":2.0}]}`)
+	h1 := sha256hex(v1Bytes)
+	h2 := sha256hex(v2Bytes)
+
+	// Both versions are servable, so only the duplicate path can fail this.
+	src := &versionedFake{
+		current: map[string]string{"testdata/abilities.json": h2},
+		byHash:  map[string][]byte{h1: v1Bytes, h2: v2Bytes},
+	}
+
+	plugin := data.NewPlugin(data.Config{Source: src})
+	data.Register[Abilities](plugin)
+	cardinal.RegisterPlugin(w, plugin)
+
+	cardinal.RegisterSystem(w, func(state *manifestPreseedState) {
+		_, ent := state.Manifest.Create()
+		ent.Item.Set(component.ConfigManifest{Files: immutable.SliceOf(
+			component.ConfigFileHash{Path: "testdata/abilities.json", Hash: h1},
+			component.ConfigFileHash{Path: "testdata/abilities.json", Hash: h2},
+		)})
+	}, cardinal.WithHook(cardinal.Init))
+
+	initCardinalECS(t, w)
+	require.Panics(t, func() { tickOnce(t, w) })
+}
+
 // -------------------------------------------------------------------------------------------------
 // Tests — error paths
 // -------------------------------------------------------------------------------------------------
