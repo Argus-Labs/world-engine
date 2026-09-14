@@ -22,7 +22,10 @@ import (
 
 type introspectionSample struct{}
 
-func (introspectionSample) Name() string        { return "introspection-sample" }
+func (introspectionSample) Name() string                 { return "introspection-sample" }
+func (c introspectionSample) SizeWire() int              { return len(c.MarshalWire()) }
+func (c introspectionSample) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
 func (introspectionSample) MarshalWire() []byte { return nil }
 func (introspectionSample) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&cardinalv1.TypeSchema{}).ProtoReflect().Descriptor()

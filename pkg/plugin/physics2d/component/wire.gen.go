@@ -39,11 +39,7 @@ func (c ActiveContacts) FromProto(p *pbcomponent.ActiveContacts) ActiveContacts 
 }
 
 func (c ActiveContacts) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal ActiveContacts: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c ActiveContacts) UnmarshalWire(data []byte) (any, error) {
@@ -438,11 +434,7 @@ func (c PhysicsBody2D) FromProto(p *pbcomponent.PhysicsBody2D) PhysicsBody2D {
 }
 
 func (c PhysicsBody2D) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PhysicsBody2D: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PhysicsBody2D) UnmarshalWire(data []byte) (any, error) {
@@ -550,11 +542,7 @@ func (c PhysicsSingletonTag) FromProto(p *pbcomponent.PhysicsSingletonTag) Physi
 }
 
 func (c PhysicsSingletonTag) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PhysicsSingletonTag: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PhysicsSingletonTag) UnmarshalWire(data []byte) (any, error) {
@@ -595,11 +583,7 @@ func (c Transform2D) FromProto(p *pbcomponent.Transform2D) Transform2D {
 }
 
 func (c Transform2D) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal Transform2D: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c Transform2D) UnmarshalWire(data []byte) (any, error) {
@@ -690,11 +674,7 @@ func (c Velocity2D) FromProto(p *pbcomponent.Velocity2D) Velocity2D {
 }
 
 func (c Velocity2D) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal Velocity2D: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c Velocity2D) UnmarshalWire(data []byte) (any, error) {

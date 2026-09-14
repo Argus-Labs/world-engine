@@ -26,6 +26,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/testutils"
@@ -266,7 +267,7 @@ func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 	fillRandom(rng, val, f.world.world.LiveEntityIDs()) // Recursive so not inlined
 	p, ok := val.Interface().(command.Payload)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
-	payload := p.MarshalWire()
+	payload := schema.Marshal(p)
 	return &iscv1.Command{
 		Name:    name,
 		Address: f.world.address,
@@ -276,7 +277,7 @@ func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 }
 
 func (f *dstFixture) enqueueCommand(cmd Command) error {
-	payload := cmd.MarshalWire()
+	payload := schema.Marshal(cmd)
 	return f.world.commands.Enqueue(&iscv1.Command{
 		Name:    cmd.Name(),
 		Address: f.world.address,

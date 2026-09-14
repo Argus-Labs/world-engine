@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"unicode/utf8"
 )
 
 func (c MovePlayer) ToProto() *pbcommand.MovePlayer {
@@ -30,11 +31,7 @@ func (c MovePlayer) FromProto(p *pbcommand.MovePlayer) MovePlayer {
 }
 
 func (c MovePlayer) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal MovePlayer: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c MovePlayer) UnmarshalWire(data []byte) (any, error) {
@@ -52,7 +49,7 @@ func (c MovePlayer) ProtoDescriptor() protoreflect.MessageDescriptor {
 func (c MovePlayer) SizeWire() int {
 	n := 0
 	if len(c.ArgusAuthID) > 0 {
-		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.ArgusAuthID))
+		n += protowire.SizeTag(1) + wireStringSize("MovePlayer.ArgusAuthID", string(c.ArgusAuthID))
 	}
 	if c.X != 0 {
 		n += protowire.SizeTag(2) + protowire.SizeVarint(uint64(c.X))
@@ -94,11 +91,7 @@ func (c PlayerLeave) FromProto(p *pbcommand.PlayerLeave) PlayerLeave {
 }
 
 func (c PlayerLeave) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerLeave: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerLeave) UnmarshalWire(data []byte) (any, error) {
@@ -116,7 +109,7 @@ func (c PlayerLeave) ProtoDescriptor() protoreflect.MessageDescriptor {
 func (c PlayerLeave) SizeWire() int {
 	n := 0
 	if len(c.ArgusAuthID) > 0 {
-		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.ArgusAuthID))
+		n += protowire.SizeTag(1) + wireStringSize("PlayerLeave.ArgusAuthID", string(c.ArgusAuthID))
 	}
 	return n
 }
@@ -150,11 +143,7 @@ func (c PlayerSpawn) FromProto(p *pbcommand.PlayerSpawn) PlayerSpawn {
 }
 
 func (c PlayerSpawn) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerSpawn: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerSpawn) UnmarshalWire(data []byte) (any, error) {
@@ -172,10 +161,10 @@ func (c PlayerSpawn) ProtoDescriptor() protoreflect.MessageDescriptor {
 func (c PlayerSpawn) SizeWire() int {
 	n := 0
 	if len(c.ArgusAuthID) > 0 {
-		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.ArgusAuthID))
+		n += protowire.SizeTag(1) + wireStringSize("PlayerSpawn.ArgusAuthID", string(c.ArgusAuthID))
 	}
 	if len(c.ArgusAuthName) > 0 {
-		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.ArgusAuthName))
+		n += protowire.SizeTag(2) + wireStringSize("PlayerSpawn.ArgusAuthName", string(c.ArgusAuthName))
 	}
 	if c.X != 0 {
 		n += protowire.SizeTag(3) + protowire.SizeVarint(uint64(c.X))
@@ -204,4 +193,20 @@ func (c PlayerSpawn) AppendWire(b []byte) []byte {
 		b = protowire.AppendVarint(b, uint64(c.Y))
 	}
 	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check
+// proto.Marshal performs.
+//
+// proto3 forbids a string field holding bytes that are not valid UTF-8, and every decoder
+// rejects such a payload — so writing one produces a snapshot that cannot be restored. The size
+// pass runs over the whole world before a single byte is appended, so panicking here fails the
+// write rather than committing a file that only fails later, at restore, where nothing can be
+// done about it. proto.Marshal made the same check; keeping it is what makes the direct
+// encoders a drop-in for it.
+func wireStringSize(field, s string) int {
+	if !utf8.ValidString(s) {
+		panic("failed to encode " + field + ": string field contains invalid UTF-8")
+	}
+	return protowire.SizeBytes(len(s))
 }

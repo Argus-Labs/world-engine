@@ -117,6 +117,9 @@ func (s modelFuzzSystemEvent) Name() string {
 	return s.EventName
 }
 
+func (c modelFuzzSystemEvent) SizeWire() int              { return len(c.MarshalWire()) }
+func (c modelFuzzSystemEvent) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
 func (s modelFuzzSystemEvent) MarshalWire() []byte {
 	var b bytes.Buffer
 	// A test double that cannot encode itself is a broken fixture, not a runtime condition.

@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"time"
+	"unicode/utf8"
 )
 
 func (c OnlineStatus) ToProto() *pbcomponent.OnlineStatus {
@@ -32,11 +33,7 @@ func (c OnlineStatus) FromProto(p *pbcomponent.OnlineStatus) OnlineStatus {
 }
 
 func (c OnlineStatus) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal OnlineStatus: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c OnlineStatus) UnmarshalWire(data []byte) (any, error) {
@@ -88,11 +85,7 @@ func (c PlayerTag) FromProto(p *pbcomponent.PlayerTag) PlayerTag {
 }
 
 func (c PlayerTag) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerTag: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerTag) UnmarshalWire(data []byte) (any, error) {
@@ -110,10 +103,10 @@ func (c PlayerTag) ProtoDescriptor() protoreflect.MessageDescriptor {
 func (c PlayerTag) SizeWire() int {
 	n := 0
 	if len(c.ArgusAuthID) > 0 {
-		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.ArgusAuthID))
+		n += protowire.SizeTag(1) + wireStringSize("PlayerTag.ArgusAuthID", string(c.ArgusAuthID))
 	}
 	if len(c.ArgusAuthName) > 0 {
-		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.ArgusAuthName))
+		n += protowire.SizeTag(2) + wireStringSize("PlayerTag.ArgusAuthName", string(c.ArgusAuthName))
 	}
 	return n
 }
@@ -147,11 +140,7 @@ func (c Position) FromProto(p *pbcomponent.Position) Position {
 }
 
 func (c Position) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal Position: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c Position) UnmarshalWire(data []byte) (any, error) {
@@ -212,4 +201,20 @@ func appendWireTimestamp(b []byte, t time.Time) []byte {
 		b = protowire.AppendVarint(b, uint64(ns))
 	}
 	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check
+// proto.Marshal performs.
+//
+// proto3 forbids a string field holding bytes that are not valid UTF-8, and every decoder
+// rejects such a payload — so writing one produces a snapshot that cannot be restored. The size
+// pass runs over the whole world before a single byte is appended, so panicking here fails the
+// write rather than committing a file that only fails later, at restore, where nothing can be
+// done about it. proto.Marshal made the same check; keeping it is what makes the direct
+// encoders a drop-in for it.
+func wireStringSize(field, s string) int {
+	if !utf8.ValidString(s) {
+		panic("failed to encode " + field + ": string field contains invalid UTF-8")
+	}
+	return protowire.SizeBytes(len(s))
 }

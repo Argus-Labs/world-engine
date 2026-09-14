@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"unicode/utf8"
 )
 
 func (c LobbyComponent) ToProto() *pbcomponent.LobbyComponent {
@@ -59,11 +60,7 @@ func (c LobbyComponent) FromProto(p *pbcomponent.LobbyComponent) LobbyComponent 
 }
 
 func (c LobbyComponent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal LobbyComponent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c LobbyComponent) UnmarshalWire(data []byte) (any, error) {
@@ -81,13 +78,13 @@ func (c LobbyComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
 func (c LobbyComponent) SizeWire() int {
 	n := 0
 	if len(c.ID) > 0 {
-		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.ID))
+		n += protowire.SizeTag(1) + wireStringSize("LobbyComponent.ID", string(c.ID))
 	}
 	if len(c.LeaderID) > 0 {
-		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.LeaderID))
+		n += protowire.SizeTag(2) + wireStringSize("LobbyComponent.LeaderID", string(c.LeaderID))
 	}
 	for i0 := range c.PlayerIDs {
-		n += protowire.SizeTag(3) + protowire.SizeBytes(len(c.PlayerIDs[i0]))
+		n += protowire.SizeTag(3) + wireStringSize("LobbyComponent.PlayerIDs[]", string(c.PlayerIDs[i0]))
 	}
 	if c.PlayerCount != 0 {
 		n += protowire.SizeTag(4) + protowire.SizeVarint(uint64(c.PlayerCount))
@@ -99,7 +96,7 @@ func (c LobbyComponent) SizeWire() int {
 		n += protowire.SizeTag(6) + protowire.SizeVarint(uint64(c.TeamCount))
 	}
 	if len(c.InviteCode) > 0 {
-		n += protowire.SizeTag(7) + protowire.SizeBytes(len(c.InviteCode))
+		n += protowire.SizeTag(7) + wireStringSize("LobbyComponent.InviteCode", string(c.InviteCode))
 	}
 	n += protowire.SizeTag(8) + protowire.SizeBytes(c.GameWorld.SizeWire())
 	n += protowire.SizeTag(9) + protowire.SizeBytes(c.Session.SizeWire())
@@ -177,11 +174,7 @@ func (c PlayerComponent) FromProto(p *pbcomponent.PlayerComponent) PlayerCompone
 }
 
 func (c PlayerComponent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerComponent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerComponent) UnmarshalWire(data []byte) (any, error) {
@@ -199,19 +192,19 @@ func (c PlayerComponent) ProtoDescriptor() protoreflect.MessageDescriptor {
 func (c PlayerComponent) SizeWire() int {
 	n := 0
 	if len(c.PlayerID) > 0 {
-		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.PlayerID))
+		n += protowire.SizeTag(1) + wireStringSize("PlayerComponent.PlayerID", string(c.PlayerID))
 	}
 	if len(c.LobbyID) > 0 {
-		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.LobbyID))
+		n += protowire.SizeTag(2) + wireStringSize("PlayerComponent.LobbyID", string(c.LobbyID))
 	}
 	if len(c.TeamID) > 0 {
-		n += protowire.SizeTag(3) + protowire.SizeBytes(len(c.TeamID))
+		n += protowire.SizeTag(3) + wireStringSize("PlayerComponent.TeamID", string(c.TeamID))
 	}
 	if c.IsReady {
 		n += protowire.SizeTag(4) + 1
 	}
 	if len(c.PassthroughData) > 0 {
-		n += protowire.SizeTag(5) + protowire.SizeBytes(len(c.PassthroughData))
+		n += protowire.SizeTag(5) + wireStringSize("PlayerComponent.PassthroughData", string(c.PassthroughData))
 	}
 	if c.JoinedAt != 0 {
 		n += protowire.SizeTag(6) + protowire.SizeVarint(uint64(c.JoinedAt))
@@ -270,13 +263,13 @@ func (c Session) FromProto(p *pbcomponent.Session) Session {
 func (c Session) SizeWire() int {
 	n := 0
 	if len(c.State) > 0 {
-		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.State))
+		n += protowire.SizeTag(1) + wireStringSize("Session.State", string(c.State))
 	}
 	if len(c.PassthroughData) > 0 {
-		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.PassthroughData))
+		n += protowire.SizeTag(2) + wireStringSize("Session.PassthroughData", string(c.PassthroughData))
 	}
 	if len(c.PendingRequestID) > 0 {
-		n += protowire.SizeTag(3) + protowire.SizeBytes(len(c.PendingRequestID))
+		n += protowire.SizeTag(3) + wireStringSize("Session.PendingRequestID", string(c.PendingRequestID))
 	}
 	if c.PendingStartedAt != 0 {
 		n += protowire.SizeTag(4) + protowire.SizeVarint(uint64(c.PendingStartedAt))
@@ -327,16 +320,16 @@ func (c ShardAddress) FromProto(p *pbcomponent.ShardAddress) ShardAddress {
 func (c ShardAddress) SizeWire() int {
 	n := 0
 	if len(c.Region) > 0 {
-		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Region))
+		n += protowire.SizeTag(1) + wireStringSize("ShardAddress.Region", string(c.Region))
 	}
 	if len(c.Organization) > 0 {
-		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.Organization))
+		n += protowire.SizeTag(2) + wireStringSize("ShardAddress.Organization", string(c.Organization))
 	}
 	if len(c.Project) > 0 {
-		n += protowire.SizeTag(3) + protowire.SizeBytes(len(c.Project))
+		n += protowire.SizeTag(3) + wireStringSize("ShardAddress.Project", string(c.Project))
 	}
 	if len(c.ShardID) > 0 {
-		n += protowire.SizeTag(4) + protowire.SizeBytes(len(c.ShardID))
+		n += protowire.SizeTag(4) + wireStringSize("ShardAddress.ShardID", string(c.ShardID))
 	}
 	return n
 }
@@ -382,7 +375,7 @@ func (c Team) FromProto(p *pbcomponent.Team) Team {
 func (c Team) SizeWire() int {
 	n := 0
 	if len(c.TeamID) > 0 {
-		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.TeamID))
+		n += protowire.SizeTag(1) + wireStringSize("Team.TeamID", string(c.TeamID))
 	}
 	if c.MaxPlayers != 0 {
 		n += protowire.SizeTag(2) + protowire.SizeVarint(uint64(c.MaxPlayers))
@@ -407,4 +400,20 @@ func (c Team) AppendWire(b []byte) []byte {
 		b = protowire.AppendVarint(b, uint64(c.PlayerCount))
 	}
 	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check
+// proto.Marshal performs.
+//
+// proto3 forbids a string field holding bytes that are not valid UTF-8, and every decoder
+// rejects such a payload — so writing one produces a snapshot that cannot be restored. The size
+// pass runs over the whole world before a single byte is appended, so panicking here fails the
+// write rather than committing a file that only fails later, at restore, where nothing can be
+// done about it. proto.Marshal made the same check; keeping it is what makes the direct
+// encoders a drop-in for it.
+func wireStringSize(field, s string) int {
+	if !utf8.ValidString(s) {
+		panic("failed to encode " + field + ": string field contains invalid UTF-8")
+	}
+	return protowire.SizeBytes(len(s))
 }
