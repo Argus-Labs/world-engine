@@ -99,16 +99,13 @@ func (w *World) OnComponentRegister(callback func(zero Component) error) {
 // Serialization methods
 // -------------------------------------------------------------------------------------------------
 
-// StateWireSize computes the exact encoded size of the world's WorldState message and stages
-// the snapshot (fallback encodings). Call AppendStateWire immediately after, with no world
-// mutation in between.
+// StateWireSize computes the exact encoded size of the world's WorldState message. Call
+// AppendStateWire immediately after, with no world mutation in between.
 func (w *World) StateWireSize() int {
 	return w.state.wireBodySize()
 }
 
-// AppendStateWire appends the staged WorldState message to buf and returns the extended slice.
-// It writes exactly the bytes the StateWireSize call before it computed, and panics if the
-// world changed in between.
+// AppendStateWire appends the WorldState message to buf, exactly StateWireSize bytes of it.
 func (w *World) AppendStateWire(buf []byte) []byte {
 	return w.state.appendWireBody(buf)
 }

@@ -74,8 +74,8 @@ func (c wirePos) UnmarshalWire(data []byte) (any, error) {
 	return out, nil
 }
 
-// newWireTestWorld registers a direct component (wirePos) and a fallback component
-// (testutils.SimpleComponent, gob-encoded, no SizeWire) so every encoder path runs.
+// newWireTestWorld registers two components that encode in completely different ways, so the tests
+// below prove the snapshot encoder is agnostic to how any given component encodes itself.
 func newWireTestWorld(t *testing.T) (*worldState, ComponentID, ComponentID) {
 	t.Helper()
 	ws := newWorldState()
@@ -177,10 +177,32 @@ func TestSnapshotWireRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, testutils.SimpleComponent{Value: 11}, simple)
 
-	// The free list is the gaps, ascending; the hole left by nothing here means only IDs >= nextID
-	// are free — both worlds must agree.
-	assert.Equal(t, ws.free, restored.free)
+	assert.ElementsMatch(t, ws.free, restored.free)
 	assert.Equal(t, ws.nextID, restored.nextID)
+}
+
+// TestSnapshotWireFreeListSurvives: ids freed out of order must still be reused in the same order
+// after a restore. The snapshot stores only the gaps, so the allocator has to be order-independent.
+func TestSnapshotWireFreeListSurvives(t *testing.T) {
+	t.Parallel()
+	ws, _, _ := newWireTestWorld(t)
+	for range 4 { // ids 0..3
+		_ = ws.newEntity()
+	}
+	require.True(t, ws.removeEntity(2))
+	require.True(t, ws.removeEntity(0)) // freed after 2, but lower
+
+	data := encodeWorld(t, ws)
+	var pb cardinalv1.WorldState
+	require.NoError(t, proto.Unmarshal(data, &pb))
+	restored, _, _ := newWireTestWorld(t)
+	require.NoError(t, restored.fromProto(&pb))
+
+	assert.ElementsMatch(t, ws.free, restored.free)
+	// The real guarantee: both worlds hand out the same ids from here on.
+	assert.Equal(t, ws.newEntity(), restored.newEntity())
+	assert.Equal(t, ws.newEntity(), restored.newEntity())
+	assert.Equal(t, ws.newEntity(), restored.newEntity())
 }
 
 // TestSnapshotWireDeterministic: two worlds reaching the same state through different operation
@@ -217,12 +239,65 @@ func TestSnapshotWireDeterministic(t *testing.T) {
 		"identical worlds with different archetype histories must encode identically")
 }
 
-// TestSnapshotWireRejectsBadInput: restore refuses malformed files before or during the rebuild,
-// never silently.
+// TestSnapshotWireDroppedComponent: the writer emits every registered component name, so dropping a
+// component type must not make its own prior snapshots unreadable. An unknown name is only fatal if
+// an entity actually holds it.
+func TestSnapshotWireDroppedComponent(t *testing.T) {
+	t.Parallel()
+
+	old, posID, _ := newWireTestWorld(t) // registers wire_pos and simple_component
+	var only bitmap.Bitmap
+	only.Set(posID)
+	e := old.newEntityWithArchetype(only) // uses wire_pos only
+	require.NoError(t, setComponent(old, e, wirePos{X: 1, Y: 2}))
+
+	var pb cardinalv1.WorldState
+	require.NoError(t, proto.Unmarshal(encodeWorld(t, old), &pb))
+	require.Contains(t, pb.GetComponents(), testutils.SimpleComponent{}.Name(),
+		"the writer should emit every registered name, used or not")
+
+	// A build that dropped the unused component.
+	dropped := newWorldState()
+	_, err := dropped.components.register("wire_pos", newColumnFactory[wirePos]())
+	require.NoError(t, err)
+
+	require.NoError(t, dropped.fromProto(&pb), "an unused dropped component must not block restore")
+	got, err := getComponent[wirePos](dropped, e)
+	require.NoError(t, err)
+	assert.Equal(t, wirePos{X: 1, Y: 2}, got)
+}
+
+// And the other half: dropping a component an entity DOES hold still fails, naming it.
+func TestSnapshotWireDroppedComponentInUse(t *testing.T) {
+	t.Parallel()
+
+	old, posID, simpleID := newWireTestWorld(t)
+	var both bitmap.Bitmap
+	both.Set(posID)
+	both.Set(simpleID)
+	e := old.newEntityWithArchetype(both)
+	require.NoError(t, setComponent(old, e, wirePos{X: 1}))
+	require.NoError(t, setComponent(old, e, testutils.SimpleComponent{Value: 5}))
+
+	var pb cardinalv1.WorldState
+	require.NoError(t, proto.Unmarshal(encodeWorld(t, old), &pb))
+
+	dropped := newWorldState()
+	_, err := dropped.components.register("wire_pos", newColumnFactory[wirePos]())
+	require.NoError(t, err)
+
+	err = dropped.fromProto(&pb)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), testutils.SimpleComponent{}.Name())
+}
+
+// TestSnapshotWireRejectsBadInput: restore refuses malformed files, and leaves the live world
+// exactly as it was — the rebuild is committed only once the whole file is accepted.
 func TestSnapshotWireRejectsBadInput(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]*cardinalv1.WorldState{
+		"nil message": nil,
 		"unknown component": {
 			NextId:     1,
 			Components: []string{"nope"},
@@ -237,6 +312,19 @@ func TestSnapshotWireRejectsBadInput(t *testing.T) {
 			Entities: []*cardinalv1.Entity{
 				{Id: 2}, {Id: 1},
 			},
+		},
+		"next_id implies an unbounded free list": {
+			NextId: math.MaxUint32, // 5 bytes of input, 4.3 billion ids
+		},
+		// The same amplification through one entity at a high id: the gaps below it size both the
+		// free heap and the entityArch sparse index.
+		"one entity at a high id": {
+			NextId:   math.MaxUint32,
+			Entities: []*cardinalv1.Entity{{Id: math.MaxUint32 - 1}},
+		},
+		"more entities than next_id allows": {
+			NextId:   1,
+			Entities: []*cardinalv1.Entity{{Id: 0}, {Id: 0}},
 		},
 		"entity above next_id": {
 			NextId:   1,
@@ -258,14 +346,18 @@ func TestSnapshotWireRejectsBadInput(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ws, _, _ := newWireTestWorld(t)
+			e := ws.newEntity()
+
 			require.Error(t, ws.fromProto(pb))
+
+			_, live := ws.entityArch.get(e)
+			assert.True(t, live, "a refused restore must leave the world untouched")
+			assert.Equal(t, EntityID(1), ws.nextID)
 		})
 	}
 }
 
-// TestSnapshotWireAllocations measures the hot path. Direct components must not allocate at all;
-// the one remaining cost is the fallback component's MarshalWire, which disappears per type as the
-// generator's SizeWire/AppendWire land.
+// TestSnapshotWireAllocations measures the hot path, which must not allocate at all.
 func TestSnapshotWireAllocations(t *testing.T) {
 	// Not parallel: testing.AllocsPerRun panics in parallel tests.
 	ws, posID, _ := newWireTestWorld(t)
@@ -276,7 +368,7 @@ func TestSnapshotWireAllocations(t *testing.T) {
 		require.NoError(t, setComponent(ws, eid, wirePos{X: float64(i), Y: 1}))
 	}
 
-	// Warm the fallback caches and learn the buffer size.
+	// Learn the buffer size, so the measured runs below append into a buffer that never grows.
 	size := ws.wireBodySize()
 	buf := make([]byte, 0, size)
 
@@ -284,7 +376,7 @@ func TestSnapshotWireAllocations(t *testing.T) {
 		ws.wireBodySize()
 		buf = ws.appendWireBody(buf[:0])
 	})
-	assert.Zero(t, allocs, "encoding direct components must not allocate")
+	assert.Zero(t, allocs, "the size and append passes must not allocate")
 }
 
 // TestSnapshotWireFieldCoverage guards the one proto change the canonical test cannot see.

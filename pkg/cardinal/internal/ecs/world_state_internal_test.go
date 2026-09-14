@@ -537,13 +537,9 @@ func assertWorldStateEqual(t *testing.T, ws1, ws2 *worldState) {
 
 	assert.Equal(t, ws1.nextID, ws2.nextID)
 
-	// The free list is order-insensitive between a live world (removal order) and a restored one
-	// (ascending): both describe the same set of reusable IDs.
-	free1 := slices.Clone(ws1.free)
-	free2 := slices.Clone(ws2.free)
-	slices.Sort(free1)
-	slices.Sort(free2)
-	assert.Equal(t, free1, free2)
+	// free is a min-heap, so two worlds holding the same ids can hold them in different array order.
+	// The guarantee is pop order, asserted in TestSnapshotWireFreeListSurvives; here it is the set.
+	assert.ElementsMatch(t, ws1.free, ws2.free)
 
 	live := func(ws *worldState) map[EntityID]map[string]Component {
 		out := make(map[EntityID]map[string]Component)

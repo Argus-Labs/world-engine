@@ -20,6 +20,7 @@ import (
 	"maps"
 	"math/rand/v2"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -408,5 +409,5 @@ func (m *memSnapshotStorage) Load(_ context.Context) ([]byte, error) {
 	if m.data == nil {
 		return nil, snapshot.ErrSnapshotNotFound
 	}
-	return m.data, nil
+	return slices.Clone(m.data), nil
 }

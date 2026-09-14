@@ -23,11 +23,13 @@ const perfBatchIntervalSec = 1 // Target wall-clock seconds between perf batches
 // debugModule provides introspection and debugging capabilities for a World instance.
 // Its DebugService handler is mounted on the service port (see service.init).
 type debugModule struct {
-	world    *World
-	control  *tickControl
-	catalog  *introspect.Catalog
-	perf     *performance.Collector
-	snapshot atomic.Pointer[cardinalv1.Snapshot]
+	world   *World
+	control *tickControl
+	catalog *introspect.Catalog
+	perf    *performance.Collector
+	// snapshot is the newest encoded snapshot, stored as the bytes the tick already produced.
+	// Decoding happens in GetState, so an enabled debug service costs the tick nothing.
+	snapshot atomic.Pointer[[]byte]
 }
 
 var _ cardinalv1connect.DebugServiceHandler = (*debugModule)(nil)
@@ -43,30 +45,17 @@ func newDebugModule(world *World) *debugModule {
 		catalog: introspect.NewCatalog(),
 		perf:    perf,
 	}
-	d.publishSnapshot(&cardinalv1.Snapshot{WorldState: &cardinalv1.WorldState{}})
 	return d
 }
 
-func (d *debugModule) publishSnapshot(snapshot *cardinalv1.Snapshot) {
-	if d == nil {
-		return
-	}
-	d.snapshot.Store(snapshot)
-}
-
-// publishState decodes encoded snapshot bytes and publishes them for GetState. No-op when the
-// debug service is disabled. The decode allocates, so callers should skip encoding entirely when
-// d is nil rather than relying on this method's guard.
+// publishState hands GetState the newest encoded snapshot. No-op when the debug service is
+// disabled. It only stores the slice: the bytes are already frozen and nobody writes to them, so
+// sharing them with the snapshot writer is safe and costs the tick nothing.
 func (d *debugModule) publishState(data []byte) {
 	if d == nil {
 		return
 	}
-	snap, err := snapshot.Decode(data)
-	if err != nil {
-		d.world.tel.Logger.Warn().Err(err).Msg("failed to decode snapshot for the debug service")
-		return
-	}
-	d.snapshot.Store(snap)
+	d.snapshot.Store(&data)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -319,14 +308,26 @@ func (d *debugModule) Reset(
 }
 
 // GetState returns the most recent published world state, at most one tick old.
+//
+// The decode happens here rather than per tick, so it is paid by whoever asks. A failure is
+// returned rather than logged: serving the previous tick's state as if it were current would hide
+// that what reached storage cannot be read back.
 func (d *debugModule) GetState(
 	_ context.Context,
 	_ *connect.Request[cardinalv1.GetStateRequest],
 ) (*connect.Response[cardinalv1.GetStateResponse], error) {
-	return connect.NewResponse(&cardinalv1.GetStateResponse{
+	resp := &cardinalv1.GetStateResponse{
 		IsPaused: d.control.isPaused.Load(),
-		Snapshot: d.snapshot.Load(),
-	}), nil
+		Snapshot: &cardinalv1.Snapshot{WorldState: &cardinalv1.WorldState{}},
+	}
+	if data := d.snapshot.Load(); data != nil {
+		snap, err := snapshot.Decode(*data)
+		if err != nil {
+			return nil, eris.Wrap(err, "the published snapshot cannot be decoded")
+		}
+		resp.Snapshot = snap
+	}
+	return connect.NewResponse(resp), nil
 }
 
 // isPaused returns whether the world is currently paused. Returns false if d is nil.
