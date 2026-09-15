@@ -418,10 +418,7 @@ func newSimpleArchetype(t *testing.T) (*archetype, *componentManager) {
 	t.Helper()
 
 	cm := newComponentManager()
-	cid, err := cm.register(
-		testutils.SimpleComponent{}.Name(),
-		newColumnFactory[testutils.SimpleComponent](),
-	)
+	cid, err := cm.register[testutils.SimpleComponent](testutils.SimpleComponent{}.Name())
 	require.NoError(t, err)
 
 	components := bitmap.Bitmap{}

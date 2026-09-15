@@ -72,7 +72,7 @@ func validateComponentName(name string) error {
 
 // register registers a new component type and returns its ID.
 // If the component is already registered, no-op.
-func (cm *componentManager) register(name string, factory columnFactory) (ComponentID, error) {
+func (cm *componentManager) register[T Component](name string) (ComponentID, error) {
 	// Validate component name follows expr identifier rules
 	if err := validateComponentName(name); err != nil {
 		return 0, err
@@ -88,7 +88,7 @@ func (cm *componentManager) register(name string, factory columnFactory) (Compon
 	}
 
 	cm.catalog[name] = cm.nextID
-	cm.factories = append(cm.factories, factory)
+	cm.factories = append(cm.factories, newColumnFactory[T]())
 	cm.nextID++
 	assert.That(int(cm.nextID) == len(cm.factories), "component id doesn't match number of components")
 
@@ -114,5 +114,5 @@ func (w *World) RegisterComponent[T Component]() (ComponentID, error) {
 			return 0, eris.Wrap(err, "component registered callback failed")
 		}
 	}
-	return w.state.components.register(zero.Name(), newColumnFactory[T]())
+	return w.state.components.register[T](zero.Name())
 }

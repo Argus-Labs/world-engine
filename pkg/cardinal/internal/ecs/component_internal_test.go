@@ -40,7 +40,7 @@ func TestComponent_RegisterModelFuzz(t *testing.T) {
 		case opRegister:
 			name := randValidComponentName(prng)
 
-			implID, implErr := impl.register(name, nil) // we don't use the columnFactory so it's ok
+			implID, implErr := impl.register[testutils.SimpleComponent](name)
 			modelID, modelExists := model[name]
 
 			if modelExists {
@@ -106,15 +106,15 @@ func TestComponent_RegisterModelFuzz(t *testing.T) {
 
 		cm := newComponentManager()
 
-		id1, err := cm.register("hello", nil)
+		id1, err := cm.register[testutils.SimpleComponent]("hello")
 		require.NoError(t, err)
 
-		id2, err := cm.register("hello", nil)
+		id2, err := cm.register[testutils.SimpleComponent]("hello")
 		require.NoError(t, err)
 
 		assert.Equal(t, id1, id2)
 
-		id3, err := cm.register("a_different_name", nil)
+		id3, err := cm.register[testutils.SimpleComponent]("a_different_name")
 		require.NoError(t, err)
 
 		assert.Equal(t, id1+1, id3)
