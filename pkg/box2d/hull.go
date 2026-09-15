@@ -154,6 +154,7 @@ func ComputeHull(points []Vec2) Hull {
 
 	// remove p1 from working set
 	p1 := ps[f1]
+	//nolint:gosec // G602: n >= 3 after the welded-point count check and n <= MaxPolygonVertices.
 	ps[f1] = ps[n-1]
 	n--
 
@@ -169,6 +170,7 @@ func ComputeHull(points []Vec2) Hull {
 
 	// remove p2 from working set
 	p2 := ps[f2]
+	//nolint:gosec // G602: removing p1 above leaves n >= 2 and n < MaxPolygonVertices.
 	ps[f2] = ps[n-1]
 	n--
 
