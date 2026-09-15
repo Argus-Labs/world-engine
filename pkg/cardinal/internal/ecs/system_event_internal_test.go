@@ -11,11 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TODO: we could probably copy what the system event test does here where it uses non-generic
-// methods that doesn't require us to register multiple different concrete types. E.g., the model
-// tests uses a single system event type with variable name. The non-generic type boxes and isn't
-// suitable for production use, but it makes testing easier, albeit a touch less clear.
-
 // -------------------------------------------------------------------------------------------------
 // Model-based fuzzing system-event manager operations
 // -------------------------------------------------------------------------------------------------
@@ -42,15 +37,14 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 	weights := testutils.RandOpWeights(prng, operations)
 
 	impl := newSystemEventManager()
-	model := make(map[string][]SystemEvent) // name -> system-event buffer
+	model := make(map[string][]modelFuzzSystemEvent) // name -> system-event buffer
 
-	// Setup: pre-register many system event names with boxed queues.
-	boxedFactory := newSystemEventQueueFactory[SystemEvent]()
+	// Setup: pre-register many system event names with concrete queues.
 	for id := range nSystemEventTypes {
 		name := seidToString(SystemEventID(id))
-		_, err := impl.register(name, boxedFactory)
+		_, err := impl.register[modelFuzzSystemEvent](name)
 		require.NoError(t, err)
-		model[name] = []SystemEvent{}
+		model[name] = []modelFuzzSystemEvent{}
 	}
 
 	for range opsMax {
@@ -65,14 +59,14 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 				Enabled:   prng.Float64() < 0.5,
 			}
 
-			err := impl.enqueueAbstract(systemEvent)
+			err := impl.enqueue(systemEvent)
 			require.NoError(t, err)
 			model[name] = append(model[name], systemEvent)
 
 		case opGet:
 			name := testutils.RandMapKey(prng, model)
 
-			implSysEvents, err := impl.getAbstract(name)
+			implSysEvents, err := impl.get[modelFuzzSystemEvent](name)
 			require.NoError(t, err)
 			modelSysEvents := model[name]
 
@@ -85,12 +79,12 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 		case opClear:
 			impl.clear()
 			for name := range model {
-				model[name] = []SystemEvent{}
+				model[name] = []modelFuzzSystemEvent{}
 			}
 
 			// Property: all buffers should be empty after clear.
 			for name := range model {
-				implSysEvents, err := impl.getAbstract(name)
+				implSysEvents, err := impl.get[modelFuzzSystemEvent](name)
 				require.NoError(t, err)
 				assert.Empty(t, implSysEvents, "clear() should empty buffer for %s", name)
 			}
@@ -103,7 +97,7 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 	// Final state check: verify all system-events match between impl and model.
 	assert.Len(t, impl.catalog, len(model), "catalog length mismatch")
 	for name, modelEvents := range model {
-		implEvents, err := impl.getAbstract(name)
+		implEvents, err := impl.get[modelFuzzSystemEvent](name)
 		require.NoError(t, err)
 		assert.Len(t, implEvents, len(modelEvents), "final state: %s length mismatch", name)
 		for i := range modelEvents {
@@ -153,12 +147,11 @@ func TestSystemEvent_RegisterModelFuzz(t *testing.T) {
 
 	impl := newSystemEventManager()
 	model := make(map[string]SystemEventID) // name -> ID
-	boxedFactory := newSystemEventQueueFactory[SystemEvent]()
 
 	for range opsMax {
 		nameID := SystemEventID(prng.IntN(opsMax / 4))
 		name := seidToString(nameID)
-		implID, err := impl.register(name, boxedFactory)
+		implID, err := impl.register[modelFuzzSystemEvent](name)
 		require.NoError(t, err)
 
 		if modelID, exists := model[name]; exists {
@@ -197,15 +190,15 @@ func TestSystemEvent_RegisterModelFuzz(t *testing.T) {
 		name1 := seidToString(123)
 		name2 := seidToString(124)
 
-		id1, err := sem.register(name1, boxedFactory)
+		id1, err := sem.register[modelFuzzSystemEvent](name1)
 		require.NoError(t, err)
 
-		id2, err := sem.register(name1, boxedFactory)
+		id2, err := sem.register[modelFuzzSystemEvent](name1)
 		require.NoError(t, err)
 
 		assert.Equal(t, id1, id2)
 
-		id3, err := sem.register(name2, boxedFactory)
+		id3, err := sem.register[modelFuzzSystemEvent](name2)
 		require.NoError(t, err)
 
 		assert.Equal(t, id1+1, id3)
@@ -214,4 +207,43 @@ func TestSystemEvent_RegisterModelFuzz(t *testing.T) {
 
 func seidToString(id SystemEventID) string {
 	return strconv.FormatUint(uint64(id), 10)
+}
+
+func TestSystemEvent_TypedRegistrationPreservesQueue(t *testing.T) {
+	t.Parallel()
+	s := newSystemEventManager()
+
+	_, err := s.register[modelFuzzSystemEvent]("")
+	require.ErrorContains(t, err, "system event name cannot be empty")
+	_, err = s.get[modelFuzzSystemEvent]("missing")
+	require.ErrorIs(t, err, ErrSystemEventNotFound)
+	require.ErrorIs(t, s.enqueue(modelFuzzSystemEvent{EventName: "missing"}), ErrSystemEventNotFound)
+
+	id, err := s.register[modelFuzzSystemEvent]("first")
+	require.NoError(t, err)
+	require.Equal(t, SystemEventID(0), id)
+	require.NoError(t, s.enqueue(modelFuzzSystemEvent{EventName: "first", Counter: 42, Enabled: true}))
+
+	duplicateID, err := s.register[modelFuzzSystemEvent]("first")
+	require.NoError(t, err)
+	require.Equal(t, SystemEventID(0), duplicateID)
+	secondID, err := s.register[modelFuzzSystemEvent]("second")
+	require.NoError(t, err)
+	require.Equal(t, SystemEventID(1), secondID)
+
+	events, err := s.get[modelFuzzSystemEvent]("first")
+	require.NoError(t, err)
+	assert.Equal(t, []modelFuzzSystemEvent{{EventName: "first", Counter: 42, Enabled: true}}, events)
+	otherEvents, err := s.get[modelFuzzSystemEvent]("second")
+	require.NoError(t, err)
+	assert.Empty(t, otherEvents)
+
+	s.clear()
+	events, err = s.get[modelFuzzSystemEvent]("first")
+	require.NoError(t, err)
+	assert.Empty(t, events)
+	require.NoError(t, s.enqueue(modelFuzzSystemEvent{EventName: "first", Counter: 7}))
+	events, err = s.get[modelFuzzSystemEvent]("first")
+	require.NoError(t, err)
+	assert.Equal(t, []modelFuzzSystemEvent{{EventName: "first", Counter: 7}}, events)
 }

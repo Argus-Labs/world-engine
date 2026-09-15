@@ -21,8 +21,7 @@ func TestWorld_ModelFuzz(t *testing.T) {
 	prng := testutils.NewRand(t)
 
 	world := NewWorld()
-	_, err := world.systemEvents.register(
-		testutils.SimpleSystemEvent{}.Name(), newSystemEventQueueFactory[testutils.SimpleSystemEvent]())
+	_, err := world.RegisterSystemEvent[testutils.SimpleSystemEvent]()
 	require.NoError(t, err)
 
 	numInitSystems := prng.IntN(5) + 1
@@ -54,7 +53,7 @@ func TestWorld_ModelFuzz(t *testing.T) {
 				fn: func() {
 					tickOrder = append(tickOrder, name)
 					if hook == Update {
-						world.systemEvents.enqueueAbstract(testutils.SimpleSystemEvent{Value: 1})
+						require.NoError(t, world.EmitSystemEvent(testutils.SimpleSystemEvent{Value: 1}))
 					}
 				},
 			})
@@ -86,7 +85,7 @@ func TestWorld_ModelFuzz(t *testing.T) {
 			// Property: Tick runs systems in hook order and registration order.
 			assert.Equal(t, expectedTickOrder, tickOrder)
 
-			systemEvents, err := world.systemEvents.getAbstract(testutils.SimpleSystemEvent{}.Name())
+			systemEvents, err := world.GetSystemEvents[testutils.SimpleSystemEvent]()
 			require.NoError(t, err)
 
 			// Property: system events are cleared after each tick.

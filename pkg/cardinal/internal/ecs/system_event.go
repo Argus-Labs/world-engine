@@ -40,9 +40,9 @@ func newSystemEventManager() systemEventManager {
 	}
 }
 
-// register registers a new system event type as abstract SystemEvent. If the system event is
+// register registers a typed queue under a system event name. If the system event is
 // already registered, the existing id is returned.
-func (s *systemEventManager) register(name string, factory systemEventQueueFactory) (SystemEventID, error) {
+func (s *systemEventManager) register[T SystemEvent](name string) (SystemEventID, error) {
 	if name == "" {
 		return 0, eris.New("system event name cannot be empty")
 	}
@@ -56,7 +56,8 @@ func (s *systemEventManager) register(name string, factory systemEventQueueFacto
 	}
 
 	s.catalog[name] = s.nextID
-	s.events = append(s.events, factory())
+	queue := newSystemEventQueue[T]()
+	s.events = append(s.events, &queue)
 	s.nextID++
 	assert.That(int(s.nextID) == len(s.events), "system event id doesn't match number of system events")
 
@@ -71,16 +72,15 @@ func (s *systemEventManager) clear() {
 	}
 }
 
-// enqueueSystemEvent enqueues a system event to be handled by another system. The system event must be
+// enqueue enqueues a system event to be handled by another system. The system event must be
 // registered before calling this function. This function is not safe for concurrent use. It expects
 // the scheduler to correctly order systems so that there are no concurrent access to the slices.
-func enqueueSystemEvent[T SystemEvent](s *systemEventManager, systemEvent T) error {
+func (s *systemEventManager) enqueue[T SystemEvent](systemEvent T) error {
 	name := systemEvent.Name()
 
 	seid, exists := s.catalog[name]
 	if !exists {
-		var zero T
-		return eris.Wrapf(ErrSystemEventNotFound, "system event %s", zero.Name())
+		return eris.Wrapf(ErrSystemEventNotFound, "system event %s", name)
 	}
 
 	queue, ok := s.events[seid].(*systemEventQueue[T])
@@ -90,15 +90,12 @@ func enqueueSystemEvent[T SystemEvent](s *systemEventManager, systemEvent T) err
 	return nil
 }
 
-// getSystemEvent retrieves a list of system events for a given system event name. The system event must be
+// get retrieves a list of system events for a given system event name. The system event must be
 // registered before calling this function.
-func getSystemEvent[T SystemEvent](s *systemEventManager) ([]T, error) {
-	var zero T
-	name := zero.Name()
-
+func (s *systemEventManager) get[T SystemEvent](name string) ([]T, error) {
 	seid, exists := s.catalog[name]
 	if !exists {
-		return nil, eris.Wrapf(ErrSystemEventNotFound, "system event %s", zero.Name())
+		return nil, eris.Wrapf(ErrSystemEventNotFound, "system event %s", name)
 	}
 
 	queue, ok := s.events[seid].(*systemEventQueue[T])
@@ -107,52 +104,20 @@ func getSystemEvent[T SystemEvent](s *systemEventManager) ([]T, error) {
 	return queue.get(), nil
 }
 
-// RegisterSystemEvent registers a component type with the world.
+// RegisterSystemEvent registers a system event type with the world.
 func (w *World) RegisterSystemEvent[T SystemEvent]() (SystemEventID, error) {
 	var zero T
-	return w.systemEvents.register(zero.Name(), newSystemEventQueueFactory[T]())
-}
-
-// These methods below work on the interface type which creates extra allocations and are only used
-// for tests. Prefer the generic methods above.
-
-// enqueueAbstract enqueues a boxed system event by runtime name.
-func (s *systemEventManager) enqueueAbstract(systemEvent SystemEvent) error {
-	name := systemEvent.Name()
-
-	seid, exists := s.catalog[name]
-	if !exists {
-		return eris.Wrapf(ErrSystemEventNotFound, "system event %s", systemEvent.Name())
-	}
-
-	queue := s.events[seid]
-	queue.enqueueAbstract(systemEvent)
-	return nil
-}
-
-func (s *systemEventManager) getAbstract(name string) ([]SystemEvent, error) {
-	seid, exists := s.catalog[name]
-	if !exists {
-		return nil, eris.Wrapf(ErrSystemEventNotFound, "system event %s", name)
-	}
-
-	queue := s.events[seid]
-	return queue.getAbstract(), nil
+	return w.systemEvents.register[T](zero.Name())
 }
 
 // -------------------------------------------------------------------------------------------------
 // System Event Queues
 // -------------------------------------------------------------------------------------------------
 
-// systemEventQueueFactory is a function that creates a new abstractSystemEventQueue instance.
-type systemEventQueueFactory func() abstractSystemEventQueue
-
 // abstractSystemEventQueue is an internal interface for generic system event queue operations.
 type abstractSystemEventQueue interface {
 	len() int
 	clear()
-	enqueueAbstract(SystemEvent)
-	getAbstract() []SystemEvent
 }
 
 var _ abstractSystemEventQueue = (*systemEventQueue[SystemEvent])(nil)
@@ -170,14 +135,6 @@ func newSystemEventQueue[T SystemEvent]() systemEventQueue[T] {
 	}
 }
 
-// newSystemEventQueueFactory returns a function that constructs a new system event queue of type T.
-func newSystemEventQueueFactory[T SystemEvent]() systemEventQueueFactory {
-	return func() abstractSystemEventQueue {
-		queue := newSystemEventQueue[T]()
-		return &queue
-	}
-}
-
 // len returns the length of the system event slice.
 func (s *systemEventQueue[T]) len() int {
 	return len(s.events)
@@ -188,32 +145,12 @@ func (s *systemEventQueue[T]) clear() {
 	s.events = s.events[:0]
 }
 
-// get gets all events in queue order. Whenever possible prefer this method over getAbstract since
-// it avoids boxing and per-event type assertions.
+// get gets all events in queue order.
 func (s *systemEventQueue[T]) get() []T {
 	return s.events
 }
 
-// getAbstract gets all events in queue order as the abstract SystemEvent type. Use this method only
-// when you don't know the concrete type of the system events.
-func (s *systemEventQueue[T]) getAbstract() []SystemEvent {
-	events := make([]SystemEvent, len(s.events))
-	for i, event := range s.events {
-		events[i] = event
-	}
-	return events
-}
-
-// enqueue appends a system event to the queue. Whenever possible prefer this method over
-// enqueueAbstract since it avoids type assertions and boxing.
+// enqueue appends a system event to the queue.
 func (s *systemEventQueue[T]) enqueue(systemEvent T) {
 	s.events = append(s.events, systemEvent)
-}
-
-// enqueueAbstract appends a system event to the queue. Use this method only when you don't know
-// the concrete type of the system event.
-func (s *systemEventQueue[T]) enqueueAbstract(systemEvent SystemEvent) {
-	event, ok := systemEvent.(T)
-	assert.That(ok, "tried to enqueue wrong system event type")
-	s.enqueue(event)
 }
