@@ -12,6 +12,7 @@ import (
 
 	cardinalruntime "github.com/argus-labs/world-engine/pkg/cardinal/runtime"
 	"github.com/argus-labs/world-engine/pkg/cardinal/runtime/nativeaot"
+	pb "github.com/argus-labs/world-engine/pkg/cardinal/runtime/nativeaot/testdata/fixturepb"
 	"github.com/rotisserie/eris"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +27,10 @@ func TestNativeAOTModule(t *testing.T) {
 	}
 	moduleName := integrationContractName()
 
-	runner, err := nativeaot.Open(libraryPath, nil, moduleName, integrationContractVersion)
+	config := make([]byte, 8)
+	binary.LittleEndian.PutUint64(config, 300)
+	runner, err := nativeaot.Open[*pb.FixtureInput, *pb.FixtureOutput, *pb.FixtureSnapshot](
+		libraryPath, config, moduleName, integrationContractVersion)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, runner.Close())
@@ -37,44 +41,33 @@ func TestNativeAOTModule(t *testing.T) {
 	assert.Equal(t, integrationContractVersion, contract.Version)
 	assert.Equal(t, cardinalruntime.ABIVersion, contract.ABIVersion)
 
-	require.NoError(t, runner.Initialize(cardinalruntime.InitRequest{}))
-
-	increment := make([]byte, 8)
-	binary.LittleEndian.PutUint64(increment, 5)
-	request := cardinalruntime.TickRequest{
-		Tick:         42,
-		FixedDeltaNS: 50_000_000,
-		Input:        increment,
-	}
-
-	undersized := []byte{0xA5, 0xA5, 0xA5, 0xA5}
-	written, err := runner.Tick(request, undersized)
-	require.ErrorIs(t, err, cardinalruntime.ErrBufferTooSmall)
-	assert.Zero(t, written)
-	assert.Equal(t, []byte{0xA5, 0xA5, 0xA5, 0xA5}, undersized)
-
-	output := make([]byte, 8)
-	written, err = runner.Tick(request, output)
+	require.NoError(t, runner.Initialize(nil))
+	input := &pb.FixtureInput{Value: -173}
+	output := new(pb.FixtureOutput)
+	require.NoError(t, runner.Tick(42, 50_000_000, input, output))
+	assert.Equal(t, int64(127), output.GetValue())
+	snapshot, err := runner.Snapshot()
 	require.NoError(t, err)
-	require.Equal(t, len(output), written)
-	assert.Equal(t, uint64(5), binary.LittleEndian.Uint64(output))
+	input.Value = 1
+	require.NoError(t, runner.Tick(43, 50_000_000, input, output))
+	assert.Equal(t, int64(128), output.GetValue())
+	assert.Equal(t, int64(127), snapshot.GetValue())
+	require.NoError(t, runner.Restore(new(pb.FixtureSnapshot)))
+	input.Value = 0
+	require.NoError(t, runner.Tick(44, 50_000_000, input, output))
+	assert.Zero(t, output.GetValue())
 
-	snapshot := make([]byte, 8)
-	written, err = runner.Snapshot(snapshot)
-	require.NoError(t, err)
-	require.Equal(t, len(snapshot), written)
-
-	restored, err := nativeaot.Open(libraryPath, nil, moduleName, integrationContractVersion)
+	restored, err := nativeaot.Open[*pb.FixtureInput, *pb.FixtureOutput, *pb.FixtureSnapshot](
+		libraryPath, nil, moduleName, integrationContractVersion)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, restored.Close())
 	})
 	require.NoError(t, restored.Restore(snapshot))
 
-	written, err = restored.Snapshot(output)
+	restoredSnapshot, err := restored.Snapshot()
 	require.NoError(t, err)
-	require.Equal(t, len(output), written)
-	assert.Equal(t, uint64(5), binary.LittleEndian.Uint64(output))
+	assert.Equal(t, int64(127), restoredSnapshot.GetValue())
 }
 
 func TestNativeAOTConcurrentOpenErrors(t *testing.T) {
@@ -99,7 +92,7 @@ func TestNativeAOTConcurrentOpenErrors(t *testing.T) {
 			defer waitGroup.Done()
 			<-start
 
-			_, err := nativeaot.Open(
+			_, err := nativeaot.Open[*pb.FixtureInput, *pb.FixtureOutput, *pb.FixtureSnapshot](
 				libraryPath,
 				make([]byte, configLength),
 				moduleName,
@@ -134,7 +127,7 @@ func BenchmarkNativeAOTTick(b *testing.B) {
 		b.Skip("CARDINAL_NATIVEAOT_TEST_LIBRARY is not set")
 	}
 
-	runner, err := nativeaot.Open(
+	runner, err := nativeaot.Open[*pb.FixtureInput, *pb.FixtureOutput, *pb.FixtureSnapshot](
 		libraryPath,
 		nil,
 		integrationContractName(),
@@ -148,29 +141,24 @@ func BenchmarkNativeAOTTick(b *testing.B) {
 			b.Error(closeErr)
 		}
 	}()
-	if err = runner.Initialize(cardinalruntime.InitRequest{}); err != nil {
+	if err = runner.Initialize(nil); err != nil {
 		b.Fatal(err)
 	}
 
-	input := make([]byte, 8)
-	binary.LittleEndian.PutUint64(input, 1)
-	output := make([]byte, 8)
-	request := cardinalruntime.TickRequest{
-		FixedDeltaNS: 50_000_000,
-		Input:        input,
-	}
+	input := &pb.FixtureInput{Value: 1}
+	output := new(pb.FixtureOutput)
+	require.NoError(b, runner.Tick(1, 50_000_000, input, output))
 
 	b.ReportAllocs()
-	b.SetBytes(int64(len(input)))
+	b.SetBytes(2)
 	b.ResetTimer()
 	for index := 0; index < b.N; index++ {
-		request.Tick = uint64(index)
-		written, tickErr := runner.Tick(request, output)
+		tickErr := runner.Tick(uint64(index), 50_000_000, input, output)
 		if tickErr != nil {
 			b.Fatal(tickErr)
 		}
-		if written != len(output) {
-			b.Fatalf("tick wrote %d bytes, want %d", written, len(output))
+		if output.GetValue() != int64(index)+2 {
+			b.Fatalf("unexpected output %d", output.GetValue())
 		}
 	}
 }
