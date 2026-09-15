@@ -14,6 +14,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const (
+	missing = "missing"
+	present = "present"
+)
+
 // CaptureRow is the complete physics state of one body.
 type CaptureRow struct {
 	Transform physics.Transform2D
@@ -124,12 +129,12 @@ func CompareContacts(want, got Capture) []Diff {
 	for _, p := range want.Contacts {
 		key := contactKey(p)
 		if !seen[key] {
-			diffs = append(diffs, Diff{"<active-contacts>", key, "missing", "present"})
+			diffs = append(diffs, Diff{"<active-contacts>", key, missing, present})
 		}
 		delete(seen, key)
 	}
 	for key := range seen {
-		diffs = append(diffs, Diff{"<active-contacts>", key, "present", "missing"})
+		diffs = append(diffs, Diff{"<active-contacts>", key, present, missing})
 	}
 	return diffs
 }
@@ -246,14 +251,14 @@ func CompareCaptures(want, got Capture, tol float64) []Diff {
 		w := want.Rows[label]
 		g, ok := got.Rows[label]
 		if !ok {
-			diffs = append(diffs, Diff{label, "<body>", "missing", "present"})
+			diffs = append(diffs, Diff{label, "<body>", missing, present})
 			continue
 		}
 		diffs = append(diffs, compareRow(label, w, g, tol)...)
 	}
 	for _, label := range got.Labels() {
 		if _, ok := want.Rows[label]; !ok {
-			diffs = append(diffs, Diff{label, "<body>", "present", "missing"})
+			diffs = append(diffs, Diff{label, "<body>", present, missing})
 		}
 	}
 	return diffs

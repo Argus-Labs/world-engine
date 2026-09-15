@@ -11,6 +11,11 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	playerNotInLobby     = "player not in a lobby"
+	playerEntityNotFound = "player entity not found"
+)
+
 // -----------------------------------------------------------------------------
 // Commands
 // -----------------------------------------------------------------------------
@@ -1587,7 +1592,7 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 			state.JoinTeamResults.Broadcast(JoinTeamResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player not in a lobby",
+				Message:   playerNotInLobby,
 			})
 			continue
 		}
@@ -1688,7 +1693,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 			state.LeaveLobbyResults.Broadcast(LeaveLobbyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player not in a lobby",
+				Message:   playerNotInLobby,
 			})
 			continue
 		}
@@ -1784,7 +1789,7 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 			state.SetReadyResults.Broadcast(SetReadyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player not in a lobby",
+				Message:   playerNotInLobby,
 			})
 			continue
 		}
@@ -1807,7 +1812,7 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 			state.SetReadyResults.Broadcast(SetReadyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player entity not found",
+				Message:   playerEntityNotFound,
 			})
 			continue
 		}
@@ -1816,7 +1821,7 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 			state.SetReadyResults.Broadcast(SetReadyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player entity not found",
+				Message:   playerEntityNotFound,
 			})
 			continue
 		}
@@ -1857,7 +1862,7 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 			state.KickPlayerResults.Broadcast(KickPlayerResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player not in a lobby",
+				Message:   playerNotInLobby,
 			})
 			continue
 		}
@@ -1941,7 +1946,7 @@ func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *lookupIn
 			state.TransferLeaderResults.Broadcast(TransferLeaderResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player not in a lobby",
+				Message:   playerNotInLobby,
 			})
 			continue
 		}
@@ -2011,7 +2016,7 @@ func processStartSessionCommands(
 			state.StartSessionResults.Broadcast(StartSessionResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player not in a lobby",
+				Message:   playerNotInLobby,
 			})
 			continue
 		}
@@ -2359,7 +2364,7 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *look
 			state.GenerateInviteCodeResults.Broadcast(GenerateInviteCodeResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player not in a lobby",
+				Message:   playerNotInLobby,
 			})
 			continue
 		}
@@ -2433,7 +2438,7 @@ func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex
 			state.UpdateSessionPassthroughResults.Broadcast(UpdateSessionPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player not in a lobby",
+				Message:   playerNotInLobby,
 			})
 			continue
 		}
@@ -2485,7 +2490,7 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 			state.UpdatePlayerPassthroughResults.Broadcast(UpdatePlayerPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player not in a lobby",
+				Message:   playerNotInLobby,
 			})
 			continue
 		}
@@ -2497,7 +2502,7 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 			state.UpdatePlayerPassthroughResults.Broadcast(UpdatePlayerPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player entity not found",
+				Message:   playerEntityNotFound,
 			})
 			continue
 		}
@@ -2506,7 +2511,7 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 			state.UpdatePlayerPassthroughResults.Broadcast(UpdatePlayerPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player entity not found",
+				Message:   playerEntityNotFound,
 			})
 			continue
 		}
@@ -2563,7 +2568,7 @@ func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex) 
 			state.GetPlayerResults.Broadcast(GetPlayerResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player entity not found",
+				Message:   playerEntityNotFound,
 			})
 			continue
 		}
@@ -2589,7 +2594,7 @@ func processGetLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 			state.GetLobbyResults.Broadcast(GetLobbyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player not in a lobby",
+				Message:   playerNotInLobby,
 			})
 			continue
 		}
@@ -2614,7 +2619,7 @@ func processGetAllPlayersCommands(state *LobbySystemState, lobbyIndex *lookupInd
 			state.GetAllPlayersResults.Broadcast(GetAllPlayersResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
-				Message:   "player not in a lobby",
+				Message:   playerNotInLobby,
 			})
 			continue
 		}
