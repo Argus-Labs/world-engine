@@ -172,7 +172,7 @@ func (ws *worldState) findOrCreateArchetype(components bitmap.Bitmap) archetypeI
 // setComponent sets a component in the given entity. Returns an error if the entity doesn't exist.
 // If the entity's archetype contains the component type, this will update the value. If it doesn't,
 // it will move the entity to a new archetype and set the value there.
-func setComponent[T Component](ws *worldState, eid EntityID, component T) error {
+func (ws *worldState) setComponent[T Component](eid EntityID, component T) error {
 	aid, exists := ws.entityArch.get(eid)
 	if !exists {
 		return eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
@@ -211,7 +211,7 @@ func setComponent[T Component](ws *worldState, eid EntityID, component T) error 
 
 // getComponent gets a component value from the given entity. Returns an error if the entity doesn't
 // exist or if the entity's archetype doesn't contain the component type.
-func getComponent[T Component](ws *worldState, eid EntityID) (T, error) {
+func (ws *worldState) getComponent[T Component](eid EntityID) (T, error) {
 	var zero T
 
 	aid, exists := ws.entityArch.get(eid)
@@ -241,7 +241,7 @@ func getComponent[T Component](ws *worldState, eid EntityID) (T, error) {
 
 // removeComponent removes a component from the given entity. Returns an error if the entity or the
 // component to remove doesn't exist.
-func removeComponent[T Component](ws *worldState, eid EntityID) error {
+func (ws *worldState) removeComponent[T Component](eid EntityID) error {
 	var zero T
 
 	aid, exists := ws.entityArch.get(eid)
