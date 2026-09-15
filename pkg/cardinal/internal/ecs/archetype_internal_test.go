@@ -198,9 +198,9 @@ func TestArchetype_MoveExhaustive(t *testing.T) {
 	for !gen.Done() {
 		// Pick and reset archetypes to clean state.
 		src := pool[gen.Index(len(pool))] // Randomize source
-		src.reset()
+		clearArchetype(src)
 		dst := pool[gen.Index(len(pool))] // Randomize destination
-		dst.reset()
+		clearArchetype(dst)
 
 		// Populate source with 1-3 entities, destination with 0-2 entities.
 		countSrc := gen.Range(1, 3) // Randomize source entity count
@@ -308,6 +308,16 @@ func newArchetypePool(n int) []*archetype {
 	}
 
 	return archetypes
+}
+
+func clearArchetype(a *archetype) {
+	a.rows.clear()
+	a.entities = a.entities[:0]
+	for _, column := range a.columns {
+		for column.len() > 0 {
+			column.remove(column.len() - 1)
+		}
+	}
 }
 
 // classifyMove returns semantic class and diagnostics for exhaustive move tests.
