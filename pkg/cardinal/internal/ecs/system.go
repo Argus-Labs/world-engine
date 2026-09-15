@@ -25,11 +25,11 @@ type systemMetadata struct {
 	fn   func() // Function that wraps a System
 }
 
-func RegisterSystem(world *World, name string, hook SystemHook, fn func()) error {
+func (w *World) RegisterSystem(name string, hook SystemHook, fn func()) error {
 	switch hook {
 	case Init, PreUpdate, Update, PostUpdate:
-		assert.That(int(hook) < len(world.systems), "invalid system hook index")
-		world.systems[hook] = append(world.systems[hook], systemMetadata{name: name, fn: fn})
+		assert.That(int(hook) < len(w.systems), "invalid system hook index")
+		w.systems[hook] = append(w.systems[hook], systemMetadata{name: name, fn: fn})
 	default:
 		return eris.Errorf("invalid system hook %d", hook)
 	}

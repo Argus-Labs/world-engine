@@ -108,9 +108,9 @@ func getSystemEvent[T SystemEvent](s *systemEventManager) ([]T, error) {
 }
 
 // RegisterSystemEvent registers a component type with the world.
-func RegisterSystemEvent[T SystemEvent](world *World) (SystemEventID, error) {
+func (w *World) RegisterSystemEvent[T SystemEvent]() (SystemEventID, error) {
 	var zero T
-	return world.systemEvents.register(zero.Name(), newSystemEventQueueFactory[T]())
+	return w.systemEvents.register(zero.Name(), newSystemEventQueueFactory[T]())
 }
 
 // These methods below work on the interface type which creates extra allocations and are only used
