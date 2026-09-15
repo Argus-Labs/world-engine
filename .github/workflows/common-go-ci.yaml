@@ -25,6 +25,8 @@ jobs:
     runs-on: namespace-profile-linux-ci-large
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # moon resolves the base revision in CI
 
       - name: Configure Git for private repos
         run: git config --global url."https://x-token-auth:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
@@ -53,6 +55,8 @@ jobs:
     runs-on: namespace-profile-linux-ci-large
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # moon resolves the base revision in CI
 
       - name: Install moon
         uses: moonrepo/setup-toolchain@v0

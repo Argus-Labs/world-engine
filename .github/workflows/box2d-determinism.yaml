@@ -56,6 +56,8 @@ jobs:
             arch: arm64
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # moon resolves the base revision in CI
 
       - uses: moonrepo/setup-toolchain@v0
 
