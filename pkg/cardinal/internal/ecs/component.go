@@ -71,15 +71,17 @@ func validateComponentName(name string) error {
 }
 
 // register registers a new component type and returns its ID.
-// If the component is already registered, no-op.
+// Registering the same type again is a no-op. Reusing a name for another type returns an error.
 func (cm *componentManager) register[T Component](name string) (ComponentID, error) {
 	// Validate component name follows expr identifier rules
 	if err := validateComponentName(name); err != nil {
 		return 0, err
 	}
 
-	// If component already exists, no-op.
 	if cid, exists := cm.catalog[name]; exists {
+		if _, ok := cm.factories[cid]().(*column[T]); !ok {
+			return 0, eris.Errorf("component %s already registered with a different type", name)
+		}
 		return cid, nil
 	}
 
