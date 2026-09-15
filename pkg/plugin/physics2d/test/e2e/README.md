@@ -2,7 +2,7 @@
 
 Headless Cardinal worlds whose only job is to exercise `pkg/plugin/physics2d`
 and fail on anything that does not behave the way Box2D documents. No NATS, no
-Redis, no Docker; `task test` runs it with the rest of `./pkg/...`.
+Redis, no Docker; `moon run world-engine:test` runs it with the rest of `./pkg/...`.
 
 ```sh
 go test ./pkg/plugin/physics2d/test/e2e/                            # everything
