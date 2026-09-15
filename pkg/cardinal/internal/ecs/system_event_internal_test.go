@@ -247,3 +247,30 @@ func TestSystemEvent_TypedRegistrationPreservesQueue(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []modelFuzzSystemEvent{{EventName: "first", Counter: 7}}, events)
 }
+
+type conflictingSystemEvent struct {
+	testutils.SimpleSystemEvent
+}
+
+func TestWorld_RegisterSystemEventRejectsNameCollision(t *testing.T) {
+	t.Parallel()
+	w := NewWorld()
+	id, err := w.RegisterSystemEvent[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+	require.Equal(t, SystemEventID(0), id)
+	require.NoError(t, w.EmitSystemEvent(testutils.SimpleSystemEvent{Value: 42}))
+
+	id, err = w.RegisterSystemEvent[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+	require.Equal(t, SystemEventID(0), id)
+	_, err = w.RegisterSystemEvent[conflictingSystemEvent]()
+	require.ErrorContains(t, err, "system event simple_system_event already registered with a different type")
+
+	events, err := w.GetSystemEvents[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+	require.Equal(t, []testutils.SimpleSystemEvent{{Value: 42}}, events)
+	require.NoError(t, w.EmitSystemEvent(testutils.SimpleSystemEvent{Value: 7}))
+	events, err = w.GetSystemEvents[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+	require.Equal(t, []testutils.SimpleSystemEvent{{Value: 42}, {Value: 7}}, events)
+}

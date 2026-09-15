@@ -40,14 +40,17 @@ func newSystemEventManager() systemEventManager {
 	}
 }
 
-// register registers a typed queue under a system event name. If the system event is
-// already registered, the existing id is returned.
+// register registers a typed queue under a system event name. Registering the same type again
+// returns its existing ID. Reusing a name for another type returns an error.
 func (s *systemEventManager) register[T SystemEvent](name string) (SystemEventID, error) {
 	if name == "" {
 		return 0, eris.New("system event name cannot be empty")
 	}
 
 	if seid, exists := s.catalog[name]; exists {
+		if _, ok := s.events[seid].(*systemEventQueue[T]); !ok {
+			return 0, eris.Errorf("system event %s already registered with a different type", name)
+		}
 		return seid, nil
 	}
 

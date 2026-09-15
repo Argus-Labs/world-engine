@@ -196,3 +196,31 @@ func randValidComponentName(prng *rand.Rand) string {
 	}
 	return string(b)
 }
+
+type conflictingComponent struct {
+	testutils.SimpleComponent
+}
+
+func TestWorld_RegisterComponentRejectsNameCollision(t *testing.T) {
+	t.Parallel()
+	w := NewWorld()
+	id, err := w.RegisterComponent[testutils.SimpleComponent]()
+	require.NoError(t, err)
+	require.Equal(t, ComponentID(0), id)
+	eid := w.Create()
+	require.NoError(t, w.Set(eid, testutils.SimpleComponent{Value: 42}))
+
+	id, err = w.RegisterComponent[testutils.SimpleComponent]()
+	require.NoError(t, err)
+	require.Equal(t, ComponentID(0), id)
+	_, err = w.RegisterComponent[conflictingComponent]()
+	require.ErrorContains(t, err, "component simple_component already registered with a different type")
+
+	value, err := w.Get[testutils.SimpleComponent](eid)
+	require.NoError(t, err)
+	require.Equal(t, testutils.SimpleComponent{Value: 42}, value)
+	require.NoError(t, w.Set(eid, testutils.SimpleComponent{Value: 7}))
+	value, err = w.Get[testutils.SimpleComponent](eid)
+	require.NoError(t, err)
+	require.Equal(t, testutils.SimpleComponent{Value: 7}, value)
+}
