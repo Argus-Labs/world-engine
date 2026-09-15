@@ -27,7 +27,7 @@ type System interface {
 	Run()
 }
 
-func RegisterSystem[T any](world *World, system func(*T), opts ...SystemOption) {
+func (w *World) RegisterSystem[T any](system func(*T), opts ...SystemOption) {
 	cfg := newSystemConfig()
 	for _, opt := range opts {
 		opt(&cfg)
@@ -43,17 +43,17 @@ func RegisterSystem[T any](world *World, system func(*T), opts ...SystemOption) 
 	// Initialize the fields in the system state.
 	state := new(T)
 
-	if err := initSystemFields(reflect.ValueOf(state).Elem(), world); err != nil {
+	if err := initSystemFields(reflect.ValueOf(state).Elem(), w); err != nil {
 		panic(eris.Wrapf(err, "error initializing system fields"))
 	}
 
 	name := fmt.Sprintf("%T", system)
-	registerSystem(world, name, cfg.hook, func() { system(state) })
+	registerSystem(w, name, cfg.hook, func() { system(state) })
 }
 
 // RegisterSystemV2 registers a caller-owned system instance. The instance must be a non-nil pointer
 // to a struct that embeds BaseSystemState.
-func RegisterSystemV2[S System](world *World, s S, opts ...SystemOption) {
+func (w *World) RegisterSystemV2[S System](s S, opts ...SystemOption) {
 	cfg := newSystemConfig()
 	for _, opt := range opts {
 		opt(&cfg)
@@ -76,25 +76,25 @@ func RegisterSystemV2[S System](world *World, s S, opts ...SystemOption) {
 		panic(eris.Errorf("system %T must embed cardinal.BaseSystemState", s))
 	}
 
-	if err := initSystemFields(state, world); err != nil {
+	if err := initSystemFields(state, w); err != nil {
 		panic(eris.Wrapf(err, "error initializing system fields"))
 	}
 
-	registerSystem(world, fmt.Sprintf("%T", s), cfg.hook, s.Run)
+	registerSystem(w, fmt.Sprintf("%T", s), cfg.hook, s.Run)
 }
 
-func registerSystem(world *World, name string, hook SystemHook, run func()) {
+func registerSystem(w *World, name string, hook SystemHook, run func()) {
 	fn := run
 
 	// If debug is enabled, wrap the system with performance instrumentation.
-	if world.debug != nil {
+	if w.debug != nil {
 		fn = func() {
-			ts := world.currentTick.timestamp
+			ts := w.currentTick.timestamp
 			startTime := ts.Add(time.Since(ts))
 			run()
 			endTime := ts.Add(time.Since(ts))
-			world.debug.recordSpan(performance.TickSpan{
-				TickHeight: world.currentTick.height,
+			w.debug.recordSpan(performance.TickSpan{
+				TickHeight: w.currentTick.height,
 				SystemName: name,
 				SystemHook: uint8(hook),
 				StartTime:  startTime,
@@ -103,15 +103,15 @@ func registerSystem(world *World, name string, hook SystemHook, run func()) {
 		}
 	}
 
-	err := ecs.RegisterSystem(world.world, name, hook, fn)
+	err := ecs.RegisterSystem(w.world, name, hook, fn)
 	if err != nil {
 		panic(eris.Wrapf(err, "error registering system"))
 	}
 }
 
-func initSystemFields(state reflect.Value, world *World) error {
+func initSystemFields(state reflect.Value, w *World) error {
 	meta := systemInitMetadata{
-		world:        world,
+		world:        w,
 		commands:     make(map[string]struct{}),
 		events:       make(map[string]struct{}),
 		systemEvents: make(map[string]struct{}),
@@ -148,7 +148,7 @@ func initSystemFields(state reflect.Value, world *World) error {
 
 	// Register commands to the service.
 	for name := range meta.commands {
-		world.service.registerCommandHandler(name)
+		w.service.registerCommandHandler(name)
 	}
 
 	return nil

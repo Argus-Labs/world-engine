@@ -24,18 +24,18 @@ func TestRegisterSystems_IgnorePrivateFields(t *testing.T) {
 	t.Run("v1", func(t *testing.T) {
 		t.Parallel()
 
-		world := &World{world: ecs.NewWorld()}
+		w := &World{world: ecs.NewWorld()}
 		require.NotPanics(t, func() {
-			RegisterSystem(world, func(*privateStateSystem) {})
+			w.RegisterSystem(func(*privateStateSystem) {})
 		})
 	})
 
 	t.Run("v2", func(t *testing.T) {
 		t.Parallel()
 
-		world := &World{world: ecs.NewWorld()}
+		w := &World{world: ecs.NewWorld()}
 		require.NotPanics(t, func() {
-			RegisterSystemV2(world, &privateStateSystem{})
+			w.RegisterSystemV2(&privateStateSystem{})
 		})
 	})
 }
@@ -45,11 +45,11 @@ func TestRegisterSystems_RejectPrivateCardinalDependency(t *testing.T) {
 
 	assertRejected := func(t *testing.T, register func(*World)) {
 		t.Helper()
-		world := &World{world: ecs.NewWorld()}
+		w := &World{world: ecs.NewWorld()}
 		require.PanicsWithError(
 			t,
 			"error initializing system fields: field events must be exported",
-			func() { register(world) },
+			func() { register(w) },
 		)
 	}
 
@@ -57,13 +57,13 @@ func TestRegisterSystems_RejectPrivateCardinalDependency(t *testing.T) {
 		t.Parallel()
 
 		t.Run("value field", func(t *testing.T) {
-			assertRejected(t, func(world *World) {
-				RegisterSystem(world, func(*privateDependencySystem) {})
+			assertRejected(t, func(w *World) {
+				w.RegisterSystem(func(*privateDependencySystem) {})
 			})
 		})
 		t.Run("pointer field", func(t *testing.T) {
-			assertRejected(t, func(world *World) {
-				RegisterSystem(world, func(*privatePointerDependencySystem) {})
+			assertRejected(t, func(w *World) {
+				w.RegisterSystem(func(*privatePointerDependencySystem) {})
 			})
 		})
 	})
@@ -72,13 +72,13 @@ func TestRegisterSystems_RejectPrivateCardinalDependency(t *testing.T) {
 		t.Parallel()
 
 		t.Run("value field", func(t *testing.T) {
-			assertRejected(t, func(world *World) {
-				RegisterSystemV2(world, &privateDependencySystem{})
+			assertRejected(t, func(w *World) {
+				w.RegisterSystemV2(&privateDependencySystem{})
 			})
 		})
 		t.Run("pointer field", func(t *testing.T) {
-			assertRejected(t, func(world *World) {
-				RegisterSystemV2(world, &privatePointerDependencySystem{})
+			assertRejected(t, func(w *World) {
+				w.RegisterSystemV2(&privatePointerDependencySystem{})
 			})
 		})
 	})
@@ -89,27 +89,27 @@ func TestRegisterSystems_RejectPointerCardinalDependency(t *testing.T) {
 
 	assertRejected := func(t *testing.T, register func(*World)) {
 		t.Helper()
-		world := &World{world: ecs.NewWorld()}
+		w := &World{world: ecs.NewWorld()}
 		require.PanicsWithError(
 			t,
 			"error initializing system fields: field Events must be declared as a value",
-			func() { register(world) },
+			func() { register(w) },
 		)
 	}
 
 	t.Run("v1", func(t *testing.T) {
 		t.Parallel()
 
-		assertRejected(t, func(world *World) {
-			RegisterSystem(world, func(*exportedPointerDependencySystem) {})
+		assertRejected(t, func(w *World) {
+			w.RegisterSystem(func(*exportedPointerDependencySystem) {})
 		})
 	})
 
 	t.Run("v2", func(t *testing.T) {
 		t.Parallel()
 
-		assertRejected(t, func(world *World) {
-			RegisterSystemV2(world, &exportedPointerDependencySystem{})
+		assertRejected(t, func(w *World) {
+			w.RegisterSystemV2(&exportedPointerDependencySystem{})
 		})
 	})
 }
@@ -236,14 +236,14 @@ type commandFixture struct {
 func newCommandFixture(t *testing.T) *commandFixture {
 	t.Helper()
 
-	world := &World{
+	w := &World{
 		commands: command.NewManager(),
 	}
-	world.service = newService(world, AuthModeDev, "")
+	w.service = newService(w, AuthModeDev, "")
 
-	fixture := &commandFixture{world: world}
+	fixture := &commandFixture{world: w}
 
-	meta := &systemInitMetadata{world: world, commands: make(map[string]struct{}), events: make(map[string]struct{})}
+	meta := &systemInitMetadata{world: w, commands: make(map[string]struct{}), events: make(map[string]struct{})}
 	err := fixture.Command.init(meta)
 	require.NoError(t, err)
 
@@ -334,13 +334,13 @@ type eventFixture struct {
 func newEventFixture(t *testing.T) *eventFixture {
 	t.Helper()
 
-	world := &World{
+	w := &World{
 		events: event.NewManager(1024),
 	}
 
-	fixture := &eventFixture{world: world}
+	fixture := &eventFixture{world: w}
 
-	meta := &systemInitMetadata{world: world, commands: make(map[string]struct{}), events: make(map[string]struct{})}
+	meta := &systemInitMetadata{world: w, commands: make(map[string]struct{}), events: make(map[string]struct{})}
 	err := fixture.Event.init(meta)
 	require.NoError(t, err)
 
@@ -422,17 +422,17 @@ type systemEventFixture struct {
 func newSystemEventFixture(t *testing.T) *systemEventFixture {
 	t.Helper()
 
-	world := &World{world: ecs.NewWorld()}
+	w := &World{world: ecs.NewWorld()}
 	fixture := &systemEventFixture{}
 
 	// We initialize these separately because the default behavior is we don't allow a system to
 	// process the same system event type, it doesn't make sense to do it. But here, we want to do it
 	// for simplicity, so we have to initialize these manually with different systemEvents sets.
-	meta := &systemInitMetadata{world: world, systemEvents: make(map[string]struct{})}
+	meta := &systemInitMetadata{world: w, systemEvents: make(map[string]struct{})}
 	err := fixture.Emitter.init(meta)
 	require.NoError(t, err)
 
-	meta = &systemInitMetadata{world: world, systemEvents: make(map[string]struct{})}
+	meta = &systemInitMetadata{world: w, systemEvents: make(map[string]struct{})}
 	err = fixture.Receiver.init(meta)
 	require.NoError(t, err)
 
@@ -672,11 +672,11 @@ type searchFixture struct {
 func newSearchFixture(t *testing.T) *searchFixture {
 	t.Helper()
 
-	world := &World{world: ecs.NewWorld()}
+	w := &World{world: ecs.NewWorld()}
 
 	fixture := &searchFixture{}
 
-	err := initSystemFields(reflect.ValueOf(fixture).Elem(), world)
+	err := initSystemFields(reflect.ValueOf(fixture).Elem(), w)
 	require.NoError(t, err)
 
 	return fixture

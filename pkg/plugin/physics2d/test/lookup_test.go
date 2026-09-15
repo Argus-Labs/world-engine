@@ -19,7 +19,7 @@ import (
 func spawnTwoShapeBody(t *testing.T, w *cardinal.World) *cardinal.EntityID {
 	t.Helper()
 	entityID := new(cardinal.EntityID)
-	cardinal.RegisterSystem(w, func(state *struct {
+	w.RegisterSystem(func(state *struct {
 		cardinal.BaseSystemState
 		Spawn spawnArchetype
 	}) {
@@ -88,7 +88,7 @@ func TestLookup_UnknownAndDestroyedEntity(t *testing.T) {
 	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 	entityID := spawnTwoShapeBody(t, w)
 
-	cardinal.RegisterSystem(w, func(state *struct {
+	w.RegisterSystem(func(state *struct {
 		cardinal.BaseSystemState
 		Spawn spawnArchetype
 	}) {

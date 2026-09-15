@@ -26,9 +26,9 @@ import (
 )
 
 func main() {
-    world, _ := cardinal.NewWorld(cardinal.WorldOptions{...})
+    w, _ := cardinal.NewWorld(cardinal.WorldOptions{...})
 
-    cardinal.RegisterPlugin(world, lobby.NewPlugin(lobby.Config{
+    w.RegisterPlugin(lobby.NewPlugin(lobby.Config{
         LobbyWorld: cardinal.OtherWorld{
             Region:       "us-west",
             Organization: "myorg",
@@ -37,7 +37,7 @@ func main() {
         },
     }))
 
-    world.StartGame()
+    w.StartGame()
 }
 ```
 
@@ -205,7 +205,7 @@ func (p MyProvider) GenerateInviteCode(l *lobby.Component) string {
     return generateMyCustomCode(8)
 }
 
-cardinal.RegisterPlugin(world, lobby.NewPlugin(lobby.Config{
+w.RegisterPlugin(lobby.NewPlugin(lobby.Config{
     LobbyWorld: cardinal.OtherWorld{...},
     Provider:   MyProvider{},
 }))
@@ -327,8 +327,8 @@ func AssignerSystem(state *AssignerState) {
 Wire it up in `main.go` alongside the plugin:
 
 ```go
-cardinal.RegisterPlugin(world, lobby.NewPlugin(lobby.Config{...}))
-cardinal.RegisterSystem(world, AssignerSystem)
+w.RegisterPlugin(lobby.NewPlugin(lobby.Config{...}))
+w.RegisterSystem(AssignerSystem)
 ```
 
 That's it. Every `StartSessionCommand` now routes to the shard you
@@ -487,7 +487,7 @@ This approach is simpler than tracking "last heartbeat time" because:
 ### Configuration
 
 ```go
-cardinal.RegisterPlugin(world, lobby.NewPlugin(lobby.Config{
+w.RegisterPlugin(lobby.NewPlugin(lobby.Config{
     LobbyWorld:       cardinal.OtherWorld{...},
     HeartbeatTimeout: 30, // Remove player after 30 seconds without heartbeat
 }))

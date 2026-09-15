@@ -20,7 +20,7 @@ func TestE2E(t *testing.T) {
 		debug := false
 
 		// Keep world setup aligned with shards/chat/main.go.
-		world, err := cardinal.NewWorld(cardinal.WorldOptions{
+		w, err := cardinal.NewWorld(cardinal.WorldOptions{
 			Region:              "local",
 			Organization:        "organization",
 			Project:             "project",
@@ -32,12 +32,12 @@ func TestE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		registerSystems(world)
+		registerSystems(w)
 
-		return world
+		return w
 	})
 }
 
 func registerSystems(w *cardinal.World) {
-	cardinal.RegisterSystem(w, system.UserChatSystem)
+	w.RegisterSystem(system.UserChatSystem)
 }

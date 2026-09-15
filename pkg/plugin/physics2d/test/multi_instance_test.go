@@ -16,7 +16,7 @@ import (
 // spawnBallAndFloor registers an Init system that creates a static floor at y=0 and a dynamic
 // ball at (x, 5) with a circle collider, and returns pointers that receive the created ids.
 func spawnBallAndFloor(w *cardinal.World, x float64, ballID *cardinal.EntityID) {
-	cardinal.RegisterSystem(w, func(state *struct {
+	w.RegisterSystem(func(state *struct {
 		cardinal.BaseSystemState
 		Spawn spawnArchetype
 	}) {
@@ -41,7 +41,7 @@ func spawnBallAndFloor(w *cardinal.World, x float64, ballID *cardinal.EntityID) 
 // ballY reads the ball's current Y position through the plugin's raycast-free ECS view: a
 // PostUpdate probe system copies it into out each tick.
 func trackBallY(w *cardinal.World, out *float64) {
-	cardinal.RegisterSystem(w, func(state *struct {
+	w.RegisterSystem(func(state *struct {
 		cardinal.BaseSystemState
 		Spawn spawnArchetype
 	}) {

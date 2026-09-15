@@ -5,11 +5,14 @@
 //
 // Usage:
 //
-//	world := cardinal.NewWorld(cardinal.WorldOptions{...})
-//	cardinal.RegisterPlugin(world, lobby.NewPlugin(lobby.Config{
+//	w, err := cardinal.NewWorld(cardinal.WorldOptions{...})
+//	if err != nil {
+//		panic(err)
+//	}
+//	w.RegisterPlugin(lobby.NewPlugin(lobby.Config{
 //		LobbyWorld: myLobbyWorld,
 //	}))
-//	world.StartGame()
+//	w.StartGame()
 //
 // The package registers the following systems:
 //   - InitSystem (Init hook): Invalidates the lookup index so the next tick rebuilds it
@@ -163,7 +166,7 @@ func NewPlugin(config Config) *Plugin {
 }
 
 // Register implements cardinal.Plugin.
-func (p *Plugin) Register(world *cardinal.World) {
+func (p *Plugin) Register(w *cardinal.World) {
 	system.SetConfig(system.Config{
 		LobbyWorld:           component.ShardAddress(p.config.LobbyWorld),
 		HeartbeatTimeout:     p.config.HeartbeatTimeout,
@@ -175,11 +178,11 @@ func (p *Plugin) Register(world *cardinal.World) {
 	system.SetProvider(p.config.Provider)
 
 	// Register init system (runs once during world initialization)
-	cardinal.RegisterSystem(world, system.InitSystem, cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(system.InitSystem, cardinal.WithHook(cardinal.Init))
 
 	// Register lobby system (runs every tick)
-	cardinal.RegisterSystem(world, system.LobbySystem)
+	w.RegisterSystem(system.LobbySystem)
 
 	// Register heartbeat system (runs every tick)
-	cardinal.RegisterSystem(world, system.HeartbeatSystem)
+	w.RegisterSystem(system.HeartbeatSystem)
 }

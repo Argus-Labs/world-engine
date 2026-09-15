@@ -23,14 +23,17 @@ Requires Docker (the generator runs protoc/buf in a container). Rerun after chan
 Registration:
 
 ```go
-world := cardinal.NewWorld(cardinal.WorldOptions{TickRate: 60})
+w, err := cardinal.NewWorld(cardinal.WorldOptions{TickRate: 60})
+if err != nil {
+    panic(err)
+}
 physics := physics2d.NewPlugin(physics2d.Config{
     Gravity:      physics2d.Vec2{X: 0, Y: -9.8},
     TickRate:     60, // match WorldOptions.TickRate
     SubStepCount: 4,
 })
-cardinal.RegisterPlugin(world, physics)
-world.StartGame()
+w.RegisterPlugin(physics)
+w.StartGame()
 ```
 
 Keep the `*physics2d.Plugin` value: queries, `Engine`, and `Reset` are

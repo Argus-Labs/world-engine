@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	world, err := cardinal.NewWorld(cardinal.WorldOptions{
+	w, err := cardinal.NewWorld(cardinal.WorldOptions{
 		TickRate:            1,
 		SnapshotRate:        50,
 		SnapshotStorageType: snapshot.StorageTypeJetStream,
@@ -17,13 +17,13 @@ func main() {
 		panic(err.Error())
 	}
 
-	cardinal.RegisterSystem(world, system.PlayerSpawnerSystem, cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(system.PlayerSpawnerSystem, cardinal.WithHook(cardinal.Init))
 
-	cardinal.RegisterSystem(world, system.CreatePlayerSystem)
-	cardinal.RegisterSystem(world, system.RegenSystem)
-	cardinal.RegisterSystem(world, system.AttackPlayerSystem)
-	cardinal.RegisterSystem(world, system.GraveyardSystem)
-	cardinal.RegisterSystem(world, system.CallExternalSystem)
+	w.RegisterSystem(system.CreatePlayerSystem)
+	w.RegisterSystem(system.RegenSystem)
+	w.RegisterSystem(system.AttackPlayerSystem)
+	w.RegisterSystem(system.GraveyardSystem)
+	w.RegisterSystem(system.CallExternalSystem)
 
-	world.StartGame()
+	w.StartGame()
 }

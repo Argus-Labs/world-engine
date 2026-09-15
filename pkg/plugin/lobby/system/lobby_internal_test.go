@@ -744,7 +744,7 @@ func TestResolvePresetRejectsMisconfigured(t *testing.T) {
 	assert.Equal(t, "unknown preset: missing", errMsg)
 }
 
-// SetConfig panics rather than returning an error because cardinal.RegisterPlugin has no error path:
+// SetConfig panics rather than returning an error because World.RegisterPlugin has no error path:
 // a bad preset has to stop the boot, or it silently rejects every CreateLobbyCommand instead.
 func TestSetConfigPanicsOnUnusablePreset(t *testing.T) {
 	assert.PanicsWithValue(t,

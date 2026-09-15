@@ -768,7 +768,7 @@ func TestPhysics2D_CardinalIntegration(t *testing.T) {
 
 	// Debug on: cardinal.Tick touches debug perf hooks (nil debug would panic).
 	debug := true
-	world, err := cardinal.NewWorld(cardinal.WorldOptions{
+	w, err := cardinal.NewWorld(cardinal.WorldOptions{
 		Region:              "local",
 		Organization:        "physics2d-e2e",
 		Project:             "physics2d-e2e",
@@ -781,23 +781,23 @@ func TestPhysics2D_CardinalIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Init hook must run before plugin Init so FullRebuildFromECS sees harness entities.
-	cardinal.RegisterSystem(world, sceneInitSystem, cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(sceneInitSystem, cardinal.WithHook(cardinal.Init))
 	plugin := physics.NewPlugin(physics.Config{
 		Gravity:  physics.Vec2{X: 0, Y: -10},
 		TickRate: 60,
 	})
-	cardinal.RegisterPlugin(world, plugin)
+	w.RegisterPlugin(plugin)
 	// Gameplay system moves the manual body each tick (before physics reconcile).
-	cardinal.RegisterSystem(world, manualMoveSystem, cardinal.WithHook(cardinal.PreUpdate))
+	w.RegisterSystem(manualMoveSystem, cardinal.WithHook(cardinal.PreUpdate))
 	// Assertions run after physics step (same-tick contact receivers).
-	cardinal.RegisterSystem(world, newVerifySystem(plugin), cardinal.WithHook(cardinal.PostUpdate))
+	w.RegisterSystem(newVerifySystem(plugin), cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(world)
+	initCardinalECS(w)
 
 	const lastTick = tickCrash2Verify + 5
 	// Deterministic timestamps; loop count covers all scripted phases including post–crash 2 buffer.
 	for i := range lastTick + 1 {
-		world.Tick(time.Unix(int64(i), 0))
+		w.Tick(time.Unix(int64(i), 0))
 		if t.Failed() {
 			t.Fatalf("failed at cardinal tick loop i=%d", i)
 		}

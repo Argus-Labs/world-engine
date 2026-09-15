@@ -8,7 +8,7 @@
 //
 //	func TestDST(t *testing.T) {
 //	    cardinal.RunDST(t, func(w *cardinal.World) {
-//	        cardinal.RegisterSystem(w, system.MySystem)
+//	        w.RegisterSystem(system.MySystem)
 //	        // ... register all systems
 //	    }, []cardinal.Command{system.BootstrapCommand{Seed: 42}})
 //	}
@@ -41,7 +41,7 @@ var numTicks = flag.Int("dst.ticks", 1000, "number of ticks to run in DST") //no
 
 // DSTSetupFunc registers systems, components, and commands on a World. It is called once during
 // fixture creation, before the first tick.
-type DSTSetupFunc func(world *World)
+type DSTSetupFunc func(w *World)
 
 // RunDST executes a deterministic simulation test. The setup function registers game-specific
 // systems; the harness handles everything else: randomized engine config, command generation,
