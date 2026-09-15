@@ -16,7 +16,25 @@ dotnet add shared/Rampage.Gameplay/Rampage.Gameplay.csproj \
   --version 1.0.0
 ```
 
-Start with a module in `shared/Rampage.Gameplay/GameModule.cs`:
+Define your messages in `game.proto` and generate the C# types into the shared
+project with `protoc --csharp_out=shared/Rampage.Gameplay game.proto`:
+
+```protobuf
+syntax = "proto3";
+package rampage.v1;
+option csharp_namespace = "Rampage.Gameplay";
+
+message GameInput { int64 value = 1; }
+message GameOutput { int64 value = 1; }
+message GameSnapshot { int64 value = 1; }
+```
+
+The generated types implement `Google.Protobuf.IMessage<T>`. The abstractions
+package references Google.Protobuf; Unity must also reference a compatible
+Google.Protobuf assembly. Enable C# 9 and nullable annotations in the shared
+project for this example.
+
+Add `shared/Rampage.Gameplay/GameModule.cs`:
 
 ```csharp
 using System;
@@ -24,8 +42,11 @@ using WorldEngine.Runtime;
 
 namespace Rampage.Gameplay
 {
-    public sealed class GameModule : IGameModule
+    public sealed class GameModule : IGameModule<GameInput, GameOutput, GameSnapshot>
     {
+        private long _value;
+        private readonly GameOutput _output = new GameOutput();
+
         public static ModuleContract Contract { get; } = new ModuleContract(
             "rampage-gameplay",
             "1.0.0");
@@ -35,37 +56,22 @@ namespace Rampage.Gameplay
             _ = config;
         }
 
-        public RuntimeStatus Initialize(ReadOnlySpan<byte> snapshot)
+        public void Initialize(GameSnapshot? snapshot)
         {
-            _ = snapshot;
-            return RuntimeStatus.Success;
+            _value = snapshot?.Value ?? 0;
         }
 
-        public RuntimeStatus Tick(
-            in TickContext context,
-            ReadOnlySpan<byte> input,
-            Span<byte> output,
-            out int outputLength)
+        public GameOutput Tick(in TickContext context, GameInput input)
         {
             _ = context;
-            _ = input;
-            _ = output;
-            outputLength = 0;
-            return RuntimeStatus.Success;
+            _value = unchecked(_value + input.Value);
+            _output.Value = _value;
+            return _output;
         }
 
-        public RuntimeStatus Snapshot(Span<byte> output, out int outputLength)
-        {
-            _ = output;
-            outputLength = 0;
-            return RuntimeStatus.Success;
-        }
+        public GameSnapshot Snapshot() => new GameSnapshot { Value = _value };
 
-        public RuntimeStatus Restore(ReadOnlySpan<byte> snapshot)
-        {
-            _ = snapshot;
-            return RuntimeStatus.Success;
-        }
+        public void Restore(GameSnapshot snapshot) => _value = snapshot.Value;
 
         public void Dispose()
         {
@@ -99,12 +105,20 @@ Git URL above.
 ## Invariants
 
 - No `UnityEngine`, networking, wall-clock, reflection discovery, or global RNG.
-- Cardinal supplies deterministic tick time and opaque binary input.
+- Cardinal supplies deterministic tick time and typed protobuf input. The SDK
+  handles protobuf serialization; factory configuration remains raw bytes.
 - Each non-empty NativeAOT-backed system phase makes one batched call per tick;
   empty phases make none. Calls never scale with entity count.
-- Input memory is borrowed only for the call.
-- Output memory belongs to the caller and should be reused.
-- `BufferTooSmall` leaves module state and output unchanged; the host may retry.
+- Native input bytes are borrowed only for the call. The SDK parses them into
+  the module's declared message type.
+- A module may reuse its output message. The SDK serializes it before the call
+  returns into a module-owned native buffer; see the NativeAOT ownership rules.
+- Throw `ModuleException` with a `RuntimeStatus` and diagnostic for a deliberate
+  failure. Other exceptions become `ExecutionFailed`. A failed call does not
+  guarantee rollback and must not be retried on the assumption that state is unchanged.
 - Every module implements `Initialize`, `Tick`, `Snapshot`, `Restore`, and `Dispose`;
-  operations the module does not need return `Success` without doing work.
-- Mutable module state is process-local and is not persisted by Cardinal snapshots.
+  `Tick` and `Snapshot` must return non-null messages, even when they contain no fields.
+- A null initialization snapshot starts a new world. Empty protobuf bytes also
+  map to null during initialization. Use `Restore` to apply an all-default snapshot.
+- Mutable module state is process-local. The module must include persistent state
+  in its snapshot message and restore it explicitly.

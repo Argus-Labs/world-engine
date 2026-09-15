@@ -25,14 +25,12 @@ typedef int32_t (*tick_fn)(
     uint64_t fixed_delta_ns,
     const uint8_t *input,
     uint64_t input_len,
-    uint8_t *output,
-    uint64_t output_capacity,
+    const uint8_t **output,
     uint64_t *output_len
 );
 typedef int32_t (*snapshot_fn)(
     cardinal_runtime_handle_v1 handle,
-    uint8_t *output,
-    uint64_t output_capacity,
+    const uint8_t **output,
     uint64_t *output_len
 );
 typedef int32_t (*restore_fn)(
@@ -246,15 +244,14 @@ cardinal_nativeaot_call_result_v1 cardinal_nativeaot_tick(
     uint64_t tick,
     uint64_t fixed_delta_ns,
     const uint8_t *input,
-    uint64_t input_len,
-    uint8_t *output,
-    uint64_t output_capacity
+    uint64_t input_len
 ) {
     assert(handle != 0);
     assert(library != NULL);
 
     cardinal_nativeaot_call_result_v1 result = {
         .status = CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT,
+        .output = NULL,
         .output_len = 0,
     };
     result.status = library->tick(
@@ -263,8 +260,7 @@ cardinal_nativeaot_call_result_v1 cardinal_nativeaot_tick(
         fixed_delta_ns,
         input,
         input_len,
-        output,
-        output_capacity,
+        &result.output,
         &result.output_len
     );
 
@@ -273,21 +269,19 @@ cardinal_nativeaot_call_result_v1 cardinal_nativeaot_tick(
 
 cardinal_nativeaot_call_result_v1 cardinal_nativeaot_snapshot(
     cardinal_nativeaot_library_v1 *library,
-    cardinal_runtime_handle_v1 handle,
-    uint8_t *output,
-    uint64_t output_capacity
+    cardinal_runtime_handle_v1 handle
 ) {
     assert(handle != 0);
     assert(library != NULL);
 
     cardinal_nativeaot_call_result_v1 result = {
         .status = CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT,
+        .output = NULL,
         .output_len = 0,
     };
     result.status = library->snapshot(
         handle,
-        output,
-        output_capacity,
+        &result.output,
         &result.output_len
     );
 
@@ -316,6 +310,7 @@ cardinal_nativeaot_call_result_v1 cardinal_nativeaot_last_error(
 
     cardinal_nativeaot_call_result_v1 result = {
         .status = CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT,
+        .output = output,
         .output_len = 0,
     };
     result.status = library->last_error(

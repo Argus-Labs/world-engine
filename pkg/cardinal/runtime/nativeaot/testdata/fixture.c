@@ -15,9 +15,9 @@
 typedef struct fixture_state {
     bool used;
     bool initialized;
-    uint64_t tick;
-    uint64_t fixed_delta_ns;
-    uint64_t config_hash;
+    uint64_t value;
+    uint8_t output[11];
+    unsigned output_mode;
     char error[FIXTURE_ERROR_CAPACITY];
 } fixture_state;
 
@@ -41,45 +41,42 @@ static fixture_state *find_state(cardinal_runtime_handle_v1 handle) {
     return state->used ? state : NULL;
 }
 
-static uint64_t hash_bytes(const uint8_t *data, uint64_t data_len) {
-    uint64_t hash = UINT64_C(1469598103934665603);
-    for (uint64_t index = 0; index < data_len; index++) {
-        hash ^= data[index];
-        hash *= UINT64_C(1099511628211);
+// This fixture accepts only an empty message or one field-1 int64 varint.
+static bool parse_value(const uint8_t *input, uint64_t length, uint64_t *value) {
+    *value = 0;
+    if (length == 0) return true;
+    if (input == NULL || length < 2 || length > 11 || input[0] != 0x08) return false;
+    for (uint64_t index = 1; index < length; index++) {
+        uint8_t byte = input[index];
+        if (index == 10 && byte > 1) return false;
+        *value |= (uint64_t)(byte & 0x7f) << ((index - 1) * 7);
+        if ((byte & 0x80) == 0) return index == length - 1;
     }
-    return hash;
+    return false;
 }
 
-static void write_uint64_le(uint8_t *output, uint64_t value) {
-    for (size_t index = 0; index < 8; index++) {
-        output[index] = (uint8_t)(value >> (index * 8));
-    }
-}
-
-static uint64_t read_uint64_le(const uint8_t *input) {
-    uint64_t value = 0;
-    for (size_t index = 0; index < 8; index++) {
-        value |= (uint64_t)input[index] << (index * 8);
-    }
-    return value;
-}
-
-static int32_t prepare_output(
-    uint8_t *output,
-    uint64_t output_capacity,
-    uint64_t required,
+static int32_t write_output(
+    fixture_state *state,
+    const uint8_t **output,
     uint64_t *output_len
 ) {
-    if (output_len == NULL) {
-        return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
+    if (output == NULL || output_len == NULL) return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
+    uint64_t value = state->value;
+    *output = state->output;
+    *output_len = 0;
+    if (value != 0) {
+        state->output[(*output_len)++] = 0x08;
+        do {
+            uint8_t byte = value & 0x7f;
+            value >>= 7;
+            state->output[(*output_len)++] = byte | (value != 0 ? 0x80 : 0);
+        } while (value != 0);
     }
-    *output_len = required;
-    if (output_capacity < required) {
-        return CARDINAL_RUNTIME_STATUS_BUFFER_TOO_SMALL;
-    }
-    if (required > 0 && output == NULL) {
-        return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
-    }
+    // Fault modes exercise the host's checks without dereferencing invalid memory.
+    if (state->output_mode == 1) { *output = NULL; *output_len = 1; }
+    if (state->output_mode == 2) { *output_len = UINT64_MAX; }
+    if (state->output_mode == 3) { state->output[0] = 0x80; *output_len = 1; }
+    state->error[0] = '\0';
     return CARDINAL_RUNTIME_STATUS_SUCCESS;
 }
 
@@ -99,6 +96,12 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_get_contract(
 #endif
     (void)snprintf(contract->name, sizeof(contract->name), "%s", "nativeaot-fixture");
     (void)snprintf(contract->version, sizeof(contract->version), "%s", "1.2.3");
+    strcpy(contract->input_type, "worldengine.cardinal.fixture.v1.FixtureInput");
+    strcpy(contract->output_type, "worldengine.cardinal.fixture.v1.FixtureOutput");
+    strcpy(contract->snapshot_type, "worldengine.cardinal.fixture.v1.FixtureSnapshot");
+#ifdef FIXTURE_UNTERMINATED_FIELD
+    memset(contract->FIXTURE_UNTERMINATED_FIELD, 'x', sizeof(contract->FIXTURE_UNTERMINATED_FIELD));
+#endif
     global_error[0] = '\0';
     return CARDINAL_RUNTIME_STATUS_SUCCESS;
 }
@@ -128,7 +131,7 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_create(
         if (!states[index].used) {
             memset(&states[index], 0, sizeof(states[index]));
             states[index].used = true;
-            states[index].config_hash = hash_bytes(config, config_len);
+            if (config_len == 1) states[index].output_mode = config[0];
             *handle = index + 1;
             global_error[0] = '\0';
             return CARDINAL_RUNTIME_STATUS_SUCCESS;
@@ -158,10 +161,12 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_initialize(
         return CARDINAL_RUNTIME_STATUS_INVALID_STATE;
     }
 
-    if (snapshot_len == 16) {
-        state->tick = read_uint64_le(snapshot);
-        state->fixed_delta_ns = read_uint64_le(snapshot + 8);
+    uint64_t value;
+    if (!parse_value(snapshot, snapshot_len, &value)) {
+        set_error(state->error, "fixture snapshot is malformed");
+        return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
     }
+    state->value = value;
     state->initialized = true;
     state->error[0] = '\0';
     return CARDINAL_RUNTIME_STATUS_SUCCESS;
@@ -173,10 +178,10 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_tick(
     uint64_t fixed_delta_ns,
     const uint8_t *input,
     uint64_t input_len,
-    uint8_t *output,
-    uint64_t output_capacity,
+    const uint8_t **output,
     uint64_t *output_len
 ) {
+    (void)fixed_delta_ns;
     fixture_state *state = find_state(handle);
     if (state == NULL) {
         set_error(global_error, "fixture handle is invalid");
@@ -186,8 +191,9 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_tick(
         set_error(state->error, "fixture is not initialized");
         return CARDINAL_RUNTIME_STATUS_INVALID_STATE;
     }
-    if (!valid_input(input, input_len)) {
-        set_error(state->error, "tick input pointer is null");
+    uint64_t increment;
+    if (output == NULL || output_len == NULL || !parse_value(input, input_len, &increment)) {
+        set_error(state->error, "fixture tick input is malformed");
         return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
     }
 
@@ -219,28 +225,14 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_tick(
         );
     }
 
-    uint64_t required = 16 + input_len;
-    int32_t status =
-        prepare_output(output, output_capacity, required, output_len);
-    if (status != CARDINAL_RUNTIME_STATUS_SUCCESS) {
-        return status;
-    }
-
-    state->tick = tick;
-    state->fixed_delta_ns = fixed_delta_ns;
-    write_uint64_le(output, tick);
-    write_uint64_le(output + 8, fixed_delta_ns);
-    if (input_len > 0) {
-        memcpy(output + 16, input, input_len);
-    }
-    state->error[0] = '\0';
-    return CARDINAL_RUNTIME_STATUS_SUCCESS;
+    // Unsigned arithmetic preserves protobuf int64 two's-complement wraparound without C UB.
+    state->value += increment;
+    return write_output(state, output, output_len);
 }
 
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_snapshot(
     cardinal_runtime_handle_v1 handle,
-    uint8_t *output,
-    uint64_t output_capacity,
+    const uint8_t **output,
     uint64_t *output_len
 ) {
     fixture_state *state = find_state(handle);
@@ -253,14 +245,7 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_snapshot(
         return CARDINAL_RUNTIME_STATUS_INVALID_STATE;
     }
 
-    int32_t status = prepare_output(output, output_capacity, 16, output_len);
-    if (status != CARDINAL_RUNTIME_STATUS_SUCCESS) {
-        return status;
-    }
-    write_uint64_le(output, state->tick);
-    write_uint64_le(output + 8, state->fixed_delta_ns);
-    state->error[0] = '\0';
-    return CARDINAL_RUNTIME_STATUS_SUCCESS;
+    return write_output(state, output, output_len);
 }
 
 CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_restore(
@@ -273,13 +258,13 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_restore(
         set_error(global_error, "fixture handle is invalid");
         return CARDINAL_RUNTIME_STATUS_INVALID_HANDLE;
     }
-    if (!valid_input(snapshot, snapshot_len) || snapshot_len != 16) {
-        set_error(state->error, "fixture snapshot must be 16 bytes");
+    uint64_t value;
+    if (!parse_value(snapshot, snapshot_len, &value)) {
+        set_error(state->error, "fixture snapshot is malformed");
         return CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT;
     }
 
-    state->tick = read_uint64_le(snapshot);
-    state->fixed_delta_ns = read_uint64_le(snapshot + 8);
+    state->value = value;
     state->initialized = true;
     state->error[0] = '\0';
     return CARDINAL_RUNTIME_STATUS_SUCCESS;
@@ -320,3 +305,41 @@ CARDINAL_RUNTIME_EXPORT int32_t cardinal_runtime_v1_destroy(
     global_error[0] = '\0';
     return CARDINAL_RUNTIME_STATUS_SUCCESS;
 }
+
+#ifdef FIXTURE_SELF_TEST
+#include <assert.h>
+
+int main(void) {
+    cardinal_runtime_handle_v1 first, second;
+    assert(cardinal_runtime_v1_create(NULL, 0, &first) == 0);
+    assert(cardinal_runtime_v1_create(NULL, 0, &second) == 0);
+    assert(cardinal_runtime_v1_initialize(first, NULL, 0) == 0);
+    assert(cardinal_runtime_v1_initialize(second, NULL, 0) == 0);
+    const uint8_t input[] = {8, 127};
+    const uint8_t *before, *after, *other;
+    uint64_t length;
+    assert(cardinal_runtime_v1_tick(first, 1, 2, input, sizeof(input), &before, &length) == 0);
+    assert(length == 2 && before[0] == 8 && before[1] == 127);
+    assert(cardinal_runtime_v1_tick(first, 2, 2, input, sizeof(input), &after, &length) == 0);
+    assert(before == after && length == 3 && after[1] == 254 && after[2] == 1);
+    assert(cardinal_runtime_v1_snapshot(first, &after, &length) == 0 && before == after);
+    assert(cardinal_runtime_v1_tick(second, 1, 2, input, sizeof(input), &other, &length) == 0);
+    assert(other != before && other[1] == 127 && before[1] == 254);
+
+    const uint8_t malformed[][12] = {
+        {8}, {8, 128}, {16, 1}, {8, 1, 8, 2},
+        {8, 255, 255, 255, 255, 255, 255, 255, 255, 255, 2},
+        {8, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 0}
+    };
+    const uint64_t lengths[] = {1, 2, 2, 4, 11, 12};
+    for (size_t index = 0; index < sizeof(lengths) / sizeof(lengths[0]); index++) {
+        assert(cardinal_runtime_v1_tick(first, 1, 2, malformed[index], lengths[index],
+            &after, &length) == CARDINAL_RUNTIME_STATUS_INVALID_ARGUMENT);
+    }
+    assert(cardinal_runtime_v1_snapshot(first, &after, &length) == 0);
+    assert(length == 3 && after[1] == 254 && after[2] == 1);
+    assert(cardinal_runtime_v1_destroy(first) == 0);
+    assert(cardinal_runtime_v1_destroy(second) == 0);
+    return 0;
+}
+#endif
