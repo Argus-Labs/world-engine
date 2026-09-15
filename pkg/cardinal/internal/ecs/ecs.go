@@ -33,19 +33,19 @@ func (w *World) Alive(eid EntityID) bool {
 // Set sets a component on an entity. If the entity contains the component type, it will update the
 // value. If it doesn't, it will add the component.
 func (w *World) Set[T Component](eid EntityID, component T) error {
-	return setComponent(w.state, eid, component)
+	return w.state.setComponent(eid, component)
 }
 
 // Get gets a component from an entity.
 // Returns an error if the entity doesn't exist or doesn't contain the component type.
 func (w *World) Get[T Component](eid EntityID) (T, error) {
-	return getComponent[T](w.state, eid)
+	return w.state.getComponent[T](eid)
 }
 
 // Remove removes a component from an entity.
 // Returns an error if the entity or the component to remove doesn't exist.
 func (w *World) Remove[T Component](eid EntityID) error {
-	return removeComponent[T](w.state, eid)
+	return w.state.removeComponent[T](eid)
 }
 
 // Has checks if an entity has a specific component type.

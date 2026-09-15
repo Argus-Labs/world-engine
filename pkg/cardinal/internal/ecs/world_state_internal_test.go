@@ -212,11 +212,11 @@ func getComponentAbstract(t *testing.T, impl *worldState, eid EntityID, name str
 
 	switch name {
 	case testutils.ComponentA{}.Name():
-		res, err = getComponent[testutils.ComponentA](impl, eid)
+		res, err = impl.getComponent[testutils.ComponentA](eid)
 	case testutils.ComponentB{}.Name():
-		res, err = getComponent[testutils.ComponentB](impl, eid)
+		res, err = impl.getComponent[testutils.ComponentB](eid)
 	case testutils.ComponentC{}.Name():
-		res, err = getComponent[testutils.ComponentC](impl, eid)
+		res, err = impl.getComponent[testutils.ComponentC](eid)
 	default:
 		panic("unreachable")
 	}
@@ -238,11 +238,11 @@ func setComponentAbstract(t *testing.T, impl *worldState, eid EntityID, c Compon
 	name := c.Name()
 	switch name {
 	case testutils.ComponentA{}.Name():
-		err = setComponent(impl, eid, c.(testutils.ComponentA))
+		err = impl.setComponent(eid, c.(testutils.ComponentA))
 	case testutils.ComponentB{}.Name():
-		err = setComponent(impl, eid, c.(testutils.ComponentB))
+		err = impl.setComponent(eid, c.(testutils.ComponentB))
 	case testutils.ComponentC{}.Name():
-		err = setComponent(impl, eid, c.(testutils.ComponentC))
+		err = impl.setComponent(eid, c.(testutils.ComponentC))
 	default:
 		panic("unreachable")
 	}
@@ -254,11 +254,11 @@ func removeComponentAbstract(t *testing.T, impl *worldState, eid EntityID, name 
 	var err error
 	switch name {
 	case testutils.ComponentA{}.Name():
-		err = removeComponent[testutils.ComponentA](impl, eid)
+		err = impl.removeComponent[testutils.ComponentA](eid)
 	case testutils.ComponentB{}.Name():
-		err = removeComponent[testutils.ComponentB](impl, eid)
+		err = impl.removeComponent[testutils.ComponentB](eid)
 	case testutils.ComponentC{}.Name():
-		err = removeComponent[testutils.ComponentC](impl, eid)
+		err = impl.removeComponent[testutils.ComponentC](eid)
 	default:
 		panic("unreachable")
 	}
