@@ -32,7 +32,7 @@ jobs:
         run: git config --global url."https://x-token-auth:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
       - name: Install moon
-        uses: moonrepo/setup-toolchain@v0
+        uses: moonrepo/setup-toolchain@261c62cb5b0f580c7be7c8cd0f023a2e96756095 # v0
 
       - uses: actions/setup-go@v5
         with:
@@ -59,7 +59,7 @@ jobs:
           fetch-depth: 0 # moon resolves the base revision in CI
 
       - name: Install moon
-        uses: moonrepo/setup-toolchain@v0
+        uses: moonrepo/setup-toolchain@261c62cb5b0f580c7be7c8cd0f023a2e96756095 # v0
 
       - uses: actions/setup-go@v5
         with:
