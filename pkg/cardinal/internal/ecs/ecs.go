@@ -148,9 +148,10 @@ const (
 // -------------------------------------------------------------------------------------------------
 
 func (w *World) GetSystemEvents[T SystemEvent]() ([]T, error) {
-	return getSystemEvent[T](&w.systemEvents)
+	var zero T
+	return w.systemEvents.get[T](zero.Name())
 }
 
 func (w *World) EmitSystemEvent[T SystemEvent](systemEvent T) error {
-	return enqueueSystemEvent(&w.systemEvents, systemEvent)
+	return w.systemEvents.enqueue(systemEvent)
 }
