@@ -10,48 +10,48 @@ import (
 // -------------------------------------------------------------------------------------------------
 
 // Create creates an entity without any components.
-func Create(world *World) EntityID {
-	return world.state.newEntity()
+func (w *World) Create() EntityID {
+	return w.state.newEntity()
 }
 
-func CreateWithArchetype(world *World, components bitmap.Bitmap) EntityID {
-	return world.state.newEntityWithArchetype(components)
+func (w *World) CreateWithArchetype(components bitmap.Bitmap) EntityID {
+	return w.state.newEntityWithArchetype(components)
 }
 
 // Destroy deletes an entity and all its components from the world. Returns true if the entity is
 // deleted, false otherwise.
-func Destroy(world *World, eid EntityID) bool {
-	return world.state.removeEntity(eid)
+func (w *World) Destroy(eid EntityID) bool {
+	return w.state.removeEntity(eid)
 }
 
 // Alive checks if an entity exists in the world.
-func Alive(world *World, eid EntityID) bool {
-	_, exists := world.state.entityArch.get(eid)
+func (w *World) Alive(eid EntityID) bool {
+	_, exists := w.state.entityArch.get(eid)
 	return exists
 }
 
 // Set sets a component on an entity. If the entity contains the component type, it will update the
 // value. If it doesn't, it will add the component.
-func Set[T Component](world *World, eid EntityID, component T) error {
-	return setComponent(world.state, eid, component)
+func (w *World) Set[T Component](eid EntityID, component T) error {
+	return setComponent(w.state, eid, component)
 }
 
 // Get gets a component from an entity.
 // Returns an error if the entity doesn't exist or doesn't contain the component type.
-func Get[T Component](world *World, eid EntityID) (T, error) {
-	return getComponent[T](world.state, eid)
+func (w *World) Get[T Component](eid EntityID) (T, error) {
+	return getComponent[T](w.state, eid)
 }
 
 // Remove removes a component from an entity.
 // Returns an error if the entity or the component to remove doesn't exist.
-func Remove[T Component](world *World, eid EntityID) error {
-	return removeComponent[T](world.state, eid)
+func (w *World) Remove[T Component](eid EntityID) error {
+	return removeComponent[T](w.state, eid)
 }
 
 // Has checks if an entity has a specific component type.
 // Returns false if either the entity doesn't exist or doesn't have the component.
-func Has[T Component](world *World, eid EntityID) bool {
-	_, err := Get[T](world, eid)
+func (w *World) Has[T Component](eid EntityID) bool {
+	_, err := w.Get[T](eid)
 	if err == nil {
 		return true
 	}
@@ -63,27 +63,26 @@ func Has[T Component](world *World, eid EntityID) bool {
 // We intentionally keep this as a callback-based iterator instead of returning iter.Seq because
 // the additional closure/layer on hot query paths adds measurable allocations in cardinal
 // benchmarks. This still resolves matching archetypes dynamically on every call.
-func IterEntities( //nolint:gocognit // it's fine
-	world *World,
+func (w *World) IterEntities( //nolint:gocognit // it's fine
 	components bitmap.Bitmap,
 	match SearchMatch,
 	yield func(EntityID) bool,
 ) error {
 	switch match {
 	case MatchExact:
-		aid, exists := world.state.archExact(components)
+		aid, exists := w.state.archExact(components)
 		if !exists {
 			return nil
 		}
 
-		arch := world.state.archetypes[aid]
+		arch := w.state.archetypes[aid]
 		for _, eid := range arch.entities {
 			if !yield(eid) {
 				return nil
 			}
 		}
 	case MatchContains:
-		for _, arch := range world.state.archetypes {
+		for _, arch := range w.state.archetypes {
 			if !arch.contains(components) {
 				continue
 			}
@@ -95,7 +94,7 @@ func IterEntities( //nolint:gocognit // it's fine
 			}
 		}
 	case MatchAll:
-		for _, arch := range world.state.archetypes {
+		for _, arch := range w.state.archetypes {
 			for _, eid := range arch.entities {
 				if !yield(eid) {
 					return nil
@@ -108,13 +107,13 @@ func IterEntities( //nolint:gocognit // it's fine
 	return nil
 }
 
-func MatchArchetype(world *World, eid EntityID, components bitmap.Bitmap, match SearchMatch) error {
-	aid, exists := world.state.entityArch.get(eid)
+func (w *World) MatchArchetype(eid EntityID, components bitmap.Bitmap, match SearchMatch) error {
+	aid, exists := w.state.entityArch.get(eid)
 	if !exists {
 		return ErrEntityNotFound
 	}
 
-	arch := world.state.archetypes[aid]
+	arch := w.state.archetypes[aid]
 	switch match {
 	case MatchExact:
 		if !arch.exact(components) {
@@ -148,10 +147,10 @@ const (
 // System Event Functions
 // -------------------------------------------------------------------------------------------------
 
-func GetSystemEvents[T SystemEvent](world *World) ([]T, error) {
-	return getSystemEvent[T](&world.systemEvents)
+func (w *World) GetSystemEvents[T SystemEvent]() ([]T, error) {
+	return getSystemEvent[T](&w.systemEvents)
 }
 
-func EmitSystemEvent[T SystemEvent](world *World, systemEvent T) error {
-	return enqueueSystemEvent(&world.systemEvents, systemEvent)
+func (w *World) EmitSystemEvent[T SystemEvent](systemEvent T) error {
+	return enqueueSystemEvent(&w.systemEvents, systemEvent)
 }

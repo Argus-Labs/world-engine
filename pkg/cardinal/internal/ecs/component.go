@@ -107,12 +107,12 @@ func (cm *componentManager) getID(name string) (ComponentID, error) {
 }
 
 // RegisterComponent registers a component type with the world.
-func RegisterComponent[T Component](world *World) (ComponentID, error) {
+func (w *World) RegisterComponent[T Component]() (ComponentID, error) {
 	var zero T
-	if world.onComponentRegister != nil {
-		if err := world.onComponentRegister(zero); err != nil {
+	if w.onComponentRegister != nil {
+		if err := w.onComponentRegister(zero); err != nil {
 			return 0, eris.Wrap(err, "component registered callback failed")
 		}
 	}
-	return world.state.components.register(zero.Name(), newColumnFactory[T]())
+	return w.state.components.register(zero.Name(), newColumnFactory[T]())
 }

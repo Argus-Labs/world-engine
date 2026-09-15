@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/immutable"
@@ -84,7 +83,7 @@ func RunDST(t *testing.T, setup DSTSetupFunc, preTestCommands []Command) {
 			fix.world.Tick(timestamp)
 
 			// Assert structural ECS invariants after every tick.
-			ecs.CheckWorld(t, fix.world.world)
+			fix.world.world.CheckWorld(t)
 
 			tick++
 
@@ -106,7 +105,7 @@ func RunDST(t *testing.T, setup DSTSetupFunc, preTestCommands []Command) {
 	}
 
 	// Final validation after all randomized operations complete.
-	ecs.CheckWorld(t, fix.world.world)
+	fix.world.world.CheckWorld(t)
 
 	// Ensure final world state remains serializable.
 	// Encoding asserts internally, so reaching the next line at all is the check.

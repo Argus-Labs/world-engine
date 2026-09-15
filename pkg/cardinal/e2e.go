@@ -21,7 +21,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/testutils"
@@ -126,7 +125,7 @@ sendLoop:
 	}
 
 	// Final validation after the world has fully stopped.
-	ecs.CheckWorld(t, fix.world.world)
+	fix.world.world.CheckWorld(t)
 	// Encoding asserts internally, so reaching the next line at all is the check.
 	_ = fix.world.world.ToProto()
 }

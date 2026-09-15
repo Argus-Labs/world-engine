@@ -459,11 +459,11 @@ func newTestWorldState(t *testing.T) *worldState {
 	t.Helper()
 	w := NewWorld()
 	w.OnComponentRegister(func(Component) error { return nil })
-	_, err := RegisterComponent[testutils.ComponentA](w)
+	_, err := w.RegisterComponent[testutils.ComponentA]()
 	require.NoError(t, err)
-	_, err = RegisterComponent[testutils.ComponentB](w)
+	_, err = w.RegisterComponent[testutils.ComponentB]()
 	require.NoError(t, err)
-	_, err = RegisterComponent[testutils.ComponentC](w)
+	_, err = w.RegisterComponent[testutils.ComponentC]()
 	require.NoError(t, err)
 	return w.state
 }

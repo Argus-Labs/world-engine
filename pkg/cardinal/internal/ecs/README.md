@@ -106,23 +106,24 @@ func (Position) Name() string { return "Position" }
 
 // Create a world and register components
 world := ecs.NewWorld()
-ecs.RegisterComponent[Position](world)
+world.RegisterComponent[Position]()
 
-// Create an entity with components
-entity := ecs.Create(world, Position{X: 1, Y: 2})
+// Create an entity and attach a component
+entity := world.Create()
+world.Set(entity, Position{X: 1, Y: 2})
 
 // Modify components
-ecs.Set(world, entity, Position{X: 3, Y: 4})
+world.Set(entity, Position{X: 3, Y: 4})
 
 // Query components
-pos, err := ecs.Get[Position](world, entity)
+pos, err := world.Get[Position](entity)
 if err != nil {
     // Handle error
 }
 
 // Remove components
-ecs.Remove[Position](world, entity)
+world.Remove[Position](entity)
 
 // Destroy entities
-ecs.Destroy(world, entity)
+world.Destroy(entity)
 ```

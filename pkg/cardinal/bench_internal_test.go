@@ -321,7 +321,7 @@ func BenchmarkCardinal_Component_Set(b *testing.B) {
 			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 
 			b.StartTimer()
-			_ = ecs.Set(w.world, eid, Health2{Current: 100, Max: 100})
+			_ = w.world.Set(eid, Health2{Current: 100, Max: 100})
 			b.StopTimer()
 		}
 	})

@@ -103,7 +103,7 @@ func registerSystem(w *World, name string, hook SystemHook, run func()) {
 		}
 	}
 
-	err := ecs.RegisterSystem(w.world, name, hook, fn)
+	err := w.world.RegisterSystem(name, hook, fn)
 	if err != nil {
 		panic(eris.Wrapf(err, "error registering system"))
 	}
@@ -445,7 +445,7 @@ func (s *WithSystemEventReceiver[T]) init(meta *systemInitMetadata) error {
 		return eris.Errorf("systems cannot process multiple system events of the same type: %s", name)
 	}
 
-	_, err := ecs.RegisterSystemEvent[T](meta.world.world)
+	_, err := meta.world.world.RegisterSystemEvent[T]()
 	if err != nil {
 		return eris.Wrapf(err, "failed to register system event %s", name)
 	}
@@ -463,7 +463,7 @@ func (s *WithSystemEventReceiver[T]) init(meta *systemInitMetadata) error {
 //	    // Process each system event
 //	}
 func (s *WithSystemEventReceiver[T]) Iter() iter.Seq[T] {
-	systemEvents, err := ecs.GetSystemEvents[T](s.world)
+	systemEvents, err := s.world.GetSystemEvents[T]()
 	assert.That(err == nil, "tried to get unregisterd system event")
 
 	return func(yield func(T) bool) {
@@ -509,7 +509,7 @@ func (s *WithSystemEventEmitter[T]) init(meta *systemInitMetadata) error {
 		return eris.Errorf("systems cannot process multiple system events of the same type: %s", name)
 	}
 
-	_, err := ecs.RegisterSystemEvent[T](meta.world.world)
+	_, err := meta.world.world.RegisterSystemEvent[T]()
 	if err != nil {
 		return eris.Wrapf(err, "failed to register system event %s", name)
 	}
@@ -525,7 +525,7 @@ func (s *WithSystemEventEmitter[T]) init(meta *systemInitMetadata) error {
 //
 //	state.PlayerDeathEvents.Emit(PlayerDeath{Nickname: "Player1"})
 func (s *WithSystemEventEmitter[T]) Emit(systemEvent T) {
-	err := ecs.EmitSystemEvent(s.world, systemEvent)
+	err := s.world.EmitSystemEvent(systemEvent)
 	assert.That(err == nil, "tried to emit unregistered system event")
 }
 
@@ -584,7 +584,7 @@ func (s *search[T]) init(meta *systemInitMetadata) error {
 // getByID retrieves an entity's components by its ID using the provided match function to validate
 // that the entity's archetype matches the search criteria.
 func (s *search[T]) getByID(eid EntityID, match ecs.SearchMatch) (T, error) {
-	if err := ecs.MatchArchetype(s.world, eid, s.components, match); err != nil {
+	if err := s.world.MatchArchetype(eid, s.components, match); err != nil {
 		var zero T
 		return zero, eris.Wrap(err, "failed to get entity")
 	}
@@ -597,7 +597,7 @@ func (s *search[T]) getByID(eid EntityID, match ecs.SearchMatch) (T, error) {
 // iter returns an iterator over all entities that match the given archetypes.
 func (s *search[T]) iter(match ecs.SearchMatch) SearchResult[EntityID, T] {
 	return func(yield func(EntityID, T) bool) {
-		err := ecs.IterEntities(s.world, s.components, match, func(eid EntityID) bool {
+		err := s.world.IterEntities(s.components, match, func(eid EntityID) bool {
 			for i := range s.fields {
 				s.fields[i].attach(s.world, eid) // Attach the entity and world state buffer to the ref
 			}
@@ -619,7 +619,7 @@ func (s *search[T]) iter(match ecs.SearchMatch) SearchResult[EntityID, T] {
 //	}
 //	// Use entity...
 func (s *search[T]) Create() (EntityID, T) {
-	eid := ecs.CreateWithArchetype(s.world, s.components)
+	eid := s.world.CreateWithArchetype(s.components)
 
 	for i := range s.fields {
 		s.fields[i].attach(s.world, eid) // Attach the entity and world state buffer to the ref
@@ -637,7 +637,7 @@ func (s *search[T]) Create() (EntityID, T) {
 //	    state.Logger().Warn().Msg("Entity doesn't exist or is already destroyed")
 //	}
 func (s *search[T]) Destroy(eid EntityID) bool {
-	return ecs.Destroy(s.world, eid)
+	return s.world.Destroy(eid)
 }
 
 // Contains provides a search that matches archetypes containing all specified component types,
@@ -765,12 +765,10 @@ func (r *Ref[T]) attach(ws *ecs.World, eid EntityID) {
 
 // register returns the registerAndGetComponent type for this Ref.
 func (r *Ref[T]) register(w *ecs.World) (ecs.ComponentID, error) {
-	return ecs.RegisterComponent[T](w)
+	return w.RegisterComponent[T]()
 }
 
 // Get retrieves the component value for this Ref's entity.
-//
-// This is the recommended system-friendly alternative to ecs.Get() for accessing components within systems.
 //
 // Example:
 //
@@ -778,14 +776,12 @@ func (r *Ref[T]) register(w *ecs.World) (ecs.ComponentID, error) {
 //	    health := player.Health.Get()
 //	}
 func (r *Ref[T]) Get() T {
-	component, err := ecs.Get[T](r.ws, r.entity)
+	component, err := r.ws.Get[T](r.entity)
 	assert.That(err == nil, "entity doesn't exist or doesn't contain the component") // Shouldn't happen
 	return component
 }
 
 // Set updates the component value for this Ref's entity.
-//
-// This is the recommended system-friendly alternative to ecs.Set() for modifying components within systems.
 //
 // Example:
 //
@@ -793,13 +789,11 @@ func (r *Ref[T]) Get() T {
 //	    player.Health.Set(Health{HP: 100})
 //	}
 func (r *Ref[T]) Set(component T) {
-	err := ecs.Set(r.ws, r.entity, component)
+	err := r.ws.Set(r.entity, component)
 	assert.That(err == nil, "entity doesn't exist") // Shouldn't happen
 }
 
 // Remove removes the component from this Ref's entity.
-//
-// This is the recommended system-friendly alternative to ecs.Remove() for removing components within systems.
 //
 // Example:
 //
@@ -807,7 +801,7 @@ func (r *Ref[T]) Set(component T) {
 //	    player.Shield.Remove()
 //	}
 func (r *Ref[T]) Remove() {
-	err := ecs.Remove[T](r.ws, r.entity)
+	err := r.ws.Remove[T](r.entity)
 	assert.That(err == nil, "entity doesn't exist or doesn't contain the component") // Shouldn't happen
 }
 
