@@ -119,3 +119,9 @@ vitest.config.*.timestamp*
 .vercel
 PLAN.md
 services/forge/main
+
+# moon task state
+.moon/cache/
+# The general tasks/ ignore rule must not hide moon's inherited task config.
+!.moon/tasks/
+!.moon/tasks/**

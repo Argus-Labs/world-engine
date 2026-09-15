@@ -1,0 +1,66 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+
+language: 'csharp'
+toolchains:
+  default: 'system'
+
+# MSBuild restore, build, pack, and clean share obj/bin directories.
+taskOptions:
+  mutex: 'proto-csharp'
+  runInCI: true
+
+tasks:
+  restore:
+    command: 'dotnet restore csharp.sln'
+  build:
+    command: 'dotnet build csharp.sln --configuration Release --no-restore'
+    deps: ['restore']
+  build-debug:
+    command: 'dotnet build csharp.sln --configuration Debug --no-restore'
+    deps: ['restore']
+  clean:
+    options:
+      runInCI: false
+    script: |
+      dotnet clean csharp.sln
+      rm -rf artifacts bin obj
+  rebuild:
+    options:
+      runInCI: false
+    command: 'dotnet build csharp.sln --configuration Release'
+    deps: ['clean']
+  pack:
+    command: 'dotnet pack WorldEngine.Proto.csproj --configuration Release --no-build --output artifacts'
+    deps: ['build']
+  pack-debug:
+    command: 'dotnet pack WorldEngine.Proto.csproj --configuration Debug --no-build --output artifacts'
+    deps: ['build-debug']
+  info:
+    script: |
+      echo "Project: WorldEngine.Proto; Solution: csharp.sln; Build: Release; Output: artifacts"
+      dotnet --version
+  check:
+    deps: ['build']
+  list-packages:
+    command: 'dotnet list WorldEngine.Proto.csproj package'
+  outdated:
+    command: 'dotnet list WorldEngine.Proto.csproj package --outdated'
+  update:
+    command: 'dotnet list WorldEngine.Proto.csproj package --outdated'
+  size:
+    script: |
+      find bin -name '*.dll' -exec ls -lh {} +
+    deps: ['build']
+  watch:
+    command: 'dotnet watch --project WorldEngine.Proto.csproj build --configuration Debug'
+    preset: server
+  ci-build:
+    deps: ['check']
+  ci-pack:
+    deps: ['pack']
+  format:
+    options:
+      runInCI: false
+    command: 'dotnet format csharp.sln --verbosity diagnostic'
+  analyze:
+    command: 'dotnet build csharp.sln --configuration Release --verbosity normal /p:RunAnalyzersDuringBuild=true'

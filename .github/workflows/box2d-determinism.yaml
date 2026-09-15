@@ -22,12 +22,18 @@ on:
       - 'pkg/box2d/**'
       - 'go.mod'
       - 'go.sum'
+      - '.moon/**'
+      - 'moon.yml'
+      - '.prototools'
       - '.github/workflows/box2d-determinism.yaml'
   pull_request:
     paths:
       - 'pkg/box2d/**'
       - 'go.mod'
       - 'go.sum'
+      - '.moon/**'
+      - 'moon.yml'
+      - '.prototools'
       - '.github/workflows/box2d-determinism.yaml'
 
 env:
@@ -50,6 +56,10 @@ jobs:
             arch: arm64
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # moon resolves the base revision in CI
+
+      - uses: moonrepo/setup-toolchain@261c62cb5b0f580c7be7c8cd0f023a2e96756095 # v0
 
       - uses: actions/setup-go@v5
         with:
@@ -60,7 +70,7 @@ jobs:
       # architecture disagree with another, so catching it here explains a
       # failure that the golden tests can only report as "bits differ".
       - name: Assert no fused multiply-add is emitted
-        run: go test ./pkg/box2d/ -run 'TestNoFusedMultiplyAdd' -count=1 -v
+        run: moon run world-engine:determinism-fma
 
       # 'TestGolden' also matches the worker-count matrix suites
       # (golden_workers_test.go), which re-run every golden scene at
@@ -75,7 +85,7 @@ jobs:
       # the profile into it would leave the no-profile build with no golden
       # coverage on either architecture.
       - name: Run cross-architecture golden trace tests
-        run: go test ./pkg/box2d/ -run 'TestGolden' -count=1 -v
+        run: moon run world-engine:determinism-golden
 
       # Same suite again under PGO-shaped codegen. -pgo compiles it with the
       # committed profile (pkg/box2d/default.pgo; the path is cwd-relative,
@@ -86,7 +96,7 @@ jobs:
       # the instruction level (its PGO pass activates whenever default.pgo
       # exists).
       - name: Run cross-architecture golden trace tests (PGO codegen)
-        run: go test ./pkg/box2d/ -run 'TestGolden' -count=1 -v -pgo=pkg/box2d/default.pgo
+        run: moon run world-engine:determinism-pgo
 
       # Race-detector pass. The golden scenes are small and mostly run below
       # the per-stage grain thresholds (inline, no pool dispatch), so the
@@ -100,10 +110,10 @@ jobs:
       # The golden suites ride along for the serial/id-order paths. Kept
       # scoped because -race is 5-20x slower.
       - name: Run race-detector golden trace tests (worker matrix + stress)
-        run: go test -race -run 'TestGolden(Step|Continuous)|TestWorkerStress' ./pkg/box2d/ -count=1
+        run: moon run world-engine:determinism-race
 
       - name: Run deterministic op-sequence fuzz corpus
-        run: go test ./pkg/box2d/ -run 'TestWorldOpSequenceDeterminism|FuzzWorldOps' -count=1 -v
+        run: moon run world-engine:determinism-fuzz
 
       # Full suite with the internal invariant net compiled in. The default
       # build compiles the hundreds of assert(...) calls out (core_asserts_off.go),
@@ -115,4 +125,4 @@ jobs:
       # those skip themselves under the tag via the buildWithAsserts mirror
       # (asserts_tag_off_test.go).
       - name: Run full suite with internal asserts compiled in
-        run: go test -tags box2d_asserts ./pkg/box2d/ -count=1
+        run: moon run world-engine:determinism-asserts

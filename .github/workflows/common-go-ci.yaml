@@ -6,10 +6,13 @@ on:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
-      - 'Taskfile.yml'
+      - '.moon/**'
+      - 'moon.yml'
+      - '.prototools'
+      - 'scripts/**'
       - '.golangci.yaml'
       - '.ko.yaml'
-      - '.github/workflows/go-ci.yaml'
+      - '.github/workflows/common-go-ci.yaml'
       - '!**.md'
       - '!docs/**'
 
@@ -22,15 +25,14 @@ jobs:
     runs-on: namespace-profile-linux-ci-large
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # moon resolves the base revision in CI
 
       - name: Configure Git for private repos
         run: git config --global url."https://x-token-auth:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
-      - name: Install Task
-        uses: arduino/setup-task@v2
-        with:
-          version: 3.x
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install moon
+        uses: moonrepo/setup-toolchain@261c62cb5b0f580c7be7c8cd0f023a2e96756095 # v0
 
       - uses: actions/setup-go@v5
         with:
@@ -46,19 +48,18 @@ jobs:
             ~/.cache/golangci-lint
 
       - name: Run Go linter
-        run: task lint
+        run: moon run world-engine:lint
 
   test:
     name: Test
     runs-on: namespace-profile-linux-ci-large
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Task
-        uses: arduino/setup-task@v2
         with:
-          version: 3.x
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0 # moon resolves the base revision in CI
+
+      - name: Install moon
+        uses: moonrepo/setup-toolchain@261c62cb5b0f580c7be7c8cd0f023a2e96756095 # v0
 
       - uses: actions/setup-go@v5
         with:
@@ -94,7 +95,7 @@ jobs:
           KUBEBUILDER_ASSETS: ${{ steps.setup-envtest.outputs.kubebuilder-assets }}
       
       - name: Run Go CI tests
-        run: task test:ci
+        run: moon run world-engine:test-ci
         env:
           KUBEBUILDER_ASSETS: ${{ steps.setup-envtest.outputs.kubebuilder-assets }}
 
@@ -118,43 +119,3 @@ jobs:
         with:
           paths: |
             **/junit.xml
-
-  # benchmark:
-  #   name: Benchmark
-  #   needs: optimize_ci
-  #   if: needs.optimize_ci.outputs.skip == 'false'
-  #   runs-on: namespace-profile-linux-ci-large
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #
-  #     - name: Install Task
-  #       uses: arduino/setup-task@v2
-  #       with:
-  #         version: 3.x
-  #         repo-token: ${{ secrets.GITHUB_TOKEN }}
-  #
-  #     - uses: actions/setup-go@v5
-  #       with:
-  #         go-version: ${{ env.GO_VERSION }}
-  #         cache: false
-  #
-  #     - uses: namespacelabs/nscloud-cache-action@v1
-  #       with:
-  #         cache: go
-  #         path: |
-  #           ~/go/pkg/mod
-  #           ~/.cache/go-build
-  #           ~/.cache/golangci-lint
-  #
-  #     - name: Run benchmark
-  #       run: task bench:ci
-  #
-  #     - name: Store ECS benchmark result
-  #       uses: benchmark-action/github-action-benchmark@v1
-  #       with:
-  #         tool: 'go'
-  #         output-file-path: bench.txt
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         auto-push: true
-  #         alert-threshold: '200%'
-  #         comment-on-alert: true

@@ -1,0 +1,86 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+
+language: 'go'
+toolchains:
+  default: 'system'
+
+tasks:
+  setup-lint:
+    description: 'Install the pinned Go linter into bin/tools'
+    script: 'GOBIN="$PWD/bin/tools" GOTOOLCHAIN=$(go env GOVERSION) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2'
+    options:
+      internal: true
+      runInCI: true
+  setup-test:
+    description: 'Install the pinned test runner into bin/tools'
+    script: 'GOBIN="$PWD/bin/tools" go install gotest.tools/gotestsum@v1.13.0'
+    options:
+      internal: true
+      runInCI: true
+  lint:
+    inputs: ['pkg/**/*', 'go.mod', 'go.sum', '.golangci.yaml', '.prototools', 'scripts/**/*', 'moon.yml']
+    description: 'Lint Go packages'
+    command: 'bin/tools/golangci-lint run --timeout 10m ./pkg/...'
+    deps: ['setup-lint']
+    options:
+      runInCI: true
+  lint-fix:
+    options:
+      runInCI: false
+    description: 'Lint Go packages and fix issues'
+    command: 'bin/tools/golangci-lint run --timeout 10m --fix ./pkg/...'
+    deps: ['setup-lint']
+  test:
+    options:
+      runInCI: true
+    description: 'Run all Go tests with a replayable random seed'
+    command: 'bash scripts/go-test.sh all'
+    deps: ['setup-test']
+  test-unit:
+    options:
+      runInCI: true
+    description: 'Run Go unit tests'
+    command: 'bash scripts/go-test.sh unit'
+    deps: ['setup-test']
+  test-ci:
+    inputs: ['pkg/**/*', 'go.mod', 'go.sum', '.golangci.yaml', '.prototools', 'scripts/**/*', 'moon.yml']
+    description: 'Run Go tests with coverage and JUnit reports'
+    command: 'bash scripts/go-test.sh ci'
+    deps: ['setup-test']
+    outputs: ['coverage.out', 'junit.xml']
+    options:
+      runInCI: true
+  build:
+    options:
+      runInCI: true
+    description: 'Build all Go packages'
+    command: 'go build ./pkg/...'
+  clean:
+    description: 'Remove Go test reports and build/test caches'
+    script: |
+      rm -f coverage.out junit.xml
+      go clean -cache -testcache
+  determinism-fma:
+    options:
+      runInCI: true
+    command: "go test ./pkg/box2d/ -run TestNoFusedMultiplyAdd -count 1 -v"
+  determinism-golden:
+    options:
+      runInCI: true
+    command: "go test ./pkg/box2d/ -run TestGolden -count 1 -v"
+  determinism-pgo:
+    options:
+      runInCI: true
+    command: "go test ./pkg/box2d/ -run TestGolden -count 1 -v -pgo pkg/box2d/default.pgo"
+  determinism-race:
+    options:
+      runInCI: true
+    command: "go test -race -run 'TestGolden(Step|Continuous)|TestWorkerStress' ./pkg/box2d/ -count 1"
+  determinism-fuzz:
+    options:
+      runInCI: true
+    command: "go test ./pkg/box2d/ -run 'TestWorldOpSequenceDeterminism|FuzzWorldOps' -count 1 -v"
+  determinism-asserts:
+    options:
+      runInCI: true
+    command: 'go test -tags box2d_asserts ./pkg/box2d/ -count 1'

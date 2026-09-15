@@ -43,11 +43,8 @@ jobs:
       - name: Configure Git for private repos
         run: git config --global url."https://x-token-auth:${{ github.token }}@github.com/".insteadOf "https://github.com/"
 
-      - name: Install Task
-        uses: arduino/setup-task@v2
-        with:
-          version: 3.x
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install moon
+        uses: moonrepo/setup-toolchain@261c62cb5b0f580c7be7c8cd0f023a2e96756095 # v0
 
       - uses: actions/setup-go@v5
         with:
@@ -80,4 +77,4 @@ jobs:
             actions: read
           claude_args: |
             --model claude-opus-5
-            --allowedTools "Bash(task lint),Bash(task lint:fix),Bash(task test),Bash(task test:unit),Bash(task test:ci),Bash(go build:*),Bash(go vet:*),Bash(go test:*),Bash(go doc:*),Bash(gofmt:*),Bash(golangci-lint:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh issue view:*)"
+            --allowedTools "Bash(moon run world-engine:lint),Bash(moon run world-engine:lint-fix),Bash(moon run world-engine:test),Bash(moon run world-engine:test-unit),Bash(moon run world-engine:test-ci),Bash(go build:*),Bash(go vet:*),Bash(go test:*),Bash(go doc:*),Bash(gofmt:*),Bash(golangci-lint:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh issue view:*)"
