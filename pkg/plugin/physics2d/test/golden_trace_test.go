@@ -188,7 +188,7 @@ func runGoldenScenarioWorkers(t *testing.T, sc goldenScenario, workers int) gold
 
 	// Single PostUpdate recorder: it runs after the physics pipeline (PreUpdate) so it observes
 	// the post-step ECS writeback and this tick's flushed contact events.
-	cardinal.RegisterSystem(w, func(state *struct {
+	w.RegisterSystem(func(state *struct {
 		cardinal.BaseSystemState
 		Spawn          spawnArchetype
 		ContactBeginRx cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
@@ -337,7 +337,7 @@ type goldenEntity struct {
 }
 
 func goldenSpawn(w *cardinal.World, entities func() []goldenEntity) {
-	cardinal.RegisterSystem(w, func(state *struct {
+	w.RegisterSystem(func(state *struct {
 		cardinal.BaseSystemState
 		Spawn spawnArchetype
 	}) {

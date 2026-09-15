@@ -10,16 +10,16 @@ import (
 
 func TestDSTGame(t *testing.T) {
 	cardinal.RunDST(t, func(w *cardinal.World) {
-		cardinal.RegisterSystem(w, gamesystem.PlayerSetUpdater, cardinal.WithHook(cardinal.PreUpdate))
-		cardinal.RegisterSystem(w, gamesystem.PlayerSpawnSystem)
-		cardinal.RegisterSystem(w, gamesystem.MovePlayerSystem)
-		cardinal.RegisterSystem(w, gamesystem.PlayerLeaveSystem)
-		cardinal.RegisterSystem(w, gamesystem.OnlineStatusUpdater)
+		w.RegisterSystem(gamesystem.PlayerSetUpdater, cardinal.WithHook(cardinal.PreUpdate))
+		w.RegisterSystem(gamesystem.PlayerSpawnSystem)
+		w.RegisterSystem(gamesystem.MovePlayerSystem)
+		w.RegisterSystem(gamesystem.PlayerLeaveSystem)
+		w.RegisterSystem(gamesystem.OnlineStatusUpdater)
 	}, nil)
 }
 
 func TestDSTChat(t *testing.T) {
 	cardinal.RunDST(t, func(w *cardinal.World) {
-		cardinal.RegisterSystem(w, chatsystem.UserChatSystem)
+		w.RegisterSystem(chatsystem.UserChatSystem)
 	}, nil)
 }

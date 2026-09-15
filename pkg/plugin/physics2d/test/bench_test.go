@@ -40,7 +40,7 @@ func benchWorld(b *testing.B, gravity physics.Vec2, workers int) (*cardinal.Worl
 		TickRate: 60,
 		Workers:  workers,
 	})
-	cardinal.RegisterPlugin(w, plugin)
+	w.RegisterPlugin(plugin)
 	return w, plugin
 }
 
@@ -82,7 +82,7 @@ func stepBenchScene(b *testing.B, n, workers int) {
 	w, _ := benchWorld(b, physics.Vec2{X: 0, Y: -10}, workers)
 	bodyCount := n
 
-	cardinal.RegisterSystem(w, func(state *struct {
+	w.RegisterSystem(func(state *struct {
 		cardinal.BaseSystemState
 		Spawn spawnArchetype
 	}) {
@@ -146,7 +146,7 @@ func BenchmarkRaycast(b *testing.B) {
 			w, p := benchWorld(b, physics.Vec2{X: 0, Y: 0}, 0)
 			bodyCount := n
 
-			cardinal.RegisterSystem(w, gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
+			w.RegisterSystem(gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
 
 			initCardinalECS(w)
 			benchTickN(w, 2) // rebuild + settle
@@ -177,7 +177,7 @@ func BenchmarkOverlapAABB(b *testing.B) {
 			w, p := benchWorld(b, physics.Vec2{X: 0, Y: 0}, 0)
 			bodyCount := n
 
-			cardinal.RegisterSystem(w, gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
+			w.RegisterSystem(gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
 
 			initCardinalECS(w)
 			benchTickN(w, 2)
@@ -208,7 +208,7 @@ func BenchmarkCircleSweep(b *testing.B) {
 			w, p := benchWorld(b, physics.Vec2{X: 0, Y: 0}, 0)
 			bodyCount := n
 
-			cardinal.RegisterSystem(w, gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
+			w.RegisterSystem(gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
 
 			initCardinalECS(w)
 			benchTickN(w, 2)

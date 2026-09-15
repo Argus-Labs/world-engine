@@ -6,10 +6,13 @@
 //
 // Usage:
 //
-//	world := cardinal.NewWorld(cardinal.WorldOptions{...})
+//	w, err := cardinal.NewWorld(cardinal.WorldOptions{...})
+//	if err != nil {
+//		panic(err)
+//	}
 //	physics := physics2d.NewPlugin(physics2d.Config{})
-//	cardinal.RegisterPlugin(world, physics)
-//	world.StartGame()
+//	w.RegisterPlugin(physics)
+//	w.StartGame()
 //
 // Keep the *Plugin value: queries (Raycast, OverlapAABB, CircleSweep) and Reset are methods on it.
 //
@@ -134,7 +137,7 @@ func NewPlugin(config Config) *Plugin {
 
 // Register implements cardinal.Plugin: creates this instance's runtime state and registers
 // systems. Registering the same Plugin instance twice panics.
-func (p *Plugin) Register(world *cardinal.World) {
+func (p *Plugin) Register(w *cardinal.World) {
 	if p.rt != nil {
 		panic(eris.New("physics2d: Plugin.Register called twice on the same instance; " +
 			"create a separate plugin instance per world"))
@@ -149,8 +152,8 @@ func (p *Plugin) Register(world *cardinal.World) {
 	p.rt = internal.NewRuntime(p.config.Gravity, fixedDT, p.config.SubStepCount, p.config.Workers)
 	p.rt.Reset()
 
-	cardinal.RegisterSystem(world, physicssystem.NewInitPhysicsSystem(p.rt), cardinal.WithHook(cardinal.Init))
-	cardinal.RegisterSystem(world, physicssystem.NewPhysicsPipelineSystem(p.rt), cardinal.WithHook(cardinal.PreUpdate))
+	w.RegisterSystem(physicssystem.NewInitPhysicsSystem(p.rt), cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(physicssystem.NewPhysicsPipelineSystem(p.rt), cardinal.WithHook(cardinal.PreUpdate))
 }
 
 // Engine returns the underlying pure-Go Box2D world, or nil when no world exists (before

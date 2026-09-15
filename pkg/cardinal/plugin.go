@@ -12,17 +12,16 @@ package cardinal
 //
 //	type MyPlugin struct{ config MyConfig }
 //
-//	func (p *MyPlugin) Register(world *cardinal.World) error {
-//	    cardinal.RegisterSystem(world, MyInitSystem, cardinal.WithHook(cardinal.Init))
-//	    cardinal.RegisterSystem(world, MyTickSystem)
-//	    return nil
+//	func (p *MyPlugin) Register(w *cardinal.World) {
+//	    w.RegisterSystem(MyInitSystem, cardinal.WithHook(cardinal.Init))
+//	    w.RegisterSystem(MyTickSystem)
 //	}
 type Plugin interface {
-	Register(world *World)
+	Register(w *World)
 }
 
 // RegisterPlugin registers a plugin with the world. Must be called before StartGame().
 // Panics if the plugin fails to register, consistent with other registration functions.
-func RegisterPlugin(world *World, plugin Plugin) {
-	plugin.Register(world)
+func (w *World) RegisterPlugin(plugin Plugin) {
+	plugin.Register(w)
 }

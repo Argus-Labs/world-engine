@@ -60,11 +60,11 @@ func snapshotBenchWorld(b *testing.B, rate uint32, bodies, warmup int) *cardinal
 	}
 	// Zero gravity, together with restingBodiesSystem's spacing, is what makes one tick equal to
 	// the next: nothing accelerates, nothing collides, nothing changes state.
-	cardinal.RegisterPlugin(w, physics.NewPlugin(physics.Config{
+	w.RegisterPlugin(physics.NewPlugin(physics.Config{
 		Gravity:  physics.Vec2{},
 		TickRate: 60,
 	}))
-	cardinal.RegisterSystem(w, restingBodiesSystem(bodies), cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(restingBodiesSystem(bodies), cardinal.WithHook(cardinal.Init))
 	initCardinalECS(w)
 	benchTickN(w, warmup)
 	return w

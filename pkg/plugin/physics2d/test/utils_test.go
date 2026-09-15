@@ -43,7 +43,7 @@ func makeWorldWorkers(t *testing.T, gravity physics.Vec2, workers int) (*cardina
 		TickRate: 60,
 		Workers:  workers,
 	})
-	cardinal.RegisterPlugin(w, p)
+	w.RegisterPlugin(p)
 	return w, p
 }
 

@@ -48,8 +48,8 @@ func testOrchestratorSystem(state *testOrchestratorState) {
 
 func TestDST(t *testing.T) {
 	cardinal.RunDST(t, func(w *cardinal.World) {
-		cardinal.RegisterPlugin(w, lobby.NewPlugin(lobby.Config{}))
-		cardinal.RegisterSystem(w, testOrchestratorSystem)
+		w.RegisterPlugin(lobby.NewPlugin(lobby.Config{}))
+		w.RegisterSystem(testOrchestratorSystem)
 	}, nil)
 }
 
@@ -57,7 +57,7 @@ func TestE2E(t *testing.T) {
 	cardinal.RunE2E(t, func() *cardinal.World {
 		debug := false
 
-		world, err := cardinal.NewWorld(cardinal.WorldOptions{
+		w, err := cardinal.NewWorld(cardinal.WorldOptions{
 			Region:              "local",
 			Organization:        "organization",
 			Project:             "project",
@@ -69,9 +69,9 @@ func TestE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		cardinal.RegisterPlugin(world, lobby.NewPlugin(lobby.Config{}))
-		cardinal.RegisterSystem(world, testOrchestratorSystem)
+		w.RegisterPlugin(lobby.NewPlugin(lobby.Config{}))
+		w.RegisterSystem(testOrchestratorSystem)
 
-		return world
+		return w
 	})
 }

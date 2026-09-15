@@ -314,7 +314,7 @@ func (r *Runner) watchWorld(tick uint64) {
 // plugin, then the Update-hook step system.
 func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 	debug := false
-	world, err := cardinal.NewWorld(cardinal.WorldOptions{
+	w, err := cardinal.NewWorld(cardinal.WorldOptions{
 		Region:              "local",
 		Organization:        "physics-test",
 		Project:             "physics-test",
@@ -328,14 +328,14 @@ func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 		return nil, err
 	}
 
-	cardinal.RegisterSystem(world, r.setup, cardinal.WithHook(cardinal.Init))
-	cardinal.RegisterSystem(world, r.preStep, cardinal.WithHook(cardinal.PreUpdate))
+	w.RegisterSystem(r.setup, cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(r.preStep, cardinal.WithHook(cardinal.PreUpdate))
 
 	// Registered ahead of the plugin so it sees ECS as the tick found it. After
 	// a snapshot restore that is the deserialized state, before anything has had
 	// a chance to overwrite it.
 	if cfg.PreCapture != nil {
-		RegisterPreCapture(world, cfg.PreCapture)
+		RegisterPreCapture(w, cfg.PreCapture)
 	}
 
 	// The plugin instance owns this world's physics runtime — there is no
@@ -348,22 +348,22 @@ func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 		SubStepCount: cfg.SubStepCount,
 		Workers:      cfg.Workers,
 	})
-	cardinal.RegisterPlugin(world, r.plugin)
+	w.RegisterPlugin(r.plugin)
 
-	cardinal.RegisterSystem(world, r.step, cardinal.WithHook(cardinal.Update))
+	w.RegisterSystem(r.step, cardinal.WithHook(cardinal.Update))
 
 	if cfg.PostCapture != nil {
-		RegisterPostCapture(world, cfg.PostCapture)
+		RegisterPostCapture(w, cfg.PostCapture)
 	}
-	return world, nil
+	return w, nil
 }
 
 // Advance ticks the world n times, continuing from wherever it left off. The
 // timestamps are derived from the tick index so two worlds ticked the same
 // number of times see the same sequence.
-func (r *Runner) Advance(world *cardinal.World, n int) {
+func (r *Runner) Advance(w *cardinal.World, n int) {
 	for range n {
-		world.Tick(time.Unix(int64(r.ticked), 0))
+		w.Tick(time.Unix(int64(r.ticked), 0))
 		r.ticked++
 	}
 }
@@ -386,8 +386,8 @@ func (r *Runner) EventsUpTo(scenario string, kind EventKind, tick uint64) int {
 
 // Run initializes the world, ticks it to completion, prints the report, and
 // returns the process exit code (0 when every check passed).
-func (r *Runner) Run(world *cardinal.World) int {
-	InitECS(world)
+func (r *Runner) Run(w *cardinal.World) int {
+	InitECS(w)
 
 	// Bound to a testing.TB, results already reach the test log line by line;
 	// the banner and the summary table are for the CLI.
@@ -398,10 +398,10 @@ func (r *Runner) Run(world *cardinal.World) int {
 
 	// Deterministic timestamps: the physics step uses a fixed dt, so wall clock
 	// must not leak into the simulation.
-	r.Advance(world, int(r.lastTick)+1) //nolint:gosec // tick counts are small; G115 flags the uint64->int conversion
+	r.Advance(w, int(r.lastTick)+1) //nolint:gosec // tick counts are small; G115 flags the uint64->int conversion
 
 	if r.digest {
-		r.printDigest(world)
+		r.printDigest(w)
 	}
 
 	if !r.report.Bound() {
@@ -426,7 +426,7 @@ type digestState struct {
 // Digest hashes every probe body's final pose and velocity and returns the body
 // count with the hash. Two runs of the same build on the same machine must agree,
 // and so must runs that differ only in Config.Workers.
-func (r *Runner) Digest(world *cardinal.World) (int, uint64) {
+func (r *Runner) Digest(w *cardinal.World) (int, uint64) {
 	var rows []digestState
 	collect := func(state *digestCollectorState) {
 		for eid, row := range state.Probes.Iter() {
@@ -440,7 +440,7 @@ func (r *Runner) Digest(world *cardinal.World) (int, uint64) {
 			})
 		}
 	}
-	runOnce(world, collect)
+	runOnce(w, collect)
 
 	sort.Slice(rows, func(i, j int) bool { return rows[i].key < rows[j].key })
 
@@ -452,8 +452,8 @@ func (r *Runner) Digest(world *cardinal.World) (int, uint64) {
 	return len(rows), h.Sum64()
 }
 
-func (r *Runner) printDigest(world *cardinal.World) {
-	n, h := r.Digest(world)
+func (r *Runner) printDigest(w *cardinal.World) {
+	n, h := r.Digest(w)
 	fmt.Printf("\ndigest: bodies=%d fnv1a64=%016x\n", n, h)
 	fmt.Println("(run the binary twice and compare; the same build on the same " +
 		"machine must produce the same digest)")
@@ -468,16 +468,16 @@ type digestCollectorState struct {
 
 // runOnce registers fn as a one-shot Update system and ticks the world once so
 // it can read component state through a properly initialised search.
-func runOnce(world *cardinal.World, fn func(*digestCollectorState)) {
+func runOnce(w *cardinal.World, fn func(*digestCollectorState)) {
 	done := false
-	cardinal.RegisterSystem(world, func(state *digestCollectorState) {
+	w.RegisterSystem(func(state *digestCollectorState) {
 		if done {
 			return
 		}
 		done = true
 		fn(state)
 	}, cardinal.WithHook(cardinal.Update))
-	world.Tick(time.Unix(1<<20, 0))
+	w.Tick(time.Unix(1<<20, 0))
 }
 
 // InitECS runs the world's Init-hook systems and marks the ECS world initialized.
@@ -486,8 +486,8 @@ func runOnce(world *cardinal.World, fn func(*digestCollectorState)) {
 // the ConnectRPC service. This test game drives World.Tick directly so it can run
 // with no infrastructure at all, so it reaches the unexported ecs.World through
 // reflection — the same approach the plugin's own integration tests use.
-func InitECS(world *cardinal.World) {
-	v := reflect.ValueOf(world).Elem()
+func InitECS(w *cardinal.World) {
+	v := reflect.ValueOf(w).Elem()
 	f := v.FieldByName("world")
 	if !f.IsValid() {
 		panic("cardinal.World: no 'world' field; the headless init shim needs updating")

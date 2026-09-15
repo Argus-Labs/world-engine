@@ -142,15 +142,15 @@ func CompareContacts(want, got Capture) []Diff {
 // RegisterPreCapture registers a capture that runs before the physics plugin.
 // Call it before RegisterPlugin. After a snapshot restore, the first tick's
 // pre-capture is the deserialized ECS state with nothing else having touched it.
-func RegisterPreCapture(world *cardinal.World, into *Capture) {
-	cardinal.RegisterSystem(world, func(state *preCaptureState) {
+func RegisterPreCapture(w *cardinal.World, into *Capture) {
+	w.RegisterSystem(func(state *preCaptureState) {
 		capture(&state.Probes, &state.Singleton, into)
 	}, cardinal.WithHook(cardinal.PreUpdate))
 }
 
 // RegisterPostCapture registers a capture that runs after the physics pipeline.
-func RegisterPostCapture(world *cardinal.World, into *Capture) {
-	cardinal.RegisterSystem(world, func(state *postCaptureState) {
+func RegisterPostCapture(w *cardinal.World, into *Capture) {
+	w.RegisterSystem(func(state *postCaptureState) {
 		capture(&state.Probes, &state.Singleton, into)
 	}, cardinal.WithHook(cardinal.PostUpdate))
 }
@@ -163,8 +163,8 @@ func RegisterPostCapture(world *cardinal.World, into *Capture) {
 // restore path needs — Init, ToProto, FromProto — is an exported method on an
 // unexported field of an internal type, reachable only this way from outside the
 // world-engine module. See InitECS for why this shim exists at all.
-func innerWorld(world *cardinal.World) reflect.Value {
-	v := reflect.ValueOf(world).Elem()
+func innerWorld(w *cardinal.World) reflect.Value {
+	v := reflect.ValueOf(w).Elem()
 	f := v.FieldByName("world")
 	if !f.IsValid() {
 		panic("cardinal.World: no 'world' field; the snapshot shim needs updating")
@@ -194,8 +194,8 @@ func DecodeSnapshot(raw []byte) (any, error) {
 
 // SnapshotWorld serializes a world exactly the way Cardinal's snapshot writer
 // does, component bytes and all.
-func SnapshotWorld(world *cardinal.World) (any, error) {
-	m := innerWorld(world).MethodByName("ToProto")
+func SnapshotWorld(w *cardinal.World) (any, error) {
+	m := innerWorld(w).MethodByName("ToProto")
 	if !m.IsValid() {
 		panic("ecs.World: no ToProto method; the snapshot shim needs updating")
 	}
@@ -213,8 +213,8 @@ func SnapshotWorld(world *cardinal.World) (any, error) {
 // RestoreWorld loads a serialized world state, the way World.restore does after
 // a crash. Note the ordering Cardinal uses: Init systems run first and only then
 // is their state thrown away by this call.
-func RestoreWorld(world *cardinal.World, state any) error {
-	m := innerWorld(world).MethodByName("FromProto")
+func RestoreWorld(w *cardinal.World, state any) error {
+	m := innerWorld(w).MethodByName("FromProto")
 	if !m.IsValid() {
 		panic("ecs.World: no FromProto method; the snapshot shim needs updating")
 	}

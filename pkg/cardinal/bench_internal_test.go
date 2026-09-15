@@ -677,14 +677,14 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
-			RegisterSystem(w, func(state *getSetSystemState1) {
+			w.RegisterSystem(func(state *getSetSystemState1) {
 				for j := 0; j < 100; j++ {
 					_, entity := state.Entities.Create()
 					entity.Position.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				}
 			}, WithHook(Init))
 
-			RegisterSystem(w, func(state *getSetSystemState1) {
+			w.RegisterSystem(func(state *getSetSystemState1) {
 				b.StartTimer()
 				for _, entity := range state.Entities.Iter() {
 					pos := entity.Position.Get()
@@ -705,7 +705,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
-			RegisterSystem(w, func(state *getSetSystemState5) {
+			w.RegisterSystem(func(state *getSetSystemState5) {
 				for j := 0; j < 100; j++ {
 					_, entity := state.Entities.Create()
 					entity.Position.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
@@ -716,7 +716,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 				}
 			}, WithHook(Init))
 
-			RegisterSystem(w, func(state *getSetSystemState5) {
+			w.RegisterSystem(func(state *getSetSystemState5) {
 				b.StartTimer()
 				for _, entity := range state.Entities.Iter() {
 					pos := entity.Position.Get()
@@ -739,7 +739,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
-			RegisterSystem(w, func(state *getSetSystemState10) {
+			w.RegisterSystem(func(state *getSetSystemState10) {
 				for j := 0; j < 100; j++ {
 					_, entity := state.Entities.Create()
 					entity.Position.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
@@ -758,7 +758,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 				}
 			}, WithHook(Init))
 
-			RegisterSystem(w, func(state *getSetSystemState10) {
+			w.RegisterSystem(func(state *getSetSystemState10) {
 				b.StartTimer()
 				for _, entity := range state.Entities.Iter() {
 					pos := entity.Position.Get()
@@ -786,9 +786,9 @@ func newBenchWorld() *World {
 	return &World{world: ecs.NewWorld()}
 }
 
-func mustInitSystemFields[T any](b testing.TB, world *World, state *T) {
+func mustInitSystemFields[T any](b testing.TB, w *World, state *T) {
 	b.Helper()
-	err := initSystemFields(reflect.ValueOf(state).Elem(), world)
+	err := initSystemFields(reflect.ValueOf(state).Elem(), w)
 	if err != nil {
 		b.Fatalf("failed to initialize system fields: %v", err)
 	}

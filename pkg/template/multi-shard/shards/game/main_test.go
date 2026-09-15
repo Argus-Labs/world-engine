@@ -20,7 +20,7 @@ func TestE2E(t *testing.T) {
 		debug := false
 
 		// Keep world setup aligned with shards/game/main.go.
-		world, err := cardinal.NewWorld(cardinal.WorldOptions{
+		w, err := cardinal.NewWorld(cardinal.WorldOptions{
 			Region:              "local",
 			Organization:        "organization",
 			Project:             "project",
@@ -32,16 +32,16 @@ func TestE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		registerSystems(world)
+		registerSystems(w)
 
-		return world
+		return w
 	})
 }
 
 func registerSystems(w *cardinal.World) {
-	cardinal.RegisterSystem(w, system.PlayerSetUpdater, cardinal.WithHook(cardinal.PreUpdate))
-	cardinal.RegisterSystem(w, system.PlayerSpawnSystem)
-	cardinal.RegisterSystem(w, system.MovePlayerSystem)
-	cardinal.RegisterSystem(w, system.PlayerLeaveSystem)
-	cardinal.RegisterSystem(w, system.OnlineStatusUpdater)
+	w.RegisterSystem(system.PlayerSetUpdater, cardinal.WithHook(cardinal.PreUpdate))
+	w.RegisterSystem(system.PlayerSpawnSystem)
+	w.RegisterSystem(system.MovePlayerSystem)
+	w.RegisterSystem(system.PlayerLeaveSystem)
+	w.RegisterSystem(system.OnlineStatusUpdater)
 }

@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	world, err := cardinal.NewWorld(cardinal.WorldOptions{
+	w, err := cardinal.NewWorld(cardinal.WorldOptions{
 		TickRate:     20,
 		SnapshotRate: 50,
 	})
@@ -15,7 +15,7 @@ func main() {
 		panic(err.Error())
 	}
 
-	cardinal.RegisterSystem(world, system.UserChatSystem)
+	w.RegisterSystem(system.UserChatSystem)
 
-	world.StartGame()
+	w.StartGame()
 }

@@ -22,7 +22,7 @@ func TestQuery_EmptyOverlapMarshalsAsEmptyArray(t *testing.T) {
 	t.Parallel()
 	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
-	cardinal.RegisterSystem(w, func(state *struct {
+	w.RegisterSystem(func(state *struct {
 		cardinal.BaseSystemState
 		Spawn spawnArchetype
 	}) {

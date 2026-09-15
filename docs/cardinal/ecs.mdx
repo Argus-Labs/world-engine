@@ -24,7 +24,7 @@ import (
 )
 
 func main() {
-	world, err := cardinal.NewWorld(cardinal.WorldOptions{
+	w, err := cardinal.NewWorld(cardinal.WorldOptions{
 		TickRate:       1,
 		EpochFrequency: 10,
 	})
@@ -33,11 +33,11 @@ func main() {
 	}
 
 	// Register systems.
-	cardinal.RegisterSystem(world, system.MovementSystem)
-	cardinal.RegisterSystem(world, system.CombatSystem)
+	w.RegisterSystem(system.MovementSystem)
+	w.RegisterSystem(system.CombatSystem)
 
 	// Start the game loop.
-	world.StartGame()
+	w.StartGame()
 }
 ```
 
@@ -224,7 +224,7 @@ func MySystem(state *MySystemState) error {
 You must register systems with the world to run them:
 
 ```go
-cardinal.RegisterSystem(world, MySystem)
+w.RegisterSystem(MySystem)
 ```
 
 Registered systems run once every tick, in registration order. Cardinal's scheduler automatically runs systems without shared dependencies in parallel. A system's dependencies include the components and [system events](/cardinal/system-events) it accesses.
@@ -235,7 +235,7 @@ You can control when a system executes during a tick by specifying a hook when y
 
 ```go
 // This system now runs in the pre-update phase of the tick.
-cardinal.RegisterSystem(world, SetupSystem, cardinal.WithHook(cardinal.PreUpdate))
+w.RegisterSystem(SetupSystem, cardinal.WithHook(cardinal.PreUpdate))
 ```
 
 By default, systems run on the update phase. Here are the different hooks you can use:
