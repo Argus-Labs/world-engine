@@ -52,10 +52,7 @@ func (w *World) Remove[T Component](eid EntityID) error {
 // Returns false if either the entity doesn't exist or doesn't have the component.
 func (w *World) Has[T Component](eid EntityID) bool {
 	_, err := w.Get[T](eid)
-	if err == nil {
-		return true
-	}
-	return eris.Is(err, ErrComponentNotFound)
+	return err == nil
 }
 
 // IterEntities iterates all entities that match the given component bitmap and match mode.

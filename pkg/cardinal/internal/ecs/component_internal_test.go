@@ -201,6 +201,27 @@ type conflictingComponent struct {
 	testutils.SimpleComponent
 }
 
+func TestWorld_HasComponent(t *testing.T) {
+	t.Parallel()
+	w := NewWorld()
+	eid := w.Create()
+	assert.False(t, w.Has[testutils.ComponentA](eid), "unregistered component")
+
+	_, err := w.RegisterComponent[testutils.ComponentA]()
+	require.NoError(t, err)
+	assert.False(t, w.Has[testutils.ComponentA](eid), "registered but absent component")
+
+	require.NoError(t, w.Set(eid, testutils.ComponentA{X: 42}))
+	assert.True(t, w.Has[testutils.ComponentA](eid), "present component")
+
+	require.NoError(t, w.Remove[testutils.ComponentA](eid))
+	assert.False(t, w.Has[testutils.ComponentA](eid), "removed component")
+
+	require.NoError(t, w.Set(eid, testutils.ComponentA{X: 42}))
+	require.True(t, w.Destroy(eid))
+	assert.False(t, w.Has[testutils.ComponentA](eid), "destroyed entity")
+}
+
 func TestWorld_RegisterComponentRejectsNameCollision(t *testing.T) {
 	t.Parallel()
 	w := NewWorld()
