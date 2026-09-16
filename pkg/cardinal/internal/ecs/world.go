@@ -101,22 +101,19 @@ func (w *World) OnComponentRegister(callback func(zero Component) error) {
 
 // StateWireSize computes the exact encoded size of the world's WorldState message. Call
 // AppendStateWire immediately after, with no world mutation in between.
-func (w *World) StateWireSize() (int, error) {
+func (w *World) StateWireSize() int {
 	return w.state.wireBodySize()
 }
 
-// AppendStateWire appends the WorldState message to buf, exactly StateWireSize bytes of it. An
-// error means the world state is corrupt or changed since StateWireSize. No snapshot exists then.
-func (w *World) AppendStateWire(buf []byte) ([]byte, error) {
+// AppendStateWire appends the WorldState message to buf, exactly StateWireSize bytes of it.
+func (w *World) AppendStateWire(buf []byte) []byte {
 	return w.state.appendWireBody(buf)
 }
 
 // EncodeState sizes and appends the WorldState message in one call, for callers that don't
 // need the size ahead of time (tests, serializability checks).
-func (w *World) EncodeState(buf []byte) ([]byte, error) {
-	if _, err := w.state.wireBodySize(); err != nil {
-		return nil, err
-	}
+func (w *World) EncodeState(buf []byte) []byte {
+	w.state.wireBodySize()
 	return w.state.appendWireBody(buf)
 }
 

@@ -201,9 +201,6 @@ func SnapshotWorld(w *cardinal.World) (any, error) {
 		panic("ecs.World: no EncodeState method; the snapshot shim needs updating")
 	}
 	out := m.Call([]reflect.Value{reflect.ValueOf([]byte(nil))})
-	if err, _ := out[1].Interface().(error); err != nil {
-		return nil, err
-	}
 	data, ok := out[0].Interface().([]byte)
 	if !ok {
 		return nil, fmt.Errorf("EncodeState returned %T, want []byte", out[0].Interface())

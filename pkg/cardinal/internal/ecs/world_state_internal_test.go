@@ -508,10 +508,8 @@ func TestWorldState_SerializationSmoke(t *testing.T) {
 		ws1.removeEntity(eid)
 	}
 
-	size, err := ws1.wireBodySize()
-	require.NoError(t, err)
-	data, err := ws1.appendWireBody(make([]byte, 0, size))
-	require.NoError(t, err)
+	size := ws1.wireBodySize()
+	data := ws1.appendWireBody(make([]byte, 0, size))
 	require.Len(t, data, size)
 
 	var pb cardinalv1.WorldState
@@ -526,10 +524,8 @@ func TestWorldState_SerializationSmoke(t *testing.T) {
 	// different but equivalent layout.
 	assertWorldStateEqual(t, ws1, ws2)
 
-	size2, err := ws2.wireBodySize()
-	require.NoError(t, err)
-	data2, err := ws2.appendWireBody(make([]byte, 0, size2))
-	require.NoError(t, err)
+	size2 := ws2.wireBodySize()
+	data2 := ws2.appendWireBody(make([]byte, 0, size2))
 	assert.Equal(t, data, data2, "snapshot -> restore -> snapshot must be byte-stable")
 }
 
@@ -636,10 +632,8 @@ func newWireTestWorld(t *testing.T) (*worldState, ComponentID, ComponentID) {
 
 func encodeWorld(t *testing.T, ws *worldState) []byte {
 	t.Helper()
-	size, err := ws.wireBodySize()
-	require.NoError(t, err)
-	buf, err := ws.appendWireBody(make([]byte, 0, size))
-	require.NoError(t, err)
+	size := ws.wireBodySize()
+	buf := ws.appendWireBody(make([]byte, 0, size))
 	require.Len(t, buf, size, "append must write exactly what the size pass computed")
 	return buf
 }
@@ -917,56 +911,45 @@ func TestSnapshotWireAllocations(t *testing.T) {
 	}
 
 	// Learn the buffer size, so the measured runs below append into a buffer that never grows.
-	size, err := ws.wireBodySize()
-	require.NoError(t, err)
+	size := ws.wireBodySize()
 	buf := make([]byte, 0, size)
 
 	allocs := testing.AllocsPerRun(50, func() {
-		if _, err = ws.wireBodySize(); err != nil {
-			return
-		}
-		buf, err = ws.appendWireBody(buf[:0])
+		ws.wireBodySize()
+		buf = ws.appendWireBody(buf[:0])
 	})
-	require.NoError(t, err)
 	assert.Zero(t, allocs, "the size and append passes must not allocate")
 }
 
-// TestSnapshotWireCorruptionIsAnError: an entity whose archetype has no row for it is an error in
-// both passes, not a panic. The world keeps running without a snapshot.
-func TestSnapshotWireCorruptionIsAnError(t *testing.T) {
+// TestSnapshotWireCorruptionPanics: an entity whose archetype has no row for it is a bug, so both
+// passes panic rather than encode a wrong row. Not an assert: those vanish in release builds.
+func TestSnapshotWireCorruptionPanics(t *testing.T) {
 	t.Parallel()
 	ws, posID, _ := newWireTestWorld(t)
 	var onlyPos bitmap.Bitmap
 	onlyPos.Set(posID)
 	e := ws.newEntityWithArchetype(onlyPos)
-
-	size, err := ws.wireBodySize()
-	require.NoError(t, err)
+	size := ws.wireBodySize()
 
 	// Corrupt the world: the archetype forgets the entity but the index still points at it.
 	aid, ok := ws.entityArch.get(e)
 	require.True(t, ok)
 	ws.archetypes[aid].removeEntity(e)
 
-	_, err = ws.appendWireBody(make([]byte, 0, size))
-	require.Error(t, err)
-	_, err = ws.wireBodySize()
-	require.Error(t, err)
+	require.Panics(t, func() { ws.appendWireBody(make([]byte, 0, size)) })
+	require.Panics(t, func() { ws.wireBodySize() })
 }
 
-// TestSnapshotWireDivergenceIsAnError: a world that changes between the two passes is an error,
-// not a panic.
-func TestSnapshotWireDivergenceIsAnError(t *testing.T) {
+// TestSnapshotWireDivergencePanics: a world that changes between the two passes is a bug, so the
+// append pass panics instead of committing a body whose length disagrees with its prefix.
+func TestSnapshotWireDivergencePanics(t *testing.T) {
 	t.Parallel()
 	ws, _, _ := newWireTestWorld(t)
 	_ = ws.newEntity()
-
-	size, err := ws.wireBodySize()
-	require.NoError(t, err)
+	size := ws.wireBodySize()
 	_ = ws.newEntity() // mutate between the passes
 
-	_, err = ws.appendWireBody(make([]byte, 0, size))
-	require.Error(t, err)
+	require.Panics(t, func() { ws.appendWireBody(make([]byte, 0, size)) })
 }
 
 // TestSnapshotWireFieldCoverage guards the one proto change the canonical test cannot see.
