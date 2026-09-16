@@ -49,9 +49,15 @@ func (a *archetype) exact(components bitmap.Bitmap) bool {
 
 // contains returns true if the archetype contains all of the components in the given components.
 func (a *archetype) contains(components bitmap.Bitmap) bool {
-	intersect := components.Clone(nil)
-	intersect.And(a.components)
-	return intersect.Count() == components.Count()
+	for i, required := range components {
+		if required == 0 {
+			continue
+		}
+		if i >= len(a.components) || a.components[i]&required != required {
+			return false
+		}
+	}
+	return true
 }
 
 func (a *archetype) reset() {
