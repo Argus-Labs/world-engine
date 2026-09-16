@@ -51,22 +51,8 @@ func (w *World) Remove[T Component](eid EntityID) error {
 // Has checks if an entity has a specific component type.
 // Returns false if either the entity doesn't exist or doesn't have the component.
 func (w *World) Has[T Component](eid EntityID) bool {
-	aid, exists := w.state.entityArch.get(eid)
-	if !exists {
-		return false
-	}
-	var zero T
-	cid, registered := w.state.components.catalog[zero.Name()]
-	if !registered {
-		return false
-	}
-	arch := w.state.archetypes[aid]
-	if !arch.components.Contains(cid) {
-		return false
-	}
-	// Check the concrete type without copying the component or constructing an absence error.
-	_, matches := arch.columns[arch.components.CountTo(cid)].(*column[T])
-	return matches
+	_, err := w.Get[T](eid)
+	return err == nil
 }
 
 // IterEntities iterates all entities that match the given component bitmap and match mode.

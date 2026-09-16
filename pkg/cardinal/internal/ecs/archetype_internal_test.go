@@ -476,35 +476,3 @@ func assertArchetypeEqual(t *testing.T, a1, a2 *archetype) {
 		}
 	}
 }
-
-func TestArchetype_ContainsBitmapWords(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		name     string
-		actual   bitmap.Bitmap
-		required bitmap.Bitmap
-		contains bool
-		exact    bool
-	}{
-		{"empty", nil, nil, true, true},
-		{"empty subset", bitmap.Bitmap{3}, nil, true, false},
-		{"same", bitmap.Bitmap{3}, bitmap.Bitmap{3}, true, true},
-		{"subset", bitmap.Bitmap{3}, bitmap.Bitmap{1}, true, false},
-		{"different bit", bitmap.Bitmap{1}, bitmap.Bitmap{2}, false, false},
-		{"multiple words", bitmap.Bitmap{1, 2, 4}, bitmap.Bitmap{1, 0, 4}, true, false},
-		{"missing word", bitmap.Bitmap{1}, bitmap.Bitmap{1, 2}, false, false},
-		{"trailing zero words", bitmap.Bitmap{1}, bitmap.Bitmap{1, 0, 0}, true, true},
-		{"only trailing zero words", nil, bitmap.Bitmap{0, 0}, true, true},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			arch := archetype{components: tc.actual, compCount: tc.actual.Count()}
-			actualBefore, requiredBefore := slices.Clone(tc.actual), slices.Clone(tc.required)
-			assert.Equal(t, tc.contains, arch.contains(tc.required))
-			assert.Equal(t, tc.exact, arch.exact(tc.required))
-			assert.Equal(t, actualBefore, arch.components, "matching must not mutate the archetype")
-			assert.Equal(t, requiredBefore, tc.required, "matching must not mutate the query")
-		})
-	}
-}

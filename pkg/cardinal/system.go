@@ -610,46 +610,49 @@ func (s SearchResult) Filter(predicate func(Entity) bool) SearchResult {
 	if predicate == nil {
 		return s
 	}
-
 	return func(yield func(Entity) bool) {
-		s(func(c Entity) bool {
-			return !predicate(c) || yield(c)
-		})
+		for entity := range s {
+			if predicate(entity) && !yield(entity) {
+				return
+			}
+		}
 	}
 }
 
-// Limit returns a new iterator that yields at most limit values. A limit <= 0 yields no values.
+// Limit returns a new iterator that yields at most limit values. Zero yields no values.
 func (s SearchResult) Limit(limit uint32) SearchResult {
 	return func(yield func(Entity) bool) {
 		if limit == 0 {
 			return
 		}
 		yielded := uint32(0)
-		s(func(c Entity) bool {
+		for entity := range s {
+			if !yield(entity) {
+				return
+			}
 			yielded++
-			return yield(c) && yielded < limit
-		})
+			if yielded >= limit {
+				return
+			}
+		}
 	}
 }
 
-// Single returns the single value in the iterator. It returns an error if the iterator yields
-// zero or more than one result.
+// Single returns the single entity, or an error for zero or multiple results.
 func (s SearchResult) Single() (Entity, error) {
-	// A function-valued iterator can retain its callback. Keep the captured result
-	// together so escape analysis needs one record rather than separate captured allocations.
-	result := struct {
-		entity Entity
-		err    error
-	}{err: ErrSingleNoResult}
-	s(func(c Entity) bool {
-		if result.err == nil {
-			result.err = ErrSingleMultipleResult
-			return false
+	var result Entity
+	count := 0
+	for entity := range s {
+		if count == 1 {
+			return result, ErrSingleMultipleResult
 		}
-		result.entity, result.err = c, nil
-		return true
-	})
-	return result.entity, result.err
+		result = entity
+		count++
+	}
+	if count == 0 {
+		return result, ErrSingleNoResult
+	}
+	return result, nil
 }
 
 // -------------------------------------------------------------------------------------------------

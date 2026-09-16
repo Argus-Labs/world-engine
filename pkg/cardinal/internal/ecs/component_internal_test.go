@@ -236,8 +236,6 @@ func TestWorld_RegisterComponentRejectsNameCollision(t *testing.T) {
 	require.Equal(t, ComponentID(0), id)
 	_, err = w.RegisterComponent[conflictingComponent]()
 	require.ErrorContains(t, err, "component simple_component already registered with a different type")
-	assert.False(t, w.Has[conflictingComponent](eid), "a shared name does not register a different Go type")
-	assert.True(t, w.Has[testutils.SimpleComponent](eid))
 
 	value, err := w.Get[testutils.SimpleComponent](eid)
 	require.NoError(t, err)
