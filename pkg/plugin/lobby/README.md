@@ -292,7 +292,7 @@ import (
 type AssignerState struct {
     cardinal.BaseSystemState
     Lobbies cardinal.Contains[struct {
-        Lobby cardinal.Ref[lobby.Component]
+        Lobby cardinal.WithComponent[lobby.Component]
     }]
 }
 
@@ -305,8 +305,8 @@ func AssignerSystem(state *AssignerState) {
         ShardID:      "lobby",   // REPLACE
     }
 
-    for _, refs := range state.Lobbies.Iter() {
-        lob := refs.Lobby.Get()
+    for refs := range state.Lobbies.Iter() {
+        lob := refs.Get[lobby.Component]()
         if lob.Session.State != lobby.SessionStateAwaitingAllocation {
             continue
         }

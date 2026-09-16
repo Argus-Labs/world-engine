@@ -442,7 +442,7 @@ func newSystemEventFixture(t *testing.T) *systemEventFixture {
 // -------------------------------------------------------------------------------------------------
 // Search, Contains, Exact, smoke tests
 // -------------------------------------------------------------------------------------------------
-// The search fields and Ref are just light wrappers over the world state operations, Which is
+// The search fields and Entity are light wrappers over the world state operations, which are
 // already tested. Here, we just check if the regular search operations work. Most of the
 // complicated logic in initialization where the cached result is created using reflection. We can
 // verify it's working if the operations work correctly.
@@ -460,8 +460,8 @@ func TestSearch_Smoke(t *testing.T) {
 		var expectedIDs []EntityID
 		for range prng.IntN(100) {
 			if testutils.RandBool(prng) {
-				eid, _ := fixture.Movers.Create()
-				expectedIDs = append(expectedIDs, eid)
+				eid := fixture.Movers.Create()
+				expectedIDs = append(expectedIDs, eid.ID())
 			} else {
 				fixture.Singles.Create()
 			}
@@ -469,7 +469,7 @@ func TestSearch_Smoke(t *testing.T) {
 
 		var moverIDs []EntityID
 		for eid := range fixture.Movers.Iter() {
-			moverIDs = append(moverIDs, eid)
+			moverIDs = append(moverIDs, eid.ID())
 		}
 		assert.Equal(t, expectedIDs, moverIDs)
 	})
@@ -483,8 +483,8 @@ func TestSearch_Smoke(t *testing.T) {
 		var expectedIDs []EntityID
 		for range prng.IntN(100) {
 			if testutils.RandBool(prng) {
-				eid, _ := fixture.Singles.Create()
-				expectedIDs = append(expectedIDs, eid)
+				eid := fixture.Singles.Create()
+				expectedIDs = append(expectedIDs, eid.ID())
 			} else {
 				fixture.Movers.Create()
 			}
@@ -492,7 +492,7 @@ func TestSearch_Smoke(t *testing.T) {
 
 		var singleIDs []EntityID
 		for eid := range fixture.Singles.Iter() {
-			singleIDs = append(singleIDs, eid)
+			singleIDs = append(singleIDs, eid.ID())
 		}
 		assert.Equal(t, expectedIDs, singleIDs)
 	})
@@ -504,17 +504,20 @@ func TestSearch_Smoke(t *testing.T) {
 
 		compB := testutils.ComponentB{
 			ID: prng.Uint64(), Label: testutils.RandString(prng, 8), Enabled: testutils.RandBool(prng)}
-		moverID, mover := fixture.Movers.Create()
-		mover.A.Set(testutils.ComponentA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()})
-		mover.B.Set(compB)
+		mover := fixture.Movers.Create()
+		moverID := mover.ID()
+		mover.Set(testutils.ComponentA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()})
+		mover.Set(compB)
 
-		singleID, single := fixture.Singles.Create()
-		single.A.Set(testutils.ComponentA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()})
+		single := fixture.Singles.Create()
+
+		singleID := single.ID()
+		single.Set(testutils.ComponentA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()})
 
 		// Success: correct archetype.
 		moverResult, err := fixture.Movers.GetByID(moverID)
 		require.NoError(t, err)
-		assert.Equal(t, compB, moverResult.B.Get())
+		assert.Equal(t, compB, moverResult.Get[testutils.ComponentB]())
 
 		// Wrong archetype.
 		_, err = fixture.Movers.GetByID(singleID)
@@ -533,23 +536,25 @@ func TestSearch_Smoke(t *testing.T) {
 		prng := testutils.NewRand(t)
 		fixture := newSearchFixture(t)
 
-		eid, mover := fixture.Movers.Create()
+		mover := fixture.Movers.Create()
+
+		eid := mover.ID()
 
 		// Get returns zero value before Set.
-		assert.Equal(t, testutils.ComponentA{}, mover.A.Get())
+		assert.Equal(t, testutils.ComponentA{}, mover.Get[testutils.ComponentA]())
 
 		// Set then Get round-trips the value.
 		compA := testutils.ComponentA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()}
-		mover.A.Set(compA)
-		assert.Equal(t, compA, mover.A.Get())
+		mover.Set(compA)
+		assert.Equal(t, compA, mover.Get[testutils.ComponentA]())
 
 		// Overwrite with a new value.
 		compA2 := testutils.ComponentA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()}
-		mover.A.Set(compA2)
-		assert.Equal(t, compA2, mover.A.Get())
+		mover.Set(compA2)
+		assert.Equal(t, compA2, mover.Get[testutils.ComponentA]())
 
 		// Remove changes the archetype, so the entity no longer matches Movers.
-		mover.A.Remove()
+		mover.Remove[testutils.ComponentA]()
 		_, err := fixture.Movers.GetByID(eid)
 		require.ErrorIs(t, err, ecs.ErrArchetypeMismatch)
 	})
@@ -558,43 +563,46 @@ func TestSearch_Smoke(t *testing.T) {
 		t.Parallel()
 		fixture := newSearchFixture(t)
 
-		eid, _ := fixture.Movers.Create()
+		entity := fixture.Movers.Create()
 
 		// Destroy succeeds once, then fails on the same ID.
-		assert.True(t, fixture.Movers.Destroy(eid))
-		assert.False(t, fixture.Movers.Destroy(eid))
+		assert.True(t, entity.Destroy())
+		assert.False(t, entity.Destroy())
 	})
 
 	t.Run("filter", func(t *testing.T) {
 		t.Parallel()
 		fixture := newSearchFixture(t)
 
-		eid1, mover1 := fixture.Movers.Create()
-		mover1.B.Set(testutils.ComponentB{ID: 1, Label: "one", Enabled: true})
+		mover1 := fixture.Movers.Create()
 
-		eid2, mover2 := fixture.Movers.Create()
-		mover2.B.Set(testutils.ComponentB{ID: 2, Label: "two", Enabled: false})
+		eid1 := mover1.ID()
+		mover1.Set(testutils.ComponentB{ID: 1, Label: "one", Enabled: true})
 
-		eid3, mover3 := fixture.Movers.Create()
-		mover3.B.Set(testutils.ComponentB{ID: 3, Label: "three", Enabled: true})
+		mover2 := fixture.Movers.Create()
+
+		eid2 := mover2.ID()
+		mover2.Set(testutils.ComponentB{ID: 2, Label: "two", Enabled: false})
+
+		mover3 := fixture.Movers.Create()
+
+		eid3 := mover3.ID()
+		mover3.Set(testutils.ComponentB{ID: 3, Label: "three", Enabled: true})
 
 		allIDs := []EntityID{eid1, eid2, eid3}
 		expectedIDs := []EntityID{eid1, eid3}
 
 		var results []EntityID
-		for eid := range fixture.Movers.Iter().Filter(func(_ EntityID, mover struct {
-			A Ref[testutils.ComponentA]
-			B Ref[testutils.ComponentB]
-		}) bool {
-			return mover.B.Get().Enabled
+		for eid := range fixture.Movers.Iter().Filter(func(mover Entity) bool {
+			return mover.Get[testutils.ComponentB]().Enabled
 		}) {
-			results = append(results, eid)
+			results = append(results, eid.ID())
 		}
 		assert.Equal(t, expectedIDs, results)
 
 		var nilPredicateResults []EntityID
 		for eid := range fixture.Movers.Iter().Filter(nil) {
-			nilPredicateResults = append(nilPredicateResults, eid)
+			nilPredicateResults = append(nilPredicateResults, eid.ID())
 		}
 		assert.Equal(t, allIDs, nilPredicateResults)
 	})
@@ -607,20 +615,20 @@ func TestSearch_Smoke(t *testing.T) {
 		count := prng.IntN(100) + 1
 		expectedIDs := make([]EntityID, 0, count)
 		for range count {
-			eid, _ := fixture.Movers.Create()
-			expectedIDs = append(expectedIDs, eid)
+			eid := fixture.Movers.Create()
+			expectedIDs = append(expectedIDs, eid.ID())
 		}
 
 		limit := uint32(prng.IntN(count) + 1)
 		var results []EntityID
 		for eid := range fixture.Movers.Iter().Limit(limit) {
-			results = append(results, eid)
+			results = append(results, eid.ID())
 		}
 		assert.Equal(t, expectedIDs[:limit], results)
 
 		var overLimitResults []EntityID
 		for eid := range fixture.Movers.Iter().Limit(uint32(count + 10)) {
-			overLimitResults = append(overLimitResults, eid)
+			overLimitResults = append(overLimitResults, eid.ID())
 		}
 		assert.Equal(t, expectedIDs, overLimitResults)
 	})
@@ -631,29 +639,29 @@ func TestSearch_Smoke(t *testing.T) {
 
 		// Exactly one result.
 		exactlyOneFixture := newSearchFixture(t)
-		eidExpected, mover := exactlyOneFixture.Movers.Create()
+		mover := exactlyOneFixture.Movers.Create()
 		compB := testutils.ComponentB{
 			ID:      prng.Uint64(),
 			Label:   testutils.RandString(prng, 8),
 			Enabled: testutils.RandBool(prng),
 		}
-		mover.B.Set(compB)
+		mover.Set(compB)
 
-		eid, result, err := exactlyOneFixture.Movers.Iter().Single()
+		result, err := exactlyOneFixture.Movers.Iter().Single()
 		require.NoError(t, err)
-		assert.Equal(t, eidExpected, eid)
-		assert.Equal(t, compB, result.B.Get())
+		assert.Equal(t, mover, result)
+		assert.Equal(t, compB, result.Get[testutils.ComponentB]())
 
 		// No results.
 		emptyFixture := newSearchFixture(t)
-		_, _, err = emptyFixture.Movers.Iter().Single()
+		_, err = emptyFixture.Movers.Iter().Single()
 		require.ErrorIs(t, err, ErrSingleNoResult)
 
 		// Multiple results.
 		multipleFixture := newSearchFixture(t)
 		multipleFixture.Movers.Create()
 		multipleFixture.Movers.Create()
-		_, _, err = multipleFixture.Movers.Iter().Single()
+		_, err = multipleFixture.Movers.Iter().Single()
 		require.ErrorIs(t, err, ErrSingleMultipleResult)
 	})
 }
@@ -661,11 +669,11 @@ func TestSearch_Smoke(t *testing.T) {
 type searchFixture struct {
 	// These are the fields under test. They must be public/exported.
 	Movers Contains[struct {
-		A Ref[testutils.ComponentA]
-		B Ref[testutils.ComponentB]
+		A WithComponent[testutils.ComponentA]
+		B WithComponent[testutils.ComponentB]
 	}]
 	Singles Exact[struct {
-		A Ref[testutils.ComponentA]
+		A WithComponent[testutils.ComponentA]
 	}]
 }
 

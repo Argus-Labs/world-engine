@@ -30,11 +30,11 @@ func TestQuery_EmptyOverlapMarshalsAsEmptyArray(t *testing.T) {
 			return
 		}
 		// One body, parked far away from the region queried below.
-		_, row := state.Spawn.Create()
-		row.Tag.Set(harnessTag{Role: "far"})
-		row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 500, Y: 500}})
-		row.V.Set(physics.Velocity2D{})
-		row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
+		row := state.Spawn.Create()
+		row.Set(harnessTag{Role: "far"})
+		row.Set(physics.Transform2D{Position: physics.Vec2{X: 500, Y: 500}})
+		row.Set(physics.Velocity2D{})
+		row.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
 			ShapeType:    physics.ShapeTypeBox,
 			HalfExtents:  physics.Vec2{X: 1, Y: 1},
 			CategoryBits: 0xFFFF,

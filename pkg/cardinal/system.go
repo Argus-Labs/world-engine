@@ -174,8 +174,6 @@ var _ systemField = (*search[ecs.Component])(nil)
 var _ systemField = (*Contains[ecs.Component])(nil)
 var _ systemField = (*Exact[ecs.Component])(nil)
 
-// TODO: how would a All[ecs.Component] look like? it must be typesafe too.
-
 // -------------------------------------------------------------------------------------------------
 // Options
 // -------------------------------------------------------------------------------------------------
@@ -533,276 +531,65 @@ func (s *WithSystemEventEmitter[T]) Emit(systemEvent T) {
 // Components
 // -------------------------------------------------------------------------------------------------
 
-// search provides type-safe component queries for entities in the world state. It uses reflection
-// during initialization to figure out which components to include in the query. T must be a struct
-// type composed of fields of only the type Ref[Component], e.g.:
-//
-//	type Particle struct {
-//	    Position ecs.Ref[Position]
-//	    Velocity ecs.Ref[Velocity]
-//	}
-//
-// search is used as the base implementation for ecs.Contains and ecs.Exact which provide the
-// matching behaviors for finding entities with specific component combinations. Every component
-// type used in T will be automatically registered when the system is registered.
+// search caches an archetype registered during system initialization.
 type search[T any] struct {
-	world      *ecs.World    // Reference to the world
-	components bitmap.Bitmap // Bitmap of component types this search looks for
-	result     T             // Reusable instance of the result type
-	fields     []ref         // Cached references to result's fields to be initialized in Iter
+	world      *ecs.World
+	components bitmap.Bitmap
 }
 
-// init initializes the search by analyzing the generic type's struct fields and caching its
-// component dependencies.
 func (s *search[T]) init(meta *systemInitMetadata) error {
-	var zero T
-	resultType := reflect.TypeOf(zero)
-	resultValue := reflect.ValueOf(&s.result).Elem()
-
-	s.world = meta.world.world
-	s.fields = make([]ref, resultType.NumField())
-
-	for i := range resultType.NumField() {
-		// Store a ref of the field in the search to be initialized during Iter.
-		field := resultType.Field(i)
-		fieldRef, ok := resultValue.Field(i).Addr().Interface().(ref)
-		if !ok {
-			return eris.Errorf("field %s must be of type Ref[Component], got %s", field.Name, field.Type)
-		}
-		s.fields[i] = fieldRef
-
-		// Register the component.
-		cid, err := fieldRef.register(s.world)
-		if err != nil {
-			return eris.Wrapf(err, "failed to register component %d", cid)
-		}
-		s.components.Set(cid) // Add to local component set (used for archetype lookups)
+	components, err := meta.world.registerArchetype[T]()
+	if err != nil {
+		return err
 	}
+	s.world, s.components = meta.world.world, components
 	return nil
 }
 
-// getByID retrieves an entity's components by its ID using the provided match function to validate
-// that the entity's archetype matches the search criteria.
-func (s *search[T]) getByID(eid EntityID, match ecs.SearchMatch) (T, error) {
+func (s *search[T]) getByID(eid EntityID, match ecs.SearchMatch) (Entity, error) {
 	if err := s.world.MatchArchetype(eid, s.components, match); err != nil {
-		var zero T
-		return zero, eris.Wrap(err, "failed to get entity")
+		return Entity{}, eris.Wrap(err, "failed to get entity")
 	}
-	for i := range s.fields {
-		s.fields[i].attach(s.world, eid) // Attach the entity and world state buffer to the ref
-	}
-	return s.result, nil
+	return Entity{world: s.world, id: eid}, nil
 }
 
-// iter returns an iterator over all entities that match the given archetypes.
-func (s *search[T]) iter(match ecs.SearchMatch) SearchResult[EntityID, T] {
-	return func(yield func(EntityID, T) bool) {
+func (s *search[T]) iter(match ecs.SearchMatch) SearchResult {
+	return func(yield func(Entity) bool) {
 		err := s.world.IterEntities(s.components, match, func(eid EntityID) bool {
-			for i := range s.fields {
-				s.fields[i].attach(s.world, eid) // Attach the entity and world state buffer to the ref
-			}
-
-			return yield(eid, s.result)
+			return yield(Entity{world: s.world, id: eid})
 		})
 		assert.That(err == nil, "invalid arguments sent to IterEntities")
 	}
 }
 
-// Create creates a new entity with the given components. Returns an error if any of the components
-// are not defined in the search field.
-//
-// Example:
-//
-//	entity, err := state.Mob.Create(Health{Value: 100}, Position{X: 0, Y: 0})
-//	if err != nil {
-//	    state.Logger().Error().Err(err).Msg("Failed to create entity")
-//	}
-//	// Use entity...
-func (s *search[T]) Create() (EntityID, T) {
+// Create returns a new entity with the components declared in T, initialized to zero.
+func (s *search[T]) Create() Entity {
 	eid := s.world.CreateWithArchetype(s.components)
-
-	for i := range s.fields {
-		s.fields[i].attach(s.world, eid) // Attach the entity and world state buffer to the ref
-	}
-
-	return eid, s.result
+	return Entity{world: s.world, id: eid}
 }
 
-// Destroy deletes an entity and all its components from the world.
-//
-// Example:
-//
-//	ok := state.Mob.Destroy(entityID)
-//	if !ok {
-//	    state.Logger().Warn().Msg("Entity doesn't exist or is already destroyed")
-//	}
-func (s *search[T]) Destroy(eid EntityID) bool {
-	return s.world.Destroy(eid)
-}
-
-// Contains provides a search that matches archetypes containing all specified component types,
-// potentially along with additional components.
-//
-// Example:
-//
-//	type MovementSystemState struct {
-//	    Movers ecs.Contains[struct {
-//	        Position ecs.Ref[Position]
-//	        Velocity ecs.Ref[Velocity]
-//	    }]
-//	    // Other fields...
-//	}
-//
-//	// Your system function receives a pointer to your system state.
-//	func MovementSystem(state *MovementSystemState) error {
-//	    for entity, mover := range state.Movers.Iter() {
-//	        // Process entity and compnents.
-//	    }
-//	    return nil
-//	}
+// Contains matches entities with all components declared in T, allowing extras.
+// T is a struct of WithComponent[C] fields, registered before the world starts.
 type Contains[T any] struct{ search[T] }
 
-// Iter returns an iterator over entities and their components that match the Contains search.
-//
-// Example:
-//
-//	for _, mover := range state.Movers.Iter() {
-//	    pos := mover.Position.Get()
-//	    vel := mover.Velocity.Get()
-//	    mover.Position.Set(Position{X: pos.X + vel.X, Y: pos.Y + vel.Y})
-//	}
-func (c *Contains[T]) Iter() SearchResult[EntityID, T] {
-	return c.iter(ecs.MatchContains)
-}
+// Iter yields each matching entity as a world-bound handle.
+func (c *Contains[T]) Iter() SearchResult { return c.iter(ecs.MatchContains) }
 
-// GetByID retrieves an entity's components by its ID. Returns ErrEntityNotFound if the entity
-// doesn't exist, or ErrArchetypeMismatch if the entity doesn't contain all the required components.
-//
-// Example:
-//
-//	mob, err := state.Mob.GetByID(entityID)
-//	if err != nil {
-//	    state.Logger().Warn().Err(err).Msg("Entity not found or doesn't match")
-//	    return err
-//	}
-//	health := mob.Health.Get()
-func (c *Contains[T]) GetByID(eid EntityID) (T, error) {
+// GetByID returns a handle if the entity contains every declared component.
+func (c *Contains[T]) GetByID(eid EntityID) (Entity, error) {
 	return c.getByID(eid, ecs.MatchContains)
 }
 
-// Exact provides a search that matches archetypes containing exactly the specified component types,
-// without any additional components.
-//
-// Example:
-//
-//	type PlayerSystemState struct {
-//	    Players ecs.Exact[struct {
-//	        Tag    ecs.Ref[PlayerTag]
-//	        Health ecs.Ref[Health]
-//	    }]
-//	    // Other fields...
-//	}
-//
-//	// Your system function receives a pointer to your system state.
-//	func PlayerSystem(state *PlayerSystemState) error {
-//	    for entity, player := range state.Players.Iter() {
-//	        // Process entity and compnents.
-//	    }
-//	    return nil
-//	}
+// Exact matches entities with exactly the components declared in T.
+// T is a struct of WithComponent[C] fields, registered before the world starts.
 type Exact[T any] struct{ search[T] }
 
-// Iter returns an iterator over entities and their components that match the Exact query.
-//
-// Example:
-//
-//	for _, player := range state.Players.Iter() {
-//	    health := player.Health.Get()
-//	    player.Health.Set(Health{HP: health.HP + 100})
-//	}
-func (c *Exact[T]) Iter() SearchResult[EntityID, T] {
-	return c.iter(ecs.MatchExact)
-}
+// Iter yields each matching entity as a world-bound handle.
+func (c *Exact[T]) Iter() SearchResult { return c.iter(ecs.MatchExact) }
 
-// GetByID retrieves an entity's components by its ID. Returns ErrEntityNotFound if the entity
-// doesn't exist, or ErrArchetypeMismatch if the entity doesn't have exactly the required components.
-//
-// Example:
-//
-//	player, err := state.Players.GetByID(entityID)
-//	if err != nil {
-//	    state.Logger().Warn().Err(err).Msg("Entity not found or doesn't match")
-//	    return err
-//	}
-//	health := player.Health.Get()
-func (c *Exact[T]) GetByID(eid EntityID) (T, error) {
+// GetByID returns a handle if the entity has exactly the declared components.
+func (c *Exact[T]) GetByID(eid EntityID) (Entity, error) {
 	return c.getByID(eid, ecs.MatchExact)
-}
-
-// -------------------------------------------------------------------------------------------------
-// Component Handles
-// -------------------------------------------------------------------------------------------------
-
-// ref is an internal interface for component references.
-type ref interface {
-	attach(*ecs.World, EntityID)
-	register(*ecs.World) (ecs.ComponentID, error)
-}
-
-var _ ref = &Ref[ecs.Component]{}
-
-// Ref provides a type-safe handle to a component on an entity.
-type Ref[T ecs.Component] struct {
-	ws     *ecs.World // Internal reference to the world state
-	entity EntityID   // The entity's ID
-}
-
-// attach sets the entity and world state to the Ref so that Get and Set works properly.
-func (r *Ref[T]) attach(ws *ecs.World, eid EntityID) {
-	r.ws = ws
-	r.entity = eid
-}
-
-// register returns the registerAndGetComponent type for this Ref.
-func (r *Ref[T]) register(w *ecs.World) (ecs.ComponentID, error) {
-	return w.RegisterComponent[T]()
-}
-
-// Get retrieves the component value for this Ref's entity.
-//
-// Example:
-//
-//	for _, player := range state.Players.Iter() {
-//	    health := player.Health.Get()
-//	}
-func (r *Ref[T]) Get() T {
-	component, err := r.ws.Get[T](r.entity)
-	assert.That(err == nil, "entity doesn't exist or doesn't contain the component") // Shouldn't happen
-	return component
-}
-
-// Set updates the component value for this Ref's entity.
-//
-// Example:
-//
-//	for _, player := range state.Players.Iter() {
-//	    player.Health.Set(Health{HP: 100})
-//	}
-func (r *Ref[T]) Set(component T) {
-	err := r.ws.Set(r.entity, component)
-	assert.That(err == nil, "entity doesn't exist") // Shouldn't happen
-}
-
-// Remove removes the component from this Ref's entity.
-//
-// Example:
-//
-//	for _, player := range state.Players.Iter() {
-//	    player.Shield.Remove()
-//	}
-func (r *Ref[T]) Remove() {
-	err := r.ws.Remove[T](r.entity)
-	assert.That(err == nil, "entity doesn't exist or doesn't contain the component") // Shouldn't happen
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -814,37 +601,35 @@ var (
 	ErrSingleMultipleResult = eris.New("expected exactly 1 result, got more than 1")
 )
 
-// SearchResult is a chainable iterator over key-value pairs.
-type SearchResult[E EntityID, C any] func(yield func(E, C) bool)
+// SearchResult is a chainable iterator over entities.
+type SearchResult func(yield func(Entity) bool)
 
 // Filter returns a new iterator that only yields values that satisfy predicate. A nil predicate
 // returns the original iterator unchanged.
-func (s SearchResult[E, C]) Filter(predicate func(E, C) bool) SearchResult[E, C] {
+func (s SearchResult) Filter(predicate func(Entity) bool) SearchResult {
 	if predicate == nil {
 		return s
 	}
-
-	return func(yield func(E, C) bool) {
-		for e, c := range s {
-			if !predicate(e, c) {
-				continue
-			}
-			if !yield(e, c) {
+	return func(yield func(Entity) bool) {
+		for entity := range s {
+			if predicate(entity) && !yield(entity) {
 				return
 			}
 		}
 	}
 }
 
-// Limit returns a new iterator that yields at most limit values. A limit <= 0 yields no values.
-func (s SearchResult[E, C]) Limit(limit uint32) SearchResult[E, C] {
-	return func(yield func(E, C) bool) {
+// Limit returns a new iterator that yields at most limit values. Zero yields no values.
+func (s SearchResult) Limit(limit uint32) SearchResult {
+	return func(yield func(Entity) bool) {
+		if limit == 0 {
+			return
+		}
 		yielded := uint32(0)
-		for e, c := range s {
-			if !yield(e, c) {
+		for entity := range s {
+			if !yield(entity) {
 				return
 			}
-
 			yielded++
 			if yielded >= limit {
 				return
@@ -853,23 +638,21 @@ func (s SearchResult[E, C]) Limit(limit uint32) SearchResult[E, C] {
 	}
 }
 
-// Single returns the single value in the iterator. It returns an error if the iterator yields
-// zero or more than one result.
-func (s SearchResult[E, C]) Single() (E, C, error) {
-	var re E
-	var rc C
+// Single returns the single entity, or an error for zero or multiple results.
+func (s SearchResult) Single() (Entity, error) {
+	var result Entity
 	count := 0
-	for e, c := range s {
+	for entity := range s {
 		if count == 1 {
-			return re, rc, ErrSingleMultipleResult
+			return result, ErrSingleMultipleResult
 		}
-		re, rc = e, c
+		result = entity
 		count++
 	}
 	if count == 0 {
-		return re, rc, ErrSingleNoResult
+		return result, ErrSingleNoResult
 	}
-	return re, rc, nil
+	return result, nil
 }
 
 // -------------------------------------------------------------------------------------------------

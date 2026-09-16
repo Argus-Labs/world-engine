@@ -40,10 +40,10 @@ func (harnessTag) UnmarshalWire(b []byte) (any, error) {
 }
 
 type spawnArchetype = cardinal.Exact[struct {
-	Tag cardinal.Ref[harnessTag]
-	T   cardinal.Ref[physics.Transform2D]
-	V   cardinal.Ref[physics.Velocity2D]
-	PB  cardinal.Ref[physics.PhysicsBody2D]
+	Tag cardinal.WithComponent[harnessTag]
+	T   cardinal.WithComponent[physics.Transform2D]
+	V   cardinal.WithComponent[physics.Velocity2D]
+	PB  cardinal.WithComponent[physics.PhysicsBody2D]
 }]
 
 var harness struct {
@@ -105,11 +105,12 @@ func sceneInitSystem(state *struct {
 		t physics.Transform2D,
 		pb physics.PhysicsBody2D,
 	) cardinal.EntityID {
-		id, row := state.Spawn.Create()
-		row.Tag.Set(harnessTag{Role: role})
-		row.T.Set(t)
-		row.V.Set(physics.Velocity2D{})
-		row.PB.Set(pb)
+		row := state.Spawn.Create()
+		id := row.ID()
+		row.Set(harnessTag{Role: role})
+		row.Set(t)
+		row.Set(physics.Velocity2D{})
+		row.Set(pb)
 		return id
 	}
 	mustCreateWithVel := func(
@@ -118,11 +119,12 @@ func sceneInitSystem(state *struct {
 		v physics.Velocity2D,
 		pb physics.PhysicsBody2D,
 	) cardinal.EntityID {
-		id, row := state.Spawn.Create()
-		row.Tag.Set(harnessTag{Role: role})
-		row.T.Set(t)
-		row.V.Set(v)
-		row.PB.Set(pb)
+		row := state.Spawn.Create()
+		id := row.ID()
+		row.Set(harnessTag{Role: role})
+		row.Set(t)
+		row.Set(v)
+		row.Set(pb)
 		return id
 	}
 
@@ -300,11 +302,12 @@ func manualMoveSystem(state *struct {
 	if harness.ManualPlayer == 0 {
 		return
 	}
-	for eid, row := range state.Spawn.Iter() {
+	for row := range state.Spawn.Iter() {
+		eid := row.ID()
 		if eid == harness.ManualPlayer {
-			tr := row.T.Get()
+			tr := row.Get[physics.Transform2D]()
 			tr.Position.X += 0.05
-			row.T.Set(tr)
+			row.Set(tr)
 			break
 		}
 	}
@@ -394,11 +397,12 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		}
 
 		// --- Writeback verification: read ECS state written back by Box2D each tick ---
-		for eid, row := range state.Spawn.Iter() {
+		for row := range state.Spawn.Iter() {
+			eid := row.ID()
 			switch eid {
 			case harness.Ball:
-				t := row.T.Get()
-				v := row.V.Get()
+				t := row.Get[physics.Transform2D]()
+				v := row.Get[physics.Velocity2D]()
 				if phase == 0 && tick < tickCrash1 {
 					ballPosYHistory = append(ballPosYHistory, t.Position.Y)
 					ballVelYHistory = append(ballVelYHistory, v.Linear.Y)
@@ -408,16 +412,16 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 				}
 			case harness.SecondBall:
 				if phase == 0 {
-					pos := row.T.Get().Position
+					pos := row.Get[physics.Transform2D]().Position
 					req.InDelta(20, pos.Y, 0.5,
 						"second ball (zero gravity) ECS Y must stay near spawn at tick %d", tick)
 				}
 			case harness.KinematicMover:
 				if phase == 0 && tick < tickCrash1 {
-					kinematicPosXHistory = append(kinematicPosXHistory, row.T.Get().Position.X)
+					kinematicPosXHistory = append(kinematicPosXHistory, row.Get[physics.Transform2D]().Position.X)
 				}
 			case harness.ManualPlayer:
-				pos := row.T.Get().Position
+				pos := row.Get[physics.Transform2D]().Position
 				if phase == 0 {
 					req.InDelta(manualSpawnPos.Y, pos.Y, epsilon,
 						"manual body Y unchanged at tick %d (writeback must not clobber)", tick)
@@ -428,7 +432,7 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 				}
 			case harness.Spinner:
 				if phase == 0 && tick < tickCrash1 {
-					spinnerRotHistory = append(spinnerRotHistory, row.T.Get().Rotation)
+					spinnerRotHistory = append(spinnerRotHistory, row.Get[physics.Transform2D]().Rotation)
 				}
 			}
 		}
@@ -483,7 +487,7 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		// Reconcile: destroy entity → Box2D body removed (triangle no longer in overlap query).
 		if tick == tickDestroyTriangle {
 			if atomic.CompareAndSwapUint32(&triangleGone, 0, 1) {
-				req.True(state.Spawn.Destroy(harness.Triangle), "Destroy(triangle)")
+				req.True(state.Entity(harness.Triangle).Destroy(), "Destroy(triangle)")
 			}
 		}
 		if tick >= tickDestroyTriangle+2 {
@@ -493,11 +497,12 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		// Reconcile: ECS transform change only → SetTransform in Box2D (short ray proves new X).
 		if tick == tickMoveWall {
 			if atomic.CompareAndSwapUint32(&wallMoved, 0, 1) {
-				for eid, row := range state.Spawn.Iter() {
+				for row := range state.Spawn.Iter() {
+					eid := row.ID()
 					if eid == harness.FilterWall {
-						tr := row.T.Get()
+						tr := row.Get[physics.Transform2D]()
 						tr.Position.X = 10
-						row.T.Set(tr)
+						row.Set(tr)
 						break
 					}
 				}
@@ -510,11 +515,12 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		// Reconcile: new physics archetype mid-sim → create body on next PreUpdate.
 		if tick == tickCreateNewBox {
 			if atomic.CompareAndSwapUint32(&newBoxCreated, 0, 1) {
-				id, row := state.Spawn.Create()
-				row.Tag.Set(harnessTag{Role: "new_box"})
-				row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 5, Y: 1}})
-				row.V.Set(physics.Velocity2D{})
-				row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
+				row := state.Spawn.Create()
+				id := row.ID()
+				row.Set(harnessTag{Role: "new_box"})
+				row.Set(physics.Transform2D{Position: physics.Vec2{X: 5, Y: 1}})
+				row.Set(physics.Velocity2D{})
+				row.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
 					ShapeType:    physics.ShapeTypeBox,
 					HalfExtents:  physics.Vec2{X: 0.5, Y: 0.5},
 					Friction:     0.5,
@@ -534,11 +540,12 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		// lists old pairs → suppressed step diff emits synthetic Ends.
 		if tick == tickCrash1 {
 			atomic.StoreUint32(&crashPhase, 1)
-			for eid, row := range state.Spawn.Iter() {
+			for row := range state.Spawn.Iter() {
+				eid := row.ID()
 				if eid == harness.Ball {
-					tr := row.T.Get()
+					tr := row.Get[physics.Transform2D]()
 					tr.Position = physics.Vec2{X: 0, Y: 5.2}
-					row.T.Set(tr)
+					row.Set(tr)
 				}
 			}
 			p.Reset()
@@ -568,11 +575,12 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		// live has ball–NewBox only → diff emits Ends for stale pairs + Begin for new overlap.
 		if tick == tickCrash2 {
 			atomic.StoreUint32(&crashPhase, 2)
-			for eid, row := range state.Spawn.Iter() {
+			for row := range state.Spawn.Iter() {
+				eid := row.ID()
 				if eid == harness.Ball {
-					tr := row.T.Get()
+					tr := row.Get[physics.Transform2D]()
 					tr.Position = physics.Vec2{X: 5, Y: 1.3}
-					row.T.Set(tr)
+					row.Set(tr)
 				}
 			}
 			p.Reset()

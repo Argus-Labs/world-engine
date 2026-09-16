@@ -26,11 +26,12 @@ func spawnTwoShapeBody(t *testing.T, w *cardinal.World) *cardinal.EntityID {
 		if state.Tick() != 0 {
 			return
 		}
-		id, row := state.Spawn.Create()
-		row.Tag.Set(harnessTag{Role: "lookup"})
-		row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 1, Y: 2}})
-		row.V.Set(physics.Velocity2D{})
-		row.PB.Set(newRigid(physics.BodyTypeStatic,
+		row := state.Spawn.Create()
+		id := row.ID()
+		row.Set(harnessTag{Role: "lookup"})
+		row.Set(physics.Transform2D{Position: physics.Vec2{X: 1, Y: 2}})
+		row.Set(physics.Velocity2D{})
+		row.Set(newRigid(physics.BodyTypeStatic,
 			physics.ColliderShape{
 				ShapeType:    physics.ShapeTypeBox,
 				HalfExtents:  physics.Vec2{X: 0.5, Y: 0.5},
@@ -93,7 +94,7 @@ func TestLookup_UnknownAndDestroyedEntity(t *testing.T) {
 		Spawn spawnArchetype
 	}) {
 		if state.Tick() == 5 {
-			require.True(t, state.Spawn.Destroy(*entityID), "Destroy(lookup entity)")
+			require.True(t, state.Entity(*entityID).Destroy(), "Destroy(lookup entity)")
 		}
 	}, cardinal.WithHook(cardinal.Update))
 

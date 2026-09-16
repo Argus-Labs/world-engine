@@ -739,11 +739,11 @@ type LobbySystemState struct {
 
 	// Entities
 	Lobbies cardinal.Contains[struct {
-		Lobby cardinal.Ref[component.LobbyComponent]
+		Lobby cardinal.WithComponent[component.LobbyComponent]
 	}]
 
 	Players cardinal.Contains[struct {
-		Player cardinal.Ref[component.PlayerComponent]
+		Player cardinal.WithComponent[component.PlayerComponent]
 	}]
 
 	// Events (Broadcast)
@@ -784,7 +784,7 @@ type lobbyLookupResult struct {
 	lobbyID  string
 	entityID cardinal.EntityID
 	lobby    component.LobbyComponent
-	lobbyRef cardinal.Ref[component.LobbyComponent]
+	lobbyRef cardinal.Entity
 }
 
 // getPlayerLobby looks up the lobby for a player and returns all relevant data.
@@ -793,7 +793,7 @@ func getPlayerLobby(
 	playerID string,
 	lobbyIndex *lookupIndex,
 	lobbies *cardinal.Contains[struct {
-		Lobby cardinal.Ref[component.LobbyComponent]
+		Lobby cardinal.WithComponent[component.LobbyComponent]
 	}],
 ) *lobbyLookupResult {
 	lobbyID, exists := lobbyIndex.GetPlayerLobby(playerID)
@@ -814,8 +814,8 @@ func getPlayerLobby(
 	return &lobbyLookupResult{
 		lobbyID:  lobbyID,
 		entityID: cardinal.EntityID(lobbyEntityID),
-		lobby:    lobbyEntity.Lobby.Get(),
-		lobbyRef: lobbyEntity.Lobby,
+		lobby:    lobbyEntity.Get[component.LobbyComponent](),
+		lobbyRef: lobbyEntity,
 	}
 }
 
@@ -833,12 +833,14 @@ func LobbySystem(state *LobbySystemState) {
 
 	if !indexBuilt {
 		var lobbies []lobbyRow
-		for eid, l := range state.Lobbies.Iter() {
-			lobbies = append(lobbies, lobbyRow{entityID: eid, lobby: l.Lobby.Get()})
+		for l := range state.Lobbies.Iter() {
+			eid := l.ID()
+			lobbies = append(lobbies, lobbyRow{entityID: eid, lobby: l.Get[component.LobbyComponent]()})
 		}
 		var players []playerRow
-		for eid, pl := range state.Players.Iter() {
-			players = append(players, playerRow{entityID: eid, player: pl.Player.Get()})
+		for pl := range state.Players.Iter() {
+			eid := pl.ID()
+			players = append(players, playerRow{entityID: eid, player: pl.Get[component.PlayerComponent]()})
 		}
 		rebuildIndex(lobbies, players, now, timeout)
 	}
@@ -924,7 +926,7 @@ func isLeaderInList(leaderID string, players []timedOutPlayer) bool {
 func playerTeamID(state *LobbySystemState, lobbyIndex *lookupIndex, playerID string) string {
 	if entityID, ok := lobbyIndex.GetPlayerEntityID(playerID); ok {
 		if entity, err := state.Players.GetByID(cardinal.EntityID(entityID)); err == nil {
-			return entity.Player.Get().TeamID
+			return entity.Get[component.PlayerComponent]().TeamID
 		}
 	}
 	teamID, _ := lobbyIndex.GetPlayerTeam(playerID)
@@ -990,8 +992,9 @@ func createPlayerEntity(
 		PassthroughData: passthroughData,
 		JoinedAt:        now,
 	}
-	playerEntityID, playerEntity := state.Players.Create()
-	playerEntity.Player.Set(playerComp)
+	playerEntity := state.Players.Create()
+	playerEntityID := playerEntity.ID()
+	playerEntity.Set(playerComp)
 	return playerComp, playerEntityID
 }
 
@@ -1024,7 +1027,7 @@ func processTimedOutLobby(
 		return nil, nil
 	}
 
-	lobby := lobbyEntity.Lobby.Get()
+	lobby := lobbyEntity.Get[component.LobbyComponent]()
 
 	// Remove each timed out player
 	for _, p := range players {
@@ -1074,7 +1077,7 @@ func processTimedOutLobby(
 		})
 	}
 
-	lobbyEntity.Lobby.Set(lobby)
+	lobbyEntity.Set(lobby)
 	return playerEntities, nil
 }
 
@@ -1223,7 +1226,7 @@ func areAllPlayersReady(
 		if err != nil {
 			return false
 		}
-		if !playerEntity.Player.Get().IsReady {
+		if !playerEntity.Get[component.PlayerComponent]().IsReady {
 			return false
 		}
 	}
@@ -1248,7 +1251,7 @@ func gatherLobbyPlayers(
 		if pErr != nil {
 			continue
 		}
-		playersList[count] = pEntity.Player.Get()
+		playersList[count] = pEntity.Get[component.PlayerComponent]()
 		count++
 	}
 	return playersList, count
@@ -1353,8 +1356,9 @@ func processCreateLobbyCommands(
 		}
 
 		// Create lobby entity
-		lobbyEntityID, lobbyEntity := state.Lobbies.Create()
-		lobbyEntity.Lobby.Set(lobby)
+		lobbyEntity := state.Lobbies.Create()
+		lobbyEntityID := lobbyEntity.ID()
+		lobbyEntity.Set(lobby)
 
 		// Create player entity and update index
 		playerComp, playerEntityID := createPlayerEntity(
@@ -1403,8 +1407,8 @@ func resolveInviteCode(
 	lobbyIndex *lookupIndex,
 	playerID string,
 	payload JoinLobbyCommand,
-) (string, cardinal.Ref[component.LobbyComponent], bool) {
-	var none cardinal.Ref[component.LobbyComponent]
+) (string, cardinal.Entity, bool) {
+	var none cardinal.Entity
 
 	lobbyID, exists := lobbyIndex.GetLobbyByInviteCode(payload.InviteCode)
 	if !exists {
@@ -1444,7 +1448,7 @@ func resolveInviteCode(
 		return "", none, false
 	}
 
-	return lobbyID, lobbyEntity.Lobby, true
+	return lobbyID, lobbyEntity, true
 }
 
 // admitToTeam runs the join guards that apply once the invite code has already resolved,
@@ -1537,7 +1541,7 @@ func processJoinLobbyCommands(
 		if !found {
 			continue
 		}
-		lobby := lobbyRef.Get()
+		lobby := lobbyRef.Get[component.LobbyComponent]()
 
 		targetTeam, admitted := admitToTeam(state, &lobby, lobbyID, playerID, payload)
 		if !admitted {
@@ -1651,9 +1655,9 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(playerID)
 		if exists {
 			if playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID)); err == nil {
-				playerComp = playerEntity.Player.Get()
+				playerComp = playerEntity.Get[component.PlayerComponent]()
 				playerComp.TeamID = newTeam.TeamID
-				playerEntity.Player.Set(playerComp)
+				playerEntity.Set(playerComp)
 			}
 		}
 
@@ -1706,7 +1710,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 		// Delete player entity
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(playerID)
 		if exists {
-			state.Players.Destroy(cardinal.EntityID(playerEntityID))
+			state.Entity(cardinal.EntityID(playerEntityID)).Destroy()
 		}
 
 		lobby.RemovePlayerFromTeam(playerID, teamID)
@@ -1733,7 +1737,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 		if lobbyIndex.GetLobbyPlayerCount(lobbyID) == 0 {
 			failPendingAssignment(&state.StartSessionResults, &lobby, "lobby deleted before shard assignment")
 			lobbyIndex.RemoveLobby(lobbyID, lobby.InviteCode)
-			state.Lobbies.Destroy(result.entityID)
+			state.Entity(result.entityID).Destroy()
 
 			// The code dies here: RemoveLobby drops it from the invite index. This is the
 			// end of the trace for that code, and the reason a later join is rejected.
@@ -1825,9 +1829,9 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 			})
 			continue
 		}
-		playerComp := playerEntity.Player.Get()
+		playerComp := playerEntity.Get[component.PlayerComponent]()
 		playerComp.IsReady = payload.IsReady
-		playerEntity.Player.Set(playerComp)
+		playerEntity.Set(playerComp)
 
 		state.Logger().Info().
 			Str("lobby_id", lobbyID).
@@ -1906,7 +1910,7 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 		// Delete player entity
 		targetPlayerEntityID, exists := lobbyIndex.GetPlayerEntityID(payload.TargetPlayerID)
 		if exists {
-			state.Players.Destroy(cardinal.EntityID(targetPlayerEntityID))
+			state.Entity(cardinal.EntityID(targetPlayerEntityID)).Destroy()
 		}
 
 		lobby.RemovePlayerFromTeam(payload.TargetPlayerID, targetTeamID)
@@ -2101,8 +2105,8 @@ func processAllocationTimeouts(
 	}
 	now := state.Timestamp().Unix()
 
-	for _, refs := range state.Lobbies.Iter() {
-		lob := refs.Lobby.Get()
+	for refs := range state.Lobbies.Iter() {
+		lob := refs.Get[component.LobbyComponent]()
 		if lob.Session.State != component.SessionStateAwaitingAllocation {
 			continue
 		}
@@ -2116,7 +2120,7 @@ func processAllocationTimeouts(
 			Int64("max_seconds", config.MaxAllocationTimeout).
 			Msg("allocation timeout: failing pending session-start")
 
-		abortAwaitingAllocation(&state.StartSessionResults, refs.Lobby, &lob, "shard assignment timed out")
+		abortAwaitingAllocation(&state.StartSessionResults, refs, &lob, "shard assignment timed out")
 	}
 }
 
@@ -2150,7 +2154,7 @@ func failPendingAssignment(
 // the exit protocol so no caller can forget a field.
 func abortAwaitingAllocation(
 	results *cardinal.WithEvent[StartSessionResult],
-	ref cardinal.Ref[component.LobbyComponent],
+	ref cardinal.Entity,
 	lobby *component.LobbyComponent,
 	reason string,
 ) {
@@ -2213,7 +2217,7 @@ func processAssignShardCommands(
 		if err != nil {
 			continue
 		}
-		lobby := lobbyEntity.Lobby.Get()
+		lobby := lobbyEntity.Get[component.LobbyComponent]()
 
 		if lobby.Session.State != component.SessionStateAwaitingAllocation {
 			state.Logger().Warn().
@@ -2247,7 +2251,7 @@ func processAssignShardCommands(
 			if reason == "" {
 				reason = "no game shard available"
 			}
-			abortAwaitingAllocation(&state.StartSessionResults, lobbyEntity.Lobby, &lobby, reason)
+			abortAwaitingAllocation(&state.StartSessionResults, lobbyEntity, &lobby, reason)
 			continue
 		}
 
@@ -2257,7 +2261,7 @@ func processAssignShardCommands(
 
 		lobby.GameWorld = payload.GameWorld
 		lobby.Session.State = component.SessionStateInSession
-		lobbyEntity.Lobby.Set(lobby)
+		lobbyEntity.Set(lobby)
 
 		state.Logger().Info().
 			Str("lobby_id", payload.LobbyID).
@@ -2295,7 +2299,7 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *lookup
 			continue
 		}
 
-		lobby := lobbyEntity.Lobby.Get()
+		lobby := lobbyEntity.Get[component.LobbyComponent]()
 
 		// If the lobby was awaiting allocation when NotifySessionEnd arrives,
 		// the session somehow ended before this shard ever assigned one.
@@ -2306,7 +2310,7 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *lookup
 				Str("lobby_id", payload.LobbyID).
 				Msg("NotifySessionEndCommand arrived while lobby was awaiting allocation; failing pending request")
 			abortAwaitingAllocation(
-				&state.StartSessionResults, lobbyEntity.Lobby, &lobby,
+				&state.StartSessionResults, lobbyEntity, &lobby,
 				"session ended before shard assignment completed",
 			)
 			continue
@@ -2322,7 +2326,7 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *lookup
 		}
 
 		lobby.Session.State = component.SessionStateIdle
-		lobbyEntity.Lobby.Set(lobby)
+		lobbyEntity.Set(lobby)
 
 		// Reset ready status for all player entities
 		for _, pid := range lobby.GetAllPlayerIDs() {
@@ -2334,9 +2338,9 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *lookup
 			if pErr != nil {
 				continue
 			}
-			playerComp := playerEntity.Player.Get()
+			playerComp := playerEntity.Get[component.PlayerComponent]()
 			playerComp.IsReady = false
-			playerEntity.Player.Set(playerComp)
+			playerEntity.Set(playerComp)
 
 			state.PlayerReadyEvents.Broadcast(PlayerReadyEvent{
 				LobbyID: payload.LobbyID,
@@ -2516,9 +2520,9 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 			continue
 		}
 
-		playerComp := playerEntity.Player.Get()
+		playerComp := playerEntity.Get[component.PlayerComponent]()
 		playerComp.PassthroughData = payload.PassthroughData
-		playerEntity.Player.Set(playerComp)
+		playerEntity.Set(playerComp)
 
 		state.Logger().Info().
 			Str("lobby_id", lobbyID).
@@ -2573,7 +2577,7 @@ func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex) 
 			continue
 		}
 
-		playerComp := playerEntity.Player.Get()
+		playerComp := playerEntity.Get[component.PlayerComponent]()
 
 		state.GetPlayerResults.Broadcast(GetPlayerResult{
 			RequestID: payload.RequestID,
@@ -2657,11 +2661,11 @@ type HeartbeatSystemState struct {
 
 	// Entities
 	Lobbies cardinal.Contains[struct {
-		Lobby cardinal.Ref[component.LobbyComponent]
+		Lobby cardinal.WithComponent[component.LobbyComponent]
 	}]
 
 	Players cardinal.Contains[struct {
-		Player cardinal.Ref[component.PlayerComponent]
+		Player cardinal.WithComponent[component.PlayerComponent]
 	}]
 
 	// Events
@@ -2725,13 +2729,13 @@ func HeartbeatSystem(state *HeartbeatSystemState) {
 
 	// Destroy player entities
 	for _, entityID := range playerEntitiesToDestroy {
-		state.Players.Destroy(entityID)
+		state.Entity(entityID).Destroy()
 	}
 
 	// Destroy empty lobbies
 	for _, toDestroy := range lobbiesToDestroy {
 		failPendingAssignment(&state.StartSessionResults, &toDestroy.lobby, "lobby deleted (timeout) before shard assignment")
-		state.Lobbies.Destroy(toDestroy.entityID)
+		state.Entity(toDestroy.entityID).Destroy()
 		state.Logger().Info().
 			Str("lobby_id", toDestroy.lobbyID).
 			Str("invite_code", toDestroy.lobby.InviteCode).

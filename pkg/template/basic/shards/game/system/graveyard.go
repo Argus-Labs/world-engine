@@ -10,13 +10,13 @@ import (
 type GraveyardSystemState struct {
 	cardinal.BaseSystemState
 	PlayerDeathSystemEvents cardinal.WithSystemEventReceiver[systemevent.PlayerDeath]
-	Graves                  GraveSearch
+	Graves                  GraveSearch // Registers Grave for Create[Grave].
 }
 
 func GraveyardSystem(state *GraveyardSystemState) {
 	for event := range state.PlayerDeathSystemEvents.Iter() {
-		_, entity := state.Graves.Create()
-		entity.Grave.Set(component.Gravestone{Nickname: event.Nickname})
+		entity := state.Create[Grave]()
+		entity.Set(component.Gravestone{Nickname: event.Nickname})
 
 		state.Logger().Info().Msgf("Created grave stone for player %s", event.Nickname)
 	}

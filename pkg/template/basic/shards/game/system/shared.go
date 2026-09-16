@@ -6,11 +6,15 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 )
 
-type PlayerSearch = cardinal.Exact[struct {
-	Tag    cardinal.Ref[component.PlayerTag]
-	Health cardinal.Ref[component.Health]
-}]
+type Player struct {
+	Tag    cardinal.WithComponent[component.PlayerTag]
+	Health cardinal.WithComponent[component.Health]
+}
 
-type GraveSearch = cardinal.Exact[struct {
-	Grave cardinal.Ref[component.Gravestone]
-}]
+type PlayerSearch = cardinal.Exact[Player]
+
+type Grave struct {
+	Grave cardinal.WithComponent[component.Gravestone]
+}
+
+type GraveSearch = cardinal.Exact[Grave]

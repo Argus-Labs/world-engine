@@ -6,12 +6,9 @@ import (
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 )
 
-// WritebackEntry holds the ECS refs needed to write Box2D results back to components.
+// WritebackEntry holds the entity needed to write Box2D results back to components.
 type WritebackEntry struct {
-	EntityID    cardinal.EntityID
-	Transform   cardinal.Ref[component.Transform2D]
-	Velocity    cardinal.Ref[component.Velocity2D]
-	PhysicsBody cardinal.Ref[component.PhysicsBody2D]
+	Entity cardinal.Entity
 }
 
 // WritebackFromStepResults reads post-step positions, rotations, velocities, and awake state
@@ -37,12 +34,12 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 
 	for i := range entries {
 		e := &entries[i]
-		bodyID, ok := rt.Bodies[e.EntityID]
+		bodyID, ok := rt.Bodies[e.Entity.ID()]
 		if !ok {
 			continue
 		}
 
-		pb := e.PhysicsBody.Get()
+		pb := e.Entity.Get[component.PhysicsBody2D]()
 		if pb.BodyType == component.BodyTypeStatic || pb.BodyType == component.BodyTypeManual {
 			continue
 		}
@@ -62,21 +59,21 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 			Angular: av,
 		}
 
-		e.Transform.Set(t)
-		e.Velocity.Set(v)
+		e.Entity.Set(t)
+		e.Entity.Set(v)
 		if pb.Active && pb.Awake != awake {
 			pb.Awake = awake
-			e.PhysicsBody.Set(pb)
+			e.Entity.Set(pb)
 		}
 
 		// Update shadow so ReconcileFromECS sees no diff for these fields next tick.
-		if shadow, exists := rt.Shadow[e.EntityID]; exists {
+		if shadow, exists := rt.Shadow[e.Entity.ID()]; exists {
 			shadow.Transform = t
 			shadow.Velocity = v
 			if pb.Active {
 				shadow.PhysicsBody.Awake = awake
 			}
-			rt.Shadow[e.EntityID] = shadow
+			rt.Shadow[e.Entity.ID()] = shadow
 		}
 	}
 }

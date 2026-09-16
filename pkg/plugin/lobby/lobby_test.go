@@ -17,7 +17,7 @@ import (
 type testOrchestratorState struct {
 	cardinal.BaseSystemState
 	Lobbies cardinal.Contains[struct {
-		Lobby cardinal.Ref[lobby.Component]
+		Lobby cardinal.WithComponent[lobby.Component]
 	}]
 }
 
@@ -28,8 +28,8 @@ func testOrchestratorSystem(state *testOrchestratorState) {
 		Project:      "project",
 		ShardID:      "lobby",
 	}
-	for _, refs := range state.Lobbies.Iter() {
-		lob := refs.Lobby.Get()
+	for refs := range state.Lobbies.Iter() {
+		lob := refs.Get[lobby.Component]()
 		if lob.Session.State != lobby.SessionStateAwaitingAllocation {
 			continue
 		}

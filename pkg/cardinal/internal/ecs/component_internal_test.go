@@ -245,3 +245,20 @@ func TestWorld_RegisterComponentRejectsNameCollision(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, testutils.SimpleComponent{Value: 7}, value)
 }
+
+func TestWorld_ConflictingComponentAccessPreservesData(t *testing.T) {
+	t.Parallel()
+	w := NewWorld()
+	_, err := w.RegisterComponent[testutils.SimpleComponent]()
+	require.NoError(t, err)
+	eid := w.Create()
+	require.NoError(t, w.Set(eid, testutils.SimpleComponent{Value: 42}))
+
+	require.ErrorIs(t, w.Remove[conflictingComponent](eid), ErrComponentNotFound)
+	assert.False(t, w.Has[conflictingComponent](eid))
+	_, err = w.Get[conflictingComponent](eid)
+	require.ErrorIs(t, err, ErrComponentNotFound)
+	value, err := w.Get[testutils.SimpleComponent](eid)
+	require.NoError(t, err)
+	assert.Equal(t, testutils.SimpleComponent{Value: 42}, value)
+}

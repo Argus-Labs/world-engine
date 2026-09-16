@@ -33,16 +33,16 @@ func (b contactEmitterBridge) EmitTriggerBegin(e physicevent.TriggerBeginEvent) 
 }
 func (b contactEmitterBridge) EmitTriggerEnd(e physicevent.TriggerEndEvent) { b.s.TriggerEnd.Emit(e) }
 
-// loadContactBaseline locates the physics singleton's ActiveContacts ref and
+// loadContactBaseline locates the physics singleton entity and
 // seeds the runtime's contact-dedupe baseline from it when the runtime has
 // none (e.g. right after a snapshot restore or Reset).
 func loadContactBaseline(
 	rt *internal.Runtime, state *PhysicsPipelineSystemState,
-) (cardinal.Ref[physicscomp.ActiveContacts], bool) {
-	var acRef cardinal.Ref[physicscomp.ActiveContacts]
+) (cardinal.Entity, bool) {
+	var acRef cardinal.Entity
 	singletonFound := false
-	for _, row := range state.Singleton.Iter() {
-		acRef = row.ActiveContacts
+	for row := range state.Singleton.Iter() {
+		acRef = row
 		singletonFound = true
 		break
 	}
@@ -57,7 +57,7 @@ func loadContactBaseline(
 	}
 
 	if rt.ActiveContacts == nil {
-		rt.LoadActiveContactsFromComponent(acRef.Get())
+		rt.LoadActiveContactsFromComponent(acRef.Get[physicscomp.ActiveContacts]())
 	}
 	return acRef, true
 }
@@ -73,7 +73,7 @@ func loadContactBaseline(
 //  3. Writeback: sync Box2D -> ECS (write post-step positions/velocities back to components)
 func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemState) {
 	// Both per-tick gather buffers live on the Runtime, not in this closure: they hold
-	// component values and cardinal.Refs, so Reset() has to be able to drop them and each
+	// component values and entity handles, so Reset() has to be able to drop them and each
 	// gather has to clear the tail past its new length (the Keep* helpers do that). Systems
 	// for one world run sequentially, so the runtime-owned scratch is never shared.
 	return func(state *PhysicsPipelineSystemState) {
@@ -106,12 +106,9 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 
 		// --- 3. Writeback (Box2D -> ECS) ---
 		wb := rt.WritebackScratch()
-		for eid, row := range state.Bodies.Iter() {
+		for row := range state.Bodies.Iter() {
 			wb = append(wb, internal.WritebackEntry{
-				EntityID:    eid,
-				Transform:   row.Transform,
-				Velocity:    row.Velocity,
-				PhysicsBody: row.PhysicsBody,
+				Entity: row,
 			})
 		}
 		rt.WritebackFromStepResults(rt.KeepWritebackScratch(wb))

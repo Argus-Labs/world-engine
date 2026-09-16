@@ -7,6 +7,6 @@ import (
 )
 
 type ChatSearch = cardinal.Exact[struct {
-	UserTag cardinal.Ref[component.UserTag]
-	Chat    cardinal.Ref[component.Chat]
+	UserTag cardinal.WithComponent[component.UserTag]
+	Chat    cardinal.WithComponent[component.Chat]
 }]

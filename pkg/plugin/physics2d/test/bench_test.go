@@ -90,11 +90,11 @@ func stepBenchScene(b *testing.B, n, workers int) {
 			return
 		}
 		// Static floor.
-		_, row := state.Spawn.Create()
-		row.Tag.Set(harnessTag{Role: "floor"})
-		row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
-		row.V.Set(physics.Velocity2D{})
-		row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
+		row := state.Spawn.Create()
+		row.Set(harnessTag{Role: "floor"})
+		row.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
+		row.Set(physics.Velocity2D{})
+		row.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
 			ShapeType:    physics.ShapeTypeBox,
 			HalfExtents:  physics.Vec2{X: 200, Y: 1},
 			Friction:     0.5,
@@ -110,11 +110,11 @@ func stepBenchScene(b *testing.B, n, workers int) {
 			x := float64(col)*2.0 - float64(cols)
 			y := float64(rowIdx)*2.0 + 5.0
 
-			_, r := state.Spawn.Create()
-			r.Tag.Set(harnessTag{Role: "ball"})
-			r.T.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
-			r.V.Set(physics.Velocity2D{})
-			r.PB.Set(newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
+			r := state.Spawn.Create()
+			r.Set(harnessTag{Role: "ball"})
+			r.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
+			r.Set(physics.Velocity2D{})
+			r.Set(newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
 				ShapeType:    physics.ShapeTypeCircle,
 				Radius:       0.5,
 				Density:      1,
@@ -250,11 +250,11 @@ func gridSpawnSystem(count int) func(state *struct {
 			x := float64(col)*spacing - float64(cols)*spacing/2
 			y := float64(rowIdx)*spacing - float64(cols)*spacing/2
 
-			_, r := state.Spawn.Create()
-			r.Tag.Set(harnessTag{Role: "grid"})
-			r.T.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
-			r.V.Set(physics.Velocity2D{})
-			r.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
+			r := state.Spawn.Create()
+			r.Set(harnessTag{Role: "grid"})
+			r.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
+			r.Set(physics.Velocity2D{})
+			r.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
 				ShapeType:    physics.ShapeTypeCircle,
 				Radius:       1.0,
 				Friction:     0.3,

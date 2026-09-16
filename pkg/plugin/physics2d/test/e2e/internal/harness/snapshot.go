@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"unsafe"
 
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/probe"
+
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
@@ -34,8 +36,8 @@ type CaptureRow struct {
 // if it does not survive a restore the rebuilt world replays every existing
 // overlap as a new contact.
 type SingletonRow struct {
-	Tag            cardinal.Ref[physics.PhysicsSingletonTag]
-	ActiveContacts cardinal.Ref[physics.ActiveContacts]
+	Tag            cardinal.WithComponent[physics.PhysicsSingletonTag]
+	ActiveContacts cardinal.WithComponent[physics.ActiveContacts]
 }
 
 // Capture is every body in a world, keyed by its probe label, plus the plugin's
@@ -82,21 +84,22 @@ type postCaptureState struct {
 // struct keeps that tick's state even as later ticks overwrite the field.
 func capture(probes *Probes, singleton *cardinal.Contains[SingletonRow], into *Capture) {
 	rows := make(map[string]CaptureRow, len(into.Rows))
-	for eid, row := range probes.Iter() {
-		p := row.Probe.Get()
+	for row := range probes.Iter() {
+		eid := row.ID()
+		p := row.Get[probe.Probe]()
 		rows[p.Label] = CaptureRow{
 			Entity:    eid,
-			Transform: row.Transform.Get(),
-			Velocity:  row.Velocity.Get(),
-			Body:      CloneBody(row.Body.Get()),
+			Transform: row.Get[physics.Transform2D](),
+			Velocity:  row.Get[physics.Velocity2D](),
+			Body:      CloneBody(row.Get[physics.PhysicsBody2D]()),
 		}
 	}
 
 	var pairs []physics.ContactPairEntry
 	count := 0
-	for _, row := range singleton.Iter() {
+	for row := range singleton.Iter() {
 		count++
-		pairs = slices.AppendSeq(pairs, row.ActiveContacts.Get().Pairs.Values())
+		pairs = slices.AppendSeq(pairs, row.Get[physics.ActiveContacts]().Pairs.Values())
 	}
 	// Entry order is an implementation detail of the plugin's map iteration, so
 	// sort before comparing two worlds.

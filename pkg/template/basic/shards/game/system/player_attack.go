@@ -28,22 +28,23 @@ type AttackPlayerSystemState struct {
 func AttackPlayerSystem(state *AttackPlayerSystemState) {
 	for cmd := range state.AttackPlayerCommands.Iter() {
 		command := cmd.Payload
-		for entity, player := range state.Players.Iter() {
-			tag := player.Tag.Get()
+		for player := range state.Players.Iter() {
+			entity := player.ID()
+			tag := player.Get[component.PlayerTag]()
 
 			if command.Target != tag.Nickname {
 				continue
 			}
 
-			newHealth := player.Health.Get().HP - int(command.Damage)
+			newHealth := player.Get[component.Health]().HP - int(command.Damage)
 			if newHealth > 0 {
-				player.Health.Set(component.Health{HP: newHealth})
+				player.Set(component.Health{HP: newHealth})
 
 				state.Logger().Info().
 					Uint32("entity", uint32(entity)).
 					Msgf("Player %s received %d damage", command.Target, command.Damage)
 			} else {
-				state.Players.Destroy(entity)
+				player.Destroy()
 
 				state.PlayerDeathEvents.SendTo(cmd.Persona, event.PlayerDeath{Nickname: tag.Nickname})
 

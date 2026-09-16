@@ -9,9 +9,9 @@ import (
 )
 
 type PlayerSearch = cardinal.Exact[struct {
-	Tag      cardinal.Ref[component.PlayerTag]
-	Position cardinal.Ref[component.Position]
-	Online   cardinal.Ref[component.OnlineStatus]
+	Tag      cardinal.WithComponent[component.PlayerTag]
+	Position cardinal.WithComponent[component.Position]
+	Online   cardinal.WithComponent[component.OnlineStatus]
 }]
 
 // PlayerSet manages a thread-safe set of player IDs.
