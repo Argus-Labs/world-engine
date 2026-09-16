@@ -38,12 +38,25 @@ The old API did not expose Has on entity references or generic Create on system
 state. Their baseline measurements use the equivalent internal ECS Has and search
 Create operations. Other baseline adapters change only component-access syntax.
 
+## Entity-only search follow-up
+
+Creation and query iteration now return only `Entity`, filter callbacks accept only
+`Entity`, and `Single` returns `(Entity, error)`. Six alternating 100 ms samples
+against isolated builds of the pair-returning handle implementation showed unchanged
+Get, Set, creation, and lookup timings within noise. Iterating 100 entities with one
+component measured 2.0% slower (211.6 to 215.8 ns total); the five- and ten-component
+fixtures showed no significant change. Direct operations and iteration remain allocation-free.
+The composed query still allocates four objects, but uses **84 B instead of 100 B**.
+The tables above record the original migration comparison; this follow-up measures
+only the removal of the separate returned ID. The benchmark script was also rebuilt
+and smoke-tested against the pre-handle baseline with the updated API adapter.
+
 ## Remaining allocations
 
 The API is not allocation-free everywhere:
 
 - Function-valued `Filter(...).Limit(...).Single()` still allocates four objects,
-  totaling 100 B in this fixture. Its callbacks and captured mutable state can escape.
+  totaling 84 B after the Entity-only follow-up. Its callbacks and captured mutable state can escape.
 - Removing and re-adding a component still allocates four objects, totaling 64 B
   in this fixture, while changing archetypes.
 - Growing world storage, new archetypes, component-owned payloads, and error/panic

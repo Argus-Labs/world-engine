@@ -19,7 +19,8 @@ type OnlineStatusUpdaterState struct {
 }
 
 func OnlineStatusUpdater(state *OnlineStatusUpdaterState) {
-	for entity, player := range state.Players.Iter() {
+	for player := range state.Players.Iter() {
+		entity := player.ID()
 		isOnline := player.Get[component.OnlineStatus]().Online
 		lastActive := player.Get[component.OnlineStatus]().LastActive
 

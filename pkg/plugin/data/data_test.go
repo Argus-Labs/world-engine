@@ -202,7 +202,7 @@ func TestPlugin_ManifestComponentOnFreshWorld(t *testing.T) {
 	var observed component.ConfigManifest
 	var observeErr error
 	w.RegisterSystem(func(state *manifestObserverState) {
-		_, ent, err := state.Manifest.Iter().Single()
+		ent, err := state.Manifest.Iter().Single()
 		observeErr = err
 		if err == nil {
 			observed = ent.Get[component.ConfigManifest]()
@@ -243,13 +243,13 @@ func TestPlugin_ReconcileReFetchesChangedFileAtSnapshotHash(t *testing.T) {
 
 	// Pre-seed at Init: a ConfigManifest referencing the OLD hash, as if restored from a snapshot.
 	w.RegisterSystem(func(state *manifestPreseedState) {
-		_, ent := state.Manifest.Create()
+		ent := state.Manifest.Create()
 		ent.Set(abilitiesManifest(h1))
 	}, cardinal.WithHook(cardinal.Init))
 
 	var observed component.ConfigManifest
 	w.RegisterSystem(func(state *manifestObserverState) {
-		_, ent, err := state.Manifest.Iter().Single()
+		ent, err := state.Manifest.Iter().Single()
 		if err == nil {
 			observed = ent.Get[component.ConfigManifest]()
 		}
@@ -283,13 +283,13 @@ func TestPlugin_EmbedMismatchWarnsAndKeepsCurrent(t *testing.T) {
 	// regardless of requested hash → gotHash != requested → warn path).
 	const staleHash = "0000000000000000000000000000000000000000000000000000000000000000"
 	w.RegisterSystem(func(state *manifestPreseedState) {
-		_, ent := state.Manifest.Create()
+		ent := state.Manifest.Create()
 		ent.Set(abilitiesManifest(staleHash))
 	}, cardinal.WithHook(cardinal.Init))
 
 	var observed component.ConfigManifest
 	w.RegisterSystem(func(state *manifestObserverState) {
-		_, ent, err := state.Manifest.Iter().Single()
+		ent, err := state.Manifest.Iter().Single()
 		if err == nil {
 			observed = ent.Get[component.ConfigManifest]()
 		}
@@ -326,7 +326,7 @@ func TestPlugin_ReconcileFailurePanicsOnVersionedSource(t *testing.T) {
 
 	const missingHash = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 	w.RegisterSystem(func(state *manifestPreseedState) {
-		_, ent := state.Manifest.Create()
+		ent := state.Manifest.Create()
 		ent.Set(abilitiesManifest(missingHash))
 	}, cardinal.WithHook(cardinal.Init))
 
@@ -356,7 +356,7 @@ func TestPlugin_ReconcileDuplicatePathPanics(t *testing.T) {
 	w.RegisterPlugin(plugin)
 
 	w.RegisterSystem(func(state *manifestPreseedState) {
-		_, ent := state.Manifest.Create()
+		ent := state.Manifest.Create()
 		ent.Set(component.ConfigManifest{Files: immutable.SliceOf(
 			component.ConfigFileHash{Path: "testdata/abilities.json", Hash: h1},
 			component.ConfigFileHash{Path: "testdata/abilities.json", Hash: h2},

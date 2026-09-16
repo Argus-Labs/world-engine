@@ -94,7 +94,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			mustInitSystemFields(b, w, state)
 
 			b.StartTimer()
-			_, entity := state.Entities.Create()
+			entity := state.Entities.Create()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			b.StopTimer()
 		}
@@ -107,11 +107,11 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			state := &entityState1{}
 			mustInitSystemFields(b, w, state)
 
-			_, warmup := state.Entities.Create()
+			warmup := state.Entities.Create()
 			warmup.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 
 			b.StartTimer()
-			_, entity := state.Entities.Create()
+			entity := state.Entities.Create()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			b.StopTimer()
 		}
@@ -125,7 +125,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			mustInitSystemFields(b, w, state)
 
 			b.StartTimer()
-			_, entity := state.Entities.Create()
+			entity := state.Entities.Create()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
@@ -142,7 +142,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			state := &entityState5{}
 			mustInitSystemFields(b, w, state)
 
-			_, warmup := state.Entities.Create()
+			warmup := state.Entities.Create()
 			warmup.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			warmup.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			warmup.Set(Health2{Current: 100, Max: 100})
@@ -150,7 +150,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			warmup.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
 
 			b.StartTimer()
-			_, entity := state.Entities.Create()
+			entity := state.Entities.Create()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
@@ -168,7 +168,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			mustInitSystemFields(b, w, state)
 
 			b.StartTimer()
-			_, entity := state.Entities.Create()
+			entity := state.Entities.Create()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
@@ -191,7 +191,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			state := &entityState10{}
 			mustInitSystemFields(b, w, state)
 
-			_, warmup := state.Entities.Create()
+			warmup := state.Entities.Create()
 			warmup.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			warmup.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			warmup.Set(Health2{Current: 100, Max: 100})
@@ -205,7 +205,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 				NetworkSync{PlayerID: "player1", LastUpdate: 0, SyncRate: 30.0, IsDirty: false, Interpolate: true})
 
 			b.StartTimer()
-			_, entity := state.Entities.Create()
+			entity := state.Entities.Create()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
@@ -230,7 +230,7 @@ func BenchmarkCardinal_Entity_Destroy(b *testing.B) {
 			state := &entityState1{}
 			mustInitSystemFields(b, w, state)
 
-			_, entity := state.Entities.Create()
+			entity := state.Entities.Create()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 
 			b.StartTimer()
@@ -246,7 +246,7 @@ func BenchmarkCardinal_Entity_Destroy(b *testing.B) {
 			state := &entityState5{}
 			mustInitSystemFields(b, w, state)
 
-			_, entity := state.Entities.Create()
+			entity := state.Entities.Create()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
@@ -266,7 +266,7 @@ func BenchmarkCardinal_Entity_Destroy(b *testing.B) {
 			state := &entityState10{}
 			mustInitSystemFields(b, w, state)
 
-			_, entity := state.Entities.Create()
+			entity := state.Entities.Create()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
@@ -294,7 +294,7 @@ func BenchmarkCardinal_Component_Set(b *testing.B) {
 			state := &entityState2{}
 			mustInitSystemFields(b, w, state)
 
-			_, entity := state.Entities.Create()
+			entity := state.Entities.Create()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 
@@ -317,7 +317,9 @@ func BenchmarkCardinal_Component_Set(b *testing.B) {
 			}{}
 			mustInitSystemFields(b, w, state)
 
-			eid, entity := state.PositionOnly.Create()
+			entity := state.PositionOnly.Create()
+
+			eid := entity.ID()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 
 			b.StartTimer()
@@ -335,7 +337,7 @@ func BenchmarkCardinal_Component_Remove(b *testing.B) {
 			state := &entityState1{}
 			mustInitSystemFields(b, w, state)
 
-			_, entity := state.Entities.Create()
+			entity := state.Entities.Create()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 
 			b.StartTimer()
@@ -351,7 +353,7 @@ func BenchmarkCardinal_Component_Remove(b *testing.B) {
 			state := &entityState5{}
 			mustInitSystemFields(b, w, state)
 
-			_, entity := state.Entities.Create()
+			entity := state.Entities.Create()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
@@ -373,7 +375,7 @@ func BenchmarkCardinal_Component_Get(b *testing.B) {
 			state := &entityState1{}
 			mustInitSystemFields(b, w, state)
 
-			_, entity := state.Entities.Create()
+			entity := state.Entities.Create()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 
 			b.StartTimer()
@@ -389,7 +391,7 @@ func BenchmarkCardinal_Component_Get(b *testing.B) {
 			state := &entityState5{}
 			mustInitSystemFields(b, w, state)
 
-			_, entity := state.Entities.Create()
+			entity := state.Entities.Create()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
@@ -415,12 +417,12 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			mustInitSystemFields(b, w, state)
 
 			for j := 0; j < 100; j++ {
-				_, entity := state.Creator.Create()
+				entity := state.Creator.Create()
 				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 			}
 
 			b.StartTimer()
-			for _, result := range state.Query.Iter() {
+			for result := range state.Query.Iter() {
 				_ = result
 			}
 			b.StopTimer()
@@ -450,7 +452,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			mustInitSystemFields(b, w, state)
 
 			for j := 0; j < 100; j++ {
-				_, entity := state.Creator.Create()
+				entity := state.Creator.Create()
 				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Health2{Current: j, Max: 100})
@@ -459,7 +461,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			}
 
 			b.StartTimer()
-			for _, result := range state.Query.Iter() {
+			for result := range state.Query.Iter() {
 				_ = result
 			}
 			b.StopTimer()
@@ -499,7 +501,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			mustInitSystemFields(b, w, state)
 
 			for j := 0; j < 100; j++ {
-				_, entity := state.Creator.Create()
+				entity := state.Creator.Create()
 				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Health2{Current: j, Max: 100})
@@ -516,7 +518,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			}
 
 			b.StartTimer()
-			for _, result := range state.Query.Iter() {
+			for result := range state.Query.Iter() {
 				_ = result
 			}
 			b.StopTimer()
@@ -534,12 +536,12 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			mustInitSystemFields(b, w, state)
 
 			for j := 0; j < 100; j++ {
-				_, entity := state.Creator.Create()
+				entity := state.Creator.Create()
 				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 			}
 
 			b.StartTimer()
-			for _, result := range state.Query.Iter() {
+			for result := range state.Query.Iter() {
 				_ = result
 			}
 			b.StopTimer()
@@ -567,7 +569,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			mustInitSystemFields(b, w, state)
 
 			for j := 0; j < 100; j++ {
-				_, entity := state.Creator.Create()
+				entity := state.Creator.Create()
 				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Health2{Current: j, Max: 100})
@@ -576,7 +578,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			}
 
 			b.StartTimer()
-			for _, result := range state.Query.Iter() {
+			for result := range state.Query.Iter() {
 				_ = result
 			}
 			b.StopTimer()
@@ -612,7 +614,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			mustInitSystemFields(b, w, state)
 
 			for j := 0; j < 100; j++ {
-				_, entity := state.Creator.Create()
+				entity := state.Creator.Create()
 				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Health2{Current: j, Max: 100})
@@ -629,7 +631,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			}
 
 			b.StartTimer()
-			for _, result := range state.Query.Iter() {
+			for result := range state.Query.Iter() {
 				_ = result
 			}
 			b.StopTimer()
@@ -679,14 +681,14 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 
 			w.RegisterSystem(func(state *getSetSystemState1) {
 				for j := 0; j < 100; j++ {
-					_, entity := state.Entities.Create()
+					entity := state.Entities.Create()
 					entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				}
 			}, WithHook(Init))
 
 			w.RegisterSystem(func(state *getSetSystemState1) {
 				b.StartTimer()
-				for _, entity := range state.Entities.Iter() {
+				for entity := range state.Entities.Iter() {
 					pos := entity.Get[Position3D]()
 					pos.X += 1.0
 					entity.Set(pos)
@@ -707,7 +709,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 
 			w.RegisterSystem(func(state *getSetSystemState5) {
 				for j := 0; j < 100; j++ {
-					_, entity := state.Entities.Create()
+					entity := state.Entities.Create()
 					entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 					entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
 					entity.Set(Health2{Current: j, Max: 100})
@@ -718,7 +720,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 
 			w.RegisterSystem(func(state *getSetSystemState5) {
 				b.StartTimer()
-				for _, entity := range state.Entities.Iter() {
+				for entity := range state.Entities.Iter() {
 					pos := entity.Get[Position3D]()
 					vel := entity.Get[Velocity3D]()
 					vel.X = pos.X * 0.1
@@ -741,7 +743,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 
 			w.RegisterSystem(func(state *getSetSystemState10) {
 				for j := 0; j < 100; j++ {
-					_, entity := state.Entities.Create()
+					entity := state.Entities.Create()
 					entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 					entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
 					entity.Set(Health2{Current: j, Max: 100})
@@ -760,7 +762,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 
 			w.RegisterSystem(func(state *getSetSystemState10) {
 				b.StartTimer()
-				for _, entity := range state.Entities.Iter() {
+				for entity := range state.Entities.Iter() {
 					pos := entity.Get[Position3D]()
 					health := entity.Get[Health2]()
 

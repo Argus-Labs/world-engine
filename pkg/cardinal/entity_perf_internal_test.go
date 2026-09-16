@@ -25,7 +25,7 @@ func newPerfEntityState(t testing.TB) *perfEntityState {
 func BenchmarkEntityOperations(b *testing.B) {
 	b.Run("AddRemove", func(b *testing.B) {
 		state := newPerfEntityState(b)
-		_, entity := state.Entities.Create()
+		entity := state.Entities.Create()
 		b.ReportAllocs()
 		for b.Loop() {
 			entity.Remove[Velocity3D]()
@@ -37,21 +37,22 @@ func BenchmarkEntityOperations(b *testing.B) {
 	})
 	b.Run("FilterLimitSingle", func(b *testing.B) {
 		state := newPerfEntityState(b)
-		id, entity := state.Entities.Create()
+		entity := state.Entities.Create()
+		id := entity.ID()
 		entity.Set(Position3D{X: 1})
 		b.ReportAllocs()
 		for b.Loop() {
-			foundID, found, err := state.Entities.Iter().Filter(func(_ EntityID, e Entity) bool {
+			found, err := state.Entities.Iter().Filter(func(e Entity) bool {
 				return e.Get[Position3D]().X == 1
 			}).Limit(1).Single()
-			if err != nil || foundID != id || found.Get[Position3D]().X != 1 {
+			if err != nil || found.ID() != id || found.Get[Position3D]().X != 1 {
 				b.Fatal("query returned an unexpected result")
 			}
 		}
 	})
 	b.Run("Get", func(b *testing.B) {
 		state := newPerfEntityState(b)
-		_, entity := state.Entities.Create()
+		entity := state.Entities.Create()
 		entity.Set(Position3D{X: 1})
 		var value Position3D
 		b.ReportAllocs()
@@ -64,7 +65,7 @@ func BenchmarkEntityOperations(b *testing.B) {
 	})
 	b.Run("Set", func(b *testing.B) {
 		state := newPerfEntityState(b)
-		_, entity := state.Entities.Create()
+		entity := state.Entities.Create()
 		b.ReportAllocs()
 		for b.Loop() {
 			entity.Set(Position3D{X: 1})
@@ -75,7 +76,7 @@ func BenchmarkEntityOperations(b *testing.B) {
 	})
 	b.Run("HasPresent", func(b *testing.B) {
 		state := newPerfEntityState(b)
-		_, entity := state.Entities.Create()
+		entity := state.Entities.Create()
 		b.ReportAllocs()
 		for b.Loop() {
 			if !entity.Has[Position3D]() {
@@ -85,7 +86,7 @@ func BenchmarkEntityOperations(b *testing.B) {
 	})
 	b.Run("HasAbsent", func(b *testing.B) {
 		state := newPerfEntityState(b)
-		_, entity := state.Entities.Create()
+		entity := state.Entities.Create()
 		b.ReportAllocs()
 		for b.Loop() {
 			if entity.Has[Inventory]() {
@@ -95,7 +96,7 @@ func BenchmarkEntityOperations(b *testing.B) {
 	})
 	b.Run("HasUnregistered", func(b *testing.B) {
 		state := newPerfEntityState(b)
-		_, entity := state.Entities.Create()
+		entity := state.Entities.Create()
 		b.ReportAllocs()
 		for b.Loop() {
 			if entity.Has[NetworkSync]() {
@@ -115,7 +116,8 @@ func BenchmarkEntityOperations(b *testing.B) {
 	})
 	b.Run("LookupGet", func(b *testing.B) {
 		state := newPerfEntityState(b)
-		id, entity := state.Entities.Create()
+		entity := state.Entities.Create()
+		id := entity.ID()
 		entity.Set(Position3D{X: 1})
 		b.ReportAllocs()
 		for b.Loop() {
@@ -127,11 +129,11 @@ func BenchmarkEntityOperations(b *testing.B) {
 	})
 	b.Run("CreateDestroy", func(b *testing.B) {
 		state := newPerfEntityState(b)
-		_, warmup := state.Entities.Create()
+		warmup := state.Entities.Create()
 		warmup.Destroy()
 		b.ReportAllocs()
 		for b.Loop() {
-			_, entity := state.Entities.Create()
+			entity := state.Entities.Create()
 			if !entity.Destroy() {
 				b.Fatal("entity was not destroyed")
 			}
@@ -139,7 +141,7 @@ func BenchmarkEntityOperations(b *testing.B) {
 	})
 	b.Run("GenericCreateDestroy", func(b *testing.B) {
 		state := newPerfEntityState(b)
-		_, warmup := state.Entities.Create()
+		warmup := state.Entities.Create()
 		warmup.Destroy()
 		b.ReportAllocs()
 		for b.Loop() {
@@ -162,7 +164,7 @@ func benchmarkEntityIteration[T any](b *testing.B) {
 	for b.Loop() {
 		var sum EntityID
 		for id := range state.Entities.Iter() {
-			sum += id
+			sum += id.ID()
 		}
 		if sum != 4950 {
 			b.Fatal("iteration missed an entity")
@@ -204,7 +206,8 @@ func BenchmarkEntityRegistration(b *testing.B) {
 // Storage growth and component payload allocations are intentionally outside this contract.
 func TestEntity_SteadyStateAllocations(t *testing.T) {
 	state := newPerfEntityState(t)
-	id, entity := state.Entities.Create()
+	entity := state.Entities.Create()
+	id := entity.ID()
 	entity.Set(Position3D{X: 42})
 	missing := state.Entity(999)
 	cases := []struct {
@@ -227,7 +230,7 @@ func TestEntity_SteadyStateAllocations(t *testing.T) {
 		}},
 		{"Iterate", func() bool {
 			count := 0
-			for _, found := range state.Entities.Iter() {
+			for found := range state.Entities.Iter() {
 				if found.Get[Position3D]().X != 42 {
 					return false
 				}
@@ -258,10 +261,10 @@ func TestEntity_SteadyStateAllocations(t *testing.T) {
 // than hiding those allocations behind the zero-allocation direct-operation tests.
 func TestEntity_QueryCompositionAllocations(t *testing.T) {
 	state := newPerfEntityState(t)
-	id, _ := state.Entities.Create()
+	id := state.Entities.Create().ID()
 	ok := true
 	allocs := testing.AllocsPerRun(100, func() {
-		_, found, err := state.Entities.Iter().Filter(func(_ EntityID, e Entity) bool {
+		found, err := state.Entities.Iter().Filter(func(e Entity) bool {
 			return e.Has[Position3D]()
 		}).Limit(1).Single()
 		ok = ok && err == nil && found.ID() == id

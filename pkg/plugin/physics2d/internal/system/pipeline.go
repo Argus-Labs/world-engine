@@ -41,7 +41,7 @@ func loadContactBaseline(
 ) (cardinal.Entity, bool) {
 	var acRef cardinal.Entity
 	singletonFound := false
-	for _, row := range state.Singleton.Iter() {
+	for row := range state.Singleton.Iter() {
 		acRef = row
 		singletonFound = true
 		break
@@ -106,7 +106,7 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 
 		// --- 3. Writeback (Box2D -> ECS) ---
 		wb := rt.WritebackScratch()
-		for _, row := range state.Bodies.Iter() {
+		for row := range state.Bodies.Iter() {
 			wb = append(wb, internal.WritebackEntry{
 				Entity: row,
 			})

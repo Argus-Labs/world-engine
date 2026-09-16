@@ -23,13 +23,15 @@ func spawnBallAndFloor(w *cardinal.World, x float64, ballID *cardinal.EntityID) 
 		if state.Tick() != 0 {
 			return
 		}
-		_, floor := state.Spawn.Create()
+		floor := state.Spawn.Create()
 		floor.Set(harnessTag{Role: "floor"})
 		floor.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: 0}})
 		floor.Set(physics.Velocity2D{})
 		floor.Set(newRigid(physics.BodyTypeStatic, boxColliderShapes(10, 0.5)...))
 
-		id, ball := state.Spawn.Create()
+		ball := state.Spawn.Create()
+
+		id := ball.ID()
 		ball.Set(harnessTag{Role: "ball"})
 		ball.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: 5}})
 		ball.Set(physics.Velocity2D{})
@@ -45,7 +47,7 @@ func trackBallY(w *cardinal.World, out *float64) {
 		cardinal.BaseSystemState
 		Spawn spawnArchetype
 	}) {
-		for _, row := range state.Spawn.Iter() {
+		for row := range state.Spawn.Iter() {
 			if row.Get[harnessTag]().Role == "ball" {
 				*out = row.Get[physics.Transform2D]().Position.Y
 			}

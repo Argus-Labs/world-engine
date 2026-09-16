@@ -28,7 +28,8 @@ type AttackPlayerSystemState struct {
 func AttackPlayerSystem(state *AttackPlayerSystemState) {
 	for cmd := range state.AttackPlayerCommands.Iter() {
 		command := cmd.Payload
-		for entity, player := range state.Players.Iter() {
+		for player := range state.Players.Iter() {
+			entity := player.ID()
 			tag := player.Get[component.PlayerTag]()
 
 			if command.Target != tag.Nickname {

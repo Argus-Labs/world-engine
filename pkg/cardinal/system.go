@@ -554,26 +554,25 @@ func (s *search[T]) getByID(eid EntityID, match ecs.SearchMatch) (Entity, error)
 }
 
 func (s *search[T]) iter(match ecs.SearchMatch) SearchResult {
-	return func(yield func(EntityID, Entity) bool) {
+	return func(yield func(Entity) bool) {
 		err := s.world.IterEntities(s.components, match, func(eid EntityID) bool {
-			return yield(eid, Entity{world: s.world, id: eid})
+			return yield(Entity{world: s.world, id: eid})
 		})
 		assert.That(err == nil, "invalid arguments sent to IterEntities")
 	}
 }
 
-// Create returns the ID and handle of a new entity with exactly the components
-// declared in T, initialized to zero. BaseSystemState.Create[T] returns just the handle.
-func (s *search[T]) Create() (EntityID, Entity) {
+// Create returns a new entity with the components declared in T, initialized to zero.
+func (s *search[T]) Create() Entity {
 	eid := s.world.CreateWithArchetype(s.components)
-	return eid, Entity{world: s.world, id: eid}
+	return Entity{world: s.world, id: eid}
 }
 
 // Contains matches entities with all components declared in T, allowing extras.
 // T is a struct of WithComponent[C] fields, registered before the world starts.
 type Contains[T any] struct{ search[T] }
 
-// Iter yields each matching entity's numeric ID and world-bound handle.
+// Iter yields each matching entity as a world-bound handle.
 func (c *Contains[T]) Iter() SearchResult { return c.iter(ecs.MatchContains) }
 
 // GetByID returns a handle if the entity contains every declared component.
@@ -585,7 +584,7 @@ func (c *Contains[T]) GetByID(eid EntityID) (Entity, error) {
 // T is a struct of WithComponent[C] fields, registered before the world starts.
 type Exact[T any] struct{ search[T] }
 
-// Iter yields each matching entity's numeric ID and world-bound handle.
+// Iter yields each matching entity as a world-bound handle.
 func (c *Exact[T]) Iter() SearchResult { return c.iter(ecs.MatchExact) }
 
 // GetByID returns a handle if the entity has exactly the declared components.
@@ -602,56 +601,55 @@ var (
 	ErrSingleMultipleResult = eris.New("expected exactly 1 result, got more than 1")
 )
 
-// SearchResult is a chainable iterator over key-value pairs.
-type SearchResult func(yield func(EntityID, Entity) bool)
+// SearchResult is a chainable iterator over entities.
+type SearchResult func(yield func(Entity) bool)
 
 // Filter returns a new iterator that only yields values that satisfy predicate. A nil predicate
 // returns the original iterator unchanged.
-func (s SearchResult) Filter(predicate func(EntityID, Entity) bool) SearchResult {
+func (s SearchResult) Filter(predicate func(Entity) bool) SearchResult {
 	if predicate == nil {
 		return s
 	}
 
-	return func(yield func(EntityID, Entity) bool) {
-		s(func(e EntityID, c Entity) bool {
-			return !predicate(e, c) || yield(e, c)
+	return func(yield func(Entity) bool) {
+		s(func(c Entity) bool {
+			return !predicate(c) || yield(c)
 		})
 	}
 }
 
 // Limit returns a new iterator that yields at most limit values. A limit <= 0 yields no values.
 func (s SearchResult) Limit(limit uint32) SearchResult {
-	return func(yield func(EntityID, Entity) bool) {
+	return func(yield func(Entity) bool) {
 		if limit == 0 {
 			return
 		}
 		yielded := uint32(0)
-		s(func(e EntityID, c Entity) bool {
+		s(func(c Entity) bool {
 			yielded++
-			return yield(e, c) && yielded < limit
+			return yield(c) && yielded < limit
 		})
 	}
 }
 
 // Single returns the single value in the iterator. It returns an error if the iterator yields
 // zero or more than one result.
-func (s SearchResult) Single() (EntityID, Entity, error) {
+func (s SearchResult) Single() (Entity, error) {
 	// A function-valued iterator can retain its callback. Keep the captured result
-	// together so escape analysis needs one record rather than three allocations.
+	// together so escape analysis needs one record rather than separate captured allocations.
 	result := struct {
-		id     EntityID
 		entity Entity
 		err    error
 	}{err: ErrSingleNoResult}
-	s(func(e EntityID, c Entity) bool {
+	s(func(c Entity) bool {
 		if result.err == nil {
 			result.err = ErrSingleMultipleResult
 			return false
 		}
-		result.id, result.entity, result.err = e, c, nil
+		result.entity, result.err = c, nil
 		return true
 	})
-	return result.id, result.entity, result.err
+	return result.entity, result.err
 }
 
 // -------------------------------------------------------------------------------------------------

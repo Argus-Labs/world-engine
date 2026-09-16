@@ -17,22 +17,22 @@ type PlayerLeaveSystemState struct {
 
 // PlayerLeaveSystem is called when a player leaves a quadrant (e.g. to join another quadrant).
 func PlayerLeaveSystem(state *PlayerLeaveSystemState) {
-	players := make(map[string]cardinal.EntityID)
+	players := make(map[string]cardinal.Entity)
 
-	for entity, player := range state.Players.Iter() {
-		players[player.Get[component.PlayerTag]().ArgusAuthID] = entity
+	for player := range state.Players.Iter() {
+		players[player.Get[component.PlayerTag]().ArgusAuthID] = player
 	}
 
 	for cmd := range state.PlayerLeaveCommands.Iter() {
 		command := cmd.Payload
 
-		entityID, exists := players[command.ArgusAuthID]
+		entity, exists := players[command.ArgusAuthID]
 		if !exists {
 			state.Logger().Info().Msgf("Player with ID %s not found", command.ArgusAuthID)
 			continue
 		}
 
-		state.Entity(entityID).Destroy()
+		entity.Destroy()
 
 		state.PlayerDepartureEvent.Broadcast(event.PlayerDeparture{
 			ArgusAuthID: command.ArgusAuthID,

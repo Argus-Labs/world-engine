@@ -90,7 +90,7 @@ func stepBenchScene(b *testing.B, n, workers int) {
 			return
 		}
 		// Static floor.
-		_, row := state.Spawn.Create()
+		row := state.Spawn.Create()
 		row.Set(harnessTag{Role: "floor"})
 		row.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
 		row.Set(physics.Velocity2D{})
@@ -110,7 +110,7 @@ func stepBenchScene(b *testing.B, n, workers int) {
 			x := float64(col)*2.0 - float64(cols)
 			y := float64(rowIdx)*2.0 + 5.0
 
-			_, r := state.Spawn.Create()
+			r := state.Spawn.Create()
 			r.Set(harnessTag{Role: "ball"})
 			r.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
 			r.Set(physics.Velocity2D{})
@@ -250,7 +250,7 @@ func gridSpawnSystem(count int) func(state *struct {
 			x := float64(col)*spacing - float64(cols)*spacing/2
 			y := float64(rowIdx)*spacing - float64(cols)*spacing/2
 
-			_, r := state.Spawn.Create()
+			r := state.Spawn.Create()
 			r.Set(harnessTag{Role: "grid"})
 			r.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
 			r.Set(physics.Velocity2D{})

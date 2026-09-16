@@ -136,15 +136,15 @@ Derive, then `Set` the component that holds it:
 ```go
 func BuffSystem(state *BuffSystemState) error {
 	now := state.Tick()
-	for _, mob := range state.Mobs.Iter() {
-		buffs := mob.Buffs.Get()
+	for mob := range state.Mobs.Iter() {
+		buffs := mob.Get[Buffs]()
 
 		// Drop expired buffs and add a new one.
 		buffs.Active = buffs.Active.
 			Filter(func(b Buff) bool { return b.ExpiresAt > now }).
 			Append(Buff{Kind: "haste", ExpiresAt: now + 60})
 
-		mob.Buffs.Set(buffs)
+		mob.Set(buffs)
 	}
 	return nil
 }
@@ -290,7 +290,7 @@ func SpawnMob(state *MobSystemState) {
 Creation adds exactly the archetype's components, initialized to zero. The archetype must
 be registered first. A `Contains[Mob]` or `Exact[Mob]` field registers it automatically.
 Without a search field, call `w.RegisterArchetype[Mob]()` before starting the world.
-`state.Mobs.Create()` also remains available and returns `(EntityID, Entity)`.
+`state.Mobs.Create()` also remains available and returns an `Entity`.
 
 ### Entity Handles and Stored IDs
 
@@ -313,11 +313,11 @@ Access handles from systems on the world's execution goroutine.
 
 ### Iterating Over Entities
 
-`Iter` yields each matching entity's numeric ID and handle:
+`Iter` yields each matching `Entity`:
 
 ```go
 func DamageMobs(state *MobSystemState) {
-    for _, mob := range state.Mobs.Iter() {
+    for mob := range state.Mobs.Iter() {
         health := mob.Get[Health]()
         mob.Set(Health{Value: health.Value - 10})
     }
@@ -328,8 +328,8 @@ Handles are independent values. Retaining one during another query does not chan
 entity it refers to. `Get[T]` returns a copy. Write changes back with `Set`, subject to the
 component ownership rules in [What a Component May Hold](#what-a-component-may-hold).
 
-Use `Filter(func(EntityID, Entity) bool)` and `Limit` to narrow results.
-`Single()` returns `(EntityID, Entity, error)` and requires exactly one match.
+Use `Filter(func(Entity) bool)` and `Limit` to narrow results.
+`Single()` returns `(Entity, error)` and requires exactly one match.
 
 ### Getting a Specific Entity
 

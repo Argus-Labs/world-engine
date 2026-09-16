@@ -217,7 +217,8 @@ func runGoldenScenarioWorkers(t *testing.T, sc goldenScenario, workers int) gold
 		// Body state: reduced cadence plus the final tick.
 		if tick%goldenSampleEvery == 0 || tick == lastTick {
 			bodies := []goldenBody{}
-			for eid, row := range state.Spawn.Iter() {
+			for row := range state.Spawn.Iter() {
+				eid := row.ID()
 				tr := row.Get[physics.Transform2D]()
 				vel := row.Get[physics.Velocity2D]()
 				bodies = append(bodies, goldenBody{
@@ -346,7 +347,7 @@ func goldenSpawn(w *cardinal.World, entities func() []goldenEntity) {
 			return
 		}
 		for _, e := range entities() {
-			_, row := state.Spawn.Create()
+			row := state.Spawn.Create()
 			row.Set(harnessTag{Role: e.role})
 			row.Set(physics.Transform2D{Position: e.pos, Rotation: e.rotation})
 			row.Set(e.vel)

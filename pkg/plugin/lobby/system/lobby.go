@@ -833,11 +833,13 @@ func LobbySystem(state *LobbySystemState) {
 
 	if !indexBuilt {
 		var lobbies []lobbyRow
-		for eid, l := range state.Lobbies.Iter() {
+		for l := range state.Lobbies.Iter() {
+			eid := l.ID()
 			lobbies = append(lobbies, lobbyRow{entityID: eid, lobby: l.Get[component.LobbyComponent]()})
 		}
 		var players []playerRow
-		for eid, pl := range state.Players.Iter() {
+		for pl := range state.Players.Iter() {
+			eid := pl.ID()
 			players = append(players, playerRow{entityID: eid, player: pl.Get[component.PlayerComponent]()})
 		}
 		rebuildIndex(lobbies, players, now, timeout)
@@ -990,7 +992,8 @@ func createPlayerEntity(
 		PassthroughData: passthroughData,
 		JoinedAt:        now,
 	}
-	playerEntityID, playerEntity := state.Players.Create()
+	playerEntity := state.Players.Create()
+	playerEntityID := playerEntity.ID()
 	playerEntity.Set(playerComp)
 	return playerComp, playerEntityID
 }
@@ -1353,7 +1356,8 @@ func processCreateLobbyCommands(
 		}
 
 		// Create lobby entity
-		lobbyEntityID, lobbyEntity := state.Lobbies.Create()
+		lobbyEntity := state.Lobbies.Create()
+		lobbyEntityID := lobbyEntity.ID()
 		lobbyEntity.Set(lobby)
 
 		// Create player entity and update index
@@ -2101,7 +2105,7 @@ func processAllocationTimeouts(
 	}
 	now := state.Timestamp().Unix()
 
-	for _, refs := range state.Lobbies.Iter() {
+	for refs := range state.Lobbies.Iter() {
 		lob := refs.Get[component.LobbyComponent]()
 		if lob.Session.State != component.SessionStateAwaitingAllocation {
 			continue

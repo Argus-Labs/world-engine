@@ -84,7 +84,8 @@ type postCaptureState struct {
 // struct keeps that tick's state even as later ticks overwrite the field.
 func capture(probes *Probes, singleton *cardinal.Contains[SingletonRow], into *Capture) {
 	rows := make(map[string]CaptureRow, len(into.Rows))
-	for eid, row := range probes.Iter() {
+	for row := range probes.Iter() {
+		eid := row.ID()
 		p := row.Get[probe.Probe]()
 		rows[p.Label] = CaptureRow{
 			Entity:    eid,
@@ -96,7 +97,7 @@ func capture(probes *Probes, singleton *cardinal.Contains[SingletonRow], into *C
 
 	var pairs []physics.ContactPairEntry
 	count := 0
-	for _, row := range singleton.Iter() {
+	for row := range singleton.Iter() {
 		count++
 		pairs = slices.AppendSeq(pairs, row.Get[physics.ActiveContacts]().Pairs.Values())
 	}

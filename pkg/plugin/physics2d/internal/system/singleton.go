@@ -11,7 +11,7 @@ import (
 // and PreUpdate reconcile so snapshot restore (which may skip Init) still has persisted
 // ActiveContacts storage before the first physics step.
 func ensurePhysicsSingleton(singleton *physicsSingletonSearch) {
-	_, _, err := singleton.Iter().Single()
+	_, err := singleton.Iter().Single()
 	if err == nil {
 		return
 	}

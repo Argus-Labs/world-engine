@@ -172,10 +172,10 @@ type ReconcileState struct {
 // primary is the data source for each kind's JSONFile() re-fetch at the snapshot's hash.
 // resolverSource is what Resolver hooks fetch additional files through (always local embed).
 func (s *State) Reconcile(rs *ReconcileState, primary, resolverSource Source) {
-	_, ent, err := rs.Manifest.Iter().Single()
+	ent, err := rs.Manifest.Iter().Single()
 	switch {
 	case errors.Is(err, cardinal.ErrSingleNoResult):
-		_, ent = rs.Manifest.Create()
+		ent = rs.Manifest.Create()
 		ent.Set(s.manifest)
 		return
 	case errors.Is(err, cardinal.ErrSingleMultipleResult):

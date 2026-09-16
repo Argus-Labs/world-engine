@@ -14,7 +14,7 @@ type RegenSystemState struct {
 }
 
 func RegenSystem(state *RegenSystemState) {
-	for _, health := range state.Iter() { // Another shorthand
+	for health := range state.Iter() { // Another shorthand
 		health.Set(component.Health{HP: health.Get[component.Health]().HP + 10})
 	}
 }

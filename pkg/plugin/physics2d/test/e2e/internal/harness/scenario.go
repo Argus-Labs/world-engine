@@ -194,7 +194,8 @@ func (c *Ctx) SpawnFull(
 	pb physics.PhysicsBody2D,
 ) cardinal.EntityID {
 	t.Position = c.toWorld(t.Position)
-	id, row := c.probes.Create()
+	row := c.probes.Create()
+	id := row.ID()
 	row.Set(probe.Probe{Scenario: c.scenario, Label: label})
 	row.Set(t)
 	row.Set(v)

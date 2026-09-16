@@ -8,6 +8,7 @@ The baseline adapter only changes benchmark API spelling to perform the same wor
 import argparse
 import io
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -34,7 +35,14 @@ def main():
     env = dict(os.environ, GOMAXPROCS="1", TEST_SEED="1", GOWORK="off")
     benchmark = (root / "pkg/cardinal/entity_perf_internal_test.go").read_text()
     benchmark = benchmark.split("// Keep successful handle operations", 1)[0]
-    baseline = benchmark.replace("WithComponent[", "Ref[")
+    # Restore the old query signatures before adapting component access.
+    baseline = re.sub(r"(\w+) := state.Entities.Create\(\)", r"_, \1 := state.Entities.Create()", benchmark)
+    baseline = baseline.replace("found, err := state.Entities.Iter()", "_, found, err := state.Entities.Iter()")
+    baseline = baseline.replace("func(e Entity) bool", "func(_ EntityID, e Entity) bool")
+    baseline = baseline.replace("entity.ID()", "entity.Position.entity")
+    baseline = baseline.replace("found.ID()", "found.Position.entity")
+    baseline = baseline.replace("sum += id.ID()", "sum += id")
+    baseline = baseline.replace("WithComponent[", "Ref[")
     baseline = baseline.replace("entity.Set(Position3D", "entity.Position.Set(Position3D")
     baseline = baseline.replace("entity.Set(Velocity3D", "entity.Velocity.Set(Velocity3D")
     baseline = baseline.replace("entity.Remove[Velocity3D]()", "entity.Velocity.Remove()")

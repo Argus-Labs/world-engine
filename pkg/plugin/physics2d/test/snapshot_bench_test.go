@@ -87,7 +87,7 @@ func restingBodiesSystem(count int) func(state *struct {
 		if state.Tick() != 0 {
 			return
 		}
-		_, floor := state.Spawn.Create()
+		floor := state.Spawn.Create()
 		floor.Set(harnessTag{Role: "floor"})
 		floor.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
 		floor.Set(physics.Velocity2D{})
@@ -103,7 +103,7 @@ func restingBodiesSystem(count int) func(state *struct {
 		for i := range count {
 			col := i % cols
 			rowIdx := i / cols
-			_, r := state.Spawn.Create()
+			r := state.Spawn.Create()
 			r.Set(harnessTag{Role: "ball"})
 			r.Set(physics.Transform2D{Position: physics.Vec2{
 				X: float64(col)*2.0 - float64(cols),

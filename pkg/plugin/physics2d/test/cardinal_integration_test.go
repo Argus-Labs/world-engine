@@ -105,7 +105,8 @@ func sceneInitSystem(state *struct {
 		t physics.Transform2D,
 		pb physics.PhysicsBody2D,
 	) cardinal.EntityID {
-		id, row := state.Spawn.Create()
+		row := state.Spawn.Create()
+		id := row.ID()
 		row.Set(harnessTag{Role: role})
 		row.Set(t)
 		row.Set(physics.Velocity2D{})
@@ -118,7 +119,8 @@ func sceneInitSystem(state *struct {
 		v physics.Velocity2D,
 		pb physics.PhysicsBody2D,
 	) cardinal.EntityID {
-		id, row := state.Spawn.Create()
+		row := state.Spawn.Create()
+		id := row.ID()
 		row.Set(harnessTag{Role: role})
 		row.Set(t)
 		row.Set(v)
@@ -300,7 +302,8 @@ func manualMoveSystem(state *struct {
 	if harness.ManualPlayer == 0 {
 		return
 	}
-	for eid, row := range state.Spawn.Iter() {
+	for row := range state.Spawn.Iter() {
+		eid := row.ID()
 		if eid == harness.ManualPlayer {
 			tr := row.Get[physics.Transform2D]()
 			tr.Position.X += 0.05
@@ -394,7 +397,8 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		}
 
 		// --- Writeback verification: read ECS state written back by Box2D each tick ---
-		for eid, row := range state.Spawn.Iter() {
+		for row := range state.Spawn.Iter() {
+			eid := row.ID()
 			switch eid {
 			case harness.Ball:
 				t := row.Get[physics.Transform2D]()
@@ -493,7 +497,8 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		// Reconcile: ECS transform change only → SetTransform in Box2D (short ray proves new X).
 		if tick == tickMoveWall {
 			if atomic.CompareAndSwapUint32(&wallMoved, 0, 1) {
-				for eid, row := range state.Spawn.Iter() {
+				for row := range state.Spawn.Iter() {
+					eid := row.ID()
 					if eid == harness.FilterWall {
 						tr := row.Get[physics.Transform2D]()
 						tr.Position.X = 10
@@ -510,7 +515,8 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		// Reconcile: new physics archetype mid-sim → create body on next PreUpdate.
 		if tick == tickCreateNewBox {
 			if atomic.CompareAndSwapUint32(&newBoxCreated, 0, 1) {
-				id, row := state.Spawn.Create()
+				row := state.Spawn.Create()
+				id := row.ID()
 				row.Set(harnessTag{Role: "new_box"})
 				row.Set(physics.Transform2D{Position: physics.Vec2{X: 5, Y: 1}})
 				row.Set(physics.Velocity2D{})
@@ -534,7 +540,8 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		// lists old pairs → suppressed step diff emits synthetic Ends.
 		if tick == tickCrash1 {
 			atomic.StoreUint32(&crashPhase, 1)
-			for eid, row := range state.Spawn.Iter() {
+			for row := range state.Spawn.Iter() {
+				eid := row.ID()
 				if eid == harness.Ball {
 					tr := row.Get[physics.Transform2D]()
 					tr.Position = physics.Vec2{X: 0, Y: 5.2}
@@ -568,7 +575,8 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		// live has ball–NewBox only → diff emits Ends for stale pairs + Begin for new overlap.
 		if tick == tickCrash2 {
 			atomic.StoreUint32(&crashPhase, 2)
-			for eid, row := range state.Spawn.Iter() {
+			for row := range state.Spawn.Iter() {
+				eid := row.ID()
 				if eid == harness.Ball {
 					tr := row.Get[physics.Transform2D]()
 					tr.Position = physics.Vec2{X: 5, Y: 1.3}

@@ -22,7 +22,8 @@ func MovePlayerSystem(state *MovePlayerSystemState) {
 	for cmd := range state.MovePlayerCommands.Iter() {
 		command := cmd.Payload
 
-		for entity, player := range state.Players.Iter() {
+		for player := range state.Players.Iter() {
+			entity := player.ID()
 			tag := player.Get[component.PlayerTag]()
 
 			if command.ArgusAuthID != tag.ArgusAuthID {

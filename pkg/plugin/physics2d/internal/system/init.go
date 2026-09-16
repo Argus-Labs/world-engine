@@ -23,7 +23,8 @@ func gatherRebuildEntries(dst []internal.PhysicsRebuildEntry,
 	iter cardinal.SearchResult,
 ) []internal.PhysicsRebuildEntry {
 	entries := dst[:0]
-	for eid, row := range iter {
+	for row := range iter {
+		eid := row.ID()
 		entries = append(entries, internal.PhysicsRebuildEntry{
 			EntityID:    eid,
 			Transform:   row.Get[physicscomp.Transform2D](),

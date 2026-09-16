@@ -99,12 +99,12 @@ func seedSnapshotWorld(t *testing.T, state *snapshotEntities) {
 	t.Helper()
 
 	for i := range 5 {
-		_, e := state.Entities.Create()
+		e := state.Entities.Create()
 		e.Set(Position3D{X: float64(i), Y: float64(i) * 2, Z: -1})
 		e.Set(Health2{Current: 100 - i, Max: 100})
 		e.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10 + i})
 	}
-	_, e := state.Entities.Create()
+	e := state.Entities.Create()
 	e.Set(Position3D{X: 42})
 	require.True(t, e.Destroy())
 }
@@ -123,7 +123,7 @@ func TestDebugGetStatePublishesEveryTick(t *testing.T) {
 		frozen, err := proto.MarshalOptions{Deterministic: true}.Marshal(held)
 		require.NoError(t, err)
 
-		_, e := state.Entities.Create()
+		e := state.Entities.Create()
 		e.Set(Position3D{X: float64(w.currentTick.height)})
 
 		completed := w.currentTick.height

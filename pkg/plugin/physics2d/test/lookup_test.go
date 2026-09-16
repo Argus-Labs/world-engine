@@ -26,7 +26,8 @@ func spawnTwoShapeBody(t *testing.T, w *cardinal.World) *cardinal.EntityID {
 		if state.Tick() != 0 {
 			return
 		}
-		id, row := state.Spawn.Create()
+		row := state.Spawn.Create()
+		id := row.ID()
 		row.Set(harnessTag{Role: "lookup"})
 		row.Set(physics.Transform2D{Position: physics.Vec2{X: 1, Y: 2}})
 		row.Set(physics.Velocity2D{})

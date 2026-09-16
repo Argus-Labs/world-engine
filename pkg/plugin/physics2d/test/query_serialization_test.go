@@ -30,7 +30,7 @@ func TestQuery_EmptyOverlapMarshalsAsEmptyArray(t *testing.T) {
 			return
 		}
 		// One body, parked far away from the region queried below.
-		_, row := state.Spawn.Create()
+		row := state.Spawn.Create()
 		row.Set(harnessTag{Role: "far"})
 		row.Set(physics.Transform2D{Position: physics.Vec2{X: 500, Y: 500}})
 		row.Set(physics.Velocity2D{})

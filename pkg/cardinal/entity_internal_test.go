@@ -92,13 +92,13 @@ func TestEntity_WorldIsolationAndSnapshotRestore(t *testing.T) {
 func TestEntity_QueryHandlesRemainBound(t *testing.T) {
 	t.Parallel()
 	_, state := newEntityTestState(t)
-	firstID, first := state.Entities.Create()
-	secondID, second := state.Entities.Create()
+	first := state.Entities.Create()
+	second := state.Entities.Create()
+	secondID := second.ID()
 	first.Set(testutils.ComponentA{X: 1})
 	second.Set(testutils.ComponentA{X: 2})
 	var handles []Entity
-	for id, entity := range state.Entities.Iter() {
-		assert.Equal(t, id, entity.ID())
+	for entity := range state.Entities.Iter() {
 		// Nested lookups must not change the outer entity's binding.
 		other, err := state.Entities.GetByID(secondID)
 		require.NoError(t, err)
@@ -106,12 +106,13 @@ func TestEntity_QueryHandlesRemainBound(t *testing.T) {
 		handles = append(handles, entity)
 	}
 	require.Len(t, handles, 2)
-	assert.Equal(t, firstID, handles[0].ID())
+	assert.Equal(t, first, handles[0])
+	assert.Equal(t, second, handles[1])
 	assert.Equal(t, testutils.ComponentA{X: 1}, handles[0].Get[testutils.ComponentA]())
 	assert.Equal(t, testutils.ComponentA{X: 2}, handles[1].Get[testutils.ComponentA]())
 	// A copied query has no pointers into another query's result storage.
 	queryCopy := state.Entities
-	_, third := queryCopy.Create()
+	third := queryCopy.Create()
 	third.Set(testutils.ComponentA{X: 3})
 	assert.Equal(t, testutils.ComponentA{X: 1}, first.Get[testutils.ComponentA]())
 	assert.Equal(t, testutils.ComponentA{X: 3}, third.Get[testutils.ComponentA]())
@@ -158,11 +159,11 @@ func TestSearch_LimitZeroDoesNotVisitEntities(t *testing.T) {
 	_, state := newEntityTestState(t)
 	state.Create[entityTestArchetype]()
 	visits := 0
-	results := state.Entities.Iter().Filter(func(_ EntityID, _ Entity) bool {
+	results := state.Entities.Iter().Filter(func(_ Entity) bool {
 		visits++
 		return true
 	}).Limit(0)
-	_, _, err := results.Single()
+	_, err := results.Single()
 	require.ErrorIs(t, err, ErrSingleNoResult)
 	assert.Zero(t, visits)
 }

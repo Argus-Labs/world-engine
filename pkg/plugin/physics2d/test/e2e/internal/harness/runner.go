@@ -259,7 +259,8 @@ func (r *Runner) step(state *stepState) {
 // being finite. A NaN anywhere in the pipeline poisons the whole Box2D island,
 // so catching the first one names the body actually at fault.
 func (r *Runner) watchNaN(state *stepState, tick uint64) {
-	for eid, row := range state.Probes.Iter() {
+	for row := range state.Probes.Iter() {
+		eid := row.ID()
 		if r.nanReported[eid] {
 			continue
 		}
@@ -431,7 +432,8 @@ type digestState struct {
 func (r *Runner) Digest(w *cardinal.World) (int, uint64) {
 	var rows []digestState
 	collect := func(state *digestCollectorState) {
-		for eid, row := range state.Probes.Iter() {
+		for row := range state.Probes.Iter() {
+			eid := row.ID()
 			p := row.Get[probe.Probe]()
 			t := row.Get[physics.Transform2D]()
 			v := row.Get[physics.Velocity2D]()

@@ -23,7 +23,9 @@ func UserChatSystem(state *UserChatSystemState) {
 
 		timestamp := time.Now()
 
-		id, chat := state.ChatSearch.Create()
+		chat := state.ChatSearch.Create()
+
+		id := chat.ID()
 		chat.Set(component.UserTag{
 			ArgusAuthID:   command.ArgusAuthID,
 			ArgusAuthName: command.ArgusAuthName,
