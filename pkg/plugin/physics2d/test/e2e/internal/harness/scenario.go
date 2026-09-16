@@ -8,6 +8,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/probe"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 )
 
@@ -356,20 +357,30 @@ func (c *Ctx) EditBody(id cardinal.EntityID, edit func(pb *physics.PhysicsBody2D
 	c.SetBody(id, pb)
 }
 
+// EditShape applies edit to one shape of the entity's body and writes the body back. Shapes hands
+// out element copies, so a shape changes by being read out, edited, and put back with With —
+// there is no index to assign through.
+func (c *Ctx) EditShape(id cardinal.EntityID, i int, edit func(sh *physics.ColliderShape)) {
+	c.EditBody(id, func(pb *physics.PhysicsBody2D) {
+		sh := pb.Shapes.At(i)
+		edit(&sh)
+		pb.Shapes = pb.Shapes.With(i, sh)
+	})
+}
+
 // Destroy removes the entity from the world.
 func (c *Ctx) Destroy(id cardinal.EntityID) bool { return c.probes.Destroy(id) }
 
-// CloneBody deep-copies a PhysicsBody2D including its shapes and their slice
-// geometry, so edits to the copy cannot reach the original.
+// CloneBody deep-copies a PhysicsBody2D including its shapes and their chain geometry, so edits to
+// the copy cannot reach the original. immutable.Slice derivations write through the array they
+// share with the component, so a scenario that means to edit a body has to start from a copy like
+// this one; Map and Collect are the two derivations that allocate instead.
 func CloneBody(pb physics.PhysicsBody2D) physics.PhysicsBody2D {
-	out := pb
-	out.Shapes = make([]physics.ColliderShape, len(pb.Shapes))
-	for i, s := range pb.Shapes {
-		s.Vertices = append([]physics.Vec2(nil), s.Vertices...)
-		s.ChainPoints = append([]physics.Vec2(nil), s.ChainPoints...)
-		out.Shapes[i] = s
-	}
-	return out
+	pb.Shapes = immutable.Map(pb.Shapes, func(s physics.ColliderShape) physics.ColliderShape {
+		s.ChainPoints = immutable.Collect(s.ChainPoints.Values())
+		return s
+	})
+	return pb
 }
 
 // -----------------------------------------------------------------------------

@@ -11,9 +11,15 @@ import (
 
 // Robustness holds the inputs a game can hand the plugin that are finite —
 // and so pass ColliderShape.Validate — but malformed by the engine's rules: a
-// chain with three points, a circle with no radius, a polygon with too many
+// chain with three points, a circle with no radius, a polygon with too few
 // vertices, a box with no extent. Destroying an entity that still holds a live
 // contact is here too, from a completely different direction.
+//
+// A polygon with too MANY vertices used to be one of these. It no longer belongs here:
+// Vertices holds only MaxPolygonVertices slots, so a polygon claiming more fails
+// ColliderShape.Validate and never reaches Box2D — which puts it outside the family this
+// file is about, inputs that PASS Validate and then misbehave. It is still rejected rather
+// than fatal; see TestWithVertices_ReportsPastBoundInsteadOfPanicking.
 //
 // Validate only checks that numbers are finite, so all of these reach the
 // engine. Against the cgo bridge four of them tripped a fatal Box2D assertion
@@ -66,13 +72,6 @@ func hostileCases() []harness.Scenario {
 			"a box with zero half-extents",
 			physics.BodyTypeDynamic,
 			box(0, 0)),
-		hostileBadShape("polygon-too-many-vertices",
-			"a convex polygon of 9 vertices (Box2D's limit is 8)",
-			physics.BodyTypeDynamic,
-			polygon(
-				vec(1, 0), vec(0.77, 0.64), vec(0.17, 0.98), vec(-0.5, 0.87),
-				vec(-0.94, 0.34), vec(-0.94, -0.34), vec(-0.5, -0.87),
-				vec(0.17, -0.98), vec(0.77, -0.64))),
 		hostileBadShape("polygon-two-vertices",
 			"a convex polygon of 2 vertices",
 			physics.BodyTypeDynamic,
