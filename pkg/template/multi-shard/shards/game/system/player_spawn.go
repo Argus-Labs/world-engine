@@ -17,7 +17,6 @@ type SpawnPlayerSystemState struct {
 	cardinal.BaseSystemState
 	SpawnPlayerCommands cardinal.WithCommand[command.PlayerSpawn]
 	PlayerSpawnEvent    cardinal.WithEvent[event.PlayerSpawn]
-	Players             PlayerSearch
 }
 
 func PlayerSpawnSystem(state *SpawnPlayerSystemState) {
@@ -38,7 +37,7 @@ func PlayerSpawnSystem(state *SpawnPlayerSystemState) {
 			continue
 		}
 
-		player := state.Players.Create()
+		player := state.Create[Player]()
 
 		id := player.ID()
 		player.Set(component.PlayerTag{ArgusAuthID: command.ArgusAuthID, ArgusAuthName: command.ArgusAuthName})

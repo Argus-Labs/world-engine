@@ -10,7 +10,6 @@ import (
 type GraveyardSystemState struct {
 	cardinal.BaseSystemState
 	PlayerDeathSystemEvents cardinal.WithSystemEventReceiver[systemevent.PlayerDeath]
-	Graves                  GraveSearch // Registers Grave for Create[Grave].
 }
 
 func GraveyardSystem(state *GraveyardSystemState) {

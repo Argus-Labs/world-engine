@@ -15,14 +15,14 @@ type MovePlayerSystemState struct {
 	MovePlayerCommands  cardinal.WithCommand[command.MovePlayer]
 	PlayerSpawnEvent    cardinal.WithEvent[event.PlayerSpawn]
 	PlayerMovementEvent cardinal.WithEvent[event.PlayerMovement]
-	Players             PlayerSearch
 }
 
 func MovePlayerSystem(state *MovePlayerSystemState) {
+	players := state.Exact[Player]()
 	for cmd := range state.MovePlayerCommands.Iter() {
 		command := cmd.Payload
 
-		for player := range state.Players.Iter() {
+		for player := range players.Iter() {
 			entity := player.ID()
 			tag := player.Get[component.PlayerTag]()
 

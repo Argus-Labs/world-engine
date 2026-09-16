@@ -12,14 +12,13 @@ type PlayerLeaveSystemState struct {
 	cardinal.BaseSystemState
 	PlayerLeaveCommands  cardinal.WithCommand[command.PlayerLeave]
 	PlayerDepartureEvent cardinal.WithEvent[event.PlayerDeparture]
-	Players              PlayerSearch
 }
 
 // PlayerLeaveSystem is called when a player leaves a quadrant (e.g. to join another quadrant).
 func PlayerLeaveSystem(state *PlayerLeaveSystemState) {
 	players := make(map[string]cardinal.Entity)
 
-	for player := range state.Players.Iter() {
+	for player := range state.Exact[Player]().Iter() {
 		players[player.Get[component.PlayerTag]().ArgusAuthID] = player
 	}
 

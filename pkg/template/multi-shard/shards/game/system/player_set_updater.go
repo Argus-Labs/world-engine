@@ -7,13 +7,12 @@ import (
 
 type PlayerSetUpdaterState struct {
 	cardinal.BaseSystemState
-	Players PlayerSearch
 }
 
 // PlayerSetUpdater updates the playerSet with all players in the world state.
 func PlayerSetUpdater(state *PlayerSetUpdaterState) {
 	playerSet.Clear()
-	for player := range state.Players.Iter() {
+	for player := range state.Exact[Player]().Iter() {
 		playerSet.Add(player.Get[component.PlayerTag]().ArgusAuthID)
 	}
 }

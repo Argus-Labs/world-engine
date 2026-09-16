@@ -12,8 +12,6 @@ import (
 // code between them.
 type PhysicsPipelineSystemState struct {
 	cardinal.BaseSystemState
-	Bodies       cardinal.Contains[physicsBodyRow]
-	Singleton    physicsSingletonSearch
 	ContactBegin cardinal.WithSystemEventEmitter[physicevent.ContactBeginEvent]
 	ContactEnd   cardinal.WithSystemEventEmitter[physicevent.ContactEndEvent]
 	TriggerBegin cardinal.WithSystemEventEmitter[physicevent.TriggerBeginEvent]
@@ -37,11 +35,11 @@ func (b contactEmitterBridge) EmitTriggerEnd(e physicevent.TriggerEndEvent) { b.
 // seeds the runtime's contact-dedupe baseline from it when the runtime has
 // none (e.g. right after a snapshot restore or Reset).
 func loadContactBaseline(
-	rt *internal.Runtime, state *PhysicsPipelineSystemState,
+	rt *internal.Runtime, state *PhysicsPipelineSystemState, singleton cardinal.Query,
 ) (cardinal.Entity, bool) {
 	var acRef cardinal.Entity
 	singletonFound := false
-	for row := range state.Singleton.Iter() {
+	for row := range singleton.Iter() {
 		acRef = row
 		singletonFound = true
 		break
@@ -78,9 +76,11 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 	// for one world run sequentially, so the runtime-owned scratch is never shared.
 	return func(state *PhysicsPipelineSystemState) {
 		// --- 1. Reconcile (ECS -> Box2D) ---
-		ensurePhysicsSingleton(&state.Singleton)
+		singleton := state.Exact[physicsSingletonRow]()
+		ensurePhysicsSingleton(singleton)
+		bodies := state.Contains[physicsBodyRow]()
 		entries := rt.KeepRebuildEntriesScratch(
-			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
+			gatherRebuildEntries(rt.RebuildEntriesScratch(), bodies.Iter()))
 
 		if !rt.WorldExists() {
 			if err := rt.FullRebuildFromECS(rt.Gravity, entries); err != nil {
@@ -93,7 +93,7 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 		}
 
 		// --- 2. Step + flush contacts ---
-		acRef, singletonFound := loadContactBaseline(rt, state)
+		acRef, singletonFound := loadContactBaseline(rt, state, singleton)
 
 		rt.SetStepEmitter(contactEmitterBridge{s: state})
 		rt.Step()
@@ -106,7 +106,7 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 
 		// --- 3. Writeback (Box2D -> ECS) ---
 		wb := rt.WritebackScratch()
-		for row := range state.Bodies.Iter() {
+		for row := range bodies.Iter() {
 			wb = append(wb, internal.WritebackEntry{
 				Entity: row,
 			})

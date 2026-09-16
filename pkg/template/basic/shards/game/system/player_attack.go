@@ -22,13 +22,13 @@ type AttackPlayerSystemState struct {
 	AttackPlayerCommands    cardinal.WithCommand[AttackPlayerCommand]
 	PlayerDeathSystemEvents cardinal.WithSystemEventEmitter[systemevent.PlayerDeath]
 	PlayerDeathEvents       cardinal.WithEvent[event.PlayerDeath]
-	Players                 PlayerSearch
 }
 
 func AttackPlayerSystem(state *AttackPlayerSystemState) {
+	players := state.Exact[Player]()
 	for cmd := range state.AttackPlayerCommands.Iter() {
 		command := cmd.Payload
-		for player := range state.Players.Iter() {
+		for player := range players.Iter() {
 			entity := player.ID()
 			tag := player.Get[component.PlayerTag]()
 

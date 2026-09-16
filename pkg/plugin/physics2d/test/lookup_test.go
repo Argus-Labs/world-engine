@@ -21,12 +21,11 @@ func spawnTwoShapeBody(t *testing.T, w *cardinal.World) *cardinal.EntityID {
 	entityID := new(cardinal.EntityID)
 	w.RegisterSystem(func(state *struct {
 		cardinal.BaseSystemState
-		Spawn spawnArchetype
 	}) {
 		if state.Tick() != 0 {
 			return
 		}
-		row := state.Spawn.Create()
+		row := state.Exact[spawnArchetype]().Create()
 		id := row.ID()
 		row.Set(harnessTag{Role: "lookup"})
 		row.Set(physics.Transform2D{Position: physics.Vec2{X: 1, Y: 2}})
@@ -91,7 +90,6 @@ func TestLookup_UnknownAndDestroyedEntity(t *testing.T) {
 
 	w.RegisterSystem(func(state *struct {
 		cardinal.BaseSystemState
-		Spawn spawnArchetype
 	}) {
 		if state.Tick() == 5 {
 			require.True(t, state.Entity(*entityID).Destroy(), "Destroy(lookup entity)")

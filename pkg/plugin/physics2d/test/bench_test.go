@@ -85,13 +85,12 @@ func stepBenchScene(b *testing.B, n, workers int) {
 
 	w.RegisterSystem(func(state *struct {
 		cardinal.BaseSystemState
-		Spawn spawnArchetype
 	}) {
 		if state.Tick() != 0 {
 			return
 		}
 		// Static floor.
-		row := state.Spawn.Create()
+		row := state.Exact[spawnArchetype]().Create()
 		row.Set(harnessTag{Role: "floor"})
 		row.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
 		row.Set(physics.Velocity2D{})
@@ -111,7 +110,7 @@ func stepBenchScene(b *testing.B, n, workers int) {
 			x := float64(col)*2.0 - float64(cols)
 			y := float64(rowIdx)*2.0 + 5.0
 
-			r := state.Spawn.Create()
+			r := state.Exact[spawnArchetype]().Create()
 			r.Set(harnessTag{Role: "ball"})
 			r.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
 			r.Set(physics.Velocity2D{})
@@ -234,11 +233,9 @@ func BenchmarkCircleSweep(b *testing.B) {
 // gridSpawnSystem returns a system that spawns count static circles in a grid on tick 0.
 func gridSpawnSystem(count int) func(state *struct {
 	cardinal.BaseSystemState
-	Spawn spawnArchetype
 }) {
 	return func(state *struct {
 		cardinal.BaseSystemState
-		Spawn spawnArchetype
 	}) {
 		if state.Tick() != 0 {
 			return
@@ -251,7 +248,7 @@ func gridSpawnSystem(count int) func(state *struct {
 			x := float64(col)*spacing - float64(cols)*spacing/2
 			y := float64(rowIdx)*spacing - float64(cols)*spacing/2
 
-			r := state.Spawn.Create()
+			r := state.Exact[spawnArchetype]().Create()
 			r.Set(harnessTag{Role: "grid"})
 			r.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
 			r.Set(physics.Velocity2D{})

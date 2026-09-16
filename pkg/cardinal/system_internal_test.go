@@ -1,7 +1,6 @@
 package cardinal
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
@@ -442,10 +441,10 @@ func newSystemEventFixture(t *testing.T) *systemEventFixture {
 // -------------------------------------------------------------------------------------------------
 // Search, Contains, Exact, smoke tests
 // -------------------------------------------------------------------------------------------------
-// The search fields and Entity are light wrappers over the world state operations, which are
-// already tested. Here, we just check if the regular search operations work. Most of the
-// complicated logic in initialization where the cached result is created using reflection. We can
-// verify it's working if the operations work correctly.
+// Query and Entity are light wrappers over the world state operations, which are already
+// tested. Here, we just check if the regular query operations work. The archetype bitmap is
+// resolved on the first Contains/Exact call per world and cached; if the operations work, that
+// resolution works.
 // -------------------------------------------------------------------------------------------------
 
 func TestSearch_Smoke(t *testing.T) {
@@ -667,14 +666,8 @@ func TestSearch_Smoke(t *testing.T) {
 }
 
 type searchFixture struct {
-	// These are the fields under test. They must be public/exported.
-	Movers Contains[struct {
-		A WithComponent[testutils.ComponentA]
-		B WithComponent[testutils.ComponentB]
-	}]
-	Singles Exact[struct {
-		A WithComponent[testutils.ComponentA]
-	}]
+	Movers  Query
+	Singles Query
 }
 
 func newSearchFixture(t *testing.T) *searchFixture {
@@ -683,11 +676,13 @@ func newSearchFixture(t *testing.T) *searchFixture {
 	w := &World{world: ecs.NewWorld()}
 	w.RegisterComponent[testutils.ComponentA]()
 	w.RegisterComponent[testutils.ComponentB]()
+	state := &BaseSystemState{world: w}
 
-	fixture := &searchFixture{}
-
-	err := initSystemFields(reflect.ValueOf(fixture).Elem(), w)
-	require.NoError(t, err)
-
-	return fixture
+	return &searchFixture{
+		Movers: state.Contains[struct {
+			A testutils.ComponentA
+			B testutils.ComponentB
+		}](),
+		Singles: state.Exact[struct{ A testutils.ComponentA }](),
+	}
 }

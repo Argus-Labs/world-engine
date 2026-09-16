@@ -24,13 +24,12 @@ func TestQuery_EmptyOverlapMarshalsAsEmptyArray(t *testing.T) {
 
 	w.RegisterSystem(func(state *struct {
 		cardinal.BaseSystemState
-		Spawn spawnArchetype
 	}) {
 		if state.Tick() != 0 {
 			return
 		}
 		// One body, parked far away from the region queried below.
-		row := state.Spawn.Create()
+		row := state.Exact[spawnArchetype]().Create()
 		row.Set(harnessTag{Role: "far"})
 		row.Set(physics.Transform2D{Position: physics.Vec2{X: 500, Y: 500}})
 		row.Set(physics.Velocity2D{})

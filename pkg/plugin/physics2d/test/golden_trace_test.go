@@ -191,7 +191,6 @@ func runGoldenScenarioWorkers(t *testing.T, sc goldenScenario, workers int) gold
 	// the post-step ECS writeback and this tick's flushed contact events.
 	w.RegisterSystem(func(state *struct {
 		cardinal.BaseSystemState
-		Spawn          spawnArchetype
 		ContactBeginRx cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
 		ContactEndRx   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
 		TriggerBeginRx cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
@@ -217,7 +216,7 @@ func runGoldenScenarioWorkers(t *testing.T, sc goldenScenario, workers int) gold
 		// Body state: reduced cadence plus the final tick.
 		if tick%goldenSampleEvery == 0 || tick == lastTick {
 			bodies := []goldenBody{}
-			for row := range state.Spawn.Iter() {
+			for row := range state.Exact[spawnArchetype]().Iter() {
 				eid := row.ID()
 				tr := row.Get[physics.Transform2D]()
 				vel := row.Get[physics.Velocity2D]()
@@ -341,13 +340,12 @@ type goldenEntity struct {
 func goldenSpawn(w *cardinal.World, entities func() []goldenEntity) {
 	w.RegisterSystem(func(state *struct {
 		cardinal.BaseSystemState
-		Spawn spawnArchetype
 	}) {
 		if state.Tick() != 0 {
 			return
 		}
 		for _, e := range entities() {
-			row := state.Spawn.Create()
+			row := state.Exact[spawnArchetype]().Create()
 			row.Set(harnessTag{Role: e.role})
 			row.Set(physics.Transform2D{Position: e.pos, Rotation: e.rotation})
 			row.Set(e.vel)

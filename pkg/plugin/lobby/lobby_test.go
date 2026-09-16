@@ -16,9 +16,6 @@ import (
 // parking at awaiting_allocation forever.
 type testOrchestratorState struct {
 	cardinal.BaseSystemState
-	Lobbies cardinal.Contains[struct {
-		Lobby cardinal.WithComponent[lobby.Component]
-	}]
 }
 
 func testOrchestratorSystem(state *testOrchestratorState) {
@@ -28,7 +25,7 @@ func testOrchestratorSystem(state *testOrchestratorState) {
 		Project:      "project",
 		ShardID:      "lobby",
 	}
-	for refs := range state.Lobbies.Iter() {
+	for refs := range state.Contains[struct{ Lobby lobby.Component }]().Iter() {
 		lob := refs.Get[lobby.Component]()
 		if lob.Session.State != lobby.SessionStateAwaitingAllocation {
 			continue

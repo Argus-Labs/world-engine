@@ -737,15 +737,6 @@ type LobbySystemState struct {
 	GetAllPlayersCmds            cardinal.WithCommand[GetAllPlayersCommand]
 	GetLobbyCmds                 cardinal.WithCommand[GetLobbyCommand]
 
-	// Entities
-	Lobbies cardinal.Contains[struct {
-		Lobby cardinal.WithComponent[component.LobbyComponent]
-	}]
-
-	Players cardinal.Contains[struct {
-		Player cardinal.WithComponent[component.PlayerComponent]
-	}]
-
 	// Events (Broadcast)
 	LobbyCreatedEvents              cardinal.WithEvent[LobbyCreatedEvent]
 	PlayerJoinedEvents              cardinal.WithEvent[PlayerJoinedEvent]
@@ -787,14 +778,22 @@ type lobbyLookupResult struct {
 	lobbyRef cardinal.Entity
 }
 
+// lobbyArchetype is the archetype of lobby entities.
+type lobbyArchetype struct {
+	Lobby component.LobbyComponent
+}
+
+// playerArchetype is the archetype of player entities.
+type playerArchetype struct {
+	Player component.PlayerComponent
+}
+
 // getPlayerLobby looks up the lobby for a player and returns all relevant data.
 // Returns nil if the player is not in a lobby or the lobby doesn't exist.
 func getPlayerLobby(
 	playerID string,
 	lobbyIndex *lookupIndex,
-	lobbies *cardinal.Contains[struct {
-		Lobby cardinal.WithComponent[component.LobbyComponent]
-	}],
+	lobbies cardinal.Query,
 ) *lobbyLookupResult {
 	lobbyID, exists := lobbyIndex.GetPlayerLobby(playerID)
 	if !exists {
@@ -833,12 +832,12 @@ func LobbySystem(state *LobbySystemState) {
 
 	if !indexBuilt {
 		var lobbies []lobbyRow
-		for l := range state.Lobbies.Iter() {
+		for l := range state.Contains[lobbyArchetype]().Iter() {
 			eid := l.ID()
 			lobbies = append(lobbies, lobbyRow{entityID: eid, lobby: l.Get[component.LobbyComponent]()})
 		}
 		var players []playerRow
-		for pl := range state.Players.Iter() {
+		for pl := range state.Contains[playerArchetype]().Iter() {
 			eid := pl.ID()
 			players = append(players, playerRow{entityID: eid, player: pl.Get[component.PlayerComponent]()})
 		}
@@ -925,7 +924,7 @@ func isLeaderInList(leaderID string, players []timedOutPlayer) bool {
 // nothing recomputes those counts, so such a team would read full forever.
 func playerTeamID(state *LobbySystemState, lobbyIndex *lookupIndex, playerID string) string {
 	if entityID, ok := lobbyIndex.GetPlayerEntityID(playerID); ok {
-		if entity, err := state.Players.GetByID(cardinal.EntityID(entityID)); err == nil {
+		if entity, err := state.Contains[playerArchetype]().GetByID(cardinal.EntityID(entityID)); err == nil {
 			return entity.Get[component.PlayerComponent]().TeamID
 		}
 	}
@@ -992,7 +991,7 @@ func createPlayerEntity(
 		PassthroughData: passthroughData,
 		JoinedAt:        now,
 	}
-	playerEntity := state.Players.Create()
+	playerEntity := state.Contains[playerArchetype]().Create()
 	playerEntityID := playerEntity.ID()
 	playerEntity.Set(playerComp)
 	return playerComp, playerEntityID
@@ -1022,7 +1021,7 @@ func processTimedOutLobby(
 		return nil, nil
 	}
 
-	lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
+	lobbyEntity, err := state.Contains[lobbyArchetype]().GetByID(cardinal.EntityID(lobbyEntityID))
 	if err != nil {
 		return nil, nil
 	}
@@ -1217,12 +1216,13 @@ func areAllPlayersReady(
 	if len(playerIDs) == 0 {
 		return false
 	}
+	players := state.Contains[playerArchetype]()
 	for _, pid := range playerIDs {
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(pid)
 		if !exists {
 			return false
 		}
-		playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID))
+		playerEntity, err := players.GetByID(cardinal.EntityID(playerEntityID))
 		if err != nil {
 			return false
 		}
@@ -1242,12 +1242,13 @@ func gatherLobbyPlayers(
 ) ([component.MaxLobbyPlayers]component.PlayerComponent, int) {
 	var playersList [component.MaxLobbyPlayers]component.PlayerComponent
 	count := 0
+	players := state.Contains[playerArchetype]()
 	for _, pid := range lobby.GetAllPlayerIDs() {
 		pEntityID, pExists := lobbyIndex.GetPlayerEntityID(pid)
 		if !pExists {
 			continue
 		}
-		pEntity, pErr := state.Players.GetByID(cardinal.EntityID(pEntityID))
+		pEntity, pErr := players.GetByID(cardinal.EntityID(pEntityID))
 		if pErr != nil {
 			continue
 		}
@@ -1356,7 +1357,7 @@ func processCreateLobbyCommands(
 		}
 
 		// Create lobby entity
-		lobbyEntity := state.Lobbies.Create()
+		lobbyEntity := state.Contains[lobbyArchetype]().Create()
 		lobbyEntityID := lobbyEntity.ID()
 		lobbyEntity.Set(lobby)
 
@@ -1436,7 +1437,7 @@ func resolveInviteCode(
 		return "", none, false
 	}
 
-	lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
+	lobbyEntity, err := state.Contains[lobbyArchetype]().GetByID(cardinal.EntityID(lobbyEntityID))
 	if err != nil {
 		state.Logger().Error().Err(err).
 			Str("invite_code", payload.InviteCode).
@@ -1591,7 +1592,7 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, state.Contains[lobbyArchetype]())
 		if result == nil {
 			state.JoinTeamResults.Broadcast(JoinTeamResult{
 				RequestID: payload.RequestID,
@@ -1654,7 +1655,7 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 		var playerComp component.PlayerComponent
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(playerID)
 		if exists {
-			if playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID)); err == nil {
+			if playerEntity, err := state.Contains[playerArchetype]().GetByID(cardinal.EntityID(playerEntityID)); err == nil {
 				playerComp = playerEntity.Get[component.PlayerComponent]()
 				playerComp.TeamID = newTeam.TeamID
 				playerEntity.Set(playerComp)
@@ -1692,7 +1693,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, state.Contains[lobbyArchetype]())
 		if result == nil {
 			state.LeaveLobbyResults.Broadcast(LeaveLobbyResult{
 				RequestID: payload.RequestID,
@@ -1788,7 +1789,7 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, state.Contains[lobbyArchetype]())
 		if result == nil {
 			state.SetReadyResults.Broadcast(SetReadyResult{
 				RequestID: payload.RequestID,
@@ -1820,7 +1821,7 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 			})
 			continue
 		}
-		playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID))
+		playerEntity, err := state.Contains[playerArchetype]().GetByID(cardinal.EntityID(playerEntityID))
 		if err != nil {
 			state.SetReadyResults.Broadcast(SetReadyResult{
 				RequestID: payload.RequestID,
@@ -1861,7 +1862,7 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, state.Contains[lobbyArchetype]())
 		if result == nil {
 			state.KickPlayerResults.Broadcast(KickPlayerResult{
 				RequestID: payload.RequestID,
@@ -1945,7 +1946,7 @@ func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *lookupIn
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, state.Contains[lobbyArchetype]())
 		if result == nil {
 			state.TransferLeaderResults.Broadcast(TransferLeaderResult{
 				RequestID: payload.RequestID,
@@ -2015,7 +2016,7 @@ func processStartSessionCommands(
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, state.Contains[lobbyArchetype]())
 		if result == nil {
 			state.StartSessionResults.Broadcast(StartSessionResult{
 				RequestID: payload.RequestID,
@@ -2105,7 +2106,7 @@ func processAllocationTimeouts(
 	}
 	now := state.Timestamp().Unix()
 
-	for refs := range state.Lobbies.Iter() {
+	for refs := range state.Contains[lobbyArchetype]().Iter() {
 		lob := refs.Get[component.LobbyComponent]()
 		if lob.Session.State != component.SessionStateAwaitingAllocation {
 			continue
@@ -2213,7 +2214,7 @@ func processAssignShardCommands(
 				Msg("AssignShardCommand for unknown lobby; dropping")
 			continue
 		}
-		lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
+		lobbyEntity, err := state.Contains[lobbyArchetype]().GetByID(cardinal.EntityID(lobbyEntityID))
 		if err != nil {
 			continue
 		}
@@ -2294,7 +2295,7 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *lookup
 			continue
 		}
 
-		lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
+		lobbyEntity, err := state.Contains[lobbyArchetype]().GetByID(cardinal.EntityID(lobbyEntityID))
 		if err != nil {
 			continue
 		}
@@ -2329,12 +2330,13 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *lookup
 		lobbyEntity.Set(lobby)
 
 		// Reset ready status for all player entities
+		players := state.Contains[playerArchetype]()
 		for _, pid := range lobby.GetAllPlayerIDs() {
 			playerEntityID, pExists := lobbyIndex.GetPlayerEntityID(pid)
 			if !pExists {
 				continue
 			}
-			playerEntity, pErr := state.Players.GetByID(cardinal.EntityID(playerEntityID))
+			playerEntity, pErr := players.GetByID(cardinal.EntityID(playerEntityID))
 			if pErr != nil {
 				continue
 			}
@@ -2363,7 +2365,7 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *look
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, state.Contains[lobbyArchetype]())
 		if result == nil {
 			state.GenerateInviteCodeResults.Broadcast(GenerateInviteCodeResult{
 				RequestID: payload.RequestID,
@@ -2437,7 +2439,7 @@ func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, state.Contains[lobbyArchetype]())
 		if result == nil {
 			state.UpdateSessionPassthroughResults.Broadcast(UpdateSessionPassthroughResult{
 				RequestID: payload.RequestID,
@@ -2489,7 +2491,7 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, state.Contains[lobbyArchetype]())
 		if result == nil {
 			state.UpdatePlayerPassthroughResults.Broadcast(UpdatePlayerPassthroughResult{
 				RequestID: payload.RequestID,
@@ -2510,7 +2512,7 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 			})
 			continue
 		}
-		playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID))
+		playerEntity, err := state.Contains[playerArchetype]().GetByID(cardinal.EntityID(playerEntityID))
 		if err != nil {
 			state.UpdatePlayerPassthroughResults.Broadcast(UpdatePlayerPassthroughResult{
 				RequestID: payload.RequestID,
@@ -2567,7 +2569,7 @@ func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex) 
 			continue
 		}
 
-		playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID))
+		playerEntity, err := state.Contains[playerArchetype]().GetByID(cardinal.EntityID(playerEntityID))
 		if err != nil {
 			state.GetPlayerResults.Broadcast(GetPlayerResult{
 				RequestID: payload.RequestID,
@@ -2593,7 +2595,7 @@ func processGetLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, state.Contains[lobbyArchetype]())
 		if result == nil {
 			state.GetLobbyResults.Broadcast(GetLobbyResult{
 				RequestID: payload.RequestID,
@@ -2618,7 +2620,7 @@ func processGetAllPlayersCommands(state *LobbySystemState, lobbyIndex *lookupInd
 		payload := cmd.Payload
 
 		// Get caller's lobby
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, state.Contains[lobbyArchetype]())
 		if result == nil {
 			state.GetAllPlayersResults.Broadcast(GetAllPlayersResult{
 				RequestID: payload.RequestID,
@@ -2658,15 +2660,6 @@ type HeartbeatSystemState struct {
 
 	// Commands
 	HeartbeatCmds cardinal.WithCommand[HeartbeatCommand]
-
-	// Entities
-	Lobbies cardinal.Contains[struct {
-		Lobby cardinal.WithComponent[component.LobbyComponent]
-	}]
-
-	Players cardinal.Contains[struct {
-		Player cardinal.WithComponent[component.PlayerComponent]
-	}]
 
 	// Events
 	PlayerTimedOutEvents cardinal.WithEvent[PlayerTimedOutEvent]
