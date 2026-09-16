@@ -73,7 +73,12 @@ func (ws *worldState) newEntity() EntityID {
 	var eid EntityID
 	if len(ws.free) > 0 { // Reuse free IDs if any
 		eid = ws.free[0]
-		ws.free = ws.free[1:]
+		if len(ws.free) == 1 {
+			// Retain the last slot for repeated create/destroy cycles, preserving FIFO reuse.
+			ws.free = ws.free[:0]
+		} else {
+			ws.free = ws.free[1:]
+		}
 	} else { // Else get the next ID
 		eid = ws.nextID
 		ws.nextID++

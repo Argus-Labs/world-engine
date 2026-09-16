@@ -88,10 +88,10 @@ func restingBodiesSystem(count int) func(state *struct {
 			return
 		}
 		_, floor := state.Spawn.Create()
-		floor.Tag.Set(harnessTag{Role: "floor"})
-		floor.T.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
-		floor.V.Set(physics.Velocity2D{})
-		floor.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
+		floor.Set(harnessTag{Role: "floor"})
+		floor.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
+		floor.Set(physics.Velocity2D{})
+		floor.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
 			ShapeType:    physics.ShapeTypeBox,
 			HalfExtents:  physics.Vec2{X: 200, Y: 1},
 			Friction:     0.5,
@@ -104,13 +104,13 @@ func restingBodiesSystem(count int) func(state *struct {
 			col := i % cols
 			rowIdx := i / cols
 			_, r := state.Spawn.Create()
-			r.Tag.Set(harnessTag{Role: "ball"})
-			r.T.Set(physics.Transform2D{Position: physics.Vec2{
+			r.Set(harnessTag{Role: "ball"})
+			r.Set(physics.Transform2D{Position: physics.Vec2{
 				X: float64(col)*2.0 - float64(cols),
 				Y: float64(rowIdx)*2.0 + 5.0,
 			}})
-			r.V.Set(physics.Velocity2D{})
-			r.PB.Set(newRigidNoGravity(physics.BodyTypeDynamic, physics.ColliderShape{
+			r.Set(physics.Velocity2D{})
+			r.Set(newRigidNoGravity(physics.BodyTypeDynamic, physics.ColliderShape{
 				ShapeType:    physics.ShapeTypeCircle,
 				Radius:       0.5,
 				Density:      1,

@@ -93,7 +93,7 @@ func sha256hex(b []byte) string {
 // in a system state struct registers component.ConfigManifest with Cardinal so the test's
 // pre-seed/observer systems can read and write the same singleton as the plugin's reconcile.
 type manifestSearch = cardinal.Exact[struct {
-	Item cardinal.Ref[component.ConfigManifest]
+	Item cardinal.WithComponent[component.ConfigManifest]
 }]
 
 type manifestObserverState struct {
@@ -205,7 +205,7 @@ func TestPlugin_ManifestComponentOnFreshWorld(t *testing.T) {
 		_, ent, err := state.Manifest.Iter().Single()
 		observeErr = err
 		if err == nil {
-			observed = ent.Item.Get()
+			observed = ent.Get[component.ConfigManifest]()
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
@@ -244,14 +244,14 @@ func TestPlugin_ReconcileReFetchesChangedFileAtSnapshotHash(t *testing.T) {
 	// Pre-seed at Init: a ConfigManifest referencing the OLD hash, as if restored from a snapshot.
 	w.RegisterSystem(func(state *manifestPreseedState) {
 		_, ent := state.Manifest.Create()
-		ent.Item.Set(abilitiesManifest(h1))
+		ent.Set(abilitiesManifest(h1))
 	}, cardinal.WithHook(cardinal.Init))
 
 	var observed component.ConfigManifest
 	w.RegisterSystem(func(state *manifestObserverState) {
 		_, ent, err := state.Manifest.Iter().Single()
 		if err == nil {
-			observed = ent.Item.Get()
+			observed = ent.Get[component.ConfigManifest]()
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
@@ -284,14 +284,14 @@ func TestPlugin_EmbedMismatchWarnsAndKeepsCurrent(t *testing.T) {
 	const staleHash = "0000000000000000000000000000000000000000000000000000000000000000"
 	w.RegisterSystem(func(state *manifestPreseedState) {
 		_, ent := state.Manifest.Create()
-		ent.Item.Set(abilitiesManifest(staleHash))
+		ent.Set(abilitiesManifest(staleHash))
 	}, cardinal.WithHook(cardinal.Init))
 
 	var observed component.ConfigManifest
 	w.RegisterSystem(func(state *manifestObserverState) {
 		_, ent, err := state.Manifest.Iter().Single()
 		if err == nil {
-			observed = ent.Item.Get()
+			observed = ent.Get[component.ConfigManifest]()
 		}
 	}, cardinal.WithHook(cardinal.PostUpdate))
 
@@ -327,7 +327,7 @@ func TestPlugin_ReconcileFailurePanicsOnVersionedSource(t *testing.T) {
 	const missingHash = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 	w.RegisterSystem(func(state *manifestPreseedState) {
 		_, ent := state.Manifest.Create()
-		ent.Item.Set(abilitiesManifest(missingHash))
+		ent.Set(abilitiesManifest(missingHash))
 	}, cardinal.WithHook(cardinal.Init))
 
 	initCardinalECS(t, w)
@@ -357,7 +357,7 @@ func TestPlugin_ReconcileDuplicatePathPanics(t *testing.T) {
 
 	w.RegisterSystem(func(state *manifestPreseedState) {
 		_, ent := state.Manifest.Create()
-		ent.Item.Set(component.ConfigManifest{Files: immutable.SliceOf(
+		ent.Set(component.ConfigManifest{Files: immutable.SliceOf(
 			component.ConfigFileHash{Path: "testdata/abilities.json", Hash: h1},
 			component.ConfigFileHash{Path: "testdata/abilities.json", Hash: h2},
 		)})

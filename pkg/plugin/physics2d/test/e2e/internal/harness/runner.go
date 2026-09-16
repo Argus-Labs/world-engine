@@ -10,6 +10,8 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/probe"
+
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
@@ -261,8 +263,8 @@ func (r *Runner) watchNaN(state *stepState, tick uint64) {
 		if r.nanReported[eid] {
 			continue
 		}
-		t := row.Transform.Get()
-		v := row.Velocity.Get()
+		t := row.Get[physics.Transform2D]()
+		v := row.Get[physics.Velocity2D]()
 		bad := ""
 		switch {
 		case !finite(t.Position.X) || !finite(t.Position.Y):
@@ -278,7 +280,7 @@ func (r *Runner) watchNaN(state *stepState, tick uint64) {
 			continue
 		}
 		r.nanReported[eid] = true
-		p := row.Probe.Get()
+		p := row.Get[probe.Probe]()
 		r.report.Fail(p.Scenario, "no NaN/Inf in simulated state", tick,
 			"body %q (entity %d) went non-finite: %s", p.Label, eid, bad)
 	}
@@ -430,9 +432,9 @@ func (r *Runner) Digest(w *cardinal.World) (int, uint64) {
 	var rows []digestState
 	collect := func(state *digestCollectorState) {
 		for eid, row := range state.Probes.Iter() {
-			p := row.Probe.Get()
-			t := row.Transform.Get()
-			v := row.Velocity.Get()
+			p := row.Get[probe.Probe]()
+			t := row.Get[physics.Transform2D]()
+			v := row.Get[physics.Velocity2D]()
 			rows = append(rows, digestState{
 				key: fmt.Sprintf("%s/%s/%d", p.Scenario, p.Label, eid),
 				px:  t.Position.X, py: t.Position.Y, rot: t.Rotation,

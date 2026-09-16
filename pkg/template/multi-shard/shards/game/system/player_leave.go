@@ -2,6 +2,7 @@ package system
 
 import (
 	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/command"
+	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/component"
 	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/event"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
@@ -19,7 +20,7 @@ func PlayerLeaveSystem(state *PlayerLeaveSystemState) {
 	players := make(map[string]cardinal.EntityID)
 
 	for entity, player := range state.Players.Iter() {
-		players[player.Tag.Get().ArgusAuthID] = entity
+		players[player.Get[component.PlayerTag]().ArgusAuthID] = entity
 	}
 
 	for cmd := range state.PlayerLeaveCommands.Iter() {
@@ -31,7 +32,7 @@ func PlayerLeaveSystem(state *PlayerLeaveSystemState) {
 			continue
 		}
 
-		state.Players.Destroy(entityID)
+		state.Entity(entityID).Destroy()
 
 		state.PlayerDepartureEvent.Broadcast(event.PlayerDeparture{
 			ArgusAuthID: command.ArgusAuthID,

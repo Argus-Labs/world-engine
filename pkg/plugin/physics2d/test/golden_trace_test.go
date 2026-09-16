@@ -218,11 +218,11 @@ func runGoldenScenarioWorkers(t *testing.T, sc goldenScenario, workers int) gold
 		if tick%goldenSampleEvery == 0 || tick == lastTick {
 			bodies := []goldenBody{}
 			for eid, row := range state.Spawn.Iter() {
-				tr := row.T.Get()
-				vel := row.V.Get()
+				tr := row.Get[physics.Transform2D]()
+				vel := row.Get[physics.Velocity2D]()
 				bodies = append(bodies, goldenBody{
 					Entity:   uint32(eid),
-					Role:     row.Tag.Get().Role,
+					Role:     row.Get[harnessTag]().Role,
 					PosX:     goldenFloat(tr.Position.X),
 					PosY:     goldenFloat(tr.Position.Y),
 					Rotation: goldenFloat(tr.Rotation),
@@ -347,10 +347,10 @@ func goldenSpawn(w *cardinal.World, entities func() []goldenEntity) {
 		}
 		for _, e := range entities() {
 			_, row := state.Spawn.Create()
-			row.Tag.Set(harnessTag{Role: e.role})
-			row.T.Set(physics.Transform2D{Position: e.pos, Rotation: e.rotation})
-			row.V.Set(e.vel)
-			row.PB.Set(e.body)
+			row.Set(harnessTag{Role: e.role})
+			row.Set(physics.Transform2D{Position: e.pos, Rotation: e.rotation})
+			row.Set(e.vel)
+			row.Set(e.body)
 		}
 	}, cardinal.WithHook(cardinal.Init))
 }

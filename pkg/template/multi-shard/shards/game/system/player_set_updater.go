@@ -2,6 +2,7 @@ package system
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/component"
 )
 
 type PlayerSetUpdaterState struct {
@@ -13,6 +14,6 @@ type PlayerSetUpdaterState struct {
 func PlayerSetUpdater(state *PlayerSetUpdaterState) {
 	playerSet.Clear()
 	for _, player := range state.Players.Iter() {
-		playerSet.Add(player.Tag.Get().ArgusAuthID)
+		playerSet.Add(player.Get[component.PlayerTag]().ArgusAuthID)
 	}
 }

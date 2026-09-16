@@ -292,7 +292,7 @@ import (
 type AssignerState struct {
     cardinal.BaseSystemState
     Lobbies cardinal.Contains[struct {
-        Lobby cardinal.Ref[lobby.Component]
+        Lobby cardinal.WithComponent[lobby.Component]
     }]
 }
 
@@ -306,7 +306,7 @@ func AssignerSystem(state *AssignerState) {
     }
 
     for _, refs := range state.Lobbies.Iter() {
-        lob := refs.Lobby.Get()
+        lob := refs.Get[lobby.Component]()
         if lob.Session.State != lobby.SessionStateAwaitingAllocation {
             continue
         }

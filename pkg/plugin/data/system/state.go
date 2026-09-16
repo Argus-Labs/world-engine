@@ -143,7 +143,7 @@ func (s *State) LoadAll(ctx context.Context, primary, resolverSource Source) {
 type ReconcileState struct {
 	cardinal.BaseSystemState
 	Manifest cardinal.Exact[struct {
-		Item cardinal.Ref[component.ConfigManifest]
+		Item cardinal.WithComponent[component.ConfigManifest]
 	}]
 }
 
@@ -176,7 +176,7 @@ func (s *State) Reconcile(rs *ReconcileState, primary, resolverSource Source) {
 	switch {
 	case errors.Is(err, cardinal.ErrSingleNoResult):
 		_, ent = rs.Manifest.Create()
-		ent.Item.Set(s.manifest)
+		ent.Set(s.manifest)
 		return
 	case errors.Is(err, cardinal.ErrSingleMultipleResult):
 		panic(eris.New("data: more than one config-manifest singleton"))
@@ -188,7 +188,7 @@ func (s *State) Reconcile(rs *ReconcileState, primary, resolverSource Source) {
 	// before this component held an ordered list restores in arbitrary order, so it reads as changed
 	// here, finds every hash already matching below, and reaches the rewrite at the bottom, which
 	// stores it sorted. Every tick after that takes this return.
-	snap := ent.Item.Get()
+	snap := ent.Get[component.ConfigManifest]()
 	if immutable.Equal(snap.Files, s.manifest.Files) {
 		return
 	}
@@ -222,7 +222,7 @@ func (s *State) Reconcile(rs *ReconcileState, primary, resolverSource Source) {
 				Interface("snapshot", snap).
 				Interface("current", s.manifest).
 				Msg("data: config changed since snapshot; resuming on current config")
-			ent.Item.Set(s.manifest)
+			ent.Set(s.manifest)
 			return
 		}
 		def, assembleErr := loader.assemble(ctx, resolverSource, raw)
@@ -245,5 +245,5 @@ func (s *State) Reconcile(rs *ReconcileState, primary, resolverSource Source) {
 		entries = append(entries, component.ConfigFileHash{Path: file, Hash: hash})
 	}
 	s.manifest = component.ConfigManifest{Files: immutable.SliceOf(entries...)}
-	ent.Item.Set(s.manifest)
+	ent.Set(s.manifest)
 }

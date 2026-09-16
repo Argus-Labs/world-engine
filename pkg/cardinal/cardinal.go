@@ -3,6 +3,7 @@ package cardinal
 import (
 	"context"
 	"os/signal"
+	"reflect"
 	"syscall"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
 	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
+	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -39,6 +41,8 @@ type World struct {
 	currentTick     Tick                  // Current tick
 	options         WorldOptions          // World options
 	tel             telemetry.Telemetry   // Logs and traces
+
+	entityArchetypes map[reflect.Type]bitmap.Bitmap
 }
 
 // NewWorld creates a game world with the specified options.

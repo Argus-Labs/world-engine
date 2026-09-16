@@ -5,7 +5,7 @@ package cardinal
 // and shared across projects.
 //
 // Components, commands, and events are automatically registered when referenced by system
-// state fields (via Ref[T], WithCommand[T], WithEvent[T]), so a plugin's Register method
+// state fields (via WithComponent[T], WithCommand[T], WithEvent[T]), so a plugin's Register method
 // typically only needs to call RegisterSystem.
 //
 // Example:

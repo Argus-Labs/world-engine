@@ -24,11 +24,11 @@ func UserChatSystem(state *UserChatSystemState) {
 		timestamp := time.Now()
 
 		id, chat := state.ChatSearch.Create()
-		chat.UserTag.Set(component.UserTag{
+		chat.Set(component.UserTag{
 			ArgusAuthID:   command.ArgusAuthID,
 			ArgusAuthName: command.ArgusAuthName,
 		})
-		chat.Chat.Set(component.Chat{
+		chat.Set(component.Chat{
 			Message:   command.Message,
 			Timestamp: timestamp,
 		})

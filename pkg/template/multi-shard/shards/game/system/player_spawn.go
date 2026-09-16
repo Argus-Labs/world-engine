@@ -39,9 +39,9 @@ func PlayerSpawnSystem(state *SpawnPlayerSystemState) {
 		}
 
 		id, player := state.Players.Create()
-		player.Tag.Set(component.PlayerTag{ArgusAuthID: command.ArgusAuthID, ArgusAuthName: command.ArgusAuthName})
-		player.Position.Set(component.Position{X: int(command.X), Y: int(command.Y)})
-		player.Online.Set(component.OnlineStatus{Online: true, LastActive: time.Now()})
+		player.Set(component.PlayerTag{ArgusAuthID: command.ArgusAuthID, ArgusAuthName: command.ArgusAuthName})
+		player.Set(component.Position{X: int(command.X), Y: int(command.Y)})
+		player.Set(component.OnlineStatus{Online: true, LastActive: time.Now()})
 
 		playerSet.Add(command.ArgusAuthID)
 

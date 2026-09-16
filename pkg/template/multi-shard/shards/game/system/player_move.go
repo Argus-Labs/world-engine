@@ -23,13 +23,13 @@ func MovePlayerSystem(state *MovePlayerSystemState) {
 		command := cmd.Payload
 
 		for entity, player := range state.Players.Iter() {
-			tag := player.Tag.Get()
+			tag := player.Get[component.PlayerTag]()
 
 			if command.ArgusAuthID != tag.ArgusAuthID {
 				continue
 			}
 
-			isOnline := player.Online.Get().Online
+			isOnline := player.Get[component.OnlineStatus]().Online
 
 			if !isOnline {
 				state.PlayerSpawnEvent.Broadcast(event.PlayerSpawn{
@@ -40,8 +40,8 @@ func MovePlayerSystem(state *MovePlayerSystemState) {
 				})
 			}
 
-			player.Position.Set(component.Position{X: int(command.X), Y: int(command.Y)})
-			player.Online.Set(component.OnlineStatus{Online: true, LastActive: time.Now()})
+			player.Set(component.Position{X: int(command.X), Y: int(command.Y)})
+			player.Set(component.OnlineStatus{Online: true, LastActive: time.Now()})
 
 			state.PlayerMovementEvent.Broadcast(event.PlayerMovement{
 				ArgusAuthID: tag.ArgusAuthID,

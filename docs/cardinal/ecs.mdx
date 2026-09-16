@@ -227,7 +227,7 @@ You must register systems with the world to run them:
 w.RegisterSystem(MySystem)
 ```
 
-Registered systems run once every tick, in registration order. Cardinal's scheduler automatically runs systems without shared dependencies in parallel. A system's dependencies include the components and [system events](/cardinal/system-events) it accesses.
+Registered systems run sequentially within each tick phase, in registration order.
 
 ### System Hooks
 
@@ -251,160 +251,129 @@ Each of these corresponds to a tick phase, except `Init`, which runs only once i
 
 ## Searches
 
-To work with entities and their components in your systems, you need to define a **search**. A search lets you find and manipulate entities with specific components.
+Searches select entities by component type:
 
-Add a search field to your system state struct using one of these types:
+- `Contains[T]` matches entities with every declared component, allowing extras.
+- `Exact[T]` matches entities with exactly the declared components.
 
-- `Exact[T]`: finds entities that have exactly the specified components, nothing more.
-- `Contains[T]`: finds entities that have at least the specified components, but may have others.
-
-For example, say you have player and enemy entities that both have a `Health` component, but only enemies have an `AIBehavior` component. Using `Contains` with just `Health` would match both players and enemies. Using `Exact` with `Health` and `AIBehavior` would match only enemies.
-
-The type parameter `T` is a struct that lists the components you want to search for. Each field must use `Ref[C]`, where `C` is a component type:
+Declare an archetype as a struct of `WithComponent[C]` fields. A search field registers
+those components before the world starts, so they are available during snapshot restoration.
+The declarations carry no entity data. Queries return world-bound `Entity` handles.
 
 ```go
-import "github.com/argus-labs/world-engine/pkg/cardinal"
+type Mob struct {
+    Health   cardinal.WithComponent[Health]
+    Position cardinal.WithComponent[Position]
+}
 
 type MobSystemState struct {
-	cardinal.BaseSystemState
-	Mobs cardinal.Contains[struct {
-		Health   cardinal.Ref[Health]
-		Position cardinal.Ref[Position]
-	}]
+    cardinal.BaseSystemState
+    Mobs     cardinal.Contains[Mob]
+    Poisoned cardinal.WithComponent[Poisoned]
 }
 ```
 
-This defines a search called `Mobs` that matches all entities with at least `Health` and `Position` components. We'll use it to demonstrate entity operations below.
+`Poisoned` registers an optional component without requiring it in the `Mobs` search.
 
 ### Creating an Entity
 
-Use `Create` to spawn a new entity with the components defined in your search. It returns the entity ID and a handle to access its components. All components are initialized to their zero values.
+Use the generic `Create[T]` method inherited from `BaseSystemState`:
 
 ```go
-func MobSystem(state *MobSystemState) error {
-	// Create a new entity.
-	entityID, mob := state.Mobs.Create()
-
-	// Set the entity's component values. Any fields unset remain at their zero values.
-	mob.Health.Set(Health{Value: 100})
-	mob.Position.Set(Position{X: 0, Y: 0})
-
-	return nil
+func SpawnMob(state *MobSystemState) {
+    mob := state.Create[Mob]()
+    mob.Set(Health{Value: 100})
+    mob.Set(Position{X: 0, Y: 0})
 }
 ```
 
-<Note>
-  `Create` always creates an entity with exactly the components in your search, even if you're using
-  `Contains`. The difference between `Contains` and `Exact` only affects which entities are matched
-  when iterating or querying.
-</Note>
+Creation adds exactly the archetype's components, initialized to zero. The archetype must
+be registered first. A `Contains[Mob]` or `Exact[Mob]` field registers it automatically.
+Without a search field, call `w.RegisterArchetype[Mob]()` before starting the world.
+`state.Mobs.Create()` also remains available and returns `(EntityID, Entity)`.
 
-### Destroying an Entity
+### Entity Handles and Stored IDs
 
-Use `Destroy` to remove an entity and all its components from the world. Returns `true` if the entity existed and was destroyed:
+An `Entity` carries its numeric ID and owning world. Its methods need no extra world argument.
+Use `entity.ID()` in components, commands, physics lookups, and persistent data. To access
+that ID in a system, bind it to the system's world:
 
 ```go
-func MobSystem(state *MobSystemState) error {
-	ok := state.Mobs.Destroy(entityID)
-	if !ok {
-		// Entity doesn't exist or was already destroyed.
-	}
-	return nil
+entity := state.Entity(entityID)
+if entity.Alive() && entity.Has[Health]() {
+    health := entity.Get[Health]()
+    entity.Set(Health{Value: health.Value - 10})
 }
 ```
+
+`EntityID` remains a numeric value. Store IDs rather than runtime handles. After snapshot
+restoration, `state.Entity(savedID)` binds an ID to the restored world. IDs belong to one
+world and can be reused after destruction or reset, so discard handles when that happens.
+Access handles from systems on the world's execution goroutine.
 
 ### Iterating Over Entities
 
-Use `Iter` to loop through all entities matching the search. It yields both the entity ID and a handle to access components:
+`Iter` yields each matching entity's numeric ID and handle:
 
 ```go
-func MobSystem(state *MobSystemState) error {
-	for entityID, mob := range state.Mobs.Iter() {
-	  // Use entity...
-	}
-	return nil
+func DamageMobs(state *MobSystemState) {
+    for _, mob := range state.Mobs.Iter() {
+        health := mob.Get[Health]()
+        mob.Set(Health{Value: health.Value - 10})
+    }
 }
 ```
+
+Handles are independent values. Retaining one during another query does not change which
+entity it refers to. `Get[T]` returns a copy. Write changes back with `Set`, subject to the
+component ownership rules in [What a Component May Hold](#what-a-component-may-hold).
+
+Use `Filter(func(EntityID, Entity) bool)` and `Limit` to narrow results.
+`Single()` returns `(EntityID, Entity, error)` and requires exactly one match.
 
 ### Getting a Specific Entity
 
-Use `GetByID` to retrieve a specific entity's handle. Returns `false` if the entity doesn't exist or doesn't have the matching components in the search:
+`GetByID` validates the search's component requirements before returning a handle:
 
 ```go
-func MobSystem(state *MobSystemState) error {
-	mob, ok := state.Mobs.GetByID(entityID)
-	if !ok {
-		// Entity not found.
-		return nil
-	}
-	health := mob.Health.Get()
-	// ...
-	return nil
+mob, err := state.Mobs.GetByID(entityID)
+if err != nil {
+    // The entity is absent or its components do not match the search.
+    return
+}
+health := mob.Get[Health]()
+```
+
+Use `state.Entity(entityID)` when no archetype check is needed. Binding does not itself
+check existence. `Alive()` and `Has[T]()` return false for absent entities.
+
+### Adding and Removing Components
+
+`Set` infers the component type from its argument and adds or replaces it:
+
+```go
+mob.Set(Poisoned{Duration: 10})
+if mob.Has[Poisoned]() {
+    mob.Remove[Poisoned]()
 }
 ```
 
-### Reading and Writing Components
+Register optional types before startup with a `WithComponent[T]` system field or an
+archetype declaration. They do not need to be part of the query that found the entity.
+`Get`, `Set`, and `Remove` panic for invalid operations, including access to a destroyed
+entity or an unregistered component. `Get` also panics for an absent component.
+Removing a registered component that is already absent is a no-op.
 
-Use `Get` and `Set` on component references to read and write component data. `Get` returns a
-copy, so nothing you do to it reaches the world until you `Set` it back (see
-[What a Component May Hold](#what-a-component-may-hold)):
+Adding or removing components changes an entity's archetype. Collect handles before making
+structural changes while iterating a search, so moving rows cannot skip other matches.
 
-```go
-func MobSystem(state *MobSystemState) error {
-	for _, mob := range state.Mobs.Iter() {
-		// Read current health.
-		health := mob.Health.Get()
+### Destroying an Entity
 
-		// Write new health.
-		mob.Health.Set(Health{Value: health.Value - 10})
-	}
-	return nil
-}
-```
-
-### Adding a Component
-
-Because systems must declare all components they access upfront, adding a component requires including it in your search definition.
-
-Define a `Contains[T]` search with both the entity's existing components and the component you want to add, then use `Set` to add the new component:
+`Destroy` removes the entity and all its components. It returns true only if an entity was removed:
 
 ```go
-import "github.com/argus-labs/world-engine/pkg/cardinal"
-
-type MobSystemState struct {
-	cardinal.BaseSystemState
-	Mobs cardinal.Contains[struct {
-		Health   cardinal.Ref[Health]
-		Position cardinal.Ref[Position]
-		Poisoned cardinal.Ref[Poisoned] // Add the component
-	}]
-}
-
-func MobSystem(state *MobSystemState) error {
-	for _, mob := range state.Mobs.Iter() {
-		// Set will add the component to the entity if it doesn't exist.
-		mob.Poisoned.Set(Poisoned{Duration: 10})
-	}
-	return nil
-}
+mob.Destroy()
 ```
 
-<Note>
-  Because you're using a `Contains` search, it may match entities you don't intend to modify. To
-  avoid this, add a [tag component](#tag-components) so you can distinguish your target entities
-  from the rest.
-</Note>
-
-### Removing a Component
-
-Use `Remove` to detach a component from an entity:
-
-```go
-func MobSystem(state *MobSystemState) error {
-	for _, mob := range state.Mobs.Iter() {
-		// Remove the health component from this entity.
-		mob.Health.Remove()
-	}
-	return nil
-}
-```
+A zero `Entity` is not alive. Its `Has` and `Destroy` methods return false, and component
+reads or writes panic.

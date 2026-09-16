@@ -89,9 +89,9 @@ func findMessageDescriptor(set *descriptorpb.FileDescriptorSet, name string) *de
 
 type snapshotEntities struct {
 	Entities Contains[struct {
-		Position  Ref[Position3D]
-		Health    Ref[Health2]
-		Inventory Ref[Inventory]
+		Position  WithComponent[Position3D]
+		Health    WithComponent[Health2]
+		Inventory WithComponent[Inventory]
 	}]
 }
 
@@ -100,13 +100,13 @@ func seedSnapshotWorld(t *testing.T, state *snapshotEntities) {
 
 	for i := range 5 {
 		_, e := state.Entities.Create()
-		e.Position.Set(Position3D{X: float64(i), Y: float64(i) * 2, Z: -1})
-		e.Health.Set(Health2{Current: 100 - i, Max: 100})
-		e.Inventory.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10 + i})
+		e.Set(Position3D{X: float64(i), Y: float64(i) * 2, Z: -1})
+		e.Set(Health2{Current: 100 - i, Max: 100})
+		e.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10 + i})
 	}
-	doomed, e := state.Entities.Create()
-	e.Position.Set(Position3D{X: 42})
-	require.True(t, state.Entities.Destroy(doomed))
+	_, e := state.Entities.Create()
+	e.Set(Position3D{X: 42})
+	require.True(t, e.Destroy())
 }
 
 // TestDebugGetStatePublishesEveryTick checks snapshot content and ownership after each tick.
@@ -124,7 +124,7 @@ func TestDebugGetStatePublishesEveryTick(t *testing.T) {
 		require.NoError(t, err)
 
 		_, e := state.Entities.Create()
-		e.Position.Set(Position3D{X: float64(w.currentTick.height)})
+		e.Set(Position3D{X: float64(w.currentTick.height)})
 
 		completed := w.currentTick.height
 		w.Tick(time.Now())

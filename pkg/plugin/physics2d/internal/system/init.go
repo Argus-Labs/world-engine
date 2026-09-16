@@ -9,9 +9,9 @@ import (
 
 // physicsBodyRow matches entities that participate in 2D physics (ECS authoritative).
 type physicsBodyRow struct {
-	Transform   cardinal.Ref[physicscomp.Transform2D]
-	Velocity    cardinal.Ref[physicscomp.Velocity2D]
-	PhysicsBody cardinal.Ref[physicscomp.PhysicsBody2D]
+	Transform   cardinal.WithComponent[physicscomp.Transform2D]
+	Velocity    cardinal.WithComponent[physicscomp.Velocity2D]
+	PhysicsBody cardinal.WithComponent[physicscomp.PhysicsBody2D]
 }
 
 // gatherRebuildEntries collects physics archetype rows for reconcile/rebuild, appending into
@@ -20,15 +20,15 @@ type physicsBodyRow struct {
 // Runtime.KeepRebuildEntriesScratch, so the init gather starts from whatever capacity is already
 // there and the steady-state gather inherits the capacity init built.
 func gatherRebuildEntries(dst []internal.PhysicsRebuildEntry,
-	iter cardinal.SearchResult[cardinal.EntityID, physicsBodyRow],
+	iter cardinal.SearchResult,
 ) []internal.PhysicsRebuildEntry {
 	entries := dst[:0]
 	for eid, row := range iter {
 		entries = append(entries, internal.PhysicsRebuildEntry{
 			EntityID:    eid,
-			Transform:   row.Transform.Get(),
-			Velocity:    row.Velocity.Get(),
-			PhysicsBody: row.PhysicsBody.Get(),
+			Transform:   row.Get[physicscomp.Transform2D](),
+			Velocity:    row.Get[physicscomp.Velocity2D](),
+			PhysicsBody: row.Get[physicscomp.PhysicsBody2D](),
 		})
 	}
 	return entries
@@ -36,8 +36,8 @@ func gatherRebuildEntries(dst []internal.PhysicsRebuildEntry,
 
 // physicsSingletonSearch is the Exact query for the plugin singleton (ActiveContacts).
 type physicsSingletonSearch = cardinal.Exact[struct {
-	Tag            cardinal.Ref[physicscomp.PhysicsSingletonTag]
-	ActiveContacts cardinal.Ref[physicscomp.ActiveContacts]
+	Tag            cardinal.WithComponent[physicscomp.PhysicsSingletonTag]
+	ActiveContacts cardinal.WithComponent[physicscomp.ActiveContacts]
 }]
 
 // InitPhysicsSystemState runs once at world init: FullRebuildFromECS from current ECS entities.
