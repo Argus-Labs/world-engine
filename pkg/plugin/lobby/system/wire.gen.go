@@ -74,8 +74,10 @@ func (c AssignShardCommand) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.RequestID))
 	}
 	b = protowire.AppendTag(b, 3, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.GameWorld.SizeWire()))
+	atGameWorld := len(b)
+	b = append(b, 0)
 	b = c.GameWorld.AppendWire(b)
+	b = wireLenPrefix(b, atGameWorld)
 	if len(c.Reason) > 0 {
 		b = protowire.AppendTag(b, 4, protowire.BytesType)
 		b = protowire.AppendString(b, string(c.Reason))
@@ -224,11 +226,15 @@ func (c CreateLobbyResult) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.Message))
 	}
 	b = protowire.AppendTag(b, 4, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.Lobby.SizeWire()))
+	atLobby := len(b)
+	b = append(b, 0)
 	b = c.Lobby.AppendWire(b)
+	b = wireLenPrefix(b, atLobby)
 	b = protowire.AppendTag(b, 5, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.Player.SizeWire()))
+	atPlayer := len(b)
+	b = append(b, 0)
 	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
 	return b
 }
 
@@ -478,8 +484,10 @@ func (c GetAllPlayersResult) AppendWire(b []byte) []byte {
 	}
 	for i0 := range c.Players {
 		b = protowire.AppendTag(b, 4, protowire.BytesType)
-		b = protowire.AppendVarint(b, uint64(c.Players[i0].SizeWire()))
+		atPlayers := len(b)
+		b = append(b, 0)
 		b = c.Players[i0].AppendWire(b)
+		b = wireLenPrefix(b, atPlayers)
 	}
 	if c.PlayersCount != 0 {
 		b = protowire.AppendTag(b, 5, protowire.VarintType)
@@ -599,8 +607,10 @@ func (c GetLobbyResult) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.Message))
 	}
 	b = protowire.AppendTag(b, 4, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.Lobby.SizeWire()))
+	atLobby := len(b)
+	b = append(b, 0)
 	b = c.Lobby.AppendWire(b)
+	b = wireLenPrefix(b, atLobby)
 	return b
 }
 
@@ -724,8 +734,10 @@ func (c GetPlayerResult) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.Message))
 	}
 	b = protowire.AppendTag(b, 4, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.Player.SizeWire()))
+	atPlayer := len(b)
+	b = append(b, 0)
 	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
 	return b
 }
 
@@ -977,12 +989,16 @@ func (c JoinLobbyResult) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.Message))
 	}
 	b = protowire.AppendTag(b, 4, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.Lobby.SizeWire()))
+	atLobby := len(b)
+	b = append(b, 0)
 	b = c.Lobby.AppendWire(b)
+	b = wireLenPrefix(b, atLobby)
 	for i0 := range c.PlayersList {
 		b = protowire.AppendTag(b, 5, protowire.BytesType)
-		b = protowire.AppendVarint(b, uint64(c.PlayersList[i0].SizeWire()))
+		atPlayersList := len(b)
+		b = append(b, 0)
 		b = c.PlayersList[i0].AppendWire(b)
+		b = wireLenPrefix(b, atPlayersList)
 	}
 	if c.PlayersListCount != 0 {
 		b = protowire.AppendTag(b, 6, protowire.VarintType)
@@ -1111,8 +1127,10 @@ func (c JoinTeamResult) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.Message))
 	}
 	b = protowire.AppendTag(b, 4, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.Player.SizeWire()))
+	atPlayer := len(b)
+	b = append(b, 0)
 	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
 	return b
 }
 
@@ -1612,8 +1630,10 @@ func (c NotifySessionStartCommand) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.LobbyID))
 	}
 	b = protowire.AppendTag(b, 2, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.LobbyWorld.SizeWire()))
+	atLobbyWorld := len(b)
+	b = append(b, 0)
 	b = c.LobbyWorld.AppendWire(b)
+	b = wireLenPrefix(b, atLobbyWorld)
 	return b
 }
 
@@ -1682,8 +1702,10 @@ func (c PlayerChangedTeamEvent) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.NewTeamID))
 	}
 	b = protowire.AppendTag(b, 4, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.Player.SizeWire()))
+	atPlayer := len(b)
+	b = append(b, 0)
 	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
 	return b
 }
 
@@ -1743,8 +1765,10 @@ func (c PlayerJoinedEvent) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.TeamID))
 	}
 	b = protowire.AppendTag(b, 3, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.Player.SizeWire()))
+	atPlayer := len(b)
+	b = append(b, 0)
 	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
 	return b
 }
 
@@ -1914,8 +1938,10 @@ func (c PlayerPassthroughUpdatedEvent) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.LobbyID))
 	}
 	b = protowire.AppendTag(b, 2, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.Player.SizeWire()))
+	atPlayer := len(b)
+	b = append(b, 0)
 	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
 	return b
 }
 
@@ -1966,8 +1992,10 @@ func (c PlayerReadyEvent) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.LobbyID))
 	}
 	b = protowire.AppendTag(b, 2, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.Player.SizeWire()))
+	atPlayer := len(b)
+	b = append(b, 0)
 	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
 	return b
 }
 
@@ -2220,8 +2248,10 @@ func (c SessionStartedEvent) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.LobbyID))
 	}
 	b = protowire.AppendTag(b, 2, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.GameWorld.SizeWire()))
+	atGameWorld := len(b)
+	b = append(b, 0)
 	b = c.GameWorld.AppendWire(b)
+	b = wireLenPrefix(b, atGameWorld)
 	return b
 }
 
@@ -2345,8 +2375,10 @@ func (c SetReadyResult) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.Message))
 	}
 	b = protowire.AppendTag(b, 4, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.Player.SizeWire()))
+	atPlayer := len(b)
+	b = append(b, 0)
 	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
 	return b
 }
 
@@ -2461,8 +2493,10 @@ func (c StartSessionResult) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.Message))
 	}
 	b = protowire.AppendTag(b, 4, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.GameWorld.SizeWire()))
+	atGameWorld := len(b)
+	b = append(b, 0)
 	b = c.GameWorld.AppendWire(b)
+	b = wireLenPrefix(b, atGameWorld)
 	return b
 }
 
@@ -2705,8 +2739,10 @@ func (c UpdatePlayerPassthroughResult) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.Message))
 	}
 	b = protowire.AppendTag(b, 4, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(c.Player.SizeWire()))
+	atPlayer := len(b)
+	b = append(b, 0)
 	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
 	return b
 }
 
@@ -2829,15 +2865,24 @@ func (c UpdateSessionPassthroughResult) AppendWire(b []byte) []byte {
 	return b
 }
 
-// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check
-// proto.Marshal performs.
-//
-// proto3 forbids a string field holding bytes that are not valid UTF-8, and every decoder
-// rejects such a payload — so writing one produces a snapshot that cannot be restored. The size
-// pass runs over the whole world before a single byte is appended, so panicking here fails the
-// write rather than committing a file that only fails later, at restore, where nothing can be
-// done about it. proto.Marshal made the same check; keeping it is what makes the direct
-// encoders a drop-in for it.
+// wireLenPrefix writes the length of the bytes appended after the placeholder at b[at].
+// The body is moved up only when the length needs more than the one byte reserved.
+func wireLenPrefix(b []byte, at int) []byte {
+	n := len(b) - at - 1
+	if n < 0x80 {
+		b[at] = byte(n)
+		return b
+	}
+	k := protowire.SizeVarint(uint64(n)) - 1
+	b = append(b, make([]byte, k)...)
+	copy(b[at+1+k:], b[at+1:at+1+n])
+	protowire.AppendVarint(b[at:at], uint64(n)) // in place: cap reaches the body
+	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check proto.Marshal
+// performs: a proto3 string holding invalid UTF-8 cannot be decoded, so the size pass
+// fails.
 func wireStringSize(field, s string) int {
 	if !utf8.ValidString(s) {
 		panic("failed to encode " + field + ": string field contains invalid UTF-8")

@@ -52,9 +52,10 @@ func TestEnvelopeCanonical(t *testing.T) {
 			body, err := proto.Marshal(testWorldState())
 			require.NoError(t, err)
 
-			got := Encode(tc.tick, tc.ts, len(body), func(b []byte) []byte {
-				return append(b, body...)
+			got, err := Encode(tc.tick, tc.ts, len(body), func(b []byte) ([]byte, error) {
+				return append(b, body...), nil
 			})
+			require.NoError(t, err)
 
 			want, err := proto.MarshalOptions{Deterministic: true}.Marshal(&cardinalv1.Snapshot{
 				TickHeight: tc.tick,
@@ -78,7 +79,8 @@ func TestEncodeDecodeRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	ts := time.Unix(1_700_000_000, 42).UTC()
 
-	data := Encode(11, ts, len(body), func(b []byte) []byte { return append(b, body...) })
+	data, err := Encode(11, ts, len(body), func(b []byte) ([]byte, error) { return append(b, body...), nil })
+	require.NoError(t, err)
 
 	snap, err := Decode(data)
 	require.NoError(t, err)
@@ -160,19 +162,21 @@ func TestDecodeRejects(t *testing.T) {
 	})
 }
 
-// TestEncodeRefusesBodySizeMismatch pins that the integrity check survives the release tag. It used
-// to be an assert.That, which compiles to nothing there, so a divergence returned an undecodable
-// snapshot instead of failing.
+// TestEncodeRefusesBodySizeMismatch pins that the integrity check survives the release tag. It is an
+// error, not an assert.That, which compiles to nothing there.
 func TestEncodeRefusesBodySizeMismatch(t *testing.T) {
 	t.Parallel()
 
-	assert.Panics(t, func() {
-		Encode(7, time.Unix(1, 0), 10, func(b []byte) []byte { return append(b, 1, 2, 3) })
-	}, "a body shorter than the size pass promised must fail before reaching storage")
+	appendThree := func(b []byte) ([]byte, error) { return append(b, 1, 2, 3), nil }
 
-	assert.Panics(t, func() {
-		Encode(7, time.Unix(1, 0), 1, func(b []byte) []byte { return append(b, 1, 2, 3) })
-	}, "a body longer than the size pass promised must fail too")
+	_, err := Encode(7, time.Unix(1, 0), 10, appendThree)
+	require.Error(t, err, "a body shorter than the size pass promised must fail before reaching storage")
+
+	_, err = Encode(7, time.Unix(1, 0), 1, appendThree)
+	require.Error(t, err, "a body longer than the size pass promised must fail too")
+
+	_, err = Encode(7, time.Unix(1, 0), 3, func([]byte) ([]byte, error) { return nil, eris.New("boom") })
+	require.Error(t, err, "an appendBody error must propagate")
 }
 
 // TestValidateVersion pins the acceptance policy: exactly the version this build writes is
