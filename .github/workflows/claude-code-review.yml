@@ -1,11 +1,15 @@
 name: Claude Code Review
 
 on:
+  # Review once when the PR opens (or leaves draft). Re-review only on an
+  # explicit "@claude review" comment, never on every push.
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+    types: [opened, ready_for_review]
+  issue_comment:
+    types: [created]
 
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
+  group: claude-review-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: true
 
 env:
@@ -17,8 +21,12 @@ jobs:
     # Fork PRs receive no secrets, so CLAUDE_CODE_OAUTH_TOKEN would be empty and
     # the action would fail on every external contribution.
     if: |
-      github.event.pull_request.draft == false &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.draft == false &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '@claude review'))
     runs-on: namespace-profile-linux-ci-large
     permissions:
       contents: read
@@ -31,6 +39,8 @@ jobs:
       - name: Checkout repository
         uses: namespacelabs/nscloud-checkout-action@v9
         with:
+          # On a comment trigger the default ref is the base branch; check out the PR head.
+          ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || '' }}
           fetch-depth: 0
 
       - name: Configure Git for private repos
@@ -76,9 +86,17 @@ jobs:
           plugins: 'code-review@claude-code-plugins'
           prompt: |
             REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
+            PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
 
-            /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}
+            /code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number || github.event.issue.number }}
+
+            Post findings as inline comments on the exact lines they concern using
+            mcp__github_inline_comment__create_inline_comment with confirmed: true.
+            Use a top-level comment only for the summary or for findings that have
+            no single anchoring line.
+
+            ${{ github.event_name == 'issue_comment' && 'A maintainer explicitly requested this review with @claude review. Skip the Claude-has-already-commented check and review the current PR head in full.' || '' }}
           claude_args: |
             --model claude-opus-5
-            --allowedTools "Read,Edit,Bash(git:*),Bash(moon run world-engine:lint),Bash(moon run world-engine:lint-fix),Bash(moon run world-engine:test),Bash(moon run world-engine:test-unit),Bash(moon run world-engine:test-ci),Bash(go build:*),Bash(go vet:*),Bash(go test:*),Bash(go doc:*),Bash(gofmt:*),Bash(golangci-lint:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh run view:*),mcp__github_inline_comment__create_inline_comment,mcp__github_inline_comment__list_inline_comments,mcp__github_inline_comment__delete_inline_comment"
+            --max-turns 30
+            --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git blame:*),Bash(moon run world-engine:lint),Bash(moon run world-engine:lint-fix),Bash(moon run world-engine:test),Bash(moon run world-engine:test-unit),Bash(moon run world-engine:test-ci),Bash(go build:*),Bash(go vet:*),Bash(go test:*),Bash(go doc:*),Bash(gofmt:*),Bash(golangci-lint:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh run view:*),mcp__github_inline_comment__create_inline_comment,mcp__github_inline_comment__list_inline_comments,mcp__github_inline_comment__delete_inline_comment"
