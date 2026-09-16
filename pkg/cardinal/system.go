@@ -170,9 +170,6 @@ var _ systemField = (*WithCommand[Command])(nil)
 var _ systemField = (*WithEvent[Event])(nil)
 var _ systemField = (*WithSystemEventReceiver[ecs.Component])(nil)
 var _ systemField = (*WithSystemEventEmitter[ecs.Component])(nil)
-var _ systemField = (*search[ecs.Component])(nil)
-var _ systemField = (*Contains[ecs.Component])(nil)
-var _ systemField = (*Exact[ecs.Component])(nil)
 
 // -------------------------------------------------------------------------------------------------
 // Options
@@ -531,65 +528,36 @@ func (s *WithSystemEventEmitter[T]) Emit(systemEvent T) {
 // Components
 // -------------------------------------------------------------------------------------------------
 
-// search caches an archetype registered during system initialization.
-type search[T any] struct {
+// Query is a resolved archetype match bound to one world. Build it inside a system with
+// BaseSystemState.Contains or BaseSystemState.Exact; it holds no entity data and is cheap
+// to construct, so it need not be cached across ticks.
+type Query struct {
 	world      *ecs.World
 	components bitmap.Bitmap
+	match      ecs.SearchMatch
 }
 
-func (s *search[T]) init(meta *systemInitMetadata) error {
-	components, err := meta.world.registerArchetype[T]()
-	if err != nil {
-		return err
-	}
-	s.world, s.components = meta.world.world, components
-	return nil
-}
-
-func (s *search[T]) getByID(eid EntityID, match ecs.SearchMatch) (Entity, error) {
-	if err := s.world.MatchArchetype(eid, s.components, match); err != nil {
-		return Entity{}, eris.Wrap(err, "failed to get entity")
-	}
-	return Entity{world: s.world, id: eid}, nil
-}
-
-func (s *search[T]) iter(match ecs.SearchMatch) SearchResult {
+// Iter yields each matching entity as a world-bound handle.
+func (q Query) Iter() SearchResult {
 	return func(yield func(Entity) bool) {
-		err := s.world.IterEntities(s.components, match, func(eid EntityID) bool {
-			return yield(Entity{world: s.world, id: eid})
+		err := q.world.IterEntities(q.components, q.match, func(eid EntityID) bool {
+			return yield(Entity{world: q.world, id: eid})
 		})
 		assert.That(err == nil, "invalid arguments sent to IterEntities")
 	}
 }
 
-// Create returns a new entity with the components declared in T, initialized to zero.
-func (s *search[T]) Create() Entity {
-	eid := s.world.CreateWithArchetype(s.components)
-	return Entity{world: s.world, id: eid}
+// GetByID returns a handle if the entity matches the query's archetype.
+func (q Query) GetByID(eid EntityID) (Entity, error) {
+	if err := q.world.MatchArchetype(eid, q.components, q.match); err != nil {
+		return Entity{}, eris.Wrap(err, "failed to get entity")
+	}
+	return Entity{world: q.world, id: eid}, nil
 }
 
-// Contains matches entities with all components declared in T, allowing extras.
-// T is a struct of WithComponent[C] fields, registered before the world starts.
-type Contains[T any] struct{ search[T] }
-
-// Iter yields each matching entity as a world-bound handle.
-func (c *Contains[T]) Iter() SearchResult { return c.iter(ecs.MatchContains) }
-
-// GetByID returns a handle if the entity contains every declared component.
-func (c *Contains[T]) GetByID(eid EntityID) (Entity, error) {
-	return c.getByID(eid, ecs.MatchContains)
-}
-
-// Exact matches entities with exactly the components declared in T.
-// T is a struct of WithComponent[C] fields, registered before the world starts.
-type Exact[T any] struct{ search[T] }
-
-// Iter yields each matching entity as a world-bound handle.
-func (c *Exact[T]) Iter() SearchResult { return c.iter(ecs.MatchExact) }
-
-// GetByID returns a handle if the entity has exactly the declared components.
-func (c *Exact[T]) GetByID(eid EntityID) (Entity, error) {
-	return c.getByID(eid, ecs.MatchExact)
+// Create returns a new entity with the query's components, initialized to zero.
+func (q Query) Create() Entity {
+	return Entity{world: q.world, id: q.world.CreateWithArchetype(q.components)}
 }
 
 // -------------------------------------------------------------------------------------------------

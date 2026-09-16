@@ -36,8 +36,8 @@ type CaptureRow struct {
 // if it does not survive a restore the rebuilt world replays every existing
 // overlap as a new contact.
 type SingletonRow struct {
-	Tag            cardinal.WithComponent[physics.PhysicsSingletonTag]
-	ActiveContacts cardinal.WithComponent[physics.ActiveContacts]
+	Tag            physics.PhysicsSingletonTag
+	ActiveContacts physics.ActiveContacts
 }
 
 // Capture is every body in a world, keyed by its probe label, plus the plugin's
@@ -63,26 +63,22 @@ func (c Capture) Labels() []string {
 }
 
 // preCaptureState and postCaptureState are the two capture systems. They are
-// separate flat types on purpose: Cardinal names a system after its state type,
-// so two systems sharing one type would collide, and initSystemFields only walks
-// a state struct's top-level fields, so a shared embedded struct would leave
-// Probes uninitialised and the search would fault on first use.
+// separate types on purpose: Cardinal names a system after its state type, so
+// two systems sharing one type would collide.
 type preCaptureState struct {
 	cardinal.BaseSystemState
-	Probes    Probes
-	Singleton cardinal.Contains[SingletonRow]
 }
 
 type postCaptureState struct {
 	cardinal.BaseSystemState
-	Probes    Probes
-	Singleton cardinal.Contains[SingletonRow]
 }
 
 // capture copies every body's components into into, replacing whatever was
 // there. A fresh map is allocated each time, so a caller that copies the Capture
 // struct keeps that tick's state even as later ticks overwrite the field.
-func capture(probes *Probes, singleton *cardinal.Contains[SingletonRow], into *Capture) {
+func capture(state *cardinal.BaseSystemState, into *Capture) {
+	probes := probes(state)
+	singleton := state.Contains[SingletonRow]()
 	rows := make(map[string]CaptureRow, len(into.Rows))
 	for row := range probes.Iter() {
 		eid := row.ID()
@@ -148,14 +144,14 @@ func CompareContacts(want, got Capture) []Diff {
 // pre-capture is the deserialized ECS state with nothing else having touched it.
 func RegisterPreCapture(w *cardinal.World, into *Capture) {
 	w.RegisterSystem(func(state *preCaptureState) {
-		capture(&state.Probes, &state.Singleton, into)
+		capture(&state.BaseSystemState, into)
 	}, cardinal.WithHook(cardinal.PreUpdate))
 }
 
 // RegisterPostCapture registers a capture that runs after the physics pipeline.
 func RegisterPostCapture(w *cardinal.World, into *Capture) {
 	w.RegisterSystem(func(state *postCaptureState) {
-		capture(&state.Probes, &state.Singleton, into)
+		capture(&state.BaseSystemState, into)
 	}, cardinal.WithHook(cardinal.PostUpdate))
 }
 

@@ -14,7 +14,6 @@ type UserChatSystemState struct {
 	cardinal.BaseSystemState
 	UserChatCommands cardinal.WithCommand[command.UserChat]
 	UserChatEvent    cardinal.WithEvent[event.UserChat]
-	ChatSearch       ChatSearch
 }
 
 func UserChatSystem(state *UserChatSystemState) {
@@ -23,7 +22,7 @@ func UserChatSystem(state *UserChatSystemState) {
 
 		timestamp := time.Now()
 
-		chat := state.ChatSearch.Create()
+		chat := state.Create[ChatRow]()
 
 		id := chat.ID()
 		chat.Set(component.UserTag{

@@ -89,21 +89,18 @@ func sha256hex(b []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// manifestSearch is the Exact search shape used by the test harness systems below. Declaring it
-// in a system state struct registers component.ConfigManifest with Cardinal so the test's
-// pre-seed/observer systems can read and write the same singleton as the plugin's reconcile.
-type manifestSearch = cardinal.Exact[struct {
-	Item cardinal.WithComponent[component.ConfigManifest]
-}]
+// manifestRow is the exact archetype of the ConfigManifest singleton, so the test's
+// pre-seed/observer systems read and write the same entity as the plugin's reconcile.
+type manifestRow struct {
+	Item component.ConfigManifest
+}
 
 type manifestObserverState struct {
 	cardinal.BaseSystemState
-	Manifest manifestSearch
 }
 
 type manifestPreseedState struct {
 	cardinal.BaseSystemState
-	Manifest manifestSearch
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -202,7 +199,7 @@ func TestPlugin_ManifestComponentOnFreshWorld(t *testing.T) {
 	var observed component.ConfigManifest
 	var observeErr error
 	w.RegisterSystem(func(state *manifestObserverState) {
-		ent, err := state.Manifest.Iter().Single()
+		ent, err := state.Exact[manifestRow]().Iter().Single()
 		observeErr = err
 		if err == nil {
 			observed = ent.Get[component.ConfigManifest]()
@@ -243,13 +240,13 @@ func TestPlugin_ReconcileReFetchesChangedFileAtSnapshotHash(t *testing.T) {
 
 	// Pre-seed at Init: a ConfigManifest referencing the OLD hash, as if restored from a snapshot.
 	w.RegisterSystem(func(state *manifestPreseedState) {
-		ent := state.Manifest.Create()
+		ent := state.Exact[manifestRow]().Create()
 		ent.Set(abilitiesManifest(h1))
 	}, cardinal.WithHook(cardinal.Init))
 
 	var observed component.ConfigManifest
 	w.RegisterSystem(func(state *manifestObserverState) {
-		ent, err := state.Manifest.Iter().Single()
+		ent, err := state.Exact[manifestRow]().Iter().Single()
 		if err == nil {
 			observed = ent.Get[component.ConfigManifest]()
 		}
@@ -283,13 +280,13 @@ func TestPlugin_EmbedMismatchWarnsAndKeepsCurrent(t *testing.T) {
 	// regardless of requested hash → gotHash != requested → warn path).
 	const staleHash = "0000000000000000000000000000000000000000000000000000000000000000"
 	w.RegisterSystem(func(state *manifestPreseedState) {
-		ent := state.Manifest.Create()
+		ent := state.Exact[manifestRow]().Create()
 		ent.Set(abilitiesManifest(staleHash))
 	}, cardinal.WithHook(cardinal.Init))
 
 	var observed component.ConfigManifest
 	w.RegisterSystem(func(state *manifestObserverState) {
-		ent, err := state.Manifest.Iter().Single()
+		ent, err := state.Exact[manifestRow]().Iter().Single()
 		if err == nil {
 			observed = ent.Get[component.ConfigManifest]()
 		}
@@ -326,7 +323,7 @@ func TestPlugin_ReconcileFailurePanicsOnVersionedSource(t *testing.T) {
 
 	const missingHash = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 	w.RegisterSystem(func(state *manifestPreseedState) {
-		ent := state.Manifest.Create()
+		ent := state.Exact[manifestRow]().Create()
 		ent.Set(abilitiesManifest(missingHash))
 	}, cardinal.WithHook(cardinal.Init))
 
@@ -356,7 +353,7 @@ func TestPlugin_ReconcileDuplicatePathPanics(t *testing.T) {
 	w.RegisterPlugin(plugin)
 
 	w.RegisterSystem(func(state *manifestPreseedState) {
-		ent := state.Manifest.Create()
+		ent := state.Exact[manifestRow]().Create()
 		ent.Set(component.ConfigManifest{Files: immutable.SliceOf(
 			component.ConfigFileHash{Path: "testdata/abilities.json", Hash: h1},
 			component.ConfigFileHash{Path: "testdata/abilities.json", Hash: h2},

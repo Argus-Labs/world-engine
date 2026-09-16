@@ -2,7 +2,6 @@ package cardinal
 
 import (
 	"context"
-	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -88,11 +87,7 @@ func findMessageDescriptor(set *descriptorpb.FileDescriptorSet, name string) *de
 }
 
 type snapshotEntities struct {
-	Entities Contains[struct {
-		Position  WithComponent[Position3D]
-		Health    WithComponent[Health2]
-		Inventory WithComponent[Inventory]
-	}]
+	Entities Query
 }
 
 func seedSnapshotWorld(t *testing.T, state *snapshotEntities) {
@@ -203,9 +198,17 @@ func newDebugStateWorld(t *testing.T) (*World, *snapshotEntities) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, w.debug)
+	w.RegisterComponent[Position3D]()
+	w.RegisterComponent[Health2]()
+	w.RegisterComponent[Inventory]()
 
-	state := &snapshotEntities{}
-	require.NoError(t, initSystemFields(reflect.ValueOf(state).Elem(), w))
+	state := &snapshotEntities{
+		Entities: (&BaseSystemState{world: w}).Contains[struct {
+			Position  Position3D
+			Health    Health2
+			Inventory Inventory
+		}](),
+	}
 	w.world.Init()
 	return w, state
 }

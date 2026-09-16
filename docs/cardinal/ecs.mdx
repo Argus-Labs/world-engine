@@ -68,6 +68,15 @@ func (Position) Name() string {
   underscores (e.g. `Health`, `player_health`).
 </Note>
 
+Register every component with the world before registering the systems that use it:
+
+```go
+w.RegisterComponent[Position]()
+```
+
+Registration is explicit. Systems, archetypes, and snapshots only see components registered
+this way, and registering a system that references an unregistered component panics.
+
 ### What a Component May Hold
 
 Components are copied. `Get` hands you a copy and `Set` stores one, and every snapshot is built
@@ -136,7 +145,7 @@ Derive, then `Set` the component that holds it:
 ```go
 func BuffSystem(state *BuffSystemState) error {
 	now := state.Tick()
-	for mob := range state.Mobs.Iter() {
+	for mob := range state.Contains[Mob]().Iter() {
 		buffs := mob.Get[Buffs]()
 
 		// Drop expired buffs and add a new one.
@@ -249,31 +258,47 @@ By default, systems run on the update phase. Here are the different hooks you ca
 
 Each of these corresponds to a tick phase, except `Init`, which runs only once in the first tick.
 
-## Searches
+## Queries
 
-Searches select entities by component type:
+A system builds queries from its `BaseSystemState` while it runs. A query selects entities
+by component type:
 
-- `Contains[T]` matches entities with every declared component, allowing extras.
-- `Exact[T]` matches entities with exactly the declared components.
+- `state.Contains[T]()` matches entities with every component in `T`, allowing extras.
+- `state.Exact[T]()` matches entities with exactly the components in `T`.
 
-Declare an archetype as a struct of `WithComponent[C]` fields. A search field registers
-those components before the world starts, so they are available during snapshot restoration.
-The declarations carry no entity data. Queries return world-bound `Entity` handles.
+`T` is an archetype: a struct whose exported fields are component types. The struct carries
+no entity data; it names a set of components. Every component in it must be registered with
+`w.RegisterComponent[C]()` before the world starts. Nothing registers components implicitly.
+Building a query that names an unregistered component panics. Queries return world-bound
+`Entity` handles.
 
 ```go
 type Mob struct {
-    Health   cardinal.WithComponent[Health]
-    Position cardinal.WithComponent[Position]
+    Health   Health
+    Position Position
 }
 
 type MobSystemState struct {
     cardinal.BaseSystemState
-    Mobs     cardinal.Contains[Mob]
-    Poisoned cardinal.WithComponent[Poisoned]
 }
+
+func MobSystem(state *MobSystemState) {
+    for mob := range state.Contains[Mob]().Iter() {
+        // ...
+    }
+}
+
+w.RegisterSystem(MobSystem)
+w.RegisterComponent[Health]()
+w.RegisterComponent[Position]()
+w.RegisterComponent[Poisoned]()
 ```
 
-`Poisoned` registers an optional component without requiring it in the `Mobs` search.
+Nothing about a query happens at `RegisterSystem`, so systems and components can be
+registered in any order, including across plugins. The first query for an archetype
+resolves its component set with reflection and caches it on the world. Later calls are a
+map lookup with no allocation, so build the query inside the system body. Build it once per
+run when the same query is iterated several times.
 
 ### Creating an Entity
 
@@ -287,10 +312,9 @@ func SpawnMob(state *MobSystemState) {
 }
 ```
 
-Creation adds exactly the archetype's components, initialized to zero. The archetype must
-be registered first. A `Contains[Mob]` or `Exact[Mob]` field registers it automatically.
-Without a search field, call `w.RegisterArchetype[Mob]()` before starting the world.
-`state.Mobs.Create()` also remains available and returns an `Entity`.
+Creation adds exactly the archetype's components, initialized to zero. `Create[T]` panics
+if any component in `T` was not registered with `w.RegisterComponent`. A query's `Create()`
+does the same for the query's archetype: `state.Exact[Mob]().Create()`.
 
 ### Entity Handles and Stored IDs
 
@@ -317,7 +341,7 @@ Access handles from systems on the world's execution goroutine.
 
 ```go
 func DamageMobs(state *MobSystemState) {
-    for mob := range state.Mobs.Iter() {
+    for mob := range state.Contains[Mob]().Iter() {
         health := mob.Get[Health]()
         mob.Set(Health{Value: health.Value - 10})
     }
@@ -333,12 +357,12 @@ Use `Filter(func(Entity) bool)` and `Limit` to narrow results.
 
 ### Getting a Specific Entity
 
-`GetByID` validates the search's component requirements before returning a handle:
+`GetByID` validates the query's component requirements before returning a handle:
 
 ```go
-mob, err := state.Mobs.GetByID(entityID)
+mob, err := state.Contains[Mob]().GetByID(entityID)
 if err != nil {
-    // The entity is absent or its components do not match the search.
+    // The entity is absent or its components do not match the query.
     return
 }
 health := mob.Get[Health]()
@@ -358,14 +382,15 @@ if mob.Has[Poisoned]() {
 }
 ```
 
-Register optional types before startup with a `WithComponent[T]` system field or an
-archetype declaration. They do not need to be part of the query that found the entity.
+Optional types must be registered with `w.RegisterComponent[T]()` like any other component.
+They do not need to be part of the query that found the entity, and nothing declares them
+on the system.
 `Get`, `Set`, and `Remove` panic for invalid operations, including access to a destroyed
 entity or an unregistered component. `Get` also panics for an absent component.
 Removing a registered component that is already absent is a no-op.
 
 Adding or removing components changes an entity's archetype. Collect handles before making
-structural changes while iterating a search, so moving rows cannot skip other matches.
+structural changes while iterating a query, so moving rows cannot skip other matches.
 
 ### Destroying an Entity
 

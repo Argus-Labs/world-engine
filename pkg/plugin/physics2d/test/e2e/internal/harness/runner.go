@@ -161,7 +161,7 @@ func (r *Runner) Plugin() *physics.Plugin { return r.plugin }
 // LastTick returns the final tick the loop will run.
 func (r *Runner) LastTick() uint64 { return r.lastTick }
 
-func (r *Runner) ctx(scenario *Scenario, probes *Probes, tick uint64) *Ctx {
+func (r *Runner) ctx(scenario *Scenario, probes cardinal.Query, tick uint64) *Ctx {
 	return &Ctx{
 		report:     r.report,
 		probes:     probes,
@@ -184,7 +184,6 @@ func (r *Runner) ctx(scenario *Scenario, probes *Probes, tick uint64) *Ctx {
 // its first FullRebuildFromECS.
 type setupState struct {
 	cardinal.BaseSystemState
-	Probes Probes
 }
 
 // preStepState runs every scenario's EachTick on PreUpdate. It is registered
@@ -192,7 +191,6 @@ type setupState struct {
 // them in the same tick.
 type preStepState struct {
 	cardinal.BaseSystemState
-	Probes Probes
 }
 
 // stepState runs scheduled steps on Update, after the physics pipeline has
@@ -200,7 +198,6 @@ type preStepState struct {
 // still readable.
 type stepState struct {
 	cardinal.BaseSystemState
-	Probes       Probes
 	ContactBegin cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
 	ContactEnd   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
 	TriggerBegin cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
@@ -208,21 +205,23 @@ type stepState struct {
 }
 
 func (r *Runner) setup(state *setupState) {
+	probes := probes(&state.BaseSystemState)
 	for _, s := range r.scenarios {
 		if s.Setup == nil {
 			continue
 		}
-		s.Setup(r.ctx(s, &state.Probes, 0))
+		s.Setup(r.ctx(s, probes, 0))
 	}
 }
 
 func (r *Runner) preStep(state *preStepState) {
 	tick := state.Tick()
+	probes := probes(&state.BaseSystemState)
 	for _, s := range r.scenarios {
 		if s.EachTick == nil {
 			continue
 		}
-		s.EachTick(r.ctx(s, &state.Probes, tick))
+		s.EachTick(r.ctx(s, probes, tick))
 	}
 }
 
@@ -242,7 +241,8 @@ func (r *Runner) step(state *stepState) {
 		r.events.record(TriggerEnd, tick, e.ContactEventPayload)
 	}
 
-	r.watchNaN(state, tick)
+	probes := probes(&state.BaseSystemState)
+	r.watchNaN(probes, tick)
 	r.watchWorld(tick)
 
 	for _, s := range r.scenarios {
@@ -250,7 +250,7 @@ func (r *Runner) step(state *stepState) {
 			if s.Steps[i].Tick != tick || s.Steps[i].Do == nil {
 				continue
 			}
-			s.Steps[i].Do(r.ctx(s, &state.Probes, tick))
+			s.Steps[i].Do(r.ctx(s, probes, tick))
 		}
 	}
 }
@@ -258,8 +258,8 @@ func (r *Runner) step(state *stepState) {
 // watchNaN fails once per entity the first time any of its physics scalars stops
 // being finite. A NaN anywhere in the pipeline poisons the whole Box2D island,
 // so catching the first one names the body actually at fault.
-func (r *Runner) watchNaN(state *stepState, tick uint64) {
-	for row := range state.Probes.Iter() {
+func (r *Runner) watchNaN(probes cardinal.Query, tick uint64) {
+	for row := range probes.Iter() {
 		eid := row.ID()
 		if r.nanReported[eid] {
 			continue
@@ -330,6 +330,8 @@ func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	w.RegisterComponent[probe.Probe]()
 
 	w.RegisterSystem(r.setup, cardinal.WithHook(cardinal.Init))
 	w.RegisterSystem(r.preStep, cardinal.WithHook(cardinal.PreUpdate))
@@ -432,7 +434,7 @@ type digestState struct {
 func (r *Runner) Digest(w *cardinal.World) (int, uint64) {
 	var rows []digestState
 	collect := func(state *digestCollectorState) {
-		for row := range state.Probes.Iter() {
+		for row := range probes(&state.BaseSystemState).Iter() {
 			eid := row.ID()
 			p := row.Get[probe.Probe]()
 			t := row.Get[physics.Transform2D]()
@@ -467,7 +469,6 @@ func (r *Runner) printDigest(w *cardinal.World) {
 // once at the end of the run.
 type digestCollectorState struct {
 	cardinal.BaseSystemState
-	Probes Probes
 }
 
 // runOnce registers fn as a one-shot Update system and ticks the world once so

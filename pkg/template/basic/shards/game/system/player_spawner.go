@@ -19,7 +19,6 @@ type CreatePlayerSystemState struct {
 	cardinal.BaseSystemState
 	CreatePlayerCommands cardinal.WithCommand[CreatePlayerCommand]
 	NewPlayerEvents      cardinal.WithEvent[event.NewPlayer]
-	Players              PlayerSearch
 }
 
 func CreatePlayerSystem(state *CreatePlayerSystemState) {

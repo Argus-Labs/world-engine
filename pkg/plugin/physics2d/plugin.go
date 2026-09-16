@@ -156,6 +156,11 @@ func (p *Plugin) Register(w *cardinal.World) {
 	p.rt = internal.NewRuntime(p.config.Gravity, fixedDT, p.config.SubStepCount, p.config.Workers)
 	p.rt.Reset()
 
+	w.RegisterComponent[component.Transform2D]()
+	w.RegisterComponent[component.Velocity2D]()
+	w.RegisterComponent[component.PhysicsBody2D]()
+	w.RegisterComponent[component.PhysicsSingletonTag]()
+	w.RegisterComponent[component.ActiveContacts]()
 	w.RegisterSystem(physicssystem.NewInitPhysicsSystem(p.rt), cardinal.WithHook(cardinal.Init))
 	w.RegisterSystem(physicssystem.NewPhysicsPipelineSystem(p.rt), cardinal.WithHook(cardinal.PreUpdate))
 }

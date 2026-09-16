@@ -10,7 +10,6 @@ import (
 
 type PlayerSpawnerSystemState struct {
 	cardinal.BaseSystemState
-	Players PlayerSearch
 }
 
 func PlayerSpawnerSystem(state *PlayerSpawnerSystemState) {

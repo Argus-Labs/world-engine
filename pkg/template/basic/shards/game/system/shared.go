@@ -2,19 +2,16 @@ package system
 
 import (
 	"github.com/argus-labs/world-engine/pkg/template/basic/shards/game/component"
-
-	"github.com/argus-labs/world-engine/pkg/cardinal"
 )
 
+// Player is the archetype of player entities: state.Exact[Player]() queries them and
+// state.Create[Player]() spawns one.
 type Player struct {
-	Tag    cardinal.WithComponent[component.PlayerTag]
-	Health cardinal.WithComponent[component.Health]
+	Tag    component.PlayerTag
+	Health component.Health
 }
 
-type PlayerSearch = cardinal.Exact[Player]
-
+// Grave is the archetype of gravestone entities.
 type Grave struct {
-	Grave cardinal.WithComponent[component.Gravestone]
+	Grave component.Gravestone
 }
-
-type GraveSearch = cardinal.Exact[Grave]

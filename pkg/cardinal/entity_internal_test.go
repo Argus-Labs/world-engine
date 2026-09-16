@@ -1,7 +1,6 @@
 package cardinal
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
@@ -11,20 +10,21 @@ import (
 )
 
 type entityTestArchetype struct {
-	A WithComponent[testutils.ComponentA]
+	A testutils.ComponentA
 }
 
 type entityTestState struct {
 	BaseSystemState
-	Entities Contains[entityTestArchetype]
-	Optional WithComponent[testutils.ComponentB]
+	Entities Query
 }
 
 func newEntityTestState(t *testing.T) (*World, *entityTestState) {
 	t.Helper()
 	w := &World{world: ecs.NewWorld()}
-	s := &entityTestState{}
-	require.NoError(t, initSystemFields(reflect.ValueOf(s).Elem(), w))
+	w.RegisterComponent[testutils.ComponentA]()
+	w.RegisterComponent[testutils.ComponentB]()
+	s := &entityTestState{BaseSystemState: BaseSystemState{world: w}}
+	s.Entities = s.Contains[entityTestArchetype]()
 	return w, s
 }
 
@@ -131,27 +131,62 @@ func TestEntity_ZeroAndMissingHandles(t *testing.T) {
 	}
 }
 
-func TestEntity_RegisterArchetype(t *testing.T) {
+func TestEntity_RegisterComponent(t *testing.T) {
 	t.Parallel()
 	w := &World{world: ecs.NewWorld()}
 	state := &BaseSystemState{world: w}
 	require.Panics(t, func() { state.Create[entityTestArchetype]() })
-	w.RegisterArchetype[entityTestArchetype]()
-	w.RegisterArchetype[entityTestArchetype]()
+	w.RegisterComponent[testutils.ComponentA]()
+	w.RegisterComponent[testutils.ComponentA]()
 	entity := state.Create[entityTestArchetype]()
 	entity.Set(testutils.ComponentA{X: 42})
 	assert.Equal(t, testutils.ComponentA{X: 42}, entity.Get[testutils.ComponentA]())
-	require.Panics(t, func() { w.RegisterArchetype[int]() })
-	require.Panics(t, func() { w.RegisterArchetype[struct{ A int }]() })
-	require.Panics(t, func() {
-		w.RegisterArchetype[struct {
-			A *WithComponent[testutils.ComponentA]
-		}]()
-	})
-	w.RegisterArchetype[struct{}]()
+	require.Panics(t, func() { state.Create[int]() })
+	require.Panics(t, func() { state.Create[struct{ A int }]() })
+	require.Panics(t, func() { state.Create[struct{ A *testutils.ComponentA }]() })
+	require.Panics(t, func() { state.Create[struct{ A testutils.ComponentB }]() })
 	empty := state.Create[struct{}]()
 	assert.True(t, empty.Alive())
 	assert.False(t, empty.Has[testutils.ComponentA]())
+}
+
+// Queries resolve when built inside a system, so systems may be registered before the
+// components they query. An unregistered component fails at the query, not at registration.
+func TestQuery_ResolvesAtRunTime(t *testing.T) {
+	t.Parallel()
+	w := &World{world: ecs.NewWorld()}
+	ran := false
+	require.NotPanics(t, func() {
+		w.RegisterSystem(func(state *entityTestState) {
+			ran = true
+			require.Panics(t, func() { state.Contains[struct{ B testutils.ComponentB }]() })
+			state.Contains[entityTestArchetype]().Create()
+			require.Len(t, collect(state.Exact[entityTestArchetype]().Iter()), 1)
+		}, WithHook(Init))
+	})
+	w.RegisterComponent[testutils.ComponentA]()
+	w.world.Init()
+	require.True(t, ran)
+}
+
+func TestQuery_RejectsNonArchetypes(t *testing.T) {
+	t.Parallel()
+	w := &World{world: ecs.NewWorld()}
+	w.RegisterComponent[testutils.ComponentA]()
+	state := &BaseSystemState{world: w}
+	require.Panics(t, func() { state.Contains[int]() })
+	require.Panics(t, func() { state.Exact[struct{ A int }]() })
+	require.Panics(t, func() { state.Contains[struct{ A *testutils.ComponentA }]() })
+	require.NotPanics(t, func() { state.Contains[struct{ testutils.ComponentA }]() })
+	require.NotPanics(t, func() { state.Exact[struct{}]() })
+}
+
+func collect(result SearchResult) []Entity {
+	var entities []Entity
+	for entity := range result {
+		entities = append(entities, entity)
+	}
+	return entities
 }
 
 func TestSearch_LimitZeroDoesNotVisitEntities(t *testing.T) {

@@ -137,14 +137,13 @@ func (s *State) LoadAll(ctx context.Context, primary, resolverSource Source) {
 }
 
 // ReconcileState is the system state for the data plugin's per-tick reconcile pass.
-//
-// The embedded Exact search holds the ConfigManifest singleton; declaring this field is also what
-// registers ConfigManifest with Cardinal via system-field reflection.
 type ReconcileState struct {
 	cardinal.BaseSystemState
-	Manifest cardinal.Exact[struct {
-		Item cardinal.WithComponent[component.ConfigManifest]
-	}]
+}
+
+// manifestRow is the exact archetype of the ConfigManifest singleton entity.
+type manifestRow struct {
+	Item component.ConfigManifest
 }
 
 // Reconcile is the data plugin's per-tick reconcile pass. Runs every PreUpdate (cardinal's
@@ -172,10 +171,11 @@ type ReconcileState struct {
 // primary is the data source for each kind's JSONFile() re-fetch at the snapshot's hash.
 // resolverSource is what Resolver hooks fetch additional files through (always local embed).
 func (s *State) Reconcile(rs *ReconcileState, primary, resolverSource Source) {
-	ent, err := rs.Manifest.Iter().Single()
+	manifest := rs.Exact[manifestRow]()
+	ent, err := manifest.Iter().Single()
 	switch {
 	case errors.Is(err, cardinal.ErrSingleNoResult):
-		ent = rs.Manifest.Create()
+		ent = manifest.Create()
 		ent.Set(s.manifest)
 		return
 	case errors.Is(err, cardinal.ErrSingleMultipleResult):

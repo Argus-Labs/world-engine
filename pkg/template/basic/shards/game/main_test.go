@@ -5,6 +5,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
+	"github.com/argus-labs/world-engine/pkg/template/basic/shards/game/component"
 	"github.com/argus-labs/world-engine/pkg/template/basic/shards/game/system"
 	"github.com/stretchr/testify/require"
 )
@@ -39,6 +40,10 @@ func TestE2E(t *testing.T) {
 }
 
 func registerSystems(w *cardinal.World) {
+	w.RegisterComponent[component.PlayerTag]()
+	w.RegisterComponent[component.Health]()
+	w.RegisterComponent[component.Gravestone]()
+
 	w.RegisterSystem(system.PlayerSpawnerSystem, cardinal.WithHook(cardinal.Init))
 	w.RegisterSystem(system.CreatePlayerSystem)
 	w.RegisterSystem(system.RegenSystem)

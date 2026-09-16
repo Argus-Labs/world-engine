@@ -10,7 +10,7 @@ import (
 // ensurePhysicsSingleton creates the plugin singleton entity if none exists. Call from Init
 // and PreUpdate reconcile so snapshot restore (which may skip Init) still has persisted
 // ActiveContacts storage before the first physics step.
-func ensurePhysicsSingleton(singleton *physicsSingletonSearch) {
+func ensurePhysicsSingleton(singleton cardinal.Query) {
 	_, err := singleton.Iter().Single()
 	if err == nil {
 		return

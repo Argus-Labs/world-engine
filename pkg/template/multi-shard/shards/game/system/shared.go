@@ -4,15 +4,14 @@ import (
 	"sync"
 
 	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/component"
-
-	"github.com/argus-labs/world-engine/pkg/cardinal"
 )
 
-type PlayerSearch = cardinal.Exact[struct {
-	Tag      cardinal.WithComponent[component.PlayerTag]
-	Position cardinal.WithComponent[component.Position]
-	Online   cardinal.WithComponent[component.OnlineStatus]
-}]
+// Player is the archetype of player entities.
+type Player struct {
+	Tag      component.PlayerTag
+	Position component.Position
+	Online   component.OnlineStatus
+}
 
 // PlayerSet manages a thread-safe set of player IDs.
 type PlayerSet struct {

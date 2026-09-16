@@ -3,22 +3,20 @@ package cardinal
 import "testing"
 
 type perfArchetype struct {
-	Position WithComponent[Position3D]
-	Velocity WithComponent[Velocity3D]
+	Position Position3D
+	Velocity Velocity3D
 }
 
 type perfEntityState struct {
 	BaseSystemState
-	Entities Contains[perfArchetype]
-	Optional Contains[struct{ Inventory WithComponent[Inventory] }]
+	Entities Query
 }
 
-// newPerfEntityState excludes world and archetype initialization from steady-state measurements.
+// newPerfEntityState excludes world and archetype resolution from steady-state measurements.
 func newPerfEntityState(t testing.TB) *perfEntityState {
 	t.Helper()
-	w := newBenchWorld()
-	state := &perfEntityState{}
-	mustInitSystemFields(t, w, state)
+	state := &perfEntityState{BaseSystemState: BaseSystemState{world: newBenchWorld()}}
+	state.Entities = state.Contains[perfArchetype]()
 	return state
 }
 
@@ -154,16 +152,14 @@ func BenchmarkEntityOperations(b *testing.B) {
 }
 
 func benchmarkEntityIteration[T any](b *testing.B) {
-	w := newBenchWorld()
-	state := &struct{ Entities Contains[T] }{}
-	mustInitSystemFields(b, w, state)
+	state := newBenchState(newBenchWorld())
 	for range 100 {
-		state.Entities.Create()
+		state.Create[T]()
 	}
 	b.ReportAllocs()
 	for b.Loop() {
 		var sum EntityID
-		for id := range state.Entities.Iter() {
+		for id := range state.Contains[T]().Iter() {
 			sum += id.ID()
 		}
 		if sum != 4950 {
@@ -173,32 +169,18 @@ func benchmarkEntityIteration[T any](b *testing.B) {
 }
 
 func BenchmarkEntityIteration(b *testing.B) {
-	b.Run("1Component", benchmarkEntityIteration[struct{ Position WithComponent[Position3D] }])
-	b.Run("5Components", benchmarkEntityIteration[struct {
-		Position  WithComponent[Position3D]
-		Velocity  WithComponent[Velocity3D]
-		Health    WithComponent[Health2]
-		Transform WithComponent[Transform]
-		Inventory WithComponent[Inventory]
-	}])
-	b.Run("10Components", benchmarkEntityIteration[struct {
-		Position    WithComponent[Position3D]
-		Velocity    WithComponent[Velocity3D]
-		Health      WithComponent[Health2]
-		Transform   WithComponent[Transform]
-		Inventory   WithComponent[Inventory]
-		PlayerStats WithComponent[PlayerStats]
-		AIBehavior  WithComponent[AIBehavior]
-		Renderer    WithComponent[Renderer]
-		Physics     WithComponent[Physics]
-		NetworkSync WithComponent[NetworkSync]
-	}])
+	b.Run("1Component", benchmarkEntityIteration[arch1])
+	b.Run("5Components", benchmarkEntityIteration[arch5])
+	b.Run("10Components", benchmarkEntityIteration[arch10])
 }
 
-func BenchmarkEntityRegistration(b *testing.B) {
+// BenchmarkEntityQueryBuild measures building a query once its archetype is cached: the
+// per-call cost a system pays for state.Contains[T]().
+func BenchmarkEntityQueryBuild(b *testing.B) {
+	state := newPerfEntityState(b)
 	b.ReportAllocs()
 	for b.Loop() {
-		newPerfEntityState(b)
+		_ = state.Contains[perfArchetype]()
 	}
 }
 

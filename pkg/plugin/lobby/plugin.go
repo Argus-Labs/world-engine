@@ -177,6 +177,9 @@ func (p *Plugin) Register(w *cardinal.World) {
 	// Store provider
 	system.SetProvider(p.config.Provider)
 
+	w.RegisterComponent[component.LobbyComponent]()
+	w.RegisterComponent[component.PlayerComponent]()
+
 	// Register init system (runs once during world initialization)
 	w.RegisterSystem(system.InitSystem, cardinal.WithHook(cardinal.Init))
 

@@ -11,15 +11,14 @@ import (
 
 type OnlineStatusUpdaterState struct {
 	cardinal.BaseSystemState
-	Players cardinal.Contains[struct {
-		OnlineStatus cardinal.WithComponent[component.OnlineStatus]
-		PlayerTag    cardinal.WithComponent[component.PlayerTag]
-	}]
 	PlayerDepartureEvent cardinal.WithEvent[event.PlayerDeparture]
 }
 
 func OnlineStatusUpdater(state *OnlineStatusUpdaterState) {
-	for player := range state.Players.Iter() {
+	for player := range state.Contains[struct {
+		OnlineStatus component.OnlineStatus
+		PlayerTag    component.PlayerTag
+	}]().Iter() {
 		entity := player.ID()
 		status := player.Get[component.OnlineStatus]()
 		isOnline := status.Online

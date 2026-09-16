@@ -9,9 +9,9 @@ import (
 
 // physicsBodyRow matches entities that participate in 2D physics (ECS authoritative).
 type physicsBodyRow struct {
-	Transform   cardinal.WithComponent[physicscomp.Transform2D]
-	Velocity    cardinal.WithComponent[physicscomp.Velocity2D]
-	PhysicsBody cardinal.WithComponent[physicscomp.PhysicsBody2D]
+	Transform   physicscomp.Transform2D
+	Velocity    physicscomp.Velocity2D
+	PhysicsBody physicscomp.PhysicsBody2D
 }
 
 // gatherRebuildEntries collects physics archetype rows for reconcile/rebuild, appending into
@@ -35,27 +35,25 @@ func gatherRebuildEntries(dst []internal.PhysicsRebuildEntry,
 	return entries
 }
 
-// physicsSingletonSearch is the Exact query for the plugin singleton (ActiveContacts).
-type physicsSingletonSearch = cardinal.Exact[struct {
-	Tag            cardinal.WithComponent[physicscomp.PhysicsSingletonTag]
-	ActiveContacts cardinal.WithComponent[physicscomp.ActiveContacts]
-}]
+// physicsSingletonRow is the exact archetype of the plugin singleton (ActiveContacts).
+type physicsSingletonRow struct {
+	Tag            physicscomp.PhysicsSingletonTag
+	ActiveContacts physicscomp.ActiveContacts
+}
 
 // InitPhysicsSystemState runs once at world init: FullRebuildFromECS from current ECS entities.
 type InitPhysicsSystemState struct {
 	cardinal.BaseSystemState
-	Bodies    cardinal.Contains[physicsBodyRow]
-	Singleton physicsSingletonSearch
 }
 
 // NewInitPhysicsSystem returns the Init-hook system bound to rt. The system creates the
 // singleton entity (if absent), then builds the Box2D world and bodies from ECS.
 func NewInitPhysicsSystem(rt *internal.Runtime) func(*InitPhysicsSystemState) {
 	return func(state *InitPhysicsSystemState) {
-		ensurePhysicsSingleton(&state.Singleton)
+		ensurePhysicsSingleton(state.Exact[physicsSingletonRow]())
 
 		entries := rt.KeepRebuildEntriesScratch(
-			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
+			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Contains[physicsBodyRow]().Iter()))
 		if err := rt.FullRebuildFromECS(rt.Gravity, entries); err != nil {
 			panic(eris.Wrap(err, "physics2d: FullRebuildFromECS failed"))
 		}

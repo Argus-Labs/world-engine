@@ -8,13 +8,11 @@ import (
 
 type RegenSystemState struct {
 	cardinal.BaseSystemState
-	cardinal.Contains[struct {
-		cardinal.WithComponent[component.Health]
-	}]
 }
 
 func RegenSystem(state *RegenSystemState) {
-	for health := range state.Iter() { // Another shorthand
+	// Contains matches every entity with Health, whatever else it carries.
+	for health := range state.Contains[struct{ component.Health }]().Iter() {
 		health.Set(component.Health{HP: health.Get[component.Health]().HP + 10})
 	}
 }
