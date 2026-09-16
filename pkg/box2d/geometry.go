@@ -399,7 +399,6 @@ func ComputePolygonMass(shape *Polygon, density float64) MassData {
 		}
 	} else {
 		for i := range count {
-			//nolint:gosec // G602: count is shape.Count, validated to 1..MaxPolygonVertices by requireValidPolygonCount at the top of ComputePolygonMass; vertices is [MaxPolygonVertices]Vec2.
 			vertices[i] = shape.Vertices[i]
 		}
 	}
@@ -410,7 +409,7 @@ func ComputePolygonMass(shape *Polygon, density float64) MassData {
 
 	// Get a reference point for forming triangles.
 	// Use the first vertex to reduce round-off errors.
-	//nolint:gosec // G602: vertices is the local [MaxPolygonVertices]Vec2 declared above, so index 0 is always in range.
+
 	r := vertices[0]
 
 	const inv3 float64 = 1.0 / 3.0

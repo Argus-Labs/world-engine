@@ -5,18 +5,56 @@
 package component
 
 import (
+	pkg_immutable "github.com/argus-labs/world-engine/pkg/immutable"
 	pbcomponent "github.com/argus-labs/world-engine/pkg/plugin/data/gen/pkg/plugin/data/component"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
+func (c ConfigFileHash) ToProto() *pbcomponent.ConfigFileHash {
+	p := &pbcomponent.ConfigFileHash{}
+	p.Path = string(c.Path)
+	p.Hash = string(c.Hash)
+	return p
+}
+
+func (c ConfigFileHash) FromProto(p *pbcomponent.ConfigFileHash) ConfigFileHash {
+	if p == nil {
+		return c
+	}
+	c.Path = string(p.Path)
+	c.Hash = string(p.Hash)
+	return c
+}
+
+func (c ConfigFileHash) SizeWire() int {
+	n := 0
+	if len(c.Path) > 0 {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Path))
+	}
+	if len(c.Hash) > 0 {
+		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.Hash))
+	}
+	return n
+}
+
+func (c ConfigFileHash) AppendWire(b []byte) []byte {
+	if len(c.Path) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Path))
+	}
+	if len(c.Hash) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Hash))
+	}
+	return b
+}
+
 func (c ConfigManifest) ToProto() *pbcomponent.ConfigManifest {
 	p := &pbcomponent.ConfigManifest{}
-	if len(c.Files) > 0 {
-		p.Files = make(map[string]string, len(c.Files))
-		for k, v := range c.Files {
-			p.Files[string(k)] = string(v)
-		}
+	for v := range c.Files.Values() {
+		p.Files = append(p.Files, v.ToProto())
 	}
 	return p
 }
@@ -26,10 +64,13 @@ func (c ConfigManifest) FromProto(p *pbcomponent.ConfigManifest) ConfigManifest 
 		return c
 	}
 	if len(p.Files) > 0 {
-		c.Files = make(map[string]string, len(p.Files))
-		for k, v := range p.Files {
-			c.Files[string(k)] = string(v)
+		itemsFiles := make([]ConfigFileHash, 0, len(p.Files))
+		for _, e := range p.Files {
+			var v ConfigFileHash
+			v = v.FromProto(e)
+			itemsFiles = append(itemsFiles, v)
 		}
+		c.Files = pkg_immutable.SliceOf(itemsFiles...)
 	}
 	return c
 }
@@ -52,4 +93,21 @@ func (c ConfigManifest) UnmarshalWire(data []byte) (any, error) {
 
 func (c ConfigManifest) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.ConfigManifest{}).ProtoReflect().Descriptor()
+}
+
+func (c ConfigManifest) SizeWire() int {
+	n := 0
+	for x := range c.Files.Values() {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(x.SizeWire())
+	}
+	return n
+}
+
+func (c ConfigManifest) AppendWire(b []byte) []byte {
+	for x := range c.Files.Values() {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendVarint(b, uint64(x.SizeWire()))
+		b = x.AppendWire(b)
+	}
+	return b
 }
