@@ -441,7 +441,7 @@ func (ws *worldState) appendEntityWire(buf []byte, arch *archetype, eid EntityID
 	}
 
 	buf = protowire.AppendTag(buf, 3, protowire.BytesType)
-	buf = protowire.AppendVarint(buf, uint64(inner)) //nolint:gosec // sizes are non-negative
+	buf = protowire.AppendVarint(buf, uint64(inner))
 
 	if eid != 0 {
 		buf = protowire.AppendTag(buf, 1, protowire.VarintType)
@@ -452,7 +452,7 @@ func (ws *worldState) appendEntityWire(buf []byte, arch *archetype, eid EntityID
 	}
 
 	buf = protowire.AppendTag(buf, 2, protowire.BytesType)
-	buf = protowire.AppendVarint(buf, uint64(packed)) //nolint:gosec // sizes are non-negative
+	buf = protowire.AppendVarint(buf, uint64(packed))
 	arch.components.Range(func(cid uint32) {
 		buf = protowire.AppendVarint(buf, uint64(cid))
 	})
@@ -529,7 +529,7 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 			return eris.Errorf("snapshot entity %d is not below next_id %d", eid, nextID)
 		}
 		for gap := prev + 1; gap < eid; gap++ {
-			next.free = append(next.free, EntityID(gap)) //nolint:gosec // bounded below nextID
+			next.free = append(next.free, EntityID(gap))
 		}
 		prev = eid
 
@@ -538,7 +538,7 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 		}
 	}
 	for gap := prev + 1; gap < int64(nextID); gap++ {
-		next.free = append(next.free, EntityID(gap)) //nolint:gosec // bounded below nextID
+		next.free = append(next.free, EntityID(gap))
 	}
 
 	// Commit the new state. wire and mu do not change.
