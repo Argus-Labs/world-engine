@@ -902,7 +902,6 @@ func (w *World) solve(ctx *stepContext) {
 
 		// -- b2_stagePrepareJoints ----------------------------------------
 		for i := range activeColorCount {
-			//nolint:gosec // G602: activeColorIndices is a local [GraphColorCount]int filled above with color indices i < GraphColorCount-1, and activeColorCount counts exactly those entries, so i < activeColorCount indexes a written slot holding a valid graph.colors index.
 			colorIndex := activeColorIndices[i]
 			jointCount := len(graph.colors[colorIndex].jointSims)
 			if w.pool == nil {
@@ -915,7 +914,6 @@ func (w *World) solve(ctx *stepContext) {
 
 		// -- b2_stagePrepareContacts --------------------------------------
 		for i := range activeColorCount {
-			//nolint:gosec // G602: same bound as the other activeColorIndices reads; the array is a local [GraphColorCount]int filled above with indices i < GraphColorCount-1 and activeColorCount entries.
 			colorIndex := activeColorIndices[i]
 			contactCount := len(graph.colors[colorIndex].contactSims)
 			if w.pool == nil {
@@ -962,7 +960,6 @@ func (w *World) solve(ctx *stepContext) {
 			}
 
 			for i := range activeColorCount {
-				//nolint:gosec // G602: same bound as the other activeColorIndices reads; the array is a local [GraphColorCount]int filled above with indices i < GraphColorCount-1 and activeColorCount entries.
 				colorIndex := activeColorIndices[i]
 				// joint blocks precede contact blocks within a color stage
 				color := &graph.colors[colorIndex]
@@ -988,7 +985,6 @@ func (w *World) solve(ctx *stepContext) {
 				}
 
 				for i := range activeColorCount {
-					//nolint:gosec // G602: same bound as the other activeColorIndices reads; the array is a local [GraphColorCount]int filled above with indices i < GraphColorCount-1 and activeColorCount entries.
 					colorIndex := activeColorIndices[i]
 					// b2SolveJointsTask: color joints carry the joint event
 					// bookkeeping.
@@ -1023,7 +1019,6 @@ func (w *World) solve(ctx *stepContext) {
 				}
 
 				for i := range activeColorCount {
-					//nolint:gosec // G602: same bound as the other activeColorIndices reads; the array is a local [GraphColorCount]int filled above with indices i < GraphColorCount-1 and activeColorCount entries.
 					colorIndex := activeColorIndices[i]
 					// b2SolveJointsTask (relax): useBias is false so no joint
 					// event bookkeeping happens.
@@ -1045,7 +1040,6 @@ func (w *World) solve(ctx *stepContext) {
 		// only graph contact blocks are executed for restitution.
 		w.applyRestitutionColor(ctx, overflowIndex, 0, len(graph.colors[overflowIndex].contactSims))
 		for i := range activeColorCount {
-			//nolint:gosec // G602: same bound as the other activeColorIndices reads; the array is a local [GraphColorCount]int filled above with indices i < GraphColorCount-1 and activeColorCount entries.
 			colorIndex := activeColorIndices[i]
 			contactCount := len(graph.colors[colorIndex].contactSims)
 			if w.pool == nil {
@@ -1059,7 +1053,6 @@ func (w *World) solve(ctx *stepContext) {
 		// -- b2_stageStoreImpulses ----------------------------------------
 		w.storeImpulsesColor(ctx, overflowIndex, 0, len(graph.colors[overflowIndex].contactSims))
 		for i := range activeColorCount {
-			//nolint:gosec // G602: same bound as the other activeColorIndices reads; the array is a local [GraphColorCount]int filled above with indices i < GraphColorCount-1 and activeColorCount entries.
 			colorIndex := activeColorIndices[i]
 			contactCount := len(graph.colors[colorIndex].contactSims)
 			if w.pool == nil {

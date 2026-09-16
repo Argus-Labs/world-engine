@@ -1,4 +1,3 @@
-//nolint:recvcheck // UnmarshalJSON must be pointer receiver to support json.Unmarshal
 package component
 
 import (

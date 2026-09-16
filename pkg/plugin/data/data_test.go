@@ -353,9 +353,9 @@ func TestPlugin_ReconcileDuplicatePathPanics(t *testing.T) {
 
 	plugin := data.NewPlugin(data.Config{Source: src})
 	data.Register[Abilities](plugin)
-	cardinal.RegisterPlugin(w, plugin)
+	w.RegisterPlugin(plugin)
 
-	cardinal.RegisterSystem(w, func(state *manifestPreseedState) {
+	w.RegisterSystem(func(state *manifestPreseedState) {
 		_, ent := state.Manifest.Create()
 		ent.Item.Set(component.ConfigManifest{Files: immutable.SliceOf(
 			component.ConfigFileHash{Path: "testdata/abilities.json", Hash: h1},
