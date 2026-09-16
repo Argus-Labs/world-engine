@@ -60,8 +60,8 @@ const (
 // A polygon has a bound Box2D fixes at MaxPolygonVertices, so Vertices is a fixed array stored
 // inline and VertexCount says how many of its slots are live — the same shape box2d.Polygon uses.
 // A chain has no such bound, so ChainPoints is an immutable.Slice: it travels as the same repeated
-// field a []Vec2 would, but its backing array is unreachable, so the copy Ref.Get hands back cannot
-// be used to write into the world's own column.
+// field a []Vec2 would, and its backing array cannot be indexed or resliced. Its derivations (With,
+// Filter, ...) still write through to the world's column, so always Set the component after one.
 //
 // ChainPoints has no encoding/json form — the wire format is protobuf, and a Slice keeps its
 // storage private. Build a ColliderShape in Go, or restore one through UnmarshalWire.
