@@ -178,7 +178,12 @@ func (w *World) run(ctx context.Context) error {
 	}
 	// Final snapshot.
 	defer func() {
-		w.snapshotWriter.Write(w.currentTick.height, w.encodeSnapshot(time.Now()))
+		data, err := w.encodeSnapshot(time.Now())
+		if err != nil {
+			w.reportSnapshotError(err)
+			return
+		}
+		w.snapshotWriter.Write(w.currentTick.height, data)
 	}()
 
 	logger := w.tel.GetLogger("shard")
@@ -240,15 +245,19 @@ func (w *World) Tick(timestamp time.Time) {
 	w.currentTick.height++
 }
 
-// persistState serializes the world for snapshots and the debug service. Encoding cannot fail
-// (a component that cannot marshal asserts inside the ECS), so there is no retry path.
+// persistState serializes the world for snapshots and the debug service. An encoding failure is
+// reported and the tick continues without a snapshot. The last stored snapshot stays in place.
 func (w *World) persistState(timestamp time.Time) {
 	snapshotDue := w.currentTick.height%uint64(w.options.SnapshotRate) == 0
 	if !snapshotDue && w.debug == nil {
 		return
 	}
 
-	data := w.encodeSnapshot(timestamp)
+	data, err := w.encodeSnapshot(timestamp)
+	if err != nil {
+		w.reportSnapshotError(err)
+		return
+	}
 
 	// Hand the debug service the same frozen bytes. Nobody writes to them, so sharing with the
 	// writer below is safe.
@@ -262,9 +271,21 @@ func (w *World) persistState(timestamp time.Time) {
 // encodeSnapshot produces the complete snapshot bytes for the current tick: the ECS sizes and
 // streams its world state directly into one exactly-sized buffer, and the envelope is hand-encoded
 // around it. No intermediate proto graph exists; the buffer is the freeze-frame.
-func (w *World) encodeSnapshot(timestamp time.Time) []byte {
-	bodySize := w.world.StateWireSize()
+func (w *World) encodeSnapshot(timestamp time.Time) ([]byte, error) {
+	bodySize, err := w.world.StateWireSize()
+	if err != nil {
+		return nil, err
+	}
 	return snapshot.Encode(w.currentTick.height, timestamp, bodySize, w.world.AppendStateWire)
+}
+
+// reportSnapshotError logs an encoding failure and sends it to Sentry. The world keeps running.
+func (w *World) reportSnapshotError(err error) {
+	err = eris.Wrap(err, "failed to encode snapshot")
+	logger := w.tel.GetLogger("snapshot")
+	logger.Error().Err(err).Uint64("tick_height", w.currentTick.height).
+		Msg("failed to encode snapshot; the world continues without it")
+	w.tel.CaptureException(context.Background(), err)
 }
 
 func (w *World) restore(ctx context.Context) error {
@@ -348,7 +369,11 @@ func (w *World) reset() {
 
 	// Publish the reset state when the debug service is enabled.
 	if w.debug != nil {
-		w.debug.publishState(w.encodeSnapshot(w.currentTick.timestamp))
+		if data, err := w.encodeSnapshot(w.currentTick.timestamp); err != nil {
+			w.reportSnapshotError(err)
+		} else {
+			w.debug.publishState(data)
+		}
 	}
 	w.debug.resetPerf()
 }

@@ -109,8 +109,9 @@ func RunDST(t *testing.T, setup DSTSetupFunc, preTestCommands []Command) {
 	// Final validation after all randomized operations complete.
 	fix.world.world.CheckWorld(t)
 
-	// Ensure final world state remains serializable (a marshal failure panics).
-	fix.world.world.EncodeState(nil)
+	// Ensure final world state remains serializable.
+	_, err := fix.world.world.EncodeState(nil)
+	require.NoError(t, err, "final world state must be serializable")
 
 	// fix.logWorldState(t, "after")
 }
@@ -250,9 +251,13 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 
 func (f *dstFixture) logWorldState(t *testing.T, label string) { //nolint: unused // Used
 	t.Helper()
-	data := f.world.world.EncodeState(nil)
+	data, err := f.world.world.EncodeState(nil)
+	if err != nil {
+		t.Logf("world state (%s): failed to encode: %v", label, err)
+		return
+	}
 	var ws cardinalv1.WorldState
-	if err := proto.Unmarshal(data, &ws); err != nil {
+	if err = proto.Unmarshal(data, &ws); err != nil {
 		t.Logf("world state (%s): failed to decode: %v", label, err)
 		return
 	}

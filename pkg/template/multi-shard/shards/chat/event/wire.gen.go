@@ -81,8 +81,10 @@ func (c UserChat) AppendWire(b []byte) []byte {
 		b = protowire.AppendString(b, string(c.Message))
 	}
 	b = protowire.AppendTag(b, 4, protowire.BytesType)
-	b = protowire.AppendVarint(b, uint64(sizeWireTimestamp(c.Timestamp)))
+	atTimestamp := len(b)
+	b = append(b, 0)
 	b = appendWireTimestamp(b, c.Timestamp)
+	b = wireLenPrefix(b, atTimestamp)
 	return b
 }
 
@@ -111,15 +113,24 @@ func appendWireTimestamp(b []byte, t time.Time) []byte {
 	return b
 }
 
-// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check
-// proto.Marshal performs.
-//
-// proto3 forbids a string field holding bytes that are not valid UTF-8, and every decoder
-// rejects such a payload — so writing one produces a snapshot that cannot be restored. The size
-// pass runs over the whole world before a single byte is appended, so panicking here fails the
-// write rather than committing a file that only fails later, at restore, where nothing can be
-// done about it. proto.Marshal made the same check; keeping it is what makes the direct
-// encoders a drop-in for it.
+// wireLenPrefix writes the length of the bytes appended after the placeholder at b[at].
+// The body is moved up only when the length needs more than the one byte reserved.
+func wireLenPrefix(b []byte, at int) []byte {
+	n := len(b) - at - 1
+	if n < 0x80 {
+		b[at] = byte(n)
+		return b
+	}
+	k := protowire.SizeVarint(uint64(n)) - 1
+	b = append(b, make([]byte, k)...)
+	copy(b[at+1+k:], b[at+1:at+1+n])
+	protowire.AppendVarint(b[at:at], uint64(n)) // in place: cap reaches the body
+	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check proto.Marshal
+// performs: a proto3 string holding invalid UTF-8 cannot be decoded, so the size pass
+// fails.
 func wireStringSize(field, s string) int {
 	if !utf8.ValidString(s) {
 		panic("failed to encode " + field + ": string field contains invalid UTF-8")

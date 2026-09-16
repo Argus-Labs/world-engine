@@ -1,9 +1,9 @@
 package snapshot
 
 import (
-	"fmt"
 	"time"
 
+	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
@@ -78,31 +78,33 @@ func appendTimestampWire(buf []byte, t time.Time) []byte {
 	return buf
 }
 
-// Encode assembles a complete snapshot: envelope around the body produced by appendBody, in one
-// exactly-sized buffer. appendBody must append exactly bodySize bytes.
-//
-// The two checks below are plain panics, not assert.That, because assert compiles to nothing under
-// the release tag. The header already wrote bodySize as field 3's length prefix, so a divergence
-// here is a snapshot that cannot be decoded — it has to fail before reaching storage, in every
-// build, rather than be written and discovered at the next restore.
+// Encode assembles a complete snapshot: the envelope around the body that appendBody produces, in
+// one exactly-sized buffer. appendBody must append exactly bodySize bytes. The header already wrote
+// bodySize as the length prefix of field 3, so a divergence is an error: the bytes could not be
+// decoded. The checks are errors, not assert.That, because asserts compile to nothing under the
+// release tag.
 //
 // The returned buffer is freshly allocated and handed to the caller: ownership transfers to
-// storage with no reuse, so nothing downstream can race a reused buffer. One allocation per
-// snapshot, exact-size — against the old path's per-component graph, the rounding error.
-func Encode(tick uint64, timestamp time.Time, bodySize int, appendBody func([]byte) []byte) []byte {
+// storage with no reuse, so nothing downstream can race a reused buffer.
+func Encode(
+	tick uint64, timestamp time.Time, bodySize int, appendBody func([]byte) ([]byte, error),
+) ([]byte, error) {
 	total := EnvelopeSize(tick, timestamp, bodySize)
 	buf := make([]byte, 0, total)
 	buf = AppendEnvelopeHeader(buf, tick, timestamp, bodySize)
 
 	bodyStart := len(buf)
-	buf = appendBody(buf)
+	buf, err := appendBody(buf)
+	if err != nil {
+		return nil, err
+	}
 	if got := len(buf) - bodyStart; got != bodySize {
-		panic(fmt.Sprintf("snapshot body wrote %d bytes, size pass computed %d", got, bodySize))
+		return nil, eris.Errorf("snapshot body wrote %d bytes, size pass computed %d", got, bodySize)
 	}
 
 	buf = AppendEnvelopeFooter(buf)
 	if len(buf) != total {
-		panic(fmt.Sprintf("snapshot envelope wrote %d bytes, computed %d", len(buf), total))
+		return nil, eris.Errorf("snapshot envelope wrote %d bytes, computed %d", len(buf), total)
 	}
-	return buf
+	return buf, nil
 }

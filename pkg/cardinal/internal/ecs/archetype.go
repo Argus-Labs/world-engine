@@ -20,25 +20,11 @@ type archetype struct {
 	entities   []EntityID       // List of entities of this archetype
 	columns    []abstractColumn // List of columns containing component data
 	compCount  int              // Number of component types in the archetype
-
-	// wireCIDs is columns' component IDs as a flat slice: wireCIDs[i] is the component held by
-	// columns[i]. The bitmap already stores this, but the snapshot encoder reads it per entity and
-	// a slice walk beats a bitmap iteration. Component IDs are also the snapshot's name-table
-	// indices (both follow registration order), so this is everything the encoder needs.
-	wireCIDs []ComponentID
 }
 
 // newArchetype creates an archetype for the given component types.
 func newArchetype(aid archetypeID, components bitmap.Bitmap, columns []abstractColumn) archetype {
 	assert.That(components.Count() == len(columns), "mismatched number of columns and components")
-
-	// Columns are laid out in ascending component-ID order (see worldState.newArchetype), which
-	// is also the snapshot's order, so the bitmap is just flattened once here.
-	wireCIDs := make([]ComponentID, 0, len(columns))
-	components.Range(func(cid uint32) {
-		wireCIDs = append(wireCIDs, cid)
-	})
-
 	return archetype{
 		id:         aid,
 		components: components,
@@ -46,7 +32,6 @@ func newArchetype(aid archetypeID, components bitmap.Bitmap, columns []abstractC
 		entities:   make([]EntityID, 0),
 		columns:    columns,
 		compCount:  len(columns),
-		wireCIDs:   wireCIDs,
 	}
 }
 
