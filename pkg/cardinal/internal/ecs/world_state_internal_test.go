@@ -627,10 +627,9 @@ func newWireTestWorld(t *testing.T) (*worldState, ComponentID, ComponentID) {
 	t.Helper()
 	ws := newWorldState()
 
-	posID, err := ws.components.register("wire_pos", newColumnFactory[wirePos]())
+	posID, err := ws.components.register[wirePos]("wire_pos")
 	require.NoError(t, err)
-	simpleID, err := ws.components.register(
-		testutils.SimpleComponent{}.Name(), newColumnFactory[testutils.SimpleComponent]())
+	simpleID, err := ws.components.register[testutils.SimpleComponent](testutils.SimpleComponent{}.Name())
 	require.NoError(t, err)
 	return ws, posID, simpleID
 }
@@ -664,11 +663,11 @@ func TestSnapshotWireCanonical(t *testing.T) {
 	e1 := ws.newEntityWithArchetype(onlyPos)
 	e2 := ws.newEntity() // zero components
 	e3 := ws.newEntityWithArchetype(both)
-	require.NoError(t, setComponent(ws, e0, wirePos{X: 1.5, Y: -2}))
-	require.NoError(t, setComponent(ws, e0, testutils.SimpleComponent{Value: 7}))
-	require.NoError(t, setComponent(ws, e1, wirePos{X: 42}))
-	require.NoError(t, setComponent(ws, e3, wirePos{Y: 9}))
-	require.NoError(t, setComponent(ws, e3, testutils.SimpleComponent{Value: -1}))
+	require.NoError(t, ws.setComponent(e0, wirePos{X: 1.5, Y: -2}))
+	require.NoError(t, ws.setComponent(e0, testutils.SimpleComponent{Value: 7}))
+	require.NoError(t, ws.setComponent(e1, wirePos{X: 42}))
+	require.NoError(t, ws.setComponent(e3, wirePos{Y: 9}))
+	require.NoError(t, ws.setComponent(e3, testutils.SimpleComponent{Value: -1}))
 	require.True(t, ws.removeEntity(e1)) // leaves a free-list hole
 	_ = e2
 
@@ -705,8 +704,8 @@ func TestSnapshotWireRoundTrip(t *testing.T) {
 	both.Set(simpleID)
 	e0 := ws.newEntityWithArchetype(both)
 	_ = ws.newEntity()
-	require.NoError(t, setComponent(ws, e0, wirePos{X: 3, Y: 4}))
-	require.NoError(t, setComponent(ws, e0, testutils.SimpleComponent{Value: 11}))
+	require.NoError(t, ws.setComponent(e0, wirePos{X: 3, Y: 4}))
+	require.NoError(t, ws.setComponent(e0, testutils.SimpleComponent{Value: 11}))
 
 	data := encodeWorld(t, ws)
 	var pb cardinalv1.WorldState
@@ -719,10 +718,10 @@ func TestSnapshotWireRoundTrip(t *testing.T) {
 	assert.Equal(t, data, encodeWorld(t, restored), "snapshot -> restore -> snapshot must be byte-stable")
 
 	// Same values through the rebuilt lookup paths.
-	pos, err := getComponent[wirePos](restored, e0)
+	pos, err := restored.getComponent[wirePos](e0)
 	require.NoError(t, err)
 	assert.Equal(t, wirePos{X: 3, Y: 4}, pos)
-	simple, err := getComponent[testutils.SimpleComponent](restored, e0)
+	simple, err := restored.getComponent[testutils.SimpleComponent](e0)
 	require.NoError(t, err)
 	assert.Equal(t, testutils.SimpleComponent{Value: 11}, simple)
 
@@ -771,15 +770,15 @@ func TestSnapshotWireDeterministic(t *testing.T) {
 			// Same end state, built via moves instead of direct archetype creation.
 			a := ws.newEntity()
 			b := ws.newEntity()
-			require.NoError(t, setComponent(ws, b, wirePos{X: 2}))
-			require.NoError(t, setComponent(ws, a, testutils.SimpleComponent{Value: 5}))
-			require.NoError(t, setComponent(ws, a, wirePos{X: 1}))
+			require.NoError(t, ws.setComponent(b, wirePos{X: 2}))
+			require.NoError(t, ws.setComponent(a, testutils.SimpleComponent{Value: 5}))
+			require.NoError(t, ws.setComponent(a, wirePos{X: 1}))
 		} else {
 			a := ws.newEntityWithArchetype(both)
 			b := ws.newEntityWithArchetype(onlyPos)
-			require.NoError(t, setComponent(ws, a, wirePos{X: 1}))
-			require.NoError(t, setComponent(ws, a, testutils.SimpleComponent{Value: 5}))
-			require.NoError(t, setComponent(ws, b, wirePos{X: 2}))
+			require.NoError(t, ws.setComponent(a, wirePos{X: 1}))
+			require.NoError(t, ws.setComponent(a, testutils.SimpleComponent{Value: 5}))
+			require.NoError(t, ws.setComponent(b, wirePos{X: 2}))
 		}
 		return encodeWorld(t, ws)
 	}
@@ -798,7 +797,7 @@ func TestSnapshotWireDroppedComponent(t *testing.T) {
 	var only bitmap.Bitmap
 	only.Set(posID)
 	e := old.newEntityWithArchetype(only) // uses wire_pos only
-	require.NoError(t, setComponent(old, e, wirePos{X: 1, Y: 2}))
+	require.NoError(t, old.setComponent(e, wirePos{X: 1, Y: 2}))
 
 	var pb cardinalv1.WorldState
 	require.NoError(t, proto.Unmarshal(encodeWorld(t, old), &pb))
@@ -807,11 +806,11 @@ func TestSnapshotWireDroppedComponent(t *testing.T) {
 
 	// A build that dropped the unused component.
 	dropped := newWorldState()
-	_, err := dropped.components.register("wire_pos", newColumnFactory[wirePos]())
+	_, err := dropped.components.register[wirePos]("wire_pos")
 	require.NoError(t, err)
 
 	require.NoError(t, dropped.fromProto(&pb), "an unused dropped component must not block restore")
-	got, err := getComponent[wirePos](dropped, e)
+	got, err := dropped.getComponent[wirePos](e)
 	require.NoError(t, err)
 	assert.Equal(t, wirePos{X: 1, Y: 2}, got)
 }
@@ -825,14 +824,14 @@ func TestSnapshotWireDroppedComponentInUse(t *testing.T) {
 	both.Set(posID)
 	both.Set(simpleID)
 	e := old.newEntityWithArchetype(both)
-	require.NoError(t, setComponent(old, e, wirePos{X: 1}))
-	require.NoError(t, setComponent(old, e, testutils.SimpleComponent{Value: 5}))
+	require.NoError(t, old.setComponent(e, wirePos{X: 1}))
+	require.NoError(t, old.setComponent(e, testutils.SimpleComponent{Value: 5}))
 
 	var pb cardinalv1.WorldState
 	require.NoError(t, proto.Unmarshal(encodeWorld(t, old), &pb))
 
 	dropped := newWorldState()
-	_, err := dropped.components.register("wire_pos", newColumnFactory[wirePos]())
+	_, err := dropped.components.register[wirePos]("wire_pos")
 	require.NoError(t, err)
 
 	err = dropped.fromProto(&pb)
@@ -914,7 +913,7 @@ func TestSnapshotWireAllocations(t *testing.T) {
 	onlyPos.Set(posID)
 	for i := range 100 {
 		eid := ws.newEntityWithArchetype(onlyPos)
-		require.NoError(t, setComponent(ws, eid, wirePos{X: float64(i), Y: 1}))
+		require.NoError(t, ws.setComponent(eid, wirePos{X: float64(i), Y: 1}))
 	}
 
 	// Learn the buffer size, so the measured runs below append into a buffer that never grows.
