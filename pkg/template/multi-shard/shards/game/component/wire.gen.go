@@ -6,9 +6,12 @@ package component
 
 import (
 	pbcomponent "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/component"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"time"
+	"unicode/utf8"
 )
 
 func (c OnlineStatus) ToProto() *pbcomponent.OnlineStatus {
@@ -30,11 +33,7 @@ func (c OnlineStatus) FromProto(p *pbcomponent.OnlineStatus) OnlineStatus {
 }
 
 func (c OnlineStatus) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal OnlineStatus: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c OnlineStatus) UnmarshalWire(data []byte) (any, error) {
@@ -47,6 +46,28 @@ func (c OnlineStatus) UnmarshalWire(data []byte) (any, error) {
 
 func (c OnlineStatus) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.OnlineStatus{}).ProtoReflect().Descriptor()
+}
+
+func (c OnlineStatus) SizeWire() int {
+	n := 0
+	if c.Online {
+		n += protowire.SizeTag(1) + 1
+	}
+	n += protowire.SizeTag(2) + protowire.SizeBytes(sizeWireTimestamp(c.LastActive))
+	return n
+}
+
+func (c OnlineStatus) AppendWire(b []byte) []byte {
+	if c.Online {
+		b = protowire.AppendTag(b, 1, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	b = protowire.AppendTag(b, 2, protowire.BytesType)
+	atLastActive := len(b)
+	b = append(b, 0)
+	b = appendWireTimestamp(b, c.LastActive)
+	b = wireLenPrefix(b, atLastActive)
+	return b
 }
 
 func (c PlayerTag) ToProto() *pbcomponent.PlayerTag {
@@ -66,11 +87,7 @@ func (c PlayerTag) FromProto(p *pbcomponent.PlayerTag) PlayerTag {
 }
 
 func (c PlayerTag) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerTag: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerTag) UnmarshalWire(data []byte) (any, error) {
@@ -83,6 +100,29 @@ func (c PlayerTag) UnmarshalWire(data []byte) (any, error) {
 
 func (c PlayerTag) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.PlayerTag{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerTag) SizeWire() int {
+	n := 0
+	if len(c.ArgusAuthID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("PlayerTag.ArgusAuthID", string(c.ArgusAuthID))
+	}
+	if len(c.ArgusAuthName) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("PlayerTag.ArgusAuthName", string(c.ArgusAuthName))
+	}
+	return n
+}
+
+func (c PlayerTag) AppendWire(b []byte) []byte {
+	if len(c.ArgusAuthID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ArgusAuthID))
+	}
+	if len(c.ArgusAuthName) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ArgusAuthName))
+	}
+	return b
 }
 
 func (c Position) ToProto() *pbcomponent.Position {
@@ -102,11 +142,7 @@ func (c Position) FromProto(p *pbcomponent.Position) Position {
 }
 
 func (c Position) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal Position: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c Position) UnmarshalWire(data []byte) (any, error) {
@@ -119,4 +155,77 @@ func (c Position) UnmarshalWire(data []byte) (any, error) {
 
 func (c Position) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.Position{}).ProtoReflect().Descriptor()
+}
+
+func (c Position) SizeWire() int {
+	n := 0
+	if c.X != 0 {
+		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(c.X))
+	}
+	if c.Y != 0 {
+		n += protowire.SizeTag(2) + protowire.SizeVarint(uint64(c.Y))
+	}
+	return n
+}
+
+func (c Position) AppendWire(b []byte) []byte {
+	if c.X != 0 {
+		b = protowire.AppendTag(b, 1, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.X))
+	}
+	if c.Y != 0 {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.Y))
+	}
+	return b
+}
+
+// sizeWireTimestamp is the encoded size of the google.protobuf.Timestamp holding t.
+func sizeWireTimestamp(t time.Time) int {
+	n := 0
+	if s := t.Unix(); s != 0 {
+		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(s))
+	}
+	if ns := t.Nanosecond(); ns != 0 {
+		n += protowire.SizeTag(2) + protowire.SizeVarint(uint64(ns))
+	}
+	return n
+}
+
+// appendWireTimestamp writes the google.protobuf.Timestamp holding t.
+func appendWireTimestamp(b []byte, t time.Time) []byte {
+	if s := t.Unix(); s != 0 {
+		b = protowire.AppendTag(b, 1, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(s))
+	}
+	if ns := t.Nanosecond(); ns != 0 {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(ns))
+	}
+	return b
+}
+
+// wireLenPrefix writes the length of the bytes appended after the placeholder at b[at].
+// The body is moved up only when the length needs more than the one byte reserved.
+func wireLenPrefix(b []byte, at int) []byte {
+	n := len(b) - at - 1
+	if n < 0x80 {
+		b[at] = byte(n)
+		return b
+	}
+	k := protowire.SizeVarint(uint64(n)) - 1
+	b = append(b, make([]byte, k)...)
+	copy(b[at+1+k:], b[at+1:at+1+n])
+	protowire.AppendVarint(b[at:at], uint64(n)) // in place: cap reaches the body
+	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check proto.Marshal
+// performs: a proto3 string holding invalid UTF-8 cannot be decoded, so the size pass
+// fails.
+func wireStringSize(field, s string) int {
+	if !utf8.ValidString(s) {
+		panic("failed to encode " + field + ": string field contains invalid UTF-8")
+	}
+	return protowire.SizeBytes(len(s))
 }

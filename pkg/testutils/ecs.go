@@ -51,19 +51,44 @@ func (ComponentC) Name() string {
 	return "component_c"
 }
 
-func (c SimpleComponent) MarshalWire() []byte { return gobMarshal(c) }
+func (c SimpleComponent) SizeWire() int              { return len(c.MarshalWire()) }
+func (c SimpleComponent) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
+func (c SimpleComponent) MarshalWire() []byte { return GobMarshal(c) }
 func (SimpleComponent) UnmarshalWire(b []byte) (any, error) {
 	return gobUnmarshal[SimpleComponent](b)
 }
 
-func (c ComponentA) MarshalWire() []byte               { return gobMarshal(c) }
+func (c ComponentA) SizeWire() int              { return len(c.MarshalWire()) }
+func (c ComponentA) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
+func (c ComponentA) MarshalWire() []byte               { return GobMarshal(c) }
 func (ComponentA) UnmarshalWire(b []byte) (any, error) { return gobUnmarshal[ComponentA](b) }
 
-func (c ComponentB) MarshalWire() []byte               { return gobMarshal(c) }
+func (c ComponentB) SizeWire() int              { return len(c.MarshalWire()) }
+func (c ComponentB) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
+func (c ComponentB) MarshalWire() []byte               { return GobMarshal(c) }
 func (ComponentB) UnmarshalWire(b []byte) (any, error) { return gobUnmarshal[ComponentB](b) }
 
-func (c ComponentC) MarshalWire() []byte               { return gobMarshal(c) }
+func (c ComponentC) SizeWire() int              { return len(c.MarshalWire()) }
+func (c ComponentC) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
+func (c ComponentC) MarshalWire() []byte               { return GobMarshal(c) }
 func (ComponentC) UnmarshalWire(b []byte) (any, error) { return gobUnmarshal[ComponentC](b) }
+
+// GobMarshal is the gob encoder shared by every gob-backed test double, here and in other fixture
+// packages, so there is one definition of what those bytes are.
+//
+// Doubles derive SizeWire and AppendWire from their own MarshalWire — len() and append() of it —
+// rather than from this directly. That costs an encode per size call, which is irrelevant in a
+// fixture, and buys the property that actually matters: the three cannot disagree, whatever a given
+// double encodes with. Not every double here uses gob; SimpleEvent writes a varint by hand.
+func GobMarshal(v any) []byte {
+	var buf bytes.Buffer
+	mustWrite(gob.NewEncoder(&buf).Encode(v))
+	return buf.Bytes()
+}
 
 // mustWrite panics on an encoding failure. These are test doubles: a fixture that cannot encode
 // itself is a broken fixture, not a condition callers should handle.
@@ -71,12 +96,6 @@ func mustWrite(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func gobMarshal(v any) []byte {
-	var buf bytes.Buffer
-	mustWrite(gob.NewEncoder(&buf).Encode(v))
-	return buf.Bytes()
 }
 
 func gobUnmarshal[T any](b []byte) (T, error) {
@@ -97,7 +116,10 @@ func (SimpleSystemEvent) Name() string {
 	return "simple_system_event"
 }
 
-func (c SimpleSystemEvent) MarshalWire() []byte { return gobMarshal(c) }
+func (c SimpleSystemEvent) SizeWire() int              { return len(c.MarshalWire()) }
+func (c SimpleSystemEvent) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
+func (c SimpleSystemEvent) MarshalWire() []byte { return GobMarshal(c) }
 func (SimpleSystemEvent) UnmarshalWire(b []byte) (any, error) {
 	return gobUnmarshal[SimpleSystemEvent](b)
 }
@@ -176,6 +198,9 @@ func (CommandC) Name() string {
 // UnmarshalWire). UnmarshalWire returns any — a decode factory that ignores its receiver — so testutils
 // needs no import of the engine (which already imports testutils).
 
+func (c SimpleCommand) SizeWire() int              { return len(c.MarshalWire()) }
+func (c SimpleCommand) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
 func (c SimpleCommand) MarshalWire() []byte {
 	var b bytes.Buffer
 	mustWrite(binary.Write(&b, binary.LittleEndian, int64(c.Value)))
@@ -190,6 +215,9 @@ func (SimpleCommand) UnmarshalWire(data []byte) (any, error) {
 	return SimpleCommand{Value: int(v)}, nil
 }
 
+func (c CommandA) SizeWire() int              { return len(c.MarshalWire()) }
+func (c CommandA) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
 func (c CommandA) MarshalWire() []byte {
 	var b bytes.Buffer
 	mustWrite(binary.Write(&b, binary.LittleEndian, c))
@@ -203,6 +231,9 @@ func (CommandA) UnmarshalWire(data []byte) (any, error) {
 	}
 	return c, nil
 }
+
+func (c CommandB) SizeWire() int              { return len(c.MarshalWire()) }
+func (c CommandB) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
 
 func (c CommandB) MarshalWire() []byte {
 	var b bytes.Buffer
@@ -229,6 +260,9 @@ func (CommandB) UnmarshalWire(data []byte) (any, error) {
 	c.Label = string(label)
 	return c, nil
 }
+
+func (c CommandC) SizeWire() int              { return len(c.MarshalWire()) }
+func (c CommandC) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
 
 func (c CommandC) MarshalWire() []byte {
 	var b bytes.Buffer
@@ -259,6 +293,9 @@ func (SimpleEvent) Name() string {
 // MarshalWire / UnmarshalWire are a test double for generated event wire code — the engine requires the
 // wire codec. Deliberately an explicit encoding, not a serialization library, so
 // testutils stays free of any wire-format dependency.
+func (s SimpleEvent) SizeWire() int              { return len(s.MarshalWire()) }
+func (s SimpleEvent) AppendWire(b []byte) []byte { return append(b, s.MarshalWire()...) }
+
 func (s SimpleEvent) MarshalWire() []byte {
 	return binary.AppendVarint(nil, int64(s.Value))
 }
@@ -280,6 +317,9 @@ func (AnotherEvent) Name() string {
 }
 
 // MarshalWire is a test double for generated event wire code (explicit encoding, no serialization lib).
+func (e AnotherEvent) SizeWire() int              { return len(e.MarshalWire()) }
+func (e AnotherEvent) AppendWire(b []byte) []byte { return append(b, e.MarshalWire()...) }
+
 func (e AnotherEvent) MarshalWire() []byte {
 	return []byte(e.Data)
 }

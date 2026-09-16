@@ -18,7 +18,10 @@ type descriptorSample struct {
 	descriptor protoreflect.MessageDescriptor
 }
 
-func (sample descriptorSample) Name() string               { return sample.name }
+func (sample descriptorSample) Name() string          { return sample.name }
+func (c descriptorSample) SizeWire() int              { return len(c.MarshalWire()) }
+func (c descriptorSample) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
 func (descriptorSample) MarshalWire() []byte               { return nil }
 func (descriptorSample) UnmarshalWire([]byte) (any, error) { return descriptorSample{}, nil }
 func (sample descriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor {
@@ -27,7 +30,10 @@ func (sample descriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor 
 
 type wireOnlySample struct{ name string }
 
-func (sample wireOnlySample) Name() string               { return sample.name }
+func (sample wireOnlySample) Name() string          { return sample.name }
+func (c wireOnlySample) SizeWire() int              { return len(c.MarshalWire()) }
+func (c wireOnlySample) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
 func (wireOnlySample) MarshalWire() []byte               { return nil }
 func (wireOnlySample) UnmarshalWire([]byte) (any, error) { return wireOnlySample{}, nil }
 
@@ -99,11 +105,11 @@ func TestBuildDescriptorSetIsDeterministicAndDeduplicated(t *testing.T) {
 	t.Parallel()
 
 	snapshot := (&cardinalv1.Snapshot{}).ProtoReflect().Descriptor()
-	archetype := (&cardinalv1.Archetype{}).ProtoReflect().Descriptor()
+	entity := (&cardinalv1.Entity{}).ProtoReflect().Descriptor()
 
-	first, err := buildDescriptorSet([]protoreflect.MessageDescriptor{archetype, snapshot, archetype})
+	first, err := buildDescriptorSet([]protoreflect.MessageDescriptor{entity, snapshot, entity})
 	require.NoError(t, err)
-	second, err := buildDescriptorSet([]protoreflect.MessageDescriptor{snapshot, archetype})
+	second, err := buildDescriptorSet([]protoreflect.MessageDescriptor{snapshot, entity})
 	require.NoError(t, err)
 	assert.Equal(t, first, second)
 
@@ -139,7 +145,10 @@ type arrayShapes struct {
 	hidden [2][2]int32 //nolint:unused // unexported fields are never serialized
 }
 
-func (arrayShapes) Name() string                      { return "array_shapes" }
+func (arrayShapes) Name() string                 { return "array_shapes" }
+func (c arrayShapes) SizeWire() int              { return len(c.MarshalWire()) }
+func (c arrayShapes) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
 func (arrayShapes) MarshalWire() []byte               { return nil }
 func (arrayShapes) UnmarshalWire([]byte) (any, error) { return arrayShapes{}, nil }
 

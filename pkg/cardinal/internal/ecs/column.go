@@ -2,7 +2,6 @@ package ecs
 
 import (
 	"github.com/argus-labs/world-engine/pkg/assert"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 )
 
@@ -19,8 +18,9 @@ type abstractColumn interface {
 	getAbstract(row int) Component
 	remove(row int)
 
-	toProto() *cardinalv1.Column
-	fromProto(*cardinalv1.Column) error
+	rowWireSize(row int) int
+	appendRowWire(b []byte, row int) []byte
+	decodeRow(row int, data []byte) error
 }
 
 var _ abstractColumn = &column[Component]{}
@@ -120,43 +120,33 @@ func (c *column[T]) remove(row int) {
 	c.components = c.components[:lastIndex]
 }
 
-// toProto serializes each component with its generated protobuf codec.
-func (c *column[T]) toProto() *cardinalv1.Column {
-	componentData := make([][]byte, len(c.components))
-	for i, component := range c.components {
-		componentData[i] = component.MarshalWire()
-	}
-
-	return &cardinalv1.Column{
-		ComponentName: c.compName,
-		Components:    componentData,
-	}
+// rowWireSize returns the encoded size of one row. Pure arithmetic over the component's fields —
+// no encoding happens here, and nothing is cached between the two passes, so the size pass and the
+// append pass can each ask for it independently.
+func (c *column[T]) rowWireSize(row int) int {
+	assert.That(row < len(c.components), "component doesn't exist")
+	return c.components[row].SizeWire()
 }
 
-// fromProto decodes each component with its generated protobuf codec.
-func (c *column[T]) fromProto(pb *cardinalv1.Column) error {
-	if pb == nil {
-		return eris.New("protobuf column is nil")
-	}
+// appendRowWire writes one row's encoded bytes onto b, exactly rowWireSize of them.
+func (c *column[T]) appendRowWire(b []byte, row int) []byte {
+	assert.That(row < len(c.components), "component doesn't exist")
+	return c.components[row].AppendWire(b)
+}
 
-	if pb.GetComponentName() != c.compName {
-		return eris.Errorf("component name mismatch: expected %s, got %s", c.compName, pb.GetComponentName())
-	}
+// decodeRow deserializes one component payload into an existing row.
+func (c *column[T]) decodeRow(row int, data []byte) error {
+	assert.That(row < len(c.components), "component doesn't exist")
 
 	var zero T
-	components := make([]T, len(pb.GetComponents()))
-	for i, data := range pb.GetComponents() {
-		decoded, err := zero.UnmarshalWire(data)
-		if err != nil {
-			return eris.Wrapf(err, "failed to deserialize component at index %d", i)
-		}
-		typed, ok := decoded.(T)
-		if !ok {
-			return eris.Errorf("component %q decoded to unexpected type %T", c.compName, decoded)
-		}
-		components[i] = typed
+	decoded, err := zero.UnmarshalWire(data)
+	if err != nil {
+		return eris.Wrapf(err, "failed to deserialize component %q", c.compName)
 	}
-
-	c.components = components
+	typed, ok := decoded.(T)
+	if !ok {
+		return eris.Errorf("component %q decoded to unexpected type %T", c.compName, decoded)
+	}
+	c.components[row] = typed
 	return nil
 }

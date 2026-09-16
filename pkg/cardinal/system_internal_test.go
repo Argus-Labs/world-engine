@@ -7,6 +7,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
@@ -254,7 +255,7 @@ func newCommandFixture(t *testing.T) *commandFixture {
 func (f *commandFixture) enqueueCommand(t *testing.T, payload command.Payload, persona string) {
 	t.Helper()
 
-	bytes := payload.MarshalWire()
+	bytes := schema.Marshal(payload)
 	require.NotNil(t, bytes)
 
 	cmdpb := &iscv1.Command{

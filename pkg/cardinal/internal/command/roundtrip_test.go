@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
@@ -22,7 +23,7 @@ import (
 func assertCodecRoundTripType[T command.Payload](t *testing.T, value T) {
 	t.Helper()
 
-	payload := value.MarshalWire()
+	payload := schema.Marshal(value)
 
 	q := command.NewQueue[T]()
 	require.NoError(t, q.Enqueue(&iscv1.Command{

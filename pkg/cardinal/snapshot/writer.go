@@ -7,16 +7,15 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 )
 
 // Writer sends completed snapshots to storage. Writers report storage errors when Drain runs.
 type Writer interface {
-	// Write accepts an immutable snapshot. Do not call Write after Stop.
-	// The caller must not change the snapshot after this call.
-	Write(snap *cardinalv1.Snapshot)
+	// Write accepts fully encoded snapshot bytes. Do not call Write after Stop.
+	// Ownership of data transfers to the writer: the caller must not touch it after this call.
+	Write(tick uint64, data []byte)
 
 	// Drain waits for submitted snapshots. Do not call Drain after Stop.
 	// A newer stored snapshot can replace an older snapshot.
@@ -48,15 +47,15 @@ func NewSyncWriter(storage Storage, logger zerolog.Logger) *SyncWriter {
 const snapshotWriteTimeout = 2 * time.Second
 
 // Write uses a background context so shutdown does not cancel the final snapshot immediately.
-func (w *SyncWriter) Write(snap *cardinalv1.Snapshot) {
+func (w *SyncWriter) Write(tick uint64, data []byte) {
 	ctx, cancel := context.WithTimeout(context.Background(), snapshotWriteTimeout)
 	defer cancel()
 
-	err := w.storage.Store(ctx, snap)
+	err := w.storage.Store(ctx, tick, data)
 	if err != nil {
-		w.logger.Warn().Err(err).Uint64("tick_height", snap.GetTickHeight()).Msg("failed to store snapshot")
+		w.logger.Warn().Err(err).Uint64("tick_height", tick).Msg("failed to store snapshot")
 	} else {
-		w.logger.Debug().Uint64("tick_height", snap.GetTickHeight()).Msg("published snapshot")
+		w.logger.Debug().Uint64("tick_height", tick).Msg("published snapshot")
 	}
 
 	w.lastErr = err
@@ -92,9 +91,15 @@ type AsyncWriter struct {
 	wake    chan struct{}      // Tells the worker to read pending
 	drain   chan chan error    // Sends a response channel to the worker
 
-	mu      sync.Mutex           // Guards pending and dropped
-	pending *cardinalv1.Snapshot // Newest snapshot that storage has not received
-	dropped uint64               // Number of pending snapshots that a newer snapshot replaced
+	mu      sync.Mutex      // Guards pending and dropped
+	pending pendingSnapshot // Newest snapshot that storage has not received; nil data = none
+	dropped uint64          // Number of pending snapshots that a newer snapshot replaced
+}
+
+// pendingSnapshot is one encoded snapshot waiting for storage.
+type pendingSnapshot struct {
+	tick uint64
+	data []byte
 }
 
 var _ Writer = (*AsyncWriter)(nil)
@@ -130,10 +135,10 @@ func (w *AsyncWriter) loop(ctx context.Context) {
 		for {
 			w.mu.Lock()
 			snap := w.pending
-			w.pending = nil
+			w.pending = pendingSnapshot{}
 			w.mu.Unlock()
 
-			if snap == nil {
+			if snap.data == nil {
 				break
 			}
 			lastErr = w.store(ctx, snap)
@@ -147,14 +152,14 @@ func (w *AsyncWriter) loop(ctx context.Context) {
 
 // store makes one storage attempt. It converts a storage panic to an error.
 // The conversion lets the writer continue.
-func (w *AsyncWriter) store(ctx context.Context, snap *cardinalv1.Snapshot) (err error) {
+func (w *AsyncWriter) store(ctx context.Context, snap pendingSnapshot) (err error) {
 	writeCtx, cancel := context.WithTimeout(ctx, snapshotWriteTimeout)
 	defer cancel()
 
 	defer func() {
 		if r := recover(); r != nil {
 			err = eris.Errorf("snapshot storage panicked: %v", r)
-			w.logger.Error().Err(err).Uint64("tick_height", snap.GetTickHeight()).
+			w.logger.Error().Err(err).Uint64("tick_height", snap.tick).
 				Msg("recovered a panic from snapshot storage; the snapshot was not written")
 			if w.tel != nil {
 				w.tel.CaptureException(ctx, err)
@@ -162,25 +167,25 @@ func (w *AsyncWriter) store(ctx context.Context, snap *cardinalv1.Snapshot) (err
 		}
 	}()
 
-	if err = w.storage.Store(writeCtx, snap); err != nil {
-		w.logger.Warn().Err(err).Uint64("tick_height", snap.GetTickHeight()).Msg("failed to store snapshot")
+	if err = w.storage.Store(writeCtx, snap.tick, snap.data); err != nil {
+		w.logger.Warn().Err(err).Uint64("tick_height", snap.tick).Msg("failed to store snapshot")
 	} else {
-		w.logger.Debug().Uint64("tick_height", snap.GetTickHeight()).Msg("published snapshot")
+		w.logger.Debug().Uint64("tick_height", snap.tick).Msg("published snapshot")
 	}
 	return err
 }
 
-// Write sends a snapshot to the writer goroutine. It replaces a snapshot that is still waiting.
-func (w *AsyncWriter) Write(snap *cardinalv1.Snapshot) {
+// Write sends snapshot bytes to the writer goroutine. It replaces a snapshot that is still waiting.
+func (w *AsyncWriter) Write(tick uint64, data []byte) {
 	assert.That(!w.stopped, "cannot write after the snapshot writer stopped")
 
 	w.mu.Lock()
 	superseded := w.pending
-	if superseded != nil {
+	if superseded.data != nil {
 		w.dropped++
 	}
 
-	w.pending = snap
+	w.pending = pendingSnapshot{tick: tick, data: data}
 	dropped := w.dropped
 	w.mu.Unlock()
 
@@ -189,12 +194,12 @@ func (w *AsyncWriter) Write(snap *cardinalv1.Snapshot) {
 	default:
 	}
 
-	if superseded != nil {
+	if superseded.data != nil {
 		const snapshotDropLogEvery = 100
 		if dropped == 1 || dropped%snapshotDropLogEvery == 0 {
 			w.logger.Warn().
-				Uint64("superseded_tick_height", superseded.GetTickHeight()).
-				Uint64("tick_height", snap.GetTickHeight()).
+				Uint64("superseded_tick_height", superseded.tick).
+				Uint64("tick_height", tick).
 				Uint64("dropped_total", dropped).
 				Uint64("log_every", snapshotDropLogEvery).
 				Msg("superseded a pending snapshot: storage is slower than the snapshot rate")

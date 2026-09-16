@@ -20,7 +20,11 @@ const maxSystemEventID = math.MaxUint32 - 1
 // in-process, they implement the same Serializable interface as the other wire kinds (generated
 // MarshalWire/UnmarshalWire) so they can be consumed uniformly — e.g. streamed as typed values to a
 // telemetry/debug service — without a special-case interface.
-type SystemEvent interface { //nolint:iface // may extend later
+// name that says which role the type plays. Collapsing them would let a component be enqueued
+// as a system event.
+//
+//nolint:iface // identical to Component by construction: both are schema.Serializable under a
+type SystemEvent interface {
 	schema.Serializable
 }
 

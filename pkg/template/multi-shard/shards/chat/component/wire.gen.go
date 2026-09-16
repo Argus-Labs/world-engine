@@ -6,9 +6,12 @@ package component
 
 import (
 	pbcomponent "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/component"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"time"
+	"unicode/utf8"
 )
 
 func (c Chat) ToProto() *pbcomponent.Chat {
@@ -30,11 +33,7 @@ func (c Chat) FromProto(p *pbcomponent.Chat) Chat {
 }
 
 func (c Chat) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal Chat: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c Chat) UnmarshalWire(data []byte) (any, error) {
@@ -47,6 +46,28 @@ func (c Chat) UnmarshalWire(data []byte) (any, error) {
 
 func (c Chat) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.Chat{}).ProtoReflect().Descriptor()
+}
+
+func (c Chat) SizeWire() int {
+	n := 0
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("Chat.Message", string(c.Message))
+	}
+	n += protowire.SizeTag(2) + protowire.SizeBytes(sizeWireTimestamp(c.Timestamp))
+	return n
+}
+
+func (c Chat) AppendWire(b []byte) []byte {
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	b = protowire.AppendTag(b, 2, protowire.BytesType)
+	atTimestamp := len(b)
+	b = append(b, 0)
+	b = appendWireTimestamp(b, c.Timestamp)
+	b = wireLenPrefix(b, atTimestamp)
+	return b
 }
 
 func (c UserTag) ToProto() *pbcomponent.UserTag {
@@ -66,11 +87,7 @@ func (c UserTag) FromProto(p *pbcomponent.UserTag) UserTag {
 }
 
 func (c UserTag) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal UserTag: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c UserTag) UnmarshalWire(data []byte) (any, error) {
@@ -83,4 +100,77 @@ func (c UserTag) UnmarshalWire(data []byte) (any, error) {
 
 func (c UserTag) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcomponent.UserTag{}).ProtoReflect().Descriptor()
+}
+
+func (c UserTag) SizeWire() int {
+	n := 0
+	if len(c.ArgusAuthID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("UserTag.ArgusAuthID", string(c.ArgusAuthID))
+	}
+	if len(c.ArgusAuthName) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("UserTag.ArgusAuthName", string(c.ArgusAuthName))
+	}
+	return n
+}
+
+func (c UserTag) AppendWire(b []byte) []byte {
+	if len(c.ArgusAuthID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ArgusAuthID))
+	}
+	if len(c.ArgusAuthName) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ArgusAuthName))
+	}
+	return b
+}
+
+// sizeWireTimestamp is the encoded size of the google.protobuf.Timestamp holding t.
+func sizeWireTimestamp(t time.Time) int {
+	n := 0
+	if s := t.Unix(); s != 0 {
+		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(s))
+	}
+	if ns := t.Nanosecond(); ns != 0 {
+		n += protowire.SizeTag(2) + protowire.SizeVarint(uint64(ns))
+	}
+	return n
+}
+
+// appendWireTimestamp writes the google.protobuf.Timestamp holding t.
+func appendWireTimestamp(b []byte, t time.Time) []byte {
+	if s := t.Unix(); s != 0 {
+		b = protowire.AppendTag(b, 1, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(s))
+	}
+	if ns := t.Nanosecond(); ns != 0 {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(ns))
+	}
+	return b
+}
+
+// wireLenPrefix writes the length of the bytes appended after the placeholder at b[at].
+// The body is moved up only when the length needs more than the one byte reserved.
+func wireLenPrefix(b []byte, at int) []byte {
+	n := len(b) - at - 1
+	if n < 0x80 {
+		b[at] = byte(n)
+		return b
+	}
+	k := protowire.SizeVarint(uint64(n)) - 1
+	b = append(b, make([]byte, k)...)
+	copy(b[at+1+k:], b[at+1:at+1+n])
+	protowire.AppendVarint(b[at:at], uint64(n)) // in place: cap reaches the body
+	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check proto.Marshal
+// performs: a proto3 string holding invalid UTF-8 cannot be decoded, so the size pass
+// fails.
+func wireStringSize(field, s string) int {
+	if !utf8.ValidString(s) {
+		panic("failed to encode " + field + ": string field contains invalid UTF-8")
+	}
+	return protowire.SizeBytes(len(s))
 }

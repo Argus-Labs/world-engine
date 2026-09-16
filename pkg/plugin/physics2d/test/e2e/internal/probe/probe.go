@@ -34,3 +34,12 @@ func (Probe) UnmarshalWire(b []byte) (any, error) {
 	err := json.Unmarshal(b, &v)
 	return v, err
 }
+
+// SizeWire and AppendWire are the snapshot's encoding path (see ecs.Component). Generated
+// components compute a size without encoding; this one has to encode to know, so both go through
+// MarshalWire. That costs an allocation per row per snapshot, which is the right trade for a test
+// fixture that exists to avoid a protoc dependency — the bytes still match MarshalWire exactly,
+// which is the whole contract.
+func (p Probe) SizeWire() int { return len(p.MarshalWire()) }
+
+func (p Probe) AppendWire(b []byte) []byte { return append(b, p.MarshalWire()...) }

@@ -6,8 +6,10 @@ package system
 
 import (
 	pbsystem "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/system"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"unicode/utf8"
 )
 
 func (c AttackPlayerCommand) ToProto() *pbsystem.AttackPlayerCommand {
@@ -27,11 +29,7 @@ func (c AttackPlayerCommand) FromProto(p *pbsystem.AttackPlayerCommand) AttackPl
 }
 
 func (c AttackPlayerCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal AttackPlayerCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c AttackPlayerCommand) UnmarshalWire(data []byte) (any, error) {
@@ -44,6 +42,29 @@ func (c AttackPlayerCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c AttackPlayerCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.AttackPlayerCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c AttackPlayerCommand) SizeWire() int {
+	n := 0
+	if len(c.Target) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("AttackPlayerCommand.Target", string(c.Target))
+	}
+	if c.Damage != 0 {
+		n += protowire.SizeTag(2) + protowire.SizeVarint(uint64(c.Damage))
+	}
+	return n
+}
+
+func (c AttackPlayerCommand) AppendWire(b []byte) []byte {
+	if len(c.Target) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Target))
+	}
+	if c.Damage != 0 {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.Damage))
+	}
+	return b
 }
 
 func (c CallExternalCommand) ToProto() *pbsystem.CallExternalCommand {
@@ -61,11 +82,7 @@ func (c CallExternalCommand) FromProto(p *pbsystem.CallExternalCommand) CallExte
 }
 
 func (c CallExternalCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal CallExternalCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c CallExternalCommand) UnmarshalWire(data []byte) (any, error) {
@@ -78,6 +95,22 @@ func (c CallExternalCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c CallExternalCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.CallExternalCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c CallExternalCommand) SizeWire() int {
+	n := 0
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("CallExternalCommand.Message", string(c.Message))
+	}
+	return n
+}
+
+func (c CallExternalCommand) AppendWire(b []byte) []byte {
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	return b
 }
 
 func (c CreatePlayerCommand) ToProto() *pbsystem.CreatePlayerCommand {
@@ -95,11 +128,7 @@ func (c CreatePlayerCommand) FromProto(p *pbsystem.CreatePlayerCommand) CreatePl
 }
 
 func (c CreatePlayerCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal CreatePlayerCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c CreatePlayerCommand) UnmarshalWire(data []byte) (any, error) {
@@ -112,4 +141,30 @@ func (c CreatePlayerCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c CreatePlayerCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.CreatePlayerCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c CreatePlayerCommand) SizeWire() int {
+	n := 0
+	if len(c.Nickname) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("CreatePlayerCommand.Nickname", string(c.Nickname))
+	}
+	return n
+}
+
+func (c CreatePlayerCommand) AppendWire(b []byte) []byte {
+	if len(c.Nickname) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Nickname))
+	}
+	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check proto.Marshal
+// performs: a proto3 string holding invalid UTF-8 cannot be decoded, so the size pass
+// fails.
+func wireStringSize(field, s string) int {
+	if !utf8.ValidString(s) {
+		panic("failed to encode " + field + ": string field contains invalid UTF-8")
+	}
+	return protowire.SizeBytes(len(s))
 }

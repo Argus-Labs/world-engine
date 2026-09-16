@@ -22,6 +22,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
@@ -126,8 +127,8 @@ sendLoop:
 
 	// Final validation after the world has fully stopped.
 	fix.world.world.CheckWorld(t)
-	// Encoding asserts internally, so reaching the next line at all is the check.
-	_ = fix.world.world.ToProto()
+	// Ensure the final world state remains serializable (a marshal failure panics).
+	fix.world.world.EncodeState(nil)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -250,7 +251,7 @@ func (f *e2eFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 	fillRandom(rng, val, f.world.world.LiveEntityIDs())
 	p, ok := val.Interface().(command.Payload)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
-	payload := p.MarshalWire()
+	payload := schema.Marshal(p)
 	return &iscv1.Command{
 		Name:    name,
 		Address: f.world.address,
