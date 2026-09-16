@@ -13,6 +13,9 @@ func main() {
 		panic(err.Error())
 	}
 
+	// Register components
+	// w.RegisterComponent[component.ExampleComponent]()
+
 	// Register systems
 	// w.RegisterSystem(system.ExampleSystem)
 

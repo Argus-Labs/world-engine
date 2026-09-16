@@ -64,43 +64,46 @@ func (b *BaseSystemState) Entity(id EntityID) Entity {
 }
 
 // Create creates an entity with the zero-valued components declared by T.
-// Register T with World.RegisterArchetype or a Contains[T]/Exact[T] system field
-// before starting the world, so snapshots can restore its component types.
+// It panics if any component in T was not registered with World.RegisterComponent.
 func (b *BaseSystemState) Create[T any]() Entity {
-	components, ok := b.world.entityArchetypes[reflect.TypeFor[T]()]
-	if !ok {
-		panic(eris.Errorf("entity archetype %T is not registered", *new(T)))
+	components, err := b.world.archetype[T]()
+	if err != nil {
+		panic(err)
 	}
 	return b.Entity(b.world.world.CreateWithArchetype(components))
 }
 
-// WithComponent declares a component dependency. Use it as a system field to
-// register an optional component, or as a field of a Contains/Exact archetype.
+// RegisterComponent registers a component type before world startup. Every component
+// used by a system, archetype, or snapshot must be registered here; nothing registers
+// components implicitly.
+func (w *World) RegisterComponent[T ecs.Component]() {
+	if _, err := w.world.RegisterComponent[T](); err != nil {
+		panic(eris.Wrapf(err, "failed to register component %T", *new(T)))
+	}
+}
+
+// WithComponent declares a component dependency on a type registered with
+// World.RegisterComponent. Use it as a system field to check an optional component
+// at startup, or as a field of a Contains/Exact archetype.
 // Values are accessed through Entity, not through this declaration.
 type WithComponent[T ecs.Component] struct{}
 
-func (WithComponent[T]) register(w *ecs.World) (ecs.ComponentID, error) {
-	return w.RegisterComponent[T]()
+func (WithComponent[T]) lookup(w *ecs.World) (ecs.ComponentID, error) {
+	return w.ComponentID[T]()
 }
 
 func (c *WithComponent[T]) init(meta *systemInitMetadata) error {
-	_, err := c.register(meta.world.world)
+	_, err := c.lookup(meta.world.world)
 	return err
 }
 
 type componentDeclaration interface {
-	register(*ecs.World) (ecs.ComponentID, error)
+	lookup(*ecs.World) (ecs.ComponentID, error)
 }
 
-// RegisterArchetype registers the component declarations in T before world startup.
-// Contains[T] and Exact[T] system fields also register their archetype automatically.
-func (w *World) RegisterArchetype[T any]() {
-	if _, err := w.registerArchetype[T](); err != nil {
-		panic(err)
-	}
-}
-
-func (w *World) registerArchetype[T any]() (bitmap.Bitmap, error) {
+// archetype resolves the registered component IDs declared by T's WithComponent fields
+// and caches the result per type.
+func (w *World) archetype[T any]() (bitmap.Bitmap, error) {
 	typ := reflect.TypeFor[T]()
 	if components, ok := w.entityArchetypes[typ]; ok {
 		return components, nil
@@ -112,15 +115,15 @@ func (w *World) registerArchetype[T any]() (bitmap.Bitmap, error) {
 	declarations := reflect.Zero(typ)
 	for i := range typ.NumField() {
 		// Read only field types on success. Type.Field also decodes names/tags and
-		// constructs index metadata, which we need only for registration errors.
+		// constructs index metadata, which we need only for lookup errors.
 		fieldType := declarations.Field(i).Type()
 		declaration, ok := reflect.Zero(fieldType).Interface().(componentDeclaration)
 		if !ok || fieldType.Kind() != reflect.Struct {
 			return nil, eris.Errorf("field %s must be WithComponent[T], got %v", typ.Field(i).Name, fieldType)
 		}
-		id, err := declaration.register(w.world)
+		id, err := declaration.lookup(w.world)
 		if err != nil {
-			return nil, eris.Wrapf(err, "failed to register component field %s", typ.Field(i).Name)
+			return nil, eris.Wrapf(err, "component field %s of archetype %v is not registered", typ.Field(i).Name, typ)
 		}
 		components.Set(id)
 	}

@@ -68,6 +68,15 @@ func (Position) Name() string {
   underscores (e.g. `Health`, `player_health`).
 </Note>
 
+Register every component with the world before registering the systems that use it:
+
+```go
+w.RegisterComponent[Position]()
+```
+
+Registration is explicit. Systems, archetypes, and snapshots only see components registered
+this way, and registering a system that references an unregistered component panics.
+
 ### What a Component May Hold
 
 Components are copied. `Get` hands you a copy and `Set` stores one, and every snapshot is built
@@ -256,9 +265,11 @@ Searches select entities by component type:
 - `Contains[T]` matches entities with every declared component, allowing extras.
 - `Exact[T]` matches entities with exactly the declared components.
 
-Declare an archetype as a struct of `WithComponent[C]` fields. A search field registers
-those components before the world starts, so they are available during snapshot restoration.
-The declarations carry no entity data. Queries return world-bound `Entity` handles.
+Declare an archetype as a struct of `WithComponent[C]` fields. Every component in it must
+be registered with `w.RegisterComponent[C]()` before the system that uses it is registered.
+Nothing registers components implicitly. Registering a system whose fields name an
+unregistered component panics. The declarations carry no entity data. Queries return
+world-bound `Entity` handles.
 
 ```go
 type Mob struct {
@@ -271,9 +282,14 @@ type MobSystemState struct {
     Mobs     cardinal.Contains[Mob]
     Poisoned cardinal.WithComponent[Poisoned]
 }
+
+w.RegisterComponent[Health]()
+w.RegisterComponent[Position]()
+w.RegisterComponent[Poisoned]()
+w.RegisterSystem(MobSystem)
 ```
 
-`Poisoned` registers an optional component without requiring it in the `Mobs` search.
+`Poisoned` declares an optional component without requiring it in the `Mobs` search.
 
 ### Creating an Entity
 
@@ -287,10 +303,9 @@ func SpawnMob(state *MobSystemState) {
 }
 ```
 
-Creation adds exactly the archetype's components, initialized to zero. The archetype must
-be registered first. A `Contains[Mob]` or `Exact[Mob]` field registers it automatically.
-Without a search field, call `w.RegisterArchetype[Mob]()` before starting the world.
-`state.Mobs.Create()` also remains available and returns an `Entity`.
+Creation adds exactly the archetype's components, initialized to zero. `Create[T]` panics
+if any component in `T` was not registered with `w.RegisterComponent`. It does not need a
+search field for `T`. `state.Mobs.Create()` also remains available and returns an `Entity`.
 
 ### Entity Handles and Stored IDs
 
@@ -358,8 +373,9 @@ if mob.Has[Poisoned]() {
 }
 ```
 
-Register optional types before startup with a `WithComponent[T]` system field or an
-archetype declaration. They do not need to be part of the query that found the entity.
+Optional types must be registered with `w.RegisterComponent[T]()` like any other component.
+A `WithComponent[T]` system field checks that at registration time. They do not need to be
+part of the query that found the entity.
 `Get`, `Set`, and `Remove` panic for invalid operations, including access to a destroyed
 entity or an unregistered component. `Get` also panics for an absent component.
 Removing a registered component that is already absent is a no-op.

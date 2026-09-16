@@ -156,6 +156,7 @@ func (p *Plugin) Register(w *cardinal.World) {
 	p.rt = internal.NewRuntime(p.config.Gravity, fixedDT, p.config.SubStepCount, p.config.Workers)
 	p.rt.Reset()
 
+	RegisterComponents(w)
 	w.RegisterSystem(physicssystem.NewInitPhysicsSystem(p.rt), cardinal.WithHook(cardinal.Init))
 	w.RegisterSystem(physicssystem.NewPhysicsPipelineSystem(p.rt), cardinal.WithHook(cardinal.PreUpdate))
 }
@@ -250,4 +251,15 @@ func (p *Plugin) CircleSweep(req CircleSweepRequest) CircleSweepResult {
 		return CircleSweepResult{}
 	}
 	return p.rt.CircleSweep(req)
+}
+
+// RegisterComponents registers every component the physics plugin reads or writes.
+// Plugin.Register calls it, so most games never need to. Call it directly only when a
+// system that references physics components is registered before the plugin.
+func RegisterComponents(w *cardinal.World) {
+	w.RegisterComponent[component.Transform2D]()
+	w.RegisterComponent[component.Velocity2D]()
+	w.RegisterComponent[component.PhysicsBody2D]()
+	w.RegisterComponent[component.PhysicsSingletonTag]()
+	w.RegisterComponent[component.ActiveContacts]()
 }
