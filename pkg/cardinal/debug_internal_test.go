@@ -206,6 +206,9 @@ func newDebugStateWorld(t *testing.T) (*World, *snapshotEntities) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, w.debug)
+	w.RegisterComponent[Position3D]()
+	w.RegisterComponent[Health2]()
+	w.RegisterComponent[Inventory]()
 
 	state := &snapshotEntities{}
 	require.NoError(t, initSystemFields(reflect.ValueOf(state).Elem(), w))

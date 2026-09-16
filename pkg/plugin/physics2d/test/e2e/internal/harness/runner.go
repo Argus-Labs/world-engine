@@ -346,6 +346,8 @@ func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 		return nil, err
 	}
 
+	physics.RegisterComponents(w)
+	w.RegisterComponent[probe.Probe]()
 	w.RegisterSystem(r.setup, cardinal.WithHook(cardinal.Init))
 	w.RegisterSystem(r.preStep, cardinal.WithHook(cardinal.PreUpdate))
 

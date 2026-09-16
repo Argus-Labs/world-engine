@@ -682,6 +682,8 @@ func newSearchFixture(t *testing.T) *searchFixture {
 	t.Helper()
 
 	w := &World{world: ecs.NewWorld()}
+	w.RegisterComponent[testutils.ComponentA]()
+	w.RegisterComponent[testutils.ComponentB]()
 
 	fixture := &searchFixture{}
 
