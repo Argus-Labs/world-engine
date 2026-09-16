@@ -6,7 +6,9 @@ package cardinal
 //
 // Commands and events are registered when referenced by system state fields (via
 // WithCommand[T] and WithEvent[T]). Components are not: a plugin's Register method must call
-// RegisterComponent for every component its systems use, then RegisterSystem.
+// RegisterComponent for every component its systems query, create, or set. Systems resolve
+// their queries when they run, so the order of RegisterComponent and RegisterSystem calls
+// does not matter; every component only has to be registered before the world starts.
 //
 // Example:
 //
