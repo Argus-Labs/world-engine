@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"fmt"
 	"math"
 	"sync"
 
@@ -332,7 +333,7 @@ type stateWire struct {
 
 // wireBodySize returns the encoded size of the WorldState message. It stores the size for
 // appendWireBody to check.
-func (ws *worldState) wireBodySize() (int, error) {
+func (ws *worldState) wireBodySize() int {
 	n := 0
 	if ws.nextID != 0 {
 		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(ws.nextID))
@@ -348,22 +349,19 @@ func (ws *worldState) wireBodySize() (int, error) {
 		if !ok {
 			continue // The ID is free.
 		}
-		size, err := ws.entityWireSize(ws.archetypes[aid], eid)
-		if err != nil {
-			return 0, err
-		}
+		size := ws.entityWireSize(ws.archetypes[aid], eid)
 		n += protowire.SizeTag(3) + protowire.SizeBytes(size)
 	}
 
 	ws.wire.pendingSize = n
-	return n, nil
+	return n
 }
 
 // entityWireSize returns the encoded size of one Entity message body.
-func (ws *worldState) entityWireSize(arch *archetype, eid EntityID) (int, error) {
+func (ws *worldState) entityWireSize(arch *archetype, eid EntityID) int {
 	row, ok := arch.rows.get(eid)
 	if !ok {
-		return 0, eris.Errorf("snapshot: entity %d has an archetype but no row", eid)
+		panic(fmt.Sprintf("snapshot: entity %d has an archetype but no row", eid))
 	}
 
 	n := 0
@@ -371,7 +369,7 @@ func (ws *worldState) entityWireSize(arch *archetype, eid EntityID) (int, error)
 		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(eid))
 	}
 	if len(arch.columns) == 0 {
-		return n, nil
+		return n
 	}
 
 	// Field 2 is a packed list of table indices. Each index is a component ID.
@@ -385,15 +383,13 @@ func (ws *worldState) entityWireSize(arch *archetype, eid EntityID) (int, error)
 	for _, col := range arch.columns {
 		n += protowire.SizeTag(3) + protowire.SizeBytes(col.rowWireSize(row))
 	}
-	return n, nil
+	return n
 }
 
-// appendWireBody writes the WorldState message. It returns an error if an entity has no row or
-// the written length differs from the size pass. The world must not change between the two passes.
-func (ws *worldState) appendWireBody(buf []byte) ([]byte, error) {
+// appendWireBody writes the WorldState message. It checks the written length against the size
+// pass. The world must not change between the two passes.
+func (ws *worldState) appendWireBody(buf []byte) []byte {
 	assert.That(ws.wire.pendingSize >= 0, "appendWireBody called without a preceding wireBodySize call")
-	want := ws.wire.pendingSize
-	ws.wire.pendingSize = -1
 	start := len(buf)
 
 	if ws.nextID != 0 {
@@ -406,29 +402,27 @@ func (ws *worldState) appendWireBody(buf []byte) ([]byte, error) {
 		buf = protowire.AppendString(buf, name)
 	}
 
-	var err error
 	for eid := EntityID(0); eid < ws.nextID; eid++ {
 		aid, ok := ws.entityArch.get(eid)
 		if !ok {
 			continue
 		}
-		buf, err = ws.appendEntityWire(buf, ws.archetypes[aid], eid)
-		if err != nil {
-			return nil, err
-		}
+		buf = ws.appendEntityWire(buf, ws.archetypes[aid], eid)
 	}
 
-	if got := len(buf) - start; got != want {
-		return nil, eris.Errorf("snapshot: body wrote %d bytes, size pass computed %d", got, want)
+	// This is not an assert. Release builds remove asserts.
+	if len(buf)-start != ws.wire.pendingSize {
+		panic("snapshot body length diverged from the size pass: the world changed size between the two passes")
 	}
-	return buf, nil
+	ws.wire.pendingSize = -1
+	return buf
 }
 
 // appendEntityWire writes one Entity message with its tag and length.
-func (ws *worldState) appendEntityWire(buf []byte, arch *archetype, eid EntityID) ([]byte, error) {
+func (ws *worldState) appendEntityWire(buf []byte, arch *archetype, eid EntityID) []byte {
 	row, ok := arch.rows.get(eid)
 	if !ok {
-		return nil, eris.Errorf("snapshot: entity %d has an archetype but no row", eid)
+		panic(fmt.Sprintf("snapshot: entity %d has an archetype but no row", eid))
 	}
 
 	// This function computes the sizes again. A cache is not necessary because rowWireSize is fast.
@@ -455,7 +449,7 @@ func (ws *worldState) appendEntityWire(buf []byte, arch *archetype, eid EntityID
 		buf = protowire.AppendVarint(buf, uint64(eid))
 	}
 	if len(arch.columns) == 0 {
-		return buf, nil
+		return buf
 	}
 
 	buf = protowire.AppendTag(buf, 2, protowire.BytesType)
@@ -469,7 +463,7 @@ func (ws *worldState) appendEntityWire(buf []byte, arch *archetype, eid EntityID
 		buf = protowire.AppendVarint(buf, uint64(col.rowWireSize(row))) //nolint:gosec // sizes are non-negative
 		buf = col.appendRowWire(buf, row)
 	}
-	return buf, nil
+	return buf
 }
 
 // maxRestoreFreeIDs is the maximum number of free IDs that a restore accepts. Without this limit,

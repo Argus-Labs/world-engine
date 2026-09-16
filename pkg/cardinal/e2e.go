@@ -127,9 +127,8 @@ sendLoop:
 
 	// Final validation after the world has fully stopped.
 	fix.world.world.CheckWorld(t)
-	// Ensure the final world state remains serializable.
-	_, err := fix.world.world.EncodeState(nil)
-	require.NoError(t, err, "final world state must be serializable")
+	// Ensure the final world state remains serializable (a marshal failure panics).
+	fix.world.world.EncodeState(nil)
 }
 
 // -------------------------------------------------------------------------------------------------
