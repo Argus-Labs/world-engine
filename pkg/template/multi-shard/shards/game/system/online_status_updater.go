@@ -21,8 +21,9 @@ type OnlineStatusUpdaterState struct {
 func OnlineStatusUpdater(state *OnlineStatusUpdaterState) {
 	for player := range state.Players.Iter() {
 		entity := player.ID()
-		isOnline := player.Get[component.OnlineStatus]().Online
-		lastActive := player.Get[component.OnlineStatus]().LastActive
+		status := player.Get[component.OnlineStatus]()
+		isOnline := status.Online
+		lastActive := status.LastActive
 
 		// If the player has not been active for 5 minutes, set them to offline
 		if isOnline && time.Since(lastActive) > 5*time.Minute {

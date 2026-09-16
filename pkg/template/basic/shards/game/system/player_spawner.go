@@ -32,7 +32,7 @@ func CreatePlayerSystem(state *CreatePlayerSystemState) {
 		entity.Set(component.Health{HP: 100})
 
 		state.NewPlayerEvents.Broadcast(event.NewPlayer{Nickname: command.Nickname})
-		state.Logger().Info().Uint32("entity", uint32(0)).Str("persona", cmd.Persona).
+		state.Logger().Info().Uint32("entity", uint32(entity.ID())).Str("persona", cmd.Persona).
 			Msgf("Created player %s", command.Nickname)
 	}
 }

@@ -232,7 +232,9 @@ func (ws *worldState) getComponent[T Component](eid EntityID) (T, error) {
 	// Get the column from the archetype directly.
 	index := archetype.components.CountTo(cid)
 	column, ok := archetype.columns[index].(*column[T])
-	assert.That(ok, "unexpected column type")
+	if !ok {
+		return zero, eris.Wrapf(ErrComponentNotFound, "component %s is registered with a different type", zero.Name())
+	}
 
 	row, exists := archetype.rows.get(eid)
 	assert.That(exists, "entity should have a row in its archetype")
@@ -259,6 +261,11 @@ func (ws *worldState) removeComponent[T Component](eid EntityID) error {
 	if !archetype.components.Contains(cid) {
 		// Entity doesn't have this component, nothing to remove
 		return nil
+	}
+
+	// A matching name does not register a different Go type. Check before moving data.
+	if _, ok := archetype.columns[archetype.components.CountTo(cid)].(*column[T]); !ok {
+		return eris.Wrapf(ErrComponentNotFound, "component %s is registered with a different type", zero.Name())
 	}
 
 	// Create the components bitmap without the component to remove.

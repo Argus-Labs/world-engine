@@ -319,11 +319,10 @@ func BenchmarkCardinal_Component_Set(b *testing.B) {
 
 			entity := state.PositionOnly.Create()
 
-			eid := entity.ID()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 
 			b.StartTimer()
-			_ = w.world.Set(eid, Health2{Current: 100, Max: 100})
+			entity.Set(Health2{Current: 100, Max: 100})
 			b.StopTimer()
 		}
 	})
