@@ -83,8 +83,9 @@ Build a shape with a constructor — `Circle`, `Box`, `Polygon`, `Chain`,
 `Group(index)` — and `Spawn` it through a shape search on your system state.
 A bare constructor already carries Box2D's default material (friction 0.6,
 density 1, category 1, mask all). `Spawn` returns the slot; chain
-`At(offset, rotation)` onto the slot to place it, and reuse the slot (or its
-`Shape` id via `Slot(id)`) on as many bodies as you like.
+`At(offset, rotation)` onto the slot to place it, and reuse the slot on as many
+bodies as you like. Slots only come from `Spawn`, `Fork`, `Clone` and `Read`; the
+shape components themselves live under `internal/` and are not importable by games.
 
 `Spawn` validates first and returns `(ShapeSlot, error)`. A definition Box2D
 could never build — a radius of zero or less, a box with a zero extent, a
@@ -151,7 +152,7 @@ a search offers:
 |---|---|
 | `Create(def)` / `def.Spawn(&search)` | spawns a new shape entity, returns its slot |
 | `Read(slot)` | a copy of the definition |
-| `Fork(slot, func(*ShapeDef))` | a copy with your edit applied; point the bodies that should change at it |
+| `Fork(slot, func(ShapeDef) ShapeDef)` | a copy with your edit applied; point the bodies that should change at it |
 | `Clone(slot)` | `Fork` with no edit |
 | `Iter()` | every shape of the kind, as definitions |
 

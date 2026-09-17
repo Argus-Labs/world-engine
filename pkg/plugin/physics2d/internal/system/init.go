@@ -2,8 +2,8 @@ package system
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	physicscomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal"
+	physicscomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 	"github.com/rotisserie/eris"
 )
 

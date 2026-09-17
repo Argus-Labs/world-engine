@@ -72,19 +72,19 @@ func (c *Ctx) DestroyShape(id cardinal.EntityID) bool { return c.entity(id).Dest
 // ForkShape forks the shape behind slot through the search for D's kind, where D is one of
 // the per-kind definitions (physics.CircleDef, ...), and returns the new slot. Like the
 // plugin's Fork, the shape behind slot is untouched.
-func ForkShape[D any](c *Ctx, slot physics.ShapeSlot, edit func(*D)) (physics.ShapeSlot, bool) {
+func ForkShape[D any](c *Ctx, slot physics.ShapeSlot, edit func(D) D) (physics.ShapeSlot, bool) {
 	switch e := any(edit).(type) {
-	case func(*physics.CircleDef):
+	case func(physics.CircleDef) physics.CircleDef:
 		return c.shapes.Circles.Fork(slot, e)
-	case func(*physics.BoxDef):
+	case func(physics.BoxDef) physics.BoxDef:
 		return c.shapes.Boxes.Fork(slot, e)
-	case func(*physics.PolygonDef):
+	case func(physics.PolygonDef) physics.PolygonDef:
 		return c.shapes.Polygons.Fork(slot, e)
-	case func(*physics.ChainDef):
+	case func(physics.ChainDef) physics.ChainDef:
 		return c.shapes.Chains.Fork(slot, e)
-	case func(*physics.EdgeDef):
+	case func(physics.EdgeDef) physics.EdgeDef:
 		return c.shapes.Edges.Fork(slot, e)
-	case func(*physics.CapsuleDef):
+	case func(physics.CapsuleDef) physics.CapsuleDef:
 		return c.shapes.Capsules.Fork(slot, e)
 	}
 	panic("harness.ForkShape: D is not a per-kind shape definition")

@@ -9,7 +9,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/immutable"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // ReconcileFromECS incrementally syncs the Box2D world from authoritative ECS entries

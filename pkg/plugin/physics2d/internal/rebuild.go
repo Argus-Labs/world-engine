@@ -7,7 +7,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // PhysicsRebuildEntry is one entity's authoritative physics components as read from ECS.

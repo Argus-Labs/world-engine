@@ -5,8 +5,8 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // FlushBufferedContacts turns buffered contact records into physics2d events via the

@@ -7,7 +7,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/immutable"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // Geometry is the set of geometry components a shape entity may carry, exactly one per

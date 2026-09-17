@@ -27,9 +27,9 @@ package physics2d
 import (
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	physicevent "github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 	physicssystem "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/system"
 	physicsquery "github.com/argus-labs/world-engine/pkg/plugin/physics2d/query"
 	"github.com/rotisserie/eris"

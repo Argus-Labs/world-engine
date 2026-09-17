@@ -3,7 +3,7 @@ package internal
 import (
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // WritebackEntry holds the entity needed to write Box2D results back to components.

@@ -2,7 +2,7 @@ package event
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // FixtureFilterBits is the Box2D collision filter for one fixture at contact time. It matches

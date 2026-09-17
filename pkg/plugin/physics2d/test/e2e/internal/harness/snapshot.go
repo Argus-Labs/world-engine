@@ -12,8 +12,9 @@ import (
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/probe"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
-	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"google.golang.org/protobuf/proto"
 )
@@ -54,29 +55,45 @@ type CapturedShape struct {
 func resolveShape(sh *ShapeSearches, slot physics.ShapeSlot) CapturedShape {
 	out := CapturedShape{Slot: slot}
 	if d, ok := sh.Circles.Read(slot); ok {
-		out.Kind, out.Common, out.Circle = "circle", d.Common, d.Geom
+		out.Kind, out.Common, out.Circle = "circle", CommonOf(d), physcomp.CircleGeom{Radius: physics.RadiusOf(d)}
 		return out
 	}
 	if d, ok := sh.Boxes.Read(slot); ok {
-		out.Kind, out.Common, out.Box = "box", d.Common, d.Geom
+		out.Kind, out.Common, out.Box = "box", CommonOf(d), physcomp.BoxGeom{HalfExtents: physics.HalfExtentsOf(d)}
 		return out
 	}
 	if d, ok := sh.Polygons.Read(slot); ok {
-		out.Kind, out.Common, out.Polygon = "polygon", d.Common, d.Geom
+		verts := physics.VerticesOf(d)
+		g := physcomp.PolygonGeom{Count: uint8(len(verts))} //nolint:gosec // bounded by MaxPolygonVertices
+		copy(g.Vertices[:], verts)
+		out.Kind, out.Common, out.Polygon = "polygon", CommonOf(d), g
 		return out
 	}
 	if d, ok := sh.Chains.Read(slot); ok {
-		out.Kind, out.Common, out.Chain = "chain", d.Common, d.Geom
+		out.Kind, out.Common, out.Chain = "chain", CommonOf(d),
+			physcomp.ChainGeom{Points: immutable.SliceOf(physics.PointsOf(d)...), Loop: physics.IsLoop(d)}
 		return out
 	}
 	if d, ok := sh.Edges.Read(slot); ok {
-		out.Kind, out.Common, out.Edge = "edge", d.Common, d.Geom
+		a, b := physics.EndpointsOf(d)
+		out.Kind, out.Common, out.Edge = "edge", CommonOf(d), physcomp.EdgeGeom{A: a, B: b}
 		return out
 	}
 	if d, ok := sh.Capsules.Read(slot); ok {
-		out.Kind, out.Common, out.Capsule = "capsule", d.Common, d.Geom
+		a, b, r := physics.CapsuleOf(d)
+		out.Kind, out.Common, out.Capsule = "capsule", CommonOf(d), physcomp.CapsuleGeom{A: a, B: b, Radius: r}
 	}
 	return out
+}
+
+// CommonOf reads a definition's material and filter back into the component the harness
+// compares and serializes. Definitions are opaque outside the plugin; this is the one place
+// the harness needs the struct form.
+func CommonOf[G physics.Geometry](d physics.ShapeDef[G]) physcomp.ShapeCommon {
+	return physcomp.ShapeCommon{
+		IsSensor: d.IsSensor(), Friction: d.Friction(), Restitution: d.Restitution(), Density: d.Density(),
+		CategoryBits: d.Category(), MaskBits: d.Mask(), GroupIndex: d.GroupIndex(),
+	}
 }
 
 // SingletonRow is the plugin's own bookkeeping entity. It carries ActiveContacts,

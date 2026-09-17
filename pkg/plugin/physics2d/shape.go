@@ -3,11 +3,12 @@ package physics2d
 import (
 	"fmt"
 	"iter"
+	"slices"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/immutable"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // A shape is an entity: a material/filter component plus exactly one geometry component.
@@ -50,8 +51,8 @@ type Geometry = internal.Geometry
 // plain value; constructors fill Common with Box2D's defaults (solid, friction 0.6,
 // restitution 0, density 1, category 1, mask all).
 type ShapeDef[G Geometry] struct {
-	Common component.ShapeCommon
-	Geom   G
+	common component.ShapeCommon
+	geom   G
 }
 
 // Per-kind definitions, so a game can name what a search hands back without naming the
@@ -66,7 +67,7 @@ type (
 )
 
 func newShapeDef[G Geometry](geom G) ShapeDef[G] {
-	return ShapeDef[G]{Common: component.DefaultShapeCommon(), Geom: geom}
+	return ShapeDef[G]{common: component.DefaultShapeCommon(), geom: geom}
 }
 
 // Circle is a circle of radius, centred on the slot's local offset.
@@ -112,26 +113,26 @@ func Capsule(a, b Vec2, radius float64) CapsuleDef {
 
 // AsSensor makes the shape report overlaps without ever colliding.
 func (d ShapeDef[G]) AsSensor() ShapeDef[G] {
-	d.Common.IsSensor = true
+	d.common.IsSensor = true
 	return d
 }
 
 // Material sets friction, restitution and density.
 func (d ShapeDef[G]) Material(friction, restitution, density float64) ShapeDef[G] {
-	d.Common.Friction, d.Common.Restitution, d.Common.Density = friction, restitution, density
+	d.common.Friction, d.common.Restitution, d.common.Density = friction, restitution, density
 	return d
 }
 
 // Filter sets the collision category and mask bits.
 func (d ShapeDef[G]) Filter(category, mask uint64) ShapeDef[G] {
-	d.Common.CategoryBits, d.Common.MaskBits = category, mask
+	d.common.CategoryBits, d.common.MaskBits = category, mask
 	return d
 }
 
 // Group sets the Box2D group index: shapes sharing a positive index always collide, a
 // negative one never.
 func (d ShapeDef[G]) Group(index int32) ShapeDef[G] {
-	d.Common.GroupIndex = index
+	d.common.GroupIndex = index
 	return d
 }
 
@@ -143,17 +144,56 @@ func (d ShapeDef[G]) Group(index int32) ShapeDef[G] {
 // would otherwise reject that body once per tick, with nothing left to point at the line that
 // built it.
 func (d ShapeDef[G]) Spawn(shapes *ShapeSearch[G]) (ShapeSlot, error) {
-	if err := d.Common.Validate(); err != nil {
-		return ShapeSlot{}, fmt.Errorf("physics2d: shape material: %w", err)
-	}
-	if err := d.Geom.Validate(); err != nil {
-		return ShapeSlot{}, fmt.Errorf("physics2d: %s: %w", d.Geom.Name(), err)
+	if err := d.Validate(); err != nil {
+		return ShapeSlot{}, err
 	}
 	return shapes.Create(d), nil
 }
 
-// Slot references an existing shape entity at the body origin. Chain At to place it.
-func Slot(shape cardinal.EntityID) ShapeSlot { return component.Slot(shape) }
+// Validate reports why Box2D could never build this definition, or nil. Spawn runs it first.
+func (d ShapeDef[G]) Validate() error {
+	if err := d.common.Validate(); err != nil {
+		return fmt.Errorf("physics2d: shape material: %w", err)
+	}
+	if err := d.geom.Validate(); err != nil {
+		return fmt.Errorf("physics2d: %s: %w", d.geom.Name(), err)
+	}
+	return nil
+}
+
+// Material and filter, as the definition holds them.
+func (d ShapeDef[G]) IsSensor() bool       { return d.common.IsSensor }
+func (d ShapeDef[G]) Friction() float64    { return d.common.Friction }
+func (d ShapeDef[G]) Restitution() float64 { return d.common.Restitution }
+func (d ShapeDef[G]) Density() float64     { return d.common.Density }
+func (d ShapeDef[G]) Category() uint64     { return d.common.CategoryBits }
+func (d ShapeDef[G]) Mask() uint64         { return d.common.MaskBits }
+func (d ShapeDef[G]) GroupIndex() int32    { return d.common.GroupIndex }
+
+// CopyMaterial returns to carrying from's material and filter. It is how a Fork changes
+// geometry: build the new shape with a constructor, then keep the old material.
+func CopyMaterial[G, H Geometry](from ShapeDef[G], to ShapeDef[H]) ShapeDef[H] {
+	to.common = from.common
+	return to
+}
+
+// Geometry, per kind. Definitions are opaque so a game never holds a shape component; these
+// read the numbers back out.
+func RadiusOf(d CircleDef) float64 { return d.geom.Radius }
+func HalfExtentsOf(d BoxDef) Vec2  { return d.geom.HalfExtents }
+func VerticesOf(d PolygonDef) []Vec2 {
+	return slices.Clone(d.geom.Vertices[:min(int(d.geom.Count), MaxPolygonVertices)])
+}
+func PointsOf(d ChainDef) []Vec2 { return slices.Collect(d.geom.Points.Values()) }
+func IsLoop(d ChainDef) bool     { return d.geom.Loop }
+
+// EndpointsOf returns an edge's endpoints, A then B.
+func EndpointsOf(d EdgeDef) (Vec2, Vec2) { return d.geom.A, d.geom.B }
+
+// CapsuleOf returns a capsule's endpoints, A then B, and its radius.
+func CapsuleOf(d CapsuleDef) (Vec2, Vec2, float64) {
+	return d.geom.A, d.geom.B, d.geom.Radius
+}
 
 // exactOf is the Cardinal search behind a shape search. It is embedded under this unexported
 // name so the raw search is not reachable from another package, and the methods below shadow
@@ -184,8 +224,8 @@ type (
 // origin.
 func (s *ShapeSearch[G]) Create(def ShapeDef[G]) ShapeSlot {
 	row := s.exactOf.Create()
-	row.Set(def.Common)
-	row.Set(def.Geom)
+	row.Set(def.common)
+	row.Set(def.geom)
 	return component.Slot(row.ID())
 }
 
@@ -196,7 +236,7 @@ func (s *ShapeSearch[G]) GetByID(id cardinal.EntityID) (ShapeDef[G], bool) {
 	if err != nil {
 		return ShapeDef[G]{}, false
 	}
-	return ShapeDef[G]{Common: row.Get[component.ShapeCommon](), Geom: row.Get[G]()}, true
+	return ShapeDef[G]{common: row.Get[component.ShapeCommon](), geom: row.Get[G]()}, true
 }
 
 // Read returns a copy of the definition of the shape behind slot, and false when no shape of
@@ -209,19 +249,19 @@ func (s *ShapeSearch[G]) Read(slot ShapeSlot) (ShapeDef[G], bool) {
 // copy at the same offset and rotation. The shape behind slot is untouched, so bodies still
 // using it keep what they had; point the bodies that should change at the returned slot.
 // Reports false when no shape of this kind is behind slot.
-func (s *ShapeSearch[G]) Fork(slot ShapeSlot, edit func(*ShapeDef[G])) (ShapeSlot, bool) {
+func (s *ShapeSearch[G]) Fork(slot ShapeSlot, edit func(ShapeDef[G]) ShapeDef[G]) (ShapeSlot, bool) {
 	def, ok := s.GetByID(slot.Shape)
 	if !ok {
 		return ShapeSlot{}, false
 	}
-	edit(&def)
+	def = edit(def)
 	return s.Create(def).At(slot.LocalOffset, slot.LocalRotation), true
 }
 
 // Clone is Fork with no edit: a copy of the shape behind slot, for a body that should stop
 // sharing it before it diverges later.
 func (s *ShapeSearch[G]) Clone(slot ShapeSlot) (ShapeSlot, bool) {
-	return s.Fork(slot, func(*ShapeDef[G]) {})
+	return s.Fork(slot, func(d ShapeDef[G]) ShapeDef[G] { return d })
 }
 
 // noDestroy cannot be named outside this package, which is the point: it makes Destroy below
@@ -238,7 +278,7 @@ func (*ShapeSearch[G]) Destroy(noDestroy) {}
 func (s *ShapeSearch[G]) Iter() iter.Seq2[cardinal.EntityID, ShapeDef[G]] {
 	return func(yield func(cardinal.EntityID, ShapeDef[G]) bool) {
 		for row := range s.exactOf.Iter() {
-			if !yield(row.ID(), ShapeDef[G]{Common: row.Get[component.ShapeCommon](), Geom: row.Get[G]()}) {
+			if !yield(row.ID(), ShapeDef[G]{common: row.Get[component.ShapeCommon](), geom: row.Get[G]()}) {
 				return
 			}
 		}

@@ -10,7 +10,7 @@ import (
 	"fmt"
 
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
-	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/harness"
 )
 
@@ -74,23 +74,33 @@ func baseCommon() physcomp.ShapeCommon {
 }
 
 // spec wraps one geometry component as a spawnable spec with the default material.
-func spec[G physics.Geometry](geom G) ShapeSpec {
+func spec[G physics.Geometry](def physics.ShapeDef[G]) ShapeSpec {
 	return ShapeSpec{
 		Common: baseCommon(),
 		spawn: func(c *harness.Ctx, common physcomp.ShapeCommon) (physics.ShapeSlot, error) {
-			return harness.TryShape(c, physics.ShapeDef[G]{Common: common, Geom: geom})
+			return harness.TryShape(c, applyCommon(def, common))
 		},
 	}
 }
 
+// applyCommon puts the spec's material and filter onto def through the plugin's builders.
+func applyCommon[G physics.Geometry](def physics.ShapeDef[G], common physcomp.ShapeCommon) physics.ShapeDef[G] {
+	def = def.Material(common.Friction, common.Restitution, common.Density).
+		Filter(common.CategoryBits, common.MaskBits).Group(common.GroupIndex)
+	if common.IsSensor {
+		def = def.AsSensor()
+	}
+	return def
+}
+
 // circle builds a circle collider of the given radius.
 func circle(radius float64) ShapeSpec {
-	return spec(physics.Circle(radius).Geom)
+	return spec(physics.Circle(radius))
 }
 
 // box builds an axis-aligned box collider from half-extents.
 func box(halfWidth, halfHeight float64) ShapeSpec {
-	return spec(physics.Box(halfWidth, halfHeight).Geom)
+	return spec(physics.Box(halfWidth, halfHeight))
 }
 
 // Box is box for callers outside the package.
@@ -99,27 +109,27 @@ func Box(halfWidth, halfHeight float64) ShapeSpec { return box(halfWidth, halfHe
 // polygon builds a convex polygon collider. Box2D welds and hulls the points, so
 // they need not be given in a particular winding order.
 func polygon(vertices ...physics.Vec2) ShapeSpec {
-	return spec(physics.Polygon(vertices...).Geom)
+	return spec(physics.Polygon(vertices...))
 }
 
 // capsule builds a capsule collider between two local centers.
 func capsule(c1, c2 physics.Vec2, radius float64) ShapeSpec {
-	return spec(physics.Capsule(c1, c2, radius).Geom)
+	return spec(physics.Capsule(c1, c2, radius))
 }
 
 // chain builds an open static chain collider through the given points.
 func chain(points ...physics.Vec2) ShapeSpec {
-	return spec(physics.Chain(points...).Geom)
+	return spec(physics.Chain(points...))
 }
 
 // chainLoop builds a closed static chain collider; the last point joins the first.
 func chainLoop(points ...physics.Vec2) ShapeSpec {
-	return spec(physics.ChainLoop(points...).Geom)
+	return spec(physics.ChainLoop(points...))
 }
 
 // edge builds a single static line-segment collider.
 func edge(a, b physics.Vec2) ShapeSpec {
-	return spec(physics.Edge(a, b).Geom)
+	return spec(physics.Edge(a, b))
 }
 
 // -----------------------------------------------------------------------------

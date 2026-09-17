@@ -7,7 +7,7 @@ package component
 import (
 	pkg_cardinal "github.com/argus-labs/world-engine/pkg/cardinal"
 	pkg_immutable "github.com/argus-labs/world-engine/pkg/immutable"
-	pbcomponent "github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/component"
+	pbcomponent "github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/internal_/component"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"

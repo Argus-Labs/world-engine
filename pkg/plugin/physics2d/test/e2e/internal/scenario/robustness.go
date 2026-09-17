@@ -7,6 +7,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
+	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // Robustness holds the inputs a game can hand the plugin that are finite —
@@ -187,7 +188,9 @@ func hostileFailingBodyBlocksShapeEdit() harness.Scenario {
 			}},
 			{Tick: 10, Do: func(c *harness.Ctx) {
 				// Shapes are never edited in place: fork the shared one and re-point the body.
-				mine, ok := harness.ForkShape(c, shared, func(d *physics.BoxDef) { d.Common.Friction = editedFriction })
+				mine, ok := harness.ForkShape(c, shared, func(d physics.BoxDef) physics.BoxDef {
+					return d.Material(editedFriction, d.Restitution(), d.Density())
+				})
 				if c.True("forking the shared shape succeeds", ok, "ForkShape found no box behind the slot") {
 					c.EditBody(healthy, func(pb *physics.PhysicsBody2D) { pb.Shapes = pb.Shapes.With(0, mine) })
 				}
@@ -309,7 +312,7 @@ func hostileMissingShape() harness.Scenario {
 		},
 		Steps: []harness.Step{
 			{Tick: 5, Do: func(c *harness.Ctx) {
-				pb := physics.NewPhysicsBody2D(physics.BodyTypeStatic, physics.Slot(999_999))
+				pb := physics.NewPhysicsBody2D(physics.BodyTypeStatic, physcomp.Slot(999_999))
 				c.NoError("PhysicsBody2D.Validate accepts an unresolved slot", pb.Validate())
 				c.Note("spawning a body whose slot names shape entity 999999, which does not exist")
 				victim = c.Spawn("victim", 0, 10, pb)

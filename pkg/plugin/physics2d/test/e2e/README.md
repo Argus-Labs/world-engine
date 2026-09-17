@@ -83,8 +83,6 @@ Behaviour worth knowing, all pinned by passing checks:
 - `Transform2D.Rotation` is wrapped to `[-π, π]` on writeback.
 - A spinning body whose centre of mass is off its origin gets linear velocity even
   with `Velocity2D.Linear` zero. That is Box2D, not a bug.
-- `NewPhysicsBody2D` lives in `physics2d/component`; the plugin root does not
-  re-export it.
 
 ### Crash-prone cases
 

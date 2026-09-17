@@ -16,7 +16,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
-	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/harness"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/restore"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/scenario"

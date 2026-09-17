@@ -8,7 +8,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/immutable"
 
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
-	phycomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	phycomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 	"github.com/stretchr/testify/require"
 )
 

@@ -3,6 +3,7 @@ package scenario
 import (
 	"fmt"
 	"math"
+	"slices"
 
 	"github.com/argus-labs/world-engine/pkg/immutable"
 
@@ -12,7 +13,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
-	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // Defaults covers the single most likely class of porting bug: a Go zero value
@@ -73,7 +74,7 @@ func Defaults() harness.Scenario {
 }
 
 func checkConstructorDefaults(c *harness.Ctx) {
-	pb := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, physics.Slot(1))
+	pb := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, physcomp.Slot(1))
 
 	c.True("NewPhysicsBody2D sets Active=true", pb.Active, "Active=false: body would never simulate")
 	c.True("NewPhysicsBody2D sets Awake=true", pb.Awake, "Awake=false: body would spawn asleep")
@@ -96,7 +97,7 @@ func checkConstructorDefaults(c *harness.Ctx) {
 		physics.BodyTypeStatic, physics.BodyTypeDynamic,
 		physics.BodyTypeKinematic, physics.BodyTypeManual,
 	} {
-		got := physcomp.NewPhysicsBody2D(kind, physics.Slot(1))
+		got := physcomp.NewPhysicsBody2D(kind, physcomp.Slot(1))
 		c.True("NewPhysicsBody2D preserves the body type it was given",
 			got.BodyType == kind, "asked for %d, got %d", kind, got.BodyType)
 	}
@@ -146,7 +147,7 @@ func checkJSONDefaults(c *harness.Ctx) {
 
 	// Full round-trip through the component's own wire encoding.
 	original := physcomp.NewPhysicsBody2D(physics.BodyTypeKinematic,
-		physics.Slot(7).At(vec(1.5, -2), 0.25))
+		physcomp.Slot(7).At(vec(1.5, -2), 0.25))
 	original.Bullet = true
 	original.FixedRotation = true
 	original.Active = false
@@ -210,7 +211,7 @@ func checkJSONDefaults(c *harness.Ctx) {
 }
 
 func checkValidation(c *harness.Ctx) {
-	slot := physics.Slot(1)
+	slot := physcomp.Slot(1)
 	valid := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, slot)
 	c.NoError("Validate accepts a well-formed body", valid.Validate())
 
@@ -337,13 +338,13 @@ func decodeBodyInto(c *harness.Ctx, check, payload string) physics.PhysicsBody2D
 func checkShapeConstructors(c *harness.Ctx) {
 	defaults := physcomp.ShapeCommon{Friction: 0.6, Density: 1, CategoryBits: 1, MaskBits: ^uint64(0)}
 	commons := map[string]physcomp.ShapeCommon{
-		"Circle":    physics.Circle(0.5).Common,
-		"Box":       physics.Box(1, 2).Common,
-		"Polygon":   physics.Polygon(vec(0, 0), vec(1, 0), vec(0, 1)).Common,
-		"Chain":     physics.Chain(vec(0, 0), vec(1, 0)).Common,
-		"ChainLoop": physics.ChainLoop(vec(0, 0), vec(1, 0)).Common,
-		"Edge":      physics.Edge(vec(0, 0), vec(1, 0)).Common,
-		"Capsule":   physics.Capsule(vec(0, 0), vec(1, 0), 0.25).Common,
+		"Circle":    harness.CommonOf(physics.Circle(0.5)),
+		"Box":       harness.CommonOf(physics.Box(1, 2)),
+		"Polygon":   harness.CommonOf(physics.Polygon(vec(0, 0), vec(1, 0), vec(0, 1))),
+		"Chain":     harness.CommonOf(physics.Chain(vec(0, 0), vec(1, 0))),
+		"ChainLoop": harness.CommonOf(physics.ChainLoop(vec(0, 0), vec(1, 0))),
+		"Edge":      harness.CommonOf(physics.Edge(vec(0, 0), vec(1, 0))),
+		"Capsule":   harness.CommonOf(physics.Capsule(vec(0, 0), vec(1, 0), 0.25)),
 	}
 	for name, common := range commons {
 		c.True(name+" carries Box2D's default material and filter", common == defaults,
@@ -351,33 +352,32 @@ func checkShapeConstructors(c *harness.Ctx) {
 	}
 
 	d := physics.Box(1, 1).AsSensor().Material(0.1, 0.2, 0.3).Filter(0x2, 0x4).Group(-1)
-	c.True("the options set exactly what they say", d.Common == physcomp.ShapeCommon{
+	c.True("the options set exactly what they say", harness.CommonOf(d) == physcomp.ShapeCommon{
 		IsSensor: true, Friction: 0.1, Restitution: 0.2, Density: 0.3,
 		CategoryBits: 0x2, MaskBits: 0x4, GroupIndex: -1,
-	}, "got %+v", d.Common)
-	c.True("Box stores its half extents", d.Geom == physcomp.BoxGeom{HalfExtents: vec(1, 1)}, "got %+v", d.Geom)
-	c.True("Circle stores its radius", physics.Circle(0.5).Geom == physcomp.CircleGeom{Radius: 0.5}, "")
-	c.True("Edge stores its endpoints",
-		physics.Edge(vec(0, 0), vec(1, 0)).Geom == physcomp.EdgeGeom{A: vec(0, 0), B: vec(1, 0)}, "")
-	c.True("Capsule stores its endpoints and radius",
-		physics.Capsule(vec(0, 0), vec(1, 0), 0.25).Geom ==
-			physcomp.CapsuleGeom{A: vec(0, 0), B: vec(1, 0), Radius: 0.25}, "")
+	}, "got %+v", harness.CommonOf(d))
+	c.True("Box stores its half extents", physics.HalfExtentsOf(d) == vec(1, 1), "got %+v", physics.HalfExtentsOf(d))
+	c.True("Circle stores its radius", physics.RadiusOf(physics.Circle(0.5)) == 0.5, "")
+	ea, eb := physics.EndpointsOf(physics.Edge(vec(0, 0), vec(1, 0)))
+	c.True("Edge stores its endpoints", ea == vec(0, 0) && eb == vec(1, 0), "")
+	ca, cb, cr := physics.CapsuleOf(physics.Capsule(vec(0, 0), vec(1, 0), 0.25))
+	c.True("Capsule stores its endpoints and radius", ca == vec(0, 0) && cb == vec(1, 0) && cr == 0.25, "")
 
 	line := []physics.Vec2{vec(0, 0), vec(1, 0)}
-	chain := physics.Chain(line...).Geom
-	c.True("Chain copies its points", immutable.Equal(chain.Points, immutable.SliceOf(line...)) && !chain.Loop, "")
-	c.True("ChainLoop closes the polyline", physics.ChainLoop(line...).Geom.Loop, "Loop is false")
+	chain := physics.Chain(line...)
+	c.True("Chain copies its points", slices.Equal(physics.PointsOf(chain), line) && !physics.IsLoop(chain), "")
+	c.True("ChainLoop closes the polyline", physics.IsLoop(physics.ChainLoop(line...)), "Loop is false")
 
-	tri := physics.Polygon(vec(0, 0), vec(1, 0), vec(0, 1)).Geom
-	c.Int("Polygon counts its vertices", int(tri.Count), 3)
+	tri := physics.Polygon(vec(0, 0), vec(1, 0), vec(0, 1))
+	c.Int("Polygon counts its vertices", len(physics.VerticesOf(tri)), 3)
 	c.NoError("Polygon of three vertices validates", tri.Validate())
 	nine := make([]physics.Vec2, 9)
 	for i := range nine {
 		nine[i] = vec(float64(i), 0)
 	}
-	c.HasError("Polygon of nine vertices fails validation", physics.Polygon(nine...).Geom.Validate())
+	c.HasError("Polygon of nine vertices fails validation", physics.Polygon(nine...).Validate())
 
-	slot := physics.Slot(9).At(vec(2, 3), 0.5)
+	slot := physcomp.Slot(9).At(vec(2, 3), 0.5)
 	c.True("Slot.At places the slot",
 		slot == physics.ShapeSlot{Shape: 9, LocalOffset: vec(2, 3), LocalRotation: 0.5}, "got %+v", slot)
 }

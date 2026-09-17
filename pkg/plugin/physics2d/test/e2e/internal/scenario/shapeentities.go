@@ -98,8 +98,8 @@ func ShapeEntities() harness.Scenario {
 					c.OverlapHits(c.OverlapAABB(2.5, 29.5, 3.5, 30.5, nil), s.forkGeom), "already there")
 
 				if def, ok := harness.ReadShape[physics.BoxDef](c, s.shared); c.True("Read finds the shared box", ok, "") {
-					c.Near("Read returns the shape's friction", def.Common.Friction, 0.3, 0)
-					c.NearVec("Read returns the shape's geometry", def.Geom.HalfExtents, vec(1, 1), 0)
+					c.Near("Read returns the shape's friction", def.Friction(), 0.3, 0)
+					c.NearVec("Read returns the shape's geometry", physics.HalfExtentsOf(def), vec(1, 1), 0)
 				}
 				_, wrongKind := harness.ReadShape[physics.CircleDef](c, s.shared)
 				c.False("Read through the wrong kind's search finds nothing", wrongKind, "a box read as a circle")
@@ -110,7 +110,9 @@ func ShapeEntities() harness.Scenario {
 			}},
 			{Tick: editTick, Do: func(c *harness.Ctx) {
 				// Fork the shared shape with new friction and re-point the left body only.
-				mine, ok := harness.ForkShape(c, s.shared, func(d *physics.BoxDef) { d.Common.Friction = 0.9 })
+				mine, ok := harness.ForkShape(c, s.shared, func(d physics.BoxDef) physics.BoxDef {
+					return d.Material(0.9, d.Restitution(), d.Density())
+				})
 				if c.True("Fork copies the shared box", ok, "") {
 					c.True("Fork returns a new shape entity", mine.Shape != s.shared.Shape, "same id as the original")
 					c.EditBody(s.left, func(pb *physics.PhysicsBody2D) { pb.Shapes = pb.Shapes.With(0, mine) })
@@ -123,7 +125,9 @@ func ShapeEntities() harness.Scenario {
 					pb.Shapes = pb.Shapes.With(0, circle(5).Spawn(c))
 				})
 
-				bigger, ok := harness.ForkShape(c, s.forkGeomSlot, func(d *physics.CircleDef) { d.Geom.Radius = 5 })
+				bigger, ok := harness.ForkShape(c, s.forkGeomSlot, func(d physics.CircleDef) physics.CircleDef {
+					return physics.CopyMaterial(d, physics.Circle(5))
+				})
 				if c.True("Fork copies the circle", ok, "") {
 					c.EditBody(s.forkGeom, func(pb *physics.PhysicsBody2D) { pb.Shapes = pb.Shapes.With(0, bigger) })
 				}
@@ -142,7 +146,7 @@ func ShapeEntities() harness.Scenario {
 					fixture(c, s.right) == s.rightFixture, "the fixture was rebuilt")
 				c.Near("the original shape is untouched by the Fork", eng.ShapeFriction(s.rightFixture), 0.3, 0)
 				if def, ok := harness.ReadShape[physics.BoxDef](c, s.shared); c.True("the original still reads", ok, "") {
-					c.Near("Read confirms the original's friction did not change", def.Common.Friction, 0.3, 0)
+					c.Near("Read confirms the original's friction did not change", def.Friction(), 0.3, 0)
 				}
 
 				c.True("a slot swap to the same geometry keeps the fixture",

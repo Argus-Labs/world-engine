@@ -2,7 +2,7 @@ package internal
 
 import (
 	"github.com/argus-labs/world-engine/pkg/immutable"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // ShadowState is a snapshot of the ECS physics components last applied to Box2D for one
