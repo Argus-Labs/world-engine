@@ -9,15 +9,10 @@ import (
 // Radius must be positive. MaxFraction is the TOI search bound in [0,1] along that segment; 0 means 1.0.
 // A nil Filter uses the same defaults as RaycastRequest (all layers, solids only).
 type CircleSweepRequest struct {
-	Start  component.Vec2 `json:"start"`
-	End    component.Vec2 `json:"end"`
-	Radius float64        `json:"radius"`
-	Filter *Filter        `json:"filter,omitempty"`
-
-	// Ignore lists entities this query must not report. The cast skips an ignored shape and
-	// keeps traversing, so the result is the closest hit that is not ignored rather than no
-	// hit at all — which is what post-filtering the result would give you. Usually one entity:
-	// the caster, or a projectile's owner.
+	Start       component.Vec2      `json:"start"`
+	End         component.Vec2      `json:"end"`
+	Radius      float64             `json:"radius"`
+	Filter      *Filter             `json:"filter,omitempty"`
 	Ignore      []cardinal.EntityID `json:"ignore,omitempty"`
 	MaxFraction float64             `json:"max_fraction"`
 }
