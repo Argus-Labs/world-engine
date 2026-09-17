@@ -207,7 +207,7 @@ lookups close that gap:
 - `(*physics2d.Plugin).ShapeIDs(cardinal.EntityID) ([]box2d.ShapeID, bool)`
 
 Both return `ok == false` when no world exists or the entity has no body yet.
-`ShapeIDs` is indexed by collider slot (slot `i` ↔ `PhysicsBody2D.Shapes[i]`)
+`ShapeIDs` is indexed by collider slot (slot `i` ↔ `PhysicsBody2D.Shapes.At(i)`)
 and returns a copy you own. The ids are valid only until the next tick's
 reconcile, which may destroy and recreate the body — look them up again each
 tick rather than caching them.

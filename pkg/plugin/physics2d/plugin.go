@@ -201,7 +201,7 @@ func (p *Plugin) BodyID(entityID cardinal.EntityID) (box2d.BodyID, bool) {
 }
 
 // ShapeIDs returns a copy of the Box2D shape ids backing entityID, indexed by collider slot
-// (slot i is PhysicsBody2D.Shapes[i]), and whether the entity currently has any. Chain slots
+// (slot i is PhysicsBody2D.Shapes.At(i)), and whether the entity currently has any. Chain slots
 // hold a null shape id because chains are tracked separately. The caller owns the returned
 // slice; mutating it does not affect the plugin.
 //
