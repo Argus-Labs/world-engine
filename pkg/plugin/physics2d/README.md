@@ -133,11 +133,11 @@ component already holds, so a `Set` after each one is required rather than
 tidy — see [`immutable.Slice`](../../immutable/slice.go).
 
 ```go
-pb := ref.Get()
+pb := entity.Get[physics2d.PhysicsBody2D]()
 sh := pb.Shapes.At(0)
 sh.Friction = 0.9
 pb.Shapes = pb.Shapes.With(0, sh)
-ref.Set(pb)
+entity.Set(pb)
 ```
 
 ### Polygon vertices
