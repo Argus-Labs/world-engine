@@ -54,20 +54,31 @@ type kindLoader struct {
 }
 
 // MakeAssemble returns the standard assemble function for kind T: json.Unmarshal into a fresh T,
-// run Resolve on a pointer (so mutations stick), run Validate on the value. Errors from any step
-// propagate to the caller (LoadAll and Reconcile both panic on them).
+// then run Resolve and Validate if T implements them. Each hook is detected against def first,
+// then &def: trying def covers a pointer-type T (where &def is **T and its method set excludes
+// T's methods), and the &def fallback covers a value-type T with a pointer-receiver hook (whose
+// value method set excludes it). Each hook runs at most once. Errors from any step propagate to
+// the caller (LoadAll and Reconcile both panic on them).
 func MakeAssemble[T Definition]() AssembleFunc {
 	return func(ctx context.Context, resolverSource Source, raw []byte) (Definition, error) {
 		var def T
 		if err := json.Unmarshal(raw, &def); err != nil {
 			return nil, err
 		}
-		if r, ok := any(&def).(Resolver); ok {
+		r, ok := any(def).(Resolver)
+		if !ok {
+			r, ok = any(&def).(Resolver)
+		}
+		if ok {
 			if err := r.Resolve(ctx, resolverSource); err != nil {
 				return nil, err
 			}
 		}
-		if v, ok := any(&def).(Validator); ok {
+		v, ok := any(def).(Validator)
+		if !ok {
+			v, ok = any(&def).(Validator)
+		}
+		if ok {
 			if err := v.Validate(); err != nil {
 				return nil, err
 			}
