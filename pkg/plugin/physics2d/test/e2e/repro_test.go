@@ -10,6 +10,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// reproConfig is the suite config with gravity off: these repros isolate the velocity
+// the reconciler pushes, so free fall would only add noise.
+func reproConfig(t *testing.T) harness.Config {
+	t.Helper()
+	cfg := e2eConfig(t, 0)
+	cfg.Gravity = physics.Vec2{}
+	return cfg
+}
+
+// runRepro runs one repro scenario and fails the test if any check did.
+func runRepro(t *testing.T, sc harness.Scenario) {
+	t.Helper()
+	_, _, code := runSuite(t, []harness.Scenario{sc}, reproConfig(t))
+	require.Zero(t, code, "check(s) failed — bug reproduced")
+}
+
 // TestReproManualReleaseVelocityDrop guards the parity contract between the incremental
 // reconciler (ReconcileFromECS) and the full rebuild (FullRebuildFromECS): for an identical
 // ECS snapshot, Box2D must end up in the same state either way.
@@ -31,6 +47,7 @@ import (
 // (Manual+FixedRotation -> Dynamic+FixedRotation) variants — both non-Manual branches of
 // the reconciler velocity switch are affected.
 func TestReproManualReleaseVelocityDrop(t *testing.T) {
+	t.Parallel()
 	const releaseTick, checkTick = uint64(20), uint64(60)
 	const vx = 7.0
 	wantX := vx * float64(checkTick-releaseTick) / 60.0
@@ -68,11 +85,7 @@ func TestReproManualReleaseVelocityDrop(t *testing.T) {
 			}},
 		},
 	}
-	cfg := harness.Config{Gravity: physics.Vec2{X: 0, Y: 0}, TB: t, Verbose: true}
-	runner := harness.New([]harness.Scenario{sc}, cfg)
-	world, err := runner.BuildWorld(cfg)
-	require.NoError(t, err)
-	require.Zero(t, runner.Run(world), "check(s) failed — bug reproduced")
+	runRepro(t, sc)
 }
 
 // TestReproManualReleaseKinematic extends the parity guard to the Manual->Kinematic
@@ -81,6 +94,7 @@ func TestReproManualReleaseVelocityDrop(t *testing.T) {
 // is born Kinematic with the same velocity (the FullRebuild-equivalent). Box2D integrates
 // kinematic linear velocity, so both must cover the same ground.
 func TestReproManualReleaseKinematic(t *testing.T) {
+	t.Parallel()
 	const releaseTick, checkTick = uint64(20), uint64(60)
 	const vx = 5.0
 	wantX := vx * float64(checkTick-releaseTick) / 60.0
@@ -112,11 +126,7 @@ func TestReproManualReleaseKinematic(t *testing.T) {
 			}},
 		},
 	}
-	cfg := harness.Config{Gravity: physics.Vec2{X: 0, Y: 0}, TB: t, Verbose: true}
-	runner := harness.New([]harness.Scenario{sc}, cfg)
-	world, err := runner.BuildWorld(cfg)
-	require.NoError(t, err)
-	require.Zero(t, runner.Run(world), "check(s) failed — bug reproduced")
+	runRepro(t, sc)
 }
 
 // TestReproManualReleaseAngular exercises the plain (non-FixedRotation) branch's angular
@@ -127,6 +137,7 @@ func TestReproManualReleaseKinematic(t *testing.T) {
 // zero damping, an isolated circle and SleepingAllowed=false keep angular velocity
 // constant so rotation is linear in time.
 func TestReproManualReleaseAngular(t *testing.T) {
+	t.Parallel()
 	const releaseTick, checkTick = uint64(20), uint64(60)
 	const av = 1.0 // rad/s
 	wantRot := av * float64(checkTick-releaseTick) / 60.0
@@ -159,11 +170,7 @@ func TestReproManualReleaseAngular(t *testing.T) {
 			}},
 		},
 	}
-	cfg := harness.Config{Gravity: physics.Vec2{X: 0, Y: 0}, TB: t, Verbose: true}
-	runner := harness.New([]harness.Scenario{sc}, cfg)
-	world, err := runner.BuildWorld(cfg)
-	require.NoError(t, err)
-	require.Zero(t, runner.Run(world), "check(s) failed — bug reproduced")
+	runRepro(t, sc)
 }
 
 // TestReproManualReleaseParityVsRebuild is the direct parity spot-check for the
@@ -175,6 +182,7 @@ func TestReproManualReleaseAngular(t *testing.T) {
 // proving the two paths agree. Before the fix, the released body's engine velocity stays
 // {0,0} after the incremental release while the control's is {vx,0}.
 func TestReproManualReleaseParityVsRebuild(t *testing.T) {
+	t.Parallel()
 	const releaseTick, readTick, resetTick, recheckTick = uint64(20), uint64(25), uint64(30), uint64(35)
 	const vx = 7.0
 	var s struct{ released, control cardinal.EntityID }
@@ -230,9 +238,63 @@ func TestReproManualReleaseParityVsRebuild(t *testing.T) {
 			}},
 		},
 	}
-	cfg := harness.Config{Gravity: physics.Vec2{X: 0, Y: 0}, TB: t, Verbose: true}
-	runner := harness.New([]harness.Scenario{sc}, cfg)
-	world, err := runner.BuildWorld(cfg)
-	require.NoError(t, err)
-	require.Zero(t, runner.Run(world), "check(s) failed — bug reproduced")
+	runRepro(t, sc)
+}
+
+// TestReproStaticReleaseParityVsRebuild is the Static half of the same parity contract.
+// Writeback skips Static bodies exactly as it skips Manual ones, so a Static body's shadow
+// also holds a gameplay Velocity2D that Box2D never adopted. Releasing it to Dynamic
+// without rewriting Velocity2D hits the identical VelocityDiffers blind spot, and the
+// zero then propagates into Velocity2D via writeback, so a later FullRebuildFromECS cannot
+// recover it either. The control is born Dynamic with the same velocity (the CreateBody
+// path); the two must agree both before and after a forced full rebuild.
+func TestReproStaticReleaseParityVsRebuild(t *testing.T) {
+	t.Parallel()
+	const releaseTick, readTick, resetTick, recheckTick = uint64(20), uint64(25), uint64(30), uint64(35)
+	const vx = 7.0
+	var s struct{ released, control cardinal.EntityID }
+	engVelX := func(c *harness.Ctx, id cardinal.EntityID) float64 {
+		bodyID, ok := c.Plugin().BodyID(id)
+		if !c.True("body has a Box2D id", ok, "entity %d has no engine body", id) {
+			return 0
+		}
+		return c.Plugin().Engine().BodyLinearVelocity(bodyID).X
+	}
+	mk := func(bt physics.BodyType) physics.PhysicsBody2D {
+		pb := physcomp.NewPhysicsBody2D(bt, physics.ColliderShape{
+			ShapeType:   physics.ShapeTypeBox,
+			HalfExtents: physics.Vec2{X: 0.5, Y: 0.5},
+		})
+		pb.SleepingAllowed = false
+		return pb
+	}
+	sc := harness.Scenario{
+		Name: "repro-static-release-parity",
+		Setup: func(c *harness.Ctx) {
+			s.released = c.SpawnMoving("released", 0, 10, vx, 0, mk(physcomp.BodyTypeStatic))
+		},
+		Steps: []harness.Step{
+			{Tick: releaseTick, Do: func(c *harness.Ctx) {
+				c.EditBody(s.released, func(pb *physics.PhysicsBody2D) { pb.BodyType = physics.BodyTypeDynamic })
+				s.control = c.SpawnMoving("control", 0, 5, vx, 0, mk(physcomp.BodyTypeDynamic))
+			}},
+			{Tick: readTick, Do: func(c *harness.Ctx) {
+				relV, ctlV := engVelX(c, s.released), engVelX(c, s.control)
+				t.Logf("pre-reset engine velocities: released.X=%.4f control.X=%.4f want=%.4f", relV, ctlV, vx)
+				c.Near("control (CreateBody path) has the gameplay velocity", ctlV, vx, 0.01)
+				c.Near("released (Static->Dynamic) adopts the gameplay velocity", relV, vx, 0.01)
+			}},
+			{Tick: resetTick, Do: func(c *harness.Ctx) {
+				c.ExpectWorldReset()
+				c.Plugin().Reset() // forces FullRebuildFromECS next tick
+			}},
+			{Tick: recheckTick, Do: func(c *harness.Ctx) {
+				relV, ctlV := engVelX(c, s.released), engVelX(c, s.control)
+				t.Logf("post-rebuild engine velocities: released.X=%.4f control.X=%.4f want=%.4f", relV, ctlV, vx)
+				c.Near("released keeps the gameplay velocity after FullRebuild", relV, vx, 0.01)
+				c.Near("ReconcileFromECS and FullRebuildFromECS agree on identical ECS inputs", relV, ctlV, 0.01)
+			}},
+		},
+	}
+	runRepro(t, sc)
 }

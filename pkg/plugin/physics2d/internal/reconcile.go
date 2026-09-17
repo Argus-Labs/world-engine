@@ -188,29 +188,33 @@ func (rt *Runtime) reconcileExistingBody(
 	// FixedRotation bodies always have zero angular velocity in Box2D (see CreateBody comment).
 	// For all other body types, push ECS velocity into Box2D when it changes.
 	//
-	// While a body is Manual the shadow stores the gameplay Velocity2D (writeback is skipped
-	// for Manual bodies), so it deliberately disagrees with Box2D's forced {0,0}. On a
-	// Manual->non-Manual transition where Velocity2D is otherwise unchanged,
-	// prev.VelocityDiffers reports "no change" and the push would be skipped, leaving Box2D
-	// at {0,0} — diverging from FullRebuildFromECS, which creates the same body born-moving at
-	// the gameplay velocity (see CreateBody). cameFromManual forces the push on that
-	// transition so the two paths agree on identical ECS inputs (reconcile.go:14-15).
-	cameFromManual := prev.PhysicsBody.BodyType == component.BodyTypeManual &&
-		e.PhysicsBody.BodyType != component.BodyTypeManual
+	// A body whose velocity Box2D does not track keeps the gameplay Velocity2D in its
+	// shadow, so on the tick it starts being tracked VelocityDiffers reports "no change"
+	// and the push would be skipped, leaving Box2D at zero where FullRebuildFromECS would
+	// have created the body born-moving. Force the push so both paths agree.
+	leftUntrackedVelocity := untrackedVelocity(prev.PhysicsBody.BodyType) &&
+		!untrackedVelocity(e.PhysicsBody.BodyType)
 	switch {
 	case e.PhysicsBody.BodyType == component.BodyTypeManual:
 		rt.World.SetBodyLinearVelocity(bodyID, box2d.Vec2{})
 		rt.World.SetBodyAngularVelocity(bodyID, 0)
 	case e.PhysicsBody.FixedRotation:
 		rt.World.SetBodyAngularVelocity(bodyID, 0)
-		if prev.VelocityDiffers(e.Velocity) || cameFromManual {
+		if prev.VelocityDiffers(e.Velocity) || leftUntrackedVelocity {
 			rt.World.SetBodyLinearVelocity(bodyID, box2d.Vec2{X: e.Velocity.Linear.X, Y: e.Velocity.Linear.Y})
 		}
-	case prev.VelocityDiffers(e.Velocity) || cameFromManual:
+	case prev.VelocityDiffers(e.Velocity) || leftUntrackedVelocity:
 		rt.World.SetBodyLinearVelocity(bodyID, box2d.Vec2{X: e.Velocity.Linear.X, Y: e.Velocity.Linear.Y})
 		rt.World.SetBodyAngularVelocity(bodyID, e.Velocity.Angular)
 	}
 	return nil
+}
+
+// untrackedVelocity reports body types whose Box2D velocity is not driven by ECS: Manual
+// is forced to zero, Static ignores it. Writeback skips both (see WritebackFromStepResults),
+// so their shadow velocity is gameplay bookkeeping, not a mirror of Box2D.
+func untrackedVelocity(t component.BodyType) bool {
+	return t == component.BodyTypeManual || t == component.BodyTypeStatic
 }
 
 // reconcileShapesChange applies structural shape rebuild or in-place mutable updates when
