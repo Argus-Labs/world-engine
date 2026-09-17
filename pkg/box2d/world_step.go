@@ -558,6 +558,37 @@ func (w *World) ContactEvents() ContactEvents {
 	}
 }
 
+// ClearContactEndEvents discards any ContactEndTouchEvents written to the
+// current (write) end-event buffer since the last World.Step. Go-only helper
+// with no upstream analogue: the ECS physics2d reconciler runs contact-
+// destroying mutations (SetShapeFilter, SetBodyType, DisableBody) between
+// Steps, each of which calls destroyContact and appends a ContactEndTouchEvent
+// to the double-buffered write array. Left in place, those events reach the
+// next bufferContactEventsFromWorld pass and emit spurious ContactEndEvents
+// for pairs that the same Step then re-creates (Begin), leaving the consumer
+// latched "not touching" on a still-touching pair.
+//
+// The caller (the reconciler) is responsible for synthesizing an End into
+// its own pendingEndEvents for every pair whose Box2D contact this drops, so
+// the buffer retains an End-led ordering [End_synthesized, Begin]. Safe
+// between Steps because the previous Step swaps-and-clears the new write
+// buffer at its end, and the only writers between Steps are the reconciler's
+// own destroyContact calls; during-Step separation Ends are written after
+// the clear (inside the next Step), so they are untouched.
+//
+// Sensor end-touch events live in a separate double-buffered array and are
+// not touched here: reconcile-time mutations never destroy sensor overlaps
+// (Box2D re-evaluates them lazily inside the next Step), so the sensor
+// buffer has nothing reconcile-time to drop.
+func (w *World) ClearContactEndEvents() {
+	w.panicIfPoisoned()
+	assert(!w.locked)
+	if w.locked {
+		return
+	}
+	w.contactEndEvents[w.endEventArrayIndex] = w.contactEndEvents[w.endEventArrayIndex][:0]
+}
+
 // JointEvents returns the joint events for the current time step. The event
 // data is transient — do not store references (upstream
 // b2World_GetJointEvents).
