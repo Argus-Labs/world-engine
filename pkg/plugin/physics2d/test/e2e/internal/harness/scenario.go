@@ -155,7 +155,9 @@ type Ctx struct {
 func (c *Ctx) Plugin() *physics.Plugin { return c.plugin }
 
 // ExpectWorldReset silences the runner's "the world disappeared" watchdog for
-// the current tick, so a scenario that calls Plugin.Reset can say so.
+// its next check, so a scenario that calls Plugin.Reset can say so. The
+// watchdog runs on PreUpdate, so a grant from Steps (Update) is consumed on the
+// next tick and one from EachTick (PreUpdate) on the same tick.
 func (c *Ctx) ExpectWorldReset() {
 	if c.allowReset != nil {
 		c.allowReset()

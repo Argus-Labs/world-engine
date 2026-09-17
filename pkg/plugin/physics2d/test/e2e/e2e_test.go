@@ -83,19 +83,9 @@ func TestRestore(t *testing.T) {
 	}
 }
 
-// TestWorldWatchdogFlagsUnannouncedReset is the regression test for a tick-loop
-// hook-ordering bug that left the harness's "the Box2D world stays alive"
-// watchdog unreachable. watchWorld was invoked from step (cardinal.Update),
-// which runs AFTER the plugin's PhysicsPipelineSystem (cardinal.PreUpdate) has
-// already rebuilt any nil Box2D world via FullRebuildFromECS — so Engine() was
-// never nil at the check and a scenario that called Plugin.Reset without
-// ExpectWorldReset passed the suite cleanly, leaving the permission machinery
-// (ExpectWorldReset/allowWorldReset/resetOK) as dead code.
-//
-// The fix runs watchWorld on PreUpdate, ahead of the plugin. This test pins the
-// restored behaviour: an unannounced Reset must produce a single "the Box2D
-// world stays alive" failure on the tick after the Reset (PreUpdate observes the
-// nil before the pipeline rebuilds it).
+// TestWorldWatchdogFlagsUnannouncedReset pins the watchdog's hook order: an
+// unannounced Plugin.Reset must fail the run on the next tick, while the
+// PreUpdate check still sees the nil world the pipeline is about to rebuild.
 func TestWorldWatchdogFlagsUnannouncedReset(t *testing.T) {
 	t.Parallel()
 	sc := harness.Scenario{
@@ -110,14 +100,12 @@ func TestWorldWatchdogFlagsUnannouncedReset(t *testing.T) {
 			{Tick: 10, Do: func(c *harness.Ctx) { c.Plugin().Reset() }}, // unannounced
 		},
 	}
-	// The report is deliberately not bound to t: the expected watchdog failure
-	// would otherwise mark this test as failed via t.Errorf before the
-	// assertions below can read it. The verdict is taken from the runner's exit
-	// code and report instead, exactly as the CLI does.
-	cfg := harness.Config{
-		Gravity:      physics.Vec2{X: 0, Y: -10},
-		SubStepCount: 4,
-	}
+	// Unbound from t: the expected failure would otherwise call t.Errorf before
+	// the assertions below can read it. The verdict comes from the exit code and
+	// the report, as it does for the CLI.
+	cfg := e2eConfig(t, 0)
+	cfg.TB = nil
+	cfg.Verbose = false
 	runner := harness.New([]harness.Scenario{sc}, cfg)
 	world, err := runner.BuildWorld(cfg)
 	require.NoError(t, err, "build world")
@@ -135,8 +123,7 @@ func TestWorldWatchdogFlagsUnannouncedReset(t *testing.T) {
 	}
 	require.True(t, found,
 		"expected a 'the Box2D world stays alive' failure; got %+v", runner.Report().Failures())
-	// Reset ran on tick 10's Update; the watchdog must observe the nil world on
-	// tick 11's PreUpdate, before the pipeline rebuilds it.
+	// Reset ran on tick 10's Update, so tick 11's PreUpdate is where it shows.
 	require.Equal(t, uint64(11), watchdog.Tick,
 		"watchdog fired on the wrong tick: %+v", watchdog)
 	require.Contains(t, watchdog.Detail, "Plugin.Engine() went nil",
@@ -144,11 +131,9 @@ func TestWorldWatchdogFlagsUnannouncedReset(t *testing.T) {
 }
 
 // TestWorldWatchdogAcceptsAnnouncedReset is the companion to the regression
-// above: pairing Plugin.Reset with ExpectWorldReset must NOT trip the
-// watchdog. The 'reset' scenario and TestExhaustiveBodyMatrix cover this
-// end-to-end, but pinning it in isolation names the permission path as its own
-// invariant so a regression that breaks ExpectWorldReset is reported here
-// rather than only as a knock-on failure in another test.
+// above: ExpectWorldReset must keep a deliberate Reset from tripping the
+// watchdog, so the permission path fails here rather than as a knock-on
+// elsewhere.
 func TestWorldWatchdogAcceptsAnnouncedReset(t *testing.T) {
 	t.Parallel()
 	sc := harness.Scenario{
