@@ -147,8 +147,8 @@ func New(scenarios []Scenario, cfg Config) *Runner {
 }
 
 // allowWorldReset tells the world watchdog that the next disappearance of the
-// C-side world is deliberate. physics2d.ResetRuntime is global, so the scenario
-// that calls it has to say so or every other lane reports a dead world.
+// Box2D world is deliberate. Scenarios share a world, so the one calling
+// Plugin.Reset has to say so or every other lane reports a dead world.
 func (r *Runner) allowWorldReset() { r.resetOK = true }
 
 // Report returns the accumulated results.
@@ -195,6 +195,11 @@ type preStepState struct {
 	Probes Probes
 }
 
+// watchWorldState runs the liveness watchdog on PreUpdate. See watchWorld.
+type watchWorldState struct {
+	cardinal.BaseSystemState
+}
+
 // stepState runs scheduled steps on Update, after the physics pipeline has
 // reconciled, stepped and written back, and while this tick's contact events are
 // still readable.
@@ -226,6 +231,10 @@ func (r *Runner) preStep(state *preStepState) {
 	}
 }
 
+func (r *Runner) watchWorldStep(state *watchWorldState) {
+	r.watchWorld(state.Tick())
+}
+
 func (r *Runner) step(state *stepState) {
 	tick := state.Tick()
 
@@ -243,7 +252,6 @@ func (r *Runner) step(state *stepState) {
 	}
 
 	r.watchNaN(state, tick)
-	r.watchWorld(tick)
 
 	for _, s := range r.scenarios {
 		for i := range s.Steps {
@@ -287,12 +295,15 @@ func (r *Runner) watchNaN(state *stepState, tick uint64) {
 	}
 }
 
-// watchWorld fails if the Box2D world disappears mid-run without a
-// scenario having deliberately reset it. WorldID is 0 before the first reconcile
-// and after Reset. Engine() is nil before the first reconcile and after Reset, so only a
-// transition from live back to nil is a bug. The permission a scenario grants is
-// consumed on the next tick either way,
-// so it cannot leave the watchdog switched off for the rest of the run.
+// watchWorld fails if the Box2D world disappears mid-run without a scenario
+// having deliberately reset it. Engine() is nil before the first reconcile and
+// after Reset, so only a transition from live back to nil is a bug. The
+// permission a scenario grants via ExpectWorldReset is consumed here either
+// way, so it cannot leave the watchdog switched off for the rest of the run.
+//
+// It runs on PreUpdate ahead of the plugin's PhysicsPipelineSystem, which
+// rebuilds a nil world on that same hook: checking any later always sees a
+// live world.
 func (r *Runner) watchWorld(tick uint64) {
 	allowed := r.resetOK
 	r.resetOK = false
@@ -351,6 +362,9 @@ func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 		SubStepCount: cfg.SubStepCount,
 		Workers:      cfg.Workers,
 	})
+
+	// Ahead of the plugin so the watchdog sees the world as the tick found it.
+	w.RegisterSystem(r.watchWorldStep, cardinal.WithHook(cardinal.PreUpdate))
 	w.RegisterPlugin(r.plugin)
 
 	w.RegisterSystem(r.step, cardinal.WithHook(cardinal.Update))
