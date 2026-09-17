@@ -195,6 +195,14 @@ type preStepState struct {
 	Probes Probes
 }
 
+// watchWorldState drives the liveness watchdog on PreUpdate. It has to run
+// before the plugin's PhysicsPipelineSystem, which rebuilds a nil Box2D world
+// (the very state the watchdog is looking for) on the same hook. Registered
+// after preStep/PreCapture and ahead of the plugin in BuildWorld.
+type watchWorldState struct {
+	cardinal.BaseSystemState
+}
+
 // stepState runs scheduled steps on Update, after the physics pipeline has
 // reconciled, stepped and written back, and while this tick's contact events are
 // still readable.
@@ -243,7 +251,10 @@ func (r *Runner) step(state *stepState) {
 	}
 
 	r.watchNaN(state, tick)
-	r.watchWorld(tick)
+
+	// watchWorld runs on PreUpdate (see BuildWorld), ahead of the plugin's
+	// PhysicsPipelineSystem, so it observes Engine() before a nil world is
+	// rebuilt. Running it here on Update would always see a live world.
 
 	for _, s := range r.scenarios {
 		for i := range s.Steps {
@@ -288,11 +299,21 @@ func (r *Runner) watchNaN(state *stepState, tick uint64) {
 }
 
 // watchWorld fails if the Box2D world disappears mid-run without a
-// scenario having deliberately reset it. WorldID is 0 before the first reconcile
-// and after Reset. Engine() is nil before the first reconcile and after Reset, so only a
-// transition from live back to nil is a bug. The permission a scenario grants is
-// consumed on the next tick either way,
-// so it cannot leave the watchdog switched off for the rest of the run.
+// scenario having deliberately reset it. Engine() is nil before the first
+// reconcile and after Reset, so only a transition from live back to nil is a
+// bug. The permission a scenario grants via ExpectWorldReset is consumed on
+// the next tick either way, so it cannot leave the watchdog switched off for
+// the rest of the run.
+//
+// It is registered as a PreUpdate system ahead of the plugin's
+// PhysicsPipelineSystem, which also runs on PreUpdate and rebuilds a nil
+// world via FullRebuildFromECS. Running the check on Update (as this
+// watchdog once did) made it dead code: by the time Update runs, the
+// pipeline has already turned any nil world back into a live one, so
+// Engine() is never nil at the check and the Fail branch is unreachable.
+// On PreUpdate the check sees the world as the tick found it, so an
+// unannounced Reset on the previous tick's Update is caught on this tick's
+// PreUpdate before the rebuild hides it.
 func (r *Runner) watchWorld(tick uint64) {
 	allowed := r.resetOK
 	r.resetOK = false
@@ -351,6 +372,18 @@ func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 		SubStepCount: cfg.SubStepCount,
 		Workers:      cfg.Workers,
 	})
+
+	// The liveness watchdog runs on PreUpdate, ahead of the plugin's
+	// PhysicsPipelineSystem (also PreUpdate), which rebuilds a nil Box2D world
+	// via FullRebuildFromECS. Registered after preStep/PreCapture and before
+	// the plugin, so it observes Engine() as the tick found it — a nil world
+	// left by an unannounced Plugin.Reset on the previous tick's Update is
+	// still nil here, and is rebuilt only by the pipeline that follows. Were
+	// this check on Update, after the pipeline, Engine() would never be nil
+	// and the watchdog's failure branch would be unreachable.
+	w.RegisterSystem(func(state *watchWorldState) {
+		r.watchWorld(state.Tick())
+	}, cardinal.WithHook(cardinal.PreUpdate))
 	w.RegisterPlugin(r.plugin)
 
 	w.RegisterSystem(r.step, cardinal.WithHook(cardinal.Update))

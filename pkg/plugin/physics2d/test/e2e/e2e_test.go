@@ -16,6 +16,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
+	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/harness"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/restore"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/scenario"
@@ -79,6 +80,97 @@ func TestRestore(t *testing.T) {
 			code := restore.Run(e2eConfig(t, 0), tc.reset)
 			require.Zero(t, code, "crash-restore check failed")
 		})
+	}
+}
+
+// TestWorldWatchdogFlagsUnannouncedReset is the regression test for a tick-loop
+// hook-ordering bug that left the harness's "the Box2D world stays alive"
+// watchdog unreachable. watchWorld was invoked from step (cardinal.Update),
+// which runs AFTER the plugin's PhysicsPipelineSystem (cardinal.PreUpdate) has
+// already rebuilt any nil Box2D world via FullRebuildFromECS — so Engine() was
+// never nil at the check and a scenario that called Plugin.Reset without
+// ExpectWorldReset passed the suite cleanly, leaving the permission machinery
+// (ExpectWorldReset/allowWorldReset/resetOK) as dead code.
+//
+// The fix runs watchWorld on PreUpdate, ahead of the plugin. This test pins the
+// restored behaviour: an unannounced Reset must produce a single "the Box2D
+// world stays alive" failure on the tick after the Reset (PreUpdate observes the
+// nil before the pipeline rebuilds it).
+func TestWorldWatchdogFlagsUnannouncedReset(t *testing.T) {
+	t.Parallel()
+	sc := harness.Scenario{
+		Name: "reset-no-expect",
+		Setup: func(c *harness.Ctx) {
+			c.Spawn("pad", 0, -1,
+				physcomp.NewPhysicsBody2D(physics.BodyTypeStatic, scenario.SampleShape(physics.ShapeTypeBox)))
+			c.Spawn("rester", 0, 3,
+				physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, scenario.SampleShape(physics.ShapeTypeBox)))
+		},
+		Steps: []harness.Step{
+			{Tick: 10, Do: func(c *harness.Ctx) { c.Plugin().Reset() }}, // unannounced
+		},
+	}
+	// The report is deliberately not bound to t: the expected watchdog failure
+	// would otherwise mark this test as failed via t.Errorf before the
+	// assertions below can read it. The verdict is taken from the runner's exit
+	// code and report instead, exactly as the CLI does.
+	cfg := harness.Config{
+		Gravity:      physics.Vec2{X: 0, Y: -10},
+		SubStepCount: 4,
+	}
+	runner := harness.New([]harness.Scenario{sc}, cfg)
+	world, err := runner.BuildWorld(cfg)
+	require.NoError(t, err, "build world")
+	code := runner.Run(world)
+	require.NotZero(t, code, "the watchdog must fail an unannounced Plugin.Reset")
+
+	var watchdog harness.Result
+	found := false
+	for _, f := range runner.Report().Failures() {
+		if f.Check == "the Box2D world stays alive" {
+			watchdog = f
+			found = true
+			break
+		}
+	}
+	require.True(t, found,
+		"expected a 'the Box2D world stays alive' failure; got %+v", runner.Report().Failures())
+	// Reset ran on tick 10's Update; the watchdog must observe the nil world on
+	// tick 11's PreUpdate, before the pipeline rebuilds it.
+	require.Equal(t, uint64(11), watchdog.Tick,
+		"watchdog fired on the wrong tick: %+v", watchdog)
+	require.Contains(t, watchdog.Detail, "Plugin.Engine() went nil",
+		"watchdog reported the wrong detail: %+v", watchdog)
+}
+
+// TestWorldWatchdogAcceptsAnnouncedReset is the companion to the regression
+// above: pairing Plugin.Reset with ExpectWorldReset must NOT trip the
+// watchdog. The 'reset' scenario and TestExhaustiveBodyMatrix cover this
+// end-to-end, but pinning it in isolation names the permission path as its own
+// invariant so a regression that breaks ExpectWorldReset is reported here
+// rather than only as a knock-on failure in another test.
+func TestWorldWatchdogAcceptsAnnouncedReset(t *testing.T) {
+	t.Parallel()
+	sc := harness.Scenario{
+		Name: "reset-with-expect",
+		Setup: func(c *harness.Ctx) {
+			c.Spawn("pad", 0, -1,
+				physcomp.NewPhysicsBody2D(physics.BodyTypeStatic, scenario.SampleShape(physics.ShapeTypeBox)))
+			c.Spawn("rester", 0, 3,
+				physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, scenario.SampleShape(physics.ShapeTypeBox)))
+		},
+		Steps: []harness.Step{
+			{Tick: 10, Do: func(c *harness.Ctx) {
+				c.ExpectWorldReset()
+				c.Plugin().Reset()
+			}},
+		},
+	}
+	runner, _, code := runSuite(t, []harness.Scenario{sc}, e2eConfig(t, 0))
+	require.Zero(t, code, "the watchdog must not flag an announced Plugin.Reset")
+	for _, f := range runner.Report().Failures() {
+		require.NotEqual(t, "the Box2D world stays alive", f.Check,
+			"watchdog wrongly flagged an announced reset: %+v", f)
 	}
 }
 
