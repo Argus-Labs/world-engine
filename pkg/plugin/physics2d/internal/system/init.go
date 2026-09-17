@@ -45,19 +45,106 @@ type physicsSingletonSearch = cardinal.Exact[struct {
 type InitPhysicsSystemState struct {
 	cardinal.BaseSystemState
 	Bodies    cardinal.Contains[physicsBodyRow]
+	Circles   cardinal.Contains[circleShapeRow]
+	Boxes     cardinal.Contains[boxShapeRow]
+	Polygons  cardinal.Contains[polygonShapeRow]
+	Chains    cardinal.Contains[chainShapeRow]
+	Edges     cardinal.Contains[edgeShapeRow]
+	Capsules  cardinal.Contains[capsuleShapeRow]
 	Singleton physicsSingletonSearch
 }
 
+func (s *InitPhysicsSystemState) shapes() shapeSearches {
+	return shapeSearches{&s.Circles, &s.Boxes, &s.Polygons, &s.Chains, &s.Edges, &s.Capsules}
+}
+
 // NewInitPhysicsSystem returns the Init-hook system bound to rt. The system creates the
-// singleton entity (if absent), then builds the Box2D world and bodies from ECS.
+// singleton entity (if absent), syncs shape entities, then builds the Box2D world and bodies
+// from ECS.
 func NewInitPhysicsSystem(rt *internal.Runtime) func(*InitPhysicsSystemState) {
 	return func(state *InitPhysicsSystemState) {
 		ensurePhysicsSingleton(&state.Singleton)
+		syncShapes(rt, state.shapes())
 
 		entries := rt.KeepRebuildEntriesScratch(
 			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
 		if err := rt.FullRebuildFromECS(rt.Gravity, entries); err != nil {
 			panic(eris.Wrap(err, "physics2d: FullRebuildFromECS failed"))
 		}
+	}
+}
+
+// Shape rows, one per geometry kind. Spelled out rather than instantiated from
+// internal.ShapeRow so the wire generator, which discovers components through concrete
+// cardinal.WithComponent fields, sees every geometry component.
+type (
+	circleShapeRow struct {
+		Common cardinal.WithComponent[physicscomp.ShapeCommon]
+		Geom   cardinal.WithComponent[physicscomp.CircleGeom]
+	}
+	boxShapeRow struct {
+		Common cardinal.WithComponent[physicscomp.ShapeCommon]
+		Geom   cardinal.WithComponent[physicscomp.BoxGeom]
+	}
+	polygonShapeRow struct {
+		Common cardinal.WithComponent[physicscomp.ShapeCommon]
+		Geom   cardinal.WithComponent[physicscomp.PolygonGeom]
+	}
+	chainShapeRow struct {
+		Common cardinal.WithComponent[physicscomp.ShapeCommon]
+		Geom   cardinal.WithComponent[physicscomp.ChainGeom]
+	}
+	edgeShapeRow struct {
+		Common cardinal.WithComponent[physicscomp.ShapeCommon]
+		Geom   cardinal.WithComponent[physicscomp.EdgeGeom]
+	}
+	capsuleShapeRow struct {
+		Common cardinal.WithComponent[physicscomp.ShapeCommon]
+		Geom   cardinal.WithComponent[physicscomp.CapsuleGeom]
+	}
+)
+
+// shapeSearches is a view over the six per-kind shape searches. Cardinal wires only the
+// top-level fields of a system state, so each state declares the searches itself and hands
+// them over through this view.
+type shapeSearches struct {
+	Circles  *cardinal.Contains[circleShapeRow]
+	Boxes    *cardinal.Contains[boxShapeRow]
+	Polygons *cardinal.Contains[polygonShapeRow]
+	Chains   *cardinal.Contains[chainShapeRow]
+	Edges    *cardinal.Contains[edgeShapeRow]
+	Capsules *cardinal.Contains[capsuleShapeRow]
+}
+
+// syncShapes refreshes the runtime's shape mirror from every shape entity. Must run before
+// bodies rebuild or reconcile so slots can resolve.
+func syncShapes(rt *internal.Runtime, s shapeSearches) {
+	entries := rt.ShapeEntriesScratch()
+	for row := range s.Circles.Iter() {
+		entries = append(entries, shapeEntry[physicscomp.CircleGeom](row))
+	}
+	for row := range s.Boxes.Iter() {
+		entries = append(entries, shapeEntry[physicscomp.BoxGeom](row))
+	}
+	for row := range s.Polygons.Iter() {
+		entries = append(entries, shapeEntry[physicscomp.PolygonGeom](row))
+	}
+	for row := range s.Chains.Iter() {
+		entries = append(entries, shapeEntry[physicscomp.ChainGeom](row))
+	}
+	for row := range s.Edges.Iter() {
+		entries = append(entries, shapeEntry[physicscomp.EdgeGeom](row))
+	}
+	for row := range s.Capsules.Iter() {
+		entries = append(entries, shapeEntry[physicscomp.CapsuleGeom](row))
+	}
+	rt.SyncShapes(rt.KeepShapeEntriesScratch(entries))
+}
+
+// shapeEntry reads one shape entity's two components into a mirror entry.
+func shapeEntry[G internal.Geometry](row cardinal.Entity) internal.ShapeEntry {
+	return internal.ShapeEntry{
+		EntityID: row.ID(),
+		Shape:    internal.Resolve(row.Get[physicscomp.ShapeCommon](), row.Get[G]()),
 	}
 }

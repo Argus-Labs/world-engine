@@ -8,7 +8,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/probe"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/immutable"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 )
 
@@ -29,6 +28,111 @@ type ProbeRow struct {
 // Probes is the search over every harness body. Contains (not Exact) so a
 // scenario is free to add extra components to an entity later on.
 type Probes = cardinal.Contains[ProbeRow]
+
+// ShapeSearches is the set of per-kind shape searches a harness system carries so
+// scenarios can spawn shape entities. Cardinal wires only a state's top-level
+// fields, so every state declares the six searches itself and hands them over
+// through this view.
+type ShapeSearches struct {
+	Circles  *physics.CircleShapes
+	Boxes    *physics.BoxShapes
+	Polygons *physics.PolygonShapes
+	Chains   *physics.ChainShapes
+	Edges    *physics.EdgeShapes
+	Capsules *physics.CapsuleShapes
+}
+
+// ShapeAlive reports whether a shape entity of any kind still exists.
+func (c *Ctx) ShapeAlive(id cardinal.EntityID) bool {
+	_, ok := c.shapeEntity(id)
+	return ok
+}
+
+// shapeEntity finds the shape entity with id through whichever geometry search holds it.
+func (c *Ctx) shapeEntity(id cardinal.EntityID) (cardinal.Entity, bool) {
+	sh := c.shapes
+	for _, find := range []func(cardinal.EntityID) (cardinal.Entity, error){
+		sh.Circles.GetByID, sh.Boxes.GetByID, sh.Polygons.GetByID,
+		sh.Chains.GetByID, sh.Edges.GetByID, sh.Capsules.GetByID,
+	} {
+		if e, err := find(id); err == nil {
+			return e, true
+		}
+	}
+	return cardinal.Entity{}, false
+}
+
+// DestroyShape removes the shape entity with id, reporting whether one existed.
+func (c *Ctx) DestroyShape(id cardinal.EntityID) bool {
+	e, ok := c.shapeEntity(id)
+	return ok && e.Destroy()
+}
+
+// EditShape reads the shape entity behind slot, hands its components to edit, and writes
+// them back. It reports false when no shape of geometry kind G has that id.
+func EditShape[G physics.Geometry](
+	c *Ctx, slot physics.ShapeSlot, edit func(common *physics.ShapeCommon, geom *G),
+) bool {
+	switch e := any(edit).(type) {
+	case func(*physics.ShapeCommon, *physics.CircleGeom):
+		return editShapeIn(c.shapes.Circles, slot.Shape, e)
+	case func(*physics.ShapeCommon, *physics.BoxGeom):
+		return editShapeIn(c.shapes.Boxes, slot.Shape, e)
+	case func(*physics.ShapeCommon, *physics.PolygonGeom):
+		return editShapeIn(c.shapes.Polygons, slot.Shape, e)
+	case func(*physics.ShapeCommon, *physics.ChainGeom):
+		return editShapeIn(c.shapes.Chains, slot.Shape, e)
+	case func(*physics.ShapeCommon, *physics.EdgeGeom):
+		return editShapeIn(c.shapes.Edges, slot.Shape, e)
+	case func(*physics.ShapeCommon, *physics.CapsuleGeom):
+		return editShapeIn(c.shapes.Capsules, slot.Shape, e)
+	}
+	panic("harness.EditShape: unknown geometry kind")
+}
+
+func editShapeIn[G physics.Geometry](
+	search *physics.ShapeSearch[G], id cardinal.EntityID, edit func(*physics.ShapeCommon, *G),
+) bool {
+	row, err := search.GetByID(id)
+	if err != nil {
+		return false
+	}
+	common, geom := row.Get[physics.ShapeCommon](), row.Get[G]()
+	edit(&common, &geom)
+	row.Set(common)
+	row.Set(geom)
+	return true
+}
+
+// Shape spawns def as a shape entity through the search matching its geometry
+// kind and returns the slot that references it. A definition the plugin rejects
+// panics, so scenarios that build a deliberately bad one use TryShape.
+func Shape[G physics.Geometry](c *Ctx, def physics.ShapeDef[G]) physics.ShapeSlot {
+	slot, err := TryShape(c, def)
+	if err != nil {
+		panic(err)
+	}
+	return slot
+}
+
+// TryShape is Shape, reporting the plugin's rejection instead of panicking.
+func TryShape[G physics.Geometry](c *Ctx, def physics.ShapeDef[G]) (physics.ShapeSlot, error) {
+	switch d := any(def).(type) {
+	case physics.ShapeDef[physics.CircleGeom]:
+		return d.Spawn(c.shapes.Circles)
+	case physics.ShapeDef[physics.BoxGeom]:
+		return d.Spawn(c.shapes.Boxes)
+	case physics.ShapeDef[physics.PolygonGeom]:
+		return d.Spawn(c.shapes.Polygons)
+	case physics.ShapeDef[physics.ChainGeom]:
+		return d.Spawn(c.shapes.Chains)
+	case physics.ShapeDef[physics.EdgeGeom]:
+		return d.Spawn(c.shapes.Edges)
+	case physics.ShapeDef[physics.CapsuleGeom]:
+		return d.Spawn(c.shapes.Capsules)
+	}
+	panic("harness.TryShape: unknown geometry kind")
+}
 
 // Step is one scheduled action or assertion, run on the given tick after the
 // physics pipeline has stepped. Steps sharing a tick run in declaration order.
@@ -139,6 +243,7 @@ func (e LoggedEvent) Touches(a cardinal.EntityID) bool {
 type Ctx struct {
 	report     *Report
 	probes     *Probes
+	shapes     *ShapeSearches
 	events     *eventStore
 	plugin     *physics.Plugin
 	allowReset func()
@@ -360,32 +465,16 @@ func (c *Ctx) EditBody(id cardinal.EntityID, edit func(pb *physics.PhysicsBody2D
 	c.SetBody(id, pb)
 }
 
-// EditShape applies edit to one shape of the entity's body and writes the body back. Shapes hands
-// out element copies, so a shape changes by being read out, edited, and put back with With —
-// there is no index to assign through.
-func (c *Ctx) EditShape(id cardinal.EntityID, i int, edit func(sh *physics.ColliderShape)) {
-	c.EditBody(id, func(pb *physics.PhysicsBody2D) {
-		sh := pb.Shapes.At(i)
-		edit(&sh)
-		pb.Shapes = pb.Shapes.With(i, sh)
-	})
-}
-
 // Destroy removes the entity from the world.
 func (c *Ctx) Destroy(id cardinal.EntityID) bool {
 	entity, err := c.probes.GetByID(id)
 	return err == nil && entity.Destroy()
 }
 
-// CloneBody deep-copies a PhysicsBody2D including its shapes and their chain geometry, so edits to
-// the copy cannot reach the original. immutable.Slice derivations write through the array they
-// share with the component, so a scenario that means to edit a body has to start from a copy like
-// this one; Map and Collect are the two derivations that allocate instead.
+// CloneBody copies a PhysicsBody2D. Every field is a value (the slot list is an
+// immutable.Slice), so the copy is the clone; it exists so call sites say what
+// they mean.
 func CloneBody(pb physics.PhysicsBody2D) physics.PhysicsBody2D {
-	pb.Shapes = immutable.Map(pb.Shapes, func(s physics.ColliderShape) physics.ColliderShape {
-		s.ChainPoints = immutable.Collect(s.ChainPoints.Values())
-		return s
-	})
 	return pb
 }
 

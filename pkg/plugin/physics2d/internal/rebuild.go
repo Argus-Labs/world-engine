@@ -62,6 +62,7 @@ func (rt *Runtime) FullRebuildFromECS(gravity component.Vec2, entries []PhysicsR
 	clear(rt.Chains)
 	clear(rt.KnownEntities)
 	clear(rt.Shadow)
+	rt.rebuildShapeRefs(sorted)
 	rt.BufferedContacts = rt.BufferedContacts[:0]
 	// Force reload of active-contact baseline from the ECS singleton on the next step. If we
 	// kept the in-memory map, the post-rebuild suppressed diff would compare against stale

@@ -42,8 +42,8 @@ func Material() harness.Scenario {
 		heavyDensity = 10.0
 	)
 
-	zeroG := func(shapes ...physics.ColliderShape) physics.PhysicsBody2D {
-		pb := body(physics.BodyTypeDynamic, shapes...)
+	zeroG := func(c *harness.Ctx, shapes ...ShapeSpec) physics.PhysicsBody2D {
+		pb := body(c, physics.BodyTypeDynamic, shapes...)
 		pb.GravityScale = 0
 		return pb
 	}
@@ -58,37 +58,37 @@ func Material() harness.Scenario {
 			// *max* of the two restitutions, so a bouncy ball must still bounce
 			// off it; that single fact is the combine-rule test.
 			s.floor = c.Spawn("bounce-floor", -30, groundY,
-				body(physics.BodyTypeStatic, withFriction(box(20, 1), floorFrict)))
+				body(c, physics.BodyTypeStatic, withFriction(box(20, 1), floorFrict)))
 			s.deadBall = c.Spawn("restitution-0", -40, dropY,
-				body(physics.BodyTypeDynamic, circle(0.5)))
+				body(c, physics.BodyTypeDynamic, circle(0.5)))
 			s.bouncyBall = c.Spawn("restitution-0.8", -30, dropY,
-				body(physics.BodyTypeDynamic, withRestitution(circle(0.5), 0.8)))
+				body(c, physics.BodyTypeDynamic, withRestitution(circle(0.5), 0.8)))
 
 			// Row y=10 — a frictionless box on a gritty platform. sqrt(0*0.6) is
 			// exactly 0, so it must not lose a millimetre per second.
 			s.slickFloor = c.Spawn("slick-platform", 0, 9,
-				body(physics.BodyTypeStatic, withFriction(box(30, 1), floorFrict)))
+				body(c, physics.BodyTypeStatic, withFriction(box(30, 1), floorFrict)))
 			s.slickBox = c.SpawnMoving("friction-0", -25, 10.5, slideSpeed, 0,
-				body(physics.BodyTypeDynamic, withFriction(box(0.5, 0.5), 0)))
+				body(c, physics.BodyTypeDynamic, withFriction(box(0.5, 0.5), 0)))
 
 			// Row y=20 — same platform material, a gripping box.
 			s.grippyFlr = c.Spawn("grippy-platform", 0, 19,
-				body(physics.BodyTypeStatic, withFriction(box(30, 1), floorFrict)))
+				body(c, physics.BodyTypeStatic, withFriction(box(30, 1), floorFrict)))
 			s.grippyBox = c.SpawnMoving("friction-0.9", -5, 20.5, slideSpeed, 0,
-				body(physics.BodyTypeDynamic, withFriction(box(0.5, 0.5), 0.9)))
+				body(c, physics.BodyTypeDynamic, withFriction(box(0.5, 0.5), 0.9)))
 
 			// Rows y=30 and y=40 — density becomes mass becomes momentum. Two
 			// head-on pairs at the same closing speed: the mismatched pair must
 			// end up moving the heavy body's way, the matched pair must cancel.
 			s.heavy = c.SpawnMoving("density-10", 40, 30, headOnSpeed, 0,
-				zeroG(withDensity(box(0.5, 0.5), heavyDensity)))
+				zeroG(c, withDensity(box(0.5, 0.5), heavyDensity)))
 			s.light = c.SpawnMoving("density-1", 50, 30, -headOnSpeed, 0,
-				zeroG(box(0.5, 0.5)))
+				zeroG(c, box(0.5, 0.5)))
 
 			s.evenA = c.SpawnMoving("even-mass-a", 40, 40, headOnSpeed, 0,
-				zeroG(box(0.5, 0.5)))
+				zeroG(c, box(0.5, 0.5)))
 			s.evenB = c.SpawnMoving("even-mass-b", 50, 40, -headOnSpeed, 0,
-				zeroG(box(0.5, 0.5)))
+				zeroG(c, box(0.5, 0.5)))
 		},
 		EachTick: func(c *harness.Ctx) {
 			// Record how high each ball gets back after its first landing.
