@@ -14,6 +14,12 @@ type RaycastRequest struct {
 	Origin component.Vec2 `json:"origin"`
 	End    component.Vec2 `json:"end"`
 	Filter *Filter        `json:"filter,omitempty"`
+
+	// Ignore lists entities this query must not report. The cast skips an ignored shape and
+	// keeps traversing, so the result is the closest hit that is not ignored rather than no
+	// hit at all — which is what post-filtering the result would give you. Usually one entity:
+	// the caster, or a projectile's owner.
+	Ignore []cardinal.EntityID `json:"ignore,omitempty"`
 }
 
 // RaycastResult is the closest hit along the segment, if any. When Hit is false, other fields are zero.
