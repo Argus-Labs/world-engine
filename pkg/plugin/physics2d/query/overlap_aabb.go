@@ -8,12 +8,9 @@ import (
 // AABBOverlapRequest finds fixtures whose shapes overlap the axis-aligned box [Min, Max] in world space
 // (inclusive bounds on the query box). Min.X may be greater than Max.X; components are swapped per axis.
 type AABBOverlapRequest struct {
-	Min    component.Vec2 `json:"min"`
-	Max    component.Vec2 `json:"max"`
-	Filter *Filter        `json:"filter,omitempty"`
-
-	// Ignore lists entities this query must not report. Usually one entity: the caster, or a
-	// projectile's owner.
+	Min    component.Vec2      `json:"min"`
+	Max    component.Vec2      `json:"max"`
+	Filter *Filter             `json:"filter,omitempty"`
 	Ignore []cardinal.EntityID `json:"ignore,omitempty"`
 }
 
