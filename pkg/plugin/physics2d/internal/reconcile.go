@@ -228,6 +228,10 @@ func (rt *Runtime) reconcileShapesChange(
 	}
 	rt.destroyAllShapesForEntity(entityID)
 	if err := rt.AttachColliderFixtures(entityID, live); err != nil {
+		rt.DestroyEntityBody(entityID)
+		delete(rt.KnownEntities, entityID)
+		delete(rt.Shadow, entityID)
+		rt.PruneActiveContactsInvolvingEntity(entityID)
 		return err
 	}
 	rt.PruneActiveContactsInvolvingEntity(entityID)
