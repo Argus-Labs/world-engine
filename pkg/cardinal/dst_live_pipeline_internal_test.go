@@ -34,6 +34,8 @@ func livePipelineSetup(t *testing.T, cmdCount int) DSTSetupFunc {
 // prng must be the freshly-derived prng the run should consume; both callers pass byte-identical
 // prngs so the only intentional source of variation between runs is Go's per-process / per-range
 // map randomization.
+//
+//nolint:unparam // cmdCount always receives 12 in current tests; kept as a parameter so future tests can vary it.
 func runLivePipeline(t *testing.T, prng *rand.Rand, cmdCount, draws int) []string {
 	t.Helper()
 	cfg := newDSTConfig(prng)
@@ -110,8 +112,8 @@ func TestDST_LivePipeline_TestSeedDeterminismContract(t *testing.T) {
 	// global testutils.Seed must not race with parallel tests that read it via testutils.NewRand.
 
 	origSeed := testutils.Seed
-	testutils.Seed = 0x12345 // the advertised TEST_SEED value
-	t.Cleanup(func() { testutils.Seed = origSeed })
+	testutils.Seed = 0x12345 //nolint:reassign // pinning global seed for determinism contract test
+	t.Cleanup(func() { testutils.Seed = origSeed }) //nolint:reassign // restoring global seed
 
 	const (
 		cmdCount = 12
