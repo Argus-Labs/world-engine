@@ -82,18 +82,28 @@ func RandOpWeights(r *rand.Rand, ops []string) OpWeights {
 }
 
 // RandWeightedOp returns a random operation from a map, using each op's value as its weight.
+// Iteration is over sorted keys so the chosen op for a given prng pick is deterministic regardless
+// of Go's randomized map iteration order. This is required for callers (e.g. the DST op-generation
+// schedule) that must be reproducible under a pinned TEST_SEED.
 func RandWeightedOp(r *rand.Rand, ops OpWeights) string {
+	keys := make([]string, 0, len(ops))
+	for k := range ops {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+
 	var total uint64
-	for _, weight := range ops {
-		total += weight
+	for _, k := range keys {
+		total += ops[k]
 	}
 
 	pick := r.Uint64N(total)
-	for op, weight := range ops {
-		if pick < weight {
-			return op
+	for _, k := range keys {
+		w := ops[k]
+		if pick < w {
+			return k
 		}
-		pick -= weight
+		pick -= w
 	}
 	panic("unreachable")
 }

@@ -2,6 +2,7 @@ package command
 
 import (
 	"math"
+	"slices"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
@@ -148,12 +149,16 @@ func (m *Manager) Clear() {
 // Test helpers
 // -------------------------------------------------------------------------------------------------
 
-// Names returns the names of all registered command types.
+// Names returns the names of all registered command types in deterministic (sorted) order.
+// Sorting is required so callers that depend on iteration order (e.g. the DST op-generation
+// schedule built via testutils.RandOpWeights) are reproducible under a pinned TEST_SEED;
+// Go map iteration order is randomized by the runtime and cannot be controlled by the prng.
 func (m *Manager) Names() []string {
 	names := make([]string, 0, len(m.catalog))
 	for name := range m.catalog {
 		names = append(names, name)
 	}
+	slices.Sort(names)
 	return names
 }
 
