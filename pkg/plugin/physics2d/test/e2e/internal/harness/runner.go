@@ -296,14 +296,19 @@ func (r *Runner) watchNaN(state *stepState, tick uint64) {
 }
 
 // watchWorld fails if the Box2D world disappears mid-run without a scenario
-// having deliberately reset it. Engine() is nil before the first reconcile and
-// after Reset, so only a transition from live back to nil is a bug. The
-// permission a scenario grants via ExpectWorldReset is consumed here either
-// way, so it cannot leave the watchdog switched off for the rest of the run.
+// having deliberately reset it. The permission a scenario grants via
+// ExpectWorldReset is consumed here either way, so it cannot leave the watchdog
+// switched off for the rest of the run.
 //
 // It runs on PreUpdate ahead of the plugin's PhysicsPipelineSystem, which
 // rebuilds a nil world on that same hook: checking any later always sees a
 // live world.
+//
+// worldSeen sticks once a live world has been observed and is never cleared:
+// after a world has existed, any later nil is a live→nil transition, never the
+// "Engine() is nil before the first reconcile" cold start. Clearing it on an
+// allowed nil is what let a chained unannounced Reset on the next tick pass as
+// a cold start.
 func (r *Runner) watchWorld(tick uint64) {
 	allowed := r.resetOK
 	r.resetOK = false
@@ -316,7 +321,6 @@ func (r *Runner) watchWorld(tick uint64) {
 		r.report.Fail("runtime", "the Box2D world stays alive", tick,
 			"Plugin.Engine() went nil after a world had been created")
 	}
-	r.worldSeen = false
 }
 
 // -----------------------------------------------------------------------------

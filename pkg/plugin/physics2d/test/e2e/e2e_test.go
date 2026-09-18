@@ -159,6 +159,59 @@ func TestWorldWatchdogAcceptsAnnouncedReset(t *testing.T) {
 	}
 }
 
+// TestWorldWatchdogFlagsChainedUnannouncedReset pins a one-tick blind spot: an
+// unannounced Plugin.Reset on the tick after an announced one must still fail
+// the run. The watchdog used to clear worldSeen on the allowed nil, so the next
+// unannounced Reset passed as a cold start.
+func TestWorldWatchdogFlagsChainedUnannouncedReset(t *testing.T) {
+	t.Parallel()
+	sc := harness.Scenario{
+		Name: "chained-reset",
+		Setup: func(c *harness.Ctx) {
+			c.Spawn("pad", 0, -1,
+				physcomp.NewPhysicsBody2D(physics.BodyTypeStatic, scenario.SampleShape(physics.ShapeTypeBox)))
+			c.Spawn("rester", 0, 3,
+				physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, scenario.SampleShape(physics.ShapeTypeBox)))
+		},
+		Steps: []harness.Step{
+			{Tick: 10, Do: func(c *harness.Ctx) {
+				c.ExpectWorldReset()
+				c.Plugin().Reset()
+			}},
+			{Tick: 11, Do: func(c *harness.Ctx) { c.Plugin().Reset() }}, // unannounced
+		},
+	}
+	// Unbound from t: the expected failure would otherwise call t.Errorf before
+	// the assertions below read it. The verdict comes from the exit code.
+	cfg := e2eConfig(t, 0)
+	cfg.TB = nil
+	cfg.Verbose = false
+	runner := harness.New([]harness.Scenario{sc}, cfg)
+	world, err := runner.BuildWorld(cfg)
+	require.NoError(t, err, "build world")
+	code := runner.Run(world)
+	require.NotZero(t, code,
+		"the watchdog must fail the chained unannounced Plugin.Reset on tick 11")
+
+	var watchdog harness.Result
+	found := false
+	for _, f := range runner.Report().Failures() {
+		if f.Check == "the Box2D world stays alive" {
+			watchdog = f
+			found = true
+			break
+		}
+	}
+	require.True(t, found,
+		"expected a 'the Box2D world stays alive' failure; got %+v", runner.Report().Failures())
+	// The unannounced Reset ran on tick 11's Update, so tick 12's PreUpdate is
+	// where the watchdog first observes the resulting nil world.
+	require.Equal(t, uint64(12), watchdog.Tick,
+		"watchdog fired on the wrong tick: %+v", watchdog)
+	require.Contains(t, watchdog.Detail, "Plugin.Engine() went nil",
+		"watchdog reported the wrong detail: %+v", watchdog)
+}
+
 // TestDigestIsWorkerInvariant runs every scenario together in one world three times
 // and compares a hash of every body's final state: the same configuration twice,
 // which is the only thing that catches a Go map iterated for its side effects, then
