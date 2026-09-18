@@ -53,32 +53,31 @@ type kindLoader struct {
 	assemble AssembleFunc
 }
 
+// hook reports whether T implements H, checking def first then &def: def covers a pointer-type T
+// (where &def is **T), &def covers a value-type T with pointer-receiver methods.
+func hook[H, T any](def *T) (H, bool) {
+	if h, ok := any(*def).(H); ok {
+		return h, true
+	}
+	h, ok := any(def).(H)
+	return h, ok
+}
+
 // MakeAssemble returns the standard assemble function for kind T: json.Unmarshal into a fresh T,
-// then run Resolve and Validate if T implements them. Each hook is detected against def first,
-// then &def: trying def covers a pointer-type T (where &def is **T and its method set excludes
-// T's methods), and the &def fallback covers a value-type T with a pointer-receiver hook (whose
-// value method set excludes it). Each hook runs at most once. Errors from any step propagate to
-// the caller (LoadAll and Reconcile both panic on them).
+// then Resolve and Validate if T implements them. Errors from any step propagate to the caller
+// (LoadAll and Reconcile both panic on them).
 func MakeAssemble[T Definition]() AssembleFunc {
 	return func(ctx context.Context, resolverSource Source, raw []byte) (Definition, error) {
 		var def T
 		if err := json.Unmarshal(raw, &def); err != nil {
 			return nil, err
 		}
-		r, ok := any(def).(Resolver)
-		if !ok {
-			r, ok = any(&def).(Resolver)
-		}
-		if ok {
+		if r, ok := hook[Resolver](&def); ok {
 			if err := r.Resolve(ctx, resolverSource); err != nil {
 				return nil, err
 			}
 		}
-		v, ok := any(def).(Validator)
-		if !ok {
-			v, ok = any(&def).(Validator)
-		}
-		if ok {
+		if v, ok := hook[Validator](&def); ok {
 			if err := v.Validate(); err != nil {
 				return nil, err
 			}
