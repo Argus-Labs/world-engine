@@ -118,6 +118,7 @@ type Runner struct {
 	lastTick    uint64
 	plugin      *physics.Plugin
 	worldSeen   bool
+	wasNil      bool
 	resetOK     bool
 	digest      bool
 	ticked      int
@@ -238,6 +239,19 @@ func (r *Runner) watchWorldStep(state *watchWorldState) {
 func (r *Runner) step(state *stepState) {
 	tick := state.Tick()
 
+	// Observe post-rebuild liveness: step runs on Update after the plugin's
+	// PreUpdate rebuild, so if the world was nil at the watchdog's PreUpdate
+	// check and has since been rebuilt, it is live here. Resetting wasNil
+	// ensures a scenario Reset() on this tick's Update is detected as a fresh
+	// live→nil transition on the next PreUpdate (see watchWorld). Without this
+	// second sample a chained unannounced Reset on the tick immediately after
+	// an announced one would be invisible: the watchdog's consecutive
+	// PreUpdate observations across that sequence are nil→nil, so wasNil would
+	// stay true and never re-arm.
+	if r.plugin != nil && r.plugin.Engine() != nil {
+		r.wasNil = false
+	}
+
 	for e := range state.ContactBegin.Iter() {
 		r.events.record(ContactBegin, tick, e.ContactEventPayload)
 	}
@@ -304,19 +318,37 @@ func (r *Runner) watchNaN(state *stepState, tick uint64) {
 // It runs on PreUpdate ahead of the plugin's PhysicsPipelineSystem, which
 // rebuilds a nil world on that same hook: checking any later always sees a
 // live world.
+//
+// Two flags track state across ticks. worldSeen sticks once a live world has
+// been observed and is never cleared again: once a world has existed, any
+// later nil is a live→nil transition, never the "Engine() is nil before the
+// first reconcile" cold-start state. wasNil marks that the watchdog is
+// already mid-nil-episode and so fires at most once per transition, so a nil
+// that persists across several PreUpdate checks (before the plugin's rebuild
+// revives it) is reported once, not every tick. A second sample in step
+// (Update, after the rebuild) resets wasNil whenever it sees a live Engine,
+// so a nil→live→nil sequence that happens within a single tick — the rebuild
+// reviving the world in PreUpdate, then a scenario Reset() dropping it again
+// in Update — is still detected as a fresh transition on the next PreUpdate.
+// Resetting wasNil in watchWorld alone would miss that sequence, because the
+// watchdog's consecutive PreUpdate observations across it are nil→nil and
+// never see the live state the rebuild inserts between them.
 func (r *Runner) watchWorld(tick uint64) {
 	allowed := r.resetOK
 	r.resetOK = false
 
 	if r.plugin != nil && r.plugin.Engine() != nil {
 		r.worldSeen = true
+		r.wasNil = false
 		return
 	}
-	if r.worldSeen && !allowed {
-		r.report.Fail("runtime", "the Box2D world stays alive", tick,
-			"Plugin.Engine() went nil after a world had been created")
+	if r.worldSeen && !r.wasNil { // fire once per live→nil transition
+		if !allowed {
+			r.report.Fail("runtime", "the Box2D world stays alive", tick,
+				"Plugin.Engine() went nil after a world had been created")
+		}
+		r.wasNil = true
 	}
-	r.worldSeen = false
 }
 
 // -----------------------------------------------------------------------------
