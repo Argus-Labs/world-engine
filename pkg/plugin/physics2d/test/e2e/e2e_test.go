@@ -159,12 +159,10 @@ func TestWorldWatchdogAcceptsAnnouncedReset(t *testing.T) {
 	}
 }
 
-// TestWorldWatchdogFlagsChainedUnannouncedReset pins the one-tick blind spot
-// left after commit 78905e8: a chained unannounced Plugin.Reset on the tick
-// immediately following an announced (allowed) reset must still fail the run,
-// exactly as a lone unannounced reset does. Before the fix the watchdog wiped
-// its worldSeen baseline on the allowed nil, so the next tick's unannounced
-// Reset looked like a cold-start nil and was silently accepted.
+// TestWorldWatchdogFlagsChainedUnannouncedReset pins a one-tick blind spot: an
+// unannounced Plugin.Reset on the tick after an announced one must still fail
+// the run. The watchdog used to clear worldSeen on the allowed nil, so the next
+// unannounced Reset passed as a cold start.
 func TestWorldWatchdogFlagsChainedUnannouncedReset(t *testing.T) {
 	t.Parallel()
 	sc := harness.Scenario{
@@ -183,9 +181,8 @@ func TestWorldWatchdogFlagsChainedUnannouncedReset(t *testing.T) {
 			{Tick: 11, Do: func(c *harness.Ctx) { c.Plugin().Reset() }}, // unannounced
 		},
 	}
-	// Unbound from t: the expected failure would otherwise call t.Errorf
-	// before the assertions below can read it. The verdict comes from the
-	// exit code and the report, as it does for the CLI.
+	// Unbound from t: the expected failure would otherwise call t.Errorf before
+	// the assertions below read it. The verdict comes from the exit code.
 	cfg := e2eConfig(t, 0)
 	cfg.TB = nil
 	cfg.Verbose = false
