@@ -53,21 +53,31 @@ type kindLoader struct {
 	assemble AssembleFunc
 }
 
+// hook reports whether T implements H, checking def first then &def: def covers a pointer-type T
+// (where &def is **T), &def covers a value-type T with pointer-receiver methods.
+func hook[H, T any](def *T) (H, bool) {
+	if h, ok := any(*def).(H); ok {
+		return h, true
+	}
+	h, ok := any(def).(H)
+	return h, ok
+}
+
 // MakeAssemble returns the standard assemble function for kind T: json.Unmarshal into a fresh T,
-// run Resolve on a pointer (so mutations stick), run Validate on the value. Errors from any step
-// propagate to the caller (LoadAll and Reconcile both panic on them).
+// then Resolve and Validate if T implements them. Errors from any step propagate to the caller
+// (LoadAll and Reconcile both panic on them).
 func MakeAssemble[T Definition]() AssembleFunc {
 	return func(ctx context.Context, resolverSource Source, raw []byte) (Definition, error) {
 		var def T
 		if err := json.Unmarshal(raw, &def); err != nil {
 			return nil, err
 		}
-		if r, ok := any(&def).(Resolver); ok {
+		if r, ok := hook[Resolver](&def); ok {
 			if err := r.Resolve(ctx, resolverSource); err != nil {
 				return nil, err
 			}
 		}
-		if v, ok := any(&def).(Validator); ok {
+		if v, ok := hook[Validator](&def); ok {
 			if err := v.Validate(); err != nil {
 				return nil, err
 			}

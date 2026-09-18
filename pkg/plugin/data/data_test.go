@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unsafe"
@@ -579,4 +580,118 @@ func (pointerRejectingKind) JSONFile() string { return "testdata/abilities.json"
 
 func (k *pointerRejectingKind) Validate() error {
 	return errors.New("pointer_rejecting_kind: rejected")
+}
+
+// -------------------------------------------------------------------------------------------------
+// Tests — pointer-type registration (data.Register[*T])
+// -------------------------------------------------------------------------------------------------
+
+// pointerTypeRegRejectingKind implements Validator on a pointer receiver and always rejects. All
+// methods are pointer-receiver, so the value type does not satisfy Definition and callers must
+// register via data.Register[*pointerTypeRegRejectingKind]. Before the MakeAssemble fix, &def was
+// **pointerTypeRegRejectingKind whose method set excludes the Validate method, so the
+// any(&def).(Validator) assertion silently returned ok==false and the rejecting value loaded.
+type pointerTypeRegRejectingKind struct {
+	Items []AbilityRecord `json:"items"`
+}
+
+func (k *pointerTypeRegRejectingKind) Name() string     { return "test_pointer_type_reg_rejecting_kind" }
+func (k *pointerTypeRegRejectingKind) JSONFile() string { return "testdata/abilities.json" }
+
+func (k *pointerTypeRegRejectingKind) Validate() error {
+	return errors.New("pointer_type_reg_rejecting_kind: rejected")
+}
+
+// TestPlugin_PointerTypeReg_RunsValidator verifies the pointer-type registration call site
+// (data.Register[*T], forced here by pointer-receiver Name/JSONFile) still fires the Validate
+// hook. Sibling of TestPlugin_PointerReceiverValidatorRuns (value-type call site, pointer-receiver
+// Validate); before the fix this asserted no-panic because &def was **T and the assertion skipped.
+func TestPlugin_PointerTypeReg_RunsValidator(t *testing.T) {
+	w := newWorld(t)
+	plugin := data.NewPlugin(data.Config{EmbeddedFS: testFS})
+	data.Register[*pointerTypeRegRejectingKind](plugin)
+	require.Panics(t, func() { w.RegisterPlugin(plugin) })
+}
+
+// pointerTypeRegResolverKind exercises the Resolver hook under pointer-type registration. All
+// methods are pointer-receiver, forcing data.Register[*pointerTypeRegResolverKind]. Before the
+// MakeAssemble fix, the any(&def).(Resolver) assertion silently returned ok==false (def was *T,
+// &def was **T) and the Side field — which Resolve alone populates — stayed empty.
+type pointerTypeRegResolverKind struct {
+	Include string `json:"include"`
+	Side    string `json:"-"`
+}
+
+func (k *pointerTypeRegResolverKind) Name() string { return "test_pointer_type_reg_resolver_kind" }
+func (k *pointerTypeRegResolverKind) JSONFile() string {
+	return "test_pointer_type_reg_resolver_main.json"
+}
+
+func (k *pointerTypeRegResolverKind) Resolve(ctx context.Context, src data.Source) error {
+	raw, _, err := src.Fetch(ctx, k.Include, "")
+	if err != nil {
+		return err
+	}
+	k.Side = string(raw)
+	return nil
+}
+
+// TestPlugin_PointerTypeReg_RunsResolver verifies the pointer-type registration call site
+// (data.Register[*T]) still fires the Resolve hook and the receiver's mutations persist into the
+// catalog. Before the fix, Side stayed empty even though Unmarshal populated Include.
+func TestPlugin_PointerTypeReg_RunsResolver(t *testing.T) {
+	primaryJSON := []byte(`{"include":"testdata/resolver_side.json"}`)
+	primarySrc := &mainOnlyFake{
+		mainFile:  "test_pointer_type_reg_resolver_main.json",
+		mainBytes: primaryJSON,
+	}
+
+	w := newWorld(t)
+	plugin := data.NewPlugin(data.Config{Source: primarySrc, EmbeddedFS: testFS})
+	data.Register[*pointerTypeRegResolverKind](plugin)
+	w.RegisterPlugin(plugin)
+
+	got := data.Get[*pointerTypeRegResolverKind]()
+	require.Equal(t, "testdata/resolver_side.json", got.Include)
+	require.JSONEq(t, "{\"extra\":\"hello\"}\n", got.Side)
+}
+
+// -------------------------------------------------------------------------------------------------
+// Tests — hook dispatch invariants
+// -------------------------------------------------------------------------------------------------
+
+// countingValidatorCalls counts Validate invocations for the exactly-once test. atomic.Int32 is
+// used so reassignment (which the reassign linter flags on package-level vars) is avoided.
+var countingValidatorCalls atomic.Int32
+
+// countingValidator implements a value-receiver Validator over a value-type registration. With a
+// value receiver, both any(def) and any(&def) satisfy the Validator interface (the *T method set is
+// a superset of T's), so this is the case that exercises the "at most once" branch selection in
+// MakeAssemble: a naive pair of independent ifs would dispatch twice.
+type countingValidator struct {
+	Items []AbilityRecord `json:"items"`
+}
+
+func (countingValidator) Name() string     { return "test_counting_validator" }
+func (countingValidator) JSONFile() string { return "testdata/abilities.json" }
+
+func (countingValidator) Validate() error {
+	countingValidatorCalls.Add(1)
+	return nil
+}
+
+// TestPlugin_ValidatorRunsExactlyOnce verifies Validate runs exactly once per load for the
+// value-receiver-on-value-type case, where both def and &def satisfy Validator. Guards against a
+// regression that turns the if/else-if in MakeAssemble into two independent ifs.
+func TestPlugin_ValidatorRunsExactlyOnce(t *testing.T) {
+	countingValidatorCalls.Store(0)
+
+	w := newWorld(t)
+	plugin := data.NewPlugin(data.Config{EmbeddedFS: testFS})
+	data.Register[countingValidator](plugin)
+	w.RegisterPlugin(plugin)
+
+	require.Equal(t, int32(1), countingValidatorCalls.Load(),
+		"Validate should run exactly once per load")
+	require.Len(t, data.Get[countingValidator]().Items, 2)
 }
