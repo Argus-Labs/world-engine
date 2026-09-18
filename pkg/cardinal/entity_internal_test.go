@@ -23,6 +23,8 @@ type entityTestState struct {
 func newEntityTestState(t *testing.T) (*World, *entityTestState) {
 	t.Helper()
 	w := &World{world: ecs.NewWorld()}
+	w.RegisterComponent[testutils.ComponentA]()
+	w.RegisterComponent[testutils.ComponentB]()
 	s := &entityTestState{}
 	require.NoError(t, initSystemFields(reflect.ValueOf(s).Elem(), w))
 	return w, s
@@ -131,27 +133,36 @@ func TestEntity_ZeroAndMissingHandles(t *testing.T) {
 	}
 }
 
-func TestEntity_RegisterArchetype(t *testing.T) {
+func TestEntity_RegisterComponent(t *testing.T) {
 	t.Parallel()
 	w := &World{world: ecs.NewWorld()}
 	state := &BaseSystemState{world: w}
 	require.Panics(t, func() { state.Create[entityTestArchetype]() })
-	w.RegisterArchetype[entityTestArchetype]()
-	w.RegisterArchetype[entityTestArchetype]()
+	w.RegisterComponent[testutils.ComponentA]()
+	w.RegisterComponent[testutils.ComponentA]()
 	entity := state.Create[entityTestArchetype]()
 	entity.Set(testutils.ComponentA{X: 42})
 	assert.Equal(t, testutils.ComponentA{X: 42}, entity.Get[testutils.ComponentA]())
-	require.Panics(t, func() { w.RegisterArchetype[int]() })
-	require.Panics(t, func() { w.RegisterArchetype[struct{ A int }]() })
+	require.Panics(t, func() { state.Create[int]() })
+	require.Panics(t, func() { state.Create[struct{ A int }]() })
 	require.Panics(t, func() {
-		w.RegisterArchetype[struct {
+		state.Create[struct {
 			A *WithComponent[testutils.ComponentA]
 		}]()
 	})
-	w.RegisterArchetype[struct{}]()
 	empty := state.Create[struct{}]()
 	assert.True(t, empty.Alive())
 	assert.False(t, empty.Has[testutils.ComponentA]())
+}
+
+func TestSystemFields_RejectUnregisteredComponent(t *testing.T) {
+	t.Parallel()
+	w := &World{world: ecs.NewWorld()}
+	require.Panics(t, func() { w.RegisterSystem(func(*entityTestState) {}) })
+	w.RegisterComponent[testutils.ComponentA]()
+	require.Panics(t, func() { w.RegisterSystem(func(*entityTestState) {}) })
+	w.RegisterComponent[testutils.ComponentB]()
+	require.NotPanics(t, func() { w.RegisterSystem(func(*entityTestState) {}) })
 }
 
 func TestSearch_LimitZeroDoesNotVisitEntities(t *testing.T) {

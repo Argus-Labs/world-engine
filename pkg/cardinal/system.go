@@ -531,14 +531,14 @@ func (s *WithSystemEventEmitter[T]) Emit(systemEvent T) {
 // Components
 // -------------------------------------------------------------------------------------------------
 
-// search caches an archetype registered during system initialization.
+// search caches an archetype resolved during system initialization.
 type search[T any] struct {
 	world      *ecs.World
 	components bitmap.Bitmap
 }
 
 func (s *search[T]) init(meta *systemInitMetadata) error {
-	components, err := meta.world.registerArchetype[T]()
+	components, err := meta.world.archetype[T]()
 	if err != nil {
 		return err
 	}
@@ -569,7 +569,8 @@ func (s *search[T]) Create() Entity {
 }
 
 // Contains matches entities with all components declared in T, allowing extras.
-// T is a struct of WithComponent[C] fields, registered before the world starts.
+// T is a struct of WithComponent[C] fields whose components are registered with
+// World.RegisterComponent before the world starts.
 type Contains[T any] struct{ search[T] }
 
 // Iter yields each matching entity as a world-bound handle.
@@ -581,7 +582,8 @@ func (c *Contains[T]) GetByID(eid EntityID) (Entity, error) {
 }
 
 // Exact matches entities with exactly the components declared in T.
-// T is a struct of WithComponent[C] fields, registered before the world starts.
+// T is a struct of WithComponent[C] fields whose components are registered with
+// World.RegisterComponent before the world starts.
 type Exact[T any] struct{ search[T] }
 
 // Iter yields each matching entity as a world-bound handle.

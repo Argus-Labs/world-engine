@@ -38,6 +38,7 @@ func makeWorldWorkers(t *testing.T, gravity physics.Vec2, workers int) (*cardina
 		Debug:               &debug,
 	})
 	require.NoError(t, err)
+	w.RegisterComponent[harnessTag]()
 	p := physics.NewPlugin(physics.Config{
 		Gravity:  gravity,
 		TickRate: 60,
