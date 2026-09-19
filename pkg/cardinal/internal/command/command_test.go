@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
@@ -52,7 +53,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 		case opEnqueue:
 			// Pick a random command type and enqueue.
 			payload := generators[prng.IntN(len(generators))]()
-			pbPayload := payload.MarshalWire()
+			pbPayload := schema.Marshal(payload)
 			require.NotNil(t, pbPayload)
 
 			persona := testutils.RandString(prng, 8)
@@ -314,7 +315,7 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 					payload = testutils.CommandB{ID: uint64(i), Label: "test", Enabled: true}
 				}
 
-				pbPayload := payload.MarshalWire()
+				pbPayload := schema.Marshal(payload)
 
 				cmdpb := &iscv1.Command{
 					Name:    payload.Name(),

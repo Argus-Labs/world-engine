@@ -6,8 +6,10 @@ package systemevent
 
 import (
 	pbsystemevent "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/gen/pkg/template/basic/shards/game/system_event"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"unicode/utf8"
 )
 
 func (c PlayerDeath) ToProto() *pbsystemevent.PlayerDeath {
@@ -25,11 +27,7 @@ func (c PlayerDeath) FromProto(p *pbsystemevent.PlayerDeath) PlayerDeath {
 }
 
 func (c PlayerDeath) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerDeath: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerDeath) UnmarshalWire(data []byte) (any, error) {
@@ -42,4 +40,30 @@ func (c PlayerDeath) UnmarshalWire(data []byte) (any, error) {
 
 func (c PlayerDeath) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystemevent.PlayerDeath{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerDeath) SizeWire() int {
+	n := 0
+	if len(c.Nickname) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("PlayerDeath.Nickname", string(c.Nickname))
+	}
+	return n
+}
+
+func (c PlayerDeath) AppendWire(b []byte) []byte {
+	if len(c.Nickname) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Nickname))
+	}
+	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check proto.Marshal
+// performs: a proto3 string holding invalid UTF-8 cannot be decoded, so the size pass
+// fails.
+func wireStringSize(field, s string) int {
+	if !utf8.ValidString(s) {
+		panic("failed to encode " + field + ": string field contains invalid UTF-8")
+	}
+	return protowire.SizeBytes(len(s))
 }

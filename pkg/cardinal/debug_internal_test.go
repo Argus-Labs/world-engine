@@ -22,7 +22,10 @@ import (
 
 type introspectionSample struct{}
 
-func (introspectionSample) Name() string        { return "introspection-sample" }
+func (introspectionSample) Name() string                 { return "introspection-sample" }
+func (c introspectionSample) SizeWire() int              { return len(c.MarshalWire()) }
+func (c introspectionSample) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
 func (introspectionSample) MarshalWire() []byte { return nil }
 func (introspectionSample) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&cardinalv1.TypeSchema{}).ProtoReflect().Descriptor()
@@ -135,7 +138,7 @@ func TestDebugGetStatePublishesEveryTick(t *testing.T) {
 		require.NoError(t, err)
 		snap := resp.Msg.GetSnapshot()
 		assert.Equal(t, completed, snap.GetTickHeight())
-		assert.NotEmpty(t, snap.GetWorldState().GetArchetypes())
+		assert.NotEmpty(t, snap.GetWorldState().GetEntities())
 
 		after, err := proto.MarshalOptions{Deterministic: true}.Marshal(held)
 		require.NoError(t, err)

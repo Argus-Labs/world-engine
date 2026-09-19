@@ -11,7 +11,7 @@ import (
 
 // Component is the interface that all components must implement.
 // Components are pure data containers that can be attached to entities.
-type Component interface { //nolint:iface // may extend later
+type Component interface { //nolint:iface // the wire contract lives on schema.Serializable; this names the ECS role
 	// Name returns a unique string identifier for the component type.
 	// This should be consistent across program executions.
 	//
@@ -39,6 +39,7 @@ type componentManager struct {
 	nextID    ComponentID            // The next available component ID
 	catalog   map[string]ComponentID // Component name -> component ID
 	factories []columnFactory        // Component ID -> column factory
+	names     []string               // Component ID -> name
 }
 
 // newComponentManager creates a new component manager.
@@ -47,6 +48,7 @@ func newComponentManager() componentManager {
 		nextID:    0,
 		catalog:   make(map[string]ComponentID),
 		factories: make([]columnFactory, 0),
+		names:     make([]string, 0),
 	}
 }
 
@@ -91,6 +93,7 @@ func (cm *componentManager) register[T Component](name string) (ComponentID, err
 
 	cm.catalog[name] = cm.nextID
 	cm.factories = append(cm.factories, newColumnFactory[T]())
+	cm.names = append(cm.names, name)
 	cm.nextID++
 	assert.That(int(cm.nextID) == len(cm.factories), "component id doesn't match number of components")
 

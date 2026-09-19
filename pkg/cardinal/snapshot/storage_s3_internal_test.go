@@ -7,13 +7,10 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/argus-labs/world-engine/pkg/testutils"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 // fakeS3 records PUT request bodies and supplies GET response bodies. It does not use a network.
@@ -64,72 +61,33 @@ func newFakeS3Storage(t *testing.T) (*S3Storage, *fakeS3) {
 	return &S3Storage{client: client, bucket: "bucket", key: "org/project/0/snapshot"}, fake
 }
 
-// TestS3StorageStoreOwnership verifies the ownership rules for S3Storage.Store.
-// Store must write the snapshot before it returns. Store must not change or retain the snapshot.
-//
-// Cardinal does not change a snapshot after it calls Store. This test changes the snapshot only to
-// detect a retained reference.
-func TestS3StorageStoreOwnership(t *testing.T) {
+// TestS3StorageStoresBytesVerbatim: Store is pure byte transport — the object S3 receives is
+// exactly the slice handed in, and a second Store writes the new bytes.
+func TestS3StorageStoresBytesVerbatim(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	prng := testutils.NewRand(t)
 
 	store, fake := newFakeS3Storage(t)
-	snap := randomSnapshot(prng)
-	snap.WorldState.Archetypes = append(snap.WorldState.GetArchetypes(), &cardinalv1.Archetype{
-		Columns: []*cardinalv1.Column{{
-			ComponentName: "ownership-probe",
-			Components:    [][]byte{{byte(prng.Uint32())}},
-		}},
-	})
-
-	before, err := marshalSnapshot(snap)
-	require.NoError(t, err)
-
-	require.NoError(t, store.Store(ctx, snap))
+	first := []byte{0x01, 0x02, 0x03}
+	require.NoError(t, store.Store(ctx, 1, first))
 	require.Len(t, fake.puts, 1, "Store must write exactly one object")
-	written := fake.puts[0]
-	assert.Equal(t, before, written, "the object S3 received must be the envelope handed to Store")
+	assert.Equal(t, first, fake.puts[0], "the object S3 received must be the bytes handed to Store")
 
-	// Store must not change the caller's snapshot.
-	unchanged, err := marshalSnapshot(snap)
-	require.NoError(t, err)
-	assert.Equal(t, before, unchanged, "Store mutated the caller's snapshot")
-
-	// A later change to the snapshot must not change the stored bytes.
-	snap.GetWorldState().NextId ^= 1
-	probe := snap.GetWorldState().GetArchetypes()[len(snap.GetWorldState().GetArchetypes())-1]
-	probe.GetColumns()[0].Components[0][0] ^= 1
-	assert.Equal(t, before, fake.puts[0], "S3Storage kept a reference to the caller's graph")
-
-	// A second Store must write the changed snapshot.
-	require.NoError(t, store.Store(ctx, snap))
+	second := []byte{0x09, 0x08}
+	require.NoError(t, store.Store(ctx, 2, second))
 	require.Len(t, fake.puts, 2)
-	assert.NotEqual(t, written, fake.puts[1], "Store must write the graph as it is at call time")
+	assert.Equal(t, second, fake.puts[1])
 }
 
-// TestS3StorageLoadOwnership verifies that each Load returns an independent snapshot.
-func TestS3StorageLoadOwnership(t *testing.T) {
+// TestS3StorageLoadsBytesVerbatim: Load returns exactly what the bucket holds.
+func TestS3StorageLoadsBytesVerbatim(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	prng := testutils.NewRand(t)
 
 	store, fake := newFakeS3Storage(t)
-	expected := randomSnapshot(prng)
-	stored, err := marshalSnapshot(expected)
-	require.NoError(t, err)
-	fake.get = stored
+	fake.get = []byte{0xAA, 0xBB, 0xCC}
 
-	first, err := store.Load(ctx)
+	data, err := store.Load(ctx)
 	require.NoError(t, err)
-	assert.True(t, proto.Equal(expected, first), "Load did not return what was stored")
-
-	// A change to one result must not change the next result.
-	first.TickHeight = 999
-	first.WorldState = &cardinalv1.WorldState{}
-
-	second, err := store.Load(ctx)
-	require.NoError(t, err)
-	assert.NotSame(t, first, second, "Load must not hand out a shared message")
-	assert.True(t, proto.Equal(expected, second), "a previous caller's mutation reached the next Load")
+	assert.Equal(t, fake.get, data)
 }

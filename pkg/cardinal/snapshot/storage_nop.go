@@ -3,7 +3,6 @@ package snapshot
 import (
 	"context"
 
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 )
 
@@ -17,10 +16,10 @@ func NewNopStorage() *NopStorage {
 	return &NopStorage{}
 }
 
-func (n *NopStorage) Store(_ context.Context, _ *cardinalv1.Snapshot) error {
+func (n *NopStorage) Store(_ context.Context, _ uint64, _ []byte) error {
 	return nil
 }
 
-func (n *NopStorage) Load(_ context.Context) (*cardinalv1.Snapshot, error) {
+func (n *NopStorage) Load(_ context.Context) ([]byte, error) {
 	return nil, eris.Wrap(ErrSnapshotNotFound, "no snapshots available (using no-op storage)")
 }

@@ -3,23 +3,19 @@ package cardinal
 import (
 	"bytes"
 	"encoding/gob"
+
 	"reflect"
 	"testing"
+
+	"github.com/argus-labs/world-engine/pkg/testutils"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 )
 
 // Bench component fixtures satisfy schema.Serializable via gob (real components get generated proto
-// codecs; these doubles only need to round-trip). UnmarshalWire returns any — a decode factory.
-func benchGobMarshal[T any](v T) []byte {
-	var b bytes.Buffer
-	// A test double that cannot encode itself is a broken fixture, not a runtime condition.
-	if err := gob.NewEncoder(&b).Encode(v); err != nil {
-		panic(err)
-	}
-	return b.Bytes()
-}
-
+// codecs; these doubles only need to round-trip). The ENCODE side is testutils.GobMarshal and
+// friends, shared so a fixture's SizeWire, AppendWire and MarshalWire cannot disagree. Only the
+// decode side is local, because it returns any — a decode factory — rather than T.
 func benchGobUnmarshal[T any](b []byte) (any, error) {
 	var v T
 	if err := gob.NewDecoder(bytes.NewReader(b)).Decode(&v); err != nil {
@@ -28,25 +24,46 @@ func benchGobUnmarshal[T any](b []byte) (any, error) {
 	return v, nil
 }
 
-func (c Position3D) MarshalWire() []byte                { return benchGobMarshal(c) }
+func (c Position3D) SizeWire() int               { return len(c.MarshalWire()) }
+func (c Position3D) AppendWire(b []byte) []byte  { return append(b, c.MarshalWire()...) }
+func (c Velocity3D) SizeWire() int               { return len(c.MarshalWire()) }
+func (c Velocity3D) AppendWire(b []byte) []byte  { return append(b, c.MarshalWire()...) }
+func (c Health2) SizeWire() int                  { return len(c.MarshalWire()) }
+func (c Health2) AppendWire(b []byte) []byte     { return append(b, c.MarshalWire()...) }
+func (c Transform) SizeWire() int                { return len(c.MarshalWire()) }
+func (c Transform) AppendWire(b []byte) []byte   { return append(b, c.MarshalWire()...) }
+func (c Inventory) SizeWire() int                { return len(c.MarshalWire()) }
+func (c Inventory) AppendWire(b []byte) []byte   { return append(b, c.MarshalWire()...) }
+func (c PlayerStats) SizeWire() int              { return len(c.MarshalWire()) }
+func (c PlayerStats) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+func (c AIBehavior) SizeWire() int               { return len(c.MarshalWire()) }
+func (c AIBehavior) AppendWire(b []byte) []byte  { return append(b, c.MarshalWire()...) }
+func (c Renderer) SizeWire() int                 { return len(c.MarshalWire()) }
+func (c Renderer) AppendWire(b []byte) []byte    { return append(b, c.MarshalWire()...) }
+func (c Physics) SizeWire() int                  { return len(c.MarshalWire()) }
+func (c Physics) AppendWire(b []byte) []byte     { return append(b, c.MarshalWire()...) }
+func (c NetworkSync) SizeWire() int              { return len(c.MarshalWire()) }
+func (c NetworkSync) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
+func (c Position3D) MarshalWire() []byte                { return testutils.GobMarshal(c) }
 func (Position3D) UnmarshalWire(b []byte) (any, error)  { return benchGobUnmarshal[Position3D](b) }
-func (c Velocity3D) MarshalWire() []byte                { return benchGobMarshal(c) }
+func (c Velocity3D) MarshalWire() []byte                { return testutils.GobMarshal(c) }
 func (Velocity3D) UnmarshalWire(b []byte) (any, error)  { return benchGobUnmarshal[Velocity3D](b) }
-func (c Health2) MarshalWire() []byte                   { return benchGobMarshal(c) }
+func (c Health2) MarshalWire() []byte                   { return testutils.GobMarshal(c) }
 func (Health2) UnmarshalWire(b []byte) (any, error)     { return benchGobUnmarshal[Health2](b) }
-func (c Transform) MarshalWire() []byte                 { return benchGobMarshal(c) }
+func (c Transform) MarshalWire() []byte                 { return testutils.GobMarshal(c) }
 func (Transform) UnmarshalWire(b []byte) (any, error)   { return benchGobUnmarshal[Transform](b) }
-func (c Inventory) MarshalWire() []byte                 { return benchGobMarshal(c) }
+func (c Inventory) MarshalWire() []byte                 { return testutils.GobMarshal(c) }
 func (Inventory) UnmarshalWire(b []byte) (any, error)   { return benchGobUnmarshal[Inventory](b) }
-func (c PlayerStats) MarshalWire() []byte               { return benchGobMarshal(c) }
+func (c PlayerStats) MarshalWire() []byte               { return testutils.GobMarshal(c) }
 func (PlayerStats) UnmarshalWire(b []byte) (any, error) { return benchGobUnmarshal[PlayerStats](b) }
-func (c AIBehavior) MarshalWire() []byte                { return benchGobMarshal(c) }
+func (c AIBehavior) MarshalWire() []byte                { return testutils.GobMarshal(c) }
 func (AIBehavior) UnmarshalWire(b []byte) (any, error)  { return benchGobUnmarshal[AIBehavior](b) }
-func (c Renderer) MarshalWire() []byte                  { return benchGobMarshal(c) }
+func (c Renderer) MarshalWire() []byte                  { return testutils.GobMarshal(c) }
 func (Renderer) UnmarshalWire(b []byte) (any, error)    { return benchGobUnmarshal[Renderer](b) }
-func (c Physics) MarshalWire() []byte                   { return benchGobMarshal(c) }
+func (c Physics) MarshalWire() []byte                   { return testutils.GobMarshal(c) }
 func (Physics) UnmarshalWire(b []byte) (any, error)     { return benchGobUnmarshal[Physics](b) }
-func (c NetworkSync) MarshalWire() []byte               { return benchGobMarshal(c) }
+func (c NetworkSync) MarshalWire() []byte               { return testutils.GobMarshal(c) }
 func (NetworkSync) UnmarshalWire(b []byte) (any, error) { return benchGobUnmarshal[NetworkSync](b) }
 
 type entityState1 struct {
