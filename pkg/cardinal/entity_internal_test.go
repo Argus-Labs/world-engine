@@ -6,8 +6,10 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/testutils"
+	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 type entityTestArchetype struct {
@@ -78,7 +80,10 @@ func TestEntity_WorldIsolationAndSnapshotRestore(t *testing.T) {
 
 	// Restore into a newly registered world, then rebind the stored numeric ID.
 	restored, restoredState := newEntityTestState(t)
-	require.NoError(t, restored.world.FromProto(worldA.world.ToProto()))
+	// Encode is now bytes-first (EncodeState); restore still goes through FromProto.
+	var stateAProto cardinalv1.WorldState
+	require.NoError(t, proto.Unmarshal(worldA.world.EncodeState(nil), &stateAProto))
+	require.NoError(t, restored.world.FromProto(&stateAProto))
 	rebound := restoredState.Entity(a.ID())
 	require.True(t, rebound.Alive())
 	assert.Equal(t, testutils.ComponentA{X: 10}, rebound.Get[testutils.ComponentA]())
