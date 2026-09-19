@@ -78,7 +78,7 @@ func AttackSystem(state *AttackSystemState) error {
         if !ok {
             continue
         }
-        if player.Owner.Get() != sender {
+        if player.Get[Owner]() != sender {
             continue // Skip unauthorized commands.
         }
 
