@@ -94,6 +94,12 @@ imported, searched or edited by a game. The whole shape API is one search type,
 There is no delete. The plugin removes a shape entity itself after the first
 reconcile in which no body names it.
 
+`Spawn` de-duplicates: if a live shape already has exactly the same
+geometry, material and filter, you get a ref to that shape instead of a new
+entity. So a fire system that spawns `Circle(0.1)` per bullet still ends up
+with one shape shared by every bullet, no bookkeeping needed. Equality is
+exact, so build repeated definitions from the same constants.
+
 `Spawn` returns `(ShapeRef, error)`. A shape Box2D could never build — a
 radius of zero or less, a box with a zero extent, a polygon outside 3..8
 vertices, any NaN — creates nothing and tells you why, at the line that built

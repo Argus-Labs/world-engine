@@ -13,6 +13,12 @@ import (
 //
 // The Reset happens on the same tick the reset scenario uses, so a run that puts every
 // scenario in one world sees one rebuild, not two.
+// sweepBox spawns a box with its own friction. Spawn de-duplicates equal definitions, and
+// this scenario watches individual shapes live and die, so each one must be distinct.
+func sweepBox(c *harness.Ctx, friction float64) physics.ShapeRef {
+	return withFriction(box(1, 1), friction).Spawn(c)
+}
+
 func ShapeSweep() harness.Scenario {
 	var s struct {
 		lone, loneShape        cardinal.EntityID
@@ -45,38 +51,38 @@ func ShapeSweep() harness.Scenario {
 		Name: "shape-sweep",
 		Setup: func(c *harness.Ctx) {
 			// Row y=0 — one body, one shape; the body dies.
-			slot := box(1, 1).Spawn(c)
+			slot := sweepBox(c, 0.301)
 			s.loneShape = slot.Shape
 			s.lone = wall(c, "lone-wall", 0, 0, slot)
 
 			// Row y=10 — a slot swap releases the old shape.
-			s.swapOld = box(1, 1).Spawn(c)
+			s.swapOld = sweepBox(c, 0.302)
 			s.swapper = wall(c, "swapper", 0, 10, s.swapOld)
 
 			// Row y=20 — two bodies share a shape; they die one at a time.
-			shared := box(1, 1).Spawn(c)
+			shared := sweepBox(c, 0.303)
 			s.shared = shared.Shape
 			s.first = wall(c, "shared-first", -5, 20, shared)
 			s.second = wall(c, "shared-second", 5, 20, shared)
 
 			// A shape no body ever uses: swept by the first reconcile.
-			s.staged = box(1, 1).Spawn(c).Shape
+			s.staged = sweepBox(c, 0.304).Shape
 
 			// Row y=30 — two bodies trade shapes in one tick.
-			s.shapeA, s.shapeB = box(1, 1).Spawn(c), box(1, 1).Spawn(c)
+			s.shapeA, s.shapeB = sweepBox(c, 0.305), sweepBox(c, 0.306)
 			s.a = wall(c, "trade-a", -5, 30, s.shapeA)
 			s.b = wall(c, "trade-b", 5, 30, s.shapeB)
 
 			// Row y=50 — a body that stops attaching, then leaves. It names two shapes; one is
 			// deleted, so its rebuild fails every tick and it holds no shadow. The shapes it
 			// still names must live until the entity itself goes, and go with it.
-			s.brokenKeep = box(1, 1).Spawn(c)
-			s.brokenGone = box(1, 1).Spawn(c).At(vec(5, 0), 0)
+			s.brokenKeep = sweepBox(c, 0.307)
+			s.brokenGone = sweepBox(c, 0.308).At(vec(5, 0), 0)
 			s.broken = c.Spawn("broken-then-gone", 0, 50,
 				physics.NewPhysicsBody2D(physics.BodyTypeStatic, s.brokenKeep, s.brokenGone))
 
 			// Row y=40 — its body dies in the tick the world is reset.
-			slot = box(1, 1).Spawn(c)
+			slot = sweepBox(c, 0.309)
 			s.survivorSlot = slot.Shape
 			s.survivor = wall(c, "reset-orphan", 0, 40, slot)
 		},
@@ -111,7 +117,7 @@ func ShapeSweep() harness.Scenario {
 			}},
 			{Tick: destroyTick, Do: func(c *harness.Ctx) {
 				c.True("destroying the lone body succeeds", c.Destroy(s.lone), "Destroy returned false")
-				s.swapNew = box(1, 1).Spawn(c)
+				s.swapNew = sweepBox(c, 0.310)
 				c.EditBody(s.swapper, func(pb *physics.PhysicsBody2D) { pb.Shapes = pb.Shapes.With(0, s.swapNew) })
 				c.EditBody(s.a, func(pb *physics.PhysicsBody2D) { pb.Shapes = pb.Shapes.With(0, s.shapeB) })
 				c.EditBody(s.b, func(pb *physics.PhysicsBody2D) { pb.Shapes = pb.Shapes.With(0, s.shapeA) })

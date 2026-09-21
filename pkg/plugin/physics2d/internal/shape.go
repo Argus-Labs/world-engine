@@ -133,6 +133,11 @@ func (s ResolvedShape) structuralEqual(o ResolvedShape) bool {
 		s.Capsule == o.Capsule
 }
 
+// Equal reports whether two shapes have the same kind, geometry, material and filter.
+func (s ResolvedShape) Equal(o ResolvedShape) bool {
+	return s.sameExceptPoints(o) && immutable.Equal(s.Chain.Points, o.Chain.Points)
+}
+
 // sameExceptPoints reports whether two mirrored values of one entity are equal, chain points
 // aside (those are fixed once mirrored, so they never count as a change).
 func (s ResolvedShape) sameExceptPoints(o ResolvedShape) bool {

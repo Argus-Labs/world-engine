@@ -49,9 +49,11 @@ func ShapeTags() harness.Scenario {
 		Name: "slot-tags",
 		Setup: func(c *harness.Ctx) {
 			pb := physics.NewPhysicsBody2D(physics.BodyTypeStatic)
-			pb = addSlot(c, pb, "left", box(1, 1).Spawn(c).At(vec(-3, 0), 0))
-			pb = addSlot(c, pb, "mid", box(1, 1).Spawn(c))
-			pb = addSlot(c, pb, "right", box(1, 1).Spawn(c).At(vec(3, 0), 0))
+			// Distinct materials: Spawn de-duplicates, and "left" must be its own entity for
+			// the sweep check below.
+			pb = addSlot(c, pb, "left", withFriction(box(1, 1), 0.41).Spawn(c).At(vec(-3, 0), 0))
+			pb = addSlot(c, pb, "mid", withFriction(box(1, 1), 0.42).Spawn(c))
+			pb = addSlot(c, pb, "right", withFriction(box(1, 1), 0.43).Spawn(c).At(vec(3, 0), 0))
 			s.left = pb.Shapes.At(0)
 			_, err := pb.AddShape("mid", box(1, 1).Spawn(c))
 			c.HasError("AddShape refuses a tag the body already uses", err)

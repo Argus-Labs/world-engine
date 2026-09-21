@@ -166,7 +166,8 @@ func hostileFailingBodyBlocksShapeEdit() harness.Scenario {
 		Setup: func(c *harness.Ctx) {
 			// Spawned first, so its entity id sorts ahead of the healthy body's and it is
 			// reconciled first.
-			doomed = box(1, 1).Spawn(c)
+			// Its own friction: Spawn de-duplicates, and this must not be the healthy body's shape.
+			doomed = withFriction(box(1, 1), 0.31).Spawn(c)
 			c.Spawn("broken", 0, 10, physics.NewPhysicsBody2D(physics.BodyTypeStatic, doomed))
 
 			shared = withFriction(box(1, 1), 0.3).Spawn(c)

@@ -235,8 +235,10 @@ func (d Shape) Endpoints() (Vec2, Vec2) {
 // Shapes: spawning and editing them
 // -------------------------------------------------------------------------------------------------
 //
-// A spawned shape is an entity that any number of bodies share by ShapeRef. Declare one
-// Shapes field on the system state; Cardinal wires it when the system registers.
+// A spawned shape is an entity that any number of bodies share by ShapeRef. Spawn de-duplicates:
+// an equal definition gets a ref to the live shape that already matches, so bodies built from
+// the same definition share one entity without passing refs around. Declare one Shapes field
+// on the system state; Cardinal wires it when the system registers.
 //
 //	type SpawnState struct {
 //	    cardinal.BaseSystemState
@@ -263,12 +265,15 @@ type Shapes struct {
 	shapeSearch
 }
 
-// Spawn validates def, creates a shape entity from it, and returns a ref to that entity at
-// the body origin. Chain At on the ref to place it. A definition that fails validation
-// creates nothing and reports why.
+// Spawn returns a ref, at the body origin, to a shape entity matching def: the live one with
+// exactly the same geometry, material and filter when there is one, else a new one. Chain At
+// on the ref to place it. A definition that fails validation creates nothing and reports why.
 func (s *Shapes) Spawn(def Shape) (ShapeRef, error) {
 	if err := def.Validate(); err != nil {
 		return ShapeRef{}, err
+	}
+	if ref, ok := s.find(def); ok {
+		return ref, nil
 	}
 	row := s.shapeSearch.Create()
 	row.Set(def.s.Common)
@@ -287,6 +292,21 @@ func (s *Shapes) Spawn(def Shape) (ShapeRef, error) {
 		row.Set(def.s.Capsule)
 	}
 	return component.Ref(row.ID()), nil
+}
+
+// find returns a ref to a live shape equal to def. Material is compared first, since it is
+// one component read and rules out most shapes.
+func (s *Shapes) find(def Shape) (ShapeRef, bool) {
+	for row := range s.shapeSearch.Iter() {
+		if row.Get[component.ShapeCommon]() != def.s.Common {
+			continue
+		}
+		ref := component.Ref(row.ID())
+		if got, ok := s.Read(ref); ok && got.s.Equal(def.s) {
+			return ref, true
+		}
+	}
+	return ShapeRef{}, false
 }
 
 // Read returns a copy of the shape behind ref, and false when no shape is behind it.

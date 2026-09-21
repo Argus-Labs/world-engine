@@ -67,6 +67,15 @@ func ShapeEntities() harness.Scenario {
 			s.left = c.Spawn("shared-left", -5, 0, physics.NewPhysicsBody2D(physics.BodyTypeStatic, s.shared))
 			s.right = c.Spawn("shared-right", 5, 0, physics.NewPhysicsBody2D(physics.BodyTypeStatic, s.shared))
 
+			// Spawn de-duplicates: an equal definition is the same shape entity, a different
+			// one is not.
+			again := withFriction(box(1, 1), 0.3).Spawn(c)
+			c.True("Spawn returns the existing shape for an equal definition",
+				again.Shape == s.shared.Shape, "got %d, want %d", again.Shape, s.shared.Shape)
+			other := withFriction(box(1, 1), 0.6).Spawn(c)
+			c.True("Spawn creates a new shape for a different material",
+				other.Shape != s.shared.Shape, "shared the entity")
+
 			// Row y=10 — slot re-pointed at a shape with the same geometry, new material.
 			s.swapSame = c.Spawn("swap-material", 0, 10, body(c, physics.BodyTypeStatic, withFriction(box(1, 1), 0.3)))
 
