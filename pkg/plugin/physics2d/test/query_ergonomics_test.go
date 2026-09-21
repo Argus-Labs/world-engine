@@ -53,7 +53,11 @@ func TestOverlapEntitiesCollapsesPerShapeHits(t *testing.T) {
 		Min: physics.Vec2{X: -1, Y: -1}, Max: physics.Vec2{X: 3, Y: 1},
 	})
 
-	require.Greater(t, len(res.Hits), 2, "the two-slot body should report more hits than entities")
+	require.Equal(t, []physics.AABBOverlapHit{
+		{Entity: *near, ShapeIndex: 0},
+		{Entity: *near, ShapeIndex: 1},
+		{Entity: *mid, ShapeIndex: 0},
+	}, res.Hits, "the box covers both of near's slots and mid's one, and nothing of far's")
 	require.Equal(t, []cardinal.EntityID{*near, *mid}, res.Entities(),
 		"Entities collapses per-shape hits and keeps Hits order")
 }
