@@ -7,7 +7,7 @@ import "fmt"
 // component ([CircleGeom], [BoxGeom], [PolygonGeom], [ChainGeom], [EdgeGeom] or [CapsuleGeom]).
 // Bodies reference the entity from their [ShapeSlot]s.
 //
-// Games change a shape through the shape searches (Fork), which spawn a changed copy rather
+// Games change a shape through the Shapes search (Fork), which spawns a changed copy rather
 // than editing in place, so a shared shape is never changed under another body. The plugin
 // still reads shape entities every tick, so any change to one reaches its fixtures next tick:
 // material or filter in place, geometry or IsSensor by rebuild.
@@ -15,7 +15,7 @@ import "fmt"
 // A shape entity lives exactly as long as some body names it: the plugin deletes it after
 // the first reconcile in which no body does, including a shape spawned with no body. Spawn a
 // shape in the same tick as the first body that uses it, and never hold a slot that no body
-// holds — keep a ShapeDef and spawn from it instead.
+// holds — keep a Shape value and spawn from it instead.
 type ShapeCommon struct {
 	IsSensor     bool    `json:"is_sensor"`
 	Friction     float64 `json:"friction"`

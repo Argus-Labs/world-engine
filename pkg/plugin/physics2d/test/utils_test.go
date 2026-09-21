@@ -59,18 +59,11 @@ func newRigidNoGravity(bodyType physics.BodyType, shapes ...physics.ShapeSlot) p
 	return r
 }
 
-// spawnState is the system state test spawners use: the body archetype and one shape search
-// per geometry kind. Cardinal wires only top-level fields, so every spawning system lists
-// these itself (or uses this type).
+// spawnState is the system state test spawners use: the body archetype and the shape search.
 type spawnState struct {
 	cardinal.BaseSystemState
-	Spawn    spawnArchetype
-	Circles  physics.CircleShapes
-	Boxes    physics.BoxShapes
-	Polygons physics.PolygonShapes
-	Chains   physics.ChainShapes
-	Edges    physics.EdgeShapes
-	Capsules physics.CapsuleShapes
+	Spawn  spawnArchetype
+	Shapes physics.Shapes
 }
 
 // mustSpawn unwraps a Spawn call. Every shape in these tests is a literal, so a rejection is
@@ -82,23 +75,9 @@ func mustSpawn(slot physics.ShapeSlot, err error) physics.ShapeSlot {
 	return slot
 }
 
-// spawnShape spawns def through the search matching its geometry kind and returns the slot.
-func spawnShape[G physics.Geometry](s *spawnState, def physics.ShapeDef[G]) physics.ShapeSlot {
-	switch d := any(def).(type) {
-	case physics.CircleDef:
-		return mustSpawn(d.Spawn(&s.Circles))
-	case physics.BoxDef:
-		return mustSpawn(d.Spawn(&s.Boxes))
-	case physics.PolygonDef:
-		return mustSpawn(d.Spawn(&s.Polygons))
-	case physics.ChainDef:
-		return mustSpawn(d.Spawn(&s.Chains))
-	case physics.EdgeDef:
-		return mustSpawn(d.Spawn(&s.Edges))
-	case physics.CapsuleDef:
-		return mustSpawn(d.Spawn(&s.Capsules))
-	}
-	panic("spawnShape: unknown geometry kind")
+// spawnShape spawns def and returns the slot.
+func spawnShape(s *spawnState, def physics.Shape) physics.ShapeSlot {
+	return mustSpawn(s.Shapes.Spawn(def))
 }
 
 func tickN(t *testing.T, w *cardinal.World, n int) {

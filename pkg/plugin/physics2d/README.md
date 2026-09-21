@@ -49,9 +49,9 @@ body is created in the engine.
 
 | Component | Purpose |
 |---|---|
-| [`Transform2D`](component/spatial.go) | World-space position + rotation (authoritative pose) |
-| [`Velocity2D`](component/spatial.go) | Linear + angular velocity |
-| [`PhysicsBody2D`](component/physics_body.go) | Body kind, damping, flags, and the list of shape slots (`Shapes`) |
+| [`Transform2D`](internal/component/spatial.go) | World-space position + rotation (authoritative pose) |
+| [`Velocity2D`](internal/component/spatial.go) | Linear + angular velocity |
+| [`PhysicsBody2D`](internal/component/physics_body.go) | Body kind, damping, flags, and the list of shape slots (`Shapes`) |
 
 Use the `NewPhysicsBody2D` constructor — bare struct literals leave
 `Active`, `Awake`, `SleepingAllowed` at `false` and `GravityScale` at `0`,
@@ -64,34 +64,35 @@ which produces an inactive, sleeping, gravity-less body.
 > shape entities and its chain points are gone. Purge such worlds and rebuild
 > their shapes as entities.
 
-A body does not carry its shapes inline. Each shape is its own entity with
-two components: [`ShapeCommon`](component/shape_common.go) (sensor flag,
-material, collision filter) and exactly one geometry component from
-[geometry.go](component/geometry.go) — `CircleGeom`, `BoxGeom`,
-`PolygonGeom`, `ChainGeom`, `EdgeGeom` or `CapsuleGeom`. The component
-present *is* the kind; there is no type tag. A body's `Shapes` list holds
-[`ShapeSlot`](component/shape_slot.go)s: the shape entity id plus the
-slot's `LocalOffset` and `LocalRotation` in body space.
+A body does not carry its shapes inline. Each shape is its own entity, and a
+body's `Shapes` list holds [`ShapeSlot`](internal/component/shape_slot.go)s:
+the shape entity id plus the slot's `LocalOffset` and `LocalRotation` in body
+space. So a hundred identical crates are one shape entity and a hundred small
+references.
 
-So a hundred identical crates are one shape entity and a hundred 4-byte
-references, and a circle costs one float instead of a union of every kind's
-fields.
+The components a shape entity carries live under `internal/` and cannot be
+imported, searched or edited by a game. The whole shape API is one search type,
+`physics2d.Shapes`, and one value type, `physics2d.Shape`:
 
-Build a shape with a constructor — `Circle`, `Box`, `Polygon`, `Chain`,
-`ChainLoop`, `Edge`, `Capsule` — chain options onto it — `AsSensor()`,
-`Material(friction, restitution, density)`, `Filter(category, mask)`,
-`Group(index)` — and `Spawn` it through a shape search on your system state.
-A bare constructor already carries Box2D's default material (friction 0.6,
-density 1, category 1, mask all). `Spawn` returns the slot; chain
-`At(offset, rotation)` onto the slot to place it, and reuse the slot on as many
-bodies as you like. Slots only come from `Spawn`, `Fork`, `Clone` and `Read`; the
-shape components themselves live under `internal/` and are not importable by games.
+| Call | Does |
+|---|---|
+| `Circle`, `Box`, `Polygon`, `Chain`, `ChainLoop`, `Edge`, `Capsule` | build a `Shape` with Box2D's default material (friction 0.6, density 1, category 1, mask all) |
+| `.AsSensor()`, `.Material(f, r, d)`, `.Filter(cat, mask)`, `.Group(i)` | chain options onto a `Shape` |
+| `.Reshape(other)` | the other geometry with this shape's material and filter |
+| `.Kind()`, `.Radius()`, `.HalfExtents()`, `.Vertices()`, `.Points()`, `.Loop()`, `.Endpoints()`, `.Friction()`, ... | read a `Shape` back |
+| `state.Shapes.Spawn(shape)` | validates, spawns a shape entity, returns its slot |
+| `state.Shapes.Read(slot)` | a copy of the shape behind a slot |
+| `state.Shapes.Fork(slot, func(Shape) Shape)` | spawns a copy with your edit applied and returns its slot |
 
-`Spawn` validates first and returns `(ShapeSlot, error)`. A definition Box2D
-could never build — a radius of zero or less, a box with a zero extent, a
-polygon outside 3..8 vertices, any NaN — creates nothing and tells you why,
-at the line that built it, instead of becoming a shape entity that fails to
-attach on every tick from then on.
+There is no delete. The plugin removes a shape entity itself after the first
+reconcile in which no body names it.
+
+`Spawn` returns `(ShapeSlot, error)`. A shape Box2D could never build — a
+radius of zero or less, a box with a zero extent, a polygon outside 3..8
+vertices, any NaN — creates nothing and tells you why, at the line that built
+it, instead of becoming a shape entity that fails to attach on every tick from
+then on. Chain `At(offset, rotation)` onto the slot to place it, and reuse the
+slot on as many bodies as you like.
 
 ```go
 import (
@@ -107,9 +108,8 @@ type ballRow struct {
 
 type SpawnState struct {
     cardinal.BaseSystemState
-    Circles physics2d.CircleShapes // one search per shape kind you spawn
-    Boxes   physics2d.BoxShapes
-    Balls   cardinal.Exact[ballRow]
+    Shapes physics2d.Shapes
+    Balls  cardinal.Exact[ballRow]
 }
 
 func SpawnSystem(state *SpawnState) {
@@ -117,7 +117,7 @@ func SpawnSystem(state *SpawnState) {
         return
     }
     // World geometry: a static floor box.
-    floor, err := physics2d.Box(25, 1).Material(0.5, 0, 0).Filter(0x0002, 0xFFFF).Spawn(&state.Boxes)
+    floor, err := state.Shapes.Spawn(physics2d.Box(25, 1).Material(0.5, 0, 0).Filter(0x0002, 0xFFFF))
     if err != nil {
         state.Logger().Error().Err(err).Msg("floor shape rejected")
         return
@@ -128,7 +128,7 @@ func SpawnSystem(state *SpawnState) {
     f.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeStatic, floor))
 
     // One ball shape, shared by every ball.
-    ball, err := physics2d.Circle(0.5).Material(0.3, 0.2, 1).Filter(0x0001, 0xFFFF).Spawn(&state.Circles)
+    ball, err := state.Shapes.Spawn(physics2d.Circle(0.5).Material(0.3, 0.2, 1).Filter(0x0001, 0xFFFF))
     if err != nil {
         state.Logger().Error().Err(err).Msg("ball shape rejected")
         return
@@ -142,53 +142,40 @@ func SpawnSystem(state *SpawnState) {
 }
 ```
 
-The searches (`CircleShapes`, `BoxShapes`, `PolygonShapes`, `ChainShapes`,
-`EdgeShapes`, `CapsuleShapes`) are the way to reach a shape. They hand out
-plain `ShapeDef` values (`CircleDef`, `BoxDef`, ...), never a `Ref`, and the
-root package does not re-export the components a shape entity carries. What
-a search offers:
-
-| Call | Touches |
-|---|---|
-| `Create(def)` / `def.Spawn(&search)` | spawns a new shape entity, returns its slot |
-| `Read(slot)` | a copy of the definition |
-| `Fork(slot, func(ShapeDef) ShapeDef)` | a copy with your edit applied; point the bodies that should change at it |
-| `Clone(slot)` | `Fork` with no edit |
-| `Iter()` | every shape of the kind, as definitions |
-
-There is no delete. The plugin removes a shape entity itself after the first
-reconcile in which no body names it.
-
-Cardinal wires only the top-level fields of a system state, so list the
-searches you use directly on the state. Don't declare your own search over
-the shape components in `component/`: that bypasses the API and edits every
-body sharing the shape without saying so.
-
 A shape is never changed in place. `Fork` gives you a copy with your change
 applied, and only the bodies you point at the new slot change; every body
 still on the original keeps what it had. To change many bodies, `Fork` once
-and re-point each of them at the same new slot. The next tick, a slot whose
-new shape has the same geometry gets its fixture updated in place (material,
-filter), and one whose geometry differs gets its fixture rebuilt. Swapping a
-slot to a different shape entity behaves the same way — same geometry updates in
-place, different geometry rebuilds. A slot whose shape entity is missing
-fails that body's reconcile loudly (logged, no fixtures), and deleting a shape
-entity that a body still uses drops that body's fixtures on the next tick the
-same way. Shape entities are ordinary ECS state and snapshot with everything
-else.
+and re-point each of them at the same new slot. To change geometry, keep the
+material with `Reshape`:
+
+```go
+bigger, err := state.Shapes.Fork(slot, func(s physics2d.Shape) physics2d.Shape {
+    return s.Reshape(physics2d.Circle(5))
+})
+```
+
+The next tick, a slot whose new shape has the same geometry gets its fixture
+updated in place (material, filter), and one whose geometry differs gets its
+fixture rebuilt. Swapping a slot to a different shape entity behaves the same
+way. A slot whose shape entity is missing fails that body's reconcile loudly
+(logged, no fixtures). Shape entities are ordinary ECS state and snapshot with
+everything else.
+
+The one bypass left is Cardinal's own entity handle: `state.Entity(slot.Shape).Destroy()`
+deletes a shape out from under every body naming it. Don't. A body still naming
+it drops its fixtures on the next tick, the same way as a missing shape.
 
 A shape entity lives exactly as long as some body names it. After each
 tick's reconcile the plugin deletes every shape no body names, including
 one you spawned that tick and never put on a body. So spawn a shape in the
-same tick as the first body that uses it, and keep a `ShapeDef` (plain
-data) rather than a slot for shapes you will need later. Sharing still
-works: put the slot the first body got on the others while that body is
-alive.
+same tick as the first body that uses it, and keep a `Shape` (plain data)
+rather than a slot for shapes you will need later. Sharing still works: put
+the slot the first body got on the others while that body is alive.
 
 ### Chain points
 
 Chain shapes (`Chain(points...)`, `ChainLoop(points...)`) carry their
-polyline in `ChainGeom.Points`, so one long polyline is stored once no
+polyline on the shape entity, so one long polyline is stored once no
 matter how many bodies stand on it. Points are the one exception to
 in-place editing: the plugin copies them when it first sees the shape and
 never re-reads them, so a long polyline costs nothing per tick. To change

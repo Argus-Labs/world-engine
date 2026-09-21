@@ -345,7 +345,7 @@ type goldenEntity struct {
 type goldenShape func(s *spawnState) physics.ShapeSlot
 
 // gShape wraps a ready shape definition.
-func gShape[G physics.Geometry](def physics.ShapeDef[G]) goldenShape {
+func gShape(def physics.Shape) goldenShape {
 	return func(s *spawnState) physics.ShapeSlot { return spawnShape(s, def) }
 }
 

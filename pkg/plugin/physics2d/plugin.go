@@ -1,10 +1,9 @@
 // Package physics2d is a Box2D-backed 2D physics plugin for Cardinal (pure-Go Box2D port in
-// pkg/box2d). ECS components live in component; the shape components are deliberately not
-// re-exported here, use the shape searches in shape.go instead. Simulation and reconciliation
-// systems are plugin-internal (internal/system) and are registered for you by Plugin.Register.
-// All derived
-// physics state is owned by the Plugin instance (see Plugin.Reset); the package holds no
-// runtime state.
+// pkg/box2d). The body components are re-exported here; the shape components are not, use
+// the Shapes search in shape.go instead. Simulation and reconciliation systems are
+// plugin-internal (internal/system) and are registered for you by Plugin.Register. All
+// derived physics state is owned by the Plugin instance (see Plugin.Reset); the package holds
+// no runtime state.
 //
 // Usage:
 //
@@ -37,7 +36,7 @@ import (
 
 // Re-exported component types, for callers that import the plugin root only. The plugin's own
 // bookkeeping is not here: the physics singleton and its contact list are plugin state, and the
-// components a shape entity carries are reached through the shape searches in shape.go.
+// components a shape entity carries are reached through Shapes in shape.go.
 type (
 	Vec2      = component.Vec2
 	BodyType  = component.BodyType

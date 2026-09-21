@@ -74,7 +74,7 @@ func baseCommon() physcomp.ShapeCommon {
 }
 
 // spec wraps one geometry component as a spawnable spec with the default material.
-func spec[G physics.Geometry](def physics.ShapeDef[G]) ShapeSpec {
+func spec(def physics.Shape) ShapeSpec {
 	return ShapeSpec{
 		Common: baseCommon(),
 		spawn: func(c *harness.Ctx, common physcomp.ShapeCommon) (physics.ShapeSlot, error) {
@@ -84,7 +84,7 @@ func spec[G physics.Geometry](def physics.ShapeDef[G]) ShapeSpec {
 }
 
 // applyCommon puts the spec's material and filter onto def through the plugin's builders.
-func applyCommon[G physics.Geometry](def physics.ShapeDef[G], common physcomp.ShapeCommon) physics.ShapeDef[G] {
+func applyCommon(def physics.Shape, common physcomp.ShapeCommon) physics.Shape {
 	def = def.Material(common.Friction, common.Restitution, common.Density).
 		Filter(common.CategoryBits, common.MaskBits).Group(common.GroupIndex)
 	if common.IsSensor {

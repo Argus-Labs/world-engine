@@ -11,8 +11,8 @@ import (
 )
 
 // Geometry is the set of geometry components a shape entity may carry, exactly one per
-// entity. The method set repeats cardinal's component contract so WithComponent[G] and
-// Entity.Get[G] can be instantiated from outside the cardinal package.
+// entity. The method set repeats cardinal's component contract so Entity.Get[G] can be
+// instantiated from outside the cardinal package.
 type Geometry interface {
 	component.CircleGeom | component.BoxGeom | component.PolygonGeom |
 		component.ChainGeom | component.EdgeGeom | component.CapsuleGeom
@@ -22,13 +22,6 @@ type Geometry interface {
 	AppendWire([]byte) []byte
 	MarshalWire() []byte
 	UnmarshalWire([]byte) (any, error)
-}
-
-// ShapeRow is the search row for shape entities of one geometry kind: the shared
-// ShapeCommon plus that kind's geometry component.
-type ShapeRow[G Geometry] struct {
-	Common cardinal.WithComponent[component.ShapeCommon]
-	Geom   cardinal.WithComponent[G]
 }
 
 // ShapeKind says which geometry component a mirrored shape entity carries.
@@ -43,6 +36,24 @@ const (
 	ShapeKindEdge
 	ShapeKindCapsule
 )
+
+func (k ShapeKind) String() string {
+	switch k {
+	case ShapeKindCircle:
+		return "circle"
+	case ShapeKindBox:
+		return "box"
+	case ShapeKindPolygon:
+		return "polygon"
+	case ShapeKindChain:
+		return "chain"
+	case ShapeKindEdge:
+		return "edge"
+	case ShapeKindCapsule:
+		return "capsule"
+	}
+	return "no geometry"
+}
 
 // ResolvedShape is one shape entity's components as mirrored by the runtime. Only the
 // geometry field matching Kind is set; the rest stay zero. Chain points are the one list:
@@ -79,11 +90,16 @@ func Resolve[G Geometry](common component.ShapeCommon, geom G) ResolvedShape {
 	return out
 }
 
-// validate runs the component validators for the kind the shape carries.
-func (s ResolvedShape) validate() error {
+// Validate runs the component validators: material, then the geometry the shape carries.
+func (s ResolvedShape) Validate() error {
 	if err := s.Common.Validate(); err != nil {
 		return err
 	}
+	return s.ValidateGeometry()
+}
+
+// ValidateGeometry runs the validator of the geometry kind the shape carries.
+func (s ResolvedShape) ValidateGeometry() error {
 	switch s.Kind {
 	case ShapeKindCircle:
 		return s.Circle.Validate()

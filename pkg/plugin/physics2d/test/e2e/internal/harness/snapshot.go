@@ -51,45 +51,38 @@ type CapturedShape struct {
 	Capsule physcomp.CapsuleGeom
 }
 
-// resolveShape looks the slot's shape entity up through the six searches.
-func resolveShape(sh *ShapeSearches, slot physics.ShapeSlot) CapturedShape {
+// resolveShape reads the slot's shape entity back into its component form.
+func resolveShape(sh *physics.Shapes, slot physics.ShapeSlot) CapturedShape {
 	out := CapturedShape{Slot: slot}
-	if d, ok := sh.Circles.Read(slot); ok {
-		out.Kind, out.Common, out.Circle = "circle", CommonOf(d), physcomp.CircleGeom{Radius: physics.RadiusOf(d)}
+	d, ok := sh.Read(slot)
+	if !ok {
 		return out
 	}
-	if d, ok := sh.Boxes.Read(slot); ok {
-		out.Kind, out.Common, out.Box = "box", CommonOf(d), physcomp.BoxGeom{HalfExtents: physics.HalfExtentsOf(d)}
-		return out
-	}
-	if d, ok := sh.Polygons.Read(slot); ok {
-		verts := physics.VerticesOf(d)
-		g := physcomp.PolygonGeom{Count: uint8(len(verts))} //nolint:gosec // bounded by MaxPolygonVertices
-		copy(g.Vertices[:], verts)
-		out.Kind, out.Common, out.Polygon = "polygon", CommonOf(d), g
-		return out
-	}
-	if d, ok := sh.Chains.Read(slot); ok {
-		out.Kind, out.Common, out.Chain = "chain", CommonOf(d),
-			physcomp.ChainGeom{Points: immutable.SliceOf(physics.PointsOf(d)...), Loop: physics.IsLoop(d)}
-		return out
-	}
-	if d, ok := sh.Edges.Read(slot); ok {
-		a, b := physics.EndpointsOf(d)
-		out.Kind, out.Common, out.Edge = "edge", CommonOf(d), physcomp.EdgeGeom{A: a, B: b}
-		return out
-	}
-	if d, ok := sh.Capsules.Read(slot); ok {
-		a, b, r := physics.CapsuleOf(d)
-		out.Kind, out.Common, out.Capsule = "capsule", CommonOf(d), physcomp.CapsuleGeom{A: a, B: b, Radius: r}
+	out.Kind, out.Common = d.Kind().String(), CommonOf(d)
+	switch d.Kind() {
+	case physics.KindCircle:
+		out.Circle = physcomp.CircleGeom{Radius: d.Radius()}
+	case physics.KindBox:
+		out.Box = physcomp.BoxGeom{HalfExtents: d.HalfExtents()}
+	case physics.KindPolygon:
+		verts := d.Vertices()
+		out.Polygon = physcomp.PolygonGeom{Count: uint8(len(verts))} //nolint:gosec // bounded by MaxPolygonVertices
+		copy(out.Polygon.Vertices[:], verts)
+	case physics.KindChain:
+		out.Chain = physcomp.ChainGeom{Points: immutable.SliceOf(d.Points()...), Loop: d.Loop()}
+	case physics.KindEdge:
+		out.Edge.A, out.Edge.B = d.Endpoints()
+	case physics.KindCapsule:
+		out.Capsule.A, out.Capsule.B = d.Endpoints()
+		out.Capsule.Radius = d.Radius()
 	}
 	return out
 }
 
-// CommonOf reads a definition's material and filter back into the component the harness
-// compares and serializes. Definitions are opaque outside the plugin; this is the one place
+// CommonOf reads a shape's material and filter back into the component the harness
+// compares and serializes. Shapes are opaque outside the plugin; this is the one place
 // the harness needs the struct form.
-func CommonOf[G physics.Geometry](d physics.ShapeDef[G]) physcomp.ShapeCommon {
+func CommonOf(d physics.Shape) physcomp.ShapeCommon {
 	return physcomp.ShapeCommon{
 		IsSensor: d.IsSensor(), Friction: d.Friction(), Restitution: d.Restitution(), Density: d.Density(),
 		CategoryBits: d.Category(), MaskBits: d.Mask(), GroupIndex: d.GroupIndex(),
@@ -130,52 +123,30 @@ func (c Capture) Labels() []string {
 
 // preCaptureState and postCaptureState are the two capture systems. They are
 // separate flat types on purpose: Cardinal names a system after its state type,
-// so two systems sharing one type would collide, and initSystemFields only walks
-// a state struct's top-level fields, so a shared embedded struct would leave
-// Probes uninitialised and the search would fault on first use.
+// so two systems sharing one type would collide.
 type preCaptureState struct {
 	cardinal.BaseSystemState
 	Probes    Probes
-	Circles   physics.CircleShapes
-	Boxes     physics.BoxShapes
-	Polygons  physics.PolygonShapes
-	Chains    physics.ChainShapes
-	Edges     physics.EdgeShapes
-	Capsules  physics.CapsuleShapes
+	Shapes    physics.Shapes
 	Singleton cardinal.Contains[SingletonRow]
 }
 
-func (s *preCaptureState) shapes() *ShapeSearches {
-	return &ShapeSearches{
-		Circles: &s.Circles, Boxes: &s.Boxes, Polygons: &s.Polygons, Chains: &s.Chains,
-		Edges: &s.Edges, Capsules: &s.Capsules,
-	}
-}
+func (s *preCaptureState) shapes() *physics.Shapes { return &s.Shapes }
 
 type postCaptureState struct {
 	cardinal.BaseSystemState
 	Probes    Probes
-	Circles   physics.CircleShapes
-	Boxes     physics.BoxShapes
-	Polygons  physics.PolygonShapes
-	Chains    physics.ChainShapes
-	Edges     physics.EdgeShapes
-	Capsules  physics.CapsuleShapes
+	Shapes    physics.Shapes
 	Singleton cardinal.Contains[SingletonRow]
 }
 
-func (s *postCaptureState) shapes() *ShapeSearches {
-	return &ShapeSearches{
-		Circles: &s.Circles, Boxes: &s.Boxes, Polygons: &s.Polygons, Chains: &s.Chains,
-		Edges: &s.Edges, Capsules: &s.Capsules,
-	}
-}
+func (s *postCaptureState) shapes() *physics.Shapes { return &s.Shapes }
 
 // capture copies every body's components (and the shape entities its slots
 // reference) into into, replacing whatever was there. A fresh map is allocated
 // each time, so a caller that copies the Capture struct keeps that tick's state
 // even as later ticks overwrite the field.
-func capture(probes *Probes, shapes *ShapeSearches, singleton *cardinal.Contains[SingletonRow], into *Capture) {
+func capture(probes *Probes, shapes *physics.Shapes, singleton *cardinal.Contains[SingletonRow], into *Capture) {
 	rows := make(map[string]CaptureRow, len(into.Rows))
 	for row := range probes.Iter() {
 		eid := row.ID()

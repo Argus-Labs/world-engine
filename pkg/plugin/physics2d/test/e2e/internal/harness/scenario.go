@@ -29,38 +29,9 @@ type ProbeRow struct {
 // scenario is free to add extra components to an entity later on.
 type Probes = cardinal.Contains[ProbeRow]
 
-// ShapeSearches is the set of per-kind shape searches a harness system carries so
-// scenarios can spawn shape entities. Cardinal wires only a state's top-level
-// fields, so every state declares the six searches itself and hands them over
-// through this view.
-type ShapeSearches struct {
-	Circles  *physics.CircleShapes
-	Boxes    *physics.BoxShapes
-	Polygons *physics.PolygonShapes
-	Chains   *physics.ChainShapes
-	Edges    *physics.EdgeShapes
-	Capsules *physics.CapsuleShapes
-}
-
 // ShapeAlive reports whether a shape entity of any kind still exists.
 func (c *Ctx) ShapeAlive(id cardinal.EntityID) bool {
-	sh := c.shapes
-	if _, ok := sh.Circles.GetByID(id); ok {
-		return true
-	}
-	if _, ok := sh.Boxes.GetByID(id); ok {
-		return true
-	}
-	if _, ok := sh.Polygons.GetByID(id); ok {
-		return true
-	}
-	if _, ok := sh.Chains.GetByID(id); ok {
-		return true
-	}
-	if _, ok := sh.Edges.GetByID(id); ok {
-		return true
-	}
-	_, ok := sh.Capsules.GetByID(id)
+	_, ok := c.shapes.Read(physics.ShapeSlot{Shape: id})
 	return ok
 }
 
@@ -69,78 +40,21 @@ func (c *Ctx) ShapeAlive(id cardinal.EntityID) bool {
 // deleted-shape case pins what the plugin does about it.
 func (c *Ctx) DestroyShape(id cardinal.EntityID) bool { return c.entity(id).Destroy() }
 
-// ForkShape forks the shape behind slot through the search for D's kind, where D is one of
-// the per-kind definitions (physics.CircleDef, ...), and returns the new slot. Like the
-// plugin's Fork, the shape behind slot is untouched.
-func ForkShape[D any](c *Ctx, slot physics.ShapeSlot, edit func(D) D) (physics.ShapeSlot, bool) {
-	switch e := any(edit).(type) {
-	case func(physics.CircleDef) physics.CircleDef:
-		return c.shapes.Circles.Fork(slot, e)
-	case func(physics.BoxDef) physics.BoxDef:
-		return c.shapes.Boxes.Fork(slot, e)
-	case func(physics.PolygonDef) physics.PolygonDef:
-		return c.shapes.Polygons.Fork(slot, e)
-	case func(physics.ChainDef) physics.ChainDef:
-		return c.shapes.Chains.Fork(slot, e)
-	case func(physics.EdgeDef) physics.EdgeDef:
-		return c.shapes.Edges.Fork(slot, e)
-	case func(physics.CapsuleDef) physics.CapsuleDef:
-		return c.shapes.Capsules.Fork(slot, e)
-	}
-	panic("harness.ForkShape: D is not a per-kind shape definition")
+// ForkShape forks the shape behind slot and returns the new slot. Like the plugin's Fork,
+// the shape behind slot is untouched.
+func ForkShape(c *Ctx, slot physics.ShapeSlot, edit func(physics.Shape) physics.Shape) (physics.ShapeSlot, error) {
+	return c.shapes.Fork(slot, edit)
 }
 
-// ReadShape returns a copy of the definition of the shape behind slot, for definition kind D.
-func ReadShape[D any](c *Ctx, slot physics.ShapeSlot) (D, bool) {
-	var def any
-	var ok bool
-	switch any(*new(D)).(type) {
-	case physics.CircleDef:
-		def, ok = c.shapes.Circles.Read(slot)
-	case physics.BoxDef:
-		def, ok = c.shapes.Boxes.Read(slot)
-	case physics.PolygonDef:
-		def, ok = c.shapes.Polygons.Read(slot)
-	case physics.ChainDef:
-		def, ok = c.shapes.Chains.Read(slot)
-	case physics.EdgeDef:
-		def, ok = c.shapes.Edges.Read(slot)
-	case physics.CapsuleDef:
-		def, ok = c.shapes.Capsules.Read(slot)
-	default:
-		panic("harness.ReadShape: D is not a per-kind shape definition")
-	}
-	if !ok {
-		return *new(D), false
-	}
-	typed, isD := def.(D)
-	return typed, isD
+// ReadShape returns a copy of the shape behind slot.
+func ReadShape(c *Ctx, slot physics.ShapeSlot) (physics.Shape, bool) {
+	return c.shapes.Read(slot)
 }
 
-// CloneShape copies the shape behind slot through the search for definition kind D and
-// returns a slot for the copy.
-func CloneShape[D any](c *Ctx, slot physics.ShapeSlot) (physics.ShapeSlot, bool) {
-	switch any(*new(D)).(type) {
-	case physics.CircleDef:
-		return c.shapes.Circles.Clone(slot)
-	case physics.BoxDef:
-		return c.shapes.Boxes.Clone(slot)
-	case physics.PolygonDef:
-		return c.shapes.Polygons.Clone(slot)
-	case physics.ChainDef:
-		return c.shapes.Chains.Clone(slot)
-	case physics.EdgeDef:
-		return c.shapes.Edges.Clone(slot)
-	case physics.CapsuleDef:
-		return c.shapes.Capsules.Clone(slot)
-	}
-	panic("harness.CloneShape: D is not a per-kind shape definition")
-}
-
-// Shape spawns def as a shape entity through the search matching its geometry
-// kind and returns the slot that references it. A definition the plugin rejects
-// panics, so scenarios that build a deliberately bad one use TryShape.
-func Shape[G physics.Geometry](c *Ctx, def physics.ShapeDef[G]) physics.ShapeSlot {
+// Shape spawns def as a shape entity and returns the slot that references it. A
+// definition the plugin rejects panics, so scenarios that build a deliberately bad
+// one use TryShape.
+func Shape(c *Ctx, def physics.Shape) physics.ShapeSlot {
 	slot, err := TryShape(c, def)
 	if err != nil {
 		panic(err)
@@ -149,22 +63,8 @@ func Shape[G physics.Geometry](c *Ctx, def physics.ShapeDef[G]) physics.ShapeSlo
 }
 
 // TryShape is Shape, reporting the plugin's rejection instead of panicking.
-func TryShape[G physics.Geometry](c *Ctx, def physics.ShapeDef[G]) (physics.ShapeSlot, error) {
-	switch d := any(def).(type) {
-	case physics.CircleDef:
-		return d.Spawn(c.shapes.Circles)
-	case physics.BoxDef:
-		return d.Spawn(c.shapes.Boxes)
-	case physics.PolygonDef:
-		return d.Spawn(c.shapes.Polygons)
-	case physics.ChainDef:
-		return d.Spawn(c.shapes.Chains)
-	case physics.EdgeDef:
-		return d.Spawn(c.shapes.Edges)
-	case physics.CapsuleDef:
-		return d.Spawn(c.shapes.Capsules)
-	}
-	panic("harness.TryShape: unknown geometry kind")
+func TryShape(c *Ctx, def physics.Shape) (physics.ShapeSlot, error) {
+	return c.shapes.Spawn(def)
 }
 
 // Step is one scheduled action or assertion, run on the given tick after the
@@ -276,7 +176,7 @@ func (e LoggedEvent) Touches(a cardinal.EntityID) bool {
 type Ctx struct {
 	report     *Report
 	probes     *Probes
-	shapes     *ShapeSearches
+	shapes     *physics.Shapes
 	entity     func(cardinal.EntityID) cardinal.Entity
 	events     *eventStore
 	plugin     *physics.Plugin

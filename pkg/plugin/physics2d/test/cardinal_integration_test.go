@@ -254,7 +254,7 @@ func manualMoveSystem(state *struct {
 func newVerifySystem(p *physics.Plugin) func(state *struct {
 	cardinal.BaseSystemState
 	Spawn          spawnArchetype
-	Boxes          physics.BoxShapes
+	Shapes         physics.Shapes
 	ContactBeginRx cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
 	ContactEndRx   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
 	TriggerBeginRx cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
@@ -263,7 +263,7 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 	return func(state *struct {
 		cardinal.BaseSystemState
 		Spawn          spawnArchetype
-		Boxes          physics.BoxShapes
+		Shapes         physics.Shapes
 		ContactBeginRx cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
 		ContactEndRx   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
 		TriggerBeginRx cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
@@ -453,7 +453,7 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 				row.Set(physics.Transform2D{Position: physics.Vec2{X: 5, Y: 1}})
 				row.Set(physics.Velocity2D{})
 				row.Set(newRigid(physics.BodyTypeStatic,
-					mustSpawn(physics.Box(0.5, 0.5).Material(0.5, 0, 0).Filter(0x0001, 0xFFFF).Spawn(&state.Boxes))))
+					mustSpawn(state.Shapes.Spawn(physics.Box(0.5, 0.5).Material(0.5, 0, 0).Filter(0x0001, 0xFFFF)))))
 				harness.NewBox = id
 			}
 		}

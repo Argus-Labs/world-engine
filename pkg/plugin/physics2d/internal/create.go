@@ -107,7 +107,7 @@ func (rt *Runtime) validateSlot(slot component.ShapeSlot) (ResolvedShape, error)
 	if err != nil {
 		return ResolvedShape{}, err
 	}
-	return sh, sh.validate()
+	return sh, sh.Validate()
 }
 
 // CreateBodyWithCollider creates a body and attaches all shapes. If shape attachment

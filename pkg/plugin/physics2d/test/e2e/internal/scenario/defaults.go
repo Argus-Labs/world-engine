@@ -356,20 +356,24 @@ func checkShapeConstructors(c *harness.Ctx) {
 		IsSensor: true, Friction: 0.1, Restitution: 0.2, Density: 0.3,
 		CategoryBits: 0x2, MaskBits: 0x4, GroupIndex: -1,
 	}, "got %+v", harness.CommonOf(d))
-	c.True("Box stores its half extents", physics.HalfExtentsOf(d) == vec(1, 1), "got %+v", physics.HalfExtentsOf(d))
-	c.True("Circle stores its radius", physics.RadiusOf(physics.Circle(0.5)) == 0.5, "")
-	ea, eb := physics.EndpointsOf(physics.Edge(vec(0, 0), vec(1, 0)))
+	c.True("Box stores its half extents", d.HalfExtents() == vec(1, 1), "got %+v", d.HalfExtents())
+	c.True("Box reports its kind", d.Kind() == physics.KindBox, "got %s", d.Kind())
+	c.True("Circle stores its radius", physics.Circle(0.5).Radius() == 0.5, "")
+	ea, eb := physics.Edge(vec(0, 0), vec(1, 0)).Endpoints()
 	c.True("Edge stores its endpoints", ea == vec(0, 0) && eb == vec(1, 0), "")
-	ca, cb, cr := physics.CapsuleOf(physics.Capsule(vec(0, 0), vec(1, 0), 0.25))
-	c.True("Capsule stores its endpoints and radius", ca == vec(0, 0) && cb == vec(1, 0) && cr == 0.25, "")
+	capsule := physics.Capsule(vec(0, 0), vec(1, 0), 0.25)
+	ca, cb := capsule.Endpoints()
+	c.True("Capsule stores its endpoints and radius", ca == vec(0, 0) && cb == vec(1, 0) && capsule.Radius() == 0.25, "")
+	c.True("readers of another kind return zero", d.Radius() == 0 && d.Vertices() == nil, "")
 
 	line := []physics.Vec2{vec(0, 0), vec(1, 0)}
 	chain := physics.Chain(line...)
-	c.True("Chain copies its points", slices.Equal(physics.PointsOf(chain), line) && !physics.IsLoop(chain), "")
-	c.True("ChainLoop closes the polyline", physics.IsLoop(physics.ChainLoop(line...)), "Loop is false")
+	c.True("Chain copies its points", slices.Equal(chain.Points(), line) && !chain.Loop(), "")
+	c.True("ChainLoop closes the polyline", physics.ChainLoop(line...).Loop(), "Loop is false")
 
 	tri := physics.Polygon(vec(0, 0), vec(1, 0), vec(0, 1))
-	c.Int("Polygon counts its vertices", len(physics.VerticesOf(tri)), 3)
+	c.Int("Polygon counts its vertices", len(tri.Vertices()), 3)
+	c.HasError("the zero Shape fails validation", physics.Shape{}.Validate())
 	c.NoError("Polygon of three vertices validates", tri.Validate())
 	nine := make([]physics.Vec2, 9)
 	for i := range nine {

@@ -162,7 +162,7 @@ func (r *Runner) Plugin() *physics.Plugin { return r.plugin }
 func (r *Runner) LastTick() uint64 { return r.lastTick }
 
 func (r *Runner) ctx(
-	scenario *Scenario, probes *Probes, shapes *ShapeSearches,
+	scenario *Scenario, probes *Probes, shapes *physics.Shapes,
 	entity func(cardinal.EntityID) cardinal.Entity, tick uint64,
 ) *Ctx {
 	return &Ctx{
@@ -189,42 +189,22 @@ func (r *Runner) ctx(
 // its first FullRebuildFromECS.
 type setupState struct {
 	cardinal.BaseSystemState
-	Probes   Probes
-	Circles  physics.CircleShapes
-	Boxes    physics.BoxShapes
-	Polygons physics.PolygonShapes
-	Chains   physics.ChainShapes
-	Edges    physics.EdgeShapes
-	Capsules physics.CapsuleShapes
+	Probes Probes
+	Shapes physics.Shapes
 }
 
-func (s *setupState) shapes() *ShapeSearches {
-	return &ShapeSearches{
-		Circles: &s.Circles, Boxes: &s.Boxes, Polygons: &s.Polygons, Chains: &s.Chains,
-		Edges: &s.Edges, Capsules: &s.Capsules,
-	}
-}
+func (s *setupState) shapes() *physics.Shapes { return &s.Shapes }
 
 // preStepState runs every scenario's EachTick on PreUpdate. It is registered
 // before the plugin so gameplay writes land in ECS before the reconciler reads
 // them in the same tick.
 type preStepState struct {
 	cardinal.BaseSystemState
-	Probes   Probes
-	Circles  physics.CircleShapes
-	Boxes    physics.BoxShapes
-	Polygons physics.PolygonShapes
-	Chains   physics.ChainShapes
-	Edges    physics.EdgeShapes
-	Capsules physics.CapsuleShapes
+	Probes Probes
+	Shapes physics.Shapes
 }
 
-func (s *preStepState) shapes() *ShapeSearches {
-	return &ShapeSearches{
-		Circles: &s.Circles, Boxes: &s.Boxes, Polygons: &s.Polygons, Chains: &s.Chains,
-		Edges: &s.Edges, Capsules: &s.Capsules,
-	}
-}
+func (s *preStepState) shapes() *physics.Shapes { return &s.Shapes }
 
 // watchWorldState runs the liveness watchdog on PreUpdate. See watchWorld.
 type watchWorldState struct {
@@ -237,24 +217,14 @@ type watchWorldState struct {
 type stepState struct {
 	cardinal.BaseSystemState
 	Probes       Probes
-	Circles      physics.CircleShapes
-	Boxes        physics.BoxShapes
-	Polygons     physics.PolygonShapes
-	Chains       physics.ChainShapes
-	Edges        physics.EdgeShapes
-	Capsules     physics.CapsuleShapes
+	Shapes       physics.Shapes
 	ContactBegin cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
 	ContactEnd   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
 	TriggerBegin cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
 	TriggerEnd   cardinal.WithSystemEventReceiver[physics.TriggerEndEvent]
 }
 
-func (s *stepState) shapes() *ShapeSearches {
-	return &ShapeSearches{
-		Circles: &s.Circles, Boxes: &s.Boxes, Polygons: &s.Polygons, Chains: &s.Chains,
-		Edges: &s.Edges, Capsules: &s.Capsules,
-	}
-}
+func (s *stepState) shapes() *physics.Shapes { return &s.Shapes }
 
 func (r *Runner) setup(state *setupState) {
 	for _, s := range r.scenarios {
@@ -389,6 +359,12 @@ func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Snapshots address components by registration order, so a world that restores one
+	// must register in the same order as the world that took it. The capture systems are
+	// optional and register early, so pin the harness's components ahead of everything.
+	w.RegisterArchetype[ProbeRow]()
+	w.RegisterArchetype[SingletonRow]()
 
 	w.RegisterSystem(r.setup, cardinal.WithHook(cardinal.Init))
 	w.RegisterSystem(r.preStep, cardinal.WithHook(cardinal.PreUpdate))
