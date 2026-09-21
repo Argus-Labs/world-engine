@@ -363,7 +363,7 @@ func checkShapeConstructors(c *harness.Ctx) {
 			"got %+v, want %+v", common, defaults)
 	}
 
-	d := physics.Box(1, 1).AsSensor().Material(0.1, 0.2, 0.3).Filter(0x2, 0x4).Group(-1)
+	d := physics.Box(1, 1).Sensor(true).Material(0.1, 0.2, 0.3).Filter(0x2, 0x4).Group(-1)
 	c.True("the options set exactly what they say", harness.CommonOf(d) == physcomp.ShapeCommon{
 		IsSensor: true, Friction: 0.1, Restitution: 0.2, Density: 0.3,
 		CategoryBits: 0x2, MaskBits: 0x4, GroupIndex: -1,

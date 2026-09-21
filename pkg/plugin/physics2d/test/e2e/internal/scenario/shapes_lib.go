@@ -88,7 +88,7 @@ func applyCommon(def physics.Shape, common physcomp.ShapeCommon) physics.Shape {
 	def = def.Material(common.Friction, common.Restitution, common.Density).
 		Filter(common.CategoryBits, common.MaskBits).Group(common.GroupIndex)
 	if common.IsSensor {
-		def = def.AsSensor()
+		def = def.Sensor(true)
 	}
 	return def
 }

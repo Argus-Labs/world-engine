@@ -7,40 +7,61 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/immutable"
+	physicevent "github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
+	physicsquery "github.com/argus-labs/world-engine/pkg/plugin/physics2d/query"
 )
 
-// A shape is an entity: a material/filter component plus exactly one geometry component.
-// Bodies reference it from a ShapeRef, so any number of bodies share one shape.
+// -------------------------------------------------------------------------------------------------
+// Bodies: the components an entity carries
+// -------------------------------------------------------------------------------------------------
 //
-// Games never touch those components. This package does not export them, and the Shapes
-// search hands out and accepts plain Shape values instead of entity handles. Declare one
-// Shapes field on the system state, then spawn, read or fork through it:
+// An entity is simulated while it has all three. Build the body with NewPhysicsBody2D so the
+// Box2D defaults (active, awake, gravity scale 1) are set; a bare literal is an inactive body.
 //
-//	type SpawnState struct {
-//	    cardinal.BaseSystemState
-//	    Shapes physics2d.Shapes
-//	    Balls  cardinal.Exact[ballRow]
-//	}
+//	row.Set(physics2d.Transform2D{Position: physics2d.Vec2{X: 1, Y: 10}})
+//	row.Set(physics2d.Velocity2D{})
+//	row.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic, ball))
 //
-//	func Spawn(state *SpawnState) {
-//	    ball, err := state.Shapes.Spawn(physics2d.Circle(0.5).Material(0.3, 0.1, 1))
-//	    if err != nil {
-//	        return // the definition is unusable; nothing was created
-//	    }
-//	    row := state.Balls.Create()
-//	    row.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic, ball))
-//	}
+// A body's Shapes are ShapeRefs: which shape entity, and where it sits on the body. Tag them
+// and edit by name (AddShape, ReplaceShape, RemoveShape) instead of by index.
+
+// Components an entity needs to be simulated.
+type (
+	Transform2D   = component.Transform2D
+	Velocity2D    = component.Velocity2D
+	PhysicsBody2D = component.PhysicsBody2D
+)
+
+// Value types the components are built from.
+type (
+	Vec2     = component.Vec2
+	BodyType = component.BodyType
+	ShapeRef = component.ShapeRef
+)
+
+// Body kinds.
+const (
+	BodyTypeStatic    = component.BodyTypeStatic
+	BodyTypeDynamic   = component.BodyTypeDynamic
+	BodyTypeKinematic = component.BodyTypeKinematic
+	BodyTypeManual    = component.BodyTypeManual
+)
+
+// NewPhysicsBody2D returns a PhysicsBody2D with Box2D-compatible defaults and the given shapes.
+func NewPhysicsBody2D(bodyType BodyType, shapes ...ShapeRef) PhysicsBody2D {
+	return component.NewPhysicsBody2D(bodyType, shapes...)
+}
+
+// -------------------------------------------------------------------------------------------------
+// Shapes: describing one
+// -------------------------------------------------------------------------------------------------
 //
-// Spawn returns a ShapeRef; put it on more bodies to share the shape. A shape lives exactly
-// as long as some body names it, so spawn it in the same tick as its first body and keep
-// Shape values, not refs, for shapes you will need later.
+// A Shape is a plain value: one geometry plus material and filter. Build it with a
+// constructor and chain options onto it; nothing exists in the world until Shapes.Spawn.
 //
-// A shape is never edited in place: to change one, Fork it (a copy with your edit applied)
-// and point the body at the result. That can only ever affect the bodies you re-point, so a
-// shape shared by other bodies stays as it was. To change many bodies, Fork once and re-point
-// each of them at the same new ref.
+//	ball := physics2d.Circle(0.5).Material(0.3, 0.1, 1).Filter(0x1, 0xFFFF)
 
 // Kind is a shape's geometry kind.
 type Kind = internal.ShapeKind
@@ -55,10 +76,12 @@ const (
 	KindCapsule = internal.ShapeKindCapsule
 )
 
-// Shape is a shape's definition: geometry, material and filter. It is a plain value with no
-// tie to any entity; constructors carry Box2D's default material (solid, friction 0.6,
-// restitution 0, density 1, category 1, mask all). The zero Shape has no geometry and
-// fails Validate.
+// MaxPolygonVertices is Box2D's convex polygon vertex limit.
+const MaxPolygonVertices = component.MaxPolygonVertices
+
+// Shape is a shape's definition: geometry, material and filter. Constructors carry Box2D's
+// default material (solid, friction 0.6, restitution 0, density 1, category 1, mask all).
+// The zero Shape has no geometry and fails Validate.
 type Shape struct {
 	s internal.ResolvedShape
 }
@@ -108,9 +131,10 @@ func Capsule(a, b Vec2, radius float64) Shape {
 	return newShape(component.CapsuleGeom{A: a, B: b, Radius: radius})
 }
 
-// AsSensor makes the shape report overlaps without ever colliding.
-func (d Shape) AsSensor() Shape {
-	d.s.Common.IsSensor = true
+// Sensor sets whether the shape reports overlaps without ever colliding. Shapes are solid
+// unless set.
+func (d Shape) Sensor(on bool) Shape {
+	d.s.Common.IsSensor = on
 	return d
 }
 
@@ -148,7 +172,7 @@ func (d Shape) Validate() error {
 	if err := d.s.Common.Validate(); err != nil {
 		return fmt.Errorf("physics2d: shape material: %w", err)
 	}
-	if err := d.s.Validate(); err != nil {
+	if err := d.s.ValidateGeometry(); err != nil {
 		return fmt.Errorf("physics2d: %s: %w", d.s.Kind, err)
 	}
 	return nil
@@ -207,31 +231,41 @@ func (d Shape) Endpoints() (Vec2, Vec2) {
 	return Vec2{}, Vec2{}
 }
 
-// shapeSearch is the Cardinal search behind Shapes: every entity carrying ShapeCommon,
-// whatever its geometry. It is embedded under this unexported name so the raw search is not
-// reachable from another package, and the sealed methods below shadow every exported method
-// it would otherwise promote. Nothing here hands out an entity handle, and nothing here
-// deletes: the plugin removes a shape itself once no body names it.
+// -------------------------------------------------------------------------------------------------
+// Shapes: spawning and editing them
+// -------------------------------------------------------------------------------------------------
+//
+// A spawned shape is an entity that any number of bodies share by ShapeRef. Declare one
+// Shapes field on the system state; Cardinal wires it when the system registers.
+//
+//	type SpawnState struct {
+//	    cardinal.BaseSystemState
+//	    Shapes physics2d.Shapes
+//	}
+//
+//	ball, err := state.Shapes.Spawn(physics2d.Circle(0.5))
+//	body, err := physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic).AddShape("hull", ball)
+//
+// A shape lives exactly as long as some body names it, so spawn it in the same tick as its
+// first body and keep Shape values, not refs, for shapes you will need later. A shape is never
+// edited in place: Fork one to get a changed copy, and point the bodies that should change at
+// it. There is no delete; the plugin removes a shape once no body names it.
+
+// shapeSearch is the Cardinal search behind Shapes: every entity carrying ShapeCommon. It is
+// embedded under this unexported name so the raw search is unreachable from other packages,
+// and the sealed methods below shadow what it would promote.
 type shapeSearch = cardinal.Contains[struct {
 	Common cardinal.WithComponent[component.ShapeCommon]
 }]
 
-// Shapes is the API over shape entities. Declare one on a system state; Cardinal wires it
-// up when the system registers.
-//
-// A shape is shared by every body whose ref names it, so nothing here changes a shape in
-// place: Fork hands back a new shape, and only the bodies you point at it change.
+// Shapes is the API over shape entities, declared as a field on a system state.
 type Shapes struct {
 	shapeSearch
 }
 
 // Spawn validates def, creates a shape entity from it, and returns a ref to that entity at
-// the body origin. Chain At on the ref to place it.
-//
-// A definition that fails validation creates nothing and reports the reason. Checking here is
-// what keeps a shape entity from existing in a state no body could ever attach: the reconciler
-// would otherwise reject that body once per tick, with nothing left to point at the line that
-// built it.
+// the body origin. Chain At on the ref to place it. A definition that fails validation
+// creates nothing and reports why.
 func (s *Shapes) Spawn(def Shape) (ShapeRef, error) {
 	if err := def.Validate(); err != nil {
 		return ShapeRef{}, err
@@ -279,10 +313,9 @@ func (s *Shapes) Read(ref ShapeRef) (Shape, bool) {
 	return Shape{}, false
 }
 
-// Fork spawns a copy of the shape behind ref with edit applied, and returns a ref to the
-// copy at the same offset and rotation. The shape behind ref is untouched, so bodies still
-// using it keep what they had; point the bodies that should change at the returned ref.
-// It fails when no shape is behind ref or the edited shape does not validate.
+// Fork spawns a copy of the shape behind ref with edit applied, and returns a ref to the copy
+// at the same offset and rotation. The original is untouched, so bodies still on it keep what
+// they had. It fails when no shape is behind ref or the edited shape does not validate.
 func (s *Shapes) Fork(ref ShapeRef, edit func(Shape) Shape) (ShapeRef, error) {
 	def, ok := s.Read(ref)
 	if !ok {
@@ -303,3 +336,67 @@ type sealed struct{}
 func (*Shapes) Create(sealed)  {}
 func (*Shapes) GetByID(sealed) {}
 func (*Shapes) Iter(sealed)    {}
+
+// -------------------------------------------------------------------------------------------------
+// Queries
+// -------------------------------------------------------------------------------------------------
+//
+// All three are methods on the *Plugin and return an empty result while no world exists
+// (before the first tick, or right after Reset). A nil Filter matches every category and
+// skips sensors.
+
+// Query requests and results.
+type (
+	Filter             = physicsquery.Filter
+	RaycastRequest     = physicsquery.RaycastRequest
+	RaycastResult      = physicsquery.RaycastResult
+	AABBOverlapRequest = physicsquery.AABBOverlapRequest
+	AABBOverlapHit     = physicsquery.AABBOverlapHit
+	AABBOverlapResult  = physicsquery.AABBOverlapResult
+	CircleSweepRequest = physicsquery.CircleSweepRequest
+	CircleSweepResult  = physicsquery.CircleSweepResult
+)
+
+// Raycast casts the segment from req.Origin to req.End and returns the closest hit. A
+// zero-length segment returns Hit=false.
+func (p *Plugin) Raycast(req RaycastRequest) RaycastResult {
+	if p.rt == nil || !p.rt.WorldExists() {
+		return RaycastResult{}
+	}
+	return p.rt.Raycast(req)
+}
+
+// OverlapAABB returns the distinct (entity, shape index) pairs whose shapes overlap the
+// world-space box.
+func (p *Plugin) OverlapAABB(req AABBOverlapRequest) AABBOverlapResult {
+	if p.rt == nil || !p.rt.WorldExists() {
+		return AABBOverlapResult{}
+	}
+	return p.rt.OverlapAABB(req)
+}
+
+// CircleSweep sweeps a circle from req.Start to req.End and returns the earliest hit.
+func (p *Plugin) CircleSweep(req CircleSweepRequest) CircleSweepResult {
+	if p.rt == nil || !p.rt.WorldExists() {
+		return CircleSweepResult{}
+	}
+	return p.rt.CircleSweep(req)
+}
+
+// -------------------------------------------------------------------------------------------------
+// Contact events
+// -------------------------------------------------------------------------------------------------
+//
+// The plugin emits these on Cardinal's system-event bus each tick; receive them with a
+// cardinal.WithSystemEventReceiver field. Each carries both entities and both shape indices;
+// PhysicsBody2D.ShapeTag turns an index into the tag you gave the shape.
+
+// Contact and trigger events, and the payload they share.
+type (
+	ContactEventPayload = physicevent.ContactEventPayload
+	FixtureFilterBits   = physicevent.FixtureFilterBits
+	ContactBeginEvent   = physicevent.ContactBeginEvent
+	ContactEndEvent     = physicevent.ContactEndEvent
+	TriggerBeginEvent   = physicevent.TriggerBeginEvent
+	TriggerEndEvent     = physicevent.TriggerEndEvent
+)

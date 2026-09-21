@@ -526,7 +526,7 @@ func goldenSensorTrigger() goldenScenario {
 						role:     "sensor_gate",
 						pos:      physics.Vec2{X: 0, Y: 5},
 						bodyType: physics.BodyTypeStatic,
-						shapes:   []goldenShape{gShape(physics.Box(2, 0.5).AsSensor().Material(0, 0, 0).Filter(0xFFFF, 0xFFFF))},
+						shapes:   []goldenShape{gShape(physics.Box(2, 0.5).Sensor(true).Material(0, 0, 0).Filter(0xFFFF, 0xFFFF))},
 					},
 					{
 						role:     "faller",

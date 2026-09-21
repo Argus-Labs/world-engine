@@ -36,6 +36,13 @@ w.RegisterPlugin(physics)
 w.StartGame()
 ```
 
+`Workers` is a throughput knob: it sets how many workers a step may use
+(0 means serial; anything above `box2d.MaxWorkers` is clamped). Results are
+byte-identical for every value, so it never affects rollback, replay or
+cross-machine agreement. Small scenes run inline regardless, so only set it
+for scenes of hundreds of active bodies, and expect diminishing returns
+beyond about 8.
+
 Keep the `*physics2d.Plugin` value: queries, `Engine`, and `Reset` are
 methods on it. All simulation state belongs to that instance — the package
 holds no globals, and multiple plugin instances in one process simulate
@@ -77,7 +84,7 @@ imported, searched or edited by a game. The whole shape API is one search type,
 | Call | Does |
 |---|---|
 | `Circle`, `Box`, `Polygon`, `Chain`, `ChainLoop`, `Edge`, `Capsule` | build a `Shape` with Box2D's default material (friction 0.6, density 1, category 1, mask all) |
-| `.AsSensor()`, `.Material(f, r, d)`, `.Filter(cat, mask)`, `.Group(i)` | chain options onto a `Shape` |
+| `.Sensor(true)`, `.Material(f, r, d)`, `.Filter(cat, mask)`, `.Group(i)` | chain options onto a `Shape` |
 | `.Reshape(other)` | the other geometry with this shape's material and filter |
 | `.Kind()`, `.Radius()`, `.HalfExtents()`, `.Vertices()`, `.Points()`, `.Loop()`, `.Endpoints()`, `.Friction()`, ... | read a `Shape` back |
 | `state.Shapes.Spawn(shape)` | validates, spawns a shape entity, returns a `ShapeRef` to it |
@@ -207,7 +214,7 @@ call, not a body that quietly does the wrong thing.
 
 ```go
 hull  := mustSpawn(state.Shapes.Spawn(physics2d.Box(1, 2)))
-aggro := mustSpawn(state.Shapes.Spawn(physics2d.Circle(6).AsSensor()))
+aggro := mustSpawn(state.Shapes.Spawn(physics2d.Circle(6).Sensor(true)))
 
 body := physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic)
 body, err = body.AddShape("hull", hull)       // fails if "hull" is already used

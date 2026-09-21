@@ -148,7 +148,7 @@ func sceneInitSystem(state *spawnState) {
 	harness.Sensor = mustCreate("sensor",
 		physics.Transform2D{Position: physics.Vec2{X: 0, Y: 2}},
 		newRigid(physics.BodyTypeStatic,
-			spawnShape(state, physics.Circle(2.5).AsSensor().Material(0, 0, 0).Filter(0x0001, 0xFFFF))),
+			spawnShape(state, physics.Circle(2.5).Sensor(true).Material(0, 0, 0).Filter(0x0001, 0xFFFF))),
 	)
 
 	// Solid wall on category 0x0002 for raycast / sweep filter tests.
@@ -189,7 +189,7 @@ func sceneInitSystem(state *spawnState) {
 		physics.Transform2D{Position: physics.Vec2{X: -12, Y: 1}},
 		newRigid(physics.BodyTypeStatic,
 			spawnShape(state, physics.Box(0.5, 0.5).Material(0.5, 0, 0).Filter(0x0001, 0xFFFF)),
-			spawnShape(state, physics.Circle(0.3).AsSensor().
+			spawnShape(state, physics.Circle(0.3).Sensor(true).
 				Material(0, 0, 0).Filter(0x0001, 0xFFFF)).At(physics.Vec2{X: 0, Y: 1.5}, 0),
 		),
 	)
