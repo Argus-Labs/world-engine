@@ -395,8 +395,8 @@ func TestPhysicsBody2D_SlotsByTag(t *testing.T) {
 	require.Equal(t, -1, pb.ShapeIndex("nope"))
 	require.Equal(t, -1, pb.ShapeIndex(""))
 	require.Equal(t, "aggro", pb.ShapeTag(2))
-	require.Equal(t, "", pb.ShapeTag(1))
-	require.Equal(t, "", pb.ShapeTag(3))
+	require.Empty(t, pb.ShapeTag(1))
+	require.Empty(t, pb.ShapeTag(3))
 
 	_, err = pb.AddShape("hull", phycomp.Ref(9))
 	require.ErrorContains(t, err, `"hull"`, "AddShape refuses a used tag")

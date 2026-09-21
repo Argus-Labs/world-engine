@@ -271,7 +271,8 @@ func checkJSONRoundTrip(c *harness.Ctx) {
 	body, err := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, physcomp.Ref(7)).
 		AddShape("hull", physcomp.Ref(9).At(vec(1, 2), 0.5))
 	c.NoError("AddShape on a fresh tag succeeds", err)
-	if back, err := (physcomp.PhysicsBody2D{}).UnmarshalWire(body.MarshalWire()); c.NoError("a body round-trips the wire", err) {
+	back, err := (physcomp.PhysicsBody2D{}).UnmarshalWire(body.MarshalWire())
+	if c.NoError("a body round-trips the wire", err) {
 		got, isBody := back.(physcomp.PhysicsBody2D)
 		c.True("a body keeps its slots and tags through the wire", isBody && immutable.Equal(body.Shapes, got.Shapes),
 			"got %+v", back)

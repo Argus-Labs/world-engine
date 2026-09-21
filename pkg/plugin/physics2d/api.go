@@ -180,13 +180,10 @@ func (d Shape) Density() float64     { return d.s.Common.Density }
 
 // Radius is a circle's or capsule's radius.
 func (d Shape) Radius() float64 {
-	switch d.s.Kind {
-	case KindCircle:
-		return d.s.Circle.Radius
-	case KindCapsule:
+	if d.s.Kind == KindCapsule {
 		return d.s.Capsule.Radius
 	}
-	return 0
+	return d.s.Circle.Radius // zero unless a circle
 }
 
 // HalfExtents is a box's half width and half height.
@@ -208,13 +205,10 @@ func (d Shape) Loop() bool { return d.s.Chain.Loop }
 
 // Endpoints returns an edge's or capsule's endpoints, A then B.
 func (d Shape) Endpoints() (Vec2, Vec2) {
-	switch d.s.Kind {
-	case KindEdge:
-		return d.s.Edge.A, d.s.Edge.B
-	case KindCapsule:
+	if d.s.Kind == KindCapsule {
 		return d.s.Capsule.A, d.s.Capsule.B
 	}
-	return Vec2{}, Vec2{}
+	return d.s.Edge.A, d.s.Edge.B // zero unless an edge
 }
 
 // -------------------------------------------------------------------------------------------------
