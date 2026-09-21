@@ -107,6 +107,10 @@ type Capture struct {
 	Contacts []physcomp.ContactPairEntry
 	// Kept is the singleton's shape store, sorted.
 	Kept []cardinal.EntityID
+	// KeptShapes is what each id in Kept resolves to, in the same order. A shape the store
+	// keeps has no body, so nothing else in the capture would notice it going missing: the
+	// id list alone survives a restore that dropped the shape entity behind it.
+	KeptShapes []CapturedShape
 	// Singletons is how many physics singleton entities exist. Anything but one
 	// is a bug: the plugin panics on two and loses its dedupe baseline on none.
 	Singletons int
@@ -175,6 +179,10 @@ func capture(probes *Probes, shapes *physics.Shapes, singleton *cardinal.Contain
 		kept = slices.AppendSeq(kept, row.Get[physcomp.ShapeStore]().Kept.Values())
 	}
 	slices.Sort(kept)
+	keptShapes := make([]CapturedShape, len(kept))
+	for i, id := range kept {
+		keptShapes[i] = resolveShape(shapes, physcomp.Ref(id))
+	}
 	// Entry order is an implementation detail of the plugin's map iteration, so
 	// sort before comparing two worlds.
 	sort.Slice(pairs, func(i, j int) bool { return contactKey(pairs[i]) < contactKey(pairs[j]) })
@@ -182,6 +190,7 @@ func capture(probes *Probes, shapes *physics.Shapes, singleton *cardinal.Contain
 	into.Rows = rows
 	into.Contacts = pairs
 	into.Kept = kept
+	into.KeptShapes = keptShapes
 	into.Singletons = count
 }
 
@@ -336,10 +345,15 @@ func CompareCaptures(want, got Capture, tol float64) []Diff {
 			diffs = append(diffs, Diff{label, "<body>", present, missing})
 		}
 	}
-	// The shape store is plugin state that must survive a restore exactly.
+	// The shape store is plugin state that must survive a restore exactly, and so are the
+	// shapes it keeps: the ids alone would still line up if the entities behind them were gone.
 	if !slices.Equal(want.Kept, got.Kept) {
 		diffs = append(diffs, Diff{"<shape-store>", "kept",
 			fmt.Sprintf("%+v", got.Kept), fmt.Sprintf("%+v", want.Kept)})
+		return diffs
+	}
+	for i := range want.KeptShapes {
+		diffs = append(diffs, compareShape("<shape-store>", "Kept", i, want.KeptShapes[i], got.KeptShapes[i], tol)...)
 	}
 	return diffs
 }
@@ -384,14 +398,16 @@ func compareRow(label string, w, g CaptureRow, tol float64) []Diff {
 		return diffs
 	}
 	for i := range w.Shapes {
-		diffs = append(diffs, compareShape(label, i, w.Shapes[i], g.Shapes[i], tol)...)
+		diffs = append(diffs, compareShape(label, "Body.Shapes", i, w.Shapes[i], g.Shapes[i], tol)...)
 	}
 	return diffs
 }
 
-func compareShape(label string, i int, w, g CapturedShape, tol float64) []Diff {
+// compareShape diffs one shape. what names where it came from, "Body.Shapes" for a body's
+// slot or "Kept" for a shape the store holds with no body, so a diff says which.
+func compareShape(label, what string, i int, w, g CapturedShape, tol float64) []Diff {
 	var diffs []Diff
-	field := func(name string) string { return fmt.Sprintf("Body.Shapes[%d].%s", i, name) }
+	field := func(name string) string { return fmt.Sprintf("%s[%d].%s", what, i, name) }
 	add := func(name string, got, want any) {
 		diffs = append(diffs, Diff{label, field(name), fmt.Sprint(got), fmt.Sprint(want)})
 	}

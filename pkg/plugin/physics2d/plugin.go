@@ -72,6 +72,9 @@ func (p *Plugin) Register(w *cardinal.World) {
 	p.rt = internal.NewRuntime(p.config.Gravity, fixedDT, p.config.SubStepCount, p.config.Workers)
 	p.rt.Reset()
 
+	// No search declares the whole singleton row (see SingletonSearch), so register it here.
+	w.RegisterArchetype[internal.SingletonRow]()
+
 	w.RegisterSystem(physicssystem.NewInitPhysicsSystem(p.rt), cardinal.WithHook(cardinal.Init))
 	w.RegisterSystem(physicssystem.NewPhysicsPipelineSystem(p.rt), cardinal.WithHook(cardinal.PreUpdate))
 }
