@@ -75,7 +75,8 @@ func mustSpawn(slot physics.ShapeRef, err error) physics.ShapeRef {
 	return slot
 }
 
-// spawnShape spawns def and returns the slot.
+// spawnShape spawns def and returns the slot. Attach it to a body in the same tick: a shape
+// no body names by the next reconcile is swept, and the slot is left pointing at nothing.
 func spawnShape(s *spawnState, def physics.Shape) physics.ShapeRef {
 	return mustSpawn(s.Shapes.Spawn(def))
 }
@@ -90,12 +91,14 @@ func tickN(t *testing.T, w *cardinal.World, n int) {
 	}
 }
 
-// circleSlot spawns the stock test circle (radius 0.5) and returns its slot.
+// circleSlot spawns the stock test circle (radius 0.5) and returns its slot, to attach this
+// tick; see spawnShape.
 func circleSlot(s *spawnState) physics.ShapeRef {
 	return spawnShape(s, physics.Circle(0.5).Material(0.3, 0, 1)).Filter(0xFFFF, 0xFFFF)
 }
 
-// boxSlot spawns a stock test box with the given half extents and returns its slot.
+// boxSlot spawns a stock test box with the given half extents and returns its slot, to attach
+// this tick; see spawnShape.
 func boxSlot(s *spawnState, hx, hy float64) physics.ShapeRef {
 	return spawnShape(s, physics.Box(hx, hy).Material(0.3, 0, 1)).Filter(0xFFFF, 0xFFFF)
 }

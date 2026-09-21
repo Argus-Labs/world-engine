@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/argus-labs/world-engine/pkg/immutable"
 
@@ -247,17 +249,28 @@ func checkValidation(c *harness.Ctx) {
 	// fixture attach, since a body only names its shape entity.
 	c.HasError("CircleGeom.Validate rejects NaN radius", physcomp.CircleGeom{Radius: math.NaN()}.Validate())
 	c.HasError("ShapeCommon.Validate rejects NaN friction", physcomp.ShapeCommon{Friction: math.NaN()}.Validate())
+	c.HasError("ShapeCommon.Validate rejects negative friction", physcomp.ShapeCommon{Friction: -0.1}.Validate())
+	c.HasError("ShapeCommon.Validate rejects negative restitution", physcomp.ShapeCommon{Restitution: -1}.Validate())
+	c.HasError("ShapeCommon.Validate rejects negative density", physcomp.ShapeCommon{Density: -1}.Validate())
+	_, err := harness.TryShape(c, physics.Circle(1).Material(-1, 0, 1))
+	c.HasError("Spawn rejects a negative material", err)
 	c.HasError("PolygonGeom.Validate rejects two vertices", physcomp.PolygonGeom{Count: 2}.Validate())
 	c.HasError("PolygonGeom.Validate rejects nine vertices",
 		physcomp.PolygonGeom{Count: physics.MaxPolygonVertices + 1}.Validate())
-	c.NoError("ChainGeom.Validate accepts finite points",
-		physcomp.ChainGeom{Points: immutable.SliceOf(vec(0, 0), vec(1, 0))}.Validate())
+	c.NoError("ChainGeom.Validate accepts four finite points",
+		physcomp.ChainGeom{Points: immutable.SliceOf(vec(0, 0), vec(1, 0), vec(2, 0), vec(3, 0))}.Validate())
+	c.HasError("ChainGeom.Validate rejects three points",
+		physcomp.ChainGeom{Points: immutable.SliceOf(vec(0, 0), vec(1, 0), vec(2, 0))}.Validate())
 	c.HasError("CircleGeom.Validate rejects a zero radius", physcomp.CircleGeom{Radius: 0}.Validate())
 	c.HasError("CircleGeom.Validate rejects a negative radius", physcomp.CircleGeom{Radius: -1}.Validate())
 	c.HasError("BoxGeom.Validate rejects a zero half-extent",
 		physcomp.BoxGeom{HalfExtents: vec(0, 1)}.Validate())
 	c.HasError("BoxGeom.Validate rejects a negative half-extent",
 		physcomp.BoxGeom{HalfExtents: vec(1, -1)}.Validate())
+	c.HasError("EdgeGeom.Validate rejects endpoints that meet",
+		physcomp.EdgeGeom{A: vec(1, 1), B: vec(1, 1)}.Validate())
+	c.HasError("CapsuleGeom.Validate rejects endpoints that meet",
+		physcomp.CapsuleGeom{A: vec(1, 1), B: vec(1, 1), Radius: 0.5}.Validate())
 	c.HasError("CapsuleGeom.Validate rejects a zero radius",
 		physcomp.CapsuleGeom{A: vec(0, 0), B: vec(0, 1), Radius: 0}.Validate())
 
@@ -360,7 +373,7 @@ func checkShapeConstructors(c *harness.Ctx) {
 		"Capsule":   harness.CommonOf(physics.Capsule(vec(0, 0), vec(1, 0), 0.25)),
 	}
 	for name, common := range commons {
-		c.True(name+" carries Box2D's default material and filter", common == defaults,
+		c.True(name+" carries Box2D's default material", common == defaults,
 			"got %+v, want %+v", common, defaults)
 	}
 
@@ -368,6 +381,11 @@ func checkShapeConstructors(c *harness.Ctx) {
 	c.True("the options set exactly what they say", harness.CommonOf(d) == physcomp.ShapeCommon{
 		IsSensor: true, Friction: 0.1, Restitution: 0.2, Density: 0.3,
 	}, "got %+v", harness.CommonOf(d))
+	reshaped := d.Reshape(physics.Circle(0.5))
+	c.True("Reshape keeps the material and the sensor flag",
+		harness.CommonOf(reshaped) == harness.CommonOf(d), "got %+v", harness.CommonOf(reshaped))
+	c.True("Reshape takes the new geometry",
+		reshaped.Kind() == physics.KindCircle && reshaped.Radius() == 0.5, "got %s", reshaped.Kind())
 	ref := physcomp.Ref(1).Filter(0x2, 0x4).Group(-1)
 	c.True("a ref carries its own filter", ref.CategoryBits == 0x2 && ref.MaskBits == 0x4 && ref.GroupIndex == -1,
 		"got %+v", ref)
@@ -376,22 +394,36 @@ func checkShapeConstructors(c *harness.Ctx) {
 		"got %#x/%#x", fresh.CategoryBits, fresh.MaskBits)
 	c.True("Box stores its half extents", d.HalfExtents() == vec(1, 1), "got %+v", d.HalfExtents())
 	c.True("Box reports its kind", d.Kind() == physics.KindBox, "got %s", d.Kind())
-	c.True("Circle stores its radius", physics.Circle(0.5).Radius() == 0.5, "")
+	c.True("Circle stores its radius", physics.Circle(0.5).Radius() == 0.5,
+		"got %v", physics.Circle(0.5).Radius())
 	ea, eb := physics.Edge(vec(0, 0), vec(1, 0)).Endpoints()
-	c.True("Edge stores its endpoints", ea == vec(0, 0) && eb == vec(1, 0), "")
+	c.True("Edge stores its endpoints", ea == vec(0, 0) && eb == vec(1, 0), "got %+v to %+v", ea, eb)
 	capsule := physics.Capsule(vec(0, 0), vec(1, 0), 0.25)
 	ca, cb := capsule.Endpoints()
-	c.True("Capsule stores its endpoints and radius", ca == vec(0, 0) && cb == vec(1, 0) && capsule.Radius() == 0.25, "")
-	c.True("readers of another kind return zero", d.Radius() == 0 && d.Vertices() == nil, "")
+	c.True("Capsule stores its endpoints and radius",
+		ca == vec(0, 0) && cb == vec(1, 0) && capsule.Radius() == 0.25,
+		"got %+v to %+v, radius %v", ca, cb, capsule.Radius())
+	c.True("readers of another kind return zero", d.Radius() == 0 && d.Vertices() == nil,
+		"a box read back radius %v and vertices %+v", d.Radius(), d.Vertices())
 
 	line := []physics.Vec2{vec(0, 0), vec(1, 0)}
 	chain := physics.Chain(line...)
-	c.True("Chain copies its points", slices.Equal(chain.Points(), line) && !chain.Loop(), "")
+	c.True("Chain copies its points", slices.Equal(chain.Points(), line) && !chain.Loop(),
+		"got %+v, loop %v", chain.Points(), chain.Loop())
 	c.True("ChainLoop closes the polyline", physics.ChainLoop(line...).Loop(), "Loop is false")
 
 	tri := physics.Polygon(vec(0, 0), vec(1, 0), vec(0, 1))
 	c.Int("Polygon counts its vertices", len(tri.Vertices()), 3)
 	c.HasError("the zero Shape fails validation", physics.Shape{}.Validate())
+	for _, n := range []int{9, 300} {
+		err := physics.Polygon(make([]physics.Vec2, n)...).Validate()
+		c.True(fmt.Sprintf("a polygon of %d vertices is refused, naming %d", n, n),
+			err != nil && strings.Contains(err.Error(), strconv.Itoa(n)), "got %v", err)
+	}
+	c.HasError("a three-point Chain fails validation", physics.Chain(vec(0, 0), vec(1, 0), vec(2, 0)).Validate())
+	c.HasError("a Chain marked as a sensor fails validation", physics.Chain(line4()...).Sensor(true).Validate())
+	c.HasError("a ChainLoop marked as a sensor fails validation", physics.ChainLoop(line4()...).Sensor(true).Validate())
+	c.NoError("a solid Chain still validates", physics.Chain(line4()...).Validate())
 	c.NoError("Polygon of three vertices validates", tri.Validate())
 	nine := make([]physics.Vec2, 9)
 	for i := range nine {
@@ -403,4 +435,9 @@ func checkShapeConstructors(c *harness.Ctx) {
 	c.True("Ref.At places the ref",
 		slot == physics.ShapeRef{Shape: 9, LocalOffset: vec(2, 3), LocalRotation: 0.5, CategoryBits: 1, MaskBits: ^uint64(0)},
 		"got %+v", slot)
+}
+
+// line4 is the shortest polyline Box2D accepts.
+func line4() []physics.Vec2 {
+	return []physics.Vec2{vec(0, 0), vec(1, 0), vec(2, 0), vec(3, 0)}
 }

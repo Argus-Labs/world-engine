@@ -8,6 +8,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/probe"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 )
 
@@ -405,10 +406,13 @@ func (c *Ctx) Destroy(id cardinal.EntityID) bool {
 	return err == nil && entity.Destroy()
 }
 
-// CloneBody copies a PhysicsBody2D. Every field is a value (the slot list is an
-// immutable.Slice), so the copy is the clone; it exists so call sites say what
-// they mean.
+// CloneBody copies a PhysicsBody2D so the copy cannot reach the component it came from.
+// Only Shapes needs it: the slot list shares an array with the stored component, and With,
+// Without and Filter write into that array rather than a new one. Sub writes nothing but
+// returns a window onto the same array, so deriving from the window reaches the component
+// too. Collect allocates, which is what makes this a copy.
 func CloneBody(pb physics.PhysicsBody2D) physics.PhysicsBody2D {
+	pb.Shapes = immutable.Collect(pb.Shapes.Values())
 	return pb
 }
 

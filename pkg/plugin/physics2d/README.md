@@ -86,11 +86,11 @@ imported, searched or edited by a game. The whole shape API is one search type,
 | `Circle`, `Box`, `Polygon`, `Chain`, `ChainLoop`, `Edge`, `Capsule` | build a `Shape` with Box2D's default material (friction 0.6, density 1) |
 | `.Sensor(true)`, `.Material(f, r, d)` | chain options onto a `Shape` |
 | `ref.At(offset, rot)`, `ref.Filter(cat, mask)`, `ref.Group(i)` | place a spawned shape on a body and set its collision filter |
-| `.Reshape(other)` | the other geometry with this shape's material and filter |
+| `.Reshape(other)` | the other geometry with this shape's material and sensor flag |
 | `.Kind()`, `.Radius()`, `.HalfExtents()`, `.Vertices()`, `.Points()`, `.Loop()`, `.Endpoints()`, `.Friction()`, ... | read a `Shape` back |
-| `state.Shapes.Spawn(shape)` | validates, spawns a shape entity, returns a `ShapeRef` to it |
-| `state.Shapes.Read(ref)` | a copy of the shape behind a ref |
-| `state.Shapes.Fork(ref, func(Shape) Shape)` | spawns a copy with your edit applied and returns a ref to it |
+| `state.Shapes.Spawn(shape)` | `(ShapeRef, error)`: validates, then spawns a shape entity and refs it |
+| `state.Shapes.Read(ref)` | `(Shape, bool)`: a copy of the shape behind a ref, false when nothing is behind it |
+| `state.Shapes.Fork(ref, func(Shape) Shape)` | `(ShapeRef, error)`: spawns a copy with your edit applied, and refs it like the original |
 
 There is no delete. The plugin removes a shape entity itself after the first
 reconcile in which no body names it.
@@ -100,19 +100,26 @@ holds, so one bullet shape serves every team: `bullet.Filter(red, redMask)`
 on one body, `bullet.Filter(blue, blueMask)` on another, same shape entity.
 The semantics are plain Box2D: two shapes collide when each one's category
 overlaps the other's mask, so `Filter(cat, 0)` collides with nothing. A ref
-from `Spawn`, `Get` or `Fork` starts with Box2D's defaults, category 1 and
-mask all. `Group` sets the group index, which is per body by nature (a
-ragdoll's parts share a negative group so they never touch each other).
+from `Spawn` or `Fork` starts with Box2D's defaults, category 1 and mask
+all. `Group` sets the group index, which is per body by nature (a ragdoll's
+parts share a negative group so they never touch each other).
+
+A matching non-zero group index is checked first and replaces the category
+and mask test, so `Filter(1, 0).Group(7)` still collides with another shape
+at group 7. The exception is a category of 0: such a shape is invisible to
+the broad phase, so no group index brings it back.
 
 `Spawn` de-duplicates: if a live shape already has exactly the same
-geometry, material and filter, you get a ref to that shape instead of a new
-entity. So a fire system that spawns `Circle(0.1)` per bullet still ends up
-with one shape shared by every bullet, no bookkeeping needed. Equality is
-exact, so build repeated definitions from the same constants.
+geometry, material and sensor flag, you get a ref to that shape instead of a
+new entity. The filter is on the ref, so bodies that collide differently
+still share one shape. A fire system that spawns `Circle(0.1)` per bullet ends up with one
+shape behind every bullet, no bookkeeping needed. Equality is exact, so
+build repeated definitions from the same constants.
 
 `Spawn` returns `(ShapeRef, error)`. A shape Box2D could never build — a
 radius of zero or less, a box with a zero extent, a polygon outside 3..8
-vertices, any NaN — creates nothing and tells you why, at the line that built
+vertices, a chain under four points, a chain marked as a sensor, an edge or
+capsule whose endpoints meet, any NaN — creates nothing and tells you why, at the line that built
 it, instead of becoming a shape entity that fails to attach on every tick from
 then on. Chain `At(offset, rotation)` onto the ref to place it, and reuse the
 ref on as many bodies as you like.
@@ -168,8 +175,8 @@ func SpawnSystem(state *SpawnState) {
 A shape is never changed in place. `Fork` gives you a copy with your change
 applied, and only the bodies you point at the new ref change; every body
 still on the original keeps what it had. To change many bodies, `Fork` once
-and re-point each of them at the same new ref. To change geometry, keep the
-material with `Reshape`:
+and re-point each of them at the same new ref. To change geometry and keep
+everything else, use `Reshape`:
 
 ```go
 bigger, err := state.Shapes.Fork(ref, func(s physics2d.Shape) physics2d.Shape {

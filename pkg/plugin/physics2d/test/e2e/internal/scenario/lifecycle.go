@@ -9,8 +9,9 @@ import (
 
 // Lifecycle covers everything that can change after a body exists: entities
 // created and destroyed mid-run, poses and velocities written from gameplay,
-// geometry edited in place, shapes added and removed, filters and sensor flags
-// flipped, materials retuned, and body types swapped.
+// geometry replaced mid-run (a ref re-pointed at a new shape entity, since a
+// shape is never edited in place), shapes added and removed, filters and sensor
+// flags flipped, materials retuned, and body types swapped.
 //
 // The reconciler decides which of these can be applied to the live Box2D body
 // and which need the fixture rebuilt, by diffing the component against a shadow

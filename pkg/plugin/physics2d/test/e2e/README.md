@@ -14,7 +14,7 @@ go run  ./pkg/plugin/physics2d/test/e2e/cmd/physics2d-e2e -h         # the same 
 
 | Test | Pins |
 |---|---|
-| `TestScenarios` | Thirteen scripted scenarios, about 400 checks. Each runs in its own world as a parallel subtest, so `-run TestScenarios/flags` works and a failure names the scenario and the line |
+| `TestScenarios` | Sixteen scripted scenarios, about 550 checks. Each runs in its own world as a parallel subtest, so `-run TestScenarios/flags` works and a failure names the scenario and the line |
 | `TestExhaustiveBodyMatrix` | Every body type × every shape type × every combination of the five body flags (896 bodies, one world). Each flag is read back from the engine, not the component; the wire round-trip is lossless; a `Plugin.Reset` rebuild recreates the same engine state |
 | `TestRandomScenes` | Seeded random scenes of valid bodies over a static floor. Invariants: lossless wire round-trip, no solid dynamic body ends up inside the floor, and the same seed simulates identically twice and at `Workers: 4` |
 | `TestRestore` | Snapshot a world, round-trip every component through the wire format, rebuild it in a fresh world, simulate both on and compare. Once with the documented `Plugin.Reset`, once without |
@@ -67,6 +67,7 @@ through the floor, and that would make the invariant unprovable.
 | `queries` | Raycast, OverlapAABB (narrow-phase), CircleSweep, plus every documented edge case |
 | `lifecycle` | Create, destroy, teleport, retype, resize (capsules included), add/remove shapes, refilter, retune |
 | `shape-entities` | One shape entity on many bodies, in-place edits, slot swaps (material vs geometry), fixed chain points |
+| `slot-tags` | Editing a body's shapes by tag: replace keeps the index and the fixture, remove shifts the rest, a used or missing tag fails, a contact's shape index maps back to its tag |
 | `shape-sweep` | Automatic shape cleanup: last reference, slot swap, shared, staged, same-tick trade, Reset |
 | `stability` | 10-box stack, deep overlap recovery, 2 cm to 100 m shapes, 5 km from origin |
 | `reset` | `Plugin.Reset` rebuild: poses, velocities, no replayed events, queries |
@@ -94,16 +95,17 @@ process panicked (reported as FATAL).
 
 `knownFailures` in `e2e_test.go` lists the cases that fail today and why. A case
 that starts passing fails the test until it is removed from that map, so an
-engine change that fixes one is noticed rather than absorbed. Today that is only
-`zero-extent-box`: `BoxGeom.Validate` accepts zero half-extents, the engine
-builds a `(NaN, NaN)` body from them where C's assert would have fired, and the
-reconciler then rejects the entity every tick for as long as it lives.
+engine change that fixes one is noticed rather than absorbed. The map is empty
+today: every case either reaches the engine and survives, or is refused by
+`Spawn` before it gets there.
 
-The rest reject cleanly or simulate: `destroy-during-contact`, `short-chain`,
-`short-chain-loop`, `zero-radius-circle`, `negative-radius-circle`,
-`polygon-no-vertices`, `polygon-two-vertices`, `polygon-too-many-vertices`,
-`degenerate-capsule`, `chain-on-dynamic-body`, `missing-shape-entity`,
-`deleted-shape-entity`. Note that a rejected shape retries
+Every case: `destroy-during-contact`, `short-chain`,
+`short-chain-loop`, `sensor-chain`, `zero-radius-circle`,
+`negative-radius-circle`, `polygon-no-vertices`, `polygon-two-vertices`,
+`polygon-too-many-vertices`, `degenerate-capsule`, `degenerate-edge`,
+`zero-extent-box`, `chain-on-dynamic-body`, `missing-shape-entity`,
+`deleted-shape-entity`, `failing-body-blocks-shape-edit`,
+`failed-attach-keeps-shapes`. Note that a rejected shape retries
 forever: the entity stays in ECS with no body and `ReconcileFromECS` logs the same
 failure every tick.
 
@@ -130,7 +132,7 @@ func MyThing() harness.Scenario {
 	return harness.Scenario{
 		Name: "mything",
 		Setup: func(c *harness.Ctx) {
-			s.ball = c.Spawn("ball", 0, 10, body(physics.BodyTypeDynamic, circle(0.5)))
+			s.ball = c.Spawn("ball", 0, 10, body(c, physics.BodyTypeDynamic, circle(0.5)))
 		},
 		Steps: []harness.Step{
 			{Tick: 120, Do: func(c *harness.Ctx) {

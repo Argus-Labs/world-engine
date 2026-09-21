@@ -7,9 +7,10 @@ import (
 	"github.com/goccy/go-json"
 )
 
-// ShapeRef is a shape on a body: which shape entity, and where it sits in body space. The
-// shape itself (geometry, material, filter) lives on its own entity — see [ShapeCommon] and
-// the geometry components — so any number of bodies can share one shape.
+// ShapeRef is a shape on a body: which shape entity, where it sits in body space, and what
+// it collides with. Geometry and material live on the shape entity — see [ShapeCommon] and
+// the geometry components — so any number of bodies can share one shape; the collision
+// filter lives here, so sharing a shape does not mean sharing a team or layer.
 //
 // Index i in PhysicsBody2D.Shapes is fixture i: contact events and query hits report that
 // index. Tag names the shape so a body can be edited without knowing the index. Set it
@@ -23,9 +24,12 @@ type ShapeRef struct {
 
 	// Collision filter, per body rather than per shape, so one shape serves every team or
 	// layer. Plain Box2D semantics: two shapes collide when each one's category overlaps the
-	// other's mask, so a zero category or mask collides with nothing. Ref sets Box2D's
-	// defaults (category 1, mask all); a bare struct literal gets zeros, like a bare
-	// PhysicsBody2D literal gets an inactive body.
+	// other's mask, so a zero mask collides with nothing. A matching non-zero GroupIndex
+	// decides instead, and is the one way past a zero mask; a zero category is absolute,
+	// since the broad phase never looks at such a shape and no group can bring it back.
+	//
+	// Ref sets Box2D's defaults (category 1, mask all); a bare struct literal gets zeros, like
+	// a bare PhysicsBody2D literal gets an inactive body.
 	CategoryBits uint64 `json:"category_bits"`
 	MaskBits     uint64 `json:"mask_bits"`
 	GroupIndex   int32  `json:"group_index,omitempty"`
@@ -76,8 +80,9 @@ func (s ShapeRef) Filter(category, mask uint64) ShapeRef {
 	return s
 }
 
-// Group sets the Box2D group index: shapes sharing a positive index always collide, a
-// negative one never.
+// Group sets the Box2D group index. Two shapes with the same non-zero index skip the
+// category and mask test entirely: a positive index always collides, a negative one never.
+// A shape with a zero category stays out regardless, being invisible to the broad phase.
 func (s ShapeRef) Group(index int32) ShapeRef {
 	s.GroupIndex = index
 	return s

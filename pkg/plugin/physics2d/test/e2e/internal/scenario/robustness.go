@@ -10,22 +10,18 @@ import (
 	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
-// Robustness holds the inputs a game can hand the plugin that are finite —
-// and so pass component validation — but malformed by the engine's rules: a
-// chain with three points, a circle with no radius, a polygon with too many
-// vertices, a box with no extent. Destroying an entity that still holds a live
-// contact is here too, from a completely different direction.
+// Robustness holds the inputs a game can hand the plugin that the plugin has to survive: a
+// shape Box2D cannot build, a shape entity missing or deleted under a live body, a body
+// whose attach keeps failing, and an entity destroyed while it still holds a live contact.
 //
-// A polygon with too MANY vertices used to be one of these. It no longer belongs here:
-// Vertices holds only MaxPolygonVertices slots, so a polygon claiming more fails
-// component validation and never reaches Box2D — which puts it outside the family this
-// file is about, inputs that PASS Validate and then misbehave. It is still rejected rather
-// than fatal; see TestWithVertices_ReportsPastBoundInsteadOfPanicking.
-//
-// Validate only checks that numbers are finite, so all of these reach the
-// engine. Against the cgo bridge four of them tripped a fatal Box2D assertion
-// and killed the shard; the pure-Go engine does not die, which is exactly what
-// these cases exist to keep measuring.
+// The bad shapes split in two, and only the first half is what this file was written for.
+// A chain on a dynamic body is finite and well formed, so it passes component validation and
+// reaches the engine; against the cgo bridge inputs like this tripped a fatal Box2D assertion
+// and killed the shard, and the pure-Go engine must not die. The rest — a radius of zero or
+// less, a box with no extent, a polygon outside 3..MaxPolygonVertices, a chain under four
+// points or marked as a sensor, an edge or capsule whose endpoints meet — are refused by
+// Spawn and never reach Box2D. They stay here as rejected cases so the refusal is measured
+// too.
 //
 // Each still runs alone via -hostile <name>, because a case that does regress to
 // killing the process would otherwise hide every case after it. Every case
@@ -53,14 +49,15 @@ func HostileNames() []string {
 func hostileCases() []harness.Scenario {
 	return []harness.Scenario{
 		hostileDestroyDuringContact(),
-		hostileBadShape("short-chain",
-			"a chain of 3 points (Box2D asserts count >= 4)",
-			physics.BodyTypeStatic,
+		hostileRejectedShape("short-chain",
+			"a chain of 3 points (Box2D needs 4)",
 			chain(vec(-3, 0), vec(0, 0), vec(3, 0))),
-		hostileBadShape("short-chain-loop",
-			"a chain loop of 3 points (Box2D asserts count >= 4)",
-			physics.BodyTypeStatic,
+		hostileRejectedShape("short-chain-loop",
+			"a chain loop of 3 points (Box2D needs 4)",
 			chainLoop(vec(-3, 0), vec(0, 3), vec(3, 0))),
+		hostileRejectedShape("sensor-chain",
+			"a chain marked as a sensor (Box2D has no sensor chains)",
+			asSensor(chain(vec(-3, 0), vec(-1, 0), vec(1, 0), vec(3, 0)))),
 		hostileRejectedShape("zero-radius-circle",
 			"a circle of radius 0",
 			circle(0)),
@@ -82,10 +79,12 @@ func hostileCases() []harness.Scenario {
 		hostileRejectedShape("polygon-no-vertices",
 			"a convex polygon with no vertices at all",
 			polygon()),
-		hostileBadShape("degenerate-capsule",
+		hostileRejectedShape("degenerate-capsule",
 			"a capsule whose two centers are the same point",
-			physics.BodyTypeDynamic,
 			capsule(vec(0, 0), vec(0, 0), 0.5)),
+		hostileRejectedShape("degenerate-edge",
+			"an edge whose two endpoints are the same point",
+			edge(vec(0, 0), vec(0, 0))),
 		hostileMissingShape(),
 		hostileDeletedShape(),
 		hostileFailingBodyBlocksShapeEdit(),

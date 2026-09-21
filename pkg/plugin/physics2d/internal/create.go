@@ -71,8 +71,8 @@ func (rt *Runtime) CreateBody(
 
 // AttachColliderFixtures creates one Box2D shape per slot on the body identified by
 // entityID. Slot i becomes fixture i. Every slot is resolved through the runtime's
-// ShapeMirror and validated before the first fixture is created, so a bad slot rejects the
-// whole list and leaves Box2D untouched.
+// ShapeMirror and validated first, and a slot the engine still refuses rolls back the
+// fixtures this call made, so a failed attach leaves the body as it was found.
 func (rt *Runtime) AttachColliderFixtures(
 	entityID cardinal.EntityID, slots immutable.Slice[component.ShapeRef],
 ) error {
@@ -89,12 +89,42 @@ func (rt *Runtime) AttachColliderFixtures(
 		resolved = append(resolved, sh)
 	}
 	rt.resolvedScratch = clearScratchTail(resolved)
+	shapeMark, chainMark := len(rt.Shapes[entityID]), len(rt.Chains[entityID])
 	for i, slot := range slots.All() {
 		if err := rt.attachShape(entityID, i, slot, resolved[i]); err != nil {
+			rt.rollbackFixtures(entityID, shapeMark, chainMark)
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
 	return nil
+}
+
+// rollbackFixtures destroys the fixtures an attach pass added past the marks. Validation
+// does not catch everything the engine refuses — a polygon of collinear points passes every
+// component check and then yields an empty hull — so a later slot can fail after earlier
+// ones are already on the body. Chains go first: destroying one frees its segment shapes.
+func (rt *Runtime) rollbackFixtures(entityID cardinal.EntityID, shapeMark, chainMark int) {
+	chains := rt.Chains[entityID]
+	for _, ch := range chains[chainMark:] {
+		rt.World.DestroyChain(ch.ID)
+	}
+	shapes := rt.Shapes[entityID]
+	for _, sid := range shapes[shapeMark:] {
+		if !sid.IsNull() {
+			rt.World.DestroyShape(sid, false)
+		}
+	}
+	rt.Chains[entityID] = chains[:chainMark]
+	rt.Shapes[entityID] = shapes[:shapeMark]
+	if chainMark == 0 {
+		delete(rt.Chains, entityID)
+	}
+	if shapeMark == 0 {
+		delete(rt.Shapes, entityID)
+	}
+	if bodyID, ok := rt.Bodies[entityID]; ok {
+		rt.World.ApplyBodyMassFromShapes(bodyID)
+	}
 }
 
 // validateSlot checks the slot's own fields, resolves its shape entity, and validates that
@@ -126,6 +156,12 @@ func (rt *Runtime) CreateBodyWithCollider(
 		return err
 	}
 	return nil
+}
+
+// ChainSlot is the Box2D chain built for one chain-type slot of a body.
+type ChainSlot struct {
+	Index int
+	ID    box2d.ChainID
 }
 
 // DestroyEntityBody destroys the Box2D body for entityID (with all attached shapes and
@@ -253,9 +289,8 @@ func (rt *Runtime) attachShape(
 		def.Filter.MaskBits = slot.MaskBits
 		def.Filter.GroupIndex = int(slot.GroupIndex)
 		chainID := rt.World.CreateChain(bodyID, &def)
-		rt.Chains[entityID] = append(rt.Chains[entityID], chainID)
-		// Chain slots keep a null ShapeID: mutable per-shape setters skip them, matching
-		// the CGO bridge (chains were not registered in its shapes[] array either).
+		rt.Chains[entityID] = append(rt.Chains[entityID], ChainSlot{Index: shapeIndex, ID: chainID})
+		// Chain slots keep a null ShapeID; in-place edits go through the chain id instead.
 		rt.registerShape(entityID, shapeIndex, box2d.ShapeID{})
 
 	case ShapeKindEdge:
@@ -304,8 +339,8 @@ func (rt *Runtime) destroyAllShapesForEntity(entityID cardinal.EntityID) {
 	if !ok {
 		return
 	}
-	for _, chainID := range rt.Chains[entityID] {
-		rt.World.DestroyChain(chainID)
+	for _, ch := range rt.Chains[entityID] {
+		rt.World.DestroyChain(ch.ID)
 	}
 	delete(rt.Chains, entityID)
 

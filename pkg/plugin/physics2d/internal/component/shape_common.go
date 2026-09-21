@@ -32,16 +32,18 @@ func DefaultShapeCommon() ShapeCommon {
 	return ShapeCommon{Friction: 0.6, Density: 1}
 }
 
-// Validate checks the material fields for NaN/Inf.
+// Validate checks the material fields for NaN/Inf and negatives. Box2D asserts a non-negative
+// friction, restitution and density on every create and setter path, so a negative one would
+// be a tick panic instead of an error at the line that built it.
 func (s ShapeCommon) Validate() error {
-	if !isFinite(s.Friction) {
-		return fmt.Errorf("friction: must be finite, got %v", s.Friction)
+	if !isFinite(s.Friction) || s.Friction < 0 {
+		return fmt.Errorf("friction: must be finite and non-negative, got %v", s.Friction)
 	}
-	if !isFinite(s.Restitution) {
-		return fmt.Errorf("restitution: must be finite, got %v", s.Restitution)
+	if !isFinite(s.Restitution) || s.Restitution < 0 {
+		return fmt.Errorf("restitution: must be finite and non-negative, got %v", s.Restitution)
 	}
-	if !isFinite(s.Density) {
-		return fmt.Errorf("density: must be finite, got %v", s.Density)
+	if !isFinite(s.Density) || s.Density < 0 {
+		return fmt.Errorf("density: must be finite and non-negative, got %v", s.Density)
 	}
 	return nil
 }

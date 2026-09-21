@@ -664,8 +664,9 @@ func TestSlice_JSONEmptyAndNullAreEmptyLists(t *testing.T) {
 func TestSlice_JSONInsideAStruct(t *testing.T) {
 	t.Parallel()
 
-	// The field is unexported, so without the codec the whole list would be dropped here
-	// while the surrounding struct still marshalled cleanly.
+	// Slice holds its items in an unexported field, so without the codec each list below
+	// would encode as {} and come back empty, while the surrounding struct marshalled
+	// cleanly and reported no error.
 	type holder struct {
 		Name   string                  `json:"name"`
 		Points immutable.Slice[point]  `json:"points"`

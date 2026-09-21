@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/harness"
 )
@@ -31,15 +32,19 @@ func ShapeSweep() harness.Scenario {
 		survivor, survivorSlot cardinal.EntityID
 		broken                 cardinal.EntityID
 		brokenKeep, brokenGone physics.ShapeRef
+		stuck                  cardinal.EntityID
+		stuckOld, stuckA       physics.ShapeRef
+		stuckB                 physics.ShapeRef
 	}
 
 	const (
 		brokenShapeGone = 5
 		brokenBodyGone  = 9
 		destroyTick     = 5
-		swapTick        = 5
 		firstGone       = 3
 		secondGone      = 6
+		stuckBreak      = 3
+		stuckFix        = 7
 		resetTick       = 450 // must match scenario.Reset
 	)
 
@@ -81,6 +86,11 @@ func ShapeSweep() harness.Scenario {
 			s.broken = c.Spawn("broken-then-gone", 0, 50,
 				physics.NewPhysicsBody2D(physics.BodyTypeStatic, s.brokenKeep, s.brokenGone))
 
+			// Row y=60 — a live body whose update fails. Its fixture was built from stuckOld,
+			// which ECS no longer names, so stuckOld must live until the update lands.
+			s.stuckOld = sweepBox(c, 0.311)
+			s.stuck = wall(c, "stuck-update", 0, 60, s.stuckOld)
+
 			// Row y=40 — its body dies in the tick the world is reset.
 			slot = sweepBox(c, 0.309)
 			s.survivorSlot = slot.Shape
@@ -111,6 +121,34 @@ func ShapeSweep() harness.Scenario {
 				c.False("its shapes are released once the entity itself is gone",
 					c.ShapeAlive(s.brokenKeep.Shape),
 					"shape entity %d outlived the only body that named it", s.brokenKeep.Shape)
+			}},
+			{Tick: stuckBreak, Do: func(c *harness.Ctx) {
+				s.stuckA, s.stuckB = sweepBox(c, 0.312), sweepBox(c, 0.313)
+				s.stuckA.Tag, s.stuckB.Tag = "dup", "dup"
+				c.EditBody(s.stuck, func(pb *physics.PhysicsBody2D) {
+					pb.Shapes = immutable.SliceOf(s.stuckA, s.stuckB)
+				})
+			}},
+			// Checked the tick right after the sweep: Cardinal recycles entity ids.
+			{Tick: stuckBreak + 1, Do: func(c *harness.Ctx) {
+				c.True("a failing update keeps the shape its fixture was built from",
+					c.ShapeAlive(s.stuckOld.Shape), "shape entity %d was swept under a live fixture", s.stuckOld.Shape)
+				c.True("a failing update keeps the shapes ECS names",
+					c.ShapeAlive(s.stuckA.Shape) && c.ShapeAlive(s.stuckB.Shape), "a named shape was swept")
+				c.True("the body keeps its old fixture while the update fails",
+					c.OverlapHits(c.OverlapAABB(-0.5, 59.5, 0.5, 60.5, nil), s.stuck), "the fixture is gone")
+			}},
+			{Tick: stuckFix, Do: func(c *harness.Ctx) {
+				s.stuckB.Tag = "other"
+				c.EditBody(s.stuck, func(pb *physics.PhysicsBody2D) {
+					pb.Shapes = immutable.SliceOf(s.stuckA, s.stuckB)
+				})
+			}},
+			{Tick: stuckFix + 1, Do: func(c *harness.Ctx) {
+				c.False("once the update lands the old shape is swept", c.ShapeAlive(s.stuckOld.Shape),
+					"shape entity %d still exists", s.stuckOld.Shape)
+				c.True("the new shapes stay", c.ShapeAlive(s.stuckA.Shape) && c.ShapeAlive(s.stuckB.Shape),
+					"a new shape was swept")
 			}},
 			{Tick: firstGone, Do: func(c *harness.Ctx) {
 				c.True("destroying the first sharer succeeds", c.Destroy(s.first), "Destroy returned false")
@@ -150,8 +188,9 @@ func ShapeSweep() harness.Scenario {
 				c.ExpectWorldReset()
 				c.Plugin().Reset()
 			}},
-			{Tick: resetTick + 10, Do: func(c *harness.Ctx) {
-				c.False("after a Reset a shape no body names is swept like any other",
+			// The tick right after the rebuild, before id recycling can refill the id.
+			{Tick: resetTick + 1, Do: func(c *harness.Ctx) {
+				c.False("after a Reset a shape no body names is swept by the rebuild tick itself",
 					c.ShapeAlive(s.survivorSlot), "shape entity %d survived the rebuild", s.survivorSlot)
 			}},
 		},

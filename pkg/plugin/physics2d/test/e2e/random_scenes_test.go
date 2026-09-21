@@ -81,7 +81,10 @@ func genScene(r *rand.Rand, n int) []bodySpec {
 		shape.Common.Density = 0.5 + r.Float64()*4
 		shape.Common.Friction = r.Float64()
 		shape.Common.Restitution = r.Float64() * 0.8
-		shape.Common.IsSensor = r.IntN(6) == 0
+		// Chains are never sensors: Box2D builds their segments solid, so the plugin
+		// refuses the combination rather than handing back a shape that lies.
+		isChain := shapeKind == scenario.KindChain || shapeKind == scenario.KindChainLoop
+		shape.Common.IsSensor = !isChain && r.IntN(6) == 0
 		shape.Category = 1 << r.IntN(64)
 		shape.Mask = r.Uint64()
 		if r.IntN(2) == 0 {

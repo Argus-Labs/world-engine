@@ -44,12 +44,8 @@ func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 	if err != nil {
 		return err
 	}
+	rt.shapeRefsStale = false
 	rt.destroyOrphanBodies(sorted)
-	// Count what every body declares before reconciling any of them, so the shape reference
-	// counts never depend on how far this pass got.
-	for i := range sorted {
-		rt.noteDeclared(sorted[i].EntityID, sorted[i].PhysicsBody.Shapes)
-	}
 	// One failing entity must not skip the rest. Two things break if it does: a shape edited
 	// this tick loses its dirty mark before the bodies past the failure ever see it (the next
 	// SyncShapes clears the map and the mirror already matches the component, so nothing
@@ -58,13 +54,23 @@ func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 	// deletes it. Each entity's failure path already leaves that entity in a clean state.
 	var errs []error
 	for _, e := range sorted {
-		// Counted before the attempt, so a body that fails to attach still holds its shapes.
-		rt.noteDeclared(e.EntityID, e.PhysicsBody.Shapes)
 		if err := rt.reconcileOneEntry(e); err != nil {
 			errs = append(errs, err)
 		}
+		rt.noteDeclared(e.EntityID, rt.heldShapes(e))
 	}
 	return errors.Join(errs...)
+}
+
+// heldShapes is the list that keeps a body's shapes alive: what ECS names, plus what its
+// fixtures were built from (the shadow) when an update failed and left them on an older
+// list. The two agree whenever the body is up to date, so the join costs only on failure.
+func (rt *Runtime) heldShapes(e PhysicsRebuildEntry) immutable.Slice[component.ShapeRef] {
+	prev, alive := rt.Shadow[e.EntityID]
+	if !alive || immutable.Equal(prev.PhysicsBody.Shapes, e.PhysicsBody.Shapes) {
+		return e.PhysicsBody.Shapes
+	}
+	return immutable.Concat(prev.PhysicsBody.Shapes, e.PhysicsBody.Shapes)
 }
 
 // cloneSortAndCheckDuplicateReconcileEntries returns entries sorted by EntityID or an error if
@@ -83,6 +89,7 @@ func (rt *Runtime) cloneSortAndCheckDuplicateReconcileEntries(
 	})
 	for i := 1; i < len(sorted); i++ {
 		if sorted[i].EntityID == sorted[i-1].EntityID {
+			rt.shapeRefsStale = true
 			return nil, fmt.Errorf("physics2d: duplicate entity_id %d in reconcile entries", sorted[i].EntityID)
 		}
 	}
@@ -352,24 +359,56 @@ func (rt *Runtime) applyMutableShapeFixtures(
 		if p.Shape == l.Shape && !dirty && sameFilter {
 			continue
 		}
-		sh := resolved[i]
-		// Chain slots hold a null ShapeID and are skipped, matching the CGO bridge
-		// (its per-shape setters could not resolve chain shape indices either).
+		c := resolved[i].Common
+		filter := box2d.Filter{
+			CategoryBits: l.CategoryBits,
+			MaskBits:     l.MaskBits,
+			GroupIndex:   int(l.GroupIndex),
+		}
+		// Chain slots hold a null ShapeID; the chain is updated through its own id.
 		if i >= len(slots) || slots[i].IsNull() {
+			rt.applyMutableChain(entityID, i, dirty || p.Shape != l.Shape, sameFilter, c, filter)
 			continue
 		}
 		sid := slots[i]
-		c := sh.Common
 		rt.World.SetShapeFriction(sid, c.Friction)
 		rt.World.SetShapeRestitution(sid, c.Restitution)
 		// The trailing true is Box2D's updateBodyMass: a density change re-derives the body's
 		// mass here, so nothing further up needs to track whether density moved.
 		rt.World.SetShapeDensity(sid, c.Density, true)
-		rt.World.SetShapeFilter(sid, box2d.Filter{
-			CategoryBits: l.CategoryBits,
-			MaskBits:     l.MaskBits,
-			GroupIndex:   int(l.GroupIndex),
-		})
+		rt.World.SetShapeFilter(sid, filter)
 	}
 	return nil
+}
+
+// applyMutableChain sets a chain slot's material (one for every segment, as it was built) and
+// the filter on each segment shape. Chains have no mass, so density does not apply.
+//
+// Each half is skipped when its own input did not move, which matters here and not on the
+// single-shape path above: Box2D's SetShapeFilter and SetShapeDensity return early on an
+// unchanged value, but SetChainSurfaceMaterial writes to every segment unconditionally, and
+// reaching the segments to set filters costs a query and a slice.
+func (rt *Runtime) applyMutableChain(
+	entityID cardinal.EntityID, shapeIndex int, newMaterial, sameFilter bool,
+	c component.ShapeCommon, filter box2d.Filter,
+) {
+	for _, ch := range rt.Chains[entityID] {
+		if ch.Index != shapeIndex {
+			continue
+		}
+		if newMaterial {
+			material := box2d.DefaultSurfaceMaterial()
+			material.Friction = c.Friction
+			material.Restitution = c.Restitution
+			rt.World.SetChainSurfaceMaterial(ch.ID, material, 0)
+		}
+		if !sameFilter {
+			segments := make([]box2d.ShapeID, rt.World.ChainSegmentCount(ch.ID))
+			n := rt.World.ChainSegments(ch.ID, segments)
+			for _, sid := range segments[:n] {
+				rt.World.SetShapeFilter(sid, filter)
+			}
+		}
+		return
+	}
 }

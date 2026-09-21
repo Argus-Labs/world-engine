@@ -207,24 +207,29 @@ func (p PhysicsBody2D) AddShape(tag string, shape ShapeRef) (PhysicsBody2D, erro
 
 // ReplaceShape swaps the shape tagged tag for shape, at the same index, and returns the
 // changed body. Keeping the index keeps the fixture, so a same-geometry replacement updates
-// in place. It fails when no shape has that tag. Set the returned body to apply it.
+// in place. It fails when no shape has that tag. Set the returned body to apply it; the
+// receiver, and the component it was read from, are untouched.
 func (p PhysicsBody2D) ReplaceShape(tag string, shape ShapeRef) (PhysicsBody2D, error) {
 	i := p.ShapeIndex(tag)
 	if i < 0 {
 		return p, fmt.Errorf("physics_body_2d: no shape tagged %q", tag)
 	}
 	shape.Tag = tag
-	p.Shapes = p.Shapes.With(i, shape)
+	// With writes through its array, which a body read from ECS shares with the stored
+	// component. Copy first so only the returned body changes.
+	p.Shapes = immutable.Collect(p.Shapes.Values()).With(i, shape)
 	return p, nil
 }
 
 // RemoveShape drops the shape tagged tag and returns the changed body. Shapes after it move
-// down one index. It fails when no shape has that tag. Set the returned body to apply it.
+// down one index. It fails when no shape has that tag. Set the returned body to apply it; the
+// receiver, and the component it was read from, are untouched.
 func (p PhysicsBody2D) RemoveShape(tag string) (PhysicsBody2D, error) {
 	i := p.ShapeIndex(tag)
 	if i < 0 {
 		return p, fmt.Errorf("physics_body_2d: no shape tagged %q", tag)
 	}
-	p.Shapes = p.Shapes.Without(i)
+	// Without shifts and zero-fills through its array; see ReplaceShape.
+	p.Shapes = immutable.Collect(p.Shapes.Values()).Without(i)
 	return p, nil
 }

@@ -79,7 +79,7 @@ func resolveShape(sh *physics.Shapes, slot physics.ShapeRef) CapturedShape {
 	return out
 }
 
-// CommonOf reads a shape's material and filter back into the component the harness
+// CommonOf reads a shape's material back into the component the harness
 // compares and serializes. Shapes are opaque outside the plugin; this is the one place
 // the harness needs the struct form.
 func CommonOf(d physics.Shape) physcomp.ShapeCommon {
@@ -398,6 +398,9 @@ func compareShape(label string, i int, w, g CapturedShape, tol float64) []Diff {
 	if g.Slot.Shape != w.Slot.Shape {
 		add("Shape", g.Slot.Shape, w.Slot.Shape)
 	}
+	if g.Slot.Tag != w.Slot.Tag {
+		add("Tag", g.Slot.Tag, w.Slot.Tag)
+	}
 	pt("LocalOffset", g.Slot.LocalOffset, w.Slot.LocalOffset)
 	num("LocalRotation", g.Slot.LocalRotation, w.Slot.LocalRotation)
 	if g.Kind != w.Kind {
@@ -422,6 +425,9 @@ func compareShape(label string, i int, w, g CapturedShape, tol float64) []Diff {
 
 	num("Radius", g.Circle.Radius, w.Circle.Radius)
 	pt("HalfExtents", g.Box.HalfExtents, w.Box.HalfExtents)
+	// Only Count vertices: resolveShape reads shapes back through the public API, which
+	// stops there. The slots past Count travel on the wire; TestWire_PolygonGeom_KeepsSlotsPastCount
+	// is what pins those.
 	if g.Polygon.Count != w.Polygon.Count {
 		add("Vertices<count>", g.Polygon.Count, w.Polygon.Count)
 	} else {

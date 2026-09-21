@@ -6,9 +6,9 @@ import (
 )
 
 // ShadowState is a snapshot of the ECS physics components last applied to Box2D for one
-// entity. It must not share backing storage with live ECS data: immutable.Slice derivations
-// write through their array, so a system doing Shapes.With(i, slot) would otherwise edit the
-// shadow too and the change would never reach Box2D. Shape contents are not shadowed: shapes
+// entity. It must not share backing storage with live ECS data: With, Without and Filter write
+// into the array they derive from, so a system doing Shapes.With(i, slot) would otherwise edit
+// the shadow too and the change would never reach Box2D. Shape contents are not shadowed: shapes
 // live on their own entities and the runtime's ShapeMirror tracks their changes (see SyncShapes).
 type ShadowState struct {
 	Transform   component.Transform2D

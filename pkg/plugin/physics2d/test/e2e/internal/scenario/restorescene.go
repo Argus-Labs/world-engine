@@ -20,8 +20,8 @@ import (
 //
 // So: no body has Active, Awake and SleepingAllowed all true; no body is left at
 // GravityScale 1 alone; filters use high bits and non-zero group indices;
-// materials avoid the defaults; and every shape type is present, because shape
-// geometry travels as JSON too.
+// materials avoid the defaults; shapes carry tags; and every shape type is
+// present, because shape geometry travels as JSON too.
 func RestoreScene() harness.Scenario {
 	return harness.Scenario{
 		Name:  "restore",
@@ -118,13 +118,14 @@ func buildRestoreScene(c *harness.Ctx) {
 	c.Spawn("shape-edge", 8, 80, body(c, physics.BodyTypeStatic,
 		edge(vec(-2.5, 0), vec(2.5, 0))))
 
-	// --- A compound body: offsets, a local rotation, per-child materials and
-	// per-child filters, all of which have to survive as a group and in order.
+	// --- A compound body: offsets, a local rotation, per-child materials,
+	// per-child filters and tags, all of which have to survive as a group and in
+	// order. The middle shape stays untagged, so an empty tag travels too.
 	c.Spawn("compound-floor", 20, 90, body(c, physics.BodyTypeStatic, box(6, 1)))
 	c.Spawn("compound", 20, 100, body(c, physics.BodyTypeDynamic,
-		withDensity(atOffset(box(0.4, 0.4), -1.2, 0), 3),
+		tagged(withDensity(atOffset(box(0.4, 0.4), -1.2, 0), 3), "hull"),
 		rotatedBy(atOffset(box(0.9, 0.15), 0, 0.6), math.Pi/6),
-		withFilter(asSensor(atOffset(circle(1.1), 1.2, 0)), 1<<41, 1<<41, 0),
+		tagged(withFilter(asSensor(atOffset(circle(1.1), 1.2, 0)), 1<<41, 1<<41, 0), "aggro"),
 	))
 
 	// --- Filters worth losing: bits above 32, and both signs of group index.

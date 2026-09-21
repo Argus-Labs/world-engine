@@ -42,6 +42,7 @@ func (rt *Runtime) FullRebuildFromECS(gravity component.Vec2, entries []PhysicsR
 	})
 	for i := 1; i < len(sorted); i++ {
 		if sorted[i].EntityID == sorted[i-1].EntityID {
+			rt.shapeRefsStale = true
 			return fmt.Errorf("physics2d: duplicate entity_id %d in rebuild entries", sorted[i].EntityID)
 		}
 	}
@@ -63,6 +64,7 @@ func (rt *Runtime) FullRebuildFromECS(gravity component.Vec2, entries []PhysicsR
 	clear(rt.KnownEntities)
 	clear(rt.Shadow)
 	rt.rebuildShapeRefs(sorted)
+	rt.shapeRefsStale = false
 	rt.BufferedContacts = rt.BufferedContacts[:0]
 	// Force reload of active-contact baseline from the ECS singleton on the next step. If we
 	// kept the in-memory map, the post-rebuild suppressed diff would compare against stale

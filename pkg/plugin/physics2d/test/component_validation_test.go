@@ -3,6 +3,7 @@ package physics2d_test
 import (
 	"encoding/json"
 	"math"
+	"slices"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/immutable"
@@ -156,6 +157,20 @@ func TestShapeRef_FilterDefaults(t *testing.T) {
 	require.Equal(t, phycomp.Ref(7).Filter(0, 0), fromJSON, "an explicit JSON zero is kept")
 }
 
+func TestValidate_ShapeCommon_Negative(t *testing.T) {
+	t.Parallel()
+	for name, c := range map[string]phycomp.ShapeCommon{
+		"friction":    {Friction: -0.1, Density: 1},
+		"restitution": {Restitution: -1, Density: 1},
+		"density":     {Density: -1},
+	} {
+		err := c.Validate()
+		require.Error(t, err, name)
+		require.Contains(t, err.Error(), name)
+	}
+	require.NoError(t, phycomp.ShapeCommon{}.Validate(), "zero material is valid")
+}
+
 func TestValidate_ShapeCommon_NaNFriction(t *testing.T) {
 	t.Parallel()
 	c := phycomp.DefaultShapeCommon()
@@ -196,9 +211,9 @@ func TestValidate_Geometry_Valid(t *testing.T) {
 		Count:    3,
 	}.Validate())
 	require.NoError(t, phycomp.ChainGeom{
-		Points: immutable.SliceOf(phycomp.Vec2{}, phycomp.Vec2{X: 1}), Loop: true,
+		Points: immutable.SliceOf(phycomp.Vec2{}, phycomp.Vec2{X: 1}, phycomp.Vec2{X: 1, Y: 1}, phycomp.Vec2{Y: 1}),
+		Loop:   true,
 	}.Validate())
-	require.NoError(t, phycomp.ChainGeom{}.Validate(), "point-count rules are Box2D's, at attach")
 	require.NoError(t, phycomp.EdgeGeom{A: phycomp.Vec2{X: 0, Y: 0}, B: phycomp.Vec2{X: 3, Y: 0}}.Validate())
 	require.NoError(t, phycomp.CapsuleGeom{A: phycomp.Vec2{}, B: phycomp.Vec2{X: 1}, Radius: 0.25}.Validate())
 }
@@ -268,10 +283,25 @@ func TestValidate_CapsuleGeom_NaNRadius(t *testing.T) {
 func TestValidate_ChainGeom_NaNPoint(t *testing.T) {
 	t.Parallel()
 	err := phycomp.ChainGeom{
-		Points: immutable.SliceOf(phycomp.Vec2{X: 0, Y: 0}, phycomp.Vec2{X: 0, Y: math.Inf(1)}),
+		Points: immutable.SliceOf(
+			phycomp.Vec2{X: 0, Y: 0}, phycomp.Vec2{X: 0, Y: math.Inf(1)}, phycomp.Vec2{X: 1}, phycomp.Vec2{X: 2},
+		),
 	}.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "points[1]")
+}
+
+func TestValidate_ChainGeom_TooFewPoints(t *testing.T) {
+	t.Parallel()
+	for _, n := range []int{0, 2, 3} {
+		pts := make([]phycomp.Vec2, n)
+		for i := range pts {
+			pts[i] = phycomp.Vec2{X: float64(i)}
+		}
+		err := phycomp.ChainGeom{Points: immutable.SliceOf(pts...)}.Validate()
+		require.Error(t, err, "%d points", n)
+		require.Contains(t, err.Error(), "at least 4")
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -416,7 +446,14 @@ func TestPhysicsBody2D_SlotsByTag(t *testing.T) {
 	require.Equal(t, 1, removed.ShapeIndex("aggro"), "later slots move down")
 	_, err = pb.RemoveShape("nope")
 	require.ErrorContains(t, err, `"nope"`, "RemoveShape refuses an unknown tag")
-	require.Equal(t, 3, pb.Shapes.Len(), "the receiver is untouched")
+
+	// With and Without write through their array, so the receiver, and any ECS component
+	// sharing that array, must be copied rather than shifted or overwritten under it.
+	original := []phycomp.ShapeRef{
+		phycomp.Ref(3), phycomp.Ref(4), phycomp.Ref(5),
+	}
+	original[0].Tag, original[2].Tag = "hull", "aggro"
+	require.Equal(t, original, slices.Collect(pb.Shapes.Values()), "the receiver is untouched")
 }
 
 func TestNewPhysicsBody2D_MultipleShapes(t *testing.T) {
@@ -528,4 +565,54 @@ func TestComponentNames(t *testing.T) {
 	require.Equal(t, "chain_geom_2d", phycomp.ChainGeom{}.Name())
 	require.Equal(t, "edge_geom_2d", phycomp.EdgeGeom{}.Name())
 	require.Equal(t, "capsule_geom_2d", phycomp.CapsuleGeom{}.Name())
+}
+
+// ---------------------------------------------------------------------------
+// Geometry wire round trip
+// ---------------------------------------------------------------------------
+
+// PolygonGeom stores a fixed array and travels whole, so the slots past Count are payload
+// even though Box2D never reads them and Shape.Vertices never returns them. Nothing above
+// this line would notice them going missing: the restore harness reads shapes back through
+// the public API, which stops at Count.
+func TestWire_PolygonGeom_KeepsSlotsPastCount(t *testing.T) {
+	t.Parallel()
+	var p phycomp.PolygonGeom
+	p.Count = 3
+	p.Vertices[0] = phycomp.Vec2{X: 0, Y: 0}
+	p.Vertices[1] = phycomp.Vec2{X: 1, Y: 0}
+	p.Vertices[2] = phycomp.Vec2{X: 0, Y: 1}
+	p.Vertices[phycomp.MaxPolygonVertices-1] = phycomp.Vec2{X: 9, Y: -9}
+
+	back, err := phycomp.PolygonGeom{}.UnmarshalWire(p.MarshalWire())
+	require.NoError(t, err)
+	require.Equal(t, p, back, "a vertex slot past Count was dropped by the wire")
+}
+
+// wireComponent is Cardinal's component wire contract; the interface itself is internal.
+type wireComponent interface {
+	Name() string
+	MarshalWire() []byte
+	UnmarshalWire([]byte) (any, error)
+}
+
+// The other geometries have no hidden slots, but they are the rest of what a shape entity
+// snapshots, so round-trip them together.
+func TestWire_Geometry_RoundTrips(t *testing.T) {
+	t.Parallel()
+	for _, c := range []wireComponent{
+		phycomp.ShapeCommon{IsSensor: true, Friction: 0.11, Restitution: 0.22, Density: 0.33},
+		phycomp.CircleGeom{Radius: 0.5},
+		phycomp.BoxGeom{HalfExtents: phycomp.Vec2{X: 1, Y: 2}},
+		phycomp.ChainGeom{
+			Points: immutable.SliceOf(phycomp.Vec2{}, phycomp.Vec2{X: 1}, phycomp.Vec2{X: 1, Y: 1}, phycomp.Vec2{Y: 1}),
+			Loop:   true,
+		},
+		phycomp.EdgeGeom{A: phycomp.Vec2{X: -1}, B: phycomp.Vec2{X: 1}},
+		phycomp.CapsuleGeom{A: phycomp.Vec2{X: -1}, B: phycomp.Vec2{X: 1}, Radius: 0.25},
+	} {
+		back, err := c.UnmarshalWire(c.MarshalWire())
+		require.NoError(t, err, c.Name())
+		require.Equal(t, c, back, c.Name())
+	}
 }

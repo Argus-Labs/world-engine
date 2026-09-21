@@ -2,6 +2,7 @@ package component
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/immutable"
@@ -56,6 +57,23 @@ func (g BoxGeom) Validate() error {
 // PolygonGeom stores exactly that many slots; Count says how many are used.
 const MaxPolygonVertices = box2d.MaxPolygonVertices
 
+// MinChainPoints is the fewest points Box2D accepts for a chain.
+const MinChainPoints = 4
+
+// validateSegment checks that two endpoints are far enough apart for Box2D, which refuses any
+// segment at or under LinearSlop: a capsule comes back as a null shape id, and an edge trips an
+// assertion that kills the process in an asserts build. Either way the fixture is lost, so the
+// plugin refuses the shape instead. LinearSlop is read here rather than copied, because
+// box2d.SetLengthUnitsPerMeter moves it.
+func validateSegment(a, b Vec2) error {
+	dx, dy := b.X-a.X, b.Y-a.Y
+	if dx*dx+dy*dy <= box2d.LinearSlop*box2d.LinearSlop {
+		return fmt.Errorf("a and b: must be more than %v apart, got %v",
+			box2d.LinearSlop, math.Sqrt(dx*dx+dy*dy))
+	}
+	return nil
+}
+
 // PolygonGeom is a convex polygon of 3..MaxPolygonVertices vertices.
 type PolygonGeom struct {
 	Vertices [MaxPolygonVertices]Vec2 `json:"vertices"`
@@ -83,8 +101,7 @@ func (g PolygonGeom) Validate() error {
 //
 // Points are fixed once a body uses the shape: the plugin copies them when it first sees the
 // entity and never re-reads them, so a long polyline costs nothing per tick. To change
-// terrain, spawn a new chain shape and point the slot at it. Box2D requires at least 4 points
-// and enforces that at fixture creation, like the other kinds' geometry rules.
+// terrain, spawn a new chain shape and point the ref at it. Box2D needs at least four points.
 type ChainGeom struct {
 	Points immutable.Slice[Vec2] `json:"points"`
 	Loop   bool                  `json:"loop"`
@@ -93,8 +110,11 @@ type ChainGeom struct {
 // Name returns the ECS component name.
 func (ChainGeom) Name() string { return "chain_geom_2d" }
 
-// Validate checks every point for NaN/Inf.
+// Validate checks the point count and every point for NaN/Inf.
 func (g ChainGeom) Validate() error {
+	if n := g.Points.Len(); n < MinChainPoints {
+		return fmt.Errorf("points: need at least %d, got %d", MinChainPoints, n)
+	}
 	for i, v := range g.Points.All() {
 		if err := validateVec2(fmt.Sprintf("points[%d]", i), v); err != nil {
 			return err
@@ -112,12 +132,15 @@ type EdgeGeom struct {
 // Name returns the ECS component name.
 func (EdgeGeom) Name() string { return "edge_geom_2d" }
 
-// Validate checks both endpoints for NaN/Inf.
+// Validate checks both endpoints for NaN/Inf and that they are far enough apart.
 func (g EdgeGeom) Validate() error {
 	if err := validateVec2("a", g.A); err != nil {
 		return err
 	}
-	return validateVec2("b", g.B)
+	if err := validateVec2("b", g.B); err != nil {
+		return err
+	}
+	return validateSegment(g.A, g.B)
 }
 
 // CapsuleGeom is the segment from A to B inflated by Radius.
@@ -130,7 +153,8 @@ type CapsuleGeom struct {
 // Name returns the ECS component name.
 func (CapsuleGeom) Name() string { return "capsule_geom_2d" }
 
-// Validate checks the endpoints and radius for NaN/Inf.
+// Validate checks the endpoints and radius for NaN/Inf, the radius for being positive, and
+// the endpoints for being far enough apart.
 func (g CapsuleGeom) Validate() error {
 	if err := validateVec2("a", g.A); err != nil {
 		return err
@@ -144,5 +168,5 @@ func (g CapsuleGeom) Validate() error {
 	if g.Radius <= 0 {
 		return fmt.Errorf("radius: must be positive, got %v", g.Radius)
 	}
-	return nil
+	return validateSegment(g.A, g.B)
 }

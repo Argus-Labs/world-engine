@@ -21,10 +21,11 @@ import (
 // because the counts are settled before the sweep runs. After a full rebuild (Reset, restore)
 // the counts start over from the bodies that exist then, and the same rule applies.
 
-// noteDeclared records the slot list a body entity declares this tick, adjusting the counts
+// noteDeclared records the slot list a body entity holds this tick, adjusting the counts
 // by what changed since the last time.
-// The list is copied: immutable.Slice derivations write through their array, so a declaration
-// that aliased the component would rewrite itself under the next With and hide the change.
+// The list is copied: With, Without and Filter write into the array they derive from, so a
+// declaration that aliased the component would rewrite itself under the next edit and hide
+// the change.
 func (rt *Runtime) noteDeclared(entityID cardinal.EntityID, slots immutable.Slice[component.ShapeRef]) {
 	prev, seen := rt.declaredSlots[entityID]
 	if seen && immutable.Equal(prev, slots) {
@@ -88,7 +89,7 @@ func (rt *Runtime) rebuildShapeRefs(entries []PhysicsRebuildEntry) {
 // sweep deterministic. A candidate that is referenced again by sweep time is kept.
 func (rt *Runtime) SweepUnusedShapes(destroy func(cardinal.EntityID) bool) {
 	queued := rt.shapeSweepScratch
-	if len(queued) == 0 {
+	if len(queued) == 0 || rt.shapeRefsStale {
 		return
 	}
 	slices.Sort(queued)

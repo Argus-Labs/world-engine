@@ -173,8 +173,12 @@ func snapshotBenchEnvelope(b *testing.B, bodies int) *cardinalv1.Snapshot {
 //	go test ./pkg/plugin/physics2d/test/ -run '^$' -bench 'BenchmarkSnapshotTick' -benchtime=300x
 //	go test ./pkg/plugin/physics2d/test/ -run '^$' -bench 'BenchmarkSnapshotTick' -benchtime=1200x
 //
-// Measured 2026-08-02 on darwin/arm64, Apple M5 Max, go1.26.5. ns/op at 300x vs 1200x, worst case
-// of the six sub-benchmarks 2.0% apart:
+// The table below was measured 2026-08-02 on darwin/arm64, Apple M5 Max, go1.26.5, BEFORE shapes
+// became entities. The scene serialized a collider inline on every body then; it now serializes a
+// ShapeRef per body and one shared shape entity, which roughly halves the snapshot (see the byte
+// counts on BenchmarkSnapshotStore). So read these as the record of the comparability check on
+// that model, not as what a tick costs today. Anything measured now belongs beside numbers from
+// the same machine and the same scene.
 //
 //	sub-benchmark              300x       1200x     delta
 //	Bodies_1000/Rate_1000000    299.1 us   300.8 us  +0.6%
@@ -183,6 +187,11 @@ func snapshotBenchEnvelope(b *testing.B, bodies int) *cardinalv1.Snapshot {
 //	Bodies_5000/Rate_1000000   1503.5 us  1517.9 us  +1.0%
 //	Bodies_5000/Rate_50        1606.7 us  1599.8 us  -0.4%
 //	Bodies_5000/Rate_1         5047.3 us  5039.7 us  -0.2%
+//
+// Re-run on the shape-entity scene 2026-09-21 (linux/amd64, i9-11900K under WSL2, go1.27.1): the
+// spread across those two -benchtime settings stayed within 10%, but two runs at the SAME 300x
+// differed by 12% on Bodies_1000/Rate_1, so that box cannot resolve a 2% property. The check needs
+// a quiet machine; it was not re-established here.
 func BenchmarkSnapshotTick(b *testing.B) {
 	for _, bodies := range []int{1000, 5000} {
 		for _, rate := range []uint32{1_000_000, 50, 1} {
@@ -217,17 +226,24 @@ func BenchmarkSnapshotTick(b *testing.B) {
 // with what it is given, which is why SingleMarshal is the ceiling the byte interface removed
 // rather than a description of today. For the engine-side cost see BenchmarkSnapshotTick.
 //
-// What the current path saves, measured 2026-08-02 on darwin/arm64, Apple M5 Max, go1.26.5:
-// five runs at -benchtime=200x, per-run LegacyDoubleMarshal minus SingleMarshal, median taken
-// across the five. Unlike a whole tick, each iteration here re-serializes one fixed envelope, so
-// the loop is comparable at any -benchtime; the repeats are only against machine noise.
+// What the current path saves. Unlike a whole tick, each iteration here re-serializes one fixed
+// envelope, so the loop is comparable at any -benchtime; repeats are only against machine noise.
 //
-//	bodies  snapshot bytes  legacy (median)  single (median)  saved per snapshot
-//	  1000         157_765         199.0 us          47.7 us    151 us (range 148-158)
-//	  5000         877_089         999.4 us         222.1 us    777 us (range 742-820)
+// Snapshot bytes and allocations are properties of the data model, not the machine, so they are
+// current (measured 2026-09-21 at -benchtime=200x):
 //
-// Allocation deltas do not vary run to run: at 5000 bodies 20105 -> 1 allocations and
-// 4_748_910 -> 884_737 B, i.e. 20104 allocations and 3.86 MB of garbage removed per snapshot.
+//	bodies  snapshot bytes  legacy allocs  single allocs  garbage removed per snapshot
+//	  1000          78_007           9058              1                       453 KB
+//	  5000         390_286          45063              1                      2.31 MB
+//
+// Shapes became entities between the two measurements, which is most of why the snapshot halved:
+// 157_765 -> 78_007 at 1000 bodies and 877_089 -> 390_286 at 5000, because one shared shape entity
+// replaced a collider serialized inline on every body.
+//
+// The microsecond savings that used to sit here (151 us at 1000 bodies, 777 us at 5000, measured
+// 2026-08-02 on darwin/arm64, Apple M5 Max, go1.26.5) were taken on the old model and against the
+// old byte counts, so they are not comparable with a run today. Re-measure them on a quiet machine
+// before quoting a saving.
 type legacyDoubleMarshalStorage struct {
 	sink []byte
 }

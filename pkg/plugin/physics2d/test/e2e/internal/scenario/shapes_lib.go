@@ -42,6 +42,7 @@ type ShapeSpec struct {
 	Category uint64
 	Mask     uint64
 	Group    int32
+	Tag      string
 	spawn    func(c *harness.Ctx, common physcomp.ShapeCommon) (physics.ShapeRef, error)
 }
 
@@ -62,7 +63,9 @@ func (s ShapeSpec) TrySpawn(c *harness.Ctx) (physics.ShapeRef, error) {
 	if err != nil {
 		return physics.ShapeRef{}, err
 	}
-	return slot.At(s.Offset, s.Rotation).Filter(s.Category, s.Mask).Group(s.Group), nil
+	ref := slot.At(s.Offset, s.Rotation).Filter(s.Category, s.Mask).Group(s.Group)
+	ref.Tag = s.Tag
+	return ref, nil
 }
 
 // baseCommon is the default material.
@@ -159,6 +162,12 @@ func withFilter(s ShapeSpec, category, mask uint64, group int32) ShapeSpec {
 	return s
 }
 
+// tagged names the slot, the way PhysicsBody2D.AddShape would.
+func tagged(s ShapeSpec, tag string) ShapeSpec {
+	s.Tag = tag
+	return s
+}
+
 func asSensor(s ShapeSpec) ShapeSpec {
 	s.Common.IsSensor = true
 	return s
@@ -178,11 +187,15 @@ func rotatedBy(s ShapeSpec, radians float64) ShapeSpec {
 // Body builders
 // -----------------------------------------------------------------------------
 
-// body spawns every shape as its own entity and builds a PhysicsBody2D through
-// the plugin constructor, which is the only way to get Box2D's real defaults
+// body spawns every shape and builds a PhysicsBody2D through the plugin
+// constructor, which is the only way to get Box2D's real defaults
 // (Active, Awake, SleepingAllowed true and GravityScale 1). A bare struct
 // literal produces a disabled, sleeping, gravity-less body — see the "defaults"
 // scenario.
+//
+// Spawn de-duplicates, so specs that describe the same geometry and material
+// share one shape entity rather than getting one each. A scenario that watches
+// individual shapes live and die has to make its specs distinct; see sweepBox.
 func body(c *harness.Ctx, kind physics.BodyType, shapes ...ShapeSpec) physics.PhysicsBody2D {
 	slots := make([]physics.ShapeRef, len(shapes))
 	for i, s := range shapes {

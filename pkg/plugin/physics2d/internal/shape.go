@@ -90,12 +90,26 @@ func Resolve[G Geometry](common component.ShapeCommon, geom G) ResolvedShape {
 	return out
 }
 
-// Validate runs the component validators: material, then the geometry the shape carries.
+// Validate runs the component validators: material, the geometry the shape carries, then
+// the rules that need both.
 func (s ResolvedShape) Validate() error {
 	if err := s.Common.Validate(); err != nil {
 		return err
 	}
-	return s.ValidateGeometry()
+	if err := s.ValidateGeometry(); err != nil {
+		return err
+	}
+	return s.ValidateSensorSupport()
+}
+
+// ValidateSensorSupport rejects a sensor on a kind Box2D cannot build as one. A chain is many
+// segment shapes made from a single ChainDef, and that def carries no sensor flag, so a
+// sensor chain would come out solid and quietly block whatever it was meant to watch.
+func (s ResolvedShape) ValidateSensorSupport() error {
+	if s.Common.IsSensor && s.Kind == ShapeKindChain {
+		return errors.New("cannot be a sensor (Box2D builds chain segments solid)")
+	}
+	return nil
 }
 
 // ValidateGeometry runs the validator of the geometry kind the shape carries.
@@ -133,7 +147,9 @@ func (s ResolvedShape) structuralEqual(o ResolvedShape) bool {
 		s.Capsule == o.Capsule
 }
 
-// Equal reports whether two shapes have the same kind, geometry, material and filter.
+// Equal reports whether two shapes have the same kind, geometry, material and sensor flag.
+// Spawn de-duplicates on it, so a sensor and a solid that agree on everything else stay two
+// shapes, which they must: Box2D cannot toggle isSensor on a live fixture.
 func (s ResolvedShape) Equal(o ResolvedShape) bool {
 	return s.sameExceptPoints(o) && immutable.Equal(s.Chain.Points, o.Chain.Points)
 }
@@ -268,7 +284,8 @@ func (rt *Runtime) slotsDirty(slots immutable.Slice[component.ShapeRef]) bool {
 // slotsStructuralEqual reports whether the live slots can be applied to the fixtures built
 // from prev without recreating them: same count, same local transforms, and per slot either
 // the same shape entity (not structurally dirty) or a different shape entity with the same
-// geometry and sensor flag. A previous shape entity that has left the mirror forces a rebuild.
+// geometry and sensor flag. A previous shape entity that has left the mirror, or whose own
+// geometry changed this tick, forces a rebuild.
 func (rt *Runtime) slotsStructuralEqual(prev, live immutable.Slice[component.ShapeRef]) bool {
 	if prev.Len() != live.Len() {
 		return false
@@ -283,6 +300,12 @@ func (rt *Runtime) slotsStructuralEqual(prev, live immutable.Slice[component.Sha
 				return false
 			}
 			continue
+		}
+		// The comparison below stands in for the live fixture, which was built from p.Shape
+		// as it was on an earlier tick. A p.Shape whose geometry changed this tick no longer
+		// describes that fixture, so there is nothing safe to compare: rebuild.
+		if rt.dirtyShapes[p.Shape] == shapeChangeStructural {
+			return false
 		}
 		a, okA := rt.ShapeMirror[p.Shape]
 		b, okB := rt.ShapeMirror[l.Shape]

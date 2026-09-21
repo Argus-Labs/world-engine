@@ -28,6 +28,8 @@ func ShapeEntities() harness.Scenario {
 		forkGeomSlot physics.ShapeRef
 		forkGeomFix  box2d.ShapeID
 		chainSwap    cardinal.EntityID
+		chainMat     cardinal.EntityID
+		chainSegs    []box2d.ShapeID
 	}
 
 	const (
@@ -44,6 +46,16 @@ func ShapeEntities() harness.Scenario {
 			return box2d.ShapeID{}
 		}
 		return ids[0]
+	}
+	// segments returns the Box2D shape ids of every fixture on id, chain segments included.
+	segments := func(c *harness.Ctx, id cardinal.EntityID) []box2d.ShapeID {
+		eng := c.Plugin().Engine()
+		bodyID, ok := c.Plugin().BodyID(id)
+		if !ok {
+			return nil
+		}
+		ids := make([]box2d.ShapeID, eng.BodyShapeCount(bodyID))
+		return ids[:eng.BodyShapes(bodyID, ids)]
 	}
 	// line is a right-to-left chain at height y, so a downward ray hits its upward normal.
 	line := func(y float64) []physics.Vec2 {
@@ -75,6 +87,11 @@ func ShapeEntities() harness.Scenario {
 			other := withFriction(box(1, 1), 0.6).Spawn(c)
 			c.True("Spawn creates a new shape for a different material",
 				other.Shape != s.shared.Shape, "shared the entity")
+			// The sensor flag is part of a shape, and Box2D cannot toggle it on a live
+			// fixture, so it has to split shapes the way geometry and material do.
+			sensor := asSensor(withFriction(box(1, 1), 0.3)).Spawn(c)
+			c.True("Spawn creates a new shape for a sensor of the same material and geometry",
+				sensor.Shape != s.shared.Shape, "a sensor shared the solid shape's entity")
 
 			// Row y=10 — slot re-pointed at a shape with the same geometry, new material.
 			s.swapSame = c.Spawn("swap-material", 0, 10, body(c, physics.BodyTypeStatic, withFriction(box(1, 1), 0.3)))
@@ -88,6 +105,11 @@ func ShapeEntities() harness.Scenario {
 
 			// Row y=50 — terrain changed by pointing the slot at a new chain shape.
 			s.chainSwap = c.Spawn("chain-swap", 0, 50, body(c, physics.BodyTypeStatic, chain(line(0)...)))
+
+			// Row y=60 — a chain re-pointed at the same polyline with another material and
+			// filter: updated in place, segment by segment.
+			s.chainMat = c.Spawn("chain-material", 0, 60,
+				body(c, physics.BodyTypeStatic, withFriction(chain(line(0)...), 0.3)))
 		},
 		Steps: []harness.Step{
 			{Tick: beforeTick, Do: func(c *harness.Ctx) {
@@ -106,11 +128,7 @@ func ShapeEntities() harness.Scenario {
 				c.False("the small circle does not reach x=3 before the fork",
 					c.OverlapHits(c.OverlapAABB(2.5, 29.5, 3.5, 30.5, nil), s.forkGeom), "already there")
 
-				if def, ok := harness.ReadShape(c, s.shared); c.True("Read finds the shared box", ok, "") {
-					c.True("Read reports the kind", def.Kind() == physics.KindBox, "got %s", def.Kind())
-					c.Near("Read returns the shape's friction", def.Friction(), 0.3, 0)
-					c.NearVec("Read returns the shape's geometry", def.HalfExtents(), vec(1, 1), 0)
-				}
+				checkReadReturnsTheShape(c, s.shared)
 
 				if y, ok := hitY(c, s.chainSwap, 0, 50); c.True("the original chain is there", ok, "ray missed") {
 					c.Near("the original polyline sits at its spawn height", y, 50, 1e-6)
@@ -125,6 +143,7 @@ func ShapeEntities() harness.Scenario {
 					c.True("Fork returns a new shape entity", mine.Shape != s.shared.Shape, "same id as the original")
 					c.EditBody(s.left, func(pb *physics.PhysicsBody2D) { pb.Shapes = pb.Shapes.With(0, mine) })
 				}
+				checkForkKeepsTheRef(c, s.shared)
 
 				c.EditBody(s.swapSame, func(pb *physics.PhysicsBody2D) {
 					pb.Shapes = pb.Shapes.With(0, withRestitution(withFriction(box(1, 1), 0.9), 0.5).Spawn(c))
@@ -143,6 +162,13 @@ func ShapeEntities() harness.Scenario {
 				c.EditBody(s.chainSwap, func(pb *physics.PhysicsBody2D) {
 					pb.Shapes = pb.Shapes.With(0, chain(line(2)...).Spawn(c))
 				})
+
+				s.chainSegs = segments(c, s.chainMat)
+				c.True("the chain has segments", len(s.chainSegs) > 0, "no fixtures")
+				c.EditBody(s.chainMat, func(pb *physics.PhysicsBody2D) {
+					ref := withFriction(chain(line(0)...), 0.9).Spawn(c).Filter(0x4, 0x8)
+					pb.Shapes = pb.Shapes.With(0, ref)
+				})
 			}},
 			{Tick: afterTick, Do: func(c *harness.Ctx) {
 				eng := c.Plugin().Engine()
@@ -153,9 +179,7 @@ func ShapeEntities() harness.Scenario {
 				c.True("the body still on the original keeps its fixture",
 					fixture(c, s.right) == s.rightFixture, "the fixture was rebuilt")
 				c.Near("the original shape is untouched by the Fork", eng.ShapeFriction(s.rightFixture), 0.3, 0)
-				if def, ok := harness.ReadShape(c, s.shared); c.True("the original still reads", ok, "") {
-					c.Near("Read confirms the original's friction did not change", def.Friction(), 0.3, 0)
-				}
+				checkForkLeftTheOriginalAlone(c, s.shared)
 
 				c.True("a slot swap to the same geometry keeps the fixture",
 					fixture(c, s.swapSame) == s.swapSameFix, "the fixture was rebuilt")
@@ -175,7 +199,59 @@ func ShapeEntities() harness.Scenario {
 				if y, ok := hitY(c, s.chainSwap, 0, 50); c.True("the swapped chain is there", ok, "ray missed") {
 					c.Near("a slot swap moves the terrain", y, 52, 1e-6)
 				}
+
+				checkChainUpdatedInPlace(c, segments(c, s.chainMat), s.chainSegs)
 			}},
 		},
 	}
+}
+
+// checkForkKeepsTheRef pins that a fork can be dropped in where the original was: everything
+// the ref carries survives it, not just the placement.
+func checkForkKeepsTheRef(c *harness.Ctx, shared physics.ShapeRef) {
+	source := shared.At(vec(0.25, -0.5), 0.3).Filter(0x8, 0x10).Group(-3)
+	source.Tag = "hull"
+	forked, err := harness.ForkShape(c, source, func(d physics.Shape) physics.Shape {
+		return d.Material(0.77, d.Restitution(), d.Density())
+	})
+	if !c.NoError("Fork copies a decorated ref", err) {
+		return
+	}
+	want := source
+	want.Shape = forked.Shape
+	c.True("Fork keeps everything on the ref but the shape", forked == want, "got %+v, want %+v", forked, want)
+}
+
+// checkChainUpdatedInPlace pins that re-pointing a chain ref at the same polyline with another
+// material and filter keeps the segments and reaches every one of them.
+func checkChainUpdatedInPlace(c *harness.Ctx, segs, before []box2d.ShapeID) {
+	eng := c.Plugin().Engine()
+	c.True("a chain swap to the same polyline keeps its segments",
+		len(segs) == len(before) && len(segs) > 0 && segs[0] == before[0], "the chain was rebuilt")
+	for _, sid := range segs {
+		c.Near("the swapped-in friction reaches every chain segment", eng.ShapeFriction(sid), 0.9, 0)
+		f := eng.ShapeFilter(sid)
+		c.True("the ref's filter reaches every chain segment", f.CategoryBits == 0x4 && f.MaskBits == 0x8,
+			"got %#x/%#x", f.CategoryBits, f.MaskBits)
+	}
+}
+
+// checkReadReturnsTheShape pins what Read hands back for a live ref.
+func checkReadReturnsTheShape(c *harness.Ctx, ref physics.ShapeRef) {
+	def, ok := harness.ReadShape(c, ref)
+	if !c.True("Read finds the shared box", ok, "shape entity %d did not read back", ref.Shape) {
+		return
+	}
+	c.True("Read reports the kind", def.Kind() == physics.KindBox, "got %s", def.Kind())
+	c.Near("Read returns the shape's friction", def.Friction(), 0.3, 0)
+	c.NearVec("Read returns the shape's geometry", def.HalfExtents(), vec(1, 1), 0)
+}
+
+// checkForkLeftTheOriginalAlone pins that forking a shape does not touch the shape it copied.
+func checkForkLeftTheOriginalAlone(c *harness.Ctx, ref physics.ShapeRef) {
+	original, ok := harness.ReadShape(c, ref)
+	if !c.True("the original still reads", ok, "shape entity %d did not read back", ref.Shape) {
+		return
+	}
+	c.Near("Read confirms the original's friction did not change", original.Friction(), 0.3, 0)
 }

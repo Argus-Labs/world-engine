@@ -62,11 +62,18 @@ type Runtime struct {
 	// Bodies whose slots reference one are re-diffed once; cleared by the next SyncShapes.
 	dirtyShapes map[cardinal.EntityID]shapeChange
 
-	// declaredSlots is the slot list each body entity last declared in ECS, attached or not,
-	// and shapeRefs counts, per shape entity, how many of those lists name it. Maintained by
+	// declaredSlots is the slot list each body entity holds: what ECS names, attached or not,
+	// plus what its live fixtures were built from while an update is failing. shapeRefs
+	// counts, per shape entity, how many of those lists name it. Maintained by
 	// noteDeclared / forgetDeclared; see shape_sweep.go.
 	declaredSlots map[cardinal.EntityID]immutable.Slice[component.ShapeRef]
 	shapeRefs     map[cardinal.EntityID]int
+
+	// shapeRefsStale is set when a pass returned before it could refresh the reference counts,
+	// which only the duplicate-entity guards do. The counts then describe last tick, so the
+	// sweep sits out rather than destroying a shape a body still names; the queue is kept and
+	// the next good pass sweeps it.
+	shapeRefsStale bool
 
 	// shapeSweepScratch queues sweep candidates: shape ids that lost their last reference or
 	// were first seen this tick. Ids only.
@@ -77,7 +84,7 @@ type Runtime struct {
 	resolvedScratch []ResolvedShape
 
 	// Chains maps entity ids to the chain shapes created for chain-type collider slots.
-	Chains map[cardinal.EntityID][]box2d.ChainID
+	Chains map[cardinal.EntityID][]ChainSlot
 
 	// Gravity is the world gravity vector applied on world creation and on rebuild.
 	Gravity component.Vec2
@@ -235,7 +242,7 @@ func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps, workers int) 
 		Workers:              workers,
 		Bodies:               make(map[cardinal.EntityID]box2d.BodyID),
 		Shapes:               make(map[cardinal.EntityID][]box2d.ShapeID),
-		Chains:               make(map[cardinal.EntityID][]box2d.ChainID),
+		Chains:               make(map[cardinal.EntityID][]ChainSlot),
 		ShapeMirror:          make(map[cardinal.EntityID]ResolvedShape),
 		dirtyShapes:          make(map[cardinal.EntityID]shapeChange),
 		declaredSlots:        make(map[cardinal.EntityID]immutable.Slice[component.ShapeRef]),
@@ -258,7 +265,7 @@ func (rt *Runtime) Reset() {
 	}
 	rt.Bodies = make(map[cardinal.EntityID]box2d.BodyID)
 	rt.Shapes = make(map[cardinal.EntityID][]box2d.ShapeID)
-	rt.Chains = make(map[cardinal.EntityID][]box2d.ChainID)
+	rt.Chains = make(map[cardinal.EntityID][]ChainSlot)
 	rt.ShapeMirror = make(map[cardinal.EntityID]ResolvedShape)
 	rt.dirtyShapes = make(map[cardinal.EntityID]shapeChange)
 	rt.declaredSlots = make(map[cardinal.EntityID]immutable.Slice[component.ShapeRef])
@@ -366,9 +373,18 @@ func (rt *Runtime) PruneActiveContactsInvolvingEntity(entityID cardinal.EntityID
 
 // LoadActiveContactsFromComponent populates the in-memory working map from the persisted
 // ECS component. Called by the step system after a restore when ActiveContacts is nil, once
-// the bodies have been rebuilt: each pair's filter bits are looked up from the shape its slot
-// references, so an End event synthesized for it carries them. A pair whose body or shape
-// cannot be resolved keeps zero filter bits.
+// the bodies have been rebuilt.
+//
+// Filter bits are re-derived from the slot each pair names rather than persisted, which
+// matches what a world that never restarted would report: the live path re-reads both
+// filters from the engine on every step, so a pair always carries the current bits, not the
+// ones its Begin was emitted with. Re-deriving cannot pick up another shape's bits either,
+// because a slot index only changes meaning through a fixture rebuild, and that rebuild
+// prunes the entity's pairs first (see PruneActiveContactsInvolvingEntity and
+// TestReconcile_SlotListChangeDropsPairsBeforeIndicesMove).
+//
+// A pair whose body or slot no longer resolves keeps zero filter bits. Its End is still
+// emitted: a consumer that latched on Begin needs the close more than it needs the bits.
 func (rt *Runtime) LoadActiveContactsFromComponent(ac component.ActiveContacts) {
 	rt.ActiveContacts = make(map[ContactPairKey]ContactPairInfo, ac.Pairs.Len())
 	for p := range ac.Pairs.Values() {
@@ -388,7 +404,8 @@ func (rt *Runtime) LoadActiveContactsFromComponent(ac component.ActiveContacts) 
 }
 
 // slotFilterBits returns the collision filter of slot shapeIndex of entityID from the body's
-// shadow, or zero bits when the slot is missing.
+// shadow, which the reconciler keeps in step with the engine, or zero bits when the slot is
+// missing.
 func (rt *Runtime) slotFilterBits(entityID cardinal.EntityID, shapeIndex int) event.FixtureFilterBits {
 	shadow, ok := rt.Shadow[entityID]
 	if !ok || shapeIndex < 0 || shapeIndex >= shadow.PhysicsBody.Shapes.Len() {

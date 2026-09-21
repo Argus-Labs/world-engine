@@ -81,11 +81,15 @@ const (
 // MaxPolygonVertices is Box2D's convex polygon vertex limit.
 const MaxPolygonVertices = component.MaxPolygonVertices
 
+// MinChainPoints is Box2D's chain minimum required points for a valid chain.
+const MinChainPoints = component.MinChainPoints
+
 // Shape is a shape's definition: geometry and material. Constructors carry Box2D's default
 // material (solid, friction 0.6, restitution 0, density 1). The zero Shape has no geometry
 // and fails Validate.
 type Shape struct {
-	s internal.ResolvedShape
+	s   internal.ResolvedShape
+	err error
 }
 
 func newShape[G internal.Geometry](geom G) Shape {
@@ -102,23 +106,30 @@ func Box(halfWidth, halfHeight float64) Shape {
 	return newShape(component.BoxGeom{HalfExtents: Vec2{X: halfWidth, Y: halfHeight}})
 }
 
-// Polygon is a convex polygon of 3..MaxPolygonVertices vertices in shape space. More vertices
-// than that fail Validate, and so Spawn.
+// Polygon is a convex polygon of 3..MaxPolygonVertices vertices in shape space. Any other
+// count fails Validate, and so Spawn.
 func Polygon(vertices ...Vec2) Shape {
 	var g component.PolygonGeom
-	g.Count = uint8(min(len(vertices), 255))
+	g.Count = uint8(min(len(vertices), MaxPolygonVertices))
 	copy(g.Vertices[:], vertices)
-	return newShape(g)
+	d := newShape(g)
+	if len(vertices) > MaxPolygonVertices {
+		// The count field cannot hold the number that was passed, so it is carried as an
+		// error instead of being clamped into a number the caller never wrote.
+		d.err = fmt.Errorf("physics2d: polygon: %d vertices, the most Box2D takes is %d",
+			len(vertices), MaxPolygonVertices)
+	}
+	return d
 }
 
-// Chain is an open polyline through points (copied) in shape space. Static or kinematic
-// bodies only.
+// Chain is an open polyline through points (copied) in shape space, at least four of them.
+// Static or kinematic bodies only.
 func Chain(points ...Vec2) Shape {
 	return newShape(component.ChainGeom{Points: immutable.SliceOf(points...)})
 }
 
-// ChainLoop is a closed polyline through points (copied) in shape space. Static or kinematic
-// bodies only.
+// ChainLoop is a closed polyline through points (copied) in shape space, at least four of
+// them. Static or kinematic bodies only.
 func ChainLoop(points ...Vec2) Shape {
 	return newShape(component.ChainGeom{Points: immutable.SliceOf(points...), Loop: true})
 }
@@ -134,7 +145,7 @@ func Capsule(a, b Vec2, radius float64) Shape {
 }
 
 // Sensor sets whether the shape reports overlaps without ever colliding. Shapes are solid
-// unless set.
+// unless set. Chains cannot be sensors; Validate says so.
 func (d Shape) Sensor(on bool) Shape {
 	d.s.Common.IsSensor = on
 	return d
@@ -146,8 +157,8 @@ func (d Shape) Material(friction, restitution, density float64) Shape {
 	return d
 }
 
-// Reshape returns geometry's shape carrying d's material. It is how a Fork
-// changes geometry: build the new geometry with a constructor and keep the old material.
+// Reshape returns geometry's shape carrying everything of d's but the geometry: its material
+// and its sensor flag. It is how a Fork changes geometry without restating the rest.
 func (d Shape) Reshape(geometry Shape) Shape {
 	geometry.s.Common = d.s.Common
 	return geometry
@@ -155,6 +166,9 @@ func (d Shape) Reshape(geometry Shape) Shape {
 
 // Validate reports why Box2D could never build this shape, or nil. Spawn runs it first.
 func (d Shape) Validate() error {
+	if d.err != nil {
+		return d.err
+	}
 	if d.s.Kind == 0 {
 		return errors.New("physics2d: shape has no geometry")
 	}
@@ -162,6 +176,9 @@ func (d Shape) Validate() error {
 		return fmt.Errorf("physics2d: shape material: %w", err)
 	}
 	if err := d.s.ValidateGeometry(); err != nil {
+		return fmt.Errorf("physics2d: %s: %w", d.s.Kind, err)
+	}
+	if err := d.s.ValidateSensorSupport(); err != nil {
 		return fmt.Errorf("physics2d: %s: %w", d.s.Kind, err)
 	}
 	return nil
@@ -246,8 +263,8 @@ type Shapes struct {
 }
 
 // Spawn returns a ref, at the body origin, to a shape entity matching def: the live one with
-// exactly the same geometry and material when there is one, else a new one. Chain At
-// on the ref to place it. A definition that fails validation creates nothing and reports why.
+// exactly the same geometry, material and sensor flag when there is one, else a new one. Chain
+// At on the ref to place it. A definition that fails validation creates nothing and reports why.
 func (s *Shapes) Spawn(def Shape) (ShapeRef, error) {
 	if err := def.Validate(); err != nil {
 		return ShapeRef{}, err
@@ -313,9 +330,10 @@ func (s *Shapes) Read(ref ShapeRef) (Shape, bool) {
 	return Shape{}, false
 }
 
-// Fork spawns a copy of the shape behind ref with edit applied, and returns a ref to the copy
-// at the same offset and rotation. The original is untouched, so bodies still on it keep what
-// they had. It fails when no shape is behind ref or the edited shape does not validate.
+// Fork spawns a copy of the shape behind ref with edit applied, and returns ref pointed at
+// the copy: same offset, rotation, filter, group and tag, so it can be dropped in where the
+// original was. The original shape is untouched, so bodies still on it keep what they had.
+// It fails when no shape is behind ref or the edited shape does not validate.
 func (s *Shapes) Fork(ref ShapeRef, edit func(Shape) Shape) (ShapeRef, error) {
 	def, ok := s.Read(ref)
 	if !ok {
@@ -325,7 +343,8 @@ func (s *Shapes) Fork(ref ShapeRef, edit func(Shape) Shape) (ShapeRef, error) {
 	if err != nil {
 		return ShapeRef{}, err
 	}
-	return forked.At(ref.LocalOffset, ref.LocalRotation), nil
+	ref.Shape = forked.Shape
+	return ref, nil
 }
 
 // sealed cannot be named outside this package, so the methods taking it cannot be called.
