@@ -348,7 +348,7 @@ func decodeBodyInto(c *harness.Ctx, check, payload string) physics.PhysicsBody2D
 // checkShapeConstructors pins the shape constructors: each carries Box2D's default material
 // and filter, the options set exactly what they say, and geometry lands in the right fields.
 func checkShapeConstructors(c *harness.Ctx) {
-	defaults := physcomp.ShapeCommon{Friction: 0.6, Density: 1, CategoryBits: 1, MaskBits: ^uint64(0)}
+	defaults := physcomp.ShapeCommon{Friction: 0.6, Density: 1}
 	commons := map[string]physcomp.ShapeCommon{
 		"Circle":    harness.CommonOf(physics.Circle(0.5)),
 		"Box":       harness.CommonOf(physics.Box(1, 2)),
@@ -363,11 +363,15 @@ func checkShapeConstructors(c *harness.Ctx) {
 			"got %+v, want %+v", common, defaults)
 	}
 
-	d := physics.Box(1, 1).Sensor(true).Material(0.1, 0.2, 0.3).Filter(0x2, 0x4).Group(-1)
+	d := physics.Box(1, 1).Sensor(true).Material(0.1, 0.2, 0.3)
 	c.True("the options set exactly what they say", harness.CommonOf(d) == physcomp.ShapeCommon{
 		IsSensor: true, Friction: 0.1, Restitution: 0.2, Density: 0.3,
-		CategoryBits: 0x2, MaskBits: 0x4, GroupIndex: -1,
 	}, "got %+v", harness.CommonOf(d))
+	ref := physcomp.Ref(1).Filter(0x2, 0x4).Group(-1)
+	c.True("a ref carries its own filter", ref.CategoryBits == 0x2 && ref.MaskBits == 0x4 && ref.GroupIndex == -1,
+		"got %+v", ref)
+	cat, mask, _ := physcomp.Ref(1).FilterBits()
+	c.True("an unset ref filter is category 1, mask all", cat == 1 && mask == ^uint64(0), "got %#x/%#x", cat, mask)
 	c.True("Box stores its half extents", d.HalfExtents() == vec(1, 1), "got %+v", d.HalfExtents())
 	c.True("Box reports its kind", d.Kind() == physics.KindBox, "got %s", d.Kind())
 	c.True("Circle stores its radius", physics.Circle(0.5).Radius() == 0.5, "")

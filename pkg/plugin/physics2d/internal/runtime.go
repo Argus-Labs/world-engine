@@ -387,22 +387,15 @@ func (rt *Runtime) LoadActiveContactsFromComponent(ac component.ActiveContacts) 
 	rt.ActiveContactsDirty = false
 }
 
-// slotFilterBits returns the collision filter of the shape behind slot shapeIndex of entityID,
-// from the body's shadow and the shape mirror, or zero bits when either is missing.
+// slotFilterBits returns the collision filter of slot shapeIndex of entityID from the body's
+// shadow, or zero bits when the slot is missing.
 func (rt *Runtime) slotFilterBits(entityID cardinal.EntityID, shapeIndex int) event.FixtureFilterBits {
 	shadow, ok := rt.Shadow[entityID]
 	if !ok || shapeIndex < 0 || shapeIndex >= shadow.PhysicsBody.Shapes.Len() {
 		return event.FixtureFilterBits{}
 	}
-	sh, ok := rt.ShapeMirror[shadow.PhysicsBody.Shapes.At(shapeIndex).Shape]
-	if !ok {
-		return event.FixtureFilterBits{}
-	}
-	return event.FixtureFilterBits{
-		CategoryBits: sh.Common.CategoryBits,
-		MaskBits:     sh.Common.MaskBits,
-		GroupIndex:   sh.Common.GroupIndex,
-	}
+	cat, mask, group := shadow.PhysicsBody.Shapes.At(shapeIndex).FilterBits()
+	return event.FixtureFilterBits{CategoryBits: cat, MaskBits: mask, GroupIndex: group}
 }
 
 // ActiveContactsToComponent converts the working map to the ECS component format (sorted

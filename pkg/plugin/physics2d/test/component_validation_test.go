@@ -132,9 +132,19 @@ func TestShapeCommon_Defaults(t *testing.T) {
 	require.InDelta(t, 0.6, c.Friction, 0)
 	require.InDelta(t, 0.0, c.Restitution, 0)
 	require.InDelta(t, 1.0, c.Density, 0)
-	require.Equal(t, uint64(1), c.CategoryBits)
-	require.Equal(t, ^uint64(0), c.MaskBits)
-	require.Equal(t, int32(0), c.GroupIndex)
+}
+
+func TestShapeRef_FilterDefaults(t *testing.T) {
+	t.Parallel()
+	cat, mask, group := phycomp.Ref(1).FilterBits()
+	require.Equal(t, uint64(1), cat, "zero category means Box2D's default")
+	require.Equal(t, ^uint64(0), mask, "zero mask means all")
+	require.Equal(t, int32(0), group)
+
+	cat, mask, group = phycomp.Ref(1).Filter(0x2, 0x4).Group(-1).FilterBits()
+	require.Equal(t, uint64(0x2), cat)
+	require.Equal(t, uint64(0x4), mask)
+	require.Equal(t, int32(-1), group)
 }
 
 func TestValidate_ShapeCommon_NaNFriction(t *testing.T) {

@@ -663,9 +663,6 @@ func (c ShapeCommon) ToProto() *pbcomponent.ShapeCommon {
 	p.Friction = float64(c.Friction)
 	p.Restitution = float64(c.Restitution)
 	p.Density = float64(c.Density)
-	p.CategoryBits = uint64(c.CategoryBits)
-	p.MaskBits = uint64(c.MaskBits)
-	p.GroupIndex = int32(c.GroupIndex)
 	return p
 }
 
@@ -677,9 +674,6 @@ func (c ShapeCommon) FromProto(p *pbcomponent.ShapeCommon) ShapeCommon {
 	c.Friction = float64(p.Friction)
 	c.Restitution = float64(p.Restitution)
 	c.Density = float64(p.Density)
-	c.CategoryBits = uint64(p.CategoryBits)
-	c.MaskBits = uint64(p.MaskBits)
-	c.GroupIndex = int32(p.GroupIndex)
 	return c
 }
 
@@ -713,15 +707,6 @@ func (c ShapeCommon) SizeWire() int {
 	if math.Float64bits(float64(c.Density)) != 0 {
 		n += protowire.SizeTag(4) + protowire.SizeFixed64()
 	}
-	if c.CategoryBits != 0 {
-		n += protowire.SizeTag(5) + protowire.SizeVarint(uint64(c.CategoryBits))
-	}
-	if c.MaskBits != 0 {
-		n += protowire.SizeTag(6) + protowire.SizeVarint(uint64(c.MaskBits))
-	}
-	if c.GroupIndex != 0 {
-		n += protowire.SizeTag(7) + protowire.SizeVarint(uint64(c.GroupIndex))
-	}
 	return n
 }
 
@@ -742,18 +727,6 @@ func (c ShapeCommon) AppendWire(b []byte) []byte {
 		b = protowire.AppendTag(b, 4, protowire.Fixed64Type)
 		b = protowire.AppendFixed64(b, math.Float64bits(float64(c.Density)))
 	}
-	if c.CategoryBits != 0 {
-		b = protowire.AppendTag(b, 5, protowire.VarintType)
-		b = protowire.AppendVarint(b, uint64(c.CategoryBits))
-	}
-	if c.MaskBits != 0 {
-		b = protowire.AppendTag(b, 6, protowire.VarintType)
-		b = protowire.AppendVarint(b, uint64(c.MaskBits))
-	}
-	if c.GroupIndex != 0 {
-		b = protowire.AppendTag(b, 7, protowire.VarintType)
-		b = protowire.AppendVarint(b, uint64(c.GroupIndex))
-	}
 	return b
 }
 
@@ -763,6 +736,9 @@ func (c ShapeRef) ToProto() *pbcomponent.ShapeRef {
 	p.LocalOffset = c.LocalOffset.ToProto()
 	p.LocalRotation = float64(c.LocalRotation)
 	p.Tag = string(c.Tag)
+	p.CategoryBits = uint64(c.CategoryBits)
+	p.MaskBits = uint64(c.MaskBits)
+	p.GroupIndex = int32(c.GroupIndex)
 	return p
 }
 
@@ -774,6 +750,9 @@ func (c ShapeRef) FromProto(p *pbcomponent.ShapeRef) ShapeRef {
 	c.LocalOffset = c.LocalOffset.FromProto(p.LocalOffset)
 	c.LocalRotation = float64(p.LocalRotation)
 	c.Tag = string(p.Tag)
+	c.CategoryBits = uint64(p.CategoryBits)
+	c.MaskBits = uint64(p.MaskBits)
+	c.GroupIndex = int32(p.GroupIndex)
 	return c
 }
 
@@ -788,6 +767,15 @@ func (c ShapeRef) SizeWire() int {
 	}
 	if len(c.Tag) > 0 {
 		n += protowire.SizeTag(4) + wireStringSize("ShapeRef.Tag", string(c.Tag))
+	}
+	if c.CategoryBits != 0 {
+		n += protowire.SizeTag(5) + protowire.SizeVarint(uint64(c.CategoryBits))
+	}
+	if c.MaskBits != 0 {
+		n += protowire.SizeTag(6) + protowire.SizeVarint(uint64(c.MaskBits))
+	}
+	if c.GroupIndex != 0 {
+		n += protowire.SizeTag(7) + protowire.SizeVarint(uint64(c.GroupIndex))
 	}
 	return n
 }
@@ -809,6 +797,18 @@ func (c ShapeRef) AppendWire(b []byte) []byte {
 	if len(c.Tag) > 0 {
 		b = protowire.AppendTag(b, 4, protowire.BytesType)
 		b = protowire.AppendString(b, string(c.Tag))
+	}
+	if c.CategoryBits != 0 {
+		b = protowire.AppendTag(b, 5, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.CategoryBits))
+	}
+	if c.MaskBits != 0 {
+		b = protowire.AppendTag(b, 6, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.MaskBits))
+	}
+	if c.GroupIndex != 0 {
+		b = protowire.AppendTag(b, 7, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.GroupIndex))
 	}
 	return b
 }

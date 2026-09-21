@@ -86,7 +86,7 @@ func restingBodiesSystem(count int) func(state *spawnState) {
 		floor.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
 		floor.Set(physics.Velocity2D{})
 		floor.Set(newRigid(physics.BodyTypeStatic,
-			spawnShape(state, physics.Box(200, 1).Material(0.5, 0, 0).Filter(0xFFFF, 0xFFFF))))
+			spawnShape(state, physics.Box(200, 1).Material(0.5, 0, 0)).Filter(0xFFFF, 0xFFFF)))
 
 		cols := int(math.Ceil(math.Sqrt(float64(count))))
 		for i := range count {
@@ -100,7 +100,7 @@ func restingBodiesSystem(count int) func(state *spawnState) {
 			}})
 			r.Set(physics.Velocity2D{})
 			r.Set(newRigidNoGravity(physics.BodyTypeDynamic,
-				spawnShape(state, physics.Circle(0.5).Material(0.3, 0.2, 1).Filter(0xFFFF, 0xFFFF))))
+				spawnShape(state, physics.Circle(0.5).Material(0.3, 0.2, 1)).Filter(0xFFFF, 0xFFFF)))
 		}
 	}
 }

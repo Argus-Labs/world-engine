@@ -160,7 +160,7 @@ func mapBodyType(t component.BodyType) box2d.BodyType {
 // makeShapeDef builds the common shape definition. Mirrors the CGO bridge, which enabled
 // sensor and contact events on every shape (Box2D ignores EnableContactEvents on sensors,
 // and requires EnableSensorEvents on both the sensor and the visitor shape).
-func makeShapeDef(shapeIndex int, c component.ShapeCommon) box2d.ShapeDef {
+func makeShapeDef(shapeIndex int, c component.ShapeCommon, slot component.ShapeRef) box2d.ShapeDef {
 	def := box2d.DefaultShapeDef()
 	def.UserData = uint64(uint32(shapeIndex)) //nolint:gosec // shape index is small and non-negative
 	def.Material.Friction = c.Friction
@@ -169,9 +169,10 @@ func makeShapeDef(shapeIndex int, c component.ShapeCommon) box2d.ShapeDef {
 	def.IsSensor = c.IsSensor
 	def.EnableSensorEvents = true
 	def.EnableContactEvents = true
-	def.Filter.CategoryBits = c.CategoryBits
-	def.Filter.MaskBits = c.MaskBits
-	def.Filter.GroupIndex = int(c.GroupIndex)
+	cat, mask, group := slot.FilterBits()
+	def.Filter.CategoryBits = cat
+	def.Filter.MaskBits = mask
+	def.Filter.GroupIndex = int(group)
 	return def
 }
 
@@ -203,7 +204,7 @@ func (rt *Runtime) attachShape(
 
 	switch sh.Kind {
 	case ShapeKindCircle:
-		def := makeShapeDef(shapeIndex, sh.Common)
+		def := makeShapeDef(shapeIndex, sh.Common, slot)
 		circle := box2d.Circle{
 			Center: box2d.Vec2{X: slot.LocalOffset.X, Y: slot.LocalOffset.Y},
 			Radius: sh.Circle.Radius,
@@ -211,7 +212,7 @@ func (rt *Runtime) attachShape(
 		rt.registerShape(entityID, shapeIndex, rt.World.CreateCircleShape(bodyID, &def, &circle))
 
 	case ShapeKindBox:
-		def := makeShapeDef(shapeIndex, sh.Common)
+		def := makeShapeDef(shapeIndex, sh.Common, slot)
 		center := box2d.Vec2{X: slot.LocalOffset.X, Y: slot.LocalOffset.Y}
 		rot := box2d.MakeRot(slot.LocalRotation)
 		polygon := box2d.MakeOffsetBox(sh.Box.HalfExtents.X, sh.Box.HalfExtents.Y, center, rot)
@@ -231,7 +232,7 @@ func (rt *Runtime) attachShape(
 		if hull.Count == 0 {
 			return errors.New("AddPolygonShape failed") // degenerate polygon
 		}
-		def := makeShapeDef(shapeIndex, sh.Common)
+		def := makeShapeDef(shapeIndex, sh.Common, slot)
 		polygon := box2d.MakePolygon(&hull, 0)
 		rt.registerShape(entityID, shapeIndex, rt.World.CreatePolygonShape(bodyID, &def, &polygon))
 
@@ -249,9 +250,10 @@ func (rt *Runtime) attachShape(
 		material.Friction = sh.Common.Friction
 		material.Restitution = sh.Common.Restitution
 		def.Materials = []box2d.SurfaceMaterial{material}
-		def.Filter.CategoryBits = sh.Common.CategoryBits
-		def.Filter.MaskBits = sh.Common.MaskBits
-		def.Filter.GroupIndex = int(sh.Common.GroupIndex)
+		cat, mask, group := slot.FilterBits()
+		def.Filter.CategoryBits = cat
+		def.Filter.MaskBits = mask
+		def.Filter.GroupIndex = int(group)
 		chainID := rt.World.CreateChain(bodyID, &def)
 		rt.Chains[entityID] = append(rt.Chains[entityID], chainID)
 		// Chain slots keep a null ShapeID: mutable per-shape setters skip them, matching
@@ -261,7 +263,7 @@ func (rt *Runtime) attachShape(
 	case ShapeKindEdge:
 		v1 := shapePointToBodySpace(sh.Edge.A, slot.LocalOffset, slot.LocalRotation)
 		v2 := shapePointToBodySpace(sh.Edge.B, slot.LocalOffset, slot.LocalRotation)
-		def := makeShapeDef(shapeIndex, sh.Common)
+		def := makeShapeDef(shapeIndex, sh.Common, slot)
 		segment := box2d.Segment{
 			Point1: box2d.Vec2{X: v1.X, Y: v1.Y},
 			Point2: box2d.Vec2{X: v2.X, Y: v2.Y},
@@ -271,7 +273,7 @@ func (rt *Runtime) attachShape(
 	case ShapeKindCapsule:
 		c1 := shapePointToBodySpace(sh.Capsule.A, slot.LocalOffset, slot.LocalRotation)
 		c2 := shapePointToBodySpace(sh.Capsule.B, slot.LocalOffset, slot.LocalRotation)
-		def := makeShapeDef(shapeIndex, sh.Common)
+		def := makeShapeDef(shapeIndex, sh.Common, slot)
 		capsule := box2d.Capsule{
 			Center1: box2d.Vec2{X: c1.X, Y: c1.Y},
 			Center2: box2d.Vec2{X: c2.X, Y: c2.Y},

@@ -92,12 +92,12 @@ func tickN(t *testing.T, w *cardinal.World, n int) {
 
 // circleSlot spawns the stock test circle (radius 0.5) and returns its slot.
 func circleSlot(s *spawnState) physics.ShapeRef {
-	return spawnShape(s, physics.Circle(0.5).Material(0.3, 0, 1).Filter(0xFFFF, 0xFFFF))
+	return spawnShape(s, physics.Circle(0.5).Material(0.3, 0, 1)).Filter(0xFFFF, 0xFFFF)
 }
 
 // boxSlot spawns a stock test box with the given half extents and returns its slot.
 func boxSlot(s *spawnState, hx, hy float64) physics.ShapeRef {
-	return spawnShape(s, physics.Box(hx, hy).Material(0.3, 0, 1).Filter(0xFFFF, 0xFFFF))
+	return spawnShape(s, physics.Box(hx, hy).Material(0.3, 0, 1)).Filter(0xFFFF, 0xFFFF)
 }
 
 const epsilon = 0.001

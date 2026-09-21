@@ -29,8 +29,8 @@ func spawnTwoShapeBody(t *testing.T, w *cardinal.World) *cardinal.EntityID {
 		row.Set(physics.Transform2D{Position: physics.Vec2{X: 1, Y: 2}})
 		row.Set(physics.Velocity2D{})
 		row.Set(newRigid(physics.BodyTypeStatic,
-			spawnShape(state, physics.Box(0.5, 0.5).Material(0, 0, 1).Filter(0xFFFF, 0xFFFF)),
-			spawnShape(state, physics.Circle(0.25).Material(0, 0, 1).Filter(0xFFFF, 0xFFFF)).At(physics.Vec2{X: 1, Y: 0}, 0),
+			spawnShape(state, physics.Box(0.5, 0.5).Material(0, 0, 1)).Filter(0xFFFF, 0xFFFF),
+			spawnShape(state, physics.Circle(0.25).Material(0, 0, 1)).Filter(0xFFFF, 0xFFFF).At(physics.Vec2{X: 1, Y: 0}, 0),
 		))
 		*entityID = id
 	}, cardinal.WithHook(cardinal.Init))

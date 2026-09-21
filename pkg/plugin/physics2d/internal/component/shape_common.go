@@ -2,8 +2,8 @@ package component
 
 import "fmt"
 
-// ShapeCommon is the part of a shape every geometry kind shares: sensor flag, material and
-// collision filter. A shape entity carries exactly one ShapeCommon and exactly one geometry
+// ShapeCommon is the part of a shape every geometry kind shares: sensor flag and material.
+// The collision filter is not here: it is per body, on the [ShapeRef]. A shape entity carries exactly one ShapeCommon and exactly one geometry
 // component ([CircleGeom], [BoxGeom], [PolygonGeom], [ChainGeom], [EdgeGeom] or [CapsuleGeom]).
 // Bodies reference the entity from their [ShapeRef]s.
 //
@@ -17,27 +17,18 @@ import "fmt"
 // shape in the same tick as the first body that uses it, and never hold a slot that no body
 // holds — keep a Shape value and spawn from it instead.
 type ShapeCommon struct {
-	IsSensor     bool    `json:"is_sensor"`
-	Friction     float64 `json:"friction"`
-	Restitution  float64 `json:"restitution"`
-	Density      float64 `json:"density"`
-	CategoryBits uint64  `json:"category_bits"`
-	MaskBits     uint64  `json:"mask_bits"`
-	GroupIndex   int32   `json:"group_index,omitempty"`
+	IsSensor    bool    `json:"is_sensor"`
+	Friction    float64 `json:"friction"`
+	Restitution float64 `json:"restitution"`
+	Density     float64 `json:"density"`
 }
 
 // Name returns the ECS component name.
 func (ShapeCommon) Name() string { return "shape_common_2d" }
 
-// DefaultShapeCommon returns Box2D's defaults: solid, friction 0.6, restitution 0, density 1,
-// category 1, mask all.
+// DefaultShapeCommon returns Box2D's defaults: solid, friction 0.6, restitution 0, density 1.
 func DefaultShapeCommon() ShapeCommon {
-	return ShapeCommon{
-		Friction:     0.6,
-		Density:      1,
-		CategoryBits: 1,
-		MaskBits:     ^uint64(0),
-	}
+	return ShapeCommon{Friction: 0.6, Density: 1}
 }
 
 // Validate checks the material fields for NaN/Inf.

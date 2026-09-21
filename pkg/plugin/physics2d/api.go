@@ -24,8 +24,9 @@ import (
 //	row.Set(physics2d.Velocity2D{})
 //	row.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic, ball))
 //
-// A body's Shapes are ShapeRefs: which shape entity, and where it sits on the body. Tag them
-// and edit by name (AddShape, ReplaceShape, RemoveShape) instead of by index.
+// A body's Shapes are ShapeRefs: which shape entity, where it sits on the body, and its
+// collision filter (ref.Filter, ref.Group), which is per body so one shape serves every team.
+// Tag them and edit by name (AddShape, ReplaceShape, RemoveShape) instead of by index.
 
 // Components an entity needs to be simulated.
 type (
@@ -58,10 +59,11 @@ func NewPhysicsBody2D(bodyType BodyType, shapes ...ShapeRef) PhysicsBody2D {
 // Shapes: describing one
 // -------------------------------------------------------------------------------------------------
 //
-// A Shape is a plain value: one geometry plus material and filter. Build it with a
-// constructor and chain options onto it; nothing exists in the world until Shapes.Spawn.
+// A Shape is a plain value: one geometry plus material. Build it with a constructor and
+// chain options onto it; nothing exists in the world until Shapes.Spawn. Collision filters
+// are not part of a shape: they go on the ShapeRef a body holds.
 //
-//	ball := physics2d.Circle(0.5).Material(0.3, 0.1, 1).Filter(0x1, 0xFFFF)
+//	ball := physics2d.Circle(0.5).Material(0.3, 0.1, 1)
 
 // Kind is a shape's geometry kind.
 type Kind = internal.ShapeKind
@@ -79,9 +81,9 @@ const (
 // MaxPolygonVertices is Box2D's convex polygon vertex limit.
 const MaxPolygonVertices = component.MaxPolygonVertices
 
-// Shape is a shape's definition: geometry, material and filter. Constructors carry Box2D's
-// default material (solid, friction 0.6, restitution 0, density 1, category 1, mask all).
-// The zero Shape has no geometry and fails Validate.
+// Shape is a shape's definition: geometry and material. Constructors carry Box2D's default
+// material (solid, friction 0.6, restitution 0, density 1). The zero Shape has no geometry
+// and fails Validate.
 type Shape struct {
 	s internal.ResolvedShape
 }
@@ -144,20 +146,7 @@ func (d Shape) Material(friction, restitution, density float64) Shape {
 	return d
 }
 
-// Filter sets the collision category and mask bits.
-func (d Shape) Filter(category, mask uint64) Shape {
-	d.s.Common.CategoryBits, d.s.Common.MaskBits = category, mask
-	return d
-}
-
-// Group sets the Box2D group index: shapes sharing a positive index always collide, a
-// negative one never.
-func (d Shape) Group(index int32) Shape {
-	d.s.Common.GroupIndex = index
-	return d
-}
-
-// Reshape returns geometry's shape carrying d's material and filter. It is how a Fork
+// Reshape returns geometry's shape carrying d's material. It is how a Fork
 // changes geometry: build the new geometry with a constructor and keep the old material.
 func (d Shape) Reshape(geometry Shape) Shape {
 	geometry.s.Common = d.s.Common
@@ -181,14 +170,11 @@ func (d Shape) Validate() error {
 // Kind reports the geometry kind, which says which of the geometry readers below apply.
 func (d Shape) Kind() Kind { return d.s.Kind }
 
-// Material and filter, as the shape holds them.
+// Material, as the shape holds it.
 func (d Shape) IsSensor() bool       { return d.s.Common.IsSensor }
 func (d Shape) Friction() float64    { return d.s.Common.Friction }
 func (d Shape) Restitution() float64 { return d.s.Common.Restitution }
 func (d Shape) Density() float64     { return d.s.Common.Density }
-func (d Shape) Category() uint64     { return d.s.Common.CategoryBits }
-func (d Shape) Mask() uint64         { return d.s.Common.MaskBits }
-func (d Shape) GroupIndex() int32    { return d.s.Common.GroupIndex }
 
 // Geometry readers. Each applies to the kinds it names and returns zero for any other.
 
@@ -237,7 +223,7 @@ func (d Shape) Endpoints() (Vec2, Vec2) {
 //
 // A spawned shape is an entity that any number of bodies share by ShapeRef. Spawn de-duplicates:
 // an equal definition gets a ref to the live shape that already matches, so bodies built from
-// the same definition share one entity without passing refs around. Declare one Shapes field
+// the same definition share one entity without passing refs around, whatever their filters. Declare one Shapes field
 // on the system state; Cardinal wires it when the system registers.
 //
 //	type SpawnState struct {
@@ -266,7 +252,7 @@ type Shapes struct {
 }
 
 // Spawn returns a ref, at the body origin, to a shape entity matching def: the live one with
-// exactly the same geometry, material and filter when there is one, else a new one. Chain At
+// exactly the same geometry and material when there is one, else a new one. Chain At
 // on the ref to place it. A definition that fails validation creates nothing and reports why.
 func (s *Shapes) Spawn(def Shape) (ShapeRef, error) {
 	if err := def.Validate(); err != nil {

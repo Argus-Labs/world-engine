@@ -83,8 +83,9 @@ imported, searched or edited by a game. The whole shape API is one search type,
 
 | Call | Does |
 |---|---|
-| `Circle`, `Box`, `Polygon`, `Chain`, `ChainLoop`, `Edge`, `Capsule` | build a `Shape` with Box2D's default material (friction 0.6, density 1, category 1, mask all) |
-| `.Sensor(true)`, `.Material(f, r, d)`, `.Filter(cat, mask)`, `.Group(i)` | chain options onto a `Shape` |
+| `Circle`, `Box`, `Polygon`, `Chain`, `ChainLoop`, `Edge`, `Capsule` | build a `Shape` with Box2D's default material (friction 0.6, density 1) |
+| `.Sensor(true)`, `.Material(f, r, d)` | chain options onto a `Shape` |
+| `ref.At(offset, rot)`, `ref.Filter(cat, mask)`, `ref.Group(i)` | place a spawned shape on a body and set its collision filter |
 | `.Reshape(other)` | the other geometry with this shape's material and filter |
 | `.Kind()`, `.Radius()`, `.HalfExtents()`, `.Vertices()`, `.Points()`, `.Loop()`, `.Endpoints()`, `.Friction()`, ... | read a `Shape` back |
 | `state.Shapes.Spawn(shape)` | validates, spawns a shape entity, returns a `ShapeRef` to it |
@@ -93,6 +94,13 @@ imported, searched or edited by a game. The whole shape API is one search type,
 
 There is no delete. The plugin removes a shape entity itself after the first
 reconcile in which no body names it.
+
+The collision filter is not part of a shape. It lives on the ref each body
+holds, so one bullet shape serves every team: `bullet.Filter(red, redMask)`
+on one body, `bullet.Filter(blue, blueMask)` on another, same shape entity.
+A ref with no filter set gets Box2D's defaults, category 1 and mask all;
+`Group` sets the group index, which is per body by nature (a ragdoll's parts
+share a negative group so they never touch each other).
 
 `Spawn` de-duplicates: if a live shape already has exactly the same
 geometry, material and filter, you get a ref to that shape instead of a new
@@ -130,7 +138,7 @@ func SpawnSystem(state *SpawnState) {
         return
     }
     // World geometry: a static floor box.
-    floor, err := state.Shapes.Spawn(physics2d.Box(25, 1).Material(0.5, 0, 0).Filter(0x0002, 0xFFFF))
+    floor, err := state.Shapes.Spawn(physics2d.Box(25, 1).Material(0.5, 0, 0))
     if err != nil {
         state.Logger().Error().Err(err).Msg("floor shape rejected")
         return
@@ -138,10 +146,10 @@ func SpawnSystem(state *SpawnState) {
     f := state.Balls.Create()
     f.Set(physics2d.Transform2D{})
     f.Set(physics2d.Velocity2D{})
-    f.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeStatic, floor))
+    f.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeStatic, floor.Filter(0x0002, 0xFFFF)))
 
     // One ball shape, shared by every ball.
-    ball, err := state.Shapes.Spawn(physics2d.Circle(0.5).Material(0.3, 0.2, 1).Filter(0x0001, 0xFFFF))
+    ball, err := state.Shapes.Spawn(physics2d.Circle(0.5).Material(0.3, 0.2, 1))
     if err != nil {
         state.Logger().Error().Err(err).Msg("ball shape rejected")
         return
@@ -150,7 +158,7 @@ func SpawnSystem(state *SpawnState) {
         b := state.Balls.Create()
         b.Set(physics2d.Transform2D{Position: physics2d.Vec2{X: float64(i), Y: 10}})
         b.Set(physics2d.Velocity2D{})
-        b.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic, ball))
+        b.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic, ball.Filter(0x0001, 0xFFFF)))
     }
 }
 ```

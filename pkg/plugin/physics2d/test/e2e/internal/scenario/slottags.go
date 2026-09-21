@@ -117,8 +117,17 @@ func ShapeTags() harness.Scenario {
 				c.True("the appended slot is fixture 2", hitsSlot(c, 0, 3, 2), "no hit at slot 2")
 
 				s.ball = c.Spawn("ball", 0, 4.6, physics.NewPhysicsBody2D(physics.BodyTypeDynamic, circle(0.5).Spawn(c)))
+
+				// A filter change alone is an in-place update: same shape entity, same fixture.
+				s.rightFix = fixture(c, s.body, 1)
+				c.EditBody(s.body, func(pb *physics.PhysicsBody2D) {
+					pb.Shapes = pb.Shapes.With(1, pb.Shapes.At(1).Filter(0x8, 0x8))
+				})
 			}},
 			{Tick: contactTick, Do: func(c *harness.Ctx) {
+				c.True("a ref filter change keeps the fixture", fixture(c, s.body, 1) == s.rightFix, "rebuilt")
+				c.True("a ref filter change reaches the engine",
+					c.Plugin().Engine().ShapeFilter(s.rightFix).CategoryBits == 0x8, "filter not applied")
 				hits := c.EventsBetween(harness.ContactBegin, s.ball, s.body)
 				if c.IntAtLeast("the ball lands on the tagged body", len(hits), 1) {
 					idx, ok := hits[0].ShapeIndexFor(s.body)

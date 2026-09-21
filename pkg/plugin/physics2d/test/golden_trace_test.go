@@ -349,6 +349,15 @@ func gShape(def physics.Shape) goldenShape {
 	return func(s *spawnState) physics.ShapeRef { return spawnShape(s, def) }
 }
 
+// Filter and Group set the collision filter on the spawned ref.
+func (g goldenShape) Filter(category, mask uint64) goldenShape {
+	return func(s *spawnState) physics.ShapeRef { return g(s).Filter(category, mask) }
+}
+
+func (g goldenShape) Group(index int32) goldenShape {
+	return func(s *spawnState) physics.ShapeRef { return g(s).Group(index) }
+}
+
 // goldenSpawn registers an Init-hook system that creates the described entities once: all
 // bodies first (with empty slot lists), then each body's shapes, patched in.
 func goldenSpawn(w *cardinal.World, entities func() []goldenEntity) {
@@ -410,7 +419,7 @@ func goldenFallingCirclesFloor() goldenScenario {
 					role:     "floor",
 					pos:      physics.Vec2{X: 0, Y: 0},
 					bodyType: physics.BodyTypeStatic,
-					shapes:   []goldenShape{gShape(physics.Box(20, 0.5).Material(0.4, 0, 0).Filter(0xFFFF, 0xFFFF))},
+					shapes:   []goldenShape{gShape(physics.Box(20, 0.5).Material(0.4, 0, 0)).Filter(0xFFFF, 0xFFFF)},
 				}}
 				for i := range 8 {
 					f := float64(i)
@@ -418,7 +427,7 @@ func goldenFallingCirclesFloor() goldenScenario {
 						role:     "circle_" + strconv.Itoa(i),
 						pos:      physics.Vec2{X: -7 + 2*f, Y: 5 + 0.5*f},
 						bodyType: physics.BodyTypeDynamic,
-						shapes:   []goldenShape{gShape(physics.Circle(0.2+0.05*f).Material(0.3, 0.1*f, 1).Filter(0xFFFF, 0xFFFF))},
+						shapes:   []goldenShape{gShape(physics.Circle(0.2+0.05*f).Material(0.3, 0.1*f, 1)).Filter(0xFFFF, 0xFFFF)},
 					})
 				}
 				return out
@@ -439,7 +448,7 @@ func goldenBoxStack() goldenScenario {
 					role:     "floor",
 					pos:      physics.Vec2{X: 0, Y: 0},
 					bodyType: physics.BodyTypeStatic,
-					shapes:   []goldenShape{gShape(physics.Box(10, 0.5).Material(0.6, 0, 0).Filter(0xFFFF, 0xFFFF))},
+					shapes:   []goldenShape{gShape(physics.Box(10, 0.5).Material(0.6, 0, 0)).Filter(0xFFFF, 0xFFFF)},
 				}}
 				for i := range 5 {
 					f := float64(i)
@@ -449,7 +458,7 @@ func goldenBoxStack() goldenScenario {
 						// starting in a perfectly symmetric (and less interesting) pose.
 						pos:      physics.Vec2{X: 0.03 * f * float64(1-2*(i%2)), Y: 1.05 + 1.05*f},
 						bodyType: physics.BodyTypeDynamic,
-						shapes:   []goldenShape{gShape(physics.Box(0.5, 0.5).Material(0.6, 0, 1).Filter(0xFFFF, 0xFFFF))},
+						shapes:   []goldenShape{gShape(physics.Box(0.5, 0.5).Material(0.6, 0, 1)).Filter(0xFFFF, 0xFFFF)},
 					})
 				}
 				return out
@@ -475,7 +484,7 @@ func goldenCapsuleChainGround() goldenScenario {
 					shapes: []goldenShape{gShape(physics.Chain(
 						physics.Vec2{X: 14, Y: 1}, physics.Vec2{X: 7, Y: -1}, physics.Vec2{X: 0, Y: -2},
 						physics.Vec2{X: -7, Y: -1}, physics.Vec2{X: -14, Y: 1},
-					).Material(0.5, 0, 0).Filter(0xFFFF, 0xFFFF))},
+					).Material(0.5, 0, 0)).Filter(0xFFFF, 0xFFFF)},
 				}}
 				for i := range 4 {
 					f := float64(i)
@@ -484,7 +493,7 @@ func goldenCapsuleChainGround() goldenScenario {
 						pos:      physics.Vec2{X: -6 + 4*f, Y: 6 + 0.7*f},
 						bodyType: physics.BodyTypeDynamic,
 						shapes: []goldenShape{gShape(physics.Capsule(physics.Vec2{X: 0, Y: -0.4}, physics.Vec2{X: 0, Y: 0.4}, 0.25).
-							Material(0.4, 0.05, 1).Filter(0xFFFF, 0xFFFF))},
+							Material(0.4, 0.05, 1)).Filter(0xFFFF, 0xFFFF)},
 					})
 				}
 				for i := range 2 {
@@ -497,7 +506,7 @@ func goldenCapsuleChainGround() goldenScenario {
 						shapes: []goldenShape{gShape(physics.Polygon(
 							physics.Vec2{X: -0.5, Y: -0.4}, physics.Vec2{X: 0.5, Y: -0.4},
 							physics.Vec2{X: 0.35, Y: 0.5}, physics.Vec2{X: -0.35, Y: 0.5},
-						).Material(0.4, 0, 1).Filter(0xFFFF, 0xFFFF))},
+						).Material(0.4, 0, 1)).Filter(0xFFFF, 0xFFFF)},
 					})
 				}
 				return out
@@ -520,19 +529,19 @@ func goldenSensorTrigger() goldenScenario {
 						role:     "floor",
 						pos:      physics.Vec2{X: 0, Y: 0},
 						bodyType: physics.BodyTypeStatic,
-						shapes:   []goldenShape{gShape(physics.Box(8, 0.5).Material(0.3, 0, 0).Filter(0xFFFF, 0xFFFF))},
+						shapes:   []goldenShape{gShape(physics.Box(8, 0.5).Material(0.3, 0, 0)).Filter(0xFFFF, 0xFFFF)},
 					},
 					{
 						role:     "sensor_gate",
 						pos:      physics.Vec2{X: 0, Y: 5},
 						bodyType: physics.BodyTypeStatic,
-						shapes:   []goldenShape{gShape(physics.Box(2, 0.5).Sensor(true).Material(0, 0, 0).Filter(0xFFFF, 0xFFFF))},
+						shapes:   []goldenShape{gShape(physics.Box(2, 0.5).Sensor(true).Material(0, 0, 0)).Filter(0xFFFF, 0xFFFF)},
 					},
 					{
 						role:     "faller",
 						pos:      physics.Vec2{X: 0, Y: 10},
 						bodyType: physics.BodyTypeDynamic,
-						shapes:   []goldenShape{gShape(physics.Circle(0.3).Material(0.3, 0.2, 1).Filter(0xFFFF, 0xFFFF))},
+						shapes:   []goldenShape{gShape(physics.Circle(0.3).Material(0.3, 0.2, 1)).Filter(0xFFFF, 0xFFFF)},
 					},
 				}
 			})
@@ -557,7 +566,7 @@ func goldenFilterMatrix() goldenScenario {
 			role:     role,
 			pos:      physics.Vec2{X: x, Y: 0},
 			bodyType: physics.BodyTypeStatic,
-			shapes:   []goldenShape{gShape(physics.Box(3, 0.5).Material(0.3, 0, 0).Filter(cat, mask).Group(group))},
+			shapes:   []goldenShape{gShape(physics.Box(3, 0.5).Material(0.3, 0, 0)).Filter(cat, mask).Group(group)},
 		}
 	}
 	ball := func(role string, x float64, cat, mask uint64, group int32) goldenEntity {
@@ -565,7 +574,7 @@ func goldenFilterMatrix() goldenScenario {
 			role:     role,
 			pos:      physics.Vec2{X: x, Y: 5},
 			bodyType: physics.BodyTypeDynamic,
-			shapes:   []goldenShape{gShape(physics.Circle(0.4).Material(0.3, 0, 1).Filter(cat, mask).Group(group))},
+			shapes:   []goldenShape{gShape(physics.Circle(0.4).Material(0.3, 0, 1)).Filter(cat, mask).Group(group)},
 		}
 	}
 	return goldenScenario{
@@ -602,13 +611,13 @@ func goldenQueriesOverTime() goldenScenario {
 						role:     "wall",
 						pos:      physics.Vec2{X: 5, Y: 0},
 						bodyType: physics.BodyTypeStatic,
-						shapes:   []goldenShape{gShape(physics.Box(0.5, 2).Material(0, 0, 0).Filter(0xFFFF, 0xFFFF))},
+						shapes:   []goldenShape{gShape(physics.Box(0.5, 2).Material(0, 0, 0)).Filter(0xFFFF, 0xFFFF)},
 					},
 					{
 						role:     "pillar",
 						pos:      physics.Vec2{X: -6, Y: 0},
 						bodyType: physics.BodyTypeStatic,
-						shapes:   []goldenShape{gShape(physics.Circle(0.75).Material(0, 0, 0).Filter(0xFFFF, 0xFFFF))},
+						shapes:   []goldenShape{gShape(physics.Circle(0.75).Material(0, 0, 0)).Filter(0xFFFF, 0xFFFF)},
 					},
 					{
 						role:      "mover",
@@ -616,7 +625,7 @@ func goldenQueriesOverTime() goldenScenario {
 						vel:       physics.Velocity2D{Linear: physics.Vec2{X: 2, Y: 0}},
 						bodyType:  physics.BodyTypeKinematic,
 						noGravity: true,
-						shapes:    []goldenShape{gShape(physics.Box(0.5, 0.5).Material(0, 0, 0).Filter(0xFFFF, 0xFFFF))},
+						shapes:    []goldenShape{gShape(physics.Box(0.5, 0.5).Material(0, 0, 0)).Filter(0xFFFF, 0xFFFF)},
 					},
 					{
 						role:      "drifter",
@@ -624,7 +633,7 @@ func goldenQueriesOverTime() goldenScenario {
 						vel:       physics.Velocity2D{Linear: physics.Vec2{X: 1.5, Y: 0}, Angular: 0.5},
 						bodyType:  physics.BodyTypeDynamic,
 						noGravity: true,
-						shapes:    []goldenShape{gShape(physics.Circle(0.35).Material(0, 0, 1).Filter(0xFFFF, 0xFFFF))},
+						shapes:    []goldenShape{gShape(physics.Circle(0.35).Material(0, 0, 1)).Filter(0xFFFF, 0xFFFF)},
 					},
 				}
 			})

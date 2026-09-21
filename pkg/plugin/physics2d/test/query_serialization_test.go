@@ -32,7 +32,7 @@ func TestQuery_EmptyOverlapMarshalsAsEmptyArray(t *testing.T) {
 		row.Set(physics.Transform2D{Position: physics.Vec2{X: 500, Y: 500}})
 		row.Set(physics.Velocity2D{})
 		row.Set(newRigid(physics.BodyTypeStatic,
-			spawnShape(state, physics.Box(1, 1).Material(0, 0, 0).Filter(0xFFFF, 0xFFFF))))
+			spawnShape(state, physics.Box(1, 1).Material(0, 0, 0)).Filter(0xFFFF, 0xFFFF)))
 	}, cardinal.WithHook(cardinal.Init))
 
 	initCardinalECS(w)

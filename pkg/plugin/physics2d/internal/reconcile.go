@@ -328,8 +328,8 @@ func (rt *Runtime) setFixedRotation(bodyID box2d.BodyID, flag bool) {
 }
 
 // applyMutableShapeFixtures pushes friction, restitution, density and filter into the fixture
-// of every slot whose shape entity changed or was swapped for another. Requires
-// slotsStructuralEqual(prev, live).
+// of every slot whose shape entity changed, was swapped for another, or whose own filter
+// changed. Requires slotsStructuralEqual(prev, live).
 func (rt *Runtime) applyMutableShapeFixtures(
 	entityID cardinal.EntityID,
 	prev, live immutable.Slice[component.ShapeRef],
@@ -348,7 +348,8 @@ func (rt *Runtime) applyMutableShapeFixtures(
 	for i, l := range live.All() {
 		p := prev.At(i)
 		_, dirty := rt.dirtyShapes[l.Shape]
-		if p.Shape == l.Shape && !dirty {
+		sameFilter := p.CategoryBits == l.CategoryBits && p.MaskBits == l.MaskBits && p.GroupIndex == l.GroupIndex
+		if p.Shape == l.Shape && !dirty && sameFilter {
 			continue
 		}
 		sh := resolved[i]
@@ -364,10 +365,11 @@ func (rt *Runtime) applyMutableShapeFixtures(
 		// The trailing true is Box2D's updateBodyMass: a density change re-derives the body's
 		// mass here, so nothing further up needs to track whether density moved.
 		rt.World.SetShapeDensity(sid, c.Density, true)
+		cat, mask, group := l.FilterBits()
 		rt.World.SetShapeFilter(sid, box2d.Filter{
-			CategoryBits: c.CategoryBits,
-			MaskBits:     c.MaskBits,
-			GroupIndex:   int(c.GroupIndex),
+			CategoryBits: cat,
+			MaskBits:     mask,
+			GroupIndex:   int(group),
 		})
 	}
 	return nil

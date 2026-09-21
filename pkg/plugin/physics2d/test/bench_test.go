@@ -92,7 +92,7 @@ func stepBenchScene(b *testing.B, n, workers int) {
 		row.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
 		row.Set(physics.Velocity2D{})
 		row.Set(newRigid(physics.BodyTypeStatic,
-			spawnShape(state, physics.Box(200, 1).Material(0.5, 0, 0).Filter(0xFFFF, 0xFFFF))))
+			spawnShape(state, physics.Box(200, 1).Material(0.5, 0, 0)).Filter(0xFFFF, 0xFFFF)))
 
 		// Spawn N dynamic circles in a grid above the floor.
 		cols := int(math.Ceil(math.Sqrt(float64(bodyCount))))
@@ -107,7 +107,7 @@ func stepBenchScene(b *testing.B, n, workers int) {
 			r.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
 			r.Set(physics.Velocity2D{})
 			r.Set(newRigid(physics.BodyTypeDynamic,
-				spawnShape(state, physics.Circle(0.5).Material(0.3, 0.2, 1).Filter(0xFFFF, 0xFFFF))))
+				spawnShape(state, physics.Circle(0.5).Material(0.3, 0.2, 1)).Filter(0xFFFF, 0xFFFF)))
 		}
 	}, cardinal.WithHook(cardinal.Init))
 
@@ -234,7 +234,7 @@ func gridSpawnSystem(count int) func(state *spawnState) {
 			r.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
 			r.Set(physics.Velocity2D{})
 			r.Set(newRigid(physics.BodyTypeStatic,
-				spawnShape(state, physics.Circle(1.0).Material(0.3, 0, 0).Filter(0xFFFF, 0xFFFF))))
+				spawnShape(state, physics.Circle(1.0).Material(0.3, 0, 0)).Filter(0xFFFF, 0xFFFF)))
 		}
 	}
 }

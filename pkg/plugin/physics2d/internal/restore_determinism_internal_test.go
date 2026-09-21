@@ -41,7 +41,7 @@ const (
 func restoreShapeMirror(rt *Runtime) {
 	box := func(hw, hh float64) ResolvedShape {
 		return Resolve(component.ShapeCommon{
-			Density: 1, Friction: 0.6, CategoryBits: 1, MaskBits: ^uint64(0),
+			Density: 1, Friction: 0.6,
 		}, component.BoxGeom{HalfExtents: component.Vec2{X: hw, Y: hh}})
 	}
 	rt.ShapeMirror[restoreGroundShape] = box(40, 1)

@@ -39,6 +39,9 @@ type ShapeSpec struct {
 	Common   physcomp.ShapeCommon
 	Offset   physics.Vec2
 	Rotation float64
+	Category uint64
+	Mask     uint64
+	Group    int32
 	spawn    func(c *harness.Ctx, common physcomp.ShapeCommon) (physics.ShapeRef, error)
 }
 
@@ -59,34 +62,34 @@ func (s ShapeSpec) TrySpawn(c *harness.Ctx) (physics.ShapeRef, error) {
 	if err != nil {
 		return physics.ShapeRef{}, err
 	}
-	return slot.At(s.Offset, s.Rotation), nil
+	return slot.At(s.Offset, s.Rotation).Filter(s.Category, s.Mask).Group(s.Group), nil
 }
 
-// baseCommon is the default material with an all-layers filter.
+// baseCommon is the default material.
 func baseCommon() physcomp.ShapeCommon {
 	return physcomp.ShapeCommon{
-		Density:      defaultDensity,
-		Friction:     defaultFriction,
-		Restitution:  defaultRestitution,
-		CategoryBits: catAll,
-		MaskBits:     maskAll,
+		Density:     defaultDensity,
+		Friction:    defaultFriction,
+		Restitution: defaultRestitution,
 	}
 }
 
-// spec wraps one geometry component as a spawnable spec with the default material.
+// spec wraps one geometry component as a spawnable spec with the default material and an
+// all-layers filter.
 func spec(def physics.Shape) ShapeSpec {
 	return ShapeSpec{
-		Common: baseCommon(),
+		Common:   baseCommon(),
+		Category: catAll,
+		Mask:     maskAll,
 		spawn: func(c *harness.Ctx, common physcomp.ShapeCommon) (physics.ShapeRef, error) {
 			return harness.TryShape(c, applyCommon(def, common))
 		},
 	}
 }
 
-// applyCommon puts the spec's material and filter onto def through the plugin's builders.
+// applyCommon puts the spec's material onto def through the plugin's builders.
 func applyCommon(def physics.Shape, common physcomp.ShapeCommon) physics.Shape {
-	def = def.Material(common.Friction, common.Restitution, common.Density).
-		Filter(common.CategoryBits, common.MaskBits).Group(common.GroupIndex)
+	def = def.Material(common.Friction, common.Restitution, common.Density)
 	if common.IsSensor {
 		def = def.Sensor(true)
 	}
@@ -152,9 +155,7 @@ func withRestitution(s ShapeSpec, restitution float64) ShapeSpec {
 }
 
 func withFilter(s ShapeSpec, category, mask uint64, group int32) ShapeSpec {
-	s.Common.CategoryBits = category
-	s.Common.MaskBits = mask
-	s.Common.GroupIndex = group
+	s.Category, s.Mask, s.Group = category, mask, group
 	return s
 }
 

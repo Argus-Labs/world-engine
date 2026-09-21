@@ -616,9 +616,6 @@ type ShapeCommon struct {
 	Friction      float64                `protobuf:"fixed64,2,opt,name=Friction,proto3" json:"Friction,omitempty"`
 	Restitution   float64                `protobuf:"fixed64,3,opt,name=Restitution,proto3" json:"Restitution,omitempty"`
 	Density       float64                `protobuf:"fixed64,4,opt,name=Density,proto3" json:"Density,omitempty"`
-	CategoryBits  uint64                 `protobuf:"varint,5,opt,name=CategoryBits,proto3" json:"CategoryBits,omitempty"`
-	MaskBits      uint64                 `protobuf:"varint,6,opt,name=MaskBits,proto3" json:"MaskBits,omitempty"`
-	GroupIndex    int32                  `protobuf:"varint,7,opt,name=GroupIndex,proto3" json:"GroupIndex,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -681,33 +678,15 @@ func (x *ShapeCommon) GetDensity() float64 {
 	return 0
 }
 
-func (x *ShapeCommon) GetCategoryBits() uint64 {
-	if x != nil {
-		return x.CategoryBits
-	}
-	return 0
-}
-
-func (x *ShapeCommon) GetMaskBits() uint64 {
-	if x != nil {
-		return x.MaskBits
-	}
-	return 0
-}
-
-func (x *ShapeCommon) GetGroupIndex() int32 {
-	if x != nil {
-		return x.GroupIndex
-	}
-	return 0
-}
-
 type ShapeRef struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Shape         uint32                 `protobuf:"varint,1,opt,name=Shape,proto3" json:"Shape,omitempty"`
 	LocalOffset   *Vec2                  `protobuf:"bytes,2,opt,name=LocalOffset,proto3" json:"LocalOffset,omitempty"`
 	LocalRotation float64                `protobuf:"fixed64,3,opt,name=LocalRotation,proto3" json:"LocalRotation,omitempty"`
 	Tag           string                 `protobuf:"bytes,4,opt,name=Tag,proto3" json:"Tag,omitempty"`
+	CategoryBits  uint64                 `protobuf:"varint,5,opt,name=CategoryBits,proto3" json:"CategoryBits,omitempty"`
+	MaskBits      uint64                 `protobuf:"varint,6,opt,name=MaskBits,proto3" json:"MaskBits,omitempty"`
+	GroupIndex    int32                  `protobuf:"varint,7,opt,name=GroupIndex,proto3" json:"GroupIndex,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -768,6 +747,27 @@ func (x *ShapeRef) GetTag() string {
 		return x.Tag
 	}
 	return ""
+}
+
+func (x *ShapeRef) GetCategoryBits() uint64 {
+	if x != nil {
+		return x.CategoryBits
+	}
+	return 0
+}
+
+func (x *ShapeRef) GetMaskBits() uint64 {
+	if x != nil {
+		return x.MaskBits
+	}
+	return 0
+}
+
+func (x *ShapeRef) GetGroupIndex() int32 {
+	if x != nil {
+		return x.GroupIndex
+	}
+	return 0
 }
 
 // wire name: "transform_2d"
@@ -971,22 +971,22 @@ const file_pkg_plugin_physics2d_internal__component_component_proto_rawDesc = ""
 	"\x13PhysicsSingletonTag\"\x91\x01\n" +
 	"\vPolygonGeom\x12l\n" +
 	"\bVertices\x18\x01 \x03(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2R\bVertices\x12\x14\n" +
-	"\x05Count\x18\x02 \x01(\rR\x05Count\"\xe1\x01\n" +
+	"\x05Count\x18\x02 \x01(\rR\x05Count\"\x81\x01\n" +
 	"\vShapeCommon\x12\x1a\n" +
 	"\bIsSensor\x18\x01 \x01(\bR\bIsSensor\x12\x1a\n" +
 	"\bFriction\x18\x02 \x01(\x01R\bFriction\x12 \n" +
 	"\vRestitution\x18\x03 \x01(\x01R\vRestitution\x12\x18\n" +
-	"\aDensity\x18\x04 \x01(\x01R\aDensity\x12\"\n" +
-	"\fCategoryBits\x18\x05 \x01(\x04R\fCategoryBits\x12\x1a\n" +
-	"\bMaskBits\x18\x06 \x01(\x04R\bMaskBits\x12\x1e\n" +
-	"\n" +
-	"GroupIndex\x18\a \x01(\x05R\n" +
-	"GroupIndex\"\xcc\x01\n" +
+	"\aDensity\x18\x04 \x01(\x01R\aDensity\"\xac\x02\n" +
 	"\bShapeRef\x12\x14\n" +
 	"\x05Shape\x18\x01 \x01(\rR\x05Shape\x12r\n" +
 	"\vLocalOffset\x18\x02 \x01(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2R\vLocalOffset\x12$\n" +
 	"\rLocalRotation\x18\x03 \x01(\x01R\rLocalRotation\x12\x10\n" +
-	"\x03Tag\x18\x04 \x01(\tR\x03Tag\"\x97\x01\n" +
+	"\x03Tag\x18\x04 \x01(\tR\x03Tag\x12\"\n" +
+	"\fCategoryBits\x18\x05 \x01(\x04R\fCategoryBits\x12\x1a\n" +
+	"\bMaskBits\x18\x06 \x01(\x04R\bMaskBits\x12\x1e\n" +
+	"\n" +
+	"GroupIndex\x18\a \x01(\x05R\n" +
+	"GroupIndex\"\x97\x01\n" +
 	"\vTransform2D\x12l\n" +
 	"\bPosition\x18\x01 \x01(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2R\bPosition\x12\x1a\n" +
 	"\bRotation\x18\x02 \x01(\x01R\bRotation\"\"\n" +

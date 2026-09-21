@@ -82,10 +82,10 @@ func genScene(r *rand.Rand, n int) []bodySpec {
 		shape.Common.Friction = r.Float64()
 		shape.Common.Restitution = r.Float64() * 0.8
 		shape.Common.IsSensor = r.IntN(6) == 0
-		shape.Common.CategoryBits = 1 << r.IntN(64)
-		shape.Common.MaskBits = r.Uint64()
+		shape.Category = 1 << r.IntN(64)
+		shape.Mask = r.Uint64()
 		if r.IntN(2) == 0 {
-			shape.Common.MaskBits |= floorCategory
+			shape.Mask |= floorCategory
 		}
 		if kind == physics.BodyTypeKinematic {
 			// A kinematic body moves at constant velocity with infinite mass, so one
@@ -93,9 +93,9 @@ func genScene(r *rand.Rand, n int) []bodySpec {
 			// That is correct Box2D behaviour, and it would make "stays above the
 			// floor" unprovable, so kinematic bodies here collide with nothing; the
 			// scripted bodytypes scenario covers kinematic pushing.
-			shape.Common.MaskBits = 0
+			shape.Mask = 0
 		}
-		shape.Common.GroupIndex = int32(r.IntN(5) - 2)
+		shape.Group = int32(r.IntN(5) - 2)
 
 		pb := physcomp.NewPhysicsBody2D(kind)
 		pb.Active = r.IntN(10) != 0
@@ -122,7 +122,7 @@ func genScene(r *rand.Rand, n int) []bodySpec {
 		// to stay above it: kinematic bodies pass through by design, sensors never
 		// collide, and a mismatched mask means "not a floor as far as I'm concerned".
 		s.solidAgainstFloor = kind == physics.BodyTypeDynamic && pb.Active && !shape.Common.IsSensor &&
-			shape.Common.MaskBits&floorCategory != 0
+			shape.Mask&floorCategory != 0
 		specs = append(specs, s)
 	}
 	return specs
@@ -138,8 +138,8 @@ func randomScene(name string, specs []bodySpec) harness.Scenario {
 			// five seconds and then fall for a legitimate reason.
 			floorShape := scenario.Box(floorHalfWidth, floorHalfHeight)
 			floorShape.Common.Friction = 0.5
-			floorShape.Common.CategoryBits = floorCategory
-			floorShape.Common.MaskBits = ^uint64(0)
+			floorShape.Category = floorCategory
+			floorShape.Mask = ^uint64(0)
 			c.Spawn("floor", 0, floorTop-floorHalfHeight, scenario.Body(c, physics.BodyTypeStatic, floorShape))
 
 			for i, s := range specs {

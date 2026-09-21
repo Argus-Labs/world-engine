@@ -85,7 +85,6 @@ func resolveShape(sh *physics.Shapes, slot physics.ShapeRef) CapturedShape {
 func CommonOf(d physics.Shape) physcomp.ShapeCommon {
 	return physcomp.ShapeCommon{
 		IsSensor: d.IsSensor(), Friction: d.Friction(), Restitution: d.Restitution(), Density: d.Density(),
-		CategoryBits: d.Category(), MaskBits: d.Mask(), GroupIndex: d.GroupIndex(),
 	}
 }
 
@@ -411,14 +410,14 @@ func compareShape(label string, i int, w, g CapturedShape, tol float64) []Diff {
 	num("Friction", g.Common.Friction, w.Common.Friction)
 	num("Restitution", g.Common.Restitution, w.Common.Restitution)
 	num("Density", g.Common.Density, w.Common.Density)
-	if g.Common.CategoryBits != w.Common.CategoryBits {
-		add("CategoryBits", fmt.Sprintf("%#x", g.Common.CategoryBits), fmt.Sprintf("%#x", w.Common.CategoryBits))
+	if g.Slot.CategoryBits != w.Slot.CategoryBits {
+		add("CategoryBits", fmt.Sprintf("%#x", g.Slot.CategoryBits), fmt.Sprintf("%#x", w.Slot.CategoryBits))
 	}
-	if g.Common.MaskBits != w.Common.MaskBits {
-		add("MaskBits", fmt.Sprintf("%#x", g.Common.MaskBits), fmt.Sprintf("%#x", w.Common.MaskBits))
+	if g.Slot.MaskBits != w.Slot.MaskBits {
+		add("MaskBits", fmt.Sprintf("%#x", g.Slot.MaskBits), fmt.Sprintf("%#x", w.Slot.MaskBits))
 	}
-	if g.Common.GroupIndex != w.Common.GroupIndex {
-		add("GroupIndex", g.Common.GroupIndex, w.Common.GroupIndex)
+	if g.Slot.GroupIndex != w.Slot.GroupIndex {
+		add("GroupIndex", g.Slot.GroupIndex, w.Slot.GroupIndex)
 	}
 
 	num("Radius", g.Circle.Radius, w.Circle.Radius)
