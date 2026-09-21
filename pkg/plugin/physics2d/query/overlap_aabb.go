@@ -11,9 +11,11 @@ import (
 // AABBOverlapRequest finds fixtures whose shapes overlap the axis-aligned box [Min, Max] in world space
 // (inclusive bounds on the query box). Min.X may be greater than Max.X; components are swapped per axis.
 type AABBOverlapRequest struct {
-	Min    component.Vec2      `json:"min"`
-	Max    component.Vec2      `json:"max"`
-	Filter *Filter             `json:"filter,omitempty"`
+	Min    component.Vec2 `json:"min"`
+	Max    component.Vec2 `json:"max"`
+	Filter *Filter        `json:"filter,omitempty"`
+	// Ignore skips these entities. It is scanned once per candidate shape, so it is sized for
+	// "not me, not my vehicle"; exclude a whole layer or team with Filter instead.
 	Ignore []cardinal.EntityID `json:"ignore,omitempty"`
 }
 
