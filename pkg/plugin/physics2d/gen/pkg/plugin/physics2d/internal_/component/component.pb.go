@@ -707,6 +707,7 @@ type ShapeSlot struct {
 	Shape         uint32                 `protobuf:"varint,1,opt,name=Shape,proto3" json:"Shape,omitempty"`
 	LocalOffset   *Vec2                  `protobuf:"bytes,2,opt,name=LocalOffset,proto3" json:"LocalOffset,omitempty"`
 	LocalRotation float64                `protobuf:"fixed64,3,opt,name=LocalRotation,proto3" json:"LocalRotation,omitempty"`
+	Tag           string                 `protobuf:"bytes,4,opt,name=Tag,proto3" json:"Tag,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -760,6 +761,13 @@ func (x *ShapeSlot) GetLocalRotation() float64 {
 		return x.LocalRotation
 	}
 	return 0
+}
+
+func (x *ShapeSlot) GetTag() string {
+	if x != nil {
+		return x.Tag
+	}
+	return ""
 }
 
 // wire name: "transform_2d"
@@ -973,11 +981,12 @@ const file_pkg_plugin_physics2d_internal__component_component_proto_rawDesc = ""
 	"\bMaskBits\x18\x06 \x01(\x04R\bMaskBits\x12\x1e\n" +
 	"\n" +
 	"GroupIndex\x18\a \x01(\x05R\n" +
-	"GroupIndex\"\xbb\x01\n" +
+	"GroupIndex\"\xcd\x01\n" +
 	"\tShapeSlot\x12\x14\n" +
 	"\x05Shape\x18\x01 \x01(\rR\x05Shape\x12r\n" +
 	"\vLocalOffset\x18\x02 \x01(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2R\vLocalOffset\x12$\n" +
-	"\rLocalRotation\x18\x03 \x01(\x01R\rLocalRotation\"\x97\x01\n" +
+	"\rLocalRotation\x18\x03 \x01(\x01R\rLocalRotation\x12\x10\n" +
+	"\x03Tag\x18\x04 \x01(\tR\x03Tag\"\x97\x01\n" +
 	"\vTransform2D\x12l\n" +
 	"\bPosition\x18\x01 \x01(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2R\bPosition\x12\x1a\n" +
 	"\bRotation\x18\x02 \x01(\x01R\bRotation\"\"\n" +

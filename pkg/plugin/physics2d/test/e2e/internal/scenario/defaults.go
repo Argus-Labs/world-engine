@@ -236,6 +236,12 @@ func checkValidation(c *harness.Ctx) {
 		physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, slot.At(vec(math.NaN(), 0), 0)).Validate())
 	c.HasError("Validate rejects Inf LocalRotation",
 		physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, slot.At(vec(0, 0), math.Inf(1))).Validate())
+	tagged, other := slot, physcomp.Slot(2)
+	tagged.Tag, other.Tag = "a", "a"
+	c.HasError("Validate rejects two slots with one tag",
+		physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, tagged, other).Validate())
+	c.NoError("Validate allows many untagged slots",
+		physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, slot, physcomp.Slot(2)).Validate())
 
 	// The shape's own components validate themselves; the plugin runs these at
 	// fixture attach, since a body only names its shape entity.
@@ -262,8 +268,14 @@ func checkValidation(c *harness.Ctx) {
 // The elements live in an unexported field, so without a codec on the slice each of these
 // encodes as {} and silently loses its list, while the surrounding struct still looks fine.
 func checkJSONRoundTrip(c *harness.Ctx) {
-	body := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic,
-		physcomp.Slot(7), physcomp.Slot(9).At(vec(1, 2), 0.5))
+	body, err := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, physcomp.Slot(7)).
+		AddSlot("hull", physcomp.Slot(9).At(vec(1, 2), 0.5))
+	c.NoError("AddSlot on a fresh tag succeeds", err)
+	if back, err := (physcomp.PhysicsBody2D{}).UnmarshalWire(body.MarshalWire()); c.NoError("a body round-trips the wire", err) {
+		got, isBody := back.(physcomp.PhysicsBody2D)
+		c.True("a body keeps its slots and tags through the wire", isBody && immutable.Equal(body.Shapes, got.Shapes),
+			"got %+v", back)
+	}
 	if data, err := json.Marshal(body); c.NoError("a body with slots marshals", err) {
 		var back physics.PhysicsBody2D
 		if c.NoError("a body with slots unmarshals", json.Unmarshal(data, &back)) {

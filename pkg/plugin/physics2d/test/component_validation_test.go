@@ -351,6 +351,55 @@ func TestNewPhysicsBody2D_Defaults(t *testing.T) {
 	require.Equal(t, 1, pb.Shapes.Len())
 }
 
+func TestValidate_PhysicsBody2D_DuplicateTag(t *testing.T) {
+	t.Parallel()
+	a, b := phycomp.Slot(3), phycomp.Slot(4)
+	a.Tag, b.Tag = "hull", "hull"
+	err := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, a, b).Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `tag "hull"`)
+}
+
+func TestPhysicsBody2D_SlotsByTag(t *testing.T) {
+	t.Parallel()
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic)
+	pb, err := pb.AddSlot("hull", phycomp.Slot(3))
+	require.NoError(t, err)
+	pb, err = pb.AddSlot("", phycomp.Slot(4))
+	require.NoError(t, err, "an empty tag adds an untagged slot")
+	pb, err = pb.AddSlot("aggro", phycomp.Slot(5))
+	require.NoError(t, err)
+	require.NoError(t, pb.Validate())
+
+	require.Equal(t, 0, pb.SlotIndex("hull"))
+	require.Equal(t, 2, pb.SlotIndex("aggro"))
+	require.Equal(t, -1, pb.SlotIndex("nope"))
+	require.Equal(t, -1, pb.SlotIndex(""))
+	require.Equal(t, "aggro", pb.SlotTag(2))
+	require.Equal(t, "", pb.SlotTag(1))
+	require.Equal(t, "", pb.SlotTag(3))
+
+	_, err = pb.AddSlot("hull", phycomp.Slot(9))
+	require.ErrorContains(t, err, `"hull"`, "AddSlot refuses a used tag")
+
+	replaced, err := pb.ReplaceSlot("hull", phycomp.Slot(9))
+	require.NoError(t, err)
+	require.Equal(t, 3, replaced.Shapes.Len())
+	want := phycomp.Slot(9)
+	want.Tag = "hull"
+	require.Equal(t, want, replaced.Shapes.At(0), "replaces in place and stamps the tag")
+	_, err = pb.ReplaceSlot("nope", phycomp.Slot(9))
+	require.ErrorContains(t, err, `"nope"`, "ReplaceSlot refuses an unknown tag")
+
+	removed, err := pb.RemoveSlot("hull")
+	require.NoError(t, err)
+	require.Equal(t, 2, removed.Shapes.Len())
+	require.Equal(t, 1, removed.SlotIndex("aggro"), "later slots move down")
+	_, err = pb.RemoveSlot("nope")
+	require.ErrorContains(t, err, `"nope"`, "RemoveSlot refuses an unknown tag")
+	require.Equal(t, 3, pb.Shapes.Len(), "the receiver is untouched")
+}
+
 func TestNewPhysicsBody2D_MultipleShapes(t *testing.T) {
 	t.Parallel()
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeStatic,

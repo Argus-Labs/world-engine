@@ -198,6 +198,32 @@ body. Fixture identity is by index (slot `i` in `Shapes` ↔ fixture slot
 `i`), so don't reorder slots after creation if you care about per-shape
 references in contact events.
 
+### Naming slots
+
+Editing a compound body by index means remembering where each shape went.
+Name the slots instead and edit them by tag. Each operation fails when its
+precondition does not hold, so a typo or a double add is an error at the
+call, not a body that quietly does the wrong thing.
+
+```go
+hull  := mustSpawn(state.Shapes.Spawn(physics2d.Box(1, 2)))
+aggro := mustSpawn(state.Shapes.Spawn(physics2d.Circle(6).AsSensor()))
+
+body := physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic)
+body, err = body.AddSlot("hull", hull)       // fails if "hull" is already used
+body, err = body.AddSlot("aggro", aggro)
+body, err = body.ReplaceSlot("hull", bigger) // same index, fixture kept; fails if no "hull"
+body, err = body.RemoveSlot("aggro")         // later slots move down one; fails if no "aggro"
+i   := body.SlotIndex("hull")                // the index events and queries report, or -1
+tag := body.SlotTag(ev.ShapeIndexA)          // and back; "" when untagged
+```
+
+`ReplaceSlot` keeps the slot's index, so a same-geometry replacement updates
+its fixture in place rather than rebuilding it, as long as the list's length
+and the other slots' transforms are unchanged that tick. `Validate` is the
+backstop: a body whose `Shapes` list was built by hand with two equal tags is
+rejected by the reconciler like any other invalid body.
+
 ## Built-in queries
 
 Use these first; they cover most needs:

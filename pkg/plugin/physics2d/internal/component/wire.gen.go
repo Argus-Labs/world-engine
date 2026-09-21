@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"math"
+	"unicode/utf8"
 )
 
 func (c ActiveContacts) ToProto() *pbcomponent.ActiveContacts {
@@ -761,6 +762,7 @@ func (c ShapeSlot) ToProto() *pbcomponent.ShapeSlot {
 	p.Shape = uint32(c.Shape)
 	p.LocalOffset = c.LocalOffset.ToProto()
 	p.LocalRotation = float64(c.LocalRotation)
+	p.Tag = string(c.Tag)
 	return p
 }
 
@@ -771,6 +773,7 @@ func (c ShapeSlot) FromProto(p *pbcomponent.ShapeSlot) ShapeSlot {
 	c.Shape = pkg_cardinal.EntityID(p.Shape)
 	c.LocalOffset = c.LocalOffset.FromProto(p.LocalOffset)
 	c.LocalRotation = float64(p.LocalRotation)
+	c.Tag = string(p.Tag)
 	return c
 }
 
@@ -782,6 +785,9 @@ func (c ShapeSlot) SizeWire() int {
 	n += protowire.SizeTag(2) + protowire.SizeBytes(c.LocalOffset.SizeWire())
 	if math.Float64bits(float64(c.LocalRotation)) != 0 {
 		n += protowire.SizeTag(3) + protowire.SizeFixed64()
+	}
+	if len(c.Tag) > 0 {
+		n += protowire.SizeTag(4) + wireStringSize("ShapeSlot.Tag", string(c.Tag))
 	}
 	return n
 }
@@ -799,6 +805,10 @@ func (c ShapeSlot) AppendWire(b []byte) []byte {
 	if math.Float64bits(float64(c.LocalRotation)) != 0 {
 		b = protowire.AppendTag(b, 3, protowire.Fixed64Type)
 		b = protowire.AppendFixed64(b, math.Float64bits(float64(c.LocalRotation)))
+	}
+	if len(c.Tag) > 0 {
+		b = protowire.AppendTag(b, 4, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Tag))
 	}
 	return b
 }
@@ -963,4 +973,14 @@ func wireLenPrefix(b []byte, at int) []byte {
 	copy(b[at+1+k:], b[at+1:at+1+n])
 	protowire.AppendVarint(b[at:at], uint64(n)) // in place: cap reaches the body
 	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check proto.Marshal
+// performs: a proto3 string holding invalid UTF-8 cannot be decoded, so the size pass
+// fails.
+func wireStringSize(field, s string) int {
+	if !utf8.ValidString(s) {
+		panic("failed to encode " + field + ": string field contains invalid UTF-8")
+	}
+	return protowire.SizeBytes(len(s))
 }

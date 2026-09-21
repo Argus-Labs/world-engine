@@ -10,12 +10,14 @@ import (
 // sits in body space. The shape itself (geometry, material, filter) lives on its own entity —
 // see [ShapeCommon] and the geometry components — so any number of bodies can share one shape.
 //
-// Slot index i is fixture i: contact events and query hits report that index, so don't
-// reorder slots after creation if you care about per-shape references.
+// Slot index i is fixture i: contact events and query hits report that index. Tag names a
+// slot so a body can be edited without knowing that index. Set it through
+// PhysicsBody2D.AddSlot, which refuses a tag the body already uses; empty means untagged.
 type ShapeSlot struct {
 	Shape         cardinal.EntityID `json:"shape"`
 	LocalOffset   Vec2              `json:"local_offset"`
 	LocalRotation float64           `json:"local_rotation"`
+	Tag           string            `json:"tag,omitempty"`
 }
 
 // Slot references a shape entity at the body origin. Chain At to place it.

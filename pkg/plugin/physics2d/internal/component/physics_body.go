@@ -45,7 +45,10 @@ import (
 // Shapes lists the body's fixtures. Each [ShapeSlot] names a shape entity (which carries
 // [ShapeCommon] plus one geometry component) and places it in body space. Slot index i is
 // fixture i, the index contact events and query hits report. The list is an immutable.Slice:
-// derive a new one (With, Append, Sub) and Set the body to change it.
+// derive a new one (With, Append, Sub) and Set the body to change it. Or name slots and edit
+// them by tag: AddSlot, ReplaceSlot and RemoveSlot return the changed body and fail when the
+// tag is already used, or missing, as the case may be; SlotIndex and SlotTag go between a tag
+// and the index events report.
 //
 // # Defaults
 //
@@ -167,6 +170,61 @@ func (p PhysicsBody2D) Validate() error {
 		if err := s.Validate(); err != nil {
 			return fmt.Errorf("physics_body_2d.shapes[%d]: %w", i, err)
 		}
+		if s.Tag != "" && p.SlotIndex(s.Tag) != i {
+			return fmt.Errorf("physics_body_2d.shapes[%d]: tag %q is already used by another slot", i, s.Tag)
+		}
 	}
 	return nil
+}
+
+// SlotIndex returns the index of the slot tagged tag, or -1. That index is the one contact
+// events and query hits report for the slot's fixture.
+func (p PhysicsBody2D) SlotIndex(tag string) int {
+	if tag == "" {
+		return -1
+	}
+	return p.Shapes.IndexFunc(func(s ShapeSlot) bool { return s.Tag == tag })
+}
+
+// SlotTag returns the tag of slot i, or "" when i is out of range or the slot is untagged.
+func (p PhysicsBody2D) SlotTag(i int) string {
+	if i < 0 || i >= p.Shapes.Len() {
+		return ""
+	}
+	return p.Shapes.At(i).Tag
+}
+
+// AddSlot appends slot under tag and returns the changed body. It fails when tag is already
+// used on this body. An empty tag adds an untagged slot. Set the returned body to apply it.
+func (p PhysicsBody2D) AddSlot(tag string, slot ShapeSlot) (PhysicsBody2D, error) {
+	if p.SlotIndex(tag) >= 0 {
+		return p, fmt.Errorf("physics_body_2d: slot tag %q is already used", tag)
+	}
+	slot.Tag = tag
+	p.Shapes = p.Shapes.Append(slot)
+	return p, nil
+}
+
+// ReplaceSlot swaps the slot tagged tag for slot, at the same index, and returns the changed
+// body. Keeping the index keeps the fixture, so a same-geometry replacement updates in place.
+// It fails when no slot has that tag. Set the returned body to apply it.
+func (p PhysicsBody2D) ReplaceSlot(tag string, slot ShapeSlot) (PhysicsBody2D, error) {
+	i := p.SlotIndex(tag)
+	if i < 0 {
+		return p, fmt.Errorf("physics_body_2d: no slot tagged %q", tag)
+	}
+	slot.Tag = tag
+	p.Shapes = p.Shapes.With(i, slot)
+	return p, nil
+}
+
+// RemoveSlot drops the slot tagged tag and returns the changed body. Slots after it move down
+// one index. It fails when no slot has that tag. Set the returned body to apply it.
+func (p PhysicsBody2D) RemoveSlot(tag string) (PhysicsBody2D, error) {
+	i := p.SlotIndex(tag)
+	if i < 0 {
+		return p, fmt.Errorf("physics_body_2d: no slot tagged %q", tag)
+	}
+	p.Shapes = p.Shapes.Without(i)
+	return p, nil
 }
