@@ -72,6 +72,22 @@ func TestOverlapEntitiesIsNilWhenNothingHit(t *testing.T) {
 	require.Nil(t, res.Entities())
 }
 
+// Hits is an exported field, so a result can reach Entities ungrouped: built by hand, or
+// reordered by a caller filtering it. Entities is about collapsing per-shape hits, so it must
+// not hand back duplicates just because the input was not grouped by entity.
+func TestOverlapEntitiesDedupesUngroupedHits(t *testing.T) {
+	t.Parallel()
+	res := physics.AABBOverlapResult{Hits: []physics.AABBOverlapHit{
+		{Entity: 7, ShapeIndex: 0},
+		{Entity: 3, ShapeIndex: 1},
+		{Entity: 7, ShapeIndex: 1},
+		{Entity: 3, ShapeIndex: 0},
+		{Entity: 7, ShapeIndex: 2},
+	}}
+	require.Equal(t, []cardinal.EntityID{7, 3}, res.Entities(),
+		"an ungrouped result produced duplicate entities")
+}
+
 func TestOverlapIgnoreSkipsListedEntities(t *testing.T) {
 	t.Parallel()
 	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
