@@ -178,6 +178,7 @@ type Ctx struct {
 	report     *Report
 	probes     *Probes
 	shapes     *physics.Shapes
+	store      *physics.ShapeStore
 	entity     func(cardinal.EntityID) cardinal.Entity
 	events     *eventStore
 	plugin     *physics.Plugin
@@ -189,6 +190,9 @@ type Ctx struct {
 	// assertion marks itself a helper before reporting.
 	tb testing.TB
 }
+
+// Store returns the world's shape store.
+func (c *Ctx) Store() *physics.ShapeStore { return c.store }
 
 // Plugin returns the physics plugin driving this world. Queries, Reset and
 // Engine are methods on it — the package holds no runtime state.

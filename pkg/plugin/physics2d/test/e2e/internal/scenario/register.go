@@ -24,6 +24,7 @@ func All() []harness.Scenario {
 		Stability(),
 		ShapeEntities(),
 		ShapeTags(),
+		ShapeStore(),
 		Reset(),
 		ShapeSweep(), // must stay after Reset; see above
 	}

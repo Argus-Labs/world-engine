@@ -401,6 +401,58 @@ func (x *EdgeGeom) GetB() *Vec2 {
 	return nil
 }
 
+type KeptShape struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=Name,proto3" json:"Name,omitempty"`
+	Shape         uint32                 `protobuf:"varint,2,opt,name=Shape,proto3" json:"Shape,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KeptShape) Reset() {
+	*x = KeptShape{}
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KeptShape) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KeptShape) ProtoMessage() {}
+
+func (x *KeptShape) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KeptShape.ProtoReflect.Descriptor instead.
+func (*KeptShape) Descriptor() ([]byte, []int) {
+	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *KeptShape) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *KeptShape) GetShape() uint32 {
+	if x != nil {
+		return x.Shape
+	}
+	return 0
+}
+
 // wire name: "physics_body_2d"
 type PhysicsBody2D struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
@@ -420,7 +472,7 @@ type PhysicsBody2D struct {
 
 func (x *PhysicsBody2D) Reset() {
 	*x = PhysicsBody2D{}
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[7]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -432,7 +484,7 @@ func (x *PhysicsBody2D) String() string {
 func (*PhysicsBody2D) ProtoMessage() {}
 
 func (x *PhysicsBody2D) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[7]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -445,7 +497,7 @@ func (x *PhysicsBody2D) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PhysicsBody2D.ProtoReflect.Descriptor instead.
 func (*PhysicsBody2D) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{7}
+	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PhysicsBody2D) GetBodyType() uint32 {
@@ -527,7 +579,7 @@ type PhysicsSingletonTag struct {
 
 func (x *PhysicsSingletonTag) Reset() {
 	*x = PhysicsSingletonTag{}
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[8]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -539,7 +591,7 @@ func (x *PhysicsSingletonTag) String() string {
 func (*PhysicsSingletonTag) ProtoMessage() {}
 
 func (x *PhysicsSingletonTag) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[8]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -552,7 +604,7 @@ func (x *PhysicsSingletonTag) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PhysicsSingletonTag.ProtoReflect.Descriptor instead.
 func (*PhysicsSingletonTag) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{8}
+	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{9}
 }
 
 // wire name: "polygon_geom_2d"
@@ -567,7 +619,7 @@ type PolygonGeom struct {
 
 func (x *PolygonGeom) Reset() {
 	*x = PolygonGeom{}
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[9]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -579,7 +631,7 @@ func (x *PolygonGeom) String() string {
 func (*PolygonGeom) ProtoMessage() {}
 
 func (x *PolygonGeom) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[9]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -592,7 +644,7 @@ func (x *PolygonGeom) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PolygonGeom.ProtoReflect.Descriptor instead.
 func (*PolygonGeom) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{9}
+	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PolygonGeom) GetVertices() []*Vec2 {
@@ -622,7 +674,7 @@ type ShapeCommon struct {
 
 func (x *ShapeCommon) Reset() {
 	*x = ShapeCommon{}
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[10]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -634,7 +686,7 @@ func (x *ShapeCommon) String() string {
 func (*ShapeCommon) ProtoMessage() {}
 
 func (x *ShapeCommon) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[10]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -647,7 +699,7 @@ func (x *ShapeCommon) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShapeCommon.ProtoReflect.Descriptor instead.
 func (*ShapeCommon) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{10}
+	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ShapeCommon) GetIsSensor() bool {
@@ -693,7 +745,7 @@ type ShapeRef struct {
 
 func (x *ShapeRef) Reset() {
 	*x = ShapeRef{}
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[11]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -705,7 +757,7 @@ func (x *ShapeRef) String() string {
 func (*ShapeRef) ProtoMessage() {}
 
 func (x *ShapeRef) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[11]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -718,7 +770,7 @@ func (x *ShapeRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShapeRef.ProtoReflect.Descriptor instead.
 func (*ShapeRef) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{11}
+	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ShapeRef) GetShape() uint32 {
@@ -770,6 +822,51 @@ func (x *ShapeRef) GetGroupIndex() int32 {
 	return 0
 }
 
+// wire name: "shape_store_2d"
+type ShapeStore struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kept          []*KeptShape           `protobuf:"bytes,1,rep,name=Kept,proto3" json:"Kept,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShapeStore) Reset() {
+	*x = ShapeStore{}
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShapeStore) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShapeStore) ProtoMessage() {}
+
+func (x *ShapeStore) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShapeStore.ProtoReflect.Descriptor instead.
+func (*ShapeStore) Descriptor() ([]byte, []int) {
+	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ShapeStore) GetKept() []*KeptShape {
+	if x != nil {
+		return x.Kept
+	}
+	return nil
+}
+
 // wire name: "transform_2d"
 type Transform2D struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -781,7 +878,7 @@ type Transform2D struct {
 
 func (x *Transform2D) Reset() {
 	*x = Transform2D{}
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[12]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -793,7 +890,7 @@ func (x *Transform2D) String() string {
 func (*Transform2D) ProtoMessage() {}
 
 func (x *Transform2D) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[12]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -806,7 +903,7 @@ func (x *Transform2D) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Transform2D.ProtoReflect.Descriptor instead.
 func (*Transform2D) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{12}
+	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Transform2D) GetPosition() *Vec2 {
@@ -833,7 +930,7 @@ type Vec2 struct {
 
 func (x *Vec2) Reset() {
 	*x = Vec2{}
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[13]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -845,7 +942,7 @@ func (x *Vec2) String() string {
 func (*Vec2) ProtoMessage() {}
 
 func (x *Vec2) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[13]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -858,7 +955,7 @@ func (x *Vec2) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vec2.ProtoReflect.Descriptor instead.
 func (*Vec2) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{13}
+	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Vec2) GetX() float64 {
@@ -886,7 +983,7 @@ type Velocity2D struct {
 
 func (x *Velocity2D) Reset() {
 	*x = Velocity2D{}
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[14]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -898,7 +995,7 @@ func (x *Velocity2D) String() string {
 func (*Velocity2D) ProtoMessage() {}
 
 func (x *Velocity2D) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[14]
+	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -911,7 +1008,7 @@ func (x *Velocity2D) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Velocity2D.ProtoReflect.Descriptor instead.
 func (*Velocity2D) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{14}
+	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Velocity2D) GetLinear() *Vec2 {
@@ -955,7 +1052,10 @@ const file_pkg_plugin_physics2d_internal__component_component_proto_rawDesc = ""
 	"\bIsSensor\x18\x05 \x01(\bR\bIsSensor\"\xca\x01\n" +
 	"\bEdgeGeom\x12^\n" +
 	"\x01A\x18\x01 \x01(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2R\x01A\x12^\n" +
-	"\x01B\x18\x02 \x01(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2R\x01B\"\xa1\x03\n" +
+	"\x01B\x18\x02 \x01(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2R\x01B\"5\n" +
+	"\tKeptShape\x12\x12\n" +
+	"\x04Name\x18\x01 \x01(\tR\x04Name\x12\x14\n" +
+	"\x05Shape\x18\x02 \x01(\rR\x05Shape\"\xa1\x03\n" +
 	"\rPhysicsBody2D\x12\x1a\n" +
 	"\bBodyType\x18\x01 \x01(\rR\bBodyType\x12$\n" +
 	"\rLinearDamping\x18\x02 \x01(\x01R\rLinearDamping\x12&\n" +
@@ -986,7 +1086,10 @@ const file_pkg_plugin_physics2d_internal__component_component_proto_rawDesc = ""
 	"\bMaskBits\x18\x06 \x01(\x04R\bMaskBits\x12\x1e\n" +
 	"\n" +
 	"GroupIndex\x18\a \x01(\x05R\n" +
-	"GroupIndex\"\x97\x01\n" +
+	"GroupIndex\"w\n" +
+	"\n" +
+	"ShapeStore\x12i\n" +
+	"\x04Kept\x18\x01 \x03(\v2U.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.KeptShapeR\x04Kept\"\x97\x01\n" +
 	"\vTransform2D\x12l\n" +
 	"\bPosition\x18\x01 \x01(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2R\bPosition\x12\x1a\n" +
 	"\bRotation\x18\x02 \x01(\x01R\bRotation\"\"\n" +
@@ -1010,7 +1113,7 @@ func file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP()
 	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescData
 }
 
-var file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_pkg_plugin_physics2d_internal__component_component_proto_goTypes = []any{
 	(*ActiveContacts)(nil),      // 0: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ActiveContacts
 	(*BoxGeom)(nil),             // 1: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.BoxGeom
@@ -1019,33 +1122,36 @@ var file_pkg_plugin_physics2d_internal__component_component_proto_goTypes = []an
 	(*CircleGeom)(nil),          // 4: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.CircleGeom
 	(*ContactPairEntry)(nil),    // 5: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ContactPairEntry
 	(*EdgeGeom)(nil),            // 6: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.EdgeGeom
-	(*PhysicsBody2D)(nil),       // 7: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.PhysicsBody2D
-	(*PhysicsSingletonTag)(nil), // 8: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.PhysicsSingletonTag
-	(*PolygonGeom)(nil),         // 9: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.PolygonGeom
-	(*ShapeCommon)(nil),         // 10: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeCommon
-	(*ShapeRef)(nil),            // 11: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeRef
-	(*Transform2D)(nil),         // 12: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Transform2D
-	(*Vec2)(nil),                // 13: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
-	(*Velocity2D)(nil),          // 14: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Velocity2D
+	(*KeptShape)(nil),           // 7: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.KeptShape
+	(*PhysicsBody2D)(nil),       // 8: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.PhysicsBody2D
+	(*PhysicsSingletonTag)(nil), // 9: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.PhysicsSingletonTag
+	(*PolygonGeom)(nil),         // 10: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.PolygonGeom
+	(*ShapeCommon)(nil),         // 11: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeCommon
+	(*ShapeRef)(nil),            // 12: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeRef
+	(*ShapeStore)(nil),          // 13: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeStore
+	(*Transform2D)(nil),         // 14: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Transform2D
+	(*Vec2)(nil),                // 15: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
+	(*Velocity2D)(nil),          // 16: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Velocity2D
 }
 var file_pkg_plugin_physics2d_internal__component_component_proto_depIdxs = []int32{
 	5,  // 0: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ActiveContacts.Pairs:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ContactPairEntry
-	13, // 1: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.BoxGeom.HalfExtents:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
-	13, // 2: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.CapsuleGeom.A:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
-	13, // 3: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.CapsuleGeom.B:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
-	13, // 4: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ChainGeom.Points:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
-	13, // 5: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.EdgeGeom.A:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
-	13, // 6: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.EdgeGeom.B:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
-	11, // 7: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.PhysicsBody2D.Shapes:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeRef
-	13, // 8: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.PolygonGeom.Vertices:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
-	13, // 9: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeRef.LocalOffset:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
-	13, // 10: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Transform2D.Position:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
-	13, // 11: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Velocity2D.Linear:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	15, // 1: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.BoxGeom.HalfExtents:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
+	15, // 2: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.CapsuleGeom.A:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
+	15, // 3: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.CapsuleGeom.B:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
+	15, // 4: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ChainGeom.Points:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
+	15, // 5: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.EdgeGeom.A:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
+	15, // 6: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.EdgeGeom.B:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
+	12, // 7: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.PhysicsBody2D.Shapes:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeRef
+	15, // 8: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.PolygonGeom.Vertices:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
+	15, // 9: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeRef.LocalOffset:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
+	7,  // 10: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeStore.Kept:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.KeptShape
+	15, // 11: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Transform2D.Position:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
+	15, // 12: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Velocity2D.Linear:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_pkg_plugin_physics2d_internal__component_component_proto_init() }
@@ -1059,7 +1165,7 @@ func file_pkg_plugin_physics2d_internal__component_component_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pkg_plugin_physics2d_internal__component_component_proto_rawDesc), len(file_pkg_plugin_physics2d_internal__component_component_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

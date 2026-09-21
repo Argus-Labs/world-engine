@@ -20,7 +20,7 @@ type PhysicsPipelineSystemState struct {
 	Chains       cardinal.Contains[chainShapeRow]
 	Edges        cardinal.Contains[edgeShapeRow]
 	Capsules     cardinal.Contains[capsuleShapeRow]
-	Singleton    physicsSingletonSearch
+	Singleton    internal.SingletonSearch
 	ContactBegin cardinal.WithSystemEventEmitter[physicevent.ContactBeginEvent]
 	ContactEnd   cardinal.WithSystemEventEmitter[physicevent.ContactEndEvent]
 	TriggerBegin cardinal.WithSystemEventEmitter[physicevent.TriggerBeginEvent]
@@ -89,7 +89,8 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 	// for one world run sequentially, so the runtime-owned scratch is never shared.
 	return func(state *PhysicsPipelineSystemState) {
 		// --- 1. Reconcile (ECS -> Box2D) ---
-		ensurePhysicsSingleton(&state.Singleton)
+		singleton := internal.EnsureSingleton(&state.Singleton)
+		rt.SyncKeptShapes(singleton.Get[physicscomp.ShapeStore]().Kept)
 		// Shapes before bodies: attaches below resolve slots through the shape mirror.
 		syncShapes(rt, state.shapes())
 		entries := rt.KeepRebuildEntriesScratch(

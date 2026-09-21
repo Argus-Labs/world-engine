@@ -62,6 +62,9 @@ type Runtime struct {
 	// Bodies whose slots reference one are re-diffed once; cleared by the next SyncShapes.
 	dirtyShapes map[cardinal.EntityID]shapeChange
 
+	// keptShapes is the shape store as of this tick: shapes the sweep must leave alone.
+	keptShapes map[cardinal.EntityID]struct{}
+
 	// sweepUsedScratch, sweepGatheredScratch and sweepUnusedScratch back SweepUnusedShapes:
 	// the shapes named this tick, the bodies the gather covered, and the ids to destroy. Ids
 	// only, cleared per sweep; see shape_sweep.go.
@@ -235,6 +238,7 @@ func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps, workers int) 
 		Chains:               make(map[cardinal.EntityID][]ChainSlot),
 		ShapeMirror:          make(map[cardinal.EntityID]ResolvedShape),
 		dirtyShapes:          make(map[cardinal.EntityID]shapeChange),
+		keptShapes:           make(map[cardinal.EntityID]struct{}),
 		KnownEntities:        make(map[cardinal.EntityID]struct{}),
 		Shadow:               make(map[cardinal.EntityID]ShadowState),
 		BufferedContacts:     make([]BufferedContactEvent, 0),
@@ -256,6 +260,7 @@ func (rt *Runtime) Reset() {
 	rt.Chains = make(map[cardinal.EntityID][]ChainSlot)
 	rt.ShapeMirror = make(map[cardinal.EntityID]ResolvedShape)
 	rt.dirtyShapes = make(map[cardinal.EntityID]shapeChange)
+	rt.keptShapes = make(map[cardinal.EntityID]struct{})
 	rt.sweepUsedScratch = nil
 	rt.sweepGatheredScratch = nil
 	rt.sweepUnusedScratch = nil

@@ -266,6 +266,37 @@ rotation, or in any other slot's geometry rebuilds every fixture on that body.
 `Validate` is the backstop: a body whose `Shapes` list was built by hand with
 two equal tags is rejected by the reconciler like any other invalid body.
 
+### Keeping shapes
+
+A shape normally lives exactly as long as some body names it. For a shape you
+spawn bodies from over and over — a bullet — or one you want ready before any
+body uses it — a power-up's hitbox — keep it in the store. A kept shape is never
+swept, and any system can look it up by name. The store is plugin state on its
+singleton entity, so it snapshots and restores with everything else.
+
+```go
+type FireState struct {
+    cardinal.BaseSystemState
+    Shapes physics2d.Shapes
+    Store  physics2d.ShapeStore
+}
+
+// init, or any tick later
+bullet, err := state.Shapes.Spawn(physics2d.Circle(0.1).Sensor(true))
+err = state.Store.Keep("bullet", bullet)      // fails if the name is in use
+
+// any system
+bullet, ok := state.Store.Get("bullet")
+row.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic, bullet.At(muzzle, 0)))
+
+// done with it: swept once no body names it
+err = state.Store.Release("bullet")            // fails if nothing is kept as that
+```
+
+One shape per distinct geometry-and-material combination. Bodies only carry a
+ref, so a hundred bullet types are a hundred small shape entities created once,
+not a cost per bullet.
+
 ## Built-in queries
 
 Use these first; they cover most needs:

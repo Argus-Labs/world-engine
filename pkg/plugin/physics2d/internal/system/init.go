@@ -41,12 +41,6 @@ type shapeHolderRow struct {
 	PhysicsBody cardinal.WithComponent[physicscomp.PhysicsBody2D]
 }
 
-// physicsSingletonSearch is the Exact query for the plugin singleton (ActiveContacts).
-type physicsSingletonSearch = cardinal.Exact[struct {
-	Tag            cardinal.WithComponent[physicscomp.PhysicsSingletonTag]
-	ActiveContacts cardinal.WithComponent[physicscomp.ActiveContacts]
-}]
-
 // InitPhysicsSystemState runs once at world init: FullRebuildFromECS from current ECS entities.
 type InitPhysicsSystemState struct {
 	cardinal.BaseSystemState
@@ -58,7 +52,7 @@ type InitPhysicsSystemState struct {
 	Chains    cardinal.Contains[chainShapeRow]
 	Edges     cardinal.Contains[edgeShapeRow]
 	Capsules  cardinal.Contains[capsuleShapeRow]
-	Singleton physicsSingletonSearch
+	Singleton internal.SingletonSearch
 }
 
 func (s *InitPhysicsSystemState) shapes() shapeSearches {
@@ -70,7 +64,8 @@ func (s *InitPhysicsSystemState) shapes() shapeSearches {
 // from ECS.
 func NewInitPhysicsSystem(rt *internal.Runtime) func(*InitPhysicsSystemState) {
 	return func(state *InitPhysicsSystemState) {
-		ensurePhysicsSingleton(&state.Singleton)
+		singleton := internal.EnsureSingleton(&state.Singleton)
+		rt.SyncKeptShapes(singleton.Get[physicscomp.ShapeStore]().Kept)
 		syncShapes(rt, state.shapes())
 
 		entries := rt.KeepRebuildEntriesScratch(

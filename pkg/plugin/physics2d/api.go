@@ -379,6 +379,87 @@ func (*Shapes) GetByID(sealed) {}
 func (*Shapes) Iter(sealed)    {}
 
 // -------------------------------------------------------------------------------------------------
+// Shape store: shapes that outlive their bodies
+// -------------------------------------------------------------------------------------------------
+//
+// A shape is swept once no body names it. Keep it in the store to hold it for as long as you
+// like under a name any system can look up: the shape bullets are fired from, or a power-up's
+// hitbox added mid-game. The store is plugin state and snapshots with everything else.
+//
+//	type FireState struct {
+//	    cardinal.BaseSystemState
+//	    Shapes physics2d.Shapes
+//	    Store  physics2d.ShapeStore
+//	}
+//
+//	bullet, err := state.Shapes.Spawn(physics2d.Circle(0.1))
+//	err = state.Store.Keep("bullet", bullet)   // at init, or any tick later
+//	bullet, ok := state.Store.Get("bullet")   // from any system
+//	err = state.Store.Release("bullet")        // swept once no body names it
+
+// storeSearch is the search over the plugin singleton, embedded under an unexported name for
+// the same reason as shapeSearch.
+type storeSearch = internal.SingletonSearch
+
+// ShapeStore is the API over kept shapes, declared as a field on a system state.
+type ShapeStore struct {
+	storeSearch
+}
+
+// Keep holds the shape behind ref under name until Release. It fails on an empty name or one
+// already in use.
+func (s *ShapeStore) Keep(name string, ref ShapeRef) error {
+	if name == "" {
+		return errors.New("physics2d: store: a kept shape needs a name")
+	}
+	row := internal.EnsureSingleton(&s.storeSearch)
+	store := row.Get[component.ShapeStore]()
+	if store.Index(name) >= 0 {
+		return fmt.Errorf("physics2d: store: %q is already kept", name)
+	}
+	store.Kept = store.Kept.Append(component.KeptShape{Name: name, Shape: ref.Shape})
+	row.Set(store)
+	return nil
+}
+
+// Get returns a ref to the shape kept under name, at the body origin, and false when there
+// is none.
+func (s *ShapeStore) Get(name string) (ShapeRef, bool) {
+	row, err := s.storeSearch.Iter().Single()
+	if err != nil {
+		return ShapeRef{}, false
+	}
+	store := row.Get[component.ShapeStore]()
+	i := store.Index(name)
+	if i < 0 {
+		return ShapeRef{}, false
+	}
+	return component.Ref(store.Kept.At(i).Shape), true
+}
+
+// Release drops name from the store. The shape stays while a body names it and is swept once
+// none does. It fails when nothing is kept under name.
+func (s *ShapeStore) Release(name string) error {
+	row, err := s.storeSearch.Iter().Single()
+	if err != nil {
+		return fmt.Errorf("physics2d: store: nothing kept as %q", name)
+	}
+	store := row.Get[component.ShapeStore]()
+	i := store.Index(name)
+	if i < 0 {
+		return fmt.Errorf("physics2d: store: nothing kept as %q", name)
+	}
+	store.Kept = store.Kept.Without(i)
+	row.Set(store)
+	return nil
+}
+
+// Not part of the API; see Shapes.
+func (*ShapeStore) Create(sealed)  {}
+func (*ShapeStore) GetByID(sealed) {}
+func (*ShapeStore) Iter(sealed)    {}
+
+// -------------------------------------------------------------------------------------------------
 // Queries
 // -------------------------------------------------------------------------------------------------
 //

@@ -20,12 +20,24 @@ import (
 // physics row (a body that dropped Transform2D or Velocity2D still holds its refs), plus the
 // list a body's live fixtures were built from (its shadow) while a failing update has left
 // them on an older list. A shape spawned this tick that no body picked up is swept this tick:
-// spawn a shape in the same tick as the first body that uses it.
+// spawn a shape in the same tick as the first body that uses it, or keep it in the store.
+//
+// The shape store is the other way a shape stays: a kept shape is held for as long as it is
+// in the store, named by a body or not, and becomes an ordinary shape again on release.
 
-// SweepUnusedShapes destroys every mirrored shape entity that no body names. entries are the
-// bodies gathered this tick; holders is the search over every PhysicsBody2D, read only for the
-// entities the gather missed. Ids are destroyed in ascending order via destroy (any of the
-// caller's ECS searches), keeping the sweep deterministic.
+// SyncKeptShapes refreshes the kept set from the shape store. The sweep reads the set, so a
+// shape released this tick is swept this tick unless a body still names it.
+func (rt *Runtime) SyncKeptShapes(kept immutable.Slice[component.KeptShape]) {
+	clear(rt.keptShapes)
+	for k := range kept.Values() {
+		rt.keptShapes[k.Shape] = struct{}{}
+	}
+}
+
+// SweepUnusedShapes destroys every mirrored shape entity that no body names and the store
+// does not keep. entries are the bodies gathered this tick; holders is the search over every
+// PhysicsBody2D, read only for the entities the gather missed. Ids are destroyed in ascending
+// order via destroy (any of the caller's ECS searches), keeping the sweep deterministic.
 func (rt *Runtime) SweepUnusedShapes(
 	entries []PhysicsRebuildEntry, holders cardinal.SearchResult, destroy func(cardinal.EntityID) bool,
 ) {
@@ -36,6 +48,9 @@ func (rt *Runtime) SweepUnusedShapes(
 	}
 	for _, sh := range rt.Shadow {
 		markNamed(used, sh.PhysicsBody.Shapes)
+	}
+	for id := range rt.keptShapes {
+		used[id] = struct{}{}
 	}
 	// Reading the component costs more per row than the gather did, so only the entities the
 	// gather missed are read here: normally none.

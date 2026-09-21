@@ -414,6 +414,45 @@ func (c EdgeGeom) AppendWire(b []byte) []byte {
 	return b
 }
 
+func (c KeptShape) ToProto() *pbcomponent.KeptShape {
+	p := &pbcomponent.KeptShape{}
+	p.Name = string(c.Name)
+	p.Shape = uint32(c.Shape)
+	return p
+}
+
+func (c KeptShape) FromProto(p *pbcomponent.KeptShape) KeptShape {
+	if p == nil {
+		return c
+	}
+	c.Name = string(p.Name)
+	c.Shape = pkg_cardinal.EntityID(p.Shape)
+	return c
+}
+
+func (c KeptShape) SizeWire() int {
+	n := 0
+	if len(c.Name) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("KeptShape.Name", string(c.Name))
+	}
+	if c.Shape != 0 {
+		n += protowire.SizeTag(2) + protowire.SizeVarint(uint64(c.Shape))
+	}
+	return n
+}
+
+func (c KeptShape) AppendWire(b []byte) []byte {
+	if len(c.Name) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Name))
+	}
+	if c.Shape != 0 {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.Shape))
+	}
+	return b
+}
+
 func (c PhysicsBody2D) ToProto() *pbcomponent.PhysicsBody2D {
 	p := &pbcomponent.PhysicsBody2D{}
 	p.BodyType = uint32(c.BodyType)
@@ -809,6 +848,65 @@ func (c ShapeRef) AppendWire(b []byte) []byte {
 	if c.GroupIndex != 0 {
 		b = protowire.AppendTag(b, 7, protowire.VarintType)
 		b = protowire.AppendVarint(b, uint64(c.GroupIndex))
+	}
+	return b
+}
+
+func (c ShapeStore) ToProto() *pbcomponent.ShapeStore {
+	p := &pbcomponent.ShapeStore{}
+	for v := range c.Kept.Values() {
+		p.Kept = append(p.Kept, v.ToProto())
+	}
+	return p
+}
+
+func (c ShapeStore) FromProto(p *pbcomponent.ShapeStore) ShapeStore {
+	if p == nil {
+		return c
+	}
+	if len(p.Kept) > 0 {
+		itemsKept := make([]KeptShape, 0, len(p.Kept))
+		for _, e := range p.Kept {
+			var v KeptShape
+			v = v.FromProto(e)
+			itemsKept = append(itemsKept, v)
+		}
+		c.Kept = pkg_immutable.SliceOf(itemsKept...)
+	}
+	return c
+}
+
+func (c ShapeStore) MarshalWire() []byte {
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
+}
+
+func (c ShapeStore) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.ShapeStore
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
+func (c ShapeStore) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.ShapeStore{}).ProtoReflect().Descriptor()
+}
+
+func (c ShapeStore) SizeWire() int {
+	n := 0
+	for x := range c.Kept.Values() {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(x.SizeWire())
+	}
+	return n
+}
+
+func (c ShapeStore) AppendWire(b []byte) []byte {
+	for x := range c.Kept.Values() {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		atKept := len(b)
+		b = append(b, 0)
+		b = x.AppendWire(b)
+		b = wireLenPrefix(b, atKept)
 	}
 	return b
 }
