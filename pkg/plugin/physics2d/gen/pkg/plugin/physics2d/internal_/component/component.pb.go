@@ -413,7 +413,7 @@ type PhysicsBody2D struct {
 	SleepingAllowed bool                   `protobuf:"varint,7,opt,name=SleepingAllowed,proto3" json:"SleepingAllowed,omitempty"`
 	Bullet          bool                   `protobuf:"varint,8,opt,name=Bullet,proto3" json:"Bullet,omitempty"`
 	FixedRotation   bool                   `protobuf:"varint,9,opt,name=FixedRotation,proto3" json:"FixedRotation,omitempty"`
-	Shapes          []*ShapeSlot           `protobuf:"bytes,10,rep,name=Shapes,proto3" json:"Shapes,omitempty"`
+	Shapes          []*ShapeRef            `protobuf:"bytes,10,rep,name=Shapes,proto3" json:"Shapes,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -511,7 +511,7 @@ func (x *PhysicsBody2D) GetFixedRotation() bool {
 	return false
 }
 
-func (x *PhysicsBody2D) GetShapes() []*ShapeSlot {
+func (x *PhysicsBody2D) GetShapes() []*ShapeRef {
 	if x != nil {
 		return x.Shapes
 	}
@@ -702,7 +702,7 @@ func (x *ShapeCommon) GetGroupIndex() int32 {
 	return 0
 }
 
-type ShapeSlot struct {
+type ShapeRef struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Shape         uint32                 `protobuf:"varint,1,opt,name=Shape,proto3" json:"Shape,omitempty"`
 	LocalOffset   *Vec2                  `protobuf:"bytes,2,opt,name=LocalOffset,proto3" json:"LocalOffset,omitempty"`
@@ -712,20 +712,20 @@ type ShapeSlot struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ShapeSlot) Reset() {
-	*x = ShapeSlot{}
+func (x *ShapeRef) Reset() {
+	*x = ShapeRef{}
 	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ShapeSlot) String() string {
+func (x *ShapeRef) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ShapeSlot) ProtoMessage() {}
+func (*ShapeRef) ProtoMessage() {}
 
-func (x *ShapeSlot) ProtoReflect() protoreflect.Message {
+func (x *ShapeRef) ProtoReflect() protoreflect.Message {
 	mi := &file_pkg_plugin_physics2d_internal__component_component_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -737,33 +737,33 @@ func (x *ShapeSlot) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ShapeSlot.ProtoReflect.Descriptor instead.
-func (*ShapeSlot) Descriptor() ([]byte, []int) {
+// Deprecated: Use ShapeRef.ProtoReflect.Descriptor instead.
+func (*ShapeRef) Descriptor() ([]byte, []int) {
 	return file_pkg_plugin_physics2d_internal__component_component_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *ShapeSlot) GetShape() uint32 {
+func (x *ShapeRef) GetShape() uint32 {
 	if x != nil {
 		return x.Shape
 	}
 	return 0
 }
 
-func (x *ShapeSlot) GetLocalOffset() *Vec2 {
+func (x *ShapeRef) GetLocalOffset() *Vec2 {
 	if x != nil {
 		return x.LocalOffset
 	}
 	return nil
 }
 
-func (x *ShapeSlot) GetLocalRotation() float64 {
+func (x *ShapeRef) GetLocalRotation() float64 {
 	if x != nil {
 		return x.LocalRotation
 	}
 	return 0
 }
 
-func (x *ShapeSlot) GetTag() string {
+func (x *ShapeRef) GetTag() string {
 	if x != nil {
 		return x.Tag
 	}
@@ -955,7 +955,7 @@ const file_pkg_plugin_physics2d_internal__component_component_proto_rawDesc = ""
 	"\bIsSensor\x18\x05 \x01(\bR\bIsSensor\"\xca\x01\n" +
 	"\bEdgeGeom\x12^\n" +
 	"\x01A\x18\x01 \x01(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2R\x01A\x12^\n" +
-	"\x01B\x18\x02 \x01(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2R\x01B\"\xa2\x03\n" +
+	"\x01B\x18\x02 \x01(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2R\x01B\"\xa1\x03\n" +
 	"\rPhysicsBody2D\x12\x1a\n" +
 	"\bBodyType\x18\x01 \x01(\rR\bBodyType\x12$\n" +
 	"\rLinearDamping\x18\x02 \x01(\x01R\rLinearDamping\x12&\n" +
@@ -965,9 +965,9 @@ const file_pkg_plugin_physics2d_internal__component_component_proto_rawDesc = ""
 	"\x05Awake\x18\x06 \x01(\bR\x05Awake\x12(\n" +
 	"\x0fSleepingAllowed\x18\a \x01(\bR\x0fSleepingAllowed\x12\x16\n" +
 	"\x06Bullet\x18\b \x01(\bR\x06Bullet\x12$\n" +
-	"\rFixedRotation\x18\t \x01(\bR\rFixedRotation\x12m\n" +
+	"\rFixedRotation\x18\t \x01(\bR\rFixedRotation\x12l\n" +
 	"\x06Shapes\x18\n" +
-	" \x03(\v2U.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeSlotR\x06Shapes\"\x15\n" +
+	" \x03(\v2T.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeRefR\x06Shapes\"\x15\n" +
 	"\x13PhysicsSingletonTag\"\x91\x01\n" +
 	"\vPolygonGeom\x12l\n" +
 	"\bVertices\x18\x01 \x03(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2R\bVertices\x12\x14\n" +
@@ -981,8 +981,8 @@ const file_pkg_plugin_physics2d_internal__component_component_proto_rawDesc = ""
 	"\bMaskBits\x18\x06 \x01(\x04R\bMaskBits\x12\x1e\n" +
 	"\n" +
 	"GroupIndex\x18\a \x01(\x05R\n" +
-	"GroupIndex\"\xcd\x01\n" +
-	"\tShapeSlot\x12\x14\n" +
+	"GroupIndex\"\xcc\x01\n" +
+	"\bShapeRef\x12\x14\n" +
 	"\x05Shape\x18\x01 \x01(\rR\x05Shape\x12r\n" +
 	"\vLocalOffset\x18\x02 \x01(\v2P.github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2R\vLocalOffset\x12$\n" +
 	"\rLocalRotation\x18\x03 \x01(\x01R\rLocalRotation\x12\x10\n" +
@@ -1023,7 +1023,7 @@ var file_pkg_plugin_physics2d_internal__component_component_proto_goTypes = []an
 	(*PhysicsSingletonTag)(nil), // 8: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.PhysicsSingletonTag
 	(*PolygonGeom)(nil),         // 9: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.PolygonGeom
 	(*ShapeCommon)(nil),         // 10: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeCommon
-	(*ShapeSlot)(nil),           // 11: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeSlot
+	(*ShapeRef)(nil),            // 11: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeRef
 	(*Transform2D)(nil),         // 12: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Transform2D
 	(*Vec2)(nil),                // 13: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
 	(*Velocity2D)(nil),          // 14: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Velocity2D
@@ -1036,9 +1036,9 @@ var file_pkg_plugin_physics2d_internal__component_component_proto_depIdxs = []in
 	13, // 4: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ChainGeom.Points:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
 	13, // 5: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.EdgeGeom.A:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
 	13, // 6: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.EdgeGeom.B:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
-	11, // 7: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.PhysicsBody2D.Shapes:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeSlot
+	11, // 7: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.PhysicsBody2D.Shapes:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeRef
 	13, // 8: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.PolygonGeom.Vertices:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
-	13, // 9: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeSlot.LocalOffset:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
+	13, // 9: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.ShapeRef.LocalOffset:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
 	13, // 10: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Transform2D.Position:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
 	13, // 11: github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Velocity2D.Linear:type_name -> github_com.argus_labs.world_engine.pkg.plugin.physics2d.internal.component.Vec2
 	12, // [12:12] is the sub-list for method output_type

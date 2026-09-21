@@ -156,8 +156,8 @@ func hostileDestroyDuringContact() harness.Scenario {
 // error after the first tick. It runs alone because the broken body logs every tick.
 func hostileFailingBodyBlocksShapeEdit() harness.Scenario {
 	var (
-		doomed  physics.ShapeSlot
-		shared  physics.ShapeSlot
+		doomed  physics.ShapeRef
+		shared  physics.ShapeRef
 		healthy cardinal.EntityID
 	)
 	const editedFriction = 0.9
@@ -212,7 +212,7 @@ func hostileFailingBodyBlocksShapeEdit() harness.Scenario {
 // nothing to point at and the body can never recover. It runs alone because the dropped body
 // logs every tick.
 func hostileFailedAttachKeepsShapes() harness.Scenario {
-	var keeper, doomed physics.ShapeSlot
+	var keeper, doomed physics.ShapeRef
 	return harness.Scenario{
 		Name: "failed-attach-keeps-shapes",
 		Setup: func(c *harness.Ctx) {
@@ -312,7 +312,7 @@ func hostileMissingShape() harness.Scenario {
 		},
 		Steps: []harness.Step{
 			{Tick: 5, Do: func(c *harness.Ctx) {
-				pb := physics.NewPhysicsBody2D(physics.BodyTypeStatic, physcomp.Slot(999_999))
+				pb := physics.NewPhysicsBody2D(physics.BodyTypeStatic, physcomp.Ref(999_999))
 				c.NoError("PhysicsBody2D.Validate accepts an unresolved slot", pb.Validate())
 				c.Note("spawning a body whose slot names shape entity 999999, which does not exist")
 				victim = c.Spawn("victim", 0, 10, pb)
@@ -335,7 +335,7 @@ func hostileMissingShape() harness.Scenario {
 func hostileDeletedShape() harness.Scenario {
 	var (
 		victim cardinal.EntityID
-		slot   physics.ShapeSlot
+		slot   physics.ShapeRef
 	)
 	return harness.Scenario{
 		Name: "deleted-shape-entity",

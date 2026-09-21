@@ -25,7 +25,7 @@ import (
 // by what changed since the last time.
 // The list is copied: immutable.Slice derivations write through their array, so a declaration
 // that aliased the component would rewrite itself under the next With and hide the change.
-func (rt *Runtime) noteDeclared(entityID cardinal.EntityID, slots immutable.Slice[component.ShapeSlot]) {
+func (rt *Runtime) noteDeclared(entityID cardinal.EntityID, slots immutable.Slice[component.ShapeRef]) {
 	prev, seen := rt.declaredSlots[entityID]
 	if seen && immutable.Equal(prev, slots) {
 		return
@@ -48,7 +48,7 @@ func (rt *Runtime) forgetDeclared(entityID cardinal.EntityID) {
 	delete(rt.declaredSlots, entityID)
 }
 
-func (rt *Runtime) refSlots(slots immutable.Slice[component.ShapeSlot]) {
+func (rt *Runtime) refSlots(slots immutable.Slice[component.ShapeRef]) {
 	for slot := range slots.Values() {
 		rt.shapeRefs[slot.Shape]++
 	}
@@ -56,7 +56,7 @@ func (rt *Runtime) refSlots(slots immutable.Slice[component.ShapeSlot]) {
 
 // unrefSlots releases one reference per slot. A shape whose count reaches zero is forgotten
 // and queued for SweepUnusedShapes.
-func (rt *Runtime) unrefSlots(slots immutable.Slice[component.ShapeSlot]) {
+func (rt *Runtime) unrefSlots(slots immutable.Slice[component.ShapeRef]) {
 	for slot := range slots.Values() {
 		n := rt.shapeRefs[slot.Shape] - 1
 		if n > 0 {

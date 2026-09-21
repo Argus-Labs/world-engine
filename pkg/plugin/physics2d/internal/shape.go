@@ -237,7 +237,7 @@ func (rt *Runtime) mirrorShape(id cardinal.EntityID, shape ResolvedShape) {
 }
 
 // resolveSlot looks a slot's shape entity up in the mirror.
-func (rt *Runtime) resolveSlot(slot component.ShapeSlot) (ResolvedShape, error) {
+func (rt *Runtime) resolveSlot(slot component.ShapeRef) (ResolvedShape, error) {
 	sh, ok := rt.ShapeMirror[slot.Shape]
 	if !ok {
 		return ResolvedShape{}, fmt.Errorf(
@@ -248,7 +248,7 @@ func (rt *Runtime) resolveSlot(slot component.ShapeSlot) (ResolvedShape, error) 
 }
 
 // slotsDirty reports whether any slot references a shape entity that changed this tick.
-func (rt *Runtime) slotsDirty(slots immutable.Slice[component.ShapeSlot]) bool {
+func (rt *Runtime) slotsDirty(slots immutable.Slice[component.ShapeRef]) bool {
 	if len(rt.dirtyShapes) == 0 {
 		return false
 	}
@@ -264,7 +264,7 @@ func (rt *Runtime) slotsDirty(slots immutable.Slice[component.ShapeSlot]) bool {
 // from prev without recreating them: same count, same local transforms, and per slot either
 // the same shape entity (not structurally dirty) or a different shape entity with the same
 // geometry and sensor flag. A previous shape entity that has left the mirror forces a rebuild.
-func (rt *Runtime) slotsStructuralEqual(prev, live immutable.Slice[component.ShapeSlot]) bool {
+func (rt *Runtime) slotsStructuralEqual(prev, live immutable.Slice[component.ShapeRef]) bool {
 	if prev.Len() != live.Len() {
 		return false
 	}

@@ -74,7 +74,7 @@ func (rt *Runtime) CreateBody(
 // ShapeMirror and validated before the first fixture is created, so a bad slot rejects the
 // whole list and leaves Box2D untouched.
 func (rt *Runtime) AttachColliderFixtures(
-	entityID cardinal.EntityID, slots immutable.Slice[component.ShapeSlot],
+	entityID cardinal.EntityID, slots immutable.Slice[component.ShapeRef],
 ) error {
 	if slots.Len() == 0 {
 		return errors.New("physics2d: collider has no shapes")
@@ -99,7 +99,7 @@ func (rt *Runtime) AttachColliderFixtures(
 
 // validateSlot checks the slot's own fields, resolves its shape entity, and validates that
 // shape's components. It returns the resolved shape so callers do not look it up twice.
-func (rt *Runtime) validateSlot(slot component.ShapeSlot) (ResolvedShape, error) {
+func (rt *Runtime) validateSlot(slot component.ShapeRef) (ResolvedShape, error) {
 	if err := slot.Validate(); err != nil {
 		return ResolvedShape{}, err
 	}
@@ -193,7 +193,7 @@ func (rt *Runtime) registerShape(entityID cardinal.EntityID, shapeIndex int, sid
 func (rt *Runtime) attachShape(
 	entityID cardinal.EntityID,
 	shapeIndex int,
-	slot component.ShapeSlot,
+	slot component.ShapeRef,
 	sh ResolvedShape,
 ) error {
 	bodyID, ok := rt.Bodies[entityID]

@@ -51,8 +51,8 @@ func restoreShapeMirror(rt *Runtime) {
 // restoreSnapshotEntries is a ground plane plus crates that settled and fell asleep,
 // as a snapshot would hold them (Awake=false, mirrored from the solver).
 func restoreSnapshotEntries() []PhysicsRebuildEntry {
-	slots := func(shape cardinal.EntityID) immutable.Slice[component.ShapeSlot] {
-		return immutable.SliceOf(component.ShapeSlot{Shape: shape})
+	slots := func(shape cardinal.EntityID) immutable.Slice[component.ShapeRef] {
+		return immutable.SliceOf(component.ShapeRef{Shape: shape})
 	}
 	out := []PhysicsRebuildEntry{{
 		EntityID:  1,

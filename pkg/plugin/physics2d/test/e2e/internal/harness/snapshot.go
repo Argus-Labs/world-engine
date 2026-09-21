@@ -40,7 +40,7 @@ type CaptureRow struct {
 // geometry component found on that entity, or "" when the entity was missing;
 // only the geometry field matching Kind is set.
 type CapturedShape struct {
-	Slot    physics.ShapeSlot
+	Slot    physics.ShapeRef
 	Kind    string
 	Common  physcomp.ShapeCommon
 	Circle  physcomp.CircleGeom
@@ -52,7 +52,7 @@ type CapturedShape struct {
 }
 
 // resolveShape reads the slot's shape entity back into its component form.
-func resolveShape(sh *physics.Shapes, slot physics.ShapeSlot) CapturedShape {
+func resolveShape(sh *physics.Shapes, slot physics.ShapeRef) CapturedShape {
 	out := CapturedShape{Slot: slot}
 	d, ok := sh.Read(slot)
 	if !ok {

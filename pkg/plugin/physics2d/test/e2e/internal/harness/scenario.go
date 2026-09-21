@@ -31,7 +31,7 @@ type Probes = cardinal.Contains[ProbeRow]
 
 // ShapeAlive reports whether a shape entity of any kind still exists.
 func (c *Ctx) ShapeAlive(id cardinal.EntityID) bool {
-	_, ok := c.shapes.Read(physics.ShapeSlot{Shape: id})
+	_, ok := c.shapes.Read(physics.ShapeRef{Shape: id})
 	return ok
 }
 
@@ -42,19 +42,19 @@ func (c *Ctx) DestroyShape(id cardinal.EntityID) bool { return c.entity(id).Dest
 
 // ForkShape forks the shape behind slot and returns the new slot. Like the plugin's Fork,
 // the shape behind slot is untouched.
-func ForkShape(c *Ctx, slot physics.ShapeSlot, edit func(physics.Shape) physics.Shape) (physics.ShapeSlot, error) {
+func ForkShape(c *Ctx, slot physics.ShapeRef, edit func(physics.Shape) physics.Shape) (physics.ShapeRef, error) {
 	return c.shapes.Fork(slot, edit)
 }
 
 // ReadShape returns a copy of the shape behind slot.
-func ReadShape(c *Ctx, slot physics.ShapeSlot) (physics.Shape, bool) {
+func ReadShape(c *Ctx, slot physics.ShapeRef) (physics.Shape, bool) {
 	return c.shapes.Read(slot)
 }
 
 // Shape spawns def as a shape entity and returns the slot that references it. A
 // definition the plugin rejects panics, so scenarios that build a deliberately bad
 // one use TryShape.
-func Shape(c *Ctx, def physics.Shape) physics.ShapeSlot {
+func Shape(c *Ctx, def physics.Shape) physics.ShapeRef {
 	slot, err := TryShape(c, def)
 	if err != nil {
 		panic(err)
@@ -63,7 +63,7 @@ func Shape(c *Ctx, def physics.Shape) physics.ShapeSlot {
 }
 
 // TryShape is Shape, reporting the plugin's rejection instead of panicking.
-func TryShape(c *Ctx, def physics.Shape) (physics.ShapeSlot, error) {
+func TryShape(c *Ctx, def physics.Shape) (physics.ShapeRef, error) {
 	return c.shapes.Spawn(def)
 }
 

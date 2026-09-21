@@ -74,7 +74,7 @@ func Defaults() harness.Scenario {
 }
 
 func checkConstructorDefaults(c *harness.Ctx) {
-	pb := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, physcomp.Slot(1))
+	pb := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, physcomp.Ref(1))
 
 	c.True("NewPhysicsBody2D sets Active=true", pb.Active, "Active=false: body would never simulate")
 	c.True("NewPhysicsBody2D sets Awake=true", pb.Awake, "Awake=false: body would spawn asleep")
@@ -97,7 +97,7 @@ func checkConstructorDefaults(c *harness.Ctx) {
 		physics.BodyTypeStatic, physics.BodyTypeDynamic,
 		physics.BodyTypeKinematic, physics.BodyTypeManual,
 	} {
-		got := physcomp.NewPhysicsBody2D(kind, physcomp.Slot(1))
+		got := physcomp.NewPhysicsBody2D(kind, physcomp.Ref(1))
 		c.True("NewPhysicsBody2D preserves the body type it was given",
 			got.BodyType == kind, "asked for %d, got %d", kind, got.BodyType)
 	}
@@ -147,7 +147,7 @@ func checkJSONDefaults(c *harness.Ctx) {
 
 	// Full round-trip through the component's own wire encoding.
 	original := physcomp.NewPhysicsBody2D(physics.BodyTypeKinematic,
-		physcomp.Slot(7).At(vec(1.5, -2), 0.25))
+		physcomp.Ref(7).At(vec(1.5, -2), 0.25))
 	original.Bullet = true
 	original.FixedRotation = true
 	original.Active = false
@@ -211,7 +211,7 @@ func checkJSONDefaults(c *harness.Ctx) {
 }
 
 func checkValidation(c *harness.Ctx) {
-	slot := physcomp.Slot(1)
+	slot := physcomp.Ref(1)
 	valid := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, slot)
 	c.NoError("Validate accepts a well-formed body", valid.Validate())
 
@@ -236,12 +236,12 @@ func checkValidation(c *harness.Ctx) {
 		physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, slot.At(vec(math.NaN(), 0), 0)).Validate())
 	c.HasError("Validate rejects Inf LocalRotation",
 		physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, slot.At(vec(0, 0), math.Inf(1))).Validate())
-	tagged, other := slot, physcomp.Slot(2)
+	tagged, other := slot, physcomp.Ref(2)
 	tagged.Tag, other.Tag = "a", "a"
 	c.HasError("Validate rejects two slots with one tag",
 		physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, tagged, other).Validate())
 	c.NoError("Validate allows many untagged slots",
-		physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, slot, physcomp.Slot(2)).Validate())
+		physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, slot, physcomp.Ref(2)).Validate())
 
 	// The shape's own components validate themselves; the plugin runs these at
 	// fixture attach, since a body only names its shape entity.
@@ -268,9 +268,9 @@ func checkValidation(c *harness.Ctx) {
 // The elements live in an unexported field, so without a codec on the slice each of these
 // encodes as {} and silently loses its list, while the surrounding struct still looks fine.
 func checkJSONRoundTrip(c *harness.Ctx) {
-	body, err := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, physcomp.Slot(7)).
-		AddSlot("hull", physcomp.Slot(9).At(vec(1, 2), 0.5))
-	c.NoError("AddSlot on a fresh tag succeeds", err)
+	body, err := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, physcomp.Ref(7)).
+		AddShape("hull", physcomp.Ref(9).At(vec(1, 2), 0.5))
+	c.NoError("AddShape on a fresh tag succeeds", err)
 	if back, err := (physcomp.PhysicsBody2D{}).UnmarshalWire(body.MarshalWire()); c.NoError("a body round-trips the wire", err) {
 		got, isBody := back.(physcomp.PhysicsBody2D)
 		c.True("a body keeps its slots and tags through the wire", isBody && immutable.Equal(body.Shapes, got.Shapes),
@@ -393,7 +393,7 @@ func checkShapeConstructors(c *harness.Ctx) {
 	}
 	c.HasError("Polygon of nine vertices fails validation", physics.Polygon(nine...).Validate())
 
-	slot := physcomp.Slot(9).At(vec(2, 3), 0.5)
+	slot := physcomp.Ref(9).At(vec(2, 3), 0.5)
 	c.True("Slot.At places the slot",
-		slot == physics.ShapeSlot{Shape: 9, LocalOffset: vec(2, 3), LocalRotation: 0.5}, "got %+v", slot)
+		slot == physics.ShapeRef{Shape: 9, LocalOffset: vec(2, 3), LocalRotation: 0.5}, "got %+v", slot)
 }

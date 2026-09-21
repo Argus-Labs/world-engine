@@ -342,11 +342,11 @@ type goldenEntity struct {
 }
 
 // goldenShape spawns one shape entity for a goldenEntity and returns its slot.
-type goldenShape func(s *spawnState) physics.ShapeSlot
+type goldenShape func(s *spawnState) physics.ShapeRef
 
 // gShape wraps a ready shape definition.
 func gShape(def physics.Shape) goldenShape {
-	return func(s *spawnState) physics.ShapeSlot { return spawnShape(s, def) }
+	return func(s *spawnState) physics.ShapeRef { return spawnShape(s, def) }
 }
 
 // goldenSpawn registers an Init-hook system that creates the described entities once: all

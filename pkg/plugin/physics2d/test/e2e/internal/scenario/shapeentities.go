@@ -17,7 +17,7 @@ import (
 func ShapeEntities() harness.Scenario {
 	var s struct {
 		left, right  cardinal.EntityID
-		shared       physics.ShapeSlot
+		shared       physics.ShapeRef
 		leftFixture  box2d.ShapeID
 		rightFixture box2d.ShapeID
 		swapSame     cardinal.EntityID
@@ -25,7 +25,7 @@ func ShapeEntities() harness.Scenario {
 		swapGeom     cardinal.EntityID
 		swapGeomFix  box2d.ShapeID
 		forkGeom     cardinal.EntityID
-		forkGeomSlot physics.ShapeSlot
+		forkGeomSlot physics.ShapeRef
 		forkGeomFix  box2d.ShapeID
 		chainSwap    cardinal.EntityID
 	}

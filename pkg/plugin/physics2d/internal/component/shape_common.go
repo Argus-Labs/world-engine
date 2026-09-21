@@ -5,7 +5,7 @@ import "fmt"
 // ShapeCommon is the part of a shape every geometry kind shares: sensor flag, material and
 // collision filter. A shape entity carries exactly one ShapeCommon and exactly one geometry
 // component ([CircleGeom], [BoxGeom], [PolygonGeom], [ChainGeom], [EdgeGeom] or [CapsuleGeom]).
-// Bodies reference the entity from their [ShapeSlot]s.
+// Bodies reference the entity from their [ShapeRef]s.
 //
 // Games change a shape through the Shapes search (Fork), which spawns a changed copy rather
 // than editing in place, so a shared shape is never changed under another body. The plugin

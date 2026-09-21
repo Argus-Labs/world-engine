@@ -51,7 +51,7 @@ body is created in the engine.
 |---|---|
 | [`Transform2D`](internal/component/spatial.go) | World-space position + rotation (authoritative pose) |
 | [`Velocity2D`](internal/component/spatial.go) | Linear + angular velocity |
-| [`PhysicsBody2D`](internal/component/physics_body.go) | Body kind, damping, flags, and the list of shape slots (`Shapes`) |
+| [`PhysicsBody2D`](internal/component/physics_body.go) | Body kind, damping, flags, and its shapes (`Shapes`) |
 
 Use the `NewPhysicsBody2D` constructor — bare struct literals leave
 `Active`, `Awake`, `SleepingAllowed` at `false` and `GravityScale` at `0`,
@@ -65,8 +65,8 @@ which produces an inactive, sleeping, gravity-less body.
 > their shapes as entities.
 
 A body does not carry its shapes inline. Each shape is its own entity, and a
-body's `Shapes` list holds [`ShapeSlot`](internal/component/shape_slot.go)s:
-the shape entity id plus the slot's `LocalOffset` and `LocalRotation` in body
+body's `Shapes` list holds [`ShapeRef`](internal/component/shape_ref.go)s:
+the shape entity id plus its `LocalOffset` and `LocalRotation` in body
 space. So a hundred identical crates are one shape entity and a hundred small
 references.
 
@@ -80,19 +80,19 @@ imported, searched or edited by a game. The whole shape API is one search type,
 | `.AsSensor()`, `.Material(f, r, d)`, `.Filter(cat, mask)`, `.Group(i)` | chain options onto a `Shape` |
 | `.Reshape(other)` | the other geometry with this shape's material and filter |
 | `.Kind()`, `.Radius()`, `.HalfExtents()`, `.Vertices()`, `.Points()`, `.Loop()`, `.Endpoints()`, `.Friction()`, ... | read a `Shape` back |
-| `state.Shapes.Spawn(shape)` | validates, spawns a shape entity, returns its slot |
-| `state.Shapes.Read(slot)` | a copy of the shape behind a slot |
-| `state.Shapes.Fork(slot, func(Shape) Shape)` | spawns a copy with your edit applied and returns its slot |
+| `state.Shapes.Spawn(shape)` | validates, spawns a shape entity, returns a `ShapeRef` to it |
+| `state.Shapes.Read(ref)` | a copy of the shape behind a ref |
+| `state.Shapes.Fork(ref, func(Shape) Shape)` | spawns a copy with your edit applied and returns a ref to it |
 
 There is no delete. The plugin removes a shape entity itself after the first
 reconcile in which no body names it.
 
-`Spawn` returns `(ShapeSlot, error)`. A shape Box2D could never build — a
+`Spawn` returns `(ShapeRef, error)`. A shape Box2D could never build — a
 radius of zero or less, a box with a zero extent, a polygon outside 3..8
 vertices, any NaN — creates nothing and tells you why, at the line that built
 it, instead of becoming a shape entity that fails to attach on every tick from
-then on. Chain `At(offset, rotation)` onto the slot to place it, and reuse the
-slot on as many bodies as you like.
+then on. Chain `At(offset, rotation)` onto the ref to place it, and reuse the
+ref on as many bodies as you like.
 
 ```go
 import (
@@ -143,25 +143,25 @@ func SpawnSystem(state *SpawnState) {
 ```
 
 A shape is never changed in place. `Fork` gives you a copy with your change
-applied, and only the bodies you point at the new slot change; every body
+applied, and only the bodies you point at the new ref change; every body
 still on the original keeps what it had. To change many bodies, `Fork` once
-and re-point each of them at the same new slot. To change geometry, keep the
+and re-point each of them at the same new ref. To change geometry, keep the
 material with `Reshape`:
 
 ```go
-bigger, err := state.Shapes.Fork(slot, func(s physics2d.Shape) physics2d.Shape {
+bigger, err := state.Shapes.Fork(ref, func(s physics2d.Shape) physics2d.Shape {
     return s.Reshape(physics2d.Circle(5))
 })
 ```
 
-The next tick, a slot whose new shape has the same geometry gets its fixture
+The next tick, a ref whose new shape has the same geometry gets its fixture
 updated in place (material, filter), and one whose geometry differs gets its
-fixture rebuilt. Swapping a slot to a different shape entity behaves the same
-way. A slot whose shape entity is missing fails that body's reconcile loudly
+fixture rebuilt. Pointing a ref at a different shape entity behaves the same
+way. A ref whose shape entity is missing fails that body's reconcile loudly
 (logged, no fixtures). Shape entities are ordinary ECS state and snapshot with
 everything else.
 
-The one bypass left is Cardinal's own entity handle: `state.Entity(slot.Shape).Destroy()`
+The one bypass left is Cardinal's own entity handle: `state.Entity(ref.Shape).Destroy()`
 deletes a shape out from under every body naming it. Don't. A body still naming
 it drops its fixtures on the next tick, the same way as a missing shape.
 
@@ -169,8 +169,8 @@ A shape entity lives exactly as long as some body names it. After each
 tick's reconcile the plugin deletes every shape no body names, including
 one you spawned that tick and never put on a body. So spawn a shape in the
 same tick as the first body that uses it, and keep a `Shape` (plain data)
-rather than a slot for shapes you will need later. Sharing still works: put
-the slot the first body got on the others while that body is alive.
+rather than a ref for shapes you will need later. Sharing still works: put
+the ref the first body got on the others while that body is alive.
 
 ### Chain points
 
@@ -179,8 +179,8 @@ polyline on the shape entity, so one long polyline is stored once no
 matter how many bodies stand on it. Points are the one exception to
 in-place editing: the plugin copies them when it first sees the shape and
 never re-reads them, so a long polyline costs nothing per tick. To change
-terrain, spawn a new chain shape and point the slot at it (that slot change
-is what triggers the fixture rebuild).
+terrain, spawn a new chain shape and point the ref at it (that change is
+what triggers the fixture rebuild).
 
 ### Body-type cheat sheet
 
@@ -191,17 +191,17 @@ is what triggers the fixture rebuild).
 
 ### Compound colliders
 
-`PhysicsBody2D.Shapes` is an `immutable.Slice` of slots — each entry is a
-child fixture with its own shape entity, `LocalOffset` and `LocalRotation`.
-To change the list, derive a new one (`With`, `Append`, `Sub`) and `Set` the
-body. Fixture identity is by index (slot `i` in `Shapes` ↔ fixture slot
-`i`), so don't reorder slots after creation if you care about per-shape
-references in contact events.
+`PhysicsBody2D.Shapes` is an `immutable.Slice` of `ShapeRef`s — each entry
+is a child fixture with its own shape entity, `LocalOffset` and
+`LocalRotation`. To change the list, derive a new one (`With`, `Append`,
+`Sub`) and `Set` the body. Fixture identity is by index (`Shapes[i]` ↔
+fixture `i`), so don't reorder shapes after creation if you care about
+per-shape references in contact events.
 
-### Naming slots
+### Naming shapes
 
 Editing a compound body by index means remembering where each shape went.
-Name the slots instead and edit them by tag. Each operation fails when its
+Tag the shapes instead and edit them by name. Each operation fails when its
 precondition does not hold, so a typo or a double add is an error at the
 call, not a body that quietly does the wrong thing.
 
@@ -210,17 +210,17 @@ hull  := mustSpawn(state.Shapes.Spawn(physics2d.Box(1, 2)))
 aggro := mustSpawn(state.Shapes.Spawn(physics2d.Circle(6).AsSensor()))
 
 body := physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic)
-body, err = body.AddSlot("hull", hull)       // fails if "hull" is already used
-body, err = body.AddSlot("aggro", aggro)
-body, err = body.ReplaceSlot("hull", bigger) // same index, fixture kept; fails if no "hull"
-body, err = body.RemoveSlot("aggro")         // later slots move down one; fails if no "aggro"
-i   := body.SlotIndex("hull")                // the index events and queries report, or -1
-tag := body.SlotTag(ev.ShapeIndexA)          // and back; "" when untagged
+body, err = body.AddShape("hull", hull)       // fails if "hull" is already used
+body, err = body.AddShape("aggro", aggro)
+body, err = body.ReplaceShape("hull", bigger) // same index, fixture kept; fails if no "hull"
+body, err = body.RemoveShape("aggro")         // later shapes move down one; fails if no "aggro"
+i   := body.ShapeIndex("hull")                // the index events and queries report, or -1
+tag := body.ShapeTag(ev.ShapeIndexA)          // and back; "" when untagged
 ```
 
-`ReplaceSlot` keeps the slot's index, so a same-geometry replacement updates
+`ReplaceShape` keeps the shape's index, so a same-geometry replacement updates
 its fixture in place rather than rebuilding it, as long as the list's length
-and the other slots' transforms are unchanged that tick. `Validate` is the
+and the other shapes' transforms are unchanged that tick. `Validate` is the
 backstop: a body whose `Shapes` list was built by hand with two equal tags is
 rejected by the reconciler like any other invalid body.
 
@@ -262,7 +262,7 @@ lookups close that gap:
 - `(*physics2d.Plugin).ShapeIDs(cardinal.EntityID) ([]box2d.ShapeID, bool)`
 
 Both return `ok == false` when no world exists or the entity has no body yet.
-`ShapeIDs` is indexed by collider slot (slot `i` ↔ `PhysicsBody2D.Shapes[i]`)
+`ShapeIDs` is indexed like `PhysicsBody2D.Shapes`
 and returns a copy you own. The ids are valid only until the next tick's
 reconcile, which may destroy and recreate the body — look them up again each
 tick rather than caching them.
@@ -306,7 +306,7 @@ The plugin stuffs identity into Box2D userdata (see
 [internal/create.go](internal/create.go)):
 
 - **Body userdata** = entity ID: `cardinal.EntityID(uint32(w.BodyUserData(bodyID)))`.
-- **Shape userdata** = shape slot index (the index into
+- **Shape userdata** = shape index (the index into
   `PhysicsBody2D.Shapes`): `int(uint32(w.ShapeUserData(shapeID)))`.
 
 So inside any engine callback you can recover the ECS entity with one line.
@@ -367,5 +367,5 @@ Contacts and triggers flow through Cardinal's system-event bus. The plugin's
 own pipeline system sets the emitter each tick and flushes
 `ContactBeginEvent` / `ContactEndEvent` / `TriggerBeginEvent` /
 `TriggerEndEvent` each tick. The events carry both entity IDs and both
-shape indices, so you can look up the exact slot — and through it the shape
-entity — that produced the contact.
+shape indices, so you can look up the exact shape — `ShapeTag` gives its name —
+that produced the contact.

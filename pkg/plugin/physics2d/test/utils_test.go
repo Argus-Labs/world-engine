@@ -48,12 +48,12 @@ func makeWorldWorkers(t *testing.T, gravity physics.Vec2, workers int) (*cardina
 }
 
 // newRigid returns a PhysicsBody2D with Active/Awake/SleepingAllowed true and GravityScale 1.
-func newRigid(bodyType physics.BodyType, shapes ...physics.ShapeSlot) physics.PhysicsBody2D {
+func newRigid(bodyType physics.BodyType, shapes ...physics.ShapeRef) physics.PhysicsBody2D {
 	return phycomp.NewPhysicsBody2D(bodyType, shapes...)
 }
 
 // newRigidNoGravity is like newRigid but GravityScale 0 (e.g. zero-gravity scene bodies).
-func newRigidNoGravity(bodyType physics.BodyType, shapes ...physics.ShapeSlot) physics.PhysicsBody2D {
+func newRigidNoGravity(bodyType physics.BodyType, shapes ...physics.ShapeRef) physics.PhysicsBody2D {
 	r := phycomp.NewPhysicsBody2D(bodyType, shapes...)
 	r.GravityScale = 0
 	return r
@@ -68,7 +68,7 @@ type spawnState struct {
 
 // mustSpawn unwraps a Spawn call. Every shape in these tests is a literal, so a rejection is
 // a typo in the test rather than something a caller could handle.
-func mustSpawn(slot physics.ShapeSlot, err error) physics.ShapeSlot {
+func mustSpawn(slot physics.ShapeRef, err error) physics.ShapeRef {
 	if err != nil {
 		panic(err)
 	}
@@ -76,7 +76,7 @@ func mustSpawn(slot physics.ShapeSlot, err error) physics.ShapeSlot {
 }
 
 // spawnShape spawns def and returns the slot.
-func spawnShape(s *spawnState, def physics.Shape) physics.ShapeSlot {
+func spawnShape(s *spawnState, def physics.Shape) physics.ShapeRef {
 	return mustSpawn(s.Shapes.Spawn(def))
 }
 
@@ -91,12 +91,12 @@ func tickN(t *testing.T, w *cardinal.World, n int) {
 }
 
 // circleSlot spawns the stock test circle (radius 0.5) and returns its slot.
-func circleSlot(s *spawnState) physics.ShapeSlot {
+func circleSlot(s *spawnState) physics.ShapeRef {
 	return spawnShape(s, physics.Circle(0.5).Material(0.3, 0, 1).Filter(0xFFFF, 0xFFFF))
 }
 
 // boxSlot spawns a stock test box with the given half extents and returns its slot.
-func boxSlot(s *spawnState, hx, hy float64) physics.ShapeSlot {
+func boxSlot(s *spawnState, hx, hy float64) physics.ShapeRef {
 	return spawnShape(s, physics.Box(hx, hy).Material(0.3, 0, 1).Filter(0xFFFF, 0xFFFF))
 }
 

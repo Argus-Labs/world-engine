@@ -42,13 +42,13 @@ import (
 //
 // # Shapes
 //
-// Shapes lists the body's fixtures. Each [ShapeSlot] names a shape entity (which carries
-// [ShapeCommon] plus one geometry component) and places it in body space. Slot index i is
+// Shapes lists the body's shapes. Each [ShapeRef] names a shape entity (which carries
+// [ShapeCommon] plus one geometry component) and places it in body space. Index i is
 // fixture i, the index contact events and query hits report. The list is an immutable.Slice:
-// derive a new one (With, Append, Sub) and Set the body to change it. Or name slots and edit
-// them by tag: AddSlot, ReplaceSlot and RemoveSlot return the changed body and fail when the
-// tag is already used, or missing, as the case may be; SlotIndex and SlotTag go between a tag
-// and the index events report.
+// derive a new one (With, Append, Sub) and Set the body to change it. Or tag the shapes and
+// edit them by name: AddShape, ReplaceShape and RemoveShape return the changed body and fail
+// when the tag is already used, or missing, as the case may be; ShapeIndex and ShapeTag go
+// between a tag and the index events report.
 //
 // # Defaults
 //
@@ -80,12 +80,12 @@ type PhysicsBody2D struct {
 	Bullet          bool     `json:"bullet"`
 	FixedRotation   bool     `json:"fixed_rotation"`
 
-	Shapes immutable.Slice[ShapeSlot] `json:"shapes"`
+	Shapes immutable.Slice[ShapeRef] `json:"shapes"`
 }
 
 // NewPhysicsBody2D returns a PhysicsBody2D with the given body type, Box2D-compatible defaults
-// (Active=true, Awake=true, SleepingAllowed=true, GravityScale=1), and the provided shape slots.
-func NewPhysicsBody2D(bodyType BodyType, shapes ...ShapeSlot) PhysicsBody2D {
+// (Active=true, Awake=true, SleepingAllowed=true, GravityScale=1), and the provided shapes.
+func NewPhysicsBody2D(bodyType BodyType, shapes ...ShapeRef) PhysicsBody2D {
 	return PhysicsBody2D{
 		BodyType:        bodyType,
 		GravityScale:    1,
@@ -102,16 +102,16 @@ func NewPhysicsBody2D(bodyType BodyType, shapes ...ShapeSlot) PhysicsBody2D {
 // preserving explicitly serialized values including false.
 func (p *PhysicsBody2D) UnmarshalJSON(data []byte) error {
 	type raw struct {
-		BodyType        BodyType    `json:"body_type"`
-		LinearDamping   float64     `json:"linear_damping"`
-		AngularDamping  float64     `json:"angular_damping"`
-		GravityScale    *float64    `json:"gravity_scale"`
-		Active          *bool       `json:"active"`
-		Awake           *bool       `json:"awake"`
-		SleepingAllowed *bool       `json:"sleeping_allowed"`
-		Bullet          bool        `json:"bullet"`
-		FixedRotation   bool        `json:"fixed_rotation"`
-		Shapes          []ShapeSlot `json:"shapes"`
+		BodyType        BodyType   `json:"body_type"`
+		LinearDamping   float64    `json:"linear_damping"`
+		AngularDamping  float64    `json:"angular_damping"`
+		GravityScale    *float64   `json:"gravity_scale"`
+		Active          *bool      `json:"active"`
+		Awake           *bool      `json:"awake"`
+		SleepingAllowed *bool      `json:"sleeping_allowed"`
+		Bullet          bool       `json:"bullet"`
+		FixedRotation   bool       `json:"fixed_rotation"`
+		Shapes          []ShapeRef `json:"shapes"`
 	}
 	var aux raw
 	if err := json.Unmarshal(data, &aux); err != nil {
@@ -147,7 +147,7 @@ func (p *PhysicsBody2D) UnmarshalJSON(data []byte) error {
 // Name returns the ECS component name.
 func (PhysicsBody2D) Name() string { return "physics_body_2d" }
 
-// Validate guards against NaN/Inf in float fields, an invalid body type tag, and invalid slots.
+// Validate guards against NaN/Inf in float fields, an invalid body type tag, and invalid shapes.
 func (p PhysicsBody2D) Validate() error {
 	switch p.BodyType {
 	case BodyTypeStatic, BodyTypeDynamic, BodyTypeKinematic, BodyTypeManual:
@@ -164,66 +164,66 @@ func (p PhysicsBody2D) Validate() error {
 		return fmt.Errorf("physics_body_2d.gravity_scale: must be finite, got %v", p.GravityScale)
 	}
 	if p.Shapes.Len() == 0 {
-		return errors.New("physics_body_2d.shapes: at least one shape slot is required")
+		return errors.New("physics_body_2d.shapes: at least one shape is required")
 	}
 	for i, s := range p.Shapes.All() {
 		if err := s.Validate(); err != nil {
 			return fmt.Errorf("physics_body_2d.shapes[%d]: %w", i, err)
 		}
-		if s.Tag != "" && p.SlotIndex(s.Tag) != i {
-			return fmt.Errorf("physics_body_2d.shapes[%d]: tag %q is already used by another slot", i, s.Tag)
+		if s.Tag != "" && p.ShapeIndex(s.Tag) != i {
+			return fmt.Errorf("physics_body_2d.shapes[%d]: tag %q is already used by another shape", i, s.Tag)
 		}
 	}
 	return nil
 }
 
-// SlotIndex returns the index of the slot tagged tag, or -1. That index is the one contact
-// events and query hits report for the slot's fixture.
-func (p PhysicsBody2D) SlotIndex(tag string) int {
+// ShapeIndex returns the index of the shape tagged tag, or -1. That index is the one contact
+// events and query hits report for it.
+func (p PhysicsBody2D) ShapeIndex(tag string) int {
 	if tag == "" {
 		return -1
 	}
-	return p.Shapes.IndexFunc(func(s ShapeSlot) bool { return s.Tag == tag })
+	return p.Shapes.IndexFunc(func(s ShapeRef) bool { return s.Tag == tag })
 }
 
-// SlotTag returns the tag of slot i, or "" when i is out of range or the slot is untagged.
-func (p PhysicsBody2D) SlotTag(i int) string {
+// ShapeTag returns the tag of shape i, or "" when i is out of range or the shape is untagged.
+func (p PhysicsBody2D) ShapeTag(i int) string {
 	if i < 0 || i >= p.Shapes.Len() {
 		return ""
 	}
 	return p.Shapes.At(i).Tag
 }
 
-// AddSlot appends slot under tag and returns the changed body. It fails when tag is already
-// used on this body. An empty tag adds an untagged slot. Set the returned body to apply it.
-func (p PhysicsBody2D) AddSlot(tag string, slot ShapeSlot) (PhysicsBody2D, error) {
-	if p.SlotIndex(tag) >= 0 {
-		return p, fmt.Errorf("physics_body_2d: slot tag %q is already used", tag)
+// AddShape appends shape under tag and returns the changed body. It fails when tag is already
+// used on this body. An empty tag adds an untagged shape. Set the returned body to apply it.
+func (p PhysicsBody2D) AddShape(tag string, shape ShapeRef) (PhysicsBody2D, error) {
+	if p.ShapeIndex(tag) >= 0 {
+		return p, fmt.Errorf("physics_body_2d: shape tag %q is already used", tag)
 	}
-	slot.Tag = tag
-	p.Shapes = p.Shapes.Append(slot)
+	shape.Tag = tag
+	p.Shapes = p.Shapes.Append(shape)
 	return p, nil
 }
 
-// ReplaceSlot swaps the slot tagged tag for slot, at the same index, and returns the changed
-// body. Keeping the index keeps the fixture, so a same-geometry replacement updates in place.
-// It fails when no slot has that tag. Set the returned body to apply it.
-func (p PhysicsBody2D) ReplaceSlot(tag string, slot ShapeSlot) (PhysicsBody2D, error) {
-	i := p.SlotIndex(tag)
+// ReplaceShape swaps the shape tagged tag for shape, at the same index, and returns the
+// changed body. Keeping the index keeps the fixture, so a same-geometry replacement updates
+// in place. It fails when no shape has that tag. Set the returned body to apply it.
+func (p PhysicsBody2D) ReplaceShape(tag string, shape ShapeRef) (PhysicsBody2D, error) {
+	i := p.ShapeIndex(tag)
 	if i < 0 {
-		return p, fmt.Errorf("physics_body_2d: no slot tagged %q", tag)
+		return p, fmt.Errorf("physics_body_2d: no shape tagged %q", tag)
 	}
-	slot.Tag = tag
-	p.Shapes = p.Shapes.With(i, slot)
+	shape.Tag = tag
+	p.Shapes = p.Shapes.With(i, shape)
 	return p, nil
 }
 
-// RemoveSlot drops the slot tagged tag and returns the changed body. Slots after it move down
-// one index. It fails when no slot has that tag. Set the returned body to apply it.
-func (p PhysicsBody2D) RemoveSlot(tag string) (PhysicsBody2D, error) {
-	i := p.SlotIndex(tag)
+// RemoveShape drops the shape tagged tag and returns the changed body. Shapes after it move
+// down one index. It fails when no shape has that tag. Set the returned body to apply it.
+func (p PhysicsBody2D) RemoveShape(tag string) (PhysicsBody2D, error) {
+	i := p.ShapeIndex(tag)
 	if i < 0 {
-		return p, fmt.Errorf("physics_body_2d: no slot tagged %q", tag)
+		return p, fmt.Errorf("physics_body_2d: no shape tagged %q", tag)
 	}
 	p.Shapes = p.Shapes.Without(i)
 	return p, nil

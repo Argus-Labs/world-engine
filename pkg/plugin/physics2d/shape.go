@@ -12,7 +12,7 @@ import (
 )
 
 // A shape is an entity: a material/filter component plus exactly one geometry component.
-// Bodies reference it from a ShapeSlot, so any number of bodies share one shape.
+// Bodies reference it from a ShapeRef, so any number of bodies share one shape.
 //
 // Games never touch those components. This package does not export them, and the Shapes
 // search hands out and accepts plain Shape values instead of entity handles. Declare one
@@ -33,14 +33,14 @@ import (
 //	    row.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic, ball))
 //	}
 //
-// Spawn returns the slot; put it on more bodies to share the shape. A shape lives exactly as
-// long as some body names it, so spawn it in the same tick as its first body and keep Shape
-// values, not slots, for shapes you will need later.
+// Spawn returns a ShapeRef; put it on more bodies to share the shape. A shape lives exactly
+// as long as some body names it, so spawn it in the same tick as its first body and keep
+// Shape values, not refs, for shapes you will need later.
 //
 // A shape is never edited in place: to change one, Fork it (a copy with your edit applied)
-// and point the body's slot at the result. That can only ever affect the bodies you re-point,
-// so a shape shared by other bodies stays as it was. To change many bodies, Fork once and
-// re-point each of them at the same new slot.
+// and point the body at the result. That can only ever affect the bodies you re-point, so a
+// shape shared by other bodies stays as it was. To change many bodies, Fork once and re-point
+// each of them at the same new ref.
 
 // Kind is a shape's geometry kind.
 type Kind = internal.ShapeKind
@@ -67,12 +67,12 @@ func newShape[G internal.Geometry](geom G) Shape {
 	return Shape{s: internal.Resolve(component.DefaultShapeCommon(), geom)}
 }
 
-// Circle is a circle of radius, centred on the slot's local offset.
+// Circle is a circle of radius, centred on the ref's local offset.
 func Circle(radius float64) Shape {
 	return newShape(component.CircleGeom{Radius: radius})
 }
 
-// Box is an axis-aligned box with the given half extents, before the slot's offset and rotation.
+// Box is an axis-aligned box with the given half extents, before the ref's offset and rotation.
 func Box(halfWidth, halfHeight float64) Shape {
 	return newShape(component.BoxGeom{HalfExtents: Vec2{X: halfWidth, Y: halfHeight}})
 }
@@ -219,22 +219,22 @@ type shapeSearch = cardinal.Contains[struct {
 // Shapes is the API over shape entities. Declare one on a system state; Cardinal wires it
 // up when the system registers.
 //
-// A shape is shared by every body whose slot names it, so nothing here changes a shape in
+// A shape is shared by every body whose ref names it, so nothing here changes a shape in
 // place: Fork hands back a new shape, and only the bodies you point at it change.
 type Shapes struct {
 	shapeSearch
 }
 
-// Spawn validates def, creates a shape entity from it, and returns a slot referencing that
-// entity at the body origin. Chain At on the slot to place it.
+// Spawn validates def, creates a shape entity from it, and returns a ref to that entity at
+// the body origin. Chain At on the ref to place it.
 //
 // A definition that fails validation creates nothing and reports the reason. Checking here is
 // what keeps a shape entity from existing in a state no body could ever attach: the reconciler
 // would otherwise reject that body once per tick, with nothing left to point at the line that
 // built it.
-func (s *Shapes) Spawn(def Shape) (ShapeSlot, error) {
+func (s *Shapes) Spawn(def Shape) (ShapeRef, error) {
 	if err := def.Validate(); err != nil {
-		return ShapeSlot{}, err
+		return ShapeRef{}, err
 	}
 	row := s.shapeSearch.Create()
 	row.Set(def.s.Common)
@@ -252,12 +252,12 @@ func (s *Shapes) Spawn(def Shape) (ShapeSlot, error) {
 	case KindCapsule:
 		row.Set(def.s.Capsule)
 	}
-	return component.Slot(row.ID()), nil
+	return component.Ref(row.ID()), nil
 }
 
-// Read returns a copy of the shape behind slot, and false when no shape is behind it.
-func (s *Shapes) Read(slot ShapeSlot) (Shape, bool) {
-	row, err := s.shapeSearch.GetByID(slot.Shape)
+// Read returns a copy of the shape behind ref, and false when no shape is behind it.
+func (s *Shapes) Read(ref ShapeRef) (Shape, bool) {
+	row, err := s.shapeSearch.GetByID(ref.Shape)
 	if err != nil {
 		return Shape{}, false
 	}
@@ -279,20 +279,20 @@ func (s *Shapes) Read(slot ShapeSlot) (Shape, bool) {
 	return Shape{}, false
 }
 
-// Fork spawns a copy of the shape behind slot with edit applied, and returns a slot for the
-// copy at the same offset and rotation. The shape behind slot is untouched, so bodies still
-// using it keep what they had; point the bodies that should change at the returned slot.
-// It fails when no shape is behind slot or the edited shape does not validate.
-func (s *Shapes) Fork(slot ShapeSlot, edit func(Shape) Shape) (ShapeSlot, error) {
-	def, ok := s.Read(slot)
+// Fork spawns a copy of the shape behind ref with edit applied, and returns a ref to the
+// copy at the same offset and rotation. The shape behind ref is untouched, so bodies still
+// using it keep what they had; point the bodies that should change at the returned ref.
+// It fails when no shape is behind ref or the edited shape does not validate.
+func (s *Shapes) Fork(ref ShapeRef, edit func(Shape) Shape) (ShapeRef, error) {
+	def, ok := s.Read(ref)
 	if !ok {
-		return ShapeSlot{}, fmt.Errorf("physics2d: no shape behind slot (entity %d)", slot.Shape)
+		return ShapeRef{}, fmt.Errorf("physics2d: no shape behind ref (entity %d)", ref.Shape)
 	}
 	forked, err := s.Spawn(edit(def))
 	if err != nil {
-		return ShapeSlot{}, err
+		return ShapeRef{}, err
 	}
-	return forked.At(slot.LocalOffset, slot.LocalRotation), nil
+	return forked.At(ref.LocalOffset, ref.LocalRotation), nil
 }
 
 // sealed cannot be named outside this package, so the methods taking it cannot be called.

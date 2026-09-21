@@ -251,7 +251,7 @@ func untrackedVelocity(t component.BodyType) bool {
 // the shadow slots differ from ECS or a referenced shape entity changed.
 func (rt *Runtime) reconcileShapesChange(
 	entityID cardinal.EntityID,
-	prev, live immutable.Slice[component.ShapeSlot],
+	prev, live immutable.Slice[component.ShapeRef],
 ) error {
 	if rt.slotsStructuralEqual(prev, live) {
 		return rt.applyMutableShapeFixtures(entityID, prev, live)
@@ -332,7 +332,7 @@ func (rt *Runtime) setFixedRotation(bodyID box2d.BodyID, flag bool) {
 // slotsStructuralEqual(prev, live).
 func (rt *Runtime) applyMutableShapeFixtures(
 	entityID cardinal.EntityID,
-	prev, live immutable.Slice[component.ShapeSlot],
+	prev, live immutable.Slice[component.ShapeRef],
 ) error {
 	resolved := rt.resolvedScratch[:0]
 	for i, slot := range live.All() {

@@ -38,9 +38,9 @@ import (
 // bookkeeping is not here: the physics singleton and its contact list are plugin state, and the
 // components a shape entity carries are reached through Shapes in shape.go.
 type (
-	Vec2      = component.Vec2
-	BodyType  = component.BodyType
-	ShapeSlot = component.ShapeSlot
+	Vec2     = component.Vec2
+	BodyType = component.BodyType
+	ShapeRef = component.ShapeRef
 )
 
 // MaxPolygonVertices is Box2D's convex polygon vertex limit (PolygonGeom capacity).
@@ -61,8 +61,8 @@ const (
 	BodyTypeManual    = component.BodyTypeManual
 )
 
-// NewPhysicsBody2D returns a PhysicsBody2D with Box2D-compatible defaults and the given slots.
-func NewPhysicsBody2D(bodyType BodyType, shapes ...ShapeSlot) PhysicsBody2D {
+// NewPhysicsBody2D returns a PhysicsBody2D with Box2D-compatible defaults and the given shapes.
+func NewPhysicsBody2D(bodyType BodyType, shapes ...ShapeRef) PhysicsBody2D {
 	return component.NewPhysicsBody2D(bodyType, shapes...)
 }
 
@@ -192,8 +192,8 @@ func (p *Plugin) BodyID(entityID cardinal.EntityID) (box2d.BodyID, bool) {
 	return p.rt.BodyIDOf(entityID)
 }
 
-// ShapeIDs returns a copy of the Box2D shape ids backing entityID, indexed by slot
-// (slot i is PhysicsBody2D.Shapes[i]), and whether the entity currently has any. Chain slots
+// ShapeIDs returns a copy of the Box2D shape ids backing entityID, indexed like
+// PhysicsBody2D.Shapes, and whether the entity currently has any. Chain shapes
 // hold a null shape id because chains are tracked separately. The caller owns the returned
 // slice; mutating it does not affect the plugin.
 //

@@ -445,9 +445,9 @@ func (c PhysicsBody2D) FromProto(p *pbcomponent.PhysicsBody2D) PhysicsBody2D {
 	c.Bullet = bool(p.Bullet)
 	c.FixedRotation = bool(p.FixedRotation)
 	if len(p.Shapes) > 0 {
-		itemsShapes := make([]ShapeSlot, 0, len(p.Shapes))
+		itemsShapes := make([]ShapeRef, 0, len(p.Shapes))
 		for _, e := range p.Shapes {
-			var v ShapeSlot
+			var v ShapeRef
 			v = v.FromProto(e)
 			itemsShapes = append(itemsShapes, v)
 		}
@@ -757,8 +757,8 @@ func (c ShapeCommon) AppendWire(b []byte) []byte {
 	return b
 }
 
-func (c ShapeSlot) ToProto() *pbcomponent.ShapeSlot {
-	p := &pbcomponent.ShapeSlot{}
+func (c ShapeRef) ToProto() *pbcomponent.ShapeRef {
+	p := &pbcomponent.ShapeRef{}
 	p.Shape = uint32(c.Shape)
 	p.LocalOffset = c.LocalOffset.ToProto()
 	p.LocalRotation = float64(c.LocalRotation)
@@ -766,7 +766,7 @@ func (c ShapeSlot) ToProto() *pbcomponent.ShapeSlot {
 	return p
 }
 
-func (c ShapeSlot) FromProto(p *pbcomponent.ShapeSlot) ShapeSlot {
+func (c ShapeRef) FromProto(p *pbcomponent.ShapeRef) ShapeRef {
 	if p == nil {
 		return c
 	}
@@ -777,7 +777,7 @@ func (c ShapeSlot) FromProto(p *pbcomponent.ShapeSlot) ShapeSlot {
 	return c
 }
 
-func (c ShapeSlot) SizeWire() int {
+func (c ShapeRef) SizeWire() int {
 	n := 0
 	if c.Shape != 0 {
 		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(c.Shape))
@@ -787,12 +787,12 @@ func (c ShapeSlot) SizeWire() int {
 		n += protowire.SizeTag(3) + protowire.SizeFixed64()
 	}
 	if len(c.Tag) > 0 {
-		n += protowire.SizeTag(4) + wireStringSize("ShapeSlot.Tag", string(c.Tag))
+		n += protowire.SizeTag(4) + wireStringSize("ShapeRef.Tag", string(c.Tag))
 	}
 	return n
 }
 
-func (c ShapeSlot) AppendWire(b []byte) []byte {
+func (c ShapeRef) AppendWire(b []byte) []byte {
 	if c.Shape != 0 {
 		b = protowire.AppendTag(b, 1, protowire.VarintType)
 		b = protowire.AppendVarint(b, uint64(c.Shape))

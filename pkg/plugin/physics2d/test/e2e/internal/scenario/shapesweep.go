@@ -17,14 +17,14 @@ func ShapeSweep() harness.Scenario {
 	var s struct {
 		lone, loneShape        cardinal.EntityID
 		swapper                cardinal.EntityID
-		swapOld, swapNew       physics.ShapeSlot
+		swapOld, swapNew       physics.ShapeRef
 		first, second, shared  cardinal.EntityID
 		staged                 cardinal.EntityID
 		a, b                   cardinal.EntityID
-		shapeA, shapeB         physics.ShapeSlot
+		shapeA, shapeB         physics.ShapeRef
 		survivor, survivorSlot cardinal.EntityID
 		broken                 cardinal.EntityID
-		brokenKeep, brokenGone physics.ShapeSlot
+		brokenKeep, brokenGone physics.ShapeRef
 	}
 
 	const (
@@ -37,7 +37,7 @@ func ShapeSweep() harness.Scenario {
 		resetTick       = 450 // must match scenario.Reset
 	)
 
-	wall := func(c *harness.Ctx, label string, x, y float64, slot physics.ShapeSlot) cardinal.EntityID {
+	wall := func(c *harness.Ctx, label string, x, y float64, slot physics.ShapeRef) cardinal.EntityID {
 		return c.Spawn(label, x, y, physics.NewPhysicsBody2D(physics.BodyTypeStatic, slot))
 	}
 

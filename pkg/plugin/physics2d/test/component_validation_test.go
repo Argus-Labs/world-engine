@@ -97,25 +97,25 @@ func TestValidate_Velocity2D_InfAngular(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// ShapeSlot.Validate
+// ShapeRef.Validate
 // ---------------------------------------------------------------------------
 
-func TestValidate_ShapeSlot_Valid(t *testing.T) {
+func TestValidate_ShapeRef_Valid(t *testing.T) {
 	t.Parallel()
-	require.NoError(t, phycomp.Slot(7).At(phycomp.Vec2{X: 1, Y: 2}, 0.5).Validate())
-	require.NoError(t, phycomp.ShapeSlot{}.Validate(), "resolvability is checked at attach, not here")
+	require.NoError(t, phycomp.Ref(7).At(phycomp.Vec2{X: 1, Y: 2}, 0.5).Validate())
+	require.NoError(t, phycomp.ShapeRef{}.Validate(), "resolvability is checked at attach, not here")
 }
 
-func TestValidate_ShapeSlot_NaNLocalOffset(t *testing.T) {
+func TestValidate_ShapeRef_NaNLocalOffset(t *testing.T) {
 	t.Parallel()
-	err := phycomp.Slot(1).At(phycomp.Vec2{X: math.NaN(), Y: 0}, 0).Validate()
+	err := phycomp.Ref(1).At(phycomp.Vec2{X: math.NaN(), Y: 0}, 0).Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "local_offset")
 }
 
-func TestValidate_ShapeSlot_InfLocalRotation(t *testing.T) {
+func TestValidate_ShapeRef_InfLocalRotation(t *testing.T) {
 	t.Parallel()
-	err := phycomp.Slot(1).At(phycomp.Vec2{}, math.Inf(1)).Validate()
+	err := phycomp.Ref(1).At(phycomp.Vec2{}, math.Inf(1)).Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "local_rotation")
 }
@@ -261,7 +261,7 @@ func TestValidate_ChainGeom_NaNPoint(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_Valid(t *testing.T) {
 	t.Parallel()
-	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.Slot(3))
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.Ref(3))
 	require.NoError(t, pb.Validate())
 }
 
@@ -277,7 +277,7 @@ func TestValidate_PhysicsBody2D_InvalidBodyType(t *testing.T) {
 	t.Parallel()
 	pb := phycomp.PhysicsBody2D{
 		BodyType: 99,
-		Shapes:   immutable.SliceOf(phycomp.Slot(3)),
+		Shapes:   immutable.SliceOf(phycomp.Ref(3)),
 	}
 	err := pb.Validate()
 	require.Error(t, err)
@@ -286,7 +286,7 @@ func TestValidate_PhysicsBody2D_InvalidBodyType(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_NaNLinearDamping(t *testing.T) {
 	t.Parallel()
-	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.Slot(3))
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.Ref(3))
 	pb.LinearDamping = math.NaN()
 	err := pb.Validate()
 	require.Error(t, err)
@@ -295,7 +295,7 @@ func TestValidate_PhysicsBody2D_NaNLinearDamping(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_InfAngularDamping(t *testing.T) {
 	t.Parallel()
-	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.Slot(3))
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.Ref(3))
 	pb.AngularDamping = math.Inf(1)
 	err := pb.Validate()
 	require.Error(t, err)
@@ -304,7 +304,7 @@ func TestValidate_PhysicsBody2D_InfAngularDamping(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_InfGravityScale(t *testing.T) {
 	t.Parallel()
-	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.Slot(3))
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.Ref(3))
 	pb.GravityScale = math.Inf(-1)
 	err := pb.Validate()
 	require.Error(t, err)
@@ -314,7 +314,7 @@ func TestValidate_PhysicsBody2D_InfGravityScale(t *testing.T) {
 func TestValidate_PhysicsBody2D_InvalidSlot(t *testing.T) {
 	t.Parallel()
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic,
-		phycomp.Slot(3).At(phycomp.Vec2{X: math.NaN()}, 0))
+		phycomp.Ref(3).At(phycomp.Vec2{X: math.NaN()}, 0))
 	err := pb.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "shapes[0]")
@@ -328,7 +328,7 @@ func TestValidate_PhysicsBody2D_AllBodyTypes(t *testing.T) {
 		phycomp.BodyTypeKinematic,
 		phycomp.BodyTypeManual,
 	} {
-		require.NoError(t, phycomp.NewPhysicsBody2D(bt, phycomp.Slot(3)).Validate(), "body type %d", bt)
+		require.NoError(t, phycomp.NewPhysicsBody2D(bt, phycomp.Ref(3)).Validate(), "body type %d", bt)
 	}
 }
 
@@ -338,7 +338,7 @@ func TestValidate_PhysicsBody2D_AllBodyTypes(t *testing.T) {
 
 func TestNewPhysicsBody2D_Defaults(t *testing.T) {
 	t.Parallel()
-	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.Slot(3))
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.Ref(3))
 	require.Equal(t, phycomp.BodyTypeDynamic, pb.BodyType)
 	require.InDelta(t, 1.0, pb.GravityScale, 1e-12)
 	require.True(t, pb.Active)
@@ -353,7 +353,7 @@ func TestNewPhysicsBody2D_Defaults(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_DuplicateTag(t *testing.T) {
 	t.Parallel()
-	a, b := phycomp.Slot(3), phycomp.Slot(4)
+	a, b := phycomp.Ref(3), phycomp.Ref(4)
 	a.Tag, b.Tag = "hull", "hull"
 	err := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, a, b).Validate()
 	require.Error(t, err)
@@ -363,49 +363,49 @@ func TestValidate_PhysicsBody2D_DuplicateTag(t *testing.T) {
 func TestPhysicsBody2D_SlotsByTag(t *testing.T) {
 	t.Parallel()
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic)
-	pb, err := pb.AddSlot("hull", phycomp.Slot(3))
+	pb, err := pb.AddShape("hull", phycomp.Ref(3))
 	require.NoError(t, err)
-	pb, err = pb.AddSlot("", phycomp.Slot(4))
+	pb, err = pb.AddShape("", phycomp.Ref(4))
 	require.NoError(t, err, "an empty tag adds an untagged slot")
-	pb, err = pb.AddSlot("aggro", phycomp.Slot(5))
+	pb, err = pb.AddShape("aggro", phycomp.Ref(5))
 	require.NoError(t, err)
 	require.NoError(t, pb.Validate())
 
-	require.Equal(t, 0, pb.SlotIndex("hull"))
-	require.Equal(t, 2, pb.SlotIndex("aggro"))
-	require.Equal(t, -1, pb.SlotIndex("nope"))
-	require.Equal(t, -1, pb.SlotIndex(""))
-	require.Equal(t, "aggro", pb.SlotTag(2))
-	require.Equal(t, "", pb.SlotTag(1))
-	require.Equal(t, "", pb.SlotTag(3))
+	require.Equal(t, 0, pb.ShapeIndex("hull"))
+	require.Equal(t, 2, pb.ShapeIndex("aggro"))
+	require.Equal(t, -1, pb.ShapeIndex("nope"))
+	require.Equal(t, -1, pb.ShapeIndex(""))
+	require.Equal(t, "aggro", pb.ShapeTag(2))
+	require.Equal(t, "", pb.ShapeTag(1))
+	require.Equal(t, "", pb.ShapeTag(3))
 
-	_, err = pb.AddSlot("hull", phycomp.Slot(9))
-	require.ErrorContains(t, err, `"hull"`, "AddSlot refuses a used tag")
+	_, err = pb.AddShape("hull", phycomp.Ref(9))
+	require.ErrorContains(t, err, `"hull"`, "AddShape refuses a used tag")
 
-	replaced, err := pb.ReplaceSlot("hull", phycomp.Slot(9))
+	replaced, err := pb.ReplaceShape("hull", phycomp.Ref(9))
 	require.NoError(t, err)
 	require.Equal(t, 3, replaced.Shapes.Len())
-	want := phycomp.Slot(9)
+	want := phycomp.Ref(9)
 	want.Tag = "hull"
 	require.Equal(t, want, replaced.Shapes.At(0), "replaces in place and stamps the tag")
-	_, err = pb.ReplaceSlot("nope", phycomp.Slot(9))
-	require.ErrorContains(t, err, `"nope"`, "ReplaceSlot refuses an unknown tag")
+	_, err = pb.ReplaceShape("nope", phycomp.Ref(9))
+	require.ErrorContains(t, err, `"nope"`, "ReplaceShape refuses an unknown tag")
 
-	removed, err := pb.RemoveSlot("hull")
+	removed, err := pb.RemoveShape("hull")
 	require.NoError(t, err)
 	require.Equal(t, 2, removed.Shapes.Len())
-	require.Equal(t, 1, removed.SlotIndex("aggro"), "later slots move down")
-	_, err = pb.RemoveSlot("nope")
-	require.ErrorContains(t, err, `"nope"`, "RemoveSlot refuses an unknown tag")
+	require.Equal(t, 1, removed.ShapeIndex("aggro"), "later slots move down")
+	_, err = pb.RemoveShape("nope")
+	require.ErrorContains(t, err, `"nope"`, "RemoveShape refuses an unknown tag")
 	require.Equal(t, 3, pb.Shapes.Len(), "the receiver is untouched")
 }
 
 func TestNewPhysicsBody2D_MultipleShapes(t *testing.T) {
 	t.Parallel()
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeStatic,
-		phycomp.Slot(3), phycomp.Slot(4).At(phycomp.Vec2{X: 1}, 0))
+		phycomp.Ref(3), phycomp.Ref(4).At(phycomp.Vec2{X: 1}, 0))
 	require.Equal(t, 2, pb.Shapes.Len())
-	require.Equal(t, phycomp.Slot(4).At(phycomp.Vec2{X: 1}, 0), pb.Shapes.At(1))
+	require.Equal(t, phycomp.Ref(4).At(phycomp.Vec2{X: 1}, 0), pb.Shapes.At(1))
 }
 
 // ---------------------------------------------------------------------------
@@ -428,7 +428,7 @@ func TestUnmarshalPhysicsBody2D_MissingFieldsGetDefaults(t *testing.T) {
 	require.True(t, pb.SleepingAllowed, "missing sleeping_allowed defaults to true")
 	require.False(t, pb.Bullet)
 	require.False(t, pb.FixedRotation)
-	require.Equal(t, immutable.SliceOf(phycomp.Slot(7)), pb.Shapes)
+	require.Equal(t, immutable.SliceOf(phycomp.Ref(7)), pb.Shapes)
 }
 
 func TestUnmarshalPhysicsBody2D_ExplicitFalsePreserved(t *testing.T) {
@@ -477,7 +477,7 @@ func TestUnmarshalPhysicsBody2D_FullPayload(t *testing.T) {
 	require.True(t, pb.Bullet)
 	require.True(t, pb.FixedRotation)
 	require.Equal(t, 1, pb.Shapes.Len())
-	require.Equal(t, phycomp.Slot(7).At(phycomp.Vec2{X: 1, Y: 2}, 0.5), pb.Shapes.At(0))
+	require.Equal(t, phycomp.Ref(7).At(phycomp.Vec2{X: 1, Y: 2}, 0.5), pb.Shapes.At(0))
 }
 
 // ---------------------------------------------------------------------------
