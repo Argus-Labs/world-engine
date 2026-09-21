@@ -23,7 +23,7 @@ func spawnQueryScene(t *testing.T, w *cardinal.World) (*cardinal.EntityID, *card
 		if state.Tick() != 0 {
 			return
 		}
-		spawn := func(role string, x float64, shapes ...physics.ShapeSlot) cardinal.EntityID {
+		spawn := func(role string, x float64, shapes ...physics.ShapeRef) cardinal.EntityID {
 			row := state.Spawn.Create()
 			row.Set(harnessTag{Role: role})
 			row.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: 0}})
