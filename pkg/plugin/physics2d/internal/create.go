@@ -169,10 +169,9 @@ func makeShapeDef(shapeIndex int, c component.ShapeCommon, slot component.ShapeR
 	def.IsSensor = c.IsSensor
 	def.EnableSensorEvents = true
 	def.EnableContactEvents = true
-	cat, mask, group := slot.FilterBits()
-	def.Filter.CategoryBits = cat
-	def.Filter.MaskBits = mask
-	def.Filter.GroupIndex = int(group)
+	def.Filter.CategoryBits = slot.CategoryBits
+	def.Filter.MaskBits = slot.MaskBits
+	def.Filter.GroupIndex = int(slot.GroupIndex)
 	return def
 }
 
@@ -250,10 +249,9 @@ func (rt *Runtime) attachShape(
 		material.Friction = sh.Common.Friction
 		material.Restitution = sh.Common.Restitution
 		def.Materials = []box2d.SurfaceMaterial{material}
-		cat, mask, group := slot.FilterBits()
-		def.Filter.CategoryBits = cat
-		def.Filter.MaskBits = mask
-		def.Filter.GroupIndex = int(group)
+		def.Filter.CategoryBits = slot.CategoryBits
+		def.Filter.MaskBits = slot.MaskBits
+		def.Filter.GroupIndex = int(slot.GroupIndex)
 		chainID := rt.World.CreateChain(bodyID, &def)
 		rt.Chains[entityID] = append(rt.Chains[entityID], chainID)
 		// Chain slots keep a null ShapeID: mutable per-shape setters skip them, matching

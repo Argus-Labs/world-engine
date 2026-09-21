@@ -136,15 +136,24 @@ func TestShapeCommon_Defaults(t *testing.T) {
 
 func TestShapeRef_FilterDefaults(t *testing.T) {
 	t.Parallel()
-	cat, mask, group := phycomp.Ref(1).FilterBits()
-	require.Equal(t, uint64(1), cat, "zero category means Box2D's default")
-	require.Equal(t, ^uint64(0), mask, "zero mask means all")
-	require.Equal(t, int32(0), group)
+	ref := phycomp.Ref(1)
+	require.Equal(t, uint64(1), ref.CategoryBits, "Ref carries Box2D's default category")
+	require.Equal(t, ^uint64(0), ref.MaskBits, "Ref carries Box2D's default mask")
+	require.Equal(t, int32(0), ref.GroupIndex)
 
-	cat, mask, group = phycomp.Ref(1).Filter(0x2, 0x4).Group(-1).FilterBits()
-	require.Equal(t, uint64(0x2), cat)
-	require.Equal(t, uint64(0x4), mask)
-	require.Equal(t, int32(-1), group)
+	ref = ref.Filter(0x2, 0x4).Group(-1)
+	require.Equal(t, uint64(0x2), ref.CategoryBits)
+	require.Equal(t, uint64(0x4), ref.MaskBits)
+	require.Equal(t, int32(-1), ref.GroupIndex)
+
+	none := phycomp.Ref(1).Filter(0, 0)
+	require.Equal(t, uint64(0), none.CategoryBits, "an explicit zero is kept: collides with nothing")
+
+	var fromJSON phycomp.ShapeRef
+	require.NoError(t, json.Unmarshal([]byte(`{"shape": 7}`), &fromJSON))
+	require.Equal(t, phycomp.Ref(7), fromJSON, "a JSON ref with no filter gets the defaults")
+	require.NoError(t, json.Unmarshal([]byte(`{"shape": 7, "category_bits": 0, "mask_bits": 0}`), &fromJSON))
+	require.Equal(t, phycomp.Ref(7).Filter(0, 0), fromJSON, "an explicit JSON zero is kept")
 }
 
 func TestValidate_ShapeCommon_NaNFriction(t *testing.T) {

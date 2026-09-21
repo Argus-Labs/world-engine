@@ -370,8 +370,9 @@ func checkShapeConstructors(c *harness.Ctx) {
 	ref := physcomp.Ref(1).Filter(0x2, 0x4).Group(-1)
 	c.True("a ref carries its own filter", ref.CategoryBits == 0x2 && ref.MaskBits == 0x4 && ref.GroupIndex == -1,
 		"got %+v", ref)
-	cat, mask, _ := physcomp.Ref(1).FilterBits()
-	c.True("an unset ref filter is category 1, mask all", cat == 1 && mask == ^uint64(0), "got %#x/%#x", cat, mask)
+	fresh := physcomp.Ref(1)
+	c.True("Ref carries category 1, mask all", fresh.CategoryBits == 1 && fresh.MaskBits == ^uint64(0),
+		"got %#x/%#x", fresh.CategoryBits, fresh.MaskBits)
 	c.True("Box stores its half extents", d.HalfExtents() == vec(1, 1), "got %+v", d.HalfExtents())
 	c.True("Box reports its kind", d.Kind() == physics.KindBox, "got %s", d.Kind())
 	c.True("Circle stores its radius", physics.Circle(0.5).Radius() == 0.5, "")
@@ -398,6 +399,7 @@ func checkShapeConstructors(c *harness.Ctx) {
 	c.HasError("Polygon of nine vertices fails validation", physics.Polygon(nine...).Validate())
 
 	slot := physcomp.Ref(9).At(vec(2, 3), 0.5)
-	c.True("Slot.At places the slot",
-		slot == physics.ShapeRef{Shape: 9, LocalOffset: vec(2, 3), LocalRotation: 0.5}, "got %+v", slot)
+	c.True("Ref.At places the ref",
+		slot == physics.ShapeRef{Shape: 9, LocalOffset: vec(2, 3), LocalRotation: 0.5, CategoryBits: 1, MaskBits: ^uint64(0)},
+		"got %+v", slot)
 }

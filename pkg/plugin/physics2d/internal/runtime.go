@@ -394,8 +394,8 @@ func (rt *Runtime) slotFilterBits(entityID cardinal.EntityID, shapeIndex int) ev
 	if !ok || shapeIndex < 0 || shapeIndex >= shadow.PhysicsBody.Shapes.Len() {
 		return event.FixtureFilterBits{}
 	}
-	cat, mask, group := shadow.PhysicsBody.Shapes.At(shapeIndex).FilterBits()
-	return event.FixtureFilterBits{CategoryBits: cat, MaskBits: mask, GroupIndex: group}
+	slot := shadow.PhysicsBody.Shapes.At(shapeIndex)
+	return event.FixtureFilterBits{CategoryBits: slot.CategoryBits, MaskBits: slot.MaskBits, GroupIndex: slot.GroupIndex}
 }
 
 // ActiveContactsToComponent converts the working map to the ECS component format (sorted

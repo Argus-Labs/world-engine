@@ -365,11 +365,10 @@ func (rt *Runtime) applyMutableShapeFixtures(
 		// The trailing true is Box2D's updateBodyMass: a density change re-derives the body's
 		// mass here, so nothing further up needs to track whether density moved.
 		rt.World.SetShapeDensity(sid, c.Density, true)
-		cat, mask, group := l.FilterBits()
 		rt.World.SetShapeFilter(sid, box2d.Filter{
-			CategoryBits: cat,
-			MaskBits:     mask,
-			GroupIndex:   int(group),
+			CategoryBits: l.CategoryBits,
+			MaskBits:     l.MaskBits,
+			GroupIndex:   int(l.GroupIndex),
 		})
 	}
 	return nil

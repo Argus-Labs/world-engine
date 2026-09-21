@@ -98,9 +98,11 @@ reconcile in which no body names it.
 The collision filter is not part of a shape. It lives on the ref each body
 holds, so one bullet shape serves every team: `bullet.Filter(red, redMask)`
 on one body, `bullet.Filter(blue, blueMask)` on another, same shape entity.
-A ref with no filter set gets Box2D's defaults, category 1 and mask all;
-`Group` sets the group index, which is per body by nature (a ragdoll's parts
-share a negative group so they never touch each other).
+The semantics are plain Box2D: two shapes collide when each one's category
+overlaps the other's mask, so `Filter(cat, 0)` collides with nothing. A ref
+from `Spawn`, `Get` or `Fork` starts with Box2D's defaults, category 1 and
+mask all. `Group` sets the group index, which is per body by nature (a
+ragdoll's parts share a negative group so they never touch each other).
 
 `Spawn` de-duplicates: if a live shape already has exactly the same
 geometry, material and filter, you get a ref to that shape instead of a new
