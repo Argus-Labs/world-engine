@@ -194,6 +194,9 @@ type Ctx struct {
 // Store returns the world's shape store.
 func (c *Ctx) Store() *physics.ShapeStore { return c.store }
 
+// Shapes returns the world's shape search.
+func (c *Ctx) Shapes() *physics.Shapes { return c.shapes }
+
 // Plugin returns the physics plugin driving this world. Queries, Reset and
 // Engine are methods on it — the package holds no runtime state.
 func (c *Ctx) Plugin() *physics.Plugin { return c.plugin }

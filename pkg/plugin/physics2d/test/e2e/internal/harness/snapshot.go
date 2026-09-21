@@ -105,8 +105,8 @@ type Capture struct {
 	Rows map[string]CaptureRow
 	// Contacts is the singleton's ActiveContacts, normalised and sorted.
 	Contacts []physcomp.ContactPairEntry
-	// Kept is the singleton's shape store, sorted by name.
-	Kept []physcomp.KeptShape
+	// Kept is the singleton's shape store, sorted.
+	Kept []cardinal.EntityID
 	// Singletons is how many physics singleton entities exist. Anything but one
 	// is a bug: the plugin panics on two and loses its dedupe baseline on none.
 	Singletons int
@@ -168,13 +168,13 @@ func capture(probes *Probes, shapes *physics.Shapes, singleton *cardinal.Contain
 
 	var pairs []physcomp.ContactPairEntry
 	count := 0
-	var kept []physcomp.KeptShape
+	var kept []cardinal.EntityID
 	for row := range singleton.Iter() {
 		count++
 		pairs = slices.AppendSeq(pairs, row.Get[physcomp.ActiveContacts]().Pairs.Values())
 		kept = slices.AppendSeq(kept, row.Get[physcomp.ShapeStore]().Kept.Values())
 	}
-	sort.Slice(kept, func(i, j int) bool { return kept[i].Name < kept[j].Name })
+	slices.Sort(kept)
 	// Entry order is an implementation detail of the plugin's map iteration, so
 	// sort before comparing two worlds.
 	sort.Slice(pairs, func(i, j int) bool { return contactKey(pairs[i]) < contactKey(pairs[j]) })

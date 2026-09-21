@@ -271,8 +271,9 @@ two equal tags is rejected by the reconciler like any other invalid body.
 A shape normally lives exactly as long as some body names it. For a shape you
 spawn bodies from over and over — a bullet — or one you want ready before any
 body uses it — a power-up's hitbox — keep it in the store. A kept shape is never
-swept, and any system can look it up by name. The store is plugin state on its
-singleton entity, so it snapshots and restores with everything else.
+swept until released. The store is plugin state on the singleton entity, so it
+snapshots and restores with everything else. There are no names: the ref is
+the key, and `Find` gets it back from the definition.
 
 ```go
 type FireState struct {
@@ -281,16 +282,19 @@ type FireState struct {
     Store  physics2d.ShapeStore
 }
 
-// init, or any tick later
-bullet, err := state.Shapes.Spawn(physics2d.Circle(0.1).Sensor(true))
-err = state.Store.Keep("bullet", bullet)      // fails if the name is in use
+var bulletDef = physics2d.Circle(0.1).Sensor(true)
 
-// any system
-bullet, ok := state.Store.Get("bullet")
-row.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic, bullet.At(muzzle, 0)))
+// init, or any tick later
+bullet, err := state.Shapes.Spawn(bulletDef)
+state.Store.Keep(bullet)
+
+// any system: Spawn finds the live shape, so this creates nothing
+bullet, err := state.Shapes.Spawn(bulletDef)
+row.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic, bullet.Filter(team, teamMask)))
 
 // done with it: swept once no body names it
-err = state.Store.Release("bullet")            // fails if nothing is kept as that
+bullet, ok := state.Shapes.Find(bulletDef)     // lookup only, never creates
+err = state.Store.Release(bullet)              // fails if it is not kept
 ```
 
 One shape per distinct geometry-and-material combination. Bodies only carry a

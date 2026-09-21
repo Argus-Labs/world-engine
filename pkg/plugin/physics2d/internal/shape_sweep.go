@@ -27,10 +27,10 @@ import (
 
 // SyncKeptShapes refreshes the kept set from the shape store. The sweep reads the set, so a
 // shape released this tick is swept this tick unless a body still names it.
-func (rt *Runtime) SyncKeptShapes(kept immutable.Slice[component.KeptShape]) {
+func (rt *Runtime) SyncKeptShapes(kept immutable.Slice[cardinal.EntityID]) {
 	clear(rt.keptShapes)
-	for k := range kept.Values() {
-		rt.keptShapes[k.Shape] = struct{}{}
+	for id := range kept.Values() {
+		rt.keptShapes[id] = struct{}{}
 	}
 }
 

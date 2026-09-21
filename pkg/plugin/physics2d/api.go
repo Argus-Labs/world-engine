@@ -269,7 +269,7 @@ func (s *Shapes) Spawn(def Shape) (ShapeRef, error) {
 	if err := def.Validate(); err != nil {
 		return ShapeRef{}, err
 	}
-	if ref, ok := s.find(def); ok {
+	if ref, ok := s.Find(def); ok {
 		return ref, nil
 	}
 	row := s.shapeSearch.Create()
@@ -294,9 +294,10 @@ func (s *Shapes) Spawn(def Shape) (ShapeRef, error) {
 	return component.Ref(row.ID()), nil
 }
 
-// find returns a ref to a live shape equal to def. It scans every live shape, so its cost
-// grows with their number; see findKind for the per-row order.
-func (s *Shapes) find(def Shape) (ShapeRef, bool) {
+// Find returns a ref, at the body origin, to the live shape equal to def, and false when
+// there is none. It never creates. It scans every live shape, so its cost grows with their
+// number; see findKind for the per-row order.
+func (s *Shapes) Find(def Shape) (ShapeRef, bool) {
 	switch def.s.Kind {
 	case KindCircle:
 		return findKind[component.CircleGeom](s, def)
@@ -314,7 +315,7 @@ func (s *Shapes) find(def Shape) (ShapeRef, bool) {
 	return ShapeRef{}, false
 }
 
-// findKind is find for one geometry kind. Kind and material are checked first, straight off
+// findKind is Find for one geometry kind. Kind and material are checked first, straight off
 // the row: a shape of another kind or material is ruled out without a second lookup.
 func findKind[G internal.Geometry](s *Shapes, def Shape) (ShapeRef, bool) {
 	for row := range s.shapeSearch.Iter() {
@@ -383,8 +384,10 @@ func (*Shapes) Iter(sealed)    {}
 // -------------------------------------------------------------------------------------------------
 //
 // A shape is swept once no body names it. Keep it in the store to hold it for as long as you
-// like under a name any system can look up: the shape bullets are fired from, or a power-up's
-// hitbox added mid-game. The store is plugin state and snapshots with everything else.
+// like: the shape bullets are fired from, so it is not rebuilt after every lull, or a
+// power-up's hitbox made ready before any body uses it. The store is plugin state and
+// snapshots with everything else. There are no names: the ref is the key, and Find gets it
+// back from the definition.
 //
 //	type FireState struct {
 //	    cardinal.BaseSystemState
@@ -392,10 +395,11 @@ func (*Shapes) Iter(sealed)    {}
 //	    Store  physics2d.ShapeStore
 //	}
 //
-//	bullet, err := state.Shapes.Spawn(physics2d.Circle(0.1))
-//	err = state.Store.Keep("bullet", bullet)   // at init, or any tick later
-//	bullet, ok := state.Store.Get("bullet")   // from any system
-//	err = state.Store.Release("bullet")        // swept once no body names it
+//	bullet, err := state.Shapes.Spawn(bulletDef)
+//	state.Store.Keep(bullet)                   // at init, or any tick later
+//	...
+//	bullet, ok := state.Shapes.Find(bulletDef) // later, from any system
+//	err = state.Store.Release(bullet)          // swept once no body names it
 
 // storeSearch is the search over the plugin singleton, embedded under an unexported name for
 // the same reason as shapeSearch.
@@ -406,48 +410,28 @@ type ShapeStore struct {
 	storeSearch
 }
 
-// Keep holds the shape behind ref under name until Release. It fails on an empty name or one
-// already in use.
-func (s *ShapeStore) Keep(name string, ref ShapeRef) error {
-	if name == "" {
-		return errors.New("physics2d: store: a kept shape needs a name")
-	}
+// Keep holds the shape behind ref until Release. Keeping a kept shape again does nothing.
+func (s *ShapeStore) Keep(ref ShapeRef) {
 	row := internal.EnsureSingleton(&s.storeSearch)
 	store := row.Get[component.ShapeStore]()
-	if store.Index(name) >= 0 {
-		return fmt.Errorf("physics2d: store: %q is already kept", name)
+	if store.Index(ref.Shape) >= 0 {
+		return
 	}
-	store.Kept = store.Kept.Append(component.KeptShape{Name: name, Shape: ref.Shape})
+	store.Kept = store.Kept.Append(ref.Shape)
 	row.Set(store)
-	return nil
 }
 
-// Get returns a ref to the shape kept under name, at the body origin, and false when there
-// is none.
-func (s *ShapeStore) Get(name string) (ShapeRef, bool) {
+// Release drops the shape behind ref from the store. The shape stays while a body names it
+// and is swept once none does. It fails when the shape is not kept.
+func (s *ShapeStore) Release(ref ShapeRef) error {
 	row, err := s.storeSearch.Iter().Single()
 	if err != nil {
-		return ShapeRef{}, false
+		return fmt.Errorf("physics2d: store: shape %d is not kept", ref.Shape)
 	}
 	store := row.Get[component.ShapeStore]()
-	i := store.Index(name)
+	i := store.Index(ref.Shape)
 	if i < 0 {
-		return ShapeRef{}, false
-	}
-	return component.Ref(store.Kept.At(i).Shape), true
-}
-
-// Release drops name from the store. The shape stays while a body names it and is swept once
-// none does. It fails when nothing is kept under name.
-func (s *ShapeStore) Release(name string) error {
-	row, err := s.storeSearch.Iter().Single()
-	if err != nil {
-		return fmt.Errorf("physics2d: store: nothing kept as %q", name)
-	}
-	store := row.Get[component.ShapeStore]()
-	i := store.Index(name)
-	if i < 0 {
-		return fmt.Errorf("physics2d: store: nothing kept as %q", name)
+		return fmt.Errorf("physics2d: store: shape %d is not kept", ref.Shape)
 	}
 	store.Kept = store.Kept.Without(i)
 	row.Set(store)

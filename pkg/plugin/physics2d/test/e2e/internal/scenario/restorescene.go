@@ -31,7 +31,7 @@ func RestoreScene() harness.Scenario {
 
 func buildRestoreScene(c *harness.Ctx) {
 	// A kept shape with no body: only the store keeps it alive across the snapshot.
-	c.NoError("keep a shape for the restore", c.Store().Keep("restore-kept", circle(0.33).Spawn(c)))
+	c.Store().Keep(circle(0.33).Spawn(c))
 
 	// Layout rule for this scene: every dynamic body either has a floor under it
 	// or has gravity switched off, and no two bodies share a column. A body that
