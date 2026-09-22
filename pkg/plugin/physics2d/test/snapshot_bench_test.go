@@ -77,18 +77,12 @@ func snapshotBenchWorld(b *testing.B, rate uint32, bodies, warmup int) *cardinal
 // a 1.0 gap, so no collider ever touches another. The entity count, archetype layout and component
 // payloads — everything the snapshot path costs money on — are unchanged by that; what changes is
 // that the scene stops evolving, which is what makes the benchmark reproducible.
-func restingBodiesSystem(count int) func(state *struct {
-	cardinal.BaseSystemState
-	Spawn spawnArchetype
-}) {
-	return func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
-		if state.Tick() != 0 {
+func restingBodiesSystem(count int) *restingBodiesFixture {
+	return &restingBodiesFixture{run: func(w *cardinal.World) {
+		if w.TickHeight() != 0 {
 			return
 		}
-		floor := state.Spawn.Create()
+		floor := w.Create[spawnArchetype]()
 		floor.Set(harnessTag{Role: "floor"})
 		floor.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
 		floor.Set(physics.Velocity2D{})
@@ -104,7 +98,7 @@ func restingBodiesSystem(count int) func(state *struct {
 		for i := range count {
 			col := i % cols
 			rowIdx := i / cols
-			r := state.Spawn.Create()
+			r := w.Create[spawnArchetype]()
 			r.Set(harnessTag{Role: "ball"})
 			r.Set(physics.Transform2D{Position: physics.Vec2{
 				X: float64(col)*2.0 - float64(cols),
@@ -121,7 +115,7 @@ func restingBodiesSystem(count int) func(state *struct {
 				MaskBits:     0xFFFF,
 			}))
 		}
-	}
+	}}
 }
 
 // worldStateProto reaches Cardinal's embedded *ecs.World and calls EncodeState, the same
@@ -328,3 +322,9 @@ func BenchmarkSnapshotStore(b *testing.B) {
 		}
 	}
 }
+
+type restingBodiesFixture struct {
+	run func(w *cardinal.World)
+}
+
+func (s *restingBodiesFixture) Run(w *cardinal.World) { s.run(w) }

@@ -16,10 +16,10 @@
 //
 // Keep the *Plugin value: queries (Raycast, OverlapAABB, CircleSweep) and Reset are methods on it.
 //
-// Call Plugin.Reset from init/restore hooks when you rebuild the Cardinal world or after
-// FromProto so the derived physics state matches ECS. Reset discards derived physics state; the
-// next PhysicsPipelineSystem (PreUpdate) performs a full ECS->Box2D rebuild when it sees no
-// live world.
+// Standard startup and snapshot recovery reconcile physics automatically. If a custom harness
+// replaces ECS state in an already-running world with FromProto, call Plugin.Reset to discard
+// derived solver and contact state. The next PhysicsPipelineSystem (PreUpdate) rebuilds from ECS
+// without stepping the simulation.
 package physics2d
 
 import (
@@ -74,7 +74,8 @@ const (
 	ShapeTypeCapsule         = component.ShapeTypeCapsule
 )
 
-// Contact / trigger system events (implement ecs.SystemEvent; register with WithSystemEventEmitter).
+// Contact / trigger system events. Plugin.Register registers them; read them in a system that
+// runs after the pipeline with World.SystemEvents.
 type (
 	FixtureFilterBits   = physicevent.FixtureFilterBits
 	ContactEventPayload = physicevent.ContactEventPayload
@@ -157,6 +158,12 @@ func (p *Plugin) Register(w *cardinal.World) {
 	rt.Reset()
 
 	RegisterComponents(w)
+	// The pipeline emits these each tick; registering them here is what makes
+	// World.EmitSystemEvent (and readers' World.SystemEvents) legal for them.
+	w.RegisterSystemEvent[physicevent.ContactBeginEvent]()
+	w.RegisterSystemEvent[physicevent.ContactEndEvent]()
+	w.RegisterSystemEvent[physicevent.TriggerBeginEvent]()
+	w.RegisterSystemEvent[physicevent.TriggerEndEvent]()
 	w.RegisterSystem(physicssystem.NewInitPhysicsSystem(rt), cardinal.WithHook(cardinal.Init))
 	w.RegisterSystem(physicssystem.NewPhysicsPipelineSystem(rt), cardinal.WithHook(cardinal.PreUpdate))
 
@@ -232,7 +239,7 @@ func (p *Plugin) ShapeIDs(entityID cardinal.EntityID) ([]box2d.ShapeID, bool) {
 
 // Reset drops all derived physics simulation state (no world, no bodies, empty maps).
 // ECS components are unchanged. The next PhysicsPipelineSystem (PreUpdate) runs
-// FullRebuildFromECS from current physics entities, same as recovering after snapshot restore.
+// FullRebuildFromECS from current physics entities without stepping the simulation.
 // It is a no-op on a plugin that has not been registered yet.
 func (p *Plugin) Reset() {
 	if p.rt == nil {
