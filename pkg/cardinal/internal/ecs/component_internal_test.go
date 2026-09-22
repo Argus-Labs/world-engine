@@ -248,6 +248,24 @@ func TestWorld_RegisterComponentRejectsNameCollision(t *testing.T) {
 	require.Equal(t, testutils.SimpleComponent{Value: 7}, value)
 }
 
+func TestWorld_ComponentID(t *testing.T) {
+	t.Parallel()
+	w := NewWorld()
+	_, err := w.ComponentID[testutils.SimpleComponent]()
+	require.ErrorIs(t, err, ErrComponentNotFound)
+
+	registered, err := w.RegisterComponent[testutils.SimpleComponent]()
+	require.NoError(t, err)
+	id, err := w.ComponentID[testutils.SimpleComponent]()
+	require.NoError(t, err)
+	assert.Equal(t, registered, id)
+
+	_, err = w.ComponentID[conflictingComponent]()
+	require.ErrorIs(t, err, ErrComponentNotFound)
+	require.ErrorContains(t, err, "component simple_component is registered with a different type")
+	assert.False(t, w.Has[conflictingComponent](w.Create()), "a shared name does not register a different Go type")
+}
+
 func TestWorld_ConflictingComponentAccessPreservesData(t *testing.T) {
 	t.Parallel()
 	w := NewWorld()

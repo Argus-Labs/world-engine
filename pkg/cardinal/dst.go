@@ -9,7 +9,7 @@
 //	func TestDST(t *testing.T) {
 //	    cardinal.RunDST(t, func(w *cardinal.World) {
 //	        w.RegisterComponent[component.MyComponent]()
-//	        w.RegisterSystem(system.MySystem)
+//	        w.RegisterSystem(&system.MySystem{})
 //	        // ... register all components and systems
 //	    }, []cardinal.Command{system.BootstrapCommand{Seed: 42}})
 //	}

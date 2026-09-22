@@ -44,7 +44,8 @@ type World struct {
 	options         WorldOptions          // World options
 	tel             telemetry.Telemetry   // Logs and traces
 
-	entityArchetypes map[reflect.Type]bitmap.Bitmap
+	archetypes map[reflect.Type]bitmap.Bitmap // Component sets resolved from archetype structs
+	eventTypes map[reflect.Type]struct{}      // Events registered with RegisterEvent
 }
 
 // NewWorld creates a game world with the specified options.

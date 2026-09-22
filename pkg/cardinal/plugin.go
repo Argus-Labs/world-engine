@@ -4,9 +4,9 @@ package cardinal
 // commands, and events with a World. Plugins allow reusable game logic to be packaged
 // and shared across projects.
 //
-// Commands and events are registered when referenced by system state fields (via
-// WithCommand[T] and WithEvent[T]). Components are not: a plugin's Register method must call
-// RegisterComponent for every component its systems use, then RegisterSystem.
+// Nothing registers implicitly: a plugin's Register method must call RegisterComponent,
+// RegisterCommand, RegisterEvent, and RegisterSystemEvent for everything its systems use,
+// including types that belong to another plugin. Registering a type twice is a no-op.
 //
 // Example:
 //
@@ -14,8 +14,10 @@ package cardinal
 //
 //	func (p *MyPlugin) Register(w *cardinal.World) {
 //	    w.RegisterComponent[MyComponent]()
-//	    w.RegisterSystem(MyInitSystem, cardinal.WithHook(cardinal.Init))
-//	    w.RegisterSystem(MyTickSystem)
+//	    w.RegisterCommand[MyCommand]()
+//	    w.RegisterEvent[MyEvent]()
+//	    w.RegisterSystem(&MyInitSystem{}, cardinal.WithHook(cardinal.Init))
+//	    w.RegisterSystem(&MyTickSystem{})
 //	}
 type Plugin interface {
 	Register(w *World)

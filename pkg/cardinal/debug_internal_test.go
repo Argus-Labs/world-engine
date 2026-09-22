@@ -2,7 +2,6 @@ package cardinal
 
 import (
 	"context"
-	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -90,32 +89,30 @@ func findMessageDescriptor(set *descriptorpb.FileDescriptorSet, name string) *de
 	return nil
 }
 
-type snapshotEntities struct {
-	Entities Contains[struct {
-		Position  WithComponent[Position3D]
-		Health    WithComponent[Health2]
-		Inventory WithComponent[Inventory]
-	}]
+type snapshotArchetype struct {
+	Position  Position3D
+	Health    Health2
+	Inventory Inventory
 }
 
-func seedSnapshotWorld(t *testing.T, state *snapshotEntities) {
+func seedSnapshotWorld(t *testing.T, w *World) {
 	t.Helper()
 
 	for i := range 5 {
-		e := state.Entities.Create()
+		e := w.Create[snapshotArchetype]()
 		e.Set(Position3D{X: float64(i), Y: float64(i) * 2, Z: -1})
 		e.Set(Health2{Current: 100 - i, Max: 100})
 		e.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10 + i})
 	}
-	e := state.Entities.Create()
+	e := w.Create[snapshotArchetype]()
 	e.Set(Position3D{X: 42})
 	require.True(t, e.Destroy())
 }
 
 // TestDebugGetStatePublishesEveryTick checks snapshot content and ownership after each tick.
 func TestDebugGetStatePublishesEveryTick(t *testing.T) {
-	w, state := newDebugStateWorld(t)
-	seedSnapshotWorld(t, state)
+	w := newDebugStateWorld(t)
+	seedSnapshotWorld(t, w)
 
 	for range 12 {
 		resp, err := w.debug.GetState(
@@ -126,7 +123,7 @@ func TestDebugGetStatePublishesEveryTick(t *testing.T) {
 		frozen, err := proto.MarshalOptions{Deterministic: true}.Marshal(held)
 		require.NoError(t, err)
 
-		e := state.Entities.Create()
+		e := w.Create[snapshotArchetype]()
 		e.Set(Position3D{X: float64(w.currentTick.height)})
 
 		completed := w.currentTick.height
@@ -148,8 +145,8 @@ func TestDebugGetStatePublishesEveryTick(t *testing.T) {
 
 // TestDebugGetStateConcurrentWithTicks checks concurrent reads and writes. Run it with -race.
 func TestDebugGetStateConcurrentWithTicks(t *testing.T) {
-	w, state := newDebugStateWorld(t)
-	seedSnapshotWorld(t, state)
+	w := newDebugStateWorld(t)
+	seedSnapshotWorld(t, w)
 
 	const readers = 4
 	stop := make(chan struct{})
@@ -189,7 +186,7 @@ func TestDebugGetStateConcurrentWithTicks(t *testing.T) {
 	assert.Equal(t, uint64(100), w.currentTick.height)
 }
 
-func newDebugStateWorld(t *testing.T) (*World, *snapshotEntities) {
+func newDebugStateWorld(t *testing.T) *World {
 	t.Helper()
 	t.Setenv("LOG_LEVEL", "disabled")
 
@@ -209,9 +206,6 @@ func newDebugStateWorld(t *testing.T) (*World, *snapshotEntities) {
 	w.RegisterComponent[Position3D]()
 	w.RegisterComponent[Health2]()
 	w.RegisterComponent[Inventory]()
-
-	state := &snapshotEntities{}
-	require.NoError(t, initSystemFields(reflect.ValueOf(state).Elem(), w))
 	w.world.Init()
-	return w, state
+	return w
 }

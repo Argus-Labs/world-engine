@@ -39,8 +39,8 @@ const InvalidID = MaxID + 1
 const initialCommandBufferCapacity = 128
 
 // Manager manages command registration and stores commands received to be passed to the ECS world.
-// Command IDs are mainly used for quick lookup and to check for duplicate WithCommand fields in
-// a system state.
+// Command IDs are mainly used for quick lookup: World.Commands resolves a name to an ID once and
+// indexes the read-only buffer directly.
 type Manager struct {
 	nextID   ID            // Next available command ID
 	catalog  map[string]ID // Command name -> command ID
@@ -120,6 +120,12 @@ func (m *Manager) Get(id ID) ([]Command, error) {
 		return nil, eris.Errorf("unregistered command id: %d", id)
 	}
 	return m.commands[id], nil
+}
+
+// Lookup returns the ID registered for a command name.
+func (m *Manager) Lookup(name string) (ID, bool) {
+	id, ok := m.catalog[name]
+	return id, ok
 }
 
 // Drain collects commands from the queues to read-only command buffers. It also returns a list of

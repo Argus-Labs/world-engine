@@ -23,66 +23,35 @@ import (
 
 type EntityID = ecs.EntityID
 
-// System is a stateful Cardinal system. Implement it with a Run method on a pointer to a struct
-// that embeds BaseSystemState.
+// System is a unit of game logic that runs once per tick phase. Run receives the world it was
+// registered with; use it for searches, commands, events, entities, and the current tick. Any
+// other state a system needs (a runtime, a config) lives on the implementing struct.
 type System interface {
-	Run()
+	Run(w *World)
 }
 
-func (w *World) RegisterSystem[T any](system func(*T), opts ...SystemOption) {
+// RegisterSystem registers a system for the hook in opts (Update by default). Register the
+// components, commands, events, and system events a system uses before StartGame.
+func (w *World) RegisterSystem(s System, opts ...SystemOption) {
+	if isNilSystem(s) {
+		panic(eris.Errorf("system %T is nil; register a constructed instance", s))
+	}
 	cfg := newSystemConfig()
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-
-	// Check that the system stateType embeds BaseSystemState.
-	var zero T
-	stateType := reflect.TypeOf(zero)
-	if _, ok := stateType.FieldByName("BaseSystemState"); !ok {
-		panic(eris.Errorf("system %T must embed cardinal.BaseSystemState", system))
-	}
-
-	// Initialize the fields in the system state.
-	state := new(T)
-
-	if err := initSystemFields(reflect.ValueOf(state).Elem(), w); err != nil {
-		panic(eris.Wrapf(err, "error initializing system fields"))
-	}
-
-	name := fmt.Sprintf("%T", system)
-	registerSystem(w, name, cfg.hook, func() { system(state) })
+	registerSystem(w, fmt.Sprintf("%T", s), cfg.hook, func() { s.Run(w) })
 }
 
-// RegisterSystemV2 registers a caller-owned system instance. The instance must be a non-nil pointer
-// to a struct that embeds BaseSystemState.
-func (w *World) RegisterSystemV2[S System](s S, opts ...SystemOption) {
-	cfg := newSystemConfig()
-	for _, opt := range opts {
-		opt(&cfg)
+// isNilSystem reports whether s is a nil interface or a typed nil pointer. Both would register
+// under a valid name and then dereference nil inside Run on the first tick, so registration
+// rejects them while the caller can still see which system it was.
+func isNilSystem(s System) bool {
+	if s == nil {
+		return true
 	}
-
-	value := reflect.ValueOf(s)
-	if value.Kind() != reflect.Pointer || value.IsNil() || value.Elem().Kind() != reflect.Struct {
-		panic(eris.Errorf("system %T must be a non-nil pointer to a struct", s))
-	}
-
-	state := value.Elem()
-	stateType := state.Type()
-	if _, ok := stateType.MethodByName("Run"); ok {
-		panic(eris.Errorf("system %T Run method must use a pointer receiver", s))
-	}
-
-	baseField, ok := stateType.FieldByName("BaseSystemState")
-	if !ok || len(baseField.Index) != 1 || !baseField.Anonymous ||
-		baseField.Type != reflect.TypeFor[BaseSystemState]() {
-		panic(eris.Errorf("system %T must embed cardinal.BaseSystemState", s))
-	}
-
-	if err := initSystemFields(state, w); err != nil {
-		panic(eris.Wrapf(err, "error initializing system fields"))
-	}
-
-	registerSystem(w, fmt.Sprintf("%T", s), cfg.hook, s.Run)
+	v := reflect.ValueOf(s)
+	return v.Kind() == reflect.Pointer && v.IsNil()
 }
 
 func registerSystem(w *World, name string, hook SystemHook, run func()) {
@@ -125,71 +94,6 @@ func registerSystem(w *World, name string, hook SystemHook, run func()) {
 	}
 }
 
-func initSystemFields(state reflect.Value, w *World) error {
-	meta := systemInitMetadata{
-		world:        w,
-		commands:     make(map[string]struct{}),
-		events:       make(map[string]struct{}),
-		systemEvents: make(map[string]struct{}),
-	}
-
-	// For each field in the system state, initialize the field and collect its dependencies.
-	for i := range state.NumField() {
-		field := state.Field(i)
-		fieldType := state.Type().Field(i)
-
-		if !fieldType.IsExported() {
-			systemFieldType := reflect.TypeFor[systemField]()
-			if field.Type().Implements(systemFieldType) ||
-				field.Addr().Type().Implements(systemFieldType) {
-				return eris.Errorf("field %s must be exported", fieldType.Name)
-			}
-			continue
-		}
-
-		if field.Type().Implements(reflect.TypeFor[systemField]()) {
-			return eris.Errorf("field %s must be declared as a value", fieldType.Name)
-		}
-
-		fieldInstance := field.Addr().Interface()
-
-		cardinalField, ok := fieldInstance.(systemField)
-		if ok {
-			if err := cardinalField.init(&meta); err != nil {
-				return eris.Wrapf(err, "failed to initialize field %s", fieldType.Name)
-			}
-		}
-		// For now we'll ignore other fields in the system state struct.
-	}
-
-	// Register commands to the service.
-	for name := range meta.commands {
-		w.service.registerCommandHandler(name)
-	}
-
-	return nil
-}
-
-type systemInitMetadata struct {
-	world        *World
-	commands     map[string]struct{}
-	events       map[string]struct{}
-	systemEvents map[string]struct{}
-}
-
-type systemField interface {
-	init(meta *systemInitMetadata) error
-}
-
-var _ systemField = (*BaseSystemState)(nil)
-var _ systemField = (*WithCommand[Command])(nil)
-var _ systemField = (*WithEvent[Event])(nil)
-var _ systemField = (*WithSystemEventReceiver[ecs.Component])(nil)
-var _ systemField = (*WithSystemEventEmitter[ecs.Component])(nil)
-var _ systemField = (*search[ecs.Component])(nil)
-var _ systemField = (*Contains[ecs.Component])(nil)
-var _ systemField = (*Exact[ecs.Component])(nil)
-
 // -------------------------------------------------------------------------------------------------
 // Options
 // -------------------------------------------------------------------------------------------------
@@ -230,33 +134,23 @@ func WithHook(hook SystemHook) SystemOption {
 }
 
 // -------------------------------------------------------------------------------------------------
-// Base
+// Tick
 // -------------------------------------------------------------------------------------------------
 
-type BaseSystemState struct {
-	world *World
+// TickHeight returns the height of the tick currently running.
+func (w *World) TickHeight() uint64 {
+	return w.currentTick.height
 }
 
-func (b *BaseSystemState) init(meta *systemInitMetadata) error {
-	b.world = meta.world
-	return nil
+// Timestamp returns the timestamp of the tick currently running.
+func (w *World) Timestamp() time.Time {
+	return w.currentTick.timestamp
 }
 
-// TODO: pass init args (similar to boot info) to get system name in logger.
-// Logger returns the logger for the world.
-func (b *BaseSystemState) Logger() *zerolog.Logger {
-	logger := b.world.tel.GetLogger("system")
+// Logger returns the logger for systems in this world.
+func (w *World) Logger() *zerolog.Logger {
+	logger := w.tel.GetLogger("system")
 	return &logger
-}
-
-// Tick returns the current tick of the world.
-func (b *BaseSystemState) Tick() uint64 {
-	return b.world.currentTick.height
-}
-
-// Timestamp returns the current timestamp of the world.
-func (b *BaseSystemState) Timestamp() time.Time {
-	return b.world.currentTick.timestamp
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -265,42 +159,36 @@ func (b *BaseSystemState) Timestamp() time.Time {
 
 type Command = command.Payload
 
-type WithCommand[T Command] struct {
-	manager *command.Manager
-	id      command.ID
-}
-
-func (c *WithCommand[T]) init(meta *systemInitMetadata) error {
+// RegisterCommand registers a command type before world startup. Registering it again is a no-op.
+// The service accepts a command from clients only once it is registered here.
+func (w *World) RegisterCommand[T Command]() {
 	// No codec check: T is constrained to Command (schema.Serializable), so an ungenerated command —
 	// one missing its generated wire methods — does not satisfy the constraint and fails to compile
 	// here. There is no codec registry to consult.
 	var zero T
 	name := zero.Name()
 
-	if _, ok := meta.commands[name]; ok {
-		return eris.Errorf("systems cannot process multiple commands of the same type: %s", name)
+	if _, err := w.commands.Register(name, command.NewQueue[T]()); err != nil {
+		panic(eris.Wrapf(err, "failed to register command %s", name))
 	}
-
-	id, err := meta.world.commands.Register(name, command.NewQueue[T]())
-	if err != nil {
-		return eris.Wrapf(err, "failed to register command %s", name)
+	if err := w.debug.register(introspect.Command, zero); err != nil {
+		panic(eris.Wrapf(err, "failed to register command to debug module %s", name))
 	}
-
-	if err := meta.world.debug.register(introspect.Command, zero); err != nil {
-		return eris.Wrapf(err, "failed to register command to debug module %s", name)
-	}
-
-	meta.commands[name] = struct{}{} // Add to system commands set for duplicate field check
-
-	c.manager = &meta.world.commands
-	c.id = id
-	return nil
+	w.service.registerCommandHandler(name)
 }
 
-func (c *WithCommand[T]) Iter() iter.Seq[CommandContext[T]] {
+// Commands yields the commands of type T received for the current tick. It panics if T was not
+// registered with RegisterCommand. Like ErrWorldStarted this is a plain panic, not assert.That:
+// registration is explicit, so a missing RegisterCommand is a user error that must also fail in
+// release builds instead of reading another command's queue.
+func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 	var zero T
-	commands, err := c.manager.Get(c.id)
-	assert.That(err == nil, "command not automatically registered %s", zero.Name())
+	id, ok := w.commands.Lookup(zero.Name())
+	if !ok {
+		panic(eris.Errorf("command %s is not registered; call RegisterCommand before StartGame", zero.Name()))
+	}
+	commands, err := w.commands.Get(id)
+	assert.That(err == nil, "command %s has no queue", zero.Name())
 
 	return func(yield func(CommandContext[T]) bool) {
 		for _, cmd := range commands {
@@ -349,19 +237,19 @@ type OtherWorld struct {
 // mutated after this call — a *Command whose fields change before the flush would send the mutated value.
 // A send that fails is not returned (it must not block the tick) but is logged at error level, because a
 // dropped shard-to-shard command is serious.
-func (b *BaseSystemState) SendToShard(to OtherWorld, cmd command.Payload) {
+func (w *World) SendToShard(to OtherWorld, cmd command.Payload) {
 	if to.ShardID == "" {
-		b.Logger().Error().Str("command", cmd.Name()).Msg("SendToShard: empty target shard address, dropping command")
+		w.Logger().Error().Str("command", cmd.Name()).Msg("SendToShard: empty target shard address, dropping command")
 		return
 	}
 	// cmd is a command.Payload, so it carries its generated MarshalWire — no registry check needed; an
 	// ungenerated command wouldn't satisfy the parameter type and wouldn't compile at the call site.
 	serviceAddress := micro.GetAddress(to.Region, micro.RealmWorld, to.Organization, to.Project, to.ShardID)
-	b.world.events.Enqueue(event.Event{
+	w.events.Enqueue(event.Event{
 		Kind: event.KindInterShardCommand,
 		Payload: command.Command{
 			Name:    cmd.Name(),
-			Persona: micro.String(b.world.address),
+			Persona: micro.String(w.address),
 			Address: serviceAddress,
 			Payload: cmd,
 		},
@@ -374,30 +262,33 @@ func (b *BaseSystemState) SendToShard(to OtherWorld, cmd command.Payload) {
 
 type Event = event.Payload
 
-type WithEvent[T Event] struct {
-	manager *event.Manager
-}
-
-func (e *WithEvent[T]) init(meta *systemInitMetadata) error {
+// RegisterEvent registers an event type before world startup so it appears in introspection
+// metadata and can be sent. Registering it again is a no-op.
+func (w *World) RegisterEvent[T Event]() {
 	var zero T
-	name := zero.Name()
-
-	if _, ok := meta.events[name]; ok {
-		return eris.Errorf("systems cannot process multiple events of the same type: %s", name)
+	if err := w.debug.register(introspect.Event, zero); err != nil {
+		panic(eris.Wrapf(err, "failed to register event to debug module %s", zero.Name()))
 	}
-
-	if err := meta.world.debug.register(introspect.Event, zero); err != nil {
-		return eris.Wrapf(err, "failed to register event to debug module %s", name)
+	if w.eventTypes == nil {
+		w.eventTypes = make(map[reflect.Type]struct{})
 	}
-
-	meta.events[name] = struct{}{} // Add to system events set for duplicate field check
-
-	e.manager = &meta.world.events
-	return nil
+	w.eventTypes[reflect.TypeFor[T]()] = struct{}{}
 }
 
-func (e *WithEvent[T]) Broadcast(evt T) {
-	e.manager.Enqueue(event.Event{
+// checkEventRegistered panics if T was not registered with RegisterEvent. It checks the type, not
+// Name(): some events derive their name from instance data (e.g. request-scoped results), so only
+// the type is stable at registration. A plain panic, not assert.That, so it fires in release too.
+func (w *World) checkEventRegistered[T Event]() {
+	if _, ok := w.eventTypes[reflect.TypeFor[T]()]; !ok {
+		panic(eris.Errorf("event %T is not registered; call RegisterEvent before StartGame", *new(T)))
+	}
+}
+
+// Broadcast enqueues an event delivered to every open event stream at the end of the tick. It
+// panics if T was not registered with RegisterEvent.
+func (w *World) Broadcast[T Event](evt T) {
+	w.checkEventRegistered[T]()
+	w.events.Enqueue(event.Event{
 		Kind:    event.KindDefault,
 		Payload: evt,
 	})
@@ -405,14 +296,15 @@ func (e *WithEvent[T]) Broadcast(evt T) {
 
 // SendTo enqueues a targeted event that is delivered only to the named recipient (a user ID),
 // provided they have an open event stream subscribed to this event. If the recipient has no open
-// stream, the event is silently dropped.
+// stream, the event is silently dropped. It panics if T was not registered with RegisterEvent.
 //
 // Example:
 //
-//	state.Results.SendTo(cmdCtx.Persona, Result{OK: true})
-func (e *WithEvent[T]) SendTo(recipient string, evt T) {
+//	w.SendTo(cmd.Persona, Result{OK: true})
+func (w *World) SendTo[T Event](recipient string, evt T) {
 	assert.That(recipient != "", "recipient must not be empty (use Broadcast for fan-out)")
-	e.manager.Enqueue(event.Event{
+	w.checkEventRegistered[T]()
+	w.events.Enqueue(event.Event{
 		Kind:      event.KindDefault,
 		Payload:   evt,
 		Recipient: recipient,
@@ -423,8 +315,8 @@ func (e *WithEvent[T]) SendTo(recipient string, evt T) {
 // System Events
 // -------------------------------------------------------------------------------------------------
 
-// WithSystemEventReceiver is a generic system state field that allows systems to receive system
-// events of type T. System events are automatically registered when the system is registered.
+// RegisterSystemEvent registers a system event type before world startup. System events carry
+// data between systems within one tick. Registering it again is a no-op.
 //
 // Example:
 //
@@ -433,52 +325,34 @@ func (e *WithEvent[T]) SendTo(recipient string, evt T) {
 //
 //	func (PlayerDeath) Name() string { return "player-death" }
 //
-//	type GraveyardSystemState struct {
-//	    PlayerDeathSystemEvents ecs.WithSystemEventReceiver[PlayerDeath]
-//	    // Other fields...
+//	w.RegisterSystemEvent[PlayerDeath]()
+//
+//	// One system emits it.
+//	func (s *CombatSystem) Run(w *cardinal.World) {
+//	    w.EmitSystemEvent(PlayerDeath{Nickname: "Player1"})
 //	}
 //
-//	// Your system function receives a pointer to your system state.
-//	func GraveyardSystem(state *GraveyardSystemState) error {
-//	    // Receive system events emitted from another system.
-//	    for systemEvent := range state.PlayerDeathSystemEvents.Iter() {
+//	// Another system, later in the tick, receives it.
+//	func (s *GraveyardSystem) Run(w *cardinal.World) {
+//	    for death := range w.SystemEvents[PlayerDeath]() {
 //	        // Process the system event.
 //	    }
-//	    return nil
 //	}
-type WithSystemEventReceiver[T ecs.SystemEvent] struct {
-	world *ecs.World
-}
-
-// init initializes the system event state field.
-func (s *WithSystemEventReceiver[T]) init(meta *systemInitMetadata) error {
+func (w *World) RegisterSystemEvent[T ecs.SystemEvent]() {
 	var zero T
-	name := zero.Name()
-
-	if _, ok := meta.systemEvents[name]; ok {
-		return eris.Errorf("systems cannot process multiple system events of the same type: %s", name)
+	if _, err := w.world.RegisterSystemEvent[T](); err != nil {
+		panic(eris.Wrapf(err, "failed to register system event %s", zero.Name()))
 	}
-
-	_, err := meta.world.world.RegisterSystemEvent[T]()
-	if err != nil {
-		return eris.Wrapf(err, "failed to register system event %s", name)
-	}
-	s.world = meta.world.world
-
-	meta.systemEvents[name] = struct{}{} // Add to system's system events set for duplicate field check
-	return nil
 }
 
-// Iter returns an iterator over all system events of type T.
-//
-// Example usage:
-//
-//	for systemEvent := range state.PlayerDeathEvents.Iter() {
-//	    // Process each system event
-//	}
-func (s *WithSystemEventReceiver[T]) Iter() iter.Seq[T] {
-	systemEvents, err := s.world.GetSystemEvents[T]()
-	assert.That(err == nil, "tried to get unregisterd system event")
+// SystemEvents yields the system events of type T emitted so far in the current tick. It panics if
+// T was not registered with RegisterSystemEvent, in release builds too.
+func (w *World) SystemEvents[T ecs.SystemEvent]() iter.Seq[T] {
+	systemEvents, err := w.world.GetSystemEvents[T]()
+	if err != nil {
+		panic(eris.Wrapf(err, "system event %T is not registered; call RegisterSystemEvent before StartGame",
+			*new(T)))
+	}
 
 	return func(yield func(T) bool) {
 		for _, systemEvent := range systemEvents {
@@ -489,125 +363,71 @@ func (s *WithSystemEventReceiver[T]) Iter() iter.Seq[T] {
 	}
 }
 
-// WithSystemEventEmitter is a generic system state field that allows systems to emit system events
-// of type T. System events are automatically registered when the system is registered.
-//
-// Example:
-//
-//	// Define a system event for player deaths.
-//	type PlayerDeath struct{ Nickname string }
-//
-//	func (PlayerDeath) Name() string { return "player-death" }
-//
-//	type CombatSystemState struct {
-//	    PlayerDeathSystemEvents ecs.WithSystemEventEmitter[PlayerDeath]
-//	    // Other fields...
-//	}
-//
-//	// Your system function receives a pointer to your system state.
-//	func CombatSystem(state *CombatSystemState) error {
-//	    // Emit a player death event to be handled in another system.
-//	    state.PlayerDeathEvents.Emit(PlayerDeath{Nickname: "Player1"})
-//	    return nil
-//	}
-type WithSystemEventEmitter[T ecs.SystemEvent] struct {
-	world *ecs.World
-}
-
-// init initializes the system event state field.
-func (s *WithSystemEventEmitter[T]) init(meta *systemInitMetadata) error {
-	var zero T
-	name := zero.Name()
-
-	if _, ok := meta.systemEvents[name]; ok {
-		return eris.Errorf("systems cannot process multiple system events of the same type: %s", name)
+// EmitSystemEvent emits a system event for systems later in the tick. It panics if T was not
+// registered with RegisterSystemEvent, in release builds too: an unregistered emit dropped
+// silently would leave every later SystemEvents reader empty.
+func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
+	if err := w.world.EmitSystemEvent(systemEvent); err != nil {
+		panic(eris.Wrapf(err, "system event %T is not registered; call RegisterSystemEvent before StartGame",
+			systemEvent))
 	}
-
-	_, err := meta.world.world.RegisterSystemEvent[T]()
-	if err != nil {
-		return eris.Wrapf(err, "failed to register system event %s", name)
-	}
-	s.world = meta.world.world
-
-	meta.systemEvents[name] = struct{}{} // Add to system's system events set for duplicate field check
-	return nil
-}
-
-// Emit emits a system event of type T.
-//
-// Example:
-//
-//	state.PlayerDeathEvents.Emit(PlayerDeath{Nickname: "Player1"})
-func (s *WithSystemEventEmitter[T]) Emit(systemEvent T) {
-	err := s.world.EmitSystemEvent(systemEvent)
-	assert.That(err == nil, "tried to emit unregistered system event")
 }
 
 // -------------------------------------------------------------------------------------------------
 // Components
 // -------------------------------------------------------------------------------------------------
 
-// search caches an archetype resolved during system initialization.
-type search[T any] struct {
+// Contains returns a search for entities with every component in T, allowing extras. T is an
+// archetype: a struct whose fields are registered component types. It panics if any component in
+// T was not registered with RegisterComponent.
+func (w *World) Contains[T any]() Search {
+	return w.search[T](ecs.MatchContains)
+}
+
+// Exact returns a search for entities with exactly the components in T. T is an archetype: a
+// struct whose fields are registered component types. It panics if any component in T was not
+// registered with RegisterComponent.
+func (w *World) Exact[T any]() Search {
+	return w.search[T](ecs.MatchExact)
+}
+
+func (w *World) search[T any](match ecs.SearchMatch) Search {
+	components, err := w.archetype[T]()
+	if err != nil {
+		panic(err)
+	}
+	return Search{world: w.world, components: components, match: match}
+}
+
+// Search is a resolved, world-bound query returned by World.Contains and World.Exact.
+// It holds component IDs, not entity data, so it remains valid as entities change.
+type Search struct {
 	world      *ecs.World
 	components bitmap.Bitmap
+	match      ecs.SearchMatch
 }
 
-func (s *search[T]) init(meta *systemInitMetadata) error {
-	components, err := meta.world.archetype[T]()
-	if err != nil {
-		return err
-	}
-	s.world, s.components = meta.world.world, components
-	return nil
-}
-
-func (s *search[T]) getByID(eid EntityID, match ecs.SearchMatch) (Entity, error) {
-	if err := s.world.MatchArchetype(eid, s.components, match); err != nil {
-		return Entity{}, eris.Wrap(err, "failed to get entity")
-	}
-	return Entity{world: s.world, id: eid}, nil
-}
-
-func (s *search[T]) iter(match ecs.SearchMatch) SearchResult {
+// Iter yields each matching entity as a world-bound handle.
+func (q Search) Iter() SearchResult {
 	return func(yield func(Entity) bool) {
-		err := s.world.IterEntities(s.components, match, func(eid EntityID) bool {
-			return yield(Entity{world: s.world, id: eid})
+		err := q.world.IterEntities(q.components, q.match, func(eid EntityID) bool {
+			return yield(Entity{world: q.world, id: eid})
 		})
 		assert.That(err == nil, "invalid arguments sent to IterEntities")
 	}
 }
 
-// Create returns a new entity with the components declared in T, initialized to zero.
-func (s *search[T]) Create() Entity {
-	eid := s.world.CreateWithArchetype(s.components)
-	return Entity{world: s.world, id: eid}
+// GetByID returns a handle if the entity matches the query's archetype.
+func (q Search) GetByID(eid EntityID) (Entity, error) {
+	if err := q.world.MatchArchetype(eid, q.components, q.match); err != nil {
+		return Entity{}, eris.Wrap(err, "failed to get entity")
+	}
+	return Entity{world: q.world, id: eid}, nil
 }
 
-// Contains matches entities with all components declared in T, allowing extras.
-// T is a struct of WithComponent[C] fields whose components are registered with
-// World.RegisterComponent before the world starts.
-type Contains[T any] struct{ search[T] }
-
-// Iter yields each matching entity as a world-bound handle.
-func (c *Contains[T]) Iter() SearchResult { return c.iter(ecs.MatchContains) }
-
-// GetByID returns a handle if the entity contains every declared component.
-func (c *Contains[T]) GetByID(eid EntityID) (Entity, error) {
-	return c.getByID(eid, ecs.MatchContains)
-}
-
-// Exact matches entities with exactly the components declared in T.
-// T is a struct of WithComponent[C] fields whose components are registered with
-// World.RegisterComponent before the world starts.
-type Exact[T any] struct{ search[T] }
-
-// Iter yields each matching entity as a world-bound handle.
-func (c *Exact[T]) Iter() SearchResult { return c.iter(ecs.MatchExact) }
-
-// GetByID returns a handle if the entity has exactly the declared components.
-func (c *Exact[T]) GetByID(eid EntityID) (Entity, error) {
-	return c.getByID(eid, ecs.MatchExact)
+// Create returns a new entity with the query's components, initialized to zero.
+func (q Search) Create() Entity {
+	return Entity{world: q.world, id: q.world.CreateWithArchetype(q.components)}
 }
 
 // -------------------------------------------------------------------------------------------------
