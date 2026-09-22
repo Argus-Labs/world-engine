@@ -198,8 +198,7 @@ func (s *service) registerCommandHandler(name string) {
 // Command handlers
 // -------------------------------------------------------------------------------------------------
 
-// TODO: eventually, we'll probably have more user fields in the command metadata, possibly a User
-// struct field instead of a single persona ID.
+// Client command personas carry the authenticated player ID.
 
 type streamSubscriber struct {
 	ctx    context.Context
@@ -225,14 +224,14 @@ func (s *service) SendCommand(
 	default:
 	}
 
-	user := UserFromContext(ctx)
-	assert.That(user != nil, "user should exist in authenticated request context")
+	player := PlayerFromContext(ctx)
+	assert.That(player != nil, "player should exist in authenticated request context")
 
 	cmd := req.Msg.GetCommand()
 	assert.That(cmd != nil, "command should have been validated")
 	assert.That(cmd.GetPersona() != nil, "command persona should have been validated")
 
-	cmd.Persona.Id = user.ID
+	cmd.Persona.Id = player.ID
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
@@ -249,14 +248,14 @@ func (s *service) SendCommandWithReply(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.SendCommandWithReplyRequest],
 ) (*connect.Response[cardinalv1.SendCommandWithReplyResponse], error) {
-	user := UserFromContext(ctx)
-	assert.That(user != nil, "user should exist in authenticated request context")
+	player := PlayerFromContext(ctx)
+	assert.That(player != nil, "player should exist in authenticated request context")
 
 	cmd := req.Msg.GetCommand()
 	assert.That(cmd != nil, "command should have been validated")
 	assert.That(cmd.GetPersona() != nil, "command persona should have been validated")
 
-	cmd.Persona.Id = user.ID
+	cmd.Persona.Id = player.ID
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
@@ -312,21 +311,21 @@ func (s *service) StartEventStream(
 	req *connect.Request[cardinalv1.StartEventStreamRequest],
 	stream *connect.ServerStream[cardinalv1.StartEventStreamResponse],
 ) error {
-	user := UserFromContext(ctx)
-	assert.That(user != nil, "user should exist in authenticated stream context")
+	player := PlayerFromContext(ctx)
+	assert.That(player != nil, "player should exist in authenticated stream context")
 
-	subscriber, err := s.addSubscriber(ctx, user, stream)
+	subscriber, err := s.addSubscriber(ctx, player, stream)
 	if err != nil {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	defer s.removeSubscriber(user)
+	defer s.removeSubscriber(player)
 
 	for _, subscription := range req.Msg.GetSubscriptions() {
 		if micro.String(s.world.address) != micro.String(subscription.GetAddress()) {
 			return connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 		}
 	}
-	s.subscribeEvents(user, req.Msg.GetSubscriptions())
+	s.subscribeEvents(player, req.Msg.GetSubscriptions())
 
 	if err := subscriber.send(&cardinalv1.StartEventStreamResponse{}); err != nil {
 		return connect.NewError(connect.CodeInternal, eris.Wrap(err, "failed to send initial empty event to client"))
@@ -356,10 +355,10 @@ func (s *service) SubscribeEvents(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.SubscribeEventsRequest],
 ) (*connect.Response[cardinalv1.SubscribeEventsResponse], error) {
-	user := UserFromContext(ctx)
-	assert.That(user != nil, "user should exist in authenticated request context")
+	player := PlayerFromContext(ctx)
+	assert.That(player != nil, "player should exist in authenticated request context")
 
-	if !s.hasSubscriber(user) {
+	if !s.hasSubscriber(player) {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
 	}
 
@@ -368,7 +367,7 @@ func (s *service) SubscribeEvents(
 			return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 		}
 	}
-	s.subscribeEvents(user, req.Msg.GetSubscriptions())
+	s.subscribeEvents(player, req.Msg.GetSubscriptions())
 
 	return connect.NewResponse(&cardinalv1.SubscribeEventsResponse{}), nil
 }
@@ -377,10 +376,10 @@ func (s *service) UnsubscribeEvents(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.UnsubscribeEventsRequest],
 ) (*connect.Response[cardinalv1.UnsubscribeEventsResponse], error) {
-	user := UserFromContext(ctx)
-	assert.That(user != nil, "user should exist in authenticated request context")
+	player := PlayerFromContext(ctx)
+	assert.That(player != nil, "player should exist in authenticated request context")
 
-	if !s.hasSubscriber(user) {
+	if !s.hasSubscriber(player) {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
 	}
 
@@ -389,21 +388,21 @@ func (s *service) UnsubscribeEvents(
 			return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 		}
 	}
-	s.unsubscribeEvents(user, req.Msg.GetSubscriptions())
+	s.unsubscribeEvents(player, req.Msg.GetSubscriptions())
 
 	return connect.NewResponse(&cardinalv1.UnsubscribeEventsResponse{}), nil
 }
 
 func (s *service) addSubscriber(
 	ctx context.Context,
-	user *User,
+	player *Player,
 	stream *connect.ServerStream[cardinalv1.StartEventStreamResponse],
 ) (*streamSubscriber, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, exists := s.subscribers[user.ID]; exists {
-		return nil, eris.Errorf("user %s already has an open stream", user.ID)
+	if _, exists := s.subscribers[player.ID]; exists {
+		return nil, eris.Errorf("player %s already has an open stream", player.ID)
 	}
 
 	subscriber := &streamSubscriber{
@@ -411,22 +410,22 @@ func (s *service) addSubscriber(
 		stream: stream,
 		events: make(map[string]struct{}),
 	}
-	s.subscribers[user.ID] = subscriber
+	s.subscribers[player.ID] = subscriber
 	return subscriber, nil
 }
 
-func (s *service) removeSubscriber(user *User) {
+func (s *service) removeSubscriber(player *Player) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	delete(s.subscribers, user.ID)
+	delete(s.subscribers, player.ID)
 }
 
-func (s *service) subscribeEvents(user *User, subscriptions []*cardinalv1.EventSubscription) {
+func (s *service) subscribeEvents(player *Player, subscriptions []*cardinalv1.EventSubscription) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	subscriber := s.subscribers[user.ID]
+	subscriber := s.subscribers[player.ID]
 	assert.That(subscriber != nil, "subscriber should exist for authenticated stream")
 
 	for _, subscription := range subscriptions {
@@ -436,11 +435,11 @@ func (s *service) subscribeEvents(user *User, subscriptions []*cardinalv1.EventS
 	}
 }
 
-func (s *service) unsubscribeEvents(user *User, subscriptions []*cardinalv1.EventSubscription) {
+func (s *service) unsubscribeEvents(player *Player, subscriptions []*cardinalv1.EventSubscription) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	subscriber := s.subscribers[user.ID]
+	subscriber := s.subscribers[player.ID]
 	assert.That(subscriber != nil, "subscriber should exist for authenticated stream")
 
 	for _, subscription := range subscriptions {
@@ -450,11 +449,11 @@ func (s *service) unsubscribeEvents(user *User, subscriptions []*cardinalv1.Even
 	}
 }
 
-func (s *service) hasSubscriber(user *User) bool {
+func (s *service) hasSubscriber(player *Player) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	_, ok := s.subscribers[user.ID]
+	_, ok := s.subscribers[player.ID]
 	return ok
 }
 
@@ -615,12 +614,9 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 // Authentication
 // -------------------------------------------------------------------------------------------------
 
-type User struct {
-	jwt.RegisteredClaims
-
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+// Player is the authenticated gameplay identity supplied to Cardinal handlers.
+type Player struct {
+	ID string
 }
 
 // AuthMode selects the authentication mode for the client-facing ConnectRPC service.
@@ -666,16 +662,16 @@ func ParseAuthMode(s string) (AuthMode, error) {
 	}
 }
 
-func UserFromContext(ctx context.Context) *User {
+func PlayerFromContext(ctx context.Context) *Player {
 	info := authn.GetInfo(ctx)
 	if info == nil {
 		return nil
 	}
-	user, ok := info.(*User)
+	player, ok := info.(*Player)
 	if !ok {
 		return nil
 	}
-	return user
+	return player
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -683,13 +679,15 @@ func UserFromContext(ctx context.Context) *User {
 // -------------------------------------------------------------------------------------------------
 
 type authenticatorArgus struct {
+	issuer  string
 	keyfunc keyfunc.Keyfunc
 }
 
 func newAuthenticatorArgus(argusAuthURL string) (*authenticatorArgus, error) {
 	assert.That(argusAuthURL != "", "Should've validated the URL")
 
-	jwksURL := argusAuthURL + "/auth/jwks"
+	issuer := strings.TrimRight(argusAuthURL, "/") + "/auth"
+	jwksURL := issuer + "/jwks"
 	client := &http.Client{
 		Timeout: 3 * time.Second,
 	}
@@ -719,7 +717,12 @@ func newAuthenticatorArgus(argusAuthURL string) (*authenticatorArgus, error) {
 		return nil, eris.Wrap(err, "failed to create keyfunc")
 	}
 
-	return &authenticatorArgus{keyfunc: keyfn}, nil
+	return &authenticatorArgus{issuer: issuer, keyfunc: keyfn}, nil
+}
+
+type gameTokenClaims struct {
+	jwt.RegisteredClaims
+	TokenUse string `json:"token_use"`
 }
 
 func (a *authenticatorArgus) authenticate(_ context.Context, req *http.Request) (any, error) {
@@ -728,21 +731,29 @@ func (a *authenticatorArgus) authenticate(_ context.Context, req *http.Request) 
 		return nil, authn.Errorf("Authorization header must be in format: 'Bearer <JWT>'")
 	}
 
-	user := &User{}
-	token, err := jwt.ParseWithClaims(jwtString, user, a.keyfunc.Keyfunc)
+	claims := &gameTokenClaims{}
+	token, err := jwt.ParseWithClaims(
+		jwtString,
+		claims,
+		a.keyfunc.Keyfunc,
+		jwt.WithValidMethods([]string{jwt.SigningMethodEdDSA.Alg()}),
+		jwt.WithIssuer(a.issuer),
+		jwt.WithExpirationRequired(),
+	)
 	if err != nil {
-		return nil, eris.Wrap(err, "JWT parse error")
+		return nil, authn.Errorf("invalid JWT: %v", err)
 	}
 	if !token.Valid {
-		return nil, eris.New("JWT token is invalid")
+		return nil, authn.Errorf("JWT token is invalid")
+	}
+	if claims.TokenUse != "game" {
+		return nil, authn.Errorf("JWT token_use must be game")
+	}
+	if strings.TrimSpace(claims.Subject) == "" {
+		return nil, authn.Errorf("JWT subject is required")
 	}
 
-	// TODO: Remove this comment once persona ID is removed from the JWT.
-	// if u.PersonaID == "" {
-	// 	return nil, authn.Errorf("JWT token is missing persona ID")
-	// }
-
-	return user, nil
+	return &Player{ID: claims.Subject}, nil
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -752,10 +763,10 @@ func (a *authenticatorArgus) authenticate(_ context.Context, req *http.Request) 
 type authenticatorDev struct{}
 
 func (a authenticatorDev) authenticate(_ context.Context, req *http.Request) (any, error) {
-	email := strings.TrimSpace(req.Header.Get("X-Email"))
-	if email == "" {
-		return nil, authn.Errorf("X-Email header is required")
+	playerID := strings.TrimSpace(req.Header.Get("X-Player-ID"))
+	if playerID == "" {
+		return nil, authn.Errorf("X-Player-ID header is required")
 	}
 
-	return &User{ID: email, Email: email}, nil
+	return &Player{ID: playerID}, nil
 }

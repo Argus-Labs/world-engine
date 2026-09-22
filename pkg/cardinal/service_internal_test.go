@@ -269,5 +269,5 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool
 }
 
 func serviceTestContext(userID string) context.Context {
-	return authn.SetInfo(context.Background(), &User{ID: userID})
+	return authn.SetInfo(context.Background(), &Player{ID: userID})
 }
