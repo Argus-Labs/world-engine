@@ -744,13 +744,13 @@ func TestResolvePresetRejectsMisconfigured(t *testing.T) {
 	assert.Equal(t, "unknown preset: missing", errMsg)
 }
 
-// SetConfig panics rather than returning an error because World.RegisterPlugin has no error path:
+// NewRuntime panics rather than returning an error because World.RegisterPlugin has no error path:
 // a bad preset has to stop the boot, or it silently rejects every CreateLobbyCommand instead.
-func TestSetConfigPanicsOnUnusablePreset(t *testing.T) {
+func TestNewRuntimePanicsOnUnusablePreset(t *testing.T) {
 	assert.PanicsWithValue(t,
 		"unusable lobby presets:\n  \"broken\": teams allow 32 players in total, more than the 16 a lobby can hold",
 		func() {
-			SetConfig(Config{}, map[string][]component.TeamConfig{
+			NewRuntime(Config{}, nil, map[string][]component.TeamConfig{
 				"broken": {{TeamID: "red", MaxPlayers: 16}, {TeamID: "blue", MaxPlayers: 16}},
 			})
 		})
@@ -779,7 +779,7 @@ func TestConfig_AssignmentFields(t *testing.T) {
 
 // Every bad preset is reported at once and in a stable order: map iteration is random, so reporting
 // only the first would make an operator with two mistakes fix one and hit the other on redeploy.
-func TestSetConfigReportsEveryUnusablePreset(t *testing.T) {
+func TestNewRuntimeReportsEveryUnusablePreset(t *testing.T) {
 	defer func() {
 		r := recover()
 		require.NotNil(t, r)
@@ -788,7 +788,7 @@ func TestSetConfigReportsEveryUnusablePreset(t *testing.T) {
 			`  "z_bad": duplicate team id red`,
 			r)
 	}()
-	SetConfig(Config{}, map[string][]component.TeamConfig{
+	NewRuntime(Config{}, nil, map[string][]component.TeamConfig{
 		"z_bad": {{TeamID: "red", MaxPlayers: 2}, {TeamID: "red", MaxPlayers: 2}},
 		"a_bad": {},
 		"fine":  {{TeamID: "default", MaxPlayers: 4}},
@@ -831,20 +831,4 @@ func TestFindTargetTeamRejectsPhantomTeam(t *testing.T) {
 	// And the zero entry is not reachable by name either.
 	assert.Nil(t, lobby.GetTeam(""))
 	assert.False(t, lobby.AddPlayerToTeam("p2", ""))
-}
-
-// A second Register means a second world in this process; it must not inherit the first world's
-// entity IDs through the latched rebuild flag.
-func TestSetConfigResetsIndexForANewWorld(t *testing.T) {
-	rebuildIndex(
-		[]lobbyRow{{entityID: 7, lobby: component.LobbyComponent{ID: "old", InviteCode: "OLD123"}}},
-		nil, 0, 30,
-	)
-	require.True(t, indexBuilt)
-
-	SetConfig(Config{}, map[string][]component.TeamConfig{"ok": {{TeamID: "default", MaxPlayers: 4}}})
-
-	assert.False(t, indexBuilt)
-	_, found := index.GetEntityID("old")
-	assert.False(t, found)
 }

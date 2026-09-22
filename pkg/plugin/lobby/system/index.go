@@ -37,27 +37,6 @@ type lookupIndex struct {
 	LobbyPlayerCount map[string]int
 }
 
-// index is the live lookup table for this process.
-//
-//nolint:gochecknoglobals // derived state owned by this package; cardinal has no per-world store
-var index lookupIndex
-
-// indexBuilt guards the rebuild: set by rebuildIndex, cleared by InitSystem, which runs both on
-// boot and inside World.reset().
-//
-//nolint:gochecknoglobals // see index
-var indexBuilt bool
-
-// resetIndex discards the index so the next tick rebuilds it from the world's own entities.
-//
-// Called at registration, which is the only point that reliably marks a new world in this process.
-// InitSystem clears indexBuilt for World.reset(); this covers the other case, a second world built
-// in the same process, where the latched flag would hand world two the entity IDs of world one.
-func resetIndex() {
-	index = lookupIndex{}
-	indexBuilt = false
-}
-
 // lobbyRow and playerRow carry an entity and its component to the rebuild, so the rebuild does not
 // have to be written once per system state type.
 type lobbyRow struct {
@@ -80,8 +59,9 @@ type playerRow struct {
 // Deadlines are reset to now+timeout rather than carried over, because a deadline measures client
 // liveness and clients cannot heartbeat while the process is down. Restoring the stored value would
 // evict every player in every lobby after any outage longer than the timeout.
-func rebuildIndex(lobbies []lobbyRow, players []playerRow, now, heartbeatTimeout int64) {
-	index = lookupIndex{}
+func (runtime *Runtime) rebuildIndex(lobbies []lobbyRow, players []playerRow, now, heartbeatTimeout int64) {
+	runtime.index = lookupIndex{}
+	index := &runtime.index
 	index.Init()
 
 	for _, row := range lobbies {
@@ -96,7 +76,7 @@ func rebuildIndex(lobbies []lobbyRow, players []playerRow, now, heartbeatTimeout
 			now+heartbeatTimeout,
 		)
 	}
-	indexBuilt = true
+	runtime.indexBuilt = true
 }
 
 // Init initializes the maps if nil.

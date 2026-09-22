@@ -153,9 +153,11 @@ type Config struct {
 	LobbyPresets map[string][]TeamConfig
 }
 
-// Plugin implements cardinal.Plugin for the lobby system.
+// Plugin owns the configuration and derived lookup index for one Cardinal world.
+// Create a separate instance for each world.
 type Plugin struct {
-	config Config
+	config  Config
+	runtime *system.Runtime
 }
 
 var _ cardinal.Plugin = (*Plugin)(nil)
@@ -165,27 +167,87 @@ func NewPlugin(config Config) *Plugin {
 	return &Plugin{config: config}
 }
 
-// Register implements cardinal.Plugin.
+// Register implements cardinal.Plugin. Each plugin instance belongs to one world.
+// Registering the same instance twice panics.
 func (p *Plugin) Register(w *cardinal.World) {
-	system.SetConfig(system.Config{
+	if p.runtime != nil {
+		panic("lobby: Plugin.Register called twice on the same instance; create a separate plugin instance per world")
+	}
+	runtime := system.NewRuntime(system.Config{
 		LobbyWorld:           component.ShardAddress(p.config.LobbyWorld),
 		HeartbeatTimeout:     p.config.HeartbeatTimeout,
 		AssignmentAuthority:  p.config.AssignmentAuthority,
 		MaxAllocationTimeout: p.config.MaxAllocationTimeout,
-	}, p.config.LobbyPresets)
-
-	// Store provider
-	system.SetProvider(p.config.Provider)
+	}, p.config.Provider, p.config.LobbyPresets)
 
 	w.RegisterComponent[component.LobbyComponent]()
 	w.RegisterComponent[component.PlayerComponent]()
 
+	registerCommandsAndEvents(w)
+
 	// Register init system (runs once during world initialization)
-	w.RegisterSystem(system.InitSystem, cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(system.NewInitSystem(runtime), cardinal.WithHook(cardinal.Init))
 
 	// Register lobby system (runs every tick)
-	w.RegisterSystem(system.LobbySystem)
+	w.RegisterSystem(system.NewLobbySystem(runtime))
 
 	// Register heartbeat system (runs every tick)
-	w.RegisterSystem(system.HeartbeatSystem)
+	w.RegisterSystem(system.NewHeartbeatSystem(runtime))
+	p.runtime = runtime
+}
+
+// registerCommandsAndEvents registers every command the lobby systems read and every event they
+// send. Using an unregistered one panics at runtime.
+func registerCommandsAndEvents(w *cardinal.World) {
+	// Commands read by LobbySystem and HeartbeatSystem.
+	w.RegisterCommand[system.CreateLobbyCommand]()
+	w.RegisterCommand[system.JoinLobbyCommand]()
+	w.RegisterCommand[system.JoinTeamCommand]()
+	w.RegisterCommand[system.LeaveLobbyCommand]()
+	w.RegisterCommand[system.SetReadyCommand]()
+	w.RegisterCommand[system.KickPlayerCommand]()
+	w.RegisterCommand[system.TransferLeaderCommand]()
+	w.RegisterCommand[system.StartSessionCommand]()
+	w.RegisterCommand[system.NotifySessionEndCommand]()
+	w.RegisterCommand[system.AssignShardCommand]()
+	w.RegisterCommand[system.GenerateInviteCodeCommand]()
+	w.RegisterCommand[system.UpdateSessionPassthroughCommand]()
+	w.RegisterCommand[system.UpdatePlayerPassthroughCommand]()
+	w.RegisterCommand[system.GetPlayerCommand]()
+	w.RegisterCommand[system.GetAllPlayersCommand]()
+	w.RegisterCommand[system.GetLobbyCommand]()
+	w.RegisterCommand[system.HeartbeatCommand]()
+
+	// Events (Broadcast).
+	w.RegisterEvent[system.LobbyCreatedEvent]()
+	w.RegisterEvent[system.PlayerJoinedEvent]()
+	w.RegisterEvent[system.PlayerLeftEvent]()
+	w.RegisterEvent[system.PlayerKickedEvent]()
+	w.RegisterEvent[system.PlayerReadyEvent]()
+	w.RegisterEvent[system.PlayerChangedTeamEvent]()
+	w.RegisterEvent[system.LeaderChangedEvent]()
+	w.RegisterEvent[system.SessionStartedEvent]()
+	w.RegisterEvent[system.SessionAwaitingAllocationEvent]()
+	w.RegisterEvent[system.SessionEndedEvent]()
+	w.RegisterEvent[system.InviteCodeGeneratedEvent]()
+	w.RegisterEvent[system.LobbyDeletedEvent]()
+	w.RegisterEvent[system.PlayerTimedOutEvent]()
+	w.RegisterEvent[system.SessionPassthroughUpdatedEvent]()
+	w.RegisterEvent[system.PlayerPassthroughUpdatedEvent]()
+
+	// CommandResult (request-prefixed responses).
+	w.RegisterEvent[system.CreateLobbyResult]()
+	w.RegisterEvent[system.JoinLobbyResult]()
+	w.RegisterEvent[system.JoinTeamResult]()
+	w.RegisterEvent[system.LeaveLobbyResult]()
+	w.RegisterEvent[system.SetReadyResult]()
+	w.RegisterEvent[system.KickPlayerResult]()
+	w.RegisterEvent[system.TransferLeaderResult]()
+	w.RegisterEvent[system.StartSessionResult]()
+	w.RegisterEvent[system.GenerateInviteCodeResult]()
+	w.RegisterEvent[system.UpdateSessionPassthroughResult]()
+	w.RegisterEvent[system.UpdatePlayerPassthroughResult]()
+	w.RegisterEvent[system.GetPlayerResult]()
+	w.RegisterEvent[system.GetAllPlayersResult]()
+	w.RegisterEvent[system.GetLobbyResult]()
 }
