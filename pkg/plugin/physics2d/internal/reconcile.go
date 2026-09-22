@@ -122,9 +122,6 @@ func sortedEntriesContainID(sorted []PhysicsRebuildEntry, id cardinal.EntityID) 
 
 // reconcileOneEntry creates a body if missing, no-ops if shadow matches live ECS, else patches the existing body.
 func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
-	if e.PhysicsBody.Shapes.Len() == 0 {
-		return fmt.Errorf("physics2d: entity %d: collider has no shapes", e.EntityID)
-	}
 	prev, hadPrev := rt.Shadow[e.EntityID]
 	_, hadBody := rt.KnownEntities[e.EntityID]
 	if !hadBody {

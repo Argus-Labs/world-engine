@@ -202,7 +202,9 @@ same tick as the first body that uses it, and keep a `Shape` (plain data)
 rather than a ref for shapes you will need later. Sharing still works: put
 the ref the first body got on the others while that body is alive.
 
-To disable a body, set `Active = false`. Do not remove `Transform2D` or
+A body needs at least one shape. Emptying the list does not clear its
+fixtures: the update is invalid, logged every tick, and the body keeps what it
+had. To disable a body, set `Active = false`. Do not remove `Transform2D` or
 `Velocity2D` to take it out of the simulation: those are where the plugin
 writes the body's position and velocity back each tick, so an entity missing
 either is not a physics body at all. A body that keeps its `PhysicsBody2D`
