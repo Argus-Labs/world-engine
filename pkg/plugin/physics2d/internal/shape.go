@@ -251,7 +251,6 @@ func (rt *Runtime) mirrorShape(id cardinal.EntityID, shape ResolvedShape) {
 	prev, known := rt.ShapeMirror[id]
 	if !known {
 		rt.ShapeMirror[id] = shape
-		rt.shapeSweepScratch = append(rt.shapeSweepScratch, id)
 		return
 	}
 	// Spelled out rather than prev.Equal(shape): ResolvedShape is 304 bytes and Equal is over

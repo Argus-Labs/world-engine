@@ -62,22 +62,12 @@ type Runtime struct {
 	// Bodies whose slots reference one are re-diffed once; cleared by the next SyncShapes.
 	dirtyShapes map[cardinal.EntityID]shapeChange
 
-	// declaredSlots is the slot list each body entity holds: what ECS names, attached or not,
-	// plus what its live fixtures were built from while an update is failing. shapeRefs
-	// counts, per shape entity, how many of those lists name it. Maintained by
-	// noteDeclared / forgetDeclared; see shape_sweep.go.
-	declaredSlots map[cardinal.EntityID]immutable.Slice[component.ShapeRef]
-	shapeRefs     map[cardinal.EntityID]int
-
-	// shapeRefsStale is set when a pass returned before it could refresh the reference counts,
-	// which only the duplicate-entity guards do. The counts then describe last tick, so the
-	// sweep sits out rather than destroying a shape a body still names; the queue is kept and
-	// the next good pass sweeps it.
-	shapeRefsStale bool
-
-	// shapeSweepScratch queues sweep candidates: shape ids that lost their last reference or
-	// were first seen this tick. Ids only.
-	shapeSweepScratch []cardinal.EntityID
+	// sweepUsedScratch, sweepGatheredScratch and sweepUnusedScratch back SweepUnusedShapes:
+	// the shapes named this tick, the bodies the gather covered, and the ids to destroy. Ids
+	// only, cleared per sweep; see shape_sweep.go.
+	sweepUsedScratch     map[cardinal.EntityID]struct{}
+	sweepGatheredScratch map[cardinal.EntityID]struct{}
+	sweepUnusedScratch   []cardinal.EntityID
 
 	// resolvedScratch holds one body's resolved slots between validation and attach, so each
 	// slot is looked up once. Valid only within one call.
@@ -245,8 +235,6 @@ func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps, workers int) 
 		Chains:               make(map[cardinal.EntityID][]ChainSlot),
 		ShapeMirror:          make(map[cardinal.EntityID]ResolvedShape),
 		dirtyShapes:          make(map[cardinal.EntityID]shapeChange),
-		declaredSlots:        make(map[cardinal.EntityID]immutable.Slice[component.ShapeRef]),
-		shapeRefs:            make(map[cardinal.EntityID]int),
 		KnownEntities:        make(map[cardinal.EntityID]struct{}),
 		Shadow:               make(map[cardinal.EntityID]ShadowState),
 		BufferedContacts:     make([]BufferedContactEvent, 0),
@@ -268,9 +256,9 @@ func (rt *Runtime) Reset() {
 	rt.Chains = make(map[cardinal.EntityID][]ChainSlot)
 	rt.ShapeMirror = make(map[cardinal.EntityID]ResolvedShape)
 	rt.dirtyShapes = make(map[cardinal.EntityID]shapeChange)
-	rt.declaredSlots = make(map[cardinal.EntityID]immutable.Slice[component.ShapeRef])
-	rt.shapeRefs = make(map[cardinal.EntityID]int)
-	rt.shapeSweepScratch = nil
+	rt.sweepUsedScratch = nil
+	rt.sweepGatheredScratch = nil
+	rt.sweepUnusedScratch = nil
 	rt.resolvedScratch = nil
 	rt.KnownEntities = make(map[cardinal.EntityID]struct{})
 	rt.Shadow = make(map[cardinal.EntityID]ShadowState)

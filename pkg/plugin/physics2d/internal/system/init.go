@@ -35,6 +35,13 @@ func gatherRebuildEntries(dst []internal.PhysicsRebuildEntry,
 	return entries
 }
 
+// shapeHolderRow matches every entity carrying PhysicsBody2D, complete physics row or not.
+// The shape sweep reads it for the entities the physics gather missed: a body that dropped
+// Transform2D or Velocity2D still names its shapes in this component.
+type shapeHolderRow struct {
+	PhysicsBody cardinal.WithComponent[physicscomp.PhysicsBody2D]
+}
+
 // physicsSingletonSearch is the Exact query for the plugin singleton (ActiveContacts).
 type physicsSingletonSearch = cardinal.Exact[struct {
 	Tag            cardinal.WithComponent[physicscomp.PhysicsSingletonTag]
@@ -45,6 +52,7 @@ type physicsSingletonSearch = cardinal.Exact[struct {
 type InitPhysicsSystemState struct {
 	cardinal.BaseSystemState
 	Bodies    cardinal.Contains[physicsBodyRow]
+	Holders   cardinal.Contains[shapeHolderRow]
 	Circles   cardinal.Contains[circleShapeRow]
 	Boxes     cardinal.Contains[boxShapeRow]
 	Polygons  cardinal.Contains[polygonShapeRow]
@@ -68,14 +76,13 @@ func NewInitPhysicsSystem(rt *internal.Runtime) func(*InitPhysicsSystemState) {
 
 		entries := rt.KeepRebuildEntriesScratch(
 			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
-		// Absent from the gather above is not the same as gone: an entity holding a
-		// PhysicsBody2D without the rest still names its shapes. See rebuildShapeRefs.
-		stillHoldsBody := func(id cardinal.EntityID) bool {
-			return state.Entity(id).Has[physicscomp.PhysicsBody2D]()
-		}
-		if err := rt.FullRebuildFromECS(rt.Gravity, entries, stillHoldsBody); err != nil {
+		if err := rt.FullRebuildFromECS(rt.Gravity, entries); err != nil {
 			panic(eris.Wrap(err, "physics2d: FullRebuildFromECS failed"))
 		}
+		// The sweep keeps no state, so it runs here as it does every tick: a shape no body
+		// names at init is gone before the first tick, not one tick later.
+		rt.SweepUnusedShapes(entries, state.Holders.Iter(),
+			func(id cardinal.EntityID) bool { return state.Entity(id).Destroy() })
 	}
 }
 

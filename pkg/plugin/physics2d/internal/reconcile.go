@@ -35,9 +35,7 @@ import (
 // absent from entries are removed from the runtime (body destroyed, shadow dropped).
 //
 // ReconcileFromECS does not touch SuppressContactsStep or Emitter; it does not step the world.
-func (rt *Runtime) ReconcileFromECS(
-	entries []PhysicsRebuildEntry, stillHoldsBody func(cardinal.EntityID) bool,
-) error {
+func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 	if rt.World == nil {
 		return errors.New("physics2d: reconcile requires a live world (run FullRebuildFromECS first)")
 	}
@@ -46,33 +44,19 @@ func (rt *Runtime) ReconcileFromECS(
 	if err != nil {
 		return err
 	}
-	rt.shapeRefsStale = false
-	rt.destroyOrphanBodies(sorted, stillHoldsBody)
-	// One failing entity must not skip the rest. Two things break if it does: a shape edited
-	// this tick loses its dirty mark before the bodies past the failure ever see it (the next
-	// SyncShapes clears the map and the mirror already matches the component, so nothing
-	// re-marks it, and Box2D keeps the old material for good), and a body past the failure
-	// never re-references a shape whose last other reference just went away, so the sweep
-	// deletes it. Each entity's failure path already leaves that entity in a clean state.
+	rt.destroyOrphanBodies(sorted)
+	// One failing entity must not skip the rest: a shape edited this tick would lose its
+	// dirty mark before the bodies past the failure ever saw it (the next SyncShapes clears
+	// the map and the mirror already matches the component, so nothing re-marks it, and Box2D
+	// keeps the old material for good). Each entity's failure path already leaves that entity
+	// in a clean state.
 	var errs []error
 	for _, e := range sorted {
 		if err := rt.reconcileOneEntry(e); err != nil {
 			errs = append(errs, err)
 		}
-		rt.noteDeclared(e.EntityID, rt.heldShapes(e))
 	}
 	return errors.Join(errs...)
-}
-
-// heldShapes is the list that keeps a body's shapes alive: what ECS names, plus what its
-// fixtures were built from (the shadow) when an update failed and left them on an older
-// list. The two agree whenever the body is up to date, so the join costs only on failure.
-func (rt *Runtime) heldShapes(e PhysicsRebuildEntry) immutable.Slice[component.ShapeRef] {
-	prev, alive := rt.Shadow[e.EntityID]
-	if !alive || immutable.Equal(prev.PhysicsBody.Shapes, e.PhysicsBody.Shapes) {
-		return e.PhysicsBody.Shapes
-	}
-	return immutable.Concat(prev.PhysicsBody.Shapes, e.PhysicsBody.Shapes)
 }
 
 // cloneSortAndCheckDuplicateReconcileEntries returns entries sorted by EntityID or an error if
@@ -91,7 +75,6 @@ func (rt *Runtime) cloneSortAndCheckDuplicateReconcileEntries(
 	})
 	for i := 1; i < len(sorted); i++ {
 		if sorted[i].EntityID == sorted[i-1].EntityID {
-			rt.shapeRefsStale = true
 			return nil, fmt.Errorf("physics2d: duplicate entity_id %d in reconcile entries", sorted[i].EntityID)
 		}
 	}
@@ -99,11 +82,9 @@ func (rt *Runtime) cloneSortAndCheckDuplicateReconcileEntries(
 }
 
 // destroyOrphanBodies removes bodies (and shadow/active-contact rows) for entities not present
-// in sorted, and releases the shape references of every entity that left ECS. Membership uses
-// binary search on the EntityID-sorted entries, avoiding a per-tick set allocation.
-func (rt *Runtime) destroyOrphanBodies(
-	sorted []PhysicsRebuildEntry, stillHoldsBody func(cardinal.EntityID) bool,
-) {
+// in sorted. Membership uses binary search on the EntityID-sorted entries, avoiding a per-tick
+// set allocation. Shape lifetime is not touched here: the sweep reads what is named afterwards.
+func (rt *Runtime) destroyOrphanBodies(sorted []PhysicsRebuildEntry) {
 	var orphans []cardinal.EntityID
 	for id := range rt.KnownEntities {
 		if !sortedEntriesContainID(sorted, id) {
@@ -116,21 +97,6 @@ func (rt *Runtime) destroyOrphanBodies(
 		delete(rt.KnownEntities, id)
 		delete(rt.Shadow, id)
 		rt.PruneActiveContactsInvolvingEntity(id)
-	}
-	// Shape references are released here rather than in the loop above, because they are not
-	// keyed on the same set. A body whose attach failed is no longer a known entity but still
-	// declares its slots, so if it then leaves ECS this scan is the only thing that frees them.
-	// Absent from the gather is not the same as gone. An entity that keeps its PhysicsBody2D
-	// while dropping Transform2D or Velocity2D still names its shapes in that component, and
-	// releasing them would let the ids be reused under refs it is still holding. Ask before
-	// releasing; only entities that no longer hold a body component let go. The check runs per
-	// departed id, which is normally none, rather than per body.
-	// Order does not matter: SweepUnusedShapes sorts what this queues.
-	for id := range rt.declaredSlots {
-		if sortedEntriesContainID(sorted, id) || stillHoldsBody(id) {
-			continue
-		}
-		rt.forgetDeclared(id)
 	}
 }
 

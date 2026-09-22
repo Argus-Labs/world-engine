@@ -13,6 +13,7 @@ import (
 type PhysicsPipelineSystemState struct {
 	cardinal.BaseSystemState
 	Bodies       cardinal.Contains[physicsBodyRow]
+	Holders      cardinal.Contains[shapeHolderRow]
 	Circles      cardinal.Contains[circleShapeRow]
 	Boxes        cardinal.Contains[boxShapeRow]
 	Polygons     cardinal.Contains[polygonShapeRow]
@@ -94,30 +95,23 @@ func NewPhysicsPipelineSystem(rt *internal.Runtime) func(*PhysicsPipelineSystemS
 		entries := rt.KeepRebuildEntriesScratch(
 			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
 
-		// Absent from the gather above is not the same as gone: an entity that keeps its
-		// PhysicsBody2D while dropping Transform2D or Velocity2D still names its shapes.
-		// Asked only about entities that left the gather, which is normally none.
-		stillHoldsBody := func(id cardinal.EntityID) bool {
-			return state.Entity(id).Has[physicscomp.PhysicsBody2D]()
-		}
-
 		// Entity binds any id regardless of the searches' components, so it is the plain
 		// "destroy entity" call the sweep needs.
 		destroyEntity := func(id cardinal.EntityID) bool { return state.Entity(id).Destroy() }
 
 		if !rt.WorldExists() {
-			if err := rt.FullRebuildFromECS(rt.Gravity, entries, stillHoldsBody); err != nil {
+			if err := rt.FullRebuildFromECS(rt.Gravity, entries); err != nil {
 				state.Logger().Error().Err(err).Msg("physics2d: FullRebuildFromECS failed (nil world recovery)")
 			}
-			// A rebuild recounts every reference, so the sweep runs on this path too: a shape
+			// The sweep reads what is named right now, so it runs on this path too: a shape
 			// no rebuilt body names is gone on the rebuild tick, not one tick later.
-			rt.SweepUnusedShapes(destroyEntity)
+			rt.SweepUnusedShapes(entries, state.Holders.Iter(), destroyEntity)
 			return
 		}
-		if err := rt.ReconcileFromECS(entries, stillHoldsBody); err != nil {
+		if err := rt.ReconcileFromECS(entries); err != nil {
 			state.Logger().Error().Err(err).Msg("physics2d: ReconcileFromECS failed")
 		}
-		rt.SweepUnusedShapes(destroyEntity)
+		rt.SweepUnusedShapes(entries, state.Holders.Iter(), destroyEntity)
 
 		// --- 2. Step + flush contacts ---
 		acRef, singletonFound := loadContactBaseline(rt, state)
