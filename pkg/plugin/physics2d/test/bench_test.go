@@ -21,7 +21,9 @@ import (
 // (0 = serial); results are byte-identical for every value, so it is a throughput knob only.
 func benchWorld(b *testing.B, gravity physics.Vec2, workers int) (*cardinal.World, *physics.Plugin) {
 	b.Helper()
-	debug := true
+	// Debug off: with it on, Cardinal encodes the whole world every tick for the debug
+	// service, and the harness tag's JSON MarshalWire then dominates both time and allocs.
+	debug := false
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
 		Region:              "local",
 		Organization:        "bench",
