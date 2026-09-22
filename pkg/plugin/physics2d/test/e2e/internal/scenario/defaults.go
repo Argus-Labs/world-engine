@@ -147,9 +147,11 @@ func checkJSONDefaults(c *harness.Ctx) {
 	c.True("json: explicit Bullet=true is preserved", explicit.Bullet, "got false")
 	c.True("json: explicit FixedRotation=true is preserved", explicit.FixedRotation, "got false")
 
-	// Full round-trip through the component's own wire encoding.
-	original := physcomp.NewPhysicsBody2D(physics.BodyTypeKinematic,
-		physcomp.Ref(7).At(vec(1.5, -2), 0.25))
+	// Full round-trip through the component's own wire encoding. The filter and tag live on
+	// the slot, so they are checked here and not on ShapeCommon below.
+	slot := physcomp.Ref(7).At(vec(1.5, -2), 0.25).Filter(0x0F, 0xF0).Group(-3)
+	slot.Tag = "hull"
+	original := physcomp.NewPhysicsBody2D(physics.BodyTypeKinematic, slot)
 	original.Bullet = true
 	original.FixedRotation = true
 	original.Active = false
@@ -195,9 +197,14 @@ func checkJSONDefaults(c *harness.Ctx) {
 		"got %d, want %d", g.Shape, o.Shape)
 	c.NearVec("wire round-trip preserves LocalOffset", g.LocalOffset, o.LocalOffset, 0)
 	c.Near("wire round-trip preserves LocalRotation", g.LocalRotation, o.LocalRotation, 0)
+	c.True("wire round-trip preserves the slot's filter bits",
+		g.CategoryBits == o.CategoryBits && g.MaskBits == o.MaskBits,
+		"got %#x/%#x, want %#x/%#x", g.CategoryBits, g.MaskBits, o.CategoryBits, o.MaskBits)
+	c.Int("wire round-trip preserves GroupIndex", int(g.GroupIndex), int(o.GroupIndex))
+	c.Str("wire round-trip preserves Tag", g.Tag, o.Tag)
 
 	// The shape entity's own components round-trip separately.
-	common := withFilter(withRestitution(withFriction(circle(1.25), 0.7), 0.4), 0x0F, 0xF0, -3).Common
+	common := withRestitution(withFriction(circle(1.25), 0.7), 0.4).Common
 	commonAny, err := physcomp.ShapeCommon{}.UnmarshalWire(common.MarshalWire())
 	if c.NoError("wire: ShapeCommon.UnmarshalWire succeeds", err) {
 		gotCommon, isCommon := commonAny.(physcomp.ShapeCommon)

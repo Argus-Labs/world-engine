@@ -114,11 +114,13 @@ geometry, material and sensor flag, you get a ref to that shape instead of a
 new entity. The filter is on the ref, so bodies that collide differently
 still share one shape. A fire system that spawns `Circle(0.1)` per bullet ends up with one
 shape behind every bullet, no bookkeeping needed. Equality is exact, so
-build repeated definitions from the same constants.
+build repeated definitions from the same constants. Each `Spawn` scans the
+live shapes (about 80 ns per shape of the same material), so it is cheap for
+a few calls a tick and not for hundreds.
 
 `Spawn` returns `(ShapeRef, error)`. A shape Box2D could never build — a
 radius of zero or less, a box with a zero extent, a polygon outside 3..8
-vertices, a chain under four points, a chain marked as a sensor, an edge or
+vertices or with all its points on one line, a chain under four points, a chain marked as a sensor, an edge or
 capsule whose endpoints meet, any NaN — creates nothing and tells you why, at the line that built
 it, instead of becoming a shape entity that fails to attach on every tick from
 then on. Chain `At(offset, rotation)` onto the ref to place it, and reuse the
@@ -184,11 +186,11 @@ bigger, err := state.Shapes.Fork(ref, func(s physics2d.Shape) physics2d.Shape {
 })
 ```
 
-The next tick, a ref whose new shape has the same geometry gets its fixture
-updated in place (material, filter), and one whose geometry differs gets its
-fixture rebuilt. Pointing a ref at a different shape entity behaves the same
-way. A ref whose shape entity is missing fails that body's reconcile loudly
-(logged, no fixtures). Shape entities are ordinary ECS state and snapshot with
+The next tick, a ref whose new shape has the same geometry and sensor flag
+gets its fixture updated in place (material, filter). Any other difference
+rebuilds it: Box2D cannot toggle a live fixture's sensor flag. Pointing a ref
+at a different shape entity behaves the same way. A ref whose shape entity is
+missing fails that body's reconcile loudly (logged, no fixtures). Shape entities are ordinary ECS state and snapshot with
 everything else.
 
 The one bypass left is Cardinal's own entity handle: `state.Entity(ref.Shape).Destroy()`
@@ -257,11 +259,12 @@ i   := body.ShapeIndex("hull")                // the index events and queries re
 tag := body.ShapeTag(ev.ShapeIndexA)          // and back; "" when untagged
 ```
 
-`ReplaceShape` keeps the shape's index, so a same-geometry replacement updates
-its fixture in place rather than rebuilding it, as long as the list's length
-and the other shapes' transforms are unchanged that tick. `Validate` is the
-backstop: a body whose `Shapes` list was built by hand with two equal tags is
-rejected by the reconciler like any other invalid body.
+`ReplaceShape` keeps the shape's index, so a replacement with the same geometry
+and sensor flag updates its fixture in place rather than rebuilding it. The
+check covers the whole body: a change in slot count, in any slot's offset or
+rotation, or in any other slot's geometry rebuilds every fixture on that body.
+`Validate` is the backstop: a body whose `Shapes` list was built by hand with
+two equal tags is rejected by the reconciler like any other invalid body.
 
 ## Built-in queries
 

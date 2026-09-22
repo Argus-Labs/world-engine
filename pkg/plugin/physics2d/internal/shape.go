@@ -224,9 +224,9 @@ func (rt *Runtime) SyncShapes(entries []ShapeEntry) {
 
 	for i := range entries {
 		e := &entries[i]
-		_, twice := seen[e.EntityID]
-		assert.That(!twice, "physics2d: shape entity %d carries more than one geometry component", e.EntityID)
-		if twice {
+		if _, twice := seen[e.EntityID]; twice {
+			// Only here: boxing the id for the message on every shape, every tick, allocates.
+			assert.That(false, "physics2d: shape entity %d carries more than one geometry component", e.EntityID)
 			continue
 		}
 		seen[e.EntityID] = struct{}{}

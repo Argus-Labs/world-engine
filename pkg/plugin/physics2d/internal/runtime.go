@@ -368,8 +368,7 @@ func (rt *Runtime) PruneActiveContactsInvolvingEntity(entityID cardinal.EntityID
 // filters from the engine on every step, so a pair always carries the current bits, not the
 // ones its Begin was emitted with. Re-deriving cannot pick up another shape's bits either,
 // because a slot index only changes meaning through a fixture rebuild, and that rebuild
-// prunes the entity's pairs first (see PruneActiveContactsInvolvingEntity and
-// TestReconcile_SlotListChangeDropsPairsBeforeIndicesMove).
+// prunes the entity's pairs first (see PruneActiveContactsInvolvingEntity).
 //
 // A pair whose body or slot no longer resolves keeps zero filter bits. Its End is still
 // emitted: a consumer that latched on Begin needs the close more than it needs the bits.

@@ -1,6 +1,7 @@
 package component
 
 import (
+	"errors"
 	"fmt"
 	"math"
 
@@ -83,15 +84,25 @@ type PolygonGeom struct {
 // Name returns the ECS component name.
 func (PolygonGeom) Name() string { return "polygon_geom_2d" }
 
-// Validate checks the vertex count and the used vertices for NaN/Inf.
+// Validate checks the vertex count, every slot for NaN/Inf, and that the used vertices have a
+// hull. Unused slots take part in equality, so a NaN there would make the shape look changed
+// every tick. The hull check is the one Box2D makes at attach: points within its slop weld
+// and near-collinear ones drop, so a flat or crushed polygon would build no fixture.
 func (g PolygonGeom) Validate() error {
 	if g.Count < 3 || g.Count > MaxPolygonVertices {
 		return fmt.Errorf("count: must be 3..%d, got %d", MaxPolygonVertices, g.Count)
 	}
-	for i := range int(g.Count) {
-		if err := validateVec2(fmt.Sprintf("vertices[%d]", i), g.Vertices[i]); err != nil {
-			return err
+	for i, v := range g.Vertices {
+		if !isFinite(v.X) || !isFinite(v.Y) {
+			return fmt.Errorf("vertices[%d]: must be finite (got %v, %v)", i, v.X, v.Y)
 		}
+	}
+	var pts [MaxPolygonVertices]box2d.Vec2
+	for i := range int(g.Count) {
+		pts[i] = box2d.Vec2{X: g.Vertices[i].X, Y: g.Vertices[i].Y}
+	}
+	if box2d.ComputeHull(pts[:g.Count]).Count < 3 {
+		return errors.New("vertices: no convex hull (points coincide or lie on one line)")
 	}
 	return nil
 }

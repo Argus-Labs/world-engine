@@ -79,6 +79,9 @@ func hostileCases() []harness.Scenario {
 		hostileRejectedShape("polygon-no-vertices",
 			"a convex polygon with no vertices at all",
 			polygon()),
+		hostileRejectedShape("polygon-flat",
+			"a polygon whose vertices all lie on one line",
+			polygon(vec(-1, 0), vec(0, 0), vec(1, 0), vec(2, 0))),
 		hostileRejectedShape("degenerate-capsule",
 			"a capsule whose two centers are the same point",
 			capsule(vec(0, 0), vec(0, 0), 0.5)),
@@ -135,11 +138,6 @@ func hostileDestroyDuringContact() harness.Scenario {
 	}
 }
 
-// hostileBadShape spawns one shape that PhysicsBody2D.Validate accepts (it only
-// checks slots; the shape itself is validated at attach) and Box2D may not. The
-// body is created mid-run rather than at Init because InitPhysicsSystem panics on
-// any FullRebuildFromECS error, which would hide which shape was at fault behind
-// a stack trace for the whole scene.
 // hostileRejectedShape spawns a shape the plugin refuses to build. Nothing must reach the
 // engine: Spawn reports the reason, no shape entity is created, and the shard keeps running
 // with the bystander untouched. These are the cases a game would otherwise only find out
@@ -269,6 +267,9 @@ func hostileRejectedShape(name, description string, shape ShapeSpec) harness.Sce
 	}
 }
 
+// hostileBadShape spawns one shape that PhysicsBody2D.Validate accepts (it only checks
+// slots; the shape itself is validated at attach) and Box2D may not. The body is created
+// mid-run, so the failing attach lands on a world that is already running.
 func hostileBadShape(
 	name, description string, kind physics.BodyType, shape ShapeSpec,
 ) harness.Scenario {

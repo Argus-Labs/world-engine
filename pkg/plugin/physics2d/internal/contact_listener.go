@@ -71,6 +71,10 @@ func (rt *Runtime) wakePersistedContactEntities() {
 	for key := range rt.ActiveContacts {
 		ids = append(ids, key.EntityA, key.EntityB)
 	}
+	// Sorted, not map order: each restored sleeper is its own solver set, so the order they
+	// are woken in fixes their index in the awake set, and that index reaches the solver.
+	// Without this the same restore simulates differently run to run; see
+	// TestRestoreIsDeterministicAcrossRepeatedRuns.
 	slices.SortFunc(ids, cmp.Compare)
 	ids = slices.Compact(ids)
 	for _, id := range ids {

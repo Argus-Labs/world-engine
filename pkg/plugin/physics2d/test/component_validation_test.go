@@ -257,13 +257,26 @@ func TestValidate_PolygonGeom_NaNVertex(t *testing.T) {
 	require.Contains(t, err.Error(), "vertices[1]")
 }
 
-func TestValidate_PolygonGeom_UnusedSlotsIgnored(t *testing.T) {
+// Slots past Count still take part in ==, so a NaN there would make the shape unequal to
+// itself and the mirror would rebuild its fixtures every tick.
+func TestValidate_PolygonGeom_UnusedSlotsMustBeFinite(t *testing.T) {
 	t.Parallel()
 	g := phycomp.PolygonGeom{
 		Vertices: [phycomp.MaxPolygonVertices]phycomp.Vec2{{X: 0, Y: 0}, {X: 1, Y: 0}, {X: 0, Y: 1}, {X: math.NaN()}},
 		Count:    3,
 	}
-	require.NoError(t, g.Validate(), "slots past Count are not part of the polygon")
+	err := g.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "vertices[3]")
+}
+
+func TestValidate_PolygonGeom_FlatRejected(t *testing.T) {
+	t.Parallel()
+	g := phycomp.PolygonGeom{
+		Vertices: [phycomp.MaxPolygonVertices]phycomp.Vec2{{X: -1, Y: 0}, {X: 0, Y: 0}, {X: 1, Y: 0}, {X: 2, Y: 0}},
+		Count:    4,
+	}
+	require.Error(t, g.Validate(), "collinear points have no hull, so attach would fail")
 }
 
 func TestValidate_EdgeGeom_NaNEndpoint(t *testing.T) {

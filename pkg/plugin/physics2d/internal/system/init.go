@@ -4,7 +4,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal"
 	physicscomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
-	"github.com/rotisserie/eris"
 )
 
 // physicsBodyRow matches entities that participate in 2D physics (ECS authoritative).
@@ -77,7 +76,9 @@ func NewInitPhysicsSystem(rt *internal.Runtime) func(*InitPhysicsSystemState) {
 		entries := rt.KeepRebuildEntriesScratch(
 			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
 		if err := rt.FullRebuildFromECS(rt.Gravity, entries); err != nil {
-			panic(eris.Wrap(err, "physics2d: FullRebuildFromECS failed"))
+			// Log, as the tick path does. A failed rebuild leaves no bodies, so the first
+			// tick's reconcile builds the good ones and keeps logging the bad one.
+			state.Logger().Error().Err(err).Msg("physics2d: FullRebuildFromECS failed at init")
 		}
 		// The sweep keeps no state, so it runs here as it does every tick: a shape no body
 		// names at init is gone before the first tick, not one tick later.

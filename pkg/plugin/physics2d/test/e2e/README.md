@@ -102,7 +102,7 @@ today: every case either reaches the engine and survives, or is refused by
 Every case: `destroy-during-contact`, `short-chain`,
 `short-chain-loop`, `sensor-chain`, `zero-radius-circle`,
 `negative-radius-circle`, `polygon-no-vertices`, `polygon-two-vertices`,
-`polygon-too-many-vertices`, `degenerate-capsule`, `degenerate-edge`,
+`polygon-too-many-vertices`, `polygon-flat`, `degenerate-capsule`, `degenerate-edge`,
 `zero-extent-box`, `chain-on-dynamic-body`, `missing-shape-entity`,
 `deleted-shape-entity`, `failing-body-blocks-shape-edit`,
 `failed-attach-keeps-shapes`. Note that a rejected shape retries

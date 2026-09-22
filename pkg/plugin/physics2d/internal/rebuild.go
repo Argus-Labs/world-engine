@@ -89,19 +89,18 @@ func (rt *Runtime) FullRebuildFromECS(gravity component.Vec2, entries []PhysicsR
 	newKnown := make(map[cardinal.EntityID]struct{}, len(sorted))
 	newShadow := make(map[cardinal.EntityID]ShadowState, len(sorted))
 
-	for _, e := range sorted {
+	for i, e := range sorted {
 		if err := rt.CreateBodyWithCollider(
 			e.EntityID,
 			e.Transform,
 			e.Velocity,
 			e.PhysicsBody,
 		); err != nil {
-			// On error: destroy all bodies created so far and leave clean state.
-			for id := range newKnown {
-				rt.DestroyEntityBody(id)
+			// Undo in creation order. Box2D hands freed ids out last-in first-out, so a
+			// map-order undo would give the bodies built next different ids run to run.
+			for _, done := range sorted[:i] {
+				rt.DestroyEntityBody(done.EntityID)
 			}
-			clear(newKnown)
-			clear(newShadow)
 			return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
 		}
 		newKnown[e.EntityID] = struct{}{}

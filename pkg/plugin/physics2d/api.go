@@ -282,6 +282,9 @@ func (s *Shapes) Spawn(def Shape) (ShapeRef, error) {
 	case KindPolygon:
 		row.Set(def.s.Polygon)
 	case KindChain:
+		// Own array per entity: Slice derivations write through, and one Shape value can
+		// be spawned twice.
+		def.s.Chain.Points = immutable.Collect(def.s.Chain.Points.Values())
 		row.Set(def.s.Chain)
 	case KindEdge:
 		row.Set(def.s.Edge)
@@ -291,16 +294,35 @@ func (s *Shapes) Spawn(def Shape) (ShapeRef, error) {
 	return component.Ref(row.ID()), nil
 }
 
-// find returns a ref to a live shape equal to def. Material is compared first, since it is
-// one component read and rules out most shapes.
+// find returns a ref to a live shape equal to def. It scans every live shape, so its cost
+// grows with their number; see findKind for the per-row order.
 func (s *Shapes) find(def Shape) (ShapeRef, bool) {
+	switch def.s.Kind {
+	case KindCircle:
+		return findKind[component.CircleGeom](s, def)
+	case KindBox:
+		return findKind[component.BoxGeom](s, def)
+	case KindPolygon:
+		return findKind[component.PolygonGeom](s, def)
+	case KindChain:
+		return findKind[component.ChainGeom](s, def)
+	case KindEdge:
+		return findKind[component.EdgeGeom](s, def)
+	case KindCapsule:
+		return findKind[component.CapsuleGeom](s, def)
+	}
+	return ShapeRef{}, false
+}
+
+// findKind is find for one geometry kind. Kind and material are checked first, straight off
+// the row: a shape of another kind or material is ruled out without a second lookup.
+func findKind[G internal.Geometry](s *Shapes, def Shape) (ShapeRef, bool) {
 	for row := range s.shapeSearch.Iter() {
-		if row.Get[component.ShapeCommon]() != def.s.Common {
+		if !row.Has[G]() || row.Get[component.ShapeCommon]() != def.s.Common {
 			continue
 		}
-		ref := component.Ref(row.ID())
-		if got, ok := s.Read(ref); ok && got.s.Equal(def.s) {
-			return ref, true
+		if internal.Resolve(def.s.Common, row.Get[G]()).Equal(def.s) {
+			return component.Ref(row.ID()), true
 		}
 	}
 	return ShapeRef{}, false

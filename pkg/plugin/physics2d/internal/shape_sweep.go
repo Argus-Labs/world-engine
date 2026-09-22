@@ -66,8 +66,9 @@ func markNamed(used map[cardinal.EntityID]struct{}, slots immutable.Slice[compon
 	}
 }
 
-// sweepScratchSets returns the two per-sweep sets, allocated once and cleared per call.
-func (rt *Runtime) sweepScratchSets() (used, gathered map[cardinal.EntityID]struct{}) {
+// sweepScratchSets returns the used set then the gathered set, allocated once and cleared
+// per call.
+func (rt *Runtime) sweepScratchSets() (map[cardinal.EntityID]struct{}, map[cardinal.EntityID]struct{}) {
 	if rt.sweepUsedScratch == nil {
 		rt.sweepUsedScratch = make(map[cardinal.EntityID]struct{}, len(rt.ShapeMirror))
 		rt.sweepGatheredScratch = make(map[cardinal.EntityID]struct{}, len(rt.KnownEntities))
