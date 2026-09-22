@@ -37,6 +37,7 @@ type World struct {
 	debug           *debugModule          // Debug tools and services
 	pprof           *pprofModule          // Optional pprof HTTP server
 	currentTick     Tick                  // Current tick
+	tickCtx         context.Context       // Parent context for spans started by systems in the current tick
 	options         WorldOptions          // World options
 	tel             telemetry.Telemetry   // Logs and traces
 
@@ -80,6 +81,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		address: micro.GetAddress(
 			options.Region, micro.RealmWorld, options.Organization, options.Project, options.ShardID),
 		currentTick: Tick{height: 0},
+		tickCtx:     context.Background(),
 		options:     options,
 		tel:         tel,
 	}
@@ -171,7 +173,7 @@ func (w *World) StartGame() {
 
 func (w *World) run(ctx context.Context) error {
 	// Initialize the world and run initialization systems.
-	w.world.Init()
+	w.init()
 
 	if err := w.restore(ctx); err != nil {
 		return eris.Wrap(err, "failed to restore state from snapshot")
@@ -216,9 +218,30 @@ func (w *World) run(ctx context.Context) error {
 	}
 }
 
+// init runs the init systems under a root span so their child spans have a parent. tickCtx is
+// restored by defer, as in Tick, so a recovered init panic does not leave it on an ended span.
+func (w *World) init() {
+	ctx, span := w.startSpan(context.Background(), spanInit)
+	defer span.End()
+
+	w.tickCtx = ctx
+	defer func() { w.tickCtx = context.Background() }()
+	w.world.Init()
+}
+
 // Tick advances the world by one step.
+//
+// Each tick is a root trace: ticks are driven by the clock, not by a request, so command spans from
+// the ConnectRPC service are not their parents.
 func (w *World) Tick(timestamp time.Time) {
-	_ = w.commands.Drain()
+	ctx, span := w.startSpan(context.Background(), spanTick,
+		attrTickHeight.Int64(int64(w.currentTick.height))) //nolint:gosec // tick height stays far below int64 max
+	defer span.End()
+	w.tickCtx = ctx
+	defer func() { w.tickCtx = context.Background() }()
+
+	commands := w.commands.Drain()
+	span.SetAttributes(attrTickCommands.Int(len(commands)))
 
 	w.currentTick.timestamp = timestamp
 	w.debug.startPerfTick()
@@ -229,12 +252,15 @@ func (w *World) Tick(timestamp time.Time) {
 	w.debug.recordTick(w.currentTick.height, timestamp)
 
 	// Send events.
-	if err := w.events.Dispatch(); err != nil {
+	_, dispatchSpan := w.startSpan(ctx, spanEventDispatch)
+	err := w.events.Dispatch()
+	endSpan(dispatchSpan, err)
+	if err != nil {
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 	}
 
 	// Publish state for snapshots and debugging.
-	w.persistState(timestamp)
+	w.persistState(ctx, timestamp)
 
 	// Increase the tick height.
 	w.currentTick.height++
@@ -242,11 +268,14 @@ func (w *World) Tick(timestamp time.Time) {
 
 // persistState serializes the world for snapshots and the debug service. Encoding cannot fail
 // (a value that cannot be encoded panics inside the ECS), so there is no retry path.
-func (w *World) persistState(timestamp time.Time) {
+func (w *World) persistState(ctx context.Context, timestamp time.Time) {
 	snapshotDue := w.currentTick.height%uint64(w.options.SnapshotRate) == 0
 	if !snapshotDue && w.debug == nil {
 		return
 	}
+
+	_, span := w.startSpan(ctx, spanPersistState, attrSnapshotDue.Bool(snapshotDue))
+	defer span.End()
 
 	data := w.encodeSnapshot(timestamp)
 
@@ -267,7 +296,9 @@ func (w *World) encodeSnapshot(timestamp time.Time) []byte {
 	return snapshot.Encode(w.currentTick.height, timestamp, bodySize, w.world.AppendStateWire)
 }
 
-func (w *World) restore(ctx context.Context) error {
+func (w *World) restore(ctx context.Context) (err error) {
+	ctx, span := w.startSpan(ctx, spanRestore)
+	defer func() { endSpan(span, err) }()
 	logger := w.tel.GetLogger("snapshot")
 
 	logger.Debug().Msg("restoring from snapshot")
@@ -336,7 +367,7 @@ func (w *World) shutdown() {
 func (w *World) reset() {
 	// Reset the ECS world and run initialization systems again.
 	w.world.Reset()
-	w.world.Init()
+	w.init()
 
 	// Clear pending commands and events.
 	w.commands.Clear()

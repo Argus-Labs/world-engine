@@ -84,14 +84,22 @@ func (w *World) RegisterSystemV2[S System](s S, opts ...SystemOption) {
 }
 
 func registerSystem(w *World, name string, hook SystemHook, run func()) {
-	fn := run
+	hookName := ecsHookToProto(uint8(hook)).String()
 
-	// If debug is enabled, wrap the system with performance instrumentation.
+	// Every system run is a child span of the current tick (or init) span.
+	fn := func() {
+		_, span := w.startSpan(w.tickCtx, spanSystem, attrSystemName.String(name), attrSystemHook.String(hookName))
+		defer span.End()
+		run()
+	}
+
+	// If debug is enabled, also record the run in the performance module.
 	if w.debug != nil {
+		traced := fn
 		fn = func() {
 			ts := w.currentTick.timestamp
 			startTime := ts.Add(time.Since(ts))
-			run()
+			traced()
 			endTime := ts.Add(time.Since(ts))
 			w.debug.recordSpan(performance.TickSpan{
 				TickHeight: w.currentTick.height,
