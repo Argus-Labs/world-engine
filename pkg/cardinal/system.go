@@ -14,9 +14,11 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/micro"
+	"github.com/argus-labs/world-engine/pkg/telemetry/trace"
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 type EntityID = ecs.EntityID
@@ -86,10 +88,16 @@ func (w *World) RegisterSystemV2[S System](s S, opts ...SystemOption) {
 func registerSystem(w *World, name string, hook SystemHook, run func()) {
 	hookName := ecsHookToProto(uint8(hook)).String()
 
-	// Every system run is a child span of the current tick (or init) span.
+	// Every system run is a child span of the current tick (or init) span. The attributes are
+	// fixed per system, so they are built once here. When the tick span is not recording
+	// (tracing disabled or the tick sampled out) the child would be discarded anyway, so it is
+	// skipped to keep the per-system cost at one interface call.
+	attrs := oteltrace.WithAttributes(attrSystemName.String(name), attrSystemHook.String(hookName))
 	fn := func() {
-		_, span := w.startSpan(w.tickCtx, spanSystem, attrSystemName.String(name), attrSystemHook.String(hookName))
-		defer span.End()
+		if oteltrace.SpanFromContext(w.tickCtx).IsRecording() {
+			_, span := trace.New(w.tickCtx, spanSystem, attrs)
+			defer span.End()
+		}
 		run()
 	}
 

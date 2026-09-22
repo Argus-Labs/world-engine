@@ -9,6 +9,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
+	"github.com/argus-labs/world-engine/pkg/telemetry/trace"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
 	"github.com/nats-io/nats.go"
 	"github.com/rotisserie/eris"
@@ -16,7 +17,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	otelcodes "go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	codes "google.golang.org/grpc/codes"
 )
 
@@ -91,9 +92,9 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 		ctx := otel.GetTextMapPropagator().Extract(context.Background(), headerCarrier(msg.Header))
 
 		// Start a span for the server-side request processing.
-		ctx, span := s.tel.Tracer.Start(ctx, "handler."+name,
-			trace.WithSpanKind(trace.SpanKindConsumer),
-			trace.WithAttributes(attribute.String("nats.subject", msg.Subject)))
+		ctx, span := trace.New(ctx, "handler."+name,
+			oteltrace.WithSpanKind(oteltrace.SpanKindConsumer),
+			oteltrace.WithAttributes(attribute.String("nats.subject", msg.Subject)))
 		defer span.End()
 
 		// Use trace-aware logger.
@@ -103,7 +104,7 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 		start := time.Now()
 
 		// Process the request.
-		replyBz, err := handleNATSMessage(ctx, msg, handler, s.Address, s.tel.Tracer, requestLogger)
+		replyBz, err := handleNATSMessage(ctx, msg, handler, s.Address, requestLogger)
 
 		// Calculate duration and add to span.
 		duration := time.Since(start)
@@ -153,12 +154,11 @@ func handleNATSMessage(
 	msg *nats.Msg,
 	handler Handler,
 	serviceAddr *microv1.ServiceAddress,
-	tracer trace.Tracer,
 	logger zerolog.Logger,
 ) ([]byte, error) {
 	// Create child span for handler execution
-	ctx, span := tracer.Start(ctx, "handler.execute",
-		trace.WithSpanKind(trace.SpanKindInternal))
+	ctx, span := trace.New(ctx, "handler.execute",
+		oteltrace.WithSpanKind(oteltrace.SpanKindInternal))
 	defer span.End()
 
 	req, err := NewRequestFromNATSMsg(msg, serviceAddr)

@@ -17,7 +17,6 @@ import (
 
 type Telemetry struct {
 	Logger      zerolog.Logger
-	Tracer      trace.Tracer
 	posthog     *posthog.Client
 	serviceName string
 
@@ -38,7 +37,7 @@ func New(opts Options) (Telemetry, error) {
 	}
 
 	ctx := context.Background()
-	tracer, logger, shutdown, err := setupOpenTelemetry(ctx, options)
+	logger, shutdown, err := setupOpenTelemetry(ctx, options)
 	if err != nil {
 		return Telemetry{}, eris.Wrap(err, "failed to setup telemetry")
 	}
@@ -55,7 +54,6 @@ func New(opts Options) (Telemetry, error) {
 
 	return Telemetry{
 		Logger:      logger,
-		Tracer:      tracer,
 		posthog:     posthog,
 		serviceName: options.ServiceName,
 		shutdown:    shutdown,

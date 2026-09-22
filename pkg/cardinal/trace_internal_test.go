@@ -18,13 +18,18 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
-// newRecordingTracer installs an in-memory span exporter on w and returns it.
-func newRecordingTracer(t *testing.T, w *World) *tracetest.InMemoryExporter {
+// newRecordingTracer installs an in-memory span exporter as the global tracer provider for the
+// test and returns it. Tests that call it must not run in parallel.
+func newRecordingTracer(t *testing.T) *tracetest.InMemoryExporter {
 	t.Helper()
 	exporter := tracetest.NewInMemoryExporter()
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
-	t.Cleanup(func() { require.NoError(t, provider.Shutdown(context.Background())) })
-	w.tel.Tracer = provider.Tracer("test")
+	previous := otel.GetTracerProvider()
+	otel.SetTracerProvider(provider)
+	t.Cleanup(func() {
+		otel.SetTracerProvider(previous)
+		require.NoError(t, provider.Shutdown(context.Background()))
+	})
 	return exporter
 }
 
@@ -63,7 +68,7 @@ func TestTickEmitsSpans(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	exporter := newRecordingTracer(t, w)
+	exporter := newRecordingTracer(t)
 
 	sys := &tracedSystem{}
 	w.RegisterSystemV2(sys, WithHook(PostUpdate))
@@ -111,14 +116,14 @@ func TestTickLinksCommandsAndTracesEvents(t *testing.T) {
 		Pprof:               &off,
 	})
 	require.NoError(t, err)
-	exporter := newRecordingTracer(t, w)
+	exporter := newRecordingTracer(t)
 
 	_, err = w.commands.Register(testutils.SimpleCommand{}.Name(), command.NewQueue[testutils.SimpleCommand]())
 	require.NoError(t, err)
 	w.init()
 
 	// Enqueue a command the way the ConnectRPC handler does: under the request's span.
-	requestCtx, requestSpan := w.tel.Tracer.Start(context.Background(), "request")
+	requestCtx, requestSpan := otel.Tracer("test").Start(context.Background(), "request")
 	require.NoError(t, w.commands.Enqueue(requestCtx, &iscv1.Command{
 		Name:    testutils.SimpleCommand{}.Name(),
 		Address: w.address,
@@ -159,7 +164,7 @@ func TestInterShardCommandPropagatesTrace(t *testing.T) {
 
 	fixtureA := newServiceFixture(t, prng, true)
 	fixtureB := newServiceFixture(t, prng, true)
-	exporter := newRecordingTracer(t, fixtureA.world)
+	exporter := newRecordingTracer(t)
 
 	payload := testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
 	require.NoError(t, fixtureA.svc.publishInterShardCommand(context.Background(), event.Event{
@@ -182,4 +187,34 @@ func TestInterShardCommandPropagatesTrace(t *testing.T) {
 	require.Len(t, cmds, 1)
 	require.True(t, cmds[0].Span.IsValid(), "command lost its trace context crossing NATS")
 	require.Equal(t, send.SpanContext.TraceID(), cmds[0].Span.TraceID())
+}
+
+// panickingEvent is an event payload whose wire encoding panics, as the generated wire methods do
+// for an unencodable field. schema.Marshal sizes first, so SizeWire is the one that fires.
+type panickingEvent struct{ testutils.SimpleEvent }
+
+func (panickingEvent) SizeWire() int            { panic("unencodable payload") }
+func (panickingEvent) AppendWire([]byte) []byte { panic("unencodable payload") }
+
+// TestEventPublishSpanRecordsPanic checks that a payload that panics while encoding is recorded as
+// an exception on the publish span, the one span that names the event.
+func TestEventPublishSpanRecordsPanic(t *testing.T) {
+	prng := testutils.NewRand(t)
+	fixture := newServiceFixture(t, prng, false)
+	exporter := newRecordingTracer(t)
+
+	require.PanicsWithValue(t, "unencodable payload", func() {
+		_ = fixture.svc.publishDefaultEvent(context.Background(), event.Event{
+			Kind: event.KindDefault, Payload: panickingEvent{}, Recipient: "player-1",
+		})
+	})
+
+	publish, ok := spansByName(exporter)[spanEventPublish]
+	require.True(t, ok, "publish span was not ended")
+	require.Contains(t, publish.Attributes, attrEventName.String(testutils.SimpleEvent{}.Name()))
+	eventNames := make([]string, 0, len(publish.Events))
+	for _, e := range publish.Events {
+		eventNames = append(eventNames, e.Name)
+	}
+	require.Contains(t, eventNames, "exception")
 }

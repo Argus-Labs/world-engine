@@ -16,10 +16,11 @@ import (
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
 	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
+	"github.com/argus-labs/world-engine/pkg/telemetry/trace"
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -223,7 +224,7 @@ func (w *World) run(ctx context.Context) error {
 // init runs the init systems under a root span so their child spans have a parent. tickCtx is
 // restored by defer, as in Tick, so a recovered init panic does not leave it on an ended span.
 func (w *World) init() {
-	ctx, span := w.startSpan(context.Background(), spanInit)
+	ctx, span := trace.New(context.Background(), spanInit)
 	defer span.End()
 
 	w.tickCtx = ctx
@@ -236,21 +237,16 @@ func (w *World) init() {
 // Each tick is a root trace: ticks are driven by the clock, not by a request, so command spans from
 // the ConnectRPC service are not their parents.
 func (w *World) Tick(timestamp time.Time) {
-	ctx, span := w.startSpan(context.Background(), spanTick,
-		attrTickHeight.Int64(int64(w.currentTick.height))) //nolint:gosec // tick height stays far below int64 max
+	// Drain before starting the span: links must be passed at start for a sampler to see them.
+	commands := w.commands.Drain()
+	ctx, span := trace.New(context.Background(), spanTick,
+		oteltrace.WithAttributes(
+			attrTickHeight.Int64(int64(w.currentTick.height)), //nolint:gosec // tick height stays far below int64 max
+			attrTickCommands.Int(len(commands))),
+		oteltrace.WithLinks(commandLinks(commands)...))
 	defer span.End()
 	w.tickCtx = ctx
 	defer func() { w.tickCtx = context.Background() }()
-
-	commands := w.commands.Drain()
-	span.SetAttributes(attrTickCommands.Int(len(commands)))
-	for _, cmd := range commands {
-		// Links, not children: the request that enqueued the command finished before this tick.
-		if cmd.Span.IsValid() {
-			span.AddLink(trace.Link{SpanContext: cmd.Span, Attributes: []attribute.KeyValue{
-				attrCommandName.String(cmd.Name), attrCommandPersona.String(cmd.Persona)}})
-		}
-	}
 
 	w.currentTick.timestamp = timestamp
 	w.debug.startPerfTick()
@@ -260,19 +256,40 @@ func (w *World) Tick(timestamp time.Time) {
 
 	w.debug.recordTick(w.currentTick.height, timestamp)
 
-	// Send events.
-	dispatchCtx, dispatchSpan := w.startSpan(ctx, spanEventDispatch)
-	err := w.events.Dispatch(dispatchCtx)
-	endSpan(dispatchSpan, err)
-	if err != nil {
-		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
-	}
+	w.dispatchEvents(ctx)
 
 	// Publish state for snapshots and debugging.
 	w.persistState(ctx, timestamp)
 
 	// Increase the tick height.
 	w.currentTick.height++
+}
+
+// commandLinks builds one span link per drained command whose enqueuing request was traced.
+// Links, not children: that request finished before this tick. Nil when no command carries a
+// span, so an untraced tick pays no allocation here.
+func commandLinks(commands []command.Command) []oteltrace.Link {
+	var links []oteltrace.Link
+	for _, cmd := range commands {
+		if !cmd.Span.IsValid() {
+			continue
+		}
+		links = append(links, oteltrace.Link{SpanContext: cmd.Span, Attributes: []attribute.KeyValue{
+			attrCommandName.String(cmd.Name), attrCommandPersona.String(cmd.Persona)}})
+	}
+	return links
+}
+
+// dispatchEvents runs the tick's event handlers under their own span. The span is ended by a
+// direct defer so a panicking handler (encoding panics on unencodable payloads) still closes
+// it with the panic recorded.
+func (w *World) dispatchEvents(ctx context.Context) {
+	ctx, span := trace.New(ctx, spanEventDispatch)
+	defer span.End()
+	if err := w.events.Dispatch(ctx); err != nil {
+		span.SetError(err)
+		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
+	}
 }
 
 // persistState serializes the world for snapshots and the debug service. Encoding cannot fail
@@ -283,7 +300,7 @@ func (w *World) persistState(ctx context.Context, timestamp time.Time) {
 		return
 	}
 
-	_, span := w.startSpan(ctx, spanPersistState, attrSnapshotDue.Bool(snapshotDue))
+	_, span := trace.New(ctx, spanPersistState, oteltrace.WithAttributes(attrSnapshotDue.Bool(snapshotDue)))
 	defer span.End()
 
 	data := w.encodeSnapshot(timestamp)
@@ -306,8 +323,9 @@ func (w *World) encodeSnapshot(timestamp time.Time) []byte {
 }
 
 func (w *World) restore(ctx context.Context) (err error) {
-	ctx, span := w.startSpan(ctx, spanRestore)
-	defer func() { endSpan(span, err) }()
+	ctx, span := trace.New(ctx, spanRestore)
+	defer func() { span.EndWithErr(err) }()
+
 	logger := w.tel.GetLogger("snapshot")
 
 	logger.Debug().Msg("restoring from snapshot")

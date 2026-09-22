@@ -22,7 +22,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -222,7 +221,6 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool
 	address := RandServiceAddress(prng)
 	tel := telemetry.Telemetry{
 		Logger: zerolog.Nop(),
-		Tracer: noop.NewTracerProvider().Tracer("test"),
 	}
 
 	w := &World{

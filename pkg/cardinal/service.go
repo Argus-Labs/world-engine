@@ -20,6 +20,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
+	"github.com/argus-labs/world-engine/pkg/telemetry/trace"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
@@ -29,7 +30,7 @@ import (
 	"github.com/rs/zerolog"
 	otelcodes "go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
-	"go.opentelemetry.io/otel/trace"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 )
 
@@ -236,7 +237,7 @@ func (s *service) SendCommand(
 	assert.That(cmd.GetPersona() != nil, "command persona should have been validated")
 
 	cmd.Persona.Id = user.ID
-	trace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID), attrCommandName.String(cmd.GetName()))
+	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID), attrCommandName.String(cmd.GetName()))
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
@@ -261,7 +262,7 @@ func (s *service) SendCommandWithReply(
 	assert.That(cmd.GetPersona() != nil, "command persona should have been validated")
 
 	cmd.Persona.Id = user.ID
-	span := trace.SpanFromContext(ctx)
+	span := oteltrace.SpanFromContext(ctx)
 	span.SetAttributes(semconv.EnduserID(user.ID), attrCommandName.String(cmd.GetName()),
 		attrEventName.String(req.Msg.GetEventName()))
 
@@ -325,7 +326,7 @@ func (s *service) StartEventStream(
 ) error {
 	user := UserFromContext(ctx)
 	assert.That(user != nil, "user should exist in authenticated stream context")
-	trace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID),
+	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID),
 		attrEventSubscriptions.Int(countSubscriptions(req.Msg.GetSubscriptions())))
 
 	subscriber, err := s.addSubscriber(ctx, user, stream)
@@ -397,7 +398,7 @@ func (s *service) subscriptionRequest(
 ) (*User, error) {
 	user := UserFromContext(ctx)
 	assert.That(user != nil, "user should exist in authenticated request context")
-	trace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID),
+	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID),
 		attrEventSubscriptions.Int(countSubscriptions(subscriptions)))
 
 	if !s.hasSubscriber(user) {
@@ -492,15 +493,17 @@ func countSubscriptions(subscriptions []*cardinalv1.EventSubscription) int {
 // TODO: move away from this centralized approach to a actor model for easier(?) synchronization.
 
 //nolint:gocognit // Put everything here so you can understand the logic in one place.
-func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) (err error) {
+func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) error {
 	payload, ok := evt.Payload.(event.Payload)
 	if !ok {
 		return eris.Errorf("invalid event payload type: %T", evt.Payload)
 	}
 
-	_, span := s.world.startSpan(ctx, spanEventPublish,
-		attrEventName.String(payload.Name()), attrEventRecipient.String(evt.Recipient))
-	defer func() { endSpan(span, err) }()
+	// Ended by a direct defer so an encoding panic below is recorded on this span, which is the
+	// one that names the event. Nothing after this point returns an error.
+	_, span := trace.New(ctx, spanEventPublish, oteltrace.WithAttributes(
+		attrEventName.String(payload.Name()), attrEventRecipient.String(evt.Recipient)))
+	defer span.End()
 
 	payloadPb := schema.Marshal(payload)
 
@@ -568,6 +571,9 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) (err
 		}
 	}
 	span.SetAttributes(attrEventSendFailures.Int(sendFailures))
+	if sendFailures > 0 {
+		span.SetStatus(otelcodes.Error, "some subscriber sends failed")
+	}
 
 	return nil
 }
@@ -610,7 +616,7 @@ func (s *service) handleInterShardCommand(ctx context.Context, req *micro.Reques
 		return micro.NewErrorResponse(req, eris.New("command address doesn't match shard address"), codes.InvalidArgument)
 	}
 
-	trace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))
+	oteltrace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))
 	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
 		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), codes.InvalidArgument)
 	}
@@ -626,9 +632,9 @@ func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event)
 	assert.That(isc.Address != nil, "inter shard command has nil address")
 
 	// The NATS client injects this span into the request headers, so the receiving shard's handler
-	// span (and the tick that drains the command there) joins this tick's trace.
-	ctx, span := s.world.startSpan(ctx, spanInterShardSend,
-		attrCommandName.String(isc.Payload.Name()), attrCommandTarget.String(micro.String(isc.Address)))
+	// span (and the tick that drains the command there) joins this tick's oteltrace.
+	ctx, span := trace.New(ctx, spanInterShardSend, oteltrace.WithAttributes(
+		attrCommandName.String(isc.Payload.Name()), attrCommandTarget.String(micro.String(isc.Address))))
 	defer span.End()
 
 	payload := schema.Marshal(isc.Payload)
