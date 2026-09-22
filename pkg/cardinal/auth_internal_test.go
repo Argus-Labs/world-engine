@@ -55,10 +55,42 @@ func TestAuthenticatorArgusRejectsInvalidGameClaims(t *testing.T) {
 	}{
 		{name: "untrusted signature", key: otherPrivateKey, claims: validClaims, tokenUse: "game"},
 		{name: "account token", key: privateKey, claims: validClaims},
-		{name: "wrong issuer", key: privateKey, claims: jwt.RegisteredClaims{Subject: "player-123", Issuer: "https://other.example/auth", ExpiresAt: validClaims.ExpiresAt}, tokenUse: "game"},
-		{name: "missing expiry", key: privateKey, claims: jwt.RegisteredClaims{Subject: "player-123", Issuer: validClaims.Issuer}, tokenUse: "game"},
-		{name: "expired", key: privateKey, claims: jwt.RegisteredClaims{Subject: "player-123", Issuer: validClaims.Issuer, ExpiresAt: jwt.NewNumericDate(time.Now().Add(-time.Minute))}, tokenUse: "game"},
-		{name: "missing subject", key: privateKey, claims: jwt.RegisteredClaims{Issuer: validClaims.Issuer, ExpiresAt: validClaims.ExpiresAt}, tokenUse: "game"},
+		{
+			name: "wrong issuer",
+			key:  privateKey,
+			claims: jwt.RegisteredClaims{
+				Subject: "player-123", Issuer: "https://other.example/auth", ExpiresAt: validClaims.ExpiresAt,
+			},
+			tokenUse: "game",
+		},
+		{
+			name: "missing expiry",
+			key:  privateKey,
+			claims: jwt.RegisteredClaims{
+				Subject: "player-123", Issuer: validClaims.Issuer,
+			},
+			tokenUse: "game",
+		},
+		{
+			name: "expired",
+			key:  privateKey,
+			claims: jwt.RegisteredClaims{
+				Subject: "player-123",
+				Issuer:  validClaims.Issuer,
+				ExpiresAt: jwt.NewNumericDate(
+					time.Now().Add(-time.Minute),
+				),
+			},
+			tokenUse: "game",
+		},
+		{
+			name: "missing subject",
+			key:  privateKey,
+			claims: jwt.RegisteredClaims{
+				Issuer: validClaims.Issuer, ExpiresAt: validClaims.ExpiresAt,
+			},
+			tokenUse: "game",
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			token := signGameToken(t, test.key, test.claims, test.tokenUse)
@@ -70,7 +102,7 @@ func TestAuthenticatorArgusRejectsInvalidGameClaims(t *testing.T) {
 
 func TestAuthenticatorDevUsesPlayerID(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("X-Player-ID", " player-123 ")
+	req.Header.Set("X-Player-Id", " player-123 ")
 
 	player, err := (authenticatorDev{}).authenticate(context.Background(), req)
 	require.NoError(t, err)
