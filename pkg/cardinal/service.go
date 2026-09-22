@@ -763,7 +763,7 @@ func (a *authenticatorArgus) authenticate(_ context.Context, req *http.Request) 
 type authenticatorDev struct{}
 
 func (a authenticatorDev) authenticate(_ context.Context, req *http.Request) (any, error) {
-	playerID := strings.TrimSpace(req.Header.Get("X-Player-ID"))
+	playerID := strings.TrimSpace(req.Header.Get("X-Player-Id"))
 	if playerID == "" {
 		return nil, authn.Errorf("X-Player-ID header is required")
 	}
