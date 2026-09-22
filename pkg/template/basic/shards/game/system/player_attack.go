@@ -17,18 +17,13 @@ func (a AttackPlayerCommand) Name() string {
 	return "attack-player"
 }
 
-type AttackPlayerSystemState struct {
-	cardinal.BaseSystemState
-	AttackPlayerCommands    cardinal.WithCommand[AttackPlayerCommand]
-	PlayerDeathSystemEvents cardinal.WithSystemEventEmitter[systemevent.PlayerDeath]
-	PlayerDeathEvents       cardinal.WithEvent[event.PlayerDeath]
-	Players                 PlayerSearch
-}
+type AttackPlayerSystem struct{}
 
-func AttackPlayerSystem(state *AttackPlayerSystemState) {
-	for cmd := range state.AttackPlayerCommands.Iter() {
+func (s *AttackPlayerSystem) Run(w *cardinal.World) {
+	players := w.Exact[Player]()
+	for cmd := range w.Commands[AttackPlayerCommand]() {
 		command := cmd.Payload
-		for player := range state.Players.Iter() {
+		for player := range players.Iter() {
 			entity := player.ID()
 			tag := player.Get[component.PlayerTag]()
 
@@ -40,17 +35,17 @@ func AttackPlayerSystem(state *AttackPlayerSystemState) {
 			if newHealth > 0 {
 				player.Set(component.Health{HP: newHealth})
 
-				state.Logger().Info().
+				w.Logger().Info().
 					Uint32("entity", uint32(entity)).
 					Msgf("Player %s received %d damage", command.Target, command.Damage)
 			} else {
 				player.Destroy()
 
-				state.PlayerDeathEvents.SendTo(cmd.Persona, event.PlayerDeath{Nickname: tag.Nickname})
+				w.SendTo(cmd.Persona, event.PlayerDeath{Nickname: tag.Nickname})
 
-				state.PlayerDeathSystemEvents.Emit(systemevent.PlayerDeath{Nickname: tag.Nickname})
+				w.EmitSystemEvent(systemevent.PlayerDeath{Nickname: tag.Nickname})
 
-				state.Logger().Info().Uint32("entity", uint32(entity)).Msgf("Player %s died", command.Target)
+				w.Logger().Info().Uint32("entity", uint32(entity)).Msgf("Player %s died", command.Target)
 			}
 		}
 	}

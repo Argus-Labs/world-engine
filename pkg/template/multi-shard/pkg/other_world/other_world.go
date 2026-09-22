@@ -1,20 +1,23 @@
-//nolint:gochecknoglobals // it's fine
 package otherworld
 
 import "github.com/argus-labs/world-engine/pkg/cardinal"
 
-// OtherWorld is a way to send commands to other shards.
-
-var Game = cardinal.OtherWorld{
-	Region:       "us-west1",
-	Organization: "organization",
-	Project:      "project",
-	ShardID:      "game",
+// Game returns the example game shard address.
+func Game() cardinal.OtherWorld {
+	return cardinal.OtherWorld{
+		Region:       "us-west1",
+		Organization: "organization",
+		Project:      "project",
+		ShardID:      "game",
+	}
 }
 
-var Chat = cardinal.OtherWorld{
-	Region:       "us-west1",
-	Organization: "organization",
-	Project:      "project",
-	ShardID:      "chat",
+// Chat returns the example chat shard address.
+func Chat() cardinal.OtherWorld {
+	return cardinal.OtherWorld{
+		Region:       "us-west1",
+		Organization: "organization",
+		Project:      "project",
+		ShardID:      "chat",
+	}
 }

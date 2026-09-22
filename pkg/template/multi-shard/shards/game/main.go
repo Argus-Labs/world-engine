@@ -1,7 +1,10 @@
 package main
 
 import (
+	otherworld "github.com/argus-labs/world-engine/pkg/template/multi-shard/pkg/other_world"
+	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/command"
 	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/component"
+	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/event"
 	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/system"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
@@ -20,11 +23,18 @@ func main() {
 	w.RegisterComponent[component.Position]()
 	w.RegisterComponent[component.OnlineStatus]()
 
-	w.RegisterSystem(system.PlayerSetUpdater, cardinal.WithHook(cardinal.PreUpdate))
-	w.RegisterSystem(system.PlayerSpawnSystem)
-	w.RegisterSystem(system.MovePlayerSystem)
-	w.RegisterSystem(system.PlayerLeaveSystem)
-	w.RegisterSystem(system.OnlineStatusUpdater)
+	w.RegisterCommand[command.PlayerSpawn]()
+	w.RegisterCommand[command.MovePlayer]()
+	w.RegisterCommand[command.PlayerLeave]()
+
+	w.RegisterEvent[event.PlayerSpawn]()
+	w.RegisterEvent[event.PlayerMovement]()
+	w.RegisterEvent[event.PlayerDeparture]()
+
+	w.RegisterSystem(&system.PlayerSpawnSystem{ChatWorld: otherworld.Chat()})
+	w.RegisterSystem(&system.MovePlayerSystem{})
+	w.RegisterSystem(&system.PlayerLeaveSystem{})
+	w.RegisterSystem(&system.OnlineStatusUpdater{})
 
 	w.StartGame()
 }
