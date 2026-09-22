@@ -299,6 +299,15 @@ func Equal[T comparable](a, b Slice[T]) bool {
 	return slices.Equal(a.items, b.items)
 }
 
+// SameBacking reports whether a and b are the same window onto the same array. That makes them
+// equal element for element, cheaply and whatever the elements are; Equal is the general answer
+// and the one to reach for unless a full comparison is the cost being avoided. Note the two
+// differ on NaN: Equal reports a Slice holding one unequal to itself, SameBacking does not.
+func SameBacking[T any](a, b Slice[T]) bool {
+	return len(a.items) == len(b.items) &&
+		(len(a.items) == 0 || &a.items[0] == &b.items[0])
+}
+
 // Compare compares a and b element by element, like slices.Compare.
 func Compare[T cmp.Ordered](a, b Slice[T]) int {
 	return slices.Compare(a.items, b.items)

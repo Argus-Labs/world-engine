@@ -151,11 +151,18 @@ func (s ResolvedShape) structuralEqual(o ResolvedShape) bool {
 // Spawn de-duplicates on it, so a sensor and a solid that agree on everything else stay two
 // shapes, which they must: Box2D cannot toggle isSensor on a live fixture.
 func (s ResolvedShape) Equal(o ResolvedShape) bool {
-	return s.sameExceptPoints(o) && immutable.Equal(s.Chain.Points, o.Chain.Points)
+	return s.sameExceptPoints(o) && pointsEqual(s.Chain.Points, o.Chain.Points)
 }
 
-// sameExceptPoints reports whether two mirrored values of one entity are equal, chain points
-// aside (those are fixed once mirrored, so they never count as a change).
+// pointsEqual compares chain points, identity first. A column hands back the same header every
+// read, so re-reading one entity settles in a pointer compare instead of walking the points
+// every tick; spawn's de-duplication, which compares two entities, falls through to the walk.
+func pointsEqual(a, b immutable.Slice[component.Vec2]) bool {
+	return immutable.SameBacking(a, b) || immutable.Equal(a, b)
+}
+
+// sameExceptPoints reports whether two shapes are equal apart from chain points, which are
+// the one field a plain == cannot cover. Callers pair it with immutable.Equal on the points.
 func (s ResolvedShape) sameExceptPoints(o ResolvedShape) bool {
 	return s.Kind == o.Kind &&
 		s.Common == o.Common &&
@@ -236,8 +243,10 @@ func (rt *Runtime) SyncShapes(entries []ShapeEntry) {
 }
 
 // mirrorShape stores one shape entity's value, marking it dirty (material or structural)
-// when it differs from the mirrored value. Chain points are immutable, so sharing them with
-// the component is safe; a known entity keeps the points it was first seen with.
+// when it differs from the mirrored value. Chain points are never edited in place, so sharing
+// them with the component is safe; they are still compared, because an id can come back
+// carrying different points (a restore over the ids init built, a destroy and respawn in one
+// tick) and the fixture would otherwise keep the geometry the id had before.
 func (rt *Runtime) mirrorShape(id cardinal.EntityID, shape ResolvedShape) {
 	prev, known := rt.ShapeMirror[id]
 	if !known {
@@ -245,8 +254,10 @@ func (rt *Runtime) mirrorShape(id cardinal.EntityID, shape ResolvedShape) {
 		rt.shapeSweepScratch = append(rt.shapeSweepScratch, id)
 		return
 	}
-	shape.Chain.Points = prev.Chain.Points
-	if prev.sameExceptPoints(shape) {
+	// Spelled out rather than prev.Equal(shape): ResolvedShape is 304 bytes and Equal is over
+	// the inlining budget, so the call would copy the receiver and the argument every shape,
+	// every tick. Both of these inline.
+	if prev.sameExceptPoints(shape) && pointsEqual(prev.Chain.Points, shape.Chain.Points) {
 		return
 	}
 	change := shapeChangeMaterial
