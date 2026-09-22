@@ -27,13 +27,15 @@ const (
 	attrSystemHook   = attribute.Key("cardinal.system.hook")
 	attrSnapshotDue  = attribute.Key("cardinal.snapshot.due")
 
-	attrCommandName      = attribute.Key("cardinal.command.name")
-	attrCommandPersona   = attribute.Key("cardinal.command.persona")
-	attrCommandTarget    = attribute.Key("cardinal.command.target")
-	attrEventName        = attribute.Key("cardinal.event.name")
-	attrEventRecipient   = attribute.Key("cardinal.event.recipient")
-	attrEventSubscribers = attribute.Key("cardinal.event.subscribers")
-	attrEventWaiters     = attribute.Key("cardinal.event.waiters")
+	attrCommandName        = attribute.Key("cardinal.command.name")
+	attrCommandPersona     = attribute.Key("cardinal.command.persona")
+	attrCommandTarget      = attribute.Key("cardinal.command.target")
+	attrEventName          = attribute.Key("cardinal.event.name")
+	attrEventRecipient     = attribute.Key("cardinal.event.recipient")
+	attrEventSubscribers   = attribute.Key("cardinal.event.subscribers")
+	attrEventWaiters       = attribute.Key("cardinal.event.waiters")
+	attrEventSendFailures  = attribute.Key("cardinal.event.send_failures")
+	attrEventSubscriptions = attribute.Key("cardinal.event.subscriptions")
 )
 
 // startSpan starts a child span of ctx. Worlds built as struct literals (tests) have a nil tracer

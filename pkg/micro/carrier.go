@@ -9,10 +9,11 @@ import (
 
 // headerCarrier adapts nats.Header for OpenTelemetry context propagation.
 //
-// propagation.HeaderCarrier is built for http.Header and canonicalizes keys on Get, but NATS keeps
-// header keys as sent, and the wire can deliver "traceparent" in a different case than it was set.
-// This carrier writes lowercase keys and reads case-insensitively, as the W3C trace-context spec
-// requires.
+// propagation.HeaderCarrier is built for http.Header and canonicalizes keys on Get, but NATS header
+// keys are byte-exact: nats.go delivers them in the case the sender used, and clients in other
+// languages canonicalize to "Traceparent" while W3C trace context names the header "traceparent".
+// This carrier writes the lowercase W3C form and reads case-insensitively so either spelling is
+// found.
 type headerCarrier nats.Header
 
 var (

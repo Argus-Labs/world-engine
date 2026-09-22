@@ -28,6 +28,7 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	otelcodes "go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 )
@@ -235,7 +236,7 @@ func (s *service) SendCommand(
 	assert.That(cmd.GetPersona() != nil, "command persona should have been validated")
 
 	cmd.Persona.Id = user.ID
-	trace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))
+	trace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID), attrCommandName.String(cmd.GetName()))
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
@@ -260,7 +261,9 @@ func (s *service) SendCommandWithReply(
 	assert.That(cmd.GetPersona() != nil, "command persona should have been validated")
 
 	cmd.Persona.Id = user.ID
-	trace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(semconv.EnduserID(user.ID), attrCommandName.String(cmd.GetName()),
+		attrEventName.String(req.Msg.GetEventName()))
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
@@ -273,10 +276,14 @@ func (s *service) SendCommandWithReply(
 	waiter := s.addReplyWaiter(req.Msg.GetEventName())
 	defer s.removeReplyWaiter(req.Msg.GetEventName(), waiter)
 
+	// The span's duration is the round trip; this event marks where the enqueue ended and the wait
+	// for the reply began. A cancelled wait ends the span with only this event and an error status.
+	span.AddEvent("command enqueued")
 	select {
 	case <-ctx.Done():
 		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "waiting for reply event"))
 	case event := <-waiter:
+		span.AddEvent("reply received")
 		return connect.NewResponse(&cardinalv1.SendCommandWithReplyResponse{Event: event}), nil
 	}
 }
@@ -318,6 +325,8 @@ func (s *service) StartEventStream(
 ) error {
 	user := UserFromContext(ctx)
 	assert.That(user != nil, "user should exist in authenticated stream context")
+	trace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID),
+		attrEventSubscriptions.Int(countSubscriptions(req.Msg.GetSubscriptions())))
 
 	subscriber, err := s.addSubscriber(ctx, user, stream)
 	if err != nil {
@@ -360,17 +369,9 @@ func (s *service) SubscribeEvents(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.SubscribeEventsRequest],
 ) (*connect.Response[cardinalv1.SubscribeEventsResponse], error) {
-	user := UserFromContext(ctx)
-	assert.That(user != nil, "user should exist in authenticated request context")
-
-	if !s.hasSubscriber(user) {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
-	}
-
-	for _, subscription := range req.Msg.GetSubscriptions() {
-		if micro.String(s.world.address) != micro.String(subscription.GetAddress()) {
-			return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
-		}
+	user, err := s.subscriptionRequest(ctx, req.Msg.GetSubscriptions())
+	if err != nil {
+		return nil, err
 	}
 	s.subscribeEvents(user, req.Msg.GetSubscriptions())
 
@@ -381,21 +382,34 @@ func (s *service) UnsubscribeEvents(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.UnsubscribeEventsRequest],
 ) (*connect.Response[cardinalv1.UnsubscribeEventsResponse], error) {
+	user, err := s.subscriptionRequest(ctx, req.Msg.GetSubscriptions())
+	if err != nil {
+		return nil, err
+	}
+	s.unsubscribeEvents(user, req.Msg.GetSubscriptions())
+
+	return connect.NewResponse(&cardinalv1.UnsubscribeEventsResponse{}), nil
+}
+
+// subscriptionRequest validates a subscribe or unsubscribe request from a user with an open stream.
+func (s *service) subscriptionRequest(
+	ctx context.Context, subscriptions []*cardinalv1.EventSubscription,
+) (*User, error) {
 	user := UserFromContext(ctx)
 	assert.That(user != nil, "user should exist in authenticated request context")
+	trace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID),
+		attrEventSubscriptions.Int(countSubscriptions(subscriptions)))
 
 	if !s.hasSubscriber(user) {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
 	}
 
-	for _, subscription := range req.Msg.GetSubscriptions() {
+	for _, subscription := range subscriptions {
 		if micro.String(s.world.address) != micro.String(subscription.GetAddress()) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 		}
 	}
-	s.unsubscribeEvents(user, req.Msg.GetSubscriptions())
-
-	return connect.NewResponse(&cardinalv1.UnsubscribeEventsResponse{}), nil
+	return user, nil
 }
 
 func (s *service) addSubscriber(
@@ -462,6 +476,15 @@ func (s *service) hasSubscriber(user *User) bool {
 	return ok
 }
 
+// countSubscriptions returns the number of event names across all subscriptions.
+func countSubscriptions(subscriptions []*cardinalv1.EventSubscription) int {
+	n := 0
+	for _, subscription := range subscriptions {
+		n += len(subscription.GetEvents())
+	}
+	return n
+}
+
 // -------------------------------------------------------------------------------------------------
 // Event publishers
 // -------------------------------------------------------------------------------------------------
@@ -523,7 +546,9 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) (err
 		}
 	}
 
-	// Send events to stream subscribers.
+	// Send events to stream subscribers. A failed send is logged and recorded on the span but does not
+	// fail the dispatch: one dead stream must not block delivery to the others.
+	sendFailures := 0
 	for _, subscriber := range subscribers {
 		select {
 		case <-subscriber.ctx.Done():
@@ -536,10 +561,13 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) (err
 			Event:   eventPb,
 		})
 		if err != nil {
+			sendFailures++
+			span.RecordError(err)
 			s.log.Error().Err(err).Str("event", eventPb.GetName()).Msg("failed to send event to subscriber")
 			continue
 		}
 	}
+	span.SetAttributes(attrEventSendFailures.Int(sendFailures))
 
 	return nil
 }
