@@ -7,6 +7,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
@@ -16,6 +17,14 @@ type PhysicsRebuildEntry struct {
 	Transform   component.Transform2D
 	Velocity    component.Velocity2D
 	PhysicsBody component.PhysicsBody2D
+}
+
+// shapeHolder is one entity's slot list carried across a rebuild. An entity alive but missing
+// Transform2D or Velocity2D still holds its refs in PhysicsBody2D, and the shapes behind them
+// must stay alive or the ids are reused under refs still in use. See rebuildShapeRefs.
+type shapeHolder struct {
+	EntityID cardinal.EntityID
+	Shapes   immutable.Slice[component.ShapeRef]
 }
 
 // FullRebuildFromECS replaces all derived physics state on this runtime in one
@@ -35,7 +44,9 @@ type PhysicsRebuildEntry struct {
 //
 // Bodies keep their component Awake value; those in the persisted ActiveContacts baseline are
 // woken before the suppressed step instead (see Runtime.wakePersistedContactEntities).
-func (rt *Runtime) FullRebuildFromECS(gravity component.Vec2, entries []PhysicsRebuildEntry) error {
+func (rt *Runtime) FullRebuildFromECS(
+	gravity component.Vec2, entries []PhysicsRebuildEntry, stillHoldsBody func(cardinal.EntityID) bool,
+) error {
 	sorted := slices.Clone(entries)
 	slices.SortFunc(sorted, func(a, b PhysicsRebuildEntry) int {
 		return cmp.Compare(a.EntityID, b.EntityID)
@@ -63,7 +74,7 @@ func (rt *Runtime) FullRebuildFromECS(gravity component.Vec2, entries []PhysicsR
 	clear(rt.Chains)
 	clear(rt.KnownEntities)
 	clear(rt.Shadow)
-	rt.rebuildShapeRefs(sorted)
+	rt.rebuildShapeRefs(sorted, stillHoldsBody)
 	rt.shapeRefsStale = false
 	rt.BufferedContacts = rt.BufferedContacts[:0]
 	// Force reload of active-contact baseline from the ECS singleton on the next step. If we

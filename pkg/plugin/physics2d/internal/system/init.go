@@ -68,7 +68,12 @@ func NewInitPhysicsSystem(rt *internal.Runtime) func(*InitPhysicsSystemState) {
 
 		entries := rt.KeepRebuildEntriesScratch(
 			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
-		if err := rt.FullRebuildFromECS(rt.Gravity, entries); err != nil {
+		// Absent from the gather above is not the same as gone: an entity holding a
+		// PhysicsBody2D without the rest still names its shapes. See rebuildShapeRefs.
+		stillHoldsBody := func(id cardinal.EntityID) bool {
+			return state.Entity(id).Has[physicscomp.PhysicsBody2D]()
+		}
+		if err := rt.FullRebuildFromECS(rt.Gravity, entries, stillHoldsBody); err != nil {
 			panic(eris.Wrap(err, "physics2d: FullRebuildFromECS failed"))
 		}
 	}

@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"cmp"
 	"slices"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
@@ -69,14 +70,25 @@ func (rt *Runtime) unrefSlots(slots immutable.Slice[component.ShapeRef]) {
 	}
 }
 
-// rebuildShapeRefs recomputes the declared lists and counts from entries, after a full
-// rebuild. Every mirrored shape is a sweep candidate again; the counts decide.
-func (rt *Runtime) rebuildShapeRefs(entries []PhysicsRebuildEntry) {
+// rebuildShapeRefs recomputes the declared lists and counts after a full rebuild. Every
+// mirrored shape is a sweep candidate again; the counts decide.
+//
+// Rebuilt rows are not the whole story. An entity can hold a PhysicsBody2D without being a
+// complete physics row, and the refs in that component are as real as any other's, so its list
+// is carried over rather than dropped. Without that, a rebuild would release the shapes of
+// every entity that is between states and let their ids be reused under refs still in use.
+func (rt *Runtime) rebuildShapeRefs(
+	entries []PhysicsRebuildEntry, stillHoldsBody func(cardinal.EntityID) bool,
+) {
+	carried := rt.carryOverDeclared(entries, stillHoldsBody)
 	clear(rt.declaredSlots)
 	clear(rt.shapeRefs)
 	rt.shapeSweepScratch = rt.shapeSweepScratch[:0]
 	for i := range entries {
 		rt.noteDeclared(entries[i].EntityID, entries[i].PhysicsBody.Shapes)
+	}
+	for i := range carried {
+		rt.noteDeclared(carried[i].EntityID, carried[i].Shapes)
 	}
 	for id := range rt.ShapeMirror {
 		rt.shapeSweepScratch = append(rt.shapeSweepScratch, id)
@@ -105,4 +117,23 @@ func (rt *Runtime) SweepUnusedShapes(destroy func(cardinal.EntityID) bool) {
 		delete(rt.ShapeMirror, id)
 	}
 	rt.shapeSweepScratch = queued[:0]
+}
+
+// carryOverDeclared returns the declared lists that must survive a rebuild: entities that are
+// not among the rebuilt rows but still hold a PhysicsBody2D naming their shapes. Allocates,
+// which is fine here: rebuilds are Reset, restore and nil-world recovery, not the steady state.
+func (rt *Runtime) carryOverDeclared(
+	entries []PhysicsRebuildEntry, stillHoldsBody func(cardinal.EntityID) bool,
+) []shapeHolder {
+	var carried []shapeHolder
+	for id, slots := range rt.declaredSlots {
+		if slices.ContainsFunc(entries, func(e PhysicsRebuildEntry) bool { return e.EntityID == id }) {
+			continue
+		}
+		if stillHoldsBody(id) {
+			carried = append(carried, shapeHolder{EntityID: id, Shapes: slots})
+		}
+	}
+	slices.SortFunc(carried, func(a, b shapeHolder) int { return cmp.Compare(a.EntityID, b.EntityID) })
+	return carried
 }

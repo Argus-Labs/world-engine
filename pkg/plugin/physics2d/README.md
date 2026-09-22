@@ -202,15 +202,22 @@ same tick as the first body that uses it, and keep a `Shape` (plain data)
 rather than a ref for shapes you will need later. Sharing still works: put
 the ref the first body got on the others while that body is alive.
 
+To disable a body, set `Active = false`. Do not remove `Transform2D` or
+`Velocity2D` to take it out of the simulation: those are where the plugin
+writes the body's position and velocity back each tick, so an entity missing
+either is not a physics body at all. A body that keeps its `PhysicsBody2D`
+still holds its shapes, so they are not swept while it is out, but nothing
+else about that state is supported.
+
 ### Chain points
 
 Chain shapes (`Chain(points...)`, `ChainLoop(points...)`) carry their
 polyline on the shape entity, so one long polyline is stored once no
-matter how many bodies stand on it. Points are the one exception to
-in-place editing: the plugin copies them when it first sees the shape and
-never re-reads them, so a long polyline costs nothing per tick. To change
-terrain, spawn a new chain shape and point the ref at it (that change is
-what triggers the fixture rebuild).
+matter how many bodies stand on it. Comparing a polyline costs nothing in
+the steady state: the plugin holds the same slice the component does, so an
+unchanged chain settles in a pointer comparison and only a chain whose
+points actually moved is walked. To change terrain, spawn a new chain shape
+and point the ref at it (that change is what triggers the fixture rebuild).
 
 ### Body-type cheat sheet
 

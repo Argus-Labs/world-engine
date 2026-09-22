@@ -99,7 +99,8 @@ func restoreAndFingerprint(t *testing.T, steps int) string {
 	g := component.Vec2{Y: restoreGravity}
 	rt := NewRuntime(g, 1.0/60.0, 4, 0)
 	restoreShapeMirror(rt)
-	if err := rt.FullRebuildFromECS(g, restoreSnapshotEntries()); err != nil {
+	entries := restoreSnapshotEntries()
+	if err := rt.FullRebuildFromECS(g, entries, func(cardinal.EntityID) bool { return false }); err != nil {
 		t.Fatalf("rebuild: %v", err)
 	}
 	rt.LoadActiveContactsFromComponent(restoreBaseline())
