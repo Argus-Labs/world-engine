@@ -35,7 +35,7 @@ func (b contactEmitterBridge) EmitTriggerEnd(e physicevent.TriggerEndEvent) { b.
 // seeds the runtime's contact-dedupe baseline from it when the runtime has
 // none (e.g. right after a snapshot restore or Reset).
 func loadContactBaseline(
-	rt *internal.Runtime, state *PhysicsPipelineSystemState, singleton cardinal.Query,
+	rt *internal.Runtime, state *PhysicsPipelineSystemState, singleton cardinal.Search,
 ) (cardinal.Entity, bool) {
 	var acRef cardinal.Entity
 	singletonFound := false

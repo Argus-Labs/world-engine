@@ -161,7 +161,7 @@ func (r *Runner) Plugin() *physics.Plugin { return r.plugin }
 // LastTick returns the final tick the loop will run.
 func (r *Runner) LastTick() uint64 { return r.lastTick }
 
-func (r *Runner) ctx(scenario *Scenario, probes cardinal.Query, tick uint64) *Ctx {
+func (r *Runner) ctx(scenario *Scenario, probes cardinal.Search, tick uint64) *Ctx {
 	return &Ctx{
 		report:     r.report,
 		probes:     probes,
@@ -258,7 +258,7 @@ func (r *Runner) step(state *stepState) {
 // watchNaN fails once per entity the first time any of its physics scalars stops
 // being finite. A NaN anywhere in the pipeline poisons the whole Box2D island,
 // so catching the first one names the body actually at fault.
-func (r *Runner) watchNaN(probes cardinal.Query, tick uint64) {
+func (r *Runner) watchNaN(probes cardinal.Search, tick uint64) {
 	for row := range probes.Iter() {
 		eid := row.ID()
 		if r.nanReported[eid] {

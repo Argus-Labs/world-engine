@@ -87,7 +87,7 @@ func findMessageDescriptor(set *descriptorpb.FileDescriptorSet, name string) *de
 }
 
 type snapshotEntities struct {
-	Entities Query
+	Entities Search
 }
 
 func seedSnapshotWorld(t *testing.T, state *snapshotEntities) {

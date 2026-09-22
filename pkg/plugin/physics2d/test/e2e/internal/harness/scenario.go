@@ -28,7 +28,7 @@ type ProbeRow struct {
 
 // probes builds the query over every harness body. Contains (not Exact) so a
 // scenario is free to add extra components to an entity later on.
-func probes(state *cardinal.BaseSystemState) cardinal.Query {
+func probes(state *cardinal.BaseSystemState) cardinal.Search {
 	return state.Contains[ProbeRow]()
 }
 
@@ -140,7 +140,7 @@ func (e LoggedEvent) Touches(a cardinal.EntityID) bool {
 // writing to ECS and subtracts it when reading back.
 type Ctx struct {
 	report     *Report
-	probes     cardinal.Query
+	probes     cardinal.Search
 	events     *eventStore
 	plugin     *physics.Plugin
 	allowReset func()

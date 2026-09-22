@@ -9,7 +9,7 @@ type perfArchetype struct {
 
 type perfEntityState struct {
 	BaseSystemState
-	Entities Query
+	Entities Search
 }
 
 // newPerfEntityState excludes world and archetype resolution from steady-state measurements.

@@ -528,17 +528,17 @@ func (s *WithSystemEventEmitter[T]) Emit(systemEvent T) {
 // Components
 // -------------------------------------------------------------------------------------------------
 
-// Query is a resolved archetype match bound to one world. Build it inside a system with
+// Search is a resolved archetype match bound to one world. Build it inside a system with
 // BaseSystemState.Contains or BaseSystemState.Exact; it holds no entity data and is cheap
 // to construct, so it need not be cached across ticks.
-type Query struct {
+type Search struct {
 	world      *ecs.World
 	components bitmap.Bitmap
 	match      ecs.SearchMatch
 }
 
 // Iter yields each matching entity as a world-bound handle.
-func (q Query) Iter() SearchResult {
+func (q Search) Iter() SearchResult {
 	return func(yield func(Entity) bool) {
 		err := q.world.IterEntities(q.components, q.match, func(eid EntityID) bool {
 			return yield(Entity{world: q.world, id: eid})
@@ -548,7 +548,7 @@ func (q Query) Iter() SearchResult {
 }
 
 // GetByID returns a handle if the entity matches the query's archetype.
-func (q Query) GetByID(eid EntityID) (Entity, error) {
+func (q Search) GetByID(eid EntityID) (Entity, error) {
 	if err := q.world.MatchArchetype(eid, q.components, q.match); err != nil {
 		return Entity{}, eris.Wrap(err, "failed to get entity")
 	}
@@ -556,7 +556,7 @@ func (q Query) GetByID(eid EntityID) (Entity, error) {
 }
 
 // Create returns a new entity with the query's components, initialized to zero.
-func (q Query) Create() Entity {
+func (q Search) Create() Entity {
 	return Entity{world: q.world, id: q.world.CreateWithArchetype(q.components)}
 }
 

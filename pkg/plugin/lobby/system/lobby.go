@@ -793,7 +793,7 @@ type playerArchetype struct {
 func getPlayerLobby(
 	playerID string,
 	lobbyIndex *lookupIndex,
-	lobbies cardinal.Query,
+	lobbies cardinal.Search,
 ) *lobbyLookupResult {
 	lobbyID, exists := lobbyIndex.GetPlayerLobby(playerID)
 	if !exists {

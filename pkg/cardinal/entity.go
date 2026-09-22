@@ -80,22 +80,22 @@ func (b *BaseSystemState) Create[T any]() Entity {
 //
 // Build the query inside the system function. It panics if a component in T was not
 // registered with World.RegisterComponent before the world started.
-func (b *BaseSystemState) Contains[T any]() Query {
+func (b *BaseSystemState) Contains[T any]() Search {
 	return b.query[T](ecs.MatchContains)
 }
 
 // Exact returns a query over entities that have exactly the components declared by T.
 // See Contains for the shape of T.
-func (b *BaseSystemState) Exact[T any]() Query {
+func (b *BaseSystemState) Exact[T any]() Search {
 	return b.query[T](ecs.MatchExact)
 }
 
-func (b *BaseSystemState) query[T any](match ecs.SearchMatch) Query {
+func (b *BaseSystemState) query[T any](match ecs.SearchMatch) Search {
 	components, err := b.world.archetype[T]()
 	if err != nil {
 		panic(err)
 	}
-	return Query{world: b.world.world, components: components, match: match}
+	return Search{world: b.world.world, components: components, match: match}
 }
 
 // RegisterComponent registers a component type before world startup. Every component

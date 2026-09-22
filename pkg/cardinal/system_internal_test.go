@@ -441,7 +441,7 @@ func newSystemEventFixture(t *testing.T) *systemEventFixture {
 // -------------------------------------------------------------------------------------------------
 // Search, Contains, Exact, smoke tests
 // -------------------------------------------------------------------------------------------------
-// Query and Entity are light wrappers over the world state operations, which are already
+// Search and Entity are light wrappers over the world state operations, which are already
 // tested. Here, we just check if the regular query operations work. The archetype bitmap is
 // resolved on the first Contains/Exact call per world and cached; if the operations work, that
 // resolution works.
@@ -666,8 +666,8 @@ func TestSearch_Smoke(t *testing.T) {
 }
 
 type searchFixture struct {
-	Movers  Query
-	Singles Query
+	Movers  Search
+	Singles Search
 }
 
 func newSearchFixture(t *testing.T) *searchFixture {

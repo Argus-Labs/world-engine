@@ -15,7 +15,7 @@ type entityTestArchetype struct {
 
 type entityTestState struct {
 	BaseSystemState
-	Entities Query
+	Entities Search
 }
 
 func newEntityTestState(t *testing.T) (*World, *entityTestState) {
@@ -152,7 +152,7 @@ func TestEntity_RegisterComponent(t *testing.T) {
 
 // Queries resolve when built inside a system, so systems may be registered before the
 // components they query. An unregistered component fails at the query, not at registration.
-func TestQuery_ResolvesAtRunTime(t *testing.T) {
+func TestSearch_ResolvesAtRunTime(t *testing.T) {
 	t.Parallel()
 	w := &World{world: ecs.NewWorld()}
 	ran := false
@@ -169,7 +169,7 @@ func TestQuery_ResolvesAtRunTime(t *testing.T) {
 	require.True(t, ran)
 }
 
-func TestQuery_RejectsNonArchetypes(t *testing.T) {
+func TestSearch_RejectsNonArchetypes(t *testing.T) {
 	t.Parallel()
 	w := &World{world: ecs.NewWorld()}
 	w.RegisterComponent[testutils.ComponentA]()
