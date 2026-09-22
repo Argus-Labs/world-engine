@@ -135,10 +135,23 @@ func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
 		return nil
 	}
 	if err := rt.reconcileExistingBody(hadPrev, prev, e); err != nil {
+		rt.forgetFixtures(e)
 		return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
 	}
 	rt.Shadow[e.EntityID] = NewShadowState(e.Transform, e.Velocity, e.PhysicsBody)
 	return nil
+}
+
+// forgetFixtures blanks the shadow's slot list after a failed update when a named shape
+// changed this tick: the dirty mark clears next tick, and the shadow would then say the
+// fixtures are current. The next update that lands rebuilds them from the mirror.
+func (rt *Runtime) forgetFixtures(e PhysicsRebuildEntry) {
+	sh, ok := rt.Shadow[e.EntityID]
+	if !ok || !rt.slotsDirty(e.PhysicsBody.Shapes) {
+		return
+	}
+	sh.PhysicsBody.Shapes = immutable.Slice[component.ShapeRef]{}
+	rt.Shadow[e.EntityID] = sh
 }
 
 // createBodyForEntry builds a new body with shapes and records KnownEntities and Shadow.
