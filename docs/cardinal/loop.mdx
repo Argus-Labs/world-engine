@@ -42,7 +42,7 @@ By doing this, Cardinal's loop-driven runtime provides the following benefits:
 
 ### Tracing the Loop
 
-Cardinal exports OpenTelemetry traces over OTLP gRPC. Point `OTEL_EXPORTER_OTLP_ENDPOINT` at a collector (default `jaeger:4317`) and set `OTEL_TRACE_SAMPLE_RATE` between `0.0` and `1.0` to control how many ticks are sampled. An empty endpoint disables tracing.
+Cardinal exports OpenTelemetry traces over OTLP gRPC. The defaults target groundcover: `OTEL_EXPORTER_OTLP_ENDPOINT` defaults to the in-cluster sensor at `groundcover-sensor.groundcover.svc.cluster.local:4317`, which is reached in plaintext. To send directly to groundcover's BYOC ingestion endpoint from outside the cluster, set the endpoint to `https://{BYOC_ENDPOINT}` (the `https://` scheme turns on TLS) and pass the ingestion key through `OTEL_EXPORTER_OTLP_HEADERS=apikey={ingestion-key}`. Set `OTEL_TRACE_SAMPLE_RATE` between `0.0` and `1.0` to control how many ticks are sampled. Setting `OTEL_EXPORTER_OTLP_ENDPOINT` to an empty string disables tracing.
 
 Each tick is one root trace named `cardinal.tick` with these children:
 
