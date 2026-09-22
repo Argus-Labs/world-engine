@@ -210,7 +210,7 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 	// Replace inter-shard event handler with local assertions.
 	// E2E runs a single world instance, so cross-shard requests would otherwise fail with
 	// "no responders" and drown useful signal in log noise.
-	w.events.RegisterHandler(event.KindInterShardCommand, func(evt event.Event) error {
+	w.events.RegisterHandler(event.KindInterShardCommand, func(_ context.Context, evt event.Event) error {
 		assert.Equal(t, event.KindInterShardCommand, evt.Kind, "nats: received wrong event kind")
 		isc, ok := evt.Payload.(command.Command)
 		assert.True(t, ok, "nats: ISC payload is %T, want command.Command", evt.Payload)

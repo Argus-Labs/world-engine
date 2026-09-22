@@ -1,6 +1,7 @@
 package cardinal
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -265,7 +266,7 @@ func (f *commandFixture) enqueueCommand(t *testing.T, payload command.Payload, p
 		Payload: bytes,
 	}
 
-	err := f.world.commands.Enqueue(cmdpb)
+	err := f.world.commands.Enqueue(context.Background(), cmdpb)
 	require.NoError(t, err)
 }
 
@@ -296,11 +297,11 @@ func TestWithEvent_Smoke(t *testing.T) {
 
 		// Dispatch collects events and calls registered handlers.
 		var collected []event.Event
-		fixture.world.events.RegisterHandler(event.KindDefault, func(evt event.Event) error {
+		fixture.world.events.RegisterHandler(event.KindDefault, func(_ context.Context, evt event.Event) error {
 			collected = append(collected, evt)
 			return nil
 		})
-		err := fixture.world.events.Dispatch()
+		err := fixture.world.events.Dispatch(context.Background())
 		require.NoError(t, err)
 
 		assert.Len(t, collected, len(model), "completeness: expected %d events, got %d", len(model), len(collected))
@@ -316,11 +317,11 @@ func TestWithEvent_Smoke(t *testing.T) {
 		fixture := newEventFixture(t)
 
 		var collected []event.Event
-		fixture.world.events.RegisterHandler(event.KindDefault, func(evt event.Event) error {
+		fixture.world.events.RegisterHandler(event.KindDefault, func(_ context.Context, evt event.Event) error {
 			collected = append(collected, evt)
 			return nil
 		})
-		err := fixture.world.events.Dispatch()
+		err := fixture.world.events.Dispatch(context.Background())
 		require.NoError(t, err)
 
 		assert.Empty(t, collected)

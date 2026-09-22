@@ -27,6 +27,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
+	otelcodes "go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 )
 
@@ -233,12 +235,13 @@ func (s *service) SendCommand(
 	assert.That(cmd.GetPersona() != nil, "command persona should have been validated")
 
 	cmd.Persona.Id = user.ID
+	trace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 	}
 
-	if err := s.world.commands.Enqueue(cmd); err != nil {
+	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
@@ -257,12 +260,13 @@ func (s *service) SendCommandWithReply(
 	assert.That(cmd.GetPersona() != nil, "command persona should have been validated")
 
 	cmd.Persona.Id = user.ID
+	trace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 	}
 
-	if err := s.world.commands.Enqueue(cmd); err != nil {
+	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
@@ -465,11 +469,15 @@ func (s *service) hasSubscriber(user *User) bool {
 // TODO: move away from this centralized approach to a actor model for easier(?) synchronization.
 
 //nolint:gocognit // Put everything here so you can understand the logic in one place.
-func (s *service) publishDefaultEvent(evt event.Event) error {
+func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) (err error) {
 	payload, ok := evt.Payload.(event.Payload)
 	if !ok {
 		return eris.Errorf("invalid event payload type: %T", evt.Payload)
 	}
+
+	_, span := s.world.startSpan(ctx, spanEventPublish,
+		attrEventName.String(payload.Name()), attrEventRecipient.String(evt.Recipient))
+	defer func() { endSpan(span, err) }()
 
 	payloadPb := schema.Marshal(payload)
 
@@ -505,6 +513,7 @@ func (s *service) publishDefaultEvent(evt event.Event) error {
 	}
 	waiters := append([]chan *iscv1.Event(nil), s.replyWaiters[eventPb.GetName()]...)
 	s.mu.RUnlock()
+	span.SetAttributes(attrEventSubscribers.Int(len(subscribers)), attrEventWaiters.Int(len(waiters)))
 
 	// Send events for SendCommandWithReply channels.
 	for _, waiter := range waiters {
@@ -573,19 +582,26 @@ func (s *service) handleInterShardCommand(ctx context.Context, req *micro.Reques
 		return micro.NewErrorResponse(req, eris.New("command address doesn't match shard address"), codes.InvalidArgument)
 	}
 
-	if err := s.world.commands.Enqueue(cmd); err != nil {
+	trace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))
+	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
 		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), codes.InvalidArgument)
 	}
 
 	return micro.NewSuccessResponse(req, nil)
 }
 
-func (s *service) publishInterShardCommand(evt event.Event) error {
+func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event) error {
 	isc, ok := evt.Payload.(command.Command)
 	if !ok {
 		return eris.Errorf("invalid inter shard command %v", evt.Payload)
 	}
 	assert.That(isc.Address != nil, "inter shard command has nil address")
+
+	// The NATS client injects this span into the request headers, so the receiving shard's handler
+	// span (and the tick that drains the command there) joins this tick's trace.
+	ctx, span := s.world.startSpan(ctx, spanInterShardSend,
+		attrCommandName.String(isc.Payload.Name()), attrCommandTarget.String(micro.String(isc.Address)))
+	defer span.End()
 
 	payload := schema.Marshal(isc.Payload)
 
@@ -596,7 +612,7 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 		Payload: payload,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	// TODO: revisit shard-to-shard blocking. Dispatch runs synchronously in the tick loop, so this
@@ -604,6 +620,8 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 	// shard-to-shard isn't meant to block the tick, make this async (worker) or fire-and-forget Publish.
 	_, err := s.client.Request(ctx, isc.Address, "command."+isc.Payload.Name(), commandPb)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(otelcodes.Error, "send failed")
 		s.log.Error().Err(err).Str("command", isc.Payload.Name()).Msg("inter-shard command dropped: send failed")
 		return nil
 	}

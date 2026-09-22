@@ -9,6 +9,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -123,7 +124,11 @@ func (c *Client) Request(
 		return nil, eris.Wrap(err, "failed to marshal request")
 	}
 
-	msg, err := c.RequestWithContext(ctx, Endpoint(address, endpoint), reqBytes)
+	// Carry the caller's trace context so the service handler's span joins this trace.
+	reqMsg := &nats.Msg{Subject: Endpoint(address, endpoint), Data: reqBytes, Header: nats.Header{}}
+	otel.GetTextMapPropagator().Inject(ctx, headerCarrier(reqMsg.Header))
+
+	msg, err := c.RequestMsgWithContext(ctx, reqMsg)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to send request")
 	}

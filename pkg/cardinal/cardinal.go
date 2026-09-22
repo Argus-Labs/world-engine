@@ -18,6 +18,8 @@ import (
 	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -242,6 +244,13 @@ func (w *World) Tick(timestamp time.Time) {
 
 	commands := w.commands.Drain()
 	span.SetAttributes(attrTickCommands.Int(len(commands)))
+	for _, cmd := range commands {
+		// Links, not children: the request that enqueued the command finished before this tick.
+		if cmd.Span.IsValid() {
+			span.AddLink(trace.Link{SpanContext: cmd.Span, Attributes: []attribute.KeyValue{
+				attrCommandName.String(cmd.Name), attrCommandPersona.String(cmd.Persona)}})
+		}
+	}
 
 	w.currentTick.timestamp = timestamp
 	w.debug.startPerfTick()
@@ -252,8 +261,8 @@ func (w *World) Tick(timestamp time.Time) {
 	w.debug.recordTick(w.currentTick.height, timestamp)
 
 	// Send events.
-	_, dispatchSpan := w.startSpan(ctx, spanEventDispatch)
-	err := w.events.Dispatch()
+	dispatchCtx, dispatchSpan := w.startSpan(ctx, spanEventDispatch)
+	err := w.events.Dispatch(dispatchCtx)
 	endSpan(dispatchSpan, err)
 	if err != nil {
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")

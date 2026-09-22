@@ -16,7 +16,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	otelcodes "go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	codes "google.golang.org/grpc/codes"
 )
@@ -89,7 +88,7 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 	sub, err := s.client.Subscribe(Endpoint(s.Address, name), func(msg *nats.Msg) {
 		defer s.tel.RecoverAndFlush(true)
 		// Extract parent context from incoming NATS headers.
-		ctx := otel.GetTextMapPropagator().Extract(context.Background(), propagation.HeaderCarrier(msg.Header))
+		ctx := otel.GetTextMapPropagator().Extract(context.Background(), headerCarrier(msg.Header))
 
 		// Start a span for the server-side request processing.
 		ctx, span := s.tel.Tracer.Start(ctx, "handler."+name,
