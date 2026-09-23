@@ -2,7 +2,7 @@ package query
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // AABBOverlapRequest finds fixtures whose shapes overlap the axis-aligned box [Min, Max] in world space

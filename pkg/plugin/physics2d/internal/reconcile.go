@@ -8,7 +8,8 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	"github.com/argus-labs/world-engine/pkg/immutable"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // ReconcileFromECS incrementally syncs the Box2D world from authoritative ECS entries
@@ -16,12 +17,12 @@ import (
 //
 // Structural vs mutable changes:
 //
-//   - Structural: anything that changes shape identity -- shape count/order, per-shape type,
-//     local offset/rotation, or geometry (radius, half-extents, vertices, chain points).
-//     Handled by destroying all shapes on the body and re-attaching from ECS.
+//   - Structural: anything that changes fixture identity -- shape count/order, a shape's local
+//     offset/rotation, kind, geometry or sensor flag. Handled by destroying all shapes on the
+//     body and re-attaching.
 //
 //   - Mutable: body transform, linear/angular velocity, body type/damping/gravity scale,
-//     and per-shape sensor, friction, restitution, density, and filter category/mask/group.
+//     and per-shape friction, restitution, density, and filter category/mask/group.
 //     Applied in place without recreating shapes.
 //
 // Requires a live world on this runtime (for example after an initial
@@ -39,20 +40,23 @@ func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 		return err
 	}
 	rt.destroyOrphanBodies(sorted)
+	// One failing entity must not skip the rest; each entity's failure path leaves that
+	// entity in a clean state.
+	var errs []error
 	for _, e := range sorted {
 		if err := rt.reconcileOneEntry(e); err != nil {
-			return err
+			errs = append(errs, err)
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // cloneSortAndCheckDuplicateReconcileEntries returns entries sorted by EntityID or an error if
 // any ID repeats. The returned slice is backed by rt.reconcileSortScratch (reused across ticks
 // to avoid re-cloning every reconcile); it is only valid until the next call. The scratch tail
-// past the new length is cleared per the Runtime scratch RULE: PhysicsRebuildEntry holds shape
-// and vertex slices, so a bare [:0] would pin component memory for destroyed entities after
-// the entity count shrinks.
+// past the new length is cleared per the Runtime scratch RULE: PhysicsRebuildEntry holds the
+// slot slice, so a bare [:0] would pin component memory for destroyed entities after the
+// entity count shrinks.
 func (rt *Runtime) cloneSortAndCheckDuplicateReconcileEntries(
 	entries []PhysicsRebuildEntry,
 ) ([]PhysicsRebuildEntry, error) {
@@ -90,7 +94,7 @@ func (rt *Runtime) destroyOrphanBodies(sorted []PhysicsRebuildEntry) {
 
 // sortedEntriesContainID reports whether an EntityID-sorted entries slice contains id.
 // Index-based binary search: comparisons touch only the EntityID field instead of copying
-// whole PhysicsRebuildEntry values (transform, velocity and the collider with its shape slice)
+// whole PhysicsRebuildEntry values (transform, velocity and the body with its slot slice)
 // on every step the way slices.BinarySearchFunc's by-value comparator would.
 //
 // The midpoint is lo+(hi-lo)/2 rather than (lo+hi)/2: same overflow safety, but no unsigned
@@ -110,9 +114,6 @@ func sortedEntriesContainID(sorted []PhysicsRebuildEntry, id cardinal.EntityID) 
 
 // reconcileOneEntry creates a body if missing, no-ops if shadow matches live ECS, else patches the existing body.
 func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
-	if e.PhysicsBody.Shapes.Len() == 0 {
-		return fmt.Errorf("physics2d: entity %d: collider has no shapes", e.EntityID)
-	}
 	prev, hadPrev := rt.Shadow[e.EntityID]
 	_, hadBody := rt.KnownEntities[e.EntityID]
 	if !hadBody {
@@ -217,17 +218,19 @@ func untrackedVelocity(t component.BodyType) bool {
 	return t == component.BodyTypeManual || t == component.BodyTypeStatic
 }
 
-// reconcileShapesChange applies structural shape rebuild or in-place mutable updates when
-// shadow shapes differ from ECS.
+// reconcileShapesChange applies a structural fixture rebuild or in-place mutable updates when
+// the shadow's shapes differ from ECS.
 func (rt *Runtime) reconcileShapesChange(
 	entityID cardinal.EntityID,
-	prev, live ShapeSlice,
+	prev, live immutable.Slice[component.Shape],
 ) error {
-	if ShapesStructuralEqual(prev, live) {
+	if shapesStructuralEqual(prev, live) {
 		return rt.applyMutableShapeFixtures(entityID, prev, live)
 	}
 	rt.destroyAllShapesForEntity(entityID)
 	if err := rt.AttachColliderFixtures(entityID, live); err != nil {
+		// Half a body is worse than none: drop it entirely so the next tick treats the entity
+		// as new, retries the attach, and logs the same failure until the game fixes it.
 		rt.DestroyEntityBody(entityID)
 		delete(rt.KnownEntities, entityID)
 		delete(rt.Shadow, entityID)
@@ -293,46 +296,69 @@ func (rt *Runtime) setFixedRotation(bodyID box2d.BodyID, flag bool) {
 	rt.World.SetBodyMotionLocks(bodyID, locks)
 }
 
-// applyMutableShapeFixtures updates sensor, friction, restitution, density, and filter per shape index in place.
+// shapesStructuralEqual reports whether the live shapes can be applied to the fixtures built
+// from prev without recreating them: same count, and each pair builds the same fixture.
+func shapesStructuralEqual(prev, live immutable.Slice[component.Shape]) bool {
+	return prev.EqualFunc(live, component.Shape.StructuralEqual)
+}
+
+// applyMutableShapeFixtures pushes friction, restitution, density and filter into the fixture
+// of every shape whose material or filter changed. Requires shapesStructuralEqual(prev, live).
 func (rt *Runtime) applyMutableShapeFixtures(
 	entityID cardinal.EntityID,
-	prev ShapeSlice,
-	live ShapeSlice,
+	prev, live immutable.Slice[component.Shape],
 ) error {
-	for i, sh := range live.All() {
-		if err := sh.Validate(); err != nil {
-			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
-		}
-	}
 	slots := rt.Shapes[entityID]
-	var densityTouched bool
-	for i, sh := range live.All() {
-		prevShape := prev.At(i)
-		if ColliderShapeMutableFieldsEqual(prevShape, sh) {
+	for i, l := range live.All() {
+		p := prev.At(i)
+		sameMaterial := p.Friction == l.Friction && p.Restitution == l.Restitution && p.Density == l.Density
+		sameFilter := p.CategoryBits == l.CategoryBits && p.MaskBits == l.MaskBits && p.GroupIndex == l.GroupIndex
+		if sameMaterial && sameFilter {
 			continue
 		}
-		if prevShape.Density != sh.Density {
-			densityTouched = true
-		}
-		// Chain slots hold a null ShapeID and are skipped, matching the CGO bridge
-		// (its per-shape setters could not resolve chain shape indices either).
+		// Chain slots hold a null ShapeID; the chain is updated through its own id.
 		if i >= len(slots) || slots[i].IsNull() {
+			rt.applyMutableChain(entityID, i, !sameMaterial, sameFilter, l)
 			continue
 		}
 		sid := slots[i]
-		rt.World.SetShapeFriction(sid, sh.Friction)
-		rt.World.SetShapeRestitution(sid, sh.Restitution)
-		rt.World.SetShapeDensity(sid, sh.Density, true)
-		rt.World.SetShapeFilter(sid, box2d.Filter{
-			CategoryBits: sh.CategoryBits,
-			MaskBits:     sh.MaskBits,
-			GroupIndex:   int(sh.GroupIndex),
-		})
-	}
-	if densityTouched {
-		if bodyID, ok := rt.Bodies[entityID]; ok {
-			rt.World.ApplyBodyMassFromShapes(bodyID)
-		}
+		rt.World.SetShapeFriction(sid, l.Friction)
+		rt.World.SetShapeRestitution(sid, l.Restitution)
+		// The trailing true is Box2D's updateBodyMass: a density change re-derives the body's
+		// mass here, so nothing further up needs to track whether density moved.
+		rt.World.SetShapeDensity(sid, l.Density, true)
+		rt.World.SetShapeFilter(sid, shapeFilter(l))
 	}
 	return nil
+}
+
+// applyMutableChain sets a chain slot's material (one for every segment, as it was built) and
+// the filter on each segment shape. Chains have no mass, so density does not apply.
+//
+// Each half is skipped when its own input did not move, which matters here and not on the
+// single-shape path above: Box2D's SetShapeFilter and SetShapeDensity return early on an
+// unchanged value, but SetChainSurfaceMaterial writes to every segment unconditionally, and
+// reaching the segments to set filters costs a query and a slice.
+func (rt *Runtime) applyMutableChain(
+	entityID cardinal.EntityID, shapeIndex int, newMaterial, sameFilter bool, s component.Shape,
+) {
+	for _, ch := range rt.Chains[entityID] {
+		if ch.Index != shapeIndex {
+			continue
+		}
+		if newMaterial {
+			material := box2d.DefaultSurfaceMaterial()
+			material.Friction = s.Friction
+			material.Restitution = s.Restitution
+			rt.World.SetChainSurfaceMaterial(ch.ID, material, 0)
+		}
+		if !sameFilter {
+			segments := make([]box2d.ShapeID, rt.World.ChainSegmentCount(ch.ID))
+			n := rt.World.ChainSegments(ch.ID, segments)
+			for _, sid := range segments[:n] {
+				rt.World.SetShapeFilter(sid, shapeFilter(s))
+			}
+		}
+		return
+	}
 }

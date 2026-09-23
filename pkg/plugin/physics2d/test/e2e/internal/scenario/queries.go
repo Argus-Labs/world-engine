@@ -44,34 +44,34 @@ func Queries() harness.Scenario {
 		Setup: func(c *harness.Ctx) {
 			// Row y=0 — two walls in a line; a ray must stop at the first.
 			s.nearWall = c.Spawn("near-wall", nearWallX, 0,
-				body(physics.BodyTypeStatic, box(wallHalf, 2)))
+				body(c, physics.BodyTypeStatic, box(wallHalf, 2)))
 			s.farWall = c.Spawn("far-wall", farWallX, 0,
-				body(physics.BodyTypeStatic, box(wallHalf, 2)))
+				body(c, physics.BodyTypeStatic, box(wallHalf, 2)))
 
 			// Row y=10 — a sensor in front of a solid wall.
 			s.sensorWall = c.Spawn("sensor-wall", nearWallX, 10,
-				body(physics.BodyTypeStatic, asSensor(box(wallHalf, 2))))
+				body(c, physics.BodyTypeStatic, asSensor(box(wallHalf, 2))))
 			s.solidWall = c.Spawn("solid-wall", farWallX, 10,
-				body(physics.BodyTypeStatic, box(wallHalf, 2)))
+				body(c, physics.BodyTypeStatic, box(wallHalf, 2)))
 
 			// Row y=20 — three separate boxes for the overlap tests.
 			for _, x := range []float64{-4, 0, 4} {
 				s.boxes = append(s.boxes, c.Spawn("overlap-box", x, 20,
-					body(physics.BodyTypeStatic, box(0.5, 0.5))))
+					body(c, physics.BodyTypeStatic, box(0.5, 0.5))))
 			}
 
 			// Row y=30 — a wall to sweep into, plus a thin post parked just off
 			// the ray's line so a sweep can find what a ray cannot.
 			s.sweepWall = c.Spawn("sweep-wall", farWallX, 30,
-				body(physics.BodyTypeStatic, box(wallHalf, 2)))
+				body(c, physics.BodyTypeStatic, box(wallHalf, 2)))
 			s.post = c.Spawn("offset-post", nearWallX, postY,
-				body(physics.BodyTypeStatic, circle(postR)))
+				body(c, physics.BodyTypeStatic, circle(postR)))
 
 			// Row y=40 — a thin plank turned 45 degrees. Its axis-aligned
 			// bounding box covers a lot of empty space, which is what the
 			// broad-phase-versus-narrow-phase check below is about.
 			s.plank = c.Spawn("diagonal-plank", 0, plankY,
-				body(physics.BodyTypeStatic, rotatedBy(box(2, 0.1), math.Pi/4)))
+				body(c, physics.BodyTypeStatic, rotatedBy(box(2, 0.1), math.Pi/4)))
 		},
 		Steps: []harness.Step{
 			{Tick: 3, Do: func(c *harness.Ctx) {

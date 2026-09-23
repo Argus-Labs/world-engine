@@ -47,51 +47,51 @@ func Sensors() harness.Scenario {
 	)
 
 	// sensorBody is a static body whose single fixture is a sensor.
-	sensorBody := func(shape physics.ColliderShape) physics.PhysicsBody2D {
-		return body(physics.BodyTypeStatic, asSensor(shape))
+	sensorBody := func(c *harness.Ctx, shape ShapeSpec) physics.PhysicsBody2D {
+		return body(c, physics.BodyTypeStatic, asSensor(shape))
 	}
 
 	return harness.Scenario{
 		Name: "sensors",
 		Setup: func(c *harness.Ctx) {
 			// Row y=0 — a ball falls clean through a sensor and lands below it.
-			s.floor = c.Spawn("catch-floor", 0, -15, body(physics.BodyTypeStatic, box(6, 1)))
-			s.fallSensor = c.Spawn("fall-sensor", 0, 0, sensorBody(circle(2)))
-			s.faller = c.Spawn("faller", 0, 10, body(physics.BodyTypeDynamic, circle(0.5)))
+			s.floor = c.Spawn("catch-floor", 0, -15, body(c, physics.BodyTypeStatic, box(6, 1)))
+			s.fallSensor = c.Spawn("fall-sensor", 0, 0, sensorBody(c, circle(2)))
+			s.faller = c.Spawn("faller", 0, 10, body(c, physics.BodyTypeDynamic, circle(0.5)))
 
 			// Row y=20 — a compound body whose slot 1 is the sensor. The event has
 			// to name slot 1, not slot 0 and not the body as a whole.
-			s.compound = c.Spawn("compound-gate", 0, 20, body(physics.BodyTypeStatic,
+			s.compound = c.Spawn("compound-gate", 0, 20, body(c, physics.BodyTypeStatic,
 				box(0.5, 0.5),
 				asSensor(circle(2)),
 			))
 			s.visitor = c.Spawn("gate-visitor", visitorStart, 20,
-				body(physics.BodyTypeManual, box(0.5, 0.5)))
+				body(c, physics.BodyTypeManual, box(0.5, 0.5)))
 
 			// Row y=40 — a static solid body appears inside a sensor. Box2D v3
 			// queries the static, kinematic and dynamic trees for sensor overlap,
 			// so a static visitor must register.
-			s.staticGate = c.Spawn("static-gate", 0, 40, sensorBody(box(2, 2)))
+			s.staticGate = c.Spawn("static-gate", 0, 40, sensorBody(c, box(2, 2)))
 
 			// Row y=60 — a sensor riding a body that has gone to sleep. Sensors
 			// run in their own overlap pass that ignores sleep state, so this must
 			// fire even though nothing about the sleeping body has changed.
 			s.platform = c.Spawn("sleep-platform", 0, 59,
-				body(physics.BodyTypeStatic, box(3, 1)))
-			s.sleepy = c.Spawn("sleeping-sensor-body", 0, 60.5, body(physics.BodyTypeDynamic,
+				body(c, physics.BodyTypeStatic, box(3, 1)))
+			s.sleepy = c.Spawn("sleeping-sensor-body", 0, 60.5, body(c, physics.BodyTypeDynamic,
 				box(0.5, 0.5),
 				asSensor(circle(2)),
 			))
 			s.sleepVisit = c.Spawn("sleep-visitor", visitorStart, 60.5,
-				body(physics.BodyTypeManual, box(0.5, 0.5)))
+				body(c, physics.BodyTypeManual, box(0.5, 0.5)))
 
 			// Row y=80 — the one case Box2D does skip: a disabled body.
-			off := sensorBody(box(2, 2))
+			off := sensorBody(c, box(2, 2))
 			off.Active = false
 			s.offGate = c.Spawn("disabled-gate", 0, 80, off)
 
 			// Row y=100 — sensor against sensor.
-			s.gateA = c.Spawn("sensor-a", 0, 100, sensorBody(box(2, 2)))
+			s.gateA = c.Spawn("sensor-a", 0, 100, sensorBody(c, box(2, 2)))
 
 			// Row y=120 — a sensor destroyed while something is still inside it.
 			// The engine reports the end-touch for a destroyed shape, but by the
@@ -100,7 +100,7 @@ func Sensors() harness.Scenario {
 			// TriggerEnd from the persisted pair instead. Without that, anything
 			// latching state on TriggerBegin (an "in the zone" flag) would never
 			// be told the overlap ended.
-			s.doomedGate = c.Spawn("doomed-gate", 0, 120, sensorBody(box(2, 2)))
+			s.doomedGate = c.Spawn("doomed-gate", 0, 120, sensorBody(c, box(2, 2)))
 		},
 		EachTick: func(c *harness.Ctx) {
 			tick := float64(c.Tick())
@@ -124,14 +124,14 @@ func Sensors() harness.Scenario {
 		Steps: []harness.Step{
 			{Tick: spawnLate, Do: func(c *harness.Ctx) {
 				s.staticBlock = c.Spawn("static-visitor", 1.5, 40,
-					body(physics.BodyTypeStatic, box(0.5, 0.5)))
+					body(c, physics.BodyTypeStatic, box(0.5, 0.5)))
 				s.offBlock = c.Spawn("disabled-gate-visitor", 1.5, 80,
-					body(physics.BodyTypeStatic, box(0.5, 0.5)))
-				s.gateB = c.Spawn("sensor-b", 1.5, 100, sensorBody(box(2, 2)))
+					body(c, physics.BodyTypeStatic, box(0.5, 0.5)))
+				s.gateB = c.Spawn("sensor-b", 1.5, 100, sensorBody(c, box(2, 2)))
 				// Created after the world exists, so the overlap counts as new (see
 				// the note above about build-time overlaps).
 				s.gateSitter = c.Spawn("gate-sitter", 0, 120,
-					body(physics.BodyTypeStatic, box(0.5, 0.5)))
+					body(c, physics.BodyTypeStatic, box(0.5, 0.5)))
 			}},
 			{Tick: 120, Do: func(c *harness.Ctx) {
 				c.IntAtLeast("the doomed sensor registered its visitor before being destroyed",

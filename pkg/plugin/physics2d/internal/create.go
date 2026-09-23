@@ -7,7 +7,8 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	"github.com/argus-labs/world-engine/pkg/immutable"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // CreateBody creates a body in this runtime's Box2D world. It does not attach shapes;
@@ -68,10 +69,13 @@ func (rt *Runtime) CreateBody(
 	return nil
 }
 
-// AttachColliderFixtures creates one shape per ColliderShape on the body identified
-// by entityID. shapeIndex is the index i in shapes. Local offsets and rotations are
-// applied so geometry defined in shape space is placed correctly in body space.
-func (rt *Runtime) AttachColliderFixtures(entityID cardinal.EntityID, shapes ShapeSlice) error {
+// AttachColliderFixtures creates one Box2D shape per entry of shapes on the body identified
+// by entityID. Shape i becomes fixture i. Every shape is validated first, and one the engine
+// still refuses rolls back the fixtures this call made, so a failed attach leaves the body as
+// it was found.
+func (rt *Runtime) AttachColliderFixtures(
+	entityID cardinal.EntityID, shapes immutable.Slice[component.Shape],
+) error {
 	if shapes.Len() == 0 {
 		return errors.New("physics2d: collider has no shapes")
 	}
@@ -80,12 +84,42 @@ func (rt *Runtime) AttachColliderFixtures(entityID cardinal.EntityID, shapes Sha
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
+	shapeMark, chainMark := len(rt.Shapes[entityID]), len(rt.Chains[entityID])
 	for i, sh := range shapes.All() {
 		if err := rt.attachShape(entityID, i, sh); err != nil {
+			rt.rollbackFixtures(entityID, shapeMark, chainMark)
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
 	return nil
+}
+
+// rollbackFixtures destroys the fixtures an attach pass added past the marks. Validation
+// does not catch everything the engine refuses — a polygon of collinear points passes every
+// component check and then yields an empty hull — so a later slot can fail after earlier
+// ones are already on the body. Chains go first: destroying one frees its segment shapes.
+func (rt *Runtime) rollbackFixtures(entityID cardinal.EntityID, shapeMark, chainMark int) {
+	chains := rt.Chains[entityID]
+	for _, ch := range chains[chainMark:] {
+		rt.World.DestroyChain(ch.ID)
+	}
+	shapes := rt.Shapes[entityID]
+	for _, sid := range shapes[shapeMark:] {
+		if !sid.IsNull() {
+			rt.World.DestroyShape(sid, false)
+		}
+	}
+	rt.Chains[entityID] = chains[:chainMark]
+	rt.Shapes[entityID] = shapes[:shapeMark]
+	if chainMark == 0 {
+		delete(rt.Chains, entityID)
+	}
+	if shapeMark == 0 {
+		delete(rt.Shapes, entityID)
+	}
+	if bodyID, ok := rt.Bodies[entityID]; ok {
+		rt.World.ApplyBodyMassFromShapes(bodyID)
+	}
 }
 
 // CreateBodyWithCollider creates a body and attaches all shapes. If shape attachment
@@ -104,6 +138,12 @@ func (rt *Runtime) CreateBodyWithCollider(
 		return err
 	}
 	return nil
+}
+
+// ChainSlot is the Box2D chain built for one chain-type slot of a body.
+type ChainSlot struct {
+	Index int
+	ID    box2d.ChainID
 }
 
 // DestroyEntityBody destroys the Box2D body for entityID (with all attached shapes and
@@ -138,19 +178,22 @@ func mapBodyType(t component.BodyType) box2d.BodyType {
 // makeShapeDef builds the common shape definition. Mirrors the CGO bridge, which enabled
 // sensor and contact events on every shape (Box2D ignores EnableContactEvents on sensors,
 // and requires EnableSensorEvents on both the sensor and the visitor shape).
-func makeShapeDef(shapeIndex int, sh component.ColliderShape) box2d.ShapeDef {
+func makeShapeDef(shapeIndex int, s component.Shape) box2d.ShapeDef {
 	def := box2d.DefaultShapeDef()
 	def.UserData = uint64(uint32(shapeIndex)) //nolint:gosec // shape index is small and non-negative
-	def.Material.Friction = sh.Friction
-	def.Material.Restitution = sh.Restitution
-	def.Density = sh.Density
-	def.IsSensor = sh.IsSensor
+	def.Material.Friction = s.Friction
+	def.Material.Restitution = s.Restitution
+	def.Density = s.Density
+	def.IsSensor = s.IsSensor
 	def.EnableSensorEvents = true
 	def.EnableContactEvents = true
-	def.Filter.CategoryBits = sh.CategoryBits
-	def.Filter.MaskBits = sh.MaskBits
-	def.Filter.GroupIndex = int(sh.GroupIndex)
+	def.Filter = shapeFilter(s)
 	return def
+}
+
+// shapeFilter is the shape's collision filter as Box2D takes it.
+func shapeFilter(s component.Shape) box2d.Filter {
+	return box2d.Filter{CategoryBits: s.CategoryBits, MaskBits: s.MaskBits, GroupIndex: int(s.GroupIndex)}
 }
 
 // registerShape stores a shape id at collider slot shapeIndex, growing the per-entity slot
@@ -164,110 +207,112 @@ func (rt *Runtime) registerShape(entityID cardinal.EntityID, shapeIndex int, sid
 	rt.Shapes[entityID] = slots
 }
 
-// attachShape dispatches to the appropriate Box2D shape constructor based on shape type.
+// attachShape creates the Box2D shape for fixture shapeIndex from s, applying its local
+// offset and rotation.
 //
-//nolint:funlen // Keep all shape types in one function.
-func (rt *Runtime) attachShape(
-	entityID cardinal.EntityID,
-	shapeIndex int,
-	sh component.ColliderShape,
-) error {
+//nolint:funlen // Keep all shape kinds in one function.
+func (rt *Runtime) attachShape(entityID cardinal.EntityID, shapeIndex int, s component.Shape) error {
 	bodyID, ok := rt.Bodies[entityID]
 	if !ok {
 		return errors.New("physics2d: body does not exist")
 	}
 
-	switch sh.ShapeType {
-	case component.ShapeTypeCircle:
-		def := makeShapeDef(shapeIndex, sh)
+	switch s.Kind() {
+	case component.ShapeKindCircle:
+		def := makeShapeDef(shapeIndex, s)
 		circle := box2d.Circle{
-			Center: box2d.Vec2{X: sh.LocalOffset.X, Y: sh.LocalOffset.Y},
-			Radius: sh.Radius,
+			Center: box2d.Vec2{X: s.LocalOffset.X, Y: s.LocalOffset.Y},
+			Radius: s.Radius(),
 		}
 		rt.registerShape(entityID, shapeIndex, rt.World.CreateCircleShape(bodyID, &def, &circle))
 
-	case component.ShapeTypeBox:
-		def := makeShapeDef(shapeIndex, sh)
-		center := box2d.Vec2{X: sh.LocalOffset.X, Y: sh.LocalOffset.Y}
-		rot := box2d.MakeRot(sh.LocalRotation)
-		polygon := box2d.MakeOffsetBox(sh.HalfExtents.X, sh.HalfExtents.Y, center, rot)
+	case component.ShapeKindBox:
+		def := makeShapeDef(shapeIndex, s)
+		center := box2d.Vec2{X: s.LocalOffset.X, Y: s.LocalOffset.Y}
+		rot := box2d.MakeRot(s.LocalRotation)
+		half := s.HalfExtents()
+		polygon := box2d.MakeOffsetBox(half.X, half.Y, center, rot)
 		rt.registerShape(entityID, shapeIndex, rt.World.CreatePolygonShape(bodyID, &def, &polygon))
 
-	case component.ShapeTypeConvexPolygon:
-		src := sh.PolygonVertices()
-		if len(src) < 3 {
+	case component.ShapeKindPolygon:
+		vertices := s.Vertices()
+		n := len(vertices)
+		if n < 3 || n > box2d.MaxPolygonVertices {
 			return errors.New("AddPolygonShape failed")
 		}
-		verts := make([]box2d.Vec2, len(src))
-		for i := range src {
-			v := shapePointToBodySpace(src[i], sh.LocalOffset, sh.LocalRotation)
+		verts := make([]box2d.Vec2, n)
+		for i, p := range vertices {
+			v := shapePointToBodySpace(p, s.LocalOffset, s.LocalRotation)
 			verts[i] = box2d.Vec2{X: v.X, Y: v.Y}
 		}
 		hull := box2d.ComputeHull(verts)
 		if hull.Count == 0 {
 			return errors.New("AddPolygonShape failed") // degenerate polygon
 		}
-		def := makeShapeDef(shapeIndex, sh)
+		def := makeShapeDef(shapeIndex, s)
 		polygon := box2d.MakePolygon(&hull, 0)
 		rt.registerShape(entityID, shapeIndex, rt.World.CreatePolygonShape(bodyID, &def, &polygon))
 
-	case component.ShapeTypeStaticChain, component.ShapeTypeStaticChainLoop:
-		pts := make([]box2d.Vec2, 0, sh.ChainPoints.Len())
-		for p := range sh.ChainPoints.Values() {
-			v := shapePointToBodySpace(p, sh.LocalOffset, sh.LocalRotation)
-			pts = append(pts, box2d.Vec2{X: v.X, Y: v.Y})
+	case component.ShapeKindChain, component.ShapeKindChainLoop:
+		points := s.Points()
+		pts := make([]box2d.Vec2, len(points))
+		for i, p := range points {
+			v := shapePointToBodySpace(p, s.LocalOffset, s.LocalRotation)
+			pts[i] = box2d.Vec2{X: v.X, Y: v.Y}
 		}
 		def := box2d.DefaultChainDef()
 		def.UserData = uint64(uint32(shapeIndex)) //nolint:gosec // shape index is small and non-negative
 		def.Points = pts
-		def.IsLoop = sh.ShapeType == component.ShapeTypeStaticChainLoop
+		def.IsLoop = s.Kind() == component.ShapeKindChainLoop
 		material := box2d.DefaultSurfaceMaterial()
-		material.Friction = sh.Friction
-		material.Restitution = sh.Restitution
+		material.Friction = s.Friction
+		material.Restitution = s.Restitution
 		def.Materials = []box2d.SurfaceMaterial{material}
-		def.Filter.CategoryBits = sh.CategoryBits
-		def.Filter.MaskBits = sh.MaskBits
-		def.Filter.GroupIndex = int(sh.GroupIndex)
+		def.Filter = shapeFilter(s)
 		chainID := rt.World.CreateChain(bodyID, &def)
-		rt.Chains[entityID] = append(rt.Chains[entityID], chainID)
-		// Chain slots keep a null ShapeID: mutable per-shape setters skip them, matching
-		// the CGO bridge (chains were not registered in its shapes[] array either).
+		rt.Chains[entityID] = append(rt.Chains[entityID], ChainSlot{Index: shapeIndex, ID: chainID})
+		// Chain slots keep a null ShapeID; in-place edits go through the chain id instead.
 		rt.registerShape(entityID, shapeIndex, box2d.ShapeID{})
 
-	case component.ShapeTypeEdge:
-		v1 := shapePointToBodySpace(sh.EdgeVertices[0], sh.LocalOffset, sh.LocalRotation)
-		v2 := shapePointToBodySpace(sh.EdgeVertices[1], sh.LocalOffset, sh.LocalRotation)
-		def := makeShapeDef(shapeIndex, sh)
+	case component.ShapeKindEdge:
+		a, b := s.Endpoints()
+		v1 := shapePointToBodySpace(a, s.LocalOffset, s.LocalRotation)
+		v2 := shapePointToBodySpace(b, s.LocalOffset, s.LocalRotation)
+		def := makeShapeDef(shapeIndex, s)
 		segment := box2d.Segment{
 			Point1: box2d.Vec2{X: v1.X, Y: v1.Y},
 			Point2: box2d.Vec2{X: v2.X, Y: v2.Y},
 		}
 		rt.registerShape(entityID, shapeIndex, rt.World.CreateSegmentShape(bodyID, &def, &segment))
 
-	case component.ShapeTypeCapsule:
-		c1 := shapePointToBodySpace(sh.CapsuleCenter1, sh.LocalOffset, sh.LocalRotation)
-		c2 := shapePointToBodySpace(sh.CapsuleCenter2, sh.LocalOffset, sh.LocalRotation)
-		def := makeShapeDef(shapeIndex, sh)
+	case component.ShapeKindCapsule:
+		a, b := s.Endpoints()
+		c1 := shapePointToBodySpace(a, s.LocalOffset, s.LocalRotation)
+		c2 := shapePointToBodySpace(b, s.LocalOffset, s.LocalRotation)
+		def := makeShapeDef(shapeIndex, s)
 		capsule := box2d.Capsule{
 			Center1: box2d.Vec2{X: c1.X, Y: c1.Y},
 			Center2: box2d.Vec2{X: c2.X, Y: c2.Y},
-			Radius:  sh.Radius,
+			Radius:  s.Radius(),
 		}
 		rt.registerShape(entityID, shapeIndex, rt.World.CreateCapsuleShape(bodyID, &def, &capsule))
 
 	default:
-		return fmt.Errorf("unknown shape_type %d", sh.ShapeType)
+		return fmt.Errorf("shape %d has no geometry", shapeIndex)
 	}
 
 	return nil
 }
 
-// shapePointToBodySpace maps a point from shape-local space into body-local space using
-// LocalOffset and LocalRotation (radians, CCW +Y up) on the ColliderShape.
+// shapePointToBodySpace maps a point from shape-local space into body-local space using the
+// slot's LocalOffset and LocalRotation (radians, CCW +Y up). Each product is rounded through
+// float64(...) so the compiler cannot fuse it with the add: a fused multiply-add rounds
+// once, not twice, and would give different vertices on arm64 than on amd64. This is the
+// one path shape points take into the engine, which promises bit-identical results.
 func shapePointToBodySpace(p, offset component.Vec2, localRot float64) component.Vec2 {
 	c, s := math.Cos(localRot), math.Sin(localRot)
-	rx := p.X*c - p.Y*s
-	ry := p.X*s + p.Y*c
+	rx := float64(p.X*c) - float64(p.Y*s)
+	ry := float64(p.X*s) + float64(p.Y*c)
 	return component.Vec2{X: rx + offset.X, Y: ry + offset.Y}
 }
 
@@ -280,8 +325,8 @@ func (rt *Runtime) destroyAllShapesForEntity(entityID cardinal.EntityID) {
 	if !ok {
 		return
 	}
-	for _, chainID := range rt.Chains[entityID] {
-		rt.World.DestroyChain(chainID)
+	for _, ch := range rt.Chains[entityID] {
+		rt.World.DestroyChain(ch.ID)
 	}
 	delete(rt.Chains, entityID)
 

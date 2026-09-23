@@ -21,7 +21,9 @@ import (
 // (0 = serial); results are byte-identical for every value, so it is a throughput knob only.
 func benchWorld(b *testing.B, gravity physics.Vec2, workers int) (*cardinal.World, *physics.Plugin) {
 	b.Helper()
-	debug := true
+	// Debug off: with it on, Cardinal encodes the whole world every tick for the debug
+	// service, and the harness tag's JSON MarshalWire then dominates both time and allocs.
+	debug := false
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
 		Region:              "local",
 		Organization:        "bench",
@@ -92,13 +94,8 @@ func stepBenchScene(b *testing.B, n, workers int) {
 		row.Set(harnessTag{Role: "floor"})
 		row.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
 		row.Set(physics.Velocity2D{})
-		row.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-			ShapeType:    physics.ShapeTypeBox,
-			HalfExtents:  physics.Vec2{X: 200, Y: 1},
-			Friction:     0.5,
-			CategoryBits: 0xFFFF,
-			MaskBits:     0xFFFF,
-		}))
+		row.Set(newRigid(physics.BodyTypeStatic,
+			physics.Box(200, 1).Material(0.5, 0, 0).Filter(0xFFFF, 0xFFFF)))
 
 		// Spawn N dynamic circles in a grid above the floor.
 		cols := int(math.Ceil(math.Sqrt(float64(bodyCount))))
@@ -112,15 +109,8 @@ func stepBenchScene(b *testing.B, n, workers int) {
 			r.Set(harnessTag{Role: "ball"})
 			r.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
 			r.Set(physics.Velocity2D{})
-			r.Set(newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
-				ShapeType:    physics.ShapeTypeCircle,
-				Radius:       0.5,
-				Density:      1,
-				Friction:     0.3,
-				Restitution:  0.2,
-				CategoryBits: 0xFFFF,
-				MaskBits:     0xFFFF,
-			}))
+			r.Set(newRigid(physics.BodyTypeDynamic,
+				physics.Circle(0.5).Material(0.3, 0.2, 1).Filter(0xFFFF, 0xFFFF)))
 		}
 	}}, cardinal.WithHook(cardinal.Init))
 
@@ -246,13 +236,8 @@ func gridSpawnSystem(count int) *gridSpawnFixture {
 			r.Set(harnessTag{Role: "grid"})
 			r.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
 			r.Set(physics.Velocity2D{})
-			r.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-				ShapeType:    physics.ShapeTypeCircle,
-				Radius:       1.0,
-				Friction:     0.3,
-				CategoryBits: 0xFFFF,
-				MaskBits:     0xFFFF,
-			}))
+			r.Set(newRigid(physics.BodyTypeStatic,
+				physics.Circle(1.0).Material(0.3, 0, 0).Filter(0xFFFF, 0xFFFF)))
 		}
 	}}
 }
