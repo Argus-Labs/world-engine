@@ -161,10 +161,14 @@ func (r *Runner) Plugin() *physics.Plugin { return r.plugin }
 // LastTick returns the final tick the loop will run.
 func (r *Runner) LastTick() uint64 { return r.lastTick }
 
-func (r *Runner) ctx(scenario *Scenario, probes *Probes, tick uint64) *Ctx {
+func (r *Runner) ctx(
+	scenario *Scenario, probes *Probes,
+	entity func(cardinal.EntityID) cardinal.Entity, tick uint64,
+) *Ctx {
 	return &Ctx{
 		report:     r.report,
 		probes:     probes,
+		entity:     entity,
 		events:     r.events,
 		plugin:     r.plugin,
 		scenario:   scenario.Name,
@@ -217,7 +221,7 @@ func (r *Runner) setup(state *setupState) {
 		if s.Setup == nil {
 			continue
 		}
-		s.Setup(r.ctx(s, &state.Probes, 0))
+		s.Setup(r.ctx(s, &state.Probes, state.Entity, 0))
 	}
 }
 
@@ -227,7 +231,7 @@ func (r *Runner) preStep(state *preStepState) {
 		if s.EachTick == nil {
 			continue
 		}
-		s.EachTick(r.ctx(s, &state.Probes, tick))
+		s.EachTick(r.ctx(s, &state.Probes, state.Entity, tick))
 	}
 }
 
@@ -258,7 +262,7 @@ func (r *Runner) step(state *stepState) {
 			if s.Steps[i].Tick != tick || s.Steps[i].Do == nil {
 				continue
 			}
-			s.Steps[i].Do(r.ctx(s, &state.Probes, tick))
+			s.Steps[i].Do(r.ctx(s, &state.Probes, state.Entity, tick))
 		}
 	}
 }
@@ -345,6 +349,12 @@ func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Snapshots address components by registration order, so a world that restores one
+	// must register in the same order as the world that took it. The capture systems are
+	// optional and register early, so pin the harness's components ahead of everything.
+	w.RegisterArchetype[ProbeRow]()
+	w.RegisterArchetype[SingletonRow]()
 
 	w.RegisterSystem(r.setup, cardinal.WithHook(cardinal.Init))
 	w.RegisterSystem(r.preStep, cardinal.WithHook(cardinal.PreUpdate))

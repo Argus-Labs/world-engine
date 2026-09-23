@@ -5,8 +5,9 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
-	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/harness"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/scenario"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,19 +53,16 @@ func TestReproManualReleaseVelocityDrop(t *testing.T) {
 	const vx = 7.0
 	wantX := vx * float64(checkTick-releaseTick) / 60.0
 	var s struct{ released, releasedFR, control cardinal.EntityID }
-	box := func() physics.PhysicsBody2D {
-		pb := physcomp.NewPhysicsBody2D(physcomp.BodyTypeManual, physics.ColliderShape{
-			ShapeType:   physics.ShapeTypeBox,
-			HalfExtents: physics.Vec2{X: 0.5, Y: 0.5},
-		})
+	box := func(c *harness.Ctx) physics.PhysicsBody2D {
+		pb := physcomp.NewPhysicsBody2D(physcomp.BodyTypeManual, scenario.Box(0.5, 0.5).Spawn(c))
 		pb.GravityScale = 0
 		return pb
 	}
 	sc := harness.Scenario{
 		Name: "repro-manual-release",
 		Setup: func(c *harness.Ctx) {
-			s.released = c.SpawnMoving("released", 0, 10, vx, 0, box())
-			fr := box()
+			s.released = c.SpawnMoving("released", 0, 10, vx, 0, box(c))
+			fr := box(c)
 			fr.FixedRotation = true
 			s.releasedFR = c.SpawnMoving("released-fr", 0, 15, vx, 0, fr)
 		},
@@ -72,7 +70,7 @@ func TestReproManualReleaseVelocityDrop(t *testing.T) {
 			{Tick: releaseTick, Do: func(c *harness.Ctx) {
 				c.EditBody(s.released, func(pb *physics.PhysicsBody2D) { pb.BodyType = physics.BodyTypeDynamic })
 				c.EditBody(s.releasedFR, func(pb *physics.PhysicsBody2D) { pb.BodyType = physics.BodyTypeDynamic })
-				ctrl := box()
+				ctrl := box(c)
 				ctrl.BodyType = physics.BodyTypeDynamic
 				s.control = c.SpawnMoving("control", 0, 5, vx, 0, ctrl) // FullRebuild-equivalent: born Dynamic with {7,0}
 			}},
@@ -99,22 +97,19 @@ func TestReproManualReleaseKinematic(t *testing.T) {
 	const vx = 5.0
 	wantX := vx * float64(checkTick-releaseTick) / 60.0
 	var s struct{ released, control cardinal.EntityID }
-	mk := func() physics.PhysicsBody2D {
-		pb := physcomp.NewPhysicsBody2D(physcomp.BodyTypeManual, physics.ColliderShape{
-			ShapeType:   physics.ShapeTypeBox,
-			HalfExtents: physics.Vec2{X: 0.5, Y: 0.5},
-		})
+	mk := func(c *harness.Ctx) physics.PhysicsBody2D {
+		pb := physcomp.NewPhysicsBody2D(physcomp.BodyTypeManual, scenario.Box(0.5, 0.5).Spawn(c))
 		return pb
 	}
 	sc := harness.Scenario{
 		Name: "repro-manual-release-kinematic",
 		Setup: func(c *harness.Ctx) {
-			s.released = c.SpawnMoving("released", 0, 10, vx, 0, mk())
+			s.released = c.SpawnMoving("released", 0, 10, vx, 0, mk(c))
 		},
 		Steps: []harness.Step{
 			{Tick: releaseTick, Do: func(c *harness.Ctx) {
 				c.EditBody(s.released, func(pb *physics.PhysicsBody2D) { pb.BodyType = physics.BodyTypeKinematic })
-				ctrl := mk()
+				ctrl := mk(c)
 				ctrl.BodyType = physics.BodyTypeKinematic
 				s.control = c.SpawnMoving("control", 0, 5, vx, 0, ctrl) // FullRebuild-equivalent: born Kinematic with {5,0}
 			}},
@@ -142,23 +137,20 @@ func TestReproManualReleaseAngular(t *testing.T) {
 	const av = 1.0 // rad/s
 	wantRot := av * float64(checkTick-releaseTick) / 60.0
 	var s struct{ released, control cardinal.EntityID }
-	mk := func() physics.PhysicsBody2D {
-		pb := physcomp.NewPhysicsBody2D(physcomp.BodyTypeManual, physics.ColliderShape{
-			ShapeType: physics.ShapeTypeCircle,
-			Radius:    0.5,
-		})
+	mk := func(c *harness.Ctx) physics.PhysicsBody2D {
+		pb := physcomp.NewPhysicsBody2D(physcomp.BodyTypeManual, scenario.SampleShape(scenario.KindCircle).Spawn(c))
 		pb.SleepingAllowed = false // isolate the angular push from solver sleep
 		return pb
 	}
 	sc := harness.Scenario{
 		Name: "repro-manual-release-angular",
 		Setup: func(c *harness.Ctx) {
-			s.released = c.SpawnSpinning("released", 0, 10, av, mk())
+			s.released = c.SpawnSpinning("released", 0, 10, av, mk(c))
 		},
 		Steps: []harness.Step{
 			{Tick: releaseTick, Do: func(c *harness.Ctx) {
 				c.EditBody(s.released, func(pb *physics.PhysicsBody2D) { pb.BodyType = physics.BodyTypeDynamic })
-				ctrl := mk()
+				ctrl := mk(c)
 				ctrl.BodyType = physics.BodyTypeDynamic
 				s.control = c.SpawnSpinning("control", 0, 5, av, ctrl) // FullRebuild-equivalent: born Dynamic with av
 			}},
@@ -194,23 +186,20 @@ func TestReproManualReleaseParityVsRebuild(t *testing.T) {
 		v := c.Plugin().Engine().BodyLinearVelocity(bodyID)
 		return v.X
 	}
-	mk := func() physics.PhysicsBody2D {
-		pb := physcomp.NewPhysicsBody2D(physcomp.BodyTypeManual, physics.ColliderShape{
-			ShapeType:   physics.ShapeTypeBox,
-			HalfExtents: physics.Vec2{X: 0.5, Y: 0.5},
-		})
+	mk := func(c *harness.Ctx) physics.PhysicsBody2D {
+		pb := physcomp.NewPhysicsBody2D(physcomp.BodyTypeManual, scenario.Box(0.5, 0.5).Spawn(c))
 		pb.SleepingAllowed = false
 		return pb
 	}
 	sc := harness.Scenario{
 		Name: "repro-manual-release-parity",
 		Setup: func(c *harness.Ctx) {
-			s.released = c.SpawnMoving("released", 0, 10, vx, 0, mk())
+			s.released = c.SpawnMoving("released", 0, 10, vx, 0, mk(c))
 		},
 		Steps: []harness.Step{
 			{Tick: releaseTick, Do: func(c *harness.Ctx) {
 				c.EditBody(s.released, func(pb *physics.PhysicsBody2D) { pb.BodyType = physics.BodyTypeDynamic })
-				ctrl := mk()
+				ctrl := mk(c)
 				ctrl.BodyType = physics.BodyTypeDynamic
 				s.control = c.SpawnMoving("control", 0, 5, vx, 0, ctrl) // FullRebuild-equivalent: born Dynamic with {7,0}
 			}},
@@ -260,23 +249,20 @@ func TestReproStaticReleaseParityVsRebuild(t *testing.T) {
 		}
 		return c.Plugin().Engine().BodyLinearVelocity(bodyID).X
 	}
-	mk := func(bt physics.BodyType) physics.PhysicsBody2D {
-		pb := physcomp.NewPhysicsBody2D(bt, physics.ColliderShape{
-			ShapeType:   physics.ShapeTypeBox,
-			HalfExtents: physics.Vec2{X: 0.5, Y: 0.5},
-		})
+	mk := func(c *harness.Ctx, bt physics.BodyType) physics.PhysicsBody2D {
+		pb := physcomp.NewPhysicsBody2D(bt, scenario.Box(0.5, 0.5).Spawn(c))
 		pb.SleepingAllowed = false
 		return pb
 	}
 	sc := harness.Scenario{
 		Name: "repro-static-release-parity",
 		Setup: func(c *harness.Ctx) {
-			s.released = c.SpawnMoving("released", 0, 10, vx, 0, mk(physcomp.BodyTypeStatic))
+			s.released = c.SpawnMoving("released", 0, 10, vx, 0, mk(c, physcomp.BodyTypeStatic))
 		},
 		Steps: []harness.Step{
 			{Tick: releaseTick, Do: func(c *harness.Ctx) {
 				c.EditBody(s.released, func(pb *physics.PhysicsBody2D) { pb.BodyType = physics.BodyTypeDynamic })
-				s.control = c.SpawnMoving("control", 0, 5, vx, 0, mk(physcomp.BodyTypeDynamic))
+				s.control = c.SpawnMoving("control", 0, 5, vx, 0, mk(c, physcomp.BodyTypeDynamic))
 			}},
 			{Tick: readTick, Do: func(c *harness.Ctx) {
 				relV, ctlV := engVelX(c, s.released), engVelX(c, s.control)

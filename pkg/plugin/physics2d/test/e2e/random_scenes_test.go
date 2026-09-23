@@ -8,9 +8,11 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/argus-labs/world-engine/pkg/immutable"
+
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
-	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/harness"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/scenario"
 	"github.com/argus-labs/world-engine/pkg/testutils"
@@ -43,8 +45,10 @@ const (
 // bodySpec is one generated body. A scene is a fixed list of them, built once per seed
 // so every replay spawns the same entities in the same order.
 type bodySpec struct {
-	label             string
+	label string
+	// pb has no slots yet: the shape is an entity and is spawned in Setup.
 	pb                physics.PhysicsBody2D
+	shape             scenario.ShapeSpec
 	x, y, vx, vy      float64
 	solidAgainstFloor bool
 }
@@ -54,17 +58,14 @@ var (
 		physics.BodyTypeStatic, physics.BodyTypeDynamic, physics.BodyTypeKinematic, physics.BodyTypeManual,
 	}
 	// specShapes are valid on any body type.
-	specShapes = []physics.ShapeType{
-		physics.ShapeTypeCircle, physics.ShapeTypeBox, physics.ShapeTypeConvexPolygon,
-		physics.ShapeTypeCapsule,
+	specShapes = []scenario.ShapeKind{
+		scenario.KindCircle, scenario.KindBox, scenario.KindPolygon, scenario.KindCapsule,
 	}
 	// specLineShapes are, per the component docs, for static or kinematic bodies only.
 	// The plugin does not enforce that (TestExhaustiveBodyMatrix pins the divergence), and
 	// the consequence is not subtle: a dynamic body carrying an edge falls straight
 	// through a 10 m static floor. So the generator respects the documented rule.
-	specLineShapes = []physics.ShapeType{
-		physics.ShapeTypeEdge, physics.ShapeTypeStaticChain, physics.ShapeTypeStaticChainLoop,
-	}
+	specLineShapes = scenario.LineKinds()
 )
 
 func genScene(r *rand.Rand, n int) []bodySpec {
@@ -73,13 +74,17 @@ func genScene(r *rand.Rand, n int) []bodySpec {
 		kind := specBodyTypes[r.IntN(len(specBodyTypes))]
 		shapes := specShapes
 		if kind != physics.BodyTypeDynamic {
-			shapes = append(append([]physics.ShapeType(nil), specShapes...), specLineShapes...)
+			shapes = append(append([]scenario.ShapeKind(nil), specShapes...), specLineShapes...)
 		}
-		shape := scenario.SampleShape(shapes[r.IntN(len(shapes))])
+		shapeKind := shapes[r.IntN(len(shapes))]
+		shape := scenario.SampleShape(shapeKind)
 		shape.Density = 0.5 + r.Float64()*4
 		shape.Friction = r.Float64()
 		shape.Restitution = r.Float64() * 0.8
-		shape.IsSensor = r.IntN(6) == 0
+		// Chains are never sensors: Box2D builds their segments solid, so the plugin
+		// refuses the combination rather than handing back a shape that lies.
+		isChain := shapeKind == scenario.KindChain || shapeKind == scenario.KindChainLoop
+		shape.IsSensor = !isChain && r.IntN(6) == 0
 		shape.CategoryBits = 1 << r.IntN(64)
 		shape.MaskBits = r.Uint64()
 		if r.IntN(2) == 0 {
@@ -95,7 +100,7 @@ func genScene(r *rand.Rand, n int) []bodySpec {
 		}
 		shape.GroupIndex = int32(r.IntN(5) - 2)
 
-		pb := physcomp.NewPhysicsBody2D(kind, shape)
+		pb := physcomp.NewPhysicsBody2D(kind)
 		pb.Active = r.IntN(10) != 0
 		pb.Awake = r.IntN(4) != 0
 		pb.SleepingAllowed = r.IntN(4) != 0
@@ -106,8 +111,9 @@ func genScene(r *rand.Rand, n int) []bodySpec {
 		pb.AngularDamping = r.Float64() * 2
 
 		s := bodySpec{
-			label: fmt.Sprintf("b%02d_%s_%s", i, kindName[kind], shapeName[shape.ShapeType]),
+			label: fmt.Sprintf("b%02d_%s_%s", i, kindName[kind], shapeKind),
 			pb:    pb,
+			shape: shape,
 			x:     r.Float64()*80 - 40,
 			y:     3 + r.Float64()*27,
 		}
@@ -131,28 +137,27 @@ func randomScene(name string, specs []bodySpec) harness.Scenario {
 	return harness.Scenario{
 		Name: name,
 		Setup: func(c *harness.Ctx) {
-			floor := physcomp.NewPhysicsBody2D(physics.BodyTypeStatic, physics.ColliderShape{
-				ShapeType: physics.ShapeTypeBox,
-				// Wide enough that no body can roll or fly off the end in the run's
-				// five seconds and then fall for a legitimate reason.
-				HalfExtents:  physics.Vec2{X: floorHalfWidth, Y: floorHalfHeight},
-				Friction:     0.5,
-				CategoryBits: floorCategory,
-				MaskBits:     ^uint64(0),
-			})
-			c.Spawn("floor", 0, floorTop-floorHalfHeight, floor)
+			// Wide enough that no body can roll or fly off the end in the run's
+			// five seconds and then fall for a legitimate reason.
+			floorShape := scenario.Box(floorHalfWidth, floorHalfHeight)
+			floorShape.Friction = 0.5
+			floorShape.CategoryBits = floorCategory
+			floorShape.MaskBits = ^uint64(0)
+			c.Spawn("floor", 0, floorTop-floorHalfHeight, scenario.Body(c, physics.BodyTypeStatic, floorShape))
 
 			for i, s := range specs {
+				pb := s.pb
+				pb.Shapes = immutable.SliceOf(s.shape.Spawn(c))
 				// The wire format must carry every field of every generated body.
-				decoded, err := physics.PhysicsBody2D{}.UnmarshalWire(s.pb.MarshalWire())
+				decoded, err := physics.PhysicsBody2D{}.UnmarshalWire(pb.MarshalWire())
 				if c.NoError("wire decodes: "+s.label, err) {
-					c.True("wire round-trip is lossless: "+s.label, reflect.DeepEqual(decoded, s.pb),
-						"got %+v\nwant %+v", decoded, s.pb)
+					c.True("wire round-trip is lossless: "+s.label, reflect.DeepEqual(decoded, pb),
+						"got %+v\nwant %+v", decoded, pb)
 				}
 				ids[i] = c.SpawnFull(s.label,
 					physics.Transform2D{Position: physics.Vec2{X: s.x, Y: s.y}},
 					physics.Velocity2D{Linear: physics.Vec2{X: s.vx, Y: s.vy}},
-					s.pb)
+					pb)
 			}
 		},
 		Steps: []harness.Step{
@@ -167,7 +172,7 @@ func randomScene(name string, specs []bodySpec) harness.Scenario {
 						c.Note("%s spawned at (%.2f, %.2f) v=(%.2f, %.2f) bullet=%v gravityScale=%.2f "+
 							"density=%.2f restitution=%.2f, ended at (%.2f, %.2f)",
 							s.label, s.x, s.y, s.vx, s.vy, s.pb.Bullet, s.pb.GravityScale,
-							s.pb.Shapes.At(0).Density, s.pb.Shapes.At(0).Restitution,
+							s.shape.Density, s.shape.Restitution,
 							c.Pos(ids[i]).X, c.Pos(ids[i]).Y)
 					}
 				}

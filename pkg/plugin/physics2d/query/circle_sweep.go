@@ -2,7 +2,7 @@ package query
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // CircleSweepRequest sweeps a circle with center moving along the segment from Start to End in world space.

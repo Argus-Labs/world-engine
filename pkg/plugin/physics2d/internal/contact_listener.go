@@ -7,8 +7,8 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // ContactLifecycleKind distinguishes BeginContact vs EndContact.
@@ -63,12 +63,6 @@ func (rt *Runtime) Step() {
 // persisted ActiveContacts baseline lists as touching. The engine never narrow-phases a
 // sleeping body's contacts, so restored sleepers would look "gone" to the post-step diff and
 // emit spurious Ends. Undisturbed bodies re-sleep after Box2D's timeout.
-//
-// Wake order is sorted by EntityID, never map order. Each restored sleeper is its own solver
-// set, and waking one appends it to the awake set at the next free localIndex; that index
-// decides move-array order, which decides the order new contact pairs are created and
-// coloured. An unordered wake therefore produces a different (still valid) float result per
-// process, which would break replay and cross-machine agreement after any restore.
 func (rt *Runtime) wakePersistedContactEntities() {
 	if !rt.SuppressContactsStep || len(rt.ActiveContacts) == 0 {
 		return
@@ -77,6 +71,10 @@ func (rt *Runtime) wakePersistedContactEntities() {
 	for key := range rt.ActiveContacts {
 		ids = append(ids, key.EntityA, key.EntityB)
 	}
+	// Sorted, not map order: each restored sleeper is its own solver set, so the order they
+	// are woken in fixes their index in the awake set, and that index reaches the solver.
+	// Without this the same restore simulates differently run to run; see
+	// TestRestoreIsDeterministicAcrossRepeatedRuns.
 	slices.SortFunc(ids, cmp.Compare)
 	ids = slices.Compact(ids)
 	for _, id := range ids {

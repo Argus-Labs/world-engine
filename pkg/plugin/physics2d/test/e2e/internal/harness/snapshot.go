@@ -13,6 +13,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
+	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"google.golang.org/protobuf/proto"
 )
@@ -23,12 +24,18 @@ const (
 )
 
 // CaptureRow is the complete physics state of one body.
+// CaptureRow is the complete physics state of one body, its shapes copied out so two worlds
+// can be compared shape by shape.
 type CaptureRow struct {
 	Transform physics.Transform2D
 	Velocity  physics.Velocity2D
 	Body      physics.PhysicsBody2D
+	Shapes    []CapturedShape
 	Entity    cardinal.EntityID
 }
+
+// CapturedShape is one of a body's shapes, copied at capture time.
+type CapturedShape = physics.Shape
 
 // SingletonRow is the plugin's own bookkeeping entity. It carries ActiveContacts,
 // the persisted record of which pairs have had a Begin emitted and not yet an End.
@@ -36,8 +43,8 @@ type CaptureRow struct {
 // if it does not survive a restore the rebuilt world replays every existing
 // overlap as a new contact.
 type SingletonRow struct {
-	Tag            cardinal.WithComponent[physics.PhysicsSingletonTag]
-	ActiveContacts cardinal.WithComponent[physics.ActiveContacts]
+	Tag            cardinal.WithComponent[physcomp.PhysicsSingletonTag]
+	ActiveContacts cardinal.WithComponent[physcomp.ActiveContacts]
 }
 
 // Capture is every body in a world, keyed by its probe label, plus the plugin's
@@ -46,7 +53,7 @@ type SingletonRow struct {
 type Capture struct {
 	Rows map[string]CaptureRow
 	// Contacts is the singleton's ActiveContacts, normalised and sorted.
-	Contacts []physics.ContactPairEntry
+	Contacts []physcomp.ContactPairEntry
 	// Singletons is how many physics singleton entities exist. Anything but one
 	// is a bug: the plugin panics on two and loses its dedupe baseline on none.
 	Singletons int
@@ -64,9 +71,7 @@ func (c Capture) Labels() []string {
 
 // preCaptureState and postCaptureState are the two capture systems. They are
 // separate flat types on purpose: Cardinal names a system after its state type,
-// so two systems sharing one type would collide, and initSystemFields only walks
-// a state struct's top-level fields, so a shared embedded struct would leave
-// Probes uninitialised and the search would fault on first use.
+// so two systems sharing one type would collide.
 type preCaptureState struct {
 	cardinal.BaseSystemState
 	Probes    Probes
@@ -79,27 +84,31 @@ type postCaptureState struct {
 	Singleton cardinal.Contains[SingletonRow]
 }
 
-// capture copies every body's components into into, replacing whatever was
-// there. A fresh map is allocated each time, so a caller that copies the Capture
-// struct keeps that tick's state even as later ticks overwrite the field.
+// capture copies every body's components (and the shape entities its slots
+// reference) into into, replacing whatever was there. A fresh map is allocated
+// each time, so a caller that copies the Capture struct keeps that tick's state
+// even as later ticks overwrite the field.
 func capture(probes *Probes, singleton *cardinal.Contains[SingletonRow], into *Capture) {
 	rows := make(map[string]CaptureRow, len(into.Rows))
 	for row := range probes.Iter() {
 		eid := row.ID()
 		p := row.Get[probe.Probe]()
+		body := CloneBody(row.Get[physics.PhysicsBody2D]())
+		resolved := slices.Collect(body.Shapes.Values())
 		rows[p.Label] = CaptureRow{
 			Entity:    eid,
 			Transform: row.Get[physics.Transform2D](),
 			Velocity:  row.Get[physics.Velocity2D](),
-			Body:      CloneBody(row.Get[physics.PhysicsBody2D]()),
+			Body:      body,
+			Shapes:    resolved,
 		}
 	}
 
-	var pairs []physics.ContactPairEntry
+	var pairs []physcomp.ContactPairEntry
 	count := 0
 	for row := range singleton.Iter() {
 		count++
-		pairs = slices.AppendSeq(pairs, row.Get[physics.ActiveContacts]().Pairs.Values())
+		pairs = slices.AppendSeq(pairs, row.Get[physcomp.ActiveContacts]().Pairs.Values())
 	}
 	// Entry order is an implementation detail of the plugin's map iteration, so
 	// sort before comparing two worlds.
@@ -111,7 +120,7 @@ func capture(probes *Probes, singleton *cardinal.Contains[SingletonRow], into *C
 }
 
 // contactKey renders a contact pair as a sortable, comparable string.
-func contactKey(p physics.ContactPairEntry) string {
+func contactKey(p physcomp.ContactPairEntry) string {
 	return fmt.Sprintf("%d:%d/%d:%d/sensor=%v/fa=%#x:%#x:%d/fb=%#x:%#x:%d",
 		p.EntityA, p.ShapeIndexA, p.EntityB, p.ShapeIndexB, p.IsSensor,
 		p.FilterACategoryBits, p.FilterAMaskBits, p.FilterAGroupIndex,
@@ -302,17 +311,17 @@ func compareRow(label string, w, g CaptureRow, tol float64) []Diff {
 	boolean("Body.Bullet", g.Body.Bullet, w.Body.Bullet)
 	boolean("Body.FixedRotation", g.Body.FixedRotation, w.Body.FixedRotation)
 
-	if g.Body.Shapes.Len() != w.Body.Shapes.Len() {
-		add("Body.Shapes<len>", g.Body.Shapes.Len(), w.Body.Shapes.Len())
+	if len(g.Shapes) != len(w.Shapes) {
+		add("Body.Shapes<len>", len(g.Shapes), len(w.Shapes))
 		return diffs
 	}
-	for i, want := range w.Body.Shapes.All() {
-		diffs = append(diffs, compareShape(label, i, want, g.Body.Shapes.At(i), tol)...)
+	for i := range w.Shapes {
+		diffs = append(diffs, compareShape(label, i, w.Shapes[i], g.Shapes[i], tol)...)
 	}
 	return diffs
 }
 
-func compareShape(label string, i int, w, g physics.ColliderShape, tol float64) []Diff {
+func compareShape(label string, i int, w, g CapturedShape, tol float64) []Diff {
 	var diffs []Diff
 	field := func(name string) string { return fmt.Sprintf("Body.Shapes[%d].%s", i, name) }
 	add := func(name string, got, want any) {
@@ -328,23 +337,18 @@ func compareShape(label string, i int, w, g physics.ColliderShape, tol float64) 
 			add(name, got, want)
 		}
 	}
-
-	if g.ShapeType != w.ShapeType {
-		add("ShapeType", g.ShapeType, w.ShapeType)
-	}
-	if g.IsSensor != w.IsSensor {
-		add("IsSensor", g.IsSensor, w.IsSensor)
+	if g.Kind() != w.Kind() {
+		add("Kind", g.Kind(), w.Kind())
+		return diffs
 	}
 	pt("LocalOffset", g.LocalOffset, w.LocalOffset)
 	num("LocalRotation", g.LocalRotation, w.LocalRotation)
-	num("Radius", g.Radius, w.Radius)
-	pt("HalfExtents", g.HalfExtents, w.HalfExtents)
-	pt("CapsuleCenter1", g.CapsuleCenter1, w.CapsuleCenter1)
-	pt("CapsuleCenter2", g.CapsuleCenter2, w.CapsuleCenter2)
+	if g.IsSensor != w.IsSensor {
+		add("IsSensor", g.IsSensor, w.IsSensor)
+	}
 	num("Friction", g.Friction, w.Friction)
 	num("Restitution", g.Restitution, w.Restitution)
 	num("Density", g.Density, w.Density)
-
 	if g.CategoryBits != w.CategoryBits {
 		add("CategoryBits", fmt.Sprintf("%#x", g.CategoryBits), fmt.Sprintf("%#x", w.CategoryBits))
 	}
@@ -354,24 +358,22 @@ func compareShape(label string, i int, w, g physics.ColliderShape, tol float64) 
 	if g.GroupIndex != w.GroupIndex {
 		add("GroupIndex", g.GroupIndex, w.GroupIndex)
 	}
-
-	if g.VertexCount != w.VertexCount {
-		add("VertexCount", g.VertexCount, w.VertexCount)
-	}
-	// The whole array is compared, not just the live prefix: every slot travels on the wire, so a
-	// restore that lost a slot past VertexCount is still a restore that lost data.
-	for k := range w.Vertices {
-		pt(fmt.Sprintf("Vertices[%d]", k), g.Vertices[k], w.Vertices[k])
-	}
-	if g.ChainPoints.Len() != w.ChainPoints.Len() {
-		add("ChainPoints<len>", g.ChainPoints.Len(), w.ChainPoints.Len())
-	} else {
-		for k, want := range w.ChainPoints.All() {
-			pt(fmt.Sprintf("ChainPoints[%d]", k), g.ChainPoints.At(k), want)
+	num("Radius", g.Radius(), w.Radius())
+	pt("HalfExtents", g.HalfExtents(), w.HalfExtents())
+	ga, gb := g.Endpoints()
+	wa, wb := w.Endpoints()
+	pt("Endpoints[0]", ga, wa)
+	pt("Endpoints[1]", gb, wb)
+	pts := func(name string, got, want []physics.Vec2) {
+		if len(got) != len(want) {
+			add(name+"<len>", len(got), len(want))
+			return
+		}
+		for k := range want {
+			pt(fmt.Sprintf("%s[%d]", name, k), got[k], want[k])
 		}
 	}
-	for k := range w.EdgeVertices {
-		pt(fmt.Sprintf("EdgeVertices[%d]", k), g.EdgeVertices[k], w.EdgeVertices[k])
-	}
+	pts("Vertices", g.Vertices(), w.Vertices())
+	pts("Points", g.Points(), w.Points())
 	return diffs
 }

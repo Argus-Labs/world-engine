@@ -9,7 +9,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
-	phycomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	phycomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,15 +48,21 @@ func makeWorldWorkers(t *testing.T, gravity physics.Vec2, workers int) (*cardina
 }
 
 // newRigid returns a PhysicsBody2D with Active/Awake/SleepingAllowed true and GravityScale 1.
-func newRigid(bodyType physics.BodyType, shapes ...physics.ColliderShape) physics.PhysicsBody2D {
+func newRigid(bodyType physics.BodyType, shapes ...physics.Shape) physics.PhysicsBody2D {
 	return phycomp.NewPhysicsBody2D(bodyType, shapes...)
 }
 
 // newRigidNoGravity is like newRigid but GravityScale 0 (e.g. zero-gravity scene bodies).
-func newRigidNoGravity(bodyType physics.BodyType, shapes ...physics.ColliderShape) physics.PhysicsBody2D {
+func newRigidNoGravity(bodyType physics.BodyType, shapes ...physics.Shape) physics.PhysicsBody2D {
 	r := phycomp.NewPhysicsBody2D(bodyType, shapes...)
 	r.GravityScale = 0
 	return r
+}
+
+// spawnState is the system state test spawners use: the body archetype.
+type spawnState struct {
+	cardinal.BaseSystemState
+	Spawn spawnArchetype
 }
 
 func tickN(t *testing.T, w *cardinal.World, n int) {
@@ -69,26 +75,14 @@ func tickN(t *testing.T, w *cardinal.World, n int) {
 	}
 }
 
-func circleColliderShapes() []physics.ColliderShape {
-	return []physics.ColliderShape{{
-		ShapeType:    physics.ShapeTypeCircle,
-		Radius:       0.5,
-		Density:      1,
-		Friction:     0.3,
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	}}
+// circleShape is the stock test circle (radius 0.5).
+func circleShape() physics.Shape {
+	return physics.Circle(0.5).Material(0.3, 0, 1).Filter(0xFFFF, 0xFFFF)
 }
 
-func boxColliderShapes(hx, hy float64) []physics.ColliderShape {
-	return []physics.ColliderShape{{
-		ShapeType:    physics.ShapeTypeBox,
-		HalfExtents:  physics.Vec2{X: hx, Y: hy},
-		Density:      1,
-		Friction:     0.3,
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	}}
+// boxShape is a stock test box with the given half extents.
+func boxShape(hx, hy float64) physics.Shape {
+	return physics.Box(hx, hy).Material(0.3, 0, 1).Filter(0xFFFF, 0xFFFF)
 }
 
 const epsilon = 0.001

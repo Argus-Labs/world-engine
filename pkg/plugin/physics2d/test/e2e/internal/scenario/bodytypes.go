@@ -49,38 +49,38 @@ func BodyTypes() harness.Scenario {
 	return harness.Scenario{
 		Name: "bodytypes",
 		Setup: func(c *harness.Ctx) {
-			s.floor = c.Spawn("floor", 0, groundY, ground(60))
+			s.floor = c.Spawn("floor", 0, groundY, ground(c, 60))
 
 			s.static = c.Spawn("static-box", -20, 2,
-				body(physics.BodyTypeStatic, box(0.5, 0.5)))
+				body(c, physics.BodyTypeStatic, box(0.5, 0.5)))
 			s.dynamic = c.Spawn("dynamic-box", -14, 8,
-				body(physics.BodyTypeDynamic, box(0.5, 0.5)))
+				body(c, physics.BodyTypeDynamic, box(0.5, 0.5)))
 
 			// Kinematic: velocity-driven, gravity-immune, integrated by Box2D.
 			// GravityScale is deliberately left at 1 to prove it is ignored.
 			s.kinematic = c.SpawnMoving("kinematic-mover", -6, 5, 0.5, 0,
-				body(physics.BodyTypeKinematic, box(0.5, 0.5)))
+				body(c, physics.BodyTypeKinematic, box(0.5, 0.5)))
 
 			// A kinematic body must still be able to shove a dynamic one.
 			s.pusher = c.SpawnMoving("kinematic-pusher", 2, 1, 1, 0,
-				body(physics.BodyTypeKinematic, box(0.5, 1)))
+				body(c, physics.BodyTypeKinematic, box(0.5, 1)))
 			s.pushed = c.Spawn("pushed-box", 6, 0.5,
-				body(physics.BodyTypeDynamic, withFriction(box(0.5, 0.5), 0.1)))
+				body(c, physics.BodyTypeDynamic, withFriction(box(0.5, 0.5), 0.1)))
 
 			// Manual: gameplay writes the pose every tick and physics must not
 			// touch it. The velocity below is pure gameplay bookkeeping — Box2D
 			// is told this body's velocity is zero.
 			s.manualPose = c.SpawnMoving("manual-pose", manualPoseStartX, 5, 7, -3,
-				body(physics.BodyTypeManual, box(0.5, 0.5)))
+				body(c, physics.BodyTypeManual, box(0.5, 0.5)))
 
 			// Manual bodies must still generate contacts against dynamic bodies.
 			// This target is kept awake so the contact cannot be masked by Box2D
 			// sleeping: it isolates "does manual-vs-dynamic collide at all".
-			awakeTarget := body(physics.BodyTypeDynamic, circle(0.5))
+			awakeTarget := body(c, physics.BodyTypeDynamic, circle(0.5))
 			awakeTarget.SleepingAllowed = false
 			s.sweepBall = c.Spawn("sweep-target-awake", 20, 0.5, awakeTarget)
 			s.sweeper = c.Spawn("manual-sweeper", sweeperStartX, 0.5,
-				body(physics.BodyTypeManual, box(0.5, 0.5)))
+				body(c, physics.BodyTypeManual, box(0.5, 0.5)))
 
 			// Same setup, but the target is allowed to fall asleep resting on the
 			// floor. A manual body is repositioned with World.SetBodyTransform,
@@ -88,16 +88,16 @@ func BodyTypes() harness.Scenario {
 			// into, so this is where a character walking into a settled prop would
 			// silently miss its contact.
 			s.sleeper = c.Spawn("sweep-target-asleep", 44, 0.5,
-				body(physics.BodyTypeDynamic, circle(0.5)))
+				body(c, physics.BodyTypeDynamic, circle(0.5)))
 			s.dozer = c.Spawn("manual-dozer", dozerStartX, 0.5,
-				body(physics.BodyTypeManual, box(0.5, 0.5)))
+				body(c, physics.BodyTypeManual, box(0.5, 0.5)))
 
 			// ...but must pass straight through static geometry, which is what
 			// Box2D does for kinematic-vs-static and is easy to get wrong.
 			s.wall = c.Spawn("static-wall", 35, 1.5,
-				body(physics.BodyTypeStatic, box(0.2, 2)))
+				body(c, physics.BodyTypeStatic, box(0.2, 2)))
 			s.ghost = c.Spawn("manual-ghost", ghostStartX, 1.5,
-				body(physics.BodyTypeManual, box(0.5, 0.5)))
+				body(c, physics.BodyTypeManual, box(0.5, 0.5)))
 		},
 		EachTick: func(c *harness.Ctx) {
 			tick := float64(c.Tick())

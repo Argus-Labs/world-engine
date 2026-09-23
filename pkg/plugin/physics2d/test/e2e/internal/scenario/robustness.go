@@ -7,24 +7,20 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
+	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
-// Robustness holds the inputs a game can hand the plugin that are finite —
-// and so pass ColliderShape.Validate — but malformed by the engine's rules: a
-// chain with three points, a circle with no radius, a polygon with too few
-// vertices, a box with no extent. Destroying an entity that still holds a live
-// contact is here too, from a completely different direction.
+// Robustness holds the inputs a game can hand the plugin that the plugin has to survive: a
+// shape Box2D cannot build, and an entity destroyed while it still holds a live contact.
 //
-// A polygon with too MANY vertices used to be one of these. It no longer belongs here:
-// Vertices holds only MaxPolygonVertices slots, so a polygon claiming more fails
-// ColliderShape.Validate and never reaches Box2D — which puts it outside the family this
-// file is about, inputs that PASS Validate and then misbehave. It is still rejected rather
-// than fatal; see TestWithVertices_ReportsPastBoundInsteadOfPanicking.
-//
-// Validate only checks that numbers are finite, so all of these reach the
-// engine. Against the cgo bridge four of them tripped a fatal Box2D assertion
-// and killed the shard; the pure-Go engine does not die, which is exactly what
-// these cases exist to keep measuring.
+// The bad shapes split in two, and only the first half is what this file was written for.
+// A chain on a dynamic body is finite and well formed, so it passes component validation and
+// reaches the engine; against the cgo bridge inputs like this tripped a fatal Box2D assertion
+// and killed the shard, and the pure-Go engine must not die. The rest — a radius of zero or
+// less, a box with no extent, a polygon outside 3..MaxPolygonVertices, a chain under four
+// points or marked as a sensor, an edge or capsule whose endpoints meet — are refused by
+// Validate and never reach Box2D. They stay here as rejected cases so the refusal is
+// measured too.
 //
 // Each still runs alone via -hostile <name>, because a case that does regress to
 // killing the process would otherwise hide every case after it. Every case
@@ -52,38 +48,45 @@ func HostileNames() []string {
 func hostileCases() []harness.Scenario {
 	return []harness.Scenario{
 		hostileDestroyDuringContact(),
-		hostileBadShape("short-chain",
-			"a chain of 3 points (Box2D asserts count >= 4)",
-			physics.BodyTypeStatic,
+		hostileRejectedShape("short-chain",
+			"a chain of 3 points (Box2D needs 4)",
 			chain(vec(-3, 0), vec(0, 0), vec(3, 0))),
-		hostileBadShape("short-chain-loop",
-			"a chain loop of 3 points (Box2D asserts count >= 4)",
-			physics.BodyTypeStatic,
+		hostileRejectedShape("short-chain-loop",
+			"a chain loop of 3 points (Box2D needs 4)",
 			chainLoop(vec(-3, 0), vec(0, 3), vec(3, 0))),
-		hostileBadShape("zero-radius-circle",
+		hostileRejectedShape("sensor-chain",
+			"a chain marked as a sensor (Box2D has no sensor chains)",
+			asSensor(chain(vec(-3, 0), vec(-1, 0), vec(1, 0), vec(3, 0)))),
+		hostileRejectedShape("zero-radius-circle",
 			"a circle of radius 0",
-			physics.BodyTypeDynamic,
 			circle(0)),
-		hostileBadShape("negative-radius-circle",
+		hostileRejectedShape("negative-radius-circle",
 			"a circle of radius -1",
-			physics.BodyTypeDynamic,
 			circle(-1)),
-		hostileBadShape("zero-extent-box",
+		hostileRejectedShape("zero-extent-box",
 			"a box with zero half-extents",
-			physics.BodyTypeDynamic,
 			box(0, 0)),
-		hostileBadShape("polygon-two-vertices",
+		hostileRejectedShape("polygon-too-many-vertices",
+			"a convex polygon of 9 vertices (Box2D's limit is 8)",
+			polygon(
+				vec(1, 0), vec(0.77, 0.64), vec(0.17, 0.98), vec(-0.5, 0.87),
+				vec(-0.94, 0.34), vec(-0.94, -0.34), vec(-0.5, -0.87),
+				vec(0.17, -0.98), vec(0.77, -0.64))),
+		hostileRejectedShape("polygon-two-vertices",
 			"a convex polygon of 2 vertices",
-			physics.BodyTypeDynamic,
 			polygon(vec(-1, 0), vec(1, 0))),
-		hostileBadShape("polygon-no-vertices",
+		hostileRejectedShape("polygon-no-vertices",
 			"a convex polygon with no vertices at all",
-			physics.BodyTypeDynamic,
 			polygon()),
-		hostileBadShape("degenerate-capsule",
+		hostileRejectedShape("polygon-flat",
+			"a polygon whose vertices all lie on one line",
+			polygon(vec(-1, 0), vec(0, 0), vec(1, 0), vec(2, 0))),
+		hostileRejectedShape("degenerate-capsule",
 			"a capsule whose two centers are the same point",
-			physics.BodyTypeDynamic,
 			capsule(vec(0, 0), vec(0, 0), 0.5)),
+		hostileRejectedShape("degenerate-edge",
+			"an edge whose two endpoints are the same point",
+			edge(vec(0, 0), vec(0, 0))),
 		hostileBadShape("chain-on-dynamic-body",
 			"a chain fixture on a dynamic body, which has no mass",
 			physics.BodyTypeDynamic,
@@ -106,8 +109,8 @@ func hostileDestroyDuringContact() harness.Scenario {
 	return harness.Scenario{
 		Name: "destroy-during-contact",
 		Setup: func(c *harness.Ctx) {
-			s.floor = c.Spawn("floor", 0, groundY, body(physics.BodyTypeStatic, box(5, 1)))
-			s.ball = c.Spawn("ball", 0, 3, body(physics.BodyTypeDynamic, circle(0.5)))
+			s.floor = c.Spawn("floor", 0, groundY, body(c, physics.BodyTypeStatic, box(5, 1)))
+			s.ball = c.Spawn("ball", 0, 3, body(c, physics.BodyTypeDynamic, circle(0.5)))
 		},
 		Steps: []harness.Step{
 			{Tick: 90, Do: func(c *harness.Ctx) {
@@ -130,23 +133,22 @@ func hostileDestroyDuringContact() harness.Scenario {
 	}
 }
 
-// hostileBadShape spawns one shape that ColliderShape.Validate accepts and
-// Box2D may not. The body is created mid-run rather than at Init because
-// InitPhysicsSystem panics on any FullRebuildFromECS error, which would hide
-// which shape was at fault behind a stack trace for the whole scene.
+// hostileBadShape spawns one shape that PhysicsBody2D.Validate accepts (it only checks
+// slots; the shape itself is validated at attach) and Box2D may not. The body is created
+// mid-run, so the failing attach lands on a world that is already running.
 func hostileBadShape(
-	name, description string, kind physics.BodyType, shape physics.ColliderShape,
+	name, description string, kind physics.BodyType, shape ShapeSpec,
 ) harness.Scenario {
 	var victim cardinal.EntityID
 	return harness.Scenario{
 		Name: name,
 		Setup: func(c *harness.Ctx) {
-			c.Spawn("bystander", 0, 0, body(physics.BodyTypeStatic, box(5, 1)))
+			c.Spawn("bystander", 0, 0, body(c, physics.BodyTypeStatic, box(5, 1)))
 		},
 		Steps: []harness.Step{
 			{Tick: 5, Do: func(c *harness.Ctx) {
-				pb := body(kind, shape)
-				c.NoError("ColliderShape.Validate accepts "+description, pb.Validate())
+				pb := body(c, kind, shape)
+				c.NoError("PhysicsBody2D.Validate accepts "+description, pb.Validate())
 				c.Note("spawning %s", description)
 				victim = c.Spawn("victim", 0, 10, pb)
 			}},
@@ -160,6 +162,35 @@ func hostileBadShape(
 						"body, and the plugin logs the failure once per tick "+
 						"for as long as the entity lives", description)
 				}
+			}},
+		},
+	}
+}
+
+// hostileRejectedShape puts a shape Box2D could never build on a body. Validate names the
+// problem, the body gets no fixture and logs every tick, and nothing else is disturbed.
+func hostileRejectedShape(name, description string, shape ShapeSpec) harness.Scenario {
+	var bystander, victim cardinal.EntityID
+	return harness.Scenario{
+		Name: name,
+		Setup: func(c *harness.Ctx) {
+			bystander = c.Spawn("bystander", 0, 0, body(c, physics.BodyTypeStatic, box(5, 1)))
+		},
+		Steps: []harness.Step{
+			{Tick: 5, Do: func(c *harness.Ctx) {
+				c.Note("spawning a body with %s", description)
+				_, err := shape.TrySpawn(c)
+				c.HasError("Validate refuses "+description, err)
+				victim = c.Spawn("victim", 0, 10, physcomp.NewPhysicsBody2D(physics.BodyTypeStatic, shape.Shape))
+			}},
+			{Tick: 20, Do: func(c *harness.Ctx) {
+				ids, ok := c.Plugin().ShapeIDs(victim)
+				c.True("the body gets no fixture", !ok || len(ids) == 0,
+					"the rejected shape attached %d fixture(s)", len(ids))
+				c.True("the shard survives "+description, true, "unreachable")
+				c.True("the bystander still has its fixture",
+					c.OverlapHits(c.OverlapAABB(-5, -1, 5, 1, nil), bystander),
+					"the bystander lost its body")
 			}},
 		},
 	}

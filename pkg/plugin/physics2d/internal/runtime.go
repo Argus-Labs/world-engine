@@ -6,8 +6,8 @@ import (
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/immutable"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/query"
 )
 
@@ -20,9 +20,9 @@ type ContactPairKey struct {
 	ShapeIndexB int
 }
 
-// ContactPairInfo stores metadata for an active contact pair. FilterA/FilterB correspond to
-// (EntityA, ShapeIndexA) and (EntityB, ShapeIndexB) after normalization. Manifold fields are
-// best-effort from the last live sample (not serialized to snapshots).
+// ContactPairInfo stores metadata for an active contact pair. IsSensor and the filter bits of
+// (EntityA, ShapeIndexA) and (EntityB, ShapeIndexB) are persisted; manifold fields are
+// best-effort from the last live sample.
 type ContactPairInfo struct {
 	IsSensor           bool
 	FilterA            event.FixtureFilterBits
@@ -47,13 +47,13 @@ type Runtime struct {
 	// Bodies maps Cardinal entity ids to their Box2D body ids in World.
 	Bodies map[cardinal.EntityID]box2d.BodyID
 
-	// Shapes maps entity ids to per-collider-slot Box2D shape ids: slot i corresponds to
-	// ColliderShape index i. Chain slots hold a null ShapeID (chains are tracked in Chains)
+	// Shapes maps entity ids to per-slot Box2D shape ids: slot i corresponds to
+	// PhysicsBody2D.Shapes[i]. Chain slots hold a null ShapeID (chains are tracked in Chains)
 	// so per-shape mutable setters skip them, matching the CGO bridge behavior.
 	Shapes map[cardinal.EntityID][]box2d.ShapeID
 
 	// Chains maps entity ids to the chain shapes created for chain-type collider slots.
-	Chains map[cardinal.EntityID][]box2d.ChainID
+	Chains map[cardinal.EntityID][]ChainSlot
 
 	// Gravity is the world gravity vector applied on world creation and on rebuild.
 	Gravity component.Vec2
@@ -205,7 +205,7 @@ func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps, workers int) 
 		Workers:              workers,
 		Bodies:               make(map[cardinal.EntityID]box2d.BodyID),
 		Shapes:               make(map[cardinal.EntityID][]box2d.ShapeID),
-		Chains:               make(map[cardinal.EntityID][]box2d.ChainID),
+		Chains:               make(map[cardinal.EntityID][]ChainSlot),
 		KnownEntities:        make(map[cardinal.EntityID]struct{}),
 		Shadow:               make(map[cardinal.EntityID]ShadowState),
 		BufferedContacts:     make([]BufferedContactEvent, 0),
@@ -224,7 +224,7 @@ func (rt *Runtime) Reset() {
 	}
 	rt.Bodies = make(map[cardinal.EntityID]box2d.BodyID)
 	rt.Shapes = make(map[cardinal.EntityID][]box2d.ShapeID)
-	rt.Chains = make(map[cardinal.EntityID][]box2d.ChainID)
+	rt.Chains = make(map[cardinal.EntityID][]ChainSlot)
 	rt.KnownEntities = make(map[cardinal.EntityID]struct{})
 	rt.Shadow = make(map[cardinal.EntityID]ShadowState)
 	rt.BufferedContacts = make([]BufferedContactEvent, 0)
@@ -287,7 +287,7 @@ func (rt *Runtime) BodyIDOf(entityID cardinal.EntityID) (box2d.BodyID, bool) {
 	return bodyID, ok
 }
 
-// ShapeIDsOf returns a copy of the per-collider-slot shape ids tracked for entityID and whether
+// ShapeIDsOf returns a copy of the per-slot shape ids tracked for entityID and whether
 // any exist. The copy keeps callers from mutating the runtime's own slice.
 func (rt *Runtime) ShapeIDsOf(entityID cardinal.EntityID) ([]box2d.ShapeID, bool) {
 	shapes, ok := rt.Shapes[entityID]
@@ -323,7 +323,8 @@ func (rt *Runtime) PruneActiveContactsInvolvingEntity(entityID cardinal.EntityID
 }
 
 // LoadActiveContactsFromComponent populates the in-memory working map from the persisted
-// ECS component. Called by the step system after a restore when ActiveContacts is nil.
+// ECS component. Called by the step system after a restore when ActiveContacts is nil, once
+// the bodies have been rebuilt.
 func (rt *Runtime) LoadActiveContactsFromComponent(ac component.ActiveContacts) {
 	rt.ActiveContacts = make(map[ContactPairKey]ContactPairInfo, ac.Pairs.Len())
 	for p := range ac.Pairs.Values() {

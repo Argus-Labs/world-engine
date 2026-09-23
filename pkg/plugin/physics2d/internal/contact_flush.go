@@ -5,8 +5,8 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // FlushBufferedContacts turns buffered contact records into physics2d events via the
@@ -305,7 +305,8 @@ func (rt *Runtime) refreshActiveContactsFromLive() {
 	}
 }
 
-// contactPairInfoPersistedFieldsDiffer is true when sensor or filter bits differ between two snapshots of same pair.
+// contactPairInfoPersistedFieldsDiffer is true when the persisted part of a pair (sensor flag
+// and filter bits) differs between two snapshots of the same pair.
 func contactPairInfoPersistedFieldsDiffer(a, b ContactPairInfo) bool {
 	return a.IsSensor != b.IsSensor || a.FilterA != b.FilterA || a.FilterB != b.FilterB
 }
