@@ -3,7 +3,7 @@ package internal
 import (
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // WritebackEntry holds the entity needed to write Box2D results back to components.
@@ -66,7 +66,9 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 			e.Entity.Set(pb)
 		}
 
-		// Update shadow so ReconcileFromECS sees no diff for these fields next tick.
+		// Update shadow so ReconcileFromECS sees no diff for these fields next tick. Shape
+		// lifetime is not touched here: the sweep reads slot lists from ECS and the shadow
+		// each tick, and writeback never changes a slot list.
 		if shadow, exists := rt.Shadow[e.Entity.ID()]; exists {
 			shadow.Transform = t
 			shadow.Velocity = v

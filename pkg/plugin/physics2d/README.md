@@ -36,6 +36,13 @@ w.RegisterPlugin(physics)
 w.StartGame()
 ```
 
+`Workers` is a throughput knob: it sets how many workers a step may use
+(0 means serial; anything above `box2d.MaxWorkers` is clamped). Results are
+byte-identical for every value, so it never affects rollback, replay or
+cross-machine agreement. Small scenes run inline regardless, so only set it
+for scenes of hundreds of active bodies, and expect diminishing returns
+beyond about 8.
+
 Keep the `*physics2d.Plugin` value: queries, `Engine`, and `Reset` are
 methods on it. All simulation state belongs to that instance — the package
 holds no globals, and multiple plugin instances in one process simulate
@@ -49,15 +56,68 @@ body is created in the engine.
 
 | Component | Purpose |
 |---|---|
-| [`Transform2D`](component/spatial.go) | World-space position + rotation (authoritative pose) |
-| [`Velocity2D`](component/spatial.go) | Linear + angular velocity |
-| [`PhysicsBody2D`](component/physics_body.go) | Body kind, damping, flags, and the compound collider (`Shapes`) |
+| [`Transform2D`](internal/component/spatial.go) | World-space position + rotation (authoritative pose) |
+| [`Velocity2D`](internal/component/spatial.go) | Linear + angular velocity |
+| [`PhysicsBody2D`](internal/component/physics_body.go) | Body kind, damping, flags, and its shapes (`Shapes`) |
 
 Use the `NewPhysicsBody2D` constructor — bare struct literals leave
 `Active`, `Awake`, `SleepingAllowed` at `false` and `GravityScale` at `0`,
 which produces an inactive, sleeping, gravity-less body.
 
-### Example: a dynamic circle
+### Shapes
+
+> **Breaking change.** Shapes used to be entities of their own, referenced from
+> the body. They are values on the body again, and snapshots from the entity
+> design do not load. Purge such worlds.
+
+A body carries its shapes as values in its own `Shapes` list. Each
+[`Shape`](internal/component/shape.go) is one collider: its geometry, where it
+sits on the body (`LocalOffset`, `LocalRotation`), its material and its
+collision filter. It belongs to that body and goes wherever the body goes.
+Nothing is shared between bodies, and there is nothing to keep alive, look up
+or clean up. This is how Box2D itself works: a shape belongs to one body.
+
+| Call | Does |
+|---|---|
+| `Circle`, `Box`, `Polygon`, `Chain`, `ChainLoop`, `Edge`, `Capsule` | build a `Shape` with Box2D's default material (friction 0.6, density 1) and filter (category 1, mask all) |
+| `.At(offset, rot)`, `.Filter(cat, mask)`, `.Group(i)` | place it on the body and set its collision filter |
+| `.Sensor(true)`, `.Material(f, r, d)` | make it a sensor; set friction, restitution, density |
+| `.Reshape(geometry)` | take a constructor's geometry, keeping placement, material and filter |
+| `.Validate()` | why Box2D could never build it, or nil |
+
+Placement, material and filter are plain fields (`LocalOffset`,
+`LocalRotation`, `Friction`, `Restitution`, `Density`, `CategoryBits`,
+`MaskBits`, `GroupIndex`, `IsSensor`): set them directly or through the options
+above. The geometry is different. What its numbers mean depends on the kind, so
+only a constructor or `Reshape` sets it, and getters read it:
+
+| Getter | Returns |
+|---|---|
+| `Kind()` | the geometry kind |
+| `Radius()` | a circle's or capsule's radius |
+| `HalfExtents()` | a box's half width and half height |
+| `Endpoints()` | an edge's or capsule's two endpoints |
+| `Vertices()`, `Points()` | a copy of a polygon's vertices, or of a chain's points |
+
+A getter reads zero or nil on a kind it does not belong to: `Radius()` on a
+box is 0. The storage behind the getters is the `Geometry` field. It is
+exported only until the wire generator reads unexported fields; leave it alone.
+
+Collision filtering is plain Box2D: two shapes collide when each one's
+category overlaps the other's mask, so `Filter(cat, 0)` collides with nothing.
+`Group` sets the group index (a ragdoll's parts share a negative group so they
+never touch each other). A matching non-zero group index is checked first and
+replaces the category and mask test, so `Filter(1, 0).Group(7)` still collides
+with another shape at group 7. The exception is a category of 0: such a shape
+is invisible to the broad phase, so no group index brings it back.
+
+A shape Box2D could never build — a radius of zero or less, a box with a zero
+extent, a polygon outside 3..8 vertices or with all its points on one line, a
+chain under four points, a chain marked as a sensor, an edge or capsule whose
+endpoints meet, any NaN — fails `Validate`, and with it the body: it gets no
+fixtures and the reconciler logs why every tick until the shape is fixed. Call
+`Validate` yourself at the line that built the shape when you want the error
+there instead.
 
 ```go
 import (
@@ -65,52 +125,62 @@ import (
     "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 )
 
-func SpawnBallSystem(ctx cardinal.WorldContext) error {
-    id, err := cardinal.Create(ctx,
-        physics2d.Transform2D{
-            Position: physics2d.Vec2{X: 0, Y: 10},
-            Rotation: 0,
-        },
-        physics2d.Velocity2D{
-            Linear:  physics2d.Vec2{X: 0, Y: 0},
-            Angular: 0,
-        },
-        physics2d.NewPhysicsBody2D(
-            physics2d.BodyTypeDynamic,
-            physics2d.ColliderShape{
-                ShapeType:    physics2d.ShapeTypeCircle,
-                Radius:       0.5,
-                Density:      1.0,
-                Friction:     0.3,
-                Restitution:  0.2,
-                CategoryBits: 0x0001,
-                MaskBits:     0xFFFF,
-            },
-        ),
-    )
-    _ = id
-    return err
+type ballRow struct {
+    T  cardinal.WithComponent[physics2d.Transform2D]
+    V  cardinal.WithComponent[physics2d.Velocity2D]
+    PB cardinal.WithComponent[physics2d.PhysicsBody2D]
+}
+
+type SpawnState struct {
+    cardinal.BaseSystemState
+    Balls cardinal.Exact[ballRow]
+}
+
+// Shapes are plain values, so they can be built once and reused anywhere.
+var (
+    floorShape = physics2d.Box(25, 1).Material(0.5, 0, 0).Filter(0x0002, 0xFFFF)
+    ballShape  = physics2d.Circle(0.5).Material(0.3, 0.2, 1).Filter(0x0001, 0xFFFF)
+)
+
+func SpawnSystem(state *SpawnState) {
+    if state.Tick() != 0 {
+        return
+    }
+    f := state.Balls.Create()
+    f.Set(physics2d.Transform2D{})
+    f.Set(physics2d.Velocity2D{})
+    f.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeStatic, floorShape))
+
+    for i := range 10 {
+        b := state.Balls.Create()
+        b.Set(physics2d.Transform2D{Position: physics2d.Vec2{X: float64(i), Y: 10}})
+        b.Set(physics2d.Velocity2D{})
+        b.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic, ballShape))
+    }
 }
 ```
 
-### Example: a static box (world geometry)
+To change a shape, put a changed value in the body's list and `Set` the body
+(see *Compound colliders*). The next tick, a change to material or filter is
+applied to the live fixture in place. Any change to geometry, placement or the
+sensor flag rebuilds every fixture on that body: Box2D cannot toggle a live
+fixture's sensor flag.
 
-```go
-cardinal.Create(ctx,
-    physics2d.Transform2D{Position: physics2d.Vec2{X: 0, Y: 0}},
-    physics2d.Velocity2D{},
-    physics2d.NewPhysicsBody2D(
-        physics2d.BodyTypeStatic,
-        physics2d.ColliderShape{
-            ShapeType:    physics2d.ShapeTypeBox,
-            HalfExtents:  physics2d.Vec2{X: 25, Y: 1},
-            Friction:     0.5,
-            CategoryBits: 0x0002,
-            MaskBits:     0xFFFF,
-        },
-    ),
-)
-```
+A body needs at least one shape. Emptying the list does not clear its
+fixtures: the update is invalid, logged every tick, and the body keeps what it
+had. To disable a body, set `Active = false`. Do not remove `Transform2D` or
+`Velocity2D` to take it out of the simulation: those are where the plugin
+writes the body's position and velocity back each tick, so an entity missing
+either is not a physics body at all.
+
+### Chain points
+
+Chain shapes (`Chain(points...)`, `ChainLoop(points...)`) carry their
+polyline on the body; `Points()` reads a copy. The reconciler keeps its own copy and
+compares the points by value every tick, so a chain of n points costs n
+compares per tick: nothing measurable up to tens of thousands of points, and
+worth knowing about beyond that. To change terrain, set a new chain shape; the
+fixture is rebuilt.
 
 ### Body-type cheat sheet
 
@@ -121,53 +191,35 @@ cardinal.Create(ctx,
 
 ### Compound colliders
 
-`PhysicsBody2D.Shapes` is an `immutable.Slice` — each entry is a child fixture
-with its own `LocalOffset`, `LocalRotation`, material, and filter. Shape
-identity is by index (slot `i` in `Shapes` ↔ fixture slot `i`), so don't
-reorder shapes after creation if you care about per-shape references in
-contact events.
-
-Read it with `Len`, `At`, and `All`; change it with `Append`, `With`, `Without`
-and friends, then `Set` the component. Those derivations edit the array the
-component already holds, so a `Set` after each one is required rather than
-tidy — see [`immutable.Slice`](../../immutable/slice.go).
+`PhysicsBody2D.Shapes` is an `immutable.Slice` of `Shape`s — each entry is a
+child fixture with its own geometry, `LocalOffset` and `LocalRotation`. Index
+`i` is fixture `i`, the index contact events and query hits report. To change
+the list, derive a new one and `Set` the body:
 
 ```go
-pb := ref.Get()
-sh := pb.Shapes.At(0)
-sh.Friction = 0.9
-pb.Shapes = pb.Shapes.With(0, sh)
-ref.Set(pb)
-```
-
-### Polygon vertices
-
-A convex polygon's vertices live in a fixed `[MaxPolygonVertices]Vec2` array
-with `VertexCount` saying how many slots are live — the same shape
-`box2d.Polygon` uses, and the same bound (8) Box2D compiles in. Build one with
-`WithVertices`, which sets the count and zeroes the unused tail:
-
-```go
-tri := physics2d.ColliderShape{
-    ShapeType:    physics2d.ShapeTypeConvexPolygon,
-    Density:      1,
-    Friction:     0.4,
-    CategoryBits: 0xFFFF,
-    MaskBits:     0xFFFF,
-}.WithVertices(
-    physics2d.Vec2{X: 0, Y: 0},
-    physics2d.Vec2{X: 2, Y: 0},
-    physics2d.Vec2{X: 1, Y: 1.5},
+const (
+    Hull  = iota // fixture 0
+    Aggro        // fixture 1
 )
+body := physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic, hull, aggro)
+
+pb := row.Get[physics2d.PhysicsBody2D]()
+pb.Shapes = pb.Shapes.With(Aggro, biggerAggro) // replace fixture 1
+pb.Shapes = pb.Shapes.Append(powerUp)          // add fixture 2
+row.Set(pb)
 ```
 
-Past `MaxPolygonVertices`, `WithVertices` returns a shape that fails `Validate`
-(`vertex_count: must be between 0 and 8`) rather than truncating or panicking —
-an over-long polygon is a bad asset, and the reconciler refuses the fixture the
-same way it refuses any other bad geometry. `PolygonVertices()` reads back the
-live prefix. A chain has no such bound, so
-`ChainPoints` is an `immutable.Slice[Vec2]`; build one with
-`immutable.SliceOf(pts...)`.
+To tell shapes apart in a contact handler, the usual way is category bits: give
+each kind of shape its own category and read `FilterA.CategoryBits` /
+`FilterB.CategoryBits` off the event. Within one body, name the indices with
+constants as above.
+
+`Without(i)` removes a shape, and every shape after it moves down one index, so
+constants past `i` go stale. Three ways to keep them right: put shapes you add
+and remove during play last; find the shape by what it is,
+`pb.Shapes.IndexFunc(func(s physics2d.Shape) bool { return s.CategoryBits == CatAggro })`;
+or switch it off instead of removing it — `Filter(cat, 0)` collides with
+nothing, and a filter change keeps the fixture and every index.
 
 ## Built-in queries
 
@@ -207,7 +259,7 @@ lookups close that gap:
 - `(*physics2d.Plugin).ShapeIDs(cardinal.EntityID) ([]box2d.ShapeID, bool)`
 
 Both return `ok == false` when no world exists or the entity has no body yet.
-`ShapeIDs` is indexed by collider slot (slot `i` ↔ `PhysicsBody2D.Shapes[i]`)
+`ShapeIDs` is indexed like `PhysicsBody2D.Shapes`
 and returns a copy you own. The ids are valid only until the next tick's
 reconcile, which may destroy and recreate the body — look them up again each
 tick rather than caching them.
@@ -251,7 +303,7 @@ The plugin stuffs identity into Box2D userdata (see
 [internal/create.go](internal/create.go)):
 
 - **Body userdata** = entity ID: `cardinal.EntityID(uint32(w.BodyUserData(bodyID)))`.
-- **Shape userdata** = shape slot index (the index into
+- **Shape userdata** = shape index (the index into
   `PhysicsBody2D.Shapes`): `int(uint32(w.ShapeUserData(shapeID)))`.
 
 So inside any engine callback you can recover the ECS entity with one line.
@@ -312,5 +364,39 @@ Contacts and triggers flow through Cardinal's system-event bus. The plugin's
 own pipeline system sets the emitter each tick and flushes
 `ContactBeginEvent` / `ContactEndEvent` / `TriggerBeginEvent` /
 `TriggerEndEvent` each tick. The events carry both entity IDs and both
-shape indices, so you can look up the exact `ColliderShape` that produced
-the contact.
+shape indices, so you can look up the exact shape that produced the contact,
+and both shapes' filters, so a handler can dispatch on category bits alone.
+
+## Active contacts
+
+The polled view of the same contacts. After each step the plugin writes
+every pair touching or overlapping to the `ActiveContacts` component on its
+singleton entity, sorted by (EntityA, ShapeIndexA, EntityB, ShapeIndexB).
+Each `ContactPairEntry` has both entities, both shape indices, both shapes'
+filter bits and `IsSensor`. A is the lower (entity, shape index) of the two.
+Read it with an Exact search on the two components:
+
+```go
+type contactRow = cardinal.Exact[struct {
+	Tag      cardinal.WithComponent[physics2d.PhysicsSingletonTag]
+	Contacts cardinal.WithComponent[physics2d.ActiveContacts]
+}]
+
+func damageSystem(state *struct {
+	cardinal.BaseSystemState
+	Physics contactRow
+}) {
+	for row := range state.Physics.Iter() {
+		for pair := range row.Get[physics2d.ActiveContacts]().Pairs.Values() {
+			if pair.IsSensor || pair.FilterACategoryBits&enemyBit == 0 {
+				continue
+			}
+			// pair.EntityA is the enemy, pair.EntityB whatever it is pressing on.
+		}
+	}
+}
+```
+
+The list is written after the physics step, so from `cardinal.Update` on it
+is this tick's. It is part of the snapshot, so it survives a restore: the
+pairs are what the snapshot holds until the rebuilt world steps again.

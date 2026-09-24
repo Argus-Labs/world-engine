@@ -139,6 +139,7 @@ func (e LoggedEvent) Touches(a cardinal.EntityID) bool {
 type Ctx struct {
 	report     *Report
 	probes     *Probes
+	entity     func(cardinal.EntityID) cardinal.Entity
 	events     *eventStore
 	plugin     *physics.Plugin
 	allowReset func()
@@ -360,31 +361,24 @@ func (c *Ctx) EditBody(id cardinal.EntityID, edit func(pb *physics.PhysicsBody2D
 	c.SetBody(id, pb)
 }
 
-// EditShape applies edit to one shape of the entity's body and writes the body back. Shapes hands
-// out element copies, so a shape changes by being read out, edited, and put back with With —
-// there is no index to assign through.
-func (c *Ctx) EditShape(id cardinal.EntityID, i int, edit func(sh *physics.ColliderShape)) {
-	c.EditBody(id, func(pb *physics.PhysicsBody2D) {
-		sh := pb.Shapes.At(i)
-		edit(&sh)
-		pb.Shapes = pb.Shapes.With(i, sh)
-	})
-}
-
 // Destroy removes the entity from the world.
 func (c *Ctx) Destroy(id cardinal.EntityID) bool {
 	entity, err := c.probes.GetByID(id)
 	return err == nil && entity.Destroy()
 }
 
-// CloneBody deep-copies a PhysicsBody2D including its shapes and their chain geometry, so edits to
-// the copy cannot reach the original. immutable.Slice derivations write through the array they
-// share with the component, so a scenario that means to edit a body has to start from a copy like
-// this one; Map and Collect are the two derivations that allocate instead.
+// CloneBody copies a PhysicsBody2D so the copy cannot reach the component it came from.
+// Only Shapes needs it: the slot list shares an array with the stored component, and With,
+// Without and Filter write into that array rather than a new one. Sub writes nothing but
+// returns a window onto the same array, so deriving from the window reaches the component
+// too. Collect allocates, which is what makes this a copy.
 func CloneBody(pb physics.PhysicsBody2D) physics.PhysicsBody2D {
-	pb.Shapes = immutable.Map(pb.Shapes, func(s physics.ColliderShape) physics.ColliderShape {
-		s.ChainPoints = immutable.Collect(s.ChainPoints.Values())
-		return s
+	pb.Shapes = immutable.Collect(func(yield func(physics.Shape) bool) {
+		for sh := range pb.Shapes.Values() {
+			if !yield(sh.Copy()) {
+				return
+			}
+		}
 	})
 	return pb
 }

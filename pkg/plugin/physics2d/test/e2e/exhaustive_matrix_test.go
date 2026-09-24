@@ -8,7 +8,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
-	physcomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/harness"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/scenario"
 	"github.com/argus-labs/world-engine/pkg/testutils"
@@ -29,20 +28,10 @@ var (
 	matrixKinds = []physics.BodyType{
 		physics.BodyTypeStatic, physics.BodyTypeDynamic, physics.BodyTypeKinematic, physics.BodyTypeManual,
 	}
-	matrixShapes = []physics.ShapeType{
-		physics.ShapeTypeCircle, physics.ShapeTypeBox, physics.ShapeTypeConvexPolygon,
-		physics.ShapeTypeStaticChain, physics.ShapeTypeStaticChainLoop,
-		physics.ShapeTypeEdge, physics.ShapeTypeCapsule,
-	}
-	kindName = map[physics.BodyType]string{
+	matrixShapes = scenario.AllShapeKinds()
+	kindName     = map[physics.BodyType]string{
 		physics.BodyTypeStatic: "static", physics.BodyTypeDynamic: "dynamic",
 		physics.BodyTypeKinematic: "kinematic", physics.BodyTypeManual: "manual",
-	}
-	shapeName = map[physics.ShapeType]string{
-		physics.ShapeTypeCircle: "circle", physics.ShapeTypeBox: "box",
-		physics.ShapeTypeConvexPolygon: "polygon", physics.ShapeTypeStaticChain: "chain",
-		physics.ShapeTypeStaticChainLoop: "chainloop", physics.ShapeTypeEdge: "edge",
-		physics.ShapeTypeCapsule: "capsule",
 	}
 	// engineKind is the Box2D body type each ECS kind must map to. Manual bodies are
 	// kinematic in the engine; the ECS layer owns their position.
@@ -56,7 +45,7 @@ var (
 
 type matrixCombo struct {
 	kind                                   physics.BodyType
-	shape                                  physics.ShapeType
+	shape                                  scenario.ShapeKind
 	active, awake, sleep, bullet, fixedRot bool
 }
 
@@ -68,11 +57,11 @@ func (m matrixCombo) label() string {
 		return 0
 	}
 	return fmt.Sprintf("%s/%s/active%d-awake%d-sleep%d-bullet%d-fixed%d",
-		kindName[m.kind], shapeName[m.shape], b(m.active), b(m.awake), b(m.sleep), b(m.bullet), b(m.fixedRot))
+		kindName[m.kind], m.shape, b(m.active), b(m.awake), b(m.sleep), b(m.bullet), b(m.fixedRot))
 }
 
-func (m matrixCombo) body() physics.PhysicsBody2D {
-	pb := physcomp.NewPhysicsBody2D(m.kind, scenario.SampleShape(m.shape))
+func (m matrixCombo) body(c *harness.Ctx) physics.PhysicsBody2D {
+	pb := scenario.Body(c, m.kind, scenario.SampleShape(m.shape))
 	pb.Active = m.active
 	pb.Awake = m.awake
 	pb.SleepingAllowed = m.sleep
@@ -81,10 +70,7 @@ func (m matrixCombo) body() physics.PhysicsBody2D {
 	return pb
 }
 
-func (m matrixCombo) lineShape() bool {
-	return m.shape == physics.ShapeTypeStaticChain ||
-		m.shape == physics.ShapeTypeStaticChainLoop || m.shape == physics.ShapeTypeEdge
-}
+func (m matrixCombo) lineShape() bool { return m.shape.IsLine() }
 
 // expectBody is the documented rule for which combinations the plugin accepts:
 // chains and edges belong on static or kinematic bodies, never dynamic ones.
@@ -180,7 +166,7 @@ func matrixScene(combos []matrixCombo) harness.Scenario {
 		Name: "matrix",
 		Setup: func(c *harness.Ctx) {
 			for i, m := range combos {
-				pb := m.body()
+				pb := m.body(c)
 				decoded, err := physics.PhysicsBody2D{}.UnmarshalWire(pb.MarshalWire())
 				if c.NoError("wire decodes: "+m.label(), err) {
 					c.True("wire round-trip is lossless: "+m.label(), reflect.DeepEqual(decoded, pb),

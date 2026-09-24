@@ -1,132 +1,47 @@
-// Package physics2d is a Box2D-backed 2D physics plugin for Cardinal (pure-Go Box2D port in
-// pkg/box2d). ECS components live in component; simulation and reconciliation systems are
-// plugin-internal (internal/system) and are registered for you by Plugin.Register. All derived
-// physics state is owned by the Plugin instance (see Plugin.Reset); the package holds no
-// runtime state.
+// Package physics2d is a Box2D-backed 2D physics plugin for Cardinal, on the pure-Go Box2D
+// port in pkg/box2d.
 //
-// Usage:
+// Install it once per world and keep the *Plugin: queries and Reset are methods on it.
 //
-//	w, err := cardinal.NewWorld(cardinal.WorldOptions{...})
-//	if err != nil {
-//		panic(err)
-//	}
-//	physics := physics2d.NewPlugin(physics2d.Config{})
+//	physics := physics2d.NewPlugin(physics2d.Config{Gravity: physics2d.Vec2{Y: -9.8}})
 //	w.RegisterPlugin(physics)
-//	w.StartGame()
 //
-// Keep the *Plugin value: queries (Raycast, OverlapAABB, CircleSweep) and Reset are methods on it.
+// An entity is simulated while it carries Transform2D, Velocity2D and PhysicsBody2D. A body
+// carries its shapes as values in its own list. Everything a system touches is in api.go, in
+// the order a game meets it: bodies, shapes, queries, contact events. This file is the plugin
+// instance and the raw-engine escape hatch.
 //
-// Call Plugin.Reset from init/restore hooks when you rebuild the Cardinal world or after
-// FromProto so the derived physics state matches ECS. Reset discards derived physics state; the
-// next PhysicsPipelineSystem (PreUpdate) performs a full ECS->Box2D rebuild when it sees no
-// live world.
+// The simulation state (the Box2D world, bodies, fixtures) is derived from ECS every tick and
+// owned by the Plugin instance. It is never snapshotted; call Reset after a restore and the
+// next tick rebuilds it from the components.
 package physics2d
 
 import (
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
-	physicevent "github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal"
 	physicssystem "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/system"
-	physicsquery "github.com/argus-labs/world-engine/pkg/plugin/physics2d/query"
 	"github.com/rotisserie/eris"
-)
-
-// Re-export component types for callers that import the plugin root only.
-type (
-	Vec2                = component.Vec2
-	BodyType            = component.BodyType
-	ShapeType           = component.ShapeType
-	ColliderShape       = component.ColliderShape
-	PhysicsSingletonTag = component.PhysicsSingletonTag
-	ActiveContacts      = component.ActiveContacts
-	ContactPairEntry    = component.ContactPairEntry
-)
-
-// Components entities require to participate in physics simulation.
-type (
-	Transform2D   = component.Transform2D
-	Velocity2D    = component.Velocity2D
-	PhysicsBody2D = component.PhysicsBody2D
-)
-
-// Body kinds (PhysicsBody2D).
-const (
-	BodyTypeStatic    = component.BodyTypeStatic
-	BodyTypeDynamic   = component.BodyTypeDynamic
-	BodyTypeKinematic = component.BodyTypeKinematic
-	BodyTypeManual    = component.BodyTypeManual
-)
-
-// MaxPolygonVertices is the most vertices a ShapeTypeConvexPolygon collider can hold, matching
-// the bound Box2D compiles in. ColliderShape.Vertices has exactly this many slots.
-const MaxPolygonVertices = component.MaxPolygonVertices
-
-// Collider shape kinds (ColliderShape).
-const (
-	ShapeTypeCircle          = component.ShapeTypeCircle
-	ShapeTypeBox             = component.ShapeTypeBox
-	ShapeTypeConvexPolygon   = component.ShapeTypeConvexPolygon
-	ShapeTypeStaticChain     = component.ShapeTypeStaticChain
-	ShapeTypeStaticChainLoop = component.ShapeTypeStaticChainLoop
-	ShapeTypeEdge            = component.ShapeTypeEdge
-	ShapeTypeCapsule         = component.ShapeTypeCapsule
-)
-
-// Contact / trigger system events (implement ecs.SystemEvent; register with WithSystemEventEmitter).
-type (
-	FixtureFilterBits   = physicevent.FixtureFilterBits
-	ContactEventPayload = physicevent.ContactEventPayload
-	ContactBeginEvent   = physicevent.ContactBeginEvent
-	ContactEndEvent     = physicevent.ContactEndEvent
-	TriggerBeginEvent   = physicevent.TriggerBeginEvent
-	TriggerEndEvent     = physicevent.TriggerEndEvent
-	ContactEventEmitter = physicevent.ContactEventEmitter
-)
-
-// Query API (v1): raycast, AABB overlap, circle sweep.
-type (
-	Filter             = physicsquery.Filter
-	RaycastRequest     = physicsquery.RaycastRequest
-	RaycastResult      = physicsquery.RaycastResult
-	AABBOverlapRequest = physicsquery.AABBOverlapRequest
-	AABBOverlapHit     = physicsquery.AABBOverlapHit
-	AABBOverlapResult  = physicsquery.AABBOverlapResult
-	CircleSweepRequest = physicsquery.CircleSweepRequest
-	CircleSweepResult  = physicsquery.CircleSweepResult
 )
 
 // Config holds plugin options for simulation and stepping.
 type Config struct {
-	// Gravity is applied to the Box2D world (world gravity vector).
+	// Gravity is the world gravity vector.
 	Gravity Vec2
-	// TickRate is simulation steps per second: each Cardinal tick steps the physics world by 1/TickRate.
-	// Match cardinal.WorldOptions.TickRate so simulated time advances one tick of wall-clock intent per tick.
-	// Zero or negative defaults to 60 (same as historical FixedDT 1/60).
+	// TickRate is simulation steps per second; each Cardinal tick steps the world by 1/TickRate.
+	// Match cardinal.WorldOptions.TickRate. Zero or negative defaults to 60.
 	TickRate float64
-	// SubStepCount is the number of sub-steps per physics step. Zero defaults to 4.
+	// SubStepCount is the number of sub-steps per step. Zero defaults to 4.
 	SubStepCount int
-	// Workers is the number of workers the physics step may use
-	// (box2d.WorldDef.WorkerCount). 0 means 1 (serial); negative values are
-	// treated as 0 and values above box2d.MaxWorkers (64) are clamped down,
-	// so any value is safe. The engine does not clamp to the core count:
-	// whatever you set here is the partition width, so counts beyond the
-	// host's cores just oversubscribe the Go scheduler. Simulation results
-	// are byte-identical for every value — the engine's worker pool is
-	// deterministic by construction — so this is purely a throughput knob
-	// and never affects rollback, replay, or cross-machine agreement.
-	//
-	// Recommend setting Workers only for large scenes (hundreds or more
-	// active bodies): small scenes run inline below the engine's per-stage
-	// grain thresholds regardless of this value, and worker counts beyond
-	// ~8 have diminishing returns.
+	// Workers is the number of workers a step may use; 0 means serial, and any value is safe
+	// (clamped to box2d.MaxWorkers). Results are byte-identical for every value, so this is a
+	// throughput knob only. Worth setting for scenes of hundreds of active bodies; see the
+	// README for the trade-offs.
 	Workers int
 }
 
-// Plugin implements cardinal.Plugin for the physics2d package. It owns the derived physics
-// state (the runtime, including the pure-Go Box2D world) for the world it is registered with.
-// Multiple Plugin instances in one process simulate fully independently.
+// Plugin implements cardinal.Plugin. It owns the derived physics state for the world it is
+// registered with; separate instances simulate independently.
 type Plugin struct {
 	config Config
 	rt     *internal.Runtime
@@ -139,8 +54,8 @@ func NewPlugin(config Config) *Plugin {
 	return &Plugin{config: config}
 }
 
-// Register implements cardinal.Plugin: creates this instance's runtime state and registers
-// systems. Registering the same Plugin instance twice panics.
+// Register implements cardinal.Plugin: it creates this instance's runtime and registers the
+// simulation systems. Registering the same instance twice panics.
 func (p *Plugin) Register(w *cardinal.World) {
 	if p.rt != nil {
 		panic(eris.New("physics2d: Plugin.Register called twice on the same instance; " +
@@ -160,64 +75,8 @@ func (p *Plugin) Register(w *cardinal.World) {
 	w.RegisterSystem(physicssystem.NewPhysicsPipelineSystem(p.rt), cardinal.WithHook(cardinal.PreUpdate))
 }
 
-// Engine returns the underlying pure-Go Box2D world, or nil when no world exists (before
-// init or after Reset).
-//
-// It is a read-only escape hatch: use it for reads and queries the plugin does not expose
-// directly (shape casts, custom query filters, sensor-only overlap, contact walks, body and
-// shape inspection, debug draw). Pair it with BodyID / ShapeIDs to go from a Cardinal entity
-// to the engine objects to inspect.
-//
-// Mutating the engine is NOT supported. The reconciler owns body and shape lifecycle and
-// derives it from the ECS components each tick, so:
-//   - changes to solver-owned state (body transform, velocity, shape geometry, filters,
-//     body flags) are overwritten on the next reconcile;
-//   - objects you create directly on the engine (bodies, shapes, joints) are untracked and are
-//     destroyed by any rebuild: Reset, snapshot restore, or a structural component change.
-//
-// For changes that must persist, write the ECS components (Transform2D, Velocity2D,
-// PhysicsBody2D); the reconciler pushes them into Box2D before each step.
-//
-// Do not cache the returned pointer across ticks: after Reset the old world is destroyed.
-func (p *Plugin) Engine() *box2d.World {
-	if p.rt == nil {
-		return nil
-	}
-	return p.rt.World
-}
-
-// BodyID returns the Box2D body id backing entityID, and whether the entity currently has one.
-// It reports false before the first reconcile creates the body, after the entity's body is
-// destroyed, and whenever no world exists (before init or after Reset).
-//
-// The id is a read-only handle for use with Engine(): it is valid only until the next tick's
-// reconcile, which may destroy and recreate the body. Look it up again each tick instead of
-// caching it.
-func (p *Plugin) BodyID(entityID cardinal.EntityID) (box2d.BodyID, bool) {
-	if p.rt == nil || !p.rt.WorldExists() {
-		return box2d.BodyID{}, false
-	}
-	return p.rt.BodyIDOf(entityID)
-}
-
-// ShapeIDs returns a copy of the Box2D shape ids backing entityID, indexed by collider slot
-// (slot i is PhysicsBody2D.Shapes[i]), and whether the entity currently has any. Chain slots
-// hold a null shape id because chains are tracked separately. The caller owns the returned
-// slice; mutating it does not affect the plugin.
-//
-// It reports false under the same conditions as BodyID, and the ids carry the same lifetime:
-// valid only until the next tick's reconcile.
-func (p *Plugin) ShapeIDs(entityID cardinal.EntityID) ([]box2d.ShapeID, bool) {
-	if p.rt == nil || !p.rt.WorldExists() {
-		return nil, false
-	}
-	return p.rt.ShapeIDsOf(entityID)
-}
-
-// Reset drops all derived physics simulation state (no world, no bodies, empty maps).
-// ECS components are unchanged. The next PhysicsPipelineSystem (PreUpdate) runs
-// FullRebuildFromECS from current physics entities, same as recovering after snapshot restore.
-// It is a no-op on a plugin that has not been registered yet.
+// Reset drops all derived physics state; ECS components are untouched. The next tick rebuilds
+// the world from them. Call it after a snapshot restore. A no-op before Register.
 func (p *Plugin) Reset() {
 	if p.rt == nil {
 		return
@@ -225,29 +84,39 @@ func (p *Plugin) Reset() {
 	p.rt.Reset()
 }
 
-// Raycast casts a ray along the segment from req.Origin to req.End and returns the closest hit.
-// Requires an initialized physics runtime with a live world (e.g. after FullRebuildFromECS).
-// A zero-length segment returns Hit=false. When Filter is nil, all category/mask pairs match and
-// sensors are skipped (same as Filter{CategoryBits: ^uint64(0), MaskBits: ^uint64(0), IncludeSensors: false}).
-func (p *Plugin) Raycast(req RaycastRequest) RaycastResult {
-	if p.rt == nil || !p.rt.WorldExists() {
-		return RaycastResult{}
+// -------------------------------------------------------------------------------------------------
+// Escape hatch: the raw Box2D world
+// -------------------------------------------------------------------------------------------------
+//
+// Engine hands out the underlying world for reads the built-in queries do not cover; BodyID and
+// ShapeIDs map an entity to the engine objects behind it. All three are read-only: the
+// reconciler derives the world from ECS every tick, so engine-side edits are overwritten and
+// engine-created objects are destroyed on the next rebuild. Ids and the world pointer are valid
+// until the next tick's reconcile; look them up again each tick. The README has the rules.
+
+// Engine returns the Box2D world, or nil when none exists (before init or after Reset).
+func (p *Plugin) Engine() *box2d.World {
+	if p.rt == nil {
+		return nil
 	}
-	return p.rt.Raycast(req)
+	return p.rt.World
 }
 
-// OverlapAABB returns distinct (entity, shape index) pairs whose shapes overlap the world-space AABB.
-func (p *Plugin) OverlapAABB(req AABBOverlapRequest) AABBOverlapResult {
+// BodyID returns the Box2D body backing entityID, and false when it has none: before the
+// first reconcile, after the body is destroyed, or while no world exists.
+func (p *Plugin) BodyID(entityID cardinal.EntityID) (box2d.BodyID, bool) {
 	if p.rt == nil || !p.rt.WorldExists() {
-		return AABBOverlapResult{}
+		return box2d.BodyID{}, false
 	}
-	return p.rt.OverlapAABB(req)
+	return p.rt.BodyIDOf(entityID)
 }
 
-// CircleSweep sweeps a circle from req.Start to req.End and returns the earliest TOI hit along that segment.
-func (p *Plugin) CircleSweep(req CircleSweepRequest) CircleSweepResult {
+// ShapeIDs returns a copy of the Box2D shape ids backing entityID, indexed like
+// PhysicsBody2D.Shapes, and false under the same conditions as BodyID. Chain shapes hold a
+// null id because chains are tracked separately.
+func (p *Plugin) ShapeIDs(entityID cardinal.EntityID) ([]box2d.ShapeID, bool) {
 	if p.rt == nil || !p.rt.WorldExists() {
-		return CircleSweepResult{}
+		return nil, false
 	}
-	return p.rt.CircleSweep(req)
+	return p.rt.ShapeIDsOf(entityID)
 }

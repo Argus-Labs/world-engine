@@ -45,7 +45,7 @@ func Compound() harness.Scenario {
 		Setup: func(c *harness.Ctx) {
 			// Row y=0 — three children spread along the body. Each must be
 			// findable at its own offset and nowhere else.
-			s.shelf = c.Spawn("three-part-shelf", 0, 0, body(physics.BodyTypeStatic,
+			s.shelf = c.Spawn("three-part-shelf", 0, 0, body(c, physics.BodyTypeStatic,
 				atOffset(box(0.5, 0.5), -3, 0),
 				circle(0.5),
 				atOffset(box(0.5, 0.5), 3, 0),
@@ -54,7 +54,7 @@ func Compound() harness.Scenario {
 			// Row y=10 — a long thin child rotated 45 degrees in body space.
 			// A probe along its new long axis must hit; the perpendicular
 			// direction, which the unrotated box would also have covered, must not.
-			s.tilted = c.Spawn("tilted-plank", 0, 10, body(physics.BodyTypeStatic,
+			s.tilted = c.Spawn("tilted-plank", 0, 10, body(c, physics.BodyTypeStatic,
 				rotatedBy(box(2, 0.2), tiltAngle),
 			))
 
@@ -62,19 +62,19 @@ func Compound() harness.Scenario {
 			// either side means the body must settle perfectly level, and its
 			// resting height is set by the children's half-height, not the body
 			// origin, which is only true if the offsets really reached Box2D.
-			s.pad = c.Spawn("dumbbell-pad", 0, 19, body(physics.BodyTypeStatic, box(5, 1)))
-			s.dumbbell = c.Spawn("dumbbell", 0, 20.6, body(physics.BodyTypeDynamic,
+			s.pad = c.Spawn("dumbbell-pad", 0, 19, body(c, physics.BodyTypeStatic, box(5, 1)))
+			s.dumbbell = c.Spawn("dumbbell", 0, 20.6, body(c, physics.BodyTypeDynamic,
 				atOffset(box(0.5, 0.5), -1, 0),
 				atOffset(box(0.5, 0.5), 1, 0),
 			))
 
 			// Row y=30 — a ball dropped onto slot 1 of a two-slot body.
-			s.targets = c.Spawn("two-slot-target", 0, 30, body(physics.BodyTypeStatic,
+			s.targets = c.Spawn("two-slot-target", 0, 30, body(c, physics.BodyTypeStatic,
 				atOffset(box(0.5, 0.5), -3, 0),
 				atOffset(box(0.5, 0.5), 3, 0),
 			))
 			s.dropper = c.Spawn("slot-1-dropper", 3, 36,
-				body(physics.BodyTypeDynamic, circle(0.5)))
+				body(c, physics.BodyTypeDynamic, circle(0.5)))
 
 			// Rows y=40 and y=140 — where the centre of mass actually is.
 			//
@@ -89,7 +89,7 @@ func Compound() harness.Scenario {
 			// The rows are far apart because the lopsided body really does
 			// translate away as a result, which is the point.
 			spinner := func(leftDensity, rightDensity float64) physics.PhysicsBody2D {
-				pb := body(physics.BodyTypeDynamic,
+				pb := body(c, physics.BodyTypeDynamic,
 					atOffset(withDensity(box(0.5, 0.5), leftDensity), -1, 0),
 					atOffset(withDensity(box(0.5, 0.5), rightDensity), 1, 0),
 				)

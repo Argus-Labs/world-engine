@@ -7,7 +7,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/immutable"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // Restore determinism: the same snapshot restored twice in the same configuration must
@@ -30,22 +30,24 @@ const (
 	restoreGravity    = -10.0
 )
 
+// The two box shapes of the restore scene.
+var (
+	restoreGroundShape = component.Box(40, 1).Material(0.6, 0, 1)
+	restoreCrateShape  = component.Box(0.5, 0.5).Material(0.6, 0, 1)
+)
+
 // restoreSnapshotEntries is a ground plane plus crates that settled and fell asleep,
 // as a snapshot would hold them (Awake=false, mirrored from the solver).
 func restoreSnapshotEntries() []PhysicsRebuildEntry {
-	box := func(hw, hh float64) ShapeSlice {
-		return immutable.SliceOf(component.ColliderShape{
-			ShapeType: component.ShapeTypeBox, Density: 1, Friction: 0.6,
-			HalfExtents:  component.Vec2{X: hw, Y: hh},
-			CategoryBits: 1, MaskBits: ^uint64(0),
-		})
+	slots := func(shape component.Shape) immutable.Slice[component.Shape] {
+		return immutable.SliceOf(shape)
 	}
 	out := []PhysicsRebuildEntry{{
 		EntityID:  1,
 		Transform: component.Transform2D{Position: component.Vec2{Y: -1}},
 		PhysicsBody: component.PhysicsBody2D{
 			BodyType: component.BodyTypeStatic, Active: true, Awake: true,
-			SleepingAllowed: true, GravityScale: 1, Shapes: box(40, 1),
+			SleepingAllowed: true, GravityScale: 1, Shapes: slots(restoreGroundShape),
 		},
 	}}
 	for i := range restoreCrateCount {
@@ -58,7 +60,7 @@ func restoreSnapshotEntries() []PhysicsRebuildEntry {
 			PhysicsBody: component.PhysicsBody2D{
 				BodyType: component.BodyTypeDynamic, Active: true,
 				Awake:           false,
-				SleepingAllowed: true, GravityScale: 1, Shapes: box(0.5, 0.5),
+				SleepingAllowed: true, GravityScale: 1, Shapes: slots(restoreCrateShape),
 			},
 		})
 	}
@@ -71,8 +73,6 @@ func restoreBaseline() component.ActiveContacts {
 	for i := 0; i+1 < restoreCrateCount; i++ {
 		pairs = append(pairs, component.ContactPairEntry{
 			EntityA: restoreCrate0 + cardinal.EntityID(i), EntityB: restoreCrate0 + cardinal.EntityID(i+1),
-			FilterACategoryBits: 1, FilterAMaskBits: ^uint64(0),
-			FilterBCategoryBits: 1, FilterBMaskBits: ^uint64(0),
 		})
 	}
 	return component.ActiveContacts{Pairs: immutable.SliceOf(pairs...)}
@@ -84,7 +84,8 @@ func restoreAndFingerprint(t *testing.T, steps int) string {
 	t.Helper()
 	g := component.Vec2{Y: restoreGravity}
 	rt := NewRuntime(g, 1.0/60.0, 4, 0)
-	if err := rt.FullRebuildFromECS(g, restoreSnapshotEntries()); err != nil {
+	entries := restoreSnapshotEntries()
+	if err := rt.FullRebuildFromECS(g, entries); err != nil {
 		t.Fatalf("rebuild: %v", err)
 	}
 	rt.LoadActiveContactsFromComponent(restoreBaseline())
