@@ -145,16 +145,24 @@ func newDSTConfig(rng *rand.Rand) dstConfig {
 	opWeights := testutils.RandOpWeights(rng, engineOps)
 	// Tick must always be enabled so the simulation makes progress.
 	opWeights[opTick] = uint64(1 + rng.IntN(100)) //nolint:gosec // not gonna happen
-	// Cap restart/restore weights so the world state can grow complex before being disrupted.
-	for _, op := range engineOps {
-		if w, ok := opWeights[op]; ok && w > 5 {
-			opWeights[op] = uint64(1 + rng.IntN(5)) //nolint:gosec // not gonna happen
-		}
-	}
+	capDisruptiveOpWeights(opWeights, rng)
 	return dstConfig{
 		Ticks:        *numTicks,
 		OpWeights:    opWeights,
 		SnapshotRate: uint32(1 + rng.IntN(25)), //nolint:gosec // bounded to [1,25]
+	}
+}
+
+// capDisruptiveOpWeights caps restart/restore weights to [1,5] so the world state can grow complex
+// before being disrupted. It targets the disruptive ops by name rather than engineOps, whose
+// membership is decoupled from this cap's intent: ops are enabled/disabled there for unrelated
+// reasons, and iterating it would silently re-target the cap onto whatever op remains — including
+// opTick, which must never be capped.
+func capDisruptiveOpWeights(opWeights testutils.OpWeights, rng *rand.Rand) {
+	for _, op := range []string{opRestart, opSnapshotRestore} {
+		if w, ok := opWeights[op]; ok && w > 5 {
+			opWeights[op] = uint64(1 + rng.IntN(5)) //nolint:gosec // not gonna happen
+		}
 	}
 }
 
