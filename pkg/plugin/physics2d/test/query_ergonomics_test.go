@@ -14,8 +14,8 @@ import (
 
 // spawnQueryScene puts three static bodies in a row on the X axis at x = 0, 2 and 4, each
 // carrying a box small enough that they stay apart and wide enough for a ray along y=0 to
-// cross all three. The body at x=0 gets two slots pointing at the same shape entity, both
-// inside the query volumes below: it is what proves per-shape hits collapse to one entity.
+// cross all three. The body at x=0 gets two shapes, both inside the query volumes below: it
+// is what proves per-shape hits collapse to one entity.
 func spawnQueryScene(t *testing.T, w *cardinal.World) (*cardinal.EntityID, *cardinal.EntityID, *cardinal.EntityID) {
 	t.Helper()
 	near, mid, far := new(cardinal.EntityID), new(cardinal.EntityID), new(cardinal.EntityID)
@@ -23,7 +23,7 @@ func spawnQueryScene(t *testing.T, w *cardinal.World) (*cardinal.EntityID, *card
 		if state.Tick() != 0 {
 			return
 		}
-		spawn := func(role string, x float64, shapes ...physics.ShapeRef) cardinal.EntityID {
+		spawn := func(role string, x float64, shapes ...physics.Shape) cardinal.EntityID {
 			row := state.Spawn.Create()
 			row.Set(harnessTag{Role: role})
 			row.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: 0}})
@@ -31,11 +31,11 @@ func spawnQueryScene(t *testing.T, w *cardinal.World) (*cardinal.EntityID, *card
 			row.Set(newRigid(physics.BodyTypeStatic, shapes...))
 			return row.ID()
 		}
-		// One shape entity, two slots: still one entity, two hits.
-		twoSlot := boxSlot(state, 0.4, 0.4)
-		*near = spawn("near", 0, twoSlot, twoSlot.At(physics.Vec2{X: 0.5, Y: 0}, 0))
-		*mid = spawn("mid", 2, boxSlot(state, 0.4, 0.4))
-		*far = spawn("far", 4, boxSlot(state, 0.4, 0.4))
+		// Two shapes on one body: still one entity, two hits.
+		box := physics.Box(0.4, 0.4)
+		*near = spawn("near", 0, box, box.At(physics.Vec2{X: 0.5, Y: 0}, 0))
+		*mid = spawn("mid", 2, box)
+		*far = spawn("far", 4, box)
 	}, cardinal.WithHook(cardinal.Init))
 	return near, mid, far
 }
