@@ -187,29 +187,38 @@ func (w *World) run(ctx context.Context) error {
 	ticker := time.NewTicker(time.Duration(float64(time.Second) / w.options.TickRate))
 	defer ticker.Stop()
 
+	// A single select listens on every control channel regardless of pause state. This
+	// prevents a handler send from becoming unreachable after a state transition (which
+	// caused uncancellable hangs and late out-of-band Step/Reset fulfillment). The isPaused
+	// guards inside the step/reset/ticker arms ensure stale requests that arrive while the
+	// world is running are NACKed (reply channel closed) instead of mutating state.
 	for {
-		if w.debug.isPaused() {
-			select {
-			case <-w.debug.resumeChan():
-				w.debug.setPaused(false)
-			case replyCh := <-w.debug.stepChan():
-				w.Tick(time.Now())
-				replyCh <- w.currentTick.height
-			case replyCh := <-w.debug.resetChan():
-				w.reset()
-				replyCh <- struct{}{}
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-			continue
-		}
-
 		select {
 		case <-ticker.C:
-			w.Tick(time.Now())
+			if !w.debug.isPaused() {
+				w.Tick(time.Now())
+			}
 		case replyCh := <-w.debug.pauseChan():
 			w.debug.setPaused(true)
 			replyCh <- w.currentTick.height
+		case <-w.debug.resumeChan():
+			if w.debug.isPaused() {
+				w.debug.setPaused(false)
+			}
+		case replyCh := <-w.debug.stepChan():
+			if !w.debug.isPaused() {
+				close(replyCh)
+				continue
+			}
+			w.Tick(time.Now())
+			replyCh <- w.currentTick.height
+		case replyCh := <-w.debug.resetChan():
+			if !w.debug.isPaused() {
+				close(replyCh)
+				continue
+			}
+			w.reset()
+			replyCh <- struct{}{}
 		case <-ctx.Done():
 			return ctx.Err()
 		}
