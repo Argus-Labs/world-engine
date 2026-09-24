@@ -17,6 +17,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
+	"github.com/argus-labs/world-engine/pkg/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 )
 
@@ -211,4 +212,51 @@ func newDebugStateWorld(t *testing.T) (*World, *snapshotEntities) {
 	require.NoError(t, initSystemFields(reflect.ValueOf(state).Elem(), w))
 	w.world.Init()
 	return w, state
+}
+
+// TestResetClearsSystemEventsThroughShippedPath verifies that the shipped cardinal
+// reset() path — the function the resetChan branch in run() dispatches to when debug
+// mode is enabled — does not leak init-emitted system events from a prior Init into
+// the first post-reset Tick. The receiver runs inside the tick before Tick's deferred
+// clear, so it would observe both the stale and fresh batches without the ecs-layer
+// Reset clearing the buffer.
+func TestResetClearsSystemEventsThroughShippedPath(t *testing.T) {
+	t.Setenv("LOG_LEVEL", "disabled")
+
+	debug := true
+	w, err := NewWorld(WorldOptions{
+		Region:              "reset-events",
+		Organization:        "reset-events",
+		Project:             "reset-events",
+		ShardID:             "0",
+		TickRate:            60,
+		SnapshotStorageType: snapshot.StorageTypeNop,
+		SnapshotRate:        5,
+		Debug:               &debug,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, w.debug)
+
+	_, err = w.world.RegisterSystemEvent[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+
+	var observed []testutils.SimpleSystemEvent
+	const emitVal = 7
+
+	require.NoError(t, w.world.RegisterSystem("emit-on-init", ecs.Init, func() {
+		require.NoError(t, w.world.EmitSystemEvent(testutils.SimpleSystemEvent{Value: emitVal}))
+	}))
+	require.NoError(t, w.world.RegisterSystem("receive-on-update", ecs.Update, func() {
+		evs, err := w.world.GetSystemEvents[testutils.SimpleSystemEvent]()
+		require.NoError(t, err)
+		observed = append(observed, evs...)
+	}))
+
+	w.world.Init()          // first Init: emits one event
+	w.reset()               // shipped reset: Reset()+Init() emits again
+	w.Tick(time.Unix(0, 0)) // first post-reset tick: receiver runs
+
+	require.Len(t, observed, 1,
+		"receiver should see only the fresh post-reset event; got stale+fresh: %v", observed)
+	require.Equal(t, testutils.SimpleSystemEvent{Value: emitVal}, observed[0])
 }
