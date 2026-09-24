@@ -176,10 +176,8 @@ func (w *World) run(ctx context.Context) error {
 	if err := w.restore(ctx); err != nil {
 		return eris.Wrap(err, "failed to restore state from snapshot")
 	}
-	// Final snapshot.
-	defer func() {
-		w.snapshotWriter.Write(w.currentTick.height, w.encodeSnapshot(time.Now()))
-	}()
+	// Final snapshot. Uses persistState's pre-increment label so restore's +1 lands correctly.
+	defer w.writeFinalSnapshot()
 
 	logger := w.tel.GetLogger("shard")
 	logger.Info().Msg("starting core shard loop")
@@ -248,7 +246,7 @@ func (w *World) persistState(timestamp time.Time) {
 		return
 	}
 
-	data := w.encodeSnapshot(timestamp)
+	data := w.encodeSnapshot(w.currentTick.height, timestamp)
 
 	// Hand the debug service the same frozen bytes. Nobody writes to them, so sharing with the
 	// writer below is safe.
@@ -262,9 +260,26 @@ func (w *World) persistState(timestamp time.Time) {
 // encodeSnapshot produces the complete snapshot bytes for the current tick: the ECS sizes and
 // streams its world state directly into one exactly-sized buffer, and the envelope is hand-encoded
 // around it. No intermediate proto graph exists; the buffer is the freeze-frame.
-func (w *World) encodeSnapshot(timestamp time.Time) []byte {
+//
+// tick is the label stamped into the envelope's tick_height, supplied by the caller so the same
+// world state can be labeled with the pre-increment height (persistState, the final shutdown
+// snapshot) rather than always reading w.currentTick.height.
+func (w *World) encodeSnapshot(tick uint64, timestamp time.Time) []byte {
 	bodySize := w.world.StateWireSize()
-	return snapshot.Encode(w.currentTick.height, timestamp, bodySize, w.world.AppendStateWire)
+	return snapshot.Encode(tick, timestamp, bodySize, w.world.AppendStateWire)
+}
+
+// writeFinalSnapshot persists the world's final state on shutdown. restore treats a persisted
+// snapshot as the pre-tick state for the next tick (currentTick.height = snap.GetTickHeight()+1),
+// matching persistState's pre-increment label, so the final snapshot must use the same label and
+// writes currentTick.height-1. A world that never ticked has nothing to snapshot: it is skipped so
+// restore against an empty store leaves the height at 0.
+func (w *World) writeFinalSnapshot() {
+	if w.currentTick.height == 0 {
+		return
+	}
+	label := w.currentTick.height - 1
+	w.snapshotWriter.Write(label, w.encodeSnapshot(label, time.Now()))
 }
 
 func (w *World) restore(ctx context.Context) error {
@@ -348,7 +363,7 @@ func (w *World) reset() {
 
 	// Publish the reset state when the debug service is enabled.
 	if w.debug != nil {
-		w.debug.publishState(w.encodeSnapshot(w.currentTick.timestamp))
+		w.debug.publishState(w.encodeSnapshot(0, w.currentTick.timestamp))
 	}
 	w.debug.resetPerf()
 }
