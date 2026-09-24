@@ -37,6 +37,7 @@ func queryFilterBits(f *query.Filter) (uint64, uint64, bool) {
 type castHit struct {
 	rt             *Runtime
 	includeSensors bool
+	ignore         []cardinal.EntityID
 
 	hit        bool
 	entityID   cardinal.EntityID
@@ -56,6 +57,9 @@ func castCallback(shapeID box2d.ShapeID, point, normal box2d.Vec2, fraction floa
 		return -1 // skip sensors
 	}
 	entityID, shapeIndex := c.rt.shapeIdentity(shapeID)
+	if slices.Contains(c.ignore, entityID) {
+		return -1 // skip it and keep traversing, so a closer ignored shape cannot mask a real hit
+	}
 	c.hit = true
 	c.entityID = entityID
 	c.shapeIndex = shapeIndex
@@ -72,6 +76,7 @@ func castCallback(shapeID box2d.ShapeID, point, normal box2d.Vec2, fraction floa
 type overlapCollector struct {
 	rt             *Runtime
 	includeSensors bool
+	ignore         []cardinal.EntityID
 	hits           []query.AABBOverlapHit
 }
 
@@ -85,6 +90,9 @@ func overlapCallback(shapeID box2d.ShapeID, ctx any) bool {
 		return true // skip sensor, continue
 	}
 	entityID, shapeIndex := c.rt.shapeIdentity(shapeID)
+	if slices.Contains(c.ignore, entityID) {
+		return true // skip, continue
+	}
 	c.hits = append(c.hits, query.AABBOverlapHit{Entity: entityID, ShapeIndex: shapeIndex})
 	return true // continue
 }
@@ -98,7 +106,7 @@ func (rt *Runtime) Raycast(req query.RaycastRequest) query.RaycastResult {
 	cat, mask, includeSensors := queryFilterBits(req.Filter)
 
 	saved := rt.castScratch
-	rt.castScratch = castHit{rt: rt, includeSensors: includeSensors}
+	rt.castScratch = castHit{rt: rt, includeSensors: includeSensors, ignore: req.Ignore}
 
 	origin := box2d.Vec2{X: req.Origin.X, Y: req.Origin.Y}
 	translation := box2d.Vec2{X: req.End.X - req.Origin.X, Y: req.End.Y - req.Origin.Y}
@@ -158,6 +166,7 @@ func (rt *Runtime) OverlapAABB(req query.AABBOverlapRequest) query.AABBOverlapRe
 	rt.overlapScratch = overlapCollector{
 		rt:             rt,
 		includeSensors: includeSensors,
+		ignore:         req.Ignore,
 		hits:           rt.overlapHitsScratch[:0],
 	}
 
@@ -214,7 +223,7 @@ func (rt *Runtime) CircleSweep(req query.CircleSweepRequest) query.CircleSweepRe
 	}
 
 	saved := rt.castScratch
-	rt.castScratch = castHit{rt: rt, includeSensors: includeSensors}
+	rt.castScratch = castHit{rt: rt, includeSensors: includeSensors, ignore: req.Ignore}
 
 	rt.World.CastShape(&proxy, translation, box2d.QueryFilter{CategoryBits: cat, MaskBits: mask},
 		castCallback, &rt.castScratch)
