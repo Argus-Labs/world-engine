@@ -15,17 +15,17 @@ import { createConfig, createSDK } from '@argus-labs/sdk'
 
 const config = createConfig({
   regions: {
-    'us-west-2': {
+    'us-west1': {
       gatewayUrl: 'http://localhost:8080',
       displayName: 'US West (Oregon)',
       simulateLatencyCheckMs: 100, // optional, for development only
     },
-    'eu-central-1': {
+    'europe-west3': {
       gatewayUrl: 'http://localhost:8081',
       displayName: 'Europe (Frankfurt)',
       simulateLatencyCheckMs: 300,
     },
-    'ap-southeast-1': {
+    'asia-southeast1': {
       gatewayUrl: 'http://localhost:8082',
       displayName: 'Asia Pacific (Singapore)',
       simulateLatencyCheckMs: 200,
@@ -40,8 +40,7 @@ The optional `simulateLatencyCheckMs` property simulates network latency during 
 to help test region selection behavior. It only affects latency checks, not actual commands or queries.
 
 <Note>
-  Using World Forge? Check out the [World Forge guide](/javascript/guides/world-forge) for
-  predefined region configurations.
+  Region IDs must match the regions configured on your gateways and shards. The endpoints above are examples.
 </Note>
 
 <Tip>
@@ -101,5 +100,5 @@ Users can manually override the automatic selection, typically after seeing late
 import { world } from './sdk'
 
 // Select a specific region by ID
-world.regions.select('eu-central-1') // key from config
+world.regions.select('europe-west3') // key from config
 ```

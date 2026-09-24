@@ -21,7 +21,9 @@ export const file_worldengine_micro_v1_service: GenFile = /*@__PURE__*/
  * The only exception being <endpoint> which can contain . as a delimiter to leverage NATS routing.
  *
  * The ServiceAddress convention is as follows:
- * <realm>.<organization>.<project>.<service_id>.<endpoint>
+ * <region>.<realm>.<organization>.<project>.<service_id>.<endpoint>
+ *
+ * <region> identifies the deployment region (e.g., "us-west1").
  *
  * <realm> is one of the following:
  * - internal: Reserved for internal services
@@ -37,15 +39,8 @@ export const file_worldengine_micro_v1_service: GenFile = /*@__PURE__*/
  * An endpoint can contain . as a delimiter to leverage NATS routing.
  *
  * Examples:
- * - internal.argus.platform.gateway-us-west-2.micro.ping
- * - world.argus.rampage.lobby-1.shard.message.player.connect
- * ┌───────────┬───────────┬───────────┬───────────────────┬────────────────────────────────┐
- * │   realm   │    org    │  project  │    service_id     │            endpoint            │
- * ├───────────┼───────────┼───────────┼───────────────────┼────────────────────────────────┤
- * │ internal  │   argus   │ platform  │ gateway-us-west-2 │           micro.ping           │
- * ├───────────┼───────────┼───────────┼───────────────────┼────────────────────────────────┤
- * │   world   │   argus   │  rampage  │      lobby-1      │  shard.message.player.connect  │
- * └───────────┴───────────┴───────────┴───────────────────┴────────────────────────────────┘
+ * - us-west1.internal.argus.platform.gateway-us-west1.micro.ping
+ * - us-west1.world.argus.rampage.lobby-1.shard.message.player.connect
  *
  * @generated from message worldengine.micro.v1.ServiceAddress
  */
