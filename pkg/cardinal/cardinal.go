@@ -187,6 +187,14 @@ func (w *World) run(ctx context.Context) error {
 	ticker := time.NewTicker(time.Duration(float64(time.Second) / w.options.TickRate))
 	defer ticker.Stop()
 
+	// Reject new commands the instant the run loop exits. The run loop is the only drainer of the
+	// command queue, so once it returns nothing processes a freshly accepted command. Setting
+	// stopped here (under the command manager's lock) closes the window before the final snapshot
+	// write and before StartGame's shutdown runs, so the service returns Unavailable instead of
+	// falsely acknowledging a command it will never process. Registered after ticker.Stop so it
+	// runs first on exit (LIFO).
+	defer w.stopCommands()
+
 	for {
 		if w.debug.isPaused() {
 			select {
@@ -298,6 +306,18 @@ func (w *World) restore(ctx context.Context) error {
 	return nil
 }
 
+// stopCommands marks the command manager stopped and logs how many enqueued commands will not be
+// processed by any tick. It is safe to call more than once: only the first call has an effect (it
+// returns the pending count; later calls return 0). Called from the run loop's exit path (so the
+// service rejects new commands the instant the drainer dies) and again from shutdown as a backstop
+// that also covers the restore-failure path.
+func (w *World) stopCommands() {
+	if n := w.commands.SetStopped(); n > 0 {
+		logger := w.tel.GetLogger("shard")
+		logger.Warn().Int("dropped", n).Msg("dropped unprocessed commands on shutdown")
+	}
+}
+
 // shutdown writes the final state and stops world services.
 func (w *World) shutdown() {
 	// Give all shutdown steps one shared timeout.
@@ -306,6 +326,14 @@ func (w *World) shutdown() {
 
 	w.tel.Logger.Info().Msg("Shutting down world")
 
+	// Stop accepting commands before draining snapshots or stopping the listener. The run loop is
+	// the only drainer of the command queue and it has already exited by the time we get here, so
+	// any command the still-listening service accepts now would be silently lost. SetStopped makes
+	// SendCommand reject new sends (returning Unavailable) and counts whatever is already queued so
+	// the loss is logged. The run loop's exit path also calls this; the second call is a no-op
+	// backstop for the restore-failure path where run returned before registering its defer.
+	w.stopCommands()
+
 	// Finish all snapshot writes before the service stops.
 	if err := w.snapshotWriter.Drain(ctx); err != nil {
 		w.tel.Logger.Error().Err(err).
@@ -313,7 +341,8 @@ func (w *World) shutdown() {
 	}
 	w.snapshotWriter.Stop(ctx)
 
-	// Drain queued commands and events.
+	// Stop the client-facing service (closes the HTTP listener) and the NATS ISC transport. The
+	// command queue was already gated above; this is the backstop that closes the listener.
 	if err := w.service.shutdown(ctx); err != nil {
 		w.tel.Logger.Error().Err(err).Msg("service shutdown error")
 		w.tel.CaptureException(ctx, err)
