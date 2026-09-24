@@ -309,12 +309,74 @@ func (rt *Runtime) ShapeIDsOf(entityID cardinal.EntityID) ([]box2d.ShapeID, bool
 // bufferContactEventsFromWorld). Synthesize the End from the persisted pair metadata instead
 // and hold it until the next flush; without this a consumer that latches state on Begin (an
 // "is grounded" flag, say) would never be told the contact ended.
+//
+// Both sensor and non-sensor pairs are pruned. A structural rebuild destroys every shape on
+// the body, sensors included; the new sensor can re-emit a Begin on the next Step, so the
+// pair must leave ActiveContacts for the consumer to see a clean End -> Begin cycle rather
+// than a spurious duplicate Begin on a pair they already considered touching.
 func (rt *Runtime) PruneActiveContactsInvolvingEntity(entityID cardinal.EntityID) {
 	if len(rt.ActiveContacts) == 0 {
 		return
 	}
 	for k, info := range rt.ActiveContacts {
 		if k.EntityA == entityID || k.EntityB == entityID {
+			rt.pendingEndEvents = append(rt.pendingEndEvents, makeContactEvent(ContactLifecycleEnd, k, info))
+			delete(rt.ActiveContacts, k)
+			rt.ActiveContactsDirty = true
+		}
+	}
+}
+
+// PruneActiveContactsInvolvingEntityExceptSensors removes every non-sensor active-contact key
+// referencing entityID and synthesizes an End for each. Call before a contact-destroying
+// mutation that affects the whole body (SetBodyType, DisableBody) but leaves Box2D's sensor
+// overlaps untouched: those persist across the mutation and are re-evaluated inside the next
+// Step, so pruning them here would synthesise an End for a pair that is still overlapping and
+// leaves the consumer latched "not touching" while Box2D reports it touching.
+//
+// The structural-rebuild path uses PruneActiveContactsInvolvingEntity (sensor pairs included)
+// because it destroys the sensor shapes themselves, which both kills the overlaps and lets
+// the next Step emit a fresh Begin; this non-sensor variant covers the mutable body-param
+// paths that destroy only the contacts entries.
+func (rt *Runtime) PruneActiveContactsInvolvingEntityExceptSensors(entityID cardinal.EntityID) {
+	if len(rt.ActiveContacts) == 0 {
+		return
+	}
+	for k, info := range rt.ActiveContacts {
+		if info.IsSensor {
+			continue
+		}
+		if k.EntityA == entityID || k.EntityB == entityID {
+			rt.pendingEndEvents = append(rt.pendingEndEvents, makeContactEvent(ContactLifecycleEnd, k, info))
+			delete(rt.ActiveContacts, k)
+			rt.ActiveContactsDirty = true
+		}
+	}
+}
+
+// PruneActiveContactsInvolvingShapeExceptSensors removes every non-sensor active-contact key
+// referencing the given (entityID, shapeIndex) slot and synthesizes an End for each. Call
+// before a contact-destroying mutation that targets one shape slot (SetShapeFilter): Box2D's
+// resetProxy destroys exactly the contacts whose shapeIDA or shapeIDB equals that shape, so
+// only the pairs owned by that slot end. Pruning the whole entity instead would also remove
+// pairs owned by the entity's other shapes (which the mutation does not touch and which
+// therefore emit no Begin to put them back), leaving them silently missing from
+// ActiveContacts while Box2D still reports them touching.
+//
+// Sensor pairs are skipped for the same reason as the entity-wide variant: SetShapeFilter on
+// a sensor shape destroys no contacts (sensors are tracked in Box2D's sensor array, not in
+// the contacts array), and SetShapeFilter on a non-sensor shape leaves sensor overlaps
+// alone, so any sensor pair referencing this slot is still touching after the mutation.
+func (rt *Runtime) PruneActiveContactsInvolvingShapeExceptSensors(entityID cardinal.EntityID, shapeIndex int) {
+	if len(rt.ActiveContacts) == 0 {
+		return
+	}
+	for k, info := range rt.ActiveContacts {
+		if info.IsSensor {
+			continue
+		}
+		if (k.EntityA == entityID && k.ShapeIndexA == shapeIndex) ||
+			(k.EntityB == entityID && k.ShapeIndexB == shapeIndex) {
 			rt.pendingEndEvents = append(rt.pendingEndEvents, makeContactEvent(ContactLifecycleEnd, k, info))
 			delete(rt.ActiveContacts, k)
 			rt.ActiveContactsDirty = true

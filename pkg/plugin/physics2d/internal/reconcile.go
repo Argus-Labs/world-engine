@@ -29,10 +29,29 @@ import (
 // absent from entries are removed from the runtime (body destroyed, shadow dropped).
 //
 // ReconcileFromECS does not touch SuppressContactsStep or Emitter; it does not step the world.
+//
+// After all entries are applied, the Box2D contact-end-event write buffer is cleared. A
+// reconcile may have called contact-destroying Box2D mutations (SetShapeFilter, SetBodyType,
+// DisableBody) that wrote End events into the buffer; every such destroy is paired with a
+// PruneActiveContacts(InvolvingEntity|Shape)ExceptSensors call that synthesised the same End
+// into pendingEndEvents so it can lead the buffer ahead of the new Begin the next Step emits.
+// The redundant Box2D-internal Ends are dropped here so they cannot trail the Begin and flip
+// the consumer back to "not touching" on a still-touching pair. LOAD-BEARING INVARIANT: this
+// is safe only while ReconcileFromECS remains the sole writer to that buffer between Steps;
+// any reconcile-time addition that destroys contacts must either be preceded by a matching
+// Prune*ExceptSensors call or have its own buffer clear moved past it.
 func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 	if rt.World == nil {
 		return errors.New("physics2d: reconcile requires a live world (run FullRebuildFromECS first)")
 	}
+
+	// Always clear the contact-end write buffer before returning, even on the error paths,
+	// so a partial reconcile cannot leak reconcile-time End events into the next Step. The
+	// previous Step already swapped-and-cleared at its end and no caller between it and this
+	// point writes the buffer (loadContactBaseline and SetStepEmitter read state / set a
+	// sink), so the buffer is empty when ReconcileFromECS starts and the clear is a no-op
+	// when no contact-destroying mutation ran.
+	defer rt.World.ClearContactEndEvents()
 
 	sorted, err := rt.cloneSortAndCheckDuplicateReconcileEntries(entries)
 	if err != nil {
@@ -165,7 +184,7 @@ func (rt *Runtime) reconcileExistingBody(
 	bodyID := rt.Bodies[e.EntityID]
 
 	if prev.BodyParamsDiffer(e.PhysicsBody) {
-		rt.applyBodyParamsInPlace(e.EntityID, e.PhysicsBody, prev.PhysicsBody.Awake)
+		rt.applyBodyParamsInPlace(e.EntityID, e.PhysicsBody, prev.PhysicsBody)
 	}
 	if prev.TransformDiffers(e.Transform) {
 		rt.World.SetBodyTransform(bodyID,
@@ -253,13 +272,39 @@ func validatePhysicsRebuildEntry(e PhysicsRebuildEntry) error {
 }
 
 // applyBodyParamsInPlace sets body type, damping, gravity scale, and body flags in place.
-// prevAwake is the shadow's Awake. A param change that left Awake untouched counts as a
-// disturbance and wakes the body, so the new params act instead of waiting for an impact.
-func (rt *Runtime) applyBodyParamsInPlace(entityID cardinal.EntityID, pb component.PhysicsBody2D, prevAwake bool) {
+// prev is the shadow's previous PhysicsBody2D. A param change that left Awake untouched counts
+// as a disturbance and wakes the body, so the new params act instead of waiting for an impact.
+//
+// SetBodyType and DisableBody both destroy every contact on the body (via destroyBodyContacts
+// -> destroyContact) and leave the shapes valid, so the Box2D-internal End events they write
+// survive the IsShapeValid filter in bufferContactEventsFromWorld. Without a preceding Prune
+// the buffer is [Begin, End] and the consumer latches "not touching" on a still-touching pair
+// after the next Step re-pairs; the Prune here synthesises the same End into pendingEndEvents
+// (where it leads the buffer) and the write-buffer clear in ReconcileFromECS drops the
+// redundant Box2D-internal End. SetBodyType fires only when the type actually differs, and
+// DisableBody only when transitioning enabled -> disabled, so the Prune is skipped when either
+// would no-op (a damping-only change must not synthesise Ends for a still-touching pair).
+func (rt *Runtime) applyBodyParamsInPlace(
+	entityID cardinal.EntityID,
+	pb component.PhysicsBody2D,
+	prev component.PhysicsBody2D,
+) {
 	bodyID, ok := rt.Bodies[entityID]
 	if !ok {
 		return
 	}
+
+	// Prune exactly the non-sensor pairs whose Box2D contacts the upcoming mutations will
+	// destroy. Sensor pairs on the body persist through SetBodyType and DisableBody (Box2D
+	// keeps the sensor overlaps and re-evaluates them on the next Step), so they must not be
+	// pruned here or they would lose a Begin on a still-overlapping pair.
+	if rt.World.IsBodyEnabled(bodyID) {
+		destroyingContacts := mapBodyType(pb.BodyType) != mapBodyType(prev.BodyType) || !pb.Active
+		if destroyingContacts {
+			rt.PruneActiveContactsInvolvingEntityExceptSensors(entityID)
+		}
+	}
+
 	rt.World.SetBodyType(bodyID, mapBodyType(pb.BodyType))
 	rt.World.SetBodyLinearDamping(bodyID, pb.LinearDamping)
 	rt.World.SetBodyAngularDamping(bodyID, pb.AngularDamping)
@@ -269,7 +314,7 @@ func (rt *Runtime) applyBodyParamsInPlace(entityID cardinal.EntityID, pb compone
 	rt.setFixedRotation(bodyID, pb.FixedRotation)
 	rt.World.EnableBodySleep(bodyID, pb.SleepingAllowed)
 	awake := pb.Awake
-	if pb.Awake == prevAwake {
+	if pb.Awake == prev.Awake {
 		awake = true
 	}
 	rt.World.SetBodyAwake(bodyID, awake)
@@ -323,6 +368,20 @@ func (rt *Runtime) applyMutableShapeFixtures(
 		rt.World.SetShapeFriction(sid, sh.Friction)
 		rt.World.SetShapeRestitution(sid, sh.Restitution)
 		rt.World.SetShapeDensity(sid, sh.Density, true)
+
+		// Only a filter change destroys contacts (SetShapeFilter -> resetProxy ->
+		// destroyContact when CategoryBits/MaskBits/GroupIndex actually differ); a
+		// change confined to Friction/Restitution/Density has no contact to
+		// synthesise an End for. Prune the slot's non-sensor pairs ahead of the
+		// SetShapeFilter call so the synthesised End leads the buffer ahead of the
+		// Begin the next Step emits when the pair re-pairs; the write-buffer clear
+		// in ReconcileFromECS then drops the redundant Box2D-internal End.
+		filterChanged := prevShape.CategoryBits != sh.CategoryBits ||
+			prevShape.MaskBits != sh.MaskBits ||
+			prevShape.GroupIndex != sh.GroupIndex
+		if filterChanged {
+			rt.PruneActiveContactsInvolvingShapeExceptSensors(entityID, i)
+		}
 		rt.World.SetShapeFilter(sid, box2d.Filter{
 			CategoryBits: sh.CategoryBits,
 			MaskBits:     sh.MaskBits,
