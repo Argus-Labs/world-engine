@@ -36,9 +36,13 @@ wire/                          shared encoding helpers
 earlyaccess/component/         one file per component, named after its case
 fullrelease/component/         same names, current shapes plus the retired ones
 fullrelease/migration/         one file per migration
-plugin/earlyaccess/component/  provided.go
-plugin/fullrelease/component/  provided.go, current + retired shapes
+plugin/inventory/component/    provided.go, current + retired shapes
 ```
+
+The plugin has no `earlyaccess` half. The two-package split is there to simulate two releases of
+one shard, and a plugin needs no simulating: it declares its retired shapes beside its current one,
+in its own package, which is both releases already. A shard depends on exactly one version of a
+plugin, so a fixture where a shard imports two would not be describing anything real.
 
 Every case in the tree from ADR-065 is here, one component per case: `added`, `removed`,
 `renamed`, `reordered`, `retyped` for the one-to-one changes; `split`, `merge_left`/`merge_right`,
