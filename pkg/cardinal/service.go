@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -239,6 +240,9 @@ func (s *service) SendCommand(
 	}
 
 	if err := s.world.commands.Enqueue(cmd); err != nil {
+		if errors.Is(err, command.ErrStopped) {
+			return nil, connect.NewError(connect.CodeUnavailable, eris.New("world is shutting down; command not accepted"))
+		}
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
@@ -263,6 +267,9 @@ func (s *service) SendCommandWithReply(
 	}
 
 	if err := s.world.commands.Enqueue(cmd); err != nil {
+		if errors.Is(err, command.ErrStopped) {
+			return nil, connect.NewError(connect.CodeUnavailable, eris.New("world is shutting down; command not accepted"))
+		}
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
@@ -574,6 +581,9 @@ func (s *service) handleInterShardCommand(ctx context.Context, req *micro.Reques
 	}
 
 	if err := s.world.commands.Enqueue(cmd); err != nil {
+		if errors.Is(err, command.ErrStopped) {
+			return micro.NewErrorResponse(req, eris.New("world is shutting down; command not accepted"), codes.Unavailable)
+		}
 		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), codes.InvalidArgument)
 	}
 
