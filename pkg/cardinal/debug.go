@@ -243,7 +243,7 @@ func newTickControl() *tickControl {
 
 // Pause stops tick execution and returns the current tick height.
 func (d *debugModule) Pause(
-	_ context.Context,
+	ctx context.Context,
 	_ *connect.Request[cardinalv1.PauseRequest],
 ) (*connect.Response[cardinalv1.PauseResponse], error) {
 	if d.control.isPaused.Load() {
@@ -251,31 +251,44 @@ func (d *debugModule) Pause(
 	}
 
 	replyCh := make(chan uint64, 1)
-	d.control.pauseCh <- replyCh
-	tickHeight := <-replyCh
-
-	return connect.NewResponse(&cardinalv1.PauseResponse{
-		TickHeight: tickHeight,
-	}), nil
+	// The control channels are unbuffered: the send parks until the run loop rendezvous. Guard it
+	// with ctx.Done() so a client that cancels, times out, or disconnects terminates the request
+	// instead of leaking the handler goroutine and its connection forever (see World.run).
+	select {
+	case d.control.pauseCh <- replyCh:
+	case <-ctx.Done():
+		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "pause: world control rpc canceled"))
+	}
+	select {
+	case tickHeight := <-replyCh:
+		return connect.NewResponse(&cardinalv1.PauseResponse{
+			TickHeight: tickHeight,
+		}), nil
+	case <-ctx.Done():
+		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "pause: world control rpc canceled"))
+	}
 }
 
 // Resume continues tick execution after a pause.
 func (d *debugModule) Resume(
-	_ context.Context,
+	ctx context.Context,
 	_ *connect.Request[cardinalv1.ResumeRequest],
 ) (*connect.Response[cardinalv1.ResumeResponse], error) {
 	if !d.control.isPaused.Load() {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("world is not paused"))
 	}
 
-	d.control.resumeCh <- struct{}{}
-
-	return connect.NewResponse(&cardinalv1.ResumeResponse{}), nil
+	select {
+	case d.control.resumeCh <- struct{}{}:
+		return connect.NewResponse(&cardinalv1.ResumeResponse{}), nil
+	case <-ctx.Done():
+		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "resume: world control rpc canceled"))
+	}
 }
 
 // Step executes a single tick. Only works when paused.
 func (d *debugModule) Step(
-	_ context.Context,
+	ctx context.Context,
 	_ *connect.Request[cardinalv1.StepRequest],
 ) (*connect.Response[cardinalv1.StepResponse], error) {
 	if !d.control.isPaused.Load() {
@@ -283,17 +296,24 @@ func (d *debugModule) Step(
 	}
 
 	replyCh := make(chan uint64, 1)
-	d.control.stepCh <- replyCh
-	tickHeight := <-replyCh
-
-	return connect.NewResponse(&cardinalv1.StepResponse{
-		TickHeight: tickHeight,
-	}), nil
+	select {
+	case d.control.stepCh <- replyCh:
+	case <-ctx.Done():
+		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "step: world control rpc canceled"))
+	}
+	select {
+	case tickHeight := <-replyCh:
+		return connect.NewResponse(&cardinalv1.StepResponse{
+			TickHeight: tickHeight,
+		}), nil
+	case <-ctx.Done():
+		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "step: world control rpc canceled"))
+	}
 }
 
 // Reset restores the world to its initial state (before tick 0).
 func (d *debugModule) Reset(
-	_ context.Context,
+	ctx context.Context,
 	_ *connect.Request[cardinalv1.ResetRequest],
 ) (*connect.Response[cardinalv1.ResetResponse], error) {
 	if !d.control.isPaused.Load() {
@@ -301,10 +321,17 @@ func (d *debugModule) Reset(
 	}
 
 	replyCh := make(chan struct{}, 1)
-	d.control.resetCh <- replyCh
-	<-replyCh
-
-	return connect.NewResponse(&cardinalv1.ResetResponse{}), nil
+	select {
+	case d.control.resetCh <- replyCh:
+	case <-ctx.Done():
+		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "reset: world control rpc canceled"))
+	}
+	select {
+	case <-replyCh:
+		return connect.NewResponse(&cardinalv1.ResetResponse{}), nil
+	case <-ctx.Done():
+		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "reset: world control rpc canceled"))
+	}
 }
 
 // GetState returns the most recent published world state, at most one tick old.

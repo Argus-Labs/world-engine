@@ -187,29 +187,38 @@ func (w *World) run(ctx context.Context) error {
 	ticker := time.NewTicker(time.Duration(float64(time.Second) / w.options.TickRate))
 	defer ticker.Stop()
 
+	// A single select listens on every control channel regardless of pause state. The previous
+	// implementation split this into two disjoint selects (paused: resume/step/reset; running:
+	// pause) whose case sets never overlapped. When the loop flipped pause state by servicing one
+	// control send it transitioned into the select that omitted every other queued sender, and
+	// because the control channels are unbuffered those senders parked forever — leaking the
+	// handler goroutine and its HTTP connection. Listening on all channels here means no control
+	// send can become unreachable after a state transition; the only pause-gated path is the
+	// ticker, which is drained (not advanced) while paused.
 	for {
-		if w.debug.isPaused() {
-			select {
-			case <-w.debug.resumeChan():
-				w.debug.setPaused(false)
-			case replyCh := <-w.debug.stepChan():
-				w.Tick(time.Now())
-				replyCh <- w.currentTick.height
-			case replyCh := <-w.debug.resetChan():
-				w.reset()
-				replyCh <- struct{}{}
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-			continue
-		}
-
 		select {
 		case <-ticker.C:
-			w.Tick(time.Now())
+			// Advance the simulation only while running. While paused, drain the ticker so a
+			// backlog does not fire as soon as the world resumes.
+			if !w.debug.isPaused() {
+				w.Tick(time.Now())
+			}
+
 		case replyCh := <-w.debug.pauseChan():
 			w.debug.setPaused(true)
 			replyCh <- w.currentTick.height
+
+		case <-w.debug.resumeChan():
+			w.debug.setPaused(false)
+
+		case replyCh := <-w.debug.stepChan():
+			w.Tick(time.Now())
+			replyCh <- w.currentTick.height
+
+		case replyCh := <-w.debug.resetChan():
+			w.reset()
+			replyCh <- struct{}{}
+
 		case <-ctx.Done():
 			return ctx.Err()
 		}
