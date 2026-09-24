@@ -48,15 +48,57 @@ func makeWorldWorkers(t *testing.T, gravity physics.Vec2, workers int) (*cardina
 }
 
 // newRigid returns a PhysicsBody2D with Active/Awake/SleepingAllowed true and GravityScale 1.
-func newRigid(bodyType physics.BodyType, shapes ...physics.ColliderShape) physics.PhysicsBody2D {
+func newRigid(bodyType physics.BodyType, shapes ...physics.ShapeSlot) physics.PhysicsBody2D {
 	return phycomp.NewPhysicsBody2D(bodyType, shapes...)
 }
 
 // newRigidNoGravity is like newRigid but GravityScale 0 (e.g. zero-gravity scene bodies).
-func newRigidNoGravity(bodyType physics.BodyType, shapes ...physics.ColliderShape) physics.PhysicsBody2D {
+func newRigidNoGravity(bodyType physics.BodyType, shapes ...physics.ShapeSlot) physics.PhysicsBody2D {
 	r := phycomp.NewPhysicsBody2D(bodyType, shapes...)
 	r.GravityScale = 0
 	return r
+}
+
+// spawnState is the system state test spawners use: the body archetype and one shape search
+// per geometry kind. Cardinal wires only top-level fields, so every spawning system lists
+// these itself (or uses this type).
+type spawnState struct {
+	cardinal.BaseSystemState
+	Spawn    spawnArchetype
+	Circles  physics.CircleShapes
+	Boxes    physics.BoxShapes
+	Polygons physics.PolygonShapes
+	Chains   physics.ChainShapes
+	Edges    physics.EdgeShapes
+	Capsules physics.CapsuleShapes
+}
+
+// mustSpawn unwraps a Spawn call. Every shape in these tests is a literal, so a rejection is
+// a typo in the test rather than something a caller could handle.
+func mustSpawn(slot physics.ShapeSlot, err error) physics.ShapeSlot {
+	if err != nil {
+		panic(err)
+	}
+	return slot
+}
+
+// spawnShape spawns def through the search matching its geometry kind and returns the slot.
+func spawnShape[G physics.Geometry](s *spawnState, def physics.ShapeDef[G]) physics.ShapeSlot {
+	switch d := any(def).(type) {
+	case physics.ShapeDef[physics.CircleGeom]:
+		return mustSpawn(d.Spawn(&s.Circles))
+	case physics.ShapeDef[physics.BoxGeom]:
+		return mustSpawn(d.Spawn(&s.Boxes))
+	case physics.ShapeDef[physics.PolygonGeom]:
+		return mustSpawn(d.Spawn(&s.Polygons))
+	case physics.ShapeDef[physics.ChainGeom]:
+		return mustSpawn(d.Spawn(&s.Chains))
+	case physics.ShapeDef[physics.EdgeGeom]:
+		return mustSpawn(d.Spawn(&s.Edges))
+	case physics.ShapeDef[physics.CapsuleGeom]:
+		return mustSpawn(d.Spawn(&s.Capsules))
+	}
+	panic("spawnShape: unknown geometry kind")
 }
 
 func tickN(t *testing.T, w *cardinal.World, n int) {
@@ -69,26 +111,14 @@ func tickN(t *testing.T, w *cardinal.World, n int) {
 	}
 }
 
-func circleColliderShapes() []physics.ColliderShape {
-	return []physics.ColliderShape{{
-		ShapeType:    physics.ShapeTypeCircle,
-		Radius:       0.5,
-		Density:      1,
-		Friction:     0.3,
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	}}
+// circleSlot spawns the stock test circle (radius 0.5) and returns its slot.
+func circleSlot(s *spawnState) physics.ShapeSlot {
+	return spawnShape(s, physics.Circle(0.5).Material(0.3, 0, 1).Filter(0xFFFF, 0xFFFF))
 }
 
-func boxColliderShapes(hx, hy float64) []physics.ColliderShape {
-	return []physics.ColliderShape{{
-		ShapeType:    physics.ShapeTypeBox,
-		HalfExtents:  physics.Vec2{X: hx, Y: hy},
-		Density:      1,
-		Friction:     0.3,
-		CategoryBits: 0xFFFF,
-		MaskBits:     0xFFFF,
-	}}
+// boxSlot spawns a stock test box with the given half extents and returns its slot.
+func boxSlot(s *spawnState, hx, hy float64) physics.ShapeSlot {
+	return spawnShape(s, physics.Box(hx, hy).Material(0.3, 0, 1).Filter(0xFFFF, 0xFFFF))
 }
 
 const epsilon = 0.001

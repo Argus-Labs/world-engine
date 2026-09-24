@@ -18,14 +18,6 @@ type ContactPairEntry struct {
 	EntityB     cardinal.EntityID `json:"b"`
 	ShapeIndexB int               `json:"sb"`
 	IsSensor    bool              `json:"sensor"`
-	// Fixture filters for normalized EntityA/B (recovery End / trigger vs contact routing).
-	// Omitempty keeps older snapshots valid.
-	FilterACategoryBits uint64 `json:"fa_cat,omitempty"`
-	FilterAMaskBits     uint64 `json:"fa_mask,omitempty"`
-	FilterAGroupIndex   int32  `json:"fa_grp,omitempty"`
-	FilterBCategoryBits uint64 `json:"fb_cat,omitempty"`
-	FilterBMaskBits     uint64 `json:"fb_mask,omitempty"`
-	FilterBGroupIndex   int32  `json:"fb_grp,omitempty"`
 }
 
 // ActiveContacts persists which contact pairs have had Begin emitted (and not yet End).

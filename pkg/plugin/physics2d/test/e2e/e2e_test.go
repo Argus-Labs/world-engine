@@ -92,9 +92,9 @@ func TestWorldWatchdogFlagsUnannouncedReset(t *testing.T) {
 		Name: "reset-no-expect",
 		Setup: func(c *harness.Ctx) {
 			c.Spawn("pad", 0, -1,
-				physcomp.NewPhysicsBody2D(physics.BodyTypeStatic, scenario.SampleShape(physics.ShapeTypeBox)))
+				physcomp.NewPhysicsBody2D(physics.BodyTypeStatic, scenario.SampleShape(scenario.KindBox).Spawn(c)))
 			c.Spawn("rester", 0, 3,
-				physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, scenario.SampleShape(physics.ShapeTypeBox)))
+				physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, scenario.SampleShape(scenario.KindBox).Spawn(c)))
 		},
 		Steps: []harness.Step{
 			{Tick: 10, Do: func(c *harness.Ctx) { c.Plugin().Reset() }}, // unannounced
@@ -140,9 +140,9 @@ func TestWorldWatchdogAcceptsAnnouncedReset(t *testing.T) {
 		Name: "reset-with-expect",
 		Setup: func(c *harness.Ctx) {
 			c.Spawn("pad", 0, -1,
-				physcomp.NewPhysicsBody2D(physics.BodyTypeStatic, scenario.SampleShape(physics.ShapeTypeBox)))
+				physcomp.NewPhysicsBody2D(physics.BodyTypeStatic, scenario.SampleShape(scenario.KindBox).Spawn(c)))
 			c.Spawn("rester", 0, 3,
-				physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, scenario.SampleShape(physics.ShapeTypeBox)))
+				physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, scenario.SampleShape(scenario.KindBox).Spawn(c)))
 		},
 		Steps: []harness.Step{
 			{Tick: 10, Do: func(c *harness.Ctx) {
@@ -169,9 +169,9 @@ func TestWorldWatchdogFlagsChainedUnannouncedReset(t *testing.T) {
 		Name: "chained-reset",
 		Setup: func(c *harness.Ctx) {
 			c.Spawn("pad", 0, -1,
-				physcomp.NewPhysicsBody2D(physics.BodyTypeStatic, scenario.SampleShape(physics.ShapeTypeBox)))
+				physcomp.NewPhysicsBody2D(physics.BodyTypeStatic, scenario.SampleShape(scenario.KindBox).Spawn(c)))
 			c.Spawn("rester", 0, 3,
-				physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, scenario.SampleShape(physics.ShapeTypeBox)))
+				physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, scenario.SampleShape(scenario.KindBox).Spawn(c)))
 		},
 		Steps: []harness.Step{
 			{Tick: 10, Do: func(c *harness.Ctx) {
@@ -243,11 +243,7 @@ func TestHostile(t *testing.T) {
 	// Cases that fail today for a documented reason. A case that starts passing must
 	// be removed from here, which is the point: the test then reports that the engine
 	// changed instead of silently absorbing it.
-	knownFailures := map[string]string{
-		"zero-extent-box": "the engine builds a (NaN, NaN) body from zero half-extents " +
-			"instead of rejecting them as C's assert does, and ColliderShape.Validate lets " +
-			"them through; the reconciler then rejects the body every tick",
-	}
+	knownFailures := map[string]string{}
 
 	for _, name := range scenario.HostileNames() {
 		t.Run(name, func(t *testing.T) {

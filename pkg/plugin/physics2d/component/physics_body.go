@@ -42,9 +42,10 @@ import (
 //
 // # Shapes
 //
-// Shapes holds the compound collider description. Cardinal allows one instance per component
-// type per entity, so compound colliders are modeled as multiple ColliderShape entries.
-// Shape identity (v1): index i in Shapes identifies fixture slot i.
+// Shapes lists the body's fixtures. Each [ShapeSlot] names a shape entity (which carries
+// [ShapeCommon] plus one geometry component) and places it in body space. Slot index i is
+// fixture i, the index contact events and query hits report. The list is an immutable.Slice:
+// derive a new one (With, Append, Sub) and Set the body to change it.
 //
 // # Defaults
 //
@@ -57,7 +58,7 @@ import (
 // via a custom UnmarshalJSON. Explicitly serialized false values are preserved exactly. Snapshots
 // go through MarshalWire/UnmarshalWire (protobuf) rather than JSON: JSON is for hand-written
 // payloads and for logging, not for round-tripping a body the world is holding. (A Slice field such
-// as Shapes or ColliderShape.ChainPoints encodes as a plain JSON array — see immutable.Slice.)
+// as Shapes or ChainGeom.Points encodes as a plain JSON array — see immutable.Slice.)
 //
 // Bullet and FixedRotation default to false (off), matching Box2D defaults.
 //
@@ -76,12 +77,12 @@ type PhysicsBody2D struct {
 	Bullet          bool     `json:"bullet"`
 	FixedRotation   bool     `json:"fixed_rotation"`
 
-	Shapes immutable.Slice[ColliderShape] `json:"shapes"`
+	Shapes immutable.Slice[ShapeSlot] `json:"shapes"`
 }
 
 // NewPhysicsBody2D returns a PhysicsBody2D with the given body type, Box2D-compatible defaults
-// (Active=true, Awake=true, SleepingAllowed=true, GravityScale=1), and the provided shapes.
-func NewPhysicsBody2D(bodyType BodyType, shapes ...ColliderShape) PhysicsBody2D {
+// (Active=true, Awake=true, SleepingAllowed=true, GravityScale=1), and the provided shape slots.
+func NewPhysicsBody2D(bodyType BodyType, shapes ...ShapeSlot) PhysicsBody2D {
 	return PhysicsBody2D{
 		BodyType:        bodyType,
 		GravityScale:    1,
@@ -98,16 +99,16 @@ func NewPhysicsBody2D(bodyType BodyType, shapes ...ColliderShape) PhysicsBody2D 
 // preserving explicitly serialized values including false.
 func (p *PhysicsBody2D) UnmarshalJSON(data []byte) error {
 	type raw struct {
-		BodyType        BodyType        `json:"body_type"`
-		LinearDamping   float64         `json:"linear_damping"`
-		AngularDamping  float64         `json:"angular_damping"`
-		GravityScale    *float64        `json:"gravity_scale"`
-		Active          *bool           `json:"active"`
-		Awake           *bool           `json:"awake"`
-		SleepingAllowed *bool           `json:"sleeping_allowed"`
-		Bullet          bool            `json:"bullet"`
-		FixedRotation   bool            `json:"fixed_rotation"`
-		Shapes          []ColliderShape `json:"shapes"`
+		BodyType        BodyType    `json:"body_type"`
+		LinearDamping   float64     `json:"linear_damping"`
+		AngularDamping  float64     `json:"angular_damping"`
+		GravityScale    *float64    `json:"gravity_scale"`
+		Active          *bool       `json:"active"`
+		Awake           *bool       `json:"awake"`
+		SleepingAllowed *bool       `json:"sleeping_allowed"`
+		Bullet          bool        `json:"bullet"`
+		FixedRotation   bool        `json:"fixed_rotation"`
+		Shapes          []ShapeSlot `json:"shapes"`
 	}
 	var aux raw
 	if err := json.Unmarshal(data, &aux); err != nil {
@@ -143,7 +144,7 @@ func (p *PhysicsBody2D) UnmarshalJSON(data []byte) error {
 // Name returns the ECS component name.
 func (PhysicsBody2D) Name() string { return "physics_body_2d" }
 
-// Validate guards against NaN/Inf in float fields, an invalid body type tag, and invalid shapes.
+// Validate guards against NaN/Inf in float fields, an invalid body type tag, and invalid slots.
 func (p PhysicsBody2D) Validate() error {
 	switch p.BodyType {
 	case BodyTypeStatic, BodyTypeDynamic, BodyTypeKinematic, BodyTypeManual:
@@ -160,10 +161,10 @@ func (p PhysicsBody2D) Validate() error {
 		return fmt.Errorf("physics_body_2d.gravity_scale: must be finite, got %v", p.GravityScale)
 	}
 	if p.Shapes.Len() == 0 {
-		return errors.New("physics_body_2d.shapes: at least one ColliderShape is required")
+		return errors.New("physics_body_2d.shapes: at least one shape slot is required")
 	}
-	for i, shape := range p.Shapes.All() {
-		if err := shape.Validate(); err != nil {
+	for i, s := range p.Shapes.All() {
+		if err := s.Validate(); err != nil {
 			return fmt.Errorf("physics_body_2d.shapes[%d]: %w", i, err)
 		}
 	}

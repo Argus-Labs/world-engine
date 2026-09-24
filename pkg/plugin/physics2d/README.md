@@ -51,13 +51,46 @@ body is created in the engine.
 |---|---|
 | [`Transform2D`](component/spatial.go) | World-space position + rotation (authoritative pose) |
 | [`Velocity2D`](component/spatial.go) | Linear + angular velocity |
-| [`PhysicsBody2D`](component/physics_body.go) | Body kind, damping, flags, and the compound collider (`Shapes`) |
+| [`PhysicsBody2D`](component/physics_body.go) | Body kind, damping, flags, and the list of shape slots (`Shapes`) |
 
 Use the `NewPhysicsBody2D` constructor — bare struct literals leave
 `Active`, `Awake`, `SleepingAllowed` at `false` and `GravityScale` at `0`,
 which produces an inactive, sleeping, gravity-less body.
 
-### Example: a dynamic circle
+### Shapes are entities
+
+> **Breaking change.** Shapes used to live inline on `PhysicsBody2D` and are not
+> migrated. A snapshot taken before this change does not load: its bodies name no
+> shape entities and its chain points are gone. Purge such worlds and rebuild
+> their shapes as entities.
+
+A body does not carry its shapes inline. Each shape is its own entity with
+two components: [`ShapeCommon`](component/shape_common.go) (sensor flag,
+material, collision filter) and exactly one geometry component from
+[geometry.go](component/geometry.go) — `CircleGeom`, `BoxGeom`,
+`PolygonGeom`, `ChainGeom`, `EdgeGeom` or `CapsuleGeom`. The component
+present *is* the kind; there is no type tag. A body's `Shapes` list holds
+[`ShapeSlot`](component/shape_slot.go)s: the shape entity id plus the
+slot's `LocalOffset` and `LocalRotation` in body space.
+
+So a hundred identical crates are one shape entity and a hundred 4-byte
+references, and a circle costs one float instead of a union of every kind's
+fields.
+
+Build a shape with a constructor — `Circle`, `Box`, `Polygon`, `Chain`,
+`ChainLoop`, `Edge`, `Capsule` — chain options onto it — `AsSensor()`,
+`Material(friction, restitution, density)`, `Filter(category, mask)`,
+`Group(index)` — and `Spawn` it through a shape search on your system state.
+A bare constructor already carries Box2D's default material (friction 0.6,
+density 1, category 1, mask all). `Spawn` returns the slot; chain
+`At(offset, rotation)` onto the slot to place it, and reuse the slot (or its
+`Shape` id via `Slot(id)`) on as many bodies as you like.
+
+`Spawn` validates first and returns `(ShapeSlot, error)`. A definition Box2D
+could never build — a radius of zero or less, a box with a zero extent, a
+polygon outside 3..8 vertices, any NaN — creates nothing and tells you why,
+at the line that built it, instead of becoming a shape entity that fails to
+attach on every tick from then on.
 
 ```go
 import (
@@ -65,52 +98,81 @@ import (
     "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 )
 
-func SpawnBallSystem(ctx cardinal.WorldContext) error {
-    id, err := cardinal.Create(ctx,
-        physics2d.Transform2D{
-            Position: physics2d.Vec2{X: 0, Y: 10},
-            Rotation: 0,
-        },
-        physics2d.Velocity2D{
-            Linear:  physics2d.Vec2{X: 0, Y: 0},
-            Angular: 0,
-        },
-        physics2d.NewPhysicsBody2D(
-            physics2d.BodyTypeDynamic,
-            physics2d.ColliderShape{
-                ShapeType:    physics2d.ShapeTypeCircle,
-                Radius:       0.5,
-                Density:      1.0,
-                Friction:     0.3,
-                Restitution:  0.2,
-                CategoryBits: 0x0001,
-                MaskBits:     0xFFFF,
-            },
-        ),
-    )
-    _ = id
-    return err
+type ballRow struct {
+    T  cardinal.WithComponent[physics2d.Transform2D]
+    V  cardinal.WithComponent[physics2d.Velocity2D]
+    PB cardinal.WithComponent[physics2d.PhysicsBody2D]
+}
+
+type SpawnState struct {
+    cardinal.BaseSystemState
+    Circles physics2d.CircleShapes // one search per shape kind you spawn
+    Boxes   physics2d.BoxShapes
+    Balls   cardinal.Exact[ballRow]
+}
+
+func SpawnSystem(state *SpawnState) {
+    if state.Tick() != 0 {
+        return
+    }
+    // World geometry: a static floor box.
+    floor, err := physics2d.Box(25, 1).Material(0.5, 0, 0).Filter(0x0002, 0xFFFF).Spawn(&state.Boxes)
+    if err != nil {
+        state.Logger().Error().Err(err).Msg("floor shape rejected")
+        return
+    }
+    f := state.Balls.Create()
+    f.Set(physics2d.Transform2D{})
+    f.Set(physics2d.Velocity2D{})
+    f.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeStatic, floor))
+
+    // One ball shape, shared by every ball.
+    ball, err := physics2d.Circle(0.5).Material(0.3, 0.2, 1).Filter(0x0001, 0xFFFF).Spawn(&state.Circles)
+    if err != nil {
+        state.Logger().Error().Err(err).Msg("ball shape rejected")
+        return
+    }
+    for i := range 10 {
+        b := state.Balls.Create()
+        b.Set(physics2d.Transform2D{Position: physics2d.Vec2{X: float64(i), Y: 10}})
+        b.Set(physics2d.Velocity2D{})
+        b.Set(physics2d.NewPhysicsBody2D(physics2d.BodyTypeDynamic, ball))
+    }
 }
 ```
 
-### Example: a static box (world geometry)
+The searches (`CircleShapes`, `BoxShapes`, `PolygonShapes`, `ChainShapes`,
+`EdgeShapes`, `CapsuleShapes`) are ordinary Cardinal searches over the shape
+entities: `Iter`, `GetByID` and `Destroy` work on them. Cardinal wires only
+the top-level fields of a system state, so list the searches you use
+directly on the state.
 
-```go
-cardinal.Create(ctx,
-    physics2d.Transform2D{Position: physics2d.Vec2{X: 0, Y: 0}},
-    physics2d.Velocity2D{},
-    physics2d.NewPhysicsBody2D(
-        physics2d.BodyTypeStatic,
-        physics2d.ColliderShape{
-            ShapeType:    physics2d.ShapeTypeBox,
-            HalfExtents:  physics2d.Vec2{X: 25, Y: 1},
-            Friction:     0.5,
-            CategoryBits: 0x0002,
-            MaskBits:     0xFFFF,
-        },
-    ),
-)
-```
+The plugin reads shape entities every tick, so editing one in place works:
+a material or filter change updates the fixtures of every body using the
+shape, a geometry or sensor-flag change rebuilds them (chain points
+excepted, see below). Swapping a slot to a
+different shape entity behaves the same way — same geometry updates in
+place, different geometry rebuilds. A slot whose shape entity is missing
+fails that body's reconcile loudly (logged, no fixtures), and deleting a shape
+entity that a body still uses drops that body's fixtures on the next tick the
+same way. Shape entities are ordinary ECS state and snapshot with everything
+else.
+
+Cleanup is automatic: once a body has used a shape, the plugin deletes the
+shape entity on the tick its last such use goes away, so long-running
+worlds do not accumulate abandoned shapes. A shape you spawned but have not
+used yet is never touched. The one rule this adds: do not hold on to a shape
+id across a moment when no body uses it — spawn a new one instead.
+
+### Chain points
+
+Chain shapes (`Chain(points...)`, `ChainLoop(points...)`) carry their
+polyline in `ChainGeom.Points`, so one long polyline is stored once no
+matter how many bodies stand on it. Points are the one exception to
+in-place editing: the plugin copies them when it first sees the shape and
+never re-reads them, so a long polyline costs nothing per tick. To change
+terrain, spawn a new chain shape and point the slot at it (that slot change
+is what triggers the fixture rebuild).
 
 ### Body-type cheat sheet
 
@@ -121,53 +183,12 @@ cardinal.Create(ctx,
 
 ### Compound colliders
 
-`PhysicsBody2D.Shapes` is an `immutable.Slice` — each entry is a child fixture
-with its own `LocalOffset`, `LocalRotation`, material, and filter. Shape
-identity is by index (slot `i` in `Shapes` ↔ fixture slot `i`), so don't
-reorder shapes after creation if you care about per-shape references in
-contact events.
-
-Read it with `Len`, `At`, and `All`; change it with `Append`, `With`, `Without`
-and friends, then `Set` the component. Those derivations edit the array the
-component already holds, so a `Set` after each one is required rather than
-tidy — see [`immutable.Slice`](../../immutable/slice.go).
-
-```go
-pb := ref.Get()
-sh := pb.Shapes.At(0)
-sh.Friction = 0.9
-pb.Shapes = pb.Shapes.With(0, sh)
-ref.Set(pb)
-```
-
-### Polygon vertices
-
-A convex polygon's vertices live in a fixed `[MaxPolygonVertices]Vec2` array
-with `VertexCount` saying how many slots are live — the same shape
-`box2d.Polygon` uses, and the same bound (8) Box2D compiles in. Build one with
-`WithVertices`, which sets the count and zeroes the unused tail:
-
-```go
-tri := physics2d.ColliderShape{
-    ShapeType:    physics2d.ShapeTypeConvexPolygon,
-    Density:      1,
-    Friction:     0.4,
-    CategoryBits: 0xFFFF,
-    MaskBits:     0xFFFF,
-}.WithVertices(
-    physics2d.Vec2{X: 0, Y: 0},
-    physics2d.Vec2{X: 2, Y: 0},
-    physics2d.Vec2{X: 1, Y: 1.5},
-)
-```
-
-Past `MaxPolygonVertices`, `WithVertices` returns a shape that fails `Validate`
-(`vertex_count: must be between 0 and 8`) rather than truncating or panicking —
-an over-long polygon is a bad asset, and the reconciler refuses the fixture the
-same way it refuses any other bad geometry. `PolygonVertices()` reads back the
-live prefix. A chain has no such bound, so
-`ChainPoints` is an `immutable.Slice[Vec2]`; build one with
-`immutable.SliceOf(pts...)`.
+`PhysicsBody2D.Shapes` is an `immutable.Slice` of slots — each entry is a
+child fixture with its own shape entity, `LocalOffset` and `LocalRotation`.
+To change the list, derive a new one (`With`, `Append`, `Sub`) and `Set` the
+body. Fixture identity is by index (slot `i` in `Shapes` ↔ fixture slot
+`i`), so don't reorder slots after creation if you care about per-shape
+references in contact events.
 
 ## Built-in queries
 
@@ -312,5 +333,5 @@ Contacts and triggers flow through Cardinal's system-event bus. The plugin's
 own pipeline system sets the emitter each tick and flushes
 `ContactBeginEvent` / `ContactEndEvent` / `TriggerBeginEvent` /
 `TriggerEndEvent` each tick. The events carry both entity IDs and both
-shape indices, so you can look up the exact `ColliderShape` that produced
-the contact.
+shape indices, so you can look up the exact slot — and through it the shape
+entity — that produced the contact.

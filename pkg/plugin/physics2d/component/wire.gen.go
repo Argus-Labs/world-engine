@@ -73,216 +73,223 @@ func (c ActiveContacts) AppendWire(b []byte) []byte {
 	return b
 }
 
-func (c ColliderShape) ToProto() *pbcomponent.ColliderShape {
-	p := &pbcomponent.ColliderShape{}
-	p.ShapeType = uint32(c.ShapeType)
-	p.LocalOffset = c.LocalOffset.ToProto()
-	p.LocalRotation = float64(c.LocalRotation)
-	p.IsSensor = bool(c.IsSensor)
-	p.Radius = float64(c.Radius)
+func (c BoxGeom) ToProto() *pbcomponent.BoxGeom {
+	p := &pbcomponent.BoxGeom{}
 	p.HalfExtents = c.HalfExtents.ToProto()
-	for i0 := range c.Vertices {
-		p.Vertices = append(p.Vertices, c.Vertices[i0].ToProto())
-	}
-	for v := range c.ChainPoints.Values() {
-		p.ChainPoints = append(p.ChainPoints, v.ToProto())
-	}
-	for i0 := range c.EdgeVertices {
-		p.EdgeVertices = append(p.EdgeVertices, c.EdgeVertices[i0].ToProto())
-	}
-	p.CapsuleCenter1 = c.CapsuleCenter1.ToProto()
-	p.CapsuleCenter2 = c.CapsuleCenter2.ToProto()
-	p.Friction = float64(c.Friction)
-	p.Restitution = float64(c.Restitution)
-	p.Density = float64(c.Density)
-	p.CategoryBits = uint64(c.CategoryBits)
-	p.MaskBits = uint64(c.MaskBits)
-	p.GroupIndex = int32(c.GroupIndex)
-	p.VertexCount = int64(c.VertexCount)
 	return p
 }
 
-func (c ColliderShape) FromProto(p *pbcomponent.ColliderShape) ColliderShape {
+func (c BoxGeom) FromProto(p *pbcomponent.BoxGeom) BoxGeom {
 	if p == nil {
 		return c
 	}
-	c.ShapeType = ShapeType(p.ShapeType)
-	c.LocalOffset = c.LocalOffset.FromProto(p.LocalOffset)
-	c.LocalRotation = float64(p.LocalRotation)
-	c.IsSensor = bool(p.IsSensor)
-	c.Radius = float64(p.Radius)
 	c.HalfExtents = c.HalfExtents.FromProto(p.HalfExtents)
-	for i, e := range p.Vertices {
-		if i >= 8 {
-			break
-		}
-		var v Vec2
-		c.Vertices[i] = v.FromProto(e)
-	}
-	if len(p.ChainPoints) > 0 {
-		itemsChainPoints := make([]Vec2, 0, len(p.ChainPoints))
-		for _, e := range p.ChainPoints {
-			var v Vec2
-			v = v.FromProto(e)
-			itemsChainPoints = append(itemsChainPoints, v)
-		}
-		c.ChainPoints = pkg_immutable.SliceOf(itemsChainPoints...)
-	}
-	for i, e := range p.EdgeVertices {
-		if i >= 2 {
-			break
-		}
-		var v Vec2
-		c.EdgeVertices[i] = v.FromProto(e)
-	}
-	c.CapsuleCenter1 = c.CapsuleCenter1.FromProto(p.CapsuleCenter1)
-	c.CapsuleCenter2 = c.CapsuleCenter2.FromProto(p.CapsuleCenter2)
-	c.Friction = float64(p.Friction)
-	c.Restitution = float64(p.Restitution)
-	c.Density = float64(p.Density)
-	c.CategoryBits = uint64(p.CategoryBits)
-	c.MaskBits = uint64(p.MaskBits)
-	c.GroupIndex = int32(p.GroupIndex)
-	c.VertexCount = int(p.VertexCount)
 	return c
 }
 
-func (c ColliderShape) SizeWire() int {
+func (c BoxGeom) MarshalWire() []byte {
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
+}
+
+func (c BoxGeom) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.BoxGeom
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
+func (c BoxGeom) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.BoxGeom{}).ProtoReflect().Descriptor()
+}
+
+func (c BoxGeom) SizeWire() int {
 	n := 0
-	if c.ShapeType != 0 {
-		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(c.ShapeType))
-	}
-	n += protowire.SizeTag(2) + protowire.SizeBytes(c.LocalOffset.SizeWire())
-	if math.Float64bits(float64(c.LocalRotation)) != 0 {
-		n += protowire.SizeTag(3) + protowire.SizeFixed64()
-	}
-	if c.IsSensor {
-		n += protowire.SizeTag(4) + 1
-	}
-	if math.Float64bits(float64(c.Radius)) != 0 {
-		n += protowire.SizeTag(5) + protowire.SizeFixed64()
-	}
-	n += protowire.SizeTag(6) + protowire.SizeBytes(c.HalfExtents.SizeWire())
-	for i0 := range c.Vertices {
-		n += protowire.SizeTag(7) + protowire.SizeBytes(c.Vertices[i0].SizeWire())
-	}
-	for x := range c.ChainPoints.Values() {
-		n += protowire.SizeTag(8) + protowire.SizeBytes(x.SizeWire())
-	}
-	for i0 := range c.EdgeVertices {
-		n += protowire.SizeTag(9) + protowire.SizeBytes(c.EdgeVertices[i0].SizeWire())
-	}
-	n += protowire.SizeTag(10) + protowire.SizeBytes(c.CapsuleCenter1.SizeWire())
-	n += protowire.SizeTag(11) + protowire.SizeBytes(c.CapsuleCenter2.SizeWire())
-	if math.Float64bits(float64(c.Friction)) != 0 {
-		n += protowire.SizeTag(12) + protowire.SizeFixed64()
-	}
-	if math.Float64bits(float64(c.Restitution)) != 0 {
-		n += protowire.SizeTag(13) + protowire.SizeFixed64()
-	}
-	if math.Float64bits(float64(c.Density)) != 0 {
-		n += protowire.SizeTag(14) + protowire.SizeFixed64()
-	}
-	if c.CategoryBits != 0 {
-		n += protowire.SizeTag(15) + protowire.SizeVarint(uint64(c.CategoryBits))
-	}
-	if c.MaskBits != 0 {
-		n += protowire.SizeTag(16) + protowire.SizeVarint(uint64(c.MaskBits))
-	}
-	if c.GroupIndex != 0 {
-		n += protowire.SizeTag(17) + protowire.SizeVarint(uint64(c.GroupIndex))
-	}
-	if c.VertexCount != 0 {
-		n += protowire.SizeTag(18) + protowire.SizeVarint(uint64(c.VertexCount))
-	}
+	n += protowire.SizeTag(1) + protowire.SizeBytes(c.HalfExtents.SizeWire())
 	return n
 }
 
-func (c ColliderShape) AppendWire(b []byte) []byte {
-	if c.ShapeType != 0 {
-		b = protowire.AppendTag(b, 1, protowire.VarintType)
-		b = protowire.AppendVarint(b, uint64(c.ShapeType))
-	}
-	b = protowire.AppendTag(b, 2, protowire.BytesType)
-	atLocalOffset := len(b)
-	b = append(b, 0)
-	b = c.LocalOffset.AppendWire(b)
-	b = wireLenPrefix(b, atLocalOffset)
-	if math.Float64bits(float64(c.LocalRotation)) != 0 {
-		b = protowire.AppendTag(b, 3, protowire.Fixed64Type)
-		b = protowire.AppendFixed64(b, math.Float64bits(float64(c.LocalRotation)))
-	}
-	if c.IsSensor {
-		b = protowire.AppendTag(b, 4, protowire.VarintType)
-		b = protowire.AppendVarint(b, 1)
-	}
-	if math.Float64bits(float64(c.Radius)) != 0 {
-		b = protowire.AppendTag(b, 5, protowire.Fixed64Type)
-		b = protowire.AppendFixed64(b, math.Float64bits(float64(c.Radius)))
-	}
-	b = protowire.AppendTag(b, 6, protowire.BytesType)
+func (c BoxGeom) AppendWire(b []byte) []byte {
+	b = protowire.AppendTag(b, 1, protowire.BytesType)
 	atHalfExtents := len(b)
 	b = append(b, 0)
 	b = c.HalfExtents.AppendWire(b)
 	b = wireLenPrefix(b, atHalfExtents)
-	for i0 := range c.Vertices {
-		b = protowire.AppendTag(b, 7, protowire.BytesType)
-		atVertices := len(b)
-		b = append(b, 0)
-		b = c.Vertices[i0].AppendWire(b)
-		b = wireLenPrefix(b, atVertices)
+	return b
+}
+
+func (c CapsuleGeom) ToProto() *pbcomponent.CapsuleGeom {
+	p := &pbcomponent.CapsuleGeom{}
+	p.A = c.A.ToProto()
+	p.B = c.B.ToProto()
+	p.Radius = float64(c.Radius)
+	return p
+}
+
+func (c CapsuleGeom) FromProto(p *pbcomponent.CapsuleGeom) CapsuleGeom {
+	if p == nil {
+		return c
 	}
-	for x := range c.ChainPoints.Values() {
-		b = protowire.AppendTag(b, 8, protowire.BytesType)
-		atChainPoints := len(b)
+	c.A = c.A.FromProto(p.A)
+	c.B = c.B.FromProto(p.B)
+	c.Radius = float64(p.Radius)
+	return c
+}
+
+func (c CapsuleGeom) MarshalWire() []byte {
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
+}
+
+func (c CapsuleGeom) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.CapsuleGeom
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
+func (c CapsuleGeom) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.CapsuleGeom{}).ProtoReflect().Descriptor()
+}
+
+func (c CapsuleGeom) SizeWire() int {
+	n := 0
+	n += protowire.SizeTag(1) + protowire.SizeBytes(c.A.SizeWire())
+	n += protowire.SizeTag(2) + protowire.SizeBytes(c.B.SizeWire())
+	if math.Float64bits(float64(c.Radius)) != 0 {
+		n += protowire.SizeTag(3) + protowire.SizeFixed64()
+	}
+	return n
+}
+
+func (c CapsuleGeom) AppendWire(b []byte) []byte {
+	b = protowire.AppendTag(b, 1, protowire.BytesType)
+	atA := len(b)
+	b = append(b, 0)
+	b = c.A.AppendWire(b)
+	b = wireLenPrefix(b, atA)
+	b = protowire.AppendTag(b, 2, protowire.BytesType)
+	atB := len(b)
+	b = append(b, 0)
+	b = c.B.AppendWire(b)
+	b = wireLenPrefix(b, atB)
+	if math.Float64bits(float64(c.Radius)) != 0 {
+		b = protowire.AppendTag(b, 3, protowire.Fixed64Type)
+		b = protowire.AppendFixed64(b, math.Float64bits(float64(c.Radius)))
+	}
+	return b
+}
+
+func (c ChainGeom) ToProto() *pbcomponent.ChainGeom {
+	p := &pbcomponent.ChainGeom{}
+	for v := range c.Points.Values() {
+		p.Points = append(p.Points, v.ToProto())
+	}
+	p.Loop = bool(c.Loop)
+	return p
+}
+
+func (c ChainGeom) FromProto(p *pbcomponent.ChainGeom) ChainGeom {
+	if p == nil {
+		return c
+	}
+	if len(p.Points) > 0 {
+		itemsPoints := make([]Vec2, 0, len(p.Points))
+		for _, e := range p.Points {
+			var v Vec2
+			v = v.FromProto(e)
+			itemsPoints = append(itemsPoints, v)
+		}
+		c.Points = pkg_immutable.SliceOf(itemsPoints...)
+	}
+	c.Loop = bool(p.Loop)
+	return c
+}
+
+func (c ChainGeom) MarshalWire() []byte {
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
+}
+
+func (c ChainGeom) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.ChainGeom
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
+func (c ChainGeom) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.ChainGeom{}).ProtoReflect().Descriptor()
+}
+
+func (c ChainGeom) SizeWire() int {
+	n := 0
+	for x := range c.Points.Values() {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(x.SizeWire())
+	}
+	if c.Loop {
+		n += protowire.SizeTag(2) + 1
+	}
+	return n
+}
+
+func (c ChainGeom) AppendWire(b []byte) []byte {
+	for x := range c.Points.Values() {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		atPoints := len(b)
 		b = append(b, 0)
 		b = x.AppendWire(b)
-		b = wireLenPrefix(b, atChainPoints)
+		b = wireLenPrefix(b, atPoints)
 	}
-	for i0 := range c.EdgeVertices {
-		b = protowire.AppendTag(b, 9, protowire.BytesType)
-		atEdgeVertices := len(b)
-		b = append(b, 0)
-		b = c.EdgeVertices[i0].AppendWire(b)
-		b = wireLenPrefix(b, atEdgeVertices)
+	if c.Loop {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
 	}
-	b = protowire.AppendTag(b, 10, protowire.BytesType)
-	atCapsuleCenter1 := len(b)
-	b = append(b, 0)
-	b = c.CapsuleCenter1.AppendWire(b)
-	b = wireLenPrefix(b, atCapsuleCenter1)
-	b = protowire.AppendTag(b, 11, protowire.BytesType)
-	atCapsuleCenter2 := len(b)
-	b = append(b, 0)
-	b = c.CapsuleCenter2.AppendWire(b)
-	b = wireLenPrefix(b, atCapsuleCenter2)
-	if math.Float64bits(float64(c.Friction)) != 0 {
-		b = protowire.AppendTag(b, 12, protowire.Fixed64Type)
-		b = protowire.AppendFixed64(b, math.Float64bits(float64(c.Friction)))
+	return b
+}
+
+func (c CircleGeom) ToProto() *pbcomponent.CircleGeom {
+	p := &pbcomponent.CircleGeom{}
+	p.Radius = float64(c.Radius)
+	return p
+}
+
+func (c CircleGeom) FromProto(p *pbcomponent.CircleGeom) CircleGeom {
+	if p == nil {
+		return c
 	}
-	if math.Float64bits(float64(c.Restitution)) != 0 {
-		b = protowire.AppendTag(b, 13, protowire.Fixed64Type)
-		b = protowire.AppendFixed64(b, math.Float64bits(float64(c.Restitution)))
+	c.Radius = float64(p.Radius)
+	return c
+}
+
+func (c CircleGeom) MarshalWire() []byte {
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
+}
+
+func (c CircleGeom) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.CircleGeom
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
 	}
-	if math.Float64bits(float64(c.Density)) != 0 {
-		b = protowire.AppendTag(b, 14, protowire.Fixed64Type)
-		b = protowire.AppendFixed64(b, math.Float64bits(float64(c.Density)))
+	return c.FromProto(&p), nil
+}
+
+func (c CircleGeom) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.CircleGeom{}).ProtoReflect().Descriptor()
+}
+
+func (c CircleGeom) SizeWire() int {
+	n := 0
+	if math.Float64bits(float64(c.Radius)) != 0 {
+		n += protowire.SizeTag(1) + protowire.SizeFixed64()
 	}
-	if c.CategoryBits != 0 {
-		b = protowire.AppendTag(b, 15, protowire.VarintType)
-		b = protowire.AppendVarint(b, uint64(c.CategoryBits))
-	}
-	if c.MaskBits != 0 {
-		b = protowire.AppendTag(b, 16, protowire.VarintType)
-		b = protowire.AppendVarint(b, uint64(c.MaskBits))
-	}
-	if c.GroupIndex != 0 {
-		b = protowire.AppendTag(b, 17, protowire.VarintType)
-		b = protowire.AppendVarint(b, uint64(c.GroupIndex))
-	}
-	if c.VertexCount != 0 {
-		b = protowire.AppendTag(b, 18, protowire.VarintType)
-		b = protowire.AppendVarint(b, uint64(c.VertexCount))
+	return n
+}
+
+func (c CircleGeom) AppendWire(b []byte) []byte {
+	if math.Float64bits(float64(c.Radius)) != 0 {
+		b = protowire.AppendTag(b, 1, protowire.Fixed64Type)
+		b = protowire.AppendFixed64(b, math.Float64bits(float64(c.Radius)))
 	}
 	return b
 }
@@ -294,12 +301,6 @@ func (c ContactPairEntry) ToProto() *pbcomponent.ContactPairEntry {
 	p.EntityB = uint32(c.EntityB)
 	p.ShapeIndexB = int64(c.ShapeIndexB)
 	p.IsSensor = bool(c.IsSensor)
-	p.FilterACategoryBits = uint64(c.FilterACategoryBits)
-	p.FilterAMaskBits = uint64(c.FilterAMaskBits)
-	p.FilterAGroupIndex = int32(c.FilterAGroupIndex)
-	p.FilterBCategoryBits = uint64(c.FilterBCategoryBits)
-	p.FilterBMaskBits = uint64(c.FilterBMaskBits)
-	p.FilterBGroupIndex = int32(c.FilterBGroupIndex)
 	return p
 }
 
@@ -312,12 +313,6 @@ func (c ContactPairEntry) FromProto(p *pbcomponent.ContactPairEntry) ContactPair
 	c.EntityB = pkg_cardinal.EntityID(p.EntityB)
 	c.ShapeIndexB = int(p.ShapeIndexB)
 	c.IsSensor = bool(p.IsSensor)
-	c.FilterACategoryBits = uint64(p.FilterACategoryBits)
-	c.FilterAMaskBits = uint64(p.FilterAMaskBits)
-	c.FilterAGroupIndex = int32(p.FilterAGroupIndex)
-	c.FilterBCategoryBits = uint64(p.FilterBCategoryBits)
-	c.FilterBMaskBits = uint64(p.FilterBMaskBits)
-	c.FilterBGroupIndex = int32(p.FilterBGroupIndex)
 	return c
 }
 
@@ -337,24 +332,6 @@ func (c ContactPairEntry) SizeWire() int {
 	}
 	if c.IsSensor {
 		n += protowire.SizeTag(5) + 1
-	}
-	if c.FilterACategoryBits != 0 {
-		n += protowire.SizeTag(6) + protowire.SizeVarint(uint64(c.FilterACategoryBits))
-	}
-	if c.FilterAMaskBits != 0 {
-		n += protowire.SizeTag(7) + protowire.SizeVarint(uint64(c.FilterAMaskBits))
-	}
-	if c.FilterAGroupIndex != 0 {
-		n += protowire.SizeTag(8) + protowire.SizeVarint(uint64(c.FilterAGroupIndex))
-	}
-	if c.FilterBCategoryBits != 0 {
-		n += protowire.SizeTag(9) + protowire.SizeVarint(uint64(c.FilterBCategoryBits))
-	}
-	if c.FilterBMaskBits != 0 {
-		n += protowire.SizeTag(10) + protowire.SizeVarint(uint64(c.FilterBMaskBits))
-	}
-	if c.FilterBGroupIndex != 0 {
-		n += protowire.SizeTag(11) + protowire.SizeVarint(uint64(c.FilterBGroupIndex))
 	}
 	return n
 }
@@ -380,30 +357,59 @@ func (c ContactPairEntry) AppendWire(b []byte) []byte {
 		b = protowire.AppendTag(b, 5, protowire.VarintType)
 		b = protowire.AppendVarint(b, 1)
 	}
-	if c.FilterACategoryBits != 0 {
-		b = protowire.AppendTag(b, 6, protowire.VarintType)
-		b = protowire.AppendVarint(b, uint64(c.FilterACategoryBits))
+	return b
+}
+
+func (c EdgeGeom) ToProto() *pbcomponent.EdgeGeom {
+	p := &pbcomponent.EdgeGeom{}
+	p.A = c.A.ToProto()
+	p.B = c.B.ToProto()
+	return p
+}
+
+func (c EdgeGeom) FromProto(p *pbcomponent.EdgeGeom) EdgeGeom {
+	if p == nil {
+		return c
 	}
-	if c.FilterAMaskBits != 0 {
-		b = protowire.AppendTag(b, 7, protowire.VarintType)
-		b = protowire.AppendVarint(b, uint64(c.FilterAMaskBits))
+	c.A = c.A.FromProto(p.A)
+	c.B = c.B.FromProto(p.B)
+	return c
+}
+
+func (c EdgeGeom) MarshalWire() []byte {
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
+}
+
+func (c EdgeGeom) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.EdgeGeom
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
 	}
-	if c.FilterAGroupIndex != 0 {
-		b = protowire.AppendTag(b, 8, protowire.VarintType)
-		b = protowire.AppendVarint(b, uint64(c.FilterAGroupIndex))
-	}
-	if c.FilterBCategoryBits != 0 {
-		b = protowire.AppendTag(b, 9, protowire.VarintType)
-		b = protowire.AppendVarint(b, uint64(c.FilterBCategoryBits))
-	}
-	if c.FilterBMaskBits != 0 {
-		b = protowire.AppendTag(b, 10, protowire.VarintType)
-		b = protowire.AppendVarint(b, uint64(c.FilterBMaskBits))
-	}
-	if c.FilterBGroupIndex != 0 {
-		b = protowire.AppendTag(b, 11, protowire.VarintType)
-		b = protowire.AppendVarint(b, uint64(c.FilterBGroupIndex))
-	}
+	return c.FromProto(&p), nil
+}
+
+func (c EdgeGeom) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.EdgeGeom{}).ProtoReflect().Descriptor()
+}
+
+func (c EdgeGeom) SizeWire() int {
+	n := 0
+	n += protowire.SizeTag(1) + protowire.SizeBytes(c.A.SizeWire())
+	n += protowire.SizeTag(2) + protowire.SizeBytes(c.B.SizeWire())
+	return n
+}
+
+func (c EdgeGeom) AppendWire(b []byte) []byte {
+	b = protowire.AppendTag(b, 1, protowire.BytesType)
+	atA := len(b)
+	b = append(b, 0)
+	b = c.A.AppendWire(b)
+	b = wireLenPrefix(b, atA)
+	b = protowire.AppendTag(b, 2, protowire.BytesType)
+	atB := len(b)
+	b = append(b, 0)
+	b = c.B.AppendWire(b)
+	b = wireLenPrefix(b, atB)
 	return b
 }
 
@@ -438,9 +444,9 @@ func (c PhysicsBody2D) FromProto(p *pbcomponent.PhysicsBody2D) PhysicsBody2D {
 	c.Bullet = bool(p.Bullet)
 	c.FixedRotation = bool(p.FixedRotation)
 	if len(p.Shapes) > 0 {
-		itemsShapes := make([]ColliderShape, 0, len(p.Shapes))
+		itemsShapes := make([]ShapeSlot, 0, len(p.Shapes))
 		for _, e := range p.Shapes {
-			var v ColliderShape
+			var v ShapeSlot
 			v = v.FromProto(e)
 			itemsShapes = append(itemsShapes, v)
 		}
@@ -581,6 +587,219 @@ func (c PhysicsSingletonTag) SizeWire() int {
 }
 
 func (c PhysicsSingletonTag) AppendWire(b []byte) []byte {
+	return b
+}
+
+func (c PolygonGeom) ToProto() *pbcomponent.PolygonGeom {
+	p := &pbcomponent.PolygonGeom{}
+	for i0 := range c.Vertices {
+		p.Vertices = append(p.Vertices, c.Vertices[i0].ToProto())
+	}
+	p.Count = uint32(c.Count)
+	return p
+}
+
+func (c PolygonGeom) FromProto(p *pbcomponent.PolygonGeom) PolygonGeom {
+	if p == nil {
+		return c
+	}
+	for i, e := range p.Vertices {
+		if i >= 8 {
+			break
+		}
+		var v Vec2
+		c.Vertices[i] = v.FromProto(e)
+	}
+	c.Count = uint8(p.Count)
+	return c
+}
+
+func (c PolygonGeom) MarshalWire() []byte {
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
+}
+
+func (c PolygonGeom) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.PolygonGeom
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
+func (c PolygonGeom) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.PolygonGeom{}).ProtoReflect().Descriptor()
+}
+
+func (c PolygonGeom) SizeWire() int {
+	n := 0
+	for i0 := range c.Vertices {
+		n += protowire.SizeTag(1) + protowire.SizeBytes(c.Vertices[i0].SizeWire())
+	}
+	if c.Count != 0 {
+		n += protowire.SizeTag(2) + protowire.SizeVarint(uint64(c.Count))
+	}
+	return n
+}
+
+func (c PolygonGeom) AppendWire(b []byte) []byte {
+	for i0 := range c.Vertices {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		atVertices := len(b)
+		b = append(b, 0)
+		b = c.Vertices[i0].AppendWire(b)
+		b = wireLenPrefix(b, atVertices)
+	}
+	if c.Count != 0 {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.Count))
+	}
+	return b
+}
+
+func (c ShapeCommon) ToProto() *pbcomponent.ShapeCommon {
+	p := &pbcomponent.ShapeCommon{}
+	p.IsSensor = bool(c.IsSensor)
+	p.Friction = float64(c.Friction)
+	p.Restitution = float64(c.Restitution)
+	p.Density = float64(c.Density)
+	p.CategoryBits = uint64(c.CategoryBits)
+	p.MaskBits = uint64(c.MaskBits)
+	p.GroupIndex = int32(c.GroupIndex)
+	return p
+}
+
+func (c ShapeCommon) FromProto(p *pbcomponent.ShapeCommon) ShapeCommon {
+	if p == nil {
+		return c
+	}
+	c.IsSensor = bool(p.IsSensor)
+	c.Friction = float64(p.Friction)
+	c.Restitution = float64(p.Restitution)
+	c.Density = float64(p.Density)
+	c.CategoryBits = uint64(p.CategoryBits)
+	c.MaskBits = uint64(p.MaskBits)
+	c.GroupIndex = int32(p.GroupIndex)
+	return c
+}
+
+func (c ShapeCommon) MarshalWire() []byte {
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
+}
+
+func (c ShapeCommon) UnmarshalWire(data []byte) (any, error) {
+	var p pbcomponent.ShapeCommon
+	if err := proto.Unmarshal(data, &p); err != nil {
+		return nil, err
+	}
+	return c.FromProto(&p), nil
+}
+
+func (c ShapeCommon) ProtoDescriptor() protoreflect.MessageDescriptor {
+	return (&pbcomponent.ShapeCommon{}).ProtoReflect().Descriptor()
+}
+
+func (c ShapeCommon) SizeWire() int {
+	n := 0
+	if c.IsSensor {
+		n += protowire.SizeTag(1) + 1
+	}
+	if math.Float64bits(float64(c.Friction)) != 0 {
+		n += protowire.SizeTag(2) + protowire.SizeFixed64()
+	}
+	if math.Float64bits(float64(c.Restitution)) != 0 {
+		n += protowire.SizeTag(3) + protowire.SizeFixed64()
+	}
+	if math.Float64bits(float64(c.Density)) != 0 {
+		n += protowire.SizeTag(4) + protowire.SizeFixed64()
+	}
+	if c.CategoryBits != 0 {
+		n += protowire.SizeTag(5) + protowire.SizeVarint(uint64(c.CategoryBits))
+	}
+	if c.MaskBits != 0 {
+		n += protowire.SizeTag(6) + protowire.SizeVarint(uint64(c.MaskBits))
+	}
+	if c.GroupIndex != 0 {
+		n += protowire.SizeTag(7) + protowire.SizeVarint(uint64(c.GroupIndex))
+	}
+	return n
+}
+
+func (c ShapeCommon) AppendWire(b []byte) []byte {
+	if c.IsSensor {
+		b = protowire.AppendTag(b, 1, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if math.Float64bits(float64(c.Friction)) != 0 {
+		b = protowire.AppendTag(b, 2, protowire.Fixed64Type)
+		b = protowire.AppendFixed64(b, math.Float64bits(float64(c.Friction)))
+	}
+	if math.Float64bits(float64(c.Restitution)) != 0 {
+		b = protowire.AppendTag(b, 3, protowire.Fixed64Type)
+		b = protowire.AppendFixed64(b, math.Float64bits(float64(c.Restitution)))
+	}
+	if math.Float64bits(float64(c.Density)) != 0 {
+		b = protowire.AppendTag(b, 4, protowire.Fixed64Type)
+		b = protowire.AppendFixed64(b, math.Float64bits(float64(c.Density)))
+	}
+	if c.CategoryBits != 0 {
+		b = protowire.AppendTag(b, 5, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.CategoryBits))
+	}
+	if c.MaskBits != 0 {
+		b = protowire.AppendTag(b, 6, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.MaskBits))
+	}
+	if c.GroupIndex != 0 {
+		b = protowire.AppendTag(b, 7, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.GroupIndex))
+	}
+	return b
+}
+
+func (c ShapeSlot) ToProto() *pbcomponent.ShapeSlot {
+	p := &pbcomponent.ShapeSlot{}
+	p.Shape = uint32(c.Shape)
+	p.LocalOffset = c.LocalOffset.ToProto()
+	p.LocalRotation = float64(c.LocalRotation)
+	return p
+}
+
+func (c ShapeSlot) FromProto(p *pbcomponent.ShapeSlot) ShapeSlot {
+	if p == nil {
+		return c
+	}
+	c.Shape = pkg_cardinal.EntityID(p.Shape)
+	c.LocalOffset = c.LocalOffset.FromProto(p.LocalOffset)
+	c.LocalRotation = float64(p.LocalRotation)
+	return c
+}
+
+func (c ShapeSlot) SizeWire() int {
+	n := 0
+	if c.Shape != 0 {
+		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(c.Shape))
+	}
+	n += protowire.SizeTag(2) + protowire.SizeBytes(c.LocalOffset.SizeWire())
+	if math.Float64bits(float64(c.LocalRotation)) != 0 {
+		n += protowire.SizeTag(3) + protowire.SizeFixed64()
+	}
+	return n
+}
+
+func (c ShapeSlot) AppendWire(b []byte) []byte {
+	if c.Shape != 0 {
+		b = protowire.AppendTag(b, 1, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.Shape))
+	}
+	b = protowire.AppendTag(b, 2, protowire.BytesType)
+	atLocalOffset := len(b)
+	b = append(b, 0)
+	b = c.LocalOffset.AppendWire(b)
+	b = wireLenPrefix(b, atLocalOffset)
+	if math.Float64bits(float64(c.LocalRotation)) != 0 {
+		b = protowire.AppendTag(b, 3, protowire.Fixed64Type)
+		b = protowire.AppendFixed64(b, math.Float64bits(float64(c.LocalRotation)))
+	}
 	return b
 }
 

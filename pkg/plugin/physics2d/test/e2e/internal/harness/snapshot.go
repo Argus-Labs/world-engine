@@ -23,11 +23,60 @@ const (
 )
 
 // CaptureRow is the complete physics state of one body.
+// CaptureRow is the complete physics state of one body: its own components plus
+// the shape entities its slots reference, resolved at capture time so two worlds
+// can be compared shape by shape.
 type CaptureRow struct {
 	Transform physics.Transform2D
 	Velocity  physics.Velocity2D
 	Body      physics.PhysicsBody2D
+	Shapes    []CapturedShape
 	Entity    cardinal.EntityID
+}
+
+// CapturedShape is one slot and the shape entity it points at. Kind is the
+// geometry component found on that entity, or "" when the entity was missing;
+// only the geometry field matching Kind is set.
+type CapturedShape struct {
+	Slot    physics.ShapeSlot
+	Kind    string
+	Common  physics.ShapeCommon
+	Circle  physics.CircleGeom
+	Box     physics.BoxGeom
+	Polygon physics.PolygonGeom
+	Chain   physics.ChainGeom
+	Edge    physics.EdgeGeom
+	Capsule physics.CapsuleGeom
+}
+
+// resolveShape looks the slot's shape entity up through the six searches.
+func resolveShape(sh *ShapeSearches, slot physics.ShapeSlot) CapturedShape {
+	out := CapturedShape{Slot: slot}
+	id := slot.Shape
+	if row, err := sh.Circles.GetByID(id); err == nil {
+		out.Kind, out.Common, out.Circle = "circle", row.Get[physics.ShapeCommon](), row.Get[physics.CircleGeom]()
+		return out
+	}
+	if row, err := sh.Boxes.GetByID(id); err == nil {
+		out.Kind, out.Common, out.Box = "box", row.Get[physics.ShapeCommon](), row.Get[physics.BoxGeom]()
+		return out
+	}
+	if row, err := sh.Polygons.GetByID(id); err == nil {
+		out.Kind, out.Common, out.Polygon = "polygon", row.Get[physics.ShapeCommon](), row.Get[physics.PolygonGeom]()
+		return out
+	}
+	if row, err := sh.Chains.GetByID(id); err == nil {
+		out.Kind, out.Common, out.Chain = "chain", row.Get[physics.ShapeCommon](), row.Get[physics.ChainGeom]()
+		return out
+	}
+	if row, err := sh.Edges.GetByID(id); err == nil {
+		out.Kind, out.Common, out.Edge = "edge", row.Get[physics.ShapeCommon](), row.Get[physics.EdgeGeom]()
+		return out
+	}
+	if row, err := sh.Capsules.GetByID(id); err == nil {
+		out.Kind, out.Common, out.Capsule = "capsule", row.Get[physics.ShapeCommon](), row.Get[physics.CapsuleGeom]()
+	}
+	return out
 }
 
 // SingletonRow is the plugin's own bookkeeping entity. It carries ActiveContacts,
@@ -70,28 +119,61 @@ func (c Capture) Labels() []string {
 type preCaptureState struct {
 	cardinal.BaseSystemState
 	Probes    Probes
+	Circles   physics.CircleShapes
+	Boxes     physics.BoxShapes
+	Polygons  physics.PolygonShapes
+	Chains    physics.ChainShapes
+	Edges     physics.EdgeShapes
+	Capsules  physics.CapsuleShapes
 	Singleton cardinal.Contains[SingletonRow]
+}
+
+func (s *preCaptureState) shapes() *ShapeSearches {
+	return &ShapeSearches{
+		Circles: &s.Circles, Boxes: &s.Boxes, Polygons: &s.Polygons, Chains: &s.Chains,
+		Edges: &s.Edges, Capsules: &s.Capsules,
+	}
 }
 
 type postCaptureState struct {
 	cardinal.BaseSystemState
 	Probes    Probes
+	Circles   physics.CircleShapes
+	Boxes     physics.BoxShapes
+	Polygons  physics.PolygonShapes
+	Chains    physics.ChainShapes
+	Edges     physics.EdgeShapes
+	Capsules  physics.CapsuleShapes
 	Singleton cardinal.Contains[SingletonRow]
 }
 
-// capture copies every body's components into into, replacing whatever was
-// there. A fresh map is allocated each time, so a caller that copies the Capture
-// struct keeps that tick's state even as later ticks overwrite the field.
-func capture(probes *Probes, singleton *cardinal.Contains[SingletonRow], into *Capture) {
+func (s *postCaptureState) shapes() *ShapeSearches {
+	return &ShapeSearches{
+		Circles: &s.Circles, Boxes: &s.Boxes, Polygons: &s.Polygons, Chains: &s.Chains,
+		Edges: &s.Edges, Capsules: &s.Capsules,
+	}
+}
+
+// capture copies every body's components (and the shape entities its slots
+// reference) into into, replacing whatever was there. A fresh map is allocated
+// each time, so a caller that copies the Capture struct keeps that tick's state
+// even as later ticks overwrite the field.
+func capture(probes *Probes, shapes *ShapeSearches, singleton *cardinal.Contains[SingletonRow], into *Capture) {
 	rows := make(map[string]CaptureRow, len(into.Rows))
 	for row := range probes.Iter() {
 		eid := row.ID()
 		p := row.Get[probe.Probe]()
+		body := CloneBody(row.Get[physics.PhysicsBody2D]())
+		resolved := make([]CapturedShape, body.Shapes.Len())
+		for i, slot := range body.Shapes.All() {
+			resolved[i] = resolveShape(shapes, slot)
+		}
 		rows[p.Label] = CaptureRow{
 			Entity:    eid,
 			Transform: row.Get[physics.Transform2D](),
 			Velocity:  row.Get[physics.Velocity2D](),
-			Body:      CloneBody(row.Get[physics.PhysicsBody2D]()),
+			Body:      body,
+			Shapes:    resolved,
 		}
 	}
 
@@ -112,10 +194,7 @@ func capture(probes *Probes, singleton *cardinal.Contains[SingletonRow], into *C
 
 // contactKey renders a contact pair as a sortable, comparable string.
 func contactKey(p physics.ContactPairEntry) string {
-	return fmt.Sprintf("%d:%d/%d:%d/sensor=%v/fa=%#x:%#x:%d/fb=%#x:%#x:%d",
-		p.EntityA, p.ShapeIndexA, p.EntityB, p.ShapeIndexB, p.IsSensor,
-		p.FilterACategoryBits, p.FilterAMaskBits, p.FilterAGroupIndex,
-		p.FilterBCategoryBits, p.FilterBMaskBits, p.FilterBGroupIndex)
+	return fmt.Sprintf("%d/%d-%d/%d:%v", p.EntityA, p.ShapeIndexA, p.EntityB, p.ShapeIndexB, p.IsSensor)
 }
 
 // CompareContacts reports differences between two worlds' ActiveContacts.
@@ -148,14 +227,14 @@ func CompareContacts(want, got Capture) []Diff {
 // pre-capture is the deserialized ECS state with nothing else having touched it.
 func RegisterPreCapture(w *cardinal.World, into *Capture) {
 	w.RegisterSystem(func(state *preCaptureState) {
-		capture(&state.Probes, &state.Singleton, into)
+		capture(&state.Probes, state.shapes(), &state.Singleton, into)
 	}, cardinal.WithHook(cardinal.PreUpdate))
 }
 
 // RegisterPostCapture registers a capture that runs after the physics pipeline.
 func RegisterPostCapture(w *cardinal.World, into *Capture) {
 	w.RegisterSystem(func(state *postCaptureState) {
-		capture(&state.Probes, &state.Singleton, into)
+		capture(&state.Probes, state.shapes(), &state.Singleton, into)
 	}, cardinal.WithHook(cardinal.PostUpdate))
 }
 
@@ -302,17 +381,17 @@ func compareRow(label string, w, g CaptureRow, tol float64) []Diff {
 	boolean("Body.Bullet", g.Body.Bullet, w.Body.Bullet)
 	boolean("Body.FixedRotation", g.Body.FixedRotation, w.Body.FixedRotation)
 
-	if g.Body.Shapes.Len() != w.Body.Shapes.Len() {
-		add("Body.Shapes<len>", g.Body.Shapes.Len(), w.Body.Shapes.Len())
+	if len(g.Shapes) != len(w.Shapes) {
+		add("Body.Shapes<len>", len(g.Shapes), len(w.Shapes))
 		return diffs
 	}
-	for i, want := range w.Body.Shapes.All() {
-		diffs = append(diffs, compareShape(label, i, want, g.Body.Shapes.At(i), tol)...)
+	for i := range w.Shapes {
+		diffs = append(diffs, compareShape(label, i, w.Shapes[i], g.Shapes[i], tol)...)
 	}
 	return diffs
 }
 
-func compareShape(label string, i int, w, g physics.ColliderShape, tol float64) []Diff {
+func compareShape(label string, i int, w, g CapturedShape, tol float64) []Diff {
 	var diffs []Diff
 	field := func(name string) string { return fmt.Sprintf("Body.Shapes[%d].%s", i, name) }
 	add := func(name string, got, want any) {
@@ -329,49 +408,54 @@ func compareShape(label string, i int, w, g physics.ColliderShape, tol float64) 
 		}
 	}
 
-	if g.ShapeType != w.ShapeType {
-		add("ShapeType", g.ShapeType, w.ShapeType)
+	if g.Slot.Shape != w.Slot.Shape {
+		add("Shape", g.Slot.Shape, w.Slot.Shape)
 	}
-	if g.IsSensor != w.IsSensor {
-		add("IsSensor", g.IsSensor, w.IsSensor)
+	pt("LocalOffset", g.Slot.LocalOffset, w.Slot.LocalOffset)
+	num("LocalRotation", g.Slot.LocalRotation, w.Slot.LocalRotation)
+	if g.Kind != w.Kind {
+		add("Kind", g.Kind, w.Kind)
+		return diffs
 	}
-	pt("LocalOffset", g.LocalOffset, w.LocalOffset)
-	num("LocalRotation", g.LocalRotation, w.LocalRotation)
-	num("Radius", g.Radius, w.Radius)
-	pt("HalfExtents", g.HalfExtents, w.HalfExtents)
-	pt("CapsuleCenter1", g.CapsuleCenter1, w.CapsuleCenter1)
-	pt("CapsuleCenter2", g.CapsuleCenter2, w.CapsuleCenter2)
-	num("Friction", g.Friction, w.Friction)
-	num("Restitution", g.Restitution, w.Restitution)
-	num("Density", g.Density, w.Density)
+	if g.Common.IsSensor != w.Common.IsSensor {
+		add("IsSensor", g.Common.IsSensor, w.Common.IsSensor)
+	}
+	num("Friction", g.Common.Friction, w.Common.Friction)
+	num("Restitution", g.Common.Restitution, w.Common.Restitution)
+	num("Density", g.Common.Density, w.Common.Density)
+	if g.Common.CategoryBits != w.Common.CategoryBits {
+		add("CategoryBits", fmt.Sprintf("%#x", g.Common.CategoryBits), fmt.Sprintf("%#x", w.Common.CategoryBits))
+	}
+	if g.Common.MaskBits != w.Common.MaskBits {
+		add("MaskBits", fmt.Sprintf("%#x", g.Common.MaskBits), fmt.Sprintf("%#x", w.Common.MaskBits))
+	}
+	if g.Common.GroupIndex != w.Common.GroupIndex {
+		add("GroupIndex", g.Common.GroupIndex, w.Common.GroupIndex)
+	}
 
-	if g.CategoryBits != w.CategoryBits {
-		add("CategoryBits", fmt.Sprintf("%#x", g.CategoryBits), fmt.Sprintf("%#x", w.CategoryBits))
-	}
-	if g.MaskBits != w.MaskBits {
-		add("MaskBits", fmt.Sprintf("%#x", g.MaskBits), fmt.Sprintf("%#x", w.MaskBits))
-	}
-	if g.GroupIndex != w.GroupIndex {
-		add("GroupIndex", g.GroupIndex, w.GroupIndex)
-	}
-
-	if g.VertexCount != w.VertexCount {
-		add("VertexCount", g.VertexCount, w.VertexCount)
-	}
-	// The whole array is compared, not just the live prefix: every slot travels on the wire, so a
-	// restore that lost a slot past VertexCount is still a restore that lost data.
-	for k := range w.Vertices {
-		pt(fmt.Sprintf("Vertices[%d]", k), g.Vertices[k], w.Vertices[k])
-	}
-	if g.ChainPoints.Len() != w.ChainPoints.Len() {
-		add("ChainPoints<len>", g.ChainPoints.Len(), w.ChainPoints.Len())
+	num("Radius", g.Circle.Radius, w.Circle.Radius)
+	pt("HalfExtents", g.Box.HalfExtents, w.Box.HalfExtents)
+	if g.Polygon.Count != w.Polygon.Count {
+		add("Vertices<count>", g.Polygon.Count, w.Polygon.Count)
 	} else {
-		for k, want := range w.ChainPoints.All() {
-			pt(fmt.Sprintf("ChainPoints[%d]", k), g.ChainPoints.At(k), want)
+		for k := range int(w.Polygon.Count) {
+			pt(fmt.Sprintf("Vertices[%d]", k), g.Polygon.Vertices[k], w.Polygon.Vertices[k])
 		}
 	}
-	for k := range w.EdgeVertices {
-		pt(fmt.Sprintf("EdgeVertices[%d]", k), g.EdgeVertices[k], w.EdgeVertices[k])
+	if g.Chain.Loop != w.Chain.Loop {
+		add("Loop", g.Chain.Loop, w.Chain.Loop)
 	}
+	if g.Chain.Points.Len() != w.Chain.Points.Len() {
+		add("ChainPoints<len>", g.Chain.Points.Len(), w.Chain.Points.Len())
+	} else {
+		for k, wp := range w.Chain.Points.All() {
+			pt(fmt.Sprintf("ChainPoints[%d]", k), g.Chain.Points.At(k), wp)
+		}
+	}
+	pt("Edge.A", g.Edge.A, w.Edge.A)
+	pt("Edge.B", g.Edge.B, w.Edge.B)
+	pt("Capsule.A", g.Capsule.A, w.Capsule.A)
+	pt("Capsule.B", g.Capsule.B, w.Capsule.B)
+	num("Capsule.Radius", g.Capsule.Radius, w.Capsule.Radius)
 	return diffs
 }
