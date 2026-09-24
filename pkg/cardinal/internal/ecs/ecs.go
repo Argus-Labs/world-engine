@@ -104,14 +104,6 @@ func (w *World) IterEntities( //nolint:gocognit // it's fine
 				}
 			}
 		}
-	case MatchAll:
-		for _, arch := range w.state.archetypes {
-			for _, eid := range arch.entities {
-				if !yield(eid) {
-					return nil
-				}
-			}
-		}
 	default:
 		return eris.Wrapf(ErrInvalidMatch, "%v", match)
 	}
@@ -134,8 +126,6 @@ func (w *World) MatchArchetype(eid EntityID, components bitmap.Bitmap, match Sea
 		if !arch.contains(components) {
 			return ErrArchetypeMismatch
 		}
-	case MatchAll:
-		return nil
 	default:
 		return eris.Wrapf(ErrInvalidMatch, "%v", match)
 	}
@@ -150,8 +140,6 @@ const (
 	MatchExact SearchMatch = "exact"
 	// MatchContains matches entities that contain the specified components and may have others.
 	MatchContains SearchMatch = "contains"
-	// MatchAll matches all entities regardless of components.
-	MatchAll SearchMatch = "all"
 )
 
 // -------------------------------------------------------------------------------------------------
