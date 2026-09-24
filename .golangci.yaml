@@ -217,6 +217,15 @@ linters:
           - lll
           - nestif
         path: ^pkg/box2d/
+      # ecstest is the snapshot migration fixture: component shapes that stand in
+      # for what `world sdk generate` writes into a wire.gen.go. Each component is
+      # the same four wire methods over different field names, so they duplicate
+      # one another by construction -- real components are excluded from dupl as
+      # generated code, and these are hand-written only because no generator runs
+      # over a fixture. Every other linter stays on.
+      - linters:
+          - dupl
+        path: ^pkg/cardinal/internal/ecs/ecstest/
       # Narrow gosec exception: G115 flags the integer-width conversions in the
       # ported id packing/hashing, which are deliberate and carry no security
       # surface. Every other gosec rule stays on for pkg/box2d -- a blanket

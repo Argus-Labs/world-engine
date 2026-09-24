@@ -965,8 +965,8 @@ func TestSnapshotWireFieldCoverage(t *testing.T) {
 	t.Parallel()
 
 	encoded := map[string][]protoreflect.FieldNumber{
-		"WorldState": {1, 2, 3}, // next_id, components, entities
-		"Entity":     {1, 2, 3}, // id, components, payloads
+		"WorldState": {1, 2, 3, 5}, // next_id, components, entities, component_hashes
+		"Entity":     {1, 2, 3},    // id, components, payloads
 	}
 	descriptors := []protoreflect.MessageDescriptor{
 		(&cardinalv1.WorldState{}).ProtoReflect().Descriptor(),
