@@ -262,12 +262,15 @@ func (s *service) SendCommandWithReply(
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 	}
 
+	// Register the reply waiter before enqueuing the command. Enqueueing first opens a window
+	// where a tick can drain the command, emit the reply, and find no waiter — dropping the
+	// reply and deadlocking the client until its context times out.
+	waiter := s.addReplyWaiter(req.Msg.GetEventName())
+	defer s.removeReplyWaiter(req.Msg.GetEventName(), waiter)
+
 	if err := s.world.commands.Enqueue(cmd); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
-
-	waiter := s.addReplyWaiter(req.Msg.GetEventName())
-	defer s.removeReplyWaiter(req.Msg.GetEventName(), waiter)
 
 	select {
 	case <-ctx.Done():
