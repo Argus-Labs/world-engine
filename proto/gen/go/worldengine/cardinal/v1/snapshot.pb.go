@@ -110,9 +110,14 @@ type WorldState struct {
 	Components []string `protobuf:"bytes,2,rep,name=components,proto3" json:"components,omitempty"`
 	// Every live entity exactly once, strictly ascending by id. An entity with no components still
 	// appears here (empty components/payloads), so nothing vanishes on restore.
-	Entities      []*Entity `protobuf:"bytes,3,rep,name=entities,proto3" json:"entities,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Entities []*Entity `protobuf:"bytes,3,rep,name=entities,proto3" json:"entities,omitempty"`
+	// Shape fingerprint of each `components` entry, same order and length, or empty when the writer
+	// computed none. A shape is a component's field names, wire types and declaration order, so a
+	// stored value whose hash still matches the current struct needs no migration, and one that
+	// differs identifies which retired shape the value was written as.
+	ComponentHashes []uint64 `protobuf:"fixed64,5,rep,packed,name=component_hashes,json=componentHashes,proto3" json:"component_hashes,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *WorldState) Reset() {
@@ -162,6 +167,13 @@ func (x *WorldState) GetComponents() []string {
 func (x *WorldState) GetEntities() []*Entity {
 	if x != nil {
 		return x.Entities
+	}
+	return nil
+}
+
+func (x *WorldState) GetComponentHashes() []uint64 {
+	if x != nil {
+		return x.ComponentHashes
 	}
 	return nil
 }
@@ -240,14 +252,15 @@ const file_worldengine_cardinal_v1_snapshot_proto_rawDesc = "" +
 	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12L\n" +
 	"\vworld_state\x18\x03 \x01(\v2#.worldengine.cardinal.v1.WorldStateB\x06\xbaH\x03\xc8\x01\x01R\n" +
 	"worldState\x12\x18\n" +
-	"\aversion\x18\x04 \x01(\rR\aversion\"\x96\x01\n" +
+	"\aversion\x18\x04 \x01(\rR\aversion\"\xc1\x01\n" +
 	"\n" +
 	"WorldState\x12\x17\n" +
 	"\anext_id\x18\x01 \x01(\rR\x06nextId\x12,\n" +
 	"\n" +
 	"components\x18\x02 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02\x10\x01R\n" +
 	"components\x12;\n" +
-	"\bentities\x18\x03 \x03(\v2\x1f.worldengine.cardinal.v1.EntityR\bentitiesJ\x04\b\x04\x10\x05\"T\n" +
+	"\bentities\x18\x03 \x03(\v2\x1f.worldengine.cardinal.v1.EntityR\bentities\x12)\n" +
+	"\x10component_hashes\x18\x05 \x03(\x06R\x0fcomponentHashesJ\x04\b\x04\x10\x05\"T\n" +
 	"\x06Entity\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1e\n" +
 	"\n" +

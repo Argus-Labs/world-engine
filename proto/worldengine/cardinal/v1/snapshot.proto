@@ -47,6 +47,12 @@ message WorldState {
   // Every live entity exactly once, strictly ascending by id. An entity with no components still
   // appears here (empty components/payloads), so nothing vanishes on restore.
   repeated Entity entities = 3;
+
+  // Shape fingerprint of each `components` entry, same order and length, or empty when the writer
+  // computed none. A shape is a component's field names, wire types and declaration order, so a
+  // stored value whose hash still matches the current struct needs no migration, and one that
+  // differs identifies which retired shape the value was written as.
+  repeated fixed64 component_hashes = 5;
 }
 
 // Entity is one live entity: its id and its component values.

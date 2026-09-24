@@ -30,9 +30,13 @@ type worldState struct {
 	nextID     EntityID         // Entity ID counter
 	free       []EntityID       // Free entity IDs to reuse
 	entityArch sparseSet
-	archetypes []*archetype // Array of archetypes
-	wire       stateWire    // Encoder state between the two passes. Only the tick goroutine uses it.
-	mu         sync.Mutex
+	archetypes []*archetype     // Array of archetypes
+	migrations migrationManager // Snapshot migrations, indexed by the stored shape each consumes
+	// restoreProduced records the shapes this restore converted something into. It exists only
+	// while fromProto is building a new state, and decides which whole-world migrations apply.
+	restoreProduced map[storedShape]bool
+	wire            stateWire // Encoder state between the two passes. Only the tick goroutine uses it.
+	mu              sync.Mutex
 }
 
 // newWorldState creates a new world state.
@@ -43,6 +47,7 @@ func newWorldState() *worldState {
 		free:       make([]EntityID, 0),
 		entityArch: newSparseSet(),
 		archetypes: make([]*archetype, 1),
+		migrations: newMigrationManager(),
 		wire:       stateWire{pendingSize: -1}, // No size pass is pending.
 	}
 
@@ -353,6 +358,8 @@ func (ws *worldState) wireBodySize() int {
 		n += protowire.SizeTag(3) + protowire.SizeBytes(size)
 	}
 
+	n += ws.shapeTableWireSize()
+
 	ws.wire.pendingSize = n
 	return n
 }
@@ -409,6 +416,8 @@ func (ws *worldState) appendWireBody(buf []byte) []byte {
 		}
 		buf = ws.appendEntityWire(buf, ws.archetypes[aid], eid)
 	}
+
+	buf = ws.appendShapeTableWire(buf)
 
 	// This is not an assert. Release builds remove asserts.
 	if len(buf)-start != ws.wire.pendingSize {
@@ -483,21 +492,11 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 	nextID := EntityID(pb.GetNextId())
 
 	// An unknown name is an error only if an entity uses it. Thus a removed component does not
-	// prevent a restore.
-	table := pb.GetComponents()
-	tableCIDs := make([]ComponentID, len(table))
-	var seen bitmap.Bitmap
-	for i, name := range table {
-		cid, err := ws.components.getID(name)
-		if err != nil {
-			tableCIDs[i] = invalidComponentID
-			continue
-		}
-		if seen.Contains(cid) {
-			return eris.Errorf("snapshot name table repeats component %q", name)
-		}
-		seen.Set(cid)
-		tableCIDs[i] = cid
+	// prevent a restore. The same holds for a value whose stored shape has changed: it matters only
+	// for the entities that carry one.
+	resolved, err := ws.resolveNameTable(pb.GetComponents(), pb.GetComponentHashes())
+	if err != nil {
+		return err
 	}
 
 	freeCount := int64(nextID) - int64(len(pb.GetEntities()))
@@ -509,9 +508,11 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 			freeCount, maxRestoreFreeIDs)
 	}
 
-	// A restore does not register components. Thus the new state uses the live component registry.
+	// A restore registers nothing. Thus the new state uses the live component registry, and the
+	// live set of migrations: both describe the running build, not the snapshot.
 	next := &worldState{
 		components: ws.components,
+		migrations: ws.migrations,
 		nextID:     nextID,
 		entityArch: newSparseSet(),
 		archetypes: make([]*archetype, 1),
@@ -534,7 +535,7 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 		}
 		prev = eid
 
-		if err := next.restoreEntity(EntityID(eid), ent, table, tableCIDs); err != nil { //nolint:gosec // bounded
+		if err := next.restoreEntity(EntityID(eid), ent, resolved); err != nil { //nolint:gosec // bounded
 			return err
 		}
 	}
@@ -542,38 +543,39 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 		next.free = append(next.free, EntityID(gap))
 	}
 
+	// Whole-world migrations run here, once, with every entity restored and every per-entity
+	// migration already applied. They are the only ones that can see more than the entity they
+	// were called for.
+	if err := next.runWorldMigrations(); err != nil {
+		return err
+	}
+
 	// Commit the new state. wire and mu do not change.
 	ws.nextID, ws.free, ws.entityArch, ws.archetypes = next.nextID, next.free, next.entityArch, next.archetypes
 	return nil
 }
 
-// restoreEntity creates one entity in the archetype for its component set. It decodes the
-// payloads into that archetype.
-func (ws *worldState) restoreEntity(
-	eid EntityID, ent *cardinalv1.Entity, table []string, tableCIDs []ComponentID,
-) error {
-	idxs := ent.GetComponents()
-	payloads := ent.GetPayloads()
-	if len(idxs) != len(payloads) {
-		return eris.Errorf("snapshot entity %d has %d component indices but %d payloads",
-			eid, len(idxs), len(payloads))
+// restoreEntity creates one entity and fills it from the snapshot.
+//
+// Values whose shape still matches are decoded straight into their columns. Values whose shape has
+// changed go through a migration, and the entity's component set is therefore known only once the
+// plan is: it is what carries over plus what the migrations produce, which is not always what was
+// stored.
+func (ws *worldState) restoreEntity(eid EntityID, ent *cardinalv1.Entity, resolved []resolvedName) error {
+	columns, err := storedColumns(eid, ent, resolved)
+	if err != nil {
+		return err
 	}
 
+	entityPlan, err := ws.planEntity(eid, columns)
+	if err != nil {
+		return err
+	}
+	ids := ws.planComponents(entityPlan)
+
 	var comps bitmap.Bitmap
-	last := int64(-1)
-	for _, idx := range idxs {
-		if int64(idx) <= last {
-			return eris.Errorf("snapshot entity %d component indices not strictly ascending", eid)
-		}
-		if int(idx) >= len(tableCIDs) {
-			return eris.Errorf("snapshot entity %d component index %d outside the name table", eid, idx)
-		}
-		if tableCIDs[idx] == invalidComponentID {
-			return eris.Errorf("snapshot entity %d holds component %q, which this build does not register",
-				eid, table[idx])
-		}
-		last = int64(idx)
-		comps.Set(tableCIDs[idx])
+	for _, cid := range ids {
+		comps.Set(cid)
 	}
 
 	aid := ws.findOrCreateArchetype(comps)
@@ -583,14 +585,14 @@ func (ws *worldState) restoreEntity(
 
 	row, ok := arch.rows.get(eid)
 	assert.That(ok, "entity was just created in this archetype")
-	for k, idx := range idxs {
-		cid := tableCIDs[idx]
+	for cid, payload := range entityPlan.carried {
 		col := arch.columns[arch.components.CountTo(cid)]
-		if err := col.decodeRow(row, payloads[k]); err != nil {
+		if err := col.decodeRow(row, payload); err != nil {
 			return eris.Wrapf(err, "failed to restore entity %d", eid)
 		}
 	}
-	return nil
+
+	return ws.runMigrations(eid, entityPlan)
 }
 
 // -------------------------------------------------------------------------------------------------

@@ -40,6 +40,7 @@ type componentManager struct {
 	catalog   map[string]ComponentID // Component name -> component ID
 	factories []columnFactory        // Component ID -> column factory
 	names     []string               // Component ID -> name
+	shapes    []uint64               // Component ID -> wire shape, unknownShape when undescribed
 }
 
 // newComponentManager creates a new component manager.
@@ -49,6 +50,7 @@ func newComponentManager() componentManager {
 		catalog:   make(map[string]ComponentID),
 		factories: make([]columnFactory, 0),
 		names:     make([]string, 0),
+		shapes:    make([]uint64, 0),
 	}
 }
 
@@ -75,6 +77,8 @@ func validateComponentName(name string) error {
 // register registers a new component type and returns its ID.
 // Registering the same type again is a no-op. Reusing a name for another type returns an error.
 func (cm *componentManager) register[T Component](name string) (ComponentID, error) {
+	var zero T
+
 	// Validate component name follows expr identifier rules
 	if err := validateComponentName(name); err != nil {
 		return 0, err
@@ -94,6 +98,7 @@ func (cm *componentManager) register[T Component](name string) (ComponentID, err
 	cm.catalog[name] = cm.nextID
 	cm.factories = append(cm.factories, newColumnFactory[T]())
 	cm.names = append(cm.names, name)
+	cm.shapes = append(cm.shapes, shapeHash(zero))
 	cm.nextID++
 	assert.That(int(cm.nextID) == len(cm.factories), "component id doesn't match number of components")
 
