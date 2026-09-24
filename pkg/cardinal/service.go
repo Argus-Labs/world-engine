@@ -108,7 +108,9 @@ func (s *service) init(address string) error {
 	var authenticate func(context.Context, *http.Request) (any, error)
 	switch s.authMode {
 	case AuthModeArgus:
-		authenticator, err := newAuthenticatorArgus(s.argusAuthURL)
+		authenticator, err := newAuthenticatorArgus(
+			s.argusAuthURL, s.world.options.Organization, s.world.options.Project,
+		)
 		if err != nil {
 			return eris.Wrap(err, "failed to create argus authenticator")
 		}
@@ -679,11 +681,12 @@ func PlayerFromContext(ctx context.Context) *Player {
 // -------------------------------------------------------------------------------------------------
 
 type authenticatorArgus struct {
-	issuer  string
-	keyfunc keyfunc.Keyfunc
+	issuer   string
+	audience string
+	keyfunc  keyfunc.Keyfunc
 }
 
-func newAuthenticatorArgus(argusAuthURL string) (*authenticatorArgus, error) {
+func newAuthenticatorArgus(argusAuthURL, organization, project string) (*authenticatorArgus, error) {
 	assert.That(argusAuthURL != "", "Should've validated the URL")
 
 	issuer := strings.TrimRight(argusAuthURL, "/") + "/auth"
@@ -717,12 +720,11 @@ func newAuthenticatorArgus(argusAuthURL string) (*authenticatorArgus, error) {
 		return nil, eris.Wrap(err, "failed to create keyfunc")
 	}
 
-	return &authenticatorArgus{issuer: issuer, keyfunc: keyfn}, nil
-}
-
-type gameTokenClaims struct {
-	jwt.RegisteredClaims
-	TokenUse string `json:"token_use"`
+	return &authenticatorArgus{
+		issuer:   issuer,
+		audience: organization + "/" + project,
+		keyfunc:  keyfn,
+	}, nil
 }
 
 func (a *authenticatorArgus) authenticate(_ context.Context, req *http.Request) (any, error) {
@@ -731,13 +733,14 @@ func (a *authenticatorArgus) authenticate(_ context.Context, req *http.Request) 
 		return nil, authn.Errorf("Authorization header must be in format: 'Bearer <JWT>'")
 	}
 
-	claims := &gameTokenClaims{}
+	claims := &jwt.RegisteredClaims{}
 	token, err := jwt.ParseWithClaims(
 		jwtString,
 		claims,
 		a.keyfunc.Keyfunc,
 		jwt.WithValidMethods([]string{jwt.SigningMethodEdDSA.Alg()}),
 		jwt.WithIssuer(a.issuer),
+		jwt.WithAudience(a.audience),
 		jwt.WithExpirationRequired(),
 	)
 	if err != nil {
@@ -745,9 +748,6 @@ func (a *authenticatorArgus) authenticate(_ context.Context, req *http.Request) 
 	}
 	if !token.Valid {
 		return nil, authn.Errorf("JWT token is invalid")
-	}
-	if claims.TokenUse != "game" {
-		return nil, authn.Errorf("JWT token_use must be game")
 	}
 	if strings.TrimSpace(claims.Subject) == "" {
 		return nil, authn.Errorf("JWT subject is required")

@@ -19,14 +19,15 @@ func TestAuthenticatorArgusAcceptsGamePlayerToken(t *testing.T) {
 	require.NoError(t, err)
 
 	server := newAuthTestServer(t, publicKey)
-	authenticator, err := newAuthenticatorArgus(server.URL + "/")
+	authenticator, err := newAuthenticatorArgus(server.URL+"/", "argus", "rampage")
 	require.NoError(t, err)
 
 	token := signGameToken(t, privateKey, jwt.RegisteredClaims{
 		Subject:   "player-123",
 		Issuer:    server.URL + "/auth",
+		Audience:  jwt.ClaimStrings{"argus/rampage"},
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
-	}, "game")
+	})
 	player, err := authenticator.authenticate(context.Background(), requestWithBearer(t, token))
 	require.NoError(t, err)
 	require.Equal(t, &Player{ID: "player-123"}, player)
@@ -39,65 +40,84 @@ func TestAuthenticatorArgusRejectsInvalidGameClaims(t *testing.T) {
 	require.NoError(t, err)
 
 	server := newAuthTestServer(t, publicKey)
-	authenticator, err := newAuthenticatorArgus(server.URL)
+	authenticator, err := newAuthenticatorArgus(server.URL, "argus", "rampage")
 	require.NoError(t, err)
 
 	validClaims := jwt.RegisteredClaims{
 		Subject:   "player-123",
 		Issuer:    server.URL + "/auth",
+		Audience:  jwt.ClaimStrings{"argus/rampage"},
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
 	}
 	for _, test := range []struct {
-		name     string
-		key      ed25519.PrivateKey
-		claims   jwt.RegisteredClaims
-		tokenUse string
+		name   string
+		key    ed25519.PrivateKey
+		claims jwt.RegisteredClaims
 	}{
-		{name: "untrusted signature", key: otherPrivateKey, claims: validClaims, tokenUse: "game"},
-		{name: "account token", key: privateKey, claims: validClaims},
+		{name: "untrusted signature", key: otherPrivateKey, claims: validClaims},
+		{
+			name: "wrong audience", key: privateKey,
+			claims: jwt.RegisteredClaims{
+				Subject: validClaims.Subject, Issuer: validClaims.Issuer,
+				Audience: jwt.ClaimStrings{"argus/other"}, ExpiresAt: validClaims.ExpiresAt,
+			},
+		},
+		{
+			name: "missing audience", key: privateKey,
+			claims: jwt.RegisteredClaims{
+				Subject: validClaims.Subject, Issuer: validClaims.Issuer, ExpiresAt: validClaims.ExpiresAt,
+			},
+		},
 		{
 			name: "wrong issuer",
 			key:  privateKey,
 			claims: jwt.RegisteredClaims{
-				Subject: "player-123", Issuer: "https://other.example/auth", ExpiresAt: validClaims.ExpiresAt,
+				Subject: validClaims.Subject, Issuer: "https://other.example/auth",
+				Audience: validClaims.Audience, ExpiresAt: validClaims.ExpiresAt,
 			},
-			tokenUse: "game",
 		},
 		{
 			name: "missing expiry",
 			key:  privateKey,
 			claims: jwt.RegisteredClaims{
-				Subject: "player-123", Issuer: validClaims.Issuer,
+				Subject: validClaims.Subject, Issuer: validClaims.Issuer, Audience: validClaims.Audience,
 			},
-			tokenUse: "game",
 		},
 		{
 			name: "expired",
 			key:  privateKey,
 			claims: jwt.RegisteredClaims{
-				Subject: "player-123",
-				Issuer:  validClaims.Issuer,
+				Subject:  validClaims.Subject,
+				Issuer:   validClaims.Issuer,
+				Audience: validClaims.Audience,
 				ExpiresAt: jwt.NewNumericDate(
 					time.Now().Add(-time.Minute),
 				),
 			},
-			tokenUse: "game",
 		},
 		{
 			name: "missing subject",
 			key:  privateKey,
 			claims: jwt.RegisteredClaims{
-				Issuer: validClaims.Issuer, ExpiresAt: validClaims.ExpiresAt,
+				Issuer: validClaims.Issuer, Audience: validClaims.Audience, ExpiresAt: validClaims.ExpiresAt,
 			},
-			tokenUse: "game",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			token := signGameToken(t, test.key, test.claims, test.tokenUse)
+			token := signGameToken(t, test.key, test.claims)
 			_, authErr := authenticator.authenticate(context.Background(), requestWithBearer(t, token))
 			require.Error(t, authErr)
 		})
 	}
+
+	t.Run("non-EdDSA algorithm", func(t *testing.T) {
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, validClaims)
+		token.Header["kid"] = "test-key"
+		signed, signErr := token.SignedString([]byte("test-secret"))
+		require.NoError(t, signErr)
+		_, authErr := authenticator.authenticate(context.Background(), requestWithBearer(t, signed))
+		require.Error(t, authErr)
+	})
 }
 
 func TestAuthenticatorDevUsesPlayerID(t *testing.T) {
@@ -132,12 +152,9 @@ func newAuthTestServer(t *testing.T, publicKey ed25519.PublicKey) *httptest.Serv
 	return server
 }
 
-func signGameToken(t *testing.T, privateKey ed25519.PrivateKey, claims jwt.RegisteredClaims, tokenUse string) string {
+func signGameToken(t *testing.T, privateKey ed25519.PrivateKey, claims jwt.RegisteredClaims) string {
 	t.Helper()
-	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, gameTokenClaims{
-		RegisteredClaims: claims,
-		TokenUse:         tokenUse,
-	})
+	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)
 	token.Header["kid"] = "test-key"
 	signed, err := token.SignedString(privateKey)
 	require.NoError(t, err)
