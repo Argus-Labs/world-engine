@@ -265,14 +265,24 @@ func (w *World) Tick(timestamp time.Time) {
 	w.currentTick.height++
 }
 
-// commandLinks builds one span link per drained command whose enqueuing request was traced.
-// Links, not children: that request finished before this tick. Nil when no command carries a
-// span, so an untraced tick pays no allocation here.
+// maxCommandLinks caps the links on a tick span. It matches the OpenTelemetry SDK's default link
+// limit (OTEL_SPAN_LINK_COUNT_LIMIT); links past it would only be built to be dropped, and the SDK
+// drops them one memmove at a time.
+const maxCommandLinks = 128
+
+// commandLinks builds one span link per drained command whose enqueuing request was sampled, up
+// to maxCommandLinks. Links, not children: that request finished before this tick. A request the
+// sampler dropped was never exported, so a link to it would dangle; skipping it also skips the
+// zero SpanContext of an untraced caller. Nil when no command qualifies, so an untraced tick pays
+// no allocation here.
 func commandLinks(commands []command.Command) []oteltrace.Link {
 	var links []oteltrace.Link
 	for _, cmd := range commands {
-		if !cmd.Span.IsValid() {
+		if !cmd.Span.IsSampled() {
 			continue
+		}
+		if len(links) == maxCommandLinks {
+			break
 		}
 		links = append(links, oteltrace.Link{SpanContext: cmd.Span, Attributes: []attribute.KeyValue{
 			attrCommandName.String(cmd.Name), attrCommandPersona.String(cmd.Persona)}})

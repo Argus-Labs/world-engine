@@ -153,6 +153,54 @@ func TestTickLinksCommandsAndTracesEvents(t *testing.T) {
 	require.Contains(t, publish.Attributes, attrEventSubscribers.Int(0))
 }
 
+// TestTickSkipsLinksToUnsampledRequests checks that a command enqueued under a request span the
+// sampler dropped adds no link to the tick: that request span was never exported, so the link
+// would point at nothing. The command itself is still drained and counted.
+func TestTickSkipsLinksToUnsampledRequests(t *testing.T) {
+	t.Setenv("LOG_LEVEL", "disabled")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+
+	off := false
+	w, err := NewWorld(WorldOptions{
+		Region:              "trace",
+		Organization:        "trace",
+		Project:             "trace",
+		ShardID:             "3",
+		TickRate:            60,
+		SnapshotStorageType: snapshot.StorageTypeNop,
+		SnapshotRate:        1000,
+		Debug:               &off,
+		Pprof:               &off,
+	})
+	require.NoError(t, err)
+	exporter := newRecordingTracer(t)
+
+	_, err = w.commands.Register(testutils.SimpleCommand{}.Name(), command.NewQueue[testutils.SimpleCommand]())
+	require.NoError(t, err)
+	w.init()
+
+	// A request span from a provider that samples nothing: a valid span context with the sampled
+	// flag clear, which is what the ratio sampler hands a dropped SendCommand request.
+	dropped := sdktrace.NewTracerProvider(sdktrace.WithSampler(sdktrace.NeverSample()))
+	requestCtx, requestSpan := dropped.Tracer("test").Start(context.Background(), "request")
+	require.True(t, requestSpan.SpanContext().IsValid())
+	require.False(t, requestSpan.SpanContext().IsSampled())
+	require.NoError(t, w.commands.Enqueue(requestCtx, &iscv1.Command{
+		Name:    testutils.SimpleCommand{}.Name(),
+		Address: w.address,
+		Persona: &iscv1.Persona{Id: "player-1"},
+		Payload: testutils.SimpleCommand{Value: 7}.MarshalWire(),
+	}))
+	requestSpan.End()
+	exporter.Reset()
+
+	w.Tick(time.Now())
+
+	tick := spansByName(exporter)[spanTick]
+	require.Contains(t, tick.Attributes, attrTickCommands.Int(1))
+	require.Empty(t, tick.Links)
+}
+
 // TestInterShardCommandPropagatesTrace sends a command from shard A to shard B over NATS and checks
 // that the command B drains carries A's trace, so B's tick links back into A's trace.
 func TestInterShardCommandPropagatesTrace(t *testing.T) {
@@ -217,4 +265,50 @@ func TestEventPublishSpanRecordsPanic(t *testing.T) {
 		eventNames = append(eventNames, e.Name)
 	}
 	require.Contains(t, eventNames, "exception")
+}
+
+// TestTickCapsCommandLinks checks that a tick draining more traced commands than the link cap still
+// reports every command in its attributes while keeping the link count at the cap.
+func TestTickCapsCommandLinks(t *testing.T) {
+	t.Setenv("LOG_LEVEL", "disabled")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+
+	off := false
+	w, err := NewWorld(WorldOptions{
+		Region:              "trace",
+		Organization:        "trace",
+		Project:             "trace",
+		ShardID:             "2",
+		TickRate:            60,
+		SnapshotStorageType: snapshot.StorageTypeNop,
+		SnapshotRate:        1000,
+		Debug:               &off,
+		Pprof:               &off,
+	})
+	require.NoError(t, err)
+	exporter := newRecordingTracer(t)
+
+	_, err = w.commands.Register(testutils.SimpleCommand{}.Name(), command.NewQueue[testutils.SimpleCommand]())
+	require.NoError(t, err)
+	w.init()
+
+	total := maxCommandLinks + 5
+	requestCtx, requestSpan := otel.Tracer("test").Start(context.Background(), "request")
+	for i := range total {
+		require.NoError(t, w.commands.Enqueue(requestCtx, &iscv1.Command{
+			Name:    testutils.SimpleCommand{}.Name(),
+			Address: w.address,
+			Persona: &iscv1.Persona{Id: "player-1"},
+			Payload: testutils.SimpleCommand{Value: i}.MarshalWire(),
+		}))
+	}
+	requestSpan.End()
+	exporter.Reset()
+
+	w.Tick(time.Now())
+
+	tick := spansByName(exporter)[spanTick]
+	require.Contains(t, tick.Attributes, attrTickCommands.Int(total))
+	require.Len(t, tick.Links, maxCommandLinks)
+	require.Zero(t, tick.DroppedLinks, "links past the cap must not be built and then dropped by the SDK")
 }
