@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argus-labs/world-engine/pkg/cardinal"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	"github.com/stretchr/testify/require"
 )
 
 // clashingTransform reuses physics2d's "transform_2d" component name with a different Go type, so a
-// world that already registered it rejects the plugin's own systems.
+// world that already registered it rejects the plugin's own component registration.
 type clashingTransform struct {
 	X int `json:"x"`
 }
@@ -36,10 +35,6 @@ func (c clashingTransform) SizeWire() int { return len(c.MarshalWire()) }
 
 func (c clashingTransform) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
 
-type clashingSearch = cardinal.Exact[struct {
-	T cardinal.WithComponent[clashingTransform]
-}]
-
 // TestRegister_RejectedRegistrationLeavesInstanceUnregistered: a world that rejects the plugin's
 // systems must leave the instance unregistered, so the same instance still registers on a fresh
 // world instead of being refused as "called twice".
@@ -47,11 +42,7 @@ func TestRegister_RejectedRegistrationLeavesInstanceUnregistered(t *testing.T) {
 	p := physics.NewPlugin(physics.Config{})
 
 	clashing := newWorld(t)
-	clashing.RegisterSystem(func(*struct {
-		cardinal.BaseSystemState
-		Rows clashingSearch
-	}) {
-	})
+	clashing.RegisterComponent[clashingTransform]()
 	err := recoverPanic(func() { clashing.RegisterPlugin(p) })
 	require.ErrorContains(t, err, "component transform_2d already registered with a different type")
 

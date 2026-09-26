@@ -58,6 +58,7 @@ func snapshotBenchWorld(b *testing.B, rate uint32, bodies, warmup int) *cardinal
 	if err != nil {
 		b.Fatal(err)
 	}
+	w.RegisterComponent[harnessTag]()
 	// Zero gravity, together with restingBodiesSystem's spacing, is what makes one tick equal to
 	// the next: nothing accelerates, nothing collides, nothing changes state.
 	w.RegisterPlugin(physics.NewPlugin(physics.Config{

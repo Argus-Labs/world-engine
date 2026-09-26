@@ -801,7 +801,18 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 }
 
 func newBenchWorld() *World {
-	return &World{world: ecs.NewWorld()}
+	w := &World{world: ecs.NewWorld()}
+	w.RegisterComponent[Position3D]()
+	w.RegisterComponent[Velocity3D]()
+	w.RegisterComponent[Health2]()
+	w.RegisterComponent[Inventory]()
+	w.RegisterComponent[Transform]()
+	w.RegisterComponent[PlayerStats]()
+	w.RegisterComponent[AIBehavior]()
+	w.RegisterComponent[NetworkSync]()
+	w.RegisterComponent[Physics]()
+	w.RegisterComponent[Renderer]()
+	return w
 }
 
 func mustInitSystemFields[T any](b testing.TB, w *World, state *T) {

@@ -35,6 +35,7 @@ func benchWorld(b *testing.B, gravity physics.Vec2, workers int) (*cardinal.Worl
 	if err != nil {
 		b.Fatal(err)
 	}
+	w.RegisterComponent[harnessTag]()
 	plugin := physics.NewPlugin(physics.Config{
 		Gravity:  gravity,
 		TickRate: 60,

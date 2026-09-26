@@ -156,12 +156,24 @@ func (p *Plugin) Register(w *cardinal.World) {
 	rt := internal.NewRuntime(p.config.Gravity, fixedDT, p.config.SubStepCount, p.config.Workers)
 	rt.Reset()
 
+	RegisterComponents(w)
 	w.RegisterSystem(physicssystem.NewInitPhysicsSystem(rt), cardinal.WithHook(cardinal.Init))
 	w.RegisterSystem(physicssystem.NewPhysicsPipelineSystem(rt), cardinal.WithHook(cardinal.PreUpdate))
 
 	// Assigned last: a registration that panics above (for example a component name clash) leaves
 	// the instance unregistered, so it can still be registered on another world.
 	p.rt = rt
+}
+
+// RegisterComponents registers physics component types without scheduling systems.
+// Plugin.Register also calls it; harnesses that spawn physics entities before
+// registering the plugin can call it first. Registering twice is a no-op.
+func RegisterComponents(w *cardinal.World) {
+	w.RegisterComponent[component.Transform2D]()
+	w.RegisterComponent[component.Velocity2D]()
+	w.RegisterComponent[component.PhysicsBody2D]()
+	w.RegisterComponent[component.PhysicsSingletonTag]()
+	w.RegisterComponent[component.ActiveContacts]()
 }
 
 // Engine returns the underlying pure-Go Box2D world, or nil when no world exists (before

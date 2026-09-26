@@ -27,6 +27,7 @@ func makeWorld(t *testing.T, gravity physics.Vec2) (*cardinal.World, *physics.Pl
 func makeWorldWorkers(t *testing.T, gravity physics.Vec2, workers int) (*cardinal.World, *physics.Plugin) {
 	t.Helper()
 	w := newWorld(t)
+	w.RegisterComponent[harnessTag]()
 	p := physics.NewPlugin(physics.Config{
 		Gravity:  gravity,
 		TickRate: 60,

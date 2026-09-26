@@ -8,8 +8,9 @@
 //
 //	func TestDST(t *testing.T) {
 //	    cardinal.RunDST(t, func(w *cardinal.World) {
+//	        w.RegisterComponent[component.MyComponent]()
 //	        w.RegisterSystem(system.MySystem)
-//	        // ... register all systems
+//	        // ... register all components and systems
 //	    }, []cardinal.Command{system.BootstrapCommand{Seed: 42}})
 //	}
 package cardinal
@@ -205,7 +206,7 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	})
 	require.NoError(t, err)
 
-	// Register the user's systems (components, commands, events are auto-registered).
+	// Register the user's components and systems (commands and events are auto-registered).
 	setup(w)
 
 	// Replace NATS event handlers with local handlers that assert structural invariants.

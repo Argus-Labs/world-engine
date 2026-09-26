@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
+	"github.com/argus-labs/world-engine/pkg/template/basic/shards/game/component"
 	"github.com/argus-labs/world-engine/pkg/template/basic/shards/game/system"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
@@ -16,6 +17,10 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	w.RegisterComponent[component.PlayerTag]()
+	w.RegisterComponent[component.Health]()
+	w.RegisterComponent[component.Gravestone]()
 
 	w.RegisterSystem(system.PlayerSpawnerSystem, cardinal.WithHook(cardinal.Init))
 

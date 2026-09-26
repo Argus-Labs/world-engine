@@ -168,6 +168,7 @@ func (p *Plugin) Register(w *cardinal.World) {
 	resolverSource := system.EmbedSource{FS: p.config.EmbeddedFS}
 	p.state.LoadAll(context.Background(), p.config.Source, resolverSource)
 	registered = p
+	w.RegisterComponent[component.ConfigManifest]()
 	w.RegisterSystem(func(rs *system.ReconcileState) {
 		p.state.Reconcile(rs, p.config.Source, resolverSource)
 	}, cardinal.WithHook(cardinal.PreUpdate))

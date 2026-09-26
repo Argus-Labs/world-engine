@@ -111,6 +111,19 @@ func (cm *componentManager) getID(name string) (ComponentID, error) {
 	return id, nil
 }
 
+// lookup returns the ID of a registered component type, or an error if T was never
+// registered or its name is registered with a different type.
+func (cm *componentManager) lookup[T Component](name string) (ComponentID, error) {
+	cid, err := cm.getID(name)
+	if err != nil {
+		return 0, err
+	}
+	if _, ok := cm.factories[cid]().(*column[T]); !ok {
+		return 0, eris.Errorf("component %s already registered with a different type", name)
+	}
+	return cid, nil
+}
+
 // RegisterComponent registers a component type with the world.
 func (w *World) RegisterComponent[T Component]() (ComponentID, error) {
 	var zero T
@@ -120,4 +133,10 @@ func (w *World) RegisterComponent[T Component]() (ComponentID, error) {
 		}
 	}
 	return w.state.components.register[T](zero.Name())
+}
+
+// ComponentID returns the ID of a component type registered with RegisterComponent.
+func (w *World) ComponentID[T Component]() (ComponentID, error) {
+	var zero T
+	return w.state.components.lookup[T](zero.Name())
 }

@@ -794,6 +794,8 @@ func TestPhysics2D_CardinalIntegration(t *testing.T) {
 		Debug:               &debug,
 	})
 	require.NoError(t, err)
+	physics.RegisterComponents(w)
+	w.RegisterComponent[harnessTag]()
 
 	// Init hook must run before plugin Init so FullRebuildFromECS sees harness entities.
 	w.RegisterSystem(sceneInitSystem, cardinal.WithHook(cardinal.Init))
