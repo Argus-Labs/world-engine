@@ -293,7 +293,8 @@ w.RegisterComponent[Poisoned]()
 w.RegisterSystem(&MobSystem{})
 ```
 
-Register components before `StartGame`, including across plugins. The first
+Register components before `StartGame`, including across plugins. Every `Register*` method
+panics once the world has started, so a system cannot register anything from `Run`. The first
 `Contains[T]()` or `Exact[T]()` call for an archetype resolves its component set with
 reflection and caches it on the world. Later calls for the same `T` are a map lookup, so
 querying inside `Run` on every tick costs no reflection. The search keeps selecting current

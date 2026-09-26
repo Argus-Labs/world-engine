@@ -111,6 +111,52 @@ func TestRegisterSystem_InitHook(t *testing.T) {
 	require.Equal(t, []int{1}, system.scratch)
 }
 
+// TestRegister_RejectsAfterStart: registration closes when init runs the first system, so nothing
+// can register once the world is running, including a system registering from inside Run.
+func TestRegister_RejectsAfterStart(t *testing.T) {
+	t.Parallel()
+	registrations := map[string]func(w *World){
+		"component":    func(w *World) { w.RegisterComponent[testutils.ComponentA]() },
+		"command":      func(w *World) { w.RegisterCommand[testutils.SimpleCommand]() },
+		"event":        func(w *World) { w.RegisterEvent[testutils.SimpleEvent]() },
+		"system event": func(w *World) { w.RegisterSystemEvent[testutils.SimpleSystemEvent]() },
+		"system":       func(w *World) { w.RegisterSystem(&privateStateSystem{dependency: new(int)}) },
+		"plugin":       func(w *World) { w.RegisterPlugin(noopPlugin{}) },
+	}
+	for kind, register := range registrations {
+		t.Run(kind+" after start", func(t *testing.T) {
+			t.Parallel()
+			w := &World{world: ecs.NewWorld()}
+			w.init()
+			require.PanicsWithError(t, ErrWorldStarted.Error(), func() { register(w) })
+		})
+	}
+
+	t.Run("inside an init system", func(t *testing.T) {
+		t.Parallel()
+		w := &World{world: ecs.NewWorld()}
+		w.RegisterSystem(registeringSystem{}, WithHook(Init))
+		require.PanicsWithError(t, ErrWorldStarted.Error(), w.init)
+	})
+
+	t.Run("inside an update system", func(t *testing.T) {
+		t.Parallel()
+		w := &World{world: ecs.NewWorld()}
+		w.RegisterSystem(registeringSystem{})
+		w.init()
+		require.PanicsWithError(t, ErrWorldStarted.Error(), w.world.Tick)
+	})
+}
+
+type noopPlugin struct{}
+
+func (noopPlugin) Register(*World) {}
+
+// registeringSystem tries to register a component from inside Run.
+type registeringSystem struct{}
+
+func (registeringSystem) Run(w *World) { w.RegisterComponent[testutils.ComponentA]() }
+
 type worldProbeRun struct {
 	tick     uint64
 	contains []float64

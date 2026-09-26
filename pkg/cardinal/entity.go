@@ -78,6 +78,9 @@ func (w *World) Create[T any]() Entity {
 // used by a system, archetype, or snapshot must be registered here; nothing registers
 // components implicitly. Register components before StartGame.
 func (w *World) RegisterComponent[T ecs.Component]() {
+	if w.started {
+		panic(ErrWorldStarted)
+	}
 	if _, err := w.world.RegisterComponent[T](); err != nil {
 		panic(eris.Wrapf(err, "failed to register component %T", *new(T)))
 	}

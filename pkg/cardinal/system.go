@@ -30,9 +30,19 @@ type System interface {
 	Run(w *World)
 }
 
+// ErrWorldStarted is the panic value of every Register* method once init has run the first system.
+// Registration mutates tables that systems read (component IDs, command queues, event and system
+// event registries), so it must finish before StartGame and cannot happen inside a system. This is
+// a plain panic, not assert.That, so it also fires in release builds.
+var ErrWorldStarted = eris.New(
+	"cannot register after the world has started; register before StartGame and outside systems")
+
 // RegisterSystem registers a system for the hook in opts (Update by default). Register the
 // components, commands, events, and system events a system uses before StartGame.
 func (w *World) RegisterSystem(s System, opts ...SystemOption) {
+	if w.started {
+		panic(ErrWorldStarted)
+	}
 	if isNilSystem(s) {
 		panic(eris.Errorf("system %T is nil; register a constructed instance", s))
 	}
@@ -162,6 +172,9 @@ type Command = command.Payload
 // RegisterCommand registers a command type before world startup. Registering it again is a no-op.
 // The service accepts a command from clients only once it is registered here.
 func (w *World) RegisterCommand[T Command]() {
+	if w.started {
+		panic(ErrWorldStarted)
+	}
 	// No codec check: T is constrained to Command (schema.Serializable), so an ungenerated command —
 	// one missing its generated wire methods — does not satisfy the constraint and fails to compile
 	// here. There is no codec registry to consult.
@@ -265,6 +278,9 @@ type Event = event.Payload
 // RegisterEvent registers an event type before world startup so it appears in introspection
 // metadata and can be sent. Registering it again is a no-op.
 func (w *World) RegisterEvent[T Event]() {
+	if w.started {
+		panic(ErrWorldStarted)
+	}
 	var zero T
 	if err := w.debug.register(introspect.Event, zero); err != nil {
 		panic(eris.Wrapf(err, "failed to register event to debug module %s", zero.Name()))
@@ -339,6 +355,9 @@ func (w *World) SendTo[T Event](recipient string, evt T) {
 //	    }
 //	}
 func (w *World) RegisterSystemEvent[T ecs.SystemEvent]() {
+	if w.started {
+		panic(ErrWorldStarted)
+	}
 	var zero T
 	if _, err := w.world.RegisterSystemEvent[T](); err != nil {
 		panic(eris.Wrapf(err, "failed to register system event %s", zero.Name()))

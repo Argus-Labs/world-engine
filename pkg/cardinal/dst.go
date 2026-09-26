@@ -206,7 +206,7 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	})
 	require.NoError(t, err)
 
-	// Register the user's components and systems (commands and events are auto-registered).
+	// Register the user's components, commands, events, and systems.
 	setup(w)
 
 	// Replace NATS event handlers with local handlers that assert structural invariants.
