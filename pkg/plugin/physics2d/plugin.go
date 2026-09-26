@@ -153,11 +153,15 @@ func (p *Plugin) Register(w *cardinal.World) {
 	}
 	fixedDT := 1.0 / tickRate
 
-	p.rt = internal.NewRuntime(p.config.Gravity, fixedDT, p.config.SubStepCount, p.config.Workers)
-	p.rt.Reset()
+	rt := internal.NewRuntime(p.config.Gravity, fixedDT, p.config.SubStepCount, p.config.Workers)
+	rt.Reset()
 
-	w.RegisterSystem(physicssystem.NewInitPhysicsSystem(p.rt), cardinal.WithHook(cardinal.Init))
-	w.RegisterSystem(physicssystem.NewPhysicsPipelineSystem(p.rt), cardinal.WithHook(cardinal.PreUpdate))
+	w.RegisterSystem(physicssystem.NewInitPhysicsSystem(rt), cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(physicssystem.NewPhysicsPipelineSystem(rt), cardinal.WithHook(cardinal.PreUpdate))
+
+	// Assigned last: a registration that panics above (for example a component name clash) leaves
+	// the instance unregistered, so it can still be registered on another world.
+	p.rt = rt
 }
 
 // Engine returns the underlying pure-Go Box2D world, or nil when no world exists (before

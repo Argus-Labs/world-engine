@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
@@ -11,8 +12,18 @@ import (
 )
 
 type Config struct {
-	// Endpoint is the OTLP collector endpoint.
+	// Endpoint is the OTLP collector endpoint, either a bare host:port or a URL with a scheme.
 	Endpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT" envDefault:"jaeger:4317"`
+
+	// TracesEndpoint is the signal-specific OTLP endpoint; when set it takes precedence over Endpoint.
+	TracesEndpoint string `env:"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"`
+
+	// Insecure selects plaintext gRPC for a bare host:port endpoint. Ignored for URL endpoints,
+	// where the scheme decides. Unset keeps the plaintext default.
+	Insecure *bool `env:"OTEL_EXPORTER_OTLP_INSECURE"`
+
+	// TracesInsecure is the signal-specific form of Insecure; when set it takes precedence.
+	TracesInsecure *bool `env:"OTEL_EXPORTER_OTLP_TRACES_INSECURE"`
 
 	// TraceSampleRate is the sampling rate for traces (0.0 to 1.0).
 	TraceSampleRate float64 `env:"OTEL_TRACE_SAMPLE_RATE" envDefault:"1.0"`
@@ -62,17 +73,76 @@ func (cfg *Config) validate() error {
 	}
 
 	// Validate OTLP configuration if endpoint is set
-	if cfg.Endpoint != "" {
+	target := cfg.tracesExporterTarget()
+	if target.Endpoint != "" {
 		if cfg.TraceSampleRate < 0.0 || cfg.TraceSampleRate > 1.0 {
 			return eris.New("trace sample rate must be between 0.0 and 1.0")
+		}
+		if err := target.validate(); err != nil {
+			return err
 		}
 	}
 
 	return nil
 }
 
+// exporterTarget is the resolved OTLP trace exporter destination.
+type exporterTarget struct {
+	// Endpoint is either a bare host:port or a URL with a scheme.
+	Endpoint string
+	// Insecure reports whether the exporter dials plaintext gRPC.
+	Insecure bool
+}
+
+// isURL reports whether the endpoint carries a scheme, in which case the scheme decides transport security.
+func (t exporterTarget) isURL() bool {
+	return strings.Contains(t.Endpoint, "://")
+}
+
+// validate rejects URL endpoints that the exporter would silently replace with its built-in default.
+func (t exporterTarget) validate() error {
+	if !t.isURL() {
+		return nil
+	}
+	u, err := url.Parse(t.Endpoint)
+	if err != nil {
+		return eris.Wrapf(err, "invalid OTLP endpoint URL %q", t.Endpoint)
+	}
+	if u.Host == "" {
+		return eris.Errorf("invalid OTLP endpoint URL %q: missing host", t.Endpoint)
+	}
+	return nil
+}
+
+// tracesExporterTarget resolves the endpoint and transport security for the trace exporter following the
+// OTel SDK environment variable spec, with one deliberate deviation: a bare host:port defaults to plaintext
+// (the spec defaults to TLS) because the default endpoint and in-cluster collectors speak plaintext gRPC.
+//
+//   - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT wins over OTEL_EXPORTER_OTLP_ENDPOINT.
+//   - A URL endpoint is secure iff its scheme is https; the insecure flags are ignored.
+//   - A bare host:port honors OTEL_EXPORTER_OTLP_TRACES_INSECURE, then OTEL_EXPORTER_OTLP_INSECURE.
+func (cfg *Config) tracesExporterTarget() exporterTarget {
+	target := exporterTarget{Endpoint: cfg.Endpoint, Insecure: true}
+	if cfg.TracesEndpoint != "" {
+		target.Endpoint = cfg.TracesEndpoint
+	}
+	if target.isURL() {
+		target.Insecure = !strings.HasPrefix(strings.ToLower(target.Endpoint), "https://")
+		return target
+	}
+	if cfg.Insecure != nil {
+		target.Insecure = *cfg.Insecure
+	}
+	if cfg.TracesInsecure != nil {
+		target.Insecure = *cfg.TracesInsecure
+	}
+	return target
+}
+
 func (cfg *Config) applyToOptions(opt *Options) {
-	opt.Endpoint = cfg.Endpoint
+	target := cfg.tracesExporterTarget()
+	opt.Endpoint = target.Endpoint
+	opt.Insecure = target.Insecure
 	opt.LogLevel = cfg.LogLevel
 	opt.LogFormat = ParseLogFormat(cfg.LogFormat)
 	opt.TraceSampleRate = cfg.TraceSampleRate
@@ -87,7 +157,8 @@ func (cfg *Config) applyToOptions(opt *Options) {
 
 type Options struct {
 	ServiceName     string // Name of the service for telemetry
-	Endpoint        string
+	Endpoint        string // OTLP endpoint, a bare host:port or a URL with a scheme
+	Insecure        bool   // Plaintext gRPC for a bare host:port endpoint; ignored for URLs
 	LogLevel        string
 	LogFormat       LogFormat // Log output format
 	TraceSampleRate float64

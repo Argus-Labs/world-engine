@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -113,8 +114,21 @@ func newPropagator() propagation.TextMapPropagator {
 	)
 }
 
+// exporterEndpointOptions maps a resolved endpoint onto exporter options. A URL endpoint is handed to the
+// exporter whole so its scheme selects the transport; a bare host:port is dialed with TLS unless insecure.
+func exporterEndpointOptions(endpoint string, insecure bool) []otlptracegrpc.Option {
+	if strings.Contains(endpoint, "://") {
+		return []otlptracegrpc.Option{otlptracegrpc.WithEndpointURL(endpoint)}
+	}
+	options := []otlptracegrpc.Option{otlptracegrpc.WithEndpoint(endpoint)}
+	if insecure {
+		options = append(options, otlptracegrpc.WithInsecure())
+	}
+	return options
+}
+
 func newTracerProvider(ctx context.Context, res *resource.Resource, opts Options) (*trace.TracerProvider, error) {
-	exporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithEndpoint(opts.Endpoint), otlptracegrpc.WithInsecure())
+	exporter, err := otlptracegrpc.New(ctx, exporterEndpointOptions(opts.Endpoint, opts.Insecure)...)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to create OTLP trace exporter")
 	}

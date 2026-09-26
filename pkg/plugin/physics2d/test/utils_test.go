@@ -26,6 +26,19 @@ func makeWorld(t *testing.T, gravity physics.Vec2) (*cardinal.World, *physics.Pl
 // (box2d.WorldDef.WorkerCount; results are byte-identical for every value).
 func makeWorldWorkers(t *testing.T, gravity physics.Vec2, workers int) (*cardinal.World, *physics.Plugin) {
 	t.Helper()
+	w := newWorld(t)
+	p := physics.NewPlugin(physics.Config{
+		Gravity:  gravity,
+		TickRate: 60,
+		Workers:  workers,
+	})
+	w.RegisterPlugin(p)
+	return w, p
+}
+
+// newWorld creates a Cardinal world at 60 Hz with no plugin installed.
+func newWorld(t *testing.T) *cardinal.World {
+	t.Helper()
 	debug := true
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
 		Region:              "local",
@@ -38,13 +51,7 @@ func makeWorldWorkers(t *testing.T, gravity physics.Vec2, workers int) (*cardina
 		Debug:               &debug,
 	})
 	require.NoError(t, err)
-	p := physics.NewPlugin(physics.Config{
-		Gravity:  gravity,
-		TickRate: 60,
-		Workers:  workers,
-	})
-	w.RegisterPlugin(p)
-	return w, p
+	return w
 }
 
 // newRigid returns a PhysicsBody2D with Active/Awake/SleepingAllowed true and GravityScale 1.
