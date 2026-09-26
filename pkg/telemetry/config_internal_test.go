@@ -89,9 +89,15 @@ func TestLoadConfig_ResolvesExporterTargetFromEnv(t *testing.T) {
 		wantInsecure bool
 	}{
 		{
-			name:         "no variables use the plaintext default",
+			name:         "no variables use the in-cluster groundcover default",
 			env:          map[string]string{},
-			wantEndpoint: "jaeger:4317",
+			wantEndpoint: defaultEndpoint,
+			wantInsecure: true,
+		},
+		{
+			name:         "an explicitly empty endpoint disables tracing",
+			env:          map[string]string{"OTEL_EXPORTER_OTLP_ENDPOINT": ""},
+			wantEndpoint: "",
 			wantInsecure: true,
 		},
 		{

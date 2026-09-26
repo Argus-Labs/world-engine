@@ -19,16 +19,16 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
-	otelTrace "go.opentelemetry.io/otel/trace"
-	"go.opentelemetry.io/otel/trace/noop"
 )
 
-// setupOpenTelemetry sets up OpenTelemetry for the service.
-// It returns a tracer, logger, and shutdown function.
+// setupOpenTelemetry sets up OpenTelemetry for the service. It installs the global tracer
+// provider and propagator that trace.New relies on, and returns the logger and a shutdown
+// function. The globals are process-wide, so a process owns exactly one Telemetry: a second
+// instance would take over the first one's spans, and shutting either down stops both.
 func setupOpenTelemetry(
 	ctx context.Context,
 	opts Options,
-) (otelTrace.Tracer, zerolog.Logger, func(context.Context) error, error) {
+) (zerolog.Logger, func(context.Context) error, error) {
 	var shutdownFuncs []func(context.Context) error
 	var err error
 
@@ -48,30 +48,34 @@ func setupOpenTelemetry(
 	// Setup logger first
 	logger := newLogger(opts)
 
-	// Auto-detect: if endpoint is empty, return noop tracer
+	// An empty endpoint disables tracing: the global provider stays the SDK default no-op.
 	if opts.Endpoint == "" {
-		return noop.NewTracerProvider().Tracer(opts.ServiceName), logger, shutdown, nil
+		return logger, shutdown, nil
 	}
 
 	res, err := newResource(opts)
 	if err != nil {
 		handleErr(err)
-		return noop.NewTracerProvider().Tracer(opts.ServiceName), logger, shutdown, err
+		return logger, shutdown, err
 	}
 
 	propagator := newPropagator()
 	otel.SetTextMapPropagator(propagator)
 
+	// Route exporter failures through the service logger instead of OTel's own stderr logger.
+	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+		logger.Warn().Err(err).Msg("opentelemetry export failed")
+	}))
+
 	tracerProvider, err := newTracerProvider(ctx, res, opts)
 	if err != nil {
 		handleErr(err)
-		return noop.NewTracerProvider().Tracer(opts.ServiceName), logger, shutdown, err
+		return logger, shutdown, err
 	}
 	shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
 	otel.SetTracerProvider(tracerProvider)
 
-	tracer := tracerProvider.Tracer(opts.ServiceName)
-	return tracer, logger, shutdown, err
+	return logger, shutdown, err
 }
 
 func newResource(opts Options) (*resource.Resource, error) {

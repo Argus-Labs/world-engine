@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
@@ -12,8 +13,15 @@ import (
 )
 
 type Config struct {
-	// Endpoint is the OTLP collector endpoint, either a bare host:port or a URL with a scheme.
-	Endpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT" envDefault:"jaeger:4317"`
+	// Endpoint is the OTLP gRPC collector endpoint, either a bare host:port or a URL with a scheme.
+	// The default targets the groundcover sensor inside a Kubernetes cluster. A bare host:port is
+	// sent in plaintext unless OTEL_EXPORTER_OTLP_INSECURE says otherwise; an https:// URL enables
+	// TLS with the host's root CAs, which is what groundcover's BYOC ingestion endpoint needs.
+	// Auth headers such as groundcover's ingestion key come from the standard
+	// OTEL_EXPORTER_OTLP_HEADERS variable (for example "apikey=<ingestion-key>"). Setting the
+	// variable to an empty string disables tracing; the default is applied in loadConfig because
+	// the env parser would otherwise substitute it for an explicitly empty value.
+	Endpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT"`
 
 	// TracesEndpoint is the signal-specific OTLP endpoint; when set it takes precedence over Endpoint.
 	TracesEndpoint string `env:"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"`
@@ -44,12 +52,17 @@ type Config struct {
 	PosthogAPIKey string `env:"POSTHOG_API_KEY"`
 }
 
+const defaultEndpoint = "groundcover-sensor.groundcover.svc.cluster.local:4317"
+
 // LoadConfig loads the configuration from environment variables.
 func loadConfig() (Config, error) {
 	cfg := Config{}
 
 	if err := env.Parse(&cfg); err != nil {
 		return cfg, eris.Wrap(err, "failed to parse telemetry config")
+	}
+	if _, set := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT"); !set {
+		cfg.Endpoint = defaultEndpoint
 	}
 
 	if err := cfg.validate(); err != nil {

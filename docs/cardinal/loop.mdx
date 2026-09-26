@@ -39,3 +39,24 @@ By doing this, Cardinal's loop-driven runtime provides the following benefits:
 - **Consistent ordering of game actions**: In an event-driven runtime, each game action is executed in a different transaction. This means that the ordering of game actions is not guaranteed. For example, if a player is hit by a bullet and the player's HP is reduced to 0, the player might still be able to shoot a bullet before the player's HP is reduced to 0. This is because the player's HP is reduced in a different transaction than the player's shooting action. This is not an issue with loop-driven runtimes because all game actions are executed in an explicit sequential order.
 
 - **Zero cost**: Loop-driven runtimes do not require any transactions to be sent to the smart contract. This means there is no cost associated with updating the game state. Using this architecture, game state can be updated as frequently as you want while eliminating extra gas costs.
+
+### Tracing the Loop
+
+Cardinal exports OpenTelemetry traces over OTLP gRPC. The defaults target groundcover: `OTEL_EXPORTER_OTLP_ENDPOINT` defaults to the in-cluster sensor at `groundcover-sensor.groundcover.svc.cluster.local:4317`, which is reached in plaintext. To send directly to groundcover's BYOC ingestion endpoint from outside the cluster, set the endpoint to `https://{BYOC_ENDPOINT}` (the `https://` scheme turns on TLS) and pass the ingestion key through `OTEL_EXPORTER_OTLP_HEADERS=apikey={ingestion-key}`. Set `OTEL_TRACE_SAMPLE_RATE` between `0.0` and `1.0` to control how many ticks are sampled. Setting `OTEL_EXPORTER_OTLP_ENDPOINT` to an empty string disables tracing.
+
+Each tick is one root trace named `cardinal.tick` with these children:
+
+| Span | Attributes |
+|:--|:--|
+| `cardinal.tick` | `cardinal.tick.height`, `cardinal.tick.commands` (commands drained this tick) |
+| `cardinal.system` | `cardinal.system.name`, `cardinal.system.hook` (one span per system run) |
+| `cardinal.events.dispatch` | error status when any event handler fails |
+| `cardinal.event.publish` | `cardinal.event.name`, `cardinal.event.recipient`, `cardinal.event.subscribers`, `cardinal.event.waiters` (one per event) |
+| `cardinal.command.send` | `cardinal.command.name`, `cardinal.command.target` (one per inter-shard command) |
+| `cardinal.persist_state` | `cardinal.snapshot.due` (present only on ticks that serialize state) |
+
+Startup emits `cardinal.init` (init systems, also on debug reset) and `cardinal.restore` (snapshot load).
+
+**Commands.** The `SendCommand` request span (from ConnectRPC) and, for a command from another shard, the `handler.execute` span under the NATS `handler.command.*` span carry `cardinal.command.name`. The request finishes before the tick that processes the command, so the tick is not its child. Instead, `cardinal.tick` holds one span link per drained command whose request span was sampled (capped at 128, the SDK's default link limit), tagged with `cardinal.command.name` and `cardinal.command.persona`. Follow the link from the tick to find the request, or search the request's trace for linked ticks.
+
+**Inter-shard commands.** `cardinal.command.send` injects the tick's trace context into the NATS request headers, so the receiving shard's handler span joins the sending tick's trace. The receiving tick is a new root trace of its own and links back to that handler span, the same way a local `SendCommand` is linked. A cross-shard hop is therefore two traces joined by a link, not one continuous trace.

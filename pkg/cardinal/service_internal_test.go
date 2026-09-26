@@ -22,7 +22,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -111,7 +110,7 @@ func TestService_PublishDefaultEvent(t *testing.T) {
 		waiter := fixture.svc.addReplyWaiter(payload.Name())
 		defer fixture.svc.removeReplyWaiter(payload.Name(), waiter)
 
-		err := fixture.svc.publishDefaultEvent(event.Event{
+		err := fixture.svc.publishDefaultEvent(context.Background(), event.Event{
 			Kind:    event.KindDefault,
 			Payload: payload,
 		})
@@ -146,7 +145,7 @@ func TestService_PublishInterShardCommand(t *testing.T) {
 		// Have service A send an inter-shard command targeting service B.
 		payload := testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
 		sender := micro.String(fixtureA.world.address)
-		err := fixtureA.svc.publishInterShardCommand(event.Event{
+		err := fixtureA.svc.publishInterShardCommand(context.Background(), event.Event{
 			Kind: event.KindInterShardCommand,
 			Payload: command.Command{
 				Name:    payload.Name(),
@@ -222,7 +221,6 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool
 	address := RandServiceAddress(prng)
 	tel := telemetry.Telemetry{
 		Logger: zerolog.Nop(),
-		Tracer: noop.NewTracerProvider().Tracer("test"),
 	}
 
 	w := &World{

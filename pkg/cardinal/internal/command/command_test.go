@@ -1,6 +1,7 @@
 package command_test
 
 import (
+	"context"
 	"math/rand/v2"
 	"sync"
 	"testing"
@@ -64,7 +65,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 				Payload: pbPayload,
 			}
 
-			err := impl.Enqueue(cmdpb)
+			err := impl.Enqueue(context.Background(), cmdpb)
 			require.NoError(t, err)
 
 			model.enqueue(payload.Name(), command.Command{
@@ -324,7 +325,7 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 					Payload: pbPayload,
 				}
 
-				if err := impl.Enqueue(cmdpb); err != nil {
+				if err := impl.Enqueue(context.Background(), cmdpb); err != nil {
 					t.Errorf("Enqueue failed: %v", err)
 					return
 				}
