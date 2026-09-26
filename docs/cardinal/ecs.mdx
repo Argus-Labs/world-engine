@@ -18,6 +18,7 @@ Before getting into how to use ECS, we'll briefly cover the `World` type. This i
 package main
 
 import (
+	"my-game/shards/game/component"
 	"my-game/shards/game/system"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
@@ -32,9 +33,13 @@ func main() {
 		panic(err.Error())
 	}
 
+	// Register components before the systems that use them.
+	w.RegisterComponent[component.Position]()
+	w.RegisterComponent[component.Health]()
+
 	// Register systems.
-	w.RegisterSystem(system.MovementSystem)
-	w.RegisterSystem(system.CombatSystem)
+	w.RegisterSystem(&system.MovementSystem{})
+	w.RegisterSystem(&system.CombatSystem{})
 
 	// Start the game loop.
 	w.StartGame()
@@ -75,7 +80,7 @@ w.RegisterComponent[Position]()
 ```
 
 Registration is explicit. Systems, archetypes, and snapshots only see components registered
-this way, and registering a system that references an unregistered component panics.
+this way, and a query or `Create[T]` that names an unregistered component panics.
 
 ### What a Component May Hold
 
@@ -143,9 +148,11 @@ Anything that needs a type constraint is a package function, for example `Equal`
 Derive, then `Set` the component that holds it:
 
 ```go
-func BuffSystem(state *BuffSystemState) error {
-	now := state.Tick()
-	for mob := range state.Mobs.Iter() {
+type BuffSystem struct{}
+
+func (s *BuffSystem) Run(w *cardinal.World) {
+	now := w.TickHeight()
+	for mob := range w.Contains[struct{ Buffs Buffs }]().Iter() {
 		buffs := mob.Get[Buffs]()
 
 		// Drop expired buffs and add a new one.
@@ -155,7 +162,6 @@ func BuffSystem(state *BuffSystemState) error {
 
 		mob.Set(buffs)
 	}
-	return nil
 }
 ```
 
@@ -210,28 +216,27 @@ This is useful for filtering entities without storing additional data, e.g. find
 
 ## Systems
 
-Systems are plain functions that take a single parameter and return an error. The parameter is a pointer to a user-defined struct type that embeds `BaseSystemState`. This struct defines a system's dependencies and what it can access, e.g. components, commands, events, etc. (We'll cover these in more detail soon.)
+A system is any type with a `Run(w *cardinal.World)` method. The world is passed in on every run and gives the system access to queries, commands, events, entities, and the current tick. (We'll cover these in more detail soon.) Fields on the struct hold the system's own dependencies, such as a runtime or config.
 
 This is the simplest possible system:
 
 ```go
 import "github.com/argus-labs/world-engine/pkg/cardinal"
 
-type MySystemState struct {
-	cardinal.BaseSystemState // Required
-}
+type MySystem struct{}
 
-func MySystem(state *MySystemState) error {
+func (s *MySystem) Run(w *cardinal.World) {
 	// Your game logic here.
-	return nil
 }
 ```
 
 You must register systems with the world to run them:
 
 ```go
-w.RegisterSystem(MySystem)
+w.RegisterSystem(&MySystem{})
 ```
+
+`RegisterSystem` accepts a system instance and passes the world it was registered with to every `Run` call.
 
 Registered systems run sequentially within each tick phase, in registration order.
 
@@ -241,7 +246,7 @@ You can control when a system executes during a tick by specifying a hook when y
 
 ```go
 // This system now runs in the pre-update phase of the tick.
-w.RegisterSystem(SetupSystem, cardinal.WithHook(cardinal.PreUpdate))
+w.RegisterSystem(&MySystem{}, cardinal.WithHook(cardinal.PreUpdate))
 ```
 
 By default, systems run on the update phase. Here are the different hooks you can use:
@@ -255,63 +260,70 @@ By default, systems run on the update phase. Here are the different hooks you ca
 
 Each of these corresponds to a tick phase, except `Init`, which runs only once in the first tick.
 
-## Searches
+## Queries
 
-Searches select entities by component type:
+A query selects entities by component type. Call it on the world from inside `Run`:
 
-- `Contains[T]` matches entities with every declared component, allowing extras.
-- `Exact[T]` matches entities with exactly the declared components.
+- `w.Contains[T]()` matches entities with every component in `T`, allowing extras.
+- `w.Exact[T]()` matches entities with exactly the components in `T`.
 
-Declare an archetype as a struct of `WithComponent[C]` fields. Every component in it must
-be registered with `w.RegisterComponent[C]()` before the system that uses it is registered.
-Nothing registers components implicitly. Registering a system whose fields name an
-unregistered component panics. The declarations carry no entity data. Queries return
-world-bound `Entity` handles.
+`T` is an archetype: a struct whose fields are component types. The struct carries
+no entity data; it names a set of components. Every component in it must be registered with
+`w.RegisterComponent[C]()` before `StartGame`. Nothing registers components implicitly.
+A query that names an unregistered component panics. Queries return world-bound `Entity`
+handles.
 
 ```go
 type Mob struct {
-    Health   cardinal.WithComponent[Health]
-    Position cardinal.WithComponent[Position]
+    Health   Health
+    Position Position
 }
 
-type MobSystemState struct {
-    cardinal.BaseSystemState
-    Mobs     cardinal.Contains[Mob]
-    Poisoned cardinal.WithComponent[Poisoned]
+type MobSystem struct{}
+
+func (s *MobSystem) Run(w *cardinal.World) {
+    for mob := range w.Contains[Mob]().Iter() {
+        // ...
+    }
 }
 
 w.RegisterComponent[Health]()
 w.RegisterComponent[Position]()
 w.RegisterComponent[Poisoned]()
-w.RegisterSystem(MobSystem)
+w.RegisterSystem(&MobSystem{})
 ```
 
-`Poisoned` declares an optional component without requiring it in the `Mobs` search.
+Register components before `StartGame`, including across plugins. Every `Register*` method
+panics once the world has started, so a system cannot register anything from `Run`. The first
+`Contains[T]()` or `Exact[T]()` call for an archetype resolves its component set with
+reflection and caches it on the world. Later calls for the same `T` are a map lookup, so
+querying inside `Run` on every tick costs no reflection. The search keeps selecting current
+entities as components change.
 
 ### Creating an Entity
 
-Use the generic `Create[T]` method inherited from `BaseSystemState`:
+Use the world's generic `Create[T]` method:
 
 ```go
-func SpawnMob(state *MobSystemState) {
-    mob := state.Create[Mob]()
+func SpawnMob(w *cardinal.World) {
+    mob := w.Create[Mob]()
     mob.Set(Health{Value: 100})
     mob.Set(Position{X: 0, Y: 0})
 }
 ```
 
 Creation adds exactly the archetype's components, initialized to zero. `Create[T]` panics
-if any component in `T` was not registered with `w.RegisterComponent`. It does not need a
-search field for `T`. `state.Mobs.Create()` also remains available and returns an `Entity`.
+if any component in `T` was not registered with `w.RegisterComponent`. A query's `Create()`
+does the same for the query's archetype: `w.Contains[Mob]().Create()`.
 
 ### Entity Handles and Stored IDs
 
 An `Entity` carries its numeric ID and owning world. Its methods need no extra world argument.
 Use `entity.ID()` in components, commands, physics lookups, and persistent data. To access
-that ID in a system, bind it to the system's world:
+that ID in a system, bind it to the world:
 
 ```go
-entity := state.Entity(entityID)
+entity := w.Entity(entityID)
 if entity.Alive() && entity.Has[Health]() {
     health := entity.Get[Health]()
     entity.Set(Health{Value: health.Value - 10})
@@ -319,7 +331,7 @@ if entity.Alive() && entity.Has[Health]() {
 ```
 
 `EntityID` remains a numeric value. Store IDs rather than runtime handles. After snapshot
-restoration, `state.Entity(savedID)` binds an ID to the restored world. IDs belong to one
+restoration, `w.Entity(savedID)` binds an ID to the restored world. IDs belong to one
 world and can be reused after destruction or reset, so discard handles when that happens.
 Access handles from systems on the world's execution goroutine.
 
@@ -328,8 +340,8 @@ Access handles from systems on the world's execution goroutine.
 `Iter` yields each matching `Entity`:
 
 ```go
-func DamageMobs(state *MobSystemState) {
-    for mob := range state.Mobs.Iter() {
+func DamageMobs(w *cardinal.World) {
+    for mob := range w.Contains[Mob]().Iter() {
         health := mob.Get[Health]()
         mob.Set(Health{Value: health.Value - 10})
     }
@@ -345,18 +357,18 @@ Use `Filter(func(Entity) bool)` and `Limit` to narrow results.
 
 ### Getting a Specific Entity
 
-`GetByID` validates the search's component requirements before returning a handle:
+`GetByID` validates the query's component requirements before returning a handle:
 
 ```go
-mob, err := state.Mobs.GetByID(entityID)
+mob, err := w.Contains[Mob]().GetByID(entityID)
 if err != nil {
-    // The entity is absent or its components do not match the search.
+    // The entity is absent or its components do not match the query.
     return
 }
 health := mob.Get[Health]()
 ```
 
-Use `state.Entity(entityID)` when no archetype check is needed. Binding does not itself
+Use `w.Entity(entityID)` when no archetype check is needed. Binding does not itself
 check existence. `Alive()` and `Has[T]()` return false for absent entities.
 
 ### Adding and Removing Components
@@ -371,14 +383,14 @@ if mob.Has[Poisoned]() {
 ```
 
 Optional types must be registered with `w.RegisterComponent[T]()` like any other component.
-A `WithComponent[T]` system field checks that at registration time. They do not need to be
-part of the query that found the entity.
+They do not need to be part of the query that found the entity, and nothing declares them
+on the system.
 `Get`, `Set`, and `Remove` panic for invalid operations, including access to a destroyed
 entity or an unregistered component. `Get` also panics for an absent component.
 Removing a registered component that is already absent is a no-op.
 
 Adding or removing components changes an entity's archetype. Collect handles before making
-structural changes while iterating a search, so moving rows cannot skip other matches.
+structural changes while iterating a query, so moving rows cannot skip other matches.
 
 ### Destroying an Entity
 

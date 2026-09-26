@@ -1,7 +1,6 @@
 package cardinal
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
@@ -13,29 +12,21 @@ import (
 )
 
 type entityTestArchetype struct {
-	A WithComponent[testutils.ComponentA]
+	A testutils.ComponentA
 }
 
-type entityTestState struct {
-	BaseSystemState
-	Entities Contains[entityTestArchetype]
-	Optional WithComponent[testutils.ComponentB]
-}
-
-func newEntityTestState(t *testing.T) (*World, *entityTestState) {
+func newEntityTestWorld(t *testing.T) *World {
 	t.Helper()
 	w := &World{world: ecs.NewWorld()}
 	w.RegisterComponent[testutils.ComponentA]()
 	w.RegisterComponent[testutils.ComponentB]()
-	s := &entityTestState{}
-	require.NoError(t, initSystemFields(reflect.ValueOf(s).Elem(), w))
-	return w, s
+	return w
 }
 
 func TestEntity_ComponentLifecycle(t *testing.T) {
 	t.Parallel()
-	_, state := newEntityTestState(t)
-	entity := state.Create[entityTestArchetype]()
+	w := newEntityTestWorld(t)
+	entity := w.Create[entityTestArchetype]()
 	require.True(t, entity.Alive())
 	assert.Equal(t, testutils.ComponentA{}, entity.Get[testutils.ComponentA]())
 	assert.False(t, entity.Has[testutils.ComponentB]())
@@ -45,9 +36,9 @@ func TestEntity_ComponentLifecycle(t *testing.T) {
 	copyOfA.X = 99
 	assert.Equal(t, testutils.ComponentA{X: 12, Y: 34}, entity.Get[testutils.ComponentA]())
 	entity.Set(copyOfA)
-	assert.Equal(t, testutils.ComponentA{X: 99, Y: 34}, state.Entity(entity.ID()).Get[testutils.ComponentA]())
+	assert.Equal(t, testutils.ComponentA{X: 99, Y: 34}, w.Entity(entity.ID()).Get[testutils.ComponentA]())
 
-	// Optional declarations register components without requiring them in the query.
+	// Optional components are registered explicitly without requiring them in the query.
 	entity.Set(testutils.ComponentB{ID: 7, Label: "added", Enabled: true})
 	require.True(t, entity.Has[testutils.ComponentB]())
 	assert.Equal(t, testutils.ComponentB{ID: 7, Label: "added", Enabled: true}, entity.Get[testutils.ComponentB]())
@@ -70,10 +61,9 @@ func TestEntity_ComponentLifecycle(t *testing.T) {
 
 func TestEntity_WorldIsolationAndSnapshotRestore(t *testing.T) {
 	t.Parallel()
-	worldA, stateA := newEntityTestState(t)
-	_, stateB := newEntityTestState(t)
-	a := stateA.Create[entityTestArchetype]()
-	b := stateB.Create[entityTestArchetype]()
+	worldA, worldB := newEntityTestWorld(t), newEntityTestWorld(t)
+	a := worldA.Create[entityTestArchetype]()
+	b := worldB.Create[entityTestArchetype]()
 	require.Equal(t, a.ID(), b.ID(), "numeric IDs are local to a world")
 	a.Set(testutils.ComponentA{X: 10})
 	b.Set(testutils.ComponentA{X: 20})
@@ -81,12 +71,12 @@ func TestEntity_WorldIsolationAndSnapshotRestore(t *testing.T) {
 	assert.Equal(t, testutils.ComponentA{X: 20}, b.Get[testutils.ComponentA]())
 
 	// Restore into a newly registered world, then rebind the stored numeric ID.
-	restored, restoredState := newEntityTestState(t)
+	restored := newEntityTestWorld(t)
 	// Encode is now bytes-first (EncodeState); restore still goes through FromProto.
 	var stateAProto cardinalv1.WorldState
 	require.NoError(t, proto.Unmarshal(worldA.world.EncodeState(nil), &stateAProto))
 	require.NoError(t, restored.world.FromProto(&stateAProto))
-	rebound := restoredState.Entity(a.ID())
+	rebound := restored.Entity(a.ID())
 	require.True(t, rebound.Alive())
 	assert.Equal(t, testutils.ComponentA{X: 10}, rebound.Get[testutils.ComponentA]())
 	rebound.Set(testutils.ComponentA{X: 30})
@@ -98,16 +88,17 @@ func TestEntity_WorldIsolationAndSnapshotRestore(t *testing.T) {
 
 func TestEntity_QueryHandlesRemainBound(t *testing.T) {
 	t.Parallel()
-	_, state := newEntityTestState(t)
-	first := state.Entities.Create()
-	second := state.Entities.Create()
+	w := newEntityTestWorld(t)
+	entities := w.Contains[entityTestArchetype]()
+	first := entities.Create()
+	second := entities.Create()
 	secondID := second.ID()
 	first.Set(testutils.ComponentA{X: 1})
 	second.Set(testutils.ComponentA{X: 2})
 	var handles []Entity
-	for entity := range state.Entities.Iter() {
+	for entity := range entities.Iter() {
 		// Nested lookups must not change the outer entity's binding.
-		other, err := state.Entities.GetByID(secondID)
+		other, err := entities.GetByID(secondID)
 		require.NoError(t, err)
 		assert.Equal(t, testutils.ComponentA{X: 2}, other.Get[testutils.ComponentA]())
 		handles = append(handles, entity)
@@ -118,7 +109,7 @@ func TestEntity_QueryHandlesRemainBound(t *testing.T) {
 	assert.Equal(t, testutils.ComponentA{X: 1}, handles[0].Get[testutils.ComponentA]())
 	assert.Equal(t, testutils.ComponentA{X: 2}, handles[1].Get[testutils.ComponentA]())
 	// A copied query has no pointers into another query's result storage.
-	queryCopy := state.Entities
+	queryCopy := entities
 	third := queryCopy.Create()
 	third.Set(testutils.ComponentA{X: 3})
 	assert.Equal(t, testutils.ComponentA{X: 1}, first.Get[testutils.ComponentA]())
@@ -127,8 +118,8 @@ func TestEntity_QueryHandlesRemainBound(t *testing.T) {
 
 func TestEntity_ZeroAndMissingHandles(t *testing.T) {
 	t.Parallel()
-	_, state := newEntityTestState(t)
-	for _, entity := range []Entity{{}, state.Entity(999)} {
+	w := newEntityTestWorld(t)
+	for _, entity := range []Entity{{}, w.Entity(999)} {
 		assert.False(t, entity.Alive())
 		assert.False(t, entity.Has[testutils.ComponentA]())
 		assert.False(t, entity.Destroy())
@@ -141,41 +132,73 @@ func TestEntity_ZeroAndMissingHandles(t *testing.T) {
 func TestEntity_RegisterComponent(t *testing.T) {
 	t.Parallel()
 	w := &World{world: ecs.NewWorld()}
-	state := &BaseSystemState{world: w}
-	require.Panics(t, func() { state.Create[entityTestArchetype]() })
+	require.Panics(t, func() { w.Create[entityTestArchetype]() })
 	w.RegisterComponent[testutils.ComponentA]()
 	w.RegisterComponent[testutils.ComponentA]()
-	entity := state.Create[entityTestArchetype]()
+	entity := w.Create[entityTestArchetype]()
 	entity.Set(testutils.ComponentA{X: 42})
 	assert.Equal(t, testutils.ComponentA{X: 42}, entity.Get[testutils.ComponentA]())
-	require.Panics(t, func() { state.Create[int]() })
-	require.Panics(t, func() { state.Create[struct{ A int }]() })
-	require.Panics(t, func() {
-		state.Create[struct {
-			A *WithComponent[testutils.ComponentA]
-		}]()
-	})
-	empty := state.Create[struct{}]()
+	require.Panics(t, func() { w.Create[int]() })
+	require.Panics(t, func() { w.Create[struct{ A int }]() })
+	require.Panics(t, func() { w.Create[struct{ A *testutils.ComponentA }]() })
+	require.Panics(t, func() { w.Create[struct{ A testutils.ComponentB }]() })
+	empty := w.Create[struct{}]()
 	assert.True(t, empty.Alive())
 	assert.False(t, empty.Has[testutils.ComponentA]())
 }
 
-func TestSystemFields_RejectUnregisteredComponent(t *testing.T) {
+// Contains and Exact resolve explicitly registered components on first use.
+func TestSearch_RequiresExplicitRegistration(t *testing.T) {
 	t.Parallel()
 	w := &World{world: ecs.NewWorld()}
-	require.Panics(t, func() { w.RegisterSystem(func(*entityTestState) {}) })
+	require.Panics(t, func() { w.Contains[entityTestArchetype]() })
+	require.Panics(t, func() { w.Exact[entityTestArchetype]() })
 	w.RegisterComponent[testutils.ComponentA]()
-	require.Panics(t, func() { w.RegisterSystem(func(*entityTestState) {}) })
-	w.RegisterComponent[testutils.ComponentB]()
-	require.NotPanics(t, func() { w.RegisterSystem(func(*entityTestState) {}) })
+
+	w.Contains[entityTestArchetype]().Create().Set(testutils.ComponentA{X: 42})
+	entity, err := w.Contains[entityTestArchetype]().Iter().Single()
+	require.NoError(t, err)
+	require.Equal(t, testutils.ComponentA{X: 42}, entity.Get[testutils.ComponentA]())
+
+	// A later search for the same archetype sees the same stored values and IDs.
+	found, err := w.Exact[entityTestArchetype]().GetByID(entity.ID())
+	require.NoError(t, err)
+	require.Equal(t, testutils.ComponentA{X: 42}, found.Get[testutils.ComponentA]())
+}
+
+func TestSearch_RejectsNonArchetypes(t *testing.T) {
+	t.Parallel()
+	w := &World{world: ecs.NewWorld()}
+	w.RegisterComponent[testutils.ComponentA]()
+	require.Panics(t, func() { w.Contains[int]() })
+	require.Panics(t, func() { w.Contains[struct{ A int }]() })
+	require.Panics(t, func() { w.Contains[struct{ A *testutils.ComponentA }]() })
+	entity := w.Contains[struct{ testutils.ComponentA }]().Create()
+	entity.Set(testutils.ComponentA{X: 17})
+	require.Equal(t, testutils.ComponentA{X: 17}, entity.Get[testutils.ComponentA]())
+}
+
+type collidingComponent struct{ testutils.ComponentA }
+
+func TestSearch_RejectsComponentNameCollision(t *testing.T) {
+	t.Parallel()
+	w := &World{world: ecs.NewWorld()}
+	w.RegisterComponent[testutils.ComponentA]()
+	w.Contains[struct{ testutils.ComponentA }]()
+	require.Panics(t, func() { w.Contains[struct{ collidingComponent }]() })
+
+	_, err := w.archetype[struct{ A collidingComponent }]()
+	require.ErrorIs(t, err, ecs.ErrComponentNotFound)
+	require.ErrorContains(t, err, "cannot resolve component field A")
+	require.ErrorContains(t, err, "is registered with a different type")
 }
 
 func TestSearch_LimitZeroDoesNotVisitEntities(t *testing.T) {
 	t.Parallel()
-	_, state := newEntityTestState(t)
-	state.Create[entityTestArchetype]()
+	w := newEntityTestWorld(t)
+	w.Create[entityTestArchetype]()
 	visits := 0
-	results := state.Entities.Iter().Filter(func(_ Entity) bool {
+	results := w.Contains[entityTestArchetype]().Iter().Filter(func(_ Entity) bool {
 		visits++
 		return true
 	}).Limit(0)

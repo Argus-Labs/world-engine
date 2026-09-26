@@ -42,11 +42,10 @@ func spansByName(exporter *tracetest.InMemoryExporter) map[string]tracetest.Span
 }
 
 type tracedSystem struct {
-	BaseSystemState
 	runs int
 }
 
-func (s *tracedSystem) Run() { s.runs++ }
+func (s *tracedSystem) Run(*World) { s.runs++ }
 
 // TestTickEmitsSpans checks the span tree a tracing backend receives for one tick: a root tick span
 // with one child per system, the event dispatch, and the snapshot write.
@@ -71,7 +70,7 @@ func TestTickEmitsSpans(t *testing.T) {
 	exporter := newRecordingTracer(t)
 
 	sys := &tracedSystem{}
-	w.RegisterSystemV2(sys, WithHook(PostUpdate))
+	w.RegisterSystem(sys, WithHook(PostUpdate))
 	w.init()
 	exporter.Reset()
 
@@ -118,8 +117,7 @@ func TestTickLinksCommandsAndTracesEvents(t *testing.T) {
 	require.NoError(t, err)
 	exporter := newRecordingTracer(t)
 
-	_, err = w.commands.Register(testutils.SimpleCommand{}.Name(), command.NewQueue[testutils.SimpleCommand]())
-	require.NoError(t, err)
+	w.RegisterCommand[testutils.SimpleCommand]()
 	w.init()
 
 	// Enqueue a command the way the ConnectRPC handler does: under the request's span.
@@ -175,8 +173,7 @@ func TestTickSkipsLinksToUnsampledRequests(t *testing.T) {
 	require.NoError(t, err)
 	exporter := newRecordingTracer(t)
 
-	_, err = w.commands.Register(testutils.SimpleCommand{}.Name(), command.NewQueue[testutils.SimpleCommand]())
-	require.NoError(t, err)
+	w.RegisterCommand[testutils.SimpleCommand]()
 	w.init()
 
 	// A request span from a provider that samples nothing: a valid span context with the sampled
@@ -288,8 +285,7 @@ func TestTickCapsCommandLinks(t *testing.T) {
 	require.NoError(t, err)
 	exporter := newRecordingTracer(t)
 
-	_, err = w.commands.Register(testutils.SimpleCommand{}.Name(), command.NewQueue[testutils.SimpleCommand]())
-	require.NoError(t, err)
+	w.RegisterCommand[testutils.SimpleCommand]()
 	w.init()
 
 	total := maxCommandLinks + 5

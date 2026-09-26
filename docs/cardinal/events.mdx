@@ -26,34 +26,32 @@ func (PlayerDeathEvent) Name() string {
 
 ## Emitting Events
 
-Just like with commands, you must declare the events a system emits in its state struct. Add a `WithEvent[T]` field to your system state type, where `T` is your event type:
+Just like with commands, you must register an event type with the world before `StartGame`:
 
 ```go
-import "github.com/argus-labs/world-engine/pkg/cardinal"
-
-type CombatSystemState struct {
-    cardinal.BaseSystemState
-    PlayerDeathEvents cardinal.WithEvent[PlayerDeathEvent]
-}
+w.RegisterEvent[PlayerDeathEvent]()
 ```
 
-In your system, use `Emit` to emit the event:
+In your system, use `w.Broadcast` to emit the event to every subscribed client:
 
 ```go
-func CombatSystem(state *CombatSystemState) error {
+type CombatSystem struct{}
+
+func (s *CombatSystem) Run(w *cardinal.World) {
     // Game logic that results in a player death...
 
-    state.PlayerDeathEvents.Emit(PlayerDeathEvent{
+    w.Broadcast(PlayerDeathEvent{
         PlayerID: "player-123",
         KillerID: "player-456",
     })
-
-    return nil
 }
 ```
 
+Use `w.SendTo(persona, event)` instead to deliver the event only to one persona. If that persona has no open event stream, the event is dropped.
+
 <Note>
-  Just like with commands, a system cannot have multiple `WithEvent` fields with the same event type.
+  Just like with commands, an event type must be registered before it is sent. `Broadcast` and
+  `SendTo` panic for an unregistered event type.
 </Note>
 
 ## Subscribing to Events

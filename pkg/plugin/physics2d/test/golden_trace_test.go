@@ -189,35 +189,28 @@ func runGoldenScenarioWorkers(t *testing.T, sc goldenScenario, workers int) gold
 
 	// Single PostUpdate recorder: it runs after the physics pipeline (PreUpdate) so it observes
 	// the post-step ECS writeback and this tick's flushed contact events.
-	w.RegisterSystem(func(state *struct {
-		cardinal.BaseSystemState
-		Spawn          spawnArchetype
-		ContactBeginRx cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
-		ContactEndRx   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
-		TriggerBeginRx cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
-		TriggerEndRx   cardinal.WithSystemEventReceiver[physics.TriggerEndEvent]
-	}) {
-		tick := int(state.Tick())
+	w.RegisterSystem(&goldenEventsSystem{run: func(w *cardinal.World) {
+		tick := int(w.TickHeight())
 
 		// Events: every tick. Kind order is fixed by this harness; order within a kind is the
 		// backend's emission order.
-		for e := range state.ContactBeginRx.Iter() {
+		for e := range w.SystemEvents[physics.ContactBeginEvent]() {
 			trace.Events = append(trace.Events, goldenEventOf(tick, "contact_begin", false, e.ContactEventPayload))
 		}
-		for e := range state.ContactEndRx.Iter() {
+		for e := range w.SystemEvents[physics.ContactEndEvent]() {
 			trace.Events = append(trace.Events, goldenEventOf(tick, "contact_end", false, e.ContactEventPayload))
 		}
-		for e := range state.TriggerBeginRx.Iter() {
+		for e := range w.SystemEvents[physics.TriggerBeginEvent]() {
 			trace.Events = append(trace.Events, goldenEventOf(tick, "trigger_begin", true, e.ContactEventPayload))
 		}
-		for e := range state.TriggerEndRx.Iter() {
+		for e := range w.SystemEvents[physics.TriggerEndEvent]() {
 			trace.Events = append(trace.Events, goldenEventOf(tick, "trigger_end", true, e.ContactEventPayload))
 		}
 
 		// Body state: reduced cadence plus the final tick.
 		if tick%goldenSampleEvery == 0 || tick == lastTick {
 			bodies := []goldenBody{}
-			for row := range state.Spawn.Iter() {
+			for row := range w.Exact[spawnArchetype]().Iter() {
 				eid := row.ID()
 				tr := row.Get[physics.Transform2D]()
 				vel := row.Get[physics.Velocity2D]()
@@ -246,7 +239,7 @@ func runGoldenScenarioWorkers(t *testing.T, sc goldenScenario, workers int) gold
 				trace.Queries = append(trace.Queries, q)
 			}
 		}
-	}, cardinal.WithHook(cardinal.PostUpdate))
+	}}, cardinal.WithHook(cardinal.PostUpdate))
 
 	initCardinalECS(w)
 	tickN(t, w, sc.tickCount)
@@ -339,21 +332,18 @@ type goldenEntity struct {
 }
 
 func goldenSpawn(w *cardinal.World, entities func() []goldenEntity) {
-	w.RegisterSystem(func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
-		if state.Tick() != 0 {
+	w.RegisterSystem(&goldenSpawnSystem{run: func(w *cardinal.World) {
+		if w.TickHeight() != 0 {
 			return
 		}
 		for _, e := range entities() {
-			row := state.Spawn.Create()
+			row := w.Create[spawnArchetype]()
 			row.Set(harnessTag{Role: e.role})
 			row.Set(physics.Transform2D{Position: e.pos, Rotation: e.rotation})
 			row.Set(e.vel)
 			row.Set(e.body)
 		}
-	}, cardinal.WithHook(cardinal.Init))
+	}}, cardinal.WithHook(cardinal.Init))
 }
 
 // ---------------------------------------------------------------------------
@@ -815,3 +805,15 @@ func goldenInDelta(t *testing.T, want, got, where string) {
 	}
 	require.InDelta(t, goldenParse(t, want, where), goldenParse(t, got, where), goldenDelta, where)
 }
+
+type goldenEventsSystem struct {
+	run func(w *cardinal.World)
+}
+
+func (s *goldenEventsSystem) Run(w *cardinal.World) { s.run(w) }
+
+type goldenSpawnSystem struct {
+	run func(w *cardinal.World)
+}
+
+func (s *goldenSpawnSystem) Run(w *cardinal.World) { s.run(w) }

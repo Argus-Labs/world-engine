@@ -9,31 +9,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testOrchestratorState is the system state for a minimal orchestrator
+// testOrchestratorSystem is the system state for a minimal orchestrator
 // that immediately assigns every awaiting-allocation lobby to a fixed
 // game shard. This ensures DST/E2E fuzzing exercises the full session
 // lifecycle (awaiting_allocation → in_session → idle) instead of
 // parking at awaiting_allocation forever.
-type testOrchestratorState struct {
-	cardinal.BaseSystemState
-	Lobbies cardinal.Contains[struct {
-		Lobby cardinal.WithComponent[lobby.Component]
-	}]
-}
+type testOrchestratorSystem struct{}
 
-func testOrchestratorSystem(state *testOrchestratorState) {
+func (*testOrchestratorSystem) Run(w *cardinal.World) {
 	self := cardinal.OtherWorld{
 		Region:       "local",
 		Organization: "organization",
 		Project:      "project",
 		ShardID:      "lobby",
 	}
-	for refs := range state.Lobbies.Iter() {
+	for refs := range w.Contains[struct{ Lobby lobby.Component }]().Iter() {
 		lob := refs.Get[lobby.Component]()
 		if lob.Session.State != lobby.SessionStateAwaitingAllocation {
 			continue
 		}
-		state.SendToShard(self, lobby.AssignShardCommand{
+		w.SendToShard(self, lobby.AssignShardCommand{
 			LobbyID:   lob.ID,
 			RequestID: lob.Session.PendingRequestID,
 			GameWorld: lobby.ShardAddress{
@@ -49,7 +44,7 @@ func testOrchestratorSystem(state *testOrchestratorState) {
 func TestDST(t *testing.T) {
 	cardinal.RunDST(t, func(w *cardinal.World) {
 		w.RegisterPlugin(lobby.NewPlugin(lobby.Config{}))
-		w.RegisterSystem(testOrchestratorSystem)
+		w.RegisterSystem(&testOrchestratorSystem{})
 	}, nil)
 }
 
@@ -70,7 +65,7 @@ func TestE2E(t *testing.T) {
 		require.NoError(t, err)
 
 		w.RegisterPlugin(lobby.NewPlugin(lobby.Config{}))
-		w.RegisterSystem(testOrchestratorSystem)
+		w.RegisterSystem(&testOrchestratorSystem{})
 
 		return w
 	})

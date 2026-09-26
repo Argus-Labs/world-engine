@@ -9,17 +9,17 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 )
 
-type OnlineStatusUpdaterState struct {
-	cardinal.BaseSystemState
-	Players cardinal.Contains[struct {
-		OnlineStatus cardinal.WithComponent[component.OnlineStatus]
-		PlayerTag    cardinal.WithComponent[component.PlayerTag]
-	}]
-	PlayerDepartureEvent cardinal.WithEvent[event.PlayerDeparture]
+// onlinePlayer matches every entity carrying an online status and a player tag, whatever else
+// it holds.
+type onlinePlayer struct {
+	OnlineStatus component.OnlineStatus
+	PlayerTag    component.PlayerTag
 }
 
-func OnlineStatusUpdater(state *OnlineStatusUpdaterState) {
-	for player := range state.Players.Iter() {
+type OnlineStatusUpdater struct{}
+
+func (s *OnlineStatusUpdater) Run(w *cardinal.World) {
+	for player := range w.Contains[onlinePlayer]().Iter() {
 		entity := player.ID()
 		status := player.Get[component.OnlineStatus]()
 		isOnline := status.Online
@@ -30,11 +30,11 @@ func OnlineStatusUpdater(state *OnlineStatusUpdaterState) {
 			player.Set(component.OnlineStatus{Online: false, LastActive: lastActive})
 			tag := player.Get[component.PlayerTag]()
 
-			state.PlayerDepartureEvent.Broadcast(event.PlayerDeparture{
+			w.Broadcast(event.PlayerDeparture{
 				ArgusAuthID: tag.ArgusAuthID,
 			})
 
-			state.Logger().Info().
+			w.Logger().Info().
 				Uint32("entity", uint32(entity)).
 				Msgf("Player %s (id: %s) is offline", tag.ArgusAuthName, tag.ArgusAuthID)
 		}

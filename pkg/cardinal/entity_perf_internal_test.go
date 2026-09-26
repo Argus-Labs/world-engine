@@ -3,29 +3,22 @@ package cardinal
 import "testing"
 
 type perfArchetype struct {
-	Position WithComponent[Position3D]
-	Velocity WithComponent[Velocity3D]
+	Position Position3D
+	Velocity Velocity3D
 }
 
-type perfEntityState struct {
-	BaseSystemState
-	Entities Contains[perfArchetype]
-	Optional Contains[struct{ Inventory WithComponent[Inventory] }]
-}
-
-// newPerfEntityState excludes world and archetype initialization from steady-state measurements.
-func newPerfEntityState(t testing.TB) *perfEntityState {
+// newPerfEntityState resolves the search once so world setup and archetype resolution stay out of
+// steady-state measurements.
+func newPerfEntityState(t testing.TB) (*World, Search) {
 	t.Helper()
 	w := newBenchWorld()
-	state := &perfEntityState{}
-	mustInitSystemFields(t, w, state)
-	return state
+	return w, w.Contains[perfArchetype]()
 }
 
 func BenchmarkEntityOperations(b *testing.B) {
 	b.Run("AddRemove", func(b *testing.B) {
-		state := newPerfEntityState(b)
-		entity := state.Entities.Create()
+		_, entities := newPerfEntityState(b)
+		entity := entities.Create()
 		b.ReportAllocs()
 		for b.Loop() {
 			entity.Remove[Velocity3D]()
@@ -36,13 +29,13 @@ func BenchmarkEntityOperations(b *testing.B) {
 		}
 	})
 	b.Run("FilterLimitSingle", func(b *testing.B) {
-		state := newPerfEntityState(b)
-		entity := state.Entities.Create()
+		_, entities := newPerfEntityState(b)
+		entity := entities.Create()
 		id := entity.ID()
 		entity.Set(Position3D{X: 1})
 		b.ReportAllocs()
 		for b.Loop() {
-			found, err := state.Entities.Iter().Filter(func(e Entity) bool {
+			found, err := entities.Iter().Filter(func(e Entity) bool {
 				return e.Get[Position3D]().X == 1
 			}).Limit(1).Single()
 			if err != nil || found.ID() != id || found.Get[Position3D]().X != 1 {
@@ -51,8 +44,8 @@ func BenchmarkEntityOperations(b *testing.B) {
 		}
 	})
 	b.Run("Get", func(b *testing.B) {
-		state := newPerfEntityState(b)
-		entity := state.Entities.Create()
+		_, entities := newPerfEntityState(b)
+		entity := entities.Create()
 		entity.Set(Position3D{X: 1})
 		var value Position3D
 		b.ReportAllocs()
@@ -64,8 +57,8 @@ func BenchmarkEntityOperations(b *testing.B) {
 		}
 	})
 	b.Run("Set", func(b *testing.B) {
-		state := newPerfEntityState(b)
-		entity := state.Entities.Create()
+		_, entities := newPerfEntityState(b)
+		entity := entities.Create()
 		b.ReportAllocs()
 		for b.Loop() {
 			entity.Set(Position3D{X: 1})
@@ -75,8 +68,8 @@ func BenchmarkEntityOperations(b *testing.B) {
 		}
 	})
 	b.Run("HasPresent", func(b *testing.B) {
-		state := newPerfEntityState(b)
-		entity := state.Entities.Create()
+		_, entities := newPerfEntityState(b)
+		entity := entities.Create()
 		b.ReportAllocs()
 		for b.Loop() {
 			if !entity.Has[Position3D]() {
@@ -85,8 +78,8 @@ func BenchmarkEntityOperations(b *testing.B) {
 		}
 	})
 	b.Run("HasAbsent", func(b *testing.B) {
-		state := newPerfEntityState(b)
-		entity := state.Entities.Create()
+		_, entities := newPerfEntityState(b)
+		entity := entities.Create()
 		b.ReportAllocs()
 		for b.Loop() {
 			if entity.Has[Inventory]() {
@@ -95,8 +88,8 @@ func BenchmarkEntityOperations(b *testing.B) {
 		}
 	})
 	b.Run("HasUnregistered", func(b *testing.B) {
-		state := newPerfEntityState(b)
-		entity := state.Entities.Create()
+		_, entities := newPerfEntityState(b)
+		entity := entities.Create()
 		b.ReportAllocs()
 		for b.Loop() {
 			if entity.Has[NetworkSync]() {
@@ -105,8 +98,8 @@ func BenchmarkEntityOperations(b *testing.B) {
 		}
 	})
 	b.Run("HasMissingEntity", func(b *testing.B) {
-		state := newPerfEntityState(b)
-		entity := state.Entity(999)
+		w, _ := newPerfEntityState(b)
+		entity := w.Entity(999)
 		b.ReportAllocs()
 		for b.Loop() {
 			if entity.Has[Position3D]() {
@@ -115,37 +108,37 @@ func BenchmarkEntityOperations(b *testing.B) {
 		}
 	})
 	b.Run("LookupGet", func(b *testing.B) {
-		state := newPerfEntityState(b)
-		entity := state.Entities.Create()
+		_, entities := newPerfEntityState(b)
+		entity := entities.Create()
 		id := entity.ID()
 		entity.Set(Position3D{X: 1})
 		b.ReportAllocs()
 		for b.Loop() {
-			found, err := state.Entities.GetByID(id)
+			found, err := entities.GetByID(id)
 			if err != nil || found.Get[Position3D]().X != 1 {
 				b.Fatal("entity lookup failed")
 			}
 		}
 	})
 	b.Run("CreateDestroy", func(b *testing.B) {
-		state := newPerfEntityState(b)
-		warmup := state.Entities.Create()
+		_, entities := newPerfEntityState(b)
+		warmup := entities.Create()
 		warmup.Destroy()
 		b.ReportAllocs()
 		for b.Loop() {
-			entity := state.Entities.Create()
+			entity := entities.Create()
 			if !entity.Destroy() {
 				b.Fatal("entity was not destroyed")
 			}
 		}
 	})
 	b.Run("GenericCreateDestroy", func(b *testing.B) {
-		state := newPerfEntityState(b)
-		warmup := state.Entities.Create()
+		w, entities := newPerfEntityState(b)
+		warmup := entities.Create()
 		warmup.Destroy()
 		b.ReportAllocs()
 		for b.Loop() {
-			entity := state.Create[perfArchetype]()
+			entity := w.Create[perfArchetype]()
 			if !entity.Destroy() {
 				b.Fatal("entity was not destroyed")
 			}
@@ -154,16 +147,14 @@ func BenchmarkEntityOperations(b *testing.B) {
 }
 
 func benchmarkEntityIteration[T any](b *testing.B) {
-	w := newBenchWorld()
-	state := &struct{ Entities Contains[T] }{}
-	mustInitSystemFields(b, w, state)
+	entities := newBenchWorld().Contains[T]()
 	for range 100 {
-		state.Entities.Create()
+		entities.Create()
 	}
 	b.ReportAllocs()
 	for b.Loop() {
 		var sum EntityID
-		for id := range state.Entities.Iter() {
+		for id := range entities.Iter() {
 			sum += id.ID()
 		}
 		if sum != 4950 {
@@ -173,28 +164,13 @@ func benchmarkEntityIteration[T any](b *testing.B) {
 }
 
 func BenchmarkEntityIteration(b *testing.B) {
-	b.Run("1Component", benchmarkEntityIteration[struct{ Position WithComponent[Position3D] }])
-	b.Run("5Components", benchmarkEntityIteration[struct {
-		Position  WithComponent[Position3D]
-		Velocity  WithComponent[Velocity3D]
-		Health    WithComponent[Health2]
-		Transform WithComponent[Transform]
-		Inventory WithComponent[Inventory]
-	}])
-	b.Run("10Components", benchmarkEntityIteration[struct {
-		Position    WithComponent[Position3D]
-		Velocity    WithComponent[Velocity3D]
-		Health      WithComponent[Health2]
-		Transform   WithComponent[Transform]
-		Inventory   WithComponent[Inventory]
-		PlayerStats WithComponent[PlayerStats]
-		AIBehavior  WithComponent[AIBehavior]
-		Renderer    WithComponent[Renderer]
-		Physics     WithComponent[Physics]
-		NetworkSync WithComponent[NetworkSync]
-	}])
+	b.Run("1Component", benchmarkEntityIteration[arch1])
+	b.Run("5Components", benchmarkEntityIteration[arch5])
+	b.Run("10Components", benchmarkEntityIteration[arch10])
 }
 
+// BenchmarkEntityRegistration measures world setup plus the reflection that resolves and
+// caches an archetype on its first Contains call.
 func BenchmarkEntityRegistration(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
@@ -205,16 +181,16 @@ func BenchmarkEntityRegistration(b *testing.B) {
 // Keep successful handle operations and expected absence checks off the heap.
 // Storage growth and component payload allocations are intentionally outside this contract.
 func TestEntity_SteadyStateAllocations(t *testing.T) {
-	state := newPerfEntityState(t)
-	entity := state.Entities.Create()
+	w, entities := newPerfEntityState(t)
+	entity := entities.Create()
 	id := entity.ID()
 	entity.Set(Position3D{X: 42})
-	missing := state.Entity(999)
+	missing := w.Entity(999)
 	cases := []struct {
 		name string
 		run  func() bool
 	}{
-		{"Bind", func() bool { return state.Entity(id).Alive() }},
+		{"Bind", func() bool { return w.Entity(id).Alive() }},
 		{"Get", func() bool { return entity.Get[Position3D]().X == 42 }},
 		{"Set", func() bool {
 			entity.Set(Position3D{X: 42})
@@ -225,12 +201,12 @@ func TestEntity_SteadyStateAllocations(t *testing.T) {
 		{"HasUnregistered", func() bool { return !entity.Has[NetworkSync]() }},
 		{"HasMissingEntity", func() bool { return !missing.Has[Position3D]() }},
 		{"Lookup", func() bool {
-			found, err := state.Entities.GetByID(id)
+			found, err := entities.GetByID(id)
 			return err == nil && found.Get[Position3D]().X == 42
 		}},
 		{"Iterate", func() bool {
 			count := 0
-			for found := range state.Entities.Iter() {
+			for found := range entities.Iter() {
 				if found.Get[Position3D]().X != 42 {
 					return false
 				}
@@ -239,7 +215,7 @@ func TestEntity_SteadyStateAllocations(t *testing.T) {
 			return count == 1
 		}},
 		{"GenericCreateDestroy", func() bool {
-			created := state.Create[perfArchetype]()
+			created := w.Create[perfArchetype]()
 			return created.Alive() && created.Destroy()
 		}},
 	}
@@ -260,11 +236,11 @@ func TestEntity_SteadyStateAllocations(t *testing.T) {
 // Function-valued query composition can retain callbacks. Bound its cost rather
 // than hiding those allocations behind the zero-allocation direct-operation tests.
 func TestEntity_QueryCompositionAllocations(t *testing.T) {
-	state := newPerfEntityState(t)
-	id := state.Entities.Create().ID()
+	_, entities := newPerfEntityState(t)
+	id := entities.Create().ID()
 	ok := true
 	allocs := testing.AllocsPerRun(100, func() {
-		found, err := state.Entities.Iter().Filter(func(e Entity) bool {
+		found, err := entities.Iter().Filter(func(e Entity) bool {
 			return e.Has[Position3D]()
 		}).Limit(1).Single()
 		ok = ok && err == nil && found.ID() == id

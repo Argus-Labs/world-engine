@@ -22,15 +22,12 @@ func TestQuery_EmptyOverlapMarshalsAsEmptyArray(t *testing.T) {
 	t.Parallel()
 	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
-	w.RegisterSystem(func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
-		if state.Tick() != 0 {
+	w.RegisterSystem(&emptyOverlapSystem{run: func(w *cardinal.World) {
+		if w.TickHeight() != 0 {
 			return
 		}
 		// One body, parked far away from the region queried below.
-		row := state.Spawn.Create()
+		row := w.Create[spawnArchetype]()
 		row.Set(harnessTag{Role: "far"})
 		row.Set(physics.Transform2D{Position: physics.Vec2{X: 500, Y: 500}})
 		row.Set(physics.Velocity2D{})
@@ -40,7 +37,7 @@ func TestQuery_EmptyOverlapMarshalsAsEmptyArray(t *testing.T) {
 			CategoryBits: 0xFFFF,
 			MaskBits:     0xFFFF,
 		}))
-	}, cardinal.WithHook(cardinal.Init))
+	}}, cardinal.WithHook(cardinal.Init))
 
 	initCardinalECS(w)
 	tickN(t, w, 2)
@@ -57,3 +54,9 @@ func TestQuery_EmptyOverlapMarshalsAsEmptyArray(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, `{"hits":[]}`, string(encoded))
 }
+
+type emptyOverlapSystem struct {
+	run func(w *cardinal.World)
+}
+
+func (s *emptyOverlapSystem) Run(w *cardinal.World) { s.run(w) }

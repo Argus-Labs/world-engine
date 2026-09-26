@@ -10,19 +10,14 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 )
 
-type MovePlayerSystemState struct {
-	cardinal.BaseSystemState
-	MovePlayerCommands  cardinal.WithCommand[command.MovePlayer]
-	PlayerSpawnEvent    cardinal.WithEvent[event.PlayerSpawn]
-	PlayerMovementEvent cardinal.WithEvent[event.PlayerMovement]
-	Players             PlayerSearch
-}
+type MovePlayerSystem struct{}
 
-func MovePlayerSystem(state *MovePlayerSystemState) {
-	for cmd := range state.MovePlayerCommands.Iter() {
+func (s *MovePlayerSystem) Run(w *cardinal.World) {
+	players := w.Exact[Player]()
+	for cmd := range w.Commands[command.MovePlayer]() {
 		command := cmd.Payload
 
-		for player := range state.Players.Iter() {
+		for player := range players.Iter() {
 			entity := player.ID()
 			tag := player.Get[component.PlayerTag]()
 
@@ -33,7 +28,7 @@ func MovePlayerSystem(state *MovePlayerSystemState) {
 			isOnline := player.Get[component.OnlineStatus]().Online
 
 			if !isOnline {
-				state.PlayerSpawnEvent.Broadcast(event.PlayerSpawn{
+				w.Broadcast(event.PlayerSpawn{
 					ArgusAuthID:   tag.ArgusAuthID,
 					ArgusAuthName: tag.ArgusAuthName,
 					X:             command.X,
@@ -44,7 +39,7 @@ func MovePlayerSystem(state *MovePlayerSystemState) {
 			player.Set(component.Position{X: int(command.X), Y: int(command.Y)})
 			player.Set(component.OnlineStatus{Online: true, LastActive: time.Now()})
 
-			state.PlayerMovementEvent.Broadcast(event.PlayerMovement{
+			w.Broadcast(event.PlayerMovement{
 				ArgusAuthID: tag.ArgusAuthID,
 				X:           command.X,
 				Y:           command.Y,
@@ -52,7 +47,7 @@ func MovePlayerSystem(state *MovePlayerSystemState) {
 
 			name := tag.ArgusAuthName
 
-			state.Logger().Info().
+			w.Logger().Info().
 				Uint32("entity", uint32(entity)).
 				Msgf("Player %s (id: %s) moved to %d, %d", name, tag.ArgusAuthID, command.X, command.Y)
 		}

@@ -44,7 +44,9 @@ type World struct {
 	options         WorldOptions          // World options
 	tel             telemetry.Telemetry   // Logs and traces
 
-	entityArchetypes map[reflect.Type]bitmap.Bitmap
+	archetypes map[reflect.Type]bitmap.Bitmap // Component sets resolved from archetype structs
+	eventTypes map[reflect.Type]struct{}      // Events registered with RegisterEvent
+	started    bool                           // Set by init; Register* methods panic afterwards
 }
 
 // NewWorld creates a game world with the specified options.
@@ -229,6 +231,7 @@ func (w *World) init() {
 
 	w.tickCtx = ctx
 	defer func() { w.tickCtx = context.Background() }()
+	w.started = true // Closes registration before the first system runs; never reopened by reset.
 	w.world.Init()
 }
 

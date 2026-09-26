@@ -16,8 +16,8 @@ import (
 // -------------------------------------------------------------------------------------------------
 // This test verifies the queue implementation correctness by applying random sequences of
 // operations and comparing it against a regular Go map of name->[]SystemEvent as the model.
-// System events are pre-registered since WithSystemEventEmitter/Receiver.init guarantees
-// registration before use.
+// System events are pre-registered since World.RegisterSystemEvent runs before StartGame and
+// World.EmitSystemEvent/SystemEvents panic on an unregistered type.
 // -------------------------------------------------------------------------------------------------
 
 func TestSystemEvent_ModelFuzz(t *testing.T) {
