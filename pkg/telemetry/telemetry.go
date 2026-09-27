@@ -20,6 +20,11 @@ type Telemetry struct {
 	posthog     *posthog.Client
 	serviceName string
 
+	// maxCommandLinks is the resolved OpenTelemetry span link limit (OTEL_SPAN_LINK_COUNT_LIMIT,
+	// default 128) the tracer provider enforces. Cardinal caps tick-span links at this value so the
+	// cap and the provider share one source of truth and no link is built only to be dropped.
+	maxCommandLinks int
+
 	shutdown func(context.Context) error
 }
 
@@ -37,7 +42,7 @@ func New(opts Options) (Telemetry, error) {
 	}
 
 	ctx := context.Background()
-	logger, shutdown, err := setupOpenTelemetry(ctx, options)
+	logger, maxCommandLinks, shutdown, err := setupOpenTelemetry(ctx, options)
 	if err != nil {
 		return Telemetry{}, eris.Wrap(err, "failed to setup telemetry")
 	}
@@ -53,11 +58,19 @@ func New(opts Options) (Telemetry, error) {
 	}
 
 	return Telemetry{
-		Logger:      logger,
-		posthog:     posthog,
-		serviceName: options.ServiceName,
-		shutdown:    shutdown,
+		Logger:          logger,
+		posthog:         posthog,
+		serviceName:     options.ServiceName,
+		maxCommandLinks: maxCommandLinks,
+		shutdown:        shutdown,
 	}, nil
+}
+
+// MaxCommandLinks returns the resolved span link limit the tracer provider enforces
+// (OTEL_SPAN_LINK_COUNT_LIMIT, default 128). Callers that pre-cap span links should cap at this
+// value so they never build links the SDK would drop.
+func (t *Telemetry) MaxCommandLinks() int {
+	return t.maxCommandLinks
 }
 
 // Shutdown gracefully shuts down the telemetry system.
