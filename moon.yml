@@ -29,11 +29,6 @@ tasks:
       runInCI: true
     description: 'Run all Go tests'
     command: 'go tool gotestsum -- ./pkg/...'
-  test-unit:
-    options:
-      runInCI: true
-    description: 'Run Go unit tests'
-    command: "go tool gotestsum -- -tags '!integration' ./pkg/..."
   test-ci:
     inputs: ['pkg/**/*', 'go.mod', 'go.sum', '.golangci.yaml', '.prototools', 'moon.yml']
     description: 'Run Go tests with coverage and JUnit reports'
