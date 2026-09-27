@@ -36,7 +36,7 @@ Icon
 
 # Output of the go coverage tool
 *.out
-coverage.html
+coverage*.html
 
 # Dependency directories
 vendor/
