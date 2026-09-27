@@ -9,7 +9,6 @@ on:
       - '.moon/**'
       - 'moon.yml'
       - '.prototools'
-      - 'scripts/**'
       - '.golangci.yaml'
       - '.ko.yaml'
       - '.github/workflows/common-go-ci.yaml'

@@ -18,7 +18,7 @@ tasks:
       internal: true
       runInCI: true
   lint:
-    inputs: ['pkg/**/*', 'go.mod', 'go.sum', '.golangci.yaml', '.prototools', 'scripts/**/*', 'moon.yml']
+    inputs: ['pkg/**/*', 'go.mod', 'go.sum', '.golangci.yaml', '.prototools', 'moon.yml']
     description: 'Lint Go packages'
     command: 'bin/tools/golangci-lint run --timeout 10m ./pkg/...'
     deps: ['setup-lint']
@@ -33,19 +33,19 @@ tasks:
   test:
     options:
       runInCI: true
-    description: 'Run all Go tests with a replayable random seed'
-    command: 'bash scripts/go-test.sh all'
+    description: 'Run all Go tests'
+    command: 'bin/tools/gotestsum -- ./pkg/...'
     deps: ['setup-test']
   test-unit:
     options:
       runInCI: true
     description: 'Run Go unit tests'
-    command: 'bash scripts/go-test.sh unit'
+    command: "bin/tools/gotestsum -- -tags '!integration' ./pkg/..."
     deps: ['setup-test']
   test-ci:
-    inputs: ['pkg/**/*', 'go.mod', 'go.sum', '.golangci.yaml', '.prototools', 'scripts/**/*', 'moon.yml']
+    inputs: ['pkg/**/*', 'go.mod', 'go.sum', '.golangci.yaml', '.prototools', 'moon.yml']
     description: 'Run Go tests with coverage and JUnit reports'
-    command: 'bash scripts/go-test.sh ci'
+    command: 'bin/tools/gotestsum --junitfile junit.xml -- -coverprofile coverage.out -covermode atomic ./pkg/...'
     deps: ['setup-test']
     outputs: ['coverage.out', 'junit.xml']
     options:
