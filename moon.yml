@@ -11,12 +11,6 @@ tasks:
     options:
       internal: true
       runInCI: true
-  setup-test:
-    description: 'Install the pinned test runner into bin/tools'
-    script: 'GOBIN="$PWD/bin/tools" go install gotest.tools/gotestsum@v1.13.0'
-    options:
-      internal: true
-      runInCI: true
   lint:
     inputs: ['pkg/**/*', 'go.mod', 'go.sum', '.golangci.yaml', '.prototools', 'moon.yml']
     description: 'Lint Go packages'
@@ -34,19 +28,16 @@ tasks:
     options:
       runInCI: true
     description: 'Run all Go tests'
-    command: 'bin/tools/gotestsum -- ./pkg/...'
-    deps: ['setup-test']
+    command: 'go tool gotestsum -- ./pkg/...'
   test-unit:
     options:
       runInCI: true
     description: 'Run Go unit tests'
-    command: "bin/tools/gotestsum -- -tags '!integration' ./pkg/..."
-    deps: ['setup-test']
+    command: "go tool gotestsum -- -tags '!integration' ./pkg/..."
   test-ci:
     inputs: ['pkg/**/*', 'go.mod', 'go.sum', '.golangci.yaml', '.prototools', 'moon.yml']
     description: 'Run Go tests with coverage and JUnit reports'
-    command: 'bin/tools/gotestsum --junitfile junit.xml -- -coverprofile coverage.out -covermode atomic ./pkg/...'
-    deps: ['setup-test']
+    command: 'go tool gotestsum --junitfile junit.xml -- -coverprofile coverage.out -covermode atomic ./pkg/...'
     outputs: ['coverage.out', 'junit.xml']
     options:
       runInCI: true
