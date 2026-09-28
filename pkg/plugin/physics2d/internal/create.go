@@ -3,7 +3,6 @@ package internal
 import (
 	"errors"
 	"fmt"
-	"math"
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
@@ -95,9 +94,9 @@ func (rt *Runtime) AttachColliderFixtures(
 }
 
 // rollbackFixtures destroys the fixtures an attach pass added past the marks. Validation
-// does not catch everything the engine refuses — a polygon of collinear points passes every
-// component check and then yields an empty hull — so a later slot can fail after earlier
-// ones are already on the body. Chains go first: destroying one frees its segment shapes.
+// does not catch everything the engine refuses — a polygon that only collapses once placed
+// on the body, such as one with a huge offset, yields an empty hull — so a later slot can
+// fail after earlier ones are already on the body. Chains go first: destroying one frees its segment shapes.
 func (rt *Runtime) rollbackFixtures(entityID cardinal.EntityID, shapeMark, chainMark int) {
 	chains := rt.Chains[entityID]
 	for _, ch := range chains[chainMark:] {
@@ -305,15 +304,11 @@ func (rt *Runtime) attachShape(entityID cardinal.EntityID, shapeIndex int, s com
 }
 
 // shapePointToBodySpace maps a point from shape-local space into body-local space using the
-// slot's LocalOffset and LocalRotation (radians, CCW +Y up). Each product is rounded through
-// float64(...) so the compiler cannot fuse it with the add: a fused multiply-add rounds
-// once, not twice, and would give different vertices on arm64 than on amd64. This is the
-// one path shape points take into the engine, which promises bit-identical results.
+// slot's LocalOffset and LocalRotation (radians, CCW +Y up). Rotation goes through box2d's
+// FMA-safe MakeRot and RotateVector so vertices are bit-identical across architectures.
 func shapePointToBodySpace(p, offset component.Vec2, localRot float64) component.Vec2 {
-	c, s := math.Cos(localRot), math.Sin(localRot)
-	rx := float64(p.X*c) - float64(p.Y*s)
-	ry := float64(p.X*s) + float64(p.Y*c)
-	return component.Vec2{X: rx + offset.X, Y: ry + offset.Y}
+	r := box2d.RotateVector(box2d.MakeRot(localRot), box2d.Vec2{X: p.X, Y: p.Y})
+	return component.Vec2{X: r.X + offset.X, Y: r.Y + offset.Y}
 }
 
 // destroyAllShapesForEntity destroys every non-chain shape and every chain on the entity's

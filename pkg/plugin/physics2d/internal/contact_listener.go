@@ -112,6 +112,7 @@ func (rt *Runtime) bufferContactEventsFromWorld() {
 	w := rt.World
 	contacts := w.ContactEvents()
 	sensors := w.SensorEvents()
+	worldStart := len(rt.BufferedContacts)
 
 	// -- Begin events (contact) --
 	for i := range contacts.BeginEvents {
@@ -153,6 +154,26 @@ func (rt *Runtime) bufferContactEventsFromWorld() {
 		rt.BufferedContacts = append(rt.BufferedContacts,
 			rt.makeBufferedEvent(ContactLifecycleEnd, ev.SensorShapeID, ev.VisitorShapeID))
 	}
+	rt.BufferedContacts = dropRebuiltContacts(rt.BufferedContacts, worldStart)
+}
+
+// dropRebuiltContacts removes every pair that has both an End and a Begin among the events
+// Box2D produced this step (index >= from). Resetting a shape's filter or its body's type
+// destroys the contact (End) and the step recreates it (Begin) though the shapes never
+// separated; letting both through flaps ActiveContacts and fires one-shot handlers.
+func dropRebuiltContacts(events []BufferedContactEvent, from int) []BufferedContactEvent {
+	seen := make(map[ContactPairKey]uint8) // bit 1<<Begin, 1<<End
+	for _, ev := range events[from:] {
+		seen[bufferedPairKey(ev)] |= 1 << ev.Kind
+	}
+	kept := slices.DeleteFunc(events[from:], func(ev BufferedContactEvent) bool {
+		return seen[bufferedPairKey(ev)] == 1<<ContactLifecycleBegin|1<<ContactLifecycleEnd
+	})
+	return events[:from+len(kept)]
+}
+
+func bufferedPairKey(ev BufferedContactEvent) ContactPairKey {
+	return normalizeContactPairKey(ev.EntityA, ev.ShapeIndexA, ev.EntityB, ev.ShapeIndexB)
 }
 
 // makeBufferedEvent fills entity/shape identity, sensor flag, and filter bits for a shape

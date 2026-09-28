@@ -66,9 +66,8 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 			e.Entity.Set(pb)
 		}
 
-		// Update shadow so ReconcileFromECS sees no diff for these fields next tick. Shape
-		// lifetime is not touched here: the sweep reads slot lists from ECS and the shadow
-		// each tick, and writeback never changes a slot list.
+		// Update shadow so ReconcileFromECS sees no diff for these fields next tick. Shapes
+		// are not touched: writeback never changes them.
 		if shadow, exists := rt.Shadow[e.Entity.ID()]; exists {
 			shadow.Transform = t
 			shadow.Velocity = v

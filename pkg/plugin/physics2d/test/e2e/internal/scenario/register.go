@@ -5,9 +5,9 @@ import "github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/interna
 // All returns every scenario in run order. Each gets its own lane in the world, so bodies
 // never reach each other and ordering is normally just layout and report order.
 //
-// The exception is a scenario that acts on the whole world rather than its lane. Reset and
-// ShapeSweep both call Plugin.Reset on the same tick, and steps run in this order within a
-// tick, so ShapeSweep has to stay last: Reset reads the pre-reset world before dropping it.
+// The exception is a scenario that acts on the whole world rather than its lane. Reset calls
+// Plugin.Reset, and steps run in this order within a tick, so Reset has to stay last: every
+// other scenario's step that tick still sees the world before it is dropped.
 func All() []harness.Scenario {
 	return []harness.Scenario{
 		Defaults(),

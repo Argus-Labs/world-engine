@@ -148,6 +148,20 @@ func (PhysicsBody2D) Name() string { return "physics_body_2d" }
 
 // Validate guards against NaN/Inf in float fields, an invalid body type tag, and invalid shapes.
 func (p PhysicsBody2D) Validate() error {
+	if err := p.ValidateParams(); err != nil {
+		return err
+	}
+	for i, s := range p.Shapes.All() {
+		if err := s.Validate(); err != nil {
+			return fmt.Errorf("physics_body_2d.shapes[%d]: %w", i, err)
+		}
+	}
+	return nil
+}
+
+// ValidateParams is Validate without the per-shape checks, for callers that know the shapes
+// have not changed since they were last validated.
+func (p PhysicsBody2D) ValidateParams() error {
 	switch p.BodyType {
 	case BodyTypeStatic, BodyTypeDynamic, BodyTypeKinematic, BodyTypeManual:
 	default:
@@ -164,11 +178,6 @@ func (p PhysicsBody2D) Validate() error {
 	}
 	if p.Shapes.Len() == 0 {
 		return errors.New("physics_body_2d.shapes: at least one shape is required")
-	}
-	for i, s := range p.Shapes.All() {
-		if err := s.Validate(); err != nil {
-			return fmt.Errorf("physics_body_2d.shapes[%d]: %w", i, err)
-		}
 	}
 	return nil
 }

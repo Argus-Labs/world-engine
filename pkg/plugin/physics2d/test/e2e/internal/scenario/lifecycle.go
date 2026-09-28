@@ -9,8 +9,8 @@ import (
 
 // Lifecycle covers everything that can change after a body exists: entities
 // created and destroyed mid-run, poses and velocities written from gameplay,
-// geometry replaced mid-run (a ref re-pointed at a new shape entity, since a
-// shape is never edited in place), shapes added and removed, filters and sensor
+// geometry replaced mid-run (a slot given a new shape, since geometry is
+// never edited in place), shapes added and removed, filters and sensor
 // flags flipped, materials retuned, and body types swapped.
 //
 // The reconciler decides which of these can be applied to the live Box2D body
@@ -170,8 +170,8 @@ func Lifecycle() harness.Scenario {
 
 				c.SetPos(s.mover, 8, 20)
 
-				// Shapes are entities: a slot is re-pointed at a new shape rather
-				// than edited in place. Same geometry kind with new numbers.
+				// Geometry is never edited in place: the slot gets a new shape.
+				// Same geometry kind with new numbers.
 				c.EditBody(s.growCircle, func(pb *physics.PhysicsBody2D) {
 					pb.Shapes = pb.Shapes.With(0, circle(2).Spawn(c))
 				})

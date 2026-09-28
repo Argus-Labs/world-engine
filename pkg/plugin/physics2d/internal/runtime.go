@@ -48,8 +48,8 @@ type Runtime struct {
 	Bodies map[cardinal.EntityID]box2d.BodyID
 
 	// Shapes maps entity ids to per-slot Box2D shape ids: slot i corresponds to
-	// PhysicsBody2D.Shapes[i]. Chain slots hold a null ShapeID (chains are tracked in Chains)
-	// so per-shape mutable setters skip them, matching the CGO bridge behavior.
+	// PhysicsBody2D.Shapes[i]. Chain slots hold a null ShapeID: chains are tracked in Chains,
+	// and in-place edits reach them through the chain id (applyMutableChain).
 	Shapes map[cardinal.EntityID][]box2d.ShapeID
 
 	// Chains maps entity ids to the chain shapes created for chain-type collider slots.

@@ -159,7 +159,9 @@ func (rt *Runtime) reconcileExistingBody(
 		return rt.createBodyForEntry(e)
 	}
 
-	if err := validatePhysicsRebuildEntry(e); err != nil {
+	// Shapes are validated only when they changed; unchanged ones passed when last applied.
+	shapesChanged := prev.ShapesDiffer(e.PhysicsBody)
+	if err := validatePhysicsRebuildEntry(e, shapesChanged); err != nil {
 		return err
 	}
 
@@ -180,7 +182,7 @@ func (rt *Runtime) reconcileExistingBody(
 			rt.World.SetBodyAwake(bodyID, true)
 		}
 	}
-	if prev.ShapesDiffer(e.PhysicsBody) {
+	if shapesChanged {
 		if err := rt.reconcileShapesChange(e.EntityID, prev.PhysicsBody.Shapes, e.PhysicsBody.Shapes); err != nil {
 			return err
 		}
@@ -241,15 +243,20 @@ func (rt *Runtime) reconcileShapesChange(
 	return nil
 }
 
-// validatePhysicsRebuildEntry runs component Validate on each field for an existing-body update path.
-func validatePhysicsRebuildEntry(e PhysicsRebuildEntry) error {
+// validatePhysicsRebuildEntry runs component Validate on each field for an existing-body
+// update path; shapes are checked only when shapesChanged.
+func validatePhysicsRebuildEntry(e PhysicsRebuildEntry, shapesChanged bool) error {
 	if err := e.Transform.Validate(); err != nil {
 		return fmt.Errorf("physics2d: entity %d transform: %w", e.EntityID, err)
 	}
 	if err := e.Velocity.Validate(); err != nil {
 		return fmt.Errorf("physics2d: entity %d velocity: %w", e.EntityID, err)
 	}
-	if err := e.PhysicsBody.Validate(); err != nil {
+	validate := e.PhysicsBody.ValidateParams
+	if shapesChanged {
+		validate = e.PhysicsBody.Validate
+	}
+	if err := validate(); err != nil {
 		return fmt.Errorf("physics2d: entity %d physics_body: %w", e.EntityID, err)
 	}
 	return nil
