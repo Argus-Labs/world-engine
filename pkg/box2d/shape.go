@@ -11,6 +11,8 @@
 //     registry, callers already hold the *World (see world.go).
 //   - The b2CollideMover* dispatch (b2CollideMover) is ported here; the
 //     per-shape b2CollideMoverAnd* functions live in geometry.go.
+//   - ShapeIdentity is an addition: body user data, shape user data and the
+//     sensor flag from one lookup, for callers that resolve all three per hit.
 
 package box2d
 
@@ -1045,6 +1047,13 @@ func (w *World) ShapeUserData(shapeID ShapeID) uint64 {
 func (w *World) IsShapeSensor(shapeID ShapeID) bool {
 	s := w.getShape(shapeID)
 	return s.sensorIndex != NullIndex
+}
+
+// ShapeIdentity returns the owning body's user data, the shape's user data and whether the
+// shape is a sensor from one lookup.
+func (w *World) ShapeIdentity(shapeID ShapeID) (bodyUserData, shapeUserData uint64, isSensor bool) {
+	s := w.getShape(shapeID)
+	return w.bodies[s.bodyID].userData, s.userData, s.sensorIndex != NullIndex
 }
 
 // ShapeTestPoint tests a point for overlap with a shape

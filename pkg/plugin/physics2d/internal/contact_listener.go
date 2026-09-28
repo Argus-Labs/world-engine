@@ -183,19 +183,17 @@ func (rt *Runtime) makeBufferedEvent(
 	sidA, sidB box2d.ShapeID,
 ) BufferedContactEvent {
 	w := rt.World
-	entityA, shapeIndexA := rt.shapeIdentity(sidA)
-	entityB, shapeIndexB := rt.shapeIdentity(sidB)
-	filterA := w.ShapeFilter(sidA)
-	filterB := w.ShapeFilter(sidB)
+	entityA, shapeIndexA, sensorA := rt.shapeIdentity(sidA)
+	entityB, shapeIndexB, sensorB := rt.shapeIdentity(sidB)
 	return BufferedContactEvent{
 		Kind:            kind,
-		FilterA:         toFixtureFilterBits(filterA),
-		FilterB:         toFixtureFilterBits(filterB),
+		FilterA:         toFixtureFilterBits(w.ShapeFilter(sidA)),
+		FilterB:         toFixtureFilterBits(w.ShapeFilter(sidB)),
 		EntityA:         entityA,
 		EntityB:         entityB,
 		ShapeIndexA:     shapeIndexA,
 		ShapeIndexB:     shapeIndexB,
-		IsSensorContact: w.IsShapeSensor(sidA) || w.IsShapeSensor(sidB),
+		IsSensorContact: sensorA || sensorB,
 	}
 }
 
@@ -213,13 +211,12 @@ func applyManifold(buf *BufferedContactEvent, m *box2d.Manifold) {
 }
 
 // shapeIdentity resolves a Box2D shape id to its (entity, collider shape index) pair via the
-// body/shape user data written at creation time.
-func (rt *Runtime) shapeIdentity(sid box2d.ShapeID) (cardinal.EntityID, int) {
-	w := rt.World
-	bodyID := w.ShapeBody(sid)
-	entityID := cardinal.EntityID(uint32(w.BodyUserData(bodyID))) //nolint:gosec // packed from uint32 entity id
-	shapeIndex := int(uint32(w.ShapeUserData(sid)))               //nolint:gosec // packed from small shape index
-	return entityID, shapeIndex
+// body/shape user data written at creation time, plus whether the shape is a sensor.
+func (rt *Runtime) shapeIdentity(sid box2d.ShapeID) (cardinal.EntityID, int, bool) {
+	bodyData, shapeData, isSensor := rt.World.ShapeIdentity(sid)
+	entityID := cardinal.EntityID(uint32(bodyData)) //nolint:gosec // packed from uint32 entity id
+	shapeIndex := int(uint32(shapeData))            //nolint:gosec // packed from small shape index
+	return entityID, shapeIndex, isSensor
 }
 
 // toFixtureFilterBits converts a Box2D shape filter to the event filter bits type.
