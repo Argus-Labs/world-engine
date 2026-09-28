@@ -64,21 +64,19 @@ func (rt *Runtime) writebackOne(e *WritebackEntry) {
 		Angular: av,
 	}
 
-	// The shadow holds what ECS has (reconcile refreshed it before the step), so a value
-	// equal to it is unchanged and the write is skipped. Downstream change detection then
-	// sees a write only when something moved; a sleeping body writes nothing.
-	shadow, hasShadow := rt.Shadow[e.Entity.ID()]
-	if !hasShadow || shadow.TransformDiffers(t) {
+	// Compared against ECS so a value reconcile rejected still gets overwritten.
+	if e.Entity.Get[component.Transform2D]() != t {
 		e.Entity.Set(t)
 	}
-	if !hasShadow || shadow.VelocityDiffers(v) {
+	if e.Entity.Get[component.Velocity2D]() != v {
 		e.Entity.Set(v)
 	}
 	if pb.Active && pb.Awake != awake {
 		pb.Awake = awake
 		e.Entity.Set(pb)
 	}
-	if hasShadow {
+	// Resync the shadow so the next reconcile sees no diff for these fields.
+	if shadow, hasShadow := rt.Shadow[e.Entity.ID()]; hasShadow {
 		shadow.Transform = t
 		shadow.Velocity = v
 		if pb.Active {
