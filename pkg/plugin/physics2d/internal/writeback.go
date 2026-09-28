@@ -12,9 +12,9 @@ type WritebackEntry struct {
 }
 
 // WritebackFromStepResults reads post-step positions, rotations, velocities, and awake state
-// from the Box2D world and writes them into the corresponding ECS Transform2D, Velocity2D,
-// and PhysicsBody2D components. It also updates the shadow state so the next ReconcileFromECS
-// tick sees no diff for these values.
+// from the Box2D world and writes the ones that changed into the corresponding ECS
+// Transform2D, Velocity2D, and PhysicsBody2D components. It also updates the shadow state so
+// the next ReconcileFromECS tick sees no diff for these values.
 //
 // Iteration is driven by entries (ECS iteration order, EntityID-sorted), never by the
 // runtime's Go maps, so the write order is deterministic.
@@ -59,16 +59,21 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 			Angular: av,
 		}
 
-		e.Entity.Set(t)
-		e.Entity.Set(v)
+		// The shadow holds what ECS has (reconcile refreshed it before the step), so a value
+		// equal to it is unchanged and the write is skipped. Downstream change detection then
+		// sees a write only when something moved; a sleeping body writes nothing.
+		shadow, hasShadow := rt.Shadow[e.Entity.ID()]
+		if !hasShadow || shadow.TransformDiffers(t) {
+			e.Entity.Set(t)
+		}
+		if !hasShadow || shadow.VelocityDiffers(v) {
+			e.Entity.Set(v)
+		}
 		if pb.Active && pb.Awake != awake {
 			pb.Awake = awake
 			e.Entity.Set(pb)
 		}
-
-		// Update shadow so ReconcileFromECS sees no diff for these fields next tick. Shapes
-		// are not touched: writeback never changes them.
-		if shadow, exists := rt.Shadow[e.Entity.ID()]; exists {
+		if hasShadow {
 			shadow.Transform = t
 			shadow.Velocity = v
 			if pb.Active {
