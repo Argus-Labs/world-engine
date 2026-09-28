@@ -33,53 +33,57 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 	}
 
 	for i := range entries {
-		e := &entries[i]
-		bodyID, ok := rt.Bodies[e.Entity.ID()]
-		if !ok {
-			continue
-		}
+		rt.writebackOne(&entries[i])
+	}
+}
 
-		pb := e.Entity.Get[component.PhysicsBody2D]()
-		if pb.BodyType == component.BodyTypeStatic || pb.BodyType == component.BodyTypeManual {
-			continue
-		}
+// writebackOne writes one body's post-step state back; see WritebackFromStepResults.
+func (rt *Runtime) writebackOne(e *WritebackEntry) {
+	bodyID, ok := rt.Bodies[e.Entity.ID()]
+	if !ok {
+		return
+	}
 
-		pos := rt.World.BodyPosition(bodyID)
-		angle := box2d.RotGetAngle(rt.World.BodyRotation(bodyID))
-		lv := rt.World.BodyLinearVelocity(bodyID)
-		av := rt.World.BodyAngularVelocity(bodyID)
-		awake := rt.World.IsBodyAwake(bodyID)
+	pb := e.Entity.Get[component.PhysicsBody2D]()
+	if pb.BodyType == component.BodyTypeStatic || pb.BodyType == component.BodyTypeManual {
+		return
+	}
 
-		t := component.Transform2D{
-			Position: component.Vec2{X: pos.X, Y: pos.Y},
-			Rotation: angle,
-		}
-		v := component.Velocity2D{
-			Linear:  component.Vec2{X: lv.X, Y: lv.Y},
-			Angular: av,
-		}
+	pos := rt.World.BodyPosition(bodyID)
+	angle := box2d.RotGetAngle(rt.World.BodyRotation(bodyID))
+	lv := rt.World.BodyLinearVelocity(bodyID)
+	av := rt.World.BodyAngularVelocity(bodyID)
+	awake := rt.World.IsBodyAwake(bodyID)
 
-		// The shadow holds what ECS has (reconcile refreshed it before the step), so a value
-		// equal to it is unchanged and the write is skipped. Downstream change detection then
-		// sees a write only when something moved; a sleeping body writes nothing.
-		shadow, hasShadow := rt.Shadow[e.Entity.ID()]
-		if !hasShadow || shadow.TransformDiffers(t) {
-			e.Entity.Set(t)
+	t := component.Transform2D{
+		Position: component.Vec2{X: pos.X, Y: pos.Y},
+		Rotation: angle,
+	}
+	v := component.Velocity2D{
+		Linear:  component.Vec2{X: lv.X, Y: lv.Y},
+		Angular: av,
+	}
+
+	// The shadow holds what ECS has (reconcile refreshed it before the step), so a value
+	// equal to it is unchanged and the write is skipped. Downstream change detection then
+	// sees a write only when something moved; a sleeping body writes nothing.
+	shadow, hasShadow := rt.Shadow[e.Entity.ID()]
+	if !hasShadow || shadow.TransformDiffers(t) {
+		e.Entity.Set(t)
+	}
+	if !hasShadow || shadow.VelocityDiffers(v) {
+		e.Entity.Set(v)
+	}
+	if pb.Active && pb.Awake != awake {
+		pb.Awake = awake
+		e.Entity.Set(pb)
+	}
+	if hasShadow {
+		shadow.Transform = t
+		shadow.Velocity = v
+		if pb.Active {
+			shadow.PhysicsBody.Awake = awake
 		}
-		if !hasShadow || shadow.VelocityDiffers(v) {
-			e.Entity.Set(v)
-		}
-		if pb.Active && pb.Awake != awake {
-			pb.Awake = awake
-			e.Entity.Set(pb)
-		}
-		if hasShadow {
-			shadow.Transform = t
-			shadow.Velocity = v
-			if pb.Active {
-				shadow.PhysicsBody.Awake = awake
-			}
-			rt.Shadow[e.Entity.ID()] = shadow
-		}
+		rt.Shadow[e.Entity.ID()] = shadow
 	}
 }

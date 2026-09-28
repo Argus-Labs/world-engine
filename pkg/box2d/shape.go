@@ -1050,8 +1050,8 @@ func (w *World) IsShapeSensor(shapeID ShapeID) bool {
 }
 
 // ShapeIdentity returns the owning body's user data, the shape's user data and whether the
-// shape is a sensor from one lookup.
-func (w *World) ShapeIdentity(shapeID ShapeID) (bodyUserData, shapeUserData uint64, isSensor bool) {
+// shape is a sensor, in that order, from one lookup.
+func (w *World) ShapeIdentity(shapeID ShapeID) (uint64, uint64, bool) {
 	s := w.getShape(shapeID)
 	return w.bodies[s.bodyID].userData, s.userData, s.sensorIndex != NullIndex
 }

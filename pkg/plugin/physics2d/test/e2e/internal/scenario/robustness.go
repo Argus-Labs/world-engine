@@ -168,9 +168,10 @@ func hostileBadShape(
 }
 
 // hostileRejectedShape puts a shape Box2D could never build on a body. Validate names the
-// problem, the body gets no fixture and logs every tick, and nothing else is disturbed.
+// problem, the body gets no fixture and logs every tick, and nothing else is disturbed:
+// a body spawned after the bad one (a higher entity id, reconciled after it) still gets built.
 func hostileRejectedShape(name, description string, shape ShapeSpec) harness.Scenario {
-	var bystander, victim cardinal.EntityID
+	var bystander, victim, later cardinal.EntityID
 	return harness.Scenario{
 		Name: name,
 		Setup: func(c *harness.Ctx) {
@@ -183,6 +184,9 @@ func hostileRejectedShape(name, description string, shape ShapeSpec) harness.Sce
 				c.HasError("Validate refuses "+description, err)
 				victim = c.Spawn("victim", 0, 10, physcomp.NewPhysicsBody2D(physics.BodyTypeStatic, shape.Shape))
 			}},
+			{Tick: 10, Do: func(c *harness.Ctx) {
+				later = c.Spawn("later", 20, 0, body(c, physics.BodyTypeStatic, box(1, 1)))
+			}},
 			{Tick: 20, Do: func(c *harness.Ctx) {
 				ids, ok := c.Plugin().ShapeIDs(victim)
 				c.True("the body gets no fixture", !ok || len(ids) == 0,
@@ -191,6 +195,10 @@ func hostileRejectedShape(name, description string, shape ShapeSpec) harness.Sce
 				c.True("the bystander still has its fixture",
 					c.OverlapHits(c.OverlapAABB(-5, -1, 5, 1, nil), bystander),
 					"the bystander lost its body")
+				res := c.Raycast(20, 5, 20, -5, nil)
+				c.True("a body spawned after the bad one still gets built",
+					res.Hit && res.Entity == later,
+					"the later body answered no raycast (hit=%v entity=%d)", res.Hit, res.Entity)
 			}},
 		},
 	}
