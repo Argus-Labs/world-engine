@@ -39,18 +39,16 @@ func normalizeAndValidateString(s *string, fieldName string) error {
 }
 
 func validateLogLevel(logLevel, fieldName string) error {
-	switch logLevel {
-	case zerolog.DebugLevel.String():
-		return nil
-	case zerolog.InfoLevel.String():
-		return nil
-	case zerolog.WarnLevel.String():
-		return nil
-	case zerolog.ErrorLevel.String():
+	switch strings.ToLower(logLevel) {
+	case zerolog.TraceLevel.String(),
+		zerolog.DebugLevel.String(),
+		zerolog.InfoLevel.String(),
+		zerolog.WarnLevel.String(),
+		zerolog.ErrorLevel.String():
 		return nil
 	}
 
-	return eris.New(fmt.Sprintf("log level must be one of: debug, info, warn, error for %s", fieldName))
+	return eris.New(fmt.Sprintf("log level must be one of: trace, debug, info, warn, error for %s", fieldName))
 }
 
 func validatePath(path string) error {
