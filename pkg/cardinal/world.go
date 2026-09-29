@@ -14,6 +14,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
@@ -246,11 +247,28 @@ func (w *World) init() {
 func (w *World) Tick(timestamp time.Time) {
 	// Drain before starting the span: links must be passed at start for a sampler to see them.
 	commands := w.commands.Drain()
+
+	// Link each drained command whose enqueuing request was sampled, up to maxCommandLinks. Links,
+	// not children: that request finished before this tick. A request the sampler dropped was never
+	// exported, so a link to it would dangle; skipping it also skips the zero SpanContext of an
+	// untraced caller. Nil when no command qualifies, so an untraced tick pays no allocation here.
+	var links []oteltrace.Link
+	for _, cmd := range commands {
+		if !cmd.Span.IsSampled() {
+			continue
+		}
+		if len(links) == maxCommandLinks {
+			break
+		}
+		links = append(links, oteltrace.Link{SpanContext: cmd.Span, Attributes: []attribute.KeyValue{
+			attrCommandName.String(cmd.Name), attrCommandPersona.String(cmd.Persona)}})
+	}
+
 	ctx, span := trace.New(context.Background(), spanTick,
 		oteltrace.WithAttributes(
 			attrTickHeight.Int64(int64(w.currentTick.height)), //nolint:gosec // tick height stays far below int64 max
 			attrTickCommands.Int(len(commands))),
-		oteltrace.WithLinks(commandLinks(commands)...))
+		oteltrace.WithLinks(links...))
 	defer span.End()
 	w.tickCtx = ctx
 	defer func() { w.tickCtx = context.Background() }()
@@ -265,8 +283,24 @@ func (w *World) Tick(timestamp time.Time) {
 
 	w.dispatchEvents(ctx)
 
-	// Publish state for snapshots and debugging.
-	w.persistState(ctx, timestamp)
+	// Serialize the world for snapshots and the debug service. Encoding cannot fail (a value that
+	// cannot be encoded panics inside the ECS), so there is no retry path.
+	snapshotDue := w.currentTick.height%uint64(w.options.SnapshotRate) == 0
+	if snapshotDue || w.debug != nil {
+		_, persistSpan := trace.New(ctx, spanPersistState,
+			oteltrace.WithAttributes(attrSnapshotDue.Bool(snapshotDue)))
+		defer persistSpan.End()
+
+		data := w.encodeSnapshot(timestamp)
+
+		// Hand the debug service the same frozen bytes. Nobody writes to them, so sharing with the
+		// writer below is safe.
+		w.debug.publishState(data)
+
+		if snapshotDue {
+			w.snapshotWriter.Write(w.currentTick.height, data)
+		}
+	}
 
 	// Increase the tick height.
 	w.currentTick.height++
@@ -277,26 +311,6 @@ func (w *World) Tick(timestamp time.Time) {
 // drops them one memmove at a time.
 const maxCommandLinks = 128
 
-// commandLinks builds one span link per drained command whose enqueuing request was sampled, up
-// to maxCommandLinks. Links, not children: that request finished before this tick. A request the
-// sampler dropped was never exported, so a link to it would dangle; skipping it also skips the
-// zero SpanContext of an untraced caller. Nil when no command qualifies, so an untraced tick pays
-// no allocation here.
-func commandLinks(commands []command.Command) []oteltrace.Link {
-	var links []oteltrace.Link
-	for _, cmd := range commands {
-		if !cmd.Span.IsSampled() {
-			continue
-		}
-		if len(links) == maxCommandLinks {
-			break
-		}
-		links = append(links, oteltrace.Link{SpanContext: cmd.Span, Attributes: []attribute.KeyValue{
-			attrCommandName.String(cmd.Name), attrCommandPersona.String(cmd.Persona)}})
-	}
-	return links
-}
-
 // dispatchEvents runs the tick's event handlers under their own span. The span is ended by a
 // direct defer so a panicking handler (encoding panics on unencodable payloads) still closes
 // it with the panic recorded.
@@ -306,28 +320,6 @@ func (w *World) dispatchEvents(ctx context.Context) {
 	if err := w.events.Dispatch(ctx); err != nil {
 		span.SetError(err)
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
-	}
-}
-
-// persistState serializes the world for snapshots and the debug service. Encoding cannot fail
-// (a value that cannot be encoded panics inside the ECS), so there is no retry path.
-func (w *World) persistState(ctx context.Context, timestamp time.Time) {
-	snapshotDue := w.currentTick.height%uint64(w.options.SnapshotRate) == 0
-	if !snapshotDue && w.debug == nil {
-		return
-	}
-
-	_, span := trace.New(ctx, spanPersistState, oteltrace.WithAttributes(attrSnapshotDue.Bool(snapshotDue)))
-	defer span.End()
-
-	data := w.encodeSnapshot(timestamp)
-
-	// Hand the debug service the same frozen bytes. Nobody writes to them, so sharing with the
-	// writer below is safe.
-	w.debug.publishState(data)
-
-	if snapshotDue {
-		w.snapshotWriter.Write(w.currentTick.height, data)
 	}
 }
 
@@ -456,14 +448,53 @@ func (w *World) RegisterSystem(s System, opts ...SystemOption) {
 	if w.started {
 		panic(ErrWorldStarted)
 	}
-	if isNilSystem(s) {
+	// Reject a nil interface or typed nil pointer. Both would register under a valid name and then
+	// dereference nil inside Run on the first tick, so registration rejects them while the caller
+	// can still see which system it was.
+	if v := reflect.ValueOf(s); s == nil || (v.Kind() == reflect.Pointer && v.IsNil()) {
 		panic(eris.Errorf("system %T is nil; register a constructed instance", s))
 	}
-	cfg := newSystemConfig()
+	cfg := systemConfig{hook: Update}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-	registerSystem(w, fmt.Sprintf("%T", s), cfg.hook, func() { s.Run(w) })
+	name := fmt.Sprintf("%T", s)
+	hookName := ecsHookToProto(uint8(cfg.hook)).String()
+
+	// Every system run is a child span of the current tick (or init) span. The attributes are
+	// fixed per system, so they are built once here. When the tick span is not recording
+	// (tracing disabled or the tick sampled out) the child would be discarded anyway, so it is
+	// skipped to keep the per-system cost at one interface call.
+	attrs := oteltrace.WithAttributes(attrSystemName.String(name), attrSystemHook.String(hookName))
+	fn := func() {
+		if oteltrace.SpanFromContext(w.tickCtx).IsRecording() {
+			_, span := trace.New(w.tickCtx, spanSystem, attrs)
+			defer span.End()
+		}
+		s.Run(w)
+	}
+
+	// If debug is enabled, also record the run in the performance module.
+	if w.debug != nil {
+		traced := fn
+		fn = func() {
+			ts := w.currentTick.timestamp
+			startTime := ts.Add(time.Since(ts))
+			traced()
+			endTime := ts.Add(time.Since(ts))
+			w.debug.recordSpan(performance.TickSpan{
+				TickHeight: w.currentTick.height,
+				SystemName: name,
+				SystemHook: uint8(cfg.hook),
+				StartTime:  startTime,
+				EndTime:    endTime,
+			})
+		}
+	}
+
+	if err := w.world.RegisterSystem(name, cfg.hook, fn); err != nil {
+		panic(eris.Wrapf(err, "error registering system"))
+	}
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -526,7 +557,11 @@ func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 
 	return func(yield func(CommandContext[T]) bool) {
 		for _, cmd := range commands {
-			if !yield(newCommandContext[T](cmd)) {
+			// The queue stores the decoded value as a Payload; recover the concrete type. Value
+			// semantics, no pointer: Serializable is satisfied by the value type.
+			payload, isT := cmd.Payload.(T)
+			assert.That(isT, "mismatched command type passed to command context")
+			if !yield(CommandContext[T]{Payload: payload, Persona: cmd.Persona}) {
 				return
 			}
 		}
@@ -775,16 +810,4 @@ func (w *World) search[T any](match ecs.SearchMatch) Search {
 		panic(err)
 	}
 	return Search{world: w.world, components: components, match: match}
-}
-
-// -------------------------------------------------------------------------------------------------
-// Snapshot Storage
-// -------------------------------------------------------------------------------------------------
-
-func (w *World) useSyncSnapshotStorage(store snapshot.Storage) {
-	if w.snapshotWriter != nil {
-		w.snapshotWriter.Stop(context.Background())
-	}
-	w.snapshotStorage = store
-	w.snapshotWriter = snapshot.NewSyncWriter(store, w.tel.GetLogger("snapshot"))
 }

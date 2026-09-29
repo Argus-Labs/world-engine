@@ -231,7 +231,9 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	// and an upload goroutine decides which snapshots survive latest-wins by how it interleaves
 	// with the tick loop. memSnapshotStorage also asserts on t, which only this goroutine may do.
 	storage := &memSnapshotStorage{t: t}
-	w.useSyncSnapshotStorage(storage)
+	w.snapshotWriter.Stop(context.Background())
+	w.snapshotStorage = storage
+	w.snapshotWriter = snapshot.NewSyncWriter(storage, w.tel.GetLogger("snapshot"))
 
 	// Initialize ECS and run init systems under the init span, as run and reset do.
 	w.init()
@@ -373,7 +375,7 @@ func fillImmutableSlice(prng *rand.Rand, v reflect.Value, liveEntityIDs []Entity
 
 // memSnapshotStorage keeps the last snapshot in memory and checks the envelope on the way in.
 //
-// It must only be driven by the synchronous snapshot writer (World.useSyncSnapshotStorage), never by
+// It must only be driven by the synchronous snapshot writer (installed by RunDST), never by
 // the background one. The reason is the assertions, not the field: require fails a test by calling
 // t.FailNow, which is only valid on the goroutine running the test, so a mutex around snap would
 // silence the race detector while leaving the actual defect in place. Storage that is worth

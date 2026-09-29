@@ -1,19 +1,13 @@
 package cardinal
 
 import (
-	"reflect"
-	"time"
-
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/immutable"
-	"github.com/argus-labs/world-engine/pkg/telemetry/trace"
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 type EntityID = ecs.EntityID
@@ -32,57 +26,6 @@ type System interface {
 var ErrWorldStarted = eris.New(
 	"cannot register after the world has started; register before StartGame and outside systems")
 
-// isNilSystem reports whether s is a nil interface or a typed nil pointer. Both would register
-// under a valid name and then dereference nil inside Run on the first tick, so registration
-// rejects them while the caller can still see which system it was.
-func isNilSystem(s System) bool {
-	if s == nil {
-		return true
-	}
-	v := reflect.ValueOf(s)
-	return v.Kind() == reflect.Pointer && v.IsNil()
-}
-
-func registerSystem(w *World, name string, hook SystemHook, run func()) {
-	hookName := ecsHookToProto(uint8(hook)).String()
-
-	// Every system run is a child span of the current tick (or init) span. The attributes are
-	// fixed per system, so they are built once here. When the tick span is not recording
-	// (tracing disabled or the tick sampled out) the child would be discarded anyway, so it is
-	// skipped to keep the per-system cost at one interface call.
-	attrs := oteltrace.WithAttributes(attrSystemName.String(name), attrSystemHook.String(hookName))
-	fn := func() {
-		if oteltrace.SpanFromContext(w.tickCtx).IsRecording() {
-			_, span := trace.New(w.tickCtx, spanSystem, attrs)
-			defer span.End()
-		}
-		run()
-	}
-
-	// If debug is enabled, also record the run in the performance module.
-	if w.debug != nil {
-		traced := fn
-		fn = func() {
-			ts := w.currentTick.timestamp
-			startTime := ts.Add(time.Since(ts))
-			traced()
-			endTime := ts.Add(time.Since(ts))
-			w.debug.recordSpan(performance.TickSpan{
-				TickHeight: w.currentTick.height,
-				SystemName: name,
-				SystemHook: uint8(hook),
-				StartTime:  startTime,
-				EndTime:    endTime,
-			})
-		}
-	}
-
-	err := w.world.RegisterSystem(name, hook, fn)
-	if err != nil {
-		panic(eris.Wrapf(err, "error registering system"))
-	}
-}
-
 // -------------------------------------------------------------------------------------------------
 // Options
 // -------------------------------------------------------------------------------------------------
@@ -91,13 +34,6 @@ func registerSystem(w *World, name string, hook SystemHook, run func()) {
 type systemConfig struct {
 	// The hook that determines when the system should be executed.
 	hook ecs.SystemHook
-}
-
-// newSystemConfig creates a new system config with default values.
-func newSystemConfig() systemConfig {
-	return systemConfig{
-		hook: Update,
-	}
 }
 
 // SystemOption is a function that configures a SystemConfig.
@@ -131,18 +67,6 @@ type Command = command.Payload
 type CommandContext[T Command] struct {
 	Payload T
 	Persona string
-}
-
-func newCommandContext[T Command](cmd command.Command) CommandContext[T] {
-	// The queue stores the decoded value as a Payload; recover the concrete type. Value semantics —
-	// no pointer, because Serializable is satisfied by the value type (all value receivers).
-	payload, ok := cmd.Payload.(T)
-	assert.That(ok, "mismatched command type passed to command context")
-
-	return CommandContext[T]{
-		Payload: payload,
-		Persona: cmd.Persona,
-	}
 }
 
 // -------------------------------------------------------------------------------------------------

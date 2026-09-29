@@ -25,7 +25,7 @@ import (
 // serialization cost.
 //
 // The matrix deliberately runs with Debug off. Debug on forces the full ToProto graph build on every
-// tick regardless of SnapshotRate (world.go persistState), which is not how production runs and
+// tick regardless of SnapshotRate (World.Tick), which is not how production runs and
 // makes per-tick numbers unusable as a snapshot-path baseline.
 
 // ---------------------------------------------------------------------------
