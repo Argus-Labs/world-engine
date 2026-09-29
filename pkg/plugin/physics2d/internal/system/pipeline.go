@@ -2,9 +2,9 @@ package system
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	physicscomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	physicevent "github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal"
+	physicscomp "github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // PhysicsPipelineSystem runs the full physics pipeline atomically: reconcile -> step -> writeback.

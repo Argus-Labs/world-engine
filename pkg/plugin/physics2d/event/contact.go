@@ -2,12 +2,12 @@ package event
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // FixtureFilterBits is the Box2D collision filter for one fixture at contact time. It matches
-// ECS ColliderShape CategoryBits/MaskBits and the fixture’s GroupIndex (non-zero group rules
-// override category/mask in Box2D).
+// the CategoryBits, MaskBits and GroupIndex of the [component.Shape] behind the fixture. A
+// non-zero group index overrides category and mask in Box2D.
 type FixtureFilterBits struct {
 	CategoryBits uint64 `json:"category_bits"`
 	MaskBits     uint64 `json:"mask_bits"`

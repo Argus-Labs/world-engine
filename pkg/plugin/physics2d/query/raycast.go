@@ -5,7 +5,7 @@ package query
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/internal/component"
 )
 
 // RaycastRequest is a world-space segment cast from Origin toward End (inclusive segment; hit

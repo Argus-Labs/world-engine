@@ -14,7 +14,7 @@ go run  ./pkg/plugin/physics2d/test/e2e/cmd/physics2d-e2e -h         # the same 
 
 | Test | Pins |
 |---|---|
-| `TestScenarios` | Thirteen scripted scenarios, about 400 checks. Each runs in its own world as a parallel subtest, so `-run TestScenarios/flags` works and a failure names the scenario and the line |
+| `TestScenarios` | Sixteen scripted scenarios, about 550 checks. Each runs in its own world as a parallel subtest, so `-run TestScenarios/flags` works and a failure names the scenario and the line |
 | `TestExhaustiveBodyMatrix` | Every body type × every shape type × every combination of the five body flags (896 bodies, one world). Each flag is read back from the engine, not the component; the wire round-trip is lossless; a `Plugin.Reset` rebuild recreates the same engine state |
 | `TestRandomScenes` | Seeded random scenes of valid bodies over a static floor. Invariants: lossless wire round-trip, no solid dynamic body ends up inside the floor, and the same seed simulates identically twice and at `Workers: 4` |
 | `TestRestore` | Snapshot a world, round-trip every component through the wire format, rebuild it in a fresh world, simulate both on and compare. Once with the documented `Plugin.Reset`, once without |
@@ -56,7 +56,7 @@ through the floor, and that would make the invariant unprovable.
 | Scenario | Pins |
 |---|---|
 | `defaults` | Constructor and wire defaults, the zero-value trap, `Validate` |
-| `shapes` | All 7 `ShapeType`s reach Box2D and collide by their geometry |
+| `shapes` | All 7 shape kinds reach Box2D and collide by their geometry |
 | `bodytypes` | Static / dynamic / kinematic / manual, and the writeback rules |
 | `flags` | Active, Awake, SleepingAllowed, Bullet, FixedRotation, gravity scale, damping; teleport with an explicit same-tick sleep |
 | `material` | Friction mixes as `sqrt(a*b)`, restitution as `max(a,b)`, density becomes mass |
@@ -66,6 +66,7 @@ through the floor, and that would make the invariant unprovable.
 | `compound` | Child offsets and rotations, slot identity, combined centre of mass |
 | `queries` | Raycast, OverlapAABB (narrow-phase), CircleSweep, plus every documented edge case |
 | `lifecycle` | Create, destroy, teleport, retype, resize (capsules included), add/remove shapes, refilter, retune |
+| `shape-edits` | Editing a body's shapes: material and filter land in place; geometry and sensor rebuild the fixture; a chain's material reaches its segments; removing a middle shape moves the later fixtures down one index |
 | `stability` | 10-box stack, deep overlap recovery, 2 cm to 100 m shapes, 5 km from origin |
 | `reset` | `Plugin.Reset` rebuild: poses, velocities, no replayed events, queries |
 
@@ -81,8 +82,6 @@ Behaviour worth knowing, all pinned by passing checks:
 - `Transform2D.Rotation` is wrapped to `[-π, π]` on writeback.
 - A spinning body whose centre of mass is off its origin gets linear velocity even
   with `Velocity2D.Linear` zero. That is Box2D, not a bug.
-- `NewPhysicsBody2D` lives in `physics2d/component`; the plugin root does not
-  re-export it.
 
 ### Crash-prone cases
 
@@ -94,15 +93,15 @@ process panicked (reported as FATAL).
 
 `knownFailures` in `e2e_test.go` lists the cases that fail today and why. A case
 that starts passing fails the test until it is removed from that map, so an
-engine change that fixes one is noticed rather than absorbed. Today that is only
-`zero-extent-box`: `ColliderShape.Validate` accepts zero half-extents, the engine
-builds a `(NaN, NaN)` body from them where C's assert would have fired, and the
-reconciler then rejects the entity every tick for as long as it lives.
+engine change that fixes one is noticed rather than absorbed. The map is empty
+today: every case either reaches the engine and survives, or is refused by
+`Validate` before it gets there.
 
-The rest reject cleanly or simulate: `destroy-during-contact`, `short-chain`,
-`short-chain-loop`, `zero-radius-circle`, `negative-radius-circle`,
-`polygon-no-vertices`, `polygon-two-vertices`,
-`degenerate-capsule`, `chain-on-dynamic-body`. Note that a rejected shape retries
+Every case: `destroy-during-contact`, `short-chain`,
+`short-chain-loop`, `sensor-chain`, `zero-radius-circle`,
+`negative-radius-circle`, `polygon-no-vertices`, `polygon-two-vertices`,
+`polygon-too-many-vertices`, `polygon-flat`, `degenerate-capsule`, `degenerate-edge`,
+`zero-extent-box`, `chain-on-dynamic-body`. Note that a rejected shape retries
 forever: the entity stays in ECS with no body and `ReconcileFromECS` logs the same
 failure every tick.
 
@@ -129,7 +128,7 @@ func MyThing() harness.Scenario {
 	return harness.Scenario{
 		Name: "mything",
 		Setup: func(c *harness.Ctx) {
-			s.ball = c.Spawn("ball", 0, 10, body(physics.BodyTypeDynamic, circle(0.5)))
+			s.ball = c.Spawn("ball", 0, 10, body(c, physics.BodyTypeDynamic, circle(0.5)))
 		},
 		Steps: []harness.Step{
 			{Tick: 120, Do: func(c *harness.Ctx) {

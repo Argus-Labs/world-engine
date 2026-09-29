@@ -56,31 +56,31 @@ func Contacts() harness.Scenario {
 		Setup: func(c *harness.Ctx) {
 			// Row y=0 — one clean landing, with distinctive filters on both sides
 			// so the event's filter fields have something to be wrong about.
-			s.floor = c.Spawn("floor", 0, groundY, body(physics.BodyTypeStatic,
+			s.floor = c.Spawn("floor", 0, groundY, body(c, physics.BodyTypeStatic,
 				withFilter(box(20, 1), s.floorCat, maskAll, s.floorGroup)))
-			s.ball = c.Spawn("landing-ball", 0, dropY, body(physics.BodyTypeDynamic,
+			s.ball = c.Spawn("landing-ball", 0, dropY, body(c, physics.BodyTypeDynamic,
 				withFilter(circle(0.5), s.ballCat, maskAll, s.ballGroup)))
 
 			// Row y=20 — a box that is launched off its pad partway through, so
 			// the End event has an unambiguous cause.
-			s.liftPad = c.Spawn("lift-pad", 0, 19, body(physics.BodyTypeStatic, box(3, 1)))
+			s.liftPad = c.Spawn("lift-pad", 0, 19, body(c, physics.BodyTypeStatic, box(3, 1)))
 			s.lifted = c.Spawn("lifted-box", 0, 26,
-				awake(body(physics.BodyTypeDynamic, box(0.5, 0.5))))
+				awake(body(c, physics.BodyTypeDynamic, box(0.5, 0.5))))
 
 			// Row y=40 — a bouncing ball must produce a Begin/End pair per bounce.
-			s.bouncePad = c.Spawn("bounce-pad", 0, 39, body(physics.BodyTypeStatic, box(3, 1)))
+			s.bouncePad = c.Spawn("bounce-pad", 0, 39, body(c, physics.BodyTypeStatic, box(3, 1)))
 			s.bouncer = c.Spawn("bouncing-ball", 0, 48,
-				body(physics.BodyTypeDynamic, withRestitution(circle(0.5), 0.75)))
+				body(c, physics.BodyTypeDynamic, withRestitution(circle(0.5), 0.75)))
 
 			// Row y=60 — the resting pad. Its box is created mid-run (see below)
 			// because an overlap that exists at world build time is suppressed.
-			s.restPad = c.Spawn("rest-pad", 0, 59, body(physics.BodyTypeStatic, box(3, 1)))
+			s.restPad = c.Spawn("rest-pad", 0, 59, body(c, physics.BodyTypeStatic, box(3, 1)))
 		},
 		Steps: []harness.Step{
 			{Tick: restSpawn, Do: func(c *harness.Ctx) {
 				// Dropped from 5 cm so it lands once and stays put.
 				s.rester = c.Spawn("resting-box", 0, 60.55,
-					body(physics.BodyTypeDynamic, box(0.5, 0.5)))
+					body(c, physics.BodyTypeDynamic, box(0.5, 0.5)))
 			}},
 			{Tick: earlyCheck, Do: func(c *harness.Ctx) {
 				begins := c.EventsBetween(harness.ContactBegin, s.ball, s.floor)

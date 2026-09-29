@@ -24,7 +24,7 @@ func spawnBallAndFloor(w *cardinal.World, x float64, ballID *cardinal.EntityID) 
 		floor.Set(harnessTag{Role: "floor"})
 		floor.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: 0}})
 		floor.Set(physics.Velocity2D{})
-		floor.Set(newRigid(physics.BodyTypeStatic, boxColliderShapes(10, 0.5)...))
+		floor.Set(newRigid(physics.BodyTypeStatic, boxShape(10, 0.5)))
 
 		ball := w.Create[spawnArchetype]()
 
@@ -32,7 +32,7 @@ func spawnBallAndFloor(w *cardinal.World, x float64, ballID *cardinal.EntityID) 
 		ball.Set(harnessTag{Role: "ball"})
 		ball.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: 5}})
 		ball.Set(physics.Velocity2D{})
-		ball.Set(newRigid(physics.BodyTypeDynamic, circleColliderShapes()...))
+		ball.Set(newRigid(physics.BodyTypeDynamic, circleShape()))
 		*ballID = id
 	}}, cardinal.WithHook(cardinal.Init))
 }

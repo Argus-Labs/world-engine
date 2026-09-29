@@ -2,8 +2,12 @@ package scenario
 
 import "github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/harness"
 
-// All returns every scenario in run order. Each gets its own lane in the world,
-// so ordering only affects layout and report ordering, never behaviour.
+// All returns every scenario in run order. Each gets its own lane in the world, so bodies
+// never reach each other and ordering is normally just layout and report order.
+//
+// The exception is a scenario that acts on the whole world rather than its lane. Reset calls
+// Plugin.Reset, and steps run in this order within a tick, so Reset has to stay last: every
+// other scenario's step that tick still sees the world before it is dropped.
 func All() []harness.Scenario {
 	return []harness.Scenario{
 		Defaults(),
@@ -18,6 +22,7 @@ func All() []harness.Scenario {
 		Queries(),
 		Lifecycle(),
 		Stability(),
+		ShapeEdits(),
 		Reset(),
 	}
 }
