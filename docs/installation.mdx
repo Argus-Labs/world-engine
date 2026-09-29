@@ -8,7 +8,7 @@ Before you begin, make sure your local machine has the following installed:
 
 - **Go**:
 
-    World Engine games are written in [Go](https://go.dev). This guide requires a minimum Go version of **`v1.25.4`**. To check that Go is installed on your computer, run `go version`.
+    World Engine games are written in [Go](https://go.dev). This guide requires a minimum Go version of **`v1.27.1`**. To check that Go is installed on your computer, run `go version`.
 
 - **Docker**:
 
@@ -20,22 +20,17 @@ Before you begin, make sure your local machine has the following installed:
 
 ## Installing World CLI
 
-The World CLI is the command-line tool for creating, managing, and deploying World Engine projects.
+The World CLI is the command-line tool for creating, managing, and deploying World Engine projects. It ships as a [Go tool](https://go.dev/doc/modules/managing-dependencies#tools) inside the World Engine module, so each project's CLI is the same version as its World Engine. Install the `world` command:
 
-To install the latest version:
+```bash
+go install github.com/argus-labs/world-engine/cli/cmd/world@latest
+```
 
-<Tabs>
-  <Tab title="macOS / Linux">
-    ```bash
-    curl install.world.dev/install.sh | sh
-    ```
-  </Tab>
-  <Tab title="Windows">
-    ```powershell
-    iwr install.world.dev/install.ps1 -useb | iex
-    ```
-  </Tab>
-</Tabs>
+Make sure `$(go env GOPATH)/bin` is on your `PATH`. Inside a project, `world` runs the version the project pins.
+
+<Warning>
+  The `install.world.dev` install scripts are deprecated. They install the last binary release (v2.5.1), which no longer receives updates.
+</Warning>
 
 ## Creating a Project
 
@@ -51,14 +46,23 @@ When prompted, select the **Basic** template.
   TODO: Add an updated image of the selection UI
 </Danger>
 
-Once the project has been created, you can start the local development server:
+The new project's `go.mod` declares the CLI as a tool, so `world` inside it runs the project's version. Start the local development server:
 
 ```bash
 cd my-game
 world start
 ```
 
-This command builds the game server and runs the World Engine stack. It will take some time during your first run to download the required container images.
+This command builds the game server and runs the World Engine stack. It will take some time during your first run to build the CLI and download the required container images.
+
+To add the CLI to an existing project at its World Engine version, run:
+
+```bash
+go mod edit -tool=github.com/argus-labs/world-engine/cli/cmd/world
+go mod tidy
+```
+
+Upgrading World Engine upgrades the project's CLI with it.
 
 ## Stopping the Server
 

@@ -4,6 +4,15 @@
 
 $ErrorActionPreference = 'Stop'
 
+Write-Warning @"
+This installer is deprecated. It installs the last binary release of World CLI,
+which no longer receives updates. World CLI now ships with World Engine. Install it with:
+
+  go install github.com/argus-labs/world-engine/cli/cmd/world@latest
+
+Inside a project, world runs the version the project pins.
+"@
+
 $Version = if ($v) {
   $v
 } elseif ($args.Length -eq 1) {
