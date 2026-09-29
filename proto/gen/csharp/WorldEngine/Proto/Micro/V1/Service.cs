@@ -55,7 +55,9 @@ namespace WorldEngine.Proto.Micro.V1 {
   /// The only exception being &lt;endpoint> which can contain . as a delimiter to leverage NATS routing.
   ///
   /// The ServiceAddress convention is as follows:
-  /// &lt;realm>.&lt;organization>.&lt;project>.&lt;service_id>.&lt;endpoint>
+  /// &lt;region>.&lt;realm>.&lt;organization>.&lt;project>.&lt;service_id>.&lt;endpoint>
+  ///
+  /// &lt;region> identifies the deployment region (e.g., "us-west1").
   ///
   /// &lt;realm> is one of the following:
   /// - internal: Reserved for internal services
@@ -71,15 +73,8 @@ namespace WorldEngine.Proto.Micro.V1 {
   /// An endpoint can contain . as a delimiter to leverage NATS routing.
   ///
   /// Examples:
-  /// - internal.argus.platform.gateway-us-west-2.micro.ping
-  /// - world.argus.rampage.lobby-1.shard.message.player.connect
-  /// ┌───────────┬───────────┬───────────┬───────────────────┬────────────────────────────────┐
-  /// │   realm   │    org    │  project  │    service_id     │            endpoint            │
-  /// ├───────────┼───────────┼───────────┼───────────────────┼────────────────────────────────┤
-  /// │ internal  │   argus   │ platform  │ gateway-us-west-2 │           micro.ping           │
-  /// ├───────────┼───────────┼───────────┼───────────────────┼────────────────────────────────┤
-  /// │   world   │   argus   │  rampage  │      lobby-1      │  shard.message.player.connect  │
-  /// └───────────┴───────────┴───────────┴───────────────────┴────────────────────────────────┘
+  /// - us-west1.internal.argus.platform.gateway-us-west1.micro.ping
+  /// - us-west1.world.argus.rampage.lobby-1.shard.message.player.connect
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class ServiceAddress : pb::IMessage<ServiceAddress>

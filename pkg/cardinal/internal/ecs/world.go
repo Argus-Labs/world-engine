@@ -99,10 +99,22 @@ func (w *World) OnComponentRegister(callback func(zero Component) error) {
 // Serialization methods
 // -------------------------------------------------------------------------------------------------
 
-// ToProto converts the World's state to a proto message.
-// Only serializes the WorldState as components, systems, and managers are recreated on startup.
-func (w *World) ToProto() *cardinalv1.WorldState {
-	return w.state.toProto()
+// StateWireSize computes the exact encoded size of the world's WorldState message. Call
+// AppendStateWire immediately after, with no world mutation in between.
+func (w *World) StateWireSize() int {
+	return w.state.wireBodySize()
+}
+
+// AppendStateWire appends the WorldState message to buf, exactly StateWireSize bytes of it.
+func (w *World) AppendStateWire(buf []byte) []byte {
+	return w.state.appendWireBody(buf)
+}
+
+// EncodeState sizes and appends the WorldState message in one call, for callers that don't
+// need the size ahead of time (tests, serializability checks).
+func (w *World) EncodeState(buf []byte) []byte {
+	w.state.wireBodySize()
+	return w.state.appendWireBody(buf)
 }
 
 // FromProto populates the World's state from a proto message.

@@ -122,7 +122,6 @@ export async function spawnPlayer() {
 
 ```go system/player_spawn.go
 type PlayerSpawnCommand struct {
-	cardinal.BaseCommand
 	ArgusAuthID   string `json:"argus_auth_id"`
 	ArgusAuthName string `json:"argus_auth_name"`
 	X             uint32 `json:"x"`
@@ -133,8 +132,12 @@ func (a PlayerSpawnCommand) Name() string {
 	return "player-spawn"
 }
 
-func PlayerSpawnSystem(state *SpawnPlayerSystemState) error {
-  // ... code omitted for brevity
+type PlayerSpawnSystem struct{}
+
+func (s *PlayerSpawnSystem) Run(w *cardinal.World) {
+	for cmd := range w.Commands[PlayerSpawnCommand]() {
+		// ... code omitted for brevity
+	}
 }
 
 ```

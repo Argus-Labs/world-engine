@@ -161,7 +161,7 @@ func (r *Runner) Plugin() *physics.Plugin { return r.plugin }
 // LastTick returns the final tick the loop will run.
 func (r *Runner) LastTick() uint64 { return r.lastTick }
 
-func (r *Runner) ctx(scenario *Scenario, probes *Probes, tick uint64) *Ctx {
+func (r *Runner) ctx(scenario *Scenario, probes cardinal.Search, tick uint64) *Ctx {
 	return &Ctx{
 		report:     r.report,
 		probes:     probes,
@@ -183,82 +183,81 @@ func (r *Runner) ctx(scenario *Scenario, probes *Probes, tick uint64) *Ctx {
 // before the plugin so the plugin's InitPhysicsSystem sees all the bodies during
 // its first FullRebuildFromECS.
 type setupState struct {
-	cardinal.BaseSystemState
-	Probes Probes
+	runner *Runner
 }
 
 // preStepState runs every scenario's EachTick on PreUpdate. It is registered
 // before the plugin so gameplay writes land in ECS before the reconciler reads
 // them in the same tick.
 type preStepState struct {
-	cardinal.BaseSystemState
-	Probes Probes
+	runner *Runner
 }
 
 // watchWorldState runs the liveness watchdog on PreUpdate. See watchWorld.
 type watchWorldState struct {
-	cardinal.BaseSystemState
+	runner *Runner
 }
 
 // stepState runs scheduled steps on Update, after the physics pipeline has
 // reconciled, stepped and written back, and while this tick's contact events are
 // still readable.
 type stepState struct {
-	cardinal.BaseSystemState
-	Probes       Probes
-	ContactBegin cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
-	ContactEnd   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
-	TriggerBegin cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
-	TriggerEnd   cardinal.WithSystemEventReceiver[physics.TriggerEndEvent]
+	runner *Runner
 }
 
-func (r *Runner) setup(state *setupState) {
+func (s *setupState) Run(w *cardinal.World) {
+	r := s.runner
+	probes := w.Contains[ProbeRow]()
 	for _, s := range r.scenarios {
 		if s.Setup == nil {
 			continue
 		}
-		s.Setup(r.ctx(s, &state.Probes, 0))
+		s.Setup(r.ctx(s, probes, 0))
 	}
 }
 
-func (r *Runner) preStep(state *preStepState) {
-	tick := state.Tick()
+func (s *preStepState) Run(w *cardinal.World) {
+	r := s.runner
+	tick := w.TickHeight()
+	probes := w.Contains[ProbeRow]()
 	for _, s := range r.scenarios {
 		if s.EachTick == nil {
 			continue
 		}
-		s.EachTick(r.ctx(s, &state.Probes, tick))
+		s.EachTick(r.ctx(s, probes, tick))
 	}
 }
 
-func (r *Runner) watchWorldStep(state *watchWorldState) {
-	r.watchWorld(state.Tick())
+func (s *watchWorldState) Run(w *cardinal.World) {
+	s.runner.watchWorld(w.TickHeight())
 }
 
-func (r *Runner) step(state *stepState) {
-	tick := state.Tick()
+func (s *stepState) Run(w *cardinal.World) {
+	r := s.runner
+	tick := w.TickHeight()
 
-	for e := range state.ContactBegin.Iter() {
+	for e := range w.SystemEvents[physics.ContactBeginEvent]() {
 		r.events.record(ContactBegin, tick, e.ContactEventPayload)
 	}
-	for e := range state.ContactEnd.Iter() {
+	for e := range w.SystemEvents[physics.ContactEndEvent]() {
 		r.events.record(ContactEnd, tick, e.ContactEventPayload)
 	}
-	for e := range state.TriggerBegin.Iter() {
+	for e := range w.SystemEvents[physics.TriggerBeginEvent]() {
 		r.events.record(TriggerBegin, tick, e.ContactEventPayload)
 	}
-	for e := range state.TriggerEnd.Iter() {
+	for e := range w.SystemEvents[physics.TriggerEndEvent]() {
 		r.events.record(TriggerEnd, tick, e.ContactEventPayload)
 	}
 
-	r.watchNaN(state, tick)
+	probes := w.Contains[ProbeRow]()
+	r.watchNaN(probes, tick)
 
 	for _, s := range r.scenarios {
 		for i := range s.Steps {
 			if s.Steps[i].Tick != tick || s.Steps[i].Do == nil {
 				continue
 			}
-			s.Steps[i].Do(r.ctx(s, &state.Probes, tick))
+			s.Steps[i].Do(r.ctx(s, probes, tick))
 		}
 	}
 }
@@ -266,8 +265,8 @@ func (r *Runner) step(state *stepState) {
 // watchNaN fails once per entity the first time any of its physics scalars stops
 // being finite. A NaN anywhere in the pipeline poisons the whole Box2D island,
 // so catching the first one names the body actually at fault.
-func (r *Runner) watchNaN(state *stepState, tick uint64) {
-	for row := range state.Probes.Iter() {
+func (r *Runner) watchNaN(probes cardinal.Search, tick uint64) {
+	for row := range probes.Iter() {
 		eid := row.ID()
 		if r.nanReported[eid] {
 			continue
@@ -296,14 +295,19 @@ func (r *Runner) watchNaN(state *stepState, tick uint64) {
 }
 
 // watchWorld fails if the Box2D world disappears mid-run without a scenario
-// having deliberately reset it. Engine() is nil before the first reconcile and
-// after Reset, so only a transition from live back to nil is a bug. The
-// permission a scenario grants via ExpectWorldReset is consumed here either
-// way, so it cannot leave the watchdog switched off for the rest of the run.
+// having deliberately reset it. The permission a scenario grants via
+// ExpectWorldReset is consumed here either way, so it cannot leave the watchdog
+// switched off for the rest of the run.
 //
 // It runs on PreUpdate ahead of the plugin's PhysicsPipelineSystem, which
 // rebuilds a nil world on that same hook: checking any later always sees a
 // live world.
+//
+// worldSeen sticks once a live world has been observed and is never cleared:
+// after a world has existed, any later nil is a live→nil transition, never the
+// "Engine() is nil before the first reconcile" cold start. Clearing it on an
+// allowed nil is what let a chained unannounced Reset on the next tick pass as
+// a cold start.
 func (r *Runner) watchWorld(tick uint64) {
 	allowed := r.resetOK
 	r.resetOK = false
@@ -316,7 +320,6 @@ func (r *Runner) watchWorld(tick uint64) {
 		r.report.Fail("runtime", "the Box2D world stays alive", tick,
 			"Plugin.Engine() went nil after a world had been created")
 	}
-	r.worldSeen = false
 }
 
 // -----------------------------------------------------------------------------
@@ -342,8 +345,11 @@ func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 		return nil, err
 	}
 
-	w.RegisterSystem(r.setup, cardinal.WithHook(cardinal.Init))
-	w.RegisterSystem(r.preStep, cardinal.WithHook(cardinal.PreUpdate))
+	physics.RegisterComponents(w)
+	w.RegisterComponent[probe.Probe]()
+
+	w.RegisterSystem(&setupState{runner: r}, cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(&preStepState{runner: r}, cardinal.WithHook(cardinal.PreUpdate))
 
 	// Registered ahead of the plugin so it sees ECS as the tick found it. After
 	// a snapshot restore that is the deserialized state, before anything has had
@@ -364,10 +370,10 @@ func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 	})
 
 	// Ahead of the plugin so the watchdog sees the world as the tick found it.
-	w.RegisterSystem(r.watchWorldStep, cardinal.WithHook(cardinal.PreUpdate))
+	w.RegisterSystem(&watchWorldState{runner: r}, cardinal.WithHook(cardinal.PreUpdate))
 	w.RegisterPlugin(r.plugin)
 
-	w.RegisterSystem(r.step, cardinal.WithHook(cardinal.Update))
+	w.RegisterSystem(&stepState{runner: r}, cardinal.WithHook(cardinal.Update))
 
 	if cfg.PostCapture != nil {
 		RegisterPostCapture(w, cfg.PostCapture)
@@ -445,8 +451,8 @@ type digestState struct {
 // and so must runs that differ only in Config.Workers.
 func (r *Runner) Digest(w *cardinal.World) (int, uint64) {
 	var rows []digestState
-	collect := func(state *digestCollectorState) {
-		for row := range state.Probes.Iter() {
+	collect := func(w *cardinal.World) {
+		for row := range w.Contains[ProbeRow]().Iter() {
 			eid := row.ID()
 			p := row.Get[probe.Probe]()
 			t := row.Get[physics.Transform2D]()
@@ -480,21 +486,14 @@ func (r *Runner) printDigest(w *cardinal.World) {
 // digestCollectorState is a throwaway system state used only to walk every body
 // once at the end of the run.
 type digestCollectorState struct {
-	cardinal.BaseSystemState
-	Probes Probes
+	done    bool
+	collect func(w *cardinal.World)
 }
 
 // runOnce registers fn as a one-shot Update system and ticks the world once so
-// it can read component state through a properly initialised search.
-func runOnce(w *cardinal.World, fn func(*digestCollectorState)) {
-	done := false
-	w.RegisterSystem(func(state *digestCollectorState) {
-		if done {
-			return
-		}
-		done = true
-		fn(state)
-	}, cardinal.WithHook(cardinal.Update))
+// it can read component state on the world's system goroutine.
+func runOnce(w *cardinal.World, fn func(w *cardinal.World)) {
+	w.RegisterSystem(&digestCollectorState{collect: fn}, cardinal.WithHook(cardinal.Update))
 	w.Tick(time.Unix(1<<20, 0))
 }
 
@@ -516,4 +515,12 @@ func InitECS(w *cardinal.World) {
 		panic("ecs.World: no Init method; the headless init shim needs updating")
 	}
 	m.Call(nil)
+}
+
+func (s *digestCollectorState) Run(w *cardinal.World) {
+	if s.done {
+		return
+	}
+	s.done = true
+	s.collect(w)
 }

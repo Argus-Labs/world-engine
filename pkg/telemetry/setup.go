@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -18,16 +19,16 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
-	otelTrace "go.opentelemetry.io/otel/trace"
-	"go.opentelemetry.io/otel/trace/noop"
 )
 
-// setupOpenTelemetry sets up OpenTelemetry for the service.
-// It returns a tracer, logger, and shutdown function.
+// setupOpenTelemetry sets up OpenTelemetry for the service. It installs the global tracer
+// provider and propagator that trace.New relies on, and returns the logger and a shutdown
+// function. The globals are process-wide, so a process owns exactly one Telemetry: a second
+// instance would take over the first one's spans, and shutting either down stops both.
 func setupOpenTelemetry(
 	ctx context.Context,
 	opts Options,
-) (otelTrace.Tracer, zerolog.Logger, func(context.Context) error, error) {
+) (zerolog.Logger, func(context.Context) error, error) {
 	var shutdownFuncs []func(context.Context) error
 	var err error
 
@@ -47,30 +48,34 @@ func setupOpenTelemetry(
 	// Setup logger first
 	logger := newLogger(opts)
 
-	// Auto-detect: if endpoint is empty, return noop tracer
+	// An empty endpoint disables tracing: the global provider stays the SDK default no-op.
 	if opts.Endpoint == "" {
-		return noop.NewTracerProvider().Tracer(opts.ServiceName), logger, shutdown, nil
+		return logger, shutdown, nil
 	}
 
 	res, err := newResource(opts)
 	if err != nil {
 		handleErr(err)
-		return noop.NewTracerProvider().Tracer(opts.ServiceName), logger, shutdown, err
+		return logger, shutdown, err
 	}
 
 	propagator := newPropagator()
 	otel.SetTextMapPropagator(propagator)
 
+	// Route exporter failures through the service logger instead of OTel's own stderr logger.
+	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+		logger.Warn().Err(err).Msg("opentelemetry export failed")
+	}))
+
 	tracerProvider, err := newTracerProvider(ctx, res, opts)
 	if err != nil {
 		handleErr(err)
-		return noop.NewTracerProvider().Tracer(opts.ServiceName), logger, shutdown, err
+		return logger, shutdown, err
 	}
 	shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
 	otel.SetTracerProvider(tracerProvider)
 
-	tracer := tracerProvider.Tracer(opts.ServiceName)
-	return tracer, logger, shutdown, err
+	return logger, shutdown, err
 }
 
 func newResource(opts Options) (*resource.Resource, error) {
@@ -113,8 +118,21 @@ func newPropagator() propagation.TextMapPropagator {
 	)
 }
 
+// exporterEndpointOptions maps a resolved endpoint onto exporter options. A URL endpoint is handed to the
+// exporter whole so its scheme selects the transport; a bare host:port is dialed with TLS unless insecure.
+func exporterEndpointOptions(endpoint string, insecure bool) []otlptracegrpc.Option {
+	if strings.Contains(endpoint, "://") {
+		return []otlptracegrpc.Option{otlptracegrpc.WithEndpointURL(endpoint)}
+	}
+	options := []otlptracegrpc.Option{otlptracegrpc.WithEndpoint(endpoint)}
+	if insecure {
+		options = append(options, otlptracegrpc.WithInsecure())
+	}
+	return options
+}
+
 func newTracerProvider(ctx context.Context, res *resource.Resource, opts Options) (*trace.TracerProvider, error) {
-	exporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithEndpoint(opts.Endpoint), otlptracegrpc.WithInsecure())
+	exporter, err := otlptracegrpc.New(ctx, exporterEndpointOptions(opts.Endpoint, opts.Insecure)...)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to create OTLP trace exporter")
 	}

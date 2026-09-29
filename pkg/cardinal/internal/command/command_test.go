@@ -1,11 +1,13 @@
 package command_test
 
 import (
+	"context"
 	"math/rand/v2"
 	"sync"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
@@ -52,7 +54,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 		case opEnqueue:
 			// Pick a random command type and enqueue.
 			payload := generators[prng.IntN(len(generators))]()
-			pbPayload := payload.MarshalWire()
+			pbPayload := schema.Marshal(payload)
 			require.NotNil(t, pbPayload)
 
 			persona := testutils.RandString(prng, 8)
@@ -63,7 +65,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 				Payload: pbPayload,
 			}
 
-			err := impl.Enqueue(cmdpb)
+			err := impl.Enqueue(context.Background(), cmdpb)
 			require.NoError(t, err)
 
 			model.enqueue(payload.Name(), command.Command{
@@ -314,7 +316,7 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 					payload = testutils.CommandB{ID: uint64(i), Label: "test", Enabled: true}
 				}
 
-				pbPayload := payload.MarshalWire()
+				pbPayload := schema.Marshal(payload)
 
 				cmdpb := &iscv1.Command{
 					Name:    payload.Name(),
@@ -323,7 +325,7 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 					Payload: pbPayload,
 				}
 
-				if err := impl.Enqueue(cmdpb); err != nil {
+				if err := impl.Enqueue(context.Background(), cmdpb); err != nil {
 					t.Errorf("Enqueue failed: %v", err)
 					return
 				}

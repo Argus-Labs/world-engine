@@ -3,7 +3,7 @@ package schema
 import "google.golang.org/protobuf/reflect/protoreflect"
 
 // Serializable is implemented by every user-defined type — command, event, component, and system event
-// alike. The generator emits all three methods on each type; a hand-written type that hasn't been
+// alike. The generator emits every method on each type; a hand-written type that hasn't been
 // generated is missing them, so it fails to compile (the LSP flags it) rather than at runtime. One
 // interface for all kinds: there is no per-kind codec type and no codec registry.
 //
@@ -14,16 +14,27 @@ import "google.golang.org/protobuf/reflect/protoreflect"
 // back to it (e.g. decoded.(MoveCommand)).
 type Serializable interface {
 	Name() string
-	// MarshalWire encodes the value. It returns no error, so the generated implementation PANICS on a
-	// marshal failure rather than propagating one (see the generator's wireCodec) — it never signals
-	// failure by returning nil, and callers must not test for that.
-	//
-	// Encoding is not infallible: proto.Marshal rejects a proto3 string holding bytes that are not
-	// valid UTF-8, which a backend can produce by slicing a string mid-rune or by reading bytes from
-	// outside the process. Such a value cannot arrive over the wire (decode rejects it too), so it is
-	// always locally made. The panic is unrecovered on the tick's snapshot path.
-	MarshalWire() []byte
+
+	// SizeWire reports the exact encoded size of the value, and AppendWire writes exactly that many
+	// bytes onto b. Neither allocates. Together they are THE encoder: everything that writes a value
+	// goes through them, and Marshal below is a thin wrapper rather than a second implementation.
+	SizeWire() int
+	AppendWire(b []byte) []byte
+
 	UnmarshalWire([]byte) (any, error)
+}
+
+// Marshal encodes v into a fresh, exactly-sized buffer.
+//
+// For callers that hold a Serializable and want a standalone []byte — an outbound command payload, an
+// event on the wire. The hot path does NOT use this: the snapshot appends every value into one shared
+// buffer, which is the whole reason the interface is a size/append pair.
+//
+// Generated types also carry a MarshalWire() method with the same body. That method is deliberately
+// absent from this interface: nothing in the engine calls it through the interface, and requiring it
+// would force every hand-written test double to implement a method that only repeats this line.
+func Marshal(v Serializable) []byte {
+	return v.AppendWire(make([]byte, 0, v.SizeWire()))
 }
 
 // ProtoDescriber supplies protobuf metadata for SDK-generated wire types.

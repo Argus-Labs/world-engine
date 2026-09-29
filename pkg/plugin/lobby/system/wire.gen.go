@@ -7,8 +7,10 @@ package system
 import (
 	lobby_component "github.com/argus-labs/world-engine/pkg/plugin/lobby/component"
 	pbsystem "github.com/argus-labs/world-engine/pkg/plugin/lobby/gen/pkg/plugin/lobby/system"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"unicode/utf8"
 )
 
 func (c AssignShardCommand) ToProto() *pbsystem.AssignShardCommand {
@@ -32,11 +34,7 @@ func (c AssignShardCommand) FromProto(p *pbsystem.AssignShardCommand) AssignShar
 }
 
 func (c AssignShardCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal AssignShardCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c AssignShardCommand) UnmarshalWire(data []byte) (any, error) {
@@ -49,6 +47,42 @@ func (c AssignShardCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c AssignShardCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.AssignShardCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c AssignShardCommand) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("AssignShardCommand.LobbyID", string(c.LobbyID))
+	}
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("AssignShardCommand.RequestID", string(c.RequestID))
+	}
+	n += protowire.SizeTag(3) + protowire.SizeBytes(c.GameWorld.SizeWire())
+	if len(c.Reason) > 0 {
+		n += protowire.SizeTag(4) + wireStringSize("AssignShardCommand.Reason", string(c.Reason))
+	}
+	return n
+}
+
+func (c AssignShardCommand) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	b = protowire.AppendTag(b, 3, protowire.BytesType)
+	atGameWorld := len(b)
+	b = append(b, 0)
+	b = c.GameWorld.AppendWire(b)
+	b = wireLenPrefix(b, atGameWorld)
+	if len(c.Reason) > 0 {
+		b = protowire.AppendTag(b, 4, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Reason))
+	}
+	return b
 }
 
 func (c CreateLobbyCommand) ToProto() *pbsystem.CreateLobbyCommand {
@@ -72,11 +106,7 @@ func (c CreateLobbyCommand) FromProto(p *pbsystem.CreateLobbyCommand) CreateLobb
 }
 
 func (c CreateLobbyCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal CreateLobbyCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c CreateLobbyCommand) UnmarshalWire(data []byte) (any, error) {
@@ -89,6 +119,43 @@ func (c CreateLobbyCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c CreateLobbyCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.CreateLobbyCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c CreateLobbyCommand) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("CreateLobbyCommand.RequestID", string(c.RequestID))
+	}
+	if len(c.Preset) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("CreateLobbyCommand.Preset", string(c.Preset))
+	}
+	if len(c.PlayerPassthroughData) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("CreateLobbyCommand.PlayerPassthroughData", string(c.PlayerPassthroughData))
+	}
+	if len(c.SessionPassthroughData) > 0 {
+		n += protowire.SizeTag(4) + wireStringSize("CreateLobbyCommand.SessionPassthroughData", string(c.SessionPassthroughData))
+	}
+	return n
+}
+
+func (c CreateLobbyCommand) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if len(c.Preset) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Preset))
+	}
+	if len(c.PlayerPassthroughData) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.PlayerPassthroughData))
+	}
+	if len(c.SessionPassthroughData) > 0 {
+		b = protowire.AppendTag(b, 4, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.SessionPassthroughData))
+	}
+	return b
 }
 
 func (c CreateLobbyResult) ToProto() *pbsystem.CreateLobbyResult {
@@ -114,11 +181,7 @@ func (c CreateLobbyResult) FromProto(p *pbsystem.CreateLobbyResult) CreateLobbyR
 }
 
 func (c CreateLobbyResult) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal CreateLobbyResult: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c CreateLobbyResult) UnmarshalWire(data []byte) (any, error) {
@@ -131,6 +194,48 @@ func (c CreateLobbyResult) UnmarshalWire(data []byte) (any, error) {
 
 func (c CreateLobbyResult) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.CreateLobbyResult{}).ProtoReflect().Descriptor()
+}
+
+func (c CreateLobbyResult) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("CreateLobbyResult.RequestID", string(c.RequestID))
+	}
+	if c.IsSuccess {
+		n += protowire.SizeTag(2) + 1
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("CreateLobbyResult.Message", string(c.Message))
+	}
+	n += protowire.SizeTag(4) + protowire.SizeBytes(c.Lobby.SizeWire())
+	n += protowire.SizeTag(5) + protowire.SizeBytes(c.Player.SizeWire())
+	return n
+}
+
+func (c CreateLobbyResult) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if c.IsSuccess {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	b = protowire.AppendTag(b, 4, protowire.BytesType)
+	atLobby := len(b)
+	b = append(b, 0)
+	b = c.Lobby.AppendWire(b)
+	b = wireLenPrefix(b, atLobby)
+	b = protowire.AppendTag(b, 5, protowire.BytesType)
+	atPlayer := len(b)
+	b = append(b, 0)
+	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
+	return b
 }
 
 func (c GenerateInviteCodeCommand) ToProto() *pbsystem.GenerateInviteCodeCommand {
@@ -148,11 +253,7 @@ func (c GenerateInviteCodeCommand) FromProto(p *pbsystem.GenerateInviteCodeComma
 }
 
 func (c GenerateInviteCodeCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal GenerateInviteCodeCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c GenerateInviteCodeCommand) UnmarshalWire(data []byte) (any, error) {
@@ -165,6 +266,22 @@ func (c GenerateInviteCodeCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c GenerateInviteCodeCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.GenerateInviteCodeCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c GenerateInviteCodeCommand) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("GenerateInviteCodeCommand.RequestID", string(c.RequestID))
+	}
+	return n
+}
+
+func (c GenerateInviteCodeCommand) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	return b
 }
 
 func (c GenerateInviteCodeResult) ToProto() *pbsystem.GenerateInviteCodeResult {
@@ -188,11 +305,7 @@ func (c GenerateInviteCodeResult) FromProto(p *pbsystem.GenerateInviteCodeResult
 }
 
 func (c GenerateInviteCodeResult) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal GenerateInviteCodeResult: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c GenerateInviteCodeResult) UnmarshalWire(data []byte) (any, error) {
@@ -205,6 +318,43 @@ func (c GenerateInviteCodeResult) UnmarshalWire(data []byte) (any, error) {
 
 func (c GenerateInviteCodeResult) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.GenerateInviteCodeResult{}).ProtoReflect().Descriptor()
+}
+
+func (c GenerateInviteCodeResult) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("GenerateInviteCodeResult.RequestID", string(c.RequestID))
+	}
+	if c.IsSuccess {
+		n += protowire.SizeTag(2) + 1
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("GenerateInviteCodeResult.Message", string(c.Message))
+	}
+	if len(c.InviteCode) > 0 {
+		n += protowire.SizeTag(4) + wireStringSize("GenerateInviteCodeResult.InviteCode", string(c.InviteCode))
+	}
+	return n
+}
+
+func (c GenerateInviteCodeResult) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if c.IsSuccess {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	if len(c.InviteCode) > 0 {
+		b = protowire.AppendTag(b, 4, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.InviteCode))
+	}
+	return b
 }
 
 func (c GetAllPlayersCommand) ToProto() *pbsystem.GetAllPlayersCommand {
@@ -222,11 +372,7 @@ func (c GetAllPlayersCommand) FromProto(p *pbsystem.GetAllPlayersCommand) GetAll
 }
 
 func (c GetAllPlayersCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal GetAllPlayersCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c GetAllPlayersCommand) UnmarshalWire(data []byte) (any, error) {
@@ -239,6 +385,22 @@ func (c GetAllPlayersCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c GetAllPlayersCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.GetAllPlayersCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c GetAllPlayersCommand) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("GetAllPlayersCommand.RequestID", string(c.RequestID))
+	}
+	return n
+}
+
+func (c GetAllPlayersCommand) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	return b
 }
 
 func (c GetAllPlayersResult) ToProto() *pbsystem.GetAllPlayersResult {
@@ -272,11 +434,7 @@ func (c GetAllPlayersResult) FromProto(p *pbsystem.GetAllPlayersResult) GetAllPl
 }
 
 func (c GetAllPlayersResult) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal GetAllPlayersResult: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c GetAllPlayersResult) UnmarshalWire(data []byte) (any, error) {
@@ -289,6 +447,53 @@ func (c GetAllPlayersResult) UnmarshalWire(data []byte) (any, error) {
 
 func (c GetAllPlayersResult) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.GetAllPlayersResult{}).ProtoReflect().Descriptor()
+}
+
+func (c GetAllPlayersResult) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("GetAllPlayersResult.RequestID", string(c.RequestID))
+	}
+	if c.IsSuccess {
+		n += protowire.SizeTag(2) + 1
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("GetAllPlayersResult.Message", string(c.Message))
+	}
+	for i0 := range c.Players {
+		n += protowire.SizeTag(4) + protowire.SizeBytes(c.Players[i0].SizeWire())
+	}
+	if c.PlayersCount != 0 {
+		n += protowire.SizeTag(5) + protowire.SizeVarint(uint64(c.PlayersCount))
+	}
+	return n
+}
+
+func (c GetAllPlayersResult) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if c.IsSuccess {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	for i0 := range c.Players {
+		b = protowire.AppendTag(b, 4, protowire.BytesType)
+		atPlayers := len(b)
+		b = append(b, 0)
+		b = c.Players[i0].AppendWire(b)
+		b = wireLenPrefix(b, atPlayers)
+	}
+	if c.PlayersCount != 0 {
+		b = protowire.AppendTag(b, 5, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.PlayersCount))
+	}
+	return b
 }
 
 func (c GetLobbyCommand) ToProto() *pbsystem.GetLobbyCommand {
@@ -306,11 +511,7 @@ func (c GetLobbyCommand) FromProto(p *pbsystem.GetLobbyCommand) GetLobbyCommand 
 }
 
 func (c GetLobbyCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal GetLobbyCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c GetLobbyCommand) UnmarshalWire(data []byte) (any, error) {
@@ -323,6 +524,22 @@ func (c GetLobbyCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c GetLobbyCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.GetLobbyCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c GetLobbyCommand) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("GetLobbyCommand.RequestID", string(c.RequestID))
+	}
+	return n
+}
+
+func (c GetLobbyCommand) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	return b
 }
 
 func (c GetLobbyResult) ToProto() *pbsystem.GetLobbyResult {
@@ -346,11 +563,7 @@ func (c GetLobbyResult) FromProto(p *pbsystem.GetLobbyResult) GetLobbyResult {
 }
 
 func (c GetLobbyResult) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal GetLobbyResult: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c GetLobbyResult) UnmarshalWire(data []byte) (any, error) {
@@ -363,6 +576,42 @@ func (c GetLobbyResult) UnmarshalWire(data []byte) (any, error) {
 
 func (c GetLobbyResult) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.GetLobbyResult{}).ProtoReflect().Descriptor()
+}
+
+func (c GetLobbyResult) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("GetLobbyResult.RequestID", string(c.RequestID))
+	}
+	if c.IsSuccess {
+		n += protowire.SizeTag(2) + 1
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("GetLobbyResult.Message", string(c.Message))
+	}
+	n += protowire.SizeTag(4) + protowire.SizeBytes(c.Lobby.SizeWire())
+	return n
+}
+
+func (c GetLobbyResult) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if c.IsSuccess {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	b = protowire.AppendTag(b, 4, protowire.BytesType)
+	atLobby := len(b)
+	b = append(b, 0)
+	b = c.Lobby.AppendWire(b)
+	b = wireLenPrefix(b, atLobby)
+	return b
 }
 
 func (c GetPlayerCommand) ToProto() *pbsystem.GetPlayerCommand {
@@ -382,11 +631,7 @@ func (c GetPlayerCommand) FromProto(p *pbsystem.GetPlayerCommand) GetPlayerComma
 }
 
 func (c GetPlayerCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal GetPlayerCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c GetPlayerCommand) UnmarshalWire(data []byte) (any, error) {
@@ -399,6 +644,29 @@ func (c GetPlayerCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c GetPlayerCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.GetPlayerCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c GetPlayerCommand) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("GetPlayerCommand.RequestID", string(c.RequestID))
+	}
+	if len(c.PlayerID) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("GetPlayerCommand.PlayerID", string(c.PlayerID))
+	}
+	return n
+}
+
+func (c GetPlayerCommand) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if len(c.PlayerID) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.PlayerID))
+	}
+	return b
 }
 
 func (c GetPlayerResult) ToProto() *pbsystem.GetPlayerResult {
@@ -422,11 +690,7 @@ func (c GetPlayerResult) FromProto(p *pbsystem.GetPlayerResult) GetPlayerResult 
 }
 
 func (c GetPlayerResult) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal GetPlayerResult: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c GetPlayerResult) UnmarshalWire(data []byte) (any, error) {
@@ -439,6 +703,42 @@ func (c GetPlayerResult) UnmarshalWire(data []byte) (any, error) {
 
 func (c GetPlayerResult) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.GetPlayerResult{}).ProtoReflect().Descriptor()
+}
+
+func (c GetPlayerResult) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("GetPlayerResult.RequestID", string(c.RequestID))
+	}
+	if c.IsSuccess {
+		n += protowire.SizeTag(2) + 1
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("GetPlayerResult.Message", string(c.Message))
+	}
+	n += protowire.SizeTag(4) + protowire.SizeBytes(c.Player.SizeWire())
+	return n
+}
+
+func (c GetPlayerResult) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if c.IsSuccess {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	b = protowire.AppendTag(b, 4, protowire.BytesType)
+	atPlayer := len(b)
+	b = append(b, 0)
+	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
+	return b
 }
 
 func (c HeartbeatCommand) ToProto() *pbsystem.HeartbeatCommand {
@@ -454,11 +754,7 @@ func (c HeartbeatCommand) FromProto(p *pbsystem.HeartbeatCommand) HeartbeatComma
 }
 
 func (c HeartbeatCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal HeartbeatCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c HeartbeatCommand) UnmarshalWire(data []byte) (any, error) {
@@ -471,6 +767,15 @@ func (c HeartbeatCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c HeartbeatCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.HeartbeatCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c HeartbeatCommand) SizeWire() int {
+	n := 0
+	return n
+}
+
+func (c HeartbeatCommand) AppendWire(b []byte) []byte {
+	return b
 }
 
 func (c InviteCodeGeneratedEvent) ToProto() *pbsystem.InviteCodeGeneratedEvent {
@@ -490,11 +795,7 @@ func (c InviteCodeGeneratedEvent) FromProto(p *pbsystem.InviteCodeGeneratedEvent
 }
 
 func (c InviteCodeGeneratedEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal InviteCodeGeneratedEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c InviteCodeGeneratedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -507,6 +808,29 @@ func (c InviteCodeGeneratedEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c InviteCodeGeneratedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.InviteCodeGeneratedEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c InviteCodeGeneratedEvent) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("InviteCodeGeneratedEvent.LobbyID", string(c.LobbyID))
+	}
+	if len(c.InviteCode) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("InviteCodeGeneratedEvent.InviteCode", string(c.InviteCode))
+	}
+	return n
+}
+
+func (c InviteCodeGeneratedEvent) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	if len(c.InviteCode) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.InviteCode))
+	}
+	return b
 }
 
 func (c JoinLobbyCommand) ToProto() *pbsystem.JoinLobbyCommand {
@@ -530,11 +854,7 @@ func (c JoinLobbyCommand) FromProto(p *pbsystem.JoinLobbyCommand) JoinLobbyComma
 }
 
 func (c JoinLobbyCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal JoinLobbyCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c JoinLobbyCommand) UnmarshalWire(data []byte) (any, error) {
@@ -547,6 +867,43 @@ func (c JoinLobbyCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c JoinLobbyCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.JoinLobbyCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c JoinLobbyCommand) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("JoinLobbyCommand.RequestID", string(c.RequestID))
+	}
+	if len(c.InviteCode) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("JoinLobbyCommand.InviteCode", string(c.InviteCode))
+	}
+	if len(c.TeamID) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("JoinLobbyCommand.TeamID", string(c.TeamID))
+	}
+	if len(c.PlayerPassthroughData) > 0 {
+		n += protowire.SizeTag(4) + wireStringSize("JoinLobbyCommand.PlayerPassthroughData", string(c.PlayerPassthroughData))
+	}
+	return n
+}
+
+func (c JoinLobbyCommand) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if len(c.InviteCode) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.InviteCode))
+	}
+	if len(c.TeamID) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.TeamID))
+	}
+	if len(c.PlayerPassthroughData) > 0 {
+		b = protowire.AppendTag(b, 4, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.PlayerPassthroughData))
+	}
+	return b
 }
 
 func (c JoinLobbyResult) ToProto() *pbsystem.JoinLobbyResult {
@@ -582,11 +939,7 @@ func (c JoinLobbyResult) FromProto(p *pbsystem.JoinLobbyResult) JoinLobbyResult 
 }
 
 func (c JoinLobbyResult) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal JoinLobbyResult: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c JoinLobbyResult) UnmarshalWire(data []byte) (any, error) {
@@ -599,6 +952,59 @@ func (c JoinLobbyResult) UnmarshalWire(data []byte) (any, error) {
 
 func (c JoinLobbyResult) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.JoinLobbyResult{}).ProtoReflect().Descriptor()
+}
+
+func (c JoinLobbyResult) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("JoinLobbyResult.RequestID", string(c.RequestID))
+	}
+	if c.IsSuccess {
+		n += protowire.SizeTag(2) + 1
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("JoinLobbyResult.Message", string(c.Message))
+	}
+	n += protowire.SizeTag(4) + protowire.SizeBytes(c.Lobby.SizeWire())
+	for i0 := range c.PlayersList {
+		n += protowire.SizeTag(5) + protowire.SizeBytes(c.PlayersList[i0].SizeWire())
+	}
+	if c.PlayersListCount != 0 {
+		n += protowire.SizeTag(6) + protowire.SizeVarint(uint64(c.PlayersListCount))
+	}
+	return n
+}
+
+func (c JoinLobbyResult) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if c.IsSuccess {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	b = protowire.AppendTag(b, 4, protowire.BytesType)
+	atLobby := len(b)
+	b = append(b, 0)
+	b = c.Lobby.AppendWire(b)
+	b = wireLenPrefix(b, atLobby)
+	for i0 := range c.PlayersList {
+		b = protowire.AppendTag(b, 5, protowire.BytesType)
+		atPlayersList := len(b)
+		b = append(b, 0)
+		b = c.PlayersList[i0].AppendWire(b)
+		b = wireLenPrefix(b, atPlayersList)
+	}
+	if c.PlayersListCount != 0 {
+		b = protowire.AppendTag(b, 6, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.PlayersListCount))
+	}
+	return b
 }
 
 func (c JoinTeamCommand) ToProto() *pbsystem.JoinTeamCommand {
@@ -618,11 +1024,7 @@ func (c JoinTeamCommand) FromProto(p *pbsystem.JoinTeamCommand) JoinTeamCommand 
 }
 
 func (c JoinTeamCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal JoinTeamCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c JoinTeamCommand) UnmarshalWire(data []byte) (any, error) {
@@ -635,6 +1037,29 @@ func (c JoinTeamCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c JoinTeamCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.JoinTeamCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c JoinTeamCommand) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("JoinTeamCommand.RequestID", string(c.RequestID))
+	}
+	if len(c.TeamID) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("JoinTeamCommand.TeamID", string(c.TeamID))
+	}
+	return n
+}
+
+func (c JoinTeamCommand) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if len(c.TeamID) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.TeamID))
+	}
+	return b
 }
 
 func (c JoinTeamResult) ToProto() *pbsystem.JoinTeamResult {
@@ -658,11 +1083,7 @@ func (c JoinTeamResult) FromProto(p *pbsystem.JoinTeamResult) JoinTeamResult {
 }
 
 func (c JoinTeamResult) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal JoinTeamResult: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c JoinTeamResult) UnmarshalWire(data []byte) (any, error) {
@@ -675,6 +1096,42 @@ func (c JoinTeamResult) UnmarshalWire(data []byte) (any, error) {
 
 func (c JoinTeamResult) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.JoinTeamResult{}).ProtoReflect().Descriptor()
+}
+
+func (c JoinTeamResult) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("JoinTeamResult.RequestID", string(c.RequestID))
+	}
+	if c.IsSuccess {
+		n += protowire.SizeTag(2) + 1
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("JoinTeamResult.Message", string(c.Message))
+	}
+	n += protowire.SizeTag(4) + protowire.SizeBytes(c.Player.SizeWire())
+	return n
+}
+
+func (c JoinTeamResult) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if c.IsSuccess {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	b = protowire.AppendTag(b, 4, protowire.BytesType)
+	atPlayer := len(b)
+	b = append(b, 0)
+	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
+	return b
 }
 
 func (c KickPlayerCommand) ToProto() *pbsystem.KickPlayerCommand {
@@ -694,11 +1151,7 @@ func (c KickPlayerCommand) FromProto(p *pbsystem.KickPlayerCommand) KickPlayerCo
 }
 
 func (c KickPlayerCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal KickPlayerCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c KickPlayerCommand) UnmarshalWire(data []byte) (any, error) {
@@ -711,6 +1164,29 @@ func (c KickPlayerCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c KickPlayerCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.KickPlayerCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c KickPlayerCommand) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("KickPlayerCommand.RequestID", string(c.RequestID))
+	}
+	if len(c.TargetPlayerID) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("KickPlayerCommand.TargetPlayerID", string(c.TargetPlayerID))
+	}
+	return n
+}
+
+func (c KickPlayerCommand) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if len(c.TargetPlayerID) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.TargetPlayerID))
+	}
+	return b
 }
 
 func (c KickPlayerResult) ToProto() *pbsystem.KickPlayerResult {
@@ -732,11 +1208,7 @@ func (c KickPlayerResult) FromProto(p *pbsystem.KickPlayerResult) KickPlayerResu
 }
 
 func (c KickPlayerResult) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal KickPlayerResult: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c KickPlayerResult) UnmarshalWire(data []byte) (any, error) {
@@ -749,6 +1221,36 @@ func (c KickPlayerResult) UnmarshalWire(data []byte) (any, error) {
 
 func (c KickPlayerResult) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.KickPlayerResult{}).ProtoReflect().Descriptor()
+}
+
+func (c KickPlayerResult) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("KickPlayerResult.RequestID", string(c.RequestID))
+	}
+	if c.IsSuccess {
+		n += protowire.SizeTag(2) + 1
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("KickPlayerResult.Message", string(c.Message))
+	}
+	return n
+}
+
+func (c KickPlayerResult) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if c.IsSuccess {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	return b
 }
 
 func (c LeaderChangedEvent) ToProto() *pbsystem.LeaderChangedEvent {
@@ -770,11 +1272,7 @@ func (c LeaderChangedEvent) FromProto(p *pbsystem.LeaderChangedEvent) LeaderChan
 }
 
 func (c LeaderChangedEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal LeaderChangedEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c LeaderChangedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -787,6 +1285,36 @@ func (c LeaderChangedEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c LeaderChangedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.LeaderChangedEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c LeaderChangedEvent) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("LeaderChangedEvent.LobbyID", string(c.LobbyID))
+	}
+	if len(c.OldLeaderID) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("LeaderChangedEvent.OldLeaderID", string(c.OldLeaderID))
+	}
+	if len(c.NewLeaderID) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("LeaderChangedEvent.NewLeaderID", string(c.NewLeaderID))
+	}
+	return n
+}
+
+func (c LeaderChangedEvent) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	if len(c.OldLeaderID) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.OldLeaderID))
+	}
+	if len(c.NewLeaderID) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.NewLeaderID))
+	}
+	return b
 }
 
 func (c LeaveLobbyCommand) ToProto() *pbsystem.LeaveLobbyCommand {
@@ -804,11 +1332,7 @@ func (c LeaveLobbyCommand) FromProto(p *pbsystem.LeaveLobbyCommand) LeaveLobbyCo
 }
 
 func (c LeaveLobbyCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal LeaveLobbyCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c LeaveLobbyCommand) UnmarshalWire(data []byte) (any, error) {
@@ -821,6 +1345,22 @@ func (c LeaveLobbyCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c LeaveLobbyCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.LeaveLobbyCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c LeaveLobbyCommand) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("LeaveLobbyCommand.RequestID", string(c.RequestID))
+	}
+	return n
+}
+
+func (c LeaveLobbyCommand) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	return b
 }
 
 func (c LeaveLobbyResult) ToProto() *pbsystem.LeaveLobbyResult {
@@ -842,11 +1382,7 @@ func (c LeaveLobbyResult) FromProto(p *pbsystem.LeaveLobbyResult) LeaveLobbyResu
 }
 
 func (c LeaveLobbyResult) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal LeaveLobbyResult: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c LeaveLobbyResult) UnmarshalWire(data []byte) (any, error) {
@@ -859,6 +1395,36 @@ func (c LeaveLobbyResult) UnmarshalWire(data []byte) (any, error) {
 
 func (c LeaveLobbyResult) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.LeaveLobbyResult{}).ProtoReflect().Descriptor()
+}
+
+func (c LeaveLobbyResult) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("LeaveLobbyResult.RequestID", string(c.RequestID))
+	}
+	if c.IsSuccess {
+		n += protowire.SizeTag(2) + 1
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("LeaveLobbyResult.Message", string(c.Message))
+	}
+	return n
+}
+
+func (c LeaveLobbyResult) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if c.IsSuccess {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	return b
 }
 
 func (c LobbyCreatedEvent) ToProto() *pbsystem.LobbyCreatedEvent {
@@ -880,11 +1446,7 @@ func (c LobbyCreatedEvent) FromProto(p *pbsystem.LobbyCreatedEvent) LobbyCreated
 }
 
 func (c LobbyCreatedEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal LobbyCreatedEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c LobbyCreatedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -897,6 +1459,36 @@ func (c LobbyCreatedEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c LobbyCreatedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.LobbyCreatedEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c LobbyCreatedEvent) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("LobbyCreatedEvent.LobbyID", string(c.LobbyID))
+	}
+	if len(c.LeaderID) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("LobbyCreatedEvent.LeaderID", string(c.LeaderID))
+	}
+	if len(c.InviteCode) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("LobbyCreatedEvent.InviteCode", string(c.InviteCode))
+	}
+	return n
+}
+
+func (c LobbyCreatedEvent) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	if len(c.LeaderID) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LeaderID))
+	}
+	if len(c.InviteCode) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.InviteCode))
+	}
+	return b
 }
 
 func (c LobbyDeletedEvent) ToProto() *pbsystem.LobbyDeletedEvent {
@@ -914,11 +1506,7 @@ func (c LobbyDeletedEvent) FromProto(p *pbsystem.LobbyDeletedEvent) LobbyDeleted
 }
 
 func (c LobbyDeletedEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal LobbyDeletedEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c LobbyDeletedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -931,6 +1519,22 @@ func (c LobbyDeletedEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c LobbyDeletedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.LobbyDeletedEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c LobbyDeletedEvent) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("LobbyDeletedEvent.LobbyID", string(c.LobbyID))
+	}
+	return n
+}
+
+func (c LobbyDeletedEvent) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	return b
 }
 
 func (c NotifySessionEndCommand) ToProto() *pbsystem.NotifySessionEndCommand {
@@ -948,11 +1552,7 @@ func (c NotifySessionEndCommand) FromProto(p *pbsystem.NotifySessionEndCommand) 
 }
 
 func (c NotifySessionEndCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal NotifySessionEndCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c NotifySessionEndCommand) UnmarshalWire(data []byte) (any, error) {
@@ -965,6 +1565,22 @@ func (c NotifySessionEndCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c NotifySessionEndCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.NotifySessionEndCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c NotifySessionEndCommand) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("NotifySessionEndCommand.LobbyID", string(c.LobbyID))
+	}
+	return n
+}
+
+func (c NotifySessionEndCommand) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	return b
 }
 
 func (c NotifySessionStartCommand) ToProto() *pbsystem.NotifySessionStartCommand {
@@ -984,11 +1600,7 @@ func (c NotifySessionStartCommand) FromProto(p *pbsystem.NotifySessionStartComma
 }
 
 func (c NotifySessionStartCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal NotifySessionStartCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c NotifySessionStartCommand) UnmarshalWire(data []byte) (any, error) {
@@ -1001,6 +1613,28 @@ func (c NotifySessionStartCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c NotifySessionStartCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.NotifySessionStartCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c NotifySessionStartCommand) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("NotifySessionStartCommand.LobbyID", string(c.LobbyID))
+	}
+	n += protowire.SizeTag(2) + protowire.SizeBytes(c.LobbyWorld.SizeWire())
+	return n
+}
+
+func (c NotifySessionStartCommand) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	b = protowire.AppendTag(b, 2, protowire.BytesType)
+	atLobbyWorld := len(b)
+	b = append(b, 0)
+	b = c.LobbyWorld.AppendWire(b)
+	b = wireLenPrefix(b, atLobbyWorld)
+	return b
 }
 
 func (c PlayerChangedTeamEvent) ToProto() *pbsystem.PlayerChangedTeamEvent {
@@ -1024,11 +1658,7 @@ func (c PlayerChangedTeamEvent) FromProto(p *pbsystem.PlayerChangedTeamEvent) Pl
 }
 
 func (c PlayerChangedTeamEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerChangedTeamEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerChangedTeamEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1041,6 +1671,42 @@ func (c PlayerChangedTeamEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c PlayerChangedTeamEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.PlayerChangedTeamEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerChangedTeamEvent) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("PlayerChangedTeamEvent.LobbyID", string(c.LobbyID))
+	}
+	if len(c.OldTeamID) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("PlayerChangedTeamEvent.OldTeamID", string(c.OldTeamID))
+	}
+	if len(c.NewTeamID) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("PlayerChangedTeamEvent.NewTeamID", string(c.NewTeamID))
+	}
+	n += protowire.SizeTag(4) + protowire.SizeBytes(c.Player.SizeWire())
+	return n
+}
+
+func (c PlayerChangedTeamEvent) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	if len(c.OldTeamID) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.OldTeamID))
+	}
+	if len(c.NewTeamID) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.NewTeamID))
+	}
+	b = protowire.AppendTag(b, 4, protowire.BytesType)
+	atPlayer := len(b)
+	b = append(b, 0)
+	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
+	return b
 }
 
 func (c PlayerJoinedEvent) ToProto() *pbsystem.PlayerJoinedEvent {
@@ -1062,11 +1728,7 @@ func (c PlayerJoinedEvent) FromProto(p *pbsystem.PlayerJoinedEvent) PlayerJoined
 }
 
 func (c PlayerJoinedEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerJoinedEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerJoinedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1079,6 +1741,35 @@ func (c PlayerJoinedEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c PlayerJoinedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.PlayerJoinedEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerJoinedEvent) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("PlayerJoinedEvent.LobbyID", string(c.LobbyID))
+	}
+	if len(c.TeamID) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("PlayerJoinedEvent.TeamID", string(c.TeamID))
+	}
+	n += protowire.SizeTag(3) + protowire.SizeBytes(c.Player.SizeWire())
+	return n
+}
+
+func (c PlayerJoinedEvent) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	if len(c.TeamID) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.TeamID))
+	}
+	b = protowire.AppendTag(b, 3, protowire.BytesType)
+	atPlayer := len(b)
+	b = append(b, 0)
+	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
+	return b
 }
 
 func (c PlayerKickedEvent) ToProto() *pbsystem.PlayerKickedEvent {
@@ -1100,11 +1791,7 @@ func (c PlayerKickedEvent) FromProto(p *pbsystem.PlayerKickedEvent) PlayerKicked
 }
 
 func (c PlayerKickedEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerKickedEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerKickedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1117,6 +1804,36 @@ func (c PlayerKickedEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c PlayerKickedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.PlayerKickedEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerKickedEvent) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("PlayerKickedEvent.LobbyID", string(c.LobbyID))
+	}
+	if len(c.PlayerID) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("PlayerKickedEvent.PlayerID", string(c.PlayerID))
+	}
+	if len(c.KickerID) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("PlayerKickedEvent.KickerID", string(c.KickerID))
+	}
+	return n
+}
+
+func (c PlayerKickedEvent) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	if len(c.PlayerID) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.PlayerID))
+	}
+	if len(c.KickerID) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.KickerID))
+	}
+	return b
 }
 
 func (c PlayerLeftEvent) ToProto() *pbsystem.PlayerLeftEvent {
@@ -1136,11 +1853,7 @@ func (c PlayerLeftEvent) FromProto(p *pbsystem.PlayerLeftEvent) PlayerLeftEvent 
 }
 
 func (c PlayerLeftEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerLeftEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerLeftEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1153,6 +1866,29 @@ func (c PlayerLeftEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c PlayerLeftEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.PlayerLeftEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerLeftEvent) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("PlayerLeftEvent.LobbyID", string(c.LobbyID))
+	}
+	if len(c.PlayerID) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("PlayerLeftEvent.PlayerID", string(c.PlayerID))
+	}
+	return n
+}
+
+func (c PlayerLeftEvent) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	if len(c.PlayerID) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.PlayerID))
+	}
+	return b
 }
 
 func (c PlayerPassthroughUpdatedEvent) ToProto() *pbsystem.PlayerPassthroughUpdatedEvent {
@@ -1172,11 +1908,7 @@ func (c PlayerPassthroughUpdatedEvent) FromProto(p *pbsystem.PlayerPassthroughUp
 }
 
 func (c PlayerPassthroughUpdatedEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerPassthroughUpdatedEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerPassthroughUpdatedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1189,6 +1921,28 @@ func (c PlayerPassthroughUpdatedEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c PlayerPassthroughUpdatedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.PlayerPassthroughUpdatedEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerPassthroughUpdatedEvent) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("PlayerPassthroughUpdatedEvent.LobbyID", string(c.LobbyID))
+	}
+	n += protowire.SizeTag(2) + protowire.SizeBytes(c.Player.SizeWire())
+	return n
+}
+
+func (c PlayerPassthroughUpdatedEvent) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	b = protowire.AppendTag(b, 2, protowire.BytesType)
+	atPlayer := len(b)
+	b = append(b, 0)
+	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
+	return b
 }
 
 func (c PlayerReadyEvent) ToProto() *pbsystem.PlayerReadyEvent {
@@ -1208,11 +1962,7 @@ func (c PlayerReadyEvent) FromProto(p *pbsystem.PlayerReadyEvent) PlayerReadyEve
 }
 
 func (c PlayerReadyEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerReadyEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerReadyEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1225,6 +1975,28 @@ func (c PlayerReadyEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c PlayerReadyEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.PlayerReadyEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerReadyEvent) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("PlayerReadyEvent.LobbyID", string(c.LobbyID))
+	}
+	n += protowire.SizeTag(2) + protowire.SizeBytes(c.Player.SizeWire())
+	return n
+}
+
+func (c PlayerReadyEvent) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	b = protowire.AppendTag(b, 2, protowire.BytesType)
+	atPlayer := len(b)
+	b = append(b, 0)
+	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
+	return b
 }
 
 func (c PlayerTimedOutEvent) ToProto() *pbsystem.PlayerTimedOutEvent {
@@ -1244,11 +2016,7 @@ func (c PlayerTimedOutEvent) FromProto(p *pbsystem.PlayerTimedOutEvent) PlayerTi
 }
 
 func (c PlayerTimedOutEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerTimedOutEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerTimedOutEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1261,6 +2029,29 @@ func (c PlayerTimedOutEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c PlayerTimedOutEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.PlayerTimedOutEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerTimedOutEvent) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("PlayerTimedOutEvent.LobbyID", string(c.LobbyID))
+	}
+	if len(c.PlayerID) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("PlayerTimedOutEvent.PlayerID", string(c.PlayerID))
+	}
+	return n
+}
+
+func (c PlayerTimedOutEvent) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	if len(c.PlayerID) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.PlayerID))
+	}
+	return b
 }
 
 func (c SessionAwaitingAllocationEvent) ToProto() *pbsystem.SessionAwaitingAllocationEvent {
@@ -1278,11 +2069,7 @@ func (c SessionAwaitingAllocationEvent) FromProto(p *pbsystem.SessionAwaitingAll
 }
 
 func (c SessionAwaitingAllocationEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal SessionAwaitingAllocationEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c SessionAwaitingAllocationEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1295,6 +2082,22 @@ func (c SessionAwaitingAllocationEvent) UnmarshalWire(data []byte) (any, error) 
 
 func (c SessionAwaitingAllocationEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.SessionAwaitingAllocationEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c SessionAwaitingAllocationEvent) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("SessionAwaitingAllocationEvent.LobbyID", string(c.LobbyID))
+	}
+	return n
+}
+
+func (c SessionAwaitingAllocationEvent) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	return b
 }
 
 func (c SessionEndedEvent) ToProto() *pbsystem.SessionEndedEvent {
@@ -1312,11 +2115,7 @@ func (c SessionEndedEvent) FromProto(p *pbsystem.SessionEndedEvent) SessionEnded
 }
 
 func (c SessionEndedEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal SessionEndedEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c SessionEndedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1329,6 +2128,22 @@ func (c SessionEndedEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c SessionEndedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.SessionEndedEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c SessionEndedEvent) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("SessionEndedEvent.LobbyID", string(c.LobbyID))
+	}
+	return n
+}
+
+func (c SessionEndedEvent) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	return b
 }
 
 func (c SessionPassthroughUpdatedEvent) ToProto() *pbsystem.SessionPassthroughUpdatedEvent {
@@ -1348,11 +2163,7 @@ func (c SessionPassthroughUpdatedEvent) FromProto(p *pbsystem.SessionPassthrough
 }
 
 func (c SessionPassthroughUpdatedEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal SessionPassthroughUpdatedEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c SessionPassthroughUpdatedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1365,6 +2176,29 @@ func (c SessionPassthroughUpdatedEvent) UnmarshalWire(data []byte) (any, error) 
 
 func (c SessionPassthroughUpdatedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.SessionPassthroughUpdatedEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c SessionPassthroughUpdatedEvent) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("SessionPassthroughUpdatedEvent.LobbyID", string(c.LobbyID))
+	}
+	if len(c.PassthroughData) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("SessionPassthroughUpdatedEvent.PassthroughData", string(c.PassthroughData))
+	}
+	return n
+}
+
+func (c SessionPassthroughUpdatedEvent) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	if len(c.PassthroughData) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.PassthroughData))
+	}
+	return b
 }
 
 func (c SessionStartedEvent) ToProto() *pbsystem.SessionStartedEvent {
@@ -1384,11 +2218,7 @@ func (c SessionStartedEvent) FromProto(p *pbsystem.SessionStartedEvent) SessionS
 }
 
 func (c SessionStartedEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal SessionStartedEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c SessionStartedEvent) UnmarshalWire(data []byte) (any, error) {
@@ -1401,6 +2231,28 @@ func (c SessionStartedEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c SessionStartedEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.SessionStartedEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c SessionStartedEvent) SizeWire() int {
+	n := 0
+	if len(c.LobbyID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("SessionStartedEvent.LobbyID", string(c.LobbyID))
+	}
+	n += protowire.SizeTag(2) + protowire.SizeBytes(c.GameWorld.SizeWire())
+	return n
+}
+
+func (c SessionStartedEvent) AppendWire(b []byte) []byte {
+	if len(c.LobbyID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.LobbyID))
+	}
+	b = protowire.AppendTag(b, 2, protowire.BytesType)
+	atGameWorld := len(b)
+	b = append(b, 0)
+	b = c.GameWorld.AppendWire(b)
+	b = wireLenPrefix(b, atGameWorld)
+	return b
 }
 
 func (c SetReadyCommand) ToProto() *pbsystem.SetReadyCommand {
@@ -1420,11 +2272,7 @@ func (c SetReadyCommand) FromProto(p *pbsystem.SetReadyCommand) SetReadyCommand 
 }
 
 func (c SetReadyCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal SetReadyCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c SetReadyCommand) UnmarshalWire(data []byte) (any, error) {
@@ -1437,6 +2285,29 @@ func (c SetReadyCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c SetReadyCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.SetReadyCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c SetReadyCommand) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("SetReadyCommand.RequestID", string(c.RequestID))
+	}
+	if c.IsReady {
+		n += protowire.SizeTag(2) + 1
+	}
+	return n
+}
+
+func (c SetReadyCommand) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if c.IsReady {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	return b
 }
 
 func (c SetReadyResult) ToProto() *pbsystem.SetReadyResult {
@@ -1460,11 +2331,7 @@ func (c SetReadyResult) FromProto(p *pbsystem.SetReadyResult) SetReadyResult {
 }
 
 func (c SetReadyResult) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal SetReadyResult: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c SetReadyResult) UnmarshalWire(data []byte) (any, error) {
@@ -1477,6 +2344,42 @@ func (c SetReadyResult) UnmarshalWire(data []byte) (any, error) {
 
 func (c SetReadyResult) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.SetReadyResult{}).ProtoReflect().Descriptor()
+}
+
+func (c SetReadyResult) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("SetReadyResult.RequestID", string(c.RequestID))
+	}
+	if c.IsSuccess {
+		n += protowire.SizeTag(2) + 1
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("SetReadyResult.Message", string(c.Message))
+	}
+	n += protowire.SizeTag(4) + protowire.SizeBytes(c.Player.SizeWire())
+	return n
+}
+
+func (c SetReadyResult) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if c.IsSuccess {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	b = protowire.AppendTag(b, 4, protowire.BytesType)
+	atPlayer := len(b)
+	b = append(b, 0)
+	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
+	return b
 }
 
 func (c StartSessionCommand) ToProto() *pbsystem.StartSessionCommand {
@@ -1494,11 +2397,7 @@ func (c StartSessionCommand) FromProto(p *pbsystem.StartSessionCommand) StartSes
 }
 
 func (c StartSessionCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal StartSessionCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c StartSessionCommand) UnmarshalWire(data []byte) (any, error) {
@@ -1511,6 +2410,22 @@ func (c StartSessionCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c StartSessionCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.StartSessionCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c StartSessionCommand) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("StartSessionCommand.RequestID", string(c.RequestID))
+	}
+	return n
+}
+
+func (c StartSessionCommand) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	return b
 }
 
 func (c StartSessionResult) ToProto() *pbsystem.StartSessionResult {
@@ -1534,11 +2449,7 @@ func (c StartSessionResult) FromProto(p *pbsystem.StartSessionResult) StartSessi
 }
 
 func (c StartSessionResult) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal StartSessionResult: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c StartSessionResult) UnmarshalWire(data []byte) (any, error) {
@@ -1551,6 +2462,42 @@ func (c StartSessionResult) UnmarshalWire(data []byte) (any, error) {
 
 func (c StartSessionResult) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.StartSessionResult{}).ProtoReflect().Descriptor()
+}
+
+func (c StartSessionResult) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("StartSessionResult.RequestID", string(c.RequestID))
+	}
+	if c.IsSuccess {
+		n += protowire.SizeTag(2) + 1
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("StartSessionResult.Message", string(c.Message))
+	}
+	n += protowire.SizeTag(4) + protowire.SizeBytes(c.GameWorld.SizeWire())
+	return n
+}
+
+func (c StartSessionResult) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if c.IsSuccess {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	b = protowire.AppendTag(b, 4, protowire.BytesType)
+	atGameWorld := len(b)
+	b = append(b, 0)
+	b = c.GameWorld.AppendWire(b)
+	b = wireLenPrefix(b, atGameWorld)
+	return b
 }
 
 func (c TransferLeaderCommand) ToProto() *pbsystem.TransferLeaderCommand {
@@ -1570,11 +2517,7 @@ func (c TransferLeaderCommand) FromProto(p *pbsystem.TransferLeaderCommand) Tran
 }
 
 func (c TransferLeaderCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal TransferLeaderCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c TransferLeaderCommand) UnmarshalWire(data []byte) (any, error) {
@@ -1587,6 +2530,29 @@ func (c TransferLeaderCommand) UnmarshalWire(data []byte) (any, error) {
 
 func (c TransferLeaderCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.TransferLeaderCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c TransferLeaderCommand) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("TransferLeaderCommand.RequestID", string(c.RequestID))
+	}
+	if len(c.TargetPlayerID) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("TransferLeaderCommand.TargetPlayerID", string(c.TargetPlayerID))
+	}
+	return n
+}
+
+func (c TransferLeaderCommand) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if len(c.TargetPlayerID) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.TargetPlayerID))
+	}
+	return b
 }
 
 func (c TransferLeaderResult) ToProto() *pbsystem.TransferLeaderResult {
@@ -1608,11 +2574,7 @@ func (c TransferLeaderResult) FromProto(p *pbsystem.TransferLeaderResult) Transf
 }
 
 func (c TransferLeaderResult) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal TransferLeaderResult: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c TransferLeaderResult) UnmarshalWire(data []byte) (any, error) {
@@ -1625,6 +2587,36 @@ func (c TransferLeaderResult) UnmarshalWire(data []byte) (any, error) {
 
 func (c TransferLeaderResult) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.TransferLeaderResult{}).ProtoReflect().Descriptor()
+}
+
+func (c TransferLeaderResult) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("TransferLeaderResult.RequestID", string(c.RequestID))
+	}
+	if c.IsSuccess {
+		n += protowire.SizeTag(2) + 1
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("TransferLeaderResult.Message", string(c.Message))
+	}
+	return n
+}
+
+func (c TransferLeaderResult) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if c.IsSuccess {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	return b
 }
 
 func (c UpdatePlayerPassthroughCommand) ToProto() *pbsystem.UpdatePlayerPassthroughCommand {
@@ -1644,11 +2636,7 @@ func (c UpdatePlayerPassthroughCommand) FromProto(p *pbsystem.UpdatePlayerPassth
 }
 
 func (c UpdatePlayerPassthroughCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal UpdatePlayerPassthroughCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c UpdatePlayerPassthroughCommand) UnmarshalWire(data []byte) (any, error) {
@@ -1661,6 +2649,29 @@ func (c UpdatePlayerPassthroughCommand) UnmarshalWire(data []byte) (any, error) 
 
 func (c UpdatePlayerPassthroughCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.UpdatePlayerPassthroughCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c UpdatePlayerPassthroughCommand) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("UpdatePlayerPassthroughCommand.RequestID", string(c.RequestID))
+	}
+	if len(c.PassthroughData) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("UpdatePlayerPassthroughCommand.PassthroughData", string(c.PassthroughData))
+	}
+	return n
+}
+
+func (c UpdatePlayerPassthroughCommand) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if len(c.PassthroughData) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.PassthroughData))
+	}
+	return b
 }
 
 func (c UpdatePlayerPassthroughResult) ToProto() *pbsystem.UpdatePlayerPassthroughResult {
@@ -1684,11 +2695,7 @@ func (c UpdatePlayerPassthroughResult) FromProto(p *pbsystem.UpdatePlayerPassthr
 }
 
 func (c UpdatePlayerPassthroughResult) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal UpdatePlayerPassthroughResult: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c UpdatePlayerPassthroughResult) UnmarshalWire(data []byte) (any, error) {
@@ -1701,6 +2708,42 @@ func (c UpdatePlayerPassthroughResult) UnmarshalWire(data []byte) (any, error) {
 
 func (c UpdatePlayerPassthroughResult) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.UpdatePlayerPassthroughResult{}).ProtoReflect().Descriptor()
+}
+
+func (c UpdatePlayerPassthroughResult) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("UpdatePlayerPassthroughResult.RequestID", string(c.RequestID))
+	}
+	if c.IsSuccess {
+		n += protowire.SizeTag(2) + 1
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("UpdatePlayerPassthroughResult.Message", string(c.Message))
+	}
+	n += protowire.SizeTag(4) + protowire.SizeBytes(c.Player.SizeWire())
+	return n
+}
+
+func (c UpdatePlayerPassthroughResult) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if c.IsSuccess {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	b = protowire.AppendTag(b, 4, protowire.BytesType)
+	atPlayer := len(b)
+	b = append(b, 0)
+	b = c.Player.AppendWire(b)
+	b = wireLenPrefix(b, atPlayer)
+	return b
 }
 
 func (c UpdateSessionPassthroughCommand) ToProto() *pbsystem.UpdateSessionPassthroughCommand {
@@ -1720,11 +2763,7 @@ func (c UpdateSessionPassthroughCommand) FromProto(p *pbsystem.UpdateSessionPass
 }
 
 func (c UpdateSessionPassthroughCommand) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal UpdateSessionPassthroughCommand: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c UpdateSessionPassthroughCommand) UnmarshalWire(data []byte) (any, error) {
@@ -1737,6 +2776,29 @@ func (c UpdateSessionPassthroughCommand) UnmarshalWire(data []byte) (any, error)
 
 func (c UpdateSessionPassthroughCommand) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.UpdateSessionPassthroughCommand{}).ProtoReflect().Descriptor()
+}
+
+func (c UpdateSessionPassthroughCommand) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("UpdateSessionPassthroughCommand.RequestID", string(c.RequestID))
+	}
+	if len(c.PassthroughData) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("UpdateSessionPassthroughCommand.PassthroughData", string(c.PassthroughData))
+	}
+	return n
+}
+
+func (c UpdateSessionPassthroughCommand) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if len(c.PassthroughData) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.PassthroughData))
+	}
+	return b
 }
 
 func (c UpdateSessionPassthroughResult) ToProto() *pbsystem.UpdateSessionPassthroughResult {
@@ -1758,11 +2820,7 @@ func (c UpdateSessionPassthroughResult) FromProto(p *pbsystem.UpdateSessionPasst
 }
 
 func (c UpdateSessionPassthroughResult) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal UpdateSessionPassthroughResult: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c UpdateSessionPassthroughResult) UnmarshalWire(data []byte) (any, error) {
@@ -1775,4 +2833,59 @@ func (c UpdateSessionPassthroughResult) UnmarshalWire(data []byte) (any, error) 
 
 func (c UpdateSessionPassthroughResult) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbsystem.UpdateSessionPassthroughResult{}).ProtoReflect().Descriptor()
+}
+
+func (c UpdateSessionPassthroughResult) SizeWire() int {
+	n := 0
+	if len(c.RequestID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("UpdateSessionPassthroughResult.RequestID", string(c.RequestID))
+	}
+	if c.IsSuccess {
+		n += protowire.SizeTag(2) + 1
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("UpdateSessionPassthroughResult.Message", string(c.Message))
+	}
+	return n
+}
+
+func (c UpdateSessionPassthroughResult) AppendWire(b []byte) []byte {
+	if len(c.RequestID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.RequestID))
+	}
+	if c.IsSuccess {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	return b
+}
+
+// wireLenPrefix writes the length of the bytes appended after the placeholder at b[at].
+// The body is moved up only when the length needs more than the one byte reserved.
+func wireLenPrefix(b []byte, at int) []byte {
+	n := len(b) - at - 1
+	if n < 0x80 {
+		b[at] = byte(n)
+		return b
+	}
+	k := protowire.SizeVarint(uint64(n)) - 1
+	b = append(b, make([]byte, k)...)
+	copy(b[at+1+k:], b[at+1:at+1+n])
+	protowire.AppendVarint(b[at:at], uint64(n)) // in place: cap reaches the body
+	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check proto.Marshal
+// performs: a proto3 string holding invalid UTF-8 cannot be decoded, so the size pass
+// fails.
+func wireStringSize(field, s string) int {
+	if !utf8.ValidString(s) {
+		panic("failed to encode " + field + ": string field contains invalid UTF-8")
+	}
+	return protowire.SizeBytes(len(s))
 }

@@ -1,6 +1,7 @@
 package event
 
 import (
+	"context"
 	"math"
 	"sync"
 
@@ -32,8 +33,8 @@ const (
 	KindInterShardCommand Kind = 1 // Inter-shard commands
 )
 
-// Handler is a function called to handle emitted events.
-type Handler func(Event) error
+// Handler is a function called to handle emitted events. ctx carries the dispatching tick's span.
+type Handler func(context.Context, Event) error
 
 // initialCommandBufferCapacity is the starting capacity of command buffers.
 const initialEventBufferCapacity = 128
@@ -102,7 +103,7 @@ func (m *Manager) Clear() {
 
 // Dispatch loops through emitted events and calls their handler functions based on the event kind.
 // Returns all errors collected from handlers.
-func (m *Manager) Dispatch() error {
+func (m *Manager) Dispatch(ctx context.Context) error {
 	m.flush()
 
 	m.mu.Lock()
@@ -111,7 +112,7 @@ func (m *Manager) Dispatch() error {
 	var errs []error
 	for _, event := range m.buffer {
 		handler := m.handlers[event.Kind]
-		if err := handler(event); err != nil {
+		if err := handler(ctx, event); err != nil {
 			errs = append(errs, err)
 		}
 	}

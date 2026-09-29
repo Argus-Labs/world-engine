@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"math"
+	"reflect"
 	"regexp"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -11,7 +12,7 @@ import (
 
 // Component is the interface that all components must implement.
 // Components are pure data containers that can be attached to entities.
-type Component interface { //nolint:iface // may extend later
+type Component interface { //nolint:iface // the wire contract lives on schema.Serializable; this names the ECS role
 	// Name returns a unique string identifier for the component type.
 	// This should be consistent across program executions.
 	//
@@ -39,6 +40,8 @@ type componentManager struct {
 	nextID    ComponentID            // The next available component ID
 	catalog   map[string]ComponentID // Component name -> component ID
 	factories []columnFactory        // Component ID -> column factory
+	names     []string               // Component ID -> name
+	types     []reflect.Type         // Component ID -> registered Go type
 }
 
 // newComponentManager creates a new component manager.
@@ -47,6 +50,8 @@ func newComponentManager() componentManager {
 		nextID:    0,
 		catalog:   make(map[string]ComponentID),
 		factories: make([]columnFactory, 0),
+		names:     make([]string, 0),
+		types:     make([]reflect.Type, 0),
 	}
 }
 
@@ -79,7 +84,7 @@ func (cm *componentManager) register[T Component](name string) (ComponentID, err
 	}
 
 	if cid, exists := cm.catalog[name]; exists {
-		if _, ok := cm.factories[cid]().(*column[T]); !ok {
+		if cm.types[cid] != reflect.TypeFor[T]() {
 			return 0, eris.Errorf("component %s already registered with a different type", name)
 		}
 		return cid, nil
@@ -91,6 +96,8 @@ func (cm *componentManager) register[T Component](name string) (ComponentID, err
 
 	cm.catalog[name] = cm.nextID
 	cm.factories = append(cm.factories, newColumnFactory[T]())
+	cm.names = append(cm.names, name)
+	cm.types = append(cm.types, reflect.TypeFor[T]())
 	cm.nextID++
 	assert.That(int(cm.nextID) == len(cm.factories), "component id doesn't match number of components")
 
@@ -108,6 +115,19 @@ func (cm *componentManager) getID(name string) (ComponentID, error) {
 	return id, nil
 }
 
+// lookup returns the ID of the registered component with the given name and Go type, or an
+// error if it was never registered or its name is registered with a different type.
+func (cm *componentManager) lookup(name string, typ reflect.Type) (ComponentID, error) {
+	cid, err := cm.getID(name)
+	if err != nil {
+		return 0, err
+	}
+	if cm.types[cid] != typ {
+		return 0, eris.Wrapf(ErrComponentNotFound, "component %s is registered with a different type", name)
+	}
+	return cid, nil
+}
+
 // RegisterComponent registers a component type with the world.
 func (w *World) RegisterComponent[T Component]() (ComponentID, error) {
 	var zero T
@@ -117,4 +137,16 @@ func (w *World) RegisterComponent[T Component]() (ComponentID, error) {
 		}
 	}
 	return w.state.components.register[T](zero.Name())
+}
+
+// ComponentID returns the ID of a component type registered with RegisterComponent.
+func (w *World) ComponentID[T Component]() (ComponentID, error) {
+	var zero T
+	return w.state.components.lookup(zero.Name(), reflect.TypeFor[T]())
+}
+
+// ComponentIDOf returns the ID of the registered component with c's name and dynamic type.
+// It serves callers that hold a component value rather than a type parameter.
+func (w *World) ComponentIDOf(c Component) (ComponentID, error) {
+	return w.state.components.lookup(c.Name(), reflect.TypeOf(c))
 }

@@ -1,0 +1,8 @@
+$schema: '../../.moon/cache/schemas/project.json'
+
+language: 'go'
+layer: 'library'
+stack: 'backend'
+
+tags:
+  - 'util'

@@ -1,6 +1,7 @@
 package command_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
@@ -58,7 +59,7 @@ func TestQueue_ModelFuzz(t *testing.T) {
 			}
 
 			sizeBefore := impl.Len()
-			err := impl.Enqueue(cmdpb)
+			err := impl.Enqueue(context.Background(), cmdpb)
 
 			if corruptName {
 				// Property: enqueue with wrong name must fail.
