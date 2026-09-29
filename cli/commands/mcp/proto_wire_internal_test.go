@@ -55,25 +55,25 @@ func TestEncodeCommandPayload(t *testing.T) {
 	tests := []struct {
 		name    string
 		field   *descriptorpb.FieldDescriptorProto
-		payload map[string]any
+		payload string
 		want    []byte
 	}{
 		{
 			name:    "int64 scalar",
 			field:   scalarField("Count", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
-			payload: map[string]any{"Count": float64(5)},
+			payload: `{"Count": 5}`,
 			want:    []byte{0x08, 0x05}, // field 1 varint = 5
 		},
 		{
 			name:    "string",
 			field:   scalarField("Nickname", 1, descriptorpb.FieldDescriptorProto_TYPE_STRING),
-			payload: map[string]any{"Nickname": "hi"},
+			payload: `{"Nickname": "hi"}`,
 			want:    []byte{0x0a, 0x02, 0x68, 0x69},
 		},
 		{
 			name:    "field number is honored",
 			field:   scalarField("Damage", 2, descriptorpb.FieldDescriptorProto_TYPE_UINT32),
-			payload: map[string]any{"Damage": float64(7)},
+			payload: `{"Damage": 7}`,
 			want:    []byte{0x10, 0x07},
 		},
 		{
@@ -84,13 +84,13 @@ func TestEncodeCommandPayload(t *testing.T) {
 				Label:  descriptorpb.FieldDescriptorProto_LABEL_REPEATED.Enum(),
 				Type:   descriptorpb.FieldDescriptorProto_TYPE_INT64.Enum(),
 			},
-			payload: map[string]any{"Nums": []any{float64(1), float64(2), float64(3)}},
+			payload: `{"Nums": [1, 2, 3]}`,
 			want:    []byte{0x0a, 0x03, 0x01, 0x02, 0x03},
 		},
 		{
 			name:    "empty payload",
 			field:   scalarField("Count", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
-			payload: map[string]any{},
+			payload: `{}`,
 			want:    []byte{},
 		},
 	}
@@ -128,9 +128,7 @@ func TestEncodeCommandPayloadNested(t *testing.T) {
 	)
 
 	// Origin{X:1, Y:2}: field 1 (0x0a) len 4 -> [08 01 10 02]
-	got, err := encodeCommandPayload(testMessageDescriptor(t, raw, "Cmd"), map[string]any{
-		"Origin": map[string]any{"X": float64(1), "Y": float64(2)},
-	})
+	got, err := encodeCommandPayload(testMessageDescriptor(t, raw, "Cmd"), `{"Origin": {"X": 1, "Y": 2}}`)
 	require.NoError(t, err)
 	assert.Equal(t, []byte{0x0a, 0x04, 0x08, 0x01, 0x10, 0x02}, got)
 }
@@ -144,8 +142,84 @@ func TestEncodeCommandPayloadRejectsUnknownField(t *testing.T) {
 			scalarField("Count", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
 		},
 	})
-	_, err := encodeCommandPayload(testMessageDescriptor(t, raw, "Cmd"), map[string]any{"Nope": float64(1)})
+	_, err := encodeCommandPayload(testMessageDescriptor(t, raw, "Cmd"), `{"Nope": 1}`)
 	require.Error(t, err)
+}
+
+// TestEncodeCommandPayload_PreservesLargeIntegers pins the bug fix: feeding the raw JSON string to
+// protojson preserves int64/uint64 values above 2^53 bit-for-bit. The previous map[string]any path
+// coerced every number through float64, silently rounding values above 2^53 (e.g. 9007199254740993
+// became 9007199254740992 on the wire with no error) and rejecting near-MaxInt64 values with an
+// error naming the float64-rounded number the caller never sent.
+func TestEncodeCommandPayload_PreservesLargeIntegers(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		field *descriptorpb.FieldDescriptorProto
+		json  string
+		want  any // native Go type decodeMessage returns (int64 or uint64)
+	}{
+		{
+			name:  "int64 just above 2^53 was silently rounded before the fix",
+			field: scalarField("N", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
+			json:  `{"N": 9007199254740993}`,
+			want:  int64(9007199254740993),
+		},
+		{
+			name:  "int64 max",
+			field: scalarField("N", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
+			json:  `{"N": 9223372036854775807}`,
+			want:  int64(9223372036854775807),
+		},
+		{
+			name:  "int64 min",
+			field: scalarField("N", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
+			json:  `{"N": -9223372036854775808}`,
+			want:  int64(-9223372036854775808),
+		},
+		{
+			name:  "uint64 max",
+			field: scalarField("N", 1, descriptorpb.FieldDescriptorProto_TYPE_UINT64),
+			json:  `{"N": 18446744073709551615}`,
+			want:  uint64(18446744073709551615),
+		},
+		{
+			name:  "uint64 above 2^63 and below max",
+			field: scalarField("N", 1, descriptorpb.FieldDescriptorProto_TYPE_UINT64),
+			json:  `{"N": 10000000000000000000}`,
+			want:  uint64(10000000000000000000),
+		},
+		{
+			name: "repeated int64 above 2^53 stays exact per element",
+			field: &descriptorpb.FieldDescriptorProto{
+				Name:   new("Nums"),
+				Number: new(int32(1)),
+				Label:  descriptorpb.FieldDescriptorProto_LABEL_REPEATED.Enum(),
+				Type:   descriptorpb.FieldDescriptorProto_TYPE_INT64.Enum(),
+			},
+			json: `{"Nums": [9007199254740993, 9223372036854775807]}`,
+			want: []any{int64(9007199254740993), int64(9223372036854775807)},
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			raw := testDescriptorSet(t, &descriptorpb.DescriptorProto{
+				Name:  new("Cmd"),
+				Field: []*descriptorpb.FieldDescriptorProto{tt.field},
+			})
+			md := testMessageDescriptor(t, raw, "Cmd")
+
+			wire, err := encodeCommandPayload(md, tt.json)
+			require.NoError(t, err)
+
+			decoded, err := decodeMessage(md, wire)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, decoded[tt.field.GetName()])
+		})
+	}
 }
 
 func TestResolveDescriptorFiles_EmptySetIsAnError(t *testing.T) {
