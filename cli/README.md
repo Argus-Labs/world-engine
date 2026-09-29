@@ -55,9 +55,6 @@ go mod tidy
 
 Upgrading World Engine (`go get github.com/argus-labs/world-engine@latest`) upgrades the project's CLI with it. Rerun `go install` to update the global `world`.
 
-> [!NOTE]
-> The `install.world.dev` install scripts and GitHub release binaries are deprecated. They install the last binary release (v2.5.1) and no longer receive updates.
-
 <br/>
 
 ## Getting Started
