@@ -182,7 +182,7 @@ func (rt *Runtime) beginContactGather() {
 
 // markContactSeen reports whether this contact was already folded into the current gather, and
 // records it if not. Both endpoints of a pair report the same contact, so this discards the
-// second one before it pays for two shapeIdentity resolutions (three world lookups each).
+// second one before it pays for two shapeIdentity resolutions.
 func (rt *Runtime) markContactSeen(id box2d.ContactID) bool {
 	index := int(box2d.PackContactID(id)[0])
 	if index >= len(rt.seenContactsScratch) {
@@ -209,8 +209,8 @@ func (rt *Runtime) collectBodyContacts(contacts []box2d.ContactData, result map[
 			continue
 		}
 
-		entityA, shapeIndexA := rt.shapeIdentity(cd.ShapeIDA)
-		entityB, shapeIndexB := rt.shapeIdentity(cd.ShapeIDB)
+		entityA, shapeIndexA, sensorA := rt.shapeIdentity(cd.ShapeIDA)
+		entityB, shapeIndexB, sensorB := rt.shapeIdentity(cd.ShapeIDB)
 
 		key := normalizeContactPairKey(entityA, shapeIndexA, entityB, shapeIndexB)
 		// One contact maps to exactly one normalized pair key, so the stamp above already
@@ -226,7 +226,7 @@ func (rt *Runtime) collectBodyContacts(contacts []box2d.ContactData, result map[
 			continue
 		}
 		info := ContactPairInfo{
-			IsSensor: w.IsShapeSensor(cd.ShapeIDA) || w.IsShapeSensor(cd.ShapeIDB),
+			IsSensor: sensorA || sensorB,
 		}
 
 		fda := toFixtureFilterBits(w.ShapeFilter(cd.ShapeIDA))

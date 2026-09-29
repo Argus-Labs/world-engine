@@ -12,9 +12,9 @@ type WritebackEntry struct {
 }
 
 // WritebackFromStepResults reads post-step positions, rotations, velocities, and awake state
-// from the Box2D world and writes them into the corresponding ECS Transform2D, Velocity2D,
-// and PhysicsBody2D components. It also updates the shadow state so the next ReconcileFromECS
-// tick sees no diff for these values.
+// from the Box2D world and writes the ones that changed into the corresponding ECS
+// Transform2D, Velocity2D, and PhysicsBody2D components. It also updates the shadow state so
+// the next ReconcileFromECS tick sees no diff for these values.
 //
 // Iteration is driven by entries (ECS iteration order, EntityID-sorted), never by the
 // runtime's Go maps, so the write order is deterministic.
@@ -33,48 +33,55 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 	}
 
 	for i := range entries {
-		e := &entries[i]
-		bodyID, ok := rt.Bodies[e.Entity.ID()]
-		if !ok {
-			continue
-		}
+		rt.writebackOne(&entries[i])
+	}
+}
 
-		pb := e.Entity.Get[component.PhysicsBody2D]()
-		if pb.BodyType == component.BodyTypeStatic || pb.BodyType == component.BodyTypeManual {
-			continue
-		}
+// writebackOne writes one body's post-step state back; see WritebackFromStepResults.
+func (rt *Runtime) writebackOne(e *WritebackEntry) {
+	bodyID, ok := rt.Bodies[e.Entity.ID()]
+	if !ok {
+		return
+	}
 
-		pos := rt.World.BodyPosition(bodyID)
-		angle := box2d.RotGetAngle(rt.World.BodyRotation(bodyID))
-		lv := rt.World.BodyLinearVelocity(bodyID)
-		av := rt.World.BodyAngularVelocity(bodyID)
-		awake := rt.World.IsBodyAwake(bodyID)
+	pb := e.Entity.Get[component.PhysicsBody2D]()
+	if pb.BodyType == component.BodyTypeStatic || pb.BodyType == component.BodyTypeManual {
+		return
+	}
 
-		t := component.Transform2D{
-			Position: component.Vec2{X: pos.X, Y: pos.Y},
-			Rotation: angle,
-		}
-		v := component.Velocity2D{
-			Linear:  component.Vec2{X: lv.X, Y: lv.Y},
-			Angular: av,
-		}
+	pos := rt.World.BodyPosition(bodyID)
+	angle := box2d.RotGetAngle(rt.World.BodyRotation(bodyID))
+	lv := rt.World.BodyLinearVelocity(bodyID)
+	av := rt.World.BodyAngularVelocity(bodyID)
+	awake := rt.World.IsBodyAwake(bodyID)
 
+	t := component.Transform2D{
+		Position: component.Vec2{X: pos.X, Y: pos.Y},
+		Rotation: angle,
+	}
+	v := component.Velocity2D{
+		Linear:  component.Vec2{X: lv.X, Y: lv.Y},
+		Angular: av,
+	}
+
+	// Compared against ECS so a value reconcile rejected still gets overwritten.
+	if e.Entity.Get[component.Transform2D]() != t {
 		e.Entity.Set(t)
+	}
+	if e.Entity.Get[component.Velocity2D]() != v {
 		e.Entity.Set(v)
-		if pb.Active && pb.Awake != awake {
-			pb.Awake = awake
-			e.Entity.Set(pb)
+	}
+	if pb.Active && pb.Awake != awake {
+		pb.Awake = awake
+		e.Entity.Set(pb)
+	}
+	// Resync the shadow so the next reconcile sees no diff for these fields.
+	if shadow, hasShadow := rt.Shadow[e.Entity.ID()]; hasShadow {
+		shadow.Transform = t
+		shadow.Velocity = v
+		if pb.Active {
+			shadow.PhysicsBody.Awake = awake
 		}
-
-		// Update shadow so ReconcileFromECS sees no diff for these fields next tick. Shapes
-		// are not touched: writeback never changes them.
-		if shadow, exists := rt.Shadow[e.Entity.ID()]; exists {
-			shadow.Transform = t
-			shadow.Velocity = v
-			if pb.Active {
-				shadow.PhysicsBody.Awake = awake
-			}
-			rt.Shadow[e.Entity.ID()] = shadow
-		}
+		rt.Shadow[e.Entity.ID()] = shadow
 	}
 }

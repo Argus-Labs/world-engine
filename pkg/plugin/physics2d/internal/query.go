@@ -53,10 +53,10 @@ func castCallback(shapeID box2d.ShapeID, point, normal box2d.Vec2, fraction floa
 	if !ok {
 		return 0
 	}
-	if !c.includeSensors && c.rt.World.IsShapeSensor(shapeID) {
+	entityID, shapeIndex, isSensor := c.rt.shapeIdentity(shapeID)
+	if !c.includeSensors && isSensor {
 		return -1 // skip sensors
 	}
-	entityID, shapeIndex := c.rt.shapeIdentity(shapeID)
 	if slices.Contains(c.ignore, entityID) {
 		return -1 // skip it and keep traversing, so a closer ignored shape cannot mask a real hit
 	}
@@ -86,10 +86,10 @@ func overlapCallback(shapeID box2d.ShapeID, ctx any) bool {
 	if !ok {
 		return false
 	}
-	if !c.includeSensors && c.rt.World.IsShapeSensor(shapeID) {
+	entityID, shapeIndex, isSensor := c.rt.shapeIdentity(shapeID)
+	if !c.includeSensors && isSensor {
 		return true // skip sensor, continue
 	}
-	entityID, shapeIndex := c.rt.shapeIdentity(shapeID)
 	if slices.Contains(c.ignore, entityID) {
 		return true // skip, continue
 	}
