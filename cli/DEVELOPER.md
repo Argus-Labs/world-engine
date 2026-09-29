@@ -75,9 +75,11 @@ go run ./cmd/world --help
 To try your local checkout inside a game project, point the project at it:
 
 ```bash
-go mod edit -replace github.com/argus-labs/world-engine/cli=/path/to/world-engine/cli
-go tool world --help
+go mod edit -replace github.com/argus-labs/world-engine=/path/to/world-engine
+world --help
 ```
+
+With the `replace`, `world` hands the command to `go tool world`, which builds your checkout.
 
 Drop the `replace` before committing the game project.
 

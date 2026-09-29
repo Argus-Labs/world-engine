@@ -39,23 +39,21 @@ World CLI is a [Go tool](https://go.dev/doc/modules/managing-dependencies#tools)
 
 **Windows Users:** Windows Subsystem for Linux 2 (WSL2) is required for running World CLI on Windows.
 
-The CLI ships in the `github.com/argus-labs/world-engine` module, so a project's CLI is always the same version as the World Engine it builds against. Projects created with `world setup` already declare it. To create your first project:
+Install the `world` command, and make sure `$(go env GOPATH)/bin` is on your `PATH`:
 
 ```shell
-go run github.com/argus-labs/world-engine/cli/cmd/world@latest setup
+go install github.com/argus-labs/world-engine/cli/cmd/world@latest
+world setup
 ```
 
-To add it to an existing project at the project's World Engine version:
+The CLI ships in the `github.com/argus-labs/world-engine` module, so each project pins its CLI through its World Engine version. Inside a project that declares the tool, `world` runs the project's version (`go tool world`), whichever version is installed globally. Projects created with `world setup` already declare it. To add it to an existing project at the project's World Engine version:
 
 ```shell
 go mod edit -tool=github.com/argus-labs/world-engine/cli/cmd/world
 go mod tidy
-go tool world --help
 ```
 
-Upgrading World Engine (`go get github.com/argus-labs/world-engine@latest`) upgrades the CLI with it.
-
-The examples below use `world`. Inside a project, run them as `go tool world`, or add `alias world='go tool world'` to your shell profile.
+Upgrading World Engine (`go get github.com/argus-labs/world-engine@latest`) upgrades the project's CLI with it. Rerun `go install` to update the global `world`.
 
 > [!NOTE]
 > The `install.world.dev` install scripts and GitHub release binaries are deprecated. They install the last binary release (v2.5.1) and no longer receive updates.
@@ -239,9 +237,9 @@ World CLI manages the complete deployment lifecycle:
 
 ### Common Issues
 
-**"no such tool" or "Command not found"**
-- Run `go tool world` from inside a project whose `go.mod` declares the tool
-- Add it with `go mod edit -tool=github.com/argus-labs/world-engine/cli/cmd/world && go mod tidy`
+**"command not found: world" or "no such tool"**
+- Install `world` with `go install github.com/argus-labs/world-engine/cli/cmd/world@latest` and put `$(go env GOPATH)/bin` on your `PATH`
+- `go tool world` works only inside a project whose `go.mod` declares the tool. Add it with `go mod edit -tool=github.com/argus-labs/world-engine/cli/cmd/world && go mod tidy`
 
 **Authentication errors**
 - Run `world login` to re-authenticate

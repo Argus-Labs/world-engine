@@ -57,6 +57,9 @@ func formatError(err error) string {
 }
 
 func main() {
+	// Runs before anything else, so a hand-off leaves no telemetry or output from this binary.
+	delegateToProjectTool(os.Args[1:])
+
 	var cli root.Cmd
 
 	// A failed command has to leave a non-zero status: scripts and CI read the exit code, and until now a

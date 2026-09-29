@@ -20,7 +20,13 @@ Before you begin, make sure your local machine has the following installed:
 
 ## Installing World CLI
 
-The World CLI is the command-line tool for creating, managing, and deploying World Engine projects. It ships as a [Go tool](https://go.dev/doc/modules/managing-dependencies#tools) inside the World Engine module, so each project's CLI is the same version as its World Engine and there is nothing to install globally.
+The World CLI is the command-line tool for creating, managing, and deploying World Engine projects. It ships as a [Go tool](https://go.dev/doc/modules/managing-dependencies#tools) inside the World Engine module, so each project's CLI is the same version as its World Engine. Install the `world` command:
+
+```bash
+go install github.com/argus-labs/world-engine/cli/cmd/world@latest
+```
+
+Make sure `$(go env GOPATH)/bin` is on your `PATH`. Inside a project, `world` runs the version the project pins.
 
 <Warning>
   The `install.world.dev` install scripts are deprecated. They install the last binary release (v2.5.1), which no longer receives updates.
@@ -31,7 +37,7 @@ The World CLI is the command-line tool for creating, managing, and deploying Wor
 Now you are ready to create a new World Engine project. The `setup` command will launch an interactive tool to help you configure your project:
 
 ```bash
-go run github.com/argus-labs/world-engine/cli/cmd/world@latest setup my-game
+world setup my-game
 ```
 
 When prompted, select the **Basic** template.
@@ -40,24 +46,23 @@ When prompted, select the **Basic** template.
   TODO: Add an updated image of the selection UI
 </Danger>
 
-The new project's `go.mod` already declares the CLI as a tool. From inside the project, run it with `go tool world`. Start the local development server:
+The new project's `go.mod` declares the CLI as a tool, so `world` inside it runs the project's version. Start the local development server:
 
 ```bash
 cd my-game
-go tool world start
+world start
 ```
 
 This command builds the game server and runs the World Engine stack. It will take some time during your first run to build the CLI and download the required container images.
 
-<Tip>
-  The rest of these docs write commands as `world <command>`. Add `alias world='go tool world'` to your shell profile to run them as written.
-</Tip>
-
-To add the CLI to an existing project, or to update it, run:
+To add the CLI to an existing project at its World Engine version, run:
 
 ```bash
-go get -tool github.com/argus-labs/world-engine/cli/cmd/world@latest
+go mod edit -tool=github.com/argus-labs/world-engine/cli/cmd/world
+go mod tidy
 ```
+
+Upgrading World Engine upgrades the project's CLI with it.
 
 ## Stopping the Server
 
