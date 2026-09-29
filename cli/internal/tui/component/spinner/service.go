@@ -1,0 +1,107 @@
+package spinner
+
+import (
+	"context"
+	"time"
+
+	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/rotisserie/eris"
+
+	errorspkg "github.com/argus-labs/world-engine/cli/internal/errors"
+	"github.com/argus-labs/world-engine/cli/internal/logger"
+	"github.com/argus-labs/world-engine/cli/internal/tui/kit/program"
+)
+
+// Options controls optional spinner behavior. Zero value is the legacy
+// "spinner + text, no elapsed counter" mode used by the rest of the CLI.
+type Options struct {
+	// Elapsed enables a "(Ns)" suffix that ticks once per Bubble Tea frame.
+	// Use for silent long-running ops (cluster bring-up, image import) where
+	// users would otherwise wonder if the process is hung.
+	Elapsed bool
+}
+
+// session implements Session for the real spinner.
+type session struct {
+	p    *tea.Program
+	done chan struct{}
+}
+
+// Start creates, runs, and returns a spinner session. The variadic opts is
+// optional — pass at most one Options value to enable elapsed-time display
+// or other modes.
+func Start(
+	cancel context.CancelFunc,
+	initialText string,
+	opts ...Options,
+) (Session, error) {
+	var o Options
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+
+	spin := Spinner{
+		Spinner: spinner.New(
+			spinner.WithSpinner(spinner.Dot),
+			spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("214"))),
+		),
+		Cancel:      cancel,
+		ShowElapsed: o.Elapsed,
+		Started:     time.Now(),
+	}
+	spin.SetText(initialText)
+
+	p := program.NewTeaProgram(&spin)
+
+	// Start spinner in background. Caller controls lifecycle via returned session.
+	done := make(chan struct{})
+	go func() {
+		_, err := p.Run()
+		if err != nil {
+			logger.Error("failed to run spinner", "error", err)
+		}
+		close(done)
+	}()
+
+	return &session{p: p, done: done}, nil
+}
+
+func (s *session) Update(text string) {
+	if s == nil || s.p == nil {
+		return
+	}
+	s.p.Send(LogMsg(text))
+}
+
+func (s *session) Complete() {
+	if s == nil || s.p == nil {
+		return
+	}
+	s.p.Send(tea.Quit())
+	if s.done != nil {
+		<-s.done
+	}
+}
+
+func (s *session) Quit() { s.Complete() }
+
+// Run shows a spinner labeled msg while fn runs, then stops it — the convenience wrapper over
+// Start/Complete for a blocking op that otherwise prints nothing (Docker build, cluster bring-up). fn
+// gets a context that is cancelled if the user interrupts (Ctrl-C); on that cancellation Run returns a
+// silent error so the terminal isn't flooded with a stack trace.
+func Run(ctx context.Context, msg string, fn func(context.Context) error, opts ...Options) error {
+	spinCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	sp, err := Start(cancel, msg, opts...)
+	if err != nil {
+		return eris.Wrap(err, "start spinner")
+	}
+	opErr := fn(spinCtx)
+	sp.Complete()
+	if eris.Is(opErr, context.Canceled) {
+		return errorspkg.NewSilent(opErr)
+	}
+	return opErr
+}

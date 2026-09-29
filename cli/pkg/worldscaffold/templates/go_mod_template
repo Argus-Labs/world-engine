@@ -1,0 +1,5 @@
+module {{MODULE_NAME}}
+
+go 1.27.1
+
+require github.com/argus-labs/world-engine {{WORLD_ENGINE_VERSION}}
