@@ -14,6 +14,9 @@ type RaycastRequest struct {
 	Origin component.Vec2 `json:"origin"`
 	End    component.Vec2 `json:"end"`
 	Filter *Filter        `json:"filter,omitempty"`
+	// Ignore skips these entities. It is scanned once per candidate shape, so it is sized for
+	// "not me, not my vehicle"; exclude a whole layer or team with Filter instead.
+	Ignore []cardinal.EntityID `json:"ignore,omitempty"`
 }
 
 // RaycastResult is the closest hit along the segment, if any. When Hit is false, other fields are zero.
