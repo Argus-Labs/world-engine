@@ -1036,3 +1036,187 @@ func TestLoad_CanonicalNames(t *testing.T) {
 		})
 	}
 }
+
+// worldTomlWithLogLevel builds a minimal valid world.toml with a single shard
+// whose log_level is set to the given value. %q quotes/escapes the value so the
+// caller can pass raw strings (including whitespace and typos) verbatim.
+func worldTomlWithLogLevel(level string) string {
+	return fmt.Sprintf(`organization = "argus"
+project = "rampage"
+[[shards]]
+id = "game"
+log_level = %q
+`, level)
+}
+
+// TestLoad_LogLevelOmittedOrEmpty_DefaultsToInfo confirms the intended-default
+// harm class: an omitted or empty log_level is always defaulted to "info" and
+// never produces an error, regardless of how the empty value is expressed.
+func TestLoad_LogLevelOmittedOrEmpty_DefaultsToInfo(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		src  string
+	}{
+		{
+			"omitted",
+			`organization = "argus"
+project = "rampage"
+[[shards]]
+id = "game"
+`,
+		},
+		{
+			`empty string log_level = ""`,
+			`organization = "argus"
+project = "rampage"
+[[shards]]
+id = "game"
+log_level = ""
+`,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg, err := toml.Load(strings.NewReader(c.src))
+			require.NoError(t, err)
+			require.Len(t, cfg.Shards, 1)
+			require.Equal(t, "info", cfg.Shards[0].LogLevel)
+		})
+	}
+}
+
+// TestLoad_ValidLogLevelAccepted confirms that every level the CLI advertises
+// (plus trace, which the runtime accepts) is accepted and passed through to the
+// runtime verbatim, including case-insensitive variants. Case is preserved
+// as-written because the runtime parses levels case-insensitively.
+func TestLoad_ValidLogLevelAccepted(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name   string
+		level  string
+		stored string
+	}{
+		{"trace", "trace", "trace"},
+		{"debug", "debug", "debug"},
+		{"info", "info", "info"},
+		{"warn", "warn", "warn"},
+		{"error", "error", "error"},
+		{"INFO uppercase", "INFO", "INFO"},
+		{"Debug mixed-case", "Debug", "Debug"},
+		{"WARN uppercase", "WARN", "WARN"},
+		{"ERROR uppercase", "ERROR", "ERROR"},
+		{"Trace uppercase", "TRACE", "TRACE"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg, err := toml.Load(strings.NewReader(worldTomlWithLogLevel(c.level)))
+			require.NoError(t, err, "level %q must be accepted", c.level)
+			require.Len(t, cfg.Shards, 1)
+			require.Equal(t, c.stored, cfg.Shards[0].LogLevel, "level %q must be preserved as-written", c.level)
+		})
+	}
+}
+
+// TestLoad_InvalidLogLevel_ReturnsError confirms the genuine-silent-failure
+// harm class is now a hard error: typos, whitespace-padded values, and other
+// values the runtime cannot accept are rejected by toml.Load and reach the user
+// as "log level must be one of: trace, debug, info, warn, error for shard: <id>".
+// The CLI allowlist is intentionally narrower than zerolog.ParseLevel: the
+// footgun levels (fatal/panic/disabled) and integer literals are rejected here
+// rather than letting the shard crash or go silent at runtime.
+func TestLoad_InvalidLogLevel_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	invalidLevels := []string{
+		"foobar",
+		" debug ",  // whitespace-padded valid name
+		"infos",    // near-miss typo
+		"verbose",  // not a zerolog level
+		"off",      // not accepted ("disabled" is, but not "off")
+		"FATAL",    // footgun: would kill the shard on first fatal log
+		"panic",    // footgun: would panic the shard on first panic log
+		"disabled", // footgun: turns off all shard logging
+		"5",        // integer literal accepted by zerolog.ParseLevel, rejected by CLI
+		"-1",       // integer literal (TraceLevel); rejected by CLI
+	}
+
+	for _, level := range invalidLevels {
+		t.Run(level, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := toml.Load(strings.NewReader(worldTomlWithLogLevel(level)))
+			require.Error(t, err, "level %q must return an error", level)
+			require.Contains(t, err.Error(), "log level must be one of: trace, debug, info, warn, error")
+			require.Contains(t, err.Error(), "shard: game")
+		})
+	}
+}
+
+// TestLoad_InvalidLogLevelOnSecondShard_ReturnsError confirms the error is
+// surfaced from any position in the shards slice, not only the first shard,
+// mirroring how tick_rate/resources errors are reported with the index.
+func TestLoad_InvalidLogLevelOnSecondShard_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	const src = `organization = "argus"
+project = "rampage"
+[[shards]]
+id = "game"
+[[shards]]
+id = "chat"
+log_level = "foobar"
+`
+
+	_, err := toml.Load(strings.NewReader(src))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "log level must be one of: trace, debug, info, warn, error")
+	require.Contains(t, err.Error(), "shard: chat")
+}
+
+// TestLoad_PoolExpansionInheritsTraceLogLevel confirms that trace — previously
+// silently demoted to "info" — now passes through pool expansion unchanged,
+// parallel to the existing warn inheritance test.
+func TestLoad_PoolExpansionInheritsTraceLogLevel(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "game"
+pool_size = 2
+log_level = "trace"
+enable_otel = true
+`
+
+	cfg, err := toml.Load(strings.NewReader(sample))
+	require.NoError(t, err)
+	require.Len(t, cfg.Shards, 2)
+	for _, s := range cfg.Shards {
+		require.Equal(t, "trace", s.LogLevel)
+		require.True(t, s.EnableOTEL)
+	}
+}
+
+// TestLoad_InvalidLogLevel_DoesNotMutateConfigOnFailure confirms that when
+// validation rejects a log_level, Load returns the original (decoded) config
+// alongside the error and never silently rewrites the field to "info" — the
+// old behavior the bug report called out.
+func TestLoad_InvalidLogLevel_DoesNotMutateConfigOnFailure(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := toml.Load(strings.NewReader(worldTomlWithLogLevel("foobar")))
+	require.Error(t, err)
+	require.Len(t, cfg.Shards, 1)
+	// The invalid value must be left as decoded, not rewritten to "info".
+	require.Equal(t, "foobar", cfg.Shards[0].LogLevel)
+}
