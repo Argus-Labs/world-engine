@@ -8,4 +8,9 @@ if ! command -v go >/dev/null 2>&1; then
 	exit 1
 fi
 
-echo "Orb ready: $(go version)"
+if ! command -v moon >/dev/null 2>&1; then
+	echo "moon is unavailable; rerun .agents/setup." >&2
+	exit 1
+fi
+
+echo "Orb ready: $(go version), $(moon --version)"

@@ -5,6 +5,10 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
+	otherworld "github.com/argus-labs/world-engine/pkg/template/multi-shard/pkg/other_world"
+	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/command"
+	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/component"
+	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/event"
 	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/system"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +24,7 @@ func TestE2E(t *testing.T) {
 		debug := false
 
 		// Keep world setup aligned with shards/game/main.go.
-		world, err := cardinal.NewWorld(cardinal.WorldOptions{
+		w, err := cardinal.NewWorld(cardinal.WorldOptions{
 			Region:              "local",
 			Organization:        "organization",
 			Project:             "project",
@@ -32,16 +36,27 @@ func TestE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		registerSystems(world)
+		registerSystems(w)
 
-		return world
+		return w
 	})
 }
 
 func registerSystems(w *cardinal.World) {
-	cardinal.RegisterSystem(w, system.PlayerSetUpdater, cardinal.WithHook(cardinal.PreUpdate))
-	cardinal.RegisterSystem(w, system.PlayerSpawnSystem)
-	cardinal.RegisterSystem(w, system.MovePlayerSystem)
-	cardinal.RegisterSystem(w, system.PlayerLeaveSystem)
-	cardinal.RegisterSystem(w, system.OnlineStatusUpdater)
+	w.RegisterComponent[component.PlayerTag]()
+	w.RegisterComponent[component.Position]()
+	w.RegisterComponent[component.OnlineStatus]()
+
+	w.RegisterCommand[command.PlayerSpawn]()
+	w.RegisterCommand[command.MovePlayer]()
+	w.RegisterCommand[command.PlayerLeave]()
+
+	w.RegisterEvent[event.PlayerSpawn]()
+	w.RegisterEvent[event.PlayerMovement]()
+	w.RegisterEvent[event.PlayerDeparture]()
+
+	w.RegisterSystem(&system.PlayerSpawnSystem{ChatWorld: otherworld.Chat()})
+	w.RegisterSystem(&system.MovePlayerSystem{})
+	w.RegisterSystem(&system.PlayerLeaveSystem{})
+	w.RegisterSystem(&system.OnlineStatusUpdater{})
 }

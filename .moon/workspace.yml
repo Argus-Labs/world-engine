@@ -1,0 +1,10 @@
+$schema: 'https://moonrepo.dev/schemas/workspace.json'
+
+projects:
+  world-engine: '.'
+  cli: 'cli'
+  proto-csharp: 'proto/gen/csharp'
+  proto-ts: 'proto/gen/ts'
+
+vcs:
+  defaultBranch: 'main'

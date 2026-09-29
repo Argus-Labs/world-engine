@@ -8,12 +8,14 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unsafe"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/data"
 	"github.com/argus-labs/world-engine/pkg/plugin/data/component"
 	"github.com/stretchr/testify/require"
@@ -88,21 +90,27 @@ func sha256hex(b []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// manifestSearch is the Exact search shape used by the test harness systems below. Declaring it
-// in a system state struct registers component.ConfigManifest with Cardinal so the test's
-// pre-seed/observer systems can read and write the same singleton as the plugin's reconcile.
-type manifestSearch = cardinal.Exact[struct {
-	Item cardinal.Ref[component.ConfigManifest]
-}]
-
-type manifestObserverState struct {
-	cardinal.BaseSystemState
-	Manifest manifestSearch
+// manifestRow is the exact archetype of the ConfigManifest singleton, so the test's
+// pre-seed/observer systems read and write the same entity as the plugin's reconcile.
+type manifestRow struct {
+	Item component.ConfigManifest
 }
 
-type manifestPreseedState struct {
-	cardinal.BaseSystemState
-	Manifest manifestSearch
+// manifestSystem runs an arbitrary closure against the world. Tests use it to pre-seed the
+// ConfigManifest singleton at Init and to observe it at PostUpdate.
+type manifestSystem struct {
+	run func(w *cardinal.World)
+}
+
+func (s *manifestSystem) Run(w *cardinal.World) { s.run(w) }
+
+type abilitiesSystem struct {
+	Data     *data.Plugin
+	Observed []AbilityRecord
+}
+
+func (s *abilitiesSystem) Run(_ *cardinal.World) {
+	s.Observed = data.Get[Abilities](s.Data).Items
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -158,24 +166,113 @@ func (errFake) Fetch(_ context.Context, _, _ string) ([]byte, string, error) {
 // -------------------------------------------------------------------------------------------------
 
 // TestPlugin_LoadsRegisteredKind verifies Get[T] returns the loaded value immediately after
-// cardinal.RegisterPlugin — the catalog loads eagerly in Plugin.Register, no Init/Tick needed.
+// World.RegisterPlugin — the catalog loads eagerly in Plugin.Register, no Init/Tick needed.
 func TestPlugin_LoadsRegisteredKind(t *testing.T) {
 	w := newWorld(t)
 
 	plugin := data.NewPlugin(data.Config{EmbeddedFS: testFS})
 	data.Register[Abilities](plugin)
-	cardinal.RegisterPlugin(w, plugin)
+	w.RegisterPlugin(plugin)
 
-	got := data.Get[Abilities]()
+	got := data.Get[Abilities](plugin)
 	require.Equal(t, []AbilityRecord{
 		{ID: "fireball", Cooldown: 2.5},
 		{ID: "frostbolt", Cooldown: 3.0},
 	}, got.Items)
 }
 
+func TestPlugin_CatalogAndReconcileAreIsolatedAcrossWorlds(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		tickAFirst bool
+	}{
+		{name: "tick A first", tickAFirst: true},
+		{name: "tick B first", tickAFirst: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			worldA := newWorld(t)
+			worldB := newWorld(t)
+			oldBytes := []byte(`{"items":[{"id":"oldfire","cooldown":1}]}`)
+			newBytes := []byte(`{"items":[{"id":"newfire","cooldown":2}]}`)
+			otherBytes := []byte(`{"items":[{"id":"frost","cooldown":3}]}`)
+			oldHash, newHash := sha256hex(oldBytes), sha256hex(newBytes)
+			pluginA := data.NewPlugin(data.Config{Source: &versionedFake{
+				current: map[string]string{"testdata/abilities.json": newHash},
+				byHash:  map[string][]byte{oldHash: oldBytes, newHash: newBytes},
+			}})
+			pluginB := data.NewPlugin(data.Config{Source: &singleVersionFake{
+				files: map[string][]byte{"testdata/abilities.json": otherBytes},
+			}})
+			data.Register[Abilities](pluginA)
+			data.Register[Abilities](pluginB)
+			worldA.RegisterPlugin(pluginA)
+			worldB.RegisterPlugin(pluginB)
+
+			require.Equal(t, []AbilityRecord{{ID: "newfire", Cooldown: 2}}, data.Get[Abilities](pluginA).Items)
+			require.Equal(t, []AbilityRecord{{ID: "frost", Cooldown: 3}}, data.Get[Abilities](pluginB).Items)
+
+			worldA.RegisterSystem(&manifestSystem{run: func(w *cardinal.World) {
+				w.Create[manifestRow]().Set(abilitiesManifest(oldHash))
+			}}, cardinal.WithHook(cardinal.Init))
+			consumerA := &abilitiesSystem{Data: pluginA}
+			consumerB := &abilitiesSystem{Data: pluginB}
+			worldA.RegisterSystem(consumerA)
+			worldB.RegisterSystem(consumerB)
+			initCardinalECS(t, worldA)
+			initCardinalECS(t, worldB)
+
+			// Restoring A's manifest must change only A, whichever world ticks first.
+			first, second := worldB, worldA
+			if tc.tickAFirst {
+				first, second = worldA, worldB
+			}
+			for range 2 {
+				tickOnce(t, first)
+				tickOnce(t, second)
+				require.Equal(t, []AbilityRecord{{ID: "oldfire", Cooldown: 1}}, consumerA.Observed)
+				require.Equal(t, []AbilityRecord{{ID: "frost", Cooldown: 3}}, consumerB.Observed)
+			}
+		})
+	}
+}
+
+func TestPlugin_RequiresDistinctInstancesForWorlds(t *testing.T) {
+	plugin := data.NewPlugin(data.Config{EmbeddedFS: testFS})
+	data.Register[Abilities](plugin)
+	newWorld(t).RegisterPlugin(plugin)
+	otherWorld := newWorld(t)
+	require.PanicsWithValue(t,
+		"data: Plugin instance is already registered; create a separate plugin for each world",
+		func() { otherWorld.RegisterPlugin(plugin) })
+	require.Equal(t, "fireball", data.Get[Abilities](plugin).Items[0].ID)
+}
+
+func TestPlugin_RegistrationOrder(t *testing.T) {
+	plugin := data.NewPlugin(data.Config{EmbeddedFS: testFS})
+	data.Register[Abilities](plugin)
+	require.PanicsWithValue(t,
+		"data: Get called with a nil *Plugin; inject the world's data plugin into the system",
+		func() { data.Get[Abilities](nil) })
+	require.PanicsWithValue(t,
+		"data: call w.RegisterPlugin(dataPlugin) before reading its catalog",
+		func() { data.Get[Abilities](plugin) })
+	newWorld(t).RegisterPlugin(plugin)
+	require.PanicsWithValue(t,
+		"data: register kinds before calling w.RegisterPlugin(dataPlugin)",
+		func() { data.Register[Abilities](plugin) })
+}
+
 // -------------------------------------------------------------------------------------------------
 // Tests — manifest component lifecycle
 // -------------------------------------------------------------------------------------------------
+
+// abilitiesManifest builds the one-file manifest every test here pins the component against: the
+// harness registers a single kind, Abilities, so the manifest always holds exactly its file.
+func abilitiesManifest(hash string) component.ConfigManifest {
+	return component.ConfigManifest{Files: immutable.SliceOf(
+		component.ConfigFileHash{Path: "testdata/abilities.json", Hash: hash},
+	)}
+}
 
 // TestPlugin_ManifestComponentOnFreshWorld verifies the reconcile system creates a ConfigManifest
 // singleton on the first tick of a fresh world, populated from the plugin's per-file manifest.
@@ -184,7 +281,7 @@ func TestPlugin_ManifestComponentOnFreshWorld(t *testing.T) {
 
 	plugin := data.NewPlugin(data.Config{EmbeddedFS: testFS})
 	data.Register[Abilities](plugin)
-	cardinal.RegisterPlugin(w, plugin)
+	w.RegisterPlugin(plugin)
 
 	abilitiesBytes, err := testFS.ReadFile("testdata/abilities.json")
 	require.NoError(t, err)
@@ -192,19 +289,19 @@ func TestPlugin_ManifestComponentOnFreshWorld(t *testing.T) {
 
 	var observed component.ConfigManifest
 	var observeErr error
-	cardinal.RegisterSystem(w, func(state *manifestObserverState) {
-		_, ent, err := state.Manifest.Iter().Single()
+	w.RegisterSystem(&manifestSystem{run: func(w *cardinal.World) {
+		ent, err := w.Exact[manifestRow]().Iter().Single()
 		observeErr = err
 		if err == nil {
-			observed = ent.Item.Get()
+			observed = ent.Get[component.ConfigManifest]()
 		}
-	}, cardinal.WithHook(cardinal.PostUpdate))
+	}}, cardinal.WithHook(cardinal.PostUpdate))
 
 	initCardinalECS(t, w)
 	tickOnce(t, w)
 
 	require.NoError(t, observeErr, "expected ConfigManifest singleton to exist after first tick")
-	require.Equal(t, map[string]string{"testdata/abilities.json": expectedHash}, observed.Files)
+	require.Equal(t, abilitiesManifest(expectedHash), observed)
 }
 
 // TestPlugin_ReconcileReFetchesChangedFileAtSnapshotHash simulates a snapshot restore whose
@@ -227,32 +324,32 @@ func TestPlugin_ReconcileReFetchesChangedFileAtSnapshotHash(t *testing.T) {
 
 	plugin := data.NewPlugin(data.Config{Source: src})
 	data.Register[Abilities](plugin)
-	cardinal.RegisterPlugin(w, plugin)
+	w.RegisterPlugin(plugin)
 
 	// Sanity: plugin loaded the current (v2) at Register.
-	require.Equal(t, []AbilityRecord{{ID: "newfire", Cooldown: 2.0}}, data.Get[Abilities]().Items)
+	require.Equal(t, []AbilityRecord{{ID: "newfire", Cooldown: 2.0}}, data.Get[Abilities](plugin).Items)
 
 	// Pre-seed at Init: a ConfigManifest referencing the OLD hash, as if restored from a snapshot.
-	cardinal.RegisterSystem(w, func(state *manifestPreseedState) {
-		_, ent := state.Manifest.Create()
-		ent.Item.Set(component.ConfigManifest{Files: map[string]string{"testdata/abilities.json": h1}})
-	}, cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(&manifestSystem{run: func(w *cardinal.World) {
+		ent := w.Create[manifestRow]()
+		ent.Set(abilitiesManifest(h1))
+	}}, cardinal.WithHook(cardinal.Init))
 
 	var observed component.ConfigManifest
-	cardinal.RegisterSystem(w, func(state *manifestObserverState) {
-		_, ent, err := state.Manifest.Iter().Single()
+	w.RegisterSystem(&manifestSystem{run: func(w *cardinal.World) {
+		ent, err := w.Exact[manifestRow]().Iter().Single()
 		if err == nil {
-			observed = ent.Item.Get()
+			observed = ent.Get[component.ConfigManifest]()
 		}
-	}, cardinal.WithHook(cardinal.PostUpdate))
+	}}, cardinal.WithHook(cardinal.PostUpdate))
 
 	initCardinalECS(t, w)
 	tickOnce(t, w)
 
 	// Catalog reconciled to v1 content.
-	require.Equal(t, []AbilityRecord{{ID: "oldfire", Cooldown: 1.0}}, data.Get[Abilities]().Items)
+	require.Equal(t, []AbilityRecord{{ID: "oldfire", Cooldown: 1.0}}, data.Get[Abilities](plugin).Items)
 	// Component reflects the reconciled manifest (now equal to plugin.manifest).
-	require.Equal(t, map[string]string{"testdata/abilities.json": h1}, observed.Files)
+	require.Equal(t, abilitiesManifest(h1), observed)
 }
 
 // TestPlugin_EmbedMismatchWarnsAndKeepsCurrent simulates a rebuilt-binary case: a single-version
@@ -268,35 +365,35 @@ func TestPlugin_EmbedMismatchWarnsAndKeepsCurrent(t *testing.T) {
 
 	plugin := data.NewPlugin(data.Config{Source: src})
 	data.Register[Abilities](plugin)
-	cardinal.RegisterPlugin(w, plugin)
+	w.RegisterPlugin(plugin)
 
 	// Pre-seed a manifest with a stale hash the source cannot serve (it'll return currentBytes
 	// regardless of requested hash → gotHash != requested → warn path).
 	const staleHash = "0000000000000000000000000000000000000000000000000000000000000000"
-	cardinal.RegisterSystem(w, func(state *manifestPreseedState) {
-		_, ent := state.Manifest.Create()
-		ent.Item.Set(component.ConfigManifest{Files: map[string]string{"testdata/abilities.json": staleHash}})
-	}, cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(&manifestSystem{run: func(w *cardinal.World) {
+		ent := w.Create[manifestRow]()
+		ent.Set(abilitiesManifest(staleHash))
+	}}, cardinal.WithHook(cardinal.Init))
 
 	var observed component.ConfigManifest
-	cardinal.RegisterSystem(w, func(state *manifestObserverState) {
-		_, ent, err := state.Manifest.Iter().Single()
+	w.RegisterSystem(&manifestSystem{run: func(w *cardinal.World) {
+		ent, err := w.Exact[manifestRow]().Iter().Single()
 		if err == nil {
-			observed = ent.Item.Get()
+			observed = ent.Get[component.ConfigManifest]()
 		}
-	}, cardinal.WithHook(cardinal.PostUpdate))
+	}}, cardinal.WithHook(cardinal.PostUpdate))
 
 	initCardinalECS(t, w)
 	tickOnce(t, w)
 
 	// Catalog unchanged (current bytes).
-	require.Equal(t, []AbilityRecord{{ID: "current", Cooldown: 1.0}}, data.Get[Abilities]().Items)
+	require.Equal(t, []AbilityRecord{{ID: "current", Cooldown: 1.0}}, data.Get[Abilities](plugin).Items)
 	// Component rewritten to current hash.
-	require.Equal(t, map[string]string{"testdata/abilities.json": currentHash}, observed.Files)
+	require.Equal(t, abilitiesManifest(currentHash), observed)
 
 	// Second tick: steady state, component still matches plugin manifest.
 	tickOnce(t, w)
-	require.Equal(t, map[string]string{"testdata/abilities.json": currentHash}, observed.Files)
+	require.Equal(t, abilitiesManifest(currentHash), observed)
 }
 
 // TestPlugin_ReconcileFailurePanicsOnVersionedSource verifies the fail-loud path: when a versioned
@@ -313,13 +410,46 @@ func TestPlugin_ReconcileFailurePanicsOnVersionedSource(t *testing.T) {
 
 	plugin := data.NewPlugin(data.Config{Source: src})
 	data.Register[Abilities](plugin)
-	cardinal.RegisterPlugin(w, plugin)
+	w.RegisterPlugin(plugin)
 
 	const missingHash = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
-	cardinal.RegisterSystem(w, func(state *manifestPreseedState) {
-		_, ent := state.Manifest.Create()
-		ent.Item.Set(component.ConfigManifest{Files: map[string]string{"testdata/abilities.json": missingHash}})
-	}, cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(&manifestSystem{run: func(w *cardinal.World) {
+		ent := w.Create[manifestRow]()
+		ent.Set(abilitiesManifest(missingHash))
+	}}, cardinal.WithHook(cardinal.Init))
+
+	initCardinalECS(t, w)
+	require.Panics(t, func() { tickOnce(t, w) })
+}
+
+// TestPlugin_ReconcileDuplicatePathPanics verifies a restored manifest listing the same path twice
+// is rejected rather than reconciled: the loop would load the last entry's bytes into the catalog
+// while the rewrite recorded the first entry's hash, and the two would never re-converge.
+func TestPlugin_ReconcileDuplicatePathPanics(t *testing.T) {
+	w := newWorld(t)
+
+	v1Bytes := []byte(`{"items":[{"id":"oldfire","cooldown":1.0}]}`)
+	v2Bytes := []byte(`{"items":[{"id":"newfire","cooldown":2.0}]}`)
+	h1 := sha256hex(v1Bytes)
+	h2 := sha256hex(v2Bytes)
+
+	// Both versions are servable, so only the duplicate path can fail this.
+	src := &versionedFake{
+		current: map[string]string{"testdata/abilities.json": h2},
+		byHash:  map[string][]byte{h1: v1Bytes, h2: v2Bytes},
+	}
+
+	plugin := data.NewPlugin(data.Config{Source: src})
+	data.Register[Abilities](plugin)
+	w.RegisterPlugin(plugin)
+
+	w.RegisterSystem(&manifestSystem{run: func(w *cardinal.World) {
+		ent := w.Create[manifestRow]()
+		ent.Set(component.ConfigManifest{Files: immutable.SliceOf(
+			component.ConfigFileHash{Path: "testdata/abilities.json", Hash: h1},
+			component.ConfigFileHash{Path: "testdata/abilities.json", Hash: h2},
+		)})
+	}}, cardinal.WithHook(cardinal.Init))
 
 	initCardinalECS(t, w)
 	require.Panics(t, func() { tickOnce(t, w) })
@@ -330,13 +460,13 @@ func TestPlugin_ReconcileFailurePanicsOnVersionedSource(t *testing.T) {
 // -------------------------------------------------------------------------------------------------
 
 // TestPlugin_FetchErrorPanicsAtRegister verifies the Register-time fetch path: a Source error on
-// the initial load surfaces as a panic from cardinal.RegisterPlugin, not as a deferred failure on
+// the initial load surfaces as a panic from World.RegisterPlugin, not as a deferred failure on
 // the first tick.
 func TestPlugin_FetchErrorPanicsAtRegister(t *testing.T) {
 	w := newWorld(t)
 	plugin := data.NewPlugin(data.Config{Source: errFake{}})
 	data.Register[Abilities](plugin)
-	require.Panics(t, func() { cardinal.RegisterPlugin(w, plugin) })
+	require.Panics(t, func() { w.RegisterPlugin(plugin) })
 }
 
 // TestPlugin_DuplicateNamePanics verifies Register[T] rejects two kinds sharing a Name().
@@ -385,17 +515,15 @@ func TestPlugin_CustomUnmarshalKind(t *testing.T) {
 	w := newWorld(t)
 	plugin := data.NewPlugin(data.Config{Source: src})
 	data.Register[customUnmarshalKind](plugin)
-	cardinal.RegisterPlugin(w, plugin)
+	w.RegisterPlugin(plugin)
 
-	require.Equal(t, []string{"fireball", "frostbolt"}, data.Get[customUnmarshalKind]().IDs)
+	require.Equal(t, []string{"fireball", "frostbolt"}, data.Get[customUnmarshalKind](plugin).IDs)
 }
 
 // customUnmarshalKind has a custom UnmarshalJSON that accepts a bare JSON array of strings.
 // Mixed receivers are intentional: UnmarshalJSON must be pointer (it mutates), while
 // Name/JSONFile are value-receiver to satisfy the generic Definition constraint without
 // forcing callers to write data.Register[*customUnmarshalKind].
-//
-//nolint:recvcheck // intentional pointer/value mix; see comment above.
 type customUnmarshalKind struct {
 	IDs []string
 }
@@ -426,9 +554,9 @@ func TestPlugin_ResolverUsesLocalNotPrimary(t *testing.T) {
 	w := newWorld(t)
 	plugin := data.NewPlugin(data.Config{Source: primarySrc, EmbeddedFS: testFS})
 	data.Register[resolverKind](plugin)
-	cardinal.RegisterPlugin(w, plugin)
+	w.RegisterPlugin(plugin)
 
-	got := data.Get[resolverKind]()
+	got := data.Get[resolverKind](plugin)
 	require.Equal(t, "testdata/resolver_side.json", got.Include)
 	require.JSONEq(t, "{\"extra\":\"hello\"}\n", got.Side)
 }
@@ -476,9 +604,9 @@ func TestPlugin_ValidatorRunsOnSuccessfulLoad(t *testing.T) {
 
 	plugin := data.NewPlugin(data.Config{EmbeddedFS: testFS})
 	data.Register[validatedAbilities](plugin)
-	cardinal.RegisterPlugin(w, plugin)
+	w.RegisterPlugin(plugin)
 
-	require.Len(t, data.Get[validatedAbilities]().Items, 2)
+	require.Len(t, data.Get[validatedAbilities](plugin).Items, 2)
 }
 
 // validatedAbilities accepts any non-empty Items slice. Used to verify Validate is invoked.
@@ -497,12 +625,12 @@ func (v validatedAbilities) Validate() error {
 }
 
 // TestPlugin_ValidateErrorPanicsAtRegister verifies a Validator returning an error surfaces as a
-// panic from cardinal.RegisterPlugin — same fail-loud discipline as a fetch or unmarshal error.
+// panic from World.RegisterPlugin — same fail-loud discipline as a fetch or unmarshal error.
 func TestPlugin_ValidateErrorPanicsAtRegister(t *testing.T) {
 	w := newWorld(t)
 	plugin := data.NewPlugin(data.Config{EmbeddedFS: testFS})
 	data.Register[rejectingAbilities](plugin)
-	require.Panics(t, func() { cardinal.RegisterPlugin(w, plugin) })
+	require.Panics(t, func() { w.RegisterPlugin(plugin) })
 }
 
 // rejectingAbilities always fails Validate.
@@ -524,7 +652,7 @@ func TestPlugin_PointerReceiverValidatorRuns(t *testing.T) {
 	w := newWorld(t)
 	plugin := data.NewPlugin(data.Config{EmbeddedFS: testFS})
 	data.Register[pointerRejectingKind](plugin)
-	require.Panics(t, func() { cardinal.RegisterPlugin(w, plugin) })
+	require.Panics(t, func() { w.RegisterPlugin(plugin) })
 }
 
 // pointerRejectingKind implements Validator on a pointer receiver and always rejects.
@@ -539,4 +667,118 @@ func (pointerRejectingKind) JSONFile() string { return "testdata/abilities.json"
 
 func (k *pointerRejectingKind) Validate() error {
 	return errors.New("pointer_rejecting_kind: rejected")
+}
+
+// -------------------------------------------------------------------------------------------------
+// Tests — pointer-type registration (data.Register[*T])
+// -------------------------------------------------------------------------------------------------
+
+// pointerTypeRegRejectingKind implements Validator on a pointer receiver and always rejects. All
+// methods are pointer-receiver, so the value type does not satisfy Definition and callers must
+// register via data.Register[*pointerTypeRegRejectingKind]. Before the MakeAssemble fix, &def was
+// **pointerTypeRegRejectingKind whose method set excludes the Validate method, so the
+// any(&def).(Validator) assertion silently returned ok==false and the rejecting value loaded.
+type pointerTypeRegRejectingKind struct {
+	Items []AbilityRecord `json:"items"`
+}
+
+func (k *pointerTypeRegRejectingKind) Name() string     { return "test_pointer_type_reg_rejecting_kind" }
+func (k *pointerTypeRegRejectingKind) JSONFile() string { return "testdata/abilities.json" }
+
+func (k *pointerTypeRegRejectingKind) Validate() error {
+	return errors.New("pointer_type_reg_rejecting_kind: rejected")
+}
+
+// TestPlugin_PointerTypeReg_RunsValidator verifies the pointer-type registration call site
+// (data.Register[*T], forced here by pointer-receiver Name/JSONFile) still fires the Validate
+// hook. Sibling of TestPlugin_PointerReceiverValidatorRuns (value-type call site, pointer-receiver
+// Validate); before the fix this asserted no-panic because &def was **T and the assertion skipped.
+func TestPlugin_PointerTypeReg_RunsValidator(t *testing.T) {
+	w := newWorld(t)
+	plugin := data.NewPlugin(data.Config{EmbeddedFS: testFS})
+	data.Register[*pointerTypeRegRejectingKind](plugin)
+	require.Panics(t, func() { w.RegisterPlugin(plugin) })
+}
+
+// pointerTypeRegResolverKind exercises the Resolver hook under pointer-type registration. All
+// methods are pointer-receiver, forcing data.Register[*pointerTypeRegResolverKind]. Before the
+// MakeAssemble fix, the any(&def).(Resolver) assertion silently returned ok==false (def was *T,
+// &def was **T) and the Side field — which Resolve alone populates — stayed empty.
+type pointerTypeRegResolverKind struct {
+	Include string `json:"include"`
+	Side    string `json:"-"`
+}
+
+func (k *pointerTypeRegResolverKind) Name() string { return "test_pointer_type_reg_resolver_kind" }
+func (k *pointerTypeRegResolverKind) JSONFile() string {
+	return "test_pointer_type_reg_resolver_main.json"
+}
+
+func (k *pointerTypeRegResolverKind) Resolve(ctx context.Context, src data.Source) error {
+	raw, _, err := src.Fetch(ctx, k.Include, "")
+	if err != nil {
+		return err
+	}
+	k.Side = string(raw)
+	return nil
+}
+
+// TestPlugin_PointerTypeReg_RunsResolver verifies the pointer-type registration call site
+// (data.Register[*T]) still fires the Resolve hook and the receiver's mutations persist into the
+// catalog. Before the fix, Side stayed empty even though Unmarshal populated Include.
+func TestPlugin_PointerTypeReg_RunsResolver(t *testing.T) {
+	primaryJSON := []byte(`{"include":"testdata/resolver_side.json"}`)
+	primarySrc := &mainOnlyFake{
+		mainFile:  "test_pointer_type_reg_resolver_main.json",
+		mainBytes: primaryJSON,
+	}
+
+	w := newWorld(t)
+	plugin := data.NewPlugin(data.Config{Source: primarySrc, EmbeddedFS: testFS})
+	data.Register[*pointerTypeRegResolverKind](plugin)
+	w.RegisterPlugin(plugin)
+
+	got := data.Get[*pointerTypeRegResolverKind](plugin)
+	require.Equal(t, "testdata/resolver_side.json", got.Include)
+	require.JSONEq(t, "{\"extra\":\"hello\"}\n", got.Side)
+}
+
+// -------------------------------------------------------------------------------------------------
+// Tests — hook dispatch invariants
+// -------------------------------------------------------------------------------------------------
+
+// countingValidatorCalls counts Validate invocations for the exactly-once test. atomic.Int32 is
+// used so reassignment (which the reassign linter flags on package-level vars) is avoided.
+var countingValidatorCalls atomic.Int32
+
+// countingValidator implements a value-receiver Validator over a value-type registration. With a
+// value receiver, both any(def) and any(&def) satisfy the Validator interface (the *T method set is
+// a superset of T's), so this is the case that exercises the "at most once" branch selection in
+// MakeAssemble: a naive pair of independent ifs would dispatch twice.
+type countingValidator struct {
+	Items []AbilityRecord `json:"items"`
+}
+
+func (countingValidator) Name() string     { return "test_counting_validator" }
+func (countingValidator) JSONFile() string { return "testdata/abilities.json" }
+
+func (countingValidator) Validate() error {
+	countingValidatorCalls.Add(1)
+	return nil
+}
+
+// TestPlugin_ValidatorRunsExactlyOnce verifies Validate runs exactly once per load for the
+// value-receiver-on-value-type case, where both def and &def satisfy Validator. Guards against a
+// regression that turns the if/else-if in MakeAssemble into two independent ifs.
+func TestPlugin_ValidatorRunsExactlyOnce(t *testing.T) {
+	countingValidatorCalls.Store(0)
+
+	w := newWorld(t)
+	plugin := data.NewPlugin(data.Config{EmbeddedFS: testFS})
+	data.Register[countingValidator](plugin)
+	w.RegisterPlugin(plugin)
+
+	require.Equal(t, int32(1), countingValidatorCalls.Load(),
+		"Validate should run exactly once per load")
+	require.Len(t, data.Get[countingValidator](plugin).Items, 2)
 }

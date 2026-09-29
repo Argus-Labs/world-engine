@@ -1,4 +1,4 @@
-// Package data is a Cardinal plugin that loads JSON configuration into a process-local catalog at
+// Package data is a Cardinal plugin that loads JSON configuration into a world-owned catalog at
 // world init.
 //
 // Each kind is a user-defined type implementing Definition (Name() + JSONFile()). The plugin
@@ -23,14 +23,14 @@
 //	})
 //	data.Register[component.Abilities](dataPlugin)
 //	data.Register[component.Mobs](dataPlugin)
-//	cardinal.RegisterPlugin(world, dataPlugin)
+//	w.RegisterPlugin(dataPlugin)
 //
 //	// Anywhere downstream:
 //	abilities := data.Get[component.Abilities](dataPlugin)
 //
-// All Register[T] calls must happen before cardinal.RegisterPlugin so the plugin can load every
+// All Register[T] calls must happen before World.RegisterPlugin so the plugin can load every
 // kind into the catalog before the tick loop begins. Get[T] is valid immediately after
-// cardinal.RegisterPlugin returns.
+// World.RegisterPlugin returns.
 //
 // The plugin picks the underlying Source based on the runtime environment (embedded files for
 // local dev; operator/forge integration is a future addition that flips automatically when
@@ -84,18 +84,17 @@ type Config struct {
 	Source Source
 }
 
-// Plugin implements cardinal.Plugin. The actual catalog, manifest, and reconcile logic live on
-// the embedded *system.State; this struct is the thin facade users see (matches the lobby /
-// physics2d convention).
+// Plugin owns one world's catalog, manifest, and configuration sources.
 type Plugin struct {
-	config Config
-	state  *system.State
+	config     Config
+	state      *system.State
+	registered bool
 }
 
 var _ cardinal.Plugin = (*Plugin)(nil)
 
 // NewPlugin builds a data plugin instance. Call Register[T] for each kind before passing the
-// plugin to cardinal.RegisterPlugin.
+// plugin to World.RegisterPlugin.
 //
 // If config.Source is nil (the production path), the plugin picks a Source from the current
 // environment via system.PickSource using config.EmbeddedFS as the embedded fallback.
@@ -114,36 +113,32 @@ func (p *Plugin) Source() Source {
 }
 
 // Register adds T to the plugin's load list. Each registered kind is fetched, unmarshaled, and
-// (if applicable) run through Resolve and Validate at cardinal.RegisterPlugin time.
+// (if applicable) run through Resolve and Validate at World.RegisterPlugin time.
 //
-// Panics if another kind has already claimed the same Name() or JSONFile() — a wiring bug that
-// would otherwise silently collide.
+// Panics after World.RegisterPlugin or if another kind has already claimed the same Name() or JSONFile().
 func Register[T Definition](p *Plugin) {
+	if p.registered {
+		panic("data: register kinds before calling w.RegisterPlugin(dataPlugin)")
+	}
 	var zero T
 	p.state.AddKind(zero.Name(), zero.JSONFile(), system.MakeAssemble[T]())
 }
 
-// registered is the process-global plugin instance set by Plugin.Register(world). It lets
-// data.Get[T]() resolve config without callers threading a *Plugin handle through every system.
-// A shard is a single process running one Cardinal world, so one global is the right shape;
-// tests that need multi-plugin isolation can use Plugin.GetT (instance-scoped, below).
+// Get returns the loaded value for kind T from p. Pass the world's plugin into systems that read
+// its catalog, then call Get after w.RegisterPlugin(dataPlugin) has run:
 //
-//nolint:gochecknoglobals // Process-global plugin handle for data.Get[T]() consumer ergonomics.
-var registered *Plugin
-
-// Get returns the loaded value for kind T from the registered plugin. Call this from any game
-// system after cardinal.RegisterPlugin(world, dataPlugin) has run:
+//	mobs := data.Get[component.Mobs](dataPlugin)
 //
-//	mobs := data.Get[component.Mobs]()
-//
-// Panics if no plugin has been registered yet, or if T was never registered with that plugin —
-// both are wiring bugs and should be caught loudly the first time any system reads.
-func Get[T Definition]() T {
-	if registered == nil {
-		panic("data: no plugin registered — call cardinal.RegisterPlugin(world, dataPlugin) first")
+// Panics if p is nil, p has not been registered with a world, or T was never registered with p.
+func Get[T Definition](p *Plugin) T {
+	if p == nil {
+		panic("data: Get called with a nil *Plugin; inject the world's data plugin into the system")
+	}
+	if !p.registered {
+		panic("data: call w.RegisterPlugin(dataPlugin) before reading its catalog")
 	}
 	var zero T
-	v, ok := registered.state.MustGet(zero.Name()).(T)
+	v, ok := p.state.MustGet(zero.Name()).(T)
 	if !ok {
 		// MakeAssemble[T] stores the concrete T in the catalog keyed by T's Name(), so this
 		// branch is unreachable in practice — but the checked assertion satisfies errcheck and
@@ -153,18 +148,23 @@ func Get[T Definition]() T {
 	return v
 }
 
-// Register implements cardinal.Plugin. Called synchronously by cardinal.RegisterPlugin, before
-// StartGame. Loads every registered kind into the catalog, stashes the plugin as the
-// process-global for data.Get[T](), and registers the per-tick reconcile system that keeps the
-// catalog matched to whatever ConfigManifest the snapshot restored.
-func (p *Plugin) Register(world *cardinal.World) {
+// Register implements cardinal.Plugin. Called synchronously by World.RegisterPlugin, before
+// StartGame. Loads every registered kind and registers the reconcile system that keeps the
+// catalog matched to the snapshot's ConfigManifest. Each world needs a separate Plugin instance.
+func (p *Plugin) Register(w *cardinal.World) {
+	if p.registered {
+		panic("data: Plugin instance is already registered; create a separate plugin for each world")
+	}
 	// Resolver hooks always go through the local embed regardless of how the primary source is
 	// configured (operator, fake, etc.). Resolver-fetched files are heavy designer-bundled assets
 	// — tilemaps, prefab manifests — that ship with the binary and aren't operator-editable.
 	resolverSource := system.EmbedSource{FS: p.config.EmbeddedFS}
 	p.state.LoadAll(context.Background(), p.config.Source, resolverSource)
-	registered = p
-	cardinal.RegisterSystem(world, func(rs *system.ReconcileState) {
-		p.state.Reconcile(rs, p.config.Source, resolverSource)
+	w.RegisterComponent[component.ConfigManifest]()
+	w.RegisterSystem(&system.ReconcileSystem{
+		Catalog:        p.state,
+		Primary:        p.config.Source,
+		ResolverSource: resolverSource,
 	}, cardinal.WithHook(cardinal.PreUpdate))
+	p.registered = true
 }

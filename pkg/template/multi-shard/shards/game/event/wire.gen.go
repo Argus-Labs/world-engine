@@ -6,8 +6,10 @@ package event
 
 import (
 	pbevent "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/gen/pkg/template/multi-shard/shards/game/event"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"unicode/utf8"
 )
 
 func (c PlayerDeparture) ToProto() *pbevent.PlayerDeparture {
@@ -25,11 +27,7 @@ func (c PlayerDeparture) FromProto(p *pbevent.PlayerDeparture) PlayerDeparture {
 }
 
 func (c PlayerDeparture) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerDeparture: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerDeparture) UnmarshalWire(data []byte) (any, error) {
@@ -42,6 +40,22 @@ func (c PlayerDeparture) UnmarshalWire(data []byte) (any, error) {
 
 func (c PlayerDeparture) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbevent.PlayerDeparture{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerDeparture) SizeWire() int {
+	n := 0
+	if len(c.ArgusAuthID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("PlayerDeparture.ArgusAuthID", string(c.ArgusAuthID))
+	}
+	return n
+}
+
+func (c PlayerDeparture) AppendWire(b []byte) []byte {
+	if len(c.ArgusAuthID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ArgusAuthID))
+	}
+	return b
 }
 
 func (c PlayerMovement) ToProto() *pbevent.PlayerMovement {
@@ -65,11 +79,7 @@ func (c PlayerMovement) FromProto(p *pbevent.PlayerMovement) PlayerMovement {
 }
 
 func (c PlayerMovement) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerMovement: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerMovement) UnmarshalWire(data []byte) (any, error) {
@@ -82,6 +92,43 @@ func (c PlayerMovement) UnmarshalWire(data []byte) (any, error) {
 
 func (c PlayerMovement) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbevent.PlayerMovement{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerMovement) SizeWire() int {
+	n := 0
+	if len(c.ArgusAuthID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("PlayerMovement.ArgusAuthID", string(c.ArgusAuthID))
+	}
+	if len(c.ArgusAuthName) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("PlayerMovement.ArgusAuthName", string(c.ArgusAuthName))
+	}
+	if c.X != 0 {
+		n += protowire.SizeTag(3) + protowire.SizeVarint(uint64(c.X))
+	}
+	if c.Y != 0 {
+		n += protowire.SizeTag(4) + protowire.SizeVarint(uint64(c.Y))
+	}
+	return n
+}
+
+func (c PlayerMovement) AppendWire(b []byte) []byte {
+	if len(c.ArgusAuthID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ArgusAuthID))
+	}
+	if len(c.ArgusAuthName) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ArgusAuthName))
+	}
+	if c.X != 0 {
+		b = protowire.AppendTag(b, 3, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.X))
+	}
+	if c.Y != 0 {
+		b = protowire.AppendTag(b, 4, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.Y))
+	}
+	return b
 }
 
 func (c PlayerSpawn) ToProto() *pbevent.PlayerSpawn {
@@ -105,11 +152,7 @@ func (c PlayerSpawn) FromProto(p *pbevent.PlayerSpawn) PlayerSpawn {
 }
 
 func (c PlayerSpawn) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal PlayerSpawn: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c PlayerSpawn) UnmarshalWire(data []byte) (any, error) {
@@ -122,4 +165,51 @@ func (c PlayerSpawn) UnmarshalWire(data []byte) (any, error) {
 
 func (c PlayerSpawn) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbevent.PlayerSpawn{}).ProtoReflect().Descriptor()
+}
+
+func (c PlayerSpawn) SizeWire() int {
+	n := 0
+	if len(c.ArgusAuthID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("PlayerSpawn.ArgusAuthID", string(c.ArgusAuthID))
+	}
+	if len(c.ArgusAuthName) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("PlayerSpawn.ArgusAuthName", string(c.ArgusAuthName))
+	}
+	if c.X != 0 {
+		n += protowire.SizeTag(3) + protowire.SizeVarint(uint64(c.X))
+	}
+	if c.Y != 0 {
+		n += protowire.SizeTag(4) + protowire.SizeVarint(uint64(c.Y))
+	}
+	return n
+}
+
+func (c PlayerSpawn) AppendWire(b []byte) []byte {
+	if len(c.ArgusAuthID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ArgusAuthID))
+	}
+	if len(c.ArgusAuthName) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ArgusAuthName))
+	}
+	if c.X != 0 {
+		b = protowire.AppendTag(b, 3, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.X))
+	}
+	if c.Y != 0 {
+		b = protowire.AppendTag(b, 4, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.Y))
+	}
+	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check proto.Marshal
+// performs: a proto3 string holding invalid UTF-8 cannot be decoded, so the size pass
+// fails.
+func wireStringSize(field, s string) int {
+	if !utf8.ValidString(s) {
+		panic("failed to encode " + field + ": string field contains invalid UTF-8")
+	}
+	return protowire.SizeBytes(len(s))
 }

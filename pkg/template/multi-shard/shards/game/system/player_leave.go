@@ -2,38 +2,34 @@ package system
 
 import (
 	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/command"
+	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/component"
 	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/game/event"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 )
 
-type PlayerLeaveSystemState struct {
-	cardinal.BaseSystemState
-	PlayerLeaveCommands  cardinal.WithCommand[command.PlayerLeave]
-	PlayerDepartureEvent cardinal.WithEvent[event.PlayerDeparture]
-	Players              PlayerSearch
-}
+type PlayerLeaveSystem struct{}
 
 // PlayerLeaveSystem is called when a player leaves a quadrant (e.g. to join another quadrant).
-func PlayerLeaveSystem(state *PlayerLeaveSystemState) {
-	players := make(map[string]cardinal.EntityID)
+func (s *PlayerLeaveSystem) Run(w *cardinal.World) {
+	players := make(map[string]cardinal.Entity)
 
-	for entity, player := range state.Players.Iter() {
-		players[player.Tag.Get().ArgusAuthID] = entity
+	for player := range w.Exact[Player]().Iter() {
+		players[player.Get[component.PlayerTag]().ArgusAuthID] = player
 	}
 
-	for cmd := range state.PlayerLeaveCommands.Iter() {
+	for cmd := range w.Commands[command.PlayerLeave]() {
 		command := cmd.Payload
 
-		entityID, exists := players[command.ArgusAuthID]
+		entity, exists := players[command.ArgusAuthID]
 		if !exists {
-			state.Logger().Info().Msgf("Player with ID %s not found", command.ArgusAuthID)
+			w.Logger().Info().Msgf("Player with ID %s not found", command.ArgusAuthID)
 			continue
 		}
 
-		state.Players.Destroy(entityID)
+		entity.Destroy()
 
-		state.PlayerDepartureEvent.Broadcast(event.PlayerDeparture{
+		w.Broadcast(event.PlayerDeparture{
 			ArgusAuthID: command.ArgusAuthID,
 		})
 	}

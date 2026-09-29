@@ -1287,9 +1287,8 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 	var vertices [MaxPolygonVertices]Vec2
 	var normals [MaxPolygonVertices]Vec2
 	for i := range count {
-		//nolint:gosec // G602: count is polygonB.Count, validated to 1..MaxPolygonVertices by requireValidPolygonCount at the top of CollideChainSegmentAndPolygon; vertices is [MaxPolygonVertices]Vec2.
 		vertices[i] = TransformPoint(xf, polygonB.Vertices[i])
-		//nolint:gosec // G602: same bound as the line above; normals is [MaxPolygonVertices]Vec2.
+
 		normals[i] = RotateVector(xf.Q, polygonB.Normals[i])
 	}
 
@@ -1444,7 +1443,6 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 		edgeSeparation := math.MaxFloat64
 
 		for i := range count {
-			//nolint:gosec // G602: count is polygonB.Count, validated to 1..MaxPolygonVertices by requireValidPolygonCount at the top of CollideChainSegmentAndPolygon; vertices is [MaxPolygonVertices]Vec2.
 			s := Dot(normal1, Sub(vertices[i], p1))
 			if s < edgeSeparation {
 				edgeSeparation = s
@@ -1457,7 +1455,6 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 			s0 := math.MaxFloat64
 
 			for i := range count {
-				//nolint:gosec // G602: count is polygonB.Count, validated to 1..MaxPolygonVertices by requireValidPolygonCount at the top of CollideChainSegmentAndPolygon; vertices is [MaxPolygonVertices]Vec2.
 				s := Dot(smoothParams.normal0, Sub(vertices[i], p1))
 				if s < s0 {
 					s0 = s
@@ -1477,7 +1474,6 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 			s2 := math.MaxFloat64
 
 			for i := range count {
-				//nolint:gosec // G602: count is polygonB.Count, validated to 1..MaxPolygonVertices by requireValidPolygonCount at the top of CollideChainSegmentAndPolygon; vertices is [MaxPolygonVertices]Vec2.
 				s := Dot(smoothParams.normal2, Sub(vertices[i], p2))
 				if s < s2 {
 					s2 = s
@@ -1497,7 +1493,6 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 		referenceIndex := -1
 
 		for i := range count {
-			//nolint:gosec // G602: count is polygonB.Count, validated to 1..MaxPolygonVertices by requireValidPolygonCount at the top of CollideChainSegmentAndPolygon; normals is [MaxPolygonVertices]Vec2.
 			n := normals[i]
 
 			typ := classifyNormal(smoothParams, Neg(n))
@@ -1526,9 +1521,11 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 			if ia1 < count-1 {
 				ia2 = ia1 + 1
 			}
+			//nolint:gosec // G602: a winning polygon separation selects referenceIndex from [0, count).
 			a1 := vertices[ia1]
 			a2 := vertices[ia2]
 
+			//nolint:gosec // G602: ia1 is the winning referenceIndex, bounded by the validated polygon count.
 			n := normals[ia1]
 
 			dot1 := Dot(n, Sub(p1, a1))
@@ -1546,11 +1543,11 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 				}
 			}
 
-			manifold = clipSegments(a1, a2, p1, p2, normals[ia1], radiusB, 0.0, makeID(ia1, 1), makeID(ia2, 0))
+			manifold = clipSegments(a1, a2, p1, p2, n, radiusB, 0.0, makeID(ia1, 1), makeID(ia2, 0))
 
 			assert(manifold.PointCount == 0 || manifold.PointCount == 2)
 			if manifold.PointCount == 2 {
-				manifold.Normal = RotateVector(xfA.Q, Neg(normals[ia1]))
+				manifold.Normal = RotateVector(xfA.Q, Neg(n))
 				manifold.Points[0].AnchorA = RotateVector(xfA.Q, manifold.Points[0].AnchorA)
 				manifold.Points[1].AnchorA = RotateVector(xfA.Q, manifold.Points[1].AnchorA)
 				pAB := Sub(xfA.P, xfB.P)
@@ -1586,6 +1583,7 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 		} else {
 			ib2 = 0
 		}
+		//nolint:gosec // G602: incidentNormal is a polygon edge index; the -1 sentinel is excluded above.
 		b1 = vertices[ib1]
 		b2 = vertices[ib2]
 	} else {
@@ -1595,10 +1593,12 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 			i1 = i2 - 1
 		}
 		d1 := Dot(normal1, normals[i1])
+		//nolint:gosec // G602: incidentIndex is a polygon vertex index; the no-incident branch returned above.
 		d2 := Dot(normal1, normals[i2])
 		if d1 < d2 {
 			ib1, ib2 = i1, i2
 			b1 = vertices[ib1]
+			//nolint:gosec // G602: ib2 is the incident vertex i2; the no-incident branch returned above.
 			b2 = vertices[ib2]
 		} else {
 			ib1 = i2
@@ -1607,6 +1607,7 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 			} else {
 				ib2 = 0
 			}
+			//nolint:gosec // G602: ib1 is the incident vertex i2; the no-incident branch returned above.
 			b1 = vertices[ib1]
 			b2 = vertices[ib2]
 		}

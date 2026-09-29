@@ -40,7 +40,7 @@ func TestComponent_RegisterModelFuzz(t *testing.T) {
 		case opRegister:
 			name := randValidComponentName(prng)
 
-			implID, implErr := impl.register(name, nil) // we don't use the columnFactory so it's ok
+			implID, implErr := impl.register[testutils.SimpleComponent](name)
 			modelID, modelExists := model[name]
 
 			if modelExists {
@@ -106,15 +106,15 @@ func TestComponent_RegisterModelFuzz(t *testing.T) {
 
 		cm := newComponentManager()
 
-		id1, err := cm.register("hello", nil)
+		id1, err := cm.register[testutils.SimpleComponent]("hello")
 		require.NoError(t, err)
 
-		id2, err := cm.register("hello", nil)
+		id2, err := cm.register[testutils.SimpleComponent]("hello")
 		require.NoError(t, err)
 
 		assert.Equal(t, id1, id2)
 
-		id3, err := cm.register("a_different_name", nil)
+		id3, err := cm.register[testutils.SimpleComponent]("a_different_name")
 		require.NoError(t, err)
 
 		assert.Equal(t, id1+1, id3)
@@ -195,4 +195,90 @@ func randValidComponentName(prng *rand.Rand) string {
 		b[i] = restChars[prng.IntN(len(restChars))]
 	}
 	return string(b)
+}
+
+type conflictingComponent struct {
+	testutils.SimpleComponent
+}
+
+func TestWorld_HasComponent(t *testing.T) {
+	t.Parallel()
+	w := NewWorld()
+	eid := w.Create()
+	assert.False(t, w.Has[testutils.ComponentA](eid), "unregistered component")
+
+	_, err := w.RegisterComponent[testutils.ComponentA]()
+	require.NoError(t, err)
+	assert.False(t, w.Has[testutils.ComponentA](eid), "registered but absent component")
+
+	require.NoError(t, w.Set(eid, testutils.ComponentA{X: 42}))
+	assert.True(t, w.Has[testutils.ComponentA](eid), "present component")
+
+	require.NoError(t, w.Remove[testutils.ComponentA](eid))
+	assert.False(t, w.Has[testutils.ComponentA](eid), "removed component")
+
+	require.NoError(t, w.Set(eid, testutils.ComponentA{X: 42}))
+	require.True(t, w.Destroy(eid))
+	assert.False(t, w.Has[testutils.ComponentA](eid), "destroyed entity")
+}
+
+func TestWorld_RegisterComponentRejectsNameCollision(t *testing.T) {
+	t.Parallel()
+	w := NewWorld()
+	id, err := w.RegisterComponent[testutils.SimpleComponent]()
+	require.NoError(t, err)
+	require.Equal(t, ComponentID(0), id)
+	eid := w.Create()
+	require.NoError(t, w.Set(eid, testutils.SimpleComponent{Value: 42}))
+
+	id, err = w.RegisterComponent[testutils.SimpleComponent]()
+	require.NoError(t, err)
+	require.Equal(t, ComponentID(0), id)
+	_, err = w.RegisterComponent[conflictingComponent]()
+	require.ErrorContains(t, err, "component simple_component already registered with a different type")
+	assert.False(t, w.Has[conflictingComponent](eid), "a shared name does not register a different Go type")
+	assert.True(t, w.Has[testutils.SimpleComponent](eid))
+
+	value, err := w.Get[testutils.SimpleComponent](eid)
+	require.NoError(t, err)
+	require.Equal(t, testutils.SimpleComponent{Value: 42}, value)
+	require.NoError(t, w.Set(eid, testutils.SimpleComponent{Value: 7}))
+	value, err = w.Get[testutils.SimpleComponent](eid)
+	require.NoError(t, err)
+	require.Equal(t, testutils.SimpleComponent{Value: 7}, value)
+}
+
+func TestWorld_ComponentID(t *testing.T) {
+	t.Parallel()
+	w := NewWorld()
+	_, err := w.ComponentID[testutils.SimpleComponent]()
+	require.ErrorIs(t, err, ErrComponentNotFound)
+
+	registered, err := w.RegisterComponent[testutils.SimpleComponent]()
+	require.NoError(t, err)
+	id, err := w.ComponentID[testutils.SimpleComponent]()
+	require.NoError(t, err)
+	assert.Equal(t, registered, id)
+
+	_, err = w.ComponentID[conflictingComponent]()
+	require.ErrorIs(t, err, ErrComponentNotFound)
+	require.ErrorContains(t, err, "component simple_component is registered with a different type")
+	assert.False(t, w.Has[conflictingComponent](w.Create()), "a shared name does not register a different Go type")
+}
+
+func TestWorld_ConflictingComponentAccessPreservesData(t *testing.T) {
+	t.Parallel()
+	w := NewWorld()
+	_, err := w.RegisterComponent[testutils.SimpleComponent]()
+	require.NoError(t, err)
+	eid := w.Create()
+	require.NoError(t, w.Set(eid, testutils.SimpleComponent{Value: 42}))
+
+	require.ErrorIs(t, w.Remove[conflictingComponent](eid), ErrComponentNotFound)
+	assert.False(t, w.Has[conflictingComponent](eid))
+	_, err = w.Get[conflictingComponent](eid)
+	require.ErrorIs(t, err, ErrComponentNotFound)
+	value, err := w.Get[testutils.SimpleComponent](eid)
+	require.NoError(t, err)
+	assert.Equal(t, testutils.SimpleComponent{Value: 42}, value)
 }

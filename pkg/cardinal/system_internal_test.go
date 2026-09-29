@@ -1,12 +1,13 @@
 package cardinal
 
 import (
-	"reflect"
+	"context"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
@@ -18,158 +19,197 @@ import (
 // System registration tests
 // -------------------------------------------------------------------------------------------------
 
-func TestRegisterSystems_IgnorePrivateFields(t *testing.T) {
+func TestRegisterSystem_RunsCallerOwnedInstance(t *testing.T) {
 	t.Parallel()
+	w := &World{world: ecs.NewWorld()}
+	count := 7
+	system := &privateStateSystem{dependency: &count, scratch: []int{3}}
+	w.RegisterSystem(system)
 
-	t.Run("v1", func(t *testing.T) {
-		t.Parallel()
+	w.world.Init()
+	require.Equal(t, 7, count)
+	w.world.Tick()
+	w.world.Tick()
 
-		world := &World{world: ecs.NewWorld()}
-		require.NotPanics(t, func() {
-			RegisterSystem(world, func(*privateStateSystem) {})
+	require.Equal(t, 9, count)
+	require.Equal(t, []int{3, 8, 9}, system.scratch)
+	require.Same(t, w, system.world)
+}
+
+// TestRegisterSystem_RunReceivesItsWorld registers one instance in two worlds. Run must read the
+// tick, entities, and commands of the world it is handed, not state captured at registration.
+func TestRegisterSystem_RunReceivesItsWorld(t *testing.T) {
+	t.Parallel()
+	first, second := newCommandWorld(t), newCommandWorld(t)
+	for _, w := range []*World{first, second} {
+		w.RegisterComponent[testutils.ComponentA]()
+	}
+	system := &worldProbeSystem{}
+	first.RegisterSystem(system)
+	second.RegisterSystem(system)
+	first.currentTick.height = 10
+	second.currentTick.height = 20
+	first.Create[entityTestArchetype]().Set(testutils.ComponentA{X: 1})
+	second.Create[entityTestArchetype]().Set(testutils.ComponentA{X: 2})
+	second.Create[entityTestArchetype]().Set(testutils.ComponentA{X: 3})
+	enqueueCommand(t, first, testutils.SimpleCommand{Value: 11}, "first")
+	enqueueCommand(t, second, testutils.SimpleCommand{Value: 22}, "second")
+	first.commands.Drain()
+	second.commands.Drain()
+
+	first.world.Init()
+	second.world.Init()
+	first.world.Tick()
+	second.world.Tick()
+
+	require.Len(t, system.worlds, 2)
+	require.Same(t, first, system.worlds[0])
+	require.Same(t, second, system.worlds[1])
+	require.Equal(t, []worldProbeRun{
+		{tick: 10, contains: []float64{1}, exact: []float64{1}, commands: []int{11}},
+		{tick: 20, contains: []float64{2, 3}, exact: []float64{2, 3}, commands: []int{22}},
+	}, system.runs)
+}
+
+func TestRegisterSystem_AllowsDistinctInstancesOfSameType(t *testing.T) {
+	t.Parallel()
+	w := &World{world: ecs.NewWorld()}
+	firstCount, secondCount := 10, 20
+	w.RegisterSystem(&privateStateSystem{dependency: &firstCount})
+	w.RegisterSystem(&privateStateSystem{dependency: &secondCount})
+
+	w.world.Init()
+	w.world.Tick()
+	require.Equal(t, 11, firstCount)
+	require.Equal(t, 21, secondCount)
+}
+
+// TestRegisterSystem_RejectsNil: a nil interface or a typed nil pointer would register under a
+// valid name and dereference nil inside Run on the first tick, so registration rejects both.
+// Value systems are still accepted.
+func TestRegisterSystem_RejectsNil(t *testing.T) {
+	t.Parallel()
+	w := &World{world: ecs.NewWorld()}
+	require.Panics(t, func() { w.RegisterSystem(nil) })
+	var typedNil *privateStateSystem
+	require.Panics(t, func() { w.RegisterSystem(typedNil) })
+	require.NotPanics(t, func() { w.RegisterSystem(registeringSystem{}) })
+}
+
+func TestRegisterSystem_InitHook(t *testing.T) {
+	t.Parallel()
+	w := &World{world: ecs.NewWorld()}
+	count := 0
+	system := &privateStateSystem{dependency: &count}
+	w.RegisterSystem(system, WithHook(Init))
+
+	w.world.Init()
+	w.world.Tick()
+	w.world.Tick()
+
+	require.Equal(t, 1, count)
+	require.Equal(t, []int{1}, system.scratch)
+}
+
+// TestRegister_RejectsAfterStart: registration closes when init runs the first system, so nothing
+// can register once the world is running, including a system registering from inside Run.
+func TestRegister_RejectsAfterStart(t *testing.T) {
+	t.Parallel()
+	registrations := map[string]func(w *World){
+		"component":    func(w *World) { w.RegisterComponent[testutils.ComponentA]() },
+		"command":      func(w *World) { w.RegisterCommand[testutils.SimpleCommand]() },
+		"event":        func(w *World) { w.RegisterEvent[testutils.SimpleEvent]() },
+		"system event": func(w *World) { w.RegisterSystemEvent[testutils.SimpleSystemEvent]() },
+		"system":       func(w *World) { w.RegisterSystem(&privateStateSystem{dependency: new(int)}) },
+		"plugin":       func(w *World) { w.RegisterPlugin(noopPlugin{}) },
+	}
+	for kind, register := range registrations {
+		t.Run(kind+" after start", func(t *testing.T) {
+			t.Parallel()
+			w := &World{world: ecs.NewWorld()}
+			w.init()
+			require.PanicsWithError(t, ErrWorldStarted.Error(), func() { register(w) })
 		})
+	}
+
+	t.Run("inside an init system", func(t *testing.T) {
+		t.Parallel()
+		w := &World{world: ecs.NewWorld()}
+		w.RegisterSystem(registeringSystem{}, WithHook(Init))
+		require.PanicsWithError(t, ErrWorldStarted.Error(), w.init)
 	})
 
-	t.Run("v2", func(t *testing.T) {
+	t.Run("inside an update system", func(t *testing.T) {
 		t.Parallel()
-
-		world := &World{world: ecs.NewWorld()}
-		require.NotPanics(t, func() {
-			RegisterSystemV2(world, &privateStateSystem{})
-		})
+		w := &World{world: ecs.NewWorld()}
+		w.RegisterSystem(registeringSystem{})
+		w.init()
+		require.PanicsWithError(t, ErrWorldStarted.Error(), w.world.Tick)
 	})
 }
 
-func TestRegisterSystems_RejectPrivateCardinalDependency(t *testing.T) {
-	t.Parallel()
+type noopPlugin struct{}
 
-	assertRejected := func(t *testing.T, register func(*World)) {
-		t.Helper()
-		world := &World{world: ecs.NewWorld()}
-		require.PanicsWithError(
-			t,
-			"error initializing system fields: field events must be exported",
-			func() { register(world) },
-		)
-	}
+func (noopPlugin) Register(*World) {}
 
-	t.Run("v1", func(t *testing.T) {
-		t.Parallel()
+// registeringSystem tries to register a component from inside Run.
+type registeringSystem struct{}
 
-		t.Run("value field", func(t *testing.T) {
-			assertRejected(t, func(world *World) {
-				RegisterSystem(world, func(*privateDependencySystem) {})
-			})
-		})
-		t.Run("pointer field", func(t *testing.T) {
-			assertRejected(t, func(world *World) {
-				RegisterSystem(world, func(*privatePointerDependencySystem) {})
-			})
-		})
-	})
+func (registeringSystem) Run(w *World) { w.RegisterComponent[testutils.ComponentA]() }
 
-	t.Run("v2", func(t *testing.T) {
-		t.Parallel()
-
-		t.Run("value field", func(t *testing.T) {
-			assertRejected(t, func(world *World) {
-				RegisterSystemV2(world, &privateDependencySystem{})
-			})
-		})
-		t.Run("pointer field", func(t *testing.T) {
-			assertRejected(t, func(world *World) {
-				RegisterSystemV2(world, &privatePointerDependencySystem{})
-			})
-		})
-	})
+type worldProbeRun struct {
+	tick     uint64
+	contains []float64
+	exact    []float64
+	commands []int
 }
 
-func TestRegisterSystems_RejectPointerCardinalDependency(t *testing.T) {
-	t.Parallel()
+type worldProbeSystem struct {
+	worlds []*World
+	runs   []worldProbeRun
+}
 
-	assertRejected := func(t *testing.T, register func(*World)) {
-		t.Helper()
-		world := &World{world: ecs.NewWorld()}
-		require.PanicsWithError(
-			t,
-			"error initializing system fields: field Events must be declared as a value",
-			func() { register(world) },
-		)
+func (s *worldProbeSystem) Run(w *World) {
+	run := worldProbeRun{tick: w.TickHeight()}
+	for entity := range w.Contains[entityTestArchetype]().Iter() {
+		run.contains = append(run.contains, entity.Get[testutils.ComponentA]().X)
 	}
-
-	t.Run("v1", func(t *testing.T) {
-		t.Parallel()
-
-		assertRejected(t, func(world *World) {
-			RegisterSystem(world, func(*exportedPointerDependencySystem) {})
-		})
-	})
-
-	t.Run("v2", func(t *testing.T) {
-		t.Parallel()
-
-		assertRejected(t, func(world *World) {
-			RegisterSystemV2(world, &exportedPointerDependencySystem{})
-		})
-	})
+	for entity := range w.Exact[entityTestArchetype]().Iter() {
+		run.exact = append(run.exact, entity.Get[testutils.ComponentA]().X)
+	}
+	for cmd := range w.Commands[testutils.SimpleCommand]() {
+		run.commands = append(run.commands, cmd.Payload.Value)
+	}
+	s.worlds = append(s.worlds, w)
+	s.runs = append(s.runs, run)
 }
 
 type privateStateSystem struct {
-	BaseSystemState
-
 	dependency *int
 	scratch    []int
+	world      *World
 }
 
-func (s *privateStateSystem) Run() {
+func (s *privateStateSystem) Run(w *World) {
+	s.world = w
 	(*s.dependency)++
 	s.scratch = append(s.scratch, *s.dependency)
 }
 
-type privateDependencySystem struct {
-	BaseSystemState
-
-	events WithEvent[testutils.SimpleEvent]
-}
-
-func (s *privateDependencySystem) Run() {
-	_ = s.events
-}
-
-type privatePointerDependencySystem struct {
-	BaseSystemState
-
-	events *WithEvent[testutils.SimpleEvent]
-}
-
-func (s *privatePointerDependencySystem) Run() {
-	_ = s.events
-}
-
-type exportedPointerDependencySystem struct {
-	BaseSystemState
-
-	Events *WithEvent[testutils.SimpleEvent]
-}
-
-func (s *exportedPointerDependencySystem) Run() {
-	_ = s.Events
-}
-
 // -------------------------------------------------------------------------------------------------
-// WithCommand smoke tests
+// Commands smoke tests
 // -------------------------------------------------------------------------------------------------
-// WithCommand is a light wrapper over command.Manager, which is already tested. Here, we just check
-// if the regular command operations work correctly.
+// Commands is a light wrapper over command.Manager, which is already tested. Here, we just check
+// that registration gates the iterator and that the regular command operations work correctly.
 // -------------------------------------------------------------------------------------------------
 
-func TestWithCommand_Smoke(t *testing.T) {
+func TestCommands_Smoke(t *testing.T) {
 	t.Parallel()
 
 	t.Run("round trip", func(t *testing.T) {
 		t.Parallel()
 		prng := testutils.NewRand(t)
-		fixture := newCommandFixture(t)
+		w := newCommandWorld(t)
 
 		count := prng.IntN(100)
 		model := make([]testutils.SimpleCommand, count)
@@ -180,12 +220,12 @@ func TestWithCommand_Smoke(t *testing.T) {
 		}
 
 		for i, cmd := range model {
-			fixture.enqueueCommand(t, cmd, personas[i])
+			enqueueCommand(t, w, cmd, personas[i])
 		}
-		fixture.world.commands.Drain()
+		w.commands.Drain()
 
 		var results []CommandContext[testutils.SimpleCommand]
-		for ctx := range fixture.Command.Iter() {
+		for ctx := range w.Commands[testutils.SimpleCommand]() {
 			results = append(results, ctx)
 		}
 
@@ -199,11 +239,11 @@ func TestWithCommand_Smoke(t *testing.T) {
 	t.Run("empty iteration", func(t *testing.T) {
 		t.Parallel()
 
-		fixture := newCommandFixture(t)
-		fixture.world.commands.Drain()
+		w := newCommandWorld(t)
+		w.commands.Drain()
 
 		count := 0
-		for range fixture.Command.Iter() {
+		for range w.Commands[testutils.SimpleCommand]() {
 			count++
 		}
 		assert.Equal(t, 0, count)
@@ -212,49 +252,65 @@ func TestWithCommand_Smoke(t *testing.T) {
 	t.Run("early termination", func(t *testing.T) {
 		t.Parallel()
 
-		fixture := newCommandFixture(t)
+		w := newCommandWorld(t)
 
 		for i := range 10 {
-			fixture.enqueueCommand(t, testutils.SimpleCommand{Value: i}, "player")
+			enqueueCommand(t, w, testutils.SimpleCommand{Value: i}, "player")
 		}
-		fixture.world.commands.Drain()
+		w.commands.Drain()
 
 		count := 0
-		for range fixture.Command.Iter() {
+		for range w.Commands[testutils.SimpleCommand]() {
 			count++
 			break
 		}
 		assert.Equal(t, 1, count)
 	})
+
+	t.Run("register twice is a no-op", func(t *testing.T) {
+		t.Parallel()
+
+		w := newCommandWorld(t)
+		require.NotPanics(t, func() { w.RegisterCommand[testutils.SimpleCommand]() })
+
+		enqueueCommand(t, w, testutils.SimpleCommand{Value: 1}, "player")
+		w.commands.Drain()
+
+		count := 0
+		for range w.Commands[testutils.SimpleCommand]() {
+			count++
+		}
+		assert.Equal(t, 1, count)
+	})
+
+	t.Run("unregistered command panics", func(t *testing.T) {
+		t.Parallel()
+
+		w := &World{world: ecs.NewWorld(), commands: command.NewManager()}
+		require.Panics(t, func() { w.Commands[testutils.SimpleCommand]() })
+	})
 }
 
-type commandFixture struct {
-	world   *World
-	Command WithCommand[testutils.SimpleCommand]
-}
-
-func newCommandFixture(t *testing.T) *commandFixture {
+// newCommandWorld returns a world with the command manager and service wired, and SimpleCommand
+// registered.
+func newCommandWorld(t *testing.T) *World {
 	t.Helper()
 
-	world := &World{
+	w := &World{
+		world:    ecs.NewWorld(),
 		commands: command.NewManager(),
 	}
-	world.service = newService(world, AuthModeDev, "")
+	w.service = newService(w, AuthModeDev, "")
+	w.RegisterCommand[testutils.SimpleCommand]()
 
-	fixture := &commandFixture{world: world}
-
-	meta := &systemInitMetadata{world: world, commands: make(map[string]struct{}), events: make(map[string]struct{})}
-	err := fixture.Command.init(meta)
-	require.NoError(t, err)
-
-	return fixture
+	return w
 }
 
 // enqueueCommand is a helper that marshals a command payload through its wire layer and enqueues it.
-func (f *commandFixture) enqueueCommand(t *testing.T, payload command.Payload, persona string) {
+func enqueueCommand(t *testing.T, w *World, payload command.Payload, persona string) {
 	t.Helper()
 
-	bytes := payload.MarshalWire()
+	bytes := schema.Marshal(payload)
 	require.NotNil(t, bytes)
 
 	cmdpb := &iscv1.Command{
@@ -264,24 +320,24 @@ func (f *commandFixture) enqueueCommand(t *testing.T, payload command.Payload, p
 		Payload: bytes,
 	}
 
-	err := f.world.commands.Enqueue(cmdpb)
+	err := w.commands.Enqueue(context.Background(), cmdpb)
 	require.NoError(t, err)
 }
 
 // -------------------------------------------------------------------------------------------------
-// WithEvent smoke tests
+// Events smoke tests
 // -------------------------------------------------------------------------------------------------
-// WithEvent is a light wrapper over event.Manager, which is already tested. Here, we just check if
-// the regular event operations work correctly.
+// Broadcast and SendTo are light wrappers over event.Manager, which is already tested. Here, we
+// just check that registration gates them and that the regular event operations work correctly.
 // -------------------------------------------------------------------------------------------------
 
-func TestWithEvent_Smoke(t *testing.T) {
+func TestEvents_Smoke(t *testing.T) {
 	t.Parallel()
 
 	t.Run("round trip", func(t *testing.T) {
 		t.Parallel()
 		prng := testutils.NewRand(t)
-		fixture := newEventFixture(t)
+		w := newEventWorld(t)
 
 		count := prng.IntN(100)
 		model := make([]testutils.SimpleEvent, count)
@@ -290,78 +346,94 @@ func TestWithEvent_Smoke(t *testing.T) {
 		}
 
 		for _, evt := range model {
-			fixture.Event.Broadcast(evt)
+			w.Broadcast(evt)
 		}
 
-		// Dispatch collects events and calls registered handlers.
-		var collected []event.Event
-		fixture.world.events.RegisterHandler(event.KindDefault, func(evt event.Event) error {
-			collected = append(collected, evt)
-			return nil
-		})
-		err := fixture.world.events.Dispatch()
-		require.NoError(t, err)
-
+		collected := dispatchEvents(t, w)
 		assert.Len(t, collected, len(model), "completeness: expected %d events, got %d", len(model), len(collected))
 		for i, evt := range collected {
 			payload, ok := evt.Payload.(testutils.SimpleEvent)
 			assert.True(t, ok, "event payload type mismatch at index %d", i)
 			assert.Equal(t, model[i], payload, "round-trip integrity: event mismatch at index %d", i)
+			assert.Empty(t, evt.Recipient, "broadcast events have no recipient")
 		}
+	})
+
+	t.Run("send to", func(t *testing.T) {
+		t.Parallel()
+		w := newEventWorld(t)
+
+		w.SendTo("player", testutils.SimpleEvent{Value: 7})
+
+		collected := dispatchEvents(t, w)
+		require.Len(t, collected, 1)
+		assert.Equal(t, testutils.SimpleEvent{Value: 7}, collected[0].Payload)
+		assert.Equal(t, "player", collected[0].Recipient)
 	})
 
 	t.Run("emit empty", func(t *testing.T) {
 		t.Parallel()
-		fixture := newEventFixture(t)
+		w := newEventWorld(t)
 
-		var collected []event.Event
-		fixture.world.events.RegisterHandler(event.KindDefault, func(evt event.Event) error {
-			collected = append(collected, evt)
-			return nil
-		})
-		err := fixture.world.events.Dispatch()
-		require.NoError(t, err)
+		assert.Empty(t, dispatchEvents(t, w))
+	})
 
-		assert.Empty(t, collected)
+	t.Run("register twice is a no-op", func(t *testing.T) {
+		t.Parallel()
+		w := newEventWorld(t)
+		require.NotPanics(t, func() { w.RegisterEvent[testutils.SimpleEvent]() })
+
+		w.Broadcast(testutils.SimpleEvent{Value: 1})
+		assert.Len(t, dispatchEvents(t, w), 1)
+	})
+
+	t.Run("unregistered event panics", func(t *testing.T) {
+		t.Parallel()
+		w := &World{events: event.NewManager(1024)}
+		require.Panics(t, func() { w.Broadcast(testutils.SimpleEvent{Value: 1}) })
+		require.Panics(t, func() { w.SendTo("player", testutils.SimpleEvent{Value: 1}) })
 	})
 }
 
-type eventFixture struct {
-	world *World
-	Event WithEvent[testutils.SimpleEvent]
-}
-
-func newEventFixture(t *testing.T) *eventFixture {
+// newEventWorld returns a world with the event manager wired and SimpleEvent registered.
+func newEventWorld(t *testing.T) *World {
 	t.Helper()
 
-	world := &World{
-		events: event.NewManager(1024),
-	}
+	w := &World{events: event.NewManager(1024)}
+	w.RegisterEvent[testutils.SimpleEvent]()
 
-	fixture := &eventFixture{world: world}
+	return w
+}
 
-	meta := &systemInitMetadata{world: world, commands: make(map[string]struct{}), events: make(map[string]struct{})}
-	err := fixture.Event.init(meta)
-	require.NoError(t, err)
+// dispatchEvents runs the world's default event handlers and returns every event they received.
+func dispatchEvents(t *testing.T, w *World) []event.Event {
+	t.Helper()
 
-	return fixture
+	var collected []event.Event
+	w.events.RegisterHandler(event.KindDefault, func(_ context.Context, evt event.Event) error {
+		collected = append(collected, evt)
+		return nil
+	})
+	require.NoError(t, w.events.Dispatch(context.Background()))
+
+	return collected
 }
 
 // -------------------------------------------------------------------------------------------------
-// WithSystemEvent smoke tests
+// System events smoke tests
 // -------------------------------------------------------------------------------------------------
-// WithSystemEventEmitter and WithSystemEventReceiver are just light wrappers over the
-// systemEventManager, which is already tested. Here, we just check if the regular system event
-// operations work correctly.
+// EmitSystemEvent and SystemEvents are light wrappers over the ECS system event manager, which is
+// already tested. Here, we just check that registration gates them and that the regular system
+// event operations work correctly.
 // -------------------------------------------------------------------------------------------------
 
-func TestSystem_WithSystemEvent(t *testing.T) {
+func TestSystemEvents_Smoke(t *testing.T) {
 	t.Parallel()
 
 	t.Run("round trip", func(t *testing.T) {
 		t.Parallel()
 		prng := testutils.NewRand(t)
-		fixture := newSystemEventFixture(t)
+		w := newSystemEventWorld(t)
 
 		count := prng.IntN(10_000)
 		model := make([]testutils.SimpleSystemEvent, count)
@@ -370,11 +442,11 @@ func TestSystem_WithSystemEvent(t *testing.T) {
 		}
 
 		for _, event := range model {
-			fixture.Emitter.Emit(event)
+			w.EmitSystemEvent(event)
 		}
 
 		var results []testutils.SimpleSystemEvent
-		for event := range fixture.Receiver.Iter() {
+		for event := range w.SystemEvents[testutils.SimpleSystemEvent]() {
 			results = append(results, event)
 		}
 
@@ -387,10 +459,10 @@ func TestSystem_WithSystemEvent(t *testing.T) {
 	t.Run("empty iteration", func(t *testing.T) {
 		t.Parallel()
 
-		fixture := newSystemEventFixture(t)
+		w := newSystemEventWorld(t)
 
 		count := 0
-		for range fixture.Receiver.Iter() {
+		for range w.SystemEvents[testutils.SimpleSystemEvent]() {
 			count++
 		}
 		assert.Equal(t, 0, count)
@@ -399,53 +471,60 @@ func TestSystem_WithSystemEvent(t *testing.T) {
 	t.Run("early termination", func(t *testing.T) {
 		t.Parallel()
 
-		fixture := newSystemEventFixture(t)
+		w := newSystemEventWorld(t)
 
 		for i := range 10 {
-			fixture.Emitter.Emit(testutils.SimpleSystemEvent{Value: i})
+			w.EmitSystemEvent(testutils.SimpleSystemEvent{Value: i})
 		}
 
 		count := 0
-		for range fixture.Receiver.Iter() {
+		for range w.SystemEvents[testutils.SimpleSystemEvent]() {
 			count++
 			break
 		}
 		assert.Equal(t, 1, count)
 	})
+
+	t.Run("register twice is a no-op", func(t *testing.T) {
+		t.Parallel()
+
+		w := newSystemEventWorld(t)
+		require.NotPanics(t, func() { w.RegisterSystemEvent[testutils.SimpleSystemEvent]() })
+
+		w.EmitSystemEvent(testutils.SimpleSystemEvent{Value: 1})
+		count := 0
+		for range w.SystemEvents[testutils.SimpleSystemEvent]() {
+			count++
+		}
+		assert.Equal(t, 1, count)
+	})
+
+	t.Run("unregistered system event panics", func(t *testing.T) {
+		t.Parallel()
+
+		w := &World{world: ecs.NewWorld()}
+		require.Panics(t, func() { w.EmitSystemEvent(testutils.SimpleSystemEvent{Value: 1}) })
+		require.Panics(t, func() { w.SystemEvents[testutils.SimpleSystemEvent]() })
+	})
 }
 
-type systemEventFixture struct {
-	Emitter  WithSystemEventEmitter[testutils.SimpleSystemEvent]
-	Receiver WithSystemEventReceiver[testutils.SimpleSystemEvent]
-}
-
-func newSystemEventFixture(t *testing.T) *systemEventFixture {
+// newSystemEventWorld returns a world with SimpleSystemEvent registered.
+func newSystemEventWorld(t *testing.T) *World {
 	t.Helper()
 
-	world := &World{world: ecs.NewWorld()}
-	fixture := &systemEventFixture{}
+	w := &World{world: ecs.NewWorld()}
+	w.RegisterSystemEvent[testutils.SimpleSystemEvent]()
 
-	// We initialize these separately because the default behavior is we don't allow a system to
-	// process the same system event type, it doesn't make sense to do it. But here, we want to do it
-	// for simplicity, so we have to initialize these manually with different systemEvents sets.
-	meta := &systemInitMetadata{world: world, systemEvents: make(map[string]struct{})}
-	err := fixture.Emitter.init(meta)
-	require.NoError(t, err)
-
-	meta = &systemInitMetadata{world: world, systemEvents: make(map[string]struct{})}
-	err = fixture.Receiver.init(meta)
-	require.NoError(t, err)
-
-	return fixture
+	return w
 }
 
 // -------------------------------------------------------------------------------------------------
 // Search, Contains, Exact, smoke tests
 // -------------------------------------------------------------------------------------------------
-// The search fields and Ref are just light wrappers over the world state operations, Which is
-// already tested. Here, we just check if the regular search operations work. Most of the
-// complicated logic in initialization where the cached result is created using reflection. We can
-// verify it's working if the operations work correctly.
+// Search and Entity are light wrappers over the world state operations, which are already
+// tested. Here, we just check if the regular query operations work. The archetype bitmap is
+// resolved on the first Contains/Exact call per world and cached; if the operations work, that
+// resolution works.
 // -------------------------------------------------------------------------------------------------
 
 func TestSearch_Smoke(t *testing.T) {
@@ -460,8 +539,8 @@ func TestSearch_Smoke(t *testing.T) {
 		var expectedIDs []EntityID
 		for range prng.IntN(100) {
 			if testutils.RandBool(prng) {
-				eid, _ := fixture.Movers.Create()
-				expectedIDs = append(expectedIDs, eid)
+				eid := fixture.Movers.Create()
+				expectedIDs = append(expectedIDs, eid.ID())
 			} else {
 				fixture.Singles.Create()
 			}
@@ -469,7 +548,7 @@ func TestSearch_Smoke(t *testing.T) {
 
 		var moverIDs []EntityID
 		for eid := range fixture.Movers.Iter() {
-			moverIDs = append(moverIDs, eid)
+			moverIDs = append(moverIDs, eid.ID())
 		}
 		assert.Equal(t, expectedIDs, moverIDs)
 	})
@@ -483,8 +562,8 @@ func TestSearch_Smoke(t *testing.T) {
 		var expectedIDs []EntityID
 		for range prng.IntN(100) {
 			if testutils.RandBool(prng) {
-				eid, _ := fixture.Singles.Create()
-				expectedIDs = append(expectedIDs, eid)
+				eid := fixture.Singles.Create()
+				expectedIDs = append(expectedIDs, eid.ID())
 			} else {
 				fixture.Movers.Create()
 			}
@@ -492,7 +571,7 @@ func TestSearch_Smoke(t *testing.T) {
 
 		var singleIDs []EntityID
 		for eid := range fixture.Singles.Iter() {
-			singleIDs = append(singleIDs, eid)
+			singleIDs = append(singleIDs, eid.ID())
 		}
 		assert.Equal(t, expectedIDs, singleIDs)
 	})
@@ -504,17 +583,20 @@ func TestSearch_Smoke(t *testing.T) {
 
 		compB := testutils.ComponentB{
 			ID: prng.Uint64(), Label: testutils.RandString(prng, 8), Enabled: testutils.RandBool(prng)}
-		moverID, mover := fixture.Movers.Create()
-		mover.A.Set(testutils.ComponentA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()})
-		mover.B.Set(compB)
+		mover := fixture.Movers.Create()
+		moverID := mover.ID()
+		mover.Set(testutils.ComponentA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()})
+		mover.Set(compB)
 
-		singleID, single := fixture.Singles.Create()
-		single.A.Set(testutils.ComponentA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()})
+		single := fixture.Singles.Create()
+
+		singleID := single.ID()
+		single.Set(testutils.ComponentA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()})
 
 		// Success: correct archetype.
 		moverResult, err := fixture.Movers.GetByID(moverID)
 		require.NoError(t, err)
-		assert.Equal(t, compB, moverResult.B.Get())
+		assert.Equal(t, compB, moverResult.Get[testutils.ComponentB]())
 
 		// Wrong archetype.
 		_, err = fixture.Movers.GetByID(singleID)
@@ -533,23 +615,25 @@ func TestSearch_Smoke(t *testing.T) {
 		prng := testutils.NewRand(t)
 		fixture := newSearchFixture(t)
 
-		eid, mover := fixture.Movers.Create()
+		mover := fixture.Movers.Create()
+
+		eid := mover.ID()
 
 		// Get returns zero value before Set.
-		assert.Equal(t, testutils.ComponentA{}, mover.A.Get())
+		assert.Equal(t, testutils.ComponentA{}, mover.Get[testutils.ComponentA]())
 
 		// Set then Get round-trips the value.
 		compA := testutils.ComponentA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()}
-		mover.A.Set(compA)
-		assert.Equal(t, compA, mover.A.Get())
+		mover.Set(compA)
+		assert.Equal(t, compA, mover.Get[testutils.ComponentA]())
 
 		// Overwrite with a new value.
 		compA2 := testutils.ComponentA{X: prng.Float64(), Y: prng.Float64(), Z: prng.Float64()}
-		mover.A.Set(compA2)
-		assert.Equal(t, compA2, mover.A.Get())
+		mover.Set(compA2)
+		assert.Equal(t, compA2, mover.Get[testutils.ComponentA]())
 
 		// Remove changes the archetype, so the entity no longer matches Movers.
-		mover.A.Remove()
+		mover.Remove[testutils.ComponentA]()
 		_, err := fixture.Movers.GetByID(eid)
 		require.ErrorIs(t, err, ecs.ErrArchetypeMismatch)
 	})
@@ -558,43 +642,46 @@ func TestSearch_Smoke(t *testing.T) {
 		t.Parallel()
 		fixture := newSearchFixture(t)
 
-		eid, _ := fixture.Movers.Create()
+		entity := fixture.Movers.Create()
 
 		// Destroy succeeds once, then fails on the same ID.
-		assert.True(t, fixture.Movers.Destroy(eid))
-		assert.False(t, fixture.Movers.Destroy(eid))
+		assert.True(t, entity.Destroy())
+		assert.False(t, entity.Destroy())
 	})
 
 	t.Run("filter", func(t *testing.T) {
 		t.Parallel()
 		fixture := newSearchFixture(t)
 
-		eid1, mover1 := fixture.Movers.Create()
-		mover1.B.Set(testutils.ComponentB{ID: 1, Label: "one", Enabled: true})
+		mover1 := fixture.Movers.Create()
 
-		eid2, mover2 := fixture.Movers.Create()
-		mover2.B.Set(testutils.ComponentB{ID: 2, Label: "two", Enabled: false})
+		eid1 := mover1.ID()
+		mover1.Set(testutils.ComponentB{ID: 1, Label: "one", Enabled: true})
 
-		eid3, mover3 := fixture.Movers.Create()
-		mover3.B.Set(testutils.ComponentB{ID: 3, Label: "three", Enabled: true})
+		mover2 := fixture.Movers.Create()
+
+		eid2 := mover2.ID()
+		mover2.Set(testutils.ComponentB{ID: 2, Label: "two", Enabled: false})
+
+		mover3 := fixture.Movers.Create()
+
+		eid3 := mover3.ID()
+		mover3.Set(testutils.ComponentB{ID: 3, Label: "three", Enabled: true})
 
 		allIDs := []EntityID{eid1, eid2, eid3}
 		expectedIDs := []EntityID{eid1, eid3}
 
 		var results []EntityID
-		for eid := range fixture.Movers.Iter().Filter(func(_ EntityID, mover struct {
-			A Ref[testutils.ComponentA]
-			B Ref[testutils.ComponentB]
-		}) bool {
-			return mover.B.Get().Enabled
+		for eid := range fixture.Movers.Iter().Filter(func(mover Entity) bool {
+			return mover.Get[testutils.ComponentB]().Enabled
 		}) {
-			results = append(results, eid)
+			results = append(results, eid.ID())
 		}
 		assert.Equal(t, expectedIDs, results)
 
 		var nilPredicateResults []EntityID
 		for eid := range fixture.Movers.Iter().Filter(nil) {
-			nilPredicateResults = append(nilPredicateResults, eid)
+			nilPredicateResults = append(nilPredicateResults, eid.ID())
 		}
 		assert.Equal(t, allIDs, nilPredicateResults)
 	})
@@ -607,20 +694,20 @@ func TestSearch_Smoke(t *testing.T) {
 		count := prng.IntN(100) + 1
 		expectedIDs := make([]EntityID, 0, count)
 		for range count {
-			eid, _ := fixture.Movers.Create()
-			expectedIDs = append(expectedIDs, eid)
+			eid := fixture.Movers.Create()
+			expectedIDs = append(expectedIDs, eid.ID())
 		}
 
 		limit := uint32(prng.IntN(count) + 1)
 		var results []EntityID
 		for eid := range fixture.Movers.Iter().Limit(limit) {
-			results = append(results, eid)
+			results = append(results, eid.ID())
 		}
 		assert.Equal(t, expectedIDs[:limit], results)
 
 		var overLimitResults []EntityID
 		for eid := range fixture.Movers.Iter().Limit(uint32(count + 10)) {
-			overLimitResults = append(overLimitResults, eid)
+			overLimitResults = append(overLimitResults, eid.ID())
 		}
 		assert.Equal(t, expectedIDs, overLimitResults)
 	})
@@ -631,53 +718,52 @@ func TestSearch_Smoke(t *testing.T) {
 
 		// Exactly one result.
 		exactlyOneFixture := newSearchFixture(t)
-		eidExpected, mover := exactlyOneFixture.Movers.Create()
+		mover := exactlyOneFixture.Movers.Create()
 		compB := testutils.ComponentB{
 			ID:      prng.Uint64(),
 			Label:   testutils.RandString(prng, 8),
 			Enabled: testutils.RandBool(prng),
 		}
-		mover.B.Set(compB)
+		mover.Set(compB)
 
-		eid, result, err := exactlyOneFixture.Movers.Iter().Single()
+		result, err := exactlyOneFixture.Movers.Iter().Single()
 		require.NoError(t, err)
-		assert.Equal(t, eidExpected, eid)
-		assert.Equal(t, compB, result.B.Get())
+		assert.Equal(t, mover, result)
+		assert.Equal(t, compB, result.Get[testutils.ComponentB]())
 
 		// No results.
 		emptyFixture := newSearchFixture(t)
-		_, _, err = emptyFixture.Movers.Iter().Single()
+		_, err = emptyFixture.Movers.Iter().Single()
 		require.ErrorIs(t, err, ErrSingleNoResult)
 
 		// Multiple results.
 		multipleFixture := newSearchFixture(t)
 		multipleFixture.Movers.Create()
 		multipleFixture.Movers.Create()
-		_, _, err = multipleFixture.Movers.Iter().Single()
+		_, err = multipleFixture.Movers.Iter().Single()
 		require.ErrorIs(t, err, ErrSingleMultipleResult)
 	})
 }
 
+type moverArchetype struct {
+	A testutils.ComponentA
+	B testutils.ComponentB
+}
+
+// searchFixture holds the two searches the smoke tests exercise, resolved once against a fresh
+// world so each test body can use them like the fields a system used to declare.
 type searchFixture struct {
-	// These are the fields under test. They must be public/exported.
-	Movers Contains[struct {
-		A Ref[testutils.ComponentA]
-		B Ref[testutils.ComponentB]
-	}]
-	Singles Exact[struct {
-		A Ref[testutils.ComponentA]
-	}]
+	Movers  Search
+	Singles Search
 }
 
 func newSearchFixture(t *testing.T) *searchFixture {
 	t.Helper()
-
-	world := &World{world: ecs.NewWorld()}
-
-	fixture := &searchFixture{}
-
-	err := initSystemFields(reflect.ValueOf(fixture).Elem(), world)
-	require.NoError(t, err)
-
-	return fixture
+	w := &World{world: ecs.NewWorld()}
+	w.RegisterComponent[testutils.ComponentA]()
+	w.RegisterComponent[testutils.ComponentB]()
+	return &searchFixture{
+		Movers:  w.Contains[moverArchetype](),
+		Singles: w.Exact[struct{ A testutils.ComponentA }](),
+	}
 }

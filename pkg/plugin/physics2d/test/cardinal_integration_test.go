@@ -12,6 +12,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	"github.com/stretchr/testify/require"
 )
@@ -38,12 +39,18 @@ func (harnessTag) UnmarshalWire(b []byte) (any, error) {
 	return v, err
 }
 
-type spawnArchetype = cardinal.Exact[struct {
-	Tag cardinal.Ref[harnessTag]
-	T   cardinal.Ref[physics.Transform2D]
-	V   cardinal.Ref[physics.Velocity2D]
-	PB  cardinal.Ref[physics.PhysicsBody2D]
-}]
+// SizeWire and AppendWire are the snapshot encoding path. A generated component sizes itself
+// without encoding; this fixture has to encode to know, so both go through MarshalWire.
+func (c harnessTag) SizeWire() int { return len(c.MarshalWire()) }
+
+func (c harnessTag) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
+type spawnArchetype struct {
+	Tag harnessTag
+	T   physics.Transform2D
+	V   physics.Velocity2D
+	PB  physics.PhysicsBody2D
+}
 
 var harness struct {
 	Floor, Ball, Sensor, FilterWall, Triangle cardinal.EntityID
@@ -95,20 +102,20 @@ var testRequire *require.Assertions
 // sceneInitSystem runs on [cardinal.Init]. It spawns the harness scene so the plugin’s Init
 // FullRebuildFromECS sees all bodies: floor, falling ball, sensor, layered wall, triangle, chain,
 // zero-gravity second ball, and a static compound collider (box + offset sensor circle).
-func sceneInitSystem(state *struct {
-	cardinal.BaseSystemState
-	Spawn spawnArchetype
-}) {
+type sceneInitSystem struct{}
+
+func (s *sceneInitSystem) Run(w *cardinal.World) {
 	mustCreate := func(
 		role string,
 		t physics.Transform2D,
 		pb physics.PhysicsBody2D,
 	) cardinal.EntityID {
-		id, row := state.Spawn.Create()
-		row.Tag.Set(harnessTag{Role: role})
-		row.T.Set(t)
-		row.V.Set(physics.Velocity2D{})
-		row.PB.Set(pb)
+		row := w.Create[spawnArchetype]()
+		id := row.ID()
+		row.Set(harnessTag{Role: role})
+		row.Set(t)
+		row.Set(physics.Velocity2D{})
+		row.Set(pb)
 		return id
 	}
 	mustCreateWithVel := func(
@@ -117,11 +124,12 @@ func sceneInitSystem(state *struct {
 		v physics.Velocity2D,
 		pb physics.PhysicsBody2D,
 	) cardinal.EntityID {
-		id, row := state.Spawn.Create()
-		row.Tag.Set(harnessTag{Role: role})
-		row.T.Set(t)
-		row.V.Set(v)
-		row.PB.Set(pb)
+		row := w.Create[spawnArchetype]()
+		id := row.ID()
+		row.Set(harnessTag{Role: role})
+		row.Set(t)
+		row.Set(v)
+		row.Set(pb)
 		return id
 	}
 
@@ -182,15 +190,14 @@ func sceneInitSystem(state *struct {
 	harness.Triangle = mustCreate("triangle",
 		physics.Transform2D{Position: physics.Vec2{X: -8, Y: 1}},
 		newRigid(physics.BodyTypeStatic, physics.ColliderShape{
-			ShapeType: physics.ShapeTypeConvexPolygon,
-			Vertices: []physics.Vec2{
-				{X: 0, Y: 0}, {X: 2, Y: 0}, {X: 1, Y: 1.5},
-			},
+			ShapeType:    physics.ShapeTypeConvexPolygon,
 			Friction:     0.5,
 			Density:      0,
 			CategoryBits: 0x0001,
 			MaskBits:     0xFFFF,
-		}),
+		}.WithVertices(
+			physics.Vec2{X: 0, Y: 0}, physics.Vec2{X: 2, Y: 0}, physics.Vec2{X: 1, Y: 1.5},
+		)),
 	)
 
 	// Static chain segment (extra shape-type coverage); not referenced by assertions.
@@ -198,9 +205,10 @@ func sceneInitSystem(state *struct {
 		physics.Transform2D{Position: physics.Vec2{X: -15, Y: 0}},
 		newRigid(physics.BodyTypeStatic, physics.ColliderShape{
 			ShapeType: physics.ShapeTypeStaticChain,
-			ChainPoints: []physics.Vec2{
-				{X: 0, Y: 0}, {X: 1.5, Y: 0.2}, {X: 3, Y: 0.4}, {X: 4, Y: 0.5},
-			},
+			ChainPoints: immutable.SliceOf(
+				physics.Vec2{X: 0, Y: 0}, physics.Vec2{X: 1.5, Y: 0.2},
+				physics.Vec2{X: 3, Y: 0.4}, physics.Vec2{X: 4, Y: 0.5},
+			),
 			Friction:     0.4,
 			Density:      0,
 			CategoryBits: 0x0001,
@@ -292,18 +300,18 @@ func sceneInitSystem(state *struct {
 
 // manualMoveSystem runs on [cardinal.PreUpdate] and moves the ManualPlayer 0.05 units right
 // each tick, simulating gameplay code that owns the entity's position.
-func manualMoveSystem(state *struct {
-	cardinal.BaseSystemState
-	Spawn spawnArchetype
-}) {
+type manualMoveSystem struct{}
+
+func (s *manualMoveSystem) Run(w *cardinal.World) {
 	if harness.ManualPlayer == 0 {
 		return
 	}
-	for eid, row := range state.Spawn.Iter() {
+	for row := range w.Exact[spawnArchetype]().Iter() {
+		eid := row.ID()
 		if eid == harness.ManualPlayer {
-			tr := row.T.Get()
+			tr := row.Get[physics.Transform2D]()
 			tr.Position.X += 0.05
-			row.T.Set(tr)
+			row.Set(tr)
 			break
 		}
 	}
@@ -317,24 +325,10 @@ func manualMoveSystem(state *struct {
 // events match expectations.
 //
 //nolint:cyclop,gocyclo // linear scenario script (same phases as townhall harness)
-func newVerifySystem(p *physics.Plugin) func(state *struct {
-	cardinal.BaseSystemState
-	Spawn          spawnArchetype
-	ContactBeginRx cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
-	ContactEndRx   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
-	TriggerBeginRx cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
-	TriggerEndRx   cardinal.WithSystemEventReceiver[physics.TriggerEndEvent]
-}) {
-	return func(state *struct {
-		cardinal.BaseSystemState
-		Spawn          spawnArchetype
-		ContactBeginRx cardinal.WithSystemEventReceiver[physics.ContactBeginEvent]
-		ContactEndRx   cardinal.WithSystemEventReceiver[physics.ContactEndEvent]
-		TriggerBeginRx cardinal.WithSystemEventReceiver[physics.TriggerBeginEvent]
-		TriggerEndRx   cardinal.WithSystemEventReceiver[physics.TriggerEndEvent]
-	}) {
+func newVerifySystem(p *physics.Plugin) *verifySystem {
+	return &verifySystem{run: func(w *cardinal.World) {
 		req := testRequire
-		tick := state.Tick()
+		tick := w.TickHeight()
 		// Cardinal reports tick 0 on first frame; physics assertions start from tick 1.
 		if tick == 0 {
 			return
@@ -358,7 +352,7 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		phase := atomic.LoadUint32(&crashPhase)
 
 		// Collect physics2d system events emitted during this tick’s step (receivers clear each tick).
-		for e := range state.ContactBeginRx.Iter() {
+		for e := range w.SystemEvents[physics.ContactBeginEvent]() {
 			if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Floor) {
 				atomic.AddUint32(&contactBeginCnt, 1)
 			}
@@ -366,7 +360,7 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 				atomic.StoreUint32(&crash2NewBegin, 1)
 			}
 		}
-		for e := range state.ContactEndRx.Iter() {
+		for e := range w.SystemEvents[physics.ContactEndEvent]() {
 			if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Floor) {
 				switch phase {
 				case 1:
@@ -376,12 +370,12 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 				}
 			}
 		}
-		for e := range state.TriggerBeginRx.Iter() {
+		for e := range w.SystemEvents[physics.TriggerBeginEvent]() {
 			if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Sensor) {
 				atomic.AddUint32(&triggerBeginCnt, 1)
 			}
 		}
-		for e := range state.TriggerEndRx.Iter() {
+		for e := range w.SystemEvents[physics.TriggerEndEvent]() {
 			if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Sensor) {
 				switch phase {
 				case 1:
@@ -393,11 +387,12 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		}
 
 		// --- Writeback verification: read ECS state written back by Box2D each tick ---
-		for eid, row := range state.Spawn.Iter() {
+		for row := range w.Exact[spawnArchetype]().Iter() {
+			eid := row.ID()
 			switch eid {
 			case harness.Ball:
-				t := row.T.Get()
-				v := row.V.Get()
+				t := row.Get[physics.Transform2D]()
+				v := row.Get[physics.Velocity2D]()
 				if phase == 0 && tick < tickCrash1 {
 					ballPosYHistory = append(ballPosYHistory, t.Position.Y)
 					ballVelYHistory = append(ballVelYHistory, v.Linear.Y)
@@ -407,16 +402,16 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 				}
 			case harness.SecondBall:
 				if phase == 0 {
-					pos := row.T.Get().Position
+					pos := row.Get[physics.Transform2D]().Position
 					req.InDelta(20, pos.Y, 0.5,
 						"second ball (zero gravity) ECS Y must stay near spawn at tick %d", tick)
 				}
 			case harness.KinematicMover:
 				if phase == 0 && tick < tickCrash1 {
-					kinematicPosXHistory = append(kinematicPosXHistory, row.T.Get().Position.X)
+					kinematicPosXHistory = append(kinematicPosXHistory, row.Get[physics.Transform2D]().Position.X)
 				}
 			case harness.ManualPlayer:
-				pos := row.T.Get().Position
+				pos := row.Get[physics.Transform2D]().Position
 				if phase == 0 {
 					req.InDelta(manualSpawnPos.Y, pos.Y, epsilon,
 						"manual body Y unchanged at tick %d (writeback must not clobber)", tick)
@@ -427,7 +422,7 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 				}
 			case harness.Spinner:
 				if phase == 0 && tick < tickCrash1 {
-					spinnerRotHistory = append(spinnerRotHistory, row.T.Get().Rotation)
+					spinnerRotHistory = append(spinnerRotHistory, row.Get[physics.Transform2D]().Rotation)
 				}
 			}
 		}
@@ -482,7 +477,7 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		// Reconcile: destroy entity → Box2D body removed (triangle no longer in overlap query).
 		if tick == tickDestroyTriangle {
 			if atomic.CompareAndSwapUint32(&triangleGone, 0, 1) {
-				req.True(state.Spawn.Destroy(harness.Triangle), "Destroy(triangle)")
+				req.True(w.Entity(harness.Triangle).Destroy(), "Destroy(triangle)")
 			}
 		}
 		if tick >= tickDestroyTriangle+2 {
@@ -492,11 +487,12 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		// Reconcile: ECS transform change only → SetTransform in Box2D (short ray proves new X).
 		if tick == tickMoveWall {
 			if atomic.CompareAndSwapUint32(&wallMoved, 0, 1) {
-				for eid, row := range state.Spawn.Iter() {
+				for row := range w.Exact[spawnArchetype]().Iter() {
+					eid := row.ID()
 					if eid == harness.FilterWall {
-						tr := row.T.Get()
+						tr := row.Get[physics.Transform2D]()
 						tr.Position.X = 10
-						row.T.Set(tr)
+						row.Set(tr)
 						break
 					}
 				}
@@ -509,11 +505,12 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		// Reconcile: new physics archetype mid-sim → create body on next PreUpdate.
 		if tick == tickCreateNewBox {
 			if atomic.CompareAndSwapUint32(&newBoxCreated, 0, 1) {
-				id, row := state.Spawn.Create()
-				row.Tag.Set(harnessTag{Role: "new_box"})
-				row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 5, Y: 1}})
-				row.V.Set(physics.Velocity2D{})
-				row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
+				row := w.Create[spawnArchetype]()
+				id := row.ID()
+				row.Set(harnessTag{Role: "new_box"})
+				row.Set(physics.Transform2D{Position: physics.Vec2{X: 5, Y: 1}})
+				row.Set(physics.Velocity2D{})
+				row.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
 					ShapeType:    physics.ShapeTypeBox,
 					HalfExtents:  physics.Vec2{X: 0.5, Y: 0.5},
 					Friction:     0.5,
@@ -533,11 +530,12 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		// lists old pairs → suppressed step diff emits synthetic Ends.
 		if tick == tickCrash1 {
 			atomic.StoreUint32(&crashPhase, 1)
-			for eid, row := range state.Spawn.Iter() {
+			for row := range w.Exact[spawnArchetype]().Iter() {
+				eid := row.ID()
 				if eid == harness.Ball {
-					tr := row.T.Get()
+					tr := row.Get[physics.Transform2D]()
 					tr.Position = physics.Vec2{X: 0, Y: 5.2}
-					row.T.Set(tr)
+					row.Set(tr)
 				}
 			}
 			p.Reset()
@@ -567,11 +565,12 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 		// live has ball–NewBox only → diff emits Ends for stale pairs + Begin for new overlap.
 		if tick == tickCrash2 {
 			atomic.StoreUint32(&crashPhase, 2)
-			for eid, row := range state.Spawn.Iter() {
+			for row := range w.Exact[spawnArchetype]().Iter() {
+				eid := row.ID()
 				if eid == harness.Ball {
-					tr := row.T.Get()
+					tr := row.Get[physics.Transform2D]()
 					tr.Position = physics.Vec2{X: 5, Y: 1.3}
-					row.T.Set(tr)
+					row.Set(tr)
 				}
 			}
 			p.Reset()
@@ -584,7 +583,7 @@ func newVerifySystem(p *physics.Plugin) func(state *struct {
 			req.NotZero(atomic.LoadUint32(&crash2EndTrigger), "synthetic TriggerEnd ball-sensor after crash2")
 			req.NotZero(atomic.LoadUint32(&crash2NewBegin), "synthetic ContactBegin ball-NewBox after crash2")
 		}
-	}
+	}}
 }
 
 // runQueryChecks exercises [physics.Plugin.Raycast], [physics.Plugin.OverlapAABB] (with and
@@ -768,7 +767,7 @@ func TestPhysics2D_CardinalIntegration(t *testing.T) {
 
 	// Debug on: cardinal.Tick touches debug perf hooks (nil debug would panic).
 	debug := true
-	world, err := cardinal.NewWorld(cardinal.WorldOptions{
+	w, err := cardinal.NewWorld(cardinal.WorldOptions{
 		Region:              "local",
 		Organization:        "physics2d-e2e",
 		Project:             "physics2d-e2e",
@@ -779,27 +778,35 @@ func TestPhysics2D_CardinalIntegration(t *testing.T) {
 		Debug:               &debug,
 	})
 	require.NoError(t, err)
+	physics.RegisterComponents(w)
+	w.RegisterComponent[harnessTag]()
 
 	// Init hook must run before plugin Init so FullRebuildFromECS sees harness entities.
-	cardinal.RegisterSystem(world, sceneInitSystem, cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(&sceneInitSystem{}, cardinal.WithHook(cardinal.Init))
 	plugin := physics.NewPlugin(physics.Config{
 		Gravity:  physics.Vec2{X: 0, Y: -10},
 		TickRate: 60,
 	})
-	cardinal.RegisterPlugin(world, plugin)
+	w.RegisterPlugin(plugin)
 	// Gameplay system moves the manual body each tick (before physics reconcile).
-	cardinal.RegisterSystem(world, manualMoveSystem, cardinal.WithHook(cardinal.PreUpdate))
+	w.RegisterSystem(&manualMoveSystem{}, cardinal.WithHook(cardinal.PreUpdate))
 	// Assertions run after physics step (same-tick contact receivers).
-	cardinal.RegisterSystem(world, newVerifySystem(plugin), cardinal.WithHook(cardinal.PostUpdate))
+	w.RegisterSystem(newVerifySystem(plugin), cardinal.WithHook(cardinal.PostUpdate))
 
-	initCardinalECS(world)
+	initCardinalECS(w)
 
 	const lastTick = tickCrash2Verify + 5
 	// Deterministic timestamps; loop count covers all scripted phases including post–crash 2 buffer.
 	for i := range lastTick + 1 {
-		world.Tick(time.Unix(int64(i), 0))
+		w.Tick(time.Unix(int64(i), 0))
 		if t.Failed() {
 			t.Fatalf("failed at cardinal tick loop i=%d", i)
 		}
 	}
 }
+
+type verifySystem struct {
+	run func(w *cardinal.World)
+}
+
+func (s *verifySystem) Run(w *cardinal.World) { s.run(w) }

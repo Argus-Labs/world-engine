@@ -9,31 +9,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testOrchestratorState is the system state for a minimal orchestrator
+// testOrchestratorSystem is the system state for a minimal orchestrator
 // that immediately assigns every awaiting-allocation lobby to a fixed
 // game shard. This ensures DST/E2E fuzzing exercises the full session
 // lifecycle (awaiting_allocation → in_session → idle) instead of
 // parking at awaiting_allocation forever.
-type testOrchestratorState struct {
-	cardinal.BaseSystemState
-	Lobbies cardinal.Contains[struct {
-		Lobby cardinal.Ref[lobby.Component]
-	}]
-}
+type testOrchestratorSystem struct{}
 
-func testOrchestratorSystem(state *testOrchestratorState) {
+func (*testOrchestratorSystem) Run(w *cardinal.World) {
 	self := cardinal.OtherWorld{
 		Region:       "local",
 		Organization: "organization",
 		Project:      "project",
 		ShardID:      "lobby",
 	}
-	for _, refs := range state.Lobbies.Iter() {
-		lob := refs.Lobby.Get()
+	for refs := range w.Contains[struct{ Lobby lobby.Component }]().Iter() {
+		lob := refs.Get[lobby.Component]()
 		if lob.Session.State != lobby.SessionStateAwaitingAllocation {
 			continue
 		}
-		state.SendToShard(self, lobby.AssignShardCommand{
+		w.SendToShard(self, lobby.AssignShardCommand{
 			LobbyID:   lob.ID,
 			RequestID: lob.Session.PendingRequestID,
 			GameWorld: lobby.ShardAddress{
@@ -48,8 +43,8 @@ func testOrchestratorSystem(state *testOrchestratorState) {
 
 func TestDST(t *testing.T) {
 	cardinal.RunDST(t, func(w *cardinal.World) {
-		cardinal.RegisterPlugin(w, lobby.NewPlugin(lobby.Config{}))
-		cardinal.RegisterSystem(w, testOrchestratorSystem)
+		w.RegisterPlugin(lobby.NewPlugin(lobby.Config{}))
+		w.RegisterSystem(&testOrchestratorSystem{})
 	}, nil)
 }
 
@@ -57,7 +52,7 @@ func TestE2E(t *testing.T) {
 	cardinal.RunE2E(t, func() *cardinal.World {
 		debug := false
 
-		world, err := cardinal.NewWorld(cardinal.WorldOptions{
+		w, err := cardinal.NewWorld(cardinal.WorldOptions{
 			Region:              "local",
 			Organization:        "organization",
 			Project:             "project",
@@ -69,9 +64,9 @@ func TestE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		cardinal.RegisterPlugin(world, lobby.NewPlugin(lobby.Config{}))
-		cardinal.RegisterSystem(world, testOrchestratorSystem)
+		w.RegisterPlugin(lobby.NewPlugin(lobby.Config{}))
+		w.RegisterSystem(&testOrchestratorSystem{})
 
-		return world
+		return w
 	})
 }

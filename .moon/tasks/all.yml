@@ -1,0 +1,7 @@
+$schema: 'https://moonrepo.dev/schemas/tasks.json'
+
+# Go and MSBuild manage incremental compilation themselves. Tests generate a
+# fresh seed, and maintenance tasks must execute every time they are requested.
+taskOptions:
+  cache: false
+  runInCI: false

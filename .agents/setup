@@ -52,8 +52,21 @@ fi
 go env -w GOBIN="$local_bin"
 
 echo "Installing repository tools..."
-command -v task >/dev/null 2>&1 || go install github.com/go-task/task/v3/cmd/task@latest
-command -v gotestsum >/dev/null 2>&1 || go install gotest.tools/gotestsum@latest
+moon_version="$(awk -F '"' '/^moon =/ { print $2; exit }' "$repo_root/.prototools")"
+if [[ "$(moon --version 2>/dev/null || true)" != "moon $moon_version" ]]; then
+	case "$(uname -m)" in
+		x86_64) moon_arch="x86_64" ;;
+		aarch64 | arm64) moon_arch="aarch64" ;;
+		*) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+	esac
+	moon_tmp="$(mktemp -d)"
+	trap 'rm -rf "$moon_tmp"' EXIT
+	curl -fsSL "https://github.com/moonrepo/moon/releases/download/v${moon_version}/moon_cli-${moon_arch}-unknown-linux-gnu.tar.xz" -o "$moon_tmp/moon.tar.xz"
+	tar -xJf "$moon_tmp/moon.tar.xz" -C "$moon_tmp"
+	install -m 755 "$moon_tmp/moon_cli-${moon_arch}-unknown-linux-gnu/moon" "$local_bin/moon"
+	rm -rf "$moon_tmp"
+	trap - EXIT
+fi
 command -v buf >/dev/null 2>&1 || go install github.com/bufbuild/buf/cmd/buf@latest
 command -v protoc-gen-go >/dev/null 2>&1 || go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
 command -v protoc-gen-connect-go >/dev/null 2>&1 || go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest

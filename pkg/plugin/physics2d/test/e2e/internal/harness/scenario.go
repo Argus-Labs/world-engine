@@ -8,6 +8,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/probe"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 )
 
@@ -19,15 +20,11 @@ const LaneWidth = 300.0
 
 // ProbeRow is the archetype every harness-spawned body uses.
 type ProbeRow struct {
-	Probe     cardinal.Ref[probe.Probe]
-	Transform cardinal.Ref[physics.Transform2D]
-	Velocity  cardinal.Ref[physics.Velocity2D]
-	Body      cardinal.Ref[physics.PhysicsBody2D]
+	Probe     probe.Probe
+	Transform physics.Transform2D
+	Velocity  physics.Velocity2D
+	Body      physics.PhysicsBody2D
 }
-
-// Probes is the search over every harness body. Contains (not Exact) so a
-// scenario is free to add extra components to an entity later on.
-type Probes = cardinal.Contains[ProbeRow]
 
 // Step is one scheduled action or assertion, run on the given tick after the
 // physics pipeline has stepped. Steps sharing a tick run in declaration order.
@@ -137,7 +134,7 @@ func (e LoggedEvent) Touches(a cardinal.EntityID) bool {
 // writing to ECS and subtracts it when reading back.
 type Ctx struct {
 	report     *Report
-	probes     *Probes
+	probes     cardinal.Search
 	events     *eventStore
 	plugin     *physics.Plugin
 	allowReset func()
@@ -154,7 +151,9 @@ type Ctx struct {
 func (c *Ctx) Plugin() *physics.Plugin { return c.plugin }
 
 // ExpectWorldReset silences the runner's "the world disappeared" watchdog for
-// the current tick, so a scenario that calls Plugin.Reset can say so.
+// its next check, so a scenario that calls Plugin.Reset can say so. The
+// watchdog runs on PreUpdate, so a grant from Steps (Update) is consumed on the
+// next tick and one from EachTick (PreUpdate) on the same tick.
 func (c *Ctx) ExpectWorldReset() {
 	if c.allowReset != nil {
 		c.allowReset()
@@ -193,11 +192,12 @@ func (c *Ctx) SpawnFull(
 	pb physics.PhysicsBody2D,
 ) cardinal.EntityID {
 	t.Position = c.toWorld(t.Position)
-	id, row := c.probes.Create()
-	row.Probe.Set(probe.Probe{Scenario: c.scenario, Label: label})
-	row.Transform.Set(t)
-	row.Velocity.Set(v)
-	row.Body.Set(pb)
+	row := c.probes.Create()
+	id := row.ID()
+	row.Set(probe.Probe{Scenario: c.scenario, Label: label})
+	row.Set(t)
+	row.Set(v)
+	row.Set(pb)
 	c.events.own(id, c.scenario, label)
 	return id
 }
@@ -249,7 +249,7 @@ func (c *Ctx) Pos(id cardinal.EntityID) physics.Vec2 {
 	if err != nil {
 		return physics.Vec2{}
 	}
-	return c.toLocal(row.Transform.Get().Position)
+	return c.toLocal(row.Get[physics.Transform2D]().Position)
 }
 
 // Rot returns the entity's rotation in radians.
@@ -258,7 +258,7 @@ func (c *Ctx) Rot(id cardinal.EntityID) float64 {
 	if err != nil {
 		return 0
 	}
-	return row.Transform.Get().Rotation
+	return row.Get[physics.Transform2D]().Rotation
 }
 
 // Vel returns the entity's linear velocity.
@@ -267,7 +267,7 @@ func (c *Ctx) Vel(id cardinal.EntityID) physics.Vec2 {
 	if err != nil {
 		return physics.Vec2{}
 	}
-	return row.Velocity.Get().Linear
+	return row.Get[physics.Velocity2D]().Linear
 }
 
 // AngVel returns the entity's angular velocity.
@@ -276,7 +276,7 @@ func (c *Ctx) AngVel(id cardinal.EntityID) float64 {
 	if err != nil {
 		return 0
 	}
-	return row.Velocity.Get().Angular
+	return row.Get[physics.Velocity2D]().Angular
 }
 
 // Speed returns the magnitude of the entity's linear velocity.
@@ -293,7 +293,7 @@ func (c *Ctx) Body(id cardinal.EntityID) physics.PhysicsBody2D {
 	if err != nil {
 		return physics.PhysicsBody2D{}
 	}
-	return CloneBody(row.Body.Get())
+	return CloneBody(row.Get[physics.PhysicsBody2D]())
 }
 
 // SetPos moves the entity to a lane-local position.
@@ -302,9 +302,9 @@ func (c *Ctx) SetPos(id cardinal.EntityID, x, y float64) {
 	if err != nil {
 		return
 	}
-	t := row.Transform.Get()
+	t := row.Get[physics.Transform2D]()
 	t.Position = c.toWorld(physics.Vec2{X: x, Y: y})
-	row.Transform.Set(t)
+	row.Set(t)
 }
 
 // SetRot sets the entity's rotation in radians.
@@ -313,9 +313,9 @@ func (c *Ctx) SetRot(id cardinal.EntityID, radians float64) {
 	if err != nil {
 		return
 	}
-	t := row.Transform.Get()
+	t := row.Get[physics.Transform2D]()
 	t.Rotation = radians
-	row.Transform.Set(t)
+	row.Set(t)
 }
 
 // SetVel sets the entity's linear velocity.
@@ -324,9 +324,9 @@ func (c *Ctx) SetVel(id cardinal.EntityID, vx, vy float64) {
 	if err != nil {
 		return
 	}
-	v := row.Velocity.Get()
+	v := row.Get[physics.Velocity2D]()
 	v.Linear = physics.Vec2{X: vx, Y: vy}
-	row.Velocity.Set(v)
+	row.Set(v)
 }
 
 // SetAngVel sets the entity's angular velocity.
@@ -335,9 +335,9 @@ func (c *Ctx) SetAngVel(id cardinal.EntityID, angular float64) {
 	if err != nil {
 		return
 	}
-	v := row.Velocity.Get()
+	v := row.Get[physics.Velocity2D]()
 	v.Angular = angular
-	row.Velocity.Set(v)
+	row.Set(v)
 }
 
 // SetBody replaces the entity's PhysicsBody2D.
@@ -346,7 +346,7 @@ func (c *Ctx) SetBody(id cardinal.EntityID, pb physics.PhysicsBody2D) {
 	if err != nil {
 		return
 	}
-	row.Body.Set(pb)
+	row.Set(pb)
 }
 
 // EditBody reads the body, hands it to edit, and writes the result back.
@@ -356,20 +356,33 @@ func (c *Ctx) EditBody(id cardinal.EntityID, edit func(pb *physics.PhysicsBody2D
 	c.SetBody(id, pb)
 }
 
-// Destroy removes the entity from the world.
-func (c *Ctx) Destroy(id cardinal.EntityID) bool { return c.probes.Destroy(id) }
+// EditShape applies edit to one shape of the entity's body and writes the body back. Shapes hands
+// out element copies, so a shape changes by being read out, edited, and put back with With —
+// there is no index to assign through.
+func (c *Ctx) EditShape(id cardinal.EntityID, i int, edit func(sh *physics.ColliderShape)) {
+	c.EditBody(id, func(pb *physics.PhysicsBody2D) {
+		sh := pb.Shapes.At(i)
+		edit(&sh)
+		pb.Shapes = pb.Shapes.With(i, sh)
+	})
+}
 
-// CloneBody deep-copies a PhysicsBody2D including its shapes and their slice
-// geometry, so edits to the copy cannot reach the original.
+// Destroy removes the entity from the world.
+func (c *Ctx) Destroy(id cardinal.EntityID) bool {
+	entity, err := c.probes.GetByID(id)
+	return err == nil && entity.Destroy()
+}
+
+// CloneBody deep-copies a PhysicsBody2D including its shapes and their chain geometry, so edits to
+// the copy cannot reach the original. immutable.Slice derivations write through the array they
+// share with the component, so a scenario that means to edit a body has to start from a copy like
+// this one; Map and Collect are the two derivations that allocate instead.
 func CloneBody(pb physics.PhysicsBody2D) physics.PhysicsBody2D {
-	out := pb
-	out.Shapes = make([]physics.ColliderShape, len(pb.Shapes))
-	for i, s := range pb.Shapes {
-		s.Vertices = append([]physics.Vec2(nil), s.Vertices...)
-		s.ChainPoints = append([]physics.Vec2(nil), s.ChainPoints...)
-		out.Shapes[i] = s
-	}
-	return out
+	pb.Shapes = immutable.Map(pb.Shapes, func(s physics.ColliderShape) physics.ColliderShape {
+		s.ChainPoints = immutable.Collect(s.ChainPoints.Values())
+		return s
+	})
+	return pb
 }
 
 // -----------------------------------------------------------------------------

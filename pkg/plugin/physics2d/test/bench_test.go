@@ -35,12 +35,13 @@ func benchWorld(b *testing.B, gravity physics.Vec2, workers int) (*cardinal.Worl
 	if err != nil {
 		b.Fatal(err)
 	}
+	w.RegisterComponent[harnessTag]()
 	plugin := physics.NewPlugin(physics.Config{
 		Gravity:  gravity,
 		TickRate: 60,
 		Workers:  workers,
 	})
-	cardinal.RegisterPlugin(w, plugin)
+	w.RegisterPlugin(plugin)
 	return w, plugin
 }
 
@@ -82,19 +83,16 @@ func stepBenchScene(b *testing.B, n, workers int) {
 	w, _ := benchWorld(b, physics.Vec2{X: 0, Y: -10}, workers)
 	bodyCount := n
 
-	cardinal.RegisterSystem(w, func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
-		if state.Tick() != 0 {
+	w.RegisterSystem(&stepBenchSystem{run: func(w *cardinal.World) {
+		if w.TickHeight() != 0 {
 			return
 		}
 		// Static floor.
-		_, row := state.Spawn.Create()
-		row.Tag.Set(harnessTag{Role: "floor"})
-		row.T.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
-		row.V.Set(physics.Velocity2D{})
-		row.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
+		row := w.Create[spawnArchetype]()
+		row.Set(harnessTag{Role: "floor"})
+		row.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
+		row.Set(physics.Velocity2D{})
+		row.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
 			ShapeType:    physics.ShapeTypeBox,
 			HalfExtents:  physics.Vec2{X: 200, Y: 1},
 			Friction:     0.5,
@@ -110,11 +108,11 @@ func stepBenchScene(b *testing.B, n, workers int) {
 			x := float64(col)*2.0 - float64(cols)
 			y := float64(rowIdx)*2.0 + 5.0
 
-			_, r := state.Spawn.Create()
-			r.Tag.Set(harnessTag{Role: "ball"})
-			r.T.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
-			r.V.Set(physics.Velocity2D{})
-			r.PB.Set(newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
+			r := w.Create[spawnArchetype]()
+			r.Set(harnessTag{Role: "ball"})
+			r.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
+			r.Set(physics.Velocity2D{})
+			r.Set(newRigid(physics.BodyTypeDynamic, physics.ColliderShape{
 				ShapeType:    physics.ShapeTypeCircle,
 				Radius:       0.5,
 				Density:      1,
@@ -124,7 +122,7 @@ func stepBenchScene(b *testing.B, n, workers int) {
 				MaskBits:     0xFFFF,
 			}))
 		}
-	}, cardinal.WithHook(cardinal.Init))
+	}}, cardinal.WithHook(cardinal.Init))
 
 	initCardinalECS(w)
 	// Warm up: let bodies settle a bit.
@@ -146,7 +144,7 @@ func BenchmarkRaycast(b *testing.B) {
 			w, p := benchWorld(b, physics.Vec2{X: 0, Y: 0}, 0)
 			bodyCount := n
 
-			cardinal.RegisterSystem(w, gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
+			w.RegisterSystem(gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
 
 			initCardinalECS(w)
 			benchTickN(w, 2) // rebuild + settle
@@ -177,7 +175,7 @@ func BenchmarkOverlapAABB(b *testing.B) {
 			w, p := benchWorld(b, physics.Vec2{X: 0, Y: 0}, 0)
 			bodyCount := n
 
-			cardinal.RegisterSystem(w, gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
+			w.RegisterSystem(gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
 
 			initCardinalECS(w)
 			benchTickN(w, 2)
@@ -208,7 +206,7 @@ func BenchmarkCircleSweep(b *testing.B) {
 			w, p := benchWorld(b, physics.Vec2{X: 0, Y: 0}, 0)
 			bodyCount := n
 
-			cardinal.RegisterSystem(w, gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
+			w.RegisterSystem(gridSpawnSystem(bodyCount), cardinal.WithHook(cardinal.Init))
 
 			initCardinalECS(w)
 			benchTickN(w, 2)
@@ -231,15 +229,9 @@ func BenchmarkCircleSweep(b *testing.B) {
 }
 
 // gridSpawnSystem returns a system that spawns count static circles in a grid on tick 0.
-func gridSpawnSystem(count int) func(state *struct {
-	cardinal.BaseSystemState
-	Spawn spawnArchetype
-}) {
-	return func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
-		if state.Tick() != 0 {
+func gridSpawnSystem(count int) *gridSpawnFixture {
+	return &gridSpawnFixture{run: func(w *cardinal.World) {
+		if w.TickHeight() != 0 {
 			return
 		}
 		cols := int(math.Ceil(math.Sqrt(float64(count))))
@@ -250,11 +242,11 @@ func gridSpawnSystem(count int) func(state *struct {
 			x := float64(col)*spacing - float64(cols)*spacing/2
 			y := float64(rowIdx)*spacing - float64(cols)*spacing/2
 
-			_, r := state.Spawn.Create()
-			r.Tag.Set(harnessTag{Role: "grid"})
-			r.T.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
-			r.V.Set(physics.Velocity2D{})
-			r.PB.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
+			r := w.Create[spawnArchetype]()
+			r.Set(harnessTag{Role: "grid"})
+			r.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: y}})
+			r.Set(physics.Velocity2D{})
+			r.Set(newRigid(physics.BodyTypeStatic, physics.ColliderShape{
 				ShapeType:    physics.ShapeTypeCircle,
 				Radius:       1.0,
 				Friction:     0.3,
@@ -262,5 +254,17 @@ func gridSpawnSystem(count int) func(state *struct {
 				MaskBits:     0xFFFF,
 			}))
 		}
-	}
+	}}
 }
+
+type stepBenchSystem struct {
+	run func(w *cardinal.World)
+}
+
+func (s *stepBenchSystem) Run(w *cardinal.World) { s.run(w) }
+
+type gridSpawnFixture struct {
+	run func(w *cardinal.World)
+}
+
+func (s *gridSpawnFixture) Run(w *cardinal.World) { s.run(w) }

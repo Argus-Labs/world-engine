@@ -2,15 +2,15 @@ package system
 
 import (
 	"github.com/argus-labs/world-engine/pkg/template/basic/shards/game/component"
-
-	"github.com/argus-labs/world-engine/pkg/cardinal"
 )
 
-type PlayerSearch = cardinal.Exact[struct {
-	Tag    cardinal.Ref[component.PlayerTag]
-	Health cardinal.Ref[component.Health]
-}]
+// Player is the archetype of player entities, matched by w.Exact[Player]().
+type Player struct {
+	Tag    component.PlayerTag
+	Health component.Health
+}
 
-type GraveSearch = cardinal.Exact[struct {
-	Grave cardinal.Ref[component.Gravestone]
-}]
+// Grave is the archetype of gravestone entities.
+type Grave struct {
+	Grave component.Gravestone
+}

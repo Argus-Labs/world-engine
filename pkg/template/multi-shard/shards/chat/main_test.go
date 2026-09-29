@@ -5,6 +5,9 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
+	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/command"
+	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/component"
+	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/event"
 	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/system"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +23,7 @@ func TestE2E(t *testing.T) {
 		debug := false
 
 		// Keep world setup aligned with shards/chat/main.go.
-		world, err := cardinal.NewWorld(cardinal.WorldOptions{
+		w, err := cardinal.NewWorld(cardinal.WorldOptions{
 			Region:              "local",
 			Organization:        "organization",
 			Project:             "project",
@@ -32,12 +35,19 @@ func TestE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		registerSystems(world)
+		registerSystems(w)
 
-		return world
+		return w
 	})
 }
 
 func registerSystems(w *cardinal.World) {
-	cardinal.RegisterSystem(w, system.UserChatSystem)
+	w.RegisterComponent[component.UserTag]()
+	w.RegisterComponent[component.Chat]()
+
+	w.RegisterCommand[command.UserChat]()
+
+	w.RegisterEvent[event.UserChat]()
+
+	w.RegisterSystem(&system.UserChatSystem{})
 }

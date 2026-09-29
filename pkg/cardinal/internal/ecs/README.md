@@ -97,6 +97,17 @@ World
    - Cache-coherent data structures
    - Minimal runtime overhead
 
+## Internal Typed Operations
+
+Component access belongs to `worldState` through `setComponent`, `getComponent[T]`,
+and `removeComponent[T]`. Component and system-event managers use `register[T](name)`
+to create storage for the selected type. Callers no longer supply factories.
+
+System-event managers expose `enqueue(event)` and `get[T](name)`. The model tests use
+these same typed methods. The shared queue interface only supports clearing and
+checking lengths across event types. Component column factories remain necessary
+for creating archetypes and restoring snapshots from runtime component IDs.
+
 ## Usage Example
 
 ```go
@@ -106,23 +117,24 @@ func (Position) Name() string { return "Position" }
 
 // Create a world and register components
 world := ecs.NewWorld()
-ecs.RegisterComponent[Position](world)
+world.RegisterComponent[Position]()
 
-// Create an entity with components
-entity := ecs.Create(world, Position{X: 1, Y: 2})
+// Create an entity and attach a component
+entity := world.Create()
+world.Set(entity, Position{X: 1, Y: 2})
 
 // Modify components
-ecs.Set(world, entity, Position{X: 3, Y: 4})
+world.Set(entity, Position{X: 3, Y: 4})
 
 // Query components
-pos, err := ecs.Get[Position](world, entity)
+pos, err := world.Get[Position](entity)
 if err != nil {
     // Handle error
 }
 
 // Remove components
-ecs.Remove[Position](world, entity)
+world.Remove[Position](entity)
 
 // Destroy entities
-ecs.Destroy(world, entity)
+world.Destroy(entity)
 ```

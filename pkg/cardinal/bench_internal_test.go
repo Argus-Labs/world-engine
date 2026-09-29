@@ -3,23 +3,17 @@ package cardinal
 import (
 	"bytes"
 	"encoding/gob"
-	"reflect"
 	"testing"
+
+	"github.com/argus-labs/world-engine/pkg/testutils"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 )
 
 // Bench component fixtures satisfy schema.Serializable via gob (real components get generated proto
-// codecs; these doubles only need to round-trip). UnmarshalWire returns any — a decode factory.
-func benchGobMarshal[T any](v T) []byte {
-	var b bytes.Buffer
-	// A test double that cannot encode itself is a broken fixture, not a runtime condition.
-	if err := gob.NewEncoder(&b).Encode(v); err != nil {
-		panic(err)
-	}
-	return b.Bytes()
-}
-
+// codecs; these doubles only need to round-trip). The ENCODE side is testutils.GobMarshal and
+// friends, shared so a fixture's SizeWire, AppendWire and MarshalWire cannot disagree. Only the
+// decode side is local, because it returns any — a decode factory — rather than T.
 func benchGobUnmarshal[T any](b []byte) (any, error) {
 	var v T
 	if err := gob.NewDecoder(bytes.NewReader(b)).Decode(&v); err != nil {
@@ -28,61 +22,90 @@ func benchGobUnmarshal[T any](b []byte) (any, error) {
 	return v, nil
 }
 
-func (c Position3D) MarshalWire() []byte                { return benchGobMarshal(c) }
+func (c Position3D) SizeWire() int               { return len(c.MarshalWire()) }
+func (c Position3D) AppendWire(b []byte) []byte  { return append(b, c.MarshalWire()...) }
+func (c Velocity3D) SizeWire() int               { return len(c.MarshalWire()) }
+func (c Velocity3D) AppendWire(b []byte) []byte  { return append(b, c.MarshalWire()...) }
+func (c Health2) SizeWire() int                  { return len(c.MarshalWire()) }
+func (c Health2) AppendWire(b []byte) []byte     { return append(b, c.MarshalWire()...) }
+func (c Transform) SizeWire() int                { return len(c.MarshalWire()) }
+func (c Transform) AppendWire(b []byte) []byte   { return append(b, c.MarshalWire()...) }
+func (c Inventory) SizeWire() int                { return len(c.MarshalWire()) }
+func (c Inventory) AppendWire(b []byte) []byte   { return append(b, c.MarshalWire()...) }
+func (c PlayerStats) SizeWire() int              { return len(c.MarshalWire()) }
+func (c PlayerStats) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+func (c AIBehavior) SizeWire() int               { return len(c.MarshalWire()) }
+func (c AIBehavior) AppendWire(b []byte) []byte  { return append(b, c.MarshalWire()...) }
+func (c Renderer) SizeWire() int                 { return len(c.MarshalWire()) }
+func (c Renderer) AppendWire(b []byte) []byte    { return append(b, c.MarshalWire()...) }
+func (c Physics) SizeWire() int                  { return len(c.MarshalWire()) }
+func (c Physics) AppendWire(b []byte) []byte     { return append(b, c.MarshalWire()...) }
+func (c NetworkSync) SizeWire() int              { return len(c.MarshalWire()) }
+func (c NetworkSync) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
+func (c Position3D) MarshalWire() []byte                { return testutils.GobMarshal(c) }
 func (Position3D) UnmarshalWire(b []byte) (any, error)  { return benchGobUnmarshal[Position3D](b) }
-func (c Velocity3D) MarshalWire() []byte                { return benchGobMarshal(c) }
+func (c Velocity3D) MarshalWire() []byte                { return testutils.GobMarshal(c) }
 func (Velocity3D) UnmarshalWire(b []byte) (any, error)  { return benchGobUnmarshal[Velocity3D](b) }
-func (c Health2) MarshalWire() []byte                   { return benchGobMarshal(c) }
+func (c Health2) MarshalWire() []byte                   { return testutils.GobMarshal(c) }
 func (Health2) UnmarshalWire(b []byte) (any, error)     { return benchGobUnmarshal[Health2](b) }
-func (c Transform) MarshalWire() []byte                 { return benchGobMarshal(c) }
+func (c Transform) MarshalWire() []byte                 { return testutils.GobMarshal(c) }
 func (Transform) UnmarshalWire(b []byte) (any, error)   { return benchGobUnmarshal[Transform](b) }
-func (c Inventory) MarshalWire() []byte                 { return benchGobMarshal(c) }
+func (c Inventory) MarshalWire() []byte                 { return testutils.GobMarshal(c) }
 func (Inventory) UnmarshalWire(b []byte) (any, error)   { return benchGobUnmarshal[Inventory](b) }
-func (c PlayerStats) MarshalWire() []byte               { return benchGobMarshal(c) }
+func (c PlayerStats) MarshalWire() []byte               { return testutils.GobMarshal(c) }
 func (PlayerStats) UnmarshalWire(b []byte) (any, error) { return benchGobUnmarshal[PlayerStats](b) }
-func (c AIBehavior) MarshalWire() []byte                { return benchGobMarshal(c) }
+func (c AIBehavior) MarshalWire() []byte                { return testutils.GobMarshal(c) }
 func (AIBehavior) UnmarshalWire(b []byte) (any, error)  { return benchGobUnmarshal[AIBehavior](b) }
-func (c Renderer) MarshalWire() []byte                  { return benchGobMarshal(c) }
+func (c Renderer) MarshalWire() []byte                  { return testutils.GobMarshal(c) }
 func (Renderer) UnmarshalWire(b []byte) (any, error)    { return benchGobUnmarshal[Renderer](b) }
-func (c Physics) MarshalWire() []byte                   { return benchGobMarshal(c) }
+func (c Physics) MarshalWire() []byte                   { return testutils.GobMarshal(c) }
 func (Physics) UnmarshalWire(b []byte) (any, error)     { return benchGobUnmarshal[Physics](b) }
-func (c NetworkSync) MarshalWire() []byte               { return benchGobMarshal(c) }
+func (c NetworkSync) MarshalWire() []byte               { return testutils.GobMarshal(c) }
 func (NetworkSync) UnmarshalWire(b []byte) (any, error) { return benchGobUnmarshal[NetworkSync](b) }
 
-type entityState1 struct {
-	Entities Contains[struct{ Position Ref[Position3D] }]
+// Bench archetypes are resolved once per world by Create, Contains, and Exact, then cached.
+type arch1 struct{ Position Position3D }
+
+type arch2 struct {
+	Position Position3D
+	Velocity Velocity3D
 }
 
-type entityState2 struct {
-	Entities Contains[struct {
-		Position Ref[Position3D]
-		Velocity Ref[Velocity3D]
-	}]
+type arch3 struct {
+	Position Position3D
+	Velocity Velocity3D
+	Health   Health2
 }
 
-type entityState5 struct {
-	Entities Contains[struct {
-		Position  Ref[Position3D]
-		Velocity  Ref[Velocity3D]
-		Health    Ref[Health2]
-		Transform Ref[Transform]
-		Inventory Ref[Inventory]
-	}]
+type arch5 struct {
+	Position  Position3D
+	Velocity  Velocity3D
+	Health    Health2
+	Transform Transform
+	Inventory Inventory
 }
 
-type entityState10 struct {
-	Entities Contains[struct {
-		Position    Ref[Position3D]
-		Velocity    Ref[Velocity3D]
-		Health      Ref[Health2]
-		Transform   Ref[Transform]
-		Inventory   Ref[Inventory]
-		PlayerStats Ref[PlayerStats]
-		AIBehavior  Ref[AIBehavior]
-		Renderer    Ref[Renderer]
-		Physics     Ref[Physics]
-		NetworkSync Ref[NetworkSync]
-	}]
+type arch6 struct {
+	Position    Position3D
+	Velocity    Velocity3D
+	Health      Health2
+	Transform   Transform
+	Inventory   Inventory
+	PlayerStats PlayerStats
+}
+
+type arch10 struct {
+	Position    Position3D
+	Velocity    Velocity3D
+	Health      Health2
+	Transform   Transform
+	Inventory   Inventory
+	PlayerStats PlayerStats
+	AIBehavior  AIBehavior
+	Renderer    Renderer
+	Physics     Physics
+	NetworkSync NetworkSync
 }
 
 func BenchmarkCardinal_Entity_Create(b *testing.B) {
@@ -90,12 +113,10 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &entityState1{}
-			mustInitSystemFields(b, w, state)
 
 			b.StartTimer()
-			_, entity := state.Entities.Create()
-			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			entity := w.Create[arch1]()
+			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			b.StopTimer()
 		}
 	})
@@ -104,15 +125,13 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &entityState1{}
-			mustInitSystemFields(b, w, state)
 
-			_, warmup := state.Entities.Create()
-			warmup.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			warmup := w.Create[arch1]()
+			warmup.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 
 			b.StartTimer()
-			_, entity := state.Entities.Create()
-			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			entity := w.Create[arch1]()
+			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			b.StopTimer()
 		}
 	})
@@ -121,16 +140,14 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &entityState5{}
-			mustInitSystemFields(b, w, state)
 
 			b.StartTimer()
-			_, entity := state.Entities.Create()
-			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
-			entity.Velocity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
-			entity.Health.Set(Health2{Current: 100, Max: 100})
-			entity.Transform.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Inventory.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			entity := w.Create[arch5]()
+			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
+			entity.Set(Health2{Current: 100, Max: 100})
+			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
+			entity.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
 			b.StopTimer()
 		}
 	})
@@ -139,23 +156,21 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &entityState5{}
-			mustInitSystemFields(b, w, state)
 
-			_, warmup := state.Entities.Create()
-			warmup.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
-			warmup.Velocity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
-			warmup.Health.Set(Health2{Current: 100, Max: 100})
-			warmup.Transform.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			warmup.Inventory.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			warmup := w.Create[arch5]()
+			warmup.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			warmup.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
+			warmup.Set(Health2{Current: 100, Max: 100})
+			warmup.Set(Transform{Scale: 1.0, Rotation: 0.0})
+			warmup.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
 
 			b.StartTimer()
-			_, entity := state.Entities.Create()
-			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
-			entity.Velocity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
-			entity.Health.Set(Health2{Current: 100, Max: 100})
-			entity.Transform.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Inventory.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			entity := w.Create[arch5]()
+			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
+			entity.Set(Health2{Current: 100, Max: 100})
+			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
+			entity.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
 			b.StopTimer()
 		}
 	})
@@ -164,21 +179,19 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &entityState10{}
-			mustInitSystemFields(b, w, state)
 
 			b.StartTimer()
-			_, entity := state.Entities.Create()
-			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
-			entity.Velocity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
-			entity.Health.Set(Health2{Current: 100, Max: 100})
-			entity.Transform.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Inventory.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
-			entity.PlayerStats.Set(PlayerStats{Level: 5, Experience: 1000, Strength: 10, Agility: 8})
-			entity.AIBehavior.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
-			entity.Renderer.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
-			entity.Physics.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
-			entity.NetworkSync.Set(
+			entity := w.Create[arch10]()
+			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
+			entity.Set(Health2{Current: 100, Max: 100})
+			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
+			entity.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			entity.Set(PlayerStats{Level: 5, Experience: 1000, Strength: 10, Agility: 8})
+			entity.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
+			entity.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
+			entity.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
+			entity.Set(
 				NetworkSync{PlayerID: "player1", LastUpdate: 0, SyncRate: 30.0, IsDirty: false, Interpolate: true})
 			b.StopTimer()
 		}
@@ -188,34 +201,32 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &entityState10{}
-			mustInitSystemFields(b, w, state)
 
-			_, warmup := state.Entities.Create()
-			warmup.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
-			warmup.Velocity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
-			warmup.Health.Set(Health2{Current: 100, Max: 100})
-			warmup.Transform.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			warmup.Inventory.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
-			warmup.PlayerStats.Set(PlayerStats{Level: 5, Experience: 1000, Strength: 10, Agility: 8})
-			warmup.AIBehavior.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
-			warmup.Renderer.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
-			warmup.Physics.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
-			warmup.NetworkSync.Set(
+			warmup := w.Create[arch10]()
+			warmup.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			warmup.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
+			warmup.Set(Health2{Current: 100, Max: 100})
+			warmup.Set(Transform{Scale: 1.0, Rotation: 0.0})
+			warmup.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			warmup.Set(PlayerStats{Level: 5, Experience: 1000, Strength: 10, Agility: 8})
+			warmup.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
+			warmup.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
+			warmup.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
+			warmup.Set(
 				NetworkSync{PlayerID: "player1", LastUpdate: 0, SyncRate: 30.0, IsDirty: false, Interpolate: true})
 
 			b.StartTimer()
-			_, entity := state.Entities.Create()
-			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
-			entity.Velocity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
-			entity.Health.Set(Health2{Current: 100, Max: 100})
-			entity.Transform.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Inventory.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
-			entity.PlayerStats.Set(PlayerStats{Level: 5, Experience: 1000, Strength: 10, Agility: 8})
-			entity.AIBehavior.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
-			entity.Renderer.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
-			entity.Physics.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
-			entity.NetworkSync.Set(
+			entity := w.Create[arch10]()
+			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
+			entity.Set(Health2{Current: 100, Max: 100})
+			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
+			entity.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			entity.Set(PlayerStats{Level: 5, Experience: 1000, Strength: 10, Agility: 8})
+			entity.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
+			entity.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
+			entity.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
+			entity.Set(
 				NetworkSync{PlayerID: "player1", LastUpdate: 0, SyncRate: 30.0, IsDirty: false, Interpolate: true})
 			b.StopTimer()
 		}
@@ -227,14 +238,12 @@ func BenchmarkCardinal_Entity_Destroy(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &entityState1{}
-			mustInitSystemFields(b, w, state)
 
-			eid, entity := state.Entities.Create()
-			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			entity := w.Create[arch1]()
+			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 
 			b.StartTimer()
-			_ = state.Entities.Destroy(eid)
+			_ = entity.Destroy()
 			b.StopTimer()
 		}
 	})
@@ -243,18 +252,16 @@ func BenchmarkCardinal_Entity_Destroy(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &entityState5{}
-			mustInitSystemFields(b, w, state)
 
-			eid, entity := state.Entities.Create()
-			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
-			entity.Velocity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
-			entity.Health.Set(Health2{Current: 100, Max: 100})
-			entity.Transform.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Inventory.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			entity := w.Create[arch5]()
+			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
+			entity.Set(Health2{Current: 100, Max: 100})
+			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
+			entity.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
 
 			b.StartTimer()
-			_ = state.Entities.Destroy(eid)
+			_ = entity.Destroy()
 			b.StopTimer()
 		}
 	})
@@ -263,24 +270,22 @@ func BenchmarkCardinal_Entity_Destroy(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &entityState10{}
-			mustInitSystemFields(b, w, state)
 
-			eid, entity := state.Entities.Create()
-			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
-			entity.Velocity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
-			entity.Health.Set(Health2{Current: 100, Max: 100})
-			entity.Transform.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Inventory.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
-			entity.PlayerStats.Set(PlayerStats{Level: 5, Experience: 1000, Strength: 10, Agility: 8})
-			entity.AIBehavior.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
-			entity.Renderer.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
-			entity.Physics.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
-			entity.NetworkSync.Set(
+			entity := w.Create[arch10]()
+			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
+			entity.Set(Health2{Current: 100, Max: 100})
+			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
+			entity.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			entity.Set(PlayerStats{Level: 5, Experience: 1000, Strength: 10, Agility: 8})
+			entity.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
+			entity.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
+			entity.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
+			entity.Set(
 				NetworkSync{PlayerID: "player1", LastUpdate: 0, SyncRate: 30.0, IsDirty: false, Interpolate: true})
 
 			b.StartTimer()
-			_ = state.Entities.Destroy(eid)
+			_ = entity.Destroy()
 			b.StopTimer()
 		}
 	})
@@ -291,15 +296,13 @@ func BenchmarkCardinal_Component_Set(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &entityState2{}
-			mustInitSystemFields(b, w, state)
 
-			_, entity := state.Entities.Create()
-			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
-			entity.Velocity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
+			entity := w.Create[arch2]()
+			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 
 			b.StartTimer()
-			entity.Position.Set(Position3D{X: 10.0, Y: 20.0, Z: 30.0})
+			entity.Set(Position3D{X: 10.0, Y: 20.0, Z: 30.0})
 			b.StopTimer()
 		}
 	})
@@ -308,20 +311,13 @@ func BenchmarkCardinal_Component_Set(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &struct {
-				PositionOnly Contains[struct{ Position Ref[Position3D] }]
-				PositionHP   Contains[struct {
-					Position Ref[Position3D]
-					Health   Ref[Health2]
-				}]
-			}{}
-			mustInitSystemFields(b, w, state)
 
-			eid, entity := state.PositionOnly.Create()
-			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			entity := w.Create[arch1]()
+
+			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 
 			b.StartTimer()
-			_ = ecs.Set(w.world, eid, Health2{Current: 100, Max: 100})
+			entity.Set(Health2{Current: 100, Max: 100})
 			b.StopTimer()
 		}
 	})
@@ -332,14 +328,12 @@ func BenchmarkCardinal_Component_Remove(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &entityState1{}
-			mustInitSystemFields(b, w, state)
 
-			_, entity := state.Entities.Create()
-			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			entity := w.Create[arch1]()
+			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 
 			b.StartTimer()
-			entity.Position.Remove()
+			entity.Remove[Position3D]()
 			b.StopTimer()
 		}
 	})
@@ -348,18 +342,16 @@ func BenchmarkCardinal_Component_Remove(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &entityState5{}
-			mustInitSystemFields(b, w, state)
 
-			_, entity := state.Entities.Create()
-			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
-			entity.Velocity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
-			entity.Health.Set(Health2{Current: 100, Max: 100})
-			entity.Transform.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Inventory.Set(Inventory{Items: []string{"sword"}, Capacity: 10})
+			entity := w.Create[arch5]()
+			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
+			entity.Set(Health2{Current: 100, Max: 100})
+			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
+			entity.Set(Inventory{Items: []string{"sword"}, Capacity: 10})
 
 			b.StartTimer()
-			entity.Velocity.Remove()
+			entity.Remove[Velocity3D]()
 			b.StopTimer()
 		}
 	})
@@ -370,14 +362,12 @@ func BenchmarkCardinal_Component_Get(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &entityState1{}
-			mustInitSystemFields(b, w, state)
 
-			_, entity := state.Entities.Create()
-			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			entity := w.Create[arch1]()
+			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 
 			b.StartTimer()
-			_ = entity.Position.Get()
+			_ = entity.Get[Position3D]()
 			b.StopTimer()
 		}
 	})
@@ -386,18 +376,16 @@ func BenchmarkCardinal_Component_Get(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &entityState5{}
-			mustInitSystemFields(b, w, state)
 
-			_, entity := state.Entities.Create()
-			entity.Position.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
-			entity.Velocity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
-			entity.Health.Set(Health2{Current: 100, Max: 100})
-			entity.Transform.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Inventory.Set(Inventory{Items: []string{"sword"}, Capacity: 10})
+			entity := w.Create[arch5]()
+			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
+			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
+			entity.Set(Health2{Current: 100, Max: 100})
+			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
+			entity.Set(Inventory{Items: []string{"sword"}, Capacity: 10})
 
 			b.StartTimer()
-			_ = entity.Position.Get()
+			_ = entity.Get[Position3D]()
 			b.StopTimer()
 		}
 	})
@@ -408,19 +396,15 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &struct {
-				Creator Contains[struct{ Position Ref[Position3D] }]
-				Query   Exact[struct{ Position Ref[Position3D] }]
-			}{}
-			mustInitSystemFields(b, w, state)
 
 			for j := 0; j < 100; j++ {
-				_, entity := state.Creator.Create()
-				entity.Position.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
+				entity := w.Create[arch1]()
+				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 			}
 
+			search := w.Exact[arch1]()
 			b.StartTimer()
-			for _, result := range state.Query.Iter() {
+			for result := range search.Iter() {
 				_ = result
 			}
 			b.StopTimer()
@@ -431,35 +415,19 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &struct {
-				Creator Contains[struct {
-					Position  Ref[Position3D]
-					Velocity  Ref[Velocity3D]
-					Health    Ref[Health2]
-					Transform Ref[Transform]
-					Inventory Ref[Inventory]
-				}]
-				Query Exact[struct {
-					Position  Ref[Position3D]
-					Velocity  Ref[Velocity3D]
-					Health    Ref[Health2]
-					Transform Ref[Transform]
-					Inventory Ref[Inventory]
-				}]
-			}{}
-			mustInitSystemFields(b, w, state)
 
 			for j := 0; j < 100; j++ {
-				_, entity := state.Creator.Create()
-				entity.Position.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
-				entity.Velocity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
-				entity.Health.Set(Health2{Current: j, Max: 100})
-				entity.Transform.Set(Transform{Scale: 1.0, Rotation: float64(j)})
-				entity.Inventory.Set(Inventory{Items: []string{"item"}, Capacity: 10})
+				entity := w.Create[arch5]()
+				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
+				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
+				entity.Set(Health2{Current: j, Max: 100})
+				entity.Set(Transform{Scale: 1.0, Rotation: float64(j)})
+				entity.Set(Inventory{Items: []string{"item"}, Capacity: 10})
 			}
 
+			search := w.Exact[arch5]()
 			b.StartTimer()
-			for _, result := range state.Query.Iter() {
+			for result := range search.Iter() {
 				_ = result
 			}
 			b.StopTimer()
@@ -470,53 +438,27 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &struct {
-				Creator Contains[struct {
-					Position    Ref[Position3D]
-					Velocity    Ref[Velocity3D]
-					Health      Ref[Health2]
-					Transform   Ref[Transform]
-					Inventory   Ref[Inventory]
-					PlayerStats Ref[PlayerStats]
-					AIBehavior  Ref[AIBehavior]
-					Renderer    Ref[Renderer]
-					Physics     Ref[Physics]
-					NetworkSync Ref[NetworkSync]
-				}]
-				Query Exact[struct {
-					Position    Ref[Position3D]
-					Velocity    Ref[Velocity3D]
-					Health      Ref[Health2]
-					Transform   Ref[Transform]
-					Inventory   Ref[Inventory]
-					PlayerStats Ref[PlayerStats]
-					AIBehavior  Ref[AIBehavior]
-					Renderer    Ref[Renderer]
-					Physics     Ref[Physics]
-					NetworkSync Ref[NetworkSync]
-				}]
-			}{}
-			mustInitSystemFields(b, w, state)
 
 			for j := 0; j < 100; j++ {
-				_, entity := state.Creator.Create()
-				entity.Position.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
-				entity.Velocity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
-				entity.Health.Set(Health2{Current: j, Max: 100})
-				entity.Transform.Set(Transform{Scale: 1.0, Rotation: float64(j)})
-				entity.Inventory.Set(Inventory{Items: []string{"item"}, Capacity: 10})
-				entity.PlayerStats.Set(PlayerStats{Level: j, Experience: j * 10, Strength: 10, Agility: 8})
-				entity.AIBehavior.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
-				entity.Renderer.Set(Renderer{Model: "model", Texture: "texture", Visible: true, ZIndex: 1})
-				entity.Physics.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
-				entity.NetworkSync.Set(NetworkSync{
+				entity := w.Create[arch10]()
+				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
+				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
+				entity.Set(Health2{Current: j, Max: 100})
+				entity.Set(Transform{Scale: 1.0, Rotation: float64(j)})
+				entity.Set(Inventory{Items: []string{"item"}, Capacity: 10})
+				entity.Set(PlayerStats{Level: j, Experience: j * 10, Strength: 10, Agility: 8})
+				entity.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
+				entity.Set(Renderer{Model: "model", Texture: "texture", Visible: true, ZIndex: 1})
+				entity.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
+				entity.Set(NetworkSync{
 					PlayerID: "player", LastUpdate: int64(j), SyncRate: 30.0,
 					IsDirty: false, Interpolate: true,
 				})
 			}
 
+			search := w.Exact[arch10]()
 			b.StartTimer()
-			for _, result := range state.Query.Iter() {
+			for result := range search.Iter() {
 				_ = result
 			}
 			b.StopTimer()
@@ -527,19 +469,15 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &struct {
-				Creator Contains[struct{ Position Ref[Position3D] }]
-				Query   Contains[struct{ Position Ref[Position3D] }]
-			}{}
-			mustInitSystemFields(b, w, state)
 
 			for j := 0; j < 100; j++ {
-				_, entity := state.Creator.Create()
-				entity.Position.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
+				entity := w.Create[arch1]()
+				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 			}
 
+			search := w.Contains[arch1]()
 			b.StartTimer()
-			for _, result := range state.Query.Iter() {
+			for result := range search.Iter() {
 				_ = result
 			}
 			b.StopTimer()
@@ -550,33 +488,19 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &struct {
-				Creator Contains[struct {
-					Position  Ref[Position3D]
-					Velocity  Ref[Velocity3D]
-					Health    Ref[Health2]
-					Transform Ref[Transform]
-					Inventory Ref[Inventory]
-				}]
-				Query Contains[struct {
-					Position Ref[Position3D]
-					Velocity Ref[Velocity3D]
-					Health   Ref[Health2]
-				}]
-			}{}
-			mustInitSystemFields(b, w, state)
 
 			for j := 0; j < 100; j++ {
-				_, entity := state.Creator.Create()
-				entity.Position.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
-				entity.Velocity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
-				entity.Health.Set(Health2{Current: j, Max: 100})
-				entity.Transform.Set(Transform{Scale: 1.0, Rotation: float64(j)})
-				entity.Inventory.Set(Inventory{Items: []string{"item"}, Capacity: 10})
+				entity := w.Create[arch5]()
+				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
+				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
+				entity.Set(Health2{Current: j, Max: 100})
+				entity.Set(Transform{Scale: 1.0, Rotation: float64(j)})
+				entity.Set(Inventory{Items: []string{"item"}, Capacity: 10})
 			}
 
+			search := w.Contains[arch3]()
 			b.StartTimer()
-			for _, result := range state.Query.Iter() {
+			for result := range search.Iter() {
 				_ = result
 			}
 			b.StopTimer()
@@ -587,49 +511,27 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
-			state := &struct {
-				Creator Contains[struct {
-					Position    Ref[Position3D]
-					Velocity    Ref[Velocity3D]
-					Health      Ref[Health2]
-					Transform   Ref[Transform]
-					Inventory   Ref[Inventory]
-					PlayerStats Ref[PlayerStats]
-					AIBehavior  Ref[AIBehavior]
-					Renderer    Ref[Renderer]
-					Physics     Ref[Physics]
-					NetworkSync Ref[NetworkSync]
-				}]
-				Query Contains[struct {
-					Position    Ref[Position3D]
-					Velocity    Ref[Velocity3D]
-					Health      Ref[Health2]
-					Transform   Ref[Transform]
-					Inventory   Ref[Inventory]
-					PlayerStats Ref[PlayerStats]
-				}]
-			}{}
-			mustInitSystemFields(b, w, state)
 
 			for j := 0; j < 100; j++ {
-				_, entity := state.Creator.Create()
-				entity.Position.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
-				entity.Velocity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
-				entity.Health.Set(Health2{Current: j, Max: 100})
-				entity.Transform.Set(Transform{Scale: 1.0, Rotation: float64(j)})
-				entity.Inventory.Set(Inventory{Items: []string{"item"}, Capacity: 10})
-				entity.PlayerStats.Set(PlayerStats{Level: j, Experience: j * 10, Strength: 10, Agility: 8})
-				entity.AIBehavior.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
-				entity.Renderer.Set(Renderer{Model: "model", Texture: "texture", Visible: true, ZIndex: 1})
-				entity.Physics.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
-				entity.NetworkSync.Set(NetworkSync{
+				entity := w.Create[arch10]()
+				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
+				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
+				entity.Set(Health2{Current: j, Max: 100})
+				entity.Set(Transform{Scale: 1.0, Rotation: float64(j)})
+				entity.Set(Inventory{Items: []string{"item"}, Capacity: 10})
+				entity.Set(PlayerStats{Level: j, Experience: j * 10, Strength: 10, Agility: 8})
+				entity.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
+				entity.Set(Renderer{Model: "model", Texture: "texture", Visible: true, ZIndex: 1})
+				entity.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
+				entity.Set(NetworkSync{
 					PlayerID: "player", LastUpdate: int64(j), SyncRate: 30.0,
 					IsDirty: false, Interpolate: true,
 				})
 			}
 
+			search := w.Contains[arch6]()
 			b.StartTimer()
-			for _, result := range state.Query.Iter() {
+			for result := range search.Iter() {
 				_ = result
 			}
 			b.StopTimer()
@@ -637,38 +539,9 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 	})
 }
 
-type getSetSystemState1 struct {
-	BaseSystemState
-	Entities Contains[struct {
-		Position Ref[Position3D]
-	}]
-}
-
-type getSetSystemState5 struct {
-	BaseSystemState
-	Entities Contains[struct {
-		Position  Ref[Position3D]
-		Velocity  Ref[Velocity3D]
-		Health    Ref[Health2]
-		Transform Ref[Transform]
-		Inventory Ref[Inventory]
-	}]
-}
-
-type getSetSystemState10 struct {
-	BaseSystemState
-	Entities Contains[struct {
-		Position    Ref[Position3D]
-		Velocity    Ref[Velocity3D]
-		Health      Ref[Health2]
-		Transform   Ref[Transform]
-		Inventory   Ref[Inventory]
-		PlayerStats Ref[PlayerStats]
-		AIBehavior  Ref[AIBehavior]
-		Renderer    Ref[Renderer]
-		Physics     Ref[Physics]
-		NetworkSync Ref[NetworkSync]
-	}]
+// benchRunSystem runs a caller-supplied closure so a benchmark can time work inside a tick.
+type benchRunSystem struct {
+	run func(*World)
 }
 
 func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
@@ -677,22 +550,23 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
-			RegisterSystem(w, func(state *getSetSystemState1) {
+			w.RegisterSystem(&benchRunSystem{run: func(w *World) {
 				for j := 0; j < 100; j++ {
-					_, entity := state.Entities.Create()
-					entity.Position.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
+					entity := w.Create[arch1]()
+					entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				}
-			}, WithHook(Init))
+			}}, WithHook(Init))
 
-			RegisterSystem(w, func(state *getSetSystemState1) {
+			w.RegisterSystem(&benchRunSystem{run: func(w *World) {
+				entities := w.Contains[arch1]()
 				b.StartTimer()
-				for _, entity := range state.Entities.Iter() {
-					pos := entity.Position.Get()
+				for entity := range entities.Iter() {
+					pos := entity.Get[Position3D]()
 					pos.X += 1.0
-					entity.Position.Set(pos)
+					entity.Set(pos)
 				}
 				b.StopTimer()
-			}, WithHook(Update))
+			}}, WithHook(Update))
 
 			w.world.Init()
 			w.world.Tick()
@@ -705,28 +579,29 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
-			RegisterSystem(w, func(state *getSetSystemState5) {
+			w.RegisterSystem(&benchRunSystem{run: func(w *World) {
 				for j := 0; j < 100; j++ {
-					_, entity := state.Entities.Create()
-					entity.Position.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
-					entity.Velocity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
-					entity.Health.Set(Health2{Current: j, Max: 100})
-					entity.Transform.Set(Transform{Scale: 1.0, Rotation: float64(j)})
-					entity.Inventory.Set(Inventory{Items: []string{"item"}, Capacity: 10})
+					entity := w.Create[arch5]()
+					entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
+					entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
+					entity.Set(Health2{Current: j, Max: 100})
+					entity.Set(Transform{Scale: 1.0, Rotation: float64(j)})
+					entity.Set(Inventory{Items: []string{"item"}, Capacity: 10})
 				}
-			}, WithHook(Init))
+			}}, WithHook(Init))
 
-			RegisterSystem(w, func(state *getSetSystemState5) {
+			w.RegisterSystem(&benchRunSystem{run: func(w *World) {
+				entities := w.Contains[arch5]()
 				b.StartTimer()
-				for _, entity := range state.Entities.Iter() {
-					pos := entity.Position.Get()
-					vel := entity.Velocity.Get()
+				for entity := range entities.Iter() {
+					pos := entity.Get[Position3D]()
+					vel := entity.Get[Velocity3D]()
 					vel.X = pos.X * 0.1
 					vel.Y = pos.Y * 0.1
-					entity.Velocity.Set(vel)
+					entity.Set(vel)
 				}
 				b.StopTimer()
-			}, WithHook(Update))
+			}}, WithHook(Update))
 
 			w.world.Init()
 			w.world.Tick()
@@ -739,41 +614,42 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
-			RegisterSystem(w, func(state *getSetSystemState10) {
+			w.RegisterSystem(&benchRunSystem{run: func(w *World) {
 				for j := 0; j < 100; j++ {
-					_, entity := state.Entities.Create()
-					entity.Position.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
-					entity.Velocity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
-					entity.Health.Set(Health2{Current: j, Max: 100})
-					entity.Transform.Set(Transform{Scale: 1.0, Rotation: float64(j)})
-					entity.Inventory.Set(Inventory{Items: []string{"item"}, Capacity: 10})
-					entity.PlayerStats.Set(PlayerStats{Level: j, Experience: j * 10, Strength: 10, Agility: 8})
-					entity.AIBehavior.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
-					entity.Renderer.Set(Renderer{Model: "model", Texture: "texture", Visible: true, ZIndex: 1})
-					entity.Physics.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
-					entity.NetworkSync.Set(NetworkSync{
+					entity := w.Create[arch10]()
+					entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
+					entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
+					entity.Set(Health2{Current: j, Max: 100})
+					entity.Set(Transform{Scale: 1.0, Rotation: float64(j)})
+					entity.Set(Inventory{Items: []string{"item"}, Capacity: 10})
+					entity.Set(PlayerStats{Level: j, Experience: j * 10, Strength: 10, Agility: 8})
+					entity.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
+					entity.Set(Renderer{Model: "model", Texture: "texture", Visible: true, ZIndex: 1})
+					entity.Set(Physics{Mass: 1.0, Friction: 0.1, Restitution: 0.8, IsStatic: false})
+					entity.Set(NetworkSync{
 						PlayerID: "player", LastUpdate: int64(j), SyncRate: 30.0,
 						IsDirty: false, Interpolate: true,
 					})
 				}
-			}, WithHook(Init))
+			}}, WithHook(Init))
 
-			RegisterSystem(w, func(state *getSetSystemState10) {
+			w.RegisterSystem(&benchRunSystem{run: func(w *World) {
+				entities := w.Contains[arch10]()
 				b.StartTimer()
-				for _, entity := range state.Entities.Iter() {
-					pos := entity.Position.Get()
-					health := entity.Health.Get()
+				for entity := range entities.Iter() {
+					pos := entity.Get[Position3D]()
+					health := entity.Get[Health2]()
 
-					physics := entity.Physics.Get()
+					physics := entity.Get[Physics]()
 					physics.Mass = pos.X * 0.01
-					entity.Physics.Set(physics)
+					entity.Set(physics)
 
-					renderer := entity.Renderer.Get()
+					renderer := entity.Get[Renderer]()
 					renderer.Visible = health.Current > 50
-					entity.Renderer.Set(renderer)
+					entity.Set(renderer)
 				}
 				b.StopTimer()
-			}, WithHook(Update))
+			}}, WithHook(Update))
 
 			w.world.Init()
 			w.world.Tick()
@@ -783,15 +659,18 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 }
 
 func newBenchWorld() *World {
-	return &World{world: ecs.NewWorld()}
-}
-
-func mustInitSystemFields[T any](b testing.TB, world *World, state *T) {
-	b.Helper()
-	err := initSystemFields(reflect.ValueOf(state).Elem(), world)
-	if err != nil {
-		b.Fatalf("failed to initialize system fields: %v", err)
-	}
+	w := &World{world: ecs.NewWorld()}
+	w.RegisterComponent[Position3D]()
+	w.RegisterComponent[Velocity3D]()
+	w.RegisterComponent[Health2]()
+	w.RegisterComponent[Inventory]()
+	w.RegisterComponent[Transform]()
+	w.RegisterComponent[PlayerStats]()
+	w.RegisterComponent[AIBehavior]()
+	w.RegisterComponent[NetworkSync]()
+	w.RegisterComponent[Physics]()
+	w.RegisterComponent[Renderer]()
+	return w
 }
 
 // Benchmark component types.
@@ -872,3 +751,5 @@ type NetworkSync struct {
 }
 
 func (NetworkSync) Name() string { return "NetworkSync" }
+
+func (s *benchRunSystem) Run(w *World) { s.run(w) }

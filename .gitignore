@@ -36,7 +36,7 @@ Icon
 
 # Output of the go coverage tool
 *.out
-coverage.html
+coverage*.html
 
 # Dependency directories
 vendor/
@@ -56,6 +56,7 @@ dist/
 
 # Debug files
 debug
+!cli/internal/debug/
 __debug_bin
 
 # IDE specific files
@@ -119,3 +120,9 @@ vitest.config.*.timestamp*
 .vercel
 PLAN.md
 services/forge/main
+
+# moon task state
+.moon/cache/
+# The general tasks/ ignore rule must not hide moon's inherited task config.
+!.moon/tasks/
+!.moon/tasks/**

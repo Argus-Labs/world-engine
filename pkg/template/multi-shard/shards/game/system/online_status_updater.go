@@ -9,31 +9,34 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 )
 
-type OnlineStatusUpdaterState struct {
-	cardinal.BaseSystemState
-	Players cardinal.Contains[struct {
-		OnlineStatus cardinal.Ref[component.OnlineStatus]
-		PlayerTag    cardinal.Ref[component.PlayerTag]
-	}]
-	PlayerDepartureEvent cardinal.WithEvent[event.PlayerDeparture]
+// onlinePlayer matches every entity carrying an online status and a player tag, whatever else
+// it holds.
+type onlinePlayer struct {
+	OnlineStatus component.OnlineStatus
+	PlayerTag    component.PlayerTag
 }
 
-func OnlineStatusUpdater(state *OnlineStatusUpdaterState) {
-	for entity, player := range state.Players.Iter() {
-		isOnline := player.OnlineStatus.Get().Online
-		lastActive := player.OnlineStatus.Get().LastActive
+type OnlineStatusUpdater struct{}
+
+func (s *OnlineStatusUpdater) Run(w *cardinal.World) {
+	for player := range w.Contains[onlinePlayer]().Iter() {
+		entity := player.ID()
+		status := player.Get[component.OnlineStatus]()
+		isOnline := status.Online
+		lastActive := status.LastActive
 
 		// If the player has not been active for 5 minutes, set them to offline
 		if isOnline && time.Since(lastActive) > 5*time.Minute {
-			player.OnlineStatus.Set(component.OnlineStatus{Online: false, LastActive: lastActive})
+			player.Set(component.OnlineStatus{Online: false, LastActive: lastActive})
+			tag := player.Get[component.PlayerTag]()
 
-			state.PlayerDepartureEvent.Broadcast(event.PlayerDeparture{
-				ArgusAuthID: player.PlayerTag.Get().ArgusAuthID,
+			w.Broadcast(event.PlayerDeparture{
+				ArgusAuthID: tag.ArgusAuthID,
 			})
 
-			state.Logger().Info().
+			w.Logger().Info().
 				Uint32("entity", uint32(entity)).
-				Msgf("Player %s (id: %s) is offline", player.PlayerTag.Get().ArgusAuthName, player.PlayerTag.Get().ArgusAuthID)
+				Msgf("Player %s (id: %s) is offline", tag.ArgusAuthName, tag.ArgusAuthID)
 		}
 	}
 }
