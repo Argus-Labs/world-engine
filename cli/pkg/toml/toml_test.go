@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
 	"github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
@@ -983,4 +984,156 @@ func TestGameService_IsBuiltFromSource(t *testing.T) {
 
 	require.True(t, toml.GameService{Path: "services/meta/cmd"}.IsBuiltFromSource())
 	require.False(t, toml.GameService{Image: "postgres:16"}.IsBuiltFromSource())
+}
+
+// The next tests guard the sanitize-collision invariant: the CLI addresses
+// each shard instance through a URL whose path segment is
+// dnslabel.Sanitize(instanceName), so toml.Load must reject any config whose
+// distinct shard instances collapse to the same sanitized image. The raw
+// instance-ID check in expandPools (TestLoad_PoolSizeExpansionCollides...)
+// keys on the wrong normal form; these cover the case/separator gap.
+
+func TestLoad_SanitizedShardCollision_UnderscoreVsHyphenReturnsError(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "game_lobby"
+	[[shards]]
+	id = "game-lobby"
+	`
+
+	_, err := toml.Load(strings.NewReader(sample))
+	require.Error(t, err)
+	// Names both colliding instances; the shared segment is "game-lobby"
+	// (the Sanitize image of both "game_lobby" and "game-lobby").
+	require.Contains(t, err.Error(), `"game_lobby"`)
+	require.Contains(t, err.Error(), `"game-lobby"`)
+	require.Contains(t, err.Error(), "collide")
+}
+
+func TestLoad_SanitizedShardCollision_CaseVariantReturnsError(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "Game"
+	[[shards]]
+	id = "game"
+	`
+
+	_, err := toml.Load(strings.NewReader(sample))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `"Game"`)
+	require.Contains(t, err.Error(), `"game"`)
+	require.Contains(t, err.Error(), "collide")
+}
+
+// TestLoad_SanitizedShardCollision_PoolSuffixReturnsError covers the narrower
+// pool-suffix vector: a standalone "Game_2" sanitizes to "game-2", the same
+// image as the auto-numbered replica "game-2" produced by pooling "game".
+func TestLoad_SanitizedShardCollision_PoolSuffixReturnsError(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "Game_2"
+	[[shards]]
+	id = "game"
+	pool_size = 2
+	`
+
+	_, err := toml.Load(strings.NewReader(sample))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `"Game_2"`)
+	require.Contains(t, err.Error(), `"game-2"`)
+	require.Contains(t, err.Error(), "collide")
+}
+
+// TestLoad_SanitizedShardCollision_NonCollidingMixedSeparatorsAccepted is the
+// regression guard: mixed separator/case IDs whose sanitized images are
+// distinct must still be accepted, and every accepted instance must have a
+// unique sanitized path segment (the invariant the fix defends).
+func TestLoad_SanitizedShardCollision_NonCollidingMixedSeparatorsAccepted(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "game_lobby"
+	[[shards]]
+	id = "chat-room"
+	[[shards]]
+	id = "Meta"
+	pool_size = 2
+	`
+
+	cfg, err := toml.Load(strings.NewReader(sample))
+	require.NoError(t, err)
+
+	// Every accepted instance must sanitize to a distinct path segment.
+	seen := make(map[string]struct{}, len(cfg.Shards))
+	for _, s := range cfg.Shards {
+		img := dnslabel.Sanitize(s.InstanceID)
+		_, dup := seen[img]
+		require.False(t, dup, "duplicate sanitized segment %q for instance %q", img, s.InstanceID)
+		seen[img] = struct{}{}
+	}
+}
+
+// TestLoad_SanitizedShardCollision_PoolExpansionSelfDoesNotFalsePositive
+// ensures a single pool whose base ID mixes separators doesn't collide with
+// its own replicas: "game_lobby" expands to "game_lobby" and "game_lobby-2",
+// which sanitize to distinct segments.
+func TestLoad_SanitizedShardCollision_PoolExpansionSelfDoesNotFalsePositive(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "game_lobby"
+	pool_size = 3
+	`
+
+	cfg, err := toml.Load(strings.NewReader(sample))
+	require.NoError(t, err)
+	require.Len(t, cfg.Shards, 3)
+	require.Equal(t, []string{"game_lobby", "game_lobby-2", "game_lobby-3"}, instances(cfg.Shards))
+
+	want := []string{"game-lobby", "game-lobby-2", "game-lobby-3"}
+	for i, s := range cfg.Shards {
+		require.Equal(t, want[i], dnslabel.Sanitize(s.InstanceID), "instance %d", i)
+	}
+}
+
+// TestLoad_SanitizedShardCollision_StillRejectsRawInstanceCollision confirms
+// the pre-existing raw instance-ID collision check still fires (and fires
+// before the sanitized check) when two raw instance IDs are byte-equal, so
+// the existing, more specific error is preserved.
+func TestLoad_SanitizedShardCollision_StillRejectsRawInstanceCollision(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "game"
+	pool_size = 2
+	[[shards]]
+	id = "game-2"
+	`
+
+	_, err := toml.Load(strings.NewReader(sample))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `"game-2"`)
+	require.Contains(t, err.Error(), `"game"`)
+	require.Contains(t, err.Error(), "pool_size") // raw-collision message, not the sanitize one
 }
