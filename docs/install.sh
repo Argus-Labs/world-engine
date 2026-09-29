@@ -4,7 +4,22 @@
 
 set -e
 
+deprecated() {
+	cat 1>&2 <<'EOF'
+Warning: this installer is deprecated. It installs the last binary release of World CLI,
+which no longer receives updates. World CLI now ships as a Go tool with World Engine.
+Create a project with:
+
+  go run github.com/argus-labs/world-engine/cli/cmd/world@latest setup my-game
+
+then run it inside the project with `go tool world`.
+
+EOF
+}
+
 main() {
+	deprecated
+
 	os=$(uname -s)
 	arch=$(uname -m)
 	version=${1:-latest}
