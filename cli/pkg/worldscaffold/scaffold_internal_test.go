@@ -8,6 +8,7 @@ import (
 	"time"
 
 	gogit "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -317,4 +318,63 @@ func (s *SetupCloneTestSuite) TestInstantiateTemplate_CleansUpPartialOnFailure()
 	require.Error(t, err) // no world.toml in the template
 	assert.Contains(t, err.Error(), "world.toml")
 	assert.NoDirExists(t, target) // partial output cleaned up
+}
+
+// validWorldTOML is a minimal world.toml that passes toml.Load validation
+// (organization, project, and a [[shards]] table), mirroring the schema of
+// pkg/template/basic/world.toml. It lets the branch-fallback tests reach the
+// full clone → copy → go.mod → world.toml path instead of failing at the
+// world.toml step.
+const validWorldTOML = `organization = "org"
+project = "project"
+
+[[shards]]
+id = "game"
+`
+
+// When version resolves to a branch name with no matching tag (the dev-build
+// case, where version.WorldEngine() returns "main"), InstantiateTemplate must
+// fall back to cloning the branch. go-git reports a missing tag as
+// NoMatchingRefSpecError, not plumbing.ErrReferenceNotFound, so the fallback's
+// error check must match both. This repo has a "main" branch but no "main" tag.
+func (s *SetupCloneTestSuite) TestInstantiateTemplate_BranchFallback_MainNoTag() {
+	t := s.T()
+
+	repoDir := t.TempDir()
+	repo, err := gogit.PlainInit(repoDir, false)
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Join(repoDir, "tmpl"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "tmpl", "main.go"), []byte("package main\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "tmpl", "world.toml"), []byte(validWorldTOML), 0o600))
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+	_, err = wt.Add(".")
+	require.NoError(t, err)
+	_, err = wt.Commit("init", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "t", Email: "t@example.com", When: time.Now()},
+	})
+	require.NoError(t, err)
+	require.NoError(t, wt.Checkout(&gogit.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName("main"),
+		Create: true,
+	}))
+
+	target := filepath.Join(t.TempDir(), "proj")
+	err = InstantiateTemplate(context.Background(), repoDir, "main", target, "tmpl")
+	require.NoError(t, err)
+	assert.DirExists(t, target)
+}
+
+// A non-refspec clone error (e.g. a nonexistent repository path) must NOT be
+// retried as a branch — the fallback only fires for "ref not found" errors, so
+// the error propagates wrapped as "failed to clone repository from <url>".
+func (s *SetupCloneTestSuite) TestInstantiateTemplate_NonRefspecErrorNotRetried() {
+	t := s.T()
+	target := filepath.Join(t.TempDir(), "proj")
+	err := InstantiateTemplate(context.Background(),
+		filepath.Join(t.TempDir(), "does-not-exist-repo"), "main", target, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to clone repository from")
+	assert.NotContains(t, err.Error(), "refs/heads/main") // no branch retry attempted
+	assert.NoDirExists(t, target)                         // cleanup still happens
 }
