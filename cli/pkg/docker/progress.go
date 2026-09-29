@@ -11,6 +11,7 @@ const (
 	StatePulled   State = "pulled"
 	StateBuilding State = "building"
 	StateBuilt    State = "built"
+	StateStarting State = "starting" // running but not yet ready; cardinal-editor shows this for unready shards
 	StateStarted  State = "started"
 	StateStopped  State = "stopped"
 )
