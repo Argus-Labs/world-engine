@@ -14,7 +14,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
@@ -262,12 +261,9 @@ func (w *World) Tick(timestamp time.Time) {
 	defer func() { w.tickCtx = context.Background() }()
 
 	w.currentTick.timestamp = timestamp
-	w.debug.startPerfTick()
 
 	// Advance the ECS world.
 	w.world.Tick()
-
-	w.debug.recordTick(w.currentTick.height, timestamp)
 
 	w.dispatchEvents(ctx)
 
@@ -399,7 +395,6 @@ func (w *World) reset() {
 	if w.debug != nil {
 		w.debug.publishState(w.encodeSnapshot(w.currentTick.timestamp))
 	}
-	w.debug.resetPerf()
 }
 
 type Tick struct {
@@ -454,24 +449,6 @@ func (w *World) RegisterSystem(s System, opts ...SystemOption) {
 			defer span.End()
 		}
 		s.Run(w)
-	}
-
-	// If debug is enabled, also record the run in the performance module.
-	if w.debug != nil {
-		traced := fn
-		fn = func() {
-			ts := w.currentTick.timestamp
-			startTime := ts.Add(time.Since(ts))
-			traced()
-			endTime := ts.Add(time.Since(ts))
-			w.debug.recordSpan(performance.TickSpan{
-				TickHeight: w.currentTick.height,
-				SystemName: name,
-				SystemHook: uint8(cfg.hook),
-				StartTime:  startTime,
-				EndTime:    endTime,
-			})
-		}
 	}
 
 	if err := w.world.RegisterSystem(name, cfg.hook, fn); err != nil {
