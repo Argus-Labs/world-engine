@@ -371,14 +371,6 @@ func fillImmutableSlice(prng *rand.Rand, v reflect.Value, liveEntityIDs []Entity
 // In-memory snapshot storage
 // -------------------------------------------------------------------------------------------------
 
-func (w *World) useSyncSnapshotStorage(store snapshot.Storage) {
-	if w.snapshotWriter != nil {
-		w.snapshotWriter.Stop(context.Background())
-	}
-	w.snapshotStorage = store
-	w.snapshotWriter = snapshot.NewSyncWriter(store, w.tel.GetLogger("snapshot"))
-}
-
 // memSnapshotStorage keeps the last snapshot in memory and checks the envelope on the way in.
 //
 // It must only be driven by the synchronous snapshot writer (World.useSyncSnapshotStorage), never by
