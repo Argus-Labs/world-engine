@@ -29,13 +29,13 @@ const worldEngineExamplePrefix = "github.com/argus-labs/world-engine/pkg/templat
 var goModTemplate string
 
 // Scaffold creates a new project at targetDir from the given template: it clones
-// and instantiates the template (see InstantiateTemplate) at the pinned World
-// Engine version, then tidies dependencies. It is the single entry point for
+// and instantiates the template (see InstantiateTemplate) at the World Engine
+// release this binary was built from, then tidies dependencies. It is the single entry point for
 // callers that don't manage the individual steps (e.g. the editor). On any
 // failure it leaves nothing behind — targetDir is removed so the name stays
 // retryable.
 func Scaffold(ctx context.Context, tmpl GameTemplate, targetDir string) error {
-	if err := InstantiateTemplate(ctx, tmpl.URL, version.WorldEngine, targetDir, tmpl.Subdir); err != nil {
+	if err := InstantiateTemplate(ctx, tmpl.URL, version.WorldEngine(), targetDir, tmpl.Subdir); err != nil {
 		return err
 	}
 	if err := Tidy(ctx, targetDir); err != nil {
@@ -166,6 +166,9 @@ func skipGitArtifacts(info os.FileInfo, src, _ string) (bool, error) {
 // createGoModIn creates a go.mod in the specified directory if one doesn't exist, requiring World Engine
 // at the version the template was cloned at. Without the requirement, go mod tidy resolves World Engine
 // to its latest release, and after a breaking release that no longer compiles the cloned template.
+//
+// The go.mod also declares the World CLI as a Go tool. The CLI ships in the world-engine module, so
+// `go tool world` always matches the World Engine release the project builds against.
 func createGoModIn(dir, moduleName, worldEngineVersion string) error {
 	goModPath := filepath.Join(dir, "go.mod")
 
@@ -272,8 +275,8 @@ func Tidy(ctx context.Context, projectDir string) error {
 	outStr := string(out)
 	if strings.Contains(outStr, "module for package github.com/argus-labs/world-engine/") ||
 		strings.Contains(outStr, "github.com/argus-labs/world-engine/pkg/cardinal") {
-		worldEngineURL := "github.com/argus-labs/world-engine/pkg/cardinal@" + version.WorldEngine
-		// #nosec G204 -- version.WorldEngine is a trusted constant
+		worldEngineURL := "github.com/argus-labs/world-engine/pkg/cardinal@" + version.WorldEngine()
+		// #nosec G204 -- version.WorldEngine is this binary's own module version
 		if _, getErr := goCommand(ctx, absDir, "get", worldEngineURL).CombinedOutput(); getErr != nil {
 			return prettifyGoToolError(outStr)
 		}

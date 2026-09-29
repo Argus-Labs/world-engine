@@ -14,7 +14,7 @@ This guide provides information for developers who want to contribute to the Wor
 
 ### Clone the Repository
 
-World CLI is a nested Go module in the World Engine repository. Clone it:
+World CLI lives in the `cli/` directory of the World Engine repository and is part of its Go module. Clone it:
 
 ```bash
 git clone https://github.com/Argus-Labs/world-engine.git

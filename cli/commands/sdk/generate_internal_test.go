@@ -10,8 +10,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/argus-labs/world-engine/cli/pkg/version"
 )
 
 // captureStdout captures os.Stdout output produced by fn and returns it as a string. It reassigns the
@@ -299,17 +297,12 @@ func TestPrintEngineCheckForTarget(t *testing.T) {
 	})
 }
 
-// TestPrintEngineCheckTargetsScaffoldedRelease pins that the check compares against version.WorldEngine,
-// the release world-cli scaffolds and generates for, not the world-engine world-cli links. Captures
+// TestPrintEngineCheckSkipsDevelopmentBuild pins that a world-cli built without a world-engine release
+// (tests, or a checkout) prints no verdict instead of comparing against its "main" target. Captures
 // os.Stdout, so it MUST NOT run in parallel.
-func TestPrintEngineCheckTargetsScaffoldedRelease(t *testing.T) {
-	run := func(ver string) string {
-		dir := t.TempDir()
-		writeGoMod(t, dir, "module ex/mygame\n\ngo 1.22\n\nrequire "+worldEngineModule+" "+ver+"\n")
-		return strings.TrimSpace(stripANSI(captureStdout(t, func() { printEngineCheck(dir) })))
-	}
+func TestPrintEngineCheckSkipsDevelopmentBuild(t *testing.T) {
+	dir := t.TempDir()
+	writeGoMod(t, dir, "module ex/mygame\n\ngo 1.22\n\nrequire "+worldEngineModule+" v0.11.2\n")
 
-	assert.Equal(t, "✔ ✓ world-engine "+version.WorldEngine+" — compatible (world-cli targets "+version.WorldEngine+")",
-		run(version.WorldEngine))
-	assert.Contains(t, run("v0.11.2"), "world-engine v0.11.2 is older than "+version.WorldEngine)
+	assert.Empty(t, strings.TrimSpace(stripANSI(captureStdout(t, func() { printEngineCheck(dir) }))))
 }

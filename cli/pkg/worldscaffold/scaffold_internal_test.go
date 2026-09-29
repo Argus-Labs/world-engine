@@ -28,7 +28,6 @@ func TestSetupCloneTestSuite(t *testing.T) {
 
 func (s *SetupCloneTestSuite) TestInstantiateTemplate_DirectoryExists() {
 	t := s.T()
-	t.Parallel()
 
 	existingDir := filepath.Join(t.TempDir(), "exists")
 	require.NoError(t, os.MkdirAll(existingDir, 0o755))
@@ -48,7 +47,6 @@ func (s *SetupCloneTestSuite) TestInstantiateTemplate_DirectoryExists() {
 
 func (s *SetupCloneTestSuite) TestScaffold_DirectoryExists() {
 	t := s.T()
-	t.Parallel()
 
 	existingDir := filepath.Join(t.TempDir(), "exists")
 	require.NoError(t, os.MkdirAll(existingDir, 0o755))
@@ -74,7 +72,6 @@ func (s *SetupCloneTestSuite) TestScaffold_DirectoryExists() {
 
 func (s *SetupCloneTestSuite) TestCopyTemplateDirectory_SkipsGitAndGitkeep() {
 	t := s.T()
-	t.Parallel()
 
 	src := t.TempDir()
 	dst := filepath.Join(t.TempDir(), "dst")
@@ -95,7 +92,6 @@ func (s *SetupCloneTestSuite) TestCopyTemplateDirectory_SkipsGitAndGitkeep() {
 
 func (s *SetupCloneTestSuite) TestCopyTemplateDirectory_PreservesSubdirectories() {
 	t := s.T()
-	t.Parallel()
 
 	src := t.TempDir()
 	dst := filepath.Join(t.TempDir(), "dst")
@@ -116,7 +112,6 @@ func (s *SetupCloneTestSuite) TestCopyTemplateDirectory_PreservesSubdirectories(
 
 func (s *SetupCloneTestSuite) TestSkipGitArtifacts_SkipsGitDir() {
 	t := s.T()
-	t.Parallel()
 
 	info, err := os.Stat(t.TempDir())
 	require.NoError(t, err)
@@ -128,7 +123,6 @@ func (s *SetupCloneTestSuite) TestSkipGitArtifacts_SkipsGitDir() {
 
 func (s *SetupCloneTestSuite) TestSkipGitArtifacts_SkipsGitkeep() {
 	t := s.T()
-	t.Parallel()
 
 	// Create a temp file to get file info
 	tmpFile := filepath.Join(t.TempDir(), ".gitkeep")
@@ -144,7 +138,6 @@ func (s *SetupCloneTestSuite) TestSkipGitArtifacts_SkipsGitkeep() {
 
 func (s *SetupCloneTestSuite) TestSkipGitArtifacts_AllowsRegularFiles() {
 	t := s.T()
-	t.Parallel()
 
 	tmpFile := filepath.Join(t.TempDir(), "main.go")
 	require.NoError(t, os.WriteFile(tmpFile, []byte("package main"), 0o644))
@@ -163,26 +156,25 @@ func (s *SetupCloneTestSuite) TestSkipGitArtifacts_AllowsRegularFiles() {
 
 func (s *SetupCloneTestSuite) TestCreateGoModIn_CreatesWhenMissing() {
 	t := s.T()
-	t.Parallel()
 	dir := t.TempDir()
 
-	err := createGoModIn(dir, "example.com/mymod", "v0.17.0")
+	err := createGoModIn(dir, "example.com/mymod", "v0.18.0")
 	require.NoError(t, err)
 
 	data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 	require.NoError(t, err)
 	assert.Equal(t, "module example.com/mymod\n\ngo 1.27.1\n\n"+
-		"require github.com/argus-labs/world-engine v0.17.0\n", string(data))
+		"require github.com/argus-labs/world-engine v0.18.0\n\n"+
+		"tool github.com/argus-labs/world-engine/cli/cmd/world\n", string(data))
 }
 
 func (s *SetupCloneTestSuite) TestCreateGoModIn_SkipsWhenExists() {
 	t := s.T()
-	t.Parallel()
 	dir := t.TempDir()
 	goModPath := filepath.Join(dir, "go.mod")
 	require.NoError(t, os.WriteFile(goModPath, []byte("module keep.me\n"), 0o644))
 
-	err := createGoModIn(dir, "example.com/ignored", "v0.17.0")
+	err := createGoModIn(dir, "example.com/ignored", "v0.18.0")
 	require.NoError(t, err)
 
 	data, err := os.ReadFile(goModPath)
@@ -196,7 +188,6 @@ func (s *SetupCloneTestSuite) TestCreateGoModIn_SkipsWhenExists() {
 
 func (s *SetupCloneTestSuite) TestRewriteImportsIn_RewritesExampleImports() {
 	t := s.T()
-	t.Parallel()
 	dir := t.TempDir()
 
 	src := `package x
@@ -223,7 +214,6 @@ import (
 
 func (s *SetupCloneTestSuite) TestRewriteImportsIn_PreservesUnrelatedImports() {
 	t := s.T()
-	t.Parallel()
 	dir := t.TempDir()
 
 	src := `package x
@@ -244,7 +234,6 @@ func main() { fmt.Println("hello") }
 
 func (s *SetupCloneTestSuite) TestRewriteImportsIn_SkipsGitDirectory() {
 	t := s.T()
-	t.Parallel()
 	dir := t.TempDir()
 
 	// Create a .git directory with a Go file (should be skipped)
@@ -270,7 +259,6 @@ import "github.com/argus-labs/world-engine/pkg/template/basic/other_world"
 
 func (s *SetupCloneTestSuite) TestPrettifyGoToolError_PrivateModule() {
 	t := s.T()
-	t.Parallel()
 
 	err := prettifyGoToolError("fatal: could not read Username: terminal prompts disabled")
 
@@ -279,7 +267,6 @@ func (s *SetupCloneTestSuite) TestPrettifyGoToolError_PrivateModule() {
 
 func (s *SetupCloneTestSuite) TestPrettifyGoToolError_SumDBLookup() {
 	t := s.T()
-	t.Parallel()
 
 	err := prettifyGoToolError("verifying module: sum.golang.org/lookup failed")
 
@@ -288,7 +275,6 @@ func (s *SetupCloneTestSuite) TestPrettifyGoToolError_SumDBLookup() {
 
 func (s *SetupCloneTestSuite) TestPrettifyGoToolError_TruncatesMultiline() {
 	t := s.T()
-	t.Parallel()
 
 	err := prettifyGoToolError("first line error\nsecond line\nthird line")
 
@@ -297,7 +283,6 @@ func (s *SetupCloneTestSuite) TestPrettifyGoToolError_TruncatesMultiline() {
 
 func (s *SetupCloneTestSuite) TestPrettifyGoToolError_SingleLine() {
 	t := s.T()
-	t.Parallel()
 
 	err := prettifyGoToolError("some error message")
 
@@ -310,7 +295,6 @@ func (s *SetupCloneTestSuite) TestPrettifyGoToolError_SingleLine() {
 // directory has already been created).
 func (s *SetupCloneTestSuite) TestInstantiateTemplate_CleansUpPartialOnFailure() {
 	t := s.T()
-	t.Parallel()
 
 	repoDir := t.TempDir()
 	repo, err := gogit.PlainInit(repoDir, false)

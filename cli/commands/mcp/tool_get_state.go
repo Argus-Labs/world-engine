@@ -57,11 +57,10 @@ type GetStateOutput struct {
 	Entities     []EntityState `json:"entities"            jsonschema_description:"Matching entities with their component data"`
 }
 
-// EntityState is one entity flattened out of the snapshot's archetype tables.
+// EntityState is one entity from the snapshot with its decoded components.
 type EntityState struct {
-	ID          uint32         `json:"id"           jsonschema_description:"Entity ID"`
-	ArchetypeID int32          `json:"archetype_id" jsonschema_description:"Archetype the entity belongs to"`
-	Components  map[string]any `json:"components"   jsonschema_description:"Component data keyed by component name"`
+	ID         uint32         `json:"id"         jsonschema_description:"Entity ID"`
+	Components map[string]any `json:"components" jsonschema_description:"Component data keyed by component name"`
 }
 
 // registerGetStateTool registers the get_state tool. It reads a shard's current
@@ -150,7 +149,7 @@ func getStateHandler(
 
 // stateFilter is the compiled form of the find/match/where inputs.
 type stateFilter struct {
-	find  map[string]struct{} // requested component names; empty matches every archetype
+	find  map[string]struct{} // requested component names; empty matches every entity
 	match string
 	where *vm.Program // nil when no where expression was given
 	// Components the where expression reads fields from (e.g. "Health" in 'Health.HP > 50'). An
@@ -225,25 +224,22 @@ func (v *fieldReadVisitor) Visit(node *ast.Node) {
 	}
 }
 
-// matchesArchetype reports whether an archetype's component set satisfies
-// find/match. Every entity in an archetype shares its component set, so this is
-// decided once per archetype rather than per entity — the same way the engine
-// narrows to archetypes before iterating.
-func (f stateFilter) matchesArchetype(columns []*cardinalv1.Column) bool {
+// matchesComponents reports whether an entity's component set satisfies find/match.
+func (f stateFilter) matchesComponents(names []string) bool {
 	if len(f.find) == 0 {
 		return true
 	}
 	found := 0
-	for _, col := range columns {
-		if _, ok := f.find[col.GetComponentName()]; ok {
+	for _, name := range names {
+		if _, ok := f.find[name]; ok {
 			found++
 		}
 	}
 	if found != len(f.find) {
-		return false // archetype is missing at least one requested component
+		return false // entity is missing at least one requested component
 	}
 	// "contains" is now satisfied; exact additionally forbids extra components.
-	return f.match != matchExact || len(columns) == len(f.find)
+	return f.match != matchExact || len(names) == len(f.find)
 }
 
 // matchesWhere evaluates the where expression against one entity. The
@@ -279,11 +275,10 @@ type flattenResult struct {
 	total    int // entities in the world, before filtering
 }
 
-// flattenWorldState turns the snapshot's archetype tables into a per-entity
-// view, keeping only entities the filter accepts and at most limit of them.
-// Each archetype stores its entities and component columns as dense parallel
-// arrays, so entity i owns index i of every column. A negative limit keeps
-// every match.
+// flattenWorldState turns the snapshot into a per-entity view, keeping only
+// entities the filter accepts and at most limit of them. Each entity lists its
+// components as indices into the snapshot's name table, with one payload per
+// component in the same order. A negative limit keeps every match.
 func flattenWorldState(
 	ws *cardinalv1.WorldState,
 	limit int,
@@ -291,67 +286,74 @@ func flattenWorldState(
 	descriptors componentDescriptors,
 ) (flattenResult, error) {
 	result := flattenResult{entities: make([]EntityState, 0)}
+	table := ws.GetComponents()
+	entities := ws.GetEntities()
+	result.total = len(entities)
 
-	for _, arch := range ws.GetArchetypes() {
-		ids := arch.GetEntities()
-		result.total += len(ids)
-
-		columns := arch.GetColumns()
-		if !filter.matchesArchetype(columns) {
+	for _, entity := range entities {
+		names, err := componentNames(table, entity.GetComponents())
+		if err != nil {
+			return flattenResult{}, err
+		}
+		if !filter.matchesComponents(names) {
 			continue
 		}
 
-		for i, id := range ids {
-			atLimit := limit >= 0 && len(result.entities) >= limit
+		atLimit := limit >= 0 && len(result.entities) >= limit
 
-			// Past the limit with no where clause every remaining entity matches,
-			// so it can only move the count — decoding its components would be
-			// thrown away. On a large world this is the difference between
-			// decoding the whole snapshot and decoding one page of it.
-			if atLimit && filter.where == nil {
-				result.matched++
-				continue
-			}
-
-			components := componentsAt(columns, i, descriptors)
-
-			ok, err := filter.matchesWhere(id, components)
-			if err != nil {
-				return flattenResult{}, err
-			}
-			if !ok {
-				continue
-			}
-
+		// Past the limit with no where clause every remaining entity that passed
+		// find/match matches, so it can only move the count — decoding its
+		// components would be thrown away. On a large world this is the difference
+		// between decoding the whole snapshot and decoding one page of it.
+		if atLimit && filter.where == nil {
 			result.matched++
-			if atLimit {
-				continue // keep counting so the caller learns the real match count
-			}
-			result.entities = append(result.entities, EntityState{
-				ID:          id,
-				ArchetypeID: arch.GetId(),
-				Components:  components,
-			})
+			continue
 		}
+
+		components := entityComponents(names, entity.GetPayloads(), descriptors)
+
+		ok, err := filter.matchesWhere(entity.GetId(), components)
+		if err != nil {
+			return flattenResult{}, err
+		}
+		if !ok {
+			continue
+		}
+
+		result.matched++
+		if atLimit {
+			continue // keep counting so the caller learns the real match count
+		}
+		result.entities = append(result.entities, EntityState{ID: entity.GetId(), Components: components})
 	}
 	return result, nil
 }
 
-// componentsAt collects row i from each of an archetype's component columns. Column data is
-// protobuf wire bytes, decoded against the component's registered descriptor. A component with no
-// descriptor, or a blob that won't decode, is passed through as raw bytes rather than failing the
-// whole read.
-func componentsAt(columns []*cardinalv1.Column, i int, descriptors componentDescriptors) map[string]any {
-	components := make(map[string]any, len(columns))
-	for _, col := range columns {
-		blobs := col.GetComponents()
-		if i >= len(blobs) {
-			continue // column shorter than the entity list; nothing stored for this row
+// componentNames resolves an entity's component indices through the snapshot's name table.
+func componentNames(table []string, indices []uint32) ([]string, error) {
+	names := make([]string, len(indices))
+	for i, idx := range indices {
+		if int(idx) >= len(table) {
+			return nil, eris.Errorf("snapshot entity references component %d, but the name table has %d entries",
+				idx, len(table))
 		}
-		name := col.GetComponentName()
-		var value any = blobs[i]
+		names[i] = table[idx]
+	}
+	return names, nil
+}
+
+// entityComponents pairs an entity's component names with its payloads. Payloads are protobuf wire
+// bytes, decoded against the component's registered descriptor. A component with no descriptor, or a
+// payload that won't decode, is passed through as raw bytes rather than failing the whole read.
+func entityComponents(names []string, payloads [][]byte, descriptors componentDescriptors) map[string]any {
+	components := make(map[string]any, len(names))
+	for i, name := range names {
+		if i >= len(payloads) {
+			break // fewer payloads than components; nothing stored for the rest
+		}
+		var value any = payloads[i]
 		if md, ok := descriptors[name]; ok {
-			if decoded, err := decodeMessage(md, blobs[i]); err == nil {
+			if decoded, err := decodeMessage(md, payloads[i]); err == nil {
 				value = decoded
 			}
 		}

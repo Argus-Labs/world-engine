@@ -327,7 +327,7 @@ func stateDescriptors(t *testing.T) componentDescriptors {
 	}
 }
 
-// componentBlob encodes a component value as the protobuf wire bytes a snapshot column stores.
+// componentBlob encodes a component value as the protobuf wire bytes a snapshot payload stores.
 func componentBlob(t *testing.T, descriptors componentDescriptors, name string, value int) []byte {
 	t.Helper()
 	field := map[string]string{"Health": "HP", "Position": "X"}[name]
@@ -336,42 +336,31 @@ func componentBlob(t *testing.T, descriptors componentDescriptors, name string, 
 	return blob
 }
 
-// twoArchetypeWorld has Health+Position entities (7, 9) and a Health-only entity (11).
-func twoArchetypeWorld(t *testing.T, descriptors componentDescriptors) *cardinalv1.WorldState {
+// sampleWorld has Health+Position entities (7, 9) and a Health-only entity (11).
+func sampleWorld(t *testing.T, descriptors componentDescriptors) *cardinalv1.WorldState {
 	t.Helper()
 	blob := func(name string, value int) []byte { return componentBlob(t, descriptors, name, value) }
 	return &cardinalv1.WorldState{
-		Archetypes: []*cardinalv1.Archetype{
-			{
-				Id:       3,
-				Entities: []uint32{7, 9},
-				Columns: []*cardinalv1.Column{
-					{ComponentName: "Health", Components: [][]byte{blob("Health", 10), blob("Health", 80)}},
-					{ComponentName: "Position", Components: [][]byte{blob("Position", 1), blob("Position", 2)}},
-				},
-			},
-			{
-				Id:       4,
-				Entities: []uint32{11},
-				Columns: []*cardinalv1.Column{
-					{ComponentName: "Health", Components: [][]byte{blob("Health", 55)}},
-				},
-			},
+		NextId:     12,
+		Components: []string{"Health", "Position"},
+		Entities: []*cardinalv1.Entity{
+			{Id: 7, Components: []uint32{0, 1}, Payloads: [][]byte{blob("Health", 10), blob("Position", 1)}},
+			{Id: 9, Components: []uint32{0, 1}, Payloads: [][]byte{blob("Health", 80), blob("Position", 2)}},
+			{Id: 11, Components: []uint32{0}, Payloads: [][]byte{blob("Health", 55)}},
 		},
 	}
 }
 
-func TestFlattenWorldState_FlattensArchetypesPerEntity(t *testing.T) {
+func TestFlattenWorldState_FlattensEntities(t *testing.T) {
 	t.Parallel()
 	descriptors := stateDescriptors(t)
-	got, err := flattenWorldState(twoArchetypeWorld(t, descriptors), -1, noFilter(t), descriptors)
+	got, err := flattenWorldState(sampleWorld(t, descriptors), -1, noFilter(t), descriptors)
 
 	require.NoError(t, err)
 	require.Len(t, got.entities, 3)
 	assert.Equal(t, 3, got.total)
 	assert.Equal(t, 3, got.matched)
 	assert.Equal(t, uint32(7), got.entities[0].ID)
-	assert.Equal(t, int32(3), got.entities[0].ArchetypeID)
 	assert.Equal(t, map[string]any{"HP": int64(10)}, got.entities[0].Components["Health"])
 	assert.Equal(t, map[string]any{"X": int64(1)}, got.entities[0].Components["Position"])
 }
@@ -379,7 +368,7 @@ func TestFlattenWorldState_FlattensArchetypesPerEntity(t *testing.T) {
 func TestFlattenWorldState_LimitTruncatesButCountsStayWhole(t *testing.T) {
 	t.Parallel()
 	descriptors := stateDescriptors(t)
-	got, err := flattenWorldState(twoArchetypeWorld(t, descriptors), 2, noFilter(t), descriptors)
+	got, err := flattenWorldState(sampleWorld(t, descriptors), 2, noFilter(t), descriptors)
 
 	require.NoError(t, err)
 	require.Len(t, got.entities, 2)
@@ -398,13 +387,13 @@ func TestFlattenWorldState_EmptyWorld(t *testing.T) {
 	assert.Equal(t, 0, got.matched)
 }
 
-func TestFlattenWorldState_FindContainsKeepsSupersetArchetypes(t *testing.T) {
+func TestFlattenWorldState_FindContainsKeepsSupersetEntities(t *testing.T) {
 	t.Parallel()
 	descriptors := stateDescriptors(t)
 	filter, err := compileStateFilter(GetStateInput{Find: []string{"Health"}})
 	require.NoError(t, err)
 
-	got, err := flattenWorldState(twoArchetypeWorld(t, descriptors), -1, filter, descriptors)
+	got, err := flattenWorldState(sampleWorld(t, descriptors), -1, filter, descriptors)
 
 	require.NoError(t, err)
 	// Both archetypes carry Health, so contains keeps all three entities.
@@ -418,7 +407,7 @@ func TestFlattenWorldState_FindExactRejectsExtraComponents(t *testing.T) {
 	filter, err := compileStateFilter(GetStateInput{Find: []string{"Health"}, Match: matchExact})
 	require.NoError(t, err)
 
-	got, err := flattenWorldState(twoArchetypeWorld(t, descriptors), -1, filter, descriptors)
+	got, err := flattenWorldState(sampleWorld(t, descriptors), -1, filter, descriptors)
 
 	require.NoError(t, err)
 	// Only the Health-only archetype qualifies; Health+Position has an extra.
@@ -434,7 +423,7 @@ func TestFlattenWorldState_WhereFiltersOnComponentField(t *testing.T) {
 	filter, err := compileStateFilter(GetStateInput{Where: "Health.HP > 50"})
 	require.NoError(t, err)
 
-	got, err := flattenWorldState(twoArchetypeWorld(t, descriptors), -1, filter, descriptors)
+	got, err := flattenWorldState(sampleWorld(t, descriptors), -1, filter, descriptors)
 
 	require.NoError(t, err)
 	require.Len(t, got.entities, 2)
@@ -451,7 +440,7 @@ func TestFlattenWorldState_WhereSkipsEntitiesMissingReadComponent(t *testing.T) 
 	filter, err := compileStateFilter(GetStateInput{Where: "Position.X > 0"})
 	require.NoError(t, err)
 
-	got, err := flattenWorldState(twoArchetypeWorld(t, descriptors), -1, filter, descriptors)
+	got, err := flattenWorldState(sampleWorld(t, descriptors), -1, filter, descriptors)
 
 	require.NoError(t, err)
 	require.Len(t, got.entities, 2)
@@ -468,7 +457,7 @@ func TestFlattenWorldState_WhereBareNilCheckMatchesAbsence(t *testing.T) {
 	filter, err := compileStateFilter(GetStateInput{Where: "Position == nil"})
 	require.NoError(t, err)
 
-	got, err := flattenWorldState(twoArchetypeWorld(t, descriptors), -1, filter, descriptors)
+	got, err := flattenWorldState(sampleWorld(t, descriptors), -1, filter, descriptors)
 
 	require.NoError(t, err)
 	require.Len(t, got.entities, 1)
@@ -491,7 +480,7 @@ func TestFlattenWorldState_WhereCanUseEntityID(t *testing.T) {
 	filter, err := compileStateFilter(GetStateInput{Where: "_id == 11"})
 	require.NoError(t, err)
 
-	got, err := flattenWorldState(twoArchetypeWorld(t, descriptors), -1, filter, descriptors)
+	got, err := flattenWorldState(sampleWorld(t, descriptors), -1, filter, descriptors)
 
 	require.NoError(t, err)
 	require.Len(t, got.entities, 1)
@@ -507,7 +496,7 @@ func TestFlattenWorldState_WhereAndFindCombine(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	got, err := flattenWorldState(twoArchetypeWorld(t, descriptors), -1, filter, descriptors)
+	got, err := flattenWorldState(sampleWorld(t, descriptors), -1, filter, descriptors)
 
 	require.NoError(t, err)
 	// Entity 11 passes where but lacks Position; entity 9 passes both.
@@ -523,7 +512,7 @@ func TestFlattenWorldState_WhereNonBooleanIsAnError(t *testing.T) {
 	filter, err := compileStateFilter(GetStateInput{Where: "Health.HP"})
 	require.NoError(t, err)
 
-	_, err = flattenWorldState(twoArchetypeWorld(t, descriptors), -1, filter, descriptors)
+	_, err = flattenWorldState(sampleWorld(t, descriptors), -1, filter, descriptors)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "where clause")
@@ -553,44 +542,47 @@ func TestCompileStateFilter_RejectsUnparsableWhere(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to parse where clause")
 }
 
-func TestComponentsAt_DecodesAgainstDescriptors(t *testing.T) {
+func TestFlattenWorldState_RejectsComponentIndexOutsideNameTable(t *testing.T) {
 	t.Parallel()
-	descriptors := stateDescriptors(t)
-	columns := []*cardinalv1.Column{
-		{ComponentName: "Health", Components: [][]byte{
-			componentBlob(t, descriptors, "Health", 1),
-			componentBlob(t, descriptors, "Health", 42),
-		}},
-		{ComponentName: "Position", Components: [][]byte{
-			componentBlob(t, descriptors, "Position", 3),
-			componentBlob(t, descriptors, "Position", 4),
-		}},
+	ws := &cardinalv1.WorldState{
+		Components: []string{"Health"},
+		Entities:   []*cardinalv1.Entity{{Id: 1, Components: []uint32{1}, Payloads: [][]byte{nil}}},
 	}
 
-	got := componentsAt(columns, 1, descriptors)
+	_, err := flattenWorldState(ws, -1, noFilter(t), stateDescriptors(t))
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "snapshot entity references component 1, but the name table has 1 entries")
+}
+
+func TestEntityComponents_DecodesAgainstDescriptors(t *testing.T) {
+	t.Parallel()
+	descriptors := stateDescriptors(t)
+
+	got := entityComponents([]string{"Health", "Position"}, [][]byte{
+		componentBlob(t, descriptors, "Health", 42),
+		componentBlob(t, descriptors, "Position", 4),
+	}, descriptors)
 
 	assert.Equal(t, map[string]any{"HP": int64(42)}, got["Health"])
 	assert.Equal(t, map[string]any{"X": int64(4)}, got["Position"])
 }
 
-func TestComponentsAt_SkipsShortColumnAndKeepsUndecodableBlobRaw(t *testing.T) {
+func TestEntityComponents_SkipsMissingPayloadAndKeepsUndecodableRaw(t *testing.T) {
 	t.Parallel()
 	descriptors := stateDescriptors(t)
 	// "Broken" resolves to a descriptor, so it exercises a failed decode rather than a missing type.
 	descriptors["Broken"] = descriptors["Health"]
 	undecodable := []byte{0xff, 0xff, 0xff} // field 31 with wire type 7, which does not exist
-	columns := []*cardinalv1.Column{
-		{ComponentName: "Health", Components: [][]byte{componentBlob(t, descriptors, "Health", 1)}},
-		// Shorter than the entity list — nothing stored at row 1.
-		{ComponentName: "Missing", Components: [][]byte{}},
-		{ComponentName: "Broken", Components: [][]byte{nil, undecodable}},
-		// Registered by the world but absent from the descriptor set.
-		{ComponentName: "Unknown", Components: [][]byte{nil, {0x01, 0x02}}},
-	}
 
-	got := componentsAt(columns, 1, descriptors)
+	got := entityComponents(
+		// "Unknown" is registered by the world but absent from the descriptor set. "Missing" has no
+		// payload at all.
+		[]string{"Broken", "Unknown", "Missing"},
+		[][]byte{undecodable, {0x01, 0x02}},
+		descriptors,
+	)
 
-	assert.NotContains(t, got, "Health")
 	assert.NotContains(t, got, "Missing")
 	// No descriptor and a failed decode both fall back to the raw bytes.
 	assert.Equal(t, undecodable, got["Broken"])
@@ -605,7 +597,7 @@ func TestFlattenWorldState_WhereWithLimitStillCountsEveryMatch(t *testing.T) {
 	filter, err := compileStateFilter(GetStateInput{Where: "Health.HP > 5"})
 	require.NoError(t, err)
 
-	got, err := flattenWorldState(twoArchetypeWorld(t, descriptors), 1, filter, descriptors)
+	got, err := flattenWorldState(sampleWorld(t, descriptors), 1, filter, descriptors)
 
 	require.NoError(t, err)
 	require.Len(t, got.entities, 1)

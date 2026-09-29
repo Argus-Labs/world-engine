@@ -6,17 +6,17 @@ toolchains:
 
 tasks:
   lint:
-    description: 'Lint the World CLI module'
+    description: 'Lint the World CLI'
     command: '../bin/tools/golangci-lint run --timeout 10m ./...'
     deps: ['world-engine:setup-lint']
-    inputs: ['**/*.go', 'go.mod', 'go.sum', '.golangci.yaml', 'moon.yml']
+    inputs: ['**/*.go', '/go.mod', '/go.sum', '.golangci.yaml', 'moon.yml']
   test:
     description: 'Run World CLI unit tests'
     command: 'go test ./...'
   test-ci:
     description: 'Run World CLI unit tests with coverage'
     command: 'go test -coverprofile coverage.out -covermode atomic ./...'
-    inputs: ['**/*.go', 'go.mod', 'go.sum', 'moon.yml']
+    inputs: ['**/*.go', '/go.mod', '/go.sum', 'moon.yml']
     outputs: ['coverage.out']
     options:
       runInCI: true

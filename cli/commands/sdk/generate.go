@@ -486,9 +486,9 @@ const worldEngineModule = "github.com/argus-labs/world-engine"
 // rather than warns. This is what `go build` resolves; the previous require-only read produced false
 // "older than target / won't compile" warnings for fork replaces and a dead local-replace skip branch.
 func printEngineCheck(dir string) {
-	// The target is the release world-cli scaffolds new projects from, whose API sdkgen discovers. Not
-	// the world-engine this binary links: that is the monorepo's own pin, which other apps hold back.
-	printEngineCheckForTarget(dir, version.WorldEngine)
+	// The target is the world-engine release this binary was built from: the CLI ships in that module,
+	// so it is also the release world-cli scaffolds from and whose API sdkgen discovers.
+	printEngineCheckForTarget(dir, version.WorldEngine())
 }
 
 // printEngineCheckForTarget is printEngineCheck with an explicit target, so the comparison logic can be

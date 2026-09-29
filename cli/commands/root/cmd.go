@@ -26,7 +26,6 @@ type Cmd struct {
 	Setup   *SetupCmd        `cmd:"" group:"Getting Started:"   help:"Setup a new World Engine project"`
 	Docs    *DocsCmd         `cmd:"" group:"Getting Started:"   help:"Open the World CLI documentation"`
 	Doctor  *DoctorCmd       `cmd:"" group:"Getting Started:"   help:"Check your development environment"`
-	Update  *UpdateCmd       `cmd:"" group:"Getting Started:"   help:"Update the World CLI to the latest version"`
 	Start   *StartCmd        `cmd:"" group:"Cardinal Commands:" help:"Launch your Cardinal game environment"`
 	Stop    *StopCmd         `cmd:"" group:"Cardinal Commands:" help:"Gracefully shut down your Cardinal game environment"`
 	Purge   *PurgeCmd        `cmd:"" group:"Cardinal Commands:" help:"Reset your Cardinal game shard to a clean state by removing all data and containers"`

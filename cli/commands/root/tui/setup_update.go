@@ -231,7 +231,7 @@ func (m WorldSetupModel) cloneTemplateCmd() tea.Cmd {
 		err := worldscaffold.InstantiateTemplate(
 			context.Background(),
 			m.selectedTemplate.URL,
-			version.WorldEngine,
+			version.WorldEngine(),
 			m.projectNameInput.Value(),
 			m.selectedTemplate.Subdir,
 		)

@@ -2,11 +2,11 @@
 <img alt="World CLI Logo" src="https://i.imgur.com/XM74ODi.png" width="378">
 <p>A swiss army knife for creating, managing, and deploying World Engine projects</p>
   <p>
-    <a href="https://codecov.io/gh/Argus-Labs/world-cli" >
-    <img alt="Codecov" src="https://codecov.io/gh/Argus-Labs/world-cli/branch/main/graph/badge.svg?token=XMH4P082HZ"/>
+    <a href="https://codecov.io/gh/Argus-Labs/world-engine" >
+    <img alt="Codecov" src="https://codecov.io/gh/Argus-Labs/world-engine/branch/main/graph/badge.svg"/>
     </a>
-    <a href="https://goreportcard.com/report/pkg.world.dev/world-cli">
-    <img alt="Go Report Card" src="https://goreportcard.com/badge/pkg.world.dev/world-cli">
+    <a href="https://goreportcard.com/report/github.com/argus-labs/world-engine/cli">
+    <img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/argus-labs/world-engine/cli">
     </a>
     <a href="https://t.me/worldengine_dev" target="_blank">
     <img alt="Telegram Chat" src="https://img.shields.io/endpoint?color=neon&logo=telegram&label=chat&url=https%3A%2F%2Ftg.sumanjay.workers.dev%2Fworldengine_dev">
@@ -35,35 +35,30 @@ World CLI is a comprehensive command-line tool for managing World Engine project
 
 ## Installation
 
-Before installing World CLI, you'll need to have Go installed on your system.
-If you haven't installed Go yet, follow the official [Go installation guide](https://go.dev/doc/install) to get started.
+World CLI is a [Go tool](https://go.dev/doc/modules/managing-dependencies#tools). You need [Go](https://go.dev/doc/install) 1.27.1 or later.
 
 **Windows Users:** Windows Subsystem for Linux 2 (WSL2) is required for running World CLI on Windows.
 
-### World CLI Installation
+The CLI ships in the `github.com/argus-labs/world-engine` module, so a project's CLI is always the same version as the World Engine it builds against. Projects created with `world setup` already declare it. To create your first project:
 
-**Download from GitHub Releases:**
-
-Visit [https://github.com/Argus-Labs/world-cli/releases](https://github.com/Argus-Labs/world-cli/releases) to download the latest release for your platform.
-
-**Linux:**
 ```shell
-curl -L https://github.com/Argus-Labs/world-cli/releases/download/{@latest}/world-cli_Linux_x86_64.tar.gz | tar -xz
-sudo mv world /usr/local/bin/
+go run github.com/argus-labs/world-engine/cli/cmd/world@latest setup
 ```
 
-**macOS:**
+To add it to an existing project at the project's World Engine version:
+
 ```shell
-curl -L https://github.com/Argus-Labs/world-cli/releases/download/{@latest}/world-cli_Darwin_x86_64.tar.gz | tar -xz
-sudo mv world /usr/local/bin/
+go mod edit -tool=github.com/argus-labs/world-engine/cli/cmd/world
+go mod tidy
+go tool world --help
 ```
 
-**Windows:**
-```powershell
-Invoke-WebRequest -Uri "https://github.com/Argus-Labs/world-cli/releases/download/{@latest}/world-cli_Windows_x86_64.zip" -OutFile "world-cli.zip"
-Expand-Archive -Path "world-cli.zip" -DestinationPath "$env:USERPROFILE\go\bin" -Force
-Remove-Item "world-cli.zip"
-```
+Upgrading World Engine (`go get github.com/argus-labs/world-engine@latest`) upgrades the CLI with it.
+
+The examples below use `world`. Inside a project, run them as `go tool world`, or add `alias world='go tool world'` to your shell profile.
+
+> [!NOTE]
+> The `install.world.dev` install scripts and GitHub release binaries are deprecated. They install the last binary release (v2.5.1) and no longer receive updates.
 
 <br/>
 
@@ -244,9 +239,9 @@ World CLI manages the complete deployment lifecycle:
 
 ### Common Issues
 
-**"Command not found"**
-- Ensure the binary is in your PATH (`/usr/local/bin/` for Linux/macOS, `$env:USERPROFILE\go\bin` for Windows)
-- Try downloading the latest release from [GitHub Releases](https://github.com/Argus-Labs/world-cli/releases)
+**"no such tool" or "Command not found"**
+- Run `go tool world` from inside a project whose `go.mod` declares the tool
+- Add it with `go mod edit -tool=github.com/argus-labs/world-engine/cli/cmd/world && go mod tidy`
 
 **Authentication errors**
 - Run `world login` to re-authenticate
@@ -264,6 +259,6 @@ World CLI manages the complete deployment lifecycle:
 
 - **Documentation** — [World Engine Docs](https://world.dev)
 - **Community** — [Telegram Chat](https://t.me/worldengine_dev)
-- **Issues** — [GitHub Issues](https://github.com/Argus-Labs/world-cli/issues)
+- **Issues** — [GitHub Issues](https://github.com/Argus-Labs/world-engine/issues)
 
 <br/>
