@@ -236,6 +236,8 @@ func TestWorld_RegisterComponentRejectsNameCollision(t *testing.T) {
 	require.Equal(t, ComponentID(0), id)
 	_, err = w.RegisterComponent[conflictingComponent]()
 	require.ErrorContains(t, err, "component simple_component already registered with a different type")
+	assert.False(t, w.Has[conflictingComponent](eid), "a shared name does not register a different Go type")
+	assert.True(t, w.Has[testutils.SimpleComponent](eid))
 
 	value, err := w.Get[testutils.SimpleComponent](eid)
 	require.NoError(t, err)
@@ -244,4 +246,39 @@ func TestWorld_RegisterComponentRejectsNameCollision(t *testing.T) {
 	value, err = w.Get[testutils.SimpleComponent](eid)
 	require.NoError(t, err)
 	require.Equal(t, testutils.SimpleComponent{Value: 7}, value)
+}
+
+func TestWorld_ComponentID(t *testing.T) {
+	t.Parallel()
+	w := NewWorld()
+	_, err := w.ComponentID[testutils.SimpleComponent]()
+	require.ErrorIs(t, err, ErrComponentNotFound)
+
+	registered, err := w.RegisterComponent[testutils.SimpleComponent]()
+	require.NoError(t, err)
+	id, err := w.ComponentID[testutils.SimpleComponent]()
+	require.NoError(t, err)
+	assert.Equal(t, registered, id)
+
+	_, err = w.ComponentID[conflictingComponent]()
+	require.ErrorIs(t, err, ErrComponentNotFound)
+	require.ErrorContains(t, err, "component simple_component is registered with a different type")
+	assert.False(t, w.Has[conflictingComponent](w.Create()), "a shared name does not register a different Go type")
+}
+
+func TestWorld_ConflictingComponentAccessPreservesData(t *testing.T) {
+	t.Parallel()
+	w := NewWorld()
+	_, err := w.RegisterComponent[testutils.SimpleComponent]()
+	require.NoError(t, err)
+	eid := w.Create()
+	require.NoError(t, w.Set(eid, testutils.SimpleComponent{Value: 42}))
+
+	require.ErrorIs(t, w.Remove[conflictingComponent](eid), ErrComponentNotFound)
+	assert.False(t, w.Has[conflictingComponent](eid))
+	_, err = w.Get[conflictingComponent](eid)
+	require.ErrorIs(t, err, ErrComponentNotFound)
+	value, err := w.Get[testutils.SimpleComponent](eid)
+	require.NoError(t, err)
+	assert.Equal(t, testutils.SimpleComponent{Value: 42}, value)
 }

@@ -4,13 +4,12 @@ on:
   push:
     paths:
       - '**.go'
-      - 'go.mod'
-      - 'go.sum'
+      - '**/go.mod'
+      - '**/go.sum'
       - '.moon/**'
-      - 'moon.yml'
+      - '**/moon.yml'
       - '.prototools'
-      - 'scripts/**'
-      - '.golangci.yaml'
+      - '**/.golangci.yaml'
       - '.ko.yaml'
       - '.github/workflows/common-go-ci.yaml'
       - '!**.md'
@@ -98,6 +97,9 @@ jobs:
         run: moon run world-engine:test-ci
         env:
           KUBEBUILDER_ASSETS: ${{ steps.setup-envtest.outputs.kubebuilder-assets }}
+
+      - name: Run CLI tests
+        run: moon run cli:test-ci
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

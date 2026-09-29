@@ -3,6 +3,7 @@ package cardinal
 import (
 	"context"
 	"os/signal"
+	"reflect"
 	"syscall"
 	"time"
 
@@ -15,9 +16,11 @@ import (
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
 	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
+	"github.com/argus-labs/world-engine/pkg/telemetry/trace"
+	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -37,8 +40,13 @@ type World struct {
 	debug           *debugModule          // Debug tools and services
 	pprof           *pprofModule          // Optional pprof HTTP server
 	currentTick     Tick                  // Current tick
+	tickCtx         context.Context       // Parent context for spans started by systems in the current tick
 	options         WorldOptions          // World options
 	tel             telemetry.Telemetry   // Logs and traces
+
+	archetypes map[reflect.Type]bitmap.Bitmap // Component sets resolved from archetype structs
+	eventTypes map[reflect.Type]struct{}      // Events registered with RegisterEvent
+	started    bool                           // Set by init; Register* methods panic afterwards
 }
 
 // NewWorld creates a game world with the specified options.
@@ -78,6 +86,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		address: micro.GetAddress(
 			options.Region, micro.RealmWorld, options.Organization, options.Project, options.ShardID),
 		currentTick: Tick{height: 0},
+		tickCtx:     context.Background(),
 		options:     options,
 		tel:         tel,
 	}
@@ -169,19 +178,14 @@ func (w *World) StartGame() {
 
 func (w *World) run(ctx context.Context) error {
 	// Initialize the world and run initialization systems.
-	w.world.Init()
+	w.init()
 
 	if err := w.restore(ctx); err != nil {
 		return eris.Wrap(err, "failed to restore state from snapshot")
 	}
 	// Final snapshot.
 	defer func() {
-		w.snapshotWriter.Write(&cardinalv1.Snapshot{
-			TickHeight: w.currentTick.height,
-			Timestamp:  timestamppb.Now(),
-			WorldState: w.world.ToProto(),
-			Version:    snapshot.CurrentVersion,
-		})
+		w.snapshotWriter.Write(w.currentTick.height, w.encodeSnapshot(time.Now()))
 	}()
 
 	logger := w.tel.GetLogger("shard")
@@ -219,9 +223,33 @@ func (w *World) run(ctx context.Context) error {
 	}
 }
 
+// init runs the init systems under a root span so their child spans have a parent. tickCtx is
+// restored by defer, as in Tick, so a recovered init panic does not leave it on an ended span.
+func (w *World) init() {
+	ctx, span := trace.New(context.Background(), spanInit)
+	defer span.End()
+
+	w.tickCtx = ctx
+	defer func() { w.tickCtx = context.Background() }()
+	w.started = true // Closes registration before the first system runs; never reopened by reset.
+	w.world.Init()
+}
+
 // Tick advances the world by one step.
+//
+// Each tick is a root trace: ticks are driven by the clock, not by a request, so command spans from
+// the ConnectRPC service are not their parents.
 func (w *World) Tick(timestamp time.Time) {
-	_ = w.commands.Drain()
+	// Drain before starting the span: links must be passed at start for a sampler to see them.
+	commands := w.commands.Drain()
+	ctx, span := trace.New(context.Background(), spanTick,
+		oteltrace.WithAttributes(
+			attrTickHeight.Int64(int64(w.currentTick.height)), //nolint:gosec // tick height stays far below int64 max
+			attrTickCommands.Int(len(commands))),
+		oteltrace.WithLinks(commandLinks(commands)...))
+	defer span.End()
+	w.tickCtx = ctx
+	defer func() { w.tickCtx = context.Background() }()
 
 	w.currentTick.timestamp = timestamp
 	w.debug.startPerfTick()
@@ -231,53 +259,90 @@ func (w *World) Tick(timestamp time.Time) {
 
 	w.debug.recordTick(w.currentTick.height, timestamp)
 
-	// Send events.
-	if err := w.events.Dispatch(); err != nil {
-		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
-	}
+	w.dispatchEvents(ctx)
 
 	// Publish state for snapshots and debugging.
-	w.persistState(timestamp)
+	w.persistState(ctx, timestamp)
 
 	// Increase the tick height.
 	w.currentTick.height++
 }
 
-// persistState serializes the world for snapshots and the debug service.
-//
-// It reports nothing: a component that cannot encode panics rather than returning an error (see
-// schema.Serializable.MarshalWire), so there is nothing to log and nothing to retry next tick.
-func (w *World) persistState(timestamp time.Time) {
+// maxCommandLinks caps the links on a tick span. It matches the OpenTelemetry SDK's default link
+// limit (OTEL_SPAN_LINK_COUNT_LIMIT); links past it would only be built to be dropped, and the SDK
+// drops them one memmove at a time.
+const maxCommandLinks = 128
+
+// commandLinks builds one span link per drained command whose enqueuing request was sampled, up
+// to maxCommandLinks. Links, not children: that request finished before this tick. A request the
+// sampler dropped was never exported, so a link to it would dangle; skipping it also skips the
+// zero SpanContext of an untraced caller. Nil when no command qualifies, so an untraced tick pays
+// no allocation here.
+func commandLinks(commands []command.Command) []oteltrace.Link {
+	var links []oteltrace.Link
+	for _, cmd := range commands {
+		if !cmd.Span.IsSampled() {
+			continue
+		}
+		if len(links) == maxCommandLinks {
+			break
+		}
+		links = append(links, oteltrace.Link{SpanContext: cmd.Span, Attributes: []attribute.KeyValue{
+			attrCommandName.String(cmd.Name), attrCommandPersona.String(cmd.Persona)}})
+	}
+	return links
+}
+
+// dispatchEvents runs the tick's event handlers under their own span. The span is ended by a
+// direct defer so a panicking handler (encoding panics on unencodable payloads) still closes
+// it with the panic recorded.
+func (w *World) dispatchEvents(ctx context.Context) {
+	ctx, span := trace.New(ctx, spanEventDispatch)
+	defer span.End()
+	if err := w.events.Dispatch(ctx); err != nil {
+		span.SetError(err)
+		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
+	}
+}
+
+// persistState serializes the world for snapshots and the debug service. Encoding cannot fail
+// (a value that cannot be encoded panics inside the ECS), so there is no retry path.
+func (w *World) persistState(ctx context.Context, timestamp time.Time) {
 	snapshotDue := w.currentTick.height%uint64(w.options.SnapshotRate) == 0
 	if !snapshotDue && w.debug == nil {
 		return
 	}
 
-	worldState := w.world.ToProto()
-	// Publish state only when the debug service is enabled.
-	if w.debug != nil {
-		w.debug.publishSnapshot(&cardinalv1.Snapshot{
-			TickHeight: w.currentTick.height,
-			Timestamp:  timestamppb.New(timestamp),
-			WorldState: worldState,
-		})
-	}
+	_, span := trace.New(ctx, spanPersistState, oteltrace.WithAttributes(attrSnapshotDue.Bool(snapshotDue)))
+	defer span.End()
+
+	data := w.encodeSnapshot(timestamp)
+
+	// Hand the debug service the same frozen bytes. Nobody writes to them, so sharing with the
+	// writer below is safe.
+	w.debug.publishState(data)
 
 	if snapshotDue {
-		w.snapshotWriter.Write(&cardinalv1.Snapshot{
-			TickHeight: w.currentTick.height,
-			Timestamp:  timestamppb.New(timestamp),
-			WorldState: worldState,
-			Version:    snapshot.CurrentVersion,
-		})
+		w.snapshotWriter.Write(w.currentTick.height, data)
 	}
 }
 
-func (w *World) restore(ctx context.Context) error {
+// encodeSnapshot produces the complete snapshot bytes for the current tick: the ECS sizes and
+// streams its world state directly into one exactly-sized buffer, and the envelope is hand-encoded
+// around it. No intermediate proto graph exists; the buffer is the freeze-frame.
+func (w *World) encodeSnapshot(timestamp time.Time) []byte {
+	bodySize := w.world.StateWireSize()
+	return snapshot.Encode(w.currentTick.height, timestamp, bodySize, w.world.AppendStateWire)
+}
+
+func (w *World) restore(ctx context.Context) (err error) {
+	ctx, span := trace.New(ctx, spanRestore)
+	defer func() { span.EndWithErr(err) }()
+
 	logger := w.tel.GetLogger("snapshot")
 
 	logger.Debug().Msg("restoring from snapshot")
-	snap, err := w.snapshotStorage.Load(ctx)
+	data, err := w.snapshotStorage.Load(ctx)
 	if err != nil {
 		if eris.Is(err, snapshot.ErrSnapshotNotFound) {
 			logger.Debug().Msg("no snapshot found")
@@ -286,27 +351,21 @@ func (w *World) restore(ctx context.Context) error {
 		return eris.Wrap(err, "failed to load snapshot")
 	}
 
-	// Check the version because some Storage implementations do not decode bytes.
-	if err := snapshot.ValidateVersion(snap.GetVersion()); err != nil {
+	// Decode validates the bytes and refuses versions this build cannot read.
+	snap, err := snapshot.Decode(data)
+	if err != nil {
 		return eris.Wrap(err, "refusing to restore snapshot")
 	}
 
-	worldState := snap.GetWorldState()
-	if err := w.world.FromProto(worldState); err != nil {
+	if err := w.world.FromProto(snap.GetWorldState()); err != nil {
 		return eris.Wrap(err, "failed to restore world from snapshot")
 	}
 
 	// Update the tick only after a successful restore.
 	w.currentTick.height = snap.GetTickHeight() + 1
 
-	// Publish the restored state only when the debug service is enabled.
-	if w.debug != nil {
-		w.debug.publishSnapshot(&cardinalv1.Snapshot{
-			TickHeight: snap.GetTickHeight(),
-			Timestamp:  snap.GetTimestamp(),
-			WorldState: worldState,
-		})
-	}
+	// Publish the restored state for GetState; a no-op when the debug service is disabled.
+	w.debug.publishState(data)
 	return nil
 }
 
@@ -348,7 +407,7 @@ func (w *World) shutdown() {
 func (w *World) reset() {
 	// Reset the ECS world and run initialization systems again.
 	w.world.Reset()
-	w.world.Init()
+	w.init()
 
 	// Clear pending commands and events.
 	w.commands.Clear()
@@ -360,11 +419,7 @@ func (w *World) reset() {
 
 	// Publish the reset state when the debug service is enabled.
 	if w.debug != nil {
-		w.debug.publishSnapshot(&cardinalv1.Snapshot{
-			TickHeight: w.currentTick.height,
-			Timestamp:  timestamppb.New(w.currentTick.timestamp),
-			WorldState: w.world.ToProto(),
-		})
+		w.debug.publishState(w.encodeSnapshot(w.currentTick.timestamp))
 	}
 	w.debug.resetPerf()
 }

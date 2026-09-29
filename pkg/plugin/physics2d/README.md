@@ -36,6 +36,22 @@ w.RegisterPlugin(physics)
 w.StartGame()
 ```
 
+`RegisterPlugin` registers the physics components and the plugin's `Init` and `PreUpdate`
+systems. Systems in one hook run in registration order, so a game system that must run
+**before** the plugin's (for example an `Init` spawner whose bodies the first rebuild should
+see) is registered before `RegisterPlugin`. That order needs no extra step for components: a
+system resolves its archetypes on its first `Contains`, `Exact`, or `Create` call inside `Run`,
+not when it is registered, and every `Register*` call panics once the world has started.
+
+```go
+w.RegisterSystem(&spawnBodiesSystem{}, cardinal.WithHook(cardinal.Init))
+w.RegisterPlugin(physics)
+```
+
+Only code that creates physics entities before `RegisterPlugin` runs (a test harness seeding
+a scene) needs the components earlier. Call `physics2d.RegisterComponents(w)` first;
+`RegisterPlugin` registering them again is a no-op.
+
 Keep the `*physics2d.Plugin` value: queries, `Engine`, and `Reset` are
 methods on it. All simulation state belongs to that instance — the package
 holds no globals, and multiple plugin instances in one process simulate
@@ -121,10 +137,53 @@ cardinal.Create(ctx,
 
 ### Compound colliders
 
-`PhysicsBody2D.Shapes` is a slice — each entry is a child fixture with its
-own `LocalOffset`, `LocalRotation`, material, and filter. Shape identity is
-by index (slot `i` in `Shapes` ↔ fixture slot `i`), so don't reorder shapes
-after creation if you care about per-shape references in contact events.
+`PhysicsBody2D.Shapes` is an `immutable.Slice` — each entry is a child fixture
+with its own `LocalOffset`, `LocalRotation`, material, and filter. Shape
+identity is by index (slot `i` in `Shapes` ↔ fixture slot `i`), so don't
+reorder shapes after creation if you care about per-shape references in
+contact events.
+
+Read it with `Len`, `At`, and `All`; change it with `Append`, `With`, `Without`
+and friends, then `Set` the component. Those derivations edit the array the
+component already holds, so a `Set` after each one is required rather than
+tidy — see [`immutable.Slice`](../../immutable/slice.go).
+
+```go
+pb := ref.Get()
+sh := pb.Shapes.At(0)
+sh.Friction = 0.9
+pb.Shapes = pb.Shapes.With(0, sh)
+ref.Set(pb)
+```
+
+### Polygon vertices
+
+A convex polygon's vertices live in a fixed `[MaxPolygonVertices]Vec2` array
+with `VertexCount` saying how many slots are live — the same shape
+`box2d.Polygon` uses, and the same bound (8) Box2D compiles in. Build one with
+`WithVertices`, which sets the count and zeroes the unused tail:
+
+```go
+tri := physics2d.ColliderShape{
+    ShapeType:    physics2d.ShapeTypeConvexPolygon,
+    Density:      1,
+    Friction:     0.4,
+    CategoryBits: 0xFFFF,
+    MaskBits:     0xFFFF,
+}.WithVertices(
+    physics2d.Vec2{X: 0, Y: 0},
+    physics2d.Vec2{X: 2, Y: 0},
+    physics2d.Vec2{X: 1, Y: 1.5},
+)
+```
+
+Past `MaxPolygonVertices`, `WithVertices` returns a shape that fails `Validate`
+(`vertex_count: must be between 0 and 8`) rather than truncating or panicking —
+an over-long polygon is a bad asset, and the reconciler refuses the fixture the
+same way it refuses any other bad geometry. `PolygonVertices()` reads back the
+live prefix. A chain has no such bound, so
+`ChainPoints` is an `immutable.Slice[Vec2]`; build one with
+`immutable.SliceOf(pts...)`.
 
 ## Built-in queries
 

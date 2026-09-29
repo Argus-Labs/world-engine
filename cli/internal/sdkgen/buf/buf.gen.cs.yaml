@@ -1,0 +1,10 @@
+version: v2
+plugins:
+  # C#-only run: used for dependency (plugin) types. The plugin ships its own Go wire code, so we must
+  # NOT regenerate Go for it (that would duplicate/collide in the proto global registry) — only the C#
+  # is missing on the consumer side, so this config runs the csharp backend alone.
+  - protoc_builtin: csharp
+    out: gen/csharp
+    # base_namespace= mirrors the full C# namespace into subdirs so same-basename
+    # protos in different packages don't overwrite each other.
+    opt: base_namespace=

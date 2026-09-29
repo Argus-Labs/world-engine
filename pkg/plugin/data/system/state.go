@@ -8,29 +8,31 @@ import (
 	"slices"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/data/component"
 	"github.com/goccy/go-json"
 	"github.com/rotisserie/eris"
 )
 
 // State owns the data plugin's per-instance load state: registered kinds, the in-memory catalog,
-// and the per-file manifest hashes currently reflected in that catalog.
+// and the manifest of per-file hashes currently reflected in that catalog.
 //
-// The plugin facade (data.Plugin) holds a pointer to a State and forwards every operation here.
-// Splitting it out keeps plugin.go a thin facade (matching the lobby / physics2d convention) and
-// keeps all the load-and-reconcile logic colocated with the components it operates on.
+// data.Plugin owns one State per world and wires it into the ReconcileSystem it registers.
+// Splitting it out keeps the load-and-reconcile logic colocated with the components it operates
+// on, while plugin.go holds the registration lifecycle (kinds, world binding, guards).
 type State struct {
-	loaders  map[string]kindLoader // jsonFile → loader
-	catalog  map[string]Definition // Name() → loaded value
-	manifest map[string]string     // jsonFile → hash currently reflected in catalog
+	loaders map[string]kindLoader // jsonFile → loader
+	catalog map[string]Definition // Name() → loaded value
+	// manifest is the hash currently reflected in the catalog, per jsonFile, sorted by path. It is
+	// the same type the snapshot holds, so the reconcile pass compares and writes it directly.
+	manifest component.ConfigManifest
 }
 
 // NewState builds an empty State. Call AddKind for each registered kind before LoadAll.
 func NewState() *State {
 	return &State{
-		loaders:  map[string]kindLoader{},
-		catalog:  map[string]Definition{},
-		manifest: map[string]string{},
+		loaders: map[string]kindLoader{},
+		catalog: map[string]Definition{},
 	}
 }
 
@@ -51,21 +53,31 @@ type kindLoader struct {
 	assemble AssembleFunc
 }
 
+// hook reports whether T implements H, checking def first then &def: def covers a pointer-type T
+// (where &def is **T), &def covers a value-type T with pointer-receiver methods.
+func hook[H, T any](def *T) (H, bool) {
+	if h, ok := any(*def).(H); ok {
+		return h, true
+	}
+	h, ok := any(def).(H)
+	return h, ok
+}
+
 // MakeAssemble returns the standard assemble function for kind T: json.Unmarshal into a fresh T,
-// run Resolve on a pointer (so mutations stick), run Validate on the value. Errors from any step
-// propagate to the caller (LoadAll and Reconcile both panic on them).
+// then Resolve and Validate if T implements them. Errors from any step propagate to the caller
+// (LoadAll and Reconcile both panic on them).
 func MakeAssemble[T Definition]() AssembleFunc {
 	return func(ctx context.Context, resolverSource Source, raw []byte) (Definition, error) {
 		var def T
 		if err := json.Unmarshal(raw, &def); err != nil {
 			return nil, err
 		}
-		if r, ok := any(&def).(Resolver); ok {
+		if r, ok := hook[Resolver](&def); ok {
 			if err := r.Resolve(ctx, resolverSource); err != nil {
 				return nil, err
 			}
 		}
-		if v, ok := any(&def).(Validator); ok {
+		if v, ok := hook[Validator](&def); ok {
 			if err := v.Validate(); err != nil {
 				return nil, err
 			}
@@ -114,8 +126,10 @@ func (s *State) MustGet(name string) Definition {
 // resolverSource is what Resolver hooks fetch additional files through — always the local embed,
 // never the operator (see AssembleFunc doc).
 //
-// Iterates jsonFile in sorted order so boot-time log output is reproducible across runs.
+// Iterates jsonFile in sorted order: boot-time log output is reproducible across runs, and the
+// manifest comes out in its canonical order.
 func (s *State) LoadAll(ctx context.Context, primary, resolverSource Source) {
+	entries := make([]component.ConfigFileHash, 0, len(s.loaders))
 	for _, file := range slices.Sorted(maps.Keys(s.loaders)) {
 		l := s.loaders[file]
 		raw, gotHash, err := primary.Fetch(ctx, file, "")
@@ -127,19 +141,25 @@ func (s *State) LoadAll(ctx context.Context, primary, resolverSource Source) {
 			panic(eris.Wrapf(err, "data: loading %q", file))
 		}
 		s.catalog[l.name] = def
-		s.manifest[file] = gotHash
+		entries = append(entries, component.ConfigFileHash{Path: file, Hash: gotHash})
 	}
+	s.manifest = component.ConfigManifest{Files: immutable.SliceOf(entries...)}
 }
 
-// ReconcileState is the system state for the data plugin's per-tick reconcile pass.
-//
-// The embedded Exact search holds the ConfigManifest singleton; declaring this field is also what
-// registers ConfigManifest with Cardinal via system-field reflection.
-type ReconcileState struct {
-	cardinal.BaseSystemState
-	Manifest cardinal.Exact[struct {
-		Item cardinal.Ref[component.ConfigManifest]
-	}]
+// ReconcileSystem keeps the catalog matched to the world's configuration manifest.
+type ReconcileSystem struct {
+	Catalog        *State
+	Primary        Source
+	ResolverSource Source
+}
+
+func (rs *ReconcileSystem) Run(w *cardinal.World) {
+	rs.Catalog.Reconcile(w, rs.Primary, rs.ResolverSource)
+}
+
+// manifestRow is the exact archetype of the ConfigManifest singleton entity.
+type manifestRow struct {
+	Item component.ConfigManifest
 }
 
 // Reconcile is the data plugin's per-tick reconcile pass. Runs every PreUpdate (cardinal's
@@ -149,7 +169,7 @@ type ReconcileState struct {
 //
 // Lifecycle coverage with this one system:
 //   - Fresh boot: ErrSingleNoResult → create ConfigManifest from s.manifest.
-//   - Restart, same config: manifests match → no-op (one search + one map compare).
+//   - Restart, same config: manifests match → no-op (one search + one allocation-free compare).
 //   - Restart, restored snapshot whose config differs: re-fetch each changed file at the
 //     snapshot's hash. Source can deliver → swap catalog atomically. Source errors (versioned
 //     source lost a version) → panic. Source returns wrong-hash content (single-version source,
@@ -166,12 +186,13 @@ type ReconcileState struct {
 //
 // primary is the data source for each kind's JSONFile() re-fetch at the snapshot's hash.
 // resolverSource is what Resolver hooks fetch additional files through (always local embed).
-func (s *State) Reconcile(rs *ReconcileState, primary, resolverSource Source) {
-	_, ent, err := rs.Manifest.Iter().Single()
+func (s *State) Reconcile(w *cardinal.World, primary, resolverSource Source) {
+	manifest := w.Exact[manifestRow]()
+	ent, err := manifest.Iter().Single()
 	switch {
 	case errors.Is(err, cardinal.ErrSingleNoResult):
-		_, ent = rs.Manifest.Create()
-		ent.Item.Set(component.ConfigManifest{Files: maps.Clone(s.manifest)})
+		ent = manifest.Create()
+		ent.Set(s.manifest)
 		return
 	case errors.Is(err, cardinal.ErrSingleMultipleResult):
 		panic(eris.New("data: more than one config-manifest singleton"))
@@ -179,45 +200,66 @@ func (s *State) Reconcile(rs *ReconcileState, primary, resolverSource Source) {
 		panic(eris.Wrap(err, "data: querying config-manifest singleton"))
 	}
 
-	snap := ent.Item.Get().Files
-	if maps.Equal(snap, s.manifest) {
+	// Steady state: nothing to do. The compare is order-sensitive on purpose. A snapshot written
+	// before this component held an ordered list restores in arbitrary order, so it reads as changed
+	// here, finds every hash already matching below, and reaches the rewrite at the bottom, which
+	// stores it sorted. Every tick after that takes this return.
+	snap := ent.Get[component.ConfigManifest]()
+	if immutable.Equal(snap.Files, s.manifest.Files) {
 		return
+	}
+
+	// A duplicate path would load the last entry's bytes but record the first entry's hash, leaving
+	// the catalog and the manifest on different versions. This system only ever writes each path once.
+	seen := make(map[string]struct{}, snap.Files.Len())
+	for e := range snap.Files.Values() {
+		if _, dup := seen[e.Path]; dup {
+			panic(eris.Errorf("data: config-manifest lists %q more than once", e.Path))
+		}
+		seen[e.Path] = struct{}{}
 	}
 
 	ctx := context.Background()
 	temp := map[string]Definition{}
-	for file, snapHash := range snap {
-		if cur, ok := s.manifest[file]; ok && cur == snapHash {
+	for e := range snap.Files.Values() {
+		if cur, ok := s.manifest.Hash(e.Path); ok && cur == e.Hash {
 			continue
 		}
-		loader, owned := s.loaders[file]
+		loader, owned := s.loaders[e.Path]
 		if !owned {
 			continue
 		}
-		raw, gotHash, fetchErr := primary.Fetch(ctx, file, snapHash)
+		raw, gotHash, fetchErr := primary.Fetch(ctx, e.Path, e.Hash)
 		if fetchErr != nil {
-			panic(eris.Wrapf(fetchErr, "data: source cannot serve %q at hash %s required by snapshot", file, snapHash))
+			panic(eris.Wrapf(fetchErr, "data: source cannot serve %q at hash %s required by snapshot", e.Path, e.Hash))
 		}
-		if gotHash != snapHash {
-			rs.Logger().Warn().
+		if gotHash != e.Hash {
+			w.Logger().Warn().
 				Interface("snapshot", snap).
 				Interface("current", s.manifest).
 				Msg("data: config changed since snapshot; resuming on current config")
-			ent.Item.Set(component.ConfigManifest{Files: maps.Clone(s.manifest)})
+			ent.Set(s.manifest)
 			return
 		}
 		def, assembleErr := loader.assemble(ctx, resolverSource, raw)
 		if assembleErr != nil {
-			panic(eris.Wrapf(assembleErr, "data: loading %q at hash %s", file, snapHash))
+			panic(eris.Wrapf(assembleErr, "data: loading %q at hash %s", e.Path, e.Hash))
 		}
 		temp[loader.name] = def
 	}
 
 	maps.Copy(s.catalog, temp)
-	for file, snapHash := range snap {
-		if _, owned := s.loaders[file]; owned {
-			s.manifest[file] = snapHash
+	// Adopt the snapshot's hash for every file this instance owns. A file it does not own is not
+	// its business and stays out. Rebuilt in path order, so the component written from here on is
+	// canonical even when the snapshot it came from was not.
+	entries := make([]component.ConfigFileHash, 0, len(s.loaders))
+	for _, file := range slices.Sorted(maps.Keys(s.loaders)) {
+		hash, _ := s.manifest.Hash(file)
+		if snapHash, ok := snap.Hash(file); ok {
+			hash = snapHash
 		}
+		entries = append(entries, component.ConfigFileHash{Path: file, Hash: hash})
 	}
-	ent.Item.Set(component.ConfigManifest{Files: maps.Clone(s.manifest)})
+	s.manifest = component.ConfigManifest{Files: immutable.SliceOf(entries...)}
+	ent.Set(s.manifest)
 }

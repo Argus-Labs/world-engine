@@ -3,8 +3,6 @@ package system
 import (
 	"crypto/sha256"
 	"fmt"
-	"sort"
-	"strings"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/lobby/component"
@@ -600,183 +598,54 @@ func (DefaultProvider) GenerateInviteCode(lobby *component.LobbyComponent, seed 
 	return string(code)
 }
 
-// storedProvider holds the provider set by the Register function.
-//
-//nolint:gochecknoglobals // set once at initialization, read-only thereafter
-var storedProvider LobbyProvider = DefaultProvider{}
-
-// SetProvider stores the provider for the system to use.
-func SetProvider(provider LobbyProvider) {
-	if provider != nil {
-		storedProvider = provider
-	}
-}
-
-// Config is the runtime configuration the systems read, supplied by the shard's main.go through
-// the lobby plugin at registration.
-//
-// It lives here rather than in the component package because it is not a component: it has no
-// Name(), is wired to no system, never becomes an entity, and is never snapshotted. The component
-// package holds only types that are actually stored in the world.
-type Config struct {
-	// LobbyWorld is this lobby shard's address (for game shard to send NotifySessionEndCommand back).
-	LobbyWorld component.ShardAddress `json:"lobby_world"`
-
-	// HeartbeatTimeout is how long (in seconds) before a player is removed for not sending heartbeats.
-	// Clients should send heartbeats more frequently than this (e.g., every timeout/3 seconds).
-	// Default: 30 seconds.
-	HeartbeatTimeout int64 `json:"heartbeat_timeout"`
-
-	// AssignmentAuthority is an accident-prevention filter, NOT an
-	// authentication boundary. The plugin compares it against cmd.Persona
-	// and drops mismatches. This prevents an unrelated system that
-	// happens to send AssignShardCommand from accidentally completing the
-	// wrong lobby's session start. It does NOT defend against a client
-	// that forges Persona, because cmd.Persona is not signature-verified
-	// at this layer. Real authentication must live above the plugin
-	// (NATS ACLs, gateway auth, signed commands). Empty = no filter.
-	AssignmentAuthority string `json:"assignment_authority,omitempty"`
-
-	// MaxAllocationTimeout bounds how long (in seconds) a lobby may remain
-	// in SessionStateAwaitingAllocation before the lobby shard fails the
-	// start itself and returns to Idle. Values <= 0 disable timeout
-	// enforcement entirely.
-	MaxAllocationTimeout int64 `json:"max_allocation_timeout,omitempty"`
-}
-
-// storedConfig holds the configuration set by the Register function, and is the only place the
-// systems read it from.
-//
-// Deliberately not an entity. Every field comes from a literal in the shard's main.go, so the binary
-// already holds the value before the world exists and there is nothing for a snapshot to contribute.
-// Persisting it was actively wrong: restore runs after Init and replaces the world wholesale, so a
-// redeployed shard silently kept the snapshot's LobbyWorld and AssignmentAuthority instead of the
-// ones it was deployed with.
-//
-//nolint:gochecknoglobals // set once at initialization, read-only thereafter
-var storedConfig Config
-
-// storedPresets is the server-owned team registry. Kept beside storedConfig rather than on
-// Config: it is build-time configuration, not world state, and persisting it would mean a
-// restored shard silently ignores the presets the running binary declares. Staying out of ECS also
-// lets it remain a map — component fields must copy cleanly, plugin state need not.
-//
-//nolint:gochecknoglobals // set once at initialization, read-only thereafter
-var storedPresets map[string][]component.TeamConfig
-
-// SetConfig stores the configuration for the init system to use.
-//
-// Panics on an unusable preset. A preset comes from the server's own main.go, so an invalid one is a
-// deployment bug, not client input: failing at boot puts the reason in front of whoever deployed it,
-// where returning an error here would surface as every CreateLobbyCommand being rejected by a shard
-// that otherwise looks healthy.
-func SetConfig(config Config, presets map[string][]component.TeamConfig) {
-	// Every bad preset at once, sorted: map order is random, so reporting the first one found would
-	// make an operator with two mistakes fix one, redeploy, and hit the other.
-	var unusable []string
-	for name, teams := range presets {
-		if reason := validatePreset(teams); reason != "" {
-			unusable = append(unusable, fmt.Sprintf("%q: %s", name, reason))
-		}
-	}
-	if len(unusable) > 0 {
-		sort.Strings(unusable)
-		panic("unusable lobby presets:\n  " + strings.Join(unusable, "\n  "))
-	}
-
-	// A second Register means a second world in this process. Discard the previous world's index
-	// rather than let indexBuilt latch: the next tick would otherwise resolve this world's lobby IDs
-	// to the previous world's entity IDs, and destroy entities by them.
-	resetIndex()
-
-	storedConfig = config
-	storedPresets = presets
-}
-
 // -----------------------------------------------------------------------------
 // Init System
 // -----------------------------------------------------------------------------
 
-// InitSystemState is the state for the init system.
-type InitSystemState struct {
-	cardinal.BaseSystemState
+// requireRuntime rejects a system built as a zero value. lobby.Plugin.Register wires the runtime
+// through the New*System constructors; without it the system has no config or index to run on and
+// would fail with a nil dereference deep inside Run.
+func requireRuntime(runtime *Runtime, system string) {
+	if runtime == nil {
+		panic("lobby: " + system +
+			" has no runtime; register lobby.NewPlugin instead of constructing the system directly")
+	}
+}
+
+// InitSystem invalidates derived lobby lookups when the world initializes.
+type InitSystem struct {
+	runtime *Runtime
+}
+
+// NewInitSystem creates a system using the plugin's runtime.
+func NewInitSystem(runtime *Runtime) *InitSystem {
+	return &InitSystem{runtime: runtime}
 }
 
 // InitSystem invalidates the lookup index. Runs on boot and again inside World.reset().
 //
 // It does not build the index, because Init runs before restore and restore replaces the world
 // wholesale — an index built here would describe the pre-restore world. The rebuild happens on the
-// first tick instead, which is the earliest point the world is final. See rebuildIndex.
-func InitSystem(_ *InitSystemState) {
-	indexBuilt = false
+// first tick instead, which is the earliest point the world is final. See Runtime.rebuildIndex.
+func (s *InitSystem) Run(_ *cardinal.World) {
+	requireRuntime(s.runtime, "InitSystem")
+	s.runtime.index = lookupIndex{}
+	s.runtime.indexBuilt = false
 }
 
 // -----------------------------------------------------------------------------
 // Lobby System
 // -----------------------------------------------------------------------------
 
-// LobbySystemState is the state for the lobby system.
-type LobbySystemState struct {
-	cardinal.BaseSystemState
+// LobbySystem processes lobby commands each tick using the plugin's runtime. The commands it reads
+// and the events it emits are registered by the plugin; see lobby.Plugin.Register.
+type LobbySystem struct {
+	runtime *Runtime
+}
 
-	// Commands
-	CreateLobbyCmds              cardinal.WithCommand[CreateLobbyCommand]
-	JoinLobbyCmds                cardinal.WithCommand[JoinLobbyCommand]
-	JoinTeamCmds                 cardinal.WithCommand[JoinTeamCommand]
-	LeaveLobbyCmds               cardinal.WithCommand[LeaveLobbyCommand]
-	SetReadyCmds                 cardinal.WithCommand[SetReadyCommand]
-	KickPlayerCmds               cardinal.WithCommand[KickPlayerCommand]
-	TransferLeaderCmds           cardinal.WithCommand[TransferLeaderCommand]
-	StartSessionCmds             cardinal.WithCommand[StartSessionCommand]
-	NotifySessionEndCmds         cardinal.WithCommand[NotifySessionEndCommand]
-	AssignShardCmds              cardinal.WithCommand[AssignShardCommand]
-	GenerateInviteCodeCmds       cardinal.WithCommand[GenerateInviteCodeCommand]
-	UpdateSessionPassthroughCmds cardinal.WithCommand[UpdateSessionPassthroughCommand]
-	UpdatePlayerPassthroughCmds  cardinal.WithCommand[UpdatePlayerPassthroughCommand]
-	GetPlayerCmds                cardinal.WithCommand[GetPlayerCommand]
-	GetAllPlayersCmds            cardinal.WithCommand[GetAllPlayersCommand]
-	GetLobbyCmds                 cardinal.WithCommand[GetLobbyCommand]
-
-	// Entities
-	Lobbies cardinal.Contains[struct {
-		Lobby cardinal.Ref[component.LobbyComponent]
-	}]
-
-	Players cardinal.Contains[struct {
-		Player cardinal.Ref[component.PlayerComponent]
-	}]
-
-	// Events (Broadcast)
-	LobbyCreatedEvents              cardinal.WithEvent[LobbyCreatedEvent]
-	PlayerJoinedEvents              cardinal.WithEvent[PlayerJoinedEvent]
-	PlayerLeftEvents                cardinal.WithEvent[PlayerLeftEvent]
-	PlayerKickedEvents              cardinal.WithEvent[PlayerKickedEvent]
-	PlayerReadyEvents               cardinal.WithEvent[PlayerReadyEvent]
-	PlayerChangedTeamEvents         cardinal.WithEvent[PlayerChangedTeamEvent]
-	LeaderChangedEvents             cardinal.WithEvent[LeaderChangedEvent]
-	SessionStartedEvents            cardinal.WithEvent[SessionStartedEvent]
-	SessionAwaitingAllocationEvents cardinal.WithEvent[SessionAwaitingAllocationEvent]
-	SessionEndedEvents              cardinal.WithEvent[SessionEndedEvent]
-	InviteCodeGeneratedEvents       cardinal.WithEvent[InviteCodeGeneratedEvent]
-	LobbyDeletedEvents              cardinal.WithEvent[LobbyDeletedEvent]
-	SessionPassthroughUpdatedEvents cardinal.WithEvent[SessionPassthroughUpdatedEvent]
-	PlayerPassthroughUpdatedEvents  cardinal.WithEvent[PlayerPassthroughUpdatedEvent]
-
-	// CommandResult (request-prefixed responses)
-	CreateLobbyResults              cardinal.WithEvent[CreateLobbyResult]
-	JoinLobbyResults                cardinal.WithEvent[JoinLobbyResult]
-	JoinTeamResults                 cardinal.WithEvent[JoinTeamResult]
-	LeaveLobbyResults               cardinal.WithEvent[LeaveLobbyResult]
-	SetReadyResults                 cardinal.WithEvent[SetReadyResult]
-	KickPlayerResults               cardinal.WithEvent[KickPlayerResult]
-	TransferLeaderResults           cardinal.WithEvent[TransferLeaderResult]
-	StartSessionResults             cardinal.WithEvent[StartSessionResult]
-	GenerateInviteCodeResults       cardinal.WithEvent[GenerateInviteCodeResult]
-	UpdateSessionPassthroughResults cardinal.WithEvent[UpdateSessionPassthroughResult]
-	UpdatePlayerPassthroughResults  cardinal.WithEvent[UpdatePlayerPassthroughResult]
-	GetPlayerResults                cardinal.WithEvent[GetPlayerResult]
-	GetAllPlayersResults            cardinal.WithEvent[GetAllPlayersResult]
-	GetLobbyResults                 cardinal.WithEvent[GetLobbyResult]
+// NewLobbySystem creates a system using the plugin's runtime.
+func NewLobbySystem(runtime *Runtime) *LobbySystem {
+	return &LobbySystem{runtime: runtime}
 }
 
 // lobbyLookupResult holds the result of looking up a player's lobby.
@@ -784,7 +653,17 @@ type lobbyLookupResult struct {
 	lobbyID  string
 	entityID cardinal.EntityID
 	lobby    component.LobbyComponent
-	lobbyRef cardinal.Ref[component.LobbyComponent]
+	lobbyRef cardinal.Entity
+}
+
+// lobbyArchetype is the archetype of lobby entities.
+type lobbyArchetype struct {
+	Lobby component.LobbyComponent
+}
+
+// playerArchetype is the archetype of player entities.
+type playerArchetype struct {
+	Player component.PlayerComponent
 }
 
 // getPlayerLobby looks up the lobby for a player and returns all relevant data.
@@ -792,9 +671,7 @@ type lobbyLookupResult struct {
 func getPlayerLobby(
 	playerID string,
 	lobbyIndex *lookupIndex,
-	lobbies *cardinal.Contains[struct {
-		Lobby cardinal.Ref[component.LobbyComponent]
-	}],
+	lobbies cardinal.Search,
 ) *lobbyLookupResult {
 	lobbyID, exists := lobbyIndex.GetPlayerLobby(playerID)
 	if !exists {
@@ -814,54 +691,54 @@ func getPlayerLobby(
 	return &lobbyLookupResult{
 		lobbyID:  lobbyID,
 		entityID: cardinal.EntityID(lobbyEntityID),
-		lobby:    lobbyEntity.Lobby.Get(),
-		lobbyRef: lobbyEntity.Lobby,
+		lobby:    lobbyEntity.Get[component.LobbyComponent](),
+		lobbyRef: lobbyEntity,
 	}
 }
 
 // LobbySystem processes lobby commands.
-func LobbySystem(state *LobbySystemState) {
-	now := state.Timestamp().Unix()
+func (s *LobbySystem) Run(w *cardinal.World) {
+	requireRuntime(s.runtime, "LobbySystem")
+	now := w.Timestamp().Unix()
 
-	config := storedConfig
+	config := s.runtime.config
 
 	// Get timeout for deadline
 	timeout := config.HeartbeatTimeout
-	if timeout <= 0 {
-		timeout = 30 // default 30 seconds
-	}
 
-	if !indexBuilt {
+	if !s.runtime.indexBuilt {
 		var lobbies []lobbyRow
-		for eid, l := range state.Lobbies.Iter() {
-			lobbies = append(lobbies, lobbyRow{entityID: eid, lobby: l.Lobby.Get()})
+		for l := range w.Contains[lobbyArchetype]().Iter() {
+			eid := l.ID()
+			lobbies = append(lobbies, lobbyRow{entityID: eid, lobby: l.Get[component.LobbyComponent]()})
 		}
 		var players []playerRow
-		for eid, pl := range state.Players.Iter() {
-			players = append(players, playerRow{entityID: eid, player: pl.Player.Get()})
+		for pl := range w.Contains[playerArchetype]().Iter() {
+			eid := pl.ID()
+			players = append(players, playerRow{entityID: eid, player: pl.Get[component.PlayerComponent]()})
 		}
-		rebuildIndex(lobbies, players, now, timeout)
+		s.runtime.rebuildIndex(lobbies, players, now, timeout)
 	}
-	lobbyIndex := &index
+	lobbyIndex := &s.runtime.index
 
 	// Process all commands
-	processCreateLobbyCommands(state, lobbyIndex, now, timeout)
-	processJoinLobbyCommands(state, lobbyIndex, now, timeout)
-	processJoinTeamCommands(state, lobbyIndex)
-	processLeaveLobbyCommands(state, lobbyIndex)
-	processSetReadyCommands(state, lobbyIndex)
-	processKickPlayerCommands(state, lobbyIndex)
-	processTransferLeaderCommands(state, lobbyIndex)
-	processStartSessionCommands(state, lobbyIndex)
-	processAssignShardCommands(state, lobbyIndex, &config)
-	processAllocationTimeouts(state, &config)
-	processNotifySessionEndCommands(state, lobbyIndex)
-	processGenerateInviteCodeCommands(state, lobbyIndex)
-	processUpdateSessionPassthroughCommands(state, lobbyIndex)
-	processUpdatePlayerPassthroughCommands(state, lobbyIndex)
-	processGetPlayerCommands(state, lobbyIndex)
-	processGetAllPlayersCommands(state, lobbyIndex)
-	processGetLobbyCommands(state, lobbyIndex)
+	processCreateLobbyCommands(s, w, lobbyIndex, now, timeout)
+	processJoinLobbyCommands(s, w, lobbyIndex, now, timeout)
+	processJoinTeamCommands(w, lobbyIndex)
+	processLeaveLobbyCommands(w, lobbyIndex)
+	processSetReadyCommands(w, lobbyIndex)
+	processKickPlayerCommands(w, lobbyIndex)
+	processTransferLeaderCommands(w, lobbyIndex)
+	processStartSessionCommands(w, lobbyIndex)
+	processAssignShardCommands(w, lobbyIndex, &config)
+	processAllocationTimeouts(w, &config)
+	processNotifySessionEndCommands(w, lobbyIndex)
+	processGenerateInviteCodeCommands(s, w, lobbyIndex)
+	processUpdateSessionPassthroughCommands(w, lobbyIndex)
+	processUpdatePlayerPassthroughCommands(w, lobbyIndex)
+	processGetPlayerCommands(w, lobbyIndex)
+	processGetAllPlayersCommands(w, lobbyIndex)
+	processGetLobbyCommands(w, lobbyIndex)
 }
 
 // timedOutPlayer holds info about a player who missed heartbeat deadline.
@@ -921,10 +798,10 @@ func isLeaderInList(leaderID string, players []timedOutPlayer) bool {
 // PlayerComponent.TeamID is the authoritative record; the index only caches it. Preferring the
 // component means a drifted index cannot leave a team's PlayerCount un-decremented on removal —
 // nothing recomputes those counts, so such a team would read full forever.
-func playerTeamID(state *LobbySystemState, lobbyIndex *lookupIndex, playerID string) string {
+func playerTeamID(w *cardinal.World, lobbyIndex *lookupIndex, playerID string) string {
 	if entityID, ok := lobbyIndex.GetPlayerEntityID(playerID); ok {
-		if entity, err := state.Players.GetByID(cardinal.EntityID(entityID)); err == nil {
-			return entity.Player.Get().TeamID
+		if entity, err := w.Contains[playerArchetype]().GetByID(cardinal.EntityID(entityID)); err == nil {
+			return entity.Get[component.PlayerComponent]().TeamID
 		}
 	}
 	teamID, _ := lobbyIndex.GetPlayerTeam(playerID)
@@ -937,7 +814,7 @@ func playerTeamID(state *LobbySystemState, lobbyIndex *lookupIndex, playerID str
 // command: a lobby that kept only some of its teams would still go on to get an invite code, a
 // leader and index entries, leaving players unable to join the teams the preset promised.
 func addPresetTeams(
-	state *LobbySystemState,
+	w *cardinal.World,
 	lobby *component.LobbyComponent,
 	presetTeams []TeamConfig,
 	playerID, preset, requestID string,
@@ -946,20 +823,20 @@ func addPresetTeams(
 		if lobby.AddTeam(component.Team{TeamID: tc.TeamID, MaxPlayers: tc.MaxPlayers}) {
 			continue
 		}
-		state.Logger().Warn().
+		w.Logger().Warn().
 			Str("player_id", playerID).
 			Str("preset", preset).
 			Int("max_teams", component.MaxLobbyTeams).
 			Msg("create lobby rejected: preset declares more teams than a lobby can hold")
-		emitCreateLobbyFailure(state, requestID, "preset misconfigured: too many teams")
+		emitCreateLobbyFailure(w, requestID, "preset misconfigured: too many teams")
 		return false
 	}
 	return true
 }
 
 // emitJoinLobbyFailure emits a failure result for JoinLobby command.
-func emitJoinLobbyFailure(state *LobbySystemState, requestID, message string) {
-	state.JoinLobbyResults.Broadcast(JoinLobbyResult{
+func emitJoinLobbyFailure(w *cardinal.World, requestID, message string) {
+	w.Broadcast(JoinLobbyResult{
 		RequestID: requestID,
 		IsSuccess: false,
 		Message:   message,
@@ -967,8 +844,8 @@ func emitJoinLobbyFailure(state *LobbySystemState, requestID, message string) {
 }
 
 // emitCreateLobbyFailure emits a failure result for CreateLobby command.
-func emitCreateLobbyFailure(state *LobbySystemState, requestID, message string) {
-	state.CreateLobbyResults.Broadcast(CreateLobbyResult{
+func emitCreateLobbyFailure(w *cardinal.World, requestID, message string) {
+	w.Broadcast(CreateLobbyResult{
 		RequestID: requestID,
 		IsSuccess: false,
 		Message:   message,
@@ -977,7 +854,7 @@ func emitCreateLobbyFailure(state *LobbySystemState, requestID, message string) 
 
 // createPlayerEntity creates a player entity and returns the component and entity ID.
 func createPlayerEntity(
-	state *LobbySystemState,
+	w *cardinal.World,
 	playerID, lobbyID, teamID string,
 	passthroughData string,
 	now int64,
@@ -990,8 +867,9 @@ func createPlayerEntity(
 		PassthroughData: passthroughData,
 		JoinedAt:        now,
 	}
-	playerEntityID, playerEntity := state.Players.Create()
-	playerEntity.Player.Set(playerComp)
+	playerEntity := w.Create[playerArchetype]()
+	playerEntityID := playerEntity.ID()
+	playerEntity.Set(playerComp)
 	return playerComp, playerEntityID
 }
 
@@ -1008,7 +886,7 @@ type lobbyToDestroy struct {
 // processTimedOutLobby handles removing timed out players from a single lobby.
 // Returns player entity IDs to destroy and lobby to destroy (if empty).
 func processTimedOutLobby(
-	state *HeartbeatSystemState,
+	w *cardinal.World,
 	lobbyIndex *lookupIndex,
 	lobbyID string,
 	players []timedOutPlayer,
@@ -1019,12 +897,12 @@ func processTimedOutLobby(
 		return nil, nil
 	}
 
-	lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
+	lobbyEntity, err := w.Contains[lobbyArchetype]().GetByID(cardinal.EntityID(lobbyEntityID))
 	if err != nil {
 		return nil, nil
 	}
 
-	lobby := lobbyEntity.Lobby.Get()
+	lobby := lobbyEntity.Get[component.LobbyComponent]()
 
 	// Remove each timed out player
 	for _, p := range players {
@@ -1032,13 +910,13 @@ func processTimedOutLobby(
 		lobbyIndex.RemovePlayerFromLobby(p.playerID)
 		playerEntities = append(playerEntities, cardinal.EntityID(p.playerEntityID))
 
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("player_id", p.playerID).
 			Str("invite_code", lobby.InviteCode).
 			Msg("Player timed out due to missed heartbeats")
 
-		state.PlayerTimedOutEvents.Broadcast(PlayerTimedOutEvent{LobbyID: lobbyID, PlayerID: p.playerID})
+		w.Broadcast(PlayerTimedOutEvent{LobbyID: lobbyID, PlayerID: p.playerID})
 	}
 
 	// Check if lobby is empty
@@ -1047,11 +925,11 @@ func processTimedOutLobby(
 		// The other way a code dies, and the only one no player asked for: everyone
 		// stopped heartbeating. A code that disappears with no "Lobby deleted (empty)"
 		// line ended here.
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("invite_code", lobby.InviteCode).
 			Msg("Lobby marked for deletion (empty after timeout)")
-		state.LobbyDeletedEvents.Broadcast(LobbyDeletedEvent{LobbyID: lobbyID})
+		w.Broadcast(LobbyDeletedEvent{LobbyID: lobbyID})
 		return playerEntities, &lobbyToDestroy{
 			entityID: cardinal.EntityID(lobbyEntityID),
 			lobbyID:  lobbyID,
@@ -1063,32 +941,32 @@ func processTimedOutLobby(
 	if isLeaderInList(lobby.LeaderID, players) {
 		oldLeaderID := lobby.LeaderID
 		lobby.LeaderID = findNewLeader(&lobby)
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("old_leader", oldLeaderID).
 			Str("new_leader", lobby.LeaderID).
 			Str("invite_code", lobby.InviteCode).
 			Msg("Leadership auto-transferred after timeout")
-		state.LeaderChangedEvents.Broadcast(LeaderChangedEvent{
+		w.Broadcast(LeaderChangedEvent{
 			LobbyID: lobbyID, OldLeaderID: oldLeaderID, NewLeaderID: lobby.LeaderID,
 		})
 	}
 
-	lobbyEntity.Lobby.Set(lobby)
+	lobbyEntity.Set(lobby)
 	return playerEntities, nil
 }
 
 // processHeartbeatCommands updates deadlines for players who sent heartbeats.
 func processHeartbeatCommands(
-	state *HeartbeatSystemState,
+	w *cardinal.World,
 	lobbyIndex *lookupIndex,
 	now, timeout int64,
 ) {
-	for cmd := range state.HeartbeatCmds.Iter() {
+	for cmd := range w.Commands[HeartbeatCommand]() {
 		playerID := cmd.Persona
 		lobbyID, exists := lobbyIndex.GetPlayerLobby(playerID)
 
-		state.Logger().Debug().
+		w.Logger().Debug().
 			Str("player_id", playerID).
 			Str("lobby_id", lobbyID).
 			Bool("in_lobby", exists).
@@ -1117,7 +995,7 @@ func validateUniqueTeamIDs(teams []TeamConfig) string {
 //
 // Checked at Register so a misconfigured deployment fails at boot with a message an operator can
 // act on, rather than surfacing as a rejected CreateLobbyCommand on every attempt. Checked again on
-// the command path so presets installed through SetConfig directly cannot slip past.
+// the command path so unusable team capacities cannot create partially populated lobbies.
 //
 // The structural limits it enforces are storage bounds, not game rules: a preset may promise fewer
 // seats than MaxLobbyPlayers, never more, because the roster physically cannot hold them.
@@ -1188,13 +1066,14 @@ func resolvePreset(preset string, presets map[string][]TeamConfig) ([]TeamConfig
 // advance between attempts. Two lobbies created in the same tick still differ,
 // because the lobby ID is part of the hash.
 func generateInviteCodeWithRetry(
+	provider LobbyProvider,
 	lobbyIndex *lookupIndex,
 	lobby *component.LobbyComponent,
 	maxRetries int,
 	seed int64,
 ) (string, bool) {
 	for attempt := range maxRetries {
-		code := storedProvider.GenerateInviteCode(lobby, seed+int64(attempt))
+		code := provider.GenerateInviteCode(lobby, seed+int64(attempt))
 		owner, exists := lobbyIndex.GetLobbyByInviteCode(code)
 		if !exists || owner == lobby.ID {
 			return code, true
@@ -1206,7 +1085,7 @@ func generateInviteCodeWithRetry(
 // areAllPlayersReady checks if all players in a lobby are ready.
 // Returns false if lobby has no players or any player is not ready.
 func areAllPlayersReady(
-	state *LobbySystemState,
+	w *cardinal.World,
 	lobbyIndex *lookupIndex,
 	lobby *component.LobbyComponent,
 ) bool {
@@ -1214,16 +1093,17 @@ func areAllPlayersReady(
 	if len(playerIDs) == 0 {
 		return false
 	}
+	players := w.Contains[playerArchetype]()
 	for _, pid := range playerIDs {
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(pid)
 		if !exists {
 			return false
 		}
-		playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID))
+		playerEntity, err := players.GetByID(cardinal.EntityID(playerEntityID))
 		if err != nil {
 			return false
 		}
-		if !playerEntity.Player.Get().IsReady {
+		if !playerEntity.Get[component.PlayerComponent]().IsReady {
 			return false
 		}
 	}
@@ -1233,22 +1113,23 @@ func areAllPlayersReady(
 // gatherLobbyPlayers collects all PlayerComponent data for players in a lobby.
 // Used to include player list in command results.
 func gatherLobbyPlayers(
-	state *LobbySystemState,
+	w *cardinal.World,
 	lobbyIndex *lookupIndex,
 	lobby *component.LobbyComponent,
 ) ([component.MaxLobbyPlayers]component.PlayerComponent, int) {
 	var playersList [component.MaxLobbyPlayers]component.PlayerComponent
 	count := 0
+	players := w.Contains[playerArchetype]()
 	for _, pid := range lobby.GetAllPlayerIDs() {
 		pEntityID, pExists := lobbyIndex.GetPlayerEntityID(pid)
 		if !pExists {
 			continue
 		}
-		pEntity, pErr := state.Players.GetByID(cardinal.EntityID(pEntityID))
+		pEntity, pErr := players.GetByID(cardinal.EntityID(pEntityID))
 		if pErr != nil {
 			continue
 		}
-		playersList[count] = pEntity.Player.Get()
+		playersList[count] = pEntity.Get[component.PlayerComponent]()
 		count++
 	}
 	return playersList, count
@@ -1288,18 +1169,19 @@ func findTargetTeam(lobby *component.LobbyComponent, teamID string) (*component.
 }
 
 func processCreateLobbyCommands(
-	state *LobbySystemState,
+	s *LobbySystem,
+	w *cardinal.World,
 	lobbyIndex *lookupIndex,
 	now, timeout int64,
 ) {
-	for cmd := range state.CreateLobbyCmds.Iter() {
+	for cmd := range w.Commands[CreateLobbyCommand]() {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
 		// Check if player is already in a lobby
 		if _, exists := lobbyIndex.GetPlayerLobby(playerID); exists {
-			state.Logger().Warn().Str("player_id", playerID).Msg("player already in a lobby")
-			emitCreateLobbyFailure(state, payload.RequestID, "player already in a lobby")
+			w.Logger().Warn().Str("player_id", playerID).Msg("player already in a lobby")
+			emitCreateLobbyFailure(w, payload.RequestID, "player already in a lobby")
 			continue
 		}
 
@@ -1318,47 +1200,49 @@ func processCreateLobbyCommands(
 			CreatedAt: now,
 		}
 
-		presetTeams, errMsg := resolvePreset(payload.Preset, storedPresets)
+		presetTeams, errMsg := resolvePreset(payload.Preset, s.runtime.presets)
 		if errMsg != "" {
-			state.Logger().Warn().
+			w.Logger().Warn().
 				Str("player_id", playerID).
 				Str("preset", payload.Preset).
 				Msg("create lobby rejected: " + errMsg)
-			emitCreateLobbyFailure(state, payload.RequestID, errMsg)
+			emitCreateLobbyFailure(w, payload.RequestID, errMsg)
 			continue
 		}
-		if !addPresetTeams(state, &lobby, presetTeams, playerID, payload.Preset, payload.RequestID) {
+		if !addPresetTeams(w, &lobby, presetTeams, playerID, payload.Preset, payload.RequestID) {
 			continue
 		}
 
 		// Generate invite code with collision check
 		inviteCode, ok := generateInviteCodeWithRetry(
-			lobbyIndex, &lobby, inviteCodeMaxRetries, state.Timestamp().UnixNano(),
+			s.runtime.provider,
+			lobbyIndex, &lobby, inviteCodeMaxRetries, w.Timestamp().UnixNano(),
 		)
 		if !ok {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("invite code collision after retries")
-			emitCreateLobbyFailure(state, payload.RequestID, "invite code collision")
+			w.Logger().Warn().Str("lobby_id", lobbyID).Msg("invite code collision after retries")
+			emitCreateLobbyFailure(w, payload.RequestID, "invite code collision")
 			continue
 		}
 		lobby.InviteCode = inviteCode
 
 		// Add leader to first team
 		if !lobby.AddPlayerToTeam(playerID, lobby.Teams[0].TeamID) {
-			state.Logger().Warn().
+			w.Logger().Warn().
 				Str("player_id", playerID).
 				Str("preset", payload.Preset).
 				Msg("create lobby rejected: leader could not join the first team")
-			emitCreateLobbyFailure(state, payload.RequestID, "preset misconfigured: leader cannot join")
+			emitCreateLobbyFailure(w, payload.RequestID, "preset misconfigured: leader cannot join")
 			continue
 		}
 
 		// Create lobby entity
-		lobbyEntityID, lobbyEntity := state.Lobbies.Create()
-		lobbyEntity.Lobby.Set(lobby)
+		lobbyEntity := w.Create[lobbyArchetype]()
+		lobbyEntityID := lobbyEntity.ID()
+		lobbyEntity.Set(lobby)
 
 		// Create player entity and update index
 		playerComp, playerEntityID := createPlayerEntity(
-			state, playerID, lobbyID, lobby.Teams[0].TeamID, payload.PlayerPassthroughData, now,
+			w, playerID, lobbyID, lobby.Teams[0].TeamID, payload.PlayerPassthroughData, now,
 		)
 		lobbyIndex.AddLobby(lobbyID, uint32(lobbyEntityID), inviteCode)
 		lobbyIndex.AddPlayerToLobby(playerID, lobbyID, lobby.Teams[0].TeamID, uint32(playerEntityID), now+timeout)
@@ -1366,7 +1250,7 @@ func processCreateLobbyCommands(
 		// invite_code is logged so an "invalid invite code" report can be traced back to
 		// the moment the code was issued. Without it there is no way to tell a code the
 		// server never issued from one it issued and then lost.
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("leader_id", playerID).
 			Str("invite_code", inviteCode).
@@ -1374,14 +1258,14 @@ func processCreateLobbyCommands(
 			Msg("Lobby created")
 
 		// Emit broadcast event
-		state.LobbyCreatedEvents.Broadcast(LobbyCreatedEvent{
+		w.Broadcast(LobbyCreatedEvent{
 			LobbyID:    lobbyID,
 			LeaderID:   playerID,
 			InviteCode: inviteCode,
 		})
 
 		// Emit success result
-		state.CreateLobbyResults.Broadcast(CreateLobbyResult{
+		w.Broadcast(CreateLobbyResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "lobby created",
@@ -1399,52 +1283,52 @@ func processCreateLobbyCommands(
 // they agree on is gone. A code whose trace ends there was lost by the backend, not by
 // the player.
 func resolveInviteCode(
-	state *LobbySystemState,
+	w *cardinal.World,
 	lobbyIndex *lookupIndex,
 	playerID string,
 	payload JoinLobbyCommand,
-) (string, cardinal.Ref[component.LobbyComponent], bool) {
-	var none cardinal.Ref[component.LobbyComponent]
+) (string, cardinal.Entity, bool) {
+	var none cardinal.Entity
 
 	lobbyID, exists := lobbyIndex.GetLobbyByInviteCode(payload.InviteCode)
 	if !exists {
 		// known_codes distinguishes "this one code is missing" from "the index is
 		// empty", which look identical to the player but mean very different things.
-		state.Logger().Warn().
+		w.Logger().Warn().
 			Str("invite_code", payload.InviteCode).
 			Str("player_id", playerID).
 			Str("request_id", payload.RequestID).
 			Int("known_codes", lobbyIndex.InviteCodeCount()).
 			Msg("invalid invite code")
-		emitJoinLobbyFailure(state, payload.RequestID, "invalid invite code")
+		emitJoinLobbyFailure(w, payload.RequestID, "invalid invite code")
 		return "", none, false
 	}
 
 	lobbyEntityID, exists := lobbyIndex.GetEntityID(lobbyID)
 	if !exists {
-		state.Logger().Error().
+		w.Logger().Error().
 			Str("invite_code", payload.InviteCode).
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
 			Str("request_id", payload.RequestID).
 			Msg("invite code maps to a lobby with no entity")
-		emitJoinLobbyFailure(state, payload.RequestID, "lobby not found")
+		emitJoinLobbyFailure(w, payload.RequestID, "lobby not found")
 		return "", none, false
 	}
 
-	lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
+	lobbyEntity, err := w.Contains[lobbyArchetype]().GetByID(cardinal.EntityID(lobbyEntityID))
 	if err != nil {
-		state.Logger().Error().Err(err).
+		w.Logger().Error().Err(err).
 			Str("invite_code", payload.InviteCode).
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
 			Str("request_id", payload.RequestID).
 			Msg("invite code maps to a lobby entity that no longer exists")
-		emitJoinLobbyFailure(state, payload.RequestID, "lobby not found")
+		emitJoinLobbyFailure(w, payload.RequestID, "lobby not found")
 		return "", none, false
 	}
 
-	return lobbyID, lobbyEntity.Lobby, true
+	return lobbyID, lobbyEntity, true
 }
 
 // admitToTeam runs the join guards that apply once the invite code has already resolved,
@@ -1457,53 +1341,54 @@ func resolveInviteCode(
 //
 // lobby is mutated in place on success — the player is appended to the target team.
 func admitToTeam(
-	state *LobbySystemState,
+	s *LobbySystem,
+	w *cardinal.World,
 	lobby *component.LobbyComponent,
 	lobbyID, playerID string,
 	payload JoinLobbyCommand,
 ) (*component.Team, bool) {
 	if lobby.Session.State == component.SessionStateInSession {
-		state.Logger().Warn().
+		w.Logger().Warn().
 			Str("lobby_id", lobbyID).
 			Str("invite_code", payload.InviteCode).
 			Str("player_id", playerID).
 			Str("request_id", payload.RequestID).
 			Msg("lobby is in session")
-		emitJoinLobbyFailure(state, payload.RequestID, "lobby is in session")
+		emitJoinLobbyFailure(w, payload.RequestID, "lobby is in session")
 		return nil, false
 	}
 
 	// Game-specific validation (version, region, level, etc.)
-	if ok, reason := storedProvider.ValidateJoin(lobby, payload); !ok {
-		state.Logger().Warn().
+	if ok, reason := s.runtime.provider.ValidateJoin(lobby, payload); !ok {
+		w.Logger().Warn().
 			Str("lobby_id", lobbyID).
 			Str("invite_code", payload.InviteCode).
 			Str("player_id", playerID).
 			Str("reason", reason).
 			Msg("join rejected by provider")
-		emitJoinLobbyFailure(state, payload.RequestID, reason)
+		emitJoinLobbyFailure(w, payload.RequestID, reason)
 		return nil, false
 	}
 
 	targetTeam, errMsg := findTargetTeam(lobby, payload.TeamID)
 	if targetTeam == nil {
-		state.Logger().Warn().
+		w.Logger().Warn().
 			Str("lobby_id", lobbyID).
 			Str("invite_code", payload.InviteCode).
 			Str("player_id", playerID).
 			Str("team_id", payload.TeamID).
 			Msg(errMsg)
-		emitJoinLobbyFailure(state, payload.RequestID, errMsg)
+		emitJoinLobbyFailure(w, payload.RequestID, errMsg)
 		return nil, false
 	}
 
 	if !lobby.AddPlayerToTeam(playerID, targetTeam.TeamID) {
-		state.Logger().Warn().
+		w.Logger().Warn().
 			Str("lobby_id", lobbyID).
 			Str("invite_code", payload.InviteCode).
 			Str("player_id", playerID).
 			Msg("failed to join team")
-		emitJoinLobbyFailure(state, payload.RequestID, "failed to join team")
+		emitJoinLobbyFailure(w, payload.RequestID, "failed to join team")
 		return nil, false
 	}
 
@@ -1511,11 +1396,12 @@ func admitToTeam(
 }
 
 func processJoinLobbyCommands(
-	state *LobbySystemState,
+	s *LobbySystem,
+	w *cardinal.World,
 	lobbyIndex *lookupIndex,
 	now, timeout int64,
 ) {
-	for cmd := range state.JoinLobbyCmds.Iter() {
+	for cmd := range w.Commands[JoinLobbyCommand]() {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
@@ -1523,23 +1409,23 @@ func processJoinLobbyCommands(
 		// code is not the problem here: a grep for the code must surface every attempt to
 		// use it, including the ones rejected for an unrelated reason.
 		if existingLobbyID, exists := lobbyIndex.GetPlayerLobby(playerID); exists {
-			state.Logger().Warn().
+			w.Logger().Warn().
 				Str("player_id", playerID).
 				Str("invite_code", payload.InviteCode).
 				Str("lobby_id", existingLobbyID).
 				Str("request_id", payload.RequestID).
 				Msg("player already in a lobby")
-			emitJoinLobbyFailure(state, payload.RequestID, "player already in a lobby")
+			emitJoinLobbyFailure(w, payload.RequestID, "player already in a lobby")
 			continue
 		}
 
-		lobbyID, lobbyRef, found := resolveInviteCode(state, lobbyIndex, playerID, payload)
+		lobbyID, lobbyRef, found := resolveInviteCode(w, lobbyIndex, playerID, payload)
 		if !found {
 			continue
 		}
-		lobby := lobbyRef.Get()
+		lobby := lobbyRef.Get[component.LobbyComponent]()
 
-		targetTeam, admitted := admitToTeam(state, &lobby, lobbyID, playerID, payload)
+		targetTeam, admitted := admitToTeam(s, w, &lobby, lobbyID, playerID, payload)
 		if !admitted {
 			continue
 		}
@@ -1548,11 +1434,11 @@ func processJoinLobbyCommands(
 
 		// Create player entity
 		playerComp, playerEntityID := createPlayerEntity(
-			state, playerID, lobbyID, targetTeam.TeamID, payload.PlayerPassthroughData, now,
+			w, playerID, lobbyID, targetTeam.TeamID, payload.PlayerPassthroughData, now,
 		)
 		lobbyIndex.AddPlayerToLobby(playerID, lobbyID, targetTeam.TeamID, uint32(playerEntityID), now+timeout)
 
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
 			Str("team_id", targetTeam.TeamID).
@@ -1561,17 +1447,17 @@ func processJoinLobbyCommands(
 			Msg("Player joined lobby")
 
 		// Emit broadcast event
-		state.PlayerJoinedEvents.Broadcast(PlayerJoinedEvent{
+		w.Broadcast(PlayerJoinedEvent{
 			LobbyID: lobbyID,
 			TeamID:  targetTeam.TeamID,
 			Player:  playerComp,
 		})
 
 		// Gather all players in the lobby for the result
-		playersList, playersListCount := gatherLobbyPlayers(state, lobbyIndex, &lobby)
+		playersList, playersListCount := gatherLobbyPlayers(w, lobbyIndex, &lobby)
 
 		// Emit success result
-		state.JoinLobbyResults.Broadcast(JoinLobbyResult{
+		w.Broadcast(JoinLobbyResult{
 			RequestID:        payload.RequestID,
 			IsSuccess:        true,
 			Message:          "joined lobby",
@@ -1582,14 +1468,14 @@ func processJoinLobbyCommands(
 	}
 }
 
-func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
-	for cmd := range state.JoinTeamCmds.Iter() {
+func processJoinTeamCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
+	for cmd := range w.Commands[JoinTeamCommand]() {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
 		if result == nil {
-			state.JoinTeamResults.Broadcast(JoinTeamResult{
+			w.Broadcast(JoinTeamResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerNotInLobby,
@@ -1601,7 +1487,7 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 
 		// Can't change team during session
 		if lobby.Session.State == component.SessionStateInSession {
-			state.JoinTeamResults.Broadcast(JoinTeamResult{
+			w.Broadcast(JoinTeamResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "cannot change team during session",
@@ -1612,7 +1498,7 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 		// Get current team
 		oldTeamID, inTeam := lobbyIndex.GetPlayerTeam(playerID)
 		if !inTeam {
-			state.JoinTeamResults.Broadcast(JoinTeamResult{
+			w.Broadcast(JoinTeamResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player not in any team",
@@ -1623,8 +1509,8 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 		// Find target team by ID
 		newTeam := lobby.GetTeam(payload.TeamID)
 		if newTeam == nil {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Str("team_id", payload.TeamID).Msg("team not found")
-			state.JoinTeamResults.Broadcast(JoinTeamResult{
+			w.Logger().Warn().Str("lobby_id", lobbyID).Str("team_id", payload.TeamID).Msg("team not found")
+			w.Broadcast(JoinTeamResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "team not found",
@@ -1634,8 +1520,8 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 
 		// Move to new team
 		if !lobby.MovePlayerToTeam(playerID, oldTeamID, newTeam.TeamID) {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("failed to change team")
-			state.JoinTeamResults.Broadcast(JoinTeamResult{
+			w.Logger().Warn().Str("lobby_id", lobbyID).Msg("failed to change team")
+			w.Broadcast(JoinTeamResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "failed to change team (team may be full)",
@@ -1650,14 +1536,14 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 		var playerComp component.PlayerComponent
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(playerID)
 		if exists {
-			if playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID)); err == nil {
-				playerComp = playerEntity.Player.Get()
+			if playerEntity, err := w.Contains[playerArchetype]().GetByID(cardinal.EntityID(playerEntityID)); err == nil {
+				playerComp = playerEntity.Get[component.PlayerComponent]()
 				playerComp.TeamID = newTeam.TeamID
-				playerEntity.Player.Set(playerComp)
+				playerEntity.Set(playerComp)
 			}
 		}
 
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
 			Str("old_team", oldTeamID).
@@ -1667,14 +1553,14 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 			Msg("Player changed team")
 
 		// Emit broadcast event
-		state.PlayerChangedTeamEvents.Broadcast(PlayerChangedTeamEvent{
+		w.Broadcast(PlayerChangedTeamEvent{
 			LobbyID:   lobbyID,
 			OldTeamID: oldTeamID,
 			NewTeamID: newTeam.TeamID,
 			Player:    playerComp,
 		})
 
-		state.JoinTeamResults.Broadcast(JoinTeamResult{
+		w.Broadcast(JoinTeamResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "changed team",
@@ -1683,14 +1569,14 @@ func processJoinTeamCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 	}
 }
 
-func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
-	for cmd := range state.LeaveLobbyCmds.Iter() {
+func processLeaveLobbyCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
+	for cmd := range w.Commands[LeaveLobbyCommand]() {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
 		if result == nil {
-			state.LeaveLobbyResults.Broadcast(LeaveLobbyResult{
+			w.Broadcast(LeaveLobbyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerNotInLobby,
@@ -1701,19 +1587,19 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 		lobby := result.lobby
 
 		// Resolved before the entity is destroyed: it reads the player's own component.
-		teamID := playerTeamID(state, lobbyIndex, playerID)
+		teamID := playerTeamID(w, lobbyIndex, playerID)
 
 		// Delete player entity
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(playerID)
 		if exists {
-			state.Players.Destroy(cardinal.EntityID(playerEntityID))
+			w.Entity(cardinal.EntityID(playerEntityID)).Destroy()
 		}
 
 		lobby.RemovePlayerFromTeam(playerID, teamID)
 		lobbyIndex.RemovePlayerFromLobby(playerID)
 
 		// Emit broadcast event for player leaving
-		state.PlayerLeftEvents.Broadcast(PlayerLeftEvent{
+		w.Broadcast(PlayerLeftEvent{
 			LobbyID:  lobbyID,
 			PlayerID: playerID,
 		})
@@ -1722,7 +1608,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 		// lobby is deleted as a consequence of the leave, and the deletion line has to be
 		// the final entry for this code. Logging it afterwards made "Player left lobby"
 		// the last thing a grep sees for a lobby that no longer exists.
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
 			Str("invite_code", lobby.InviteCode).
@@ -1731,20 +1617,20 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 
 		// If lobby is empty, delete it - use index for O(1) check
 		if lobbyIndex.GetLobbyPlayerCount(lobbyID) == 0 {
-			failPendingAssignment(&state.StartSessionResults, &lobby, "lobby deleted before shard assignment")
+			failPendingAssignment(w, &lobby, "lobby deleted before shard assignment")
 			lobbyIndex.RemoveLobby(lobbyID, lobby.InviteCode)
-			state.Lobbies.Destroy(result.entityID)
+			w.Entity(result.entityID).Destroy()
 
 			// The code dies here: RemoveLobby drops it from the invite index. This is the
 			// end of the trace for that code, and the reason a later join is rejected.
-			state.Logger().Info().
+			w.Logger().Info().
 				Str("lobby_id", lobbyID).
 				Str("invite_code", lobby.InviteCode).
 				Str("triggered_by", playerID).
 				Msg("Lobby deleted (empty)")
 
 			// Emit broadcast event for lobby deletion
-			state.LobbyDeletedEvents.Broadcast(LobbyDeletedEvent{
+			w.Broadcast(LobbyDeletedEvent{
 				LobbyID: lobbyID,
 			})
 		} else {
@@ -1753,7 +1639,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 				oldLeaderID := lobby.LeaderID
 				lobby.LeaderID = findNewLeader(&lobby)
 
-				state.Logger().Info().
+				w.Logger().Info().
 					Str("lobby_id", lobbyID).
 					Str("old_leader", oldLeaderID).
 					Str("new_leader", lobby.LeaderID).
@@ -1761,7 +1647,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 					Msg("Leadership auto-transferred")
 
 				// Emit broadcast event for leader change
-				state.LeaderChangedEvents.Broadcast(LeaderChangedEvent{
+				w.Broadcast(LeaderChangedEvent{
 					LobbyID:     lobbyID,
 					OldLeaderID: oldLeaderID,
 					NewLeaderID: lobby.LeaderID,
@@ -1771,7 +1657,7 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 			result.lobbyRef.Set(lobby)
 		}
 
-		state.LeaveLobbyResults.Broadcast(LeaveLobbyResult{
+		w.Broadcast(LeaveLobbyResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "left lobby",
@@ -1779,14 +1665,14 @@ func processLeaveLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 	}
 }
 
-func processSetReadyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
-	for cmd := range state.SetReadyCmds.Iter() {
+func processSetReadyCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
+	for cmd := range w.Commands[SetReadyCommand]() {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
 		if result == nil {
-			state.SetReadyResults.Broadcast(SetReadyResult{
+			w.Broadcast(SetReadyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerNotInLobby,
@@ -1798,7 +1684,7 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 
 		// Can't change ready during session
 		if lobby.Session.State == component.SessionStateInSession {
-			state.SetReadyResults.Broadcast(SetReadyResult{
+			w.Broadcast(SetReadyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "cannot change ready status during session",
@@ -1809,27 +1695,27 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 		// Update player entity's IsReady
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(playerID)
 		if !exists {
-			state.SetReadyResults.Broadcast(SetReadyResult{
+			w.Broadcast(SetReadyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerEntityNotFound,
 			})
 			continue
 		}
-		playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID))
+		playerEntity, err := w.Contains[playerArchetype]().GetByID(cardinal.EntityID(playerEntityID))
 		if err != nil {
-			state.SetReadyResults.Broadcast(SetReadyResult{
+			w.Broadcast(SetReadyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerEntityNotFound,
 			})
 			continue
 		}
-		playerComp := playerEntity.Player.Get()
+		playerComp := playerEntity.Get[component.PlayerComponent]()
 		playerComp.IsReady = payload.IsReady
-		playerEntity.Player.Set(playerComp)
+		playerEntity.Set(playerComp)
 
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
 			Bool("is_ready", payload.IsReady).
@@ -1838,12 +1724,12 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 			Msg("Player ready status changed")
 
 		// Emit broadcast event
-		state.PlayerReadyEvents.Broadcast(PlayerReadyEvent{
+		w.Broadcast(PlayerReadyEvent{
 			LobbyID: lobbyID,
 			Player:  playerComp,
 		})
 
-		state.SetReadyResults.Broadcast(SetReadyResult{
+		w.Broadcast(SetReadyResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "ready status updated",
@@ -1852,14 +1738,14 @@ func processSetReadyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 	}
 }
 
-func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
-	for cmd := range state.KickPlayerCmds.Iter() {
+func processKickPlayerCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
+	for cmd := range w.Commands[KickPlayerCommand]() {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
 		if result == nil {
-			state.KickPlayerResults.Broadcast(KickPlayerResult{
+			w.Broadcast(KickPlayerResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerNotInLobby,
@@ -1871,8 +1757,8 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 
 		// Only leader can kick
 		if !lobby.IsLeader(playerID) {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).Msg("only leader can kick players")
-			state.KickPlayerResults.Broadcast(KickPlayerResult{
+			w.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).Msg("only leader can kick players")
+			w.Broadcast(KickPlayerResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "only leader can kick players",
@@ -1882,7 +1768,7 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 
 		// Can't kick self
 		if payload.TargetPlayerID == playerID {
-			state.KickPlayerResults.Broadcast(KickPlayerResult{
+			w.Broadcast(KickPlayerResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "cannot kick yourself",
@@ -1892,7 +1778,7 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 
 		// Check if target is in lobby
 		if !lobby.HasPlayer(payload.TargetPlayerID) {
-			state.KickPlayerResults.Broadcast(KickPlayerResult{
+			w.Broadcast(KickPlayerResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "target player not in lobby",
@@ -1901,19 +1787,19 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 		}
 
 		// Resolved before the entity is destroyed: it reads the player's own component.
-		targetTeamID := playerTeamID(state, lobbyIndex, payload.TargetPlayerID)
+		targetTeamID := playerTeamID(w, lobbyIndex, payload.TargetPlayerID)
 
 		// Delete player entity
 		targetPlayerEntityID, exists := lobbyIndex.GetPlayerEntityID(payload.TargetPlayerID)
 		if exists {
-			state.Players.Destroy(cardinal.EntityID(targetPlayerEntityID))
+			w.Entity(cardinal.EntityID(targetPlayerEntityID)).Destroy()
 		}
 
 		lobby.RemovePlayerFromTeam(payload.TargetPlayerID, targetTeamID)
 		result.lobbyRef.Set(lobby)
 		lobbyIndex.RemovePlayerFromLobby(payload.TargetPlayerID)
 
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("player_id", payload.TargetPlayerID).
 			Str("kicker_id", playerID).
@@ -1922,13 +1808,13 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 			Msg("Player kicked from lobby")
 
 		// Emit broadcast event
-		state.PlayerKickedEvents.Broadcast(PlayerKickedEvent{
+		w.Broadcast(PlayerKickedEvent{
 			LobbyID:  lobbyID,
 			PlayerID: payload.TargetPlayerID,
 			KickerID: playerID,
 		})
 
-		state.KickPlayerResults.Broadcast(KickPlayerResult{
+		w.Broadcast(KickPlayerResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "player kicked",
@@ -1936,14 +1822,14 @@ func processKickPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex)
 	}
 }
 
-func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
-	for cmd := range state.TransferLeaderCmds.Iter() {
+func processTransferLeaderCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
+	for cmd := range w.Commands[TransferLeaderCommand]() {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
 		if result == nil {
-			state.TransferLeaderResults.Broadcast(TransferLeaderResult{
+			w.Broadcast(TransferLeaderResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerNotInLobby,
@@ -1955,8 +1841,8 @@ func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *lookupIn
 
 		// Only leader can transfer
 		if !lobby.IsLeader(playerID) {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).Msg("only leader can transfer leadership")
-			state.TransferLeaderResults.Broadcast(TransferLeaderResult{
+			w.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).Msg("only leader can transfer leadership")
+			w.Broadcast(TransferLeaderResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "only leader can transfer leadership",
@@ -1966,9 +1852,9 @@ func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *lookupIn
 
 		// Check if target is in lobby
 		if !lobby.HasPlayer(payload.TargetPlayerID) {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Str("target", payload.TargetPlayerID).
+			w.Logger().Warn().Str("lobby_id", lobbyID).Str("target", payload.TargetPlayerID).
 				Msg("target player not in lobby")
-			state.TransferLeaderResults.Broadcast(TransferLeaderResult{
+			w.Broadcast(TransferLeaderResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "target player not in lobby",
@@ -1980,7 +1866,7 @@ func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *lookupIn
 		lobby.LeaderID = payload.TargetPlayerID
 		result.lobbyRef.Set(lobby)
 
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("old_leader", oldLeaderID).
 			Str("new_leader", payload.TargetPlayerID).
@@ -1989,13 +1875,13 @@ func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *lookupIn
 			Msg("Leadership transferred")
 
 		// Emit broadcast event
-		state.LeaderChangedEvents.Broadcast(LeaderChangedEvent{
+		w.Broadcast(LeaderChangedEvent{
 			LobbyID:     lobbyID,
 			OldLeaderID: oldLeaderID,
 			NewLeaderID: payload.TargetPlayerID,
 		})
 
-		state.TransferLeaderResults.Broadcast(TransferLeaderResult{
+		w.Broadcast(TransferLeaderResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "leadership transferred",
@@ -2004,16 +1890,16 @@ func processTransferLeaderCommands(state *LobbySystemState, lobbyIndex *lookupIn
 }
 
 func processStartSessionCommands(
-	state *LobbySystemState,
+	w *cardinal.World,
 	lobbyIndex *lookupIndex,
 ) {
-	for cmd := range state.StartSessionCmds.Iter() {
+	for cmd := range w.Commands[StartSessionCommand]() {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
 		if result == nil {
-			state.StartSessionResults.Broadcast(StartSessionResult{
+			w.Broadcast(StartSessionResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerNotInLobby,
@@ -2025,8 +1911,8 @@ func processStartSessionCommands(
 
 		// Only leader can start
 		if !lobby.IsLeader(playerID) {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).Msg("only leader can start session")
-			state.StartSessionResults.Broadcast(StartSessionResult{
+			w.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).Msg("only leader can start session")
+			w.Broadcast(StartSessionResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "only leader can start session",
@@ -2036,7 +1922,7 @@ func processStartSessionCommands(
 
 		// Already in session or awaiting assignment
 		if lobby.Session.State == component.SessionStateInSession {
-			state.StartSessionResults.Broadcast(StartSessionResult{
+			w.Broadcast(StartSessionResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "session already in progress",
@@ -2044,7 +1930,7 @@ func processStartSessionCommands(
 			continue
 		}
 		if lobby.Session.State == component.SessionStateAwaitingAllocation {
-			state.StartSessionResults.Broadcast(StartSessionResult{
+			w.Broadcast(StartSessionResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "session already pending shard assignment",
@@ -2053,9 +1939,9 @@ func processStartSessionCommands(
 		}
 
 		// Check all ready
-		if !areAllPlayersReady(state, lobbyIndex, &lobby) {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("not all players are ready")
-			state.StartSessionResults.Broadcast(StartSessionResult{
+		if !areAllPlayersReady(w, lobbyIndex, &lobby) {
+			w.Logger().Warn().Str("lobby_id", lobbyID).Msg("not all players are ready")
+			w.Broadcast(StartSessionResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "not all players are ready",
@@ -2071,19 +1957,19 @@ func processStartSessionCommands(
 		// with lobby.GameWorld.
 		lobby.Session.State = component.SessionStateAwaitingAllocation
 		lobby.Session.PendingRequestID = payload.RequestID
-		lobby.Session.PendingStartedAt = state.Timestamp().Unix()
+		lobby.Session.PendingStartedAt = w.Timestamp().Unix()
 		result.lobbyRef.Set(lobby)
 
 		// player_id is the leader who started it — this line had no actor at all, so a
 		// session start could not be attributed to anyone.
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
 			Str("request_id", payload.RequestID).
 			Str("invite_code", lobby.InviteCode).
 			Msg("Session pending shard assignment")
 
-		state.SessionAwaitingAllocationEvents.Broadcast(SessionAwaitingAllocationEvent{
+		w.Broadcast(SessionAwaitingAllocationEvent{
 			LobbyID: lobbyID,
 		})
 	}
@@ -2093,16 +1979,16 @@ func processStartSessionCommands(
 // SessionStateAwaitingAllocation for more than config.MaxAllocationTimeout
 // seconds. Disabled when MaxAllocationTimeout <= 0. Runs once per tick.
 func processAllocationTimeouts(
-	state *LobbySystemState,
+	w *cardinal.World,
 	config *Config,
 ) {
 	if config.MaxAllocationTimeout <= 0 {
 		return
 	}
-	now := state.Timestamp().Unix()
+	now := w.Timestamp().Unix()
 
-	for _, refs := range state.Lobbies.Iter() {
-		lob := refs.Lobby.Get()
+	for refs := range w.Contains[lobbyArchetype]().Iter() {
+		lob := refs.Get[component.LobbyComponent]()
 		if lob.Session.State != component.SessionStateAwaitingAllocation {
 			continue
 		}
@@ -2110,13 +1996,13 @@ func processAllocationTimeouts(
 			continue
 		}
 
-		state.Logger().Warn().
+		w.Logger().Warn().
 			Str("lobby_id", lob.ID).
 			Int64("waited_seconds", now-lob.Session.PendingStartedAt).
 			Int64("max_seconds", config.MaxAllocationTimeout).
 			Msg("allocation timeout: failing pending session-start")
 
-		abortAwaitingAllocation(&state.StartSessionResults, refs.Lobby, &lob, "shard assignment timed out")
+		abortAwaitingAllocation(w, refs, &lob, "shard assignment timed out")
 	}
 }
 
@@ -2125,7 +2011,7 @@ func processAllocationTimeouts(
 // the client that issued the original StartSessionCommand would never
 // receive a response and would hang on its RequestID.
 func failPendingAssignment(
-	results *cardinal.WithEvent[StartSessionResult],
+	w *cardinal.World,
 	lobby *component.LobbyComponent,
 	reason string,
 ) {
@@ -2135,7 +2021,7 @@ func failPendingAssignment(
 	if lobby.Session.PendingRequestID == "" {
 		return
 	}
-	results.Broadcast(StartSessionResult{
+	w.Broadcast(StartSessionResult{
 		RequestID: lobby.Session.PendingRequestID,
 		IsSuccess: false,
 		Message:   reason,
@@ -2149,8 +2035,8 @@ func failPendingAssignment(
 // SessionStateAwaitingAllocation — returns without effect. Centralizes
 // the exit protocol so no caller can forget a field.
 func abortAwaitingAllocation(
-	results *cardinal.WithEvent[StartSessionResult],
-	ref cardinal.Ref[component.LobbyComponent],
+	w *cardinal.World,
+	ref cardinal.Entity,
 	lobby *component.LobbyComponent,
 	reason string,
 ) {
@@ -2158,7 +2044,7 @@ func abortAwaitingAllocation(
 		return
 	}
 	if lobby.Session.PendingRequestID != "" {
-		results.Broadcast(StartSessionResult{
+		w.Broadcast(StartSessionResult{
 			RequestID: lobby.Session.PendingRequestID,
 			IsSuccess: false,
 			Message:   reason,
@@ -2173,17 +2059,17 @@ func abortAwaitingAllocation(
 // dispatchSessionStart sends NotifySessionStartCommand to the game shard
 // configured on the lobby. No-op if no game shard is configured.
 func dispatchSessionStart(
-	state *LobbySystemState,
+	w *cardinal.World,
 	config *Config,
 	lobby *component.LobbyComponent,
 	lobbyID string,
 ) {
 	gameWorld := lobby.GameWorld
-	state.SendToShard(cardinal.OtherWorld(gameWorld), NotifySessionStartCommand{
+	w.SendToShard(cardinal.OtherWorld(gameWorld), NotifySessionStartCommand{
 		LobbyID:    lobbyID,
 		LobbyWorld: config.LobbyWorld,
 	})
-	state.Logger().Info().
+	w.Logger().Info().
 		Str("lobby_id", lobbyID).
 		Str("game_shard", lobby.GameWorld.ShardID).
 		Str("invite_code", lobby.InviteCode).
@@ -2195,28 +2081,28 @@ func dispatchSessionStart(
 // as an assignment failure: the lobby returns to Idle and a failure
 // StartSessionResult is emitted carrying the original RequestID.
 func processAssignShardCommands(
-	state *LobbySystemState,
+	w *cardinal.World,
 	lobbyIndex *lookupIndex,
 	config *Config,
 ) {
-	for cmd := range state.AssignShardCmds.Iter() {
+	for cmd := range w.Commands[AssignShardCommand]() {
 		payload := cmd.Payload
 
 		lobbyEntityID, exists := lobbyIndex.GetEntityID(payload.LobbyID)
 		if !exists {
-			state.Logger().Warn().
+			w.Logger().Warn().
 				Str("lobby_id", payload.LobbyID).
 				Msg("AssignShardCommand for unknown lobby; dropping")
 			continue
 		}
-		lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
+		lobbyEntity, err := w.Contains[lobbyArchetype]().GetByID(cardinal.EntityID(lobbyEntityID))
 		if err != nil {
 			continue
 		}
-		lobby := lobbyEntity.Lobby.Get()
+		lobby := lobbyEntity.Get[component.LobbyComponent]()
 
 		if lobby.Session.State != component.SessionStateAwaitingAllocation {
-			state.Logger().Warn().
+			w.Logger().Warn().
 				Str("lobby_id", payload.LobbyID).
 				Str("state", string(lobby.Session.State)).
 				Msg("AssignShardCommand received for lobby not in pending state; dropping")
@@ -2224,7 +2110,7 @@ func processAssignShardCommands(
 		}
 
 		if authority := config.AssignmentAuthority; authority != "" && cmd.Persona != authority {
-			state.Logger().Warn().
+			w.Logger().Warn().
 				Str("lobby_id", payload.LobbyID).
 				Str("sender", cmd.Persona).
 				Str("expected", authority).
@@ -2233,7 +2119,7 @@ func processAssignShardCommands(
 		}
 
 		if payload.RequestID != lobby.Session.PendingRequestID {
-			state.Logger().Warn().
+			w.Logger().Warn().
 				Str("lobby_id", payload.LobbyID).
 				Str("command_request_id", payload.RequestID).
 				Str("pending_request_id", lobby.Session.PendingRequestID).
@@ -2247,7 +2133,7 @@ func processAssignShardCommands(
 			if reason == "" {
 				reason = "no game shard available"
 			}
-			abortAwaitingAllocation(&state.StartSessionResults, lobbyEntity.Lobby, &lobby, reason)
+			abortAwaitingAllocation(w, lobbyEntity, &lobby, reason)
 			continue
 		}
 
@@ -2257,22 +2143,22 @@ func processAssignShardCommands(
 
 		lobby.GameWorld = payload.GameWorld
 		lobby.Session.State = component.SessionStateInSession
-		lobbyEntity.Lobby.Set(lobby)
+		lobbyEntity.Set(lobby)
 
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", payload.LobbyID).
 			Str("game_shard", lobby.GameWorld.ShardID).
 			Str("invite_code", lobby.InviteCode).
 			Msg("Session started (async assignment)")
 
-		state.SessionStartedEvents.Broadcast(SessionStartedEvent{
+		w.Broadcast(SessionStartedEvent{
 			LobbyID:   payload.LobbyID,
 			GameWorld: lobby.GameWorld,
 		})
 
-		dispatchSessionStart(state, config, &lobby, payload.LobbyID)
+		dispatchSessionStart(w, config, &lobby, payload.LobbyID)
 
-		state.StartSessionResults.Broadcast(StartSessionResult{
+		w.Broadcast(StartSessionResult{
 			RequestID: requestID,
 			IsSuccess: true,
 			Message:   "session started",
@@ -2281,8 +2167,8 @@ func processAssignShardCommands(
 	}
 }
 
-func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
-	for cmd := range state.NotifySessionEndCmds.Iter() {
+func processNotifySessionEndCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
+	for cmd := range w.Commands[NotifySessionEndCommand]() {
 		payload := cmd.Payload
 
 		lobbyEntityID, exists := lobbyIndex.GetEntityID(payload.LobbyID)
@@ -2290,23 +2176,23 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *lookup
 			continue
 		}
 
-		lobbyEntity, err := state.Lobbies.GetByID(cardinal.EntityID(lobbyEntityID))
+		lobbyEntity, err := w.Contains[lobbyArchetype]().GetByID(cardinal.EntityID(lobbyEntityID))
 		if err != nil {
 			continue
 		}
 
-		lobby := lobbyEntity.Lobby.Get()
+		lobby := lobbyEntity.Get[component.LobbyComponent]()
 
 		// If the lobby was awaiting allocation when NotifySessionEnd arrives,
 		// the session somehow ended before this shard ever assigned one.
 		// Fail the pending request so the client unblocks, transition to
 		// Idle, and continue. Without this, the lobby would stay stuck.
 		if lobby.Session.State == component.SessionStateAwaitingAllocation {
-			state.Logger().Warn().
+			w.Logger().Warn().
 				Str("lobby_id", payload.LobbyID).
 				Msg("NotifySessionEndCommand arrived while lobby was awaiting allocation; failing pending request")
 			abortAwaitingAllocation(
-				&state.StartSessionResults, lobbyEntity.Lobby, &lobby,
+				w, lobbyEntity, &lobby,
 				"session ended before shard assignment completed",
 			)
 			continue
@@ -2314,7 +2200,7 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *lookup
 
 		// Only end if in session
 		if lobby.Session.State != component.SessionStateInSession {
-			state.Logger().Warn().
+			w.Logger().Warn().
 				Str("lobby_id", payload.LobbyID).
 				Str("state", string(lobby.Session.State)).
 				Msg("NotifySessionEndCommand dropped: lobby not in session")
@@ -2322,46 +2208,47 @@ func processNotifySessionEndCommands(state *LobbySystemState, lobbyIndex *lookup
 		}
 
 		lobby.Session.State = component.SessionStateIdle
-		lobbyEntity.Lobby.Set(lobby)
+		lobbyEntity.Set(lobby)
 
 		// Reset ready status for all player entities
+		players := w.Contains[playerArchetype]()
 		for _, pid := range lobby.GetAllPlayerIDs() {
 			playerEntityID, pExists := lobbyIndex.GetPlayerEntityID(pid)
 			if !pExists {
 				continue
 			}
-			playerEntity, pErr := state.Players.GetByID(cardinal.EntityID(playerEntityID))
+			playerEntity, pErr := players.GetByID(cardinal.EntityID(playerEntityID))
 			if pErr != nil {
 				continue
 			}
-			playerComp := playerEntity.Player.Get()
+			playerComp := playerEntity.Get[component.PlayerComponent]()
 			playerComp.IsReady = false
-			playerEntity.Player.Set(playerComp)
+			playerEntity.Set(playerComp)
 
-			state.PlayerReadyEvents.Broadcast(PlayerReadyEvent{
+			w.Broadcast(PlayerReadyEvent{
 				LobbyID: payload.LobbyID,
 				Player:  playerComp,
 			})
 		}
 
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", payload.LobbyID).
 			Str("invite_code", lobby.InviteCode).
 			Msg("Session ended")
 
 		// Emit broadcast event
-		state.SessionEndedEvents.Broadcast(SessionEndedEvent(payload))
+		w.Broadcast(SessionEndedEvent(payload))
 	}
 }
 
-func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
-	for cmd := range state.GenerateInviteCodeCmds.Iter() {
+func processGenerateInviteCodeCommands(s *LobbySystem, w *cardinal.World, lobbyIndex *lookupIndex) {
+	for cmd := range w.Commands[GenerateInviteCodeCommand]() {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
 		if result == nil {
-			state.GenerateInviteCodeResults.Broadcast(GenerateInviteCodeResult{
+			w.Broadcast(GenerateInviteCodeResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerNotInLobby,
@@ -2373,8 +2260,8 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *look
 
 		// Only leader can generate
 		if !lobby.IsLeader(playerID) {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).Msg("only leader can generate invite code")
-			state.GenerateInviteCodeResults.Broadcast(GenerateInviteCodeResult{
+			w.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).Msg("only leader can generate invite code")
+			w.Broadcast(GenerateInviteCodeResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "only leader can generate invite code",
@@ -2386,11 +2273,12 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *look
 
 		// Generate new invite code with collision check (max 3 retries)
 		newCode, newCodeValid := generateInviteCodeWithRetry(
-			lobbyIndex, &lobby, inviteCodeMaxRetries, state.Timestamp().UnixNano(),
+			s.runtime.provider,
+			lobbyIndex, &lobby, inviteCodeMaxRetries, w.Timestamp().UnixNano(),
 		)
 		if !newCodeValid {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Msg("invite code collision after retries")
-			state.GenerateInviteCodeResults.Broadcast(GenerateInviteCodeResult{
+			w.Logger().Warn().Str("lobby_id", lobbyID).Msg("invite code collision after retries")
+			w.Broadcast(GenerateInviteCodeResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "invite code collision",
@@ -2406,7 +2294,7 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *look
 		// old_invite_code is the one a game dev will be holding when they report a code
 		// that stopped working. Logging only the new one leaves the retired code with no
 		// death record, which is indistinguishable from the server losing it.
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("invite_code", newCode).
 			Str("old_invite_code", oldCode).
@@ -2414,12 +2302,12 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *look
 			Msg("New invite code generated")
 
 		// Emit broadcast event
-		state.InviteCodeGeneratedEvents.Broadcast(InviteCodeGeneratedEvent{
+		w.Broadcast(InviteCodeGeneratedEvent{
 			LobbyID:    lobbyID,
 			InviteCode: newCode,
 		})
 
-		state.GenerateInviteCodeResults.Broadcast(GenerateInviteCodeResult{
+		w.Broadcast(GenerateInviteCodeResult{
 			RequestID:  payload.RequestID,
 			IsSuccess:  true,
 			Message:    "invite code generated",
@@ -2428,14 +2316,14 @@ func processGenerateInviteCodeCommands(state *LobbySystemState, lobbyIndex *look
 	}
 }
 
-func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
-	for cmd := range state.UpdateSessionPassthroughCmds.Iter() {
+func processUpdateSessionPassthroughCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
+	for cmd := range w.Commands[UpdateSessionPassthroughCommand]() {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
 		if result == nil {
-			state.UpdateSessionPassthroughResults.Broadcast(UpdateSessionPassthroughResult{
+			w.Broadcast(UpdateSessionPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerNotInLobby,
@@ -2447,9 +2335,9 @@ func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex
 
 		// Only leader can update session passthrough data
 		if !lobby.IsLeader(playerID) {
-			state.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).
+			w.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).
 				Msg("only leader can update session passthrough data")
-			state.UpdateSessionPassthroughResults.Broadcast(UpdateSessionPassthroughResult{
+			w.Broadcast(UpdateSessionPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "only leader can update session passthrough data",
@@ -2460,19 +2348,19 @@ func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex
 		lobby.Session.PassthroughData = payload.PassthroughData
 		result.lobbyRef.Set(lobby)
 
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
 			Str("invite_code", lobby.InviteCode).
 			Msg("Session passthrough data updated")
 
 		// Emit broadcast event
-		state.SessionPassthroughUpdatedEvents.Broadcast(SessionPassthroughUpdatedEvent{
+		w.Broadcast(SessionPassthroughUpdatedEvent{
 			LobbyID:         lobbyID,
 			PassthroughData: lobby.Session.PassthroughData,
 		})
 
-		state.UpdateSessionPassthroughResults.Broadcast(UpdateSessionPassthroughResult{
+		w.Broadcast(UpdateSessionPassthroughResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "session passthrough data updated",
@@ -2480,14 +2368,14 @@ func processUpdateSessionPassthroughCommands(state *LobbySystemState, lobbyIndex
 	}
 }
 
-func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
-	for cmd := range state.UpdatePlayerPassthroughCmds.Iter() {
+func processUpdatePlayerPassthroughCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
+	for cmd := range w.Commands[UpdatePlayerPassthroughCommand]() {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
 		if result == nil {
-			state.UpdatePlayerPassthroughResults.Broadcast(UpdatePlayerPassthroughResult{
+			w.Broadcast(UpdatePlayerPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerNotInLobby,
@@ -2499,16 +2387,16 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 		// Update player entity's passthrough data
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(playerID)
 		if !exists {
-			state.UpdatePlayerPassthroughResults.Broadcast(UpdatePlayerPassthroughResult{
+			w.Broadcast(UpdatePlayerPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerEntityNotFound,
 			})
 			continue
 		}
-		playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID))
+		playerEntity, err := w.Contains[playerArchetype]().GetByID(cardinal.EntityID(playerEntityID))
 		if err != nil {
-			state.UpdatePlayerPassthroughResults.Broadcast(UpdatePlayerPassthroughResult{
+			w.Broadcast(UpdatePlayerPassthroughResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerEntityNotFound,
@@ -2516,23 +2404,23 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 			continue
 		}
 
-		playerComp := playerEntity.Player.Get()
+		playerComp := playerEntity.Get[component.PlayerComponent]()
 		playerComp.PassthroughData = payload.PassthroughData
-		playerEntity.Player.Set(playerComp)
+		playerEntity.Set(playerComp)
 
-		state.Logger().Info().
+		w.Logger().Info().
 			Str("lobby_id", lobbyID).
 			Str("player_id", playerID).
 			Str("invite_code", result.lobby.InviteCode).
 			Msg("Player passthrough data updated")
 
 		// Emit broadcast event
-		state.PlayerPassthroughUpdatedEvents.Broadcast(PlayerPassthroughUpdatedEvent{
+		w.Broadcast(PlayerPassthroughUpdatedEvent{
 			LobbyID: lobbyID,
 			Player:  playerComp,
 		})
 
-		state.UpdatePlayerPassthroughResults.Broadcast(UpdatePlayerPassthroughResult{
+		w.Broadcast(UpdatePlayerPassthroughResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "player passthrough data updated",
@@ -2541,8 +2429,8 @@ func processUpdatePlayerPassthroughCommands(state *LobbySystemState, lobbyIndex 
 	}
 }
 
-func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
-	for cmd := range state.GetPlayerCmds.Iter() {
+func processGetPlayerCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
+	for cmd := range w.Commands[GetPlayerCommand]() {
 		callerID := cmd.Persona
 		payload := cmd.Payload
 
@@ -2555,7 +2443,7 @@ func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex) 
 		// Check if target player exists
 		playerEntityID, exists := lobbyIndex.GetPlayerEntityID(targetPlayerID)
 		if !exists {
-			state.GetPlayerResults.Broadcast(GetPlayerResult{
+			w.Broadcast(GetPlayerResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   "player not found",
@@ -2563,9 +2451,9 @@ func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex) 
 			continue
 		}
 
-		playerEntity, err := state.Players.GetByID(cardinal.EntityID(playerEntityID))
+		playerEntity, err := w.Contains[playerArchetype]().GetByID(cardinal.EntityID(playerEntityID))
 		if err != nil {
-			state.GetPlayerResults.Broadcast(GetPlayerResult{
+			w.Broadcast(GetPlayerResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerEntityNotFound,
@@ -2573,9 +2461,9 @@ func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex) 
 			continue
 		}
 
-		playerComp := playerEntity.Player.Get()
+		playerComp := playerEntity.Get[component.PlayerComponent]()
 
-		state.GetPlayerResults.Broadcast(GetPlayerResult{
+		w.Broadcast(GetPlayerResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "player found",
@@ -2584,14 +2472,14 @@ func processGetPlayerCommands(state *LobbySystemState, lobbyIndex *lookupIndex) 
 	}
 }
 
-func processGetLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
-	for cmd := range state.GetLobbyCmds.Iter() {
+func processGetLobbyCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
+	for cmd := range w.Commands[GetLobbyCommand]() {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
 		if result == nil {
-			state.GetLobbyResults.Broadcast(GetLobbyResult{
+			w.Broadcast(GetLobbyResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerNotInLobby,
@@ -2599,7 +2487,7 @@ func processGetLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 			continue
 		}
 
-		state.GetLobbyResults.Broadcast(GetLobbyResult{
+		w.Broadcast(GetLobbyResult{
 			RequestID: payload.RequestID,
 			IsSuccess: true,
 			Message:   "lobby found",
@@ -2608,15 +2496,15 @@ func processGetLobbyCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
 	}
 }
 
-func processGetAllPlayersCommands(state *LobbySystemState, lobbyIndex *lookupIndex) {
-	for cmd := range state.GetAllPlayersCmds.Iter() {
+func processGetAllPlayersCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
+	for cmd := range w.Commands[GetAllPlayersCommand]() {
 		playerID := cmd.Persona
 		payload := cmd.Payload
 
 		// Get caller's lobby
-		result := getPlayerLobby(playerID, lobbyIndex, &state.Lobbies)
+		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
 		if result == nil {
-			state.GetAllPlayersResults.Broadcast(GetAllPlayersResult{
+			w.Broadcast(GetAllPlayersResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
 				Message:   playerNotInLobby,
@@ -2627,9 +2515,9 @@ func processGetAllPlayersCommands(state *LobbySystemState, lobbyIndex *lookupInd
 		lobby := result.lobby
 
 		// Get all player components
-		players, playersCount := gatherLobbyPlayers(state, lobbyIndex, &lobby)
+		players, playersCount := gatherLobbyPlayers(w, lobbyIndex, &lobby)
 
-		state.GetAllPlayersResults.Broadcast(GetAllPlayersResult{
+		w.Broadcast(GetAllPlayersResult{
 			RequestID:    payload.RequestID,
 			IsSuccess:    true,
 			Message:      "players found",
@@ -2648,58 +2536,42 @@ func generateID() string {
 // Heartbeat System
 // -----------------------------------------------------------------------------
 
-// HeartbeatSystemState is the state for the heartbeat system.
-type HeartbeatSystemState struct {
-	cardinal.BaseSystemState
+// HeartbeatSystem tracks player liveness each tick using the plugin's runtime.
+type HeartbeatSystem struct {
+	runtime *Runtime
+}
 
-	// Commands
-	HeartbeatCmds cardinal.WithCommand[HeartbeatCommand]
-
-	// Entities
-	Lobbies cardinal.Contains[struct {
-		Lobby cardinal.Ref[component.LobbyComponent]
-	}]
-
-	Players cardinal.Contains[struct {
-		Player cardinal.Ref[component.PlayerComponent]
-	}]
-
-	// Events
-	PlayerTimedOutEvents cardinal.WithEvent[PlayerTimedOutEvent]
-	LeaderChangedEvents  cardinal.WithEvent[LeaderChangedEvent]
-	LobbyDeletedEvents   cardinal.WithEvent[LobbyDeletedEvent]
-	StartSessionResults  cardinal.WithEvent[StartSessionResult]
+// NewHeartbeatSystem creates a system using the plugin's runtime.
+func NewHeartbeatSystem(runtime *Runtime) *HeartbeatSystem {
+	return &HeartbeatSystem{runtime: runtime}
 }
 
 // HeartbeatSystem processes heartbeat commands and removes stale players.
-func HeartbeatSystem(state *HeartbeatSystemState) {
-	now := state.Timestamp().Unix()
+func (s *HeartbeatSystem) Run(w *cardinal.World) {
+	requireRuntime(s.runtime, "HeartbeatSystem")
+	now := w.Timestamp().Unix()
 
 	// LobbySystem rebuilds the index earlier in the same tick. Guarding here rather than relying on
-	// that registration order: after World.reset() the flag is false while index still holds the
-	// previous world's entity IDs, so running first would evict against stale deadlines and destroy
-	// entities by stale ID.
-	if !indexBuilt {
+	// that registration order prevents heartbeat processing before the runtime has rebuilt
+	// its lookups after boot or reset.
+	if !s.runtime.indexBuilt {
 		return
 	}
-	lobbyIndex := &index
+	lobbyIndex := &s.runtime.index
 
 	// Debug: print deadline map state
-	state.Logger().Debug().
+	w.Logger().Debug().
 		Interface("deadline_map", lobbyIndex.PlayerDeadline).
 		Int64("now", now).
 		Msg("HeartbeatSystem tick")
 
-	config := storedConfig
+	config := s.runtime.config
 
 	// Get timeout for deadline
 	timeout := config.HeartbeatTimeout
-	if timeout <= 0 {
-		timeout = 30 // default 30 seconds
-	}
 
 	// Process heartbeat commands - update deadline for senders
-	processHeartbeatCommands(state, lobbyIndex, now, timeout)
+	processHeartbeatCommands(w, lobbyIndex, now, timeout)
 
 	// Find timed out players - O(allPlayers)
 	timedOutPlayers := findTimedOutPlayers(lobbyIndex, now)
@@ -2716,7 +2588,7 @@ func HeartbeatSystem(state *HeartbeatSystemState) {
 	var lobbiesToDestroy []lobbyToDestroy
 	var playerEntitiesToDestroy []cardinal.EntityID
 	for lobbyID, players := range timedOutByLobby {
-		playerEntities, toDestroy := processTimedOutLobby(state, lobbyIndex, lobbyID, players)
+		playerEntities, toDestroy := processTimedOutLobby(w, lobbyIndex, lobbyID, players)
 		playerEntitiesToDestroy = append(playerEntitiesToDestroy, playerEntities...)
 		if toDestroy != nil {
 			lobbiesToDestroy = append(lobbiesToDestroy, *toDestroy)
@@ -2725,14 +2597,14 @@ func HeartbeatSystem(state *HeartbeatSystemState) {
 
 	// Destroy player entities
 	for _, entityID := range playerEntitiesToDestroy {
-		state.Players.Destroy(entityID)
+		w.Entity(entityID).Destroy()
 	}
 
 	// Destroy empty lobbies
 	for _, toDestroy := range lobbiesToDestroy {
-		failPendingAssignment(&state.StartSessionResults, &toDestroy.lobby, "lobby deleted (timeout) before shard assignment")
-		state.Lobbies.Destroy(toDestroy.entityID)
-		state.Logger().Info().
+		failPendingAssignment(w, &toDestroy.lobby, "lobby deleted (timeout) before shard assignment")
+		w.Entity(toDestroy.entityID).Destroy()
+		w.Logger().Info().
 			Str("lobby_id", toDestroy.lobbyID).
 			Str("invite_code", toDestroy.lobby.InviteCode).
 			Msg("Lobby deleted (empty after timeout)")

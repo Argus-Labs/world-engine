@@ -7,17 +7,13 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 )
 
-type GraveyardSystemState struct {
-	cardinal.BaseSystemState
-	PlayerDeathSystemEvents cardinal.WithSystemEventReceiver[systemevent.PlayerDeath]
-	Graves                  GraveSearch
-}
+type GraveyardSystem struct{}
 
-func GraveyardSystem(state *GraveyardSystemState) {
-	for event := range state.PlayerDeathSystemEvents.Iter() {
-		_, entity := state.Graves.Create()
-		entity.Grave.Set(component.Gravestone{Nickname: event.Nickname})
+func (s *GraveyardSystem) Run(w *cardinal.World) {
+	for event := range w.SystemEvents[systemevent.PlayerDeath]() {
+		entity := w.Create[Grave]()
+		entity.Set(component.Gravestone{Nickname: event.Nickname})
 
-		state.Logger().Info().Msgf("Created grave stone for player %s", event.Nickname)
+		w.Logger().Info().Msgf("Created grave stone for player %s", event.Nickname)
 	}
 }

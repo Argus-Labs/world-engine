@@ -169,26 +169,26 @@ func Lifecycle() harness.Scenario {
 
 				c.SetPos(s.mover, 8, 20)
 
-				c.EditBody(s.growCircle, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0].Radius = 2
+				c.EditShape(s.growCircle, 0, func(sh *physics.ColliderShape) {
+					sh.Radius = 2
 				})
-				c.EditBody(s.growBox, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0].HalfExtents = vec(2, 0.5)
+				c.EditShape(s.growBox, 0, func(sh *physics.ColliderShape) {
+					sh.HalfExtents = vec(2, 0.5)
 				})
-				c.EditBody(s.growCapsule, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0].CapsuleCenter1 = vec(-3, 0)
-					pb.Shapes[0].CapsuleCenter2 = vec(3, 0)
+				c.EditShape(s.growCapsule, 0, func(sh *physics.ColliderShape) {
+					sh.CapsuleCenter1 = vec(-3, 0)
+					sh.CapsuleCenter2 = vec(3, 0)
 				})
-				c.EditBody(s.fatCapsule, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0].Radius = 1.8
+				c.EditShape(s.fatCapsule, 0, func(sh *physics.ColliderShape) {
+					sh.Radius = 1.8
 				})
 
-				c.EditBody(s.filterWall, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0].CategoryBits = 0x4
-					pb.Shapes[0].MaskBits = 0x4
+				c.EditShape(s.filterWall, 0, func(sh *physics.ColliderShape) {
+					sh.CategoryBits = 0x4
+					sh.MaskBits = 0x4
 				})
-				c.EditBody(s.sensorWall, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0].IsSensor = true
+				c.EditShape(s.sensorWall, 0, func(sh *physics.ColliderShape) {
+					sh.IsSensor = true
 				})
 				c.EditBody(s.freezer, func(pb *physics.PhysicsBody2D) {
 					pb.BodyType = physics.BodyTypeStatic
@@ -197,10 +197,10 @@ func Lifecycle() harness.Scenario {
 					pb.BodyType = physics.BodyTypeDynamic
 				})
 				c.EditBody(s.multiShape, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes = append(pb.Shapes, atOffset(box(0.5, 0.5), 3, 0))
+					pb.Shapes = pb.Shapes.Append(atOffset(box(0.5, 0.5), 3, 0))
 				})
-				c.EditBody(s.gripLater, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes[0].Friction = 0.9
+				c.EditShape(s.gripLater, 0, func(sh *physics.ColliderShape) {
+					sh.Friction = 0.9
 				})
 			}},
 			{Tick: earlyCheck, Do: func(c *harness.Ctx) {
@@ -244,7 +244,9 @@ func Lifecycle() harness.Scenario {
 			{Tick: removeTick, Do: func(c *harness.Ctx) {
 				frozenY := c.Pos(s.freezer).Y
 				c.EditBody(s.multiShape, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes = pb.Shapes[:1]
+					// Sub is the one derivation that writes nothing, and Ctx.Body already
+					// handed back a clone, so the stored list is untouched either way.
+					pb.Shapes = pb.Shapes.Sub(0, 1)
 				})
 				c.SetVel(s.mover, crossSpeed, 0)
 				s.freezerY = frozenY

@@ -1,6 +1,9 @@
 package component
 
-import "github.com/argus-labs/world-engine/pkg/cardinal"
+import (
+	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
+)
 
 // PhysicsSingletonTag marks the single entity that holds physics plugin state (ActiveContacts).
 type PhysicsSingletonTag struct{}
@@ -29,7 +32,7 @@ type ContactPairEntry struct {
 // After a rebuild, the physics step diffs this against Box2D's live contact list to emit
 // correct Begin/End events without duplicates or missed ends.
 type ActiveContacts struct {
-	Pairs []ContactPairEntry `json:"pairs"`
+	Pairs immutable.Slice[ContactPairEntry] `json:"pairs"`
 }
 
 func (ActiveContacts) Name() string { return "active_contacts" }

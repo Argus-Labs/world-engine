@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"unsafe"
+
+	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/probe"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
@@ -33,8 +36,8 @@ type CaptureRow struct {
 // if it does not survive a restore the rebuilt world replays every existing
 // overlap as a new contact.
 type SingletonRow struct {
-	Tag            cardinal.Ref[physics.PhysicsSingletonTag]
-	ActiveContacts cardinal.Ref[physics.ActiveContacts]
+	Tag            physics.PhysicsSingletonTag
+	ActiveContacts physics.ActiveContacts
 }
 
 // Capture is every body in a world, keyed by its probe label, plus the plugin's
@@ -60,42 +63,37 @@ func (c Capture) Labels() []string {
 }
 
 // preCaptureState and postCaptureState are the two capture systems. They are
-// separate flat types on purpose: Cardinal names a system after its state type,
-// so two systems sharing one type would collide, and initSystemFields only walks
-// a state struct's top-level fields, so a shared embedded struct would leave
-// Probes uninitialised and the search would fault on first use.
+// separate types on purpose: Cardinal names a system after its type, so two
+// systems sharing one type would be indistinguishable in scheduler introspection.
 type preCaptureState struct {
-	cardinal.BaseSystemState
-	Probes    Probes
-	Singleton cardinal.Contains[SingletonRow]
+	into *Capture
 }
 
 type postCaptureState struct {
-	cardinal.BaseSystemState
-	Probes    Probes
-	Singleton cardinal.Contains[SingletonRow]
+	into *Capture
 }
 
 // capture copies every body's components into into, replacing whatever was
 // there. A fresh map is allocated each time, so a caller that copies the Capture
 // struct keeps that tick's state even as later ticks overwrite the field.
-func capture(probes *Probes, singleton *cardinal.Contains[SingletonRow], into *Capture) {
+func capture(probes, singleton cardinal.Search, into *Capture) {
 	rows := make(map[string]CaptureRow, len(into.Rows))
-	for eid, row := range probes.Iter() {
-		p := row.Probe.Get()
+	for row := range probes.Iter() {
+		eid := row.ID()
+		p := row.Get[probe.Probe]()
 		rows[p.Label] = CaptureRow{
 			Entity:    eid,
-			Transform: row.Transform.Get(),
-			Velocity:  row.Velocity.Get(),
-			Body:      CloneBody(row.Body.Get()),
+			Transform: row.Get[physics.Transform2D](),
+			Velocity:  row.Get[physics.Velocity2D](),
+			Body:      CloneBody(row.Get[physics.PhysicsBody2D]()),
 		}
 	}
 
 	var pairs []physics.ContactPairEntry
 	count := 0
-	for _, row := range singleton.Iter() {
+	for row := range singleton.Iter() {
 		count++
-		pairs = append(pairs, row.ActiveContacts.Get().Pairs...)
+		pairs = slices.AppendSeq(pairs, row.Get[physics.ActiveContacts]().Pairs.Values())
 	}
 	// Entry order is an implementation detail of the plugin's map iteration, so
 	// sort before comparing two worlds.
@@ -143,16 +141,12 @@ func CompareContacts(want, got Capture) []Diff {
 // Call it before RegisterPlugin. After a snapshot restore, the first tick's
 // pre-capture is the deserialized ECS state with nothing else having touched it.
 func RegisterPreCapture(w *cardinal.World, into *Capture) {
-	w.RegisterSystem(func(state *preCaptureState) {
-		capture(&state.Probes, &state.Singleton, into)
-	}, cardinal.WithHook(cardinal.PreUpdate))
+	w.RegisterSystem(&preCaptureState{into: into}, cardinal.WithHook(cardinal.PreUpdate))
 }
 
 // RegisterPostCapture registers a capture that runs after the physics pipeline.
 func RegisterPostCapture(w *cardinal.World, into *Capture) {
-	w.RegisterSystem(func(state *postCaptureState) {
-		capture(&state.Probes, &state.Singleton, into)
-	}, cardinal.WithHook(cardinal.PostUpdate))
+	w.RegisterSystem(&postCaptureState{into: into}, cardinal.WithHook(cardinal.PostUpdate))
 }
 
 // -----------------------------------------------------------------------------
@@ -195,19 +189,18 @@ func DecodeSnapshot(raw []byte) (any, error) {
 // SnapshotWorld serializes a world exactly the way Cardinal's snapshot writer
 // does, component bytes and all.
 func SnapshotWorld(w *cardinal.World) (any, error) {
-	m := innerWorld(w).MethodByName("ToProto")
+	m := innerWorld(w).MethodByName("EncodeState")
 	if !m.IsValid() {
-		panic("ecs.World: no ToProto method; the snapshot shim needs updating")
+		panic("ecs.World: no EncodeState method; the snapshot shim needs updating")
 	}
-	out := m.Call(nil)
-	// ecs.World.ToProto returns the state alone; tolerate a trailing error if one
-	// is ever added so the shim keeps working across that change.
-	if len(out) == 2 {
-		if err, _ := out[1].Interface().(error); err != nil {
-			return nil, err
-		}
+	out := m.Call([]reflect.Value{reflect.ValueOf([]byte(nil))})
+	data, ok := out[0].Interface().([]byte)
+	if !ok {
+		return nil, fmt.Errorf("EncodeState returned %T, want []byte", out[0].Interface())
 	}
-	return out[0].Interface(), nil
+	// The world encodes straight to wire bytes now, but RestoreWorld still feeds
+	// FromProto, so decode back into the message the rest of the shim passes around.
+	return DecodeSnapshot(data)
 }
 
 // RestoreWorld loads a serialized world state, the way World.restore does after
@@ -299,12 +292,12 @@ func compareRow(label string, w, g CaptureRow, tol float64) []Diff {
 	boolean("Body.Bullet", g.Body.Bullet, w.Body.Bullet)
 	boolean("Body.FixedRotation", g.Body.FixedRotation, w.Body.FixedRotation)
 
-	if len(g.Body.Shapes) != len(w.Body.Shapes) {
-		add("Body.Shapes<len>", len(g.Body.Shapes), len(w.Body.Shapes))
+	if g.Body.Shapes.Len() != w.Body.Shapes.Len() {
+		add("Body.Shapes<len>", g.Body.Shapes.Len(), w.Body.Shapes.Len())
 		return diffs
 	}
-	for i := range w.Body.Shapes {
-		diffs = append(diffs, compareShape(label, i, w.Body.Shapes[i], g.Body.Shapes[i], tol)...)
+	for i, want := range w.Body.Shapes.All() {
+		diffs = append(diffs, compareShape(label, i, want, g.Body.Shapes.At(i), tol)...)
 	}
 	return diffs
 }
@@ -352,22 +345,31 @@ func compareShape(label string, i int, w, g physics.ColliderShape, tol float64) 
 		add("GroupIndex", g.GroupIndex, w.GroupIndex)
 	}
 
-	if len(g.Vertices) != len(w.Vertices) {
-		add("Vertices<len>", len(g.Vertices), len(w.Vertices))
-	} else {
-		for k := range w.Vertices {
-			pt(fmt.Sprintf("Vertices[%d]", k), g.Vertices[k], w.Vertices[k])
-		}
+	if g.VertexCount != w.VertexCount {
+		add("VertexCount", g.VertexCount, w.VertexCount)
 	}
-	if len(g.ChainPoints) != len(w.ChainPoints) {
-		add("ChainPoints<len>", len(g.ChainPoints), len(w.ChainPoints))
+	// The whole array is compared, not just the live prefix: every slot travels on the wire, so a
+	// restore that lost a slot past VertexCount is still a restore that lost data.
+	for k := range w.Vertices {
+		pt(fmt.Sprintf("Vertices[%d]", k), g.Vertices[k], w.Vertices[k])
+	}
+	if g.ChainPoints.Len() != w.ChainPoints.Len() {
+		add("ChainPoints<len>", g.ChainPoints.Len(), w.ChainPoints.Len())
 	} else {
-		for k := range w.ChainPoints {
-			pt(fmt.Sprintf("ChainPoints[%d]", k), g.ChainPoints[k], w.ChainPoints[k])
+		for k, want := range w.ChainPoints.All() {
+			pt(fmt.Sprintf("ChainPoints[%d]", k), g.ChainPoints.At(k), want)
 		}
 	}
 	for k := range w.EdgeVertices {
 		pt(fmt.Sprintf("EdgeVertices[%d]", k), g.EdgeVertices[k], w.EdgeVertices[k])
 	}
 	return diffs
+}
+
+func (s *preCaptureState) Run(w *cardinal.World) {
+	capture(w.Contains[ProbeRow](), w.Contains[SingletonRow](), s.into)
+}
+
+func (s *postCaptureState) Run(w *cardinal.World) {
+	capture(w.Contains[ProbeRow](), w.Contains[SingletonRow](), s.into)
 }

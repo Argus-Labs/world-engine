@@ -1146,13 +1146,11 @@ func drawWeldJoint(draw *DebugDraw, base *jointSim, transformA, transformB Trans
 
 	var points [4]Vec2
 	for i := range 4 {
-		//nolint:gosec // G602: the loop bound is the literal 4 and points is [4]Vec2; box comes from MakeBox, whose Vertices is [MaxPolygonVertices]Vec2 with Count 4.
 		points[i] = TransformPoint(frameA, box.Vertices[i])
 	}
 	draw.DrawPolygonFcn(points[:4], ColorDarkOrange, draw.Context)
 
 	for i := range 4 {
-		//nolint:gosec // G602: the loop bound is the literal 4 and points is [4]Vec2; box comes from MakeBox, whose Vertices is [MaxPolygonVertices]Vec2 with Count 4.
 		points[i] = TransformPoint(frameB, box.Vertices[i])
 	}
 	draw.DrawPolygonFcn(points[:4], ColorDarkCyan, draw.Context)

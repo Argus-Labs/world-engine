@@ -11,7 +11,9 @@ import (
 // This file contains the convention for naming service addresses for all Worldbase related services.
 //
 // The ServiceAddress convention is as follows:
-// <realm>.<organization>.<project>.<service_id>.<endpoint>
+// <region>.<realm>.<organization>.<project>.<service_id>.<endpoint>
+//
+// <region> identifies the deployment region (e.g., "us-west1").
 //
 // <realm> is one of the following:
 // - internal: Reserved for internal services
@@ -27,8 +29,8 @@ import (
 // An endpoint can contain . as a delimiter to leverage NATS routing.
 //
 // Examples:
-// - internal.argus.platform.gateway-us-west-2.micro.ping
-// - world.argus.rampage.lobby-1.shard.message.player.connect
+// - us-west1.internal.argus.platform.gateway-us-west1.micro.ping
+// - us-west1.world.argus.rampage.lobby-1.shard.message.player.connect
 
 // Realm represents the access scope of the service.
 type Realm = microv1.ServiceAddress_Realm

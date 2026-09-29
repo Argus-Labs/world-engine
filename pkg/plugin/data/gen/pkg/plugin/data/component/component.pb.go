@@ -23,17 +23,69 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ConfigFileHash struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=Path,proto3" json:"Path,omitempty"`
+	Hash          string                 `protobuf:"bytes,2,opt,name=Hash,proto3" json:"Hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigFileHash) Reset() {
+	*x = ConfigFileHash{}
+	mi := &file_pkg_plugin_data_component_component_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigFileHash) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigFileHash) ProtoMessage() {}
+
+func (x *ConfigFileHash) ProtoReflect() protoreflect.Message {
+	mi := &file_pkg_plugin_data_component_component_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigFileHash.ProtoReflect.Descriptor instead.
+func (*ConfigFileHash) Descriptor() ([]byte, []int) {
+	return file_pkg_plugin_data_component_component_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ConfigFileHash) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ConfigFileHash) GetHash() string {
+	if x != nil {
+		return x.Hash
+	}
+	return ""
+}
+
 // wire name: "data_config_manifest"
 type ConfigManifest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Files         map[string]string      `protobuf:"bytes,1,rep,name=Files,proto3" json:"Files,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Files         []*ConfigFileHash      `protobuf:"bytes,1,rep,name=Files,proto3" json:"Files,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ConfigManifest) Reset() {
 	*x = ConfigManifest{}
-	mi := &file_pkg_plugin_data_component_component_proto_msgTypes[0]
+	mi := &file_pkg_plugin_data_component_component_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +97,7 @@ func (x *ConfigManifest) String() string {
 func (*ConfigManifest) ProtoMessage() {}
 
 func (x *ConfigManifest) ProtoReflect() protoreflect.Message {
-	mi := &file_pkg_plugin_data_component_component_proto_msgTypes[0]
+	mi := &file_pkg_plugin_data_component_component_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,10 +110,10 @@ func (x *ConfigManifest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigManifest.ProtoReflect.Descriptor instead.
 func (*ConfigManifest) Descriptor() ([]byte, []int) {
-	return file_pkg_plugin_data_component_component_proto_rawDescGZIP(), []int{0}
+	return file_pkg_plugin_data_component_component_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ConfigManifest) GetFiles() map[string]string {
+func (x *ConfigManifest) GetFiles() []*ConfigFileHash {
 	if x != nil {
 		return x.Files
 	}
@@ -72,13 +124,12 @@ var File_pkg_plugin_data_component_component_proto protoreflect.FileDescriptor
 
 const file_pkg_plugin_data_component_component_proto_rawDesc = "" +
 	"\n" +
-	")pkg/plugin/data/component/component.proto\x12<github_com.argus_labs.world_engine.pkg.plugin.data.component\"\xb9\x01\n" +
-	"\x0eConfigManifest\x12m\n" +
-	"\x05Files\x18\x01 \x03(\v2W.github_com.argus_labs.world_engine.pkg.plugin.data.component.ConfigManifest.FilesEntryR\x05Files\x1a8\n" +
-	"\n" +
-	"FilesEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x85\x01ZZgithub.com/argus-labs/world-engine/pkg/plugin/data/gen/pkg/plugin/data/component;component\xaa\x02&World_engine.Pkg.Plugin.Data.Componentb\x06proto3"
+	")pkg/plugin/data/component/component.proto\x12<github_com.argus_labs.world_engine.pkg.plugin.data.component\"8\n" +
+	"\x0eConfigFileHash\x12\x12\n" +
+	"\x04Path\x18\x01 \x01(\tR\x04Path\x12\x12\n" +
+	"\x04Hash\x18\x02 \x01(\tR\x04Hash\"t\n" +
+	"\x0eConfigManifest\x12b\n" +
+	"\x05Files\x18\x01 \x03(\v2L.github_com.argus_labs.world_engine.pkg.plugin.data.component.ConfigFileHashR\x05FilesB\x85\x01ZZgithub.com/argus-labs/world-engine/pkg/plugin/data/gen/pkg/plugin/data/component;component\xaa\x02&World_engine.Pkg.Plugin.Data.Componentb\x06proto3"
 
 var (
 	file_pkg_plugin_data_component_component_proto_rawDescOnce sync.Once
@@ -94,11 +145,11 @@ func file_pkg_plugin_data_component_component_proto_rawDescGZIP() []byte {
 
 var file_pkg_plugin_data_component_component_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_pkg_plugin_data_component_component_proto_goTypes = []any{
-	(*ConfigManifest)(nil), // 0: github_com.argus_labs.world_engine.pkg.plugin.data.component.ConfigManifest
-	nil,                    // 1: github_com.argus_labs.world_engine.pkg.plugin.data.component.ConfigManifest.FilesEntry
+	(*ConfigFileHash)(nil), // 0: github_com.argus_labs.world_engine.pkg.plugin.data.component.ConfigFileHash
+	(*ConfigManifest)(nil), // 1: github_com.argus_labs.world_engine.pkg.plugin.data.component.ConfigManifest
 }
 var file_pkg_plugin_data_component_component_proto_depIdxs = []int32{
-	1, // 0: github_com.argus_labs.world_engine.pkg.plugin.data.component.ConfigManifest.Files:type_name -> github_com.argus_labs.world_engine.pkg.plugin.data.component.ConfigManifest.FilesEntry
+	0, // 0: github_com.argus_labs.world_engine.pkg.plugin.data.component.ConfigManifest.Files:type_name -> github_com.argus_labs.world_engine.pkg.plugin.data.component.ConfigFileHash
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

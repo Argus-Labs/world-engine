@@ -9,9 +9,9 @@ import (
 
 // physicsBodyRow matches entities that participate in 2D physics (ECS authoritative).
 type physicsBodyRow struct {
-	Transform   cardinal.Ref[physicscomp.Transform2D]
-	Velocity    cardinal.Ref[physicscomp.Velocity2D]
-	PhysicsBody cardinal.Ref[physicscomp.PhysicsBody2D]
+	Transform   physicscomp.Transform2D
+	Velocity    physicscomp.Velocity2D
+	PhysicsBody physicscomp.PhysicsBody2D
 }
 
 // gatherRebuildEntries collects physics archetype rows for reconcile/rebuild, appending into
@@ -20,43 +20,45 @@ type physicsBodyRow struct {
 // Runtime.KeepRebuildEntriesScratch, so the init gather starts from whatever capacity is already
 // there and the steady-state gather inherits the capacity init built.
 func gatherRebuildEntries(dst []internal.PhysicsRebuildEntry,
-	iter cardinal.SearchResult[cardinal.EntityID, physicsBodyRow],
+	iter cardinal.SearchResult,
 ) []internal.PhysicsRebuildEntry {
 	entries := dst[:0]
-	for eid, row := range iter {
+	for row := range iter {
+		eid := row.ID()
 		entries = append(entries, internal.PhysicsRebuildEntry{
 			EntityID:    eid,
-			Transform:   row.Transform.Get(),
-			Velocity:    row.Velocity.Get(),
-			PhysicsBody: row.PhysicsBody.Get(),
+			Transform:   row.Get[physicscomp.Transform2D](),
+			Velocity:    row.Get[physicscomp.Velocity2D](),
+			PhysicsBody: row.Get[physicscomp.PhysicsBody2D](),
 		})
 	}
 	return entries
 }
 
-// physicsSingletonSearch is the Exact query for the plugin singleton (ActiveContacts).
-type physicsSingletonSearch = cardinal.Exact[struct {
-	Tag            cardinal.Ref[physicscomp.PhysicsSingletonTag]
-	ActiveContacts cardinal.Ref[physicscomp.ActiveContacts]
-}]
+// physicsSingletonRow is the exact archetype of the plugin singleton (ActiveContacts).
+type physicsSingletonRow struct {
+	Tag            physicscomp.PhysicsSingletonTag
+	ActiveContacts physicscomp.ActiveContacts
+}
 
-// InitPhysicsSystemState runs once at world init: FullRebuildFromECS from current ECS entities.
-type InitPhysicsSystemState struct {
-	cardinal.BaseSystemState
-	Bodies    cardinal.Contains[physicsBodyRow]
-	Singleton physicsSingletonSearch
+// InitPhysicsSystem runs once at world init: FullRebuildFromECS from current ECS entities.
+type InitPhysicsSystem struct {
+	rt *internal.Runtime
 }
 
 // NewInitPhysicsSystem returns the Init-hook system bound to rt. The system creates the
 // singleton entity (if absent), then builds the Box2D world and bodies from ECS.
-func NewInitPhysicsSystem(rt *internal.Runtime) func(*InitPhysicsSystemState) {
-	return func(state *InitPhysicsSystemState) {
-		ensurePhysicsSingleton(&state.Singleton)
+func NewInitPhysicsSystem(rt *internal.Runtime) *InitPhysicsSystem {
+	return &InitPhysicsSystem{rt: rt}
+}
 
-		entries := rt.KeepRebuildEntriesScratch(
-			gatherRebuildEntries(rt.RebuildEntriesScratch(), state.Bodies.Iter()))
-		if err := rt.FullRebuildFromECS(rt.Gravity, entries); err != nil {
-			panic(eris.Wrap(err, "physics2d: FullRebuildFromECS failed"))
-		}
+func (s *InitPhysicsSystem) Run(w *cardinal.World) {
+	rt := s.rt
+	ensurePhysicsSingleton(w.Exact[physicsSingletonRow]())
+
+	entries := rt.KeepRebuildEntriesScratch(
+		gatherRebuildEntries(rt.RebuildEntriesScratch(), w.Contains[physicsBodyRow]().Iter()))
+	if err := rt.FullRebuildFromECS(rt.Gravity, entries); err != nil {
+		panic(eris.Wrap(err, "physics2d: FullRebuildFromECS failed"))
 	}
 }

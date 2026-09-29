@@ -69,19 +69,19 @@ func (rt *Runtime) CreateBody(
 }
 
 // AttachColliderFixtures creates one shape per ColliderShape on the body identified
-// by entityID. shapeIndex is the slice index i in shapes. Local offsets and rotations are
+// by entityID. shapeIndex is the index i in shapes. Local offsets and rotations are
 // applied so geometry defined in shape space is placed correctly in body space.
-func (rt *Runtime) AttachColliderFixtures(entityID cardinal.EntityID, shapes []component.ColliderShape) error {
-	if len(shapes) == 0 {
+func (rt *Runtime) AttachColliderFixtures(entityID cardinal.EntityID, shapes ShapeSlice) error {
+	if shapes.Len() == 0 {
 		return errors.New("physics2d: collider has no shapes")
 	}
-	for i := range shapes {
-		if err := shapes[i].Validate(); err != nil {
+	for i, sh := range shapes.All() {
+		if err := sh.Validate(); err != nil {
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
-	for i := range shapes {
-		if err := rt.attachShape(entityID, i, shapes[i]); err != nil {
+	for i, sh := range shapes.All() {
+		if err := rt.attachShape(entityID, i, sh); err != nil {
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
@@ -194,12 +194,13 @@ func (rt *Runtime) attachShape(
 		rt.registerShape(entityID, shapeIndex, rt.World.CreatePolygonShape(bodyID, &def, &polygon))
 
 	case component.ShapeTypeConvexPolygon:
-		if len(sh.Vertices) < 3 || len(sh.Vertices) > box2d.MaxPolygonVertices {
+		src := sh.PolygonVertices()
+		if len(src) < 3 {
 			return errors.New("AddPolygonShape failed")
 		}
-		verts := make([]box2d.Vec2, len(sh.Vertices))
-		for i := range sh.Vertices {
-			v := shapePointToBodySpace(sh.Vertices[i], sh.LocalOffset, sh.LocalRotation)
+		verts := make([]box2d.Vec2, len(src))
+		for i := range src {
+			v := shapePointToBodySpace(src[i], sh.LocalOffset, sh.LocalRotation)
 			verts[i] = box2d.Vec2{X: v.X, Y: v.Y}
 		}
 		hull := box2d.ComputeHull(verts)
@@ -211,10 +212,10 @@ func (rt *Runtime) attachShape(
 		rt.registerShape(entityID, shapeIndex, rt.World.CreatePolygonShape(bodyID, &def, &polygon))
 
 	case component.ShapeTypeStaticChain, component.ShapeTypeStaticChainLoop:
-		pts := make([]box2d.Vec2, len(sh.ChainPoints))
-		for i := range sh.ChainPoints {
-			v := shapePointToBodySpace(sh.ChainPoints[i], sh.LocalOffset, sh.LocalRotation)
-			pts[i] = box2d.Vec2{X: v.X, Y: v.Y}
+		pts := make([]box2d.Vec2, 0, sh.ChainPoints.Len())
+		for p := range sh.ChainPoints.Values() {
+			v := shapePointToBodySpace(p, sh.LocalOffset, sh.LocalRotation)
+			pts = append(pts, box2d.Vec2{X: v.X, Y: v.Y})
 		}
 		def := box2d.DefaultChainDef()
 		def.UserData = uint64(uint32(shapeIndex)) //nolint:gosec // shape index is small and non-negative

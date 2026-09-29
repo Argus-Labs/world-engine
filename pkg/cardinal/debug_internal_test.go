@@ -2,7 +2,6 @@ package cardinal
 
 import (
 	"context"
-	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -22,7 +21,10 @@ import (
 
 type introspectionSample struct{}
 
-func (introspectionSample) Name() string        { return "introspection-sample" }
+func (introspectionSample) Name() string                 { return "introspection-sample" }
+func (c introspectionSample) SizeWire() int              { return len(c.MarshalWire()) }
+func (c introspectionSample) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+
 func (introspectionSample) MarshalWire() []byte { return nil }
 func (introspectionSample) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&cardinalv1.TypeSchema{}).ProtoReflect().Descriptor()
@@ -87,32 +89,30 @@ func findMessageDescriptor(set *descriptorpb.FileDescriptorSet, name string) *de
 	return nil
 }
 
-type snapshotEntities struct {
-	Entities Contains[struct {
-		Position  Ref[Position3D]
-		Health    Ref[Health2]
-		Inventory Ref[Inventory]
-	}]
+type snapshotArchetype struct {
+	Position  Position3D
+	Health    Health2
+	Inventory Inventory
 }
 
-func seedSnapshotWorld(t *testing.T, state *snapshotEntities) {
+func seedSnapshotWorld(t *testing.T, w *World) {
 	t.Helper()
 
 	for i := range 5 {
-		_, e := state.Entities.Create()
-		e.Position.Set(Position3D{X: float64(i), Y: float64(i) * 2, Z: -1})
-		e.Health.Set(Health2{Current: 100 - i, Max: 100})
-		e.Inventory.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10 + i})
+		e := w.Create[snapshotArchetype]()
+		e.Set(Position3D{X: float64(i), Y: float64(i) * 2, Z: -1})
+		e.Set(Health2{Current: 100 - i, Max: 100})
+		e.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10 + i})
 	}
-	doomed, e := state.Entities.Create()
-	e.Position.Set(Position3D{X: 42})
-	require.True(t, state.Entities.Destroy(doomed))
+	e := w.Create[snapshotArchetype]()
+	e.Set(Position3D{X: 42})
+	require.True(t, e.Destroy())
 }
 
 // TestDebugGetStatePublishesEveryTick checks snapshot content and ownership after each tick.
 func TestDebugGetStatePublishesEveryTick(t *testing.T) {
-	w, state := newDebugStateWorld(t)
-	seedSnapshotWorld(t, state)
+	w := newDebugStateWorld(t)
+	seedSnapshotWorld(t, w)
 
 	for range 12 {
 		resp, err := w.debug.GetState(
@@ -123,8 +123,8 @@ func TestDebugGetStatePublishesEveryTick(t *testing.T) {
 		frozen, err := proto.MarshalOptions{Deterministic: true}.Marshal(held)
 		require.NoError(t, err)
 
-		_, e := state.Entities.Create()
-		e.Position.Set(Position3D{X: float64(w.currentTick.height)})
+		e := w.Create[snapshotArchetype]()
+		e.Set(Position3D{X: float64(w.currentTick.height)})
 
 		completed := w.currentTick.height
 		w.Tick(time.Now())
@@ -135,7 +135,7 @@ func TestDebugGetStatePublishesEveryTick(t *testing.T) {
 		require.NoError(t, err)
 		snap := resp.Msg.GetSnapshot()
 		assert.Equal(t, completed, snap.GetTickHeight())
-		assert.NotEmpty(t, snap.GetWorldState().GetArchetypes())
+		assert.NotEmpty(t, snap.GetWorldState().GetEntities())
 
 		after, err := proto.MarshalOptions{Deterministic: true}.Marshal(held)
 		require.NoError(t, err)
@@ -145,8 +145,8 @@ func TestDebugGetStatePublishesEveryTick(t *testing.T) {
 
 // TestDebugGetStateConcurrentWithTicks checks concurrent reads and writes. Run it with -race.
 func TestDebugGetStateConcurrentWithTicks(t *testing.T) {
-	w, state := newDebugStateWorld(t)
-	seedSnapshotWorld(t, state)
+	w := newDebugStateWorld(t)
+	seedSnapshotWorld(t, w)
 
 	const readers = 4
 	stop := make(chan struct{})
@@ -186,7 +186,7 @@ func TestDebugGetStateConcurrentWithTicks(t *testing.T) {
 	assert.Equal(t, uint64(100), w.currentTick.height)
 }
 
-func newDebugStateWorld(t *testing.T) (*World, *snapshotEntities) {
+func newDebugStateWorld(t *testing.T) *World {
 	t.Helper()
 	t.Setenv("LOG_LEVEL", "disabled")
 
@@ -203,9 +203,9 @@ func newDebugStateWorld(t *testing.T) (*World, *snapshotEntities) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, w.debug)
-
-	state := &snapshotEntities{}
-	require.NoError(t, initSystemFields(reflect.ValueOf(state).Elem(), w))
+	w.RegisterComponent[Position3D]()
+	w.RegisterComponent[Health2]()
+	w.RegisterComponent[Inventory]()
 	w.world.Init()
-	return w, state
+	return w
 }

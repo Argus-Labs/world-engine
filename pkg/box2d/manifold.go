@@ -1287,9 +1287,8 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 	var vertices [MaxPolygonVertices]Vec2
 	var normals [MaxPolygonVertices]Vec2
 	for i := range count {
-		//nolint:gosec // G602: count is polygonB.Count, validated to 1..MaxPolygonVertices by requireValidPolygonCount at the top of CollideChainSegmentAndPolygon; vertices is [MaxPolygonVertices]Vec2.
 		vertices[i] = TransformPoint(xf, polygonB.Vertices[i])
-		//nolint:gosec // G602: same bound as the line above; normals is [MaxPolygonVertices]Vec2.
+
 		normals[i] = RotateVector(xf.Q, polygonB.Normals[i])
 	}
 
@@ -1444,7 +1443,6 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 		edgeSeparation := math.MaxFloat64
 
 		for i := range count {
-			//nolint:gosec // G602: count is polygonB.Count, validated to 1..MaxPolygonVertices by requireValidPolygonCount at the top of CollideChainSegmentAndPolygon; vertices is [MaxPolygonVertices]Vec2.
 			s := Dot(normal1, Sub(vertices[i], p1))
 			if s < edgeSeparation {
 				edgeSeparation = s
@@ -1457,7 +1455,6 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 			s0 := math.MaxFloat64
 
 			for i := range count {
-				//nolint:gosec // G602: count is polygonB.Count, validated to 1..MaxPolygonVertices by requireValidPolygonCount at the top of CollideChainSegmentAndPolygon; vertices is [MaxPolygonVertices]Vec2.
 				s := Dot(smoothParams.normal0, Sub(vertices[i], p1))
 				if s < s0 {
 					s0 = s
@@ -1477,7 +1474,6 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 			s2 := math.MaxFloat64
 
 			for i := range count {
-				//nolint:gosec // G602: count is polygonB.Count, validated to 1..MaxPolygonVertices by requireValidPolygonCount at the top of CollideChainSegmentAndPolygon; vertices is [MaxPolygonVertices]Vec2.
 				s := Dot(smoothParams.normal2, Sub(vertices[i], p2))
 				if s < s2 {
 					s2 = s
@@ -1497,7 +1493,6 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 		referenceIndex := -1
 
 		for i := range count {
-			//nolint:gosec // G602: count is polygonB.Count, validated to 1..MaxPolygonVertices by requireValidPolygonCount at the top of CollideChainSegmentAndPolygon; normals is [MaxPolygonVertices]Vec2.
 			n := normals[i]
 
 			typ := classifyNormal(smoothParams, Neg(n))

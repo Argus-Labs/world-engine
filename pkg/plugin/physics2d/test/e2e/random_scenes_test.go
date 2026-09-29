@@ -27,7 +27,7 @@ import (
 //   - the same seed simulates to the same world twice, and again at a different worker
 //     count.
 //
-// Reproduce a failure with the TEST_SEED printed at startup and -run on the subtest name;
+// Reproduce a failure with the TEST_SEED the failing test logs and -run on the subtest name;
 // the per-seed streams derive from that seed and the test name, so both are stable.
 
 const (
@@ -167,7 +167,7 @@ func randomScene(name string, specs []bodySpec) harness.Scenario {
 						c.Note("%s spawned at (%.2f, %.2f) v=(%.2f, %.2f) bullet=%v gravityScale=%.2f "+
 							"density=%.2f restitution=%.2f, ended at (%.2f, %.2f)",
 							s.label, s.x, s.y, s.vx, s.vy, s.pb.Bullet, s.pb.GravityScale,
-							s.pb.Shapes[0].Density, s.pb.Shapes[0].Restitution,
+							s.pb.Shapes.At(0).Density, s.pb.Shapes.At(0).Restitution,
 							c.Pos(ids[i]).X, c.Pos(ids[i]).Y)
 					}
 				}

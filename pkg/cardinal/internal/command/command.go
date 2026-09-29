@@ -1,6 +1,7 @@
 package command
 
 import (
+	"context"
 	"math"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -8,6 +9,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/micro"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rotisserie/eris"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Command represents a command from a player or external system.
@@ -16,6 +18,7 @@ type Command struct {
 	Address *micro.ServiceAddress // Service address this command is sent to
 	Persona string                // Sender's persona
 	Payload Payload               // The command payload itself
+	Span    trace.SpanContext     // Span that enqueued the command; invalid when the caller was untraced
 }
 
 // Payload is the interface all command payloads must implement.
@@ -36,8 +39,8 @@ const InvalidID = MaxID + 1
 const initialCommandBufferCapacity = 128
 
 // Manager manages command registration and stores commands received to be passed to the ECS world.
-// Command IDs are mainly used for quick lookup and to check for duplicate WithCommand fields in
-// a system state.
+// Command IDs are mainly used for quick lookup: World.Commands resolves a name to an ID once and
+// indexes the read-only buffer directly.
 type Manager struct {
 	nextID   ID            // Next available command ID
 	catalog  map[string]ID // Command name -> command ID
@@ -86,7 +89,7 @@ func (m *Manager) Register(name string, queue Queue) (ID, error) {
 // Enqueue stores a command in its corresponding queue. The queues map isn't lock protected, and it
 // is expected that there exists only 1 caller for each command type, therefore each caller reads
 // a different key. This is ok because concurrent reads on Go maps are allowed.
-func (m *Manager) Enqueue(command *iscv1.Command) error {
+func (m *Manager) Enqueue(ctx context.Context, command *iscv1.Command) error {
 	// Enqueue expects callers to validate the command, so here we just assert for defense in depth.
 	// NOTE: one extra assertion that we can't put here is if command.address == this shard.address.
 	// The caller must be responsible for checking this.
@@ -105,7 +108,7 @@ func (m *Manager) Enqueue(command *iscv1.Command) error {
 	if !exists {
 		return eris.Errorf("unregistered command: %s", name)
 	}
-	return m.queues[id].Enqueue(command)
+	return m.queues[id].Enqueue(ctx, command)
 }
 
 // Get retrieves a slice of commands given the command ID. The ID is returned from Register, and
@@ -117,6 +120,12 @@ func (m *Manager) Get(id ID) ([]Command, error) {
 		return nil, eris.Errorf("unregistered command id: %d", id)
 	}
 	return m.commands[id], nil
+}
+
+// Lookup returns the ID registered for a command name.
+func (m *Manager) Lookup(name string) (ID, bool) {
+	id, ok := m.catalog[name]
+	return id, ok
 }
 
 // Drain collects commands from the queues to read-only command buffers. It also returns a list of

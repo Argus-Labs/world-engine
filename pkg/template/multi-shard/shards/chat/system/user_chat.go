@@ -10,34 +10,31 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 )
 
-type UserChatSystemState struct {
-	cardinal.BaseSystemState
-	UserChatCommands cardinal.WithCommand[command.UserChat]
-	UserChatEvent    cardinal.WithEvent[event.UserChat]
-	ChatSearch       ChatSearch
-}
+type UserChatSystem struct{}
 
-func UserChatSystem(state *UserChatSystemState) {
-	for cmd := range state.UserChatCommands.Iter() {
+func (s *UserChatSystem) Run(w *cardinal.World) {
+	for cmd := range w.Commands[command.UserChat]() {
 		command := cmd.Payload
 
 		timestamp := time.Now()
 
-		id, chat := state.ChatSearch.Create()
-		chat.UserTag.Set(component.UserTag{
+		chat := w.Create[ChatRow]()
+
+		id := chat.ID()
+		chat.Set(component.UserTag{
 			ArgusAuthID:   command.ArgusAuthID,
 			ArgusAuthName: command.ArgusAuthName,
 		})
-		chat.Chat.Set(component.Chat{
+		chat.Set(component.Chat{
 			Message:   command.Message,
 			Timestamp: timestamp,
 		})
 
-		state.Logger().Info().
+		w.Logger().Info().
 			Uint32("entity", uint32(id)).
 			Msgf("Created chat message %s (id: %s)", command.Message, command.ArgusAuthID)
 
-		state.UserChatEvent.Broadcast(event.UserChat{
+		w.Broadcast(event.UserChat{
 			ArgusAuthID:   command.ArgusAuthID,
 			ArgusAuthName: command.ArgusAuthName,
 			Message:       command.Message,

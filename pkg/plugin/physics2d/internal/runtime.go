@@ -5,6 +5,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/component"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/event"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/query"
@@ -138,7 +139,7 @@ type Runtime struct {
 
 	// rebuildEntriesScratch and writebackScratch back the pipeline system's two
 	// per-tick archetype gathers (see RebuildEntriesScratch / WritebackScratch).
-	// They hold component values and cardinal.Refs, so their tails pin ECS
+	// They hold component values and entity handles, so their tails pin ECS
 	// memory for destroyed entities until cleared.
 	rebuildEntriesScratch []PhysicsRebuildEntry
 	writebackScratch      []WritebackEntry
@@ -160,7 +161,7 @@ type Runtime struct {
 // clearScratchTail zeroes the unused capacity of a reused gather buffer. A bare
 // s = s[:0] followed by appends leaves everything past the new length reachable
 // from the backing array, which for these buffers means component values and
-// cardinal.Refs belonging to entities that no longer exist.
+// entity handles belonging to entities that no longer exist.
 func clearScratchTail[T any](s []T) []T {
 	clear(s[len(s):cap(s)])
 	return s
@@ -267,7 +268,7 @@ func (rt *Runtime) WritebackScratch() []WritebackEntry {
 }
 
 // KeepWritebackScratch stores the gathered slice back on the runtime and clears
-// everything past its length. WritebackEntry holds cardinal.Refs, so an
+// everything past its length. WritebackEntry holds an entity handle, so an
 // uncleared tail keeps archetype storage for destroyed entities alive.
 func (rt *Runtime) KeepWritebackScratch(entries []WritebackEntry) []WritebackEntry {
 	rt.writebackScratch = clearScratchTail(entries)
@@ -324,8 +325,8 @@ func (rt *Runtime) PruneActiveContactsInvolvingEntity(entityID cardinal.EntityID
 // LoadActiveContactsFromComponent populates the in-memory working map from the persisted
 // ECS component. Called by the step system after a restore when ActiveContacts is nil.
 func (rt *Runtime) LoadActiveContactsFromComponent(ac component.ActiveContacts) {
-	rt.ActiveContacts = make(map[ContactPairKey]ContactPairInfo, len(ac.Pairs))
-	for _, p := range ac.Pairs {
+	rt.ActiveContacts = make(map[ContactPairKey]ContactPairInfo, ac.Pairs.Len())
+	for p := range ac.Pairs.Values() {
 		key := ContactPairKey{
 			EntityA:     p.EntityA,
 			ShapeIndexA: p.ShapeIndexA,
@@ -372,7 +373,7 @@ func (rt *Runtime) ActiveContactsToComponent() component.ActiveContacts {
 		})
 	}
 	sortContactPairEntries(pairs)
-	return component.ActiveContacts{Pairs: pairs}
+	return component.ActiveContacts{Pairs: immutable.SliceOf(pairs...)}
 }
 
 // sortContactPairEntries sorts by (EntityA, ShapeIndexA, EntityB, ShapeIndexB) for

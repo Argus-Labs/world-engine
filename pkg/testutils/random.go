@@ -1,7 +1,6 @@
 package testutils
 
 import (
-	"fmt"
 	"hash/fnv"
 	"math/rand/v2"
 	"os"
@@ -17,18 +16,18 @@ import (
 var Seed uint64 //nolint:gochecknoglobals // intentionally global for test reproducibility
 
 func init() { //nolint:gochecknoinits // intentionally using init to set seed
-	Seed = uint64(time.Now().UnixNano()) //nolint:gosec // UnixNano is positive for any real clock
+	Seed = uint64(time.Now().UnixNano())
 	if envSeed := os.Getenv("TEST_SEED"); envSeed != "" {
 		parsed, err := strconv.ParseUint(envSeed, 0, 64)
 		if err == nil { // Only set using the env if it's valid
 			Seed = parsed
 		}
 	}
-	fmt.Printf("to reproduce: TEST_SEED=0x%x\n", Seed) //nolint:forbidigo // just for testing
 }
 
 func NewRand(t *testing.T) *rand.Rand {
 	t.Helper()
+	t.Logf("to reproduce: TEST_SEED=0x%x", Seed)
 	// We derive a unique seed for each test by XOR-ing the global seed with a hash of the test name.
 	//
 	// This prevents parallel tests from generating the same random values, which can happen if NewRand
