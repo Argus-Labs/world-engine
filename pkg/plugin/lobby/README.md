@@ -166,27 +166,32 @@ When `StartSessionCommand` succeeds, `NotifySessionStartCommand` is sent to game
 
 ```go
 type NotifySessionStartCommand struct {
-    Lobby      LobbyComponent    // Full lobby data (includes GameWorld)
-    LobbyWorld cardinal.OtherWorld // For NotifySessionEndCommand callback
+    LobbyID    string             // The lobby whose session is starting
+    LobbyWorld lobby.ShardAddress // For NotifySessionEndCommand callback
 }
 ```
 
 Game shard should:
-1. Register a system that handles `NotifySessionStartCommand`
+1. Register `NotifySessionStartCommand` and a system that handles it
 2. Run the game
 3. Send `NotifySessionEndCommand` back to lobby when game ends
 
 ```go
 // In game shard
-func GameSessionSystem(state *GameSessionSystemState) {
-    for cmd := range state.SessionStartCmds.Iter() {
+w.RegisterCommand[lobby.NotifySessionStartCommand]()
+w.RegisterSystem(&GameSessionSystem{})
+
+type GameSessionSystem struct{}
+
+func (*GameSessionSystem) Run(w *cardinal.World) {
+    for cmd := range w.Commands[lobby.NotifySessionStartCommand]() {
         payload := cmd.Payload
-        // payload.Lobby contains full lobby data
+        // payload.LobbyID identifies the lobby
         // payload.LobbyWorld for sending NotifySessionEndCommand back
 
         // When game ends:
-        payload.LobbyWorld.SendCommand(&state.BaseSystemState, lobby.NotifySessionEndCommand{
-            LobbyID: payload.Lobby.ID,
+        w.SendToShard(cardinal.OtherWorld(payload.LobbyWorld), lobby.NotifySessionEndCommand{
+            LobbyID: payload.LobbyID,
         })
     }
 }
@@ -289,14 +294,13 @@ import (
     "github.com/argus-labs/world-engine/pkg/lobby"
 )
 
-type AssignerState struct {
-    cardinal.BaseSystemState
-    Lobbies cardinal.Contains[struct {
-        Lobby cardinal.WithComponent[lobby.Component]
-    }]
+type AssignerSystem struct{}
+
+type lobbyRow struct {
+    Lobby lobby.Component
 }
 
-func AssignerSystem(state *AssignerState) {
+func (*AssignerSystem) Run(w *cardinal.World) {
     // REPLACE: your lobby shard's own address.
     self := cardinal.OtherWorld{
         Region:       "us-west", // REPLACE
@@ -305,12 +309,12 @@ func AssignerSystem(state *AssignerState) {
         ShardID:      "lobby",   // REPLACE
     }
 
-    for refs := range state.Lobbies.Iter() {
+    for refs := range w.Contains[lobbyRow]().Iter() {
         lob := refs.Get[lobby.Component]()
         if lob.Session.State != lobby.SessionStateAwaitingAllocation {
             continue
         }
-        self.SendCommand(&state.BaseSystemState, lobby.AssignShardCommand{
+        w.SendToShard(self, lobby.AssignShardCommand{
             LobbyID:   lob.ID,
             RequestID: lob.Session.PendingRequestID,
             GameWorld: cardinal.OtherWorld{
@@ -328,7 +332,7 @@ Wire it up in `main.go` alongside the plugin:
 
 ```go
 w.RegisterPlugin(lobby.NewPlugin(lobby.Config{...}))
-w.RegisterSystem(AssignerSystem)
+w.RegisterSystem(&AssignerSystem{})
 ```
 
 That's it. Every `StartSessionCommand` now routes to the shard you

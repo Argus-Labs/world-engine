@@ -1,0 +1,8 @@
+version: v2
+plugins:
+  # Go-only run: proto .pb.go for every locally-defined wire type (commands, events, components, and
+  # system events). C# is a separate run (buf.gen.cs.yaml) over the client-facing subset only, so
+  # engine-internal types (system events) get Go here but never a C# DTO in the client SDK.
+  - local: protoc-gen-go
+    out: gen/go
+    opt: paths=source_relative

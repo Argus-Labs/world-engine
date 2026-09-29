@@ -27,7 +27,7 @@ import (
 //   - the same seed simulates to the same world twice, and again at a different worker
 //     count.
 //
-// Reproduce a failure with the TEST_SEED printed at startup and -run on the subtest name;
+// Reproduce a failure with the TEST_SEED the failing test logs and -run on the subtest name;
 // the per-seed streams derive from that seed and the test name, so both are stable.
 
 const (

@@ -58,6 +58,7 @@ func snapshotBenchWorld(b *testing.B, rate uint32, bodies, warmup int) *cardinal
 	if err != nil {
 		b.Fatal(err)
 	}
+	w.RegisterComponent[harnessTag]()
 	// Zero gravity, together with restingBodiesSystem's spacing, is what makes one tick equal to
 	// the next: nothing accelerates, nothing collides, nothing changes state.
 	w.RegisterPlugin(physics.NewPlugin(physics.Config{
@@ -76,18 +77,12 @@ func snapshotBenchWorld(b *testing.B, rate uint32, bodies, warmup int) *cardinal
 // a 1.0 gap, so no collider ever touches another. The entity count, archetype layout and component
 // payloads — everything the snapshot path costs money on — are unchanged by that; what changes is
 // that the scene stops evolving, which is what makes the benchmark reproducible.
-func restingBodiesSystem(count int) func(state *struct {
-	cardinal.BaseSystemState
-	Spawn spawnArchetype
-}) {
-	return func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
-		if state.Tick() != 0 {
+func restingBodiesSystem(count int) *restingBodiesFixture {
+	return &restingBodiesFixture{run: func(w *cardinal.World) {
+		if w.TickHeight() != 0 {
 			return
 		}
-		floor := state.Spawn.Create()
+		floor := w.Create[spawnArchetype]()
 		floor.Set(harnessTag{Role: "floor"})
 		floor.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
 		floor.Set(physics.Velocity2D{})
@@ -103,7 +98,7 @@ func restingBodiesSystem(count int) func(state *struct {
 		for i := range count {
 			col := i % cols
 			rowIdx := i / cols
-			r := state.Spawn.Create()
+			r := w.Create[spawnArchetype]()
 			r.Set(harnessTag{Role: "ball"})
 			r.Set(physics.Transform2D{Position: physics.Vec2{
 				X: float64(col)*2.0 - float64(cols),
@@ -120,11 +115,12 @@ func restingBodiesSystem(count int) func(state *struct {
 				MaskBits:     0xFFFF,
 			}))
 		}
-	}
+	}}
 }
 
-// worldStateProto reaches Cardinal's embedded *ecs.World and calls ToProto, the same reflection
-// escape hatch initCardinalECS uses (physics2d_test cannot import cardinal/internal/ecs).
+// worldStateProto reaches Cardinal's embedded *ecs.World and calls EncodeState, the same
+// reflection escape hatch initCardinalECS uses (physics2d_test cannot import cardinal/internal/ecs),
+// then decodes the bytes into the message the legacy benchmarks need.
 func worldStateProto(b *testing.B, w *cardinal.World) *cardinalv1.WorldState {
 	b.Helper()
 	v := reflect.ValueOf(w).Elem()
@@ -133,20 +129,18 @@ func worldStateProto(b *testing.B, w *cardinal.World) *cardinalv1.WorldState {
 		b.Fatal("cardinal.World: missing embedded ecs world field")
 	}
 	inner := reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
-	m := inner.MethodByName("ToProto")
+	m := inner.MethodByName("EncodeState")
 	if !m.IsValid() {
-		b.Fatal("ecs.World: missing ToProto method")
+		b.Fatal("ecs.World: missing EncodeState method")
 	}
-	// Arity is checked rather than assumed: reflection defeats the compiler, so a change to ToProto's
-	// signature reaches this line as an index panic during a benchmark run — which `go test ./...`
-	// never triggers. ToProto returns one value; it panics rather than returning an error.
-	out := m.Call(nil)
-	if len(out) != 1 {
-		b.Fatalf("ToProto returned %d values, want 1", len(out))
-	}
-	ws, ok := out[0].Interface().(*cardinalv1.WorldState)
+	out := m.Call([]reflect.Value{reflect.ValueOf([]byte(nil))})
+	data, ok := out[0].Interface().([]byte)
 	if !ok {
-		b.Fatalf("ToProto returned %T, want *cardinalv1.WorldState", out[0].Interface())
+		b.Fatalf("EncodeState returned %T, want []byte", out[0].Interface())
+	}
+	ws := &cardinalv1.WorldState{}
+	if err := proto.Unmarshal(data, ws); err != nil {
+		b.Fatalf("decode world state: %v", err)
 	}
 	return ws
 }
@@ -226,9 +220,15 @@ func BenchmarkSnapshotTick(b *testing.B) {
 //
 //	LegacyDoubleMarshal — the pre-optimization path: cardinal marshals the WorldState, the backend
 //	                      unmarshals it, rebuilds the envelope and marshals it again.
-//	SingleMarshal       — the current path: cardinal hands the envelope over, the backend marshals
-//	                      it exactly once (what JetStreamStorage and S3Storage now do).
-//	Nop                 — the default storage type; with no caller-side marshal it is free.
+//	SingleMarshal       — one marshal of the whole envelope, the intermediate step: the backend was
+//	                      handed a message and serialized it exactly once.
+//	Nop                 — the default storage type, handed bytes and doing nothing with them.
+//
+// None of the three is the current engine path. Storage now takes []byte and marshals nothing at
+// all; the one serialization left is cardinal's own hand-rolled snapshot.Encode, which never builds
+// a proto graph and so is not proto.Marshal of anything. These rows measure what a BACKEND does
+// with what it is given, which is why SingleMarshal is the ceiling the byte interface removed
+// rather than a description of today. For the engine-side cost see BenchmarkSnapshotTick.
 //
 // What the current path saves, measured 2026-08-02 on darwin/arm64, Apple M5 Max, go1.26.5:
 // five runs at -benchtime=200x, per-run LegacyDoubleMarshal minus SingleMarshal, median taken
@@ -288,17 +288,23 @@ func BenchmarkSnapshotStore(b *testing.B) {
 	ctx := context.Background()
 	for _, bodies := range []int{1000, 5000} {
 		snap := snapshotBenchEnvelope(b, bodies)
-		size, err := proto.MarshalOptions{Deterministic: true}.Marshal(snap)
+		encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(snap)
 		if err != nil {
 			b.Fatal(err)
 		}
-		snapshotBytes := float64(len(size))
+		snapshotBytes := float64(len(encoded))
 
+		nop := snapshot.NewNopStorage()
 		stores := []struct {
 			name  string
 			store func(context.Context, *cardinalv1.Snapshot) error
 		}{
-			{"Nop", snapshot.NewNopStorage().Store},
+			// Handed bytes the engine already encoded, exactly as production does, so this row is
+			// the free baseline it claims to be. Marshaling here instead would just re-measure
+			// SingleMarshal, and with proto.Marshal — which is not how the engine encodes.
+			{"Nop", func(ctx context.Context, s *cardinalv1.Snapshot) error {
+				return nop.Store(ctx, s.GetTickHeight(), encoded)
+			}},
 			{"SingleMarshal", (&singleMarshalStorage{}).Store},
 			{"LegacyDoubleMarshal", (&legacyDoubleMarshalStorage{}).Store},
 		}
@@ -316,3 +322,9 @@ func BenchmarkSnapshotStore(b *testing.B) {
 		}
 	}
 }
+
+type restingBodiesFixture struct {
+	run func(w *cardinal.World)
+}
+
+func (s *restingBodiesFixture) Run(w *cardinal.World) { s.run(w) }

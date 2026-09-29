@@ -22,6 +22,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
@@ -126,8 +127,8 @@ sendLoop:
 
 	// Final validation after the world has fully stopped.
 	fix.world.world.CheckWorld(t)
-	// Encoding asserts internally, so reaching the next line at all is the check.
-	_ = fix.world.world.ToProto()
+	// Ensure the final world state remains serializable (a marshal failure panics).
+	fix.world.world.EncodeState(nil)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -209,7 +210,7 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 	// Replace inter-shard event handler with local assertions.
 	// E2E runs a single world instance, so cross-shard requests would otherwise fail with
 	// "no responders" and drown useful signal in log noise.
-	w.events.RegisterHandler(event.KindInterShardCommand, func(evt event.Event) error {
+	w.events.RegisterHandler(event.KindInterShardCommand, func(_ context.Context, evt event.Event) error {
 		assert.Equal(t, event.KindInterShardCommand, evt.Kind, "nats: received wrong event kind")
 		isc, ok := evt.Payload.(command.Command)
 		assert.True(t, ok, "nats: ISC payload is %T, want command.Command", evt.Payload)
@@ -250,7 +251,7 @@ func (f *e2eFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 	fillRandom(rng, val, f.world.world.LiveEntityIDs())
 	p, ok := val.Interface().(command.Payload)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
-	payload := p.MarshalWire()
+	payload := schema.Marshal(p)
 	return &iscv1.Command{
 		Name:    name,
 		Address: f.world.address,

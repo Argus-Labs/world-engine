@@ -36,8 +36,8 @@ type CaptureRow struct {
 // if it does not survive a restore the rebuilt world replays every existing
 // overlap as a new contact.
 type SingletonRow struct {
-	Tag            cardinal.WithComponent[physics.PhysicsSingletonTag]
-	ActiveContacts cardinal.WithComponent[physics.ActiveContacts]
+	Tag            physics.PhysicsSingletonTag
+	ActiveContacts physics.ActiveContacts
 }
 
 // Capture is every body in a world, keyed by its probe label, plus the plugin's
@@ -63,26 +63,20 @@ func (c Capture) Labels() []string {
 }
 
 // preCaptureState and postCaptureState are the two capture systems. They are
-// separate flat types on purpose: Cardinal names a system after its state type,
-// so two systems sharing one type would collide, and initSystemFields only walks
-// a state struct's top-level fields, so a shared embedded struct would leave
-// Probes uninitialised and the search would fault on first use.
+// separate types on purpose: Cardinal names a system after its type, so two
+// systems sharing one type would be indistinguishable in scheduler introspection.
 type preCaptureState struct {
-	cardinal.BaseSystemState
-	Probes    Probes
-	Singleton cardinal.Contains[SingletonRow]
+	into *Capture
 }
 
 type postCaptureState struct {
-	cardinal.BaseSystemState
-	Probes    Probes
-	Singleton cardinal.Contains[SingletonRow]
+	into *Capture
 }
 
 // capture copies every body's components into into, replacing whatever was
 // there. A fresh map is allocated each time, so a caller that copies the Capture
 // struct keeps that tick's state even as later ticks overwrite the field.
-func capture(probes *Probes, singleton *cardinal.Contains[SingletonRow], into *Capture) {
+func capture(probes, singleton cardinal.Search, into *Capture) {
 	rows := make(map[string]CaptureRow, len(into.Rows))
 	for row := range probes.Iter() {
 		eid := row.ID()
@@ -147,16 +141,12 @@ func CompareContacts(want, got Capture) []Diff {
 // Call it before RegisterPlugin. After a snapshot restore, the first tick's
 // pre-capture is the deserialized ECS state with nothing else having touched it.
 func RegisterPreCapture(w *cardinal.World, into *Capture) {
-	w.RegisterSystem(func(state *preCaptureState) {
-		capture(&state.Probes, &state.Singleton, into)
-	}, cardinal.WithHook(cardinal.PreUpdate))
+	w.RegisterSystem(&preCaptureState{into: into}, cardinal.WithHook(cardinal.PreUpdate))
 }
 
 // RegisterPostCapture registers a capture that runs after the physics pipeline.
 func RegisterPostCapture(w *cardinal.World, into *Capture) {
-	w.RegisterSystem(func(state *postCaptureState) {
-		capture(&state.Probes, &state.Singleton, into)
-	}, cardinal.WithHook(cardinal.PostUpdate))
+	w.RegisterSystem(&postCaptureState{into: into}, cardinal.WithHook(cardinal.PostUpdate))
 }
 
 // -----------------------------------------------------------------------------
@@ -199,19 +189,18 @@ func DecodeSnapshot(raw []byte) (any, error) {
 // SnapshotWorld serializes a world exactly the way Cardinal's snapshot writer
 // does, component bytes and all.
 func SnapshotWorld(w *cardinal.World) (any, error) {
-	m := innerWorld(w).MethodByName("ToProto")
+	m := innerWorld(w).MethodByName("EncodeState")
 	if !m.IsValid() {
-		panic("ecs.World: no ToProto method; the snapshot shim needs updating")
+		panic("ecs.World: no EncodeState method; the snapshot shim needs updating")
 	}
-	out := m.Call(nil)
-	// ecs.World.ToProto returns the state alone; tolerate a trailing error if one
-	// is ever added so the shim keeps working across that change.
-	if len(out) == 2 {
-		if err, _ := out[1].Interface().(error); err != nil {
-			return nil, err
-		}
+	out := m.Call([]reflect.Value{reflect.ValueOf([]byte(nil))})
+	data, ok := out[0].Interface().([]byte)
+	if !ok {
+		return nil, fmt.Errorf("EncodeState returned %T, want []byte", out[0].Interface())
 	}
-	return out[0].Interface(), nil
+	// The world encodes straight to wire bytes now, but RestoreWorld still feeds
+	// FromProto, so decode back into the message the rest of the shim passes around.
+	return DecodeSnapshot(data)
 }
 
 // RestoreWorld loads a serialized world state, the way World.restore does after
@@ -375,4 +364,12 @@ func compareShape(label string, i int, w, g physics.ColliderShape, tol float64) 
 		pt(fmt.Sprintf("EdgeVertices[%d]", k), g.EdgeVertices[k], w.EdgeVertices[k])
 	}
 	return diffs
+}
+
+func (s *preCaptureState) Run(w *cardinal.World) {
+	capture(w.Contains[ProbeRow](), w.Contains[SingletonRow](), s.into)
+}
+
+func (s *postCaptureState) Run(w *cardinal.World) {
+	capture(w.Contains[ProbeRow](), w.Contains[SingletonRow](), s.into)
 }

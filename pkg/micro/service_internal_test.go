@@ -15,7 +15,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
 )
@@ -248,7 +247,6 @@ func newTestService(t *testing.T, prng *rand.Rand) (*Service, *Client) {
 
 	tel := &telemetry.Telemetry{
 		Logger: zerolog.Nop(),
-		Tracer: noop.NewTracerProvider().Tracer("test"),
 	}
 	client := NewTestClient(t)
 	address := RandServiceAddress(t, prng)
