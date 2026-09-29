@@ -1,5 +1,9 @@
 module github.com/argus-labs/world-engine
 
+// v1.0.0 is a 2019 cosmos/gaia build from before this repository was World Engine. The proxy still lists
+// it, so @latest resolved to it. v1.0.1 only publishes this retraction.
+retract [v1.0.0, v1.0.1]
+
 go 1.27.1
 
 require (
