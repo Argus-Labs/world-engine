@@ -227,11 +227,18 @@ func (w *World) init() {
 	w.world.Init()
 }
 
-// Tick advances the world by one step.
+// Tick advances the world by one step, running every PreUpdate, Update and PostUpdate system.
+func (w *World) Tick(timestamp time.Time) {
+	w.step(timestamp, w.world.Tick)
+}
+
+// step is the frame around one tick. It drains commands, opens the tick span, calls run to advance
+// the ECS, then dispatches events, persists state and increments the height. Tick passes the full
+// schedule; TestWorld.RunSystem passes one system.
 //
 // Each tick is a root trace: ticks are driven by the clock, not by a request, so command spans from
 // the ConnectRPC service are not their parents.
-func (w *World) Tick(timestamp time.Time) {
+func (w *World) step(timestamp time.Time, run func()) {
 	// Drain before starting the span: links must be passed at start for a sampler to see them.
 	commands := w.commands.Drain()
 
@@ -263,7 +270,7 @@ func (w *World) Tick(timestamp time.Time) {
 	w.currentTick.timestamp = timestamp
 
 	// Advance the ECS world.
-	w.world.Tick()
+	run()
 
 	w.dispatchEvents(ctx)
 
