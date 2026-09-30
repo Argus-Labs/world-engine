@@ -73,7 +73,7 @@ func newOwnershipWorldWithSetup(t *testing.T, setup func(*cardinal.World)) *owne
 	value := reflect.ValueOf(world).Elem()
 	ecsField := value.FieldByName("world")
 	ecsValue := reflect.NewAt(ecsField.Type(), unsafe.Pointer(ecsField.UnsafeAddr())).Elem()
-	ecs, ok := ecsValue.Interface().(ownershipECS)
+	ecs, ok := reflect.TypeAssert[ownershipECS](ecsValue)
 	require.True(t, ok)
 	commandField := value.FieldByName("commands")
 	commandValue := reflect.NewAt(commandField.Type(), unsafe.Pointer(commandField.UnsafeAddr())).Interface()

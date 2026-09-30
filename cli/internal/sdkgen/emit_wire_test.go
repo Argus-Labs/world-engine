@@ -52,7 +52,7 @@ func TestRenderGoWire_RefusesUnencodableShapes(t *testing.T) {
 	}
 }
 
-// TestRenderGoWire_Timestamp verifies a time.Time field generates timestamppb conversions on both
+// TestRenderGoWire_Timestamp verifies a [time.Time] field generates timestamppb conversions on both
 // sides and pulls the timestamppb + time imports. The pointer and map-value shapes are refused
 // outright (see TestRenderGoWire_RefusesUnencodableShapes), so only the value shape renders.
 func TestRenderGoWire_Timestamp(t *testing.T) {

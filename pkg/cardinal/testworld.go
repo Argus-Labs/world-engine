@@ -48,6 +48,7 @@ import (
 // Timestamp is the last step's time, one second behind TickHeight.
 type TestWorld struct {
 	*World
+
 	tb testing.TB
 
 	// Outputs of the last step.

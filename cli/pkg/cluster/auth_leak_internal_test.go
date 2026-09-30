@@ -20,8 +20,8 @@ import (
 
 // errTokenSource simulates the expired/absent Argus login ticket state that
 // TokenSource.Token reports — the path `world logs --env` hits when the user is
-// signed out. The error is a real auth error (not io.EOF): io.EOF would trip
-// connect's `errors.Is(err, io.EOF)` short-circuit in CallServerStream and mask
+// signed out. The error is a real auth error (not [io.EOF]): [io.EOF] would trip
+// connect's `errors.Is(err, [io.EOF])` short-circuit in CallServerStream and mask
 // the leak behind a nil caller error, whereas a real token-source error keeps
 // the caller-facing CodeUnauthenticated intact so the leak is observable.
 type errTokenSource struct{}
@@ -48,12 +48,12 @@ func (s okTokenSource) Token(context.Context) (string, error) { return s.token, 
 // streams from going out; the credential-failure path must not be the one path
 // that leaks.
 func TestStreamPodLogs_AuthFailure_LeaksNoRequest(t *testing.T) {
-	var requests int32
+	var requests atomic.Int32
 	var lastAuth string
 	var lastBody []byte
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&requests, 1)
+		requests.Add(1)
 		lastAuth = r.Header.Get("Authorization")
 		b, _ := io.ReadAll(r.Body)
 		lastBody = b
@@ -82,14 +82,14 @@ func TestStreamPodLogs_AuthFailure_LeaksNoRequest(t *testing.T) {
 	// is ever sent and this loop simply runs out the clock at zero.
 	deadline := time.Now().Add(300 * time.Millisecond)
 	for time.Now().Before(deadline) {
-		if got := atomic.LoadInt32(&requests); got != 0 {
+		if got := requests.Load(); got != 0 {
 			t.Fatalf("BUG: %d unauthenticated request(s) reached the operator when auth failed "+
 				"(authorization=%q, body=%q) — failedConn must short-circuit CloseRequest/CloseResponse",
 				got, lastAuth, bytes.TrimSpace(lastBody))
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	require.Equal(t, int32(0), atomic.LoadInt32(&requests),
+	require.Equal(t, int32(0), requests.Load(),
 		"no request should be sent when auth setup fails")
 }
 
@@ -105,7 +105,7 @@ func TestStreamPodLogs_AuthFailure_LeaksNoRequest(t *testing.T) {
 // the interceptor (and its failedConn) would otherwise be unexercised.
 func TestStreamPodLogs_AuthSuccess_SendsSingleAuthenticatedRequest(t *testing.T) {
 	const token = "hunter2"
-	var requests int32
+	var requests atomic.Int32
 	var lastAuth string
 
 	op := &fakeOperator{
@@ -116,7 +116,7 @@ func TestStreamPodLogs_AuthSuccess_SendsSingleAuthenticatedRequest(t *testing.T)
 	procedurePath, handler := operatorv1connect.NewOperatorServiceHandler(op)
 	mux := http.NewServeMux()
 	mux.Handle(procedurePath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&requests, 1)
+		requests.Add(1)
 		lastAuth = r.Header.Get("Authorization")
 		handler.ServeHTTP(w, r)
 	}))
@@ -144,7 +144,7 @@ func TestStreamPodLogs_AuthSuccess_SendsSingleAuthenticatedRequest(t *testing.T)
 	require.NoError(t, stream.Err(), "a clean EOF after the finite dump is not an error")
 	require.NoError(t, stream.Close())
 
-	require.Equal(t, int32(1), atomic.LoadInt32(&requests),
+	require.Equal(t, int32(1), requests.Load(),
 		"exactly one authenticated POST must reach the operator for a server-stream RPC")
 	require.Equal(t, "Bearer "+token, lastAuth,
 		"the interceptor must attach the bearer token before the request goes out")

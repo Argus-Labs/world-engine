@@ -27,10 +27,10 @@ import (
 // highlighted target, 'r' reloads the highlighted instance's shard, ctrl+r
 // does the same but first purges just that instance's state, Ctrl+C exits.
 type LogsCmd struct {
-	Debug    bool     `help:"Enable debug mode"                                                             default:"true" negatable:""`
+	Debug    bool     `help:"Enable debug mode"                                                        default:"true" negatable:""`
 	Env      string   `help:"Tail a deployed environment instead of the local cluster (e.g. us-west1)"`
 	Shard    []string `help:"Limit to these shards (remote only); repeatable"`
-	Tail     int32    `help:"Historical lines to replay before tailing (remote only)"                       default:"200"`
+	Tail     int32    `help:"Historical lines to replay before tailing (remote only)"                  default:"200"`
 	Previous bool     `help:"Logs from the previous container, for a crashed pod (remote only)"`
 }
 

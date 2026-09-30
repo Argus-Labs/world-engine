@@ -68,18 +68,14 @@ func CardinalFromShard(cfg *Config, shard worldtoml.Shard, hostPort int) Service
 	portBindings := network.PortMap{tcp: []network.PortBinding{{HostPort: strconv.Itoa(hostPort)}}}
 
 	svc := Service{
-		Name: containerName,
-		Config: container.Config{
-			Image:        imageName,
-			Env:          env,
-			ExposedPorts: getExposedPorts(exposedPorts),
-			Labels:       map[string]string{CardinalNamespaceLabel: cfg.Namespace},
-		},
-		HostConfig: container.HostConfig{
-			PortBindings:  portBindings,
-			RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
-			NetworkMode:   DefaultNetworkMode,
-		},
+		Name:          containerName,
+		Image:         imageName,
+		Env:           env,
+		ExposedPorts:  getExposedPorts(exposedPorts),
+		Labels:        map[string]string{CardinalNamespaceLabel: cfg.Namespace},
+		PortBindings:  portBindings,
+		RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
+		NetworkMode:   DefaultNetworkMode,
 	}
 	applySourceBuild(&svc, shard.Path)
 	return svc
@@ -92,8 +88,8 @@ func applySourceBuild(out *Service, shardPath string) {
 	out.BuildTarget = "runtime"
 	out.BuildArgs = map[string]string{"SOURCE_PATH": ".", "SHARD_PATH": shardPath}
 	out.Dependencies = []Service{
-		{Name: GoBuilderImage, Config: container.Config{Image: GoBuilderImage}},
-		{Name: BaseImage, Config: container.Config{Image: BaseImage}},
+		{Name: GoBuilderImage, Image: GoBuilderImage},
+		{Name: BaseImage, Image: BaseImage},
 	}
 }
 

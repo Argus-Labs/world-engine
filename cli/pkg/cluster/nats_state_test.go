@@ -8,14 +8,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 )
 
 func fakePod(name, ns string, labels map[string]string) *corev1.Pod {
-	return &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns, Labels: labels}}
+	return &corev1.Pod{Name: name, Namespace: ns, Labels: labels}
 }
 
 func TestInstancePodSelector_ComposesLabelSelector(t *testing.T) {

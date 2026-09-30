@@ -81,7 +81,11 @@ func TestModuleReplace(t *testing.T) {
 		t.Parallel()
 
 		dir := t.TempDir()
-		writeGoMod(t, dir, "module example.com/mygame\n\ngo 1.22\n\nrequire github.com/argus-labs/world-engine v0.8.0\n")
+		writeGoMod(
+			t,
+			dir,
+			"module example.com/mygame\n\ngo 1.22\n\nrequire github.com/argus-labs/world-engine v0.8.0\n",
+		)
 		ver, found, err := ModuleReplace(dir, modulePath)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -98,8 +102,12 @@ func TestModuleReplace(t *testing.T) {
 		t.Parallel()
 
 		dir := t.TempDir()
-		writeGoMod(t, dir, "module example.com/mygame\n\ngo 1.22\n\nrequire github.com/argus-labs/world-engine v0.11.2\n\n"+
-			"replace github.com/argus-labs/world-engine => github.com/myfork/world-engine v0.18.0\n")
+		writeGoMod(
+			t,
+			dir,
+			"module example.com/mygame\n\ngo 1.22\n\nrequire github.com/argus-labs/world-engine v0.11.2\n\n"+
+				"replace github.com/argus-labs/world-engine => github.com/myfork/world-engine v0.18.0\n",
+		)
 		ver, found, err := ModuleReplace(dir, modulePath)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -116,8 +124,12 @@ func TestModuleReplace(t *testing.T) {
 		t.Parallel()
 
 		dir := t.TempDir()
-		writeGoMod(t, dir, "module example.com/mygame\n\ngo 1.22\n\nrequire github.com/argus-labs/world-engine v0.8.0\n\n"+
-			"replace github.com/argus-labs/world-engine => ../world-engine-local\n")
+		writeGoMod(
+			t,
+			dir,
+			"module example.com/mygame\n\ngo 1.22\n\nrequire github.com/argus-labs/world-engine v0.8.0\n\n"+
+				"replace github.com/argus-labs/world-engine => ../world-engine-local\n",
+		)
 		ver, found, err := ModuleReplace(dir, modulePath)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -134,8 +146,12 @@ func TestModuleReplace(t *testing.T) {
 		t.Parallel()
 
 		dir := t.TempDir()
-		writeGoMod(t, dir, "module example.com/mygame\n\ngo 1.22\n\nrequire github.com/argus-labs/world-engine v1.0.0\n\n"+
-			"replace github.com/argus-labs/world-engine v1.0.0 => github.com/argus-labs/world-engine v2.0.0\n")
+		writeGoMod(
+			t,
+			dir,
+			"module example.com/mygame\n\ngo 1.22\n\nrequire github.com/argus-labs/world-engine v1.0.0\n\n"+
+				"replace github.com/argus-labs/world-engine v1.0.0 => github.com/argus-labs/world-engine v2.0.0\n",
+		)
 		ver, found, err := ModuleReplace(dir, modulePath)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -152,8 +168,12 @@ func TestModuleReplace(t *testing.T) {
 		t.Parallel()
 
 		dir := t.TempDir()
-		writeGoMod(t, dir, "module example.com/mygame\n\ngo 1.22\n\nrequire github.com/argus-labs/world-engine v0.8.0\n\n"+
-			"replace github.com/some/other => github.com/some/other v3.0.0\n")
+		writeGoMod(
+			t,
+			dir,
+			"module example.com/mygame\n\ngo 1.22\n\nrequire github.com/argus-labs/world-engine v0.8.0\n\n"+
+				"replace github.com/some/other => github.com/some/other v3.0.0\n",
+		)
 		ver, found, err := ModuleReplace(dir, modulePath)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)

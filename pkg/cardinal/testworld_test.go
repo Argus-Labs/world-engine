@@ -474,6 +474,7 @@ func (s *observe) Run(w *cardinal.World) {
 // not call are left to the nil embedded interface and panic if reached.
 type fakeTB struct {
 	testing.TB
+
 	failure string
 }
 
@@ -491,7 +492,7 @@ func (f *fakeTB) Fatalf(format string, args ...any) {
 	runtime.Goexit()
 }
 
-// run calls fn on its own goroutine, because Fatal ends the calling goroutine as testing.T's does,
+// run calls fn on its own goroutine, because Fatal ends the calling goroutine as [testing.T]'s does,
 // and returns the recorded failure.
 func (f *fakeTB) run(fn func()) string {
 	done := make(chan struct{})

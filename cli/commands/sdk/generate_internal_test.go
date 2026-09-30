@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// captureStdout captures os.Stdout output produced by fn and returns it as a string. It reassigns the
-// process-global os.Stdout, so callers MUST NOT run in parallel (t.Parallel) while a capture is active.
+// captureStdout captures [os.Stdout] output produced by fn and returns it as a string. It reassigns the
+// process-global [os.Stdout], so callers MUST NOT run in parallel (t.Parallel) while a capture is active.
 // Mirrors the helper used by apps/world-cli/internal/printer and internal/logger internal tests.
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
@@ -191,7 +191,7 @@ func TestClassifyEngineCheck(t *testing.T) {
 }
 
 // TestPrintEngineCheckMessage covers the formatting/wiring from outcome to printed text, one case per
-// outcome. These tests capture os.Stdout, so they MUST NOT run in parallel.
+// outcome. These tests capture [os.Stdout], so they MUST NOT run in parallel.
 func TestPrintEngineCheckMessage(t *testing.T) {
 	const target = "v0.16.4"
 
@@ -245,7 +245,7 @@ func TestPrintEngineCheckMessage(t *testing.T) {
 }
 
 // TestPrintEngineCheckForTarget exercises the end-to-end wiring (FindModuleRoot -> classify -> print)
-// against temp-dir backend modules with a controlled target. These tests capture os.Stdout, so they MUST
+// against temp-dir backend modules with a controlled target. These tests capture [os.Stdout], so they MUST
 // NOT run in parallel.
 func TestPrintEngineCheckForTarget(t *testing.T) {
 	const target = "v0.16.4"
@@ -299,7 +299,7 @@ func TestPrintEngineCheckForTarget(t *testing.T) {
 
 // TestPrintEngineCheckSkipsDevelopmentBuild pins that a world-cli built without a world-engine release
 // (tests, or a checkout) prints no verdict instead of comparing against its "main" target. Captures
-// os.Stdout, so it MUST NOT run in parallel.
+// [os.Stdout], so it MUST NOT run in parallel.
 func TestPrintEngineCheckSkipsDevelopmentBuild(t *testing.T) {
 	dir := t.TempDir()
 	writeGoMod(t, dir, "module ex/mygame\n\ngo 1.22\n\nrequire "+worldEngineModule+" v0.11.2\n")
