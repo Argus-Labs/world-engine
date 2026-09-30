@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cardinal Migration"
+  short_description: "Migrate a Cardinal game from world-engine v0.16.x to v0.17"
+  default_prompt: "Use $cardinal-migration to migrate this game to world-engine v0.17."
