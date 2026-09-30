@@ -56,6 +56,7 @@ func (w *World) Tick() {
 // Components remain registered but all entities and archetypes are cleared.
 func (w *World) Reset() {
 	w.state.reset()
+	w.systemEvents.clear()
 	w.initialized = false
 }
 
