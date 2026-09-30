@@ -100,7 +100,14 @@ func Run(ctx context.Context, msg string, fn func(context.Context) error, opts .
 	}
 	opErr := fn(spinCtx)
 	sp.Complete()
-	if eris.Is(opErr, context.Canceled) {
+	// fn shells out via exec.CommandContext (Docker builds); once a subprocess has started,
+	// cancellation SIGKILLs it and os/exec returns *exec.ExitError ("signal: killed") whose
+	// chain never contains context.Canceled. So the cancelled spinCtx — not fn's error chain
+	// — is the source of truth for "the user interrupted." Silencing any error returned after
+	// a cancelled spinCtx matches the doc-comment contract (suppress the stack trace on Ctrl+C)
+	// and the phasebox.Dashboard.Run precedent; the rare genuine failure that races with a
+	// Ctrl+C is tolerable since the user already chose to interrupt.
+	if spinCtx.Err() != nil && opErr != nil {
 		return errorspkg.NewSilent(opErr)
 	}
 	return opErr
