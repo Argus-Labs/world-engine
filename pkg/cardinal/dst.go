@@ -8,8 +8,9 @@
 //
 //	func TestDST(t *testing.T) {
 //	    cardinal.RunDST(t, func(w *cardinal.World) {
-//	        w.RegisterSystem(system.MySystem)
-//	        // ... register all systems
+//	        w.RegisterComponent[component.MyComponent]()
+//	        w.RegisterSystem(&system.MySystem{})
+//	        // ... register all components and systems
 //	    }, []cardinal.Command{system.BootstrapCommand{Seed: 42}})
 //	}
 package cardinal
@@ -92,7 +93,7 @@ func RunDST(t *testing.T, setup DSTSetupFunc, preTestCommands []Command) {
 		case strings.HasPrefix(op, opCommandPrefix):
 			cmdName := strings.TrimPrefix(op, opCommandPrefix)
 			cmd := fix.randCommand(t, prng, cmdName)
-			require.NoError(t, fix.world.commands.Enqueue(cmd))
+			require.NoError(t, fix.world.commands.Enqueue(context.Background(), cmd))
 
 		case op == opRestart:
 			fix.world.reset()
@@ -205,16 +206,16 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	})
 	require.NoError(t, err)
 
-	// Register the user's systems (components, commands, events are auto-registered).
+	// Register the user's components, commands, events, and systems.
 	setup(w)
 
 	// Replace NATS event handlers with local handlers that assert structural invariants.
-	w.events.RegisterHandler(event.KindDefault, func(evt event.Event) error {
+	w.events.RegisterHandler(event.KindDefault, func(_ context.Context, evt event.Event) error {
 		assert.Equal(t, event.KindDefault, evt.Kind, "nats: received non-default event kind")
 		assert.NotNil(t, evt.Payload, "nats: received nil payload")
 		return nil
 	})
-	w.events.RegisterHandler(event.KindInterShardCommand, func(evt event.Event) error {
+	w.events.RegisterHandler(event.KindInterShardCommand, func(_ context.Context, evt event.Event) error {
 		assert.Equal(t, event.KindInterShardCommand, evt.Kind, "nats: received wrong event kind")
 		isc, ok := evt.Payload.(command.Command)
 		assert.True(t, ok, "nats: ISC payload is %T, want command.Command", evt.Payload)
@@ -232,8 +233,8 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	storage := &memSnapshotStorage{t: t}
 	w.useSyncSnapshotStorage(storage)
 
-	// Initialize ECS and run init systems.
-	w.world.Init()
+	// Initialize ECS and run init systems under the init span, as run and reset do.
+	w.init()
 
 	// Cache concrete payload types for random command generation.
 	cmdTypes := make(map[string]reflect.Type)
@@ -279,7 +280,7 @@ func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 
 func (f *dstFixture) enqueueCommand(cmd Command) error {
 	payload := schema.Marshal(cmd)
-	return f.world.commands.Enqueue(&iscv1.Command{
+	return f.world.commands.Enqueue(context.Background(), &iscv1.Command{
 		Name:    cmd.Name(),
 		Address: f.world.address,
 		Persona: &iscv1.Persona{Id: "dst-pretest"},
