@@ -80,7 +80,10 @@ func reloadK8sShards(
 	dash := phasebox.Start(ctx)
 	defer dash.Complete()
 
-	if err := buildShardImages(ctx, dash, dockerClient, dockerServices, nil); err != nil {
+	if err := pullBuildDeps(ctx, dash, dockerClient, dockerServices, nil); err != nil {
+		return err
+	}
+	if err := buildShardImages(dash.Open("Build"), dockerClient, dockerServices); err != nil {
 		return err
 	}
 
@@ -91,11 +94,8 @@ func reloadK8sShards(
 	return deployShardImages(dash, cli, cfg, targets, purge)
 }
 
-// buildShardImages pulls build dependencies (shard images + extraImageRefs,
-// in one "Image Pull" box) then builds each shard image. extraImageRefs
-// lets `world start` fold in k3d's bootstrap images; pass nil for `world
-// reload`.
-func buildShardImages(
+// pullBuildDeps pulls shard base images and extraImageRefs in one "Image Pull" box.
+func pullBuildDeps(
 	ctx context.Context,
 	dash *phasebox.Dashboard,
 	dockerClient *docker.Client,
@@ -135,8 +135,12 @@ func buildShardImages(
 			return eris.Wrap(err, "pull build dependencies")
 		}
 	}
+	return nil
+}
 
-	return dash.Run("Build",
+// buildShardImages builds every shard image in box; run pullBuildDeps first.
+func buildShardImages(box *phasebox.Box, dockerClient *docker.Client, dockerServices []service.Service) error {
+	return box.Run(
 		func(ctx context.Context, sess phasebox.Session) error {
 			imageNames := docker.CardinalBuildImageNames(dockerServices)
 			return dockerClient.BuildCardinalImages(ctx, dockerServices, phasebox.BuildProgress(sess, imageNames))
