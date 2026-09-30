@@ -16,20 +16,17 @@ import (
 // spawnBallAndFloor registers an Init system that creates a static floor at y=0 and a dynamic
 // ball at (x, 5) with a circle collider, and returns pointers that receive the created ids.
 func spawnBallAndFloor(w *cardinal.World, x float64, ballID *cardinal.EntityID) {
-	w.RegisterSystem(func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
-		if state.Tick() != 0 {
+	w.RegisterSystem(&ballAndFloorSystem{run: func(w *cardinal.World) {
+		if w.TickHeight() != 0 {
 			return
 		}
-		floor := state.Spawn.Create()
+		floor := w.Create[spawnArchetype]()
 		floor.Set(harnessTag{Role: "floor"})
 		floor.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: 0}})
 		floor.Set(physics.Velocity2D{})
 		floor.Set(newRigid(physics.BodyTypeStatic, boxColliderShapes(10, 0.5)...))
 
-		ball := state.Spawn.Create()
+		ball := w.Create[spawnArchetype]()
 
 		id := ball.ID()
 		ball.Set(harnessTag{Role: "ball"})
@@ -37,22 +34,19 @@ func spawnBallAndFloor(w *cardinal.World, x float64, ballID *cardinal.EntityID) 
 		ball.Set(physics.Velocity2D{})
 		ball.Set(newRigid(physics.BodyTypeDynamic, circleColliderShapes()...))
 		*ballID = id
-	}, cardinal.WithHook(cardinal.Init))
+	}}, cardinal.WithHook(cardinal.Init))
 }
 
 // ballY reads the ball's current Y position through the plugin's raycast-free ECS view: a
 // PostUpdate probe system copies it into out each tick.
 func trackBallY(w *cardinal.World, out *float64) {
-	w.RegisterSystem(func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
-		for row := range state.Spawn.Iter() {
+	w.RegisterSystem(&ballYSystem{run: func(w *cardinal.World) {
+		for row := range w.Exact[spawnArchetype]().Iter() {
 			if row.Get[harnessTag]().Role == "ball" {
 				*out = row.Get[physics.Transform2D]().Position.Y
 			}
 		}
-	}, cardinal.WithHook(cardinal.PostUpdate))
+	}}, cardinal.WithHook(cardinal.PostUpdate))
 }
 
 // TestMultiInstance_IndependentWorlds proves two plugins in one process simulate independently:
@@ -112,3 +106,15 @@ func TestMultiInstance_IndependentWorlds(t *testing.T) {
 	tickN(t, wA, 1)
 	require.NotNil(t, pA.Engine(), "world A engine rebuilt after Reset + tick")
 }
+
+type ballAndFloorSystem struct {
+	run func(w *cardinal.World)
+}
+
+func (s *ballAndFloorSystem) Run(w *cardinal.World) { s.run(w) }
+
+type ballYSystem struct {
+	run func(w *cardinal.World)
+}
+
+func (s *ballYSystem) Run(w *cardinal.World) { s.run(w) }

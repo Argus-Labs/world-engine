@@ -26,36 +26,31 @@ func (AttackCommand) Name() string {
 
 ## Handling Commands
 
-Just like with components, you must declare the commands a system can access in its state struct. Add a `WithCommand[T]` field to your system state type, where `T` is your command type:
+Just like with components, you must register a command type with the world before `StartGame`. The service only accepts commands that are registered:
 
 ```go
-import "github.com/argus-labs/world-engine/pkg/cardinal"
-
-type AttackSystemState struct {
-    cardinal.BaseSystemState
-    AttackCommands cardinal.WithCommand[AttackCommand]
-}
+w.RegisterCommand[AttackCommand]()
 ```
 
 <Note>
-  A system cannot have multiple `WithCommand[T]` fields with the same command type. However,
-  different systems can handle the same command type. This is useful for when you want a single
+  Different systems can handle the same command type. This is useful for when you want a single
   command to trigger multiple game logic and/or side effects.
 </Note>
 
 ### Iterating Over Commands
 
-Use `Iter` to loop through all commands received this tick. Each iteration yields a `CommandContext` that provides access to the command data and metadata.
+Use `w.Commands[T]()` to loop through all commands of type `T` received this tick. Each iteration yields a `CommandContext` whose fields hold the command data and metadata.
 
-To access the command's payload, use `Payload`:
+To access the command's payload, read the `Payload` field:
 
 ```go
-func AttackSystem(state *AttackSystemState) error {
-    for cmd := range state.AttackCommands.Iter() {
-        attack := cmd.Payload()
+type AttackSystem struct{}
+
+func (s *AttackSystem) Run(w *cardinal.World) {
+    for cmd := range w.Commands[AttackCommand]() {
+        attack := cmd.Payload
         // Use attack.TargetID, attack.Damage, etc.
     }
-    return nil
 }
 ```
 
@@ -65,26 +60,26 @@ A persona is the unique identity associated with a player’s account. All comma
 
 If your client is authenticated, commands sent from it will automatically include your account's persona. In multi-shard setups, personas remain consistent across shards, allowing any shard to verify and act on the same player identity.
 
-You can get a command's persona using `Persona`:
+You can get a command's persona from the `Persona` field:
 
 ```go
-func AttackSystem(state *AttackSystemState) error {
-    for cmd := range state.AttackCommands.Iter() {
-        attack := cmd.Payload()
-        sender := cmd.Persona()
+func (s *AttackSystem) Run(w *cardinal.World) {
+    players := w.Contains[struct{ Owner Owner }]()
+    for cmd := range w.Commands[AttackCommand]() {
+        attack := cmd.Payload
+        sender := cmd.Persona
 
         // Get the player's entity and verify ownership.
-        player, ok := state.Players.GetByID(attack.PlayerID)
-        if !ok {
+        player, err := players.GetByID(attack.PlayerID)
+        if err != nil {
             continue
         }
-        if player.Owner.Get() != sender {
+        if player.Get[Owner]().Persona != sender {
             continue // Skip unauthorized commands.
         }
 
         // Process the command...
     }
-    return nil
 }
 ```
 
@@ -139,47 +134,51 @@ In a multi-shard setup, you can send commands from within a system to another sh
 
 ### Defining Shard Targets
 
-To send an inter-shard command, you must first define an `OtherWorld` variable for each shard you want to communicate with:
+To send an inter-shard command, construct an `OtherWorld` value for each destination and pass it into the system:
 
 <Note>The convention is to place this in `pkg/other_worlds/other_world.go`.</Note>
 
 ```go
 import "github.com/argus-labs/world-engine/pkg/cardinal"
 
-var MatchmakingShard = cardinal.OtherWorld{
+matchmakingShard := cardinal.OtherWorld{
     Region:       "us-west1",
     Organization: "my-org",
     Project:      "my-game",
     ShardID:      "matchmaking",
 }
+w.RegisterSystem(&GameEndSystem{MatchmakingShard: matchmakingShard})
 ```
 
 An `OtherWorld` represents a specific remote shard and is used to route commands to the correct destination.
 
 ### Sending Inter-Shard Commands
 
-Use `SendCommand` to dispatch a command to another shard. Pass the system's `BaseSystemState` and the command you want to send:
+Use the world's `SendToShard` to dispatch a command to another shard. Pass the destination `OtherWorld` and the command you want to send:
 
 ```go
 import matchcmd "my-game/shards/matchmaking/command"
 
-func GameEndSystem(state *GameEndSystemState) error {
-    for cmd := range state.EndGameCommands.Iter() {
-        game := cmd.Payload()
+type GameEndSystem struct {
+    MatchmakingShard cardinal.OtherWorld
+}
+
+func (s *GameEndSystem) Run(w *cardinal.World) {
+    for cmd := range w.Commands[EndGameCommand]() {
+        game := cmd.Payload
 
         // Queue the winner for another match on the matchmaking shard.
-        MatchmakingShard.SendCommand(&state.BaseSystemState, matchcmd.QueuePlayer{
+        w.SendToShard(s.MatchmakingShard, matchcmd.QueuePlayer{
             PlayerID: game.WinnerID,
             Rating:   game.NewRating,
         })
     }
-    return nil
 }
 ```
 
-The receiving shard processes inter-shard commands like any other command, using `WithCommand` in its system state.
+The receiving shard processes inter-shard commands like any other command: it registers the type with `RegisterCommand` and reads it with `w.Commands[T]()`.
 
 <Note>
-  The target shard must have a system that handles the command type you're sending. If no system
-  handles the command, it will be discarded.
+  The target shard must register the command type you're sending. If the type is not registered
+  there, the target rejects the command and it is not delivered.
 </Note>

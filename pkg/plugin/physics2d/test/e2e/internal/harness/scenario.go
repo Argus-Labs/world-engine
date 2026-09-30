@@ -20,15 +20,11 @@ const LaneWidth = 300.0
 
 // ProbeRow is the archetype every harness-spawned body uses.
 type ProbeRow struct {
-	Probe     cardinal.WithComponent[probe.Probe]
-	Transform cardinal.WithComponent[physics.Transform2D]
-	Velocity  cardinal.WithComponent[physics.Velocity2D]
-	Body      cardinal.WithComponent[physics.PhysicsBody2D]
+	Probe     probe.Probe
+	Transform physics.Transform2D
+	Velocity  physics.Velocity2D
+	Body      physics.PhysicsBody2D
 }
-
-// Probes is the search over every harness body. Contains (not Exact) so a
-// scenario is free to add extra components to an entity later on.
-type Probes = cardinal.Contains[ProbeRow]
 
 // Step is one scheduled action or assertion, run on the given tick after the
 // physics pipeline has stepped. Steps sharing a tick run in declaration order.
@@ -138,7 +134,7 @@ func (e LoggedEvent) Touches(a cardinal.EntityID) bool {
 // writing to ECS and subtracts it when reading back.
 type Ctx struct {
 	report     *Report
-	probes     *Probes
+	probes     cardinal.Search
 	events     *eventStore
 	plugin     *physics.Plugin
 	allowReset func()

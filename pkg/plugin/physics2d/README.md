@@ -36,6 +36,22 @@ w.RegisterPlugin(physics)
 w.StartGame()
 ```
 
+`RegisterPlugin` registers the physics components and the plugin's `Init` and `PreUpdate`
+systems. Systems in one hook run in registration order, so a game system that must run
+**before** the plugin's (for example an `Init` spawner whose bodies the first rebuild should
+see) is registered before `RegisterPlugin`. That order needs no extra step for components: a
+system resolves its archetypes on its first `Contains`, `Exact`, or `Create` call inside `Run`,
+not when it is registered, and every `Register*` call panics once the world has started.
+
+```go
+w.RegisterSystem(&spawnBodiesSystem{}, cardinal.WithHook(cardinal.Init))
+w.RegisterPlugin(physics)
+```
+
+Only code that creates physics entities before `RegisterPlugin` runs (a test harness seeding
+a scene) needs the components earlier. Call `physics2d.RegisterComponents(w)` first;
+`RegisterPlugin` registering them again is a no-op.
+
 Keep the `*physics2d.Plugin` value: queries, `Engine`, and `Reset` are
 methods on it. All simulation state belongs to that instance — the package
 holds no globals, and multiple plugin instances in one process simulate
@@ -133,11 +149,11 @@ component already holds, so a `Set` after each one is required rather than
 tidy — see [`immutable.Slice`](../../immutable/slice.go).
 
 ```go
-pb := ref.Get()
+pb := entity.Get[physics2d.PhysicsBody2D]()
 sh := pb.Shapes.At(0)
 sh.Friction = 0.9
 pb.Shapes = pb.Shapes.With(0, sh)
-ref.Set(pb)
+entity.Set(pb)
 ```
 
 ### Polygon vertices
