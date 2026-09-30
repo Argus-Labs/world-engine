@@ -285,24 +285,21 @@ func rollShards(
 		return eris.Wrap(err, "prune orphaned shards")
 	}
 
-	// All shards share one import; each row turns ✓ once its shard deploys.
+	// All shards share one import; each row then shows its own shard's result.
 	for _, s := range deployShards {
 		sess.UpsertRow(s.ID, s.ID, "importing into cluster", phasebox.Active)
 	}
-	deployed := make(map[string]bool, len(deployShards))
 	if err := cli.Deploy(ctx, cluster.DeployOpts{
 		Project: cfg.WorldToml.Project,
 		Shards:  deployShards,
-		OnDeployed: func(shardID string) {
-			deployed[shardID] = true
+		OnResult: func(shardID string, err error) {
+			if err != nil {
+				sess.UpsertRow(shardID, shardID, err.Error(), phasebox.Failed)
+				return
+			}
 			sess.UpsertRow(shardID, shardID, "", phasebox.Done)
 		},
 	}); err != nil {
-		for _, s := range deployShards {
-			if !deployed[s.ID] {
-				sess.UpsertRow(s.ID, s.ID, "", phasebox.Failed)
-			}
-		}
 		return eris.Wrap(err, "reload via operator")
 	}
 

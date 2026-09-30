@@ -385,6 +385,6 @@ type DeployOpts struct {
 	Project string
 	Shards  []DeployShard
 
-	// OnDeployed, if non-nil, is called after each shard's operator Deploy RPC succeeds.
-	OnDeployed func(shardID string)
+	// OnResult, if non-nil, gets each shard's result once (nil on success).
+	OnResult func(shardID string, err error)
 }

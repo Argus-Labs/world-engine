@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -22,11 +23,11 @@ type Dashboard struct {
 	p      *tea.Program
 	done   chan struct{}
 	ctx    context.Context //nolint:containedctx // shared across every Run call in this dashboard's lifetime, mirroring spinner/multispinner's cancel-scoped session pattern
-	nextID int
+	nextID atomic.Int64
 	once   sync.Once
 }
 
-// Box is an opened section: Open from one goroutine, Run from any.
+// Box is an opened section; opening it before Run fixes its place in the order.
 type Box struct {
 	d  *Dashboard
 	id string
@@ -62,8 +63,7 @@ func (d *Dashboard) Complete() {
 
 // Open appends a titled section.
 func (d *Dashboard) Open(title string) *Box {
-	d.nextID++
-	id := strconv.Itoa(d.nextID)
+	id := strconv.FormatInt(d.nextID.Add(1), 10)
 	d.p.Send(newSectionMsg{id: id, title: title})
 	return &Box{d: d, id: id}
 }

@@ -28,8 +28,21 @@ type DeployShard struct {
 // the registry's host port is randomized. Importing tars the image straight
 // into containerd; IfNotPresent pull-policy then skips the registry lookup.
 func (c *Client) Deploy(ctx context.Context, opts DeployOpts) error {
+	report := func(shardID string, err error) {
+		if opts.OnResult != nil {
+			opts.OnResult(shardID, err)
+		}
+	}
+	// fail reports err for every shard: everything before the RPCs is shared.
+	fail := func(err error) error {
+		for _, s := range opts.Shards {
+			report(s.ID, err)
+		}
+		return err
+	}
+
 	if opts.Project == "" {
-		return eris.New("Deploy: project is required")
+		return fail(eris.New("Deploy: project is required"))
 	}
 	if len(opts.Shards) == 0 {
 		return eris.New("Deploy: at least one shard is required")
@@ -37,7 +50,7 @@ func (c *Client) Deploy(ctx context.Context, opts DeployOpts) error {
 
 	docker, err := client.New(client.FromEnv)
 	if err != nil {
-		return eris.Wrap(err, "docker client")
+		return fail(eris.Wrap(err, "docker client"))
 	}
 	defer func() { _ = docker.Close() }()
 
@@ -49,27 +62,31 @@ func (c *Client) Deploy(ctx context.Context, opts DeployOpts) error {
 	for _, s := range opts.Shards {
 		dest := fmt.Sprintf("%s:%s", c.imageRef(opts.Project, s.ID), tag)
 		if _, err := docker.ImageTag(ctx, client.ImageTagOptions{Source: s.SourceImage, Target: dest}); err != nil {
-			return eris.Wrapf(err, "tag %s for shard %s", s.SourceImage, s.ID)
+			return fail(eris.Wrapf(err, "tag %s for shard %s", s.SourceImage, s.ID))
 		}
 		dests = append(dests, dest)
 	}
 	if err := k3dImageImport(ctx, c.cfg.ClusterName, dests...); err != nil {
-		return eris.Wrap(err, "import shard images")
+		return fail(eris.Wrap(err, "import shard images"))
 	}
 
+	// Roll every shard even if one fails, so one bad shard can't hold back the rest.
+	var firstErr error
 	for _, s := range opts.Shards {
 		req := connect.NewRequest(&operatorv1.DeployRequest{
 			ShardId:  s.ID,
 			ImageTag: tag,
 		})
-		if _, err := rpc.Deploy(ctx, req); err != nil {
-			return eris.Wrapf(err, "operator Deploy RPC for shard %s", s.ID)
+		_, err := rpc.Deploy(ctx, req)
+		if err != nil {
+			err = eris.Wrapf(err, "operator Deploy RPC for shard %s", s.ID)
+			if firstErr == nil {
+				firstErr = err
+			}
 		}
-		if opts.OnDeployed != nil {
-			opts.OnDeployed(s.ID)
-		}
+		report(s.ID, err)
 	}
-	return nil
+	return firstErr
 }
 
 // uniqueTag guarantees a fresh image string each call. The operator rolls
