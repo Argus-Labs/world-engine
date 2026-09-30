@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"maps"
 	"math"
 	"slices"
 
@@ -158,14 +159,10 @@ func (m *Manager) Clear() {
 // Test helpers
 // -------------------------------------------------------------------------------------------------
 
-// Names returns the names of all registered command types.
+// Names returns the names of all registered command types, sorted so a seeded fuzzer that draws
+// from them replays.
 func (m *Manager) Names() []string {
-	names := make([]string, 0, len(m.catalog))
-	for name := range m.catalog {
-		names = append(names, name)
-	}
-	slices.Sort(names)
-	return names
+	return slices.Sorted(maps.Keys(m.catalog))
 }
 
 // Zero returns a zero-value instance of the named command's payload type.

@@ -1,7 +1,9 @@
 package testutils
 
 import (
+	"cmp"
 	"hash/fnv"
+	"maps"
 	"math/rand/v2"
 	"os"
 	"slices"
@@ -44,16 +46,46 @@ func NewRand(t *testing.T) *rand.Rand {
 	return rand.New(rand.NewPCG(Seed^perTest, Seed^(perTest<<1))) //nolint:gosec // weak RNG is fine for tests
 }
 
-// RandMapKey returns a random key from a map. Panics if the map is empty.
-func RandMapKey[K comparable, V any](r *rand.Rand, m map[K]V) K {
-	idx := r.IntN(len(m))
-	for k := range m {
-		if idx == 0 {
-			return k
+// RandMapKey returns a random key from a map. Panics if the map is empty. It returns the n-th smallest
+// key for a random n, not the n-th key in map iteration order, so the same seed picks the same key.
+func RandMapKey[K cmp.Ordered, V any](r *rand.Rand, m map[K]V) K {
+	keys := slices.Collect(maps.Keys(m))
+	return nthSmallest(keys, r.IntN(len(keys)))
+}
+
+// nthSmallest returns the n-th smallest (0-based) of keys in [cmp.Compare] order, which puts NaNs
+// first, and reorders keys.
+// It is a quickselect, so model-fuzz tests that draw from maps of thousands of keys every operation
+// avoid a full sort per draw. Pivots come from positions, not a random source, so the caller's random
+// stream does not depend on map iteration order.
+func nthSmallest[K cmp.Ordered](keys []K, n int) K {
+	lo, hi := 0, len(keys)-1
+	for lo < hi {
+		pivot := keys[lo+(hi-lo)/2]
+		i, j := lo, hi
+		for i <= j {
+			for cmp.Less(keys[i], pivot) {
+				i++
+			}
+			for cmp.Less(pivot, keys[j]) {
+				j--
+			}
+			if i <= j {
+				keys[i], keys[j] = keys[j], keys[i]
+				i++
+				j--
+			}
 		}
-		idx--
+		switch {
+		case n <= j:
+			hi = j
+		case n >= i:
+			lo = i
+		default:
+			return keys[n]
+		}
 	}
-	panic("unreachable")
+	return keys[lo]
 }
 
 // OpWeights maps operation names to their weights.
@@ -80,26 +112,21 @@ func RandOpWeights(r *rand.Rand, ops []string) OpWeights {
 	return weights
 }
 
-// RandWeightedOp returns a random operation from a map, using each op's value as its weight.
+// RandWeightedOp returns a random operation from a map, using each op's value as its weight. It walks
+// the ops in sorted order, not map iteration order, so the same seed picks the same sequence.
 func RandWeightedOp(r *rand.Rand, ops OpWeights) string {
-	keys := make([]string, 0, len(ops))
-	for k := range ops {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-
+	names := slices.Sorted(maps.Keys(ops))
 	var total uint64
-	for _, k := range keys {
-		total += ops[k]
+	for _, op := range names {
+		total += ops[op]
 	}
 
 	pick := r.Uint64N(total)
-	for _, k := range keys {
-		w := ops[k]
-		if pick < w {
-			return k
+	for _, op := range names {
+		if pick < ops[op] {
+			return op
 		}
-		pick -= w
+		pick -= ops[op]
 	}
 	panic("unreachable")
 }
