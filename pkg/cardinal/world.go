@@ -47,6 +47,8 @@ type World struct {
 	archetypes map[reflect.Type]bitmap.Bitmap // Component sets resolved from archetype structs
 	eventTypes map[reflect.Type]struct{}      // Events registered with RegisterEvent
 	started    bool                           // Set by init; Register* methods panic afterwards
+
+	systemEventTap func(ecs.SystemEvent) // Sees each emitted system event; set only by TestWorld
 }
 
 // NewWorld creates a game world with the specified options.
@@ -680,6 +682,9 @@ func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
 	if err := w.world.EmitSystemEvent(systemEvent); err != nil {
 		panic(eris.Wrapf(err, "system event %T is not registered; call RegisterSystemEvent before StartGame",
 			systemEvent))
+	}
+	if w.systemEventTap != nil {
+		w.systemEventTap(systemEvent)
 	}
 }
 
