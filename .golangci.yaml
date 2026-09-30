@@ -170,6 +170,11 @@ linters:
     sloglint:
       no-global: all
       context: scope
+    staticcheck:
+      # SA4023 panics in staticcheck v0.8.1 when analysing generic method calls
+      # on connectrpc's *Request[T] type (nilness fact index-out-of-range bug).
+      # Disable this single check until the upstream tool is fixed.
+      checks: ["all", "-SA4023"]
   exclusions:
     generated: lax
     presets:

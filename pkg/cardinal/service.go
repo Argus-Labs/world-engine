@@ -20,6 +20,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
+	"github.com/argus-labs/world-engine/pkg/telemetry/trace"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
@@ -27,6 +28,9 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
+	otelcodes "go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 )
 
@@ -233,12 +237,13 @@ func (s *service) SendCommand(
 	assert.That(cmd.GetPersona() != nil, "command persona should have been validated")
 
 	cmd.Persona.Id = user.ID
+	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID), attrCommandName.String(cmd.GetName()))
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 	}
 
-	if err := s.world.commands.Enqueue(cmd); err != nil {
+	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
@@ -257,22 +262,29 @@ func (s *service) SendCommandWithReply(
 	assert.That(cmd.GetPersona() != nil, "command persona should have been validated")
 
 	cmd.Persona.Id = user.ID
+	span := oteltrace.SpanFromContext(ctx)
+	span.SetAttributes(semconv.EnduserID(user.ID), attrCommandName.String(cmd.GetName()),
+		attrEventName.String(req.Msg.GetEventName()))
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 	}
 
-	if err := s.world.commands.Enqueue(cmd); err != nil {
+	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
 	waiter := s.addReplyWaiter(req.Msg.GetEventName())
 	defer s.removeReplyWaiter(req.Msg.GetEventName(), waiter)
 
+	// The span's duration is the round trip; this event marks where the enqueue ended and the wait
+	// for the reply began. A cancelled wait ends the span with only this event and an error status.
+	span.AddEvent("command enqueued")
 	select {
 	case <-ctx.Done():
 		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "waiting for reply event"))
 	case event := <-waiter:
+		span.AddEvent("reply received")
 		return connect.NewResponse(&cardinalv1.SendCommandWithReplyResponse{Event: event}), nil
 	}
 }
@@ -314,6 +326,8 @@ func (s *service) StartEventStream(
 ) error {
 	user := UserFromContext(ctx)
 	assert.That(user != nil, "user should exist in authenticated stream context")
+	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID),
+		attrEventSubscriptions.Int(countSubscriptions(req.Msg.GetSubscriptions())))
 
 	subscriber, err := s.addSubscriber(ctx, user, stream)
 	if err != nil {
@@ -356,17 +370,9 @@ func (s *service) SubscribeEvents(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.SubscribeEventsRequest],
 ) (*connect.Response[cardinalv1.SubscribeEventsResponse], error) {
-	user := UserFromContext(ctx)
-	assert.That(user != nil, "user should exist in authenticated request context")
-
-	if !s.hasSubscriber(user) {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
-	}
-
-	for _, subscription := range req.Msg.GetSubscriptions() {
-		if micro.String(s.world.address) != micro.String(subscription.GetAddress()) {
-			return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
-		}
+	user, err := s.subscriptionRequest(ctx, req.Msg.GetSubscriptions())
+	if err != nil {
+		return nil, err
 	}
 	s.subscribeEvents(user, req.Msg.GetSubscriptions())
 
@@ -377,21 +383,34 @@ func (s *service) UnsubscribeEvents(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.UnsubscribeEventsRequest],
 ) (*connect.Response[cardinalv1.UnsubscribeEventsResponse], error) {
+	user, err := s.subscriptionRequest(ctx, req.Msg.GetSubscriptions())
+	if err != nil {
+		return nil, err
+	}
+	s.unsubscribeEvents(user, req.Msg.GetSubscriptions())
+
+	return connect.NewResponse(&cardinalv1.UnsubscribeEventsResponse{}), nil
+}
+
+// subscriptionRequest validates a subscribe or unsubscribe request from a user with an open stream.
+func (s *service) subscriptionRequest(
+	ctx context.Context, subscriptions []*cardinalv1.EventSubscription,
+) (*User, error) {
 	user := UserFromContext(ctx)
 	assert.That(user != nil, "user should exist in authenticated request context")
+	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID),
+		attrEventSubscriptions.Int(countSubscriptions(subscriptions)))
 
 	if !s.hasSubscriber(user) {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
 	}
 
-	for _, subscription := range req.Msg.GetSubscriptions() {
+	for _, subscription := range subscriptions {
 		if micro.String(s.world.address) != micro.String(subscription.GetAddress()) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 		}
 	}
-	s.unsubscribeEvents(user, req.Msg.GetSubscriptions())
-
-	return connect.NewResponse(&cardinalv1.UnsubscribeEventsResponse{}), nil
+	return user, nil
 }
 
 func (s *service) addSubscriber(
@@ -458,6 +477,15 @@ func (s *service) hasSubscriber(user *User) bool {
 	return ok
 }
 
+// countSubscriptions returns the number of event names across all subscriptions.
+func countSubscriptions(subscriptions []*cardinalv1.EventSubscription) int {
+	n := 0
+	for _, subscription := range subscriptions {
+		n += len(subscription.GetEvents())
+	}
+	return n
+}
+
 // -------------------------------------------------------------------------------------------------
 // Event publishers
 // -------------------------------------------------------------------------------------------------
@@ -465,11 +493,17 @@ func (s *service) hasSubscriber(user *User) bool {
 // TODO: move away from this centralized approach to a actor model for easier(?) synchronization.
 
 //nolint:gocognit // Put everything here so you can understand the logic in one place.
-func (s *service) publishDefaultEvent(evt event.Event) error {
+func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) error {
 	payload, ok := evt.Payload.(event.Payload)
 	if !ok {
 		return eris.Errorf("invalid event payload type: %T", evt.Payload)
 	}
+
+	// Ended by a direct defer so an encoding panic below is recorded on this span, which is the
+	// one that names the event. Nothing after this point returns an error.
+	_, span := trace.New(ctx, spanEventPublish, oteltrace.WithAttributes(
+		attrEventName.String(payload.Name()), attrEventRecipient.String(evt.Recipient)))
+	defer span.End()
 
 	payloadPb := schema.Marshal(payload)
 
@@ -505,6 +539,7 @@ func (s *service) publishDefaultEvent(evt event.Event) error {
 	}
 	waiters := append([]chan *iscv1.Event(nil), s.replyWaiters[eventPb.GetName()]...)
 	s.mu.RUnlock()
+	span.SetAttributes(attrEventSubscribers.Int(len(subscribers)), attrEventWaiters.Int(len(waiters)))
 
 	// Send events for SendCommandWithReply channels.
 	for _, waiter := range waiters {
@@ -514,7 +549,9 @@ func (s *service) publishDefaultEvent(evt event.Event) error {
 		}
 	}
 
-	// Send events to stream subscribers.
+	// Send events to stream subscribers. A failed send is logged and recorded on the span but does not
+	// fail the dispatch: one dead stream must not block delivery to the others.
+	sendFailures := 0
 	for _, subscriber := range subscribers {
 		select {
 		case <-subscriber.ctx.Done():
@@ -527,9 +564,15 @@ func (s *service) publishDefaultEvent(evt event.Event) error {
 			Event:   eventPb,
 		})
 		if err != nil {
+			sendFailures++
+			span.RecordError(err)
 			s.log.Error().Err(err).Str("event", eventPb.GetName()).Msg("failed to send event to subscriber")
 			continue
 		}
+	}
+	span.SetAttributes(attrEventSendFailures.Int(sendFailures))
+	if sendFailures > 0 {
+		span.SetStatus(otelcodes.Error, "some subscriber sends failed")
 	}
 
 	return nil
@@ -573,19 +616,26 @@ func (s *service) handleInterShardCommand(ctx context.Context, req *micro.Reques
 		return micro.NewErrorResponse(req, eris.New("command address doesn't match shard address"), codes.InvalidArgument)
 	}
 
-	if err := s.world.commands.Enqueue(cmd); err != nil {
+	oteltrace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))
+	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
 		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), codes.InvalidArgument)
 	}
 
 	return micro.NewSuccessResponse(req, nil)
 }
 
-func (s *service) publishInterShardCommand(evt event.Event) error {
+func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event) error {
 	isc, ok := evt.Payload.(command.Command)
 	if !ok {
 		return eris.Errorf("invalid inter shard command %v", evt.Payload)
 	}
 	assert.That(isc.Address != nil, "inter shard command has nil address")
+
+	// The NATS client injects this span into the request headers, so the receiving shard's handler
+	// span (and the tick that drains the command there) joins this tick's oteltrace.
+	ctx, span := trace.New(ctx, spanInterShardSend, oteltrace.WithAttributes(
+		attrCommandName.String(isc.Payload.Name()), attrCommandTarget.String(micro.String(isc.Address))))
+	defer span.End()
 
 	payload := schema.Marshal(isc.Payload)
 
@@ -596,7 +646,7 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 		Payload: payload,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	// TODO: revisit shard-to-shard blocking. Dispatch runs synchronously in the tick loop, so this
@@ -604,6 +654,8 @@ func (s *service) publishInterShardCommand(evt event.Event) error {
 	// shard-to-shard isn't meant to block the tick, make this async (worker) or fire-and-forget Publish.
 	_, err := s.client.Request(ctx, isc.Address, "command."+isc.Payload.Name(), commandPb)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(otelcodes.Error, "send failed")
 		s.log.Error().Err(err).Str("command", isc.Payload.Name()).Msg("inter-shard command dropped: send failed")
 		return nil
 	}

@@ -8,19 +8,16 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 )
 
-type PlayerSpawnerSystemState struct {
-	cardinal.BaseSystemState
-	Players PlayerSearch
-}
+type PlayerSpawnerSystem struct{}
 
-func PlayerSpawnerSystem(state *PlayerSpawnerSystemState) {
+func (s *PlayerSpawnerSystem) Run(w *cardinal.World) {
 	for i := range 10 {
 		name := fmt.Sprintf("default-%d", i)
 
-		entity := state.Create[Player]()
+		entity := w.Create[Player]()
 		entity.Set(component.PlayerTag{Nickname: name})
 		entity.Set(component.Health{HP: 100})
 
-		state.Logger().Info().Uint32("entity", uint32(entity.ID())).Msgf("Created player %s", name)
+		w.Logger().Info().Uint32("entity", uint32(entity.ID())).Msgf("Created player %s", name)
 	}
 }

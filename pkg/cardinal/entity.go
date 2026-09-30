@@ -9,7 +9,7 @@ import (
 )
 
 // Entity is a runtime handle to an entity in one world. Store ID() in components,
-// commands, and snapshots, then bind that ID with BaseSystemState.Entity when needed.
+// commands, and snapshots, then bind that ID with World.Entity when needed.
 // Like EntityID, a handle must not be retained after destruction or a world reset:
 // numeric IDs can be reused. Entity methods must run on the world's system goroutine.
 type Entity struct {
@@ -57,76 +57,63 @@ func (e Entity) Remove[T ecs.Component]() {
 // Destroy removes the entity and all its components. It returns false if absent.
 func (e Entity) Destroy() bool { return e.world != nil && e.world.Destroy(e.id) }
 
-// Entity binds a numeric ID to this system's world. It does not require the entity
-// to exist. Use Alive or Has to check before accessing an optional entity.
-func (b *BaseSystemState) Entity(id EntityID) Entity {
-	return Entity{world: b.world.world, id: id}
+// Entity binds a numeric ID to this world. It does not require the entity to exist.
+// Use Alive or Has to check before accessing an optional entity.
+func (w *World) Entity(id EntityID) Entity {
+	return Entity{world: w.world, id: id}
 }
 
-// Create creates an entity with the zero-valued components declared by T.
-// Register T with World.RegisterArchetype or a Contains[T]/Exact[T] system field
-// before starting the world, so snapshots can restore its component types.
-func (b *BaseSystemState) Create[T any]() Entity {
-	components, ok := b.world.entityArchetypes[reflect.TypeFor[T]()]
-	if !ok {
-		panic(eris.Errorf("entity archetype %T is not registered", *new(T)))
-	}
-	return b.Entity(b.world.world.CreateWithArchetype(components))
-}
-
-// WithComponent declares a component dependency. Use it as a system field to
-// register an optional component, or as a field of a Contains/Exact archetype.
-// Values are accessed through Entity, not through this declaration.
-type WithComponent[T ecs.Component] struct{}
-
-func (WithComponent[T]) register(w *ecs.World) (ecs.ComponentID, error) {
-	return w.RegisterComponent[T]()
-}
-
-func (c *WithComponent[T]) init(meta *systemInitMetadata) error {
-	_, err := c.register(meta.world.world)
-	return err
-}
-
-type componentDeclaration interface {
-	register(*ecs.World) (ecs.ComponentID, error)
-}
-
-// RegisterArchetype registers the component declarations in T before world startup.
-// Contains[T] and Exact[T] system fields also register their archetype automatically.
-func (w *World) RegisterArchetype[T any]() {
-	if _, err := w.registerArchetype[T](); err != nil {
+// Create creates an entity with the zero-valued components declared by T, an archetype
+// struct whose fields are component types. It panics if any of them was not registered
+// with World.RegisterComponent.
+func (w *World) Create[T any]() Entity {
+	components, err := w.archetype[T]()
+	if err != nil {
 		panic(err)
 	}
+	return w.Entity(w.world.CreateWithArchetype(components))
 }
 
-func (w *World) registerArchetype[T any]() (bitmap.Bitmap, error) {
+// RegisterComponent registers a component type before world startup. Every component
+// used by a system, archetype, or snapshot must be registered here; nothing registers
+// components implicitly. Register components before StartGame.
+func (w *World) RegisterComponent[T ecs.Component]() {
+	if w.started {
+		panic(ErrWorldStarted)
+	}
+	if _, err := w.world.RegisterComponent[T](); err != nil {
+		panic(eris.Wrapf(err, "failed to register component %T", *new(T)))
+	}
+}
+
+// archetype resolves the registered component IDs declared by T's fields and caches the
+// result per type. The first call for a type walks the struct with reflection; later calls
+// are one map lookup.
+func (w *World) archetype[T any]() (bitmap.Bitmap, error) {
 	typ := reflect.TypeFor[T]()
-	if components, ok := w.entityArchetypes[typ]; ok {
+	if components, ok := w.archetypes[typ]; ok {
 		return components, nil
 	}
 	if typ.Kind() != reflect.Struct {
 		return nil, eris.Errorf("entity archetype must be a struct, got %v", typ)
 	}
 	var components bitmap.Bitmap
-	declarations := reflect.Zero(typ)
 	for i := range typ.NumField() {
-		// Read only field types on success. Type.Field also decodes names/tags and
-		// constructs index metadata, which we need only for registration errors.
-		fieldType := declarations.Field(i).Type()
-		declaration, ok := reflect.Zero(fieldType).Interface().(componentDeclaration)
-		if !ok || fieldType.Kind() != reflect.Struct {
-			return nil, eris.Errorf("field %s must be WithComponent[T], got %v", typ.Field(i).Name, fieldType)
+		field := typ.Field(i)
+		component, ok := reflect.Zero(field.Type).Interface().(ecs.Component)
+		if !ok || field.Type.Kind() != reflect.Struct {
+			return nil, eris.Errorf("field %s of archetype %v must be a component struct, got %v",
+				field.Name, typ, field.Type)
 		}
-		id, err := declaration.register(w.world)
+		id, err := w.world.ComponentIDOf(component)
 		if err != nil {
-			return nil, eris.Wrapf(err, "failed to register component field %s", typ.Field(i).Name)
+			return nil, eris.Wrapf(err, "cannot resolve component field %s of archetype %v", field.Name, typ)
 		}
 		components.Set(id)
 	}
-	if w.entityArchetypes == nil {
-		w.entityArchetypes = make(map[reflect.Type]bitmap.Bitmap)
+	if w.archetypes == nil {
+		w.archetypes = make(map[reflect.Type]bitmap.Bitmap)
 	}
-	w.entityArchetypes[typ] = components
+	w.archetypes[typ] = components
 	return components, nil
 }

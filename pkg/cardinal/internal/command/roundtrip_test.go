@@ -1,6 +1,7 @@
 package command_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
@@ -26,7 +27,7 @@ func assertCodecRoundTripType[T command.Payload](t *testing.T, value T) {
 	payload := schema.Marshal(value)
 
 	q := command.NewQueue[T]()
-	require.NoError(t, q.Enqueue(&iscv1.Command{
+	require.NoError(t, q.Enqueue(context.Background(), &iscv1.Command{
 		Name:    value.Name(),
 		Address: &microv1.ServiceAddress{},
 		Persona: &iscv1.Persona{Id: "round-trip"},

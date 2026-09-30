@@ -163,13 +163,10 @@ func TestLookupIndex_UpdateInviteCode(t *testing.T) {
 	assert.Equal(t, "lobby1", lobbyID)
 }
 
-// rebuildIndex writes the package-level index, so this cannot run in parallel with anything else
-// that touches it.
 func TestRebuildIndexFromEntities(t *testing.T) {
-	t.Cleanup(func() {
-		index = lookupIndex{}
-		indexBuilt = false
-	})
+	t.Parallel()
+	runtime := NewRuntime(Config{}, nil, nil)
+	index := &runtime.index
 
 	lobbies := []lobbyRow{
 		{entityID: 7, lobby: component.LobbyComponent{ID: "lobby1", InviteCode: "ABC123"}},
@@ -179,9 +176,9 @@ func TestRebuildIndexFromEntities(t *testing.T) {
 		{entityID: 12, player: component.PlayerComponent{PlayerID: "p2", LobbyID: "lobby1", TeamID: "team1"}},
 	}
 
-	rebuildIndex(lobbies, players, 1000, 30)
+	runtime.rebuildIndex(lobbies, players, 1000, 30)
 
-	require.True(t, indexBuilt)
+	require.True(t, runtime.indexBuilt)
 
 	entityID, exists := index.GetEntityID("lobby1")
 	assert.True(t, exists)
@@ -205,10 +202,9 @@ func TestRebuildIndexFromEntities(t *testing.T) {
 // Deadlines are recomputed from the rebuild's clock, never carried over. A restored shard whose
 // downtime exceeded the heartbeat timeout would otherwise evict every player on its first tick.
 func TestRebuildIndexResetsDeadlines(t *testing.T) {
-	t.Cleanup(func() {
-		index = lookupIndex{}
-		indexBuilt = false
-	})
+	t.Parallel()
+	runtime := NewRuntime(Config{}, nil, nil)
+	index := &runtime.index
 
 	const (
 		now     = int64(50_000)
@@ -218,7 +214,7 @@ func TestRebuildIndexResetsDeadlines(t *testing.T) {
 		{entityID: 1, player: component.PlayerComponent{PlayerID: "p1", LobbyID: "lobby1"}},
 	}
 
-	rebuildIndex(nil, players, now, timeout)
+	runtime.rebuildIndex(nil, players, now, timeout)
 
 	deadline, exists := index.GetPlayerDeadline("p1")
 	require.True(t, exists)
@@ -228,15 +224,14 @@ func TestRebuildIndexResetsDeadlines(t *testing.T) {
 
 // A rebuild replaces the index outright rather than merging into whatever was there.
 func TestRebuildIndexDiscardsPriorState(t *testing.T) {
-	t.Cleanup(func() {
-		index = lookupIndex{}
-		indexBuilt = false
-	})
+	t.Parallel()
+	runtime := NewRuntime(Config{}, nil, nil)
+	index := &runtime.index
 
 	index.Init()
 	index.AddLobby("stale", 1, "GONE99")
 
-	rebuildIndex(nil, nil, 1000, 30)
+	runtime.rebuildIndex(nil, nil, 1000, 30)
 
 	_, exists := index.GetEntityID("stale")
 	assert.False(t, exists)

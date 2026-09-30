@@ -1,0 +1,292 @@
+syntax = "proto3";
+
+package cardinal.operator.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "worldengine/cardinal/v1/debug.proto";
+
+option go_package = "github.com/argus-labs/world-engine/cli/proto/gen/go/cardinal/operator/v1;operatorv1";
+
+service OperatorService {
+  rpc Deploy(DeployRequest) returns (DeployResponse);
+  rpc Restart(RestartRequest) returns (RestartResponse);
+  rpc Scale(ScaleRequest) returns (ScaleResponse);
+  rpc Status(StatusRequest) returns (StatusResponse);
+  rpc PoolPolicy(PoolPolicyRequest) returns (PoolPolicyResponse);
+  // StreamPodLogs tails a shard instance's pod logs. Server-streaming; the
+  // operator opens a Kubernetes log follow stream and forwards batched lines
+  // to the client. Stream closes when the client disconnects, the pod's
+  // log file rotates (underlying kubelet stream ends), or the operator
+  // encounters an error reading from Kubernetes.
+  rpc StreamPodLogs(StreamPodLogsRequest) returns (stream StreamPodLogsResponse);
+  // Profile fetches a Go runtime pprof profile from a shard instance.
+  // Server-streaming: the operator dials the shard pod's pprof endpoint
+  // and forwards the raw profile.proto bytes to the client in chunks.
+  // The shard pod must have CARDINAL_PPROF=true set (off by default).
+  // Stream closes when the underlying pprof endpoint finishes, the client
+  // disconnects, or the operator encounters an error reaching the pod.
+  rpc Profile(ProfileRequest) returns (stream ProfileResponse);
+  // Forwards DebugService.StreamPerf.
+  rpc StreamShardPerf(StreamShardPerfRequest) returns (stream StreamShardPerfResponse);
+  // StreamPodMetrics emits a snapshot of pod CPU/memory for every shard
+  // instance in the pool on each scrape cycle. Sourced from the
+  // metrics.k8s.io aggregated API (metrics-server).
+  rpc StreamPodMetrics(StreamPodMetricsRequest) returns (stream StreamPodMetricsResponse);
+  // StreamSpans tails OTel spans from shard pods. The operator embeds an OTLP receiver; this RPC fans out received spans to the subscribing client. Push-through — no buffer, no replay. For live developer debugging, not a durable observability backend.
+  rpc StreamSpans(StreamSpansRequest) returns (stream StreamSpansResponse);
+}
+
+message DeployRequest {
+  // Shard pool ID, e.g. "lobby", "gameplay"
+  string shard_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Image tag to deploy, e.g. "v1.2.0"
+  string image_tag = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeployResponse {
+  string message = 1;
+}
+
+message RestartRequest {
+  // ShardPool ID, e.g. "lobby", "gameplay" — consistent with other RPCs.
+  string shard_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Optional: specific instance to restart, e.g. "lobby-1".
+  // If empty, restarts all instances in the pool.
+  string instance_name = 2;
+}
+
+message RestartResponse {
+  int32 restarted_count = 1;
+  string message = 2;
+}
+
+message ScaleRequest {
+  // Which ShardPool to scale
+  string shard_id = 1 [(buf.validate.field).string.min_len = 1];
+  int32 pool_size = 2 [(buf.validate.field).int32.gte = 1];
+}
+
+message ScaleResponse {
+  int32 previous_size = 1;
+  int32 new_size = 2;
+}
+
+message StatusRequest {}
+
+message StatusResponse {
+  repeated ShardPoolStatus pools = 1;
+}
+
+message ShardPoolStatus {
+  string shard_id = 1;
+  string namespace = 2;
+  int32 pool_size = 3;
+  string image_tag = 4;
+  string phase = 5;
+  string full_pool_policy = 6;
+  repeated ShardInstanceStatus instances = 7;
+  // When set, deployment settings are owned by Git. Deploy, Scale, and
+  // PoolPolicy reject mutations. Restart and diagnostic APIs remain available.
+  string configuration_url = 8;
+}
+
+message ShardInstanceStatus {
+  string name = 1;
+  string phase = 2;
+  string age = 3;
+
+  // Container info (from Kubernetes pod status)
+  string pod_name = 4;
+  string pod_ip = 5;
+  string node_name = 6;
+  int32 restart_count = 7;
+  bool ready = 8;
+  string started_at = 9;
+  string last_termination_reason = 10;
+
+  // Application info (TODO: Phase 3 — requires game code to report state via NATS)
+  string session_id = 11;
+  int32 player_count = 12;
+}
+
+message PoolPolicyRequest {
+  string shard_id = 1 [(buf.validate.field).string.min_len = 1];
+  string policy = 2 [(buf.validate.field).string = {
+    in: [
+      "reject",
+      "queue",
+      "auto-scale"
+    ]
+  }];
+}
+
+message PoolPolicyResponse {
+  string previous_policy = 1;
+  string new_policy = 2;
+}
+
+message StreamPodLogsRequest {
+  // Kubernetes pod name, as returned on ShardInstanceStatus.pod_name.
+  // Pod names are ephemeral (change on restart / rolling deploy); clients
+  // should refresh Status before opening a new stream. If the pod no longer
+  // exists, the server returns CodeNotFound.
+  string pod_name = 1 [(buf.validate.field).string.min_len = 1];
+  // Number of historical lines to include before tailing. If 0, defaults to 200.
+  // Capped at 10000 to prevent a misbehaving client from forcing kubelet to
+  // buffer an unbounded log history.
+  int32 tail_lines = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 10000
+  }];
+  // If true, fetch logs from the previous container incarnation (if any).
+  // Useful for inspecting logs from a pod that crashed and restarted.
+  bool previous = 3;
+  // If true, tail the live container: after replaying tail_lines, keep the
+  // stream open and forward new lines until the client disconnects. If false,
+  // return the historical buffer (up to tail_lines) and close — use this for
+  // bounded/historical queries so the stream terminates instead of following
+  // forever. Ignored (forced off) when previous=true, since the old container
+  // is dead and produces no new lines.
+  bool follow = 4;
+}
+
+// StreamPodLogsResponse is a batch of log lines delivered over the
+// server-stream. The operator batches lines to reduce per-frame framing
+// overhead on the client (flushes every 50 lines or 100ms, whichever comes
+// first).
+message StreamPodLogsResponse {
+  repeated PodLogLine lines = 1;
+}
+
+message PodLogLine {
+  // RFC3339Nano timestamp (from kubelet). Empty if unavailable.
+  string timestamp = 1;
+  // Log line content (no trailing newline). Raw bytes as UTF-8; preserves
+  // ANSI escape codes for terminal-style output.
+  string line = 2;
+}
+
+message ProfileRequest {
+  // ShardPool ID (e.g. "lobby", "gameplay") — consistent with other RPCs.
+  string shard_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Specific instance to profile (e.g. "lobby-0"). Required; profiling is
+  // always pod-specific so callers know exactly which process was sampled.
+  string instance_name = 2 [(buf.validate.field).string.min_len = 1];
+  // Profile type. Maps to the path segment after /debug/pprof/.
+  string profile = 3 [(buf.validate.field).string = {
+    in: [
+      "profile",
+      "heap",
+      "goroutine",
+      "allocs",
+      "block",
+      "mutex",
+      "threadcreate",
+      "trace"
+    ]
+  }];
+  // Sampling duration. Only applies to "profile" (CPU) and "trace".
+  // Ignored by all other profile types. Defaults to 30 if zero/unset.
+  // Capped at 300 to prevent indefinite holds on the shard process.
+  int32 seconds = 4 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 300
+  }];
+}
+
+// ProfileResponse carries a chunk of profile.proto bytes. The full profile
+// is the concatenation of every chunk in stream order; the operator does
+// not parse the payload, only forwards it.
+message ProfileResponse {
+  bytes data = 1;
+}
+
+// Addressing for the StreamShardPerf forwarder: pick a specific shard pool +
+// instance. Same selectors Restart / StreamPodLogs use.
+message StreamShardPerfRequest {
+  string shard_id = 1 [(buf.validate.field).string.min_len = 1];
+  string instance_name = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message StreamShardPerfResponse {
+  worldengine.cardinal.v1.PerfBatch perf_batch = 1;
+}
+
+message StreamPodMetricsRequest {
+  // shard_id is used as a Kubernetes label-selector value at the
+  // metrics-server query layer. Pattern enforces the K8s label-value
+  // grammar so a malformed value cannot smuggle additional selector
+  // terms into the request.
+  string shard_id = 1 [(buf.validate.field).string = {
+    min_len: 1
+    pattern: "^[a-z0-9A-Z]([-a-z0-9A-Z_.]{0,61}[a-z0-9A-Z])?$"
+  }];
+}
+
+message StreamPodMetricsResponse {
+  // One entry per running instance in the pool at scrape time.
+  repeated PodMetricsSample samples = 1;
+  // Wall-clock when the most recent scrape cycle completed. Use this to
+  // detect "is the operator's scraper still ticking?" — per-sample
+  // freshness lives on PodMetricsSample.scraped_at.
+  google.protobuf.Timestamp cycle_completed_at = 2;
+}
+
+message StreamSpansRequest {
+  // Pool selector. Same grammar as StreamPodMetrics.shard_id.
+  string shard_id = 1 [(buf.validate.field).string = {
+    min_len: 1
+    pattern: "^[a-z0-9A-Z]([-a-z0-9A-Z_.]{0,61}[a-z0-9A-Z])?$"
+  }];
+}
+
+message StreamSpansResponse {
+  repeated DebugSpan spans = 1;
+}
+
+// DebugSpan is a flattened OTel span: hex IDs, stringified attributes. Optimized for web-client consumption (no AnyValue adapter required). Lossy on purpose.
+message DebugSpan {
+  // 16-byte trace ID, hex-encoded.
+  string trace_id = 1;
+  // 8-byte span ID, hex-encoded.
+  string span_id = 2;
+  // Parent span ID, hex-encoded. Empty if this span is a trace root.
+  string parent_span_id = 3;
+  string name = 4;
+  // shard.id and service.instance.id lifted from the producer's OTel Resource so the frontend can filter without walking attributes.
+  string shard_id = 5;
+  string instance_name = 6;
+  google.protobuf.Timestamp start_time = 7;
+  google.protobuf.Timestamp end_time = 8;
+  // OTel SpanKind: "internal" | "server" | "client" | "producer" | "consumer" | "unspecified".
+  string kind = 9;
+  // OTel Status code: "unset" | "ok" | "error".
+  string status = 10;
+  // Human description on the Status. Empty unless status == "error".
+  string status_message = 11;
+  // Span attributes, values stringified. Lists and maps are JSON-serialized. Scalar typing is lost.
+  map<string, string> attributes = 12;
+}
+
+message PodMetricsSample {
+  // node_name (was field 5) is reserved because metrics-server does not
+  // expose the node a pod is scheduled on. Restoring the field would
+  // require a separate Pod list to populate.
+  reserved 5;
+  reserved "node_name";
+
+  string instance_name = 1;
+  string pod_name = 2;
+  // Steady-state CPU usage in cores (e.g. 0.250 = 250 millicores).
+  double cpu_cores = 3;
+  // Memory working set in bytes (the value `kubectl top` shows).
+  int64 memory_working_set_bytes = 4;
+  // Pod UID, stable across restarts of the same pod object; changes when
+  // the deployment recreates the pod.
+  string pod_uid = 6;
+  // Wall-clock of the scrape that produced THIS sample. Lags behind
+  // cycle_completed_at when the node's kubelet fetch failed and the cache
+  // is still holding the last known good sample.
+  google.protobuf.Timestamp scraped_at = 7;
+}

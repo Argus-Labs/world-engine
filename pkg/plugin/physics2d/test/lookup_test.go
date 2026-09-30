@@ -19,14 +19,11 @@ import (
 func spawnTwoShapeBody(t *testing.T, w *cardinal.World) *cardinal.EntityID {
 	t.Helper()
 	entityID := new(cardinal.EntityID)
-	w.RegisterSystem(func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
-		if state.Tick() != 0 {
+	w.RegisterSystem(&spawnTwoShapeBodySystem{run: func(w *cardinal.World) {
+		if w.TickHeight() != 0 {
 			return
 		}
-		row := state.Spawn.Create()
+		row := w.Create[spawnArchetype]()
 		id := row.ID()
 		row.Set(harnessTag{Role: "lookup"})
 		row.Set(physics.Transform2D{Position: physics.Vec2{X: 1, Y: 2}})
@@ -49,7 +46,7 @@ func spawnTwoShapeBody(t *testing.T, w *cardinal.World) *cardinal.EntityID {
 			},
 		))
 		*entityID = id
-	}, cardinal.WithHook(cardinal.Init))
+	}}, cardinal.WithHook(cardinal.Init))
 	return entityID
 }
 
@@ -89,14 +86,11 @@ func TestLookup_UnknownAndDestroyedEntity(t *testing.T) {
 	w, p := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 	entityID := spawnTwoShapeBody(t, w)
 
-	w.RegisterSystem(func(state *struct {
-		cardinal.BaseSystemState
-		Spawn spawnArchetype
-	}) {
-		if state.Tick() == 5 {
-			require.True(t, state.Entity(*entityID).Destroy(), "Destroy(lookup entity)")
+	w.RegisterSystem(&destroyLookupBodySystem{run: func(w *cardinal.World) {
+		if w.TickHeight() == 5 {
+			require.True(t, w.Entity(*entityID).Destroy(), "Destroy(lookup entity)")
 		}
-	}, cardinal.WithHook(cardinal.Update))
+	}}, cardinal.WithHook(cardinal.Update))
 
 	initCardinalECS(w)
 	tickN(t, w, 3)
@@ -173,3 +167,15 @@ func TestLookup_EngineNilBeforeInitAndAfterReset(t *testing.T) {
 	require.False(t, ok)
 	require.Nil(t, shapeIDs)
 }
+
+type spawnTwoShapeBodySystem struct {
+	run func(w *cardinal.World)
+}
+
+func (s *spawnTwoShapeBodySystem) Run(w *cardinal.World) { s.run(w) }
+
+type destroyLookupBodySystem struct {
+	run func(w *cardinal.World)
+}
+
+func (s *destroyLookupBodySystem) Run(w *cardinal.World) { s.run(w) }
