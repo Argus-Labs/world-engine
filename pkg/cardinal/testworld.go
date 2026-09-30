@@ -2,6 +2,9 @@ package cardinal
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
+	"strings"
 	"testing"
 	"time"
 
@@ -51,6 +54,10 @@ type TestWorld struct {
 	events        []event.Event
 	shardCommands []command.Command
 	emitted       []ecs.SystemEvent
+
+	// Digests after init and after each step. Recorded only when non-nil, which only
+	// RequireDeterministic sets.
+	digests []stepDigest
 }
 
 // Sent is an event that a step delivered with Broadcast or SendTo.
@@ -219,9 +226,113 @@ func (w *TestWorld) runStep(run func()) {
 		defer func() { w.systemEventTap = nil }()
 		run()
 	})
+	if w.digests != nil {
+		w.digests = append(w.digests, w.digest())
+	}
 }
 
 // now is the test clock: one second per tick, starting at the Unix epoch.
 func (w *TestWorld) now() time.Time {
 	return time.Unix(int64(w.currentTick.height), 0) //nolint:gosec // tick height stays far below int64 max
+}
+
+// RequireDeterministic runs script on two fresh worlds built by setup and fails the test at the
+// first step after which they differ in world state, events, shard commands or emitted system
+// events, or when they differ after script returns.
+//
+// Step 0 is the world after init. Step n is the nth RunSystem or Tick the script makes. Ticks the
+// script runs with w.World.Tick(timestamp) are not steps, so their effect is compared only when
+// script returns.
+//
+// The check compares two runs in one process, so it catches nondeterminism only when those runs
+// differ. Package state, unseeded randomness and nanosecond clock reads almost always do. Iteration
+// over a map of a few keys, or a clock read at second granularity, often does not: range over
+// [slices.Sorted]([maps.Keys](m)) and read w.Timestamp() instead of [time.Now].
+func RequireDeterministic(t testing.TB, setup func(w *World), script func(w *TestWorld)) {
+	t.Helper()
+
+	first, second := recordRun(t, setup, script), recordRun(t, setup, script)
+	for step := range min(len(first.steps), len(second.steps)) {
+		if diff := first.steps[step].diff(second.steps[step]); diff != "" {
+			t.Fatalf("cardinal: RequireDeterministic: step %d differs between runs in %s", step, diff)
+		}
+	}
+	if len(first.steps) != len(second.steps) {
+		t.Fatalf("cardinal: RequireDeterministic: the first run made %d steps, the second %d",
+			len(first.steps)-1, len(second.steps)-1)
+	}
+	if diff := first.end.diff(second.end); diff != "" {
+		t.Fatalf("cardinal: RequireDeterministic: the runs differ in %s when the script returns", diff)
+	}
+}
+
+// recordedRun holds one RequireDeterministic run's digests: after init and each step, and after script
+// returns.
+type recordedRun struct {
+	steps []stepDigest
+	end   stepDigest
+}
+
+// recordRun runs script on a fresh world and returns its digests.
+func recordRun(t testing.TB, setup func(w *World), script func(w *TestWorld)) recordedRun {
+	t.Helper()
+	w := NewTestWorld(t, setup)
+	w.digests = []stepDigest{w.digest()}
+	script(w)
+	return recordedRun{steps: w.digests, end: w.digest()}
+}
+
+// stepDigest fingerprints the world after one step: its encoded state and each kind of output.
+type stepDigest struct {
+	state, events, shardCommands, emitted [sha256.Size]byte
+}
+
+func (w *TestWorld) digest() stepDigest {
+	var events, shardCommands, emitted []byte
+	for _, evt := range w.events {
+		payload, ok := evt.Payload.(schema.Serializable)
+		assert.That(ok, "event payload is %T, want schema.Serializable", evt.Payload)
+		events = appendPayload(appendString(events, evt.Recipient), payload)
+	}
+	for _, cmd := range w.shardCommands {
+		shardCommands = appendPayload(appendString(shardCommands, micro.String(cmd.Address)), cmd.Payload)
+	}
+	for _, systemEvent := range w.emitted {
+		emitted = appendPayload(emitted, systemEvent)
+	}
+	return stepDigest{
+		state:         sha256.Sum256(w.world.EncodeState(nil)),
+		events:        sha256.Sum256(events),
+		shardCommands: sha256.Sum256(shardCommands),
+		emitted:       sha256.Sum256(emitted),
+	}
+}
+
+// diff names the parts of d that differ from other, or returns "" when none do.
+func (d stepDigest) diff(other stepDigest) string {
+	var parts []string
+	if d.state != other.state {
+		parts = append(parts, "world state")
+	}
+	if d.events != other.events {
+		parts = append(parts, "events")
+	}
+	if d.shardCommands != other.shardCommands {
+		parts = append(parts, "shard commands")
+	}
+	if d.emitted != other.emitted {
+		parts = append(parts, "emitted system events")
+	}
+	return strings.Join(parts, ", ")
+}
+
+// appendString and appendPayload length-prefix every value, so adjacent values cannot run together.
+func appendString(b []byte, s string) []byte {
+	return append(binary.AppendUvarint(b, uint64(len(s))), s...)
+}
+
+func appendPayload(b []byte, p schema.Serializable) []byte {
+	b = appendString(b, p.Name())
+	b = binary.AppendUvarint(b, uint64(p.SizeWire())) //nolint:gosec // a size is non-negative
+	return p.AppendWire(b)
 }

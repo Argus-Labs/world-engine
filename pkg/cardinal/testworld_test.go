@@ -210,6 +210,124 @@ func TestTestWorld_Misuse(t *testing.T) {
 	})
 }
 
+func TestRequireDeterministic_PassesAScriptThatReplays(t *testing.T) {
+	t.Parallel()
+
+	lobby := cardinal.OtherWorld{Region: "us", Organization: "org", Project: "proj", ShardID: "lobby"}
+	cardinal.RequireDeterministic(t, func(w *cardinal.World) {
+		w.RegisterComponent[testutils.ComponentA]()
+		w.RegisterComponent[testutils.ComponentB]()
+		w.RegisterCommand[testutils.SimpleCommand]()
+		w.RegisterEvent[testutils.SimpleEvent]()
+		w.RegisterEvent[testutils.AnotherEvent]()
+		w.RegisterSystemEvent[testutils.SimpleSystemEvent]()
+		w.RegisterSystemEvent[hit]()
+		w.RegisterSystem(&markA{})
+		w.RegisterSystem(&markB{}, cardinal.WithHook(cardinal.PostUpdate))
+	}, func(w *cardinal.TestWorld) {
+		w.Create[marked]()
+		w.Command("alice", testutils.SimpleCommand{Value: 7})
+		w.RunSystem(&readCommands{})
+		w.RunSystem(&sendEvents{})
+		w.RunSystem(&sendToShard{to: lobby})
+		w.EmitSystemEvent(testutils.SimpleSystemEvent{Value: 5})
+		w.RunSystem(&armor{})
+		w.Tick()
+	})
+}
+
+// Each system reads how many worlds setup has built, which differs between the two runs the way
+// package-level state would. It runs as step 3, after two steps that agree.
+func TestRequireDeterministic_NamesTheFirstStepThatDiffers(t *testing.T) {
+	t.Parallel()
+
+	lobby := cardinal.OtherWorld{Region: "us", Organization: "org", Project: "proj", ShardID: "lobby"}
+	tests := []struct {
+		differs string
+		system  func(w *cardinal.World, built int)
+	}{
+		{"world state", func(w *cardinal.World, built int) {
+			for entity := range w.Contains[marked]().Iter() {
+				entity.Set(testutils.ComponentA{X: float64(built)})
+			}
+		}},
+		{"events", func(w *cardinal.World, built int) { w.Broadcast(testutils.SimpleEvent{Value: built}) }},
+		{"shard commands", func(w *cardinal.World, built int) {
+			w.SendToShard(lobby, testutils.SimpleCommand{Value: built})
+		}},
+		{"emitted system events", func(w *cardinal.World, built int) { w.EmitSystemEvent(hit{Damage: built}) }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.differs, func(t *testing.T) {
+			t.Parallel()
+			built := 0
+			setup := func(w *cardinal.World) {
+				built++
+				w.RegisterComponent[testutils.ComponentA]()
+				w.RegisterComponent[testutils.ComponentB]()
+				w.RegisterEvent[testutils.SimpleEvent]()
+				w.RegisterSystemEvent[hit]()
+			}
+			tb := &fakeTB{}
+
+			failure := tb.run(func() {
+				cardinal.RequireDeterministic(tb, setup, func(w *cardinal.TestWorld) {
+					w.Create[marked]()
+					w.RunSystem(&noop{})
+					w.RunSystem(&noop{})
+					w.RunSystem(systemFunc(func(w *cardinal.World) { tt.system(w, built) }))
+				})
+			})
+
+			assert.Equal(t, "cardinal: RequireDeterministic: step 3 differs between runs in "+tt.differs, failure)
+		})
+	}
+}
+
+func TestRequireDeterministic_FailsWhenTheRunsTakeDifferentSteps(t *testing.T) {
+	t.Parallel()
+
+	built := 0
+	tb := &fakeTB{}
+
+	failure := tb.run(func() {
+		cardinal.RequireDeterministic(tb, func(*cardinal.World) { built++ }, func(w *cardinal.TestWorld) {
+			for range built {
+				w.RunSystem(&noop{})
+			}
+		})
+	})
+
+	assert.Equal(t, "cardinal: RequireDeterministic: the first run made 1 steps, the second 2", failure)
+}
+
+// World.Tick ticks are not steps, so a difference they cause shows up only when the script returns.
+func TestRequireDeterministic_ComparesTheWorldWhenTheScriptReturns(t *testing.T) {
+	t.Parallel()
+
+	built := 0
+	setup := func(w *cardinal.World) {
+		built++
+		w.RegisterComponent[testutils.ComponentA]()
+		w.RegisterComponent[testutils.ComponentB]()
+		w.RegisterSystem(systemFunc(func(w *cardinal.World) {
+			for entity := range w.Contains[marked]().Iter() {
+				entity.Set(testutils.ComponentA{X: float64(built)})
+			}
+		}))
+	}
+	tb := &fakeTB{}
+
+	failure := tb.run(func() {
+		cardinal.RequireDeterministic(tb, setup, func(w *cardinal.TestWorld) {
+			w.Create[marked]()
+			w.World.Tick(time.UnixMilli(1))
+		})
+	})
+
+	assert.Equal(t, "cardinal: RequireDeterministic: the runs differ in world state when the script returns", failure)
+}
+
 // -------------------------------------------------------------------------------------------------
 // Fixtures
 // -------------------------------------------------------------------------------------------------
@@ -263,6 +381,11 @@ func (s *sendToShard) Run(w *cardinal.World) {
 type noop struct{}
 
 func (*noop) Run(*cardinal.World) {}
+
+// systemFunc adapts a function to a System.
+type systemFunc func(w *cardinal.World)
+
+func (f systemFunc) Run(w *cardinal.World) { f(w) }
 
 // armor records each SimpleSystemEvent it receives and emits a hit of twice its value.
 type armor struct {
