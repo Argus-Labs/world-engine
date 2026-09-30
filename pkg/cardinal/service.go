@@ -29,7 +29,7 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	otelcodes "go.opentelemetry.io/otel/codes"
-	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 )

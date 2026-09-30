@@ -10,6 +10,7 @@ import (
 
 	"github.com/guumaster/logsymbols"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -940,7 +941,7 @@ func TestSdkGenerateStatus_ReflectsOutput(t *testing.T) {
 }
 
 // The published input schema is generated from the struct's jsonschema tags by
-// mcp.WithInputSchema (invopop/jsonschema), and is exactly what the LLM driving
+// mcp.WithInputSchema (google/jsonschema-go), and is exactly what the LLM driving
 // the tool sees. The go_out description must document that the <source>/gen
 // default only applies when no other output is set — the contract the
 // implementation actually honors — and tell the caller how to get Go+CS vs
@@ -964,4 +965,22 @@ func TestSdkGenerate_PublishedGoOutDefaultDoc(t *testing.T) {
 		"the conditional default must be documented, not an unconditional one")
 	assert.Contains(t, desc, "When cs_out is also passed go_out is NOT defaulted",
 		"the schema must warn that cs_out withholds the go_out default (the client-only entry)")
+}
+
+func TestDescribeWorld_PublishesAnEmptyObjectInputSchema(t *testing.T) {
+	t.Parallel()
+	srv := server.NewMCPServer("test", "0")
+	registerDescribeWorldTool(srv)
+
+	tool := srv.GetTool("describe_world")
+	require.NotNil(t, tool)
+	published, err := json.Marshal(tool.Tool)
+	require.NoError(t, err, "tools/list must be able to serialize the tool")
+
+	var listed struct {
+		InputSchema json.RawMessage `json:"inputSchema"`
+	}
+	require.NoError(t, json.Unmarshal(published, &listed))
+	assert.JSONEq(t, `{"type":"object","properties":{},"required":[],"additionalProperties":false}`,
+		string(listed.InputSchema))
 }
