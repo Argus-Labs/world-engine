@@ -384,9 +384,4 @@ func (c *Client) Purge(ctx context.Context, _ PurgeOpts) error {
 type DeployOpts struct {
 	Project string
 	Shards  []DeployShard
-
-	// OnStep, if non-nil, gets a shard ID and a short label before each phase
-	// of that shard's deploy (tag, import, roll) — lets a caller show live
-	// per-shard progress instead of one static row for the whole batch.
-	OnStep func(shardID, step string)
 }

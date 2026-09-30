@@ -44,25 +44,20 @@ func (c *Client) Deploy(ctx context.Context, opts DeployOpts) error {
 	tag := uniqueTag()
 	rpc := c.operatorClient()
 
-	step := func(shardID, label string) {
-		if opts.OnStep != nil {
-			opts.OnStep(shardID, label)
-		}
-	}
-
+	// One import for all images: each k3d import starts its own tools container.
+	dests := make([]string, 0, len(opts.Shards))
 	for _, s := range opts.Shards {
 		dest := fmt.Sprintf("%s:%s", c.imageRef(opts.Project, s.ID), tag)
-
-		step(s.ID, "tagging image")
 		if _, err := docker.ImageTag(ctx, client.ImageTagOptions{Source: s.SourceImage, Target: dest}); err != nil {
 			return eris.Wrapf(err, "tag %s for shard %s", s.SourceImage, s.ID)
 		}
-		step(s.ID, "importing into cluster")
-		if err := k3dImageImport(ctx, c.cfg.ClusterName, dest); err != nil {
-			return eris.Wrapf(err, "import %s for shard %s", dest, s.ID)
-		}
+		dests = append(dests, dest)
+	}
+	if err := k3dImageImport(ctx, c.cfg.ClusterName, dests...); err != nil {
+		return eris.Wrap(err, "import shard images")
+	}
 
-		step(s.ID, "rolling pods")
+	for _, s := range opts.Shards {
 		req := connect.NewRequest(&operatorv1.DeployRequest{
 			ShardId:  s.ID,
 			ImageTag: tag,

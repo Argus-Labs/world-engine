@@ -285,28 +285,21 @@ func rollShards(
 		return eris.Wrap(err, "prune orphaned shards")
 	}
 
-	// One row per shard; OnStep's shardID changing marks the previous shard Done,
-	// so whichever shard is current when Deploy errors is the one that failed.
-	var current string
+	// All shards share one import, so their rows spin and finish together.
+	setRows := func(detail string, state phasebox.RowState) {
+		for _, s := range deployShards {
+			sess.UpsertRow(s.ID, s.ID, detail, state)
+		}
+	}
+	setRows("importing into cluster", phasebox.Active)
 	if err := cli.Deploy(ctx, cluster.DeployOpts{
 		Project: cfg.WorldToml.Project,
 		Shards:  deployShards,
-		OnStep: func(shardID, step string) {
-			if current != "" && current != shardID {
-				sess.UpsertRow(current, current, "", phasebox.Done)
-			}
-			current = shardID
-			sess.UpsertRow(shardID, shardID, step, phasebox.Active)
-		},
 	}); err != nil {
-		if current != "" {
-			sess.UpsertRow(current, current, err.Error(), phasebox.Failed)
-		}
+		setRows("", phasebox.Failed)
 		return eris.Wrap(err, "reload via operator")
 	}
-	if current != "" {
-		sess.UpsertRow(current, current, "", phasebox.Done)
-	}
+	setRows("", phasebox.Done)
 
 	if waitReady {
 		cli.WaitForShardsReady(ctx, cfg.WorldToml, func(ready, expected int) {
