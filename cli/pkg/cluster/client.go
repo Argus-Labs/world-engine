@@ -384,4 +384,7 @@ func (c *Client) Purge(ctx context.Context, _ PurgeOpts) error {
 type DeployOpts struct {
 	Project string
 	Shards  []DeployShard
+
+	// OnDeployed, if non-nil, is called after each shard's operator Deploy RPC succeeds.
+	OnDeployed func(shardID string)
 }

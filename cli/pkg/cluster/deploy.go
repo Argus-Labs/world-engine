@@ -65,6 +65,9 @@ func (c *Client) Deploy(ctx context.Context, opts DeployOpts) error {
 		if _, err := rpc.Deploy(ctx, req); err != nil {
 			return eris.Wrapf(err, "operator Deploy RPC for shard %s", s.ID)
 		}
+		if opts.OnDeployed != nil {
+			opts.OnDeployed(s.ID)
+		}
 	}
 	return nil
 }
