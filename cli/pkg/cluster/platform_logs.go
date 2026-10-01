@@ -107,6 +107,16 @@ func (c *Client) StreamPlatformLogs(ctx context.Context, ref PlatformPodRef, opt
 		if err == nil || ctx.Err() != nil {
 			return nil
 		}
+		// --previous is a finite historical dump, never a reconnect target: a
+		// failed open (e.g. no previous container) or a cut mid-dump can't be
+		// recovered by retrying, and the next==current retry path below never
+		// clears opts.Previous — so it would re-request the same rejected logs
+		// every reconnectBackoff until the caller's context is cancelled, then
+		// exit 0 with nothing printed. Report it instead. Mirrors tailPod's
+		// Previous guard in logs.go.
+		if opts.Previous {
+			return eris.Wrapf(err, "previous-container logs for %s/%s", ref.Namespace, current)
+		}
 		// Pod may have rolled; try to find a replacement.
 		if !isPlatformPodGone(err) {
 			return err
