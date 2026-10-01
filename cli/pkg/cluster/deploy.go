@@ -101,7 +101,7 @@ func (c *Client) Deploy(ctx context.Context, opts DeployOpts) error {
 // uniqueTag guarantees a fresh image string each call. The operator rolls
 // pods only on image-string change (IfNotPresent pull-policy).
 func uniqueTag() string {
-	return fmt.Sprintf("local-%d", time.Now().Unix())
+	return fmt.Sprintf("local-%d", time.Now().UnixNano())
 }
 
 // DeployedWorldKeys returns the WorldKey ("{org}/{project}") of every world with
