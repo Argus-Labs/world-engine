@@ -297,6 +297,61 @@ func TestResolveInstanceName_UnknownReturnsError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// findInstanceByName is the "is the instance even in the pool?" check the log
+// handler uses to keep "instance not found" separate from "instance found but
+// its pod isn't scheduled yet". These mirror the shardPods selection tests so
+// the two helpers stay in lockstep on matching and pool scoping.
+
+// A matched instance that has no running pod yet (empty PodName) is still found
+// — this is the exact case shardPods drops that motivated the helper. Returning
+// the instance (not nil) is what lets the handler say "exists, no pod" instead
+// of the contradictory "not found".
+func TestFindInstanceByName_PodslessMatched(t *testing.T) {
+	t.Parallel()
+	status := &operatorv1.StatusResponse{
+		Pools: []*operatorv1.ShardPoolStatus{{
+			ShardId: "game",
+			Instances: []*operatorv1.ShardInstanceStatus{
+				{Name: "game", PodName: "pod-1"},
+				{Name: "game-5", PodName: "", Phase: "Creating"},
+			},
+		}},
+	}
+
+	inst := findInstanceByName(status, "game", "game-5")
+	require.NotNil(t, inst)
+	assert.Equal(t, "game-5", inst.GetName())
+	assert.Empty(t, inst.GetPodName())
+	assert.Equal(t, "Creating", inst.GetPhase())
+}
+
+// Unknown instance references and a missing pool both yield nil, so the handler
+// falls through to errInstanceNotFound. Matching is scoped to the requested
+// shard's pool, so a sibling shard's instance name does not match through.
+func TestFindInstanceByName_NotFoundOrWrongPool(t *testing.T) {
+	t.Parallel()
+	status := &operatorv1.StatusResponse{
+		Pools: []*operatorv1.ShardPoolStatus{
+			{ShardId: "game", Instances: []*operatorv1.ShardInstanceStatus{
+				{Name: "game", PodName: "pod-game"},
+			}},
+			{ShardId: "lobby", Instances: []*operatorv1.ShardInstanceStatus{
+				{Name: "lobby", PodName: "pod-lobby"},
+			}},
+		},
+	}
+
+	assert.Nil(t, findInstanceByName(status, "game", "game-9"))
+	// "lobby" exists, but in a different pool than "game".
+	assert.Nil(t, findInstanceByName(status, "game", "lobby"))
+	// No pool at all for the shard.
+	assert.Nil(t, findInstanceByName(status, "nope", "game"))
+	// The requested shard's own instance still resolves.
+	inst := findInstanceByName(status, "game", "game")
+	require.NotNil(t, inst)
+	assert.Equal(t, "game", inst.GetName())
+}
+
 // -------------------------------------------------------------------------------------------------
 // get_state snapshot flattening and filter tests
 // -------------------------------------------------------------------------------------------------

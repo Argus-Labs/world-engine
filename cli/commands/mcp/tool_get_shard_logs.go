@@ -82,6 +82,19 @@ func getShardLogsHandler(
 	pods := shardPods(status, shardID, instanceName)
 	if len(pods) == 0 {
 		if instanceName != "" {
+			// Empty pods means either "no instance matched" or "instance matched
+			// but its pod isn't scheduled yet". shardPods collapses both, so re-check
+			// the pool: a matched-but-podless instance exists and just isn't running
+			// yet (the correct action is wait-and-retry, not pick another instance),
+			// while a true miss falls through to errInstanceNotFound.
+			if inst := findInstanceByName(status, shardID, instanceName); inst != nil {
+				return GetShardLogsOutput{}, eris.Errorf(
+					"instance %q for shard %q has no running pod yet (phase: %s); wait for the pod to be scheduled and retry",
+					inst.GetName(),
+					shardID,
+					inst.GetPhase(),
+				)
+			}
 			return GetShardLogsOutput{}, errInstanceNotFound(status, shardID, instanceName)
 		}
 		return GetShardLogsOutput{}, eris.Errorf("no running pod found for shard %q", shardID)
