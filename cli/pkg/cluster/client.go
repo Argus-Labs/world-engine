@@ -365,13 +365,21 @@ func (c *Client) IsRunning(ctx context.Context) (bool, error) {
 type PurgeOpts struct{}
 
 // Purge deletes the k3d cluster entirely (`k3d cluster delete`). State lost.
+//
+// The cached kube client is invalidated on both branches: after an actual
+// delete (the endpoint is gone) and on the no-op early return when the
+// cluster is already absent (defense-in-depth, so a no-op purge reconciles a
+// stale cache left behind by an out-of-band delete — e.g. `docker rm -f` of
+// the k3d containers, or `world purge` in a separate terminal — with reality
+// rather than persisting a dead client for the next caller).
 func (c *Client) Purge(ctx context.Context, _ PurgeOpts) error {
 	exists, err := k3dExists(ctx, c.cfg.ClusterName)
 	if err != nil {
 		return err
 	}
 	if !exists {
-		return nil // nothing to delete
+		c.invalidateKube() // reconcile stale cache with reality (defense-in-depth)
+		return nil         // nothing to delete
 	}
 	if err := k3dDelete(ctx, c.cfg.ClusterName); err != nil {
 		return err

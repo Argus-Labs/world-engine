@@ -57,12 +57,22 @@ const (
 //   - doesn't exist → create from scratch with a built-in registry,
 //   - exists + running → reuse as-is (start is idempotent),
 //   - exists + stopped → restart (covers `world stop` followed by `world start`).
+//
+// On the create branch the cached kube client is invalidated first: k3dCreate
+// picks a fresh (typically different) ephemeral API port and bakes it into the
+// new kubeconfig, so a memoized client from a prior cluster points at a
+// now-dead endpoint. Dropping it forces the next kube() to rebuild from the
+// live kubeconfig. Without this, a long-lived *Client (e.g. the MCP server's
+// process-wide singleton) returns a stale client after an out-of-band cluster
+// delete/recreate and fails StartPlatform's CRD/platform apply with
+// connection-refused.
 func (c *Client) ensureCluster(ctx context.Context) error {
 	exists, err := k3dExists(ctx, c.cfg.ClusterName)
 	if err != nil {
 		return err
 	}
 	if !exists {
+		c.invalidateKube() // drop stale client; k3dCreate picks a fresh API port
 		return k3dCreate(ctx, c.cfg.ClusterName, c.cfg.RegistryName, c.cfg.K3sImage)
 	}
 	return k3dStartIfStopped(ctx, c.cfg.ClusterName)
