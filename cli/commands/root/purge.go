@@ -58,14 +58,23 @@ func (c *PurgeCmd) Run(ctx context.Context) error {
 // purgeK8sImages cleans up the local docker images created by `world reload`.
 // Two passes:
 //
-//  1. Cardinal-labeled shard source images (e.g. rampage-backend-gameplay-shard:latest)
-//     via the existing dockerClient.PruneCardinalImages — same logic the docker
-//     backend's --image flag uses.
-//  2. The retagged k3d-registry push tags this stack creates per reload
-//     (e.g. k3d-world-engine-registry.localhost:5000/rampage/gameplay:local-1780199123).
-//     One tag accumulates per reload + per shard, so over a long dev session
-//     this can be 100+ images each pointing at a different ID. Listed via
-//     reference-filter and best-effort-removed.
+//  1. Cardinal-labeled shard + path-kind service source images (e.g.
+//     rampage-backend-gameplay-shard:latest, rampage-meta-service:latest) via the
+//     existing dockerClient.PruneCardinalImages — same logic the docker backend's
+//     --image flag uses. Path-kind services carry the same namespace label as
+//     shards (see gameservice.go), so they're listed here too. Pass 1 removes by
+//     image ID without Force, so it succeeds for single-tagged images but
+//     log-and-continues for any image carrying 2+ repo tags (pass 2 reclaims those).
+//  2. The retagged k3d-registry push tags this stack creates per reload for every
+//     shard AND every path-kind [[services]] entry (e.g.
+//     k3d-world-engine-registry.localhost:5000/rampage/gameplay:local-1780199123),
+//     using the same k3d-<registry>.localhost:5000/<project>/<id> reference shape
+//     DeployServices/Deploy build. One tag accumulates per reload per ID, so over
+//     a long dev session this can be 100+ images each pointing at a different ID.
+//     Remove is by image ID with Force, so it reclaims the whole image (registry
+//     push tag + the shared :latest source tag) even when multiple tags point at
+//     the same ID — the case pass 1 can't handle. Listed via reference-filter and
+//     best-effort-removed.
 //
 // k3d base images (rancher/k3s, k3d-tools, k3d-proxy) are intentionally NOT
 // removed — they're expensive to re-pull (~600 MB on cold start).
@@ -75,7 +84,13 @@ func purgeK8sImages(ctx context.Context, dockerClient *docker.Client, cfg *servi
 	}
 	printer.Step("pruned", "Cardinal", "images")
 
-	removed, err := removeRegistryPushTags(ctx, registryName, cfg.WorldToml.Project, cfg.WorldToml.ShardIDs())
+	// Pass 2 covers both shards and path-kind services: DeployServices retags each
+	// source-built [[services]] image with the same k3d-registry reference shape
+	// Deploy uses for shards, so the same removal loop cleans both. Mirror
+	// DeployServices' IsBuiltFromSource filter — image-kind services carry no
+	// registry push tag and need no cleanup.
+	ids := append(cfg.WorldToml.ShardIDs(), cfg.WorldToml.SourceServiceIDs()...)
+	removed, err := removeRegistryPushTags(ctx, registryName, cfg.WorldToml.Project, ids)
 	if err != nil {
 		return eris.Wrap(err, "remove registry push tags")
 	}
@@ -85,11 +100,14 @@ func purgeK8sImages(ctx context.Context, dockerClient *docker.Client, cfg *servi
 	return nil
 }
 
-// removeRegistryPushTags removes every host-side docker image tag matching
-// the per-shard push prefix the reload path uses (`k3d-<registry>.localhost
-// :5000/<project>/<shard>:*`). Best-effort: a single tag failing doesn't
-// abort the rest. Returns the number actually removed.
-func removeRegistryPushTags(ctx context.Context, registryName, project string, shardIDs []string) (int, error) {
+// removeRegistryPushTags removes every host-side docker image tag matching the
+// per-ID k3d-registry push prefix the reload path creates
+// (`k3d-<registry>.localhost:5000/<project>/<id>:*`) for the given IDs — each shard
+// ID plus each path-kind [[services]] ID. Removal is by image ID with Force, so it
+// reclaims the whole image (the registry push tag and the shared :latest source
+// tag) even when 2+ repo tags point at the same ID. Best-effort: a single ID
+// failing doesn't abort the rest. Returns the number of images actually removed.
+func removeRegistryPushTags(ctx context.Context, registryName, project string, ids []string) (int, error) {
 	cli, err := client.New(client.FromEnv)
 	if err != nil {
 		return 0, eris.Wrap(err, "docker client")
@@ -97,7 +115,7 @@ func removeRegistryPushTags(ctx context.Context, registryName, project string, s
 	defer func() { _ = cli.Close() }()
 
 	count := 0
-	for _, id := range shardIDs {
+	for _, id := range ids {
 		ref := fmt.Sprintf("k3d-%s.localhost:5000/%s/%s", registryName, project, id)
 		list, lerr := cli.ImageList(ctx, client.ImageListOptions{
 			Filters: make(client.Filters).Add("reference", ref+":*"),
