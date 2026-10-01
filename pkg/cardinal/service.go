@@ -204,8 +204,6 @@ func (s *service) registerCommandHandler(name string) {
 // Command handlers
 // -------------------------------------------------------------------------------------------------
 
-// Client command personas carry the authenticated player ID.
-
 type streamSubscriber struct {
 	ctx    context.Context
 	stream *connect.ServerStream[cardinalv1.StartEventStreamResponse]
