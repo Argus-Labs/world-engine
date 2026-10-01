@@ -26,7 +26,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/trace/noop"
 )
 
 // -------------------------------------------------------------------------------------------------
@@ -115,15 +114,11 @@ func (replyEvent) UnmarshalWire(b []byte) (any, error) {
 
 // replySystem drains replyCommand inputs every tick and broadcasts a replyEvent echoing each
 // command's ReplyID/Value — mirroring how a real game system emits a reply to SendCommandWithReply.
-type replySystem struct {
-	BaseSystemState
-	Command WithCommand[replyCommand]
-	Events  WithEvent[replyEvent]
-}
+type replySystem struct{}
 
-func (s *replySystem) Run() {
-	for ctx := range s.Command.Iter() {
-		s.Events.Broadcast(replyEvent{ReplyID: ctx.Payload.ReplyID, Value: ctx.Payload.Value})
+func (s *replySystem) Run(w *World) {
+	for ctx := range w.Commands[replyCommand]() {
+		w.Broadcast(replyEvent{ReplyID: ctx.Payload.ReplyID, Value: ctx.Payload.Value})
 	}
 }
 
@@ -138,8 +133,8 @@ type tickingReplyQueue struct {
 	tick func()
 }
 
-func (q *tickingReplyQueue) Enqueue(cmd *iscv1.Command) error {
-	if err := q.Queue.Enqueue(cmd); err != nil {
+func (q *tickingReplyQueue) Enqueue(ctx context.Context, cmd *iscv1.Command) error {
+	if err := q.Queue.Enqueue(ctx, cmd); err != nil {
 		return err
 	}
 	q.tick()
@@ -153,7 +148,7 @@ type failingQueue struct {
 	command.Queue
 }
 
-func (q *failingQueue) Enqueue(*iscv1.Command) error {
+func (q *failingQueue) Enqueue(context.Context, *iscv1.Command) error {
 	return eris.New("simulated enqueue failure")
 }
 
@@ -180,7 +175,6 @@ func newSCWRFixture(
 		address:  RandServiceAddress(prng),
 		tel: telemetry.Telemetry{
 			Logger: zerolog.Nop(),
-			Tracer: noop.NewTracerProvider().Tracer("test"),
 		},
 	}
 	svc := newService(w, AuthModeDev, "")
@@ -211,7 +205,7 @@ func TestService_SendCommandWithReply_WaiterRegisteredBeforeEnqueue(t *testing.T
 						Kind:    event.KindDefault,
 						Payload: testutils.SimpleEvent{Value: replyValue},
 					})
-					dispatchErr = world.events.Dispatch()
+					dispatchErr = world.events.Dispatch(t.Context())
 				},
 			}
 		})
@@ -378,12 +372,13 @@ func newSCWRWorld(t *testing.T, prng *rand.Rand) *World {
 		snapshotWriter:  snapshot.NewSyncWriter(nopStorage, zerolog.Nop()),
 		tel: telemetry.Telemetry{
 			Logger: zerolog.Nop(),
-			Tracer: noop.NewTracerProvider().Tracer("test"),
 		},
 	}
 	w.service = newService(w, AuthModeDev, "")
 	w.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
 	w.events.RegisterHandler(event.KindInterShardCommand, w.service.publishInterShardCommand)
-	require.NotPanics(t, func() { w.RegisterSystemV2(&replySystem{}) })
+	w.RegisterCommand[replyCommand]()
+	w.RegisterEvent[replyEvent]()
+	require.NotPanics(t, func() { w.RegisterSystem(&replySystem{}) })
 	return w
 }

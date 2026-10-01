@@ -276,7 +276,7 @@ func (s *service) SendCommandWithReply(
 	waiter := s.addReplyWaiter(req.Msg.GetEventName())
 	defer s.removeReplyWaiter(req.Msg.GetEventName(), waiter)
 
-	if err := s.world.commands.Enqueue(cmd); err != nil {
+	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
