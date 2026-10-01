@@ -1,6 +1,6 @@
 package errors
 
-import "github.com/rotisserie/eris"
+import "errors"
 
 // SilentError wraps an error to indicate it should not be printed to the user.
 // This is useful for expected user cancellations, validation failures that
@@ -34,7 +34,9 @@ func IsSilent(err error) bool {
 	}
 
 	var silentErr *SilentError
-	return eris.As(err, &silentErr)
+	// stdlib errors.As crosses errors.Join's Unwrap() []error (kong wraps every command
+	// error this way); eris.As only walks Unwrap() error and would miss a SilentError.
+	return errors.As(err, &silentErr)
 }
 
 // ShouldPrint returns true if the error should be printed to the user.
