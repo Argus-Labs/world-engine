@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -22,8 +23,14 @@ type Dashboard struct {
 	p      *tea.Program
 	done   chan struct{}
 	ctx    context.Context //nolint:containedctx // shared across every Run call in this dashboard's lifetime, mirroring spinner/multispinner's cancel-scoped session pattern
-	nextID int
+	nextID atomic.Int64
 	once   sync.Once
+}
+
+// Box is an opened section; opening it before Run fixes its place in the order.
+type Box struct {
+	d  *Dashboard
+	id string
 }
 
 // Start opens a dashboard scoped to ctx: Ctrl+C cancels the shared
@@ -54,25 +61,37 @@ func (d *Dashboard) Complete() {
 	})
 }
 
-// Run opens a new titled section, runs fn with a Session scoped to it,
-// then appends summarize's result below its rows (which stay visible, not
-// replaced). Mirrors spinner.Run's shape: fn gets the dashboard's shared,
-// Ctrl+C-cancelable context, and a resulting context.Canceled becomes a
-// silent error instead of a printed stack trace.
+// Open appends a titled section.
+func (d *Dashboard) Open(title string) *Box {
+	id := strconv.FormatInt(d.nextID.Add(1), 10)
+	d.p.Send(newSectionMsg{id: id, title: title})
+	return &Box{d: d, id: id}
+}
+
+// Run opens and runs a section; see Box.Run.
 func (d *Dashboard) Run(
 	title string,
 	fn func(ctx context.Context, sess Session) error,
 	summarize func(err error, elapsed time.Duration) (summary string, failed bool),
 ) error {
-	d.nextID++
-	id := strconv.Itoa(d.nextID)
-	d.p.Send(newSectionMsg{id: id, title: title})
-	sess := &sectionSession{p: d.p, section: id}
+	return d.Open(title).Run(fn, summarize)
+}
+
+// Run runs fn with a Session scoped to this box, then appends summarize's
+// result below its rows (which stay visible, not replaced). Mirrors
+// spinner.Run's shape: fn gets the dashboard's shared, Ctrl+C-cancelable
+// context, and a resulting context.Canceled becomes a silent error instead
+// of a printed stack trace.
+func (b *Box) Run(
+	fn func(ctx context.Context, sess Session) error,
+	summarize func(err error, elapsed time.Duration) (summary string, failed bool),
+) error {
+	sess := &sectionSession{p: b.d.p, section: b.id}
 
 	started := time.Now()
-	opErr := fn(d.ctx, sess)
+	opErr := fn(b.d.ctx, sess)
 	summary, failed := summarize(opErr, time.Since(started))
-	d.p.Send(collapseMsg{section: id, summary: summary, failed: failed})
+	b.d.p.Send(collapseMsg{section: b.id, summary: summary, failed: failed})
 
 	if eris.Is(opErr, context.Canceled) {
 		return errorspkg.NewSilent(opErr)
@@ -85,10 +104,8 @@ func (d *Dashboard) Run(
 // endpoint URLs), since Run's summary always carries a ✓/✗ icon that reads
 // oddly there.
 func (d *Dashboard) Info(title, body string) {
-	d.nextID++
-	id := strconv.Itoa(d.nextID)
-	d.p.Send(newSectionMsg{id: id, title: title})
-	d.p.Send(infoMsg{section: id, body: body})
+	b := d.Open(title)
+	d.p.Send(infoMsg{section: b.id, body: body})
 }
 
 // sectionSession is the Session implementation for one section within a
