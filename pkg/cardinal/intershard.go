@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"buf.build/go/protovalidate"
@@ -20,15 +21,14 @@ const interShardSendTimeout = 10 * time.Second
 
 // interShard receives commands from other shards and sends this shard's commands to them, without the
 // tick ever waiting on NATS. Receiving mirrors sending: handlers queue incoming commands for the tick to
-// drain at its start, and the tick queues outgoing commands for the send loop, draining at its end.
+// drain at its start, and the tick queues outgoing commands for the senders, draining at its end.
 //
-// The buffer goroutine between drain and the send loop does no network work, so it always takes the
-// tick's batch at once. The send loop sends one command per round trip, in order; a backlog beyond that
-// grows in memory, by design.
-//
-// One pipeline serves every target, so a hung target delays the others. It is not split per address:
-// an address is only a NATS subject, so the sender cannot tell which addresses fail together, and
-// per-address pipelines would keep state for every address ever used.
+// Each target with unsent commands has one sender goroutine, which sends them one at a time and waits
+// for each ack before the next. A target that cannot ack one command gets no more until it does or the
+// send times out, nothing counts as sent without an ack, and order to that target holds. Targets do not
+// wait on each other, so probing many shards takes at most one send timeout however many of them hang.
+// A sender removes its target's entry and exits when its queue is empty, so idle targets cost nothing;
+// a hung target's backlog grows in memory until it drains, by design.
 //
 // enqueue, drain and stop must be called from the tick goroutine, which owns queued.
 type interShard struct {
@@ -37,8 +37,15 @@ type interShard struct {
 	inbox   *command.Manager // Shared with client commands
 	log     zerolog.Logger
 	queued  []queuedCommand
-	in      chan []queuedCommand // One batch per tick; closed by stop
-	done    chan struct{}        // Closed when the send loop has sent everything
+
+	mu      sync.Mutex              // Guards senders and every targetQueue; never held during a send
+	senders map[string]*targetQueue // Exactly the targets whose sender is running
+	running sync.WaitGroup          // Running senders, for stop
+}
+
+// targetQueue holds one target's drained batches, oldest first.
+type targetQueue struct {
+	pending [][]queuedCommand
 }
 
 // queuedCommand keeps the enqueuing span as parent, so the send joins the tick's trace after the tick ends.
@@ -47,22 +54,16 @@ type queuedCommand struct {
 	cmd    *iscv1.Command
 }
 
-// newInterShard starts the send goroutines; stop ends them.
 func newInterShard(
 	address *micro.ServiceAddress, client *micro.Client, inbox *command.Manager, log zerolog.Logger,
 ) *interShard {
-	s := &interShard{
+	return &interShard{
 		address: address,
 		client:  client,
 		inbox:   inbox,
 		log:     log,
-		in:      make(chan []queuedCommand),
-		done:    make(chan struct{}),
+		senders: make(map[string]*targetQueue),
 	}
-	out := make(chan []queuedCommand)
-	go bufferLoop(s.in, out)
-	go s.sendLoop(out, s.done)
-	return s
 }
 
 func (s *interShard) start(svc *micro.Service, commands map[string]struct{}) error {
@@ -115,44 +116,44 @@ func (s *interShard) drain() {
 	if len(s.queued) == 0 {
 		return
 	}
-	s.in <- s.queued // Ownership of the batch moves to the pipeline.
+	batches := make(map[string][]queuedCommand)
+	for _, c := range s.queued {
+		target := micro.String(c.cmd.GetAddress())
+		batches[target] = append(batches[target], c)
+	}
 	s.queued = nil
-}
 
-// bufferLoop holds batches until out takes them, oldest first. It only moves slices, so it is always
-// ready to receive from in. When in closes, it hands over what it holds and closes out.
-func bufferLoop(in <-chan []queuedCommand, out chan<- []queuedCommand) {
-	var pending [][]queuedCommand
-	for {
-		// A nil channel is never ready, which disables the hand-over case while pending is empty.
-		var outCh chan<- []queuedCommand
-		var next []queuedCommand
-		if len(pending) > 0 {
-			outCh, next = out, pending[0]
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for target, batch := range batches {
+		q, ok := s.senders[target]
+		if !ok {
+			q = &targetQueue{}
+			s.senders[target] = q
+			s.running.Add(1)
+			go s.sendLoop(target, q)
 		}
-		select {
-		case batch, ok := <-in:
-			if !ok {
-				for _, b := range pending {
-					out <- b
-				}
-				close(out)
-				return
-			}
-			pending = append(pending, batch)
-		case outCh <- next:
-			pending[0] = nil // Let the sent batch be collected before pending reallocates.
-			pending = pending[1:]
-			if len(pending) == 0 {
-				pending = nil
-			}
-		}
+		q.pending = append(q.pending, batch)
 	}
 }
 
-func (s *interShard) sendLoop(out <-chan []queuedCommand, done chan<- struct{}) {
-	defer close(done)
-	for batch := range out {
+// sendLoop sends target's batches until its queue is empty, then removes the entry and exits. The check
+// and the removal share drain's lock, so drain either appends to a queue this loop will still see or
+// starts a new sender after this one has sent everything, which keeps order to the target.
+func (s *interShard) sendLoop(target string, q *targetQueue) {
+	defer s.running.Done()
+	for {
+		s.mu.Lock()
+		if len(q.pending) == 0 {
+			delete(s.senders, target)
+			s.mu.Unlock()
+			return
+		}
+		batch := q.pending[0]
+		q.pending[0] = nil
+		q.pending = q.pending[1:]
+		s.mu.Unlock()
+
 		for _, c := range batch {
 			s.send(c)
 		}
@@ -180,9 +181,13 @@ func (s *interShard) send(c queuedCommand) {
 // stop waits until ctx for drained commands to be sent. Commands enqueued but not drained belong to a tick
 // that did not finish and are dropped. Call it once, after the tick loop has stopped.
 func (s *interShard) stop(ctx context.Context) {
-	close(s.in)
+	done := make(chan struct{})
+	go func() {
+		s.running.Wait()
+		close(done)
+	}()
 	select {
-	case <-s.done:
+	case <-done:
 	case <-ctx.Done():
 		s.log.Error().Msg("inter-shard commands not sent before the shutdown deadline")
 	}

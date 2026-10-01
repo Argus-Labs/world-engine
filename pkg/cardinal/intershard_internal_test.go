@@ -2,7 +2,6 @@ package cardinal
 
 import (
 	"context"
-	"sync"
 	"testing"
 	"time"
 
@@ -55,9 +54,9 @@ func TestInterShard_StopSendsDrainedInOrder(t *testing.T) {
 	}
 }
 
-// TestInterShard_HungTargetDoesNotBlockDrain checks that a target that never acks does not block drain,
-// and that the commands behind it are sent in order once it recovers.
-func TestInterShard_HungTargetDoesNotBlockDrain(t *testing.T) {
+// TestInterShard_HungTargetIsolated checks that a target that never acks neither blocks drain nor delays
+// commands to a healthy target.
+func TestInterShard_HungTargetIsolated(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
@@ -66,8 +65,6 @@ func TestInterShard_HungTargetDoesNotBlockDrain(t *testing.T) {
 
 	hungAddress := RandServiceAddress(prng)
 	release := make(chan struct{})
-	var releaseOnce sync.Once
-	unhang := func() { releaseOnce.Do(func() { close(release) }) }
 	hungClient := NewTestClient(t)
 	hung, err := micro.NewService(hungClient, hungAddress, &telemetry.Telemetry{Logger: zerolog.Nop()})
 	require.NoError(t, err)
@@ -80,7 +77,7 @@ func TestInterShard_HungTargetDoesNotBlockDrain(t *testing.T) {
 
 	link := newInterShard(fixtureA.world.address, fixtureA.client, &fixtureA.world.commands, zerolog.Nop())
 	t.Cleanup(func() {
-		unhang()
+		close(release)
 		link.stop(context.Background())
 		_ = hung.Close()
 	})
@@ -93,7 +90,7 @@ func TestInterShard_HungTargetDoesNotBlockDrain(t *testing.T) {
 		assert.Less(t, time.Since(start), 500*time.Millisecond, "drain waited on a send")
 	}
 
-	unhang()
+	// B receives all three while the hung target still holds its first command.
 	var got []command.Command
 	require.Eventually(t, func() bool {
 		fixtureB.world.commands.Drain()
@@ -104,5 +101,31 @@ func TestInterShard_HungTargetDoesNotBlockDrain(t *testing.T) {
 	}, 5*time.Second, 10*time.Millisecond)
 	for i, cmd := range got {
 		assert.Equal(t, testutils.SimpleCommand{Value: i}, cmd.Payload)
+	}
+}
+
+// TestInterShard_SenderExitsWhenIdle checks that once a target's commands are sent, its sender and map
+// entry are gone, and that a later drain starts a new one.
+func TestInterShard_SenderExitsWhenIdle(t *testing.T) {
+	t.Parallel()
+	prng := testutils.NewRand(t)
+
+	fixtureA := newServiceFixture(t, prng, true)
+	fixtureB := newServiceFixture(t, prng, true)
+	link := newInterShard(fixtureA.world.address, fixtureA.client, &fixtureA.world.commands, zerolog.Nop())
+	t.Cleanup(func() { link.stop(context.Background()) })
+
+	senders := func() int {
+		link.mu.Lock()
+		defer link.mu.Unlock()
+		return len(link.senders)
+	}
+
+	for round := range 2 {
+		link.enqueue(context.Background(), simpleCommandTo(fixtureA.world.address, fixtureB.world.address, round))
+		link.drain()
+		cmds := awaitCommands(t, fixtureB)
+		assert.Equal(t, testutils.SimpleCommand{Value: round}, cmds[0].Payload)
+		require.Eventually(t, func() bool { return senders() == 0 }, 5*time.Second, 10*time.Millisecond)
 	}
 }

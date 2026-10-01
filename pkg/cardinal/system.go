@@ -248,7 +248,7 @@ type OtherWorld struct {
 //
 // Fire-and-forget: cmd is encoded when events flush at end-of-tick, so it must not be mutated after this
 // call — a *Command whose fields change before the flush would send the mutated value. The send then
-// happens in the background, in order. A send that fails is not returned but is logged at error level,
+// happens in the background, in order per target shard. A send that fails is not returned but is logged at error level,
 // because a dropped shard-to-shard command is serious.
 func (w *World) SendToShard(to OtherWorld, cmd command.Payload) {
 	if to.ShardID == "" {
