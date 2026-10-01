@@ -26,23 +26,25 @@ const interShardSendTimeout = 10 * time.Second
 // command queues, which client commands share, and acks. The tick drains those queues at its start.
 //
 // Sending mirrors receiving: the tick enqueues each command during event dispatch and drains once at the
-// end of the tick. Drain hands each target its batch for the tick through that target's pipeline: a
-// buffer goroutine that holds the backlog, feeding a send loop that sends one command at a time. The
-// buffer never does network work, so it always takes the tick's batch at once, however slow the target.
+// end of the tick. Drain hands the tick's batch to the pipeline: a buffer goroutine that holds the
+// backlog, feeding a send loop that sends one command at a time, in the order they were enqueued. The
+// buffer never does network work, so it always takes the tick's batch at once, however slow the targets.
+// The pipeline sends about one command per round trip; a backlog beyond that grows in memory, by design.
 //
-// Pipelines are partitioned by target so commands to a healthy target are not held behind a slow or
-// hung one. Order is kept per target only. One shared line would not be safer: a failed send does not
-// stop the commands after it, so sharing a line only delays them, and targets process on their own
-// ticks anyway.
+// One pipeline serves every target, so a slow or hung target delays commands to the others. It is not
+// split per target address: an address is only a NATS subject, so one process can serve many addresses
+// and the sender cannot tell which ones fail together, while per-address pipelines would keep state for
+// every address ever used.
 //
-// enqueue, drain and stop must all be called from the tick goroutine, which owns queued and pipes.
+// enqueue, drain and stop must all be called from the tick goroutine, which owns queued.
 type interShard struct {
 	address *micro.ServiceAddress
 	client  *micro.Client
 	inbox   *command.Manager // Received commands go here, alongside client commands
 	log     zerolog.Logger
-	queued  map[string][]queuedCommand // This tick's outbound commands, by target address
-	pipes   map[string]*targetPipe     // One pipeline per target, created on first send
+	queued  []queuedCommand      // This tick's outbound commands
+	in      chan []queuedCommand // Tick to buffer: one batch per tick; closed by stop
+	done    chan struct{}        // Closes when the send loop has sent everything and exited
 }
 
 // queuedCommand is one command to send. parent is the span that enqueued it, so the send span joins
@@ -52,23 +54,22 @@ type queuedCommand struct {
 	cmd    *iscv1.Command
 }
 
-// targetPipe is the pipeline to one target shard.
-type targetPipe struct {
-	in   chan []queuedCommand // Tick to buffer: one batch per tick; closed by stop
-	done chan struct{}        // Closes when the send loop has sent everything and exited
-}
-
+// newInterShard starts the send pipeline. Call stop to end it.
 func newInterShard(
 	address *micro.ServiceAddress, client *micro.Client, inbox *command.Manager, log zerolog.Logger,
 ) *interShard {
-	return &interShard{
+	s := &interShard{
 		address: address,
 		client:  client,
 		inbox:   inbox,
 		log:     log,
-		queued:  make(map[string][]queuedCommand),
-		pipes:   make(map[string]*targetPipe),
+		in:      make(chan []queuedCommand),
+		done:    make(chan struct{}),
 	}
+	out := make(chan []queuedCommand)
+	go bufferLoop(s.in, out)
+	go s.sendLoop(out, s.done)
+	return s
 }
 
 // start registers the receive endpoint for each named command on svc.
@@ -114,32 +115,18 @@ func (s *interShard) handle(ctx context.Context, req *micro.Request) *micro.Resp
 	return micro.NewSuccessResponse(req, nil)
 }
 
-// enqueue adds cmd to this tick's batch for its target. Nothing is sent until drain.
+// enqueue adds cmd to this tick's batch. Nothing is sent until drain.
 func (s *interShard) enqueue(ctx context.Context, cmd *iscv1.Command) {
-	target := micro.String(cmd.GetAddress())
-	s.queued[target] = append(s.queued[target],
-		queuedCommand{parent: oteltrace.SpanContextFromContext(ctx), cmd: cmd})
+	s.queued = append(s.queued, queuedCommand{parent: oteltrace.SpanContextFromContext(ctx), cmd: cmd})
 }
 
-// drain hands each target its batch for this tick. It returns without waiting for any send.
+// drain hands this tick's batch to the pipeline. It returns without waiting for any send.
 func (s *interShard) drain() {
-	for target, batch := range s.queued {
-		pipe, ok := s.pipes[target]
-		if !ok {
-			pipe = s.startPipe()
-			s.pipes[target] = pipe
-		}
-		pipe.in <- batch // Ownership of batch moves to the pipeline.
-		delete(s.queued, target)
+	if len(s.queued) == 0 {
+		return
 	}
-}
-
-func (s *interShard) startPipe() *targetPipe {
-	pipe := &targetPipe{in: make(chan []queuedCommand), done: make(chan struct{})}
-	out := make(chan []queuedCommand)
-	go bufferLoop(pipe.in, out)
-	go s.sendLoop(out, pipe.done)
-	return pipe
+	s.in <- s.queued // Ownership of the batch moves to the pipeline.
+	s.queued = nil
 }
 
 // bufferLoop holds batches from in until out is ready for them, oldest first. It only moves slices,
@@ -200,19 +187,14 @@ func (s *interShard) send(c queuedCommand) {
 	}
 }
 
-// stop closes every pipeline and waits, until ctx is done, for the drained commands to be sent. Commands
+// stop closes the pipeline and waits, until ctx is done, for the drained commands to be sent. Commands
 // enqueued but not drained belong to a tick that did not finish and are dropped. Call it once, after the
 // tick loop has stopped.
 func (s *interShard) stop(ctx context.Context) {
-	for _, pipe := range s.pipes {
-		close(pipe.in)
-	}
-	for target, pipe := range s.pipes {
-		select {
-		case <-pipe.done:
-		case <-ctx.Done():
-			s.log.Error().Str("target", target).
-				Msg("inter-shard commands not sent before the shutdown deadline")
-		}
+	close(s.in)
+	select {
+	case <-s.done:
+	case <-ctx.Done():
+		s.log.Error().Msg("inter-shard commands not sent before the shutdown deadline")
 	}
 }
