@@ -17,9 +17,9 @@ import (
 // State owns the data plugin's per-instance load state: registered kinds, the in-memory catalog,
 // and the manifest of per-file hashes currently reflected in that catalog.
 //
-// The plugin facade (data.Plugin) holds a pointer to a State and forwards every operation here.
-// Splitting it out keeps plugin.go a thin facade (matching the lobby / physics2d convention) and
-// keeps all the load-and-reconcile logic colocated with the components it operates on.
+// data.Plugin owns one State per world and wires it into the ReconcileSystem it registers.
+// Splitting it out keeps the load-and-reconcile logic colocated with the components it operates
+// on, while plugin.go holds the registration lifecycle (kinds, world binding, guards).
 type State struct {
 	loaders map[string]kindLoader // jsonFile → loader
 	catalog map[string]Definition // Name() → loaded value
@@ -146,15 +146,20 @@ func (s *State) LoadAll(ctx context.Context, primary, resolverSource Source) {
 	s.manifest = component.ConfigManifest{Files: immutable.SliceOf(entries...)}
 }
 
-// ReconcileState is the system state for the data plugin's per-tick reconcile pass.
-//
-// The embedded Exact search holds the ConfigManifest singleton; declaring this field is also what
-// registers ConfigManifest with Cardinal via system-field reflection.
-type ReconcileState struct {
-	cardinal.BaseSystemState
-	Manifest cardinal.Exact[struct {
-		Item cardinal.WithComponent[component.ConfigManifest]
-	}]
+// ReconcileSystem keeps the catalog matched to the world's configuration manifest.
+type ReconcileSystem struct {
+	Catalog        *State
+	Primary        Source
+	ResolverSource Source
+}
+
+func (rs *ReconcileSystem) Run(w *cardinal.World) {
+	rs.Catalog.Reconcile(w, rs.Primary, rs.ResolverSource)
+}
+
+// manifestRow is the exact archetype of the ConfigManifest singleton entity.
+type manifestRow struct {
+	Item component.ConfigManifest
 }
 
 // Reconcile is the data plugin's per-tick reconcile pass. Runs every PreUpdate (cardinal's
@@ -181,11 +186,12 @@ type ReconcileState struct {
 //
 // primary is the data source for each kind's JSONFile() re-fetch at the snapshot's hash.
 // resolverSource is what Resolver hooks fetch additional files through (always local embed).
-func (s *State) Reconcile(rs *ReconcileState, primary, resolverSource Source) {
-	ent, err := rs.Manifest.Iter().Single()
+func (s *State) Reconcile(w *cardinal.World, primary, resolverSource Source) {
+	manifest := w.Exact[manifestRow]()
+	ent, err := manifest.Iter().Single()
 	switch {
 	case errors.Is(err, cardinal.ErrSingleNoResult):
-		ent = rs.Manifest.Create()
+		ent = manifest.Create()
 		ent.Set(s.manifest)
 		return
 	case errors.Is(err, cardinal.ErrSingleMultipleResult):
@@ -228,7 +234,7 @@ func (s *State) Reconcile(rs *ReconcileState, primary, resolverSource Source) {
 			panic(eris.Wrapf(fetchErr, "data: source cannot serve %q at hash %s required by snapshot", e.Path, e.Hash))
 		}
 		if gotHash != e.Hash {
-			rs.Logger().Warn().
+			w.Logger().Warn().
 				Interface("snapshot", snap).
 				Interface("current", s.manifest).
 				Msg("data: config changed since snapshot; resuming on current config")

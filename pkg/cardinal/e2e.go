@@ -210,7 +210,7 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 	// Replace inter-shard event handler with local assertions.
 	// E2E runs a single world instance, so cross-shard requests would otherwise fail with
 	// "no responders" and drown useful signal in log noise.
-	w.events.RegisterHandler(event.KindInterShardCommand, func(evt event.Event) error {
+	w.events.RegisterHandler(event.KindInterShardCommand, func(_ context.Context, evt event.Event) error {
 		assert.Equal(t, event.KindInterShardCommand, evt.Kind, "nats: received wrong event kind")
 		isc, ok := evt.Payload.(command.Command)
 		assert.True(t, ok, "nats: ISC payload is %T, want command.Command", evt.Payload)
@@ -266,7 +266,9 @@ func (f *e2eFixture) sendCommand(t *testing.T, cmd *iscv1.Command) {
 	// 2s absorbs normal scheduling/reconnect jitter while still failing fast on deadlocks.
 	ctx, cancel := context.WithTimeout(context.Background(), e2eCommandTimeout)
 	defer cancel()
-	_, err := f.client.SendCommand(ctx, connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmd}))
+	req := connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmd})
+	req.Header().Set("X-Email", "e2e-"+cmd.GetPersona().GetId())
+	_, err := f.client.SendCommand(ctx, req)
 	require.NoError(t, err)
 }
 

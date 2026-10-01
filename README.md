@@ -41,13 +41,13 @@ moon run world-engine:build          # Build Go packages
 moon run world-engine:lint           # Lint (installs the pinned linter)
 moon run world-engine:lint-fix       # Apply lint fixes
 moon run world-engine:test           # Run all Go tests
-moon run world-engine:test-unit      # Run without integration-tagged tests
 moon run world-engine:test-ci        # Write coverage.out and junit.xml
 TEST_SEED=123 moon run world-engine:test  # Replay a test seed
 ```
 
-Go tools install into the ignored `bin/tools` directory. Tests print a seed for
-reproduction. Moon task caching is disabled so randomized tests run each time.
+golangci-lint installs into the ignored `bin/tools` directory. gotestsum runs
+through `go tool`. Failing tests log a seed for reproduction. Moon task caching
+is disabled so randomized tests run each time.
 Go's own compilation and test caches remain enabled.
 
 Generated clients have separate projects:
