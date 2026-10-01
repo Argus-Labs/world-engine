@@ -35,9 +35,13 @@ var cardinalDockerfile []byte
 // collisions with anything a user might check in.
 const cardinalDockerfileName = "__cardinal.Dockerfile"
 
-// defaultBuildIgnores are always excluded from the build context, regardless
-// of the project's .dockerignore. Keeps the context small when a consumer
-// has no .dockerignore at the project root.
+// defaultBuildIgnores are always excluded from the Cardinal build context,
+// regardless of the project's .dockerignore. They are appended *after* the
+// user's .dockerignore patterns (see buildContextIgnorePatterns) so
+// patternmatcher's last-wins semantics make them non-overridable: a consumer
+// "!"-negation in .dockerignore (e.g. "!.git") cannot re-include them. The
+// embedded cardinal.Dockerfile never invokes git, node_modules, dist, or any
+// .exe, so re-including these paths would only bloat the build context.
 var defaultBuildIgnores = []string{
 	".git",
 	".git/**",
@@ -46,6 +50,17 @@ var defaultBuildIgnores = []string{
 	"dist",
 	"**/dist",
 	"**/*.exe",
+}
+
+// buildContextIgnorePatterns assembles the ExcludePatterns list for a Cardinal
+// build context: the user's .dockerignore patterns first, then
+// defaultBuildIgnores. patternmatcher evaluates ExcludePatterns with
+// last-wins semantics, so placing the defaults last makes them non-overridable
+// — a consumer "!"-negation (e.g. "!.git") cannot re-include a default-ignored
+// path. User *additional* ignores, and "!"-negations targeting non-default
+// paths, behave normally.
+func buildContextIgnorePatterns(userIgnores []string) []string {
+	return slices.Concat(userIgnores, defaultBuildIgnores)
 }
 
 // CardinalBuildImageNames returns the unique Cardinal image tags that would be
@@ -137,7 +152,7 @@ func (c *Client) BuildCardinalImages(
 	if err != nil {
 		return eris.Wrap(err, "failed to read .dockerignore")
 	}
-	ignorePatterns := slices.Concat(defaultBuildIgnores, userIgnores)
+	ignorePatterns := buildContextIgnorePatterns(userIgnores)
 
 	g, gctx := errgroup.WithContext(ctx)
 	for _, image := range order {
