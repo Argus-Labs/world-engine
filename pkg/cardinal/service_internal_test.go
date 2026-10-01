@@ -156,7 +156,7 @@ func TestService_PublishInterShardCommand(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		fixtureA.svc.flushInterShardCommands() // what the tick does after dispatch
+		fixtureA.svc.drainInterShardCommands() // what the tick does after dispatch
 
 		// The send is asynchronous: drain service B until the command arrives, then verify its
 		// payload/persona.
@@ -264,9 +264,9 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool
 		client := NewTestClient(t)
 		svc.client = client
 		fixture.client = client
-		svc.sender = newInterShardSender(client, zerolog.Nop())
+		svc.interShard = newInterShard(address, client, &w.commands, zerolog.Nop())
 		// Registered after the client, so it runs first: queued sends finish before the client closes.
-		t.Cleanup(func() { svc.sender.stop(context.Background()) })
+		t.Cleanup(func() { svc.interShard.stop(context.Background()) })
 
 		microService, err := micro.NewService(client, address, &tel)
 		require.NoError(t, err)
@@ -274,10 +274,7 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool
 		svc.microService = microService
 
 		require.NoError(t, microService.AddEndpoint("ping", svc.handlePing))
-		require.NoError(t, microService.AddGroup("command").AddEndpoint(
-			testutils.SimpleCommand{}.Name(),
-			svc.handleInterShardCommand,
-		))
+		require.NoError(t, svc.interShard.start(microService, svc.commands))
 		require.NoError(t, client.Flush())
 	}
 
