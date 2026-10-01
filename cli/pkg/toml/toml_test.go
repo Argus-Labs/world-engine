@@ -1,6 +1,7 @@
 package toml_test
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -983,4 +984,192 @@ func TestGameService_IsBuiltFromSource(t *testing.T) {
 
 	require.True(t, toml.GameService{Path: "services/meta/cmd"}.IsBuiltFromSource())
 	require.False(t, toml.GameService{Image: "postgres:16"}.IsBuiltFromSource())
+}
+
+// worldTomlFor builds a minimal valid world.toml, substituting the given values
+// into a single field so the canonical-validation tests can target one field at
+// a time without unrelated validation getting in the way. The unused fields
+// default to canonical values ("argus", "rampage", "gameplay").
+func worldTomlFor(field, value string) string {
+	org, project, shardID, serviceID := "argus", "rampage", "gameplay", "meta"
+	switch field {
+	case "organization":
+		org = value
+	case "project":
+		project = value
+	case "shardID":
+		shardID = value
+	case "serviceID":
+		serviceID = value
+	}
+	return fmt.Sprintf(`
+	organization = %q
+	project = %q
+	[[shards]]
+	id = %q
+	[[services]]
+	id = %q
+	image = "postgres:16"
+	`, org, project, shardID, serviceID)
+}
+
+// TestLoad_NonCanonicalNames_Rejected verifies that fields which become Kubernetes
+// object names (project, shardID, serviceID) are rejected when they contain
+// characters that are invalid in a DNS-1123 label (uppercase, underscores, leading
+// or trailing hyphens). These are the same values the old permissive regex
+// ^[a-zA-Z0-9_-]+$ accepted and k8s later rejected at apply time — closing the
+// validation gap reported in the bug.
+func TestLoad_NonCanonicalNames_Rejected(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		field string
+		value string
+	}{
+		// Uppercase letters — the primary reproduction case (e.g. "Rampage").
+		{"project uppercase", "project", "Rampage"},
+		{"shardID uppercase", "shardID", "Game"},
+		{"serviceID uppercase", "serviceID", "Meta"},
+		// Underscores — the second reproduction case (e.g. "my_proj").
+		{"project underscore", "project", "my_proj"},
+		{"shardID underscore", "shardID", "game_shard"},
+		{"serviceID underscore", "serviceID", "meta_svc"},
+		// Leading hyphens — DNS-1123 labels must start with an alphanumeric char.
+		{"project leading hyphen", "project", "-game"},
+		{"shardID leading hyphen", "shardID", "-shard"},
+		{"serviceID leading hyphen", "serviceID", "-svc"},
+		// Trailing hyphens — DNS-1123 labels must end with an alphanumeric char.
+		{"project trailing hyphen", "project", "game-"},
+		{"shardID trailing hyphen", "shardID", "shard-"},
+		{"serviceID trailing hyphen", "serviceID", "svc-"},
+		// Dots — dnslabel.Sanitize collapses them to hyphens ("my.game" -> "my-game"),
+		// so accepting them would let "my.game" and "my-game" map to the same k8s
+		// object name downstream. IsCanonical rejects dots to prevent this collision.
+		{"project dot", "project", "my.game"},
+		{"shardID dot", "shardID", "game.shard"},
+		{"serviceID dot", "serviceID", "meta.svc"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := toml.Load(strings.NewReader(worldTomlFor(c.field, c.value)))
+			require.Error(t, err, "value %q should be rejected as a non-canonical k8s name", c.value)
+			require.Contains(t, err.Error(), c.field,
+				"error should name the offending field %q", c.field)
+			require.Contains(t, err.Error(), "lowercase alphanumeric",
+				"error should explain the DNS-1123 label requirement")
+		})
+	}
+}
+
+// TestLoad_CanonicalNames_Accepted verifies that canonical names (lowercase
+// alphanumeric + hyphens, start/end alphanumeric) pass validation for all three
+// k8s-name fields. This is the happy path that must not regress.
+func TestLoad_CanonicalNames_Accepted(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		field string
+		value string
+	}{
+		{"simple lowercase", "project", "rampage"},
+		{"lowercase with hyphen", "project", "my-game"},
+		{"lowercase digits", "project", "game2"},
+		{"lowercase hyphen digits", "shardID", "game-2"},
+		{"single char", "shardID", "g"},
+		{"all digits", "serviceID", "123"},
+		{"hyphen in middle", "serviceID", "my-svc"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			cfg, err := toml.Load(strings.NewReader(worldTomlFor(c.field, c.value)))
+			require.NoError(t, err, "canonical value %q should be accepted", c.value)
+			switch c.field {
+			case "project":
+				require.Equal(t, c.value, cfg.Project)
+			case "shardID":
+				require.Equal(t, c.value, cfg.Shards[0].ID)
+			case "serviceID":
+				require.Equal(t, c.value, cfg.Services[0].ID)
+			}
+		})
+	}
+}
+
+// TestLoad_Organization_StaysPermissive verifies that organization — which does
+// NOT become a k8s object name (it flows into env vars and the identity string
+// only) — retains the looser standard-characters check and accepts uppercase,
+// underscores, and mixed case that the canonical gate would reject. This is a
+// deliberate per-field split: tightening organization would reject a
+// currently-working config for no correctness benefit.
+func TestLoad_Organization_StaysPermissive(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		value string
+	}{
+		{"uppercase", "Argus"},
+		{"mixed case", "MyOrg"},
+		{"underscore", "my_org"},
+		{"all caps", "ARGUS"},
+		{"uppercase with underscore", "My_Org"},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			cfg, err := toml.Load(strings.NewReader(worldTomlFor("organization", c.value)))
+			require.NoError(t, err, "organization %q should be accepted (looser check)", c.value)
+			require.Equal(t, c.value, cfg.Organization)
+		})
+	}
+}
+
+// TestLoad_SpacesStillRemoved_CanonicalFields verifies that the space-removal
+// normalization (a pre-existing behavior) still applies to canonical-name
+// fields: "rampage game" becomes "rampagegame" (not the dnslabel-sanitized
+// "rampage-game"), preserving the existing "spaces removed" contract so a
+// hand-edited world.toml with incidental spaces doesn't change its data shape.
+func TestLoad_SpacesStillRemoved_CanonicalFields(t *testing.T) {
+	t.Parallel()
+
+	t.Run("project with spaces", func(t *testing.T) {
+		t.Parallel()
+		cfg, err := toml.Load(strings.NewReader(worldTomlFor("project", "rampage game")))
+		require.NoError(t, err)
+		require.Equal(t, "rampagegame", cfg.Project, "spaces should be removed, not sanitized to hyphens")
+	})
+
+	t.Run("shardID with spaces", func(t *testing.T) {
+		t.Parallel()
+		cfg, err := toml.Load(strings.NewReader(worldTomlFor("shardID", "game play")))
+		require.NoError(t, err)
+		require.Equal(t, "gameplay", cfg.Shards[0].ID, "spaces should be removed, not sanitized to hyphens")
+	})
+
+	t.Run("serviceID with spaces", func(t *testing.T) {
+		t.Parallel()
+		cfg, err := toml.Load(strings.NewReader(worldTomlFor("serviceID", "my svc")))
+		require.NoError(t, err)
+		require.Equal(t, "mysvc", cfg.Services[0].ID, "spaces should be removed, not sanitized to hyphens")
+	})
+}
+
+// TestLoad_NonCanonicalName_AfterSpaceRemoval_Rejected verifies that a value
+// which is canonical only after space removal but non-canonical in its raw form
+// is rejected when the post-removal result is still non-canonical. E.g.
+// "My_Game" -> "My_Game" (no spaces) -> still has uppercase + underscore.
+func TestLoad_NonCanonicalName_AfterSpaceRemoval_Rejected(t *testing.T) {
+	t.Parallel()
+
+	_, err := toml.Load(strings.NewReader(worldTomlFor("project", " My_Game ")))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "project")
+	require.Contains(t, err.Error(), "lowercase alphanumeric")
 }
