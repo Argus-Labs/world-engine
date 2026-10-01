@@ -223,7 +223,6 @@ func TestInterShardCommandPropagatesTrace(t *testing.T) {
 	}))
 	fixtureA.svc.drainInterShardCommands() // what the tick does after dispatch
 
-	// The send is asynchronous: wait for the command to land, then for the send span to end.
 	cmds := awaitCommands(t, fixtureB)
 	var send tracetest.SpanStub
 	require.Eventually(t, func() bool {

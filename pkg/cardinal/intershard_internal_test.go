@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// simpleCommandTo builds an inter-shard SimpleCommand from one fixture to another.
 func simpleCommandTo(from, to *micro.ServiceAddress, value int) *iscv1.Command {
 	payload := testutils.SimpleCommand{Value: value}
 	return &iscv1.Command{
@@ -27,8 +26,7 @@ func simpleCommandTo(from, to *micro.ServiceAddress, value int) *iscv1.Command {
 	}
 }
 
-// TestInterShard_StopSendsDrainedInOrder checks that commands to one target arrive in the order
-// they were enqueued across several ticks, and that stop waits until every drained command is sent.
+// TestInterShard_StopSendsDrainedInOrder checks order across ticks, and that stop waits for every send.
 func TestInterShard_StopSendsDrainedInOrder(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
@@ -57,8 +55,8 @@ func TestInterShard_StopSendsDrainedInOrder(t *testing.T) {
 	}
 }
 
-// TestInterShard_HungTargetDoesNotBlockDrain checks that a target that does not ack never blocks drain
-// (the tick), and that the commands queued behind it are sent, in order, once it recovers.
+// TestInterShard_HungTargetDoesNotBlockDrain checks that a target that never acks does not block drain,
+// and that the commands behind it are sent in order once it recovers.
 func TestInterShard_HungTargetDoesNotBlockDrain(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
@@ -66,7 +64,6 @@ func TestInterShard_HungTargetDoesNotBlockDrain(t *testing.T) {
 	fixtureA := newServiceFixture(t, prng, true)
 	fixtureB := newServiceFixture(t, prng, true)
 
-	// A target whose handler holds every request until the test releases it.
 	hungAddress := RandServiceAddress(prng)
 	release := make(chan struct{})
 	var releaseOnce sync.Once
@@ -88,7 +85,6 @@ func TestInterShard_HungTargetDoesNotBlockDrain(t *testing.T) {
 		_ = hung.Close()
 	})
 
-	// Several ticks send to both targets. Each drain must return without waiting on the hung target.
 	for tick := range 3 {
 		link.enqueue(context.Background(), simpleCommandTo(fixtureA.world.address, hungAddress, tick))
 		link.enqueue(context.Background(), simpleCommandTo(fixtureA.world.address, fixtureB.world.address, tick))
@@ -97,7 +93,6 @@ func TestInterShard_HungTargetDoesNotBlockDrain(t *testing.T) {
 		assert.Less(t, time.Since(start), 500*time.Millisecond, "drain waited on a send")
 	}
 
-	// Once the hung target acks, B receives all three in order.
 	unhang()
 	var got []command.Command
 	require.Eventually(t, func() bool {

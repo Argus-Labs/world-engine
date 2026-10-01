@@ -175,9 +175,7 @@ func (s *service) mountDebugService(mux *http.ServeMux, interceptors ...connect.
 }
 
 func (s *service) shutdown(ctx context.Context) error {
-	// Finish sending what earlier ticks handed to the pipelines before the NATS connection closes. This
-	// runs before the server shuts down because an open event stream holds server.Shutdown until ctx
-	// expires, and its error returns early.
+	// Before server.Shutdown: an open event stream holds it until ctx expires, and its error returns early.
 	if s.interShard != nil {
 		s.interShard.stop(ctx)
 	}
@@ -597,8 +595,7 @@ func (s *service) handlePing(_ context.Context, req *micro.Request) *micro.Respo
 	return micro.NewSuccessResponse(req, nil)
 }
 
-// drainInterShardCommands hands the commands enqueued during this tick's dispatch to the send
-// pipelines. It is a no-op when the service never connected to NATS, as in the DST harness.
+// drainInterShardCommands is a no-op when the service never connected to NATS, as in the DST harness.
 func (s *service) drainInterShardCommands() {
 	if s.interShard != nil {
 		s.interShard.drain()
