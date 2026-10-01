@@ -175,14 +175,16 @@ func (s *service) mountDebugService(mux *http.ServeMux, interceptors ...connect.
 }
 
 func (s *service) shutdown(ctx context.Context) error {
+	// Finish sending what earlier ticks handed to the pipelines before the NATS connection closes. This
+	// runs before the server shuts down because an open event stream holds server.Shutdown until ctx
+	// expires, and its error returns early.
+	if s.interShard != nil {
+		s.interShard.stop(ctx)
+	}
 	if s.server != nil {
 		if err := s.server.Shutdown(ctx); err != nil {
 			return eris.Wrap(err, "failed to shutdown service server")
 		}
-	}
-	// Finish sending what earlier ticks handed to the pipelines before the NATS connection closes.
-	if s.interShard != nil {
-		s.interShard.stop(ctx)
 	}
 	if s.microService != nil {
 		if err := s.microService.Close(); err != nil {

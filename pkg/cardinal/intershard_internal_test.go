@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -56,9 +57,9 @@ func TestInterShard_StopSendsDrainedInOrder(t *testing.T) {
 	}
 }
 
-// TestInterShard_HungTargetIsolated checks that a target that never acks neither blocks drain
-// (the tick) nor delays commands to a healthy target.
-func TestInterShard_HungTargetIsolated(t *testing.T) {
+// TestInterShard_HungTargetDoesNotBlockDrain checks that a target that does not ack never blocks drain
+// (the tick), and that the commands queued behind it are sent, in order, once it recovers.
+func TestInterShard_HungTargetDoesNotBlockDrain(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
@@ -68,6 +69,8 @@ func TestInterShard_HungTargetIsolated(t *testing.T) {
 	// A target whose handler holds every request until the test releases it.
 	hungAddress := RandServiceAddress(prng)
 	release := make(chan struct{})
+	var releaseOnce sync.Once
+	unhang := func() { releaseOnce.Do(func() { close(release) }) }
 	hungClient := NewTestClient(t)
 	hung, err := micro.NewService(hungClient, hungAddress, &telemetry.Telemetry{Logger: zerolog.Nop()})
 	require.NoError(t, err)
@@ -80,7 +83,7 @@ func TestInterShard_HungTargetIsolated(t *testing.T) {
 
 	link := newInterShard(fixtureA.world.address, fixtureA.client, &fixtureA.world.commands, zerolog.Nop())
 	t.Cleanup(func() {
-		close(release)
+		unhang()
 		link.stop(context.Background())
 		_ = hung.Close()
 	})
@@ -94,7 +97,8 @@ func TestInterShard_HungTargetIsolated(t *testing.T) {
 		assert.Less(t, time.Since(start), 500*time.Millisecond, "drain waited on a send")
 	}
 
-	// B receives all three while the hung target still holds its first command.
+	// Once the hung target acks, B receives all three in order.
+	unhang()
 	var got []command.Command
 	require.Eventually(t, func() bool {
 		fixtureB.world.commands.Drain()

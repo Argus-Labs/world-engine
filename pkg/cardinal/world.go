@@ -548,7 +548,7 @@ func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 //
 // Fire-and-forget: cmd is encoded when events flush at end-of-tick, so it must not be mutated after this
 // call — a *Command whose fields change before the flush would send the mutated value. The network send
-// then happens in the background, in order per target shard, so the tick never waits on it. A
+// then happens in the background, in the order sent, so the tick never waits on it. A
 // send that fails is not returned but is logged at error level, because a dropped shard-to-shard command
 // is serious.
 func (w *World) SendToShard(to OtherWorld, cmd command.Payload) {
