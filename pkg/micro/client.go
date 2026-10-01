@@ -196,9 +196,14 @@ func (c *Client) Close() {
 }
 
 // handleDisconnect handles NATS disconnection events.
+//
+// nats.go transitions the connection status away from CONNECTED (to RECONNECTING
+// or CLOSED) *before* invoking the disconnect callback, so nc.ConnectedUrl()
+// always returns "" here. Use the configured URL instead — nats.go exposes no
+// public API for the previously-connected URL during a disconnect.
 func (c *Client) handleDisconnect(nc *nats.Conn, err error) {
 	log := c.log.With().
-		Str("nats_url", nc.ConnectedUrl()).
+		Str("nats_url", c.natsConfig.URL).
 		Uint64("reconnect_attempts", nc.Reconnects).
 		Logger()
 
