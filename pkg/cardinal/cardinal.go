@@ -252,6 +252,7 @@ func (w *World) Tick(timestamp time.Time) {
 	defer func() { w.tickCtx = context.Background() }()
 
 	w.currentTick.timestamp = timestamp
+	w.currentTick.wallStart = time.Now()
 	w.debug.startPerfTick()
 
 	// Advance the ECS world.
@@ -416,6 +417,7 @@ func (w *World) reset() {
 	// Reset the tick.
 	w.currentTick.height = 0
 	w.currentTick.timestamp = time.Time{}
+	w.currentTick.wallStart = time.Time{}
 
 	// Publish the reset state when the debug service is enabled.
 	if w.debug != nil {
@@ -427,4 +429,8 @@ func (w *World) reset() {
 type Tick struct {
 	height    uint64
 	timestamp time.Time
+	// wallStart is the wall-clock instant the tick began. System spans are expressed in the
+	// tick's (possibly simulated) time frame as timestamp + (now - wallStart), so StartOffsetNs
+	// is a true intra-tick offset regardless of whether timestamp is wall-clock or simulated.
+	wallStart time.Time
 }

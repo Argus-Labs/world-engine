@@ -84,16 +84,20 @@ func registerSystem(w *World, name string, hook SystemHook, run func()) {
 	if w.debug != nil {
 		traced := fn
 		fn = func() {
-			ts := w.currentTick.timestamp
-			startTime := ts.Add(time.Since(ts))
+			tickStart := w.currentTick.timestamp
+			wallStart := w.currentTick.wallStart
+			startNow := time.Now()
 			traced()
-			endTime := ts.Add(time.Since(ts))
+			endNow := time.Now()
+			// Express span times in the tick's time frame so StartOffsetNs
+			// (= StartTime - TickStart) is the true intra-tick elapsed time
+			// regardless of whether tickStart is wall-clock or simulated.
 			w.debug.recordSpan(performance.TickSpan{
 				TickHeight: w.currentTick.height,
 				SystemName: name,
 				SystemHook: uint8(hook),
-				StartTime:  startTime,
-				EndTime:    endTime,
+				StartTime:  tickStart.Add(startNow.Sub(wallStart)),
+				EndTime:    tickStart.Add(endNow.Sub(wallStart)),
 			})
 		}
 	}
