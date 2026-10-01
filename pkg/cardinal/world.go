@@ -318,7 +318,7 @@ func (w *World) dispatchEvents(ctx context.Context) {
 		span.SetError(err)
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 	}
-	w.service.flushInterShardCommands()
+	w.service.drainInterShardCommands()
 }
 
 // encodeSnapshot produces the complete snapshot bytes for the current tick: the ECS sizes and

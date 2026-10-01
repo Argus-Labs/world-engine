@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"buf.build/go/protovalidate"
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
 	"connectrpc.com/otelconnect"
@@ -31,7 +30,6 @@ import (
 	otelcodes "go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc/codes"
 )
 
 // service hosts the direct client-facing Cardinal service.
@@ -43,7 +41,7 @@ type service struct {
 	argusAuthURL string
 	client       *micro.Client
 	microService *micro.Service
-	sender       *interShardSender
+	interShard   *interShard
 	commands     map[string]struct{}
 	subscribers  map[string]*streamSubscriber
 	replyWaiters map[string][]chan *iscv1.Event
@@ -85,22 +83,20 @@ func (s *service) init(address string) error {
 		return eris.Wrap(err, "failed to initialize micro client")
 	}
 	s.client = client
-	s.sender = newInterShardSender(client, s.log)
 	microService, err := micro.NewService(client, s.world.address, &s.world.tel)
 	if err != nil {
 		return eris.Wrap(err, "failed to create micro service")
 	}
 	s.microService = microService
+	s.interShard = newInterShard(s.world.address, client, &s.world.commands, s.log)
 
 	// Keep these for now cuz ISC requires a bit more work than client connections. Will need another
 	// refactor after the current clients are migrated to connect directly to the shards.
 	if err = s.microService.AddEndpoint("ping", s.handlePing); err != nil {
 		return eris.Wrap(err, "failed to register ping handler")
 	}
-	for cmd := range s.commands {
-		if err := s.microService.AddGroup("command").AddEndpoint(cmd, s.handleInterShardCommand); err != nil {
-			return eris.Wrapf(err, "failed to register %s command handler", cmd)
-		}
+	if err := s.interShard.start(s.microService, s.commands); err != nil {
+		return err
 	}
 
 	otelInterceptor, err := otelconnect.NewInterceptor()
@@ -184,9 +180,9 @@ func (s *service) shutdown(ctx context.Context) error {
 			return eris.Wrap(err, "failed to shutdown service server")
 		}
 	}
-	// Send what the last ticks queued before the NATS connection closes.
-	if s.sender != nil {
-		s.sender.stop(ctx)
+	// Finish sending what earlier ticks handed to the pipelines before the NATS connection closes.
+	if s.interShard != nil {
+		s.interShard.stop(ctx)
 	}
 	if s.microService != nil {
 		if err := s.microService.Close(); err != nil {
@@ -604,50 +600,11 @@ func (s *service) handlePing(_ context.Context, req *micro.Request) *micro.Respo
 	return micro.NewSuccessResponse(req, nil)
 }
 
-func (s *service) handleInterShardCommand(ctx context.Context, req *micro.Request) *micro.Response {
-	select {
-	case <-ctx.Done():
-		return micro.NewErrorResponse(req, eris.Wrap(ctx.Err(), "context cancelled"), codes.Canceled)
-	default:
-	}
-
-	cmd := &iscv1.Command{}
-	if err := req.Payload.UnmarshalTo(cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to parse request payload"), codes.InvalidArgument)
-	}
-
-	if err := protovalidate.Validate(cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to validate command"), codes.InvalidArgument)
-	}
-	if _, err := micro.ParseAddress(cmd.GetPersona().GetId()); err != nil {
-		return micro.NewErrorResponse(
-			req,
-			eris.Wrap(err, "command persona is not a shard address"),
-			codes.InvalidArgument,
-		)
-	}
-
-	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
-		return micro.NewErrorResponse(
-			req,
-			eris.New("command address doesn't match shard address"),
-			codes.InvalidArgument,
-		)
-	}
-
-	oteltrace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))
-	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), codes.InvalidArgument)
-	}
-
-	return micro.NewSuccessResponse(req, nil)
-}
-
-// flushInterShardCommands hands the commands staged during this tick's dispatch to the sender. It is a
-// no-op when the service never connected to NATS, as in the DST harness.
-func (s *service) flushInterShardCommands() {
-	if s.sender != nil {
-		s.sender.flush()
+// drainInterShardCommands hands the commands enqueued during this tick's dispatch to the send
+// pipelines. It is a no-op when the service never connected to NATS, as in the DST harness.
+func (s *service) drainInterShardCommands() {
+	if s.interShard != nil {
+		s.interShard.drain()
 	}
 }
 
@@ -657,9 +614,9 @@ func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event)
 		return eris.Errorf("invalid inter shard command %v", evt.Payload)
 	}
 	assert.That(isc.Address != nil, "inter shard command has nil address")
-	assert.That(s.sender != nil, "inter shard command published before the service started")
+	assert.That(s.interShard != nil, "inter shard command published before the service started")
 
-	s.sender.stage(ctx, &iscv1.Command{
+	s.interShard.enqueue(ctx, &iscv1.Command{
 		Name:    isc.Payload.Name(),
 		Address: isc.Address,
 		Persona: &iscv1.Persona{Id: isc.Persona},

@@ -26,25 +26,25 @@ func simpleCommandTo(from, to *micro.ServiceAddress, value int) *iscv1.Command {
 	}
 }
 
-// TestInterShardSender_StopSendsFlushedInOrder checks that commands to one target arrive in the order
-// they were staged across several ticks, and that stop waits until every flushed command is sent.
-func TestInterShardSender_StopSendsFlushedInOrder(t *testing.T) {
+// TestInterShard_StopSendsDrainedInOrder checks that commands to one target arrive in the order
+// they were enqueued across several ticks, and that stop waits until every drained command is sent.
+func TestInterShard_StopSendsDrainedInOrder(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
 	fixtureA := newServiceFixture(t, prng, true)
 	fixtureB := newServiceFixture(t, prng, true)
-	sender := newInterShardSender(fixtureA.client, zerolog.Nop())
+	link := newInterShard(fixtureA.world.address, fixtureA.client, &fixtureA.world.commands, zerolog.Nop())
 
 	const ticks, perTick = 5, 4
 	for tick := range ticks {
 		for i := range perTick {
-			sender.stage(context.Background(),
+			link.enqueue(context.Background(),
 				simpleCommandTo(fixtureA.world.address, fixtureB.world.address, tick*perTick+i))
 		}
-		sender.flush()
+		link.drain()
 	}
-	sender.stop(context.Background())
+	link.stop(context.Background())
 
 	// stop returned only after B accepted every send, so one drain sees them all.
 	fixtureB.world.commands.Drain()
@@ -56,9 +56,9 @@ func TestInterShardSender_StopSendsFlushedInOrder(t *testing.T) {
 	}
 }
 
-// TestInterShardSender_HungTargetIsolated checks that a target that never acks neither blocks flush
+// TestInterShard_HungTargetIsolated checks that a target that never acks neither blocks drain
 // (the tick) nor delays commands to a healthy target.
-func TestInterShardSender_HungTargetIsolated(t *testing.T) {
+func TestInterShard_HungTargetIsolated(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
@@ -78,20 +78,20 @@ func TestInterShardSender_HungTargetIsolated(t *testing.T) {
 		}))
 	require.NoError(t, hungClient.Flush())
 
-	sender := newInterShardSender(fixtureA.client, zerolog.Nop())
+	link := newInterShard(fixtureA.world.address, fixtureA.client, &fixtureA.world.commands, zerolog.Nop())
 	t.Cleanup(func() {
 		close(release)
-		sender.stop(context.Background())
+		link.stop(context.Background())
 		_ = hung.Close()
 	})
 
-	// Several ticks send to both targets. Each flush must return without waiting on the hung target.
+	// Several ticks send to both targets. Each drain must return without waiting on the hung target.
 	for tick := range 3 {
-		sender.stage(context.Background(), simpleCommandTo(fixtureA.world.address, hungAddress, tick))
-		sender.stage(context.Background(), simpleCommandTo(fixtureA.world.address, fixtureB.world.address, tick))
+		link.enqueue(context.Background(), simpleCommandTo(fixtureA.world.address, hungAddress, tick))
+		link.enqueue(context.Background(), simpleCommandTo(fixtureA.world.address, fixtureB.world.address, tick))
 		start := time.Now()
-		sender.flush()
-		assert.Less(t, time.Since(start), 500*time.Millisecond, "flush waited on a send")
+		link.drain()
+		assert.Less(t, time.Since(start), 500*time.Millisecond, "drain waited on a send")
 	}
 
 	// B receives all three while the hung target still holds its first command.

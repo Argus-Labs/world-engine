@@ -220,7 +220,7 @@ func TestInterShardCommandPropagatesTrace(t *testing.T) {
 			Payload: payload,
 		},
 	}))
-	fixtureA.svc.flushInterShardCommands() // what the tick does after dispatch
+	fixtureA.svc.drainInterShardCommands() // what the tick does after dispatch
 
 	// The send is asynchronous: wait for the command to land, then for the send span to end.
 	cmds := awaitCommands(t, fixtureB)
