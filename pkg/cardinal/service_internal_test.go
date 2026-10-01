@@ -158,8 +158,7 @@ func TestService_PublishInterShardCommand(t *testing.T) {
 		require.NoError(t, err)
 		fixtureA.svc.drainInterShardCommands() // what the tick does after dispatch
 
-		// The send is asynchronous: drain service B until the command arrives, then verify its
-		// payload/persona.
+		// Drain service B and verify the command arrived with correct payload/persona.
 		cmds := awaitCommands(t, fixtureB)
 		assert.Equal(t, payload, cmds[0].Payload)
 		assert.Equal(t, sender, cmds[0].Persona)
@@ -208,8 +207,7 @@ func TestService_ShutdownBeforeInitializationCompletes(t *testing.T) {
 // Fixture
 // -------------------------------------------------------------------------------------------------
 
-// awaitCommands drains fixture's world until its SimpleCommand queue has one command, which it
-// returns. Inter-shard sends are asynchronous, so the command lands some time after the publish.
+// awaitCommands drains fixture's world until its SimpleCommand queue has one command, and returns it.
 func awaitCommands(t *testing.T, fixture *serviceFixture) []command.Command {
 	t.Helper()
 	var cmds []command.Command
