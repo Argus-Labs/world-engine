@@ -62,7 +62,7 @@ func (c *PurgeCmd) Run(ctx context.Context) error {
 //     via the existing dockerClient.PruneCardinalImages — same logic the docker
 //     backend's --image flag uses.
 //  2. The retagged k3d-registry push tags this stack creates per reload
-//     (e.g. k3d-world-engine-registry.localhost:5000/rampage/gameplay:local-1780199123).
+//     (e.g. k3d-world-engine-registry.localhost:5000/rampage/gameplay:local-1780199123456789000).
 //     One tag accumulates per reload + per shard, so over a long dev session
 //     this can be 100+ images each pointing at a different ID. Listed via
 //     reference-filter and best-effort-removed.
