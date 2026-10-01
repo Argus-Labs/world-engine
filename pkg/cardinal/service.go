@@ -43,6 +43,7 @@ type service struct {
 	argusAuthURL string
 	client       *micro.Client
 	microService *micro.Service
+	sender       *interShardSender
 	commands     map[string]struct{}
 	subscribers  map[string]*streamSubscriber
 	replyWaiters map[string][]chan *iscv1.Event
@@ -84,6 +85,7 @@ func (s *service) init(address string) error {
 		return eris.Wrap(err, "failed to initialize micro client")
 	}
 	s.client = client
+	s.sender = newInterShardSender(client, s.log)
 	microService, err := micro.NewService(client, s.world.address, &s.world.tel)
 	if err != nil {
 		return eris.Wrap(err, "failed to create micro service")
@@ -181,6 +183,10 @@ func (s *service) shutdown(ctx context.Context) error {
 		if err := s.server.Shutdown(ctx); err != nil {
 			return eris.Wrap(err, "failed to shutdown service server")
 		}
+	}
+	// Send what the last ticks queued before the NATS connection closes.
+	if s.sender != nil {
+		s.sender.stop(ctx)
 	}
 	if s.microService != nil {
 		if err := s.microService.Close(); err != nil {
@@ -637,42 +643,28 @@ func (s *service) handleInterShardCommand(ctx context.Context, req *micro.Reques
 	return micro.NewSuccessResponse(req, nil)
 }
 
+// flushInterShardCommands hands the commands staged during this tick's dispatch to the sender. It is a
+// no-op when the service never connected to NATS, as in the DST harness.
+func (s *service) flushInterShardCommands() {
+	if s.sender != nil {
+		s.sender.flush()
+	}
+}
+
 func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event) error {
 	isc, ok := evt.Payload.(command.Command)
 	if !ok {
 		return eris.Errorf("invalid inter shard command %v", evt.Payload)
 	}
 	assert.That(isc.Address != nil, "inter shard command has nil address")
+	assert.That(s.sender != nil, "inter shard command published before the service started")
 
-	// The NATS client injects this span into the request headers, so the receiving shard's handler
-	// span (and the tick that drains the command there) joins this tick's oteltrace.
-	ctx, span := trace.New(ctx, spanInterShardSend, oteltrace.WithAttributes(
-		attrCommandName.String(isc.Payload.Name()), attrCommandTarget.String(micro.String(isc.Address))))
-	defer span.End()
-
-	payload := schema.Marshal(isc.Payload)
-
-	commandPb := &iscv1.Command{
+	s.sender.stage(ctx, &iscv1.Command{
 		Name:    isc.Payload.Name(),
 		Address: isc.Address,
 		Persona: &iscv1.Persona{Id: isc.Persona},
-		Payload: payload,
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	// TODO: revisit shard-to-shard blocking. Dispatch runs synchronously in the tick loop, so this
-	// request-reply blocks the whole world up to 10s per send — and we discard the reply anyway. If
-	// shard-to-shard isn't meant to block the tick, make this async (worker) or fire-and-forget Publish.
-	_, err := s.client.Request(ctx, isc.Address, "command."+isc.Payload.Name(), commandPb)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(otelcodes.Error, "send failed")
-		s.log.Error().Err(err).Str("command", isc.Payload.Name()).Msg("inter-shard command dropped: send failed")
-		return nil
-	}
-
+		Payload: schema.Marshal(isc.Payload),
+	})
 	return nil
 }
 

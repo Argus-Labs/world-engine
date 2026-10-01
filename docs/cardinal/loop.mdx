@@ -52,7 +52,7 @@ Each tick is one root trace named `cardinal.tick` with these children:
 | `cardinal.system` | `cardinal.system.name`, `cardinal.system.hook` (one span per system run) |
 | `cardinal.events.dispatch` | error status when any event handler fails |
 | `cardinal.event.publish` | `cardinal.event.name`, `cardinal.event.recipient`, `cardinal.event.subscribers`, `cardinal.event.waiters` (one per event) |
-| `cardinal.command.send` | `cardinal.command.name`, `cardinal.command.target` (one per inter-shard command) |
+| `cardinal.command.send` | `cardinal.command.name`, `cardinal.command.target` (one per inter-shard command; sent in the background after the tick, so it can end after `cardinal.tick`) |
 | `cardinal.persist_state` | `cardinal.snapshot.due` (present only on ticks that serialize state) |
 
 Startup emits `cardinal.init` (init systems, also on debug reset) and `cardinal.restore` (snapshot load).

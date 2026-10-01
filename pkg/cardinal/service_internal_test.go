@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
@@ -155,12 +156,11 @@ func TestService_PublishInterShardCommand(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
+		fixtureA.svc.flushInterShardCommands() // what the tick does after dispatch
 
-		// Drain service B and verify the command arrived with correct payload/persona.
-		fixtureB.world.commands.Drain()
-		cmds, err := fixtureB.world.commands.Get(fixtureB.commandID)
-		require.NoError(t, err)
-		require.Len(t, cmds, 1)
+		// The send is asynchronous: drain service B until the command arrives, then verify its
+		// payload/persona.
+		cmds := awaitCommands(t, fixtureB)
 		assert.Equal(t, payload, cmds[0].Payload)
 		assert.Equal(t, sender, cmds[0].Persona)
 	})
@@ -208,6 +208,21 @@ func TestService_ShutdownBeforeInitializationCompletes(t *testing.T) {
 // Fixture
 // -------------------------------------------------------------------------------------------------
 
+// awaitCommands drains fixture's world until its SimpleCommand queue has one command, which it
+// returns. Inter-shard sends are asynchronous, so the command lands some time after the publish.
+func awaitCommands(t *testing.T, fixture *serviceFixture) []command.Command {
+	t.Helper()
+	var cmds []command.Command
+	require.Eventually(t, func() bool {
+		fixture.world.commands.Drain()
+		var err error
+		cmds, err = fixture.world.commands.Get(fixture.commandID)
+		require.NoError(t, err)
+		return len(cmds) == 1
+	}, 5*time.Second, 10*time.Millisecond)
+	return cmds
+}
+
 type serviceFixture struct {
 	client    *micro.Client
 	svc       *service
@@ -249,6 +264,9 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool
 		client := NewTestClient(t)
 		svc.client = client
 		fixture.client = client
+		svc.sender = newInterShardSender(client, zerolog.Nop())
+		// Registered after the client, so it runs first: queued sends finish before the client closes.
+		t.Cleanup(func() { svc.sender.stop(context.Background()) })
 
 		microService, err := micro.NewService(client, address, &tel)
 		require.NoError(t, err)
