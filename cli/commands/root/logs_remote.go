@@ -18,8 +18,10 @@ import (
 // path prefix selects its namespace-local operator.
 func remoteOperatorEndpoint(env string) string {
 	switch env {
-	case "us-west1", "usw1", "usw2":
+	case "us-west1", "usw1":
 		return "https://operator-usw1.argus.dev"
+	case "us-west2", "usw2":
+		return "https://operator-usw2.argus.dev"
 	default:
 		return fmt.Sprintf("https://operator-usw1.argus.dev/ephemeral/%s", env)
 	}
