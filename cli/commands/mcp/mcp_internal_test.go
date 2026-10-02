@@ -12,7 +12,11 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/dynamicpb"
 
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 
@@ -603,6 +607,85 @@ func TestFlattenWorldState_WhereWithLimitStillCountsEveryMatch(t *testing.T) {
 	require.Len(t, got.entities, 1)
 	assert.Equal(t, 3, got.matched)
 	assert.Equal(t, 3, got.total)
+}
+
+// -------------------------------------------------------------------------------------------------
+// oneof / proto3-optional presence in get_state filtering
+//
+// A where clause filters the map messageToMap produces. Inactive scalar/enum oneof members
+// must render nil (not their zero value) so a clause can tell "branch not chosen" from "branch
+// chosen with the zero value" — the bug the fd.HasPresence() guard fixes. These exercise the
+// full compileStateFilter + flattenWorldState + entityComponents pipeline the tool drives.
+// -------------------------------------------------------------------------------------------------
+
+// modeWorld builds a two-entity world over `Mode { oneof which { string Tag = 1; int32 Team = 2; } }`:
+// entity 1 set Team=0 (the active branch, set to the zero value); entity 2 set Tag="red" (Team inactive).
+func modeWorld(t *testing.T, md protoreflect.MessageDescriptor) *cardinalv1.WorldState {
+	t.Helper()
+	blob := func(jsonPayload string) []byte {
+		msg := dynamicpb.NewMessage(md)
+		require.NoError(t, protojson.Unmarshal([]byte(jsonPayload), msg))
+		wire, err := proto.MarshalOptions{Deterministic: true}.Marshal(msg)
+		require.NoError(t, err)
+		return wire
+	}
+	return &cardinalv1.WorldState{
+		Components: []string{"Mode"},
+		Entities: []*cardinalv1.Entity{
+			{Id: 1, Components: []uint32{0}, Payloads: [][]byte{blob(`{"Team": 0}`)}},
+			{Id: 2, Components: []uint32{0}, Payloads: [][]byte{blob(`{"Tag": "red"}`)}},
+		},
+	}
+}
+
+// The phantom-zero bug: filtering for Mode.Team == 0 must match only entity 1 (Team explicitly
+// set to 0), not entity 2 (Team is an inactive oneof member). Before the fix, entity 2's inactive
+// Team rendered as 0, so both matched.
+func TestOneofScalarPhantomZeroCorruptsWhere(t *testing.T) {
+	t.Parallel()
+
+	descriptors := componentDescriptors{"Mode": modeDescriptor(t)}
+	ws := modeWorld(t, modeDescriptor(t))
+
+	filter, err := compileStateFilter(GetStateInput{Where: "Mode.Team == 0"})
+	require.NoError(t, err)
+
+	got, err := flattenWorldState(ws, -1, filter, descriptors)
+	require.NoError(t, err)
+
+	// Sanity: confirm the map messageToMap produced for each entity.
+	for i := range ws.GetEntities() {
+		components := entityComponents([]string{"Mode"}, ws.Entities[i].GetPayloads(), descriptors)
+		t.Logf("entity %d Mode=%#v", ws.Entities[i].GetId(), components["Mode"])
+	}
+
+	require.Lenf(t, got.entities, 1,
+		"expected only entity 1 (Team explicitly set to 0); phantom zero on inactive oneof member wrongly admitted entity 2. matched=%d",
+		got.matched)
+	assert.Equal(t, uint32(1), got.entities[0].ID)
+	assert.Equal(t, 2, got.total)
+	assert.Equal(t, 1, got.matched)
+}
+
+// A nil check is now a sound way to detect an inactive oneof member: Mode.Team == nil matches
+// entity 2 (Team not chosen) and not entity 1 (Team chosen, set to 0). Before the fix the inactive
+// member rendered 0, so neither nil nor zero could express "branch not chosen."
+func TestOneofInactiveMemberMatchesNilWhere(t *testing.T) {
+	t.Parallel()
+
+	descriptors := componentDescriptors{"Mode": modeDescriptor(t)}
+	ws := modeWorld(t, modeDescriptor(t))
+
+	filter, err := compileStateFilter(GetStateInput{Where: "Mode.Team == nil"})
+	require.NoError(t, err)
+
+	got, err := flattenWorldState(ws, -1, filter, descriptors)
+	require.NoError(t, err)
+
+	require.Lenf(t, got.entities, 1,
+		"expected only entity 2 (Team inactive); an inactive oneof member must read as nil. matched=%d",
+		got.matched)
+	assert.Equal(t, uint32(2), got.entities[0].ID)
 }
 
 // -------------------------------------------------------------------------------------------------

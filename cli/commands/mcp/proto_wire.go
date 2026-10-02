@@ -81,17 +81,23 @@ func decodeMessage(md protoreflect.MessageDescriptor, blob []byte) (map[string]a
 	return messageToMap(msg), nil
 }
 
-// messageToMap renders a decoded message as a map keyed by field name. Every field is present,
-// zero values included, so a where clause never trips over a missing key. Values keep their native
-// Go types — protojson would render 64-bit ints as strings, breaking numeric comparisons.
+// messageToMap renders a decoded message as a map keyed by field name. Every field is present;
+// a field with presence that is unset renders as nil (not a zero value), so a where clause can tell
+// "oneof branch not chosen" from "branch chosen with the zero value." Plain scalars and lists/maps —
+// which carry no presence — still render their zero/empty value, so no key is ever missing. Values
+// keep their native Go types — protojson would render 64-bit ints as strings, breaking numeric
+// comparisons.
 func messageToMap(msg protoreflect.Message) map[string]any {
 	fields := msg.Descriptor().Fields()
 	out := make(map[string]any, fields.Len())
 	for i := range fields.Len() {
 		fd := fields.Get(i)
-		// An absent singular message field has nothing to report, and recursing into the empty
-		// message a Get would hand back never terminates for a self-referential type.
-		if fd.Message() != nil && !fd.IsList() && !fd.IsMap() && !msg.Has(fd) {
+		// A field with presence that isn't set (singular message, proto3 optional, or any oneof
+		// member — including scalar/enum members) has nothing to report. nil (not a misleading zero
+		// value) is what lets a where clause tell "oneof branch not chosen" from "branch chosen with
+		// the zero value", and it terminates self-referential message fields. List/map fields report
+		// no presence, so they fall through to their empty-collection render below.
+		if fd.HasPresence() && !msg.Has(fd) {
 			out[string(fd.Name())] = nil
 			continue
 		}
