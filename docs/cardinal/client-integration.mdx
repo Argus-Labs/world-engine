@@ -45,20 +45,20 @@ Create a client with a configuration object that specifies the auth URL and regi
 
 ## Authentication
 
-Sign in to authenticate the user. You can retrieve the current user's information and persona after signing in.
+Restore the saved session at startup, or sign in. Cardinal identifies the player by the stable player ID in the game token.
 
 <Tabs>
   <Tab title="Unity C#">
     ```csharp
-    var result = await client.SignInAsync();
-    if (result.Error == null)
-    {
-        var user = result.Data;
-        Debug.Log($"Signed in as {user.Email} (Persona: {user.PersonaId})");
-    }
+    var result = await client.RestoreSessionAsync();
+    if (result.Error is AuthNoSavedSessionException)
+        result = await client.SignInAsync(); // or SignInAsGuestAsync()
 
-    // Get current user
-    var currentUser = client.GetUser();
+    if (result.Player is PlayerState.Registered player)
+        Debug.Log($"Signed in as {player.Email} (Player: {player.Id})");
+
+    // Read the current player snapshot
+    var current = client.Player;
     ```
   </Tab>
   <Tab title="TypeScript">

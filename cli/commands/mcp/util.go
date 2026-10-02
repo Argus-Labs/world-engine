@@ -28,9 +28,9 @@ import (
 // -------------------------------------------------------------------------------------------------
 
 const (
-	// defaultDevEmail is the default email used for dev auth.
-	defaultDevEmail = "mcp@dev.local"
-	// devPersonaID is a placeholder persona (regex-safe); the shard overwrites Persona.Id from X-Email.
+	// defaultDevPlayerID is the default player ID used for dev auth.
+	defaultDevPlayerID = "mcp-dev-player"
+	// devPersonaID is a placeholder persona (regex-safe); the shard overwrites Persona.Id from X-Player-Id.
 	devPersonaID = "-1"
 	// defaultRegion is the region local shards register with (CARDINAL_REGION);
 	// it must match or a command reaches no responders.
@@ -39,29 +39,29 @@ const (
 	defaultCommandTimeout = 30 * time.Second
 )
 
-// devAuthInterceptor implements connect.Interceptor to add the X-Email header to all requests.
+// devAuthInterceptor implements connect.Interceptor to add the X-Player-Id header to all requests.
 //
 // Cardinal's dev auth middleware (AuthModeDev) requires this header to authenticate requests in
-// development mode. The header value is used to look up or create a persona ID for the request.
+// development mode. The header value is the player ID for the request.
 type devAuthInterceptor struct {
-	email string
+	playerID string
 }
 
-// WrapUnary injects the X-Email header on unary RPCs (SendCommand) — the
+// WrapUnary injects the X-Player-Id header on unary RPCs (SendCommand) — the
 // only interceptor path the MCP tools use.
 func (i *devAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-		req.Header().Set("X-Email", i.email)
+		req.Header().Set("X-Player-Id", i.playerID)
 		return next(ctx, req)
 	}
 }
 
-// WrapStreamingClient injects the X-Email header on streaming clients. Required
+// WrapStreamingClient injects the X-Player-Id header on streaming clients. Required
 // by connect.Interceptor; the MCP tools make no streaming calls.
 func (i *devAuthInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
 	return func(ctx context.Context, spec connect.Spec) connect.StreamingClientConn {
 		conn := next(ctx, spec)
-		conn.RequestHeader().Set("X-Email", i.email)
+		conn.RequestHeader().Set("X-Player-Id", i.playerID)
 		return conn
 	}
 }
