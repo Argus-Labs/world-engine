@@ -22,13 +22,20 @@ import (
 )
 
 // setupOpenTelemetry sets up OpenTelemetry for the service. It installs the global tracer
-// provider and propagator that trace.New relies on, and returns the logger and a shutdown
-// function. The globals are process-wide, so a process owns exactly one Telemetry: a second
-// instance would take over the first one's spans, and shutting either down stops both.
+// provider and propagator that trace.New relies on, and returns the logger, the resolved span
+// link limit, and a shutdown function. The globals are process-wide, so a process owns exactly
+// one Telemetry: a second instance would take over the first one's spans, and shutting either
+// down stops both.
+//
+// The resolved link limit mirrors what the tracer provider applies (OTEL_SPAN_LINK_COUNT_LIMIT,
+// default 128): it is threaded out so callers that pre-cap links (cardinal's tick span) can match
+// the provider's actual limit and never build links the SDK would drop. When tracing is disabled
+// (empty endpoint) no provider is constructed, but the limit is still resolved from the same env
+// source so a caller that later installs its own provider reading the same env stays in sync.
 func setupOpenTelemetry(
 	ctx context.Context,
 	opts Options,
-) (zerolog.Logger, func(context.Context) error, error) {
+) (zerolog.Logger, int, func(context.Context) error, error) {
 	var shutdownFuncs []func(context.Context) error
 	var err error
 
@@ -48,15 +55,19 @@ func setupOpenTelemetry(
 	// Setup logger first
 	logger := newLogger(opts)
 
+	// Resolve the span link limit the same way the SDK does (OTEL_SPAN_LINK_COUNT_LIMIT, default
+	// 128). Threaded out so link cappers share the provider's actual limit.
+	linkLimit := trace.NewSpanLimits().LinkCountLimit
+
 	// An empty endpoint disables tracing: the global provider stays the SDK default no-op.
 	if opts.Endpoint == "" {
-		return logger, shutdown, nil
+		return logger, linkLimit, shutdown, nil
 	}
 
 	res, err := newResource(opts)
 	if err != nil {
 		handleErr(err)
-		return logger, shutdown, err
+		return logger, linkLimit, shutdown, err
 	}
 
 	propagator := newPropagator()
@@ -67,15 +78,15 @@ func setupOpenTelemetry(
 		logger.Warn().Err(err).Msg("opentelemetry export failed")
 	}))
 
-	tracerProvider, err := newTracerProvider(ctx, res, opts)
+	tracerProvider, providerLinkLimit, err := newTracerProvider(ctx, res, opts)
 	if err != nil {
 		handleErr(err)
-		return logger, shutdown, err
+		return logger, linkLimit, shutdown, err
 	}
 	shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
 	otel.SetTracerProvider(tracerProvider)
 
-	return logger, shutdown, err
+	return logger, providerLinkLimit, shutdown, err
 }
 
 func newResource(opts Options) (*resource.Resource, error) {
@@ -131,10 +142,15 @@ func exporterEndpointOptions(endpoint string, insecure bool) []otlptracegrpc.Opt
 	return options
 }
 
-func newTracerProvider(ctx context.Context, res *resource.Resource, opts Options) (*trace.TracerProvider, error) {
+// newTracerProvider builds the SDK TracerProvider for the resolved config and returns it together
+// with the resolved span link limit. The limit is captured here — at the point the provider is
+// constructed, which is where the SDK reads OTEL_SPAN_LINK_COUNT_LIMIT — so the returned value is
+// the exact LinkCountLimit the provider will enforce. Callers thread it to link cappers so the
+// cap and the provider share one source of truth.
+func newTracerProvider(ctx context.Context, res *resource.Resource, opts Options) (*trace.TracerProvider, int, error) {
 	exporter, err := otlptracegrpc.New(ctx, exporterEndpointOptions(opts.Endpoint, opts.Insecure)...)
 	if err != nil {
-		return nil, eris.Wrap(err, "failed to create OTLP trace exporter")
+		return nil, 0, eris.Wrap(err, "failed to create OTLP trace exporter")
 	}
 
 	var sampler trace.Sampler
@@ -147,11 +163,16 @@ func newTracerProvider(ctx context.Context, res *resource.Resource, opts Options
 		sampler = trace.ParentBased(trace.TraceIDRatioBased(opts.TraceSampleRate))
 	}
 
+	// Read the SDK's link limit at construction time (the same value NewTracerProvider applies
+	// when no WithSpanLimits is passed). Threading this out keeps a future explicit WithSpanLimits
+	// authoritative: the cap will track whatever the provider actually enforces.
+	linkLimit := trace.NewSpanLimits().LinkCountLimit
+
 	return trace.NewTracerProvider(
 		trace.WithBatcher(exporter),
 		trace.WithResource(res),
 		trace.WithSampler(sampler),
-	), nil
+	), linkLimit, nil
 }
 
 // newLogger creates a trace-aware logger with the specified format.

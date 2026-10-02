@@ -43,6 +43,7 @@ type World struct {
 	tickCtx         context.Context       // Parent context for spans started by systems in the current tick
 	options         WorldOptions          // World options
 	tel             telemetry.Telemetry   // Logs and traces
+	maxCommandLinks int                   // Cap on tick-span command links; matches the tracer provider's LinkCountLimit
 
 	archetypes map[reflect.Type]bitmap.Bitmap // Component sets resolved from archetype structs
 	eventTypes map[reflect.Type]struct{}      // Events registered with RegisterEvent
@@ -85,10 +86,11 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		events:   event.NewManager(1024),
 		address: micro.GetAddress(
 			options.Region, micro.RealmWorld, options.Organization, options.Project, options.ShardID),
-		currentTick: Tick{height: 0},
-		tickCtx:     context.Background(),
-		options:     options,
-		tel:         tel,
+		currentTick:     Tick{height: 0},
+		tickCtx:         context.Background(),
+		options:         options,
+		tel:             tel,
+		maxCommandLinks: tel.MaxCommandLinks(),
 	}
 
 	// Register components for introspection.
@@ -246,7 +248,7 @@ func (w *World) Tick(timestamp time.Time) {
 		oteltrace.WithAttributes(
 			attrTickHeight.Int64(int64(w.currentTick.height)), //nolint:gosec // tick height stays far below int64 max
 			attrTickCommands.Int(len(commands))),
-		oteltrace.WithLinks(commandLinks(commands)...))
+		oteltrace.WithLinks(w.commandLinks(commands)...))
 	defer span.End()
 	w.tickCtx = ctx
 	defer func() { w.tickCtx = context.Background() }()
@@ -268,23 +270,21 @@ func (w *World) Tick(timestamp time.Time) {
 	w.currentTick.height++
 }
 
-// maxCommandLinks caps the links on a tick span. It matches the OpenTelemetry SDK's default link
-// limit (OTEL_SPAN_LINK_COUNT_LIMIT); links past it would only be built to be dropped, and the SDK
-// drops them one memmove at a time.
-const maxCommandLinks = 128
-
 // commandLinks builds one span link per drained command whose enqueuing request was sampled, up
-// to maxCommandLinks. Links, not children: that request finished before this tick. A request the
-// sampler dropped was never exported, so a link to it would dangle; skipping it also skips the
-// zero SpanContext of an untraced caller. Nil when no command qualifies, so an untraced tick pays
-// no allocation here.
-func commandLinks(commands []command.Command) []oteltrace.Link {
+// to w.maxCommandLinks. The cap is the tracer provider's resolved span link limit
+// (OTEL_SPAN_LINK_COUNT_LIMIT, default 128), threaded in from telemetry.New, so the cap and the
+// provider share one source of truth: links are never built only to be dropped by the SDK, under
+// any supported configuration. Links, not children: that request finished before this tick. A
+// request the sampler dropped was never exported, so a link to it would dangle; skipping it also
+// skips the zero SpanContext of an untraced caller. Nil when no command qualifies, so an untraced
+// tick pays no allocation here.
+func (w *World) commandLinks(commands []command.Command) []oteltrace.Link {
 	var links []oteltrace.Link
 	for _, cmd := range commands {
 		if !cmd.Span.IsSampled() {
 			continue
 		}
-		if len(links) == maxCommandLinks {
+		if len(links) == w.maxCommandLinks {
 			break
 		}
 		links = append(links, oteltrace.Link{SpanContext: cmd.Span, Attributes: []attribute.KeyValue{
