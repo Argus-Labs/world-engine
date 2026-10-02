@@ -27,6 +27,11 @@ type Model struct {
 	spinner spinner.Model
 }
 
+// CurrentIndex returns the index of the step the wizard is currently on.
+// It lets callers outside this package render or route input based on the
+// active step rather than relying on UI-mode flags.
+func (m Model) CurrentIndex() int { return m.index }
+
 func New() Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot

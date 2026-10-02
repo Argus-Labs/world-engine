@@ -51,7 +51,11 @@ func (m WorldSetupModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case m.showTemplateList:
 		return m.handleTemplateKey(msg)
-	case m.projectNameInput.Focused():
+	case m.projectNameInput.Focused() && m.steps.CurrentIndex() == int(stepName):
+		// Only route keystrokes to the name input while the wizard is actually
+		// on the name step. On the arg path the input stays focused after the
+		// name step is auto-completed by Init, so without this guard an Enter
+		// during stepClone/stepTidy would mark that step COMPLETE prematurely.
 		return m.handleNameInputKey(msg)
 	default:
 		return m, nil // Clone/tidy running — ignore keypresses
