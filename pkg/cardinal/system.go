@@ -170,7 +170,7 @@ func (w *World) Logger() *zerolog.Logger {
 type Command = command.Payload
 
 // RegisterCommand registers a command type before world startup. Registering it again is a no-op.
-// The service accepts a command from clients only once it is registered here.
+// The transport accepts a command from clients and other shards only once it is registered here.
 func (w *World) RegisterCommand[T Command]() {
 	if w.started {
 		panic(ErrWorldStarted)
@@ -180,6 +180,7 @@ func (w *World) RegisterCommand[T Command]() {
 	// here. There is no codec registry to consult.
 	var zero T
 	name := zero.Name()
+	_, registered := w.commands.Lookup(name)
 
 	if _, err := w.commands.Register(name, command.NewQueue[T]()); err != nil {
 		panic(eris.Wrapf(err, "failed to register command %s", name))
@@ -187,7 +188,9 @@ func (w *World) RegisterCommand[T Command]() {
 	if err := w.debug.register(introspect.Command, zero); err != nil {
 		panic(eris.Wrapf(err, "failed to register command to debug module %s", name))
 	}
-	w.service.registerCommandHandler(name)
+	if !registered {
+		w.transport.Handle(name, w.commands.Enqueue)
+	}
 }
 
 // Commands yields the commands of type T received for the current tick. It panics if T was not
@@ -262,7 +265,6 @@ func (w *World) SendToShard(to OtherWorld, cmd command.Payload) {
 		Kind: event.KindInterShardCommand,
 		Payload: command.Command{
 			Name:    cmd.Name(),
-			Persona: micro.String(w.address),
 			Address: serviceAddress,
 			Payload: cmd,
 		},

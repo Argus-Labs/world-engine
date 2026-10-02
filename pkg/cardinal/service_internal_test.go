@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"connectrpc.com/authn"
 	"connectrpc.com/connect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
@@ -17,9 +16,9 @@ import (
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/argus-labs/world-engine/pkg/testutils"
+	"github.com/argus-labs/world-engine/pkg/transport"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
-	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,142 +29,43 @@ import (
 )
 
 // -------------------------------------------------------------------------------------------------
-// SendCommand smoke tests
+// Inter-shard wiring smoke tests
 // -------------------------------------------------------------------------------------------------
-// Verifies that the ConnectRPC command handler enqueues commands into the command manager and
-// rejects commands addressed to the wrong shard.
+// Verifies that an inter-shard command dispatched by one world is sent by its transport, and that the
+// target world's transport hands it to the command manager with the sending shard as persona.
 // -------------------------------------------------------------------------------------------------
 
-func TestService_SendCommand(t *testing.T) {
+func TestService_SendInterShardCommand(t *testing.T) {
 	t.Parallel()
+	prng := testutils.NewRand(t)
 
-	t.Run("happy path", func(t *testing.T) {
-		t.Parallel()
-		prng := testutils.NewRand(t)
-		fixture := newServiceFixture(t, prng, false)
+	fixtureA := newServiceFixture(t, prng, true)
+	fixtureB := newServiceFixture(t, prng, true)
 
-		payload := testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
-		payloadBytes := payload.MarshalWire()
-		userID := testutils.RandString(prng, 8)
-		cmdPb := &iscv1.Command{
+	payload := testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
+	require.NoError(t, fixtureA.world.sendInterShardCommand(context.Background(), event.Event{
+		Kind: event.KindInterShardCommand,
+		Payload: command.Command{
 			Name:    payload.Name(),
-			Address: fixture.world.address,
-			Persona: &iscv1.Persona{Id: "client-provided-persona"},
-			Payload: payloadBytes,
-		}
-
-		_, err := fixture.svc.SendCommand(
-			serviceTestContext(userID),
-			connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmdPb}),
-		)
-		require.NoError(t, err)
-
-		fixture.world.commands.Drain()
-		cmds, err := fixture.world.commands.Get(fixture.commandID)
-		require.NoError(t, err)
-		require.Len(t, cmds, 1)
-		assert.Equal(t, payload, cmds[0].Payload)
-		assert.Equal(t, userID, cmds[0].Persona)
-	})
-
-	t.Run("wrong address rejected", func(t *testing.T) {
-		t.Parallel()
-		prng := testutils.NewRand(t)
-		fixture := newServiceFixture(t, prng, false)
-
-		payload := testutils.SimpleCommand{Value: 42}
-		payloadBytes := payload.MarshalWire()
-		cmdPb := &iscv1.Command{
-			Name:    payload.Name(),
-			Address: RandServiceAddress(prng),
-			Persona: &iscv1.Persona{Id: "client-provided-persona"},
-			Payload: payloadBytes,
-		}
-
-		_, err := fixture.svc.SendCommand(
-			serviceTestContext(testutils.RandString(prng, 8)),
-			connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmdPb}),
-		)
-		require.Error(t, err)
-		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-		assert.Contains(t, err.Error(), "address")
-	})
-}
-
-// -------------------------------------------------------------------------------------------------
-// publishDefaultEvent smoke tests
-// -------------------------------------------------------------------------------------------------
-// Verifies that publishing a default event serializes the payload and delivers it to registered
-// ConnectRPC reply waiters with round-trip integrity.
-// -------------------------------------------------------------------------------------------------
-
-func TestService_PublishDefaultEvent(t *testing.T) {
-	t.Parallel()
-
-	t.Run("reply waiter", func(t *testing.T) {
-		t.Parallel()
-		prng := testutils.NewRand(t)
-		fixture := newServiceFixture(t, prng, false)
-
-		payload := testutils.SimpleEvent{Value: prng.Int()}
-		waiter := fixture.svc.addReplyWaiter(payload.Name())
-		defer fixture.svc.removeReplyWaiter(payload.Name(), waiter)
-
-		err := fixture.svc.publishDefaultEvent(context.Background(), event.Event{
-			Kind:    event.KindDefault,
+			Address: fixtureB.world.address,
 			Payload: payload,
-		})
-		require.NoError(t, err)
+		},
+	}))
+	fixtureA.world.transport.Flush() // what the tick does after dispatch
 
-		eventPb := <-waiter
-		assert.Equal(t, payload.Name(), eventPb.GetName())
-		decoded, err := testutils.SimpleEvent{}.UnmarshalWire(eventPb.GetPayload())
-		require.NoError(t, err)
-		assert.Equal(t, payload, decoded)
-	})
+	cmds := awaitCommands(t, fixtureB)
+	assert.Equal(t, payload, cmds[0].Payload)
+	assert.Equal(t, micro.String(fixtureA.world.address), cmds[0].Persona)
 }
 
-// -------------------------------------------------------------------------------------------------
-// publishInterShardCommand smoke tests
-// -------------------------------------------------------------------------------------------------
-// Verifies that an inter-shard command published by one service is received over the NATS ISC path
-// and enqueued by the target service with correct payload and sender shard.
-// -------------------------------------------------------------------------------------------------
-
-func TestService_PublishInterShardCommand(t *testing.T) {
+func TestService_RegisterCommandTwice(t *testing.T) {
 	t.Parallel()
 
-	t.Run("happy path", func(t *testing.T) {
-		t.Parallel()
-		prng := testutils.NewRand(t)
-
-		// Stand up two services on the same NATS.
-		fixtureA := newServiceFixture(t, prng, true)
-		fixtureB := newServiceFixture(t, prng, true)
-
-		// Have service A send an inter-shard command targeting service B.
-		payload := testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
-		sender := micro.String(fixtureA.world.address)
-		err := fixtureA.svc.publishInterShardCommand(context.Background(), event.Event{
-			Kind: event.KindInterShardCommand,
-			Payload: command.Command{
-				Name:    payload.Name(),
-				Address: fixtureB.world.address,
-				Persona: sender,
-				Payload: payload,
-			},
-		})
-		require.NoError(t, err)
-		fixtureA.svc.drainInterShardCommands() // what the tick does after dispatch
-
-		// Drain service B and verify the command arrived with correct payload/persona.
-		cmds := awaitCommands(t, fixtureB)
-		assert.Equal(t, payload, cmds[0].Payload)
-		assert.Equal(t, sender, cmds[0].Persona)
-	})
+	fixture := newServiceFixture(t, testutils.NewRand(t), false)
+	require.NotPanics(t, func() { fixture.world.RegisterCommand[testutils.SimpleCommand]() })
 }
 
-func TestService_MountDebugServiceFinalizesIntrospection(t *testing.T) {
+func TestService_DebugServiceFinalizesIntrospection(t *testing.T) {
 	t.Parallel()
 
 	fixture := newServiceFixture(t, testutils.NewRand(t), false)
@@ -173,8 +73,9 @@ func TestService_MountDebugServiceFinalizesIntrospection(t *testing.T) {
 	require.NoError(t, debug.register(introspect.Command, introspectionSample{}))
 	fixture.world.debug = debug
 
+	require.NoError(t, debug.finalizeCatalog())
 	mux := http.NewServeMux()
-	require.NoError(t, fixture.svc.mountDebugService(mux))
+	mux.Handle(fixture.world.debugServiceHandler())
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
@@ -197,12 +98,6 @@ func TestService_MountDebugServiceFinalizesIntrospection(t *testing.T) {
 	}
 }
 
-func TestService_ShutdownBeforeInitializationCompletes(t *testing.T) {
-	t.Parallel()
-
-	require.NoError(t, (&service{}).shutdown(context.Background()))
-}
-
 // -------------------------------------------------------------------------------------------------
 // Fixture
 // -------------------------------------------------------------------------------------------------
@@ -222,63 +117,48 @@ func awaitCommands(t *testing.T, fixture *serviceFixture) []command.Command {
 }
 
 type serviceFixture struct {
-	client    *micro.Client
-	svc       *service
 	world     *World
 	commandID command.ID
 }
 
-func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool) *serviceFixture {
+// newServiceFixture creates a world wired to a transport, with SimpleCommand registered. With start, the
+// transport is started on the test NATS server and a random local port, and stopped when the test ends.
+func newServiceFixture(t *testing.T, prng *rand.Rand, start bool) *serviceFixture {
 	t.Helper()
-
-	address := RandServiceAddress(prng)
-	tel := telemetry.Telemetry{
-		Logger: zerolog.Nop(),
-	}
 
 	w := &World{
 		world:    ecs.NewWorld(),
 		commands: command.NewManager(),
 		events:   event.NewManager(1024),
-		address:  address,
-		tel:      tel,
+		address:  RandServiceAddress(prng),
+		tel:      telemetry.Telemetry{Logger: zerolog.Nop()},
 	}
+	w.transport = newTestTransport(t, w)
+	w.events.RegisterHandler(event.KindDefault, w.publishEvent)
+	w.events.RegisterHandler(event.KindInterShardCommand, w.sendInterShardCommand)
 
-	svc := newService(w, AuthModeDev, "")
-	w.service = svc
-
-	// RegisterCommand is what makes the service accept SimpleCommand from clients.
 	w.RegisterCommand[testutils.SimpleCommand]()
 	cmdID, ok := w.commands.Lookup(testutils.SimpleCommand{}.Name())
 	require.True(t, ok)
 
-	fixture := &serviceFixture{
-		svc:       svc,
-		world:     w,
-		commandID: cmdID,
+	if start {
+		require.NoError(t, w.transport.Start("127.0.0.1:0"))
+		t.Cleanup(func() { _ = w.transport.Stop(context.Background()) })
 	}
 
-	if registerNATSEndpoints {
-		client := NewTestClient(t)
-		svc.client = client
-		fixture.client = client
-		svc.interShard = newInterShard(address, client, &w.commands, zerolog.Nop())
-		// Registered after the client, so it runs first: queued sends finish before the client closes.
-		t.Cleanup(func() { svc.interShard.stop(context.Background()) })
-
-		microService, err := micro.NewService(client, address, &tel)
-		require.NoError(t, err)
-		t.Cleanup(func() { _ = microService.Close() })
-		svc.microService = microService
-
-		require.NoError(t, microService.AddEndpoint("ping", svc.handlePing))
-		require.NoError(t, svc.interShard.start(microService, svc.commands))
-		require.NoError(t, client.Flush())
-	}
-
-	return fixture
+	return &serviceFixture{world: w, commandID: cmdID}
 }
 
-func serviceTestContext(userID string) context.Context {
-	return authn.SetInfo(context.Background(), &User{ID: userID})
+// newTestTransport creates an unstarted transport for w on the test NATS server.
+func newTestTransport(t *testing.T, w *World) *transport.Transport {
+	t.Helper()
+
+	tr, err := transport.New(transport.Options{
+		Address:   w.address,
+		AuthMode:  AuthModeDev,
+		NATS:      &micro.NATSConfig{Name: "test-service", URL: TestNATS.ClientURL()},
+		Telemetry: &w.tel,
+	})
+	require.NoError(t, err)
+	return tr
 }

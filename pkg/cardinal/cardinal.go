@@ -17,6 +17,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
 	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
 	"github.com/argus-labs/world-engine/pkg/telemetry/trace"
+	"github.com/argus-labs/world-engine/pkg/transport"
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
 	"go.opentelemetry.io/otel/attribute"
@@ -34,7 +35,7 @@ type World struct {
 	commands        command.Manager       // Commands for systems
 	events          event.Manager         // Events and event handlers
 	address         *micro.ServiceAddress // NATS address
-	service         *service              // ConnectRPC client service
+	transport       *transport.Transport  // Client and inter-shard communication
 	snapshotStorage snapshot.Storage      // Snapshot reader
 	snapshotWriter  snapshot.Writer       // Snapshot writer
 	debug           *debugModule          // Debug tools and services
@@ -96,12 +97,26 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		return world.debug.register(introspect.Component, zero)
 	})
 
-	// Create the ConnectRPC client service.
-	world.service = newService(world, options.AuthMode, options.ArgusAuthURL)
+	// Create the transport for clients and other shards.
+	var services []transport.ServiceHandler
+	if *options.Debug {
+		services = append(services, world.debugServiceHandler)
+	}
+	world.transport, err = transport.New(transport.Options{
+		Address:   world.address,
+		AuthMode:  options.AuthMode,
+		ArgusURL:  options.ArgusAuthURL,
+		NATS:      options.NATSConfig,
+		Telemetry: &world.tel,
+		Services:  services,
+	})
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to create transport")
+	}
 
-	// Connect event handlers to service publishers.
-	world.events.RegisterHandler(event.KindDefault, world.service.publishDefaultEvent)
-	world.events.RegisterHandler(event.KindInterShardCommand, world.service.publishInterShardCommand)
+	// Connect event handlers to the transport.
+	world.events.RegisterHandler(event.KindDefault, world.publishEvent)
+	world.events.RegisterHandler(event.KindInterShardCommand, world.sendInterShardCommand)
 
 	// Initialize snapshot storage.
 	switch options.SnapshotStorageType {
@@ -164,7 +179,7 @@ func (w *World) StartGame() {
 	w.pprof.Init(addressPProf)
 
 	// Start the NATS connection and ConnectRPC service.
-	if err := w.service.init(addressService); err != nil {
+	if err := w.startTransport(addressService); err != nil {
 		panic(eris.Wrap(err, "failed to initialize service"))
 	}
 
@@ -303,7 +318,7 @@ func (w *World) dispatchEvents(ctx context.Context) {
 		span.SetError(err)
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 	}
-	w.service.drainInterShardCommands()
+	w.transport.Flush()
 }
 
 // persistState serializes the world for snapshots and the debug service. Encoding cannot fail
@@ -386,7 +401,7 @@ func (w *World) shutdown() {
 	w.snapshotWriter.Stop(ctx)
 
 	// Drain queued commands and events.
-	if err := w.service.shutdown(ctx); err != nil {
+	if err := w.transport.Stop(ctx); err != nil {
 		w.tel.Logger.Error().Err(err).Msg("service shutdown error")
 		w.tel.CaptureException(ctx, err)
 	}
