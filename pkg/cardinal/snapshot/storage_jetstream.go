@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -14,6 +15,12 @@ import (
 )
 
 const defaultObjectName = "snapshot"
+
+// objectStoreStreamNameTmpl is the JetStream stream-name template the SDK uses to back an
+// ObjectStore bucket (see jetstream.objNameTmpl = "OBJ_%s"). It is reproduced here because the
+// SDK keeps the template unexported; the bind path needs the stream name to read the existing
+// bucket's MaxBytes from the server.
+const objectStoreStreamNameTmpl = "OBJ_%s"
 
 // JetStreamStorage implements SnapshotStorage using NATS JetStream ObjectStore.
 type JetStreamStorage struct {
@@ -65,12 +72,29 @@ func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error
 	}
 	os, err := js.CreateObjectStore(ctx, osConfig)
 	if err != nil {
-		if eris.Is(err, jetstream.ErrBucketExists) {
+		if errors.Is(err, jetstream.ErrBucketExists) {
 			// Bucket already exists, get the existing one.
+			//
+			// errors.Is (not eris.Is) is required here: the SDK wraps the bucket-exists
+			// sentinel with errors.Join(fmt.Errorf("%w: %s", ErrBucketExists, bucket), err),
+			// and eris.Is cannot traverse a multi-Unwrap joined error (eris.Unwrap only
+			// handles Unwrap() error). Without errors.Is, a restart with a changed
+			// CARDINAL_SNAPSHOT_STORAGE_MAX_BYTES would fall through to the error return
+			// and fail boot instead of binding to the surviving bucket.
 			os, err = js.ObjectStore(ctx, bucketName)
 			if err != nil {
 				return nil, eris.Wrapf(err, "failed to get existing ObjectStore (bucket=%s)", bucketName)
 			}
+			// js.ObjectStore is a read-only bind: it never transmits ObjectStoreConfig to the
+			// server, so a changed CARDINAL_SNAPSHOT_STORAGE_MAX_BYTES is silently dropped on
+			// every restart after the first. Surface the drift with a boot-time warning instead.
+			//
+			// CreateOrUpdateObjectStore is intentionally NOT used here: it routes through
+			// prepareObjectStoreConfig and re-sends the entire StreamConfig (replicas, discard
+			// policy, compression, etc.), which would overwrite operator-tuned settings on the
+			// existing bucket. MaxBytes is the only field Cardinal manages, so only its drift is
+			// reported; the operator remediates out-of-band (e.g. `nats stream update`).
+			warnMaxBytesMismatch(ctx, js, bucketName, osConfig.MaxBytes, opts.Logger)
 		} else {
 			return nil, eris.Wrapf(err, "failed to create ObjectStore (bucket=%s, maxBytes=%d)",
 				osConfig.Bucket, osConfig.MaxBytes)
@@ -127,4 +151,60 @@ func (opt *JetStreamStorageOptions) Validate() error {
 	}
 	// SnapshotStorageMaxBytes can be 0 which means unlimited storage. No need to validate here.
 	return nil
+}
+
+// normalizeObjectStoreMaxBytes maps a MaxBytes value to its effective form for comparison.
+// The SDK's prepareObjectStoreConfig maps a zero MaxBytes to -1 (unlimited) on create, so a
+// configured 0 and a server-side -1 both mean "unlimited" and must compare equal. The same
+// mapping is applied to the server-side value for robustness, since some servers report 0
+// instead of -1 for an unlimited bucket.
+func normalizeObjectStoreMaxBytes(b int64) int64 {
+	if b == 0 {
+		return -1
+	}
+	return b
+}
+
+// warnMaxBytesMismatch fetches the existing object store bucket's stream MaxBytes and logs a
+// boot-time warning if it differs from the configured value. It never modifies server state.
+//
+// A failure to inspect the stream degrades to a diagnostic warning rather than a boot error:
+// a transient read failure must not prevent Cardinal from starting, and the existing bind via
+// js.ObjectStore has already succeeded at this point.
+func warnMaxBytesMismatch(
+	ctx context.Context,
+	js jetstream.JetStream,
+	bucketName string,
+	configuredMaxBytes int64,
+	logger zerolog.Logger,
+) {
+	streamName := fmt.Sprintf(objectStoreStreamNameTmpl, bucketName)
+	stream, err := js.Stream(ctx, streamName)
+	if err != nil {
+		logger.Warn().Err(err).
+			Str("bucket", bucketName).
+			Int64("configured_max_bytes", configuredMaxBytes).
+			Msg("failed to inspect existing ObjectStore stream; skipping CARDINAL_SNAPSHOT_STORAGE_MAX_BYTES drift check")
+		return
+	}
+	info, err := stream.Info(ctx)
+	if err != nil {
+		logger.Warn().Err(err).
+			Str("bucket", bucketName).
+			Int64("configured_max_bytes", configuredMaxBytes).
+			Msg("failed to read existing ObjectStore stream info; skipping CARDINAL_SNAPSHOT_STORAGE_MAX_BYTES drift check")
+		return
+	}
+	serverMaxBytes := info.Config.MaxBytes
+	if normalizeObjectStoreMaxBytes(configuredMaxBytes) == normalizeObjectStoreMaxBytes(serverMaxBytes) {
+		return
+	}
+	logger.Warn().
+		Str("bucket", bucketName).
+		Str("stream", streamName).
+		Int64("configured_max_bytes", configuredMaxBytes).
+		Int64("actual_max_bytes", serverMaxBytes).
+		Msg("CARDINAL_SNAPSHOT_STORAGE_MAX_BYTES was not applied to the existing ObjectStore bucket " +
+			"(the bucket already exists and is bound read-only on restart); to apply the new cap, " +
+			"update the bucket out-of-band, e.g. 'nats stream update " + streamName + " --max-bytes=<value>'")
 }
