@@ -112,8 +112,12 @@ func (k3dEssentialFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	return nil, nil
 }
 
-// k3dExists reports whether a cluster with the given name is present.
-func k3dExists(ctx context.Context, name string) (bool, error) {
+// k3dExists reports whether a cluster with the given name is present. It is a
+// package-level var (not a func) so tests can swap it without Docker; the
+// default value points to the real implementation below.
+//
+//nolint:gochecknoglobals // Var so tests can swap.
+var k3dExists = func(ctx context.Context, name string) (bool, error) {
 	clusters, err := k3dclient.ClusterList(ctx, k3dRuntime)
 	if err != nil {
 		return false, eris.Wrap(err, "k3d cluster list")
@@ -169,8 +173,11 @@ func k3dRunning(ctx context.Context, name string) (bool, error) {
 // k3dCreate creates a cluster with attached registry. Mirrors
 // `k3d cluster create <name> --registry-create <reg>` by walking the same
 // process → transform → process → validate → run pipeline as the CLI; each
-// step injects defaults later steps assume.
-func k3dCreate(ctx context.Context, clusterName, registryName, k3sImage string) error {
+// step injects defaults later steps assume. It is a package-level var (not a
+// func) so tests can swap it without Docker.
+//
+//nolint:gochecknoglobals // Var so tests can swap.
+var k3dCreate = func(ctx context.Context, clusterName, registryName, k3sImage string) error {
 	apiPort, err := getFreePort()
 	if err != nil {
 		return eris.Wrap(err, "find free port for kube API")
@@ -238,8 +245,11 @@ func k3dCreate(ctx context.Context, clusterName, registryName, k3sImage string) 
 }
 
 // k3dKubeconfig returns the cluster's kubeconfig as YAML bytes for
-// clientcmd.RESTConfigFromKubeConfig.
-func k3dKubeconfig(ctx context.Context, clusterName string) ([]byte, error) {
+// clientcmd.RESTConfigFromKubeConfig. It is a package-level var (not a func)
+// so tests can swap it without Docker.
+//
+//nolint:gochecknoglobals // Var so tests can swap.
+var k3dKubeconfig = func(ctx context.Context, clusterName string) ([]byte, error) {
 	cluster, err := k3dclient.ClusterGet(ctx, k3dRuntime, &k3dtypes.Cluster{Name: clusterName})
 	if err != nil {
 		return nil, eris.Wrap(err, "k3d cluster get")
@@ -255,8 +265,11 @@ func k3dKubeconfig(ctx context.Context, clusterName string) ([]byte, error) {
 	return out, nil
 }
 
-// k3dDelete deletes the cluster (state lost). Used by Purge.
-func k3dDelete(ctx context.Context, clusterName string) error {
+// k3dDelete deletes the cluster (state lost). Used by Purge. It is a
+// package-level var (not a func) so tests can swap it without Docker.
+//
+//nolint:gochecknoglobals // Var so tests can swap.
+var k3dDelete = func(ctx context.Context, clusterName string) error {
 	cluster, err := k3dclient.ClusterGet(ctx, k3dRuntime, &k3dtypes.Cluster{Name: clusterName})
 	if err != nil {
 		return eris.Wrap(err, "k3d cluster get")
@@ -292,8 +305,11 @@ func k3dStop(ctx context.Context, clusterName string) error {
 // (the tools node populates HostGateway used by the DNS fix) and re-read
 // stored start opts (HostAliases) from cluster node labels. Without
 // EnvironmentInfo the per-node `enableFixes` step fails with "Cannot enable
-// DNS fix, as Host Gateway IP is missing!".
-func k3dStartIfStopped(ctx context.Context, clusterName string) error {
+// DNS fix, as Host Gateway IP is missing!". It is a package-level var (not a
+// func) so tests can swap it without Docker.
+//
+//nolint:gochecknoglobals // Var so tests can swap.
+var k3dStartIfStopped = func(ctx context.Context, clusterName string) error {
 	cluster, err := k3dclient.ClusterGet(ctx, k3dRuntime, &k3dtypes.Cluster{Name: clusterName})
 	if err != nil {
 		return eris.Wrap(err, "k3d cluster get")
