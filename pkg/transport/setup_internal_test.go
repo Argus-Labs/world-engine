@@ -1,4 +1,4 @@
-package cardinal
+package transport
 
 import (
 	"log"
@@ -11,6 +11,9 @@ import (
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats-server/v2/test"
+	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -41,6 +44,23 @@ func TestMain(m *testing.M) {
 		log.Printf("failed to remove temp dir: %v", err)
 	}
 	os.Exit(code)
+}
+
+func NewTestClient(t *testing.T) *micro.Client {
+	t.Helper()
+
+	assert.NotNil(t, TestNATS, "test NATS server is not running")
+	c, err := micro.NewClient(
+		micro.WithNATSConfig(micro.NATSConfig{Name: "test-client", URL: TestNATS.ClientURL()}),
+		micro.WithLogger(zerolog.Nop()),
+	)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		c.Close()
+	})
+
+	return c
 }
 
 func RandServiceAddress(prng *rand.Rand) *micro.ServiceAddress {
