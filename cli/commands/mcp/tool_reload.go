@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -84,7 +85,7 @@ func reloadHandler(
 	if err != nil {
 		return ReloadOutput{}, eris.Wrap(err, "build failed (did the new shard code compile?)")
 	}
-	if err := reloadShards(ctx, cfg, deployOpts, args.Purge); err != nil {
+	if err := reloadShards(ctx, clusterClient(), cfg, deployOpts, args.Purge); err != nil {
 		return ReloadOutput{}, err
 	}
 
@@ -103,44 +104,100 @@ func reloadHandler(
 	}, nil
 }
 
+// reloadClient is the cluster-facing seam reloadShards drives. Defined as an
+// interface so the purge loop's resilience contract (always re-apply the CR,
+// always roll images, surface wipe errors afterward — mirroring `world
+// reload`'s purgeAndRedeploy + deployShardImages) can be exercised without a
+// live k3d cluster; *cluster.Client satisfies it in production.
+type reloadClient interface {
+	UndeployShard(ctx context.Context, shardID string) error
+	PurgeShardState(ctx context.Context, org, project, instanceID string) error
+	DeployShard(ctx context.Context, cfg worldtoml.Config, shardID string) error
+	PruneOrphanedShards(ctx context.Context, cfg worldtoml.Config) error
+	Deploy(ctx context.Context, opts cluster.DeployOpts) error
+	WaitForShardsReady(ctx context.Context, cfg worldtoml.Config, onProgress func(ready, expected int))
+}
+
 // reloadShards rolls already-built images into the cluster. Without purge that
 // is a plain redeploy onto existing state. With purge each targeted pool is
 // undeployed first — so no shard is alive to re-snapshot over the wipe — then
 // its replicas' JetStream state is wiped and its ShardPool re-applied. The
 // operator stays up throughout so the redeploy skips its cold start.
-func reloadShards(ctx context.Context, cfg worldtoml.Config, deployOpts cluster.DeployOpts, purge bool) error {
-	cli := clusterClient()
-
+//
+// Purge errors are accumulated, never returned early: a wipe failure is fatal
+// to the purge outcome (don't claim fresh state), but must NOT leave the shard
+// undeployed or skip the image roll. The CR is always re-applied via
+// DeployShard and the trailing Deploy always runs so freshly built images roll
+// to every targeted shard; any purge error is surfaced only after the world
+// is made runnable. This mirrors `world reload`'s contract, where the same
+// purge is "fatal" to the wipe but never to the cluster's runnability.
+func reloadShards(
+	ctx context.Context,
+	cli reloadClient,
+	cfg worldtoml.Config,
+	deployOpts cluster.DeployOpts,
+	purge bool,
+) error {
+	var purgeErr error
 	if purge {
 		for _, shard := range deployOpts.Shards {
+			// Undeploy deletes the ShardPool CR first (k8s GCs its pods). If it
+			// fails the CR is still there, so there is nothing to wipe or
+			// re-apply for this shard — record the error and continue so the
+			// rest of the world is still purged and its images still roll.
 			if err := cli.UndeployShard(ctx, shard.ID); err != nil {
-				return eris.Wrapf(err, "failed to undeploy shard %q for purge", shard.ID)
+				purgeErr = errors.Join(purgeErr, eris.Wrapf(err, "failed to undeploy shard %q for purge", shard.ID))
+				continue
 			}
 			// Replicas each keep their own state, so wipe per instance. A wipe
-			// failure IS fatal: redeploying over stale snapshots would resume the
-			// old tick — the opposite of the fresh start asked for.
+			// failure IS fatal to the *purge*: redeploying over stale snapshots
+			// would resume the old tick — the opposite of the fresh start asked
+			// for. But it is NOT fatal to the world: the CR is re-applied below
+			// so the shard is not left undeployed, and the trailing Deploy
+			// still rolls the new image.
 			for _, instance := range shardInstances(cfg, shard.ID) {
 				if err := cli.PurgeShardState(ctx, cfg.Organization, cfg.Project, instance); err != nil {
-					return eris.Wrapf(err, "failed to wipe state for %q", instance)
+					purgeErr = errors.Join(purgeErr, eris.Wrapf(err, "failed to wipe state for %q", instance))
 				}
 			}
+			// Always re-apply the CR so a wipe failure can't leave the shard
+			// undeployed — UndeployShard already deleted it up above.
 			if err := cli.DeployShard(ctx, cfg, shard.ID); err != nil {
-				return eris.Wrapf(err, "failed to re-apply shard %q", shard.ID)
+				purgeErr = errors.Join(purgeErr, eris.Wrapf(err, "failed to re-apply shard %q", shard.ID))
 			}
 		}
 	}
 
-	// Reload only rolls its targets, so nothing else reconciles the pool set.
+	// Always run, even after a purge error, so the re-applied ShardPool CRs get
+	// their images and the freshly built code rolls to every targeted shard —
+	// avoiding ImagePullBackOff. (Mirrors `world reload`'s deployShardImages,
+	// whose "Always runs, even after a purge error" comment names this exact
+	// guarantee.)
+	var stepErr error
 	if err := cli.PruneOrphanedShards(ctx, cfg); err != nil {
-		return eris.Wrap(err, "failed to prune orphaned shards")
+		stepErr = eris.Wrap(err, "failed to prune orphaned shards")
+	} else if err := cli.Deploy(ctx, deployOpts); err != nil {
+		stepErr = eris.Wrap(err, "failed to deploy shards")
+	} else {
+		// Hold until the fresh pods are Ready: Deploy returns before they leave
+		// ContainerCreating, and callers act the moment this returns. Best-effort
+		// (returns no error), so it only runs on a clean deploy.
+		cli.WaitForShardsReady(ctx, cfg, nil)
 	}
-	if err := cli.Deploy(ctx, deployOpts); err != nil {
-		return eris.Wrap(err, "failed to deploy shards")
+
+	// A trailing step failure takes precedence but is reported together with a
+	// purge error so neither masks the other; a clean deploy surfaces any
+	// deferred purge error only after the world is runnable.
+	switch {
+	case stepErr != nil && purgeErr != nil:
+		return errors.Join(eris.Wrap(purgeErr, "purge shards"), stepErr)
+	case stepErr != nil:
+		return stepErr
+	case purgeErr != nil:
+		return eris.Wrap(purgeErr, "purge shards")
+	default:
+		return nil
 	}
-	// Hold until the fresh pods are Ready: Deploy returns before they leave
-	// ContainerCreating, and callers act the moment this returns.
-	cli.WaitForShardsReady(ctx, cfg, nil)
-	return nil
 }
 
 // shardInstances lists a pool's replica instance IDs — the granularity
