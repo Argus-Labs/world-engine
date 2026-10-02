@@ -744,7 +744,6 @@ func PlayerFromContext(ctx context.Context) *Player {
 // -------------------------------------------------------------------------------------------------
 
 type authenticatorArgus struct {
-	issuer   string
 	audience string
 	keyfunc  keyfunc.Keyfunc
 }
@@ -752,8 +751,7 @@ type authenticatorArgus struct {
 func newAuthenticatorArgus(argusAuthURL, organization, project string) (*authenticatorArgus, error) {
 	assert.That(argusAuthURL != "", "Should've validated the URL")
 
-	issuer := strings.TrimRight(argusAuthURL, "/") + "/auth"
-	jwksURL := issuer + "/jwks"
+	jwksURL := argusAuthURL + "/auth/jwks"
 	client := &http.Client{
 		Timeout: 3 * time.Second,
 	}
@@ -784,7 +782,6 @@ func newAuthenticatorArgus(argusAuthURL, organization, project string) (*authent
 	}
 
 	return &authenticatorArgus{
-		issuer:   issuer,
 		audience: organization + "/" + project,
 		keyfunc:  keyfn,
 	}, nil
@@ -802,7 +799,6 @@ func (a *authenticatorArgus) authenticate(_ context.Context, req *http.Request) 
 		claims,
 		a.keyfunc.Keyfunc,
 		jwt.WithValidMethods([]string{jwt.SigningMethodEdDSA.Alg()}),
-		jwt.WithIssuer(a.issuer),
 		jwt.WithAudience(a.audience),
 		jwt.WithExpirationRequired(),
 	)

@@ -69,14 +69,6 @@ func TestAuthenticatorArgusRejectsInvalidGameClaims(t *testing.T) {
 			},
 		},
 		{
-			name: "wrong issuer",
-			key:  privateKey,
-			claims: jwt.RegisteredClaims{
-				Subject: validClaims.Subject, Issuer: "https://other.example/auth",
-				Audience: validClaims.Audience, ExpiresAt: validClaims.ExpiresAt,
-			},
-		},
-		{
 			name: "missing expiry",
 			key:  privateKey,
 			claims: jwt.RegisteredClaims{
