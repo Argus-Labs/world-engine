@@ -4,9 +4,9 @@
 package testutil
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/client"
 
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
@@ -344,8 +345,11 @@ func logNATSContainerState() {
 	}
 	defer reader.Close()
 
-	logs, _ := io.ReadAll(reader)
-	if len(logs) > 0 {
-		fmt.Printf("DEBUG: NATS last logs:\n%s\n", string(logs))
+	// Non-TTY containers (e.g. world-engine-nats) return a multiplexed
+	// stdout/stderr stream; demultiplex it so the debug output is readable.
+	var outBuf, errBuf bytes.Buffer
+	_, _ = stdcopy.StdCopy(&outBuf, &errBuf, reader)
+	if outBuf.Len()+errBuf.Len() > 0 {
+		fmt.Printf("DEBUG: NATS last logs:\n%s\n", outBuf.String()+errBuf.String())
 	}
 }
