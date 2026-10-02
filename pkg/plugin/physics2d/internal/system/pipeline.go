@@ -29,33 +29,24 @@ func (b contactEmitterBridge) EmitTriggerBegin(e physicevent.TriggerBeginEvent) 
 }
 func (b contactEmitterBridge) EmitTriggerEnd(e physicevent.TriggerEndEvent) { b.w.EmitSystemEvent(e) }
 
-// loadContactBaseline locates the physics singleton entity and
-// seeds the runtime's contact-dedupe baseline from it when the runtime has
-// none (e.g. right after a snapshot restore or Reset).
-func loadContactBaseline(
-	rt *internal.Runtime, w *cardinal.World, singleton cardinal.Search,
-) (cardinal.Entity, bool) {
+// loadContactBaseline locates the physics singleton entity — which ensurePhysicsSingleton
+// guarantees exists by the time this runs — and seeds the runtime's contact-dedupe baseline
+// from it when the runtime has none (e.g. right after a snapshot restore or Reset).
+//
+// When the singleton was just created there is no persisted ActiveContacts baseline (e.g. a
+// cross-plugin/migration restore): the caller arms NoPersistedActiveContactsBaseline from
+// ensurePhysicsSingleton's signal, and the created singleton carries a zero ActiveContacts so
+// the baseline loaded here is empty and the armed flush adopts live contacts silently.
+func loadContactBaseline(rt *internal.Runtime, singleton cardinal.Search) cardinal.Entity {
 	var acRef cardinal.Entity
-	singletonFound := false
 	for row := range singleton.Iter() {
 		acRef = row
-		singletonFound = true
 		break
 	}
-
-	if !singletonFound {
-		w.Logger().Error().
-			Msg("physics2d: physics singleton entity missing; contact dedupe has no persisted baseline")
-		if rt.SuppressContactsStep {
-			rt.NoPersistedActiveContactsBaseline = true
-		}
-		return acRef, false
-	}
-
 	if rt.ActiveContacts == nil {
 		rt.LoadActiveContactsFromComponent(acRef.Get[physicscomp.ActiveContacts]())
 	}
-	return acRef, true
+	return acRef
 }
 
 // NewPhysicsPipelineSystem returns the full physics pipeline as one atomic unit, bound to rt.
@@ -77,7 +68,7 @@ func (s *PhysicsPipelineSystem) Run(w *cardinal.World) {
 	// Keep* clears the unused tail. Systems in one world use this scratch sequentially.
 	// --- 1. Reconcile (ECS -> Box2D) ---
 	singleton := w.Exact[physicsSingletonRow]()
-	ensurePhysicsSingleton(singleton)
+	createdSingleton := ensurePhysicsSingleton(singleton)
 	bodies := w.Contains[physicsBodyRow]()
 	entries := rt.KeepRebuildEntriesScratch(
 		gatherRebuildEntries(rt.RebuildEntriesScratch(), bodies.Iter()))
@@ -93,13 +84,23 @@ func (s *PhysicsPipelineSystem) Run(w *cardinal.World) {
 	}
 
 	// --- 2. Step + flush contacts ---
-	acRef, singletonFound := loadContactBaseline(rt, w, singleton)
+	acRef := loadContactBaseline(rt, singleton)
+	// The singleton was just created by ensurePhysicsSingleton when it was missing (e.g. a
+	// cross-plugin/migration restore whose snapshot omitted it). There is then no persisted
+	// ActiveContacts baseline, so arm the fallback: the next suppressed contact flush adopts
+	// live contacts into the map without emitting events so one-shot Begin handlers do not
+	// all fire spuriously. Gated on SuppressContactsStep — that is the only flush that reads
+	// the flag — so arming it on a non-suppressed step would leave a stale flag for a later
+	// rebuild to consume incorrectly.
+	if createdSingleton && rt.SuppressContactsStep {
+		rt.NoPersistedActiveContactsBaseline = true
+	}
 
 	rt.SetStepEmitter(contactEmitterBridge{w: w})
 	rt.Step()
 	rt.FlushBufferedContacts()
 
-	if singletonFound && rt.ActiveContactsDirty {
+	if rt.ActiveContactsDirty {
 		acRef.Set(rt.ActiveContactsToComponent())
 		rt.ActiveContactsDirty = false
 	}
