@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package worldengine.cardinal.fixture.v1;
+
+option go_package = "github.com/argus-labs/world-engine/pkg/cardinal/runtime/nativeaot/testdata/fixturepb";
+option csharp_namespace = "WorldEngine.Runtime.CounterFixture";
+
+message FixtureInput {
+  int64 value = 1;
+}
+
+message FixtureOutput {
+  int64 value = 1;
+}
+
+message FixtureSnapshot {
+  int64 value = 1;
+}
