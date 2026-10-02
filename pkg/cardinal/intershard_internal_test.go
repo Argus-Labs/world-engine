@@ -65,11 +65,16 @@ func TestInterShard_HungTargetIsolated(t *testing.T) {
 
 	hungAddress := RandServiceAddress(prng)
 	release := make(chan struct{})
+	entered := make(chan struct{}, 1)
 	hungClient := NewTestClient(t)
 	hung, err := micro.NewService(hungClient, hungAddress, &telemetry.Telemetry{Logger: zerolog.Nop()})
 	require.NoError(t, err)
 	require.NoError(t, hung.AddGroup("command").AddEndpoint(testutils.SimpleCommand{}.Name(),
 		func(_ context.Context, req *micro.Request) *micro.Response {
+			select {
+			case entered <- struct{}{}:
+			default:
+			}
 			<-release
 			return micro.NewSuccessResponse(req, nil)
 		}))
@@ -91,6 +96,11 @@ func TestInterShard_HungTargetIsolated(t *testing.T) {
 	}
 
 	// B receives all three while the hung target still holds its first command.
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("hung target never received a command")
+	}
 	var got []command.Command
 	require.Eventually(t, func() bool {
 		fixtureB.world.commands.Drain()
