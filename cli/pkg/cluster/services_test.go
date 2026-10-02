@@ -11,7 +11,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	k8stesting "k8s.io/client-go/testing"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argus-labs/world-engine/cli/pkg/toml"
 )
@@ -249,4 +252,147 @@ func managedServiceObj(apiVersion, kind, name, ns, project string) *unstructured
 			},
 		},
 	}}
+}
+
+// newApplyRecordingKubeClient builds a kubeClient backed by a fake dynamic
+// client that records every Server-Side Apply (Patch with ApplyPatchType) into
+// the returned map, keyed "Deployment/{name}" or "Service/{name}" -> raw patch
+// bytes. The fake tracker's Apply requires the object to already exist, so the
+// reactor captures the apply intent rather than the cluster state.
+func newApplyRecordingKubeClient(t *testing.T) (*kubeClient, map[string][]byte) {
+	t.Helper()
+	gvrToListKind := map[schema.GroupVersionResource]string{
+		{Group: "apps", Version: "v1", Resource: "deployments"}: "DeploymentList",
+		{Group: "", Version: "v1", Resource: "services"}:        "ServiceList",
+	}
+	dyn := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind)
+
+	applied := make(map[string][]byte)
+	dyn.PrependReactor("patch", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		pa, ok := action.(k8stesting.PatchActionImpl)
+		if !ok || pa.GetPatchType() != types.ApplyPatchType {
+			return false, nil, nil
+		}
+		gvr := action.GetResource()
+		kind := "Service"
+		if gvr.Group == "apps" {
+			kind = "Deployment"
+		}
+		applied[kind+"/"+pa.GetName()] = pa.GetPatch()
+		return true, nil, nil
+	})
+
+	mapper := deferredMapperWithResources(t,
+		&metav1.APIResourceList{
+			GroupVersion: "apps/v1",
+			APIResources: []metav1.APIResource{{Name: "deployments", Namespaced: true, Kind: "Deployment"}},
+		},
+		&metav1.APIResourceList{
+			GroupVersion: "v1",
+			APIResources: []metav1.APIResource{{Name: "services", Namespaced: true, Kind: "Service"}},
+		},
+	)
+	return &kubeClient{dynamic: dyn, mapper: mapper}, applied
+}
+
+// appliedService unmarshals a captured Apply patch into a corev1.Service so its
+// type/ports can be asserted.
+func appliedService(t *testing.T, patch []byte) corev1.Service {
+	t.Helper()
+	var svc corev1.Service
+	require.NoError(t, yaml.Unmarshal(patch, &svc))
+	return svc
+}
+
+// TestEnsureServices_ConfigDBZeroPorts_CreatesService is the regression test for
+// the bug where a config_db service with no declared ports got a Deployment but
+// no Service, leaving its DSN host (a Service DNS name) unresolvable so every
+// DB consumer crash-looped. After the fix a Service is always created for
+// config_db, synthesizing the Postgres port (5432) when none is declared.
+func TestEnsureServices_ConfigDBZeroPorts_CreatesService(t *testing.T) {
+	t.Parallel()
+
+	k, applied := newApplyRecordingKubeClient(t)
+	c := NewClient(Config{})
+
+	cfg := mustLoad(t, `
+		organization = "argus"
+		project = "rampage"
+		[[services]]
+		id = "postgres"
+		image = "postgres:16"
+		config_db = true
+	`)
+	require.NoError(t, c.ensureServices(context.Background(), k, cfg))
+
+	name := serviceContainerName(cfg.Project, cfg.Services[0].ID)
+	require.Contains(t, applied, "Deployment/"+name,
+		"Deployment should be applied for a 0-port config_db")
+	require.Contains(t, applied, "Service/"+name,
+		"Service should be applied for a 0-port config_db (the fix)")
+
+	// The synthesized Service must expose the Postgres port (5432) and be
+	// ClusterIP so in-cluster consumers reach it via the DSN host that
+	// projectDBDSN builds.
+	svc := appliedService(t, applied["Service/"+name])
+	require.Equal(t, corev1.ServiceTypeClusterIP, svc.Spec.Type)
+	require.Len(t, svc.Spec.Ports, 1)
+	require.Equal(t, projectDBPort, svc.Spec.Ports[0].Port)
+	require.Equal(t, int(projectDBPort), svc.Spec.Ports[0].TargetPort.IntValue())
+}
+
+// TestEnsureServices_NonConfigDBZeroPorts_NoService locks the existing behavior
+// that a plain (non-config_db) service with no declared ports gets a Deployment
+// but no Service — the fix must not change this, only config_db synthesizes a
+// port.
+func TestEnsureServices_NonConfigDBZeroPorts_NoService(t *testing.T) {
+	t.Parallel()
+
+	k, applied := newApplyRecordingKubeClient(t)
+	c := NewClient(Config{})
+
+	cfg := mustLoad(t, `
+		organization = "argus"
+		project = "rampage"
+		[[services]]
+		id = "meta"
+		image = "postgres:16"
+	`)
+	require.NoError(t, c.ensureServices(context.Background(), k, cfg))
+
+	name := serviceContainerName(cfg.Project, cfg.Services[0].ID)
+	require.Contains(t, applied, "Deployment/"+name,
+		"Deployment should be applied for a 0-port non-config_db service")
+	require.NotContains(t, applied, "Service/"+name,
+		"Service should NOT be applied for a 0-port non-config_db service")
+}
+
+// TestEnsureServices_ConfigDBWithPorts_CreatesService is the contrast case: a
+// config_db that declares its port still gets both a Deployment and a Service,
+// and the fix must not alter the declared port.
+func TestEnsureServices_ConfigDBWithPorts_CreatesService(t *testing.T) {
+	t.Parallel()
+
+	k, applied := newApplyRecordingKubeClient(t)
+	c := NewClient(Config{})
+
+	cfg := mustLoad(t, `
+		organization = "argus"
+		project = "rampage"
+		[[services]]
+		id = "postgres"
+		image = "postgres:16"
+		config_db = true
+		ports = [5432]
+	`)
+	require.NoError(t, c.ensureServices(context.Background(), k, cfg))
+
+	name := serviceContainerName(cfg.Project, cfg.Services[0].ID)
+	require.Contains(t, applied, "Deployment/"+name)
+	require.Contains(t, applied, "Service/"+name,
+		"Service should be applied for a config_db with declared ports")
+
+	svc := appliedService(t, applied["Service/"+name])
+	require.Len(t, svc.Spec.Ports, 1)
+	require.Equal(t, projectDBPort, svc.Spec.Ports[0].Port)
 }
