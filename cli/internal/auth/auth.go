@@ -245,6 +245,18 @@ func (c *Client) pollEvery(ctx context.Context, callbackURL string, interval tim
 		status, err := c.status(ctx, callbackURL)
 		switch {
 		case err != nil:
+			// The derived pollTimeout may expire during the in-flight status
+			// call, or — because pollInterval exactly divides pollTimeout
+			// (660s / 3s = 220) — the ticker tick and ctx.Done() coincide and
+			// a won ticker race sends the next status call out with an already
+			// expired context. Either way the error arrives here rather than at
+			// the select below, so map DeadlineExceeded to the actionable
+			// timeout message instead of the raw "... context deadline
+			// exceeded" wrapping. Other errors (transport failures, parent
+			// cancellation) still surface with their original wrapping.
+			if eris.Is(ctx.Err(), context.DeadlineExceeded) {
+				return "", eris.New("timed out waiting for authorization; run the command again")
+			}
 			return "", err
 		case status.Status == "success" && status.JWT != "":
 			return status.JWT, nil
