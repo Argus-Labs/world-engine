@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -58,7 +59,7 @@ func TestSendCommandInput_Validate_Valid(t *testing.T) {
 	input := SendCommandInput{
 		ShardID:     "game",
 		CommandName: "create-player",
-		Payload:     map[string]any{"name": "test"},
+		Payload:     `{"name": "test"}`,
 	}
 
 	err := input.validate()
@@ -67,7 +68,7 @@ func TestSendCommandInput_Validate_Valid(t *testing.T) {
 	assert.Empty(t, input.ShardURL) // resolved from the cluster in the handler, not validate()
 	assert.Equal(t, defaultDevEmail, input.Email)
 	assert.Equal(t, defaultRegion, input.Region)
-	assert.NotNil(t, input.Payload)
+	assert.JSONEq(t, `{"name": "test"}`, input.Payload) // preserved verbatim, no float64 coercion
 }
 
 func TestSendCommandInput_Validate_MissingShardID(t *testing.T) {
@@ -93,12 +94,12 @@ func TestSendCommandInput_Validate_NilPayload(t *testing.T) {
 	input := SendCommandInput{
 		ShardID:     "game",
 		CommandName: "create-player",
-		Payload:     nil,
+		Payload:     "",
 	}
 
 	err := input.validate()
 	require.NoError(t, err)
-	assert.NotNil(t, input.Payload)
+	assert.Equal(t, "{}", input.Payload) // empty payload defaults to an empty JSON object
 }
 
 func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
@@ -117,6 +118,80 @@ func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
 	assert.Equal(t, "http://custom:9999", input.ShardURL)
 	assert.Equal(t, "custom@example.com", input.Email)
 	assert.Equal(t, "ap-southeast-1", input.Region)
+}
+
+// TestSendCommandInput_BindArguments_PreservesLargeInt64Payload exercises the exact coercion path
+// that caused the bug: mcp-go's transport unmarshals the JSON-RPC frame into CallToolRequest where
+// Arguments is `any`, so stdlib encoding/json floats every number before BindArguments runs. With a
+// string-typed Payload the JSON-stringified object survives untouched (JSON strings are never
+// floated), and the large int64 it carries then encodes to the wire bit-for-byte exact. The prior
+// map[string]any payload would arrive here already rounded (e.g. ...993 -> ...992, no error) or be
+// rejected with an error naming a number the caller never sent (e.g. ...807 -> ...6000).
+func TestSendCommandInput_BindArguments_PreservesLargeInt64Payload(t *testing.T) {
+	t.Parallel()
+
+	const payloadJSON = `{"ID": 9223372036854775807}` // math.MaxInt64
+
+	// Build the JSON-RPC frame the way an MCP client sends it: the command payload is a JSON
+	// string nested inside arguments, so it never passes through float64 at the transport layer.
+	frame, err := json.Marshal(map[string]any{
+		"params": map[string]any{
+			"arguments": map[string]any{
+				"shard_id":     "game",
+				"command_name": "create-player",
+				"payload":      payloadJSON,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	// Simulate mcp-go's transport unmarshal of the whole frame into CallToolRequest.
+	var req mcp.CallToolRequest
+	require.NoError(t, json.Unmarshal(frame, &req))
+
+	// BindArguments re-marshals the (already-floated) arguments map and unmarshals into the
+	// target struct. The payload string is preserved verbatim because it was never a number.
+	var in SendCommandInput
+	require.NoError(t, req.BindArguments(&in))
+	assert.JSONEq(t, payloadJSON, in.Payload, "payload string must survive mcp-go transport intact")
+
+	// And the exact int64 reaches the proto wire bytes.
+	raw := testDescriptorSet(t, &descriptorpb.DescriptorProto{
+		Name:  new("Cmd"),
+		Field: []*descriptorpb.FieldDescriptorProto{scalarField("ID", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64)},
+	})
+	md := testMessageDescriptor(t, raw, "Cmd")
+	require.NoError(t, in.validate()) // normalize empty-payload default; no-op here
+
+	wire, err := encodeCommandPayload(md, in.Payload)
+	require.NoError(t, err)
+	decoded, err := decodeMessage(md, wire)
+	require.NoError(t, err)
+	assert.Equal(t, int64(9223372036854775807), decoded["ID"], "MaxInt64 must encode to the wire bit-for-bit exact")
+}
+
+// TestSendCommand_PublishedPayloadSchemaIsString pins the type choice that the fix relies on:
+// Payload must be a string (a JSON-stringified object), not a bare object, so the value bypasses
+// mcp-go's float64 coercion. If the field is reverted to map[string]any the published schema would
+// describe an object again and the silent int64 corruption would return; this test fails first.
+func TestSendCommand_PublishedPayloadSchemaIsString(t *testing.T) {
+	t.Parallel()
+	tool := mcp.NewTool("send_command", mcp.WithInputSchema[SendCommandInput]())
+	require.NotEmpty(t, tool.RawInputSchema, "the tool must publish a generated input schema")
+
+	var schema struct {
+		Properties map[string]struct {
+			Type        string `json:"type"`
+			Description string `json:"description"`
+		} `json:"properties"`
+	}
+	require.NoError(t, json.Unmarshal(tool.RawInputSchema, &schema))
+	require.Contains(t, schema.Properties, "payload", "payload must appear in the published schema")
+
+	prop := schema.Properties["payload"]
+	assert.Equal(t, "string", prop.Type, "payload must be a string to bypass mcp-go's float64 coercion")
+	assert.Contains(t, prop.Description, "JSON-stringified object",
+		"the schema must tell callers to pass a serialized JSON object, not a bare object")
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -331,7 +406,7 @@ func stateDescriptors(t *testing.T) componentDescriptors {
 func componentBlob(t *testing.T, descriptors componentDescriptors, name string, value int) []byte {
 	t.Helper()
 	field := map[string]string{"Health": "HP", "Position": "X"}[name]
-	blob, err := encodeCommandPayload(descriptors[name], map[string]any{field: value})
+	blob, err := encodeCommandPayload(descriptors[name], fmt.Sprintf(`{%q: %d}`, field, value))
 	require.NoError(t, err)
 	return blob
 }
