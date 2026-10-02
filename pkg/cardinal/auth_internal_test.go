@@ -19,7 +19,7 @@ func TestAuthenticatorArgusAcceptsGamePlayerToken(t *testing.T) {
 	require.NoError(t, err)
 
 	server := newAuthTestServer(t, publicKey)
-	authenticator, err := newAuthenticatorArgus(server.URL+"/", "argus", "rampage")
+	authenticator, err := newAuthenticatorArgus(server.URL, "argus", "rampage")
 	require.NoError(t, err)
 
 	token := signGameToken(t, privateKey, jwt.RegisteredClaims{

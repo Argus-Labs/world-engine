@@ -751,7 +751,7 @@ type authenticatorArgus struct {
 func newAuthenticatorArgus(argusAuthURL, organization, project string) (*authenticatorArgus, error) {
 	assert.That(argusAuthURL != "", "Should've validated the URL")
 
-	jwksURL := strings.TrimRight(argusAuthURL, "/") + "/auth/jwks"
+	jwksURL := argusAuthURL + "/auth/jwks"
 	client := &http.Client{
 		Timeout: 3 * time.Second,
 	}
