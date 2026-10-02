@@ -12,6 +12,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
 
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
@@ -964,4 +965,121 @@ func TestSdkGenerate_PublishedGoOutDefaultDoc(t *testing.T) {
 		"the conditional default must be documented, not an unconditional one")
 	assert.Contains(t, desc, "When cs_out is also passed go_out is NOT defaulted",
 		"the schema must warn that cs_out withholds the go_out default (the client-only entry)")
+}
+
+// -------------------------------------------------------------------------------------------------
+// introspect convertTypeSchemas / ArrayFields propagation tests
+// -------------------------------------------------------------------------------------------------
+//
+// The server populates TypeSchema.ArrayFields with the dimensions of every multi-dimensional
+// fixed-size array field so a client that does not know the schema ahead of time (the debug
+// tooling — the introspect MCP tool) can rebuild the indices: a flat repeated field of 32 int32s is
+// ambiguous between [4][8] and [8][4], and the wrong guess reads the wrong element. These tests pin
+// that convertTypeSchemas propagates that shape through the IntrospectResponse → IntrospectOutput
+// boundary instead of dropping it.
+
+// gridDescriptorFiles builds the descriptor registry for a Grid message carrying a repeated int32
+// "cells" field — the on-wire shape a [4][8]int32 fixed array flattens into — exactly the type a
+// shard would advertise alongside ArrayField{Field:"cells", Dims:[4,8]}.
+func gridDescriptorFiles(t *testing.T) *protoregistry.Files {
+	t.Helper()
+	raw := testDescriptorSet(t, &descriptorpb.DescriptorProto{
+		Name: new("Grid"),
+		Field: []*descriptorpb.FieldDescriptorProto{{
+			Name:   new("cells"),
+			Number: new(int32(1)),
+			Label:  descriptorpb.FieldDescriptorProto_LABEL_REPEATED.Enum(),
+			Type:   descriptorpb.FieldDescriptorProto_TYPE_INT32.Enum(),
+		}},
+	})
+	files, err := resolveDescriptorFiles(raw)
+	require.NoError(t, err)
+	return files
+}
+
+// TestConvertTypeSchemas_PropagatesArrayFields is the core fix: the shape metadata the server sends
+// on TypeSchema.ArrayFields must reach NamedSchema, so a client decoding an unknown type can
+// rebuild the indices for a multi-dimensional fixed array instead of guessing.
+func TestConvertTypeSchemas_PropagatesArrayFields(t *testing.T) {
+	t.Parallel()
+	files := gridDescriptorFiles(t)
+
+	out := convertTypeSchemas([]*cardinalv1.TypeSchema{{
+		Name:             "Grid",
+		ProtoMessageName: "test.Grid",
+		ArrayFields: []*cardinalv1.ArrayField{{
+			Field: "cells",
+			Dims:  []uint32{4, 8},
+		}},
+	}}, files)
+
+	require.Len(t, out, 1)
+	assert.Equal(t, "Grid", out[0].Name)
+	require.Len(t, out[0].ArrayFields, 1)
+	assert.Equal(t, "cells", out[0].ArrayFields[0].GetField())
+	assert.Equal(t, []uint32{4, 8}, out[0].ArrayFields[0].GetDims())
+}
+
+// TestConvertTypeSchemas_ArrayFieldsJSONShape pins the JSON a client (LLM) actually sees: the
+// per-type object gains an "array_fields" array whose entries carry "field" and "dims",
+// dimensions outermost first. A wrong guess between [4,8] and [8,4] reads a different element, so
+// the exact key names and ordering are the contract — and it must round-trip back unchanged.
+func TestConvertTypeSchemas_ArrayFieldsJSONShape(t *testing.T) {
+	t.Parallel()
+	files := gridDescriptorFiles(t)
+
+	out := convertTypeSchemas([]*cardinalv1.TypeSchema{{
+		Name:             "Grid",
+		ProtoMessageName: "test.Grid",
+		ArrayFields: []*cardinalv1.ArrayField{{
+			Field: "cells",
+			Dims:  []uint32{4, 8},
+		}},
+	}}, files)
+
+	b, err := json.Marshal(out[0])
+	require.NoError(t, err)
+	t.Logf("NamedSchema JSON: %s", string(b))
+
+	assert.Contains(t, string(b), `"array_fields"`)
+	assert.Contains(t, string(b), `"field":"cells"`)
+	assert.Contains(t, string(b), `"dims":[4,8]`)
+
+	var got struct {
+		Name        string `json:"name"`
+		ArrayFields []struct {
+			Field string   `json:"field"`
+			Dims  []uint32 `json:"dims"`
+		} `json:"array_fields"`
+	}
+	require.NoError(t, json.Unmarshal(b, &got))
+	assert.Equal(t, "Grid", got.Name)
+	require.Len(t, got.ArrayFields, 1)
+	assert.Equal(t, "cells", got.ArrayFields[0].Field)
+	assert.Equal(t, []uint32{4, 8}, got.ArrayFields[0].Dims)
+}
+
+// TestConvertTypeSchemas_ArrayFieldsOmittedWhenEmpty guards the backward-compatible common case: a
+// type with no multi-dimensional fixed array fields produces no "array_fields" key at all
+// (omitempty), so existing consumers — which never expected the key — see output byte-identical to
+// the pre-fix shape. This is the no-regression guarantee for every shipped shard today, all of which
+// carry empty ArrayFields.
+func TestConvertTypeSchemas_ArrayFieldsOmittedWhenEmpty(t *testing.T) {
+	t.Parallel()
+	files := gridDescriptorFiles(t)
+
+	out := convertTypeSchemas([]*cardinalv1.TypeSchema{{
+		Name:             "Grid",
+		ProtoMessageName: "test.Grid",
+	}}, files)
+
+	require.Empty(t, out[0].ArrayFields)
+
+	b, err := json.Marshal(out[0])
+	require.NoError(t, err)
+	assert.NotContains(t, string(b), "array_fields",
+		"a type with no array fields must not advertise an empty array_fields key")
+	// Name and schema are unaffected: the descriptor renders exactly as before.
+	assert.Contains(t, string(b), `"name":"Grid"`)
+	assert.Contains(t, string(b), `"schema"`)
 }
