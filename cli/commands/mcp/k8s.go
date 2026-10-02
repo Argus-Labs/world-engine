@@ -88,6 +88,10 @@ func poolFor(status *operatorv1.StatusResponse, shardID string) *operatorv1.Shar
 // every pod of the pool is returned; otherwise only the matching instance's pod,
 // using lenient matching (see instanceMatches) so "game 5"/"game5"/"game-5"/"5"
 // all resolve to instance "game-5".
+//
+// A matched instance whose pod is not yet scheduled (empty PodName) is skipped —
+// it has no logs to fetch — so callers that need to tell that case apart from
+// "no instance matched" use findInstanceByName, which keeps the distinction.
 func shardPods(status *operatorv1.StatusResponse, shardID, instanceName string) []string {
 	var pods []string
 	for _, inst := range poolFor(status, shardID).GetInstances() {
@@ -99,6 +103,23 @@ func shardPods(status *operatorv1.StatusResponse, shardID, instanceName string) 
 		}
 	}
 	return pods
+}
+
+// findInstanceByName returns the pool instance matching instanceName (lenient
+// matching, see instanceMatches), or nil when no instance of the shard matches.
+// It mirrors shardPods' selection but does not require a running pod, so a caller
+// can distinguish "instance not found" from "instance found but its pod isn't
+// scheduled yet" — shardPods collapses both into an empty slice.
+func findInstanceByName(
+	status *operatorv1.StatusResponse,
+	shardID, instanceName string,
+) *operatorv1.ShardInstanceStatus {
+	for _, inst := range poolFor(status, shardID).GetInstances() {
+		if instanceMatches(inst.GetName(), shardID, instanceName) {
+			return inst
+		}
+	}
+	return nil
 }
 
 // normalizeInstanceKey reduces an instance identifier to a comparison key,
