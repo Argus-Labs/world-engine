@@ -304,16 +304,40 @@ func rollShards(
 	}
 
 	if waitReady {
-		cli.WaitForShardsReady(ctx, cfg.WorldToml, func(ready, expected int) {
-			sess.UpsertRow(
-				"ready",
-				"Waiting for pods ready",
-				fmt.Sprintf("%d/%d", ready, expected),
-				phasebox.Active,
-			)
+		waitForShardsReadyRow(sess, func(onProgress func(ready, expected int)) {
+			cli.WaitForShardsReady(ctx, cfg.WorldToml, onProgress)
 		})
 	}
 	return nil
+}
+
+// waitForShardsReadyRow drives the "ready" progress row through WaitForShardsReady
+// to a terminal state. waitForReady performs the actual wait and invokes
+// onProgress for every poll tick (typically cli.WaitForShardsReady). The row is
+// set Active on every tick, then closed to Done when ready >= expected or Failed
+// ("timed out …") otherwise — but only if onProgress was ever invoked.
+// WaitForShardsReady's early-skip paths (no pools, no clientset, no desired
+// images) return without a single tick, leaving no "ready" row to close.
+//
+// Must run before the enclosing section finishes: phasebox drops upserts to a
+// finished section (see Model.upsert), so a terminal update after dash.Run
+// returns would be silently lost and the row would keep rendering its spinner.
+func waitForShardsReadyRow(sess phasebox.Session, waitForReady func(onProgress func(ready, expected int))) {
+	var lastReady, expected int
+	progressed := false
+	waitForReady(func(ready, exp int) {
+		lastReady, expected = ready, exp
+		progressed = true
+		sess.UpsertRow("ready", "Waiting for pods ready", fmt.Sprintf("%d/%d", ready, exp), phasebox.Active)
+	})
+	if !progressed {
+		return
+	}
+	state, detail := phasebox.Done, fmt.Sprintf("%d/%d", lastReady, expected)
+	if lastReady < expected {
+		state, detail = phasebox.Failed, fmt.Sprintf("timed out (%d/%d ready)", lastReady, expected)
+	}
+	sess.UpsertRow("ready", "Waiting for pods ready", detail, state)
 }
 
 type reloadTargets struct {
