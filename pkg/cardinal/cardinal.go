@@ -303,6 +303,7 @@ func (w *World) dispatchEvents(ctx context.Context) {
 		span.SetError(err)
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 	}
+	w.service.drainInterShardCommands()
 }
 
 // persistState serializes the world for snapshots and the debug service. Encoding cannot fail
