@@ -54,6 +54,63 @@ func (c *StartCmd) Run(ctx context.Context) error {
 // Pull, Build, Start Helpers //////
 ////////////////////////////////////
 
+// startCluster brings up the world-agnostic platform (k3d, NATS, Traefik) in a "Cluster" box.
+func startCluster(dash *phasebox.Dashboard) (*cluster.Client, error) {
+	var cli *cluster.Client
+	if err := dash.Run("Cluster",
+		func(ctx context.Context, sess phasebox.Session) error {
+			// One row per phase; k3d log lines update the current row.
+			tracker := phasebox.NewStepTracker(sess)
+			cli = cluster.NewClient(cluster.Config{
+				LogLevel: os.Getenv("WORLD_K3D_LOG_LEVEL"),
+				OnK3DLog: tracker.Detail,
+			})
+			err := cli.StartPlatform(ctx, tracker.Next)
+			// k3d's logger is global; unhook it so late lines can't reopen the finished row.
+			cli.ResetLogRouting()
+			if err != nil {
+				tracker.Failed(err.Error())
+				return err
+			}
+			tracker.Done()
+			return nil
+		},
+		func(err error, elapsed time.Duration) (string, bool) {
+			if err != nil {
+				return err.Error(), true
+			}
+			return fmt.Sprintf("ready — %s (%s)", cli.Config().ClusterName, elapsed.Round(time.Second)), false
+		},
+	); err != nil {
+		return nil, eris.Wrap(err, "cluster start")
+	}
+	return cli, nil
+}
+
+// deployWorld applies worldCfg's operator, DB, services and ShardPools in a "World" box.
+func deployWorld(dash *phasebox.Dashboard, cli *cluster.Client, worldCfg tomlpkg.Config) error {
+	if err := dash.Run("World",
+		func(ctx context.Context, sess phasebox.Session) error {
+			tracker := phasebox.NewStepTracker(sess)
+			if err := cli.DeployWorld(ctx, worldCfg, tracker.Next); err != nil {
+				tracker.Failed(err.Error())
+				return err
+			}
+			tracker.Done()
+			return nil
+		},
+		func(err error, elapsed time.Duration) (string, bool) {
+			if err != nil {
+				return err.Error(), true
+			}
+			return fmt.Sprintf("ready — %s (%s)", worldCfg.Project, elapsed.Round(time.Second)), false
+		},
+	); err != nil {
+		return eris.Wrap(err, "deploy world")
+	}
+	return nil
+}
+
 // deployK8sServices builds + imports + deploys every path-kind ([[services]]
 // with a path=) entry from world.toml, mirroring reloadK8sShards' pull+build
 // but applying Deployments via cluster.DeployServices instead of the operator
@@ -162,9 +219,7 @@ func warnUnforwardedServicePorts(cfg tomlpkg.Config) {
 func (c *StartCmd) runK8s(ctx context.Context, cwd string, worldCfg tomlpkg.Config) error {
 	warnConfigDBOverrides(worldCfg)
 
-	// Open the docker client + service config up front: building shard
-	// images has no cluster dependency, so it runs BEFORE the (usually
-	// much longer) k3d bring-up instead of blocking behind it.
+	// Open Docker first: shard builds don't need the cluster.
 	return docker.WithClient(cwd, c.Debug, &docker.ClientOptions{Logger: logger.Slog()},
 		func(cfg *service.Config, dockerClient *docker.Client) error {
 			targets, err := resolveReloadTargets(cfg, nil)
@@ -175,7 +230,7 @@ func (c *StartCmd) runK8s(ctx context.Context, cwd string, worldCfg tomlpkg.Conf
 			dockerServices := filterCardinalServicesByID(services, cfg, targets.shardIDs)
 
 			// One dashboard spans every box this start opens (Image Pull, Build,
-			// Cluster, Shards, Services), so adjacent boxes never visually split
+			// Cluster, World, Shards, Services), so adjacent boxes never visually split
 			// across separate bubbletea programs. The defer covers every error
 			// return below (and a panic); the success path additionally stops it
 			// explicitly before warnUnforwardedServicePorts and the log picker,
@@ -196,49 +251,26 @@ func (c *StartCmd) runK8s(ctx context.Context, cwd string, worldCfg tomlpkg.Conf
 				return eris.Wrap(err, "discover cluster bootstrap images")
 			}
 
-			if err := buildShardImages(ctx, dash, dockerClient, dockerServices, bootstrapImages); err != nil {
-				return eris.Wrap(err, "initial shard build")
+			if err := pullBuildDeps(ctx, dash, dockerClient, dockerServices, bootstrapImages); err != nil {
+				return err
 			}
 
-			var cli *cluster.Client
-			if err := dash.Run("Cluster",
-				func(ctx context.Context, sess phasebox.Session) error {
-					// Live checklist (one row per phase) instead of a single static
-					// spinner for the ~15-60s bring-up: OnStep fires before each
-					// phase and tracker.Next closes the previous row while opening
-					// the next. OnK3DLog still feeds k3d pull lines into the
-					// current row as a safety net — pre-pulling above means it
-					// rarely fires.
-					tracker := phasebox.NewStepTracker(sess)
-					cli = cluster.NewClient(cluster.Config{
-						LogLevel: os.Getenv("WORLD_K3D_LOG_LEVEL"),
-						OnK3DLog: tracker.Detail,
-					})
-					err := cli.Start(ctx, cluster.StartOpts{
-						Project: worldCfg.Project,
-						Config:  worldCfg,
-						OnStep:  tracker.Next,
-					})
-					// k3d's logger is global state that stays wired to tracker.Detail
-					// until the next NewClient — reset it now so a lingering
-					// background goroutine logging after Start returns can't flip
-					// the row we're about to mark done/failed back to spinning.
-					cli.ResetLogRouting()
-					if err != nil {
-						tracker.Failed(err.Error())
-						return err
-					}
-					tracker.Done()
-					return nil
-				},
-				func(err error, elapsed time.Duration) (string, bool) {
-					if err != nil {
-						return err.Error(), true
-					}
-					return fmt.Sprintf("ready — %s (%s)", cli.Config().ClusterName, elapsed.Round(time.Second)), false
-				},
-			); err != nil {
-				return eris.Wrap(err, "cluster start")
+			// Build while the platform comes up; the world deploys only after a good build.
+			buildBox := dash.Open("Build")
+			buildDone := make(chan error, 1)
+			go func() { buildDone <- buildShardImages(buildBox, dockerClient, dockerServices) }()
+
+			cli, clusterErr := startCluster(dash)
+			buildErr := <-buildDone
+			// Cluster first, so a Ctrl+C'd build can't hide a real cluster error.
+			if clusterErr != nil {
+				return clusterErr
+			}
+			if buildErr != nil {
+				return eris.Wrap(buildErr, "initial shard build")
+			}
+			if err := deployWorld(dash, cli, worldCfg); err != nil {
+				return err
 			}
 			// NOTE: [[services]] still run in-cluster only — unlike the single shared
 			// DB they're dynamic, so they can't take a fixed k3d NodePort mapping (set

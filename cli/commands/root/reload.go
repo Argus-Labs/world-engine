@@ -80,7 +80,10 @@ func reloadK8sShards(
 	dash := phasebox.Start(ctx)
 	defer dash.Complete()
 
-	if err := buildShardImages(ctx, dash, dockerClient, dockerServices, nil); err != nil {
+	if err := pullBuildDeps(ctx, dash, dockerClient, dockerServices, nil); err != nil {
+		return err
+	}
+	if err := buildShardImages(dash.Open("Build"), dockerClient, dockerServices); err != nil {
 		return err
 	}
 
@@ -91,11 +94,8 @@ func reloadK8sShards(
 	return deployShardImages(dash, cli, cfg, targets, purge)
 }
 
-// buildShardImages pulls build dependencies (shard images + extraImageRefs,
-// in one "Image Pull" box) then builds each shard image. extraImageRefs
-// lets `world start` fold in k3d's bootstrap images; pass nil for `world
-// reload`.
-func buildShardImages(
+// pullBuildDeps pulls shard base images and extraImageRefs in one "Image Pull" box.
+func pullBuildDeps(
 	ctx context.Context,
 	dash *phasebox.Dashboard,
 	dockerClient *docker.Client,
@@ -135,8 +135,12 @@ func buildShardImages(
 			return eris.Wrap(err, "pull build dependencies")
 		}
 	}
+	return nil
+}
 
-	return dash.Run("Build",
+// buildShardImages builds every shard image in box; run pullBuildDeps first.
+func buildShardImages(box *phasebox.Box, dockerClient *docker.Client, dockerServices []service.Service) error {
+	return box.Run(
 		func(ctx context.Context, sess phasebox.Session) error {
 			imageNames := docker.CardinalBuildImageNames(dockerServices)
 			return dockerClient.BuildCardinalImages(ctx, dockerServices, phasebox.BuildProgress(sess, imageNames))
@@ -281,27 +285,22 @@ func rollShards(
 		return eris.Wrap(err, "prune orphaned shards")
 	}
 
-	// One row per shard; OnStep's shardID changing marks the previous shard Done,
-	// so whichever shard is current when Deploy errors is the one that failed.
-	var current string
+	// All shards share one import; each row then shows its own shard's result.
+	for _, s := range deployShards {
+		sess.UpsertRow(s.ID, s.ID, "importing into cluster", phasebox.Active)
+	}
 	if err := cli.Deploy(ctx, cluster.DeployOpts{
 		Project: cfg.WorldToml.Project,
 		Shards:  deployShards,
-		OnStep: func(shardID, step string) {
-			if current != "" && current != shardID {
-				sess.UpsertRow(current, current, "", phasebox.Done)
+		OnResult: func(shardID string, err error) {
+			if err != nil {
+				sess.UpsertRow(shardID, shardID, err.Error(), phasebox.Failed)
+				return
 			}
-			current = shardID
-			sess.UpsertRow(shardID, shardID, step, phasebox.Active)
+			sess.UpsertRow(shardID, shardID, "", phasebox.Done)
 		},
 	}); err != nil {
-		if current != "" {
-			sess.UpsertRow(current, current, err.Error(), phasebox.Failed)
-		}
 		return eris.Wrap(err, "reload via operator")
-	}
-	if current != "" {
-		sess.UpsertRow(current, current, "", phasebox.Done)
 	}
 
 	if waitReady {

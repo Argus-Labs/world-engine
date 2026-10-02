@@ -270,16 +270,18 @@ func (s *service) SendCommandWithReply(
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 	}
 
+	// Register the reply waiter before enqueuing the command. Enqueueing first opens a window
+	// where a tick can drain the command, emit the reply, and find no waiter — dropping the
+	// reply and deadlocking the client until its context times out.
+	waiter := s.addReplyWaiter(req.Msg.GetEventName())
+	defer s.removeReplyWaiter(req.Msg.GetEventName(), waiter)
+
 	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
-	waiter := s.addReplyWaiter(req.Msg.GetEventName())
-	defer s.removeReplyWaiter(req.Msg.GetEventName(), waiter)
-
-	// The span's duration is the round trip; this event marks where the enqueue ended and the wait
-	// for the reply began. A cancelled wait ends the span with only this event and an error status.
 	span.AddEvent("command enqueued")
+
 	select {
 	case <-ctx.Done():
 		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "waiting for reply event"))
