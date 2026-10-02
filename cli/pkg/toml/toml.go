@@ -10,6 +10,8 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
+	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
 )
 
 func LoadFile(path string) (Config, error) {
@@ -288,6 +290,15 @@ func expandPools(shards []Shard) ([]Shard, error) {
 	// final instance ID -> shard ID that produced it. Lets us name both
 	// sides when a pool_size expansion collides with another shard's instance ID.
 	source := make(map[string]string, total)
+	// sanitized instance ID -> first raw instance ID. The CLI addresses each
+	// shard instance through cluster.LocalShardAPIURL, whose path segment is
+	// dnslabel.Sanitize(instanceName), so two instances whose sanitized
+	// images coincide share one URL and cannot be individually targeted.
+	// Keying on the sanitized image (not the raw instance ID) catches
+	// case- and separator-differing IDs that the raw-key source map misses:
+	// "game_lobby" vs "game-lobby", "Game" vs "game", or a standalone
+	// "Game_2" vs the pooled replica "game-2" all sanitize-collide.
+	sanitized := make(map[string]string, total)
 	for _, s := range shards {
 		baseID := s.ID
 		for r := 1; r <= s.PoolSize; r++ {
@@ -305,6 +316,17 @@ func expandPools(shards []Shard) ([]Shard, error) {
 				))
 			}
 			source[entry.InstanceID] = baseID
+
+			img := dnslabel.Sanitize(instanceID)
+			if prev, ok := sanitized[img]; ok {
+				return nil, eris.New(fmt.Sprintf(
+					"shard instance %q and %q both map to the same URL path segment %q; "+
+						"shard URLs would collide (case and _/- separators are treated as equivalent)",
+					instanceID, prev, img,
+				))
+			}
+			sanitized[img] = instanceID
+
 			expanded = append(expanded, entry)
 		}
 	}
