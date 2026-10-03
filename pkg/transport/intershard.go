@@ -29,15 +29,18 @@ const interShardSendTimeout = 10 * time.Second
 // A sender removes its target's entry and exits when its queue is empty, so idle targets cost nothing;
 // a hung target's backlog grows in memory until it drains, by design.
 //
-// enqueue, drain and stop must be called from one goroutine, which owns queued.
+// enqueue and drain may be called from any goroutine: a service that handles commands concurrently
+// sends from inside its handlers. queued sits behind mu rather than a channel: a channel's fixed capacity
+// would make enqueue wait or drop once full, and mu is already taken by drain.
 type interShard struct {
 	address  *micro.ServiceAddress
 	client   *micro.Client
 	dispatch Handler // Same as client commands
 	log      zerolog.Logger
-	queued   []queuedCommand
 
-	mu      sync.Mutex              // Guards senders and every targetQueue; never held during a send
+	mu      sync.Mutex              // Guards queued, stopped, senders and every targetQueue; never held during a send
+	queued  []queuedCommand         // Enqueued, not yet drained
+	stopped bool                    // Set by stop; drain drops commands afterwards
 	senders map[string]*targetQueue // Exactly the targets whose sender is running
 	running sync.WaitGroup          // Running senders, for stop
 }
@@ -101,18 +104,35 @@ func (s *interShard) handle(ctx context.Context, req *micro.Request) *micro.Resp
 
 	oteltrace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))
 	if err := s.dispatch(ctx, cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), codes.InvalidArgument)
+		code := codes.InvalidArgument
+		if eris.Is(err, errStopping) {
+			code = codes.Unavailable
+		}
+		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), code)
 	}
 
 	return micro.NewSuccessResponse(req, nil)
 }
 
 func (s *interShard) enqueue(ctx context.Context, cmd *iscv1.Command) {
-	s.queued = append(s.queued, queuedCommand{parent: oteltrace.SpanContextFromContext(ctx), cmd: cmd})
+	c := queuedCommand{parent: oteltrace.SpanContextFromContext(ctx), cmd: cmd}
+	s.mu.Lock()
+	s.queued = append(s.queued, c)
+	s.mu.Unlock()
 }
 
+// drain hands every queued command to its target's sender. Taking queued and handing it over happen under
+// one lock: if two drains could interleave there, the later one could hand over its commands first, and a
+// goroutine's commands to one target would go out of order.
 func (s *interShard) drain() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if len(s.queued) == 0 {
+		return
+	}
+	if s.stopped {
+		s.log.Error().Int("commands", len(s.queued)).Msg("inter-shard commands dropped: flushed after stop")
+		s.queued = nil
 		return
 	}
 	batches := make(map[string][]queuedCommand)
@@ -122,8 +142,6 @@ func (s *interShard) drain() {
 	}
 	s.queued = nil
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	for target, batch := range batches {
 		q, ok := s.senders[target]
 		if !ok {
@@ -177,9 +195,13 @@ func (s *interShard) send(c queuedCommand) {
 	}
 }
 
-// stop waits until ctx for drained commands to be sent. Commands enqueued but not drained are dropped.
-// Call it once, after the last drain.
+// stop waits until ctx for drained commands to be sent. Commands enqueued but not drained are dropped,
+// and so are commands drained after stop begins.
 func (s *interShard) stop(ctx context.Context) {
+	s.mu.Lock()
+	s.stopped = true
+	s.mu.Unlock()
+
 	done := make(chan struct{})
 	go func() {
 		s.running.Wait()

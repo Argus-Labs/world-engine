@@ -207,7 +207,8 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		require.NoError(t, w.transport.Stop(ctx))
+		require.NoError(t, w.stopTransport(ctx))
+		w.client.Close()
 	})
 
 	// Replace inter-shard event handler with local assertions.

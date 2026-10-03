@@ -4,9 +4,7 @@ package transport
 
 import (
 	"context"
-	"net"
 	"net/http"
-	"time"
 
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
@@ -26,10 +24,6 @@ import (
 // shard. A returned error rejects the command back to its sender.
 type Handler func(ctx context.Context, cmd *iscv1.Command) error
 
-// ServiceHandler builds an extra ConnectRPC service to serve next to CardinalService. It has the shape
-// of the generated New<Service>Handler constructors, and gets the same interceptors.
-type ServiceHandler func(opts ...connect.HandlerOption) (string, http.Handler)
-
 // Payload is the encoding half of a generated command or event type.
 type Payload interface {
 	Name() string
@@ -41,9 +35,7 @@ type Options struct {
 	Address   *micro.ServiceAddress // This shard's address
 	AuthMode  AuthMode              // Authentication for client requests
 	ArgusURL  string                // Argus Auth service URL; required when AuthMode is ARGUS
-	NATS      *micro.NATSConfig     // Nil uses the client's defaults
 	Telemetry *telemetry.Telemetry
-	Services  []ServiceHandler // Served without authentication, as the debug service is
 }
 
 func (o Options) validate() error {
@@ -62,16 +54,17 @@ func (o Options) validate() error {
 	return nil
 }
 
-// Transport serves one shard's client and shard-to-shard traffic.
+// Transport serves one shard's client and shard-to-shard traffic. It owns neither connection: the app
+// serves Handler on its own HTTP server and passes its NATS client to Start, opening both before Start
+// and closing them after Stop.
 type Transport struct {
 	opts     Options
 	log      zerolog.Logger
-	handlers map[string]Handler // Written before Start, read-only after
-	started  bool
+	handlers map[string]Handler // Written before Handler or Start, read-only after
+	sealed   bool               // Set by Handler and Start; Handle panics afterwards
 
 	clients      *clientService
-	server       *http.Server
-	client       *micro.Client
+	inflight     inflight
 	microService *micro.Service
 	interShard   *interShard
 }
@@ -90,10 +83,11 @@ func New(opts Options) (*Transport, error) {
 	return t, nil
 }
 
-// Handle registers h for the named command. It panics after Start or when name is already handled.
+// Handle registers h for the named command. It panics after Handler or Start, or when name is already
+// handled.
 func (t *Transport) Handle(name string, h Handler) {
-	if t.started {
-		panic(eris.Errorf("transport: Handle(%q) called after Start", name))
+	if t.sealed {
+		panic(eris.Errorf("transport: Handle(%q) called after Handler or Start", name))
 	}
 	if _, exists := t.handlers[name]; exists {
 		panic(eris.Errorf("transport: command %q is already handled", name))
@@ -101,39 +95,63 @@ func (t *Transport) Handle(name string, h Handler) {
 	t.handlers[name] = h
 }
 
+// errStopping rejects commands that arrive once Stop has begun.
+var errStopping = eris.New("shard is shutting down")
+
 func (t *Transport) dispatch(ctx context.Context, cmd *iscv1.Command) error {
 	h, ok := t.handlers[cmd.GetName()]
 	if !ok {
 		return eris.Errorf("unregistered command: %s", cmd.GetName())
 	}
+	if !t.inflight.enter() {
+		return errStopping
+	}
+	defer t.inflight.exit()
 	return h(ctx, cmd)
 }
 
-// Start connects to NATS, registers an endpoint per handled command, and serves ConnectRPC on
-// listenAddr. Commands can arrive as soon as it returns.
-func (t *Transport) Start(listenAddr string) error {
-	if t.started {
-		return eris.New("transport already started")
-	}
-	t.started = true
+// Handler returns CardinalService's path and handler, with authentication, tracing and request
+// validation applied, for the app to serve on its own HTTP server.
+func (t *Transport) Handler() (string, http.Handler, error) {
+	t.sealed = true
 
-	if err := t.startNATS(); err != nil {
-		return err
+	otelInterceptor, err := otelconnect.NewInterceptor()
+	if err != nil {
+		return "", nil, eris.Wrap(err, "failed to create otel interceptor")
 	}
-	return t.startHTTP(listenAddr)
+	interceptors := connect.WithInterceptors(otelInterceptor, validate.NewInterceptor())
+
+	var authenticate func(context.Context, *http.Request) (any, error)
+	switch t.opts.AuthMode {
+	case AuthModeArgus:
+		authenticator, err := newAuthenticatorArgus(t.opts.ArgusURL)
+		if err != nil {
+			return "", nil, eris.Wrap(err, "failed to create argus authenticator")
+		}
+		authenticate = authenticator.authenticate
+	case AuthModeDev:
+		authenticate = authenticatorDev{}.authenticate
+	case AuthModeUndefined:
+		fallthrough
+	default:
+		return "", nil, eris.Errorf("invalid service auth mode: %s", t.opts.AuthMode)
+	}
+
+	path, handler := cardinalv1connect.NewCardinalServiceHandler(t.clients, interceptors)
+	return path, authn.NewMiddleware(authenticate).Wrap(handler), nil
 }
 
-// startNATS connects to NATS and registers the ping endpoint and one endpoint per handled command.
-func (t *Transport) startNATS() error {
-	clientOpts := []micro.ClientOption{micro.WithLogger(t.log)}
-	if cfg := t.opts.NATS; cfg != nil {
-		clientOpts = append(clientOpts, micro.WithNATSConfig(*cfg))
+// Start registers the ping endpoint and one endpoint per handled command on client. Commands can arrive
+// as soon as it returns. The caller keeps client open until after Stop, and closes it.
+func (t *Transport) Start(client *micro.Client) error {
+	if client == nil {
+		return eris.New("NATS client is required")
 	}
-	client, err := micro.NewClient(clientOpts...)
-	if err != nil {
-		return eris.Wrap(err, "failed to initialize micro client")
+	if t.interShard != nil {
+		return eris.New("transport already started")
 	}
-	t.client = client
+	t.sealed = true
+
 	microService, err := micro.NewService(client, t.opts.Address, t.opts.Telemetry)
 	if err != nil {
 		return eris.Wrap(err, "failed to create micro service")
@@ -154,90 +172,32 @@ func (t *Transport) startNATS() error {
 	return nil
 }
 
-// startHTTP serves CardinalService and the extra services on listenAddr.
-func (t *Transport) startHTTP(listenAddr string) error {
-	otelInterceptor, err := otelconnect.NewInterceptor()
-	if err != nil {
-		return eris.Wrap(err, "failed to create otel interceptor")
-	}
-	interceptors := connect.WithInterceptors(otelInterceptor, validate.NewInterceptor())
-
-	var authenticate func(context.Context, *http.Request) (any, error)
-	switch t.opts.AuthMode {
-	case AuthModeArgus:
-		authenticator, err := newAuthenticatorArgus(t.opts.ArgusURL)
-		if err != nil {
-			return eris.Wrap(err, "failed to create argus authenticator")
-		}
-		authenticate = authenticator.authenticate
-	case AuthModeDev:
-		authenticate = authenticatorDev{}.authenticate
-	case AuthModeUndefined:
-		fallthrough
-	default:
-		return eris.Errorf("invalid service auth mode: %s", t.opts.AuthMode)
-	}
-
-	mux := http.NewServeMux()
-	cardinalPath, cardinalHandler := cardinalv1connect.NewCardinalServiceHandler(t.clients, interceptors)
-	mux.Handle(cardinalPath, authn.NewMiddleware(authenticate).Wrap(cardinalHandler))
-	for _, service := range t.opts.Services {
-		path, handler := service(interceptors)
-		mux.Handle(path, handler)
-	}
-
-	t.server = &http.Server{
-		Addr:              listenAddr,
-		Handler:           mux,
-		ReadHeaderTimeout: 10 * time.Second,
-		Protocols:         h2cProtocols(),
-	}
-
-	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", listenAddr)
-	if err != nil {
-		return eris.Wrap(err, "failed to listen for service server")
-	}
-
-	go func() {
-		if err := t.server.Serve(listener); err != nil && !eris.Is(err, http.ErrServerClosed) {
-			t.log.Error().Err(err).Msg("service server error")
-		}
-	}()
-
-	return nil
-}
-
-// h2cProtocols enables HTTP/1.1 and unencrypted HTTP/2 (h2c), matching the
-// previous h2c.NewHandler(mux, &http2.Server{}) behavior without the deprecated
-// golang.org/x/net/http2/h2c package.
-func h2cProtocols() *http.Protocols {
-	p := new(http.Protocols)
-	p.SetHTTP1(true)
-	p.SetUnencryptedHTTP2(true)
-	return p
-}
-
-// Stop waits until ctx for flushed commands to be sent, then stops serving and closes NATS. It is safe
-// to call without Start, or after Start failed partway.
+// Stop ends this transport's work, waiting until ctx at most, so the app can then shut down its HTTP
+// server and close the NATS client:
+//  1. New commands are rejected as unavailable, and the NATS endpoints are unsubscribed.
+//  2. Handlers already running finish. A service that handles commands concurrently may Enqueue and
+//     Flush replies from them, so they must finish before step 3.
+//  3. Flushed commands are sent. Commands flushed after this are dropped and logged.
+//  4. Open event streams and reply waits end as unavailable, so the HTTP server's shutdown does not
+//     wait on them until ctx expires.
+//
+// It is safe to call without Start, or after Start failed partway.
 func (t *Transport) Stop(ctx context.Context) error {
-	// Before server.Shutdown: an open event stream holds it until ctx expires, and its error returns early.
+	t.inflight.close()
+	var err error
+	if t.microService != nil {
+		if closeErr := t.microService.Close(); closeErr != nil {
+			err = eris.Wrap(closeErr, "failed to unsubscribe NATS endpoints")
+		}
+	}
+	if !t.inflight.wait(ctx) {
+		t.log.Error().Msg("command handlers still running at the shutdown deadline")
+	}
 	if t.interShard != nil {
 		t.interShard.stop(ctx)
 	}
-	if t.server != nil {
-		if err := t.server.Shutdown(ctx); err != nil {
-			return eris.Wrap(err, "failed to shutdown service server")
-		}
-	}
-	if t.microService != nil {
-		if err := t.microService.Close(); err != nil {
-			return eris.Wrap(err, "failed to close micro service")
-		}
-	}
-	if t.client != nil {
-		t.client.Close()
-	}
-	return nil
+	t.clients.stop()
+	return err
 }
 
 // Publish delivers an event to the open event streams subscribed to it and to the reply waiters for
@@ -247,7 +207,7 @@ func (t *Transport) Publish(ctx context.Context, evt Payload, recipient string) 
 }
 
 // Enqueue stages cmd for the shard at to, with this shard's address as its persona. Nothing is sent
-// until Flush. Enqueue and Flush must be called from one goroutine, and only after Start.
+// until Flush. Enqueue and Flush are safe to call from any goroutine, but only after Start.
 func (t *Transport) Enqueue(ctx context.Context, to *micro.ServiceAddress, cmd Payload) {
 	assert.That(to != nil, "inter shard command has nil address")
 	assert.That(t.interShard != nil, "inter shard command enqueued before the transport started")

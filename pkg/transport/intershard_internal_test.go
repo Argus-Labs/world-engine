@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -37,6 +38,48 @@ func TestInterShard_StopSendsFlushedInOrder(t *testing.T) {
 	for i, cmd := range cmds {
 		assert.Equal(t, testutils.SimpleCommand{Value: i}, decodeSimpleCommand(t, cmd))
 	}
+}
+
+// TestInterShard_ConcurrentEnqueueFlush checks that goroutines enqueuing and flushing at once lose no
+// command, and that each goroutine's commands reach each target in the order it enqueued them.
+func TestInterShard_ConcurrentEnqueueFlush(t *testing.T) {
+	t.Parallel()
+	prng := testutils.NewRand(t)
+
+	fixtureA := newTransportFixture(t, prng, true)
+	targets := []*transportFixture{newTransportFixture(t, prng, true), newTransportFixture(t, prng, true)}
+
+	const goroutines, perGoroutine = 8, 50
+	var wg sync.WaitGroup
+	for g := range goroutines {
+		wg.Go(func() {
+			for i := range perGoroutine {
+				to := targets[i%len(targets)].address
+				fixtureA.tr.Enqueue(context.Background(), to, testutils.SimpleCommand{Value: g*perGoroutine + i})
+				if i%3 == 0 {
+					fixtureA.tr.Flush()
+				}
+			}
+			fixtureA.tr.Flush()
+		})
+	}
+	wg.Wait()
+	require.NoError(t, fixtureA.tr.Stop(context.Background()))
+
+	total := 0
+	for _, target := range targets {
+		last := make(map[int]int) // Goroutine to its last value seen at this target
+		for _, cmd := range target.received.take() {
+			value := decodeSimpleCommand(t, cmd).Value
+			g := value / perGoroutine
+			if prev, ok := last[g]; ok {
+				assert.Greater(t, value, prev, "goroutine %d's commands arrived out of order", g)
+			}
+			last[g] = value
+			total++
+		}
+	}
+	assert.Equal(t, goroutines*perGoroutine, total)
 }
 
 // TestInterShard_HungTargetIsolated checks that a target that never acks neither blocks Flush nor delays

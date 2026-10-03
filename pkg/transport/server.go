@@ -28,6 +28,8 @@ type clientService struct {
 	subscribers  map[string]*streamSubscriber
 	replyWaiters map[string][]chan *iscv1.Event
 	mu           sync.RWMutex
+	stopped      chan struct{} // Closed by stop; ends open event streams and reply waits
+	stopOnce     sync.Once
 }
 
 var _ cardinalv1connect.CardinalServiceHandler = (*clientService)(nil)
@@ -39,7 +41,22 @@ func newClientService(address *micro.ServiceAddress, dispatch Handler, log zerol
 		log:          log,
 		subscribers:  make(map[string]*streamSubscriber),
 		replyWaiters: make(map[string][]chan *iscv1.Event),
+		stopped:      make(chan struct{}),
 	}
+}
+
+// stop ends every open event stream and reply wait, and any started later, as unavailable.
+func (s *clientService) stop() {
+	s.stopOnce.Do(func() { close(s.stopped) })
+}
+
+// dispatchError reports a dispatch error to the client: unavailable during shutdown, invalid otherwise.
+func dispatchError(err error) error {
+	code := connect.CodeInvalidArgument
+	if eris.Is(err, errStopping) {
+		code = connect.CodeUnavailable
+	}
+	return connect.NewError(code, eris.Wrap(err, "failed to enqueue command"))
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -88,7 +105,7 @@ func (s *clientService) SendCommand(
 	}
 
 	if err := s.dispatch(ctx, cmd); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
+		return nil, dispatchError(err)
 	}
 
 	return connect.NewResponse(&cardinalv1.SendCommandResponse{}), nil
@@ -120,7 +137,7 @@ func (s *clientService) SendCommandWithReply(
 	defer s.removeReplyWaiter(req.Msg.GetEventName(), waiter)
 
 	if err := s.dispatch(ctx, cmd); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
+		return nil, dispatchError(err)
 	}
 
 	// The span's duration is the round trip; this event marks where the enqueue ended and the wait
@@ -129,6 +146,8 @@ func (s *clientService) SendCommandWithReply(
 	select {
 	case <-ctx.Done():
 		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "waiting for reply event"))
+	case <-s.stopped:
+		return nil, connect.NewError(connect.CodeUnavailable, eris.Wrap(errStopping, "waiting for reply event"))
 	case event := <-waiter:
 		span.AddEvent("reply received")
 		return connect.NewResponse(&cardinalv1.SendCommandWithReplyResponse{Event: event}), nil
@@ -204,6 +223,8 @@ func (s *clientService) StartEventStream(
 				return connect.NewError(connect.CodeCanceled, eris.Wrap(err, "stream cancelled"))
 			}
 			return nil
+		case <-s.stopped:
+			return connect.NewError(connect.CodeUnavailable, errStopping)
 		case <-ticker.C:
 			if err := subscriber.send(&cardinalv1.StartEventStreamResponse{}); err != nil {
 				return err

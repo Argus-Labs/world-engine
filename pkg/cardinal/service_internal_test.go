@@ -4,7 +4,6 @@ import (
 	"context"
 	"math/rand/v2"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -72,16 +71,17 @@ func TestService_DebugServiceFinalizesIntrospection(t *testing.T) {
 	debug := newIntrospectionTestModule()
 	require.NoError(t, debug.register(introspect.Command, introspectionSample{}))
 	fixture.world.debug = debug
+	fixture.world.options.NATSConfig = &micro.NATSConfig{Name: "test-service", URL: TestNATS.ClientURL()}
 
-	// startTransport, not finalizeCatalog directly, so the test fails if startup stops finalizing.
+	// Through startTransport and the world's own server, so the test fails if startup stops finalizing
+	// the catalog or stops mounting the debug service.
 	require.NoError(t, fixture.world.startTransport("127.0.0.1:0"))
-	t.Cleanup(func() { _ = fixture.world.transport.Stop(context.Background()) })
-	mux := http.NewServeMux()
-	mux.Handle(fixture.world.debugServiceHandler())
-	server := httptest.NewServer(mux)
-	t.Cleanup(server.Close)
+	t.Cleanup(func() {
+		_ = fixture.world.stopTransport(context.Background())
+		fixture.world.client.Close()
+	})
 
-	client := cardinalv1connect.NewDebugServiceClient(server.Client(), server.URL)
+	client := cardinalv1connect.NewDebugServiceClient(http.DefaultClient, "http://"+fixture.world.server.Addr)
 	response, err := client.Introspect(
 		context.Background(),
 		connect.NewRequest(&cardinalv1.IntrospectRequest{}),
@@ -124,7 +124,7 @@ type serviceFixture struct {
 }
 
 // newServiceFixture creates a world wired to a transport, with SimpleCommand registered. With start, the
-// transport is started on the test NATS server and a random local port, and stopped when the test ends.
+// transport is started with its own client on the test NATS server, and stopped when the test ends.
 func newServiceFixture(t *testing.T, prng *rand.Rand, start bool) *serviceFixture {
 	t.Helper()
 
@@ -144,23 +144,35 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, start bool) *serviceFixtur
 	require.True(t, ok)
 
 	if start {
-		require.NoError(t, w.transport.Start("127.0.0.1:0"))
+		require.NoError(t, w.transport.Start(newTestClient(t)))
 		t.Cleanup(func() { _ = w.transport.Stop(context.Background()) })
 	}
 
 	return &serviceFixture{world: w, commandID: cmdID}
 }
 
-// newTestTransport creates an unstarted transport for w on the test NATS server.
+// newTestTransport creates an unstarted transport for w.
 func newTestTransport(t *testing.T, w *World) *transport.Transport {
 	t.Helper()
 
 	tr, err := transport.New(transport.Options{
 		Address:   w.address,
 		AuthMode:  AuthModeDev,
-		NATS:      &micro.NATSConfig{Name: "test-service", URL: TestNATS.ClientURL()},
 		Telemetry: &w.tel,
 	})
 	require.NoError(t, err)
 	return tr
+}
+
+// newTestClient connects to the test NATS server, and closes the connection when the test ends.
+func newTestClient(t *testing.T) *micro.Client {
+	t.Helper()
+
+	client, err := micro.NewClient(
+		micro.WithNATSConfig(micro.NATSConfig{Name: "test-service", URL: TestNATS.ClientURL()}),
+		micro.WithLogger(zerolog.Nop()),
+	)
+	require.NoError(t, err)
+	t.Cleanup(client.Close)
+	return client
 }

@@ -2,11 +2,17 @@ package cardinal
 
 import (
 	"context"
+	"errors"
+	"net"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
+	"connectrpc.com/otelconnect"
+	"connectrpc.com/validate"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/transport"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	"github.com/rotisserie/eris"
@@ -18,17 +24,11 @@ import (
 
 // newTransport builds the transport from w.options and registers every command registered so far.
 func (w *World) newTransport() (*transport.Transport, error) {
-	var services []transport.ServiceHandler
-	if *w.options.Debug {
-		services = append(services, w.debugServiceHandler)
-	}
 	tr, err := transport.New(transport.Options{
 		Address:   w.address,
 		AuthMode:  w.options.AuthMode,
 		ArgusURL:  w.options.ArgusAuthURL,
-		NATS:      w.options.NATSConfig,
 		Telemetry: &w.tel,
-		Services:  services,
 	})
 	if err != nil {
 		return nil, err
@@ -39,12 +39,90 @@ func (w *World) newTransport() (*transport.Transport, error) {
 	return tr, nil
 }
 
-// startTransport freezes the introspection catalog, then starts serving clients and other shards.
-func (w *World) startTransport(address string) error {
+// natsClient returns the world's NATS connection, opening it on first use. Everything in the world that
+// talks to NATS shares it, and shutdown closes it after all of them have stopped.
+func (w *World) natsClient() (*micro.Client, error) {
+	if w.client != nil {
+		return w.client, nil
+	}
+	opts := []micro.ClientOption{micro.WithLogger(w.tel.GetLogger("nats"))}
+	if cfg := w.options.NATSConfig; cfg != nil {
+		opts = append(opts, micro.WithNATSConfig(*cfg))
+	}
+	client, err := micro.NewClient(opts...)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to connect to NATS")
+	}
+	w.client = client
+	return client, nil
+}
+
+// startTransport freezes the introspection catalog, starts the transport on the world's NATS connection,
+// and serves it, with the debug service when enabled, on listenAddr.
+func (w *World) startTransport(listenAddr string) error {
 	if err := w.debug.finalizeCatalog(); err != nil {
 		return eris.Wrap(err, "failed to finalize introspection catalog")
 	}
-	return w.transport.Start(address)
+	client, err := w.natsClient()
+	if err != nil {
+		return err
+	}
+	if err := w.transport.Start(client); err != nil {
+		return err
+	}
+
+	path, handler, err := w.transport.Handler()
+	if err != nil {
+		return err
+	}
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	if w.debug != nil {
+		otelInterceptor, err := otelconnect.NewInterceptor()
+		if err != nil {
+			return eris.Wrap(err, "failed to create otel interceptor")
+		}
+		mux.Handle(w.debugServiceHandler(connect.WithInterceptors(otelInterceptor, validate.NewInterceptor())))
+	}
+
+	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", listenAddr)
+	if err != nil {
+		return eris.Wrap(err, "failed to listen for service server")
+	}
+	w.server = &http.Server{
+		Addr:              listener.Addr().String(), // The bound address, so a ":0" port can be found
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		Protocols:         h2cProtocols(),
+	}
+	go func() {
+		if err := w.server.Serve(listener); err != nil && !eris.Is(err, http.ErrServerClosed) {
+			w.tel.Logger.Error().Err(err).Msg("service server error")
+		}
+	}()
+	return nil
+}
+
+// stopTransport stops the transport, then the HTTP server serving it. The transport goes first: it ends
+// open event streams, which would otherwise hold the server's shutdown until ctx expires.
+func (w *World) stopTransport(ctx context.Context) error {
+	err := w.transport.Stop(ctx)
+	if w.server != nil {
+		if shutdownErr := w.server.Shutdown(ctx); shutdownErr != nil {
+			err = errors.Join(err, eris.Wrap(shutdownErr, "failed to shutdown service server"))
+		}
+	}
+	return err
+}
+
+// h2cProtocols enables HTTP/1.1 and unencrypted HTTP/2 (h2c), matching the
+// previous h2c.NewHandler(mux, &http2.Server{}) behavior without the deprecated
+// golang.org/x/net/http2/h2c package.
+func h2cProtocols() *http.Protocols {
+	p := new(http.Protocols)
+	p.SetHTTP1(true)
+	p.SetUnencryptedHTTP2(true)
+	return p
 }
 
 // debugServiceHandler builds the DebugService handler. It reads w.debug when the transport starts.

@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"context"
+	"net/http"
 	"os/signal"
 	"reflect"
 	"syscall"
@@ -36,6 +37,8 @@ type World struct {
 	events          event.Manager         // Events and event handlers
 	address         *micro.ServiceAddress // NATS address
 	transport       *transport.Transport  // Client and inter-shard communication
+	client          *micro.Client         // NATS connection, shared; opened on first use and closed last
+	server          *http.Server          // Serves the transport and debug service to clients
 	snapshotStorage snapshot.Storage      // Snapshot reader
 	snapshotWriter  snapshot.Writer       // Snapshot writer
 	debug           *debugModule          // Debug tools and services
@@ -110,10 +113,14 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	// Initialize snapshot storage.
 	switch options.SnapshotStorageType {
 	case snapshot.StorageTypeJetStream:
+		client, err := world.natsClient()
+		if err != nil {
+			return nil, err
+		}
 		snapshotJS, err := snapshot.NewJetStreamStorage(snapshot.JetStreamStorageOptions{
-			Logger:     tel.GetLogger("snapshot"),
-			Address:    world.address,
-			NATSConfig: options.NATSConfig,
+			Logger:  tel.GetLogger("snapshot"),
+			Address: world.address,
+			Client:  client,
 		})
 		if err != nil {
 			return nil, eris.Wrap(err, "failed to create jetstream snapshot storage")
@@ -390,9 +397,14 @@ func (w *World) shutdown() {
 	w.snapshotWriter.Stop(ctx)
 
 	// Drain queued commands and events.
-	if err := w.transport.Stop(ctx); err != nil {
+	if err := w.stopTransport(ctx); err != nil {
 		w.tel.Logger.Error().Err(err).Msg("service shutdown error")
 		w.tel.CaptureException(ctx, err)
+	}
+
+	// Close NATS after everything that uses it has stopped.
+	if w.client != nil {
+		w.client.Close()
 	}
 
 	// Stop pprof after the service so active profiles have more time to finish.

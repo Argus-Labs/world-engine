@@ -22,8 +22,8 @@ type JetStreamStorage struct {
 
 var _ Storage = (*JetStreamStorage)(nil)
 
-// NewJetStreamStorage creates a new JetStream ObjectStore-based snapshot storage.
-// It creates its own NATS client using the default configuration from environment variables.
+// NewJetStreamStorage creates a new JetStream ObjectStore-based snapshot storage on opts.Client, which the
+// caller keeps open while the storage is in use.
 func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, eris.Wrap(err, "invalid options passed")
@@ -35,16 +35,7 @@ func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error
 		return nil, eris.Wrap(err, "failed to parse env")
 	}
 
-	clientOpts := []micro.ClientOption{micro.WithLogger(opts.Logger)}
-	if opts.NATSConfig != nil {
-		clientOpts = append(clientOpts, micro.WithNATSConfig(*opts.NATSConfig))
-	}
-	client, err := micro.NewClient(clientOpts...)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to create micro client")
-	}
-
-	js, err := jetstream.New(client.Conn)
+	js, err := jetstream.New(opts.Client.Conn)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to create JetStream client")
 	}
@@ -113,9 +104,9 @@ func (j *JetStreamStorage) Load(ctx context.Context) ([]byte, error) {
 // -------------------------------------------------------------------------------------------------
 
 type JetStreamStorageOptions struct {
-	Address    *micro.ServiceAddress
-	Logger     zerolog.Logger
-	NATSConfig *micro.NATSConfig // Optional NATS config override (nil = use env/defaults)
+	Address *micro.ServiceAddress
+	Logger  zerolog.Logger
+	Client  *micro.Client // NATS connection; the caller owns it
 
 	// Maximum bytes for snapshot storage (ObjectStore). Required by some NATS providers like Synadia Cloud.
 	SnapshotStorageMaxBytes uint64 `env:"CARDINAL_SNAPSHOT_STORAGE_MAX_BYTES" envDefault:"0"`
@@ -124,6 +115,9 @@ type JetStreamStorageOptions struct {
 func (opt *JetStreamStorageOptions) Validate() error {
 	if opt.Address == nil {
 		return eris.New("service address cannot be nil")
+	}
+	if opt.Client == nil {
+		return eris.New("NATS client cannot be nil")
 	}
 	// SnapshotStorageMaxBytes can be 0 which means unlimited storage. No need to validate here.
 	return nil

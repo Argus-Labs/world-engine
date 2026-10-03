@@ -3,7 +3,6 @@ package transport
 import (
 	"context"
 	"math/rand/v2"
-	"net/http"
 	"sync"
 	"testing"
 	"time"
@@ -218,36 +217,32 @@ func TestTransport_Handle(t *testing.T) {
 			fixture.tr.Handle("late_command", fixture.received.handle)
 		})
 	})
+
+	t.Run("after handler panics", func(t *testing.T) {
+		t.Parallel()
+		fixture := newTransportFixture(t, testutils.NewRand(t), false)
+		_, _, err := fixture.tr.Handler()
+		require.NoError(t, err)
+		assert.Panics(t, func() {
+			fixture.tr.Handle("late_command", fixture.received.handle)
+		})
+	})
 }
 
 func TestTransport_StartTwice(t *testing.T) {
 	t.Parallel()
 
 	fixture := newTransportFixture(t, testutils.NewRand(t), true)
-	client := fixture.tr.client
-	require.Error(t, fixture.tr.Start("127.0.0.1:0"))
-	assert.Same(t, client, fixture.tr.client, "second Start replaced the first connection")
+	service := fixture.tr.microService
+	require.Error(t, fixture.tr.Start(NewTestClient(t)))
+	assert.Same(t, service, fixture.tr.microService, "second Start replaced the first endpoints")
 }
 
-func TestTransport_StartMountsServices(t *testing.T) {
+func TestTransport_StartWithoutClient(t *testing.T) {
 	t.Parallel()
 
-	var got []connect.HandlerOption
-	tr, err := New(Options{
-		Address:   RandServiceAddress(testutils.NewRand(t)),
-		AuthMode:  AuthModeDev,
-		NATS:      &micro.NATSConfig{Name: "test-transport", URL: TestNATS.ClientURL()},
-		Telemetry: &telemetry.Telemetry{Logger: zerolog.Nop()},
-		Services: []ServiceHandler{func(opts ...connect.HandlerOption) (string, http.Handler) {
-			got = opts
-			return "/extra.v1.ExtraService/", http.NotFoundHandler()
-		}},
-	})
-	require.NoError(t, err)
-	require.NoError(t, tr.Start("127.0.0.1:0"))
-	t.Cleanup(func() { _ = tr.Stop(context.Background()) })
-
-	assert.Len(t, got, 1, "extra services get CardinalService's interceptors")
+	fixture := newTransportFixture(t, testutils.NewRand(t), false)
+	require.Error(t, fixture.tr.Start(nil))
 }
 
 func TestNew_InvalidOptions(t *testing.T) {
@@ -309,8 +304,8 @@ type transportFixture struct {
 	received *recorder
 }
 
-// newTransportFixture creates a transport that handles SimpleCommand. With start, it is started on the
-// test NATS server and a random local port, and stopped when the test ends.
+// newTransportFixture creates a transport that handles SimpleCommand. With start, it is started with its
+// own client on the test NATS server, and stopped before that client closes when the test ends.
 func newTransportFixture(t *testing.T, prng *rand.Rand, start bool) *transportFixture {
 	t.Helper()
 
@@ -318,7 +313,6 @@ func newTransportFixture(t *testing.T, prng *rand.Rand, start bool) *transportFi
 	tr, err := New(Options{
 		Address:   address,
 		AuthMode:  AuthModeDev,
-		NATS:      &micro.NATSConfig{Name: "test-transport", URL: TestNATS.ClientURL()},
 		Telemetry: &telemetry.Telemetry{Logger: zerolog.Nop()},
 	})
 	require.NoError(t, err)
@@ -327,7 +321,7 @@ func newTransportFixture(t *testing.T, prng *rand.Rand, start bool) *transportFi
 	tr.Handle(testutils.SimpleCommand{}.Name(), received.handle)
 
 	if start {
-		require.NoError(t, tr.Start("127.0.0.1:0"))
+		require.NoError(t, tr.Start(NewTestClient(t)))
 		t.Cleanup(func() { _ = tr.Stop(context.Background()) })
 	}
 
