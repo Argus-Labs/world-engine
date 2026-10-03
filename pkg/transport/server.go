@@ -70,14 +70,28 @@ type streamSubscriber struct {
 	ctx    context.Context
 	stream *connect.ServerStream[cardinalv1.StartEventStreamResponse]
 	events map[string]struct{}
-	mu     sync.Mutex
+	mu     sync.Mutex // Held for each write, so close waits for one in progress
+	closed bool       // Set by close; send skips afterwards
 }
 
+// send writes response to the stream, or does nothing once the stream is closed.
 func (s *streamSubscriber) send(response *cardinalv1.StartEventStreamResponse) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.closed {
+		return nil
+	}
 	return s.stream.Send(response)
+}
+
+// close stops all later sends. StartEventStream calls it before returning: connect-go finishes the stream
+// once the handler returns, and a publish that picked this subscriber earlier may still be sending.
+func (s *streamSubscriber) close() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.closed = true
 }
 
 func (s *clientService) SendCommand(
@@ -198,6 +212,7 @@ func (s *clientService) StartEventStream(
 	if err != nil {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
+	defer subscriber.close()
 	defer s.removeSubscriber(user)
 
 	for _, subscription := range req.Msg.GetSubscriptions() {

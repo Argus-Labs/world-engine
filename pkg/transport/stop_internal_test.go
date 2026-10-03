@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -139,4 +141,49 @@ func TestTransport_FlushAfterStop(t *testing.T) {
 	assert.Zero(t, senders, "a sender started after Stop")
 	time.Sleep(100 * time.Millisecond)
 	assert.Empty(t, fixtureB.received.take())
+}
+
+// TestTransport_PublishWhileStreamsClose checks that publishing while streams close never writes to a
+// stream connect-go has already finished. Run with -race.
+func TestTransport_PublishWhileStreamsClose(t *testing.T) {
+	t.Parallel()
+	fixture := newTransportFixture(t, testutils.NewRand(t), false)
+
+	path, handler, err := fixture.tr.Handler()
+	require.NoError(t, err)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewUnstartedServer(mux)
+	server.EnableHTTP2 = true
+	server.StartTLS()
+	defer server.Close()
+	client := cardinalv1connect.NewCardinalServiceClient(server.Client(), server.URL)
+
+	done := make(chan struct{})
+	var publisher sync.WaitGroup
+	publisher.Go(func() {
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				fixture.tr.Publish(context.Background(), testutils.SimpleEvent{Value: 1}, "")
+			}
+		}
+	})
+	defer publisher.Wait()
+	defer close(done)
+
+	for i := range 100 {
+		ctx, cancel := context.WithCancel(context.Background())
+		req := connect.NewRequest(&cardinalv1.StartEventStreamRequest{Subscriptions: []*cardinalv1.EventSubscription{
+			{Address: fixture.address, Events: []string{"*"}},
+		}})
+		req.Header().Set("X-Email", "user-"+strconv.Itoa(i))
+		stream, err := client.StartEventStream(ctx, req)
+		require.NoError(t, err)
+		stream.Receive()
+		time.Sleep(time.Millisecond) // Let some events reach the stream before it closes
+		cancel()
+	}
 }
