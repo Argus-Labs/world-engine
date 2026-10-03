@@ -45,20 +45,26 @@ Create a client with a configuration object that specifies the auth URL and regi
 
 ## Authentication
 
-Restore the saved session at startup, or sign in. Cardinal identifies the player by the stable player ID in the game token.
+`client.AuthStatus` says what the game can do: `SignedOut`, `NeedsRefresh` (a saved login needs a fresh game token), or `Ready`. `client.Player` says who is playing. `client.AuthChanged` fires on Unity's main thread whenever either changes. Cardinal identifies the player by the stable player ID in the game token.
 
 <Tabs>
   <Tab title="Unity C#">
     ```csharp
-    var result = await client.RestoreSessionAsync();
-    if (result.Error is AuthNoSavedSessionException)
-        result = await client.SignInAsync(); // or SignInAsGuestAsync()
+    client.AuthChanged += Render;
+    Render();
+    if (client.AuthStatus == AuthStatus.NeedsRefresh)
+        await client.RefreshAuthAsync();
 
-    if (result.Player is PlayerState.Registered player)
-        Debug.Log($"Signed in as {player.Email} (Player: {player.Id})");
+    // On a sign-in button:
+    var result = await client.SignInAsync(); // or SignInAsGuestAsync()
+    if (result.Error is AuthAttemptFailedException failed)
+        Debug.LogWarning($"Sign-in failed: {failed.Code}");
 
-    // Read the current player snapshot
-    var current = client.Player;
+    void Render()
+    {
+        if (client.Player is PlayerState.Registered player)
+            Debug.Log($"Signed in as {player.Email} (Player: {player.Id})");
+    }
     ```
   </Tab>
   <Tab title="TypeScript">
@@ -100,7 +106,7 @@ To connect, specify the shard's address (region, organization, project, and shar
         ShardId = "game-shard"
     };
 
-    var shard = client.ConnectShard(addr);
+    var shard = await client.ConnectShardAsync(addr);
     ```
   </Tab>
   <Tab title="TypeScript">
