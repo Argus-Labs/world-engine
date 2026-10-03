@@ -25,7 +25,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/testutils"
-	"github.com/argus-labs/world-engine/pkg/transport"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
@@ -199,22 +198,8 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 	w.options.AuthMode = AuthModeDev
 
 	// Rebuild the transport with the options above; NewWorld built it with the setup's options.
-	var services []transport.ServiceHandler
-	if w.debug != nil {
-		services = append(services, w.debugServiceHandler)
-	}
-	tr, err := transport.New(transport.Options{
-		Address:   w.address,
-		AuthMode:  w.options.AuthMode,
-		ArgusURL:  w.options.ArgusAuthURL,
-		NATS:      w.options.NATSConfig,
-		Telemetry: &w.tel,
-		Services:  services,
-	})
+	tr, err := w.newTransport()
 	require.NoError(t, err)
-	for _, name := range w.commands.Names() {
-		tr.Handle(name, w.commands.Enqueue)
-	}
 	w.transport = tr
 
 	connectAddr := "127.0.0.1:5000"
@@ -284,7 +269,9 @@ func (f *e2eFixture) sendCommand(t *testing.T, cmd *iscv1.Command) {
 	// 2s absorbs normal scheduling/reconnect jitter while still failing fast on deadlocks.
 	ctx, cancel := context.WithTimeout(context.Background(), e2eCommandTimeout)
 	defer cancel()
-	_, err := f.client.SendCommand(ctx, connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmd}))
+	req := connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmd})
+	req.Header().Set("X-Email", "e2e-test") // Dev auth requires it
+	_, err := f.client.SendCommand(ctx, req)
 	require.NoError(t, err)
 }
 

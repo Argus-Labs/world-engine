@@ -98,18 +98,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	})
 
 	// Create the transport for clients and other shards.
-	var services []transport.ServiceHandler
-	if *options.Debug {
-		services = append(services, world.debugServiceHandler)
-	}
-	world.transport, err = transport.New(transport.Options{
-		Address:   world.address,
-		AuthMode:  options.AuthMode,
-		ArgusURL:  options.ArgusAuthURL,
-		NATS:      options.NATSConfig,
-		Telemetry: &world.tel,
-		Services:  services,
-	})
+	world.transport, err = world.newTransport()
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to create transport")
 	}

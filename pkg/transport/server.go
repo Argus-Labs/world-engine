@@ -114,12 +114,14 @@ func (s *clientService) SendCommandWithReply(
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 	}
 
+	// Register the waiter before dispatching: a handler that replies before returning would otherwise
+	// publish before anyone waits.
+	waiter := s.addReplyWaiter(req.Msg.GetEventName())
+	defer s.removeReplyWaiter(req.Msg.GetEventName(), waiter)
+
 	if err := s.dispatch(ctx, cmd); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
-
-	waiter := s.addReplyWaiter(req.Msg.GetEventName())
-	defer s.removeReplyWaiter(req.Msg.GetEventName(), waiter)
 
 	// The span's duration is the round trip; this event marks where the enqueue ended and the wait
 	// for the reply began. A cancelled wait ends the span with only this event and an error status.

@@ -127,6 +127,42 @@ func TestTransport_Publish(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, payload, decoded)
 	})
+
+	t.Run("reply published inside the handler", func(t *testing.T) {
+		t.Parallel()
+		prng := testutils.NewRand(t)
+		address := RandServiceAddress(prng)
+		tr, err := New(Options{
+			Address:   address,
+			AuthMode:  AuthModeDev,
+			Telemetry: &telemetry.Telemetry{Logger: zerolog.Nop()},
+		})
+		require.NoError(t, err)
+
+		// A handler that processes the command at once, as a non-ECS service may, and replies before
+		// returning.
+		reply := testutils.SimpleEvent{Value: prng.Int()}
+		tr.Handle(testutils.SimpleCommand{}.Name(), func(ctx context.Context, _ *iscv1.Command) error {
+			tr.Publish(ctx, reply, "")
+			return nil
+		})
+
+		ctx, cancel := context.WithTimeout(transportTestContext(testutils.RandString(prng, 8)), 2*time.Second)
+		defer cancel()
+		res, err := tr.clients.SendCommandWithReply(ctx, connect.NewRequest(&cardinalv1.SendCommandWithReplyRequest{
+			Command: &iscv1.Command{
+				Name:    testutils.SimpleCommand{}.Name(),
+				Address: address,
+				Persona: &iscv1.Persona{Id: "client-provided-persona"},
+				Payload: testutils.SimpleCommand{Value: 1}.MarshalWire(),
+			},
+			EventName: reply.Name(),
+		}))
+		require.NoError(t, err, "the reply was published before the waiter existed")
+		decoded, err := testutils.SimpleEvent{}.UnmarshalWire(res.Msg.GetEvent().GetPayload())
+		require.NoError(t, err)
+		assert.Equal(t, reply, decoded)
+	})
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -182,6 +218,15 @@ func TestTransport_Handle(t *testing.T) {
 			fixture.tr.Handle("late_command", fixture.received.handle)
 		})
 	})
+}
+
+func TestTransport_StartTwice(t *testing.T) {
+	t.Parallel()
+
+	fixture := newTransportFixture(t, testutils.NewRand(t), true)
+	client := fixture.tr.client
+	require.Error(t, fixture.tr.Start("127.0.0.1:0"))
+	assert.Same(t, client, fixture.tr.client, "second Start replaced the first connection")
 }
 
 func TestTransport_StartMountsServices(t *testing.T) {
@@ -284,7 +329,6 @@ func newTransportFixture(t *testing.T, prng *rand.Rand, start bool) *transportFi
 	if start {
 		require.NoError(t, tr.Start("127.0.0.1:0"))
 		t.Cleanup(func() { _ = tr.Stop(context.Background()) })
-		require.NoError(t, tr.client.Flush())
 	}
 
 	return &transportFixture{address: address, tr: tr, received: received}

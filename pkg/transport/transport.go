@@ -112,8 +112,19 @@ func (t *Transport) dispatch(ctx context.Context, cmd *iscv1.Command) error {
 // Start connects to NATS, registers an endpoint per handled command, and serves ConnectRPC on
 // listenAddr. Commands can arrive as soon as it returns.
 func (t *Transport) Start(listenAddr string) error {
+	if t.started {
+		return eris.New("transport already started")
+	}
 	t.started = true
 
+	if err := t.startNATS(); err != nil {
+		return err
+	}
+	return t.startHTTP(listenAddr)
+}
+
+// startNATS connects to NATS and registers the ping endpoint and one endpoint per handled command.
+func (t *Transport) startNATS() error {
 	clientOpts := []micro.ClientOption{micro.WithLogger(t.log)}
 	if cfg := t.opts.NATS; cfg != nil {
 		clientOpts = append(clientOpts, micro.WithNATSConfig(*cfg))
@@ -136,7 +147,15 @@ func (t *Transport) Start(listenAddr string) error {
 	if err := t.interShard.start(t.microService, t.handlers); err != nil {
 		return err
 	}
+	// Subscribing only buffers the request; flush so the server has every endpoint before Start returns.
+	if err := client.Flush(); err != nil {
+		return eris.Wrap(err, "failed to flush NATS subscriptions")
+	}
+	return nil
+}
 
+// startHTTP serves CardinalService and the extra services on listenAddr.
+func (t *Transport) startHTTP(listenAddr string) error {
 	otelInterceptor, err := otelconnect.NewInterceptor()
 	if err != nil {
 		return eris.Wrap(err, "failed to create otel interceptor")

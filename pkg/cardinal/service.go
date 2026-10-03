@@ -16,6 +16,29 @@ import (
 // Transport wiring
 // -------------------------------------------------------------------------------------------------
 
+// newTransport builds the transport from w.options and registers every command registered so far.
+func (w *World) newTransport() (*transport.Transport, error) {
+	var services []transport.ServiceHandler
+	if *w.options.Debug {
+		services = append(services, w.debugServiceHandler)
+	}
+	tr, err := transport.New(transport.Options{
+		Address:   w.address,
+		AuthMode:  w.options.AuthMode,
+		ArgusURL:  w.options.ArgusAuthURL,
+		NATS:      w.options.NATSConfig,
+		Telemetry: &w.tel,
+		Services:  services,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, name := range w.commands.Names() {
+		tr.Handle(name, w.commands.Enqueue)
+	}
+	return tr, nil
+}
+
 // startTransport freezes the introspection catalog, then starts serving clients and other shards.
 func (w *World) startTransport(address string) error {
 	if err := w.debug.finalizeCatalog(); err != nil {

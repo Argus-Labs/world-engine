@@ -73,7 +73,9 @@ func TestService_DebugServiceFinalizesIntrospection(t *testing.T) {
 	require.NoError(t, debug.register(introspect.Command, introspectionSample{}))
 	fixture.world.debug = debug
 
-	require.NoError(t, debug.finalizeCatalog())
+	// startTransport, not finalizeCatalog directly, so the test fails if startup stops finalizing.
+	require.NoError(t, fixture.world.startTransport("127.0.0.1:0"))
+	t.Cleanup(func() { _ = fixture.world.transport.Stop(context.Background()) })
 	mux := http.NewServeMux()
 	mux.Handle(fixture.world.debugServiceHandler())
 	server := httptest.NewServer(mux)
