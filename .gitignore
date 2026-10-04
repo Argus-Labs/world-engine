@@ -59,6 +59,7 @@ obj/
 
 # Debug files
 debug
+!cli/internal/debug/
 __debug_bin
 
 # IDE specific files

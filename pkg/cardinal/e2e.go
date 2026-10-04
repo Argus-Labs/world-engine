@@ -266,7 +266,9 @@ func (f *e2eFixture) sendCommand(t *testing.T, cmd *iscv1.Command) {
 	// 2s absorbs normal scheduling/reconnect jitter while still failing fast on deadlocks.
 	ctx, cancel := context.WithTimeout(context.Background(), e2eCommandTimeout)
 	defer cancel()
-	_, err := f.client.SendCommand(ctx, connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmd}))
+	req := connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmd})
+	req.Header().Set("X-Email", "e2e-"+cmd.GetPersona().GetId())
+	_, err := f.client.SendCommand(ctx, req)
 	require.NoError(t, err)
 }
 
