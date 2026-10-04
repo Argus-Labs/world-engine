@@ -57,8 +57,8 @@ Create a client with a configuration object that specifies the auth URL and regi
 
     // On a sign-in button:
     var result = await client.SignInAsync(); // or SignInAsGuestAsync()
-    if (result.Error is AuthAttemptFailedException failed)
-        Debug.LogWarning($"Sign-in failed: {failed.Code}");
+    if (result != AuthResult.Success)
+        Debug.LogWarning($"Sign-in did not finish: {result}");
 
     void Render()
     {
@@ -79,7 +79,7 @@ Sign out when the user logs out of your game.
 <Tabs>
   <Tab title="Unity C#">
     ```csharp
-    await client.SignOutAsync();
+    client.SignOut();
     ```
   </Tab>
   <Tab title="TypeScript">
