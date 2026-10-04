@@ -153,11 +153,11 @@ func (q *failingQueue) Enqueue(context.Context, *iscv1.Command) error {
 	return eris.New("simulated enqueue failure")
 }
 
-// scwrAuthCtx returns parent bound to the given user, the way authn.SetInfo does for a real
-// authenticated request. SendCommandWithReply reads the user via UserFromContext and uses the
+// scwrAuthCtx returns parent bound to the given player, the way authn.SetInfo does for a real
+// authenticated request. SendCommandWithReply reads the player via PlayerFromContext and uses the
 // context's Done channel as its reply-deadline, so the parent must carry the timeout.
-func scwrAuthCtx(parent context.Context, userID string) context.Context {
-	return authn.SetInfo(parent, &User{ID: userID})
+func scwrAuthCtx(parent context.Context, playerID string) context.Context {
+	return authn.SetInfo(parent, &Player{ID: playerID})
 }
 
 // newSCWRFixture builds a bare World whose KindDefault event handler is publishDefaultEvent, with
