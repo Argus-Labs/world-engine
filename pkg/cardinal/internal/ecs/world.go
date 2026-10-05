@@ -52,6 +52,11 @@ func (w *World) Tick() {
 	}
 }
 
+// ClearSystemEvents drops every pending system event, as Tick does when it returns.
+func (w *World) ClearSystemEvents() {
+	w.systemEvents.clear()
+}
+
 // Reset clears the world state back to its initial empty state.
 // Components remain registered but all entities and archetypes are cleared.
 func (w *World) Reset() {

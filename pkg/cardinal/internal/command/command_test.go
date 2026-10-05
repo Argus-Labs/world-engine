@@ -274,6 +274,19 @@ func TestCommand_RegisterModelFuzz(t *testing.T) {
 	}
 }
 
+// Names feeds DST's command ops, so its order must not depend on map iteration.
+func TestCommand_NamesSorted(t *testing.T) {
+	t.Parallel()
+
+	m := command.NewManager()
+	for _, name := range []string{"c", "a", "b"} {
+		_, err := m.Register(name, nil)
+		require.NoError(t, err)
+	}
+
+	assert.Equal(t, []string{"a", "b", "c"}, m.Names())
+}
+
 // -------------------------------------------------------------------------------------------------
 // Concurrent enqueue test
 // -------------------------------------------------------------------------------------------------
