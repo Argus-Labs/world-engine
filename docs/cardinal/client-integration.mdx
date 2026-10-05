@@ -22,7 +22,10 @@ Create a client with a configuration object that specifies the auth URL and regi
     var config = new WorldClientConfig
     {
         AuthUrl = "http://localhost:3000",
-        AuthClientOverride = new DevAuth("dev@argus.gg"),
+        // The game: sign-in and every shard use this organization and project.
+        Organization = "my-org",
+        Project = "my-game",
+        AuthClientOverride = new DevAuth("dev-player-1"),
         Regions = new Dictionary<string, RegionConfig>
         {
             ["us-west1"] = new RegionConfig
@@ -93,7 +96,7 @@ Sign out when the user logs out of your game.
 
 A shard is a single instance of your game world running on the server. The shard client is your connection to that instance, allowing you to query entities, send commands, and subscribe to events.
 
-To connect, specify the shard's address (region, organization, project, and shard ID) and call connect to get a shard client.
+To connect, specify the shard's region and ID and call connect to get a shard client. The organization and project come from the client config.
 
 <Tabs>
   <Tab title="Unity C#">
@@ -101,8 +104,6 @@ To connect, specify the shard's address (region, organization, project, and shar
     var addr = new ShardAddress
     {
         Region = "us-west1",
-        Organization = "my-org",
-        Project = "my-game",
         ShardId = "game-shard"
     };
 
