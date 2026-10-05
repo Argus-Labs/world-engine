@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"math"
+	"slices"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
@@ -163,6 +164,7 @@ func (m *Manager) Names() []string {
 	for name := range m.catalog {
 		names = append(names, name)
 	}
+	slices.Sort(names)
 	return names
 }
 
