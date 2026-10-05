@@ -94,7 +94,7 @@ Sign out when the user logs out of your game.
 
 ## Connecting to a Shard
 
-A shard is a single instance of your game world running on the server. The shard client is your connection to that instance, allowing you to query entities, send commands, and subscribe to events.
+A shard is a single instance of your game world running on the server. The shard client is your connection to that instance, allowing you to send commands and subscribe to events.
 
 To connect, specify the shard's region and ID and call connect to get a shard client. The organization and project come from the client config.
 
@@ -123,56 +123,6 @@ Disconnect from the shard when you no longer need it.
   <Tab title="Unity C#">
     ```csharp
     client.DisconnectShard(addr);
-    ```
-  </Tab>
-  <Tab title="TypeScript">
-    ```ts
-    // TODO: update
-    ```
-  </Tab>
-</Tabs>
-
-## Querying Entities
-
-To query entities, define client-side classes with field mappings that correspond to component field names on the server. Build queries to specify which components to find and how to match them. See [Queries](/cardinal/queries) for more details.
-
-<Tabs>
-  <Tab title="Unity C#">
-    ```csharp
-    // Define entity classes with Field attribute mapping
-    public class PlayerTag
-    {
-        [Field("nickname")]
-        public string Nickname { get; set; }
-    }
-
-    public class Health
-    {
-        [Field("hp")]
-        public float Hp { get; set; }
-    }
-
-    public class PlayerEntity
-    {
-        [Field("playertag")]
-        public PlayerTag PlayerTag { get; set; }
-
-        [Field("health")]
-        public Health Health { get; set; }
-    }
-
-    // Build and execute query
-    var query = new QueryInfo
-    {
-        Find = new List<string> { "playertag", "health" },
-        Match = QueryMatch.Contains,
-    };
-
-    var results = await shard.QueryAsync<PlayerEntity>(query);
-    foreach (var (entity, id) in results)
-    {
-        Debug.Log($"Player: {entity.PlayerTag.Nickname} Health: {entity.Health.Hp}");
-    }
     ```
   </Tab>
   <Tab title="TypeScript">
