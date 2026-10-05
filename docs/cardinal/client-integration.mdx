@@ -25,7 +25,7 @@ Create a client with a configuration object that specifies the auth URL and regi
         AuthClientOverride = new DevAuth("dev@argus.gg"),
         Regions = new Dictionary<string, RegionConfig>
         {
-            ["us-west-2"] = new RegionConfig
+            ["us-west1"] = new RegionConfig
             {
                 GatewayUrl = "http://localhost:8080",
                 DisplayName = "US West"
@@ -94,7 +94,7 @@ To connect, specify the shard's address (region, organization, project, and shar
     ```csharp
     var addr = new ShardAddress
     {
-        Region = "us-west-2",
+        Region = "us-west1",
         Organization = "my-org",
         Project = "my-game",
         ShardId = "game-shard"

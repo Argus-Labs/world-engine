@@ -1,7 +1,6 @@
 package testutils
 
 import (
-	"fmt"
 	"hash/fnv"
 	"math/rand/v2"
 	"os"
@@ -24,11 +23,11 @@ func init() { //nolint:gochecknoinits // intentionally using init to set seed
 			Seed = parsed
 		}
 	}
-	fmt.Printf("to reproduce: TEST_SEED=0x%x\n", Seed) //nolint:forbidigo // just for testing
 }
 
 func NewRand(t *testing.T) *rand.Rand {
 	t.Helper()
+	t.Logf("to reproduce: TEST_SEED=0x%x", Seed)
 	// We derive a unique seed for each test by XOR-ing the global seed with a hash of the test name.
 	//
 	// This prevents parallel tests from generating the same random values, which can happen if NewRand

@@ -6,8 +6,10 @@ package command
 
 import (
 	pbcommand "github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/gen/pkg/template/multi-shard/shards/chat/command"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"unicode/utf8"
 )
 
 func (c UserChat) ToProto() *pbcommand.UserChat {
@@ -29,11 +31,7 @@ func (c UserChat) FromProto(p *pbcommand.UserChat) UserChat {
 }
 
 func (c UserChat) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal UserChat: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c UserChat) UnmarshalWire(data []byte) (any, error) {
@@ -46,4 +44,44 @@ func (c UserChat) UnmarshalWire(data []byte) (any, error) {
 
 func (c UserChat) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbcommand.UserChat{}).ProtoReflect().Descriptor()
+}
+
+func (c UserChat) SizeWire() int {
+	n := 0
+	if len(c.ArgusAuthID) > 0 {
+		n += protowire.SizeTag(1) + wireStringSize("UserChat.ArgusAuthID", string(c.ArgusAuthID))
+	}
+	if len(c.ArgusAuthName) > 0 {
+		n += protowire.SizeTag(2) + wireStringSize("UserChat.ArgusAuthName", string(c.ArgusAuthName))
+	}
+	if len(c.Message) > 0 {
+		n += protowire.SizeTag(3) + wireStringSize("UserChat.Message", string(c.Message))
+	}
+	return n
+}
+
+func (c UserChat) AppendWire(b []byte) []byte {
+	if len(c.ArgusAuthID) > 0 {
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ArgusAuthID))
+	}
+	if len(c.ArgusAuthName) > 0 {
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.ArgusAuthName))
+	}
+	if len(c.Message) > 0 {
+		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendString(b, string(c.Message))
+	}
+	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check proto.Marshal
+// performs: a proto3 string holding invalid UTF-8 cannot be decoded, so the size pass
+// fails.
+func wireStringSize(field, s string) int {
+	if !utf8.ValidString(s) {
+		panic("failed to encode " + field + ": string field contains invalid UTF-8")
+	}
+	return protowire.SizeBytes(len(s))
 }

@@ -1,6 +1,7 @@
 package event_test
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"testing/synctest"
@@ -38,7 +39,7 @@ func TestEvent_ModelFuzz(t *testing.T) {
 	// Register handlers for kinds 0 to N-1.
 	numKinds := prng.IntN(256) + 1 // 1-256 kinds
 	for i := range numKinds {
-		impl.RegisterHandler(event.Kind(i), func(e event.Event) error {
+		impl.RegisterHandler(event.Kind(i), func(_ context.Context, e event.Event) error {
 			mu.Lock()
 			dispatched = append(dispatched, e)
 			mu.Unlock()
@@ -63,7 +64,7 @@ func TestEvent_ModelFuzz(t *testing.T) {
 			model = append(model, e)
 
 		case opDispatch:
-			err := impl.Dispatch()
+			err := impl.Dispatch(context.Background())
 			require.NoError(t, err)
 
 			// Property: dispatched events must match model (pending queue).
@@ -79,7 +80,7 @@ func TestEvent_ModelFuzz(t *testing.T) {
 	}
 
 	// Final state check.
-	err := impl.Dispatch()
+	err := impl.Dispatch(context.Background())
 	require.NoError(t, err)
 
 	// Property: all enqueued events must be dispatched.
@@ -105,7 +106,7 @@ func TestEvent_EnqueueChannelFull(t *testing.T) {
 
 		// Register a handler for the default kind.
 		var dispatched []event.Event
-		impl.RegisterHandler(event.KindDefault, func(e event.Event) error {
+		impl.RegisterHandler(event.KindDefault, func(_ context.Context, e event.Event) error {
 			dispatched = append(dispatched, e)
 			return nil
 		})
@@ -130,7 +131,7 @@ func TestEvent_EnqueueChannelFull(t *testing.T) {
 		}
 
 		// Verify all events are captured.
-		err := impl.Dispatch()
+		err := impl.Dispatch(context.Background())
 		require.NoError(t, err)
 
 		assert.Len(t, dispatched, totalEvents, "expected all %d events to be captured", totalEvents)

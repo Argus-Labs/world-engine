@@ -9,6 +9,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -123,7 +124,11 @@ func (c *Client) Request(
 		return nil, eris.Wrap(err, "failed to marshal request")
 	}
 
-	msg, err := c.RequestWithContext(ctx, Endpoint(address, endpoint), reqBytes)
+	// Carry the caller's trace context so the service handler's span joins this trace.
+	reqMsg := &nats.Msg{Subject: Endpoint(address, endpoint), Data: reqBytes, Header: nats.Header{}}
+	otel.GetTextMapPropagator().Inject(ctx, headerCarrier(reqMsg.Header))
+
+	msg, err := c.RequestMsgWithContext(ctx, reqMsg)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to send request")
 	}
@@ -191,9 +196,14 @@ func (c *Client) Close() {
 }
 
 // handleDisconnect handles NATS disconnection events.
+//
+// nats.go transitions the connection status away from CONNECTED (to RECONNECTING
+// or CLOSED) *before* invoking the disconnect callback, so nc.ConnectedUrl()
+// always returns "" here. Use the configured URL instead — nats.go exposes no
+// public API for the previously-connected URL during a disconnect.
 func (c *Client) handleDisconnect(nc *nats.Conn, err error) {
 	log := c.log.With().
-		Str("nats_url", nc.ConnectedUrl()).
+		Str("nats_url", c.natsConfig.URL).
 		Uint64("reconnect_attempts", nc.Reconnects).
 		Logger()
 

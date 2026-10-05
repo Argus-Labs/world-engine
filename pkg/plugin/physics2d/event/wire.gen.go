@@ -7,6 +7,7 @@ package event
 import (
 	pkg_cardinal "github.com/argus-labs/world-engine/pkg/cardinal"
 	pbevent "github.com/argus-labs/world-engine/pkg/plugin/physics2d/gen/pkg/plugin/physics2d/event"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -26,11 +27,7 @@ func (c ContactBeginEvent) FromProto(p *pbevent.ContactBeginEvent) ContactBeginE
 }
 
 func (c ContactBeginEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal ContactBeginEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c ContactBeginEvent) UnmarshalWire(data []byte) (any, error) {
@@ -43,6 +40,21 @@ func (c ContactBeginEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c ContactBeginEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbevent.ContactBeginEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c ContactBeginEvent) SizeWire() int {
+	n := 0
+	n += protowire.SizeTag(1) + protowire.SizeBytes(c.ContactEventPayload.SizeWire())
+	return n
+}
+
+func (c ContactBeginEvent) AppendWire(b []byte) []byte {
+	b = protowire.AppendTag(b, 1, protowire.BytesType)
+	atContactEventPayload := len(b)
+	b = append(b, 0)
+	b = c.ContactEventPayload.AppendWire(b)
+	b = wireLenPrefix(b, atContactEventPayload)
+	return b
 }
 
 func (c ContactEndEvent) ToProto() *pbevent.ContactEndEvent {
@@ -60,11 +72,7 @@ func (c ContactEndEvent) FromProto(p *pbevent.ContactEndEvent) ContactEndEvent {
 }
 
 func (c ContactEndEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal ContactEndEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c ContactEndEvent) UnmarshalWire(data []byte) (any, error) {
@@ -77,6 +85,21 @@ func (c ContactEndEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c ContactEndEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbevent.ContactEndEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c ContactEndEvent) SizeWire() int {
+	n := 0
+	n += protowire.SizeTag(1) + protowire.SizeBytes(c.ContactEventPayload.SizeWire())
+	return n
+}
+
+func (c ContactEndEvent) AppendWire(b []byte) []byte {
+	b = protowire.AppendTag(b, 1, protowire.BytesType)
+	atContactEventPayload := len(b)
+	b = append(b, 0)
+	b = c.ContactEventPayload.AppendWire(b)
+	b = wireLenPrefix(b, atContactEventPayload)
+	return b
 }
 
 func (c ContactEventPayload) ToProto() *pbevent.ContactEventPayload {
@@ -111,6 +134,81 @@ func (c ContactEventPayload) FromProto(p *pbevent.ContactEventPayload) ContactEv
 	return c
 }
 
+func (c ContactEventPayload) SizeWire() int {
+	n := 0
+	n += protowire.SizeTag(1) + protowire.SizeBytes(c.FilterA.SizeWire())
+	n += protowire.SizeTag(2) + protowire.SizeBytes(c.FilterB.SizeWire())
+	if c.EntityA != 0 {
+		n += protowire.SizeTag(3) + protowire.SizeVarint(uint64(c.EntityA))
+	}
+	if c.EntityB != 0 {
+		n += protowire.SizeTag(4) + protowire.SizeVarint(uint64(c.EntityB))
+	}
+	if c.ShapeIndexA != 0 {
+		n += protowire.SizeTag(5) + protowire.SizeVarint(uint64(c.ShapeIndexA))
+	}
+	if c.ShapeIndexB != 0 {
+		n += protowire.SizeTag(6) + protowire.SizeVarint(uint64(c.ShapeIndexB))
+	}
+	n += protowire.SizeTag(7) + protowire.SizeBytes(c.Normal.SizeWire())
+	if c.NormalValid {
+		n += protowire.SizeTag(8) + 1
+	}
+	n += protowire.SizeTag(9) + protowire.SizeBytes(c.Point.SizeWire())
+	if c.PointValid {
+		n += protowire.SizeTag(10) + 1
+	}
+	return n
+}
+
+func (c ContactEventPayload) AppendWire(b []byte) []byte {
+	b = protowire.AppendTag(b, 1, protowire.BytesType)
+	atFilterA := len(b)
+	b = append(b, 0)
+	b = c.FilterA.AppendWire(b)
+	b = wireLenPrefix(b, atFilterA)
+	b = protowire.AppendTag(b, 2, protowire.BytesType)
+	atFilterB := len(b)
+	b = append(b, 0)
+	b = c.FilterB.AppendWire(b)
+	b = wireLenPrefix(b, atFilterB)
+	if c.EntityA != 0 {
+		b = protowire.AppendTag(b, 3, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.EntityA))
+	}
+	if c.EntityB != 0 {
+		b = protowire.AppendTag(b, 4, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.EntityB))
+	}
+	if c.ShapeIndexA != 0 {
+		b = protowire.AppendTag(b, 5, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.ShapeIndexA))
+	}
+	if c.ShapeIndexB != 0 {
+		b = protowire.AppendTag(b, 6, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.ShapeIndexB))
+	}
+	b = protowire.AppendTag(b, 7, protowire.BytesType)
+	atNormal := len(b)
+	b = append(b, 0)
+	b = c.Normal.AppendWire(b)
+	b = wireLenPrefix(b, atNormal)
+	if c.NormalValid {
+		b = protowire.AppendTag(b, 8, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	b = protowire.AppendTag(b, 9, protowire.BytesType)
+	atPoint := len(b)
+	b = append(b, 0)
+	b = c.Point.AppendWire(b)
+	b = wireLenPrefix(b, atPoint)
+	if c.PointValid {
+		b = protowire.AppendTag(b, 10, protowire.VarintType)
+		b = protowire.AppendVarint(b, 1)
+	}
+	return b
+}
+
 func (c FixtureFilterBits) ToProto() *pbevent.FixtureFilterBits {
 	p := &pbevent.FixtureFilterBits{}
 	p.CategoryBits = uint64(c.CategoryBits)
@@ -129,6 +227,36 @@ func (c FixtureFilterBits) FromProto(p *pbevent.FixtureFilterBits) FixtureFilter
 	return c
 }
 
+func (c FixtureFilterBits) SizeWire() int {
+	n := 0
+	if c.CategoryBits != 0 {
+		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(c.CategoryBits))
+	}
+	if c.MaskBits != 0 {
+		n += protowire.SizeTag(2) + protowire.SizeVarint(uint64(c.MaskBits))
+	}
+	if c.GroupIndex != 0 {
+		n += protowire.SizeTag(3) + protowire.SizeVarint(uint64(c.GroupIndex))
+	}
+	return n
+}
+
+func (c FixtureFilterBits) AppendWire(b []byte) []byte {
+	if c.CategoryBits != 0 {
+		b = protowire.AppendTag(b, 1, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.CategoryBits))
+	}
+	if c.MaskBits != 0 {
+		b = protowire.AppendTag(b, 2, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.MaskBits))
+	}
+	if c.GroupIndex != 0 {
+		b = protowire.AppendTag(b, 3, protowire.VarintType)
+		b = protowire.AppendVarint(b, uint64(c.GroupIndex))
+	}
+	return b
+}
+
 func (c TriggerBeginEvent) ToProto() *pbevent.TriggerBeginEvent {
 	p := &pbevent.TriggerBeginEvent{}
 	p.ContactEventPayload = c.ContactEventPayload.ToProto()
@@ -144,11 +272,7 @@ func (c TriggerBeginEvent) FromProto(p *pbevent.TriggerBeginEvent) TriggerBeginE
 }
 
 func (c TriggerBeginEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal TriggerBeginEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c TriggerBeginEvent) UnmarshalWire(data []byte) (any, error) {
@@ -161,6 +285,21 @@ func (c TriggerBeginEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c TriggerBeginEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbevent.TriggerBeginEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c TriggerBeginEvent) SizeWire() int {
+	n := 0
+	n += protowire.SizeTag(1) + protowire.SizeBytes(c.ContactEventPayload.SizeWire())
+	return n
+}
+
+func (c TriggerBeginEvent) AppendWire(b []byte) []byte {
+	b = protowire.AppendTag(b, 1, protowire.BytesType)
+	atContactEventPayload := len(b)
+	b = append(b, 0)
+	b = c.ContactEventPayload.AppendWire(b)
+	b = wireLenPrefix(b, atContactEventPayload)
+	return b
 }
 
 func (c TriggerEndEvent) ToProto() *pbevent.TriggerEndEvent {
@@ -178,11 +317,7 @@ func (c TriggerEndEvent) FromProto(p *pbevent.TriggerEndEvent) TriggerEndEvent {
 }
 
 func (c TriggerEndEvent) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal TriggerEndEvent: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c TriggerEndEvent) UnmarshalWire(data []byte) (any, error) {
@@ -195,4 +330,34 @@ func (c TriggerEndEvent) UnmarshalWire(data []byte) (any, error) {
 
 func (c TriggerEndEvent) ProtoDescriptor() protoreflect.MessageDescriptor {
 	return (&pbevent.TriggerEndEvent{}).ProtoReflect().Descriptor()
+}
+
+func (c TriggerEndEvent) SizeWire() int {
+	n := 0
+	n += protowire.SizeTag(1) + protowire.SizeBytes(c.ContactEventPayload.SizeWire())
+	return n
+}
+
+func (c TriggerEndEvent) AppendWire(b []byte) []byte {
+	b = protowire.AppendTag(b, 1, protowire.BytesType)
+	atContactEventPayload := len(b)
+	b = append(b, 0)
+	b = c.ContactEventPayload.AppendWire(b)
+	b = wireLenPrefix(b, atContactEventPayload)
+	return b
+}
+
+// wireLenPrefix writes the length of the bytes appended after the placeholder at b[at].
+// The body is moved up only when the length needs more than the one byte reserved.
+func wireLenPrefix(b []byte, at int) []byte {
+	n := len(b) - at - 1
+	if n < 0x80 {
+		b[at] = byte(n)
+		return b
+	}
+	k := protowire.SizeVarint(uint64(n)) - 1
+	b = append(b, make([]byte, k)...)
+	copy(b[at+1+k:], b[at+1:at+1+n])
+	protowire.AppendVarint(b[at:at], uint64(n)) // in place: cap reaches the body
+	return b
 }

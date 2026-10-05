@@ -63,12 +63,12 @@ For production, configure multiple regions for optimal global connectivity:
 ```typescript
 const config = createConfig({
   regions: {
-    'us-west-2': {
-      gatewayUrl: 'https://us-west-2.gateway.example.com',
+    'us-west1': {
+      gatewayUrl: 'https://us-west1.gateway.example.com',
       displayName: 'US West (Oregon)',
     },
-    'eu-central-1': {
-      gatewayUrl: 'https://eu-central-1.gateway.example.com',
+    'europe-west3': {
+      gatewayUrl: 'https://europe-west3.gateway.example.com',
       displayName: 'Europe (Frankfurt)',
     },
   },
@@ -76,8 +76,7 @@ const config = createConfig({
 ```
 
 <Note>
-  Using World Forge? Check out the [World Forge guide](/javascript/guides/world-forge) for
-  predefined region configurations.
+  Region IDs must match the regions configured on your gateways and shards. The endpoints above are examples.
 </Note>
 
 ## Multiple Regions

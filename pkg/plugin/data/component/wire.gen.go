@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"unicode/utf8"
 )
 
 func (c ConfigFileHash) ToProto() *pbcomponent.ConfigFileHash {
@@ -31,10 +32,10 @@ func (c ConfigFileHash) FromProto(p *pbcomponent.ConfigFileHash) ConfigFileHash 
 func (c ConfigFileHash) SizeWire() int {
 	n := 0
 	if len(c.Path) > 0 {
-		n += protowire.SizeTag(1) + protowire.SizeBytes(len(c.Path))
+		n += protowire.SizeTag(1) + wireStringSize("ConfigFileHash.Path", string(c.Path))
 	}
 	if len(c.Hash) > 0 {
-		n += protowire.SizeTag(2) + protowire.SizeBytes(len(c.Hash))
+		n += protowire.SizeTag(2) + wireStringSize("ConfigFileHash.Hash", string(c.Hash))
 	}
 	return n
 }
@@ -76,11 +77,7 @@ func (c ConfigManifest) FromProto(p *pbcomponent.ConfigManifest) ConfigManifest 
 }
 
 func (c ConfigManifest) MarshalWire() []byte {
-	data, err := proto.Marshal(c.ToProto())
-	if err != nil {
-		panic("failed to marshal ConfigManifest: " + err.Error())
-	}
-	return data
+	return c.AppendWire(make([]byte, 0, c.SizeWire()))
 }
 
 func (c ConfigManifest) UnmarshalWire(data []byte) (any, error) {
@@ -106,8 +103,35 @@ func (c ConfigManifest) SizeWire() int {
 func (c ConfigManifest) AppendWire(b []byte) []byte {
 	for x := range c.Files.Values() {
 		b = protowire.AppendTag(b, 1, protowire.BytesType)
-		b = protowire.AppendVarint(b, uint64(x.SizeWire()))
+		atFiles := len(b)
+		b = append(b, 0)
 		b = x.AppendWire(b)
+		b = wireLenPrefix(b, atFiles)
 	}
 	return b
+}
+
+// wireLenPrefix writes the length of the bytes appended after the placeholder at b[at].
+// The body is moved up only when the length needs more than the one byte reserved.
+func wireLenPrefix(b []byte, at int) []byte {
+	n := len(b) - at - 1
+	if n < 0x80 {
+		b[at] = byte(n)
+		return b
+	}
+	k := protowire.SizeVarint(uint64(n)) - 1
+	b = append(b, make([]byte, k)...)
+	copy(b[at+1+k:], b[at+1:at+1+n])
+	protowire.AppendVarint(b[at:at], uint64(n)) // in place: cap reaches the body
+	return b
+}
+
+// wireStringSize is protowire.SizeBytes(len(s)) plus the UTF-8 check proto.Marshal
+// performs: a proto3 string holding invalid UTF-8 cannot be decoded, so the size pass
+// fails.
+func wireStringSize(field, s string) int {
+	if !utf8.ValidString(s) {
+		panic("failed to encode " + field + ": string field contains invalid UTF-8")
+	}
+	return protowire.SizeBytes(len(s))
 }

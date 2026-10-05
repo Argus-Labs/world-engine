@@ -1,8 +1,6 @@
 package system
 
 import (
-	otherworld "github.com/argus-labs/world-engine/pkg/template/basic/pkg/other_worlds"
-
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 )
 
@@ -23,16 +21,15 @@ func (CallExternalCommand) Name() string {
 	return "call-external"
 }
 
-type CallExternalSystemState struct {
-	cardinal.BaseSystemState
-	CallExternalCommands cardinal.WithCommand[CallExternalCommand]
+type CallExternalSystem struct {
+	MatchmakingWorld cardinal.OtherWorld
 }
 
-func CallExternalSystem(state *CallExternalSystemState) {
-	for cmd := range state.CallExternalCommands.Iter() {
-		state.Logger().Info().Msg("Received call-external message")
+func (s *CallExternalSystem) Run(w *cardinal.World) {
+	for cmd := range w.Commands[CallExternalCommand]() {
+		w.Logger().Info().Msg("Received call-external message")
 
-		state.SendToShard(otherworld.Matchmaking, CreatePlayerCommand{
+		w.SendToShard(s.MatchmakingWorld, CreatePlayerCommand{
 			Nickname: cmd.Payload.Message,
 		})
 	}

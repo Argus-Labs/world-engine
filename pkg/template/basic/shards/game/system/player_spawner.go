@@ -15,24 +15,19 @@ func (a CreatePlayerCommand) Name() string {
 	return "create-player"
 }
 
-type CreatePlayerSystemState struct {
-	cardinal.BaseSystemState
-	CreatePlayerCommands cardinal.WithCommand[CreatePlayerCommand]
-	NewPlayerEvents      cardinal.WithEvent[event.NewPlayer]
-	Players              PlayerSearch
-}
+type CreatePlayerSystem struct{}
 
-func CreatePlayerSystem(state *CreatePlayerSystemState) {
-	for cmd := range state.CreatePlayerCommands.Iter() {
+func (s *CreatePlayerSystem) Run(w *cardinal.World) {
+	for cmd := range w.Commands[CreatePlayerCommand]() {
 		command := cmd.Payload
 
-		entity := state.Create[Player]()
+		entity := w.Create[Player]()
 
 		entity.Set(component.PlayerTag{Nickname: command.Nickname})
 		entity.Set(component.Health{HP: 100})
 
-		state.NewPlayerEvents.Broadcast(event.NewPlayer{Nickname: command.Nickname})
-		state.Logger().Info().Uint32("entity", uint32(entity.ID())).Str("persona", cmd.Persona).
+		w.Broadcast(event.NewPlayer{Nickname: command.Nickname})
+		w.Logger().Info().Uint32("entity", uint32(entity.ID())).Str("persona", cmd.Persona).
 			Msgf("Created player %s", command.Nickname)
 	}
 }
