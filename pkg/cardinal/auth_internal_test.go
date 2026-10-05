@@ -22,7 +22,7 @@ func TestAuthenticatorArgusAcceptsGamePlayerToken(t *testing.T) {
 	authenticator, err := newAuthenticatorArgus(server.URL, "argus", "rampage")
 	require.NoError(t, err)
 
-	token := signToken(t, privateKey, jwt.RegisteredClaims{
+	token := signGameToken(t, privateKey, jwt.RegisteredClaims{
 		Subject:   "player-123",
 		Issuer:    server.URL + "/auth",
 		Audience:  jwt.ClaimStrings{"argus/rampage"},
@@ -31,31 +31,6 @@ func TestAuthenticatorArgusAcceptsGamePlayerToken(t *testing.T) {
 	player, err := authenticator.authenticate(context.Background(), requestWithBearer(t, token))
 	require.NoError(t, err)
 	require.Equal(t, &Player{ID: "player-123"}, player)
-}
-
-// Clients on Unity SDK 0.4 and earlier still send legacy login tokens, which Cardinal must keep accepting.
-func TestAuthenticatorArgusAcceptsLegacyLoginToken(t *testing.T) {
-	publicKey, privateKey, err := ed25519.GenerateKey(nil)
-	require.NoError(t, err)
-
-	server := newAuthTestServer(t, publicKey)
-	authenticator, err := newAuthenticatorArgus(server.URL, "argus", "rampage")
-	require.NoError(t, err)
-
-	// The claims Argus Auth puts in a legacy login token: the account fields, a separate persona ID, and
-	// its own origin as the audience. The player is the account ID, as before game tokens.
-	token := signToken(t, privateKey, jwt.MapClaims{
-		"id":        "account-123",
-		"email":     "player@example.com",
-		"personaID": "persona-456",
-		"sub":       "account-123",
-		"iss":       server.URL,
-		"aud":       server.URL,
-		"exp":       time.Now().Add(time.Minute).Unix(),
-	})
-	player, err := authenticator.authenticate(context.Background(), requestWithBearer(t, token))
-	require.NoError(t, err)
-	require.Equal(t, &Player{ID: "account-123"}, player)
 }
 
 func TestAuthenticatorArgusRejectsInvalidGameClaims(t *testing.T) {
@@ -77,7 +52,7 @@ func TestAuthenticatorArgusRejectsInvalidGameClaims(t *testing.T) {
 	for _, test := range []struct {
 		name   string
 		key    ed25519.PrivateKey
-		claims jwt.Claims
+		claims jwt.RegisteredClaims
 	}{
 		{name: "untrusted signature", key: otherPrivateKey, claims: validClaims},
 		{
@@ -91,14 +66,6 @@ func TestAuthenticatorArgusRejectsInvalidGameClaims(t *testing.T) {
 			name: "missing audience", key: privateKey,
 			claims: jwt.RegisteredClaims{
 				Subject: validClaims.Subject, Issuer: validClaims.Issuer, ExpiresAt: validClaims.ExpiresAt,
-			},
-		},
-		{
-			// An ordinary account token from Argus Auth has the account ID but is not a legacy login token.
-			name: "account token", key: privateKey,
-			claims: jwt.MapClaims{
-				"id": "account-123", "sub": "account-123", "aud": server.URL,
-				"exp": time.Now().Add(time.Minute).Unix(),
 			},
 		},
 		{
@@ -129,7 +96,7 @@ func TestAuthenticatorArgusRejectsInvalidGameClaims(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			token := signToken(t, test.key, test.claims)
+			token := signGameToken(t, test.key, test.claims)
 			_, authErr := authenticator.authenticate(context.Background(), requestWithBearer(t, token))
 			require.Error(t, authErr)
 		})
@@ -152,13 +119,6 @@ func TestAuthenticatorDevUsesPlayerID(t *testing.T) {
 	player, err := (authenticatorDev{}).authenticate(context.Background(), req)
 	require.NoError(t, err)
 	require.Equal(t, &Player{ID: "player-123"}, player)
-
-	// Unity SDK 0.4 and earlier send the dev player ID as X-Email.
-	legacyReq := httptest.NewRequest(http.MethodGet, "/", nil)
-	legacyReq.Header.Set("X-Email", "dev@example.com")
-	player, err = (authenticatorDev{}).authenticate(context.Background(), legacyReq)
-	require.NoError(t, err)
-	require.Equal(t, &Player{ID: "dev@example.com"}, player)
 
 	_, err = (authenticatorDev{}).authenticate(context.Background(), httptest.NewRequest(http.MethodGet, "/", nil))
 	require.Error(t, err)
@@ -184,7 +144,7 @@ func newAuthTestServer(t *testing.T, publicKey ed25519.PublicKey) *httptest.Serv
 	return server
 }
 
-func signToken(t *testing.T, privateKey ed25519.PrivateKey, claims jwt.Claims) string {
+func signGameToken(t *testing.T, privateKey ed25519.PrivateKey, claims jwt.RegisteredClaims) string {
 	t.Helper()
 	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)
 	token.Header["kid"] = "test-key"

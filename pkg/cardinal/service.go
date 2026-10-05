@@ -5,7 +5,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -749,15 +748,6 @@ type authenticatorArgus struct {
 	keyfunc  keyfunc.Keyfunc
 }
 
-// argusClaims are the claims Cardinal reads from an Argus token.
-type argusClaims struct {
-	jwt.RegisteredClaims
-	// Legacy login tokens (Unity SDK 0.4 and earlier) carry the account ID, which Cardinal used as the
-	// player ID before game tokens, and a persona ID that only they include.
-	LegacyAccountID string `json:"id"`
-	LegacyPersonaID string `json:"personaID"`
-}
-
 func newAuthenticatorArgus(argusAuthURL, organization, project string) (*authenticatorArgus, error) {
 	assert.That(argusAuthURL != "", "Should've validated the URL")
 
@@ -803,12 +793,13 @@ func (a *authenticatorArgus) authenticate(_ context.Context, req *http.Request) 
 		return nil, authn.Errorf("Authorization header must be in format: 'Bearer <JWT>'")
 	}
 
-	claims := &argusClaims{}
+	claims := &jwt.RegisteredClaims{}
 	token, err := jwt.ParseWithClaims(
 		jwtString,
 		claims,
 		a.keyfunc.Keyfunc,
 		jwt.WithValidMethods([]string{jwt.SigningMethodEdDSA.Alg()}),
+		jwt.WithAudience(a.audience),
 		jwt.WithExpirationRequired(),
 	)
 	if err != nil {
@@ -817,20 +808,11 @@ func (a *authenticatorArgus) authenticate(_ context.Context, req *http.Request) 
 	if !token.Valid {
 		return nil, authn.Errorf("JWT token is invalid")
 	}
-
-	if slices.Contains(claims.Audience, a.audience) {
-		if strings.TrimSpace(claims.Subject) == "" {
-			return nil, authn.Errorf("JWT subject is required")
-		}
-		return &Player{ID: claims.Subject}, nil
+	if strings.TrimSpace(claims.Subject) == "" {
+		return nil, authn.Errorf("JWT subject is required")
 	}
 
-	// Legacy login tokens have no game audience. Accept them as Cardinal did before game tokens, so a game
-	// can update Cardinal before its client. Remove when Argus Auth stops issuing them.
-	if claims.LegacyPersonaID != "" && claims.LegacyAccountID != "" {
-		return &Player{ID: claims.LegacyAccountID}, nil
-	}
-	return nil, authn.Errorf("JWT audience must include %q", a.audience)
+	return &Player{ID: claims.Subject}, nil
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -841,10 +823,6 @@ type authenticatorDev struct{}
 
 func (a authenticatorDev) authenticate(_ context.Context, req *http.Request) (any, error) {
 	playerID := strings.TrimSpace(req.Header.Get("X-Player-Id"))
-	// Unity SDK 0.4 and earlier send the dev player ID as X-Email. Remove with legacy login tokens.
-	if playerID == "" {
-		playerID = strings.TrimSpace(req.Header.Get("X-Email"))
-	}
 	if playerID == "" {
 		return nil, authn.Errorf("X-Player-ID header is required")
 	}
