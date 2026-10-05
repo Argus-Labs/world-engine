@@ -242,6 +242,117 @@ func register(w *cardinal.World) {
 	assert.Equal(t, 1, code)
 }
 
+func TestRetractedPinReported(t *testing.T) {
+	t.Parallel()
+	const we = "github.com/argus-labs/world-engine"
+	for _, tc := range []struct {
+		name, mod string
+		retracted bool
+	}{
+		{"v1.0.1", "require " + we + " v1.0.1\n", true},
+		{"v1.0.0", "require " + we + " v1.0.0\n", true},
+		{"tab separated", "require\t" + we + "\tv1.0.1\n", true},
+		{"replaced with v1.0.1", "require " + we + " v0.18.0\nreplace " + we + " => " + we + " v1.0.1\n", true},
+		{"replace of another version", "require " + we + " v0.18.0\nreplace " + we + " v1.0.1 => ../we\n", false},
+		{"replaced with a directory", "require " + we + " v1.0.1\nreplace " + we + " => ../we\n", false},
+		{"v0.18.0", "require " + we + " v0.18.0\n", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			root := writeTree(t, map[string]string{"go.mod": goMod + "\n" + tc.mod})
+
+			out, code := runAudit(root)
+
+			if tc.retracted {
+				assert.Equal(t, "-    1  "+retractedPin+"\n        go.mod", section(t, out, "Old API and hazards"))
+				assert.Equal(t, 1, code)
+			} else {
+				assert.Equal(t, "- none", section(t, out, "Old API and hazards"))
+				assert.Equal(t, 0, code)
+			}
+		})
+	}
+}
+
+func TestWorldReflectionReported(t *testing.T) {
+	t.Parallel()
+	root := writeTree(t, map[string]string{
+		"go.mod": goMod,
+		"game/sys_test.go": `package game
+
+import (
+	"reflect"
+	"unsafe"
+
+	"github.com/argus-labs/world-engine/pkg/cardinal"
+)
+
+func initWorld(w *cardinal.World) {
+	v := reflect.ValueOf(w).Elem()
+	f := v.FieldByName("world")
+	reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem().MethodByName("Init").Call(nil)
+}
+`,
+		"internal/testutil/world.go": `package testutil
+
+import (
+	"reflect"
+	"testing"
+
+	"github.com/argus-labs/world-engine/pkg/cardinal"
+)
+
+func Enqueue(t *testing.T) {
+	tw := cardinal.NewTestWorld(t, func(*cardinal.World) {})
+	_ = reflect.ValueOf(tw.World).Elem().FieldByName("commands")
+}
+`,
+		"game/own_field_test.go": `package game
+
+import (
+	"reflect"
+	"unsafe"
+
+	"github.com/argus-labs/world-engine/pkg/cardinal"
+)
+
+type holder struct{ world int }
+
+func inspect(w *cardinal.World) {
+	_ = reflect.ValueOf(holder{}).FieldByName("world")
+	_ = unsafe.Sizeof(w)
+}
+`,
+	})
+
+	out, code := runAudit(root)
+
+	assert.Equal(t, "-    2  "+worldReflection+"\n        game/sys_test.go:12\n        internal/testutil/world.go:12",
+		section(t, out, "Old API and hazards"))
+	assert.Equal(t, 1, code)
+}
+
+func TestBuildConstraintsListed(t *testing.T) {
+	t.Parallel()
+	root := writeTree(t, map[string]string{
+		"go.mod":             goMod,
+		"game/a_test.go":     "//go:build integration\n\npackage game\n",
+		"game/b_test.go":     "//go:build integration && release\n\npackage game\n",
+		"game/c_test.go":     "//go:build !integration && (linux || !linux)\n\npackage game\n",
+		"game/d.go":          "//go:build release || go1.1\n\npackage game\n",
+		"game/e.go":          "//go:build !release\n\npackage game\n",
+		"game/f.go":          "package game\n\n//go:build notaconstraint\n",
+		"game/g_test.go":     "//go:build ignore\n\npackage game\n",
+		"testdata/h_test.go": "//go:build skipped\n\npackage game\n",
+	})
+
+	out, code := runAudit(root)
+
+	assert.Equal(t, "- integration (1)\n- integration && release (1)",
+		section(t, out, "Build constraints default builds skip (go vet and go test with -tags satisfying each)"))
+	assert.Equal(t, 0, code)
+}
+
 func writeTree(t *testing.T, files map[string]string) string {
 	t.Helper()
 	root := t.TempDir()

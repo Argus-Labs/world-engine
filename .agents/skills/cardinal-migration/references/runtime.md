@@ -2,8 +2,11 @@
 
 ## Versions
 
-- world-engine `v0.17.1`. It has the same Cardinal API and snapshot format as v0.17.0,
-  and adds World CLI to the module.
+- world-engine `v0.18.0`. It has the same Cardinal API, snapshot format and generated
+  code as v0.17.x, adds `cardinal.NewTestWorld`, and removes the pprof server and the
+  debug `StreamPerf` RPC. v1.0.0 and v1.0.1 are retracted; v1.0.1 is v0.17.1. From a
+  v1.0.1 pin, `go get ...@v0.18.0` downgrades by semver and works; `@latest` resolves to
+  v0.18.0.
 - Go `1.27.1`. The API uses generic methods (`w.Commands[T]()`). Set `go 1.27.1` in
   go.mod; `go get` raises it for you. Builders pinned to an older Go image fail.
 - World CLI ships in the world-engine module. Install the global command with
@@ -16,12 +19,32 @@
   ```
 
   Inside the project, `world` then runs the version go.mod pins. `world --version` there
-  prints `v0.17.1`. Add the tool only after `go get`: the path does not exist in v0.16.x.
+  prints `v0.18.0`. Add the tool only after `go get`: the path does not exist in v0.16.x.
   The tool adds World CLI's dependencies to go.mod (a template game went from 91 to 254
   lines). The shard image still builds only the shard.
 - The `install.world.dev` scripts and `world update` install world-cli 2.5.1, the last
-  standalone release. It generates the same code for v0.17.1, but its `world mcp`
-  `get_state` cannot read v0.17 state (Tooling that reads world state).
+  standalone release. It generates the same code as v0.18.0, but its `world mcp`
+  `get_state` cannot read v0.17 or later state (Tooling that reads world state). Those
+  scripts are deleted; install with `go install` only.
+
+## From v0.17.x to v0.18.0
+
+| Change                                                                           | Action                                                                     |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `WorldOptions.Pprof` removed                                                     | Delete the field: `unknown field Pprof in struct literal`                  |
+| `CARDINAL_PPROF` and the :6060 pprof server removed                              | Delete from deploy config; the variable is silently ignored (Telemetry)    |
+| Debug `StreamPerf` and its messages removed from the Go, TS and C# protos        | Drop callers; a v0.18 shard answers `Unimplemented`. Use OTel spans        |
+| Operator `Profile` and `StreamShardPerf` RPCs removed                            | Drop callers of `cli/proto/.../operator/v1`                                |
+| `data.Singleton` marker removed                                                  | Delete `var _ data.Singleton = X{}`; `SingleObject()` methods stay inert   |
+| `testutils.RandMapKey` needs `cmp.Ordered` keys                                  | Sort or convert other key types                                            |
+| `cardinal.NewTestWorld`, `cardinal.RequireDeterministic` added                   | Port system tests (bootstrap.md, Testing one system)                       |
+| DST: a logged `TEST_SEED` replays the run                                        | v0.17.x seeds do not; rerun DST on v0.18.0 for replayable seeds            |
+| `RunE2E` sends `X-Email`, so DEV auth accepts its commands                       | None. In v0.17.x it failed with `Unauthenticated` on the first command     |
+| `SendCommandWithReply` registers its waiter before enqueueing                    | None. Fewer spurious reply timeouts                                        |
+| Debug reset clears pending system events                                         | None                                                                       |
+
+Snapshots, generated wire code, `.proto` output, client SDKs, `world.toml`, the other
+`CARDINAL_*` variables and every World CLI command and flag are unchanged.
 
 ## Generated wire code
 
@@ -72,10 +95,10 @@ components included. Recipes are in older-versions.md (From v0.16.4).
 The snapshot format changed in v0.16.9 without a version bump. Tested in a local cluster
 with v0.16.7 and v0.16.9 games:
 
-| Snapshot written by | Read by v0.17              | v0.17 snapshot read by the old build |
-| ------------------- | -------------------------- | ------------------------------------ |
-| v0.16.8 or earlier  | fails, shard restart-loops | wrong world, no error                |
-| v0.16.9             | restores                   | restores                             |
+| Snapshot written by          | Read by v0.17 or v0.18     | New snapshot read by the old build |
+| ---------------------------- | -------------------------- | ---------------------------------- |
+| v0.16.8 or earlier           | fails, shard restart-loops | wrong world, no error              |
+| v0.16.9, v0.17.x or v1.0.1   | restores                   | restores                           |
 
 Details for v0.16.8 or earlier:
 
@@ -123,10 +146,15 @@ Under `world start`, shards log `traces export: exporter export timeout ... dial
 CLI installs only exposes 8090. It is harmless, and `enable_otel` in world.toml does not
 change it.
 
-In v0.17.1, `CARDINAL_*` variables and `world.toml` are unchanged. A release with
-`cardinal.NewTestWorld` removes `CARDINAL_PPROF` (bootstrap.md, Testing one system). Code
-that imported `pkg/telemetry` directly: `Telemetry.Tracer` is gone. Use
-`pkg/telemetry/trace.New`.
+`world.toml` is unchanged. v0.18.0 removes `WorldOptions.Pprof` and `CARDINAL_PPROF`, and
+nothing listens on :6060. A `Pprof:` field fails to compile; the variable is silently
+ignored. Delete it from deploy config, along with any container port or scrape on 6060.
+Per-system timing comes from the OTel `cardinal.system` spans. The other `CARDINAL_*`
+variables are unchanged.
+
+Code that imported `pkg/telemetry` directly: `Telemetry.Tracer` is gone since v0.17. Use
+`pkg/telemetry/trace.New`. Tests that built `telemetry.Telemetry{Logger: l, Tracer: t}`
+drop the field.
 
 ## Tooling that reads world state
 

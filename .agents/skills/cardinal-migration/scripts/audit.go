@@ -10,14 +10,18 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"go/ast"
+	"go/build"
+	"go/build/constraint"
 	"go/parser"
 	"go/token"
 	"io"
 	"io/fs"
 	"maps"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -112,6 +116,7 @@ type audit struct {
 	lookRoot map[string]bool     // dirs with Cardinal look-alike names but no cardinal import
 	stale    []string            // wire.gen.go files without AppendWire
 	pinned   []string            // go.mod lines pinning world-engine / go
+	tags     map[string]int      // //go:build expression -> audited files a default build skips
 
 	registered map[kind]map[typeRef]bool
 	used       map[kind][]use
@@ -131,11 +136,16 @@ type audit struct {
 // scope is what a function's identifiers are known to hold, from parameter and var types and
 // simple assignments. Names are not tracked per block.
 type scope struct {
-	cardinal map[string]bool            // a Cardinal World or Entity
-	plugins  map[string]map[string]bool // plugin import paths the name was assigned from
+	cardinal  map[string]bool            // a Cardinal World or Entity
+	reflected map[string]bool            // a reflect.Value of a Cardinal World
+	plugins   map[string]map[string]bool // plugin import paths the name was assigned from
 }
 
-const unresolvedPlugin = "w.RegisterPlugin(x) with x not traced to a plugin constructor: confirm which plugin"
+const (
+	unresolvedPlugin = "w.RegisterPlugin(x) with x not traced to a plugin constructor: confirm which plugin"
+	retractedPin     = "go.mod pins retracted world-engine v1.0.x: v1.0.1 is the v0.17.1 API, v1.0.0 is not World Engine"
+	worldReflection  = "reflects into cardinal.World internals (FieldByName): port tests to cardinal.NewTestWorld"
+)
 
 func main() {
 	root := "."
@@ -158,6 +168,7 @@ func run(root string, out io.Writer) int {
 		fset:       token.NewFileSet(),
 		findings:   map[string][]string{},
 		lookRoot:   map[string]bool{},
+		tags:       map[string]int{},
 		registered: map[kind]map[typeRef]bool{},
 		used:       map[kind][]use{},
 		structs:    map[typeRef]structDecl{},
@@ -243,12 +254,15 @@ func (a *audit) walk() error {
 
 // parse records the file's declarations and, when audited, its old API, hazards and uses.
 func (a *audit) parse(path, pkg string, audited bool) {
-	f, err := parser.ParseFile(a.fset, path, nil, parser.SkipObjectResolution)
+	f, err := parser.ParseFile(a.fset, path, nil, parser.SkipObjectResolution|parser.ParseComments)
 	if err != nil {
 		if audited {
 			a.add("unparseable file (fix syntax first)", a.rel(path))
 		}
 		return
+	}
+	if audited {
+		a.buildConstraint(path, f)
 	}
 	fi := &fileInfo{path: path, pkg: pkg, imports: map[string]string{}}
 	for _, imp := range f.Imports {
@@ -327,6 +341,9 @@ func (a *audit) inspect(f *ast.File, fi *fileInfo) {
 		ast.Inspect(decl, func(n ast.Node) bool {
 			if call, ok := n.(*ast.CallExpr); ok {
 				a.call(call, fi, sc)
+				if isMethodCall(call, "FieldByName") && sc.reflectsWorld(call.Fun.(*ast.SelectorExpr).X, fi) {
+					a.add(worldReflection, a.pos(call))
+				}
 			}
 			return true
 		})
@@ -367,7 +384,7 @@ func scopeOf(decl ast.Decl, fi *fileInfo) scope {
 }
 
 func newScope() scope {
-	return scope{cardinal: map[string]bool{}, plugins: map[string]map[string]bool{}}
+	return scope{cardinal: map[string]bool{}, reflected: map[string]bool{}, plugins: map[string]map[string]bool{}}
 }
 
 func (sc scope) bindSpec(vs *ast.ValueSpec, fi *fileInfo) {
@@ -399,6 +416,9 @@ func (sc scope) bindValue(lhs, rhs ast.Expr, fi *fileInfo) {
 	}
 	if fi.cardinalValue(rhs) {
 		sc.cardinal[name] = true
+	}
+	if sc.reflectsWorld(rhs, fi) {
+		sc.reflected[name] = true
 	}
 	sc.bindPlugin(name, rhs, fi)
 }
@@ -682,6 +702,14 @@ func (a *audit) report(out io.Writer) (failed bool) {
 		fmt.Fprintln(w, "-", p)
 	}
 
+	fmt.Fprintln(w, "\n## Build constraints default builds skip (go vet and go test with -tags satisfying each)")
+	if len(a.tags) == 0 {
+		fmt.Fprintln(w, "- none")
+	}
+	for _, tag := range sortedKeys(a.tags) {
+		fmt.Fprintf(w, "- %s (%d)\n", tag, a.tags[tag])
+	}
+
 	fmt.Fprintln(w, "\n## Look-alike packages (not Cardinal; do not rewrite)")
 	if len(a.lookRoot) == 0 {
 		fmt.Fprintln(w, "- none")
@@ -869,6 +897,108 @@ func fileExists(path string) bool {
 	return err == nil
 }
 
+// buildConstraint records the //go:build expression of a file that a default build skips but some
+// combination of custom tags includes. go build skips test files, and go vet and go test compile
+// such a file only under -tags.
+func (a *audit) buildConstraint(path string, f *ast.File) {
+	var expr constraint.Expr
+	for _, group := range f.Comments {
+		if group.Pos() > f.Package {
+			break
+		}
+		for _, c := range group.List {
+			if e, err := constraint.Parse(c.Text); err == nil && constraint.IsGoBuild(c.Text) {
+				expr = e
+			}
+		}
+	}
+	if expr == nil {
+		return
+	}
+	var custom []string
+	walkTags(expr, func(tag string) {
+		if !knownTag(tag) && !slices.Contains(custom, tag) {
+			custom = append(custom, tag)
+		}
+	})
+	dir, name := filepath.Split(path)
+	for mask := range 1 << len(custom) {
+		ctxt := build.Default
+		for i, tag := range custom {
+			if mask&(1<<i) != 0 {
+				ctxt.BuildTags = append(ctxt.BuildTags, tag)
+			}
+		}
+		if ok, err := ctxt.MatchFile(dir, name); err != nil || !ok {
+			continue
+		}
+		if mask != 0 {
+			a.tags[expr.String()]++
+		}
+		return
+	}
+}
+
+// walkTags calls fn for every tag in expr. Expr.Eval short-circuits, so it can miss tags.
+func walkTags(expr constraint.Expr, fn func(string)) {
+	switch e := expr.(type) {
+	case *constraint.TagExpr:
+		fn(e.Tag)
+	case *constraint.NotExpr:
+		walkTags(e.X, fn)
+	case *constraint.AndExpr:
+		walkTags(e.X, fn)
+		walkTags(e.Y, fn)
+	case *constraint.OrExpr:
+		walkTags(e.X, fn)
+		walkTags(e.Y, fn)
+	}
+}
+
+// knownTag reports tags the go tool sets itself: GOOS, GOARCH, go1.N, cgo and the like.
+func knownTag(tag string) bool {
+	if strings.HasPrefix(tag, "go1.") {
+		return true
+	}
+	switch tag {
+	case "cgo", "gc", "gccgo", "unix", "ignore", "race", "msan", "asan",
+		"aix", "android", "darwin", "dragonfly", "freebsd", "hurd", "illumos", "ios", "js", "linux",
+		"nacl", "netbsd", "openbsd", "plan9", "solaris", "wasip1", "windows", "zos",
+		"386", "amd64", "arm", "arm64", "loong64", "mips", "mipsle", "mips64", "mips64le",
+		"ppc64", "ppc64le", "riscv64", "s390x", "wasm":
+		return true
+	}
+	return false
+}
+
+// reflectsWorld reports whether expr is reflect.ValueOf(w), with any .Elem() calls, for a Cardinal
+// World w, or a variable assigned from one. Before NewTestWorld, tests reached into the World's
+// unexported fields this way to run Init systems and enqueue commands.
+func (sc scope) reflectsWorld(expr ast.Expr, fi *fileInfo) bool {
+	for isMethodCall(expr, "Elem") {
+		expr = expr.(*ast.CallExpr).Fun.(*ast.SelectorExpr).X
+	}
+	if id, ok := expr.(*ast.Ident); ok {
+		return sc.reflected[id.Name]
+	}
+	call, ok := expr.(*ast.CallExpr)
+	if !ok || len(call.Args) != 1 {
+		return false
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "ValueOf" || !fi.isImport(sel.X) || fi.imports[sel.X.(*ast.Ident).Name] != "reflect" {
+		return false
+	}
+	arg := call.Args[0]
+	if world, ok := arg.(*ast.SelectorExpr); ok && world.Sel.Name == "World" { // tw.World of a TestWorld
+		arg = world.X
+	}
+	if id, ok := arg.(*ast.Ident); ok {
+		return sc.cardinal[id.Name]
+	}
+	return fi.cardinalValue(arg)
+}
+
 func isMethodCall(expr ast.Expr, name string) bool {
 	call, ok := expr.(*ast.CallExpr)
 	if !ok {
@@ -896,7 +1026,46 @@ func readModulePath(gomod string, a *audit) string {
 			a.pinned = append(a.pinned, fmt.Sprintf("%s: %s", a.rel(gomod), strings.TrimPrefix(line, "require ")))
 		}
 	}
+	if a != nil {
+		switch retracted, err := retractedRequirement(gomod); {
+		case err != nil:
+			a.add("go.mod not parsed by go mod edit -json (fix it first)", a.rel(gomod))
+		case retracted:
+			a.add(retractedPin, a.rel(gomod))
+		}
+	}
 	return mod
+}
+
+// retractedRequirement reports whether gomod requires world-engine at a retracted version once its
+// replace directives apply. It parses with the go command, so every valid go.mod spelling counts.
+func retractedRequirement(gomod string) (bool, error) {
+	out, err := exec.Command("go", "mod", "edit", "-json", gomod).Output()
+	if err != nil {
+		return false, err
+	}
+	type version struct{ Path, Version string }
+	var mod struct {
+		Require []version
+		Replace []struct{ Old, New version }
+	}
+	if err := json.Unmarshal(out, &mod); err != nil {
+		return false, err
+	}
+	const worldEngine = "github.com/argus-labs/world-engine"
+	for _, req := range mod.Require {
+		if req.Path != worldEngine {
+			continue
+		}
+		resolved := req
+		for _, r := range mod.Replace { // a replace naming this version wins over one without a version
+			if r.Old.Path == worldEngine && (r.Old.Version == req.Version || r.Old.Version == "" && resolved == req) {
+				resolved = r.New
+			}
+		}
+		return resolved.Path == worldEngine && (resolved.Version == "v1.0.0" || resolved.Version == "v1.0.1"), nil
+	}
+	return false, nil
 }
 
 // importPathOf maps a directory to its import path using the nearest enclosing module.

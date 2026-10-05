@@ -67,3 +67,19 @@ why none apply. Items marked (audit) are also reported by `scripts/audit.go`.
 ## Operations
 
 20. Tracing samples every tick by default. Set `OTEL_TRACE_SAMPLE_RATE` in production.
+21. From v0.18.0, `CARDINAL_PPROF` is silently ignored and nothing listens on :6060. Run
+    `rg CARDINAL_PPROF` in the game repo and the deploy repo, delete it, and drop any
+    container port or scrape on 6060.
+
+## Tests
+
+22. (audit) A test that reflects into `cardinal.World`'s unexported `world` or `commands`
+    field still compiles and passes. It calls the ECS `Init` directly, so registration
+    never closes: a late Register* passes in the test and panics in production. Any
+    internal rename breaks it at run time. Port it to `cardinal.NewTestWorld`
+    (bootstrap.md, Testing one system).
+23. (audit) `go build` skips test files, and CI often runs without the repo's build tags.
+    For every build constraint the audit lists, run `go vet -tags <tags> ./...` and
+    `go test -tags <tags> ./...` with tags that satisfy it (`integration && release` needs
+    `-tags integration,release`). In one game, every `integration` test package of a shard
+    had stopped compiling at v0.17, unnoticed until the next upgrade.

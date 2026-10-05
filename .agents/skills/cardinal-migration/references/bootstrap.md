@@ -15,7 +15,7 @@ registering every `WithCommand`, `WithEvent` and `Ref` field it found. v0.17 doe
 | implicit via `WithCommand[T]`                       | `w.RegisterCommand[T]()`          | Also opens the client and inter-shard handler.         |
 | implicit via `WithEvent[T]`                         | `w.RegisterEvent[T]()`            | Keyed by Go type, not `Name()`.                        |
 | implicit via `WithSystemEvent*[T]`                  | `w.RegisterSystemEvent[T]()`      |                                                        |
-| `NewWorld`, `StartGame`, `WithHook`, `WorldOptions` | unchanged                         | A release with `NewTestWorld` drops `Pprof`.           |
+| `NewWorld`, `StartGame`, `WithHook`, `WorldOptions` | unchanged                         | v0.18.0 drops `WorldOptions.Pprof`.                    |
 
 ## Shape
 
@@ -60,26 +60,19 @@ the old state structs.
 
 ## Testing one system
 
-Check whether the target release has the single-system harness:
+v0.18.0 adds `cardinal.NewTestWorld`, a single-system harness. v0.17.x and v1.0.1 lack it,
+and there `w.Tick` before `StartGame` panics with `Tick called before initialization`.
+To check a pinned version, run inside the game module:
 
 ```sh
 go doc github.com/argus-labs/world-engine/pkg/cardinal NewTestWorld
 ```
 
-It may first print `k8s.io/... invalid version` lines. Ignore them. The last line contains
-`no symbol NewTestWorld` when the release lacks it.
+It exits 1 with `no symbol NewTestWorld` when the release lacks it. Ignore any
+`k8s.io/... invalid version` lines before that.
 
-v0.17.0 and v0.17.1 do not have it. There, `w.Tick` before `StartGame` panics with
-`Tick called before initialization`. Cover system behavior with `RunDST` plus
-`preTestCommands`, or `RunE2E`. A test that ran a system on a zero state struct and never
-touched it can call `(&S{}).Run(nil)` only if `Run` never uses `w`.
-
-A release with `NewTestWorld` also removes `WorldOptions.Pprof`, `CARDINAL_PPROF` and the
-debug `StreamPerf` RPC. Delete `Pprof:` from `WorldOptions` literals and the variable from
-deploy config. Per-system timing comes from the OTel `cardinal.system` spans instead.
-
-When `go doc` finds it, port each v0.16 system test to `cardinal.NewTestWorld`. Pass the
-shard's `register` as setup, or the package's `registerTestTypes` below the shard:
+Port each system test to it. Pass the shard's `register` as setup, or the package's
+`registerTestTypes` below the shard:
 
 ```go
 func TestAttackKillsPlayer(t *testing.T) {
@@ -97,39 +90,75 @@ func TestAttackKillsPlayer(t *testing.T) {
 }
 ```
 
-| v0.16 test harness                                        | With `NewTestWorld`                                                         |
-| --------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `cardinal.NewWorld` with `StorageTypeNop` and `t.Setenv`  | `cardinal.NewTestWorld(t, setup)`. It reads no env and connects to nothing. |
-| Reflection on the unexported `world` field to call `Init` | Delete it. `NewTestWorld` runs the Init systems that setup registers.       |
-| Init-hook seed system that creates entities               | `w.Create[A]()` and `e.Set(c)` in the test body.                            |
-| Observer system writing to a package-level variable       | Read state after the step: `e.Get[C]()`, `w.Exact[A]().Iter()`.             |
-| Register the system under test, then `w.Tick(ts)`         | `w.RunSystem(&S{})` runs one system. `w.Tick()` runs the full schedule.     |
-| Observer system collecting events or system events        | `w.Events[E]()`, `w.Emitted[SE]()`, `w.ShardCommands[C]()`                  |
+The old harness still compiles and passes on v0.18.0, but it diverges from production:
+reflection into `cardinal.World` runs the ECS `Init` directly, so registration never
+closes and Init sees a zero `time.Time{}`. The audit lists every such test.
+
+| Old harness                                                     | With `NewTestWorld`                                                                                             |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `cardinal.NewWorld` with `StorageTypeNop` and `t.Setenv`        | `cardinal.NewTestWorld(t, setup)`. It reads no env and connects to nothing.                                     |
+| `w.RegisterSystem(...)` after `NewWorld`, before the first tick | Move it into setup. Register* after `NewTestWorld` returns panics: the world has started.                       |
+| Reflection on the unexported `world` field to call `Init`       | Delete it. `NewTestWorld` runs the Init systems setup registers. Calling it again panics.                       |
+| Reflection on the unexported `commands` field to call `Enqueue` | `w.Command(persona, cmd)`.                                                                                      |
+| Init-hook seed system that creates entities                     | `w.Create[A]()` and `e.Set(c)` in the test body.                                                                |
+| Driver system that emits system events from a package variable  | `w.EmitSystemEvent(ev)` before the step. A driver that runs after the system under test stays a system (Rules). |
+| Observer system writing to a package-level variable             | Read state after the step: `e.Get[C]()`, `w.Exact[A]().Iter()`.                                                 |
+| Register the system under test, then `w.Tick(ts)`               | `w.RunSystem(&S{})` runs one system. `w.Tick()` runs the full schedule.                                         |
+| Observer system collecting events or system events              | `w.Events[E]()`, `w.Emitted[SE]()`, `w.ShardCommands[C]()`                                                      |
+| `LOG_LEVEL=disabled`                                            | Nothing. Logs go to `t.Log` at every level and show only on failure or under `-v`.                              |
 
 Rules:
 
 - Setup must register every type the system touches. `RunSystem` registers nothing, but
-  the system itself need not be registered.
-- Setup also runs every Init system it registers. A `register` with spawners starts the
-  test with their entities. Use a narrower setup when the test expects an empty world.
-- `w.Command` fails the test for an unregistered command. The command reaches the next
-  step only.
-- `Events`, `Emitted` and `ShardCommands` return the last step's outputs. Events sent by
-  Init systems appear after the first step.
-- Step n runs at `time.Unix(height, 0)`: one second per step. A test that needs other
-  timestamps (1 ms ticks, a fixed date) calls `w.World.Tick(ts)`, which runs the full
-  schedule at `ts`. Assert only on state after it: `Events`, `Emitted` and
-  `ShardCommands` do not describe that tick. `RequireDeterministic` checks such ticks
-  only through its final digest after the script, not step by step.
+  the system itself need not be registered. Only `s` runs: no other system, no Init.
+- `NewTestWorld` runs every Init system setup registered, plugin Init systems included,
+  after setup returns. A `register` with spawners starts the test with their entities.
+  Use a narrower setup when the test expects an empty world.
+- `w.Command` fails the test for an unregistered command. It looks the command up by
+  `Name()`. The command reaches the next step only, and any step drains it, even a
+  `RunSystem` whose system does not read it.
+- `Events` and `ShardCommands` return what the last step dispatched, in send order, as
+  decoded copies. That includes sends from Init systems and from the test body between
+  steps. Each item wraps the payload: `cardinal.Sent[E]{Recipient, Payload}`, with
+  `Recipient` empty for a broadcast, and `cardinal.ShardCommand[C]{To, Payload}`.
+- `Emitted` returns the system events the last step's systems emitted, as the values they
+  passed: no encoding round trip, so a slice field still shares its array. System events
+  the test or an Init system emitted are inputs: the next step's systems read them, but
+  `Emitted` never includes them.
+- A step clears system events when it ends. Code that runs inside a system in production
+  must run inside a step in the test. Called between steps, it emits into the next step,
+  and a receiver that ran earlier in the same tick in production now sees the event. That
+  masks the bug a same-tick test pins. Wrap the system under test and the helper in a
+  test-local system, and pass it to `RunSystem`. Its `Run` calls `(&S{}).Run(w)`, then the
+  helper.
+- The clock is the tick height: a step runs at `time.Unix(height, 0)`, one second per
+  step. Init and the first step both run at `Unix(0)`. The old harness usually ticked at
+  a constant `time.Unix(0, 0)`. Systems that read `w.Timestamp()` (cooldowns, timeouts,
+  `IsZero` checks) now see time pass. Count steps in seconds when the test reasons about
+  time.
+- `w.World.Tick(ts)` runs the full schedule at `ts`, but it is not a step. `Events` and
+  `ShardCommands` add its outputs to the last step's, and `Emitted` ignores it. It still
+  increments the height, so a later `w.Tick()` can run at an earlier time than `ts`. Do
+  not mix the two in one test.
+- `w.Tick(ts)` does not compile on a `*TestWorld`: `too many arguments in call to w.Tick`.
+  Helpers typed `*cardinal.World` take `w.World`.
 - `w.StartGame()` fails the test.
+- Plugins work: physics2d steps under `w.Tick()`, and the data plugin serves its catalog.
+  A plugin instance registers on one world only. Construct it inside setup, and keep
+  handles such as `*data.Plugin` in a variable that setup assigns.
+- A `TestWorld` reads no env, so tests that only use it can call `t.Parallel()`, unless
+  they share package-level game state. `RunDST` calls `t.Setenv` and cannot.
 
 A system test that relied on package-level state, `time.Now` or map order can also run
-its script through `cardinal.RequireDeterministic(t, setup, script)`. It fails at the
-first step where two fresh runs differ. If it fails on a ported test, report it. Do not
-change the system while migrating. Both runs share one process, so a pass can still hide
-map iteration order over a few keys and coarse clock reads. Read ported systems for
-`range` over a map and `time.Now()` and report them. In code you write, range
-`slices.Sorted(maps.Keys(m))` and use `w.Timestamp()` instead of `time.Now()`.
+its script through `cardinal.RequireDeterministic(t, setup, script)`. It runs setup and
+the script on two fresh worlds, and fails at the first step where they differ in state,
+events, shard commands or emitted system events, when the step counts differ, or when
+they differ after the script. If it fails on a ported test, report it. Do not change the
+system while migrating. Both runs share one process, so a pass can still hide map
+iteration order over a few keys and coarse clock reads. Package-level game state carried
+from the first run fails it at step 1. Read ported systems for `range` over a map and
+`time.Now()` and report them. In code you write, range `slices.Sorted(maps.Keys(m))` and
+use `w.Timestamp()` instead of `time.Now()`.
 
 ## What to register
 
