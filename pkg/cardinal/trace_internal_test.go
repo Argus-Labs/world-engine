@@ -63,7 +63,6 @@ func TestTickEmitsSpans(t *testing.T) {
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        1,
 		Debug:               &off,
-		Pprof:               &off,
 	})
 	require.NoError(t, err)
 
@@ -112,7 +111,6 @@ func TestTickLinksCommandsAndTracesEvents(t *testing.T) {
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        1000,
 		Debug:               &off,
-		Pprof:               &off,
 	})
 	require.NoError(t, err)
 	exporter := newRecordingTracer(t)
@@ -168,7 +166,6 @@ func TestTickSkipsLinksToUnsampledRequests(t *testing.T) {
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        1000,
 		Debug:               &off,
-		Pprof:               &off,
 	})
 	require.NoError(t, err)
 	exporter := newRecordingTracer(t)
@@ -280,7 +277,6 @@ func TestTickCapsCommandLinks(t *testing.T) {
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        1000,
 		Debug:               &off,
-		Pprof:               &off,
 	})
 	require.NoError(t, err)
 	exporter := newRecordingTracer(t)

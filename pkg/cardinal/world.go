@@ -28,10 +28,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
-const (
-	addressService = ":8080"
-	addressPProf   = ":6060"
-)
+const addressService = ":8080"
 
 // World contains the game state and is the main Cardinal API.
 type World struct {
@@ -43,7 +40,6 @@ type World struct {
 	snapshotStorage snapshot.Storage      // Snapshot reader
 	snapshotWriter  snapshot.Writer       // Snapshot writer
 	debug           *debugModule          // Debug tools and services
-	pprof           *pprofModule          // Optional pprof HTTP server
 	currentTick     Tick                  // Current tick
 	tickCtx         context.Context       // Parent context for spans started by systems in the current tick
 	options         WorldOptions          // World options
@@ -145,11 +141,6 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		world.debug = newDebugModule(world)
 	}
 
-	// Create the optional pprof module.
-	if *options.Pprof {
-		world.pprof = newPprofModule(tel)
-	}
-
 	return world, nil
 }
 
@@ -164,9 +155,6 @@ func (w *World) StartGame() {
 
 	defer w.shutdown()
 	defer w.tel.RecoverAndFlush(true)
-
-	// Start pprof before the service to support profiles during startup failures.
-	w.pprof.Init(addressPProf)
 
 	// Start the NATS connection and ConnectRPC service.
 	if err := w.service.init(addressService); err != nil {
@@ -383,12 +371,6 @@ func (w *World) shutdown() {
 	// Drain queued commands and events.
 	if err := w.service.shutdown(ctx); err != nil {
 		w.tel.Logger.Error().Err(err).Msg("service shutdown error")
-		w.tel.CaptureException(ctx, err)
-	}
-
-	// Stop pprof after the service so active profiles have more time to finish.
-	if err := w.pprof.Shutdown(ctx); err != nil {
-		w.tel.Logger.Error().Err(err).Msg("pprof server shutdown error")
 		w.tel.CaptureException(ctx, err)
 	}
 
