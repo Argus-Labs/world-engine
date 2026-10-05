@@ -149,10 +149,7 @@ func (m *Manager) Clear() {
 // Test helpers
 // -------------------------------------------------------------------------------------------------
 
-// Names returns the names of all registered command types in deterministic (sorted) order.
-// Sorting is required so callers that depend on iteration order (e.g. the DST op-generation
-// schedule built via testutils.RandOpWeights) are reproducible under a pinned TEST_SEED;
-// Go map iteration order is randomized by the runtime and cannot be controlled by the prng.
+// Names returns the names of all registered command types.
 func (m *Manager) Names() []string {
 	names := make([]string, 0, len(m.catalog))
 	for name := range m.catalog {
