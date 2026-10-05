@@ -153,8 +153,8 @@ func (c *Client) signIn(ctx context.Context) (string, error) {
 //
 // All three are checked because the sign-in flow spreads across all three, and
 // redirection rarely takes them together: signIn prints the link through
-// printer, which writes to os.Stdout; the prompt reads os.Stdin; and
-// program.NewTeaProgram keys off os.Stderr. `world logs 2>&1 | tee run.log`
+// printer, which writes to [os.Stdout]; the prompt reads [os.Stdin]; and
+// program.NewTeaProgram keys off [os.Stderr]. `world logs 2>&1 | tee run.log`
 // leaves only stdin attached, `world logs </dev/null 2>/dev/null` only stdout.
 //
 // Redirecting all three from a terminal (`world logs >out.log 2>err.log`) still

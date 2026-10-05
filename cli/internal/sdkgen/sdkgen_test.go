@@ -1212,7 +1212,7 @@ func Setup(w *cardinal.World) {
 
 // TestViolations covers the cases that stay HARD violations — genuinely-unserializable types (chan/func).
 // Generically-encodable-but-unclean types (any, nested slices, exotic maps) are NOT here; they warn + fall
-// back (see TestFallbackToBytes). time.Time is NOT here either; it maps to Timestamp (see TestTimestamp).
+// back (see TestFallbackToBytes). [time.Time] is NOT here either; it maps to Timestamp (see TestTimestamp).
 func TestViolations(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -1422,7 +1422,7 @@ func Run(w *cardinal.World) {
 	}
 }
 
-// TestTimestamp verifies time.Time (value, pointer, slice, map-value) maps to the google.protobuf.Timestamp
+// TestTimestamp verifies [time.Time] (value, pointer, slice, map-value) maps to the google.protobuf.Timestamp
 // well-known type — a clean typed field, not a violation and not a bytes fallback — and pulls its import.
 func TestTimestamp(t *testing.T) {
 	t.Parallel()
@@ -2081,7 +2081,7 @@ func Setup(w *cardinal.World) {
 //
 // A mirrored converter is written into this package's wire file, so its fields need exactly the imports
 // a local message's would. The feature scan and the import collection used to walk only the local
-// messages, so a foreign type carrying a time.Time emitted timestamppb.New with no timestamppb import:
+// messages, so a foreign type carrying a [time.Time] emitted timestamppb.New with no timestamppb import:
 // generation reported success and the package failed to compile.
 func TestMirroredFieldsDriveImports(t *testing.T) {
 	t.Parallel()

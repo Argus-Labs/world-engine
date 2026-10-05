@@ -120,7 +120,7 @@ var goBuiltins = map[string]bool{
 
 // checkSymbolsResolve refuses generated code that qualifies a name with a package it never imports.
 //
-// This is the guard the generator was missing. format.Source only PARSES, so a wire file writing
+// This is the guard the generator was missing. [format.Source] only PARSES, so a wire file writing
 // `proto.Marshal` with no proto import is perfectly valid syntax: it lands on disk, generation reports
 // success, and the failure surfaces in somebody else's `go build` far from the generator that caused it.
 // The refactor that introduced the accumulator dropped exactly that import, and every existing test
@@ -291,7 +291,7 @@ func (g *wireGen) mirrorCall(r TypeRef, dir string) string {
 	return r.ConvFunc(dir)
 }
 
-// importSpecs returns the import lines, sorted by path. format.Source normalises the block afterwards.
+// importSpecs returns the import lines, sorted by path. [format.Source] normalises the block afterwards.
 // scalar names a scalar's decode-side cast target and registers whatever import that spelling needs.
 // A NAMED scalar declared in another package (cardinal.EntityID) is written qualified, so its import has
 // to travel with it — the same rule g.hand follows for messages. Encode-side casts go to proto's own

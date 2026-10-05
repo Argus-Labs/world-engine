@@ -19,7 +19,7 @@ var (
 // action token when a shortcut closes the picker; an empty token means the user
 // selected a row normally.
 //
-// Errors: ErrNoItems for empty rows, context.Canceled on Ctrl+C, silent
+// Errors: ErrNoItems for empty rows, [context.Canceled] on Ctrl+C, silent
 // error on esc/abort, wrapped Bubble Tea errors otherwise.
 func RunWithHotkeys(
 	ctx context.Context,

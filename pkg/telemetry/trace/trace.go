@@ -24,7 +24,7 @@ var _ oteltrace.Span = Trace{}
 // New starts a span under the global tracer provider and returns it with the derived context.
 // Spans are children of the span in ctx, or roots when ctx carries none. Before telemetry.New
 // runs, or when tracing is disabled, the global provider is a no-op, so callers never need a nil
-// check. A nil ctx is treated as context.Background().
+// check. A nil ctx is treated as [context.Background]().
 func New(ctx context.Context, name string, opts ...oteltrace.SpanStartOption) (context.Context, Trace) {
 	if ctx == nil {
 		ctx = context.Background()

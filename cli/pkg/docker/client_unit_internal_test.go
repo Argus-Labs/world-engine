@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
@@ -179,10 +178,8 @@ func TestIsCardinalService(t *testing.T) {
 
 	cardinalSvc := service.Service{
 		Name: "cardinal-shard",
-		Config: container.Config{
-			Labels: map[string]string{
-				service.CardinalNamespaceLabel: "ns",
-			},
+		Labels: map[string]string{
+			service.CardinalNamespaceLabel: "ns",
 		},
 	}
 	if !IsCardinalService(cardinalSvc) {
@@ -200,30 +197,24 @@ func TestCardinalBuildImageNamesDedupesInOrder(t *testing.T) {
 
 	services := []service.Service{
 		{
-			Name: "world-game-shard",
-			Config: container.Config{
-				Image: "world-game-shard",
-				Labels: map[string]string{
-					service.CardinalNamespaceLabel: "world",
-				},
+			Name:  "world-game-shard",
+			Image: "world-game-shard",
+			Labels: map[string]string{
+				service.CardinalNamespaceLabel: "world",
 			},
 		},
 		{
-			Name: "world-game-2-shard",
-			Config: container.Config{
-				Image: "world-game-shard",
-				Labels: map[string]string{
-					service.CardinalNamespaceLabel: "world",
-				},
+			Name:  "world-game-2-shard",
+			Image: "world-game-shard",
+			Labels: map[string]string{
+				service.CardinalNamespaceLabel: "world",
 			},
 		},
 		{
-			Name: "world-chat-shard",
-			Config: container.Config{
-				Image: "world-chat-shard",
-				Labels: map[string]string{
-					service.CardinalNamespaceLabel: "world",
-				},
+			Name:  "world-chat-shard",
+			Image: "world-chat-shard",
+			Labels: map[string]string{
+				service.CardinalNamespaceLabel: "world",
 			},
 		},
 		service.NATS(&service.Config{}),
@@ -260,10 +251,8 @@ func TestBuildCardinalImages_MissingShardPath(t *testing.T) {
 
 	cardinalSvc := service.Service{
 		Name: "cardinal-shard",
-		Config: container.Config{
-			Labels: map[string]string{
-				service.CardinalNamespaceLabel: "ns",
-			},
+		Labels: map[string]string{
+			service.CardinalNamespaceLabel: "ns",
 		},
 		// BuildArgs intentionally missing SHARD_PATH.
 		BuildArgs: map[string]string{},

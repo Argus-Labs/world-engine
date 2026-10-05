@@ -1,3 +1,7 @@
+// Package cardinal runs a World Engine game shard. A World holds the game's ECS state and runs its
+// registered systems once per tick. It accepts commands from clients, delivers events to them,
+// exchanges commands with other shards, and snapshots its state. Tests drive it with TestWorld,
+// RunDST and RunE2E.
 package cardinal
 
 import (
@@ -716,9 +720,11 @@ func (w *World) archetype[T any]() (bitmap.Bitmap, error) {
 		return nil, eris.Errorf("entity archetype must be a struct, got %v", typ)
 	}
 	var components bitmap.Bitmap
-	for i := range typ.NumField() {
+	// Ranging over typ.Fields() heap-allocates on every call, cache hits included
+	// (TestEntity_SteadyStateAllocations).
+	for i := range typ.NumField() { //nolint:modernize // see above
 		field := typ.Field(i)
-		component, ok := reflect.Zero(field.Type).Interface().(ecs.Component)
+		component, ok := reflect.TypeAssert[ecs.Component](reflect.Zero(field.Type))
 		if !ok || field.Type.Kind() != reflect.Struct {
 			return nil, eris.Errorf("field %s of archetype %v must be a component struct, got %v",
 				field.Name, typ, field.Type)

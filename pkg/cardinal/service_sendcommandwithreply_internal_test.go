@@ -130,6 +130,7 @@ func (s *replySystem) Run(w *World) {
 // until its context times out.
 type tickingReplyQueue struct {
 	command.Queue
+
 	tick func()
 }
 

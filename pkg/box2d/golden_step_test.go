@@ -39,7 +39,7 @@ type goldenStepScene struct {
 // djb2Fold folds one uint64 value into a djb2 hash, byte by byte
 // (little-endian).
 func djb2Fold(hash uint64, value uint64) uint64 {
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		b := byte(value >> (8 * i))
 		hash = hash*33 + uint64(b)
 	}

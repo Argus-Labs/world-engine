@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
@@ -18,13 +17,11 @@ import (
 // (mirroring apps/cardinal-operator/internal/controller/pool_resources.go).
 func shardPod(name, shardID, image string, ready bool) *corev1.Pod {
 	p := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: operatorNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": "cardinal-operator",
-				shardIDLabel:                   shardID,
-			},
+		Name:      name,
+		Namespace: operatorNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/managed-by": "cardinal-operator",
+			shardIDLabel:                   shardID,
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{Name: "shard", Image: image}},

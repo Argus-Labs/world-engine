@@ -1,18 +1,3 @@
-// DST (Deterministic Simulation Testing) provides a game-logic-agnostic fuzzer and structural
-// state checker for Cardinal. It generates random commands by introspecting registered command
-// types (via reflection), injects engine operations (tick, restart, snapshot/restore) with
-// randomized weights, and validates structural ECS invariants after every tick. Game logic
-// correctness is irrelevant — only engine correctness matters.
-//
-// Usage from a game shard's test directory:
-//
-//	func TestDST(t *testing.T) {
-//	    cardinal.RunDST(t, func(w *cardinal.World) {
-//	        w.RegisterComponent[component.MyComponent]()
-//	        w.RegisterSystem(&system.MySystem{})
-//	        // ... register all components and systems
-//	    }, []cardinal.Command{system.BootstrapCommand{Seed: 42}})
-//	}
 package cardinal
 
 import (
@@ -45,9 +30,21 @@ var numTicks = flag.Int("dst.ticks", 1000, "number of ticks to run in DST") //no
 // fixture creation, before the first tick.
 type DSTSetupFunc func(w *World)
 
-// RunDST executes a deterministic simulation test. The setup function registers game-specific
-// systems; the harness handles everything else: randomized engine config, command generation,
-// ticking, restart/restore operations, and structural invariant checking.
+// RunDST executes a deterministic simulation test (DST): a game-logic-agnostic fuzzer and structural
+// state checker. The setup function registers game-specific systems; the harness handles everything
+// else: randomized engine config, command generation from the registered command types, ticking,
+// restart/restore and snapshot operations with randomized weights, and structural ECS invariant
+// checking after every tick. Game logic correctness is irrelevant; only engine correctness matters.
+//
+// Usage from a game shard's test directory:
+//
+//	func TestDST(t *testing.T) {
+//	    cardinal.RunDST(t, func(w *cardinal.World) {
+//	        w.RegisterComponent[component.MyComponent]()
+//	        w.RegisterSystem(&system.MySystem{})
+//	        // ... register all components and systems
+//	    }, []cardinal.Command{system.BootstrapCommand{Seed: 42}})
+//	}
 //
 // preTestCommands are enqueued before randomized fuzz operations begin. This supports worlds that
 // require deterministic bootstrap commands before entering an active state.
@@ -269,7 +266,7 @@ func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 	t.Helper()
 	val := reflect.New(f.cmdTypes[name]).Elem()
 	fillRandom(rng, val, f.world.world.LiveEntityIDs()) // Recursive so not inlined
-	p, ok := val.Interface().(command.Payload)
+	p, ok := reflect.TypeAssert[command.Payload](val)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
 	payload := schema.Marshal(p)
 	return &iscv1.Command{
@@ -290,7 +287,7 @@ func (f *dstFixture) enqueueCommand(cmd Command) error {
 	})
 }
 
-// fillRandom recursively fills a reflect.Value with random data based on its type.
+// fillRandom recursively fills a [reflect.Value] with random data based on its type.
 func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 	t := v.Type()
 	if len(liveEntityIDs) > 0 &&
@@ -322,9 +319,9 @@ func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 		if fillImmutableSlice(prng, v, liveEntityIDs) {
 			return
 		}
-		for i := range v.NumField() {
-			if v.Field(i).CanSet() {
-				fillRandom(prng, v.Field(i), liveEntityIDs)
+		for _, field := range v.Fields() {
+			if field.CanSet() {
+				fillRandom(prng, field, liveEntityIDs)
 			}
 		}
 	case reflect.Slice:

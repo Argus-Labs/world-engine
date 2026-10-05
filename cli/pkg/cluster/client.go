@@ -40,7 +40,7 @@ func (c *Client) Config() Config { return c.cfg }
 // OnK3DLog updates per-operation UI (e.g. a phasebox row) must call this
 // once the operation finishes, or a lingering background goroutine could
 // resurrect already-torn-down UI. Falls back to a silent no-op, not
-// os.Stderr, since a stray late line has nowhere useful to go.
+// [os.Stderr], since a stray late line has nowhere useful to go.
 func (c *Client) ResetLogRouting() {
 	setK3dLogLevel(c.cfg.LogLevel, func(string) {})
 }

@@ -176,9 +176,9 @@ func TestEqual(t *testing.T) {
 	require.True(t, immutable.Equal(immutable.Slice[int]{}, immutable.SliceOf[int]()), "empty equals empty")
 }
 
-// Empty Slices are not interchangeable under reflect.DeepEqual, and that is the deliberate trade:
+// Empty Slices are not interchangeable under [reflect.DeepEqual], and that is the deliberate trade:
 // a derivation that empties one leaves its backing array allocated, while the zero value has none.
-// Equal compares elements and agrees with slices.Equal that nil and empty are the same list, so that
+// Equal compares elements and agrees with [slices.Equal] that nil and empty are the same list, so that
 // is what comparisons go through.
 //
 // The case this used to protect — a component restored from a snapshot versus one built fresh — is
@@ -325,7 +325,11 @@ func TestSlice_MapConcatCollectCompact(t *testing.T) {
 	require.Equal(t, []string{"1", "2", "3"}, collect(immutable.Map(s, strconv.Itoa)))
 	require.Equal(t, 0, immutable.Map(immutable.Slice[int]{}, strconv.Itoa).Len())
 
-	require.Equal(t, []int{1, 2, 3, 4, 5}, collect(immutable.Concat(s, immutable.Slice[int]{}, immutable.SliceOf(4, 5))))
+	require.Equal(
+		t,
+		[]int{1, 2, 3, 4, 5},
+		collect(immutable.Concat(s, immutable.Slice[int]{}, immutable.SliceOf(4, 5))),
+	)
 	require.Equal(t, 0, immutable.Concat[int]().Len())
 
 	require.Equal(t, []int{1, 2, 3}, collect(immutable.Collect(s.Values())))

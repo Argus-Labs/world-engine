@@ -18,7 +18,7 @@ func stripANSI(s string) string {
 	return ansiPattern.ReplaceAllString(s, "")
 }
 
-// captureStdout captures os.Stdout output produced by fn and returns it as a string.
+// captureStdout captures [os.Stdout] output produced by fn and returns it as a string.
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 	orig := os.Stdout

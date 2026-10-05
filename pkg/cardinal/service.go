@@ -29,7 +29,7 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	otelcodes "go.opentelemetry.io/otel/codes"
-	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 )
@@ -526,7 +526,10 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 				}
 			}
 		} else {
-			s.log.Debug().Str("recipient", evt.Recipient).Str("event", eventPb.GetName()).Msg("recipient has no open stream")
+			s.log.Debug().
+				Str("recipient", evt.Recipient).
+				Str("event", eventPb.GetName()).
+				Msg("recipient has no open stream")
 		}
 	} else {
 		subscribers = make([]*streamSubscriber, 0, len(s.subscribers))
@@ -611,11 +614,19 @@ func (s *service) handleInterShardCommand(ctx context.Context, req *micro.Reques
 		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to validate command"), codes.InvalidArgument)
 	}
 	if _, err := micro.ParseAddress(cmd.GetPersona().GetId()); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "command persona is not a shard address"), codes.InvalidArgument)
+		return micro.NewErrorResponse(
+			req,
+			eris.Wrap(err, "command persona is not a shard address"),
+			codes.InvalidArgument,
+		)
 	}
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
-		return micro.NewErrorResponse(req, eris.New("command address doesn't match shard address"), codes.InvalidArgument)
+		return micro.NewErrorResponse(
+			req,
+			eris.New("command address doesn't match shard address"),
+			codes.InvalidArgument,
+		)
 	}
 
 	oteltrace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))

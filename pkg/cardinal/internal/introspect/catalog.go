@@ -208,8 +208,7 @@ func arrayFields(value schema.Serializable) []*cardinalv1.ArrayField {
 	}
 
 	var out []*cardinalv1.ArrayField
-	for i := range t.NumField() {
-		field := t.Field(i)
+	for field := range t.Fields() {
 		if !field.IsExported() {
 			continue // never serialized, so never reconstructed
 		}

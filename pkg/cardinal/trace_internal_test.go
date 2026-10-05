@@ -128,7 +128,9 @@ func TestTickLinksCommandsAndTracesEvents(t *testing.T) {
 	}))
 	requestSpan.End()
 
-	w.events.Enqueue(event.Event{Kind: event.KindDefault, Payload: testutils.SimpleEvent{Value: 1}, Recipient: "player-1"})
+	w.events.Enqueue(
+		event.Event{Kind: event.KindDefault, Payload: testutils.SimpleEvent{Value: 1}, Recipient: "player-1"},
+	)
 	exporter.Reset()
 
 	w.Tick(time.Now())

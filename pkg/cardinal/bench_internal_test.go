@@ -397,7 +397,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
-			for j := 0; j < 100; j++ {
+			for j := range 100 {
 				entity := w.Create[arch1]()
 				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 			}
@@ -416,7 +416,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
-			for j := 0; j < 100; j++ {
+			for j := range 100 {
 				entity := w.Create[arch5]()
 				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
@@ -439,7 +439,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
-			for j := 0; j < 100; j++ {
+			for j := range 100 {
 				entity := w.Create[arch10]()
 				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
@@ -470,7 +470,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
-			for j := 0; j < 100; j++ {
+			for j := range 100 {
 				entity := w.Create[arch1]()
 				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 			}
@@ -489,7 +489,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
-			for j := 0; j < 100; j++ {
+			for j := range 100 {
 				entity := w.Create[arch5]()
 				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
@@ -512,7 +512,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
-			for j := 0; j < 100; j++ {
+			for j := range 100 {
 				entity := w.Create[arch10]()
 				entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
@@ -551,7 +551,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 			w := newBenchWorld()
 
 			w.RegisterSystem(&benchRunSystem{run: func(w *World) {
-				for j := 0; j < 100; j++ {
+				for j := range 100 {
 					entity := w.Create[arch1]()
 					entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				}
@@ -580,7 +580,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 			w := newBenchWorld()
 
 			w.RegisterSystem(&benchRunSystem{run: func(w *World) {
-				for j := 0; j < 100; j++ {
+				for j := range 100 {
 					entity := w.Create[arch5]()
 					entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 					entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
@@ -615,7 +615,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 			w := newBenchWorld()
 
 			w.RegisterSystem(&benchRunSystem{run: func(w *World) {
-				for j := 0; j < 100; j++ {
+				for j := range 100 {
 					entity := w.Create[arch10]()
 					entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 					entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})

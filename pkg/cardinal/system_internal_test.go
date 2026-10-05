@@ -215,7 +215,8 @@ func TestCommands_Smoke(t *testing.T) {
 		model := make([]testutils.SimpleCommand, count)
 		personas := make([]string, count)
 		for i := range count {
-			model[i] = testutils.SimpleCommand{Value: prng.IntN(1_000_000)} // Bounded to avoid JSON float64 precision loss
+			// Bounded to avoid JSON float64 precision loss.
+			model[i] = testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
 			personas[i] = testutils.RandString(prng, 8)
 		}
 
