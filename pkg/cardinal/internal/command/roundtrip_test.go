@@ -17,7 +17,7 @@ import (
 // T, drains it, and asserts the stored payload is exactly T with the same value.
 //
 // The queue only guards the command name; it stores whatever the codec's Unmarshal returns without
-// re-checking its concrete type. The Payload-is-T check lives downstream in newCommandContext as an
+// re-checking its concrete type. The Payload-is-T check lives downstream in World.Commands as an
 // assert.That, which is a no-op in release builds — so a codec that returned the wrong type would, in
 // production, silently hand a zero-value T to systems. This test asserts type identity with testify, so
 // a mismatched/buggy codec fails the test regardless of build flags.
