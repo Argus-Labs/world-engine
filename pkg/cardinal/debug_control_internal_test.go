@@ -95,7 +95,7 @@ func waitForResume(t *testing.T, d *debugModule) {
 }
 
 // debugE2EServer sets up a real *World with Debug enabled, mounts the DebugService on an
-// httptest.Server, and optionally starts the tick loop. It returns the server and a
+// [httptest.Server], and optionally starts the tick loop. It returns the server and a
 // ConnectRPC client for making real HTTP calls to the debug service.
 type debugE2EServer struct {
 	world  *World
