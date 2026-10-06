@@ -116,8 +116,13 @@ func TestCrashMidTickRestoresCorrectly(t *testing.T) {
 	// After 3 ticks, height is 3. persistState wrote pre-increment labels 0, 1, 2 (last stored = 2).
 	// Simulate a crash before the deferred final snapshot: do NOT call writeFinalSnapshot.
 	require.NoError(t, w.restore(context.Background()))
-	assert.Equal(t, uint64(3), w.currentTick.height,
-		"a persistState (pre-increment=2) snapshot from tick 3 should restore to height 3, got %d", w.currentTick.height)
+	assert.Equal(
+		t,
+		uint64(3),
+		w.currentTick.height,
+		"a persistState (pre-increment=2) snapshot from tick 3 should restore to height 3, got %d",
+		w.currentTick.height,
+	)
 }
 
 // TestRepeatRestartHeightStable ticks the world once, then repeats the clean restart cycle
