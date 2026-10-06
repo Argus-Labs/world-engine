@@ -397,7 +397,7 @@ func TestTickCapMatchesEnvLinkLimitBelowDefault(t *testing.T) {
 	// The cap keeps the first linkLimit sampled commands (prefix). Commands past the cap must not
 	// appear as links: this guards against the cap silently regressing to a larger prefix.
 	kept := keptLinkSpanIDs(t, tick)
-	for i := 0; i < linkLimit; i++ {
+	for i := range linkLimit {
 		_, ok := kept[scs[i].SpanID()]
 		require.True(t, ok, "command #%d (within cap) should be linked", i)
 	}
