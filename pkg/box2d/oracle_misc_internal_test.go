@@ -6,7 +6,6 @@
 //   - getShapePerimeter / getShapeRadius / getShapeProjectedPerimeter:
 //     src/shape.c b2GetShapePerimeter, b2GetShapeRadius,
 //     b2GetShapeProjectedPerimeter.
-//   - getArenaCapacity: src/arena_allocator.c b2GetArenaCapacity.
 //   - validateIsland: src/island.c b2ValidateIsland.
 //   - DynamicTree node pool invariants of test_dynamic_tree.c TreeCreateDestroy.
 //
@@ -450,94 +449,6 @@ func TestOracleGetShapeProjectedPerimeter(t *testing.T) {
 			tassert.InDelta(t, test.want, getShapeProjectedPerimeter(&s, test.line), 1e-12)
 		})
 	}
-}
-
-// ---------------------------------------------------------------------------
-// arena_allocator.c
-// ---------------------------------------------------------------------------
-
-// TestOracleArenaCapacityTracksHighWaterMark encodes b2GetArenaCapacity,
-// b2GetArenaAllocation and b2GetMaxArenaAllocation, src/arena_allocator.c.
-//
-// Upstream reports bytes; this port reports elements (see the arena.go header),
-// but the C invariants still hold:
-//
-//	capacity   >= the largest live allocation ever made
-//	allocation == 0 once every item is freed
-//	maxAllocation is monotone and never below the current allocation
-func TestOracleArenaCapacityTracksHighWaterMark(t *testing.T) {
-	t.Parallel()
-
-	a := createArena()
-
-	// A fresh arena has allocated nothing: b2CreateArenaAllocator sets index
-	// and maxAllocation to zero.
-	tassert.Equal(t, 0, getArenaCapacity(&a))
-	tassert.Equal(t, 0, getArenaAllocation(&a))
-	tassert.Equal(t, 0, getMaxArenaAllocation(&a))
-
-	const small = 4
-	data := a.allocMassData(small)
-	require.Len(t, data, small)
-	tassert.Equal(t, small, getArenaAllocation(&a))
-	tassert.GreaterOrEqual(t, getArenaCapacity(&a), small)
-	tassert.Equal(t, small, getMaxArenaAllocation(&a))
-
-	a.freeMassData()
-	tassert.Equal(t, 0, getArenaAllocation(&a))
-	// b2GetArenaCapacity reports the retained buffer, so it must not shrink.
-	tassert.GreaterOrEqual(t, getArenaCapacity(&a), small)
-
-	const large = 37
-	data = a.allocMassData(large)
-	require.Len(t, data, large)
-	tassert.GreaterOrEqual(t, getArenaCapacity(&a), large)
-	tassert.Equal(t, large, getMaxArenaAllocation(&a))
-
-	a.freeMassData()
-	tassert.Equal(t, 0, getArenaAllocation(&a))
-
-	// A smaller allocation reuses the grown buffer: the capacity stays at the
-	// high-water mark while the live allocation drops.
-	data = a.allocMassData(small)
-	require.Len(t, data, small)
-	tassert.GreaterOrEqual(t, getArenaCapacity(&a), large)
-	tassert.Equal(t, small, getArenaAllocation(&a))
-	tassert.Equal(t, large, getMaxArenaAllocation(&a))
-
-	a.freeMassData()
-	destroyArena(&a)
-
-	// b2DestroyArenaAllocator releases the buffers, so the capacity is zero.
-	tassert.Equal(t, 0, getArenaCapacity(&a))
-}
-
-// TestOracleArenaCapacityFromWorldStep checks the same accessor against the
-// live per-world arena. b2GetArenaCapacity is a memory statistic, so the only
-// C-guaranteed relation is capacity >= maxAllocation for the mass-data slot
-// that b2UpdateBodyMassData uses.
-func TestOracleArenaCapacityFromWorldStep(t *testing.T) {
-	t.Parallel()
-
-	def := DefaultWorldDef()
-	w := NewWorld(&def)
-	defer w.Destroy()
-
-	bodyDef := DefaultBodyDef()
-	bodyDef.Type = DynamicBody
-	bodyID := w.CreateBody(&bodyDef)
-
-	shapeDef := DefaultShapeDef()
-	circle := Circle{Radius: 0.5}
-	for range 6 {
-		w.CreateCircleShape(bodyID, &shapeDef, &circle)
-	}
-
-	w.Step(1.0/60.0, 4)
-
-	// Every arena item is freed by the end of b2World_Step.
-	tassert.Equal(t, 0, getArenaAllocation(&w.arena))
-	tassert.GreaterOrEqual(t, getArenaCapacity(&w.arena), 0)
 }
 
 // ---------------------------------------------------------------------------

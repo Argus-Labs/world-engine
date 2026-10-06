@@ -276,11 +276,6 @@ func (a *arena) freeInts(slot *arenaIntSlot) {
 	assert(a.allocation >= 0)
 }
 
-// getArenaCapacity mirrors b2GetArenaCapacity, in elements.
-func getArenaCapacity(a *arena) int {
-	return cap(a.massData)
-}
-
 // getArenaAllocation mirrors b2GetArenaAllocation, in elements.
 func getArenaAllocation(a *arena) int {
 	return a.allocation
