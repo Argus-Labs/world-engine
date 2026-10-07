@@ -49,7 +49,7 @@ func TestFailureShowsStatusNotErrorText(t *testing.T) {
 	})
 
 	view := m.View()
-	require.NotContains(t, view, errText)
+	require.NotContains(t, view, "build error", "not even truncated")
 	require.Contains(t, view, "game-shard  failed")
 	require.Contains(t, view, "lobby-shard  canceled", "a sibling stopped by the failure isn't a failure")
 	require.Contains(t, view, "see error below")
