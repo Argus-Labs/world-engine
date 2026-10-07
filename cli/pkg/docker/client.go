@@ -61,7 +61,7 @@ func (c *Client) ResolveServices(builders ...service.Builder) []service.Service 
 // containers have been purged.
 func (c *Client) PruneCardinalImages(ctx context.Context) error {
 	// First, remove any images that were built by world-cli for Cardinal.
-	filters := make(client.Filters).Add("label", "world-cli=cardinal")
+	filters := make(client.Filters).Add("label", service.CardinalImageLabel+"="+service.CardinalImageValue)
 
 	images, err := c.client.ImageList(ctx, client.ImageListOptions{
 		All:     true,
@@ -127,30 +127,4 @@ func hasWorldImagePrefix(tag string, prefixes []string) bool {
 		}
 	}
 	return false
-}
-
-// ListCardinalContainersByNamespace returns the names of Cardinal containers for a given namespace.
-func (c *Client) ListCardinalContainersByNamespace(ctx context.Context, namespace string, all bool) ([]string, error) {
-	containers, err := c.client.ContainerList(ctx, client.ContainerListOptions{
-		All:     all,
-		Filters: make(client.Filters).Add("label", service.CardinalNamespaceLabel+"="+namespace),
-	})
-	if err != nil {
-		return nil, eris.Wrapf(err, "failed to list containers for namespace %q", namespace)
-	}
-
-	results := make([]string, 0, len(containers.Items))
-	for _, cont := range containers.Items {
-		name := ""
-		if len(cont.Names) > 0 {
-			name = cont.Names[0]
-			if len(name) > 0 && name[0] == '/' {
-				name = name[1:]
-			}
-		}
-		if name != "" {
-			results = append(results, name)
-		}
-	}
-	return results, nil
 }

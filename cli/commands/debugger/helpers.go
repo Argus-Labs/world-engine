@@ -10,7 +10,7 @@ import (
 
 	"github.com/argus-labs/world-engine/cli/internal/debug"
 	"github.com/argus-labs/world-engine/cli/internal/printer"
-	"github.com/argus-labs/world-engine/cli/pkg/cluster"
+	"github.com/argus-labs/world-engine/cli/pkg/local"
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
@@ -44,7 +44,7 @@ func resolveTargets(dir string, instanceIDs []string) ([]debugTarget, error) {
 	for _, instance := range instances {
 		targets = append(targets, debugTarget{
 			instanceID: instance.InstanceID,
-			url:        cluster.LocalShardAPIURL(cfg.Organization, cfg.Project, instance.InstanceID),
+			url:        local.ShardAPIURL(cfg.Organization, cfg.Project, instance.InstanceID),
 		})
 	}
 	return targets, nil

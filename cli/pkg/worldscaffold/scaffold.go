@@ -28,6 +28,16 @@ const worldEngineExamplePrefix = "github.com/argus-labs/world-engine/pkg/templat
 //go:embed templates/go_mod_template
 var goModTemplate string
 
+// localDevSkill is written into every new project so coding agents know the world CLI.
+//
+//go:embed templates/skills/world-local-dev/SKILL.md
+var localDevSkill string
+
+// skillDirs are the per-agent skill locations: Claude Code and the .agents convention (Codex).
+//
+//nolint:gochecknoglobals // fixed list
+var skillDirs = []string{".claude/skills/world-local-dev", ".agents/skills/world-local-dev"}
+
 // Scaffold creates a new project at targetDir from the given template: it clones
 // and instantiates the template (see InstantiateTemplate) at the World Engine
 // release this binary was built from, then tidies dependencies. It is the single entry point for
@@ -136,6 +146,23 @@ func instantiate(ctx context.Context, url, version, targetDir, subdir string) er
 		return eris.Wrap(err, "failed to set project in world.toml")
 	}
 
+	return writeAgentSkills(targetDir)
+}
+
+// writeAgentSkills drops the local-dev skill into the project; a template that ships its own copy wins.
+func writeAgentSkills(dir string) error {
+	for _, rel := range skillDirs {
+		path := filepath.Join(dir, filepath.FromSlash(rel), "SKILL.md")
+		if _, err := os.Stat(path); err == nil {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return eris.Wrapf(err, "failed to create %s", filepath.Dir(path))
+		}
+		if err := os.WriteFile(path, []byte(localDevSkill), 0o600); err != nil {
+			return eris.Wrapf(err, "failed to write %s", path)
+		}
+	}
 	return nil
 }
 

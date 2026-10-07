@@ -59,7 +59,7 @@ func (c *BuildCmd) Run(ctx context.Context) error {
 					return eris.Errorf("shard %q not found in world.toml", c.Shard)
 				}
 
-				wantImage := service.CardinalShardImageName(cfg.Namespace, c.Shard)
+				wantImage := service.CardinalShardImageName(cfg.Project, c.Shard)
 				filtered := make([]service.Service, 0, 1)
 				for _, s := range dockerServices {
 					if s.Image == wantImage {

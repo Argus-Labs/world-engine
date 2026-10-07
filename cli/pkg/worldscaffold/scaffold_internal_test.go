@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -317,4 +318,29 @@ func (s *SetupCloneTestSuite) TestInstantiateTemplate_CleansUpPartialOnFailure()
 	require.Error(t, err) // no world.toml in the template
 	assert.Contains(t, err.Error(), "world.toml")
 	assert.NoDirExists(t, target) // partial output cleaned up
+}
+
+func TestWriteAgentSkillsWritesBothLocationsAndKeepsExisting(t *testing.T) {
+	dir := t.TempDir()
+	custom := filepath.Join(dir, ".claude", "skills", "world-local-dev", "SKILL.md")
+	if err := os.MkdirAll(filepath.Dir(custom), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(custom, []byte("mine"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeAgentSkills(dir); err != nil {
+		t.Fatal(err)
+	}
+	kept, _ := os.ReadFile(custom)
+	if string(kept) != "mine" {
+		t.Fatal("template's own skill was overwritten")
+	}
+	agents, err := os.ReadFile(filepath.Join(dir, ".agents", "skills", "world-local-dev", "SKILL.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(agents), "name: world-local-dev") || !strings.Contains(string(agents), "world start") {
+		t.Fatal("skill content missing")
+	}
 }

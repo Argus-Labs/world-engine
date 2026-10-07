@@ -33,8 +33,3 @@ tasks:
   install:
     description: 'Install the World CLI from source into GOBIN'
     command: 'go install ./cmd/world'
-  generate:
-    description: 'Regenerate the Cardinal Operator Connect and protobuf code'
-    command: 'buf generate'
-    options:
-      runFromWorkspaceRoot: false

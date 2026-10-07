@@ -1,13 +1,17 @@
 package docker
 
 import (
+	"bufio"
 	"context"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/rotisserie/eris"
@@ -27,6 +31,18 @@ const maxLogSinceSeconds = 86400 // 24 hours
 // protecting against OOM if log lines are extremely long.
 const maxLogBytes = 10 * 1024 * 1024
 
+// clampTailLines bounds a requested history: 0 or less means the default, and
+// anything larger than maxLogTailLines is capped.
+func clampTailLines(tail int) int {
+	if tail <= 0 || tail > maxLogTailLines {
+		return maxLogTailLines
+	}
+	return tail
+}
+
+// maxLogLineBytes caps one streamed log line; longer lines end the scan.
+const maxLogLineBytes = 1024 * 1024
+
 func (c *Client) containerExists(ctx context.Context, containerName string) (bool, error) {
 	_, err := c.client.ContainerInspect(ctx, containerName, client.ContainerInspectOptions{})
 	if err != nil {
@@ -39,32 +55,38 @@ func (c *Client) containerExists(ctx context.Context, containerName string) (boo
 	return true, nil
 }
 
-// removeContainerKeepVolume stops and removes a container without deleting its volume.
-func (c *Client) removeContainerKeepVolume(ctx context.Context, containerName string) error {
-	// Check if the container exists
-	exist, err := c.containerExists(ctx, containerName)
+// removeContainer stops and removes a container; with keepVolumes false its named
+// volumes go too. A missing container is a no-op.
+func (c *Client) removeContainer(ctx context.Context, name string, keepVolumes bool) error {
+	res, err := c.client.ContainerInspect(ctx, name, client.ContainerInspectOptions{})
 	if err != nil {
-		return eris.Wrapf(err, "Failed to check if container %s exists", containerName)
+		if cerrdefs.IsNotFound(err) {
+			return nil
+		}
+		return eris.Wrapf(err, "inspect container %s", name)
 	}
-	if !exist {
-		c.logger.DebugContext(ctx, "container does not exist", "container", containerName)
+	if _, err := c.client.ContainerStop(ctx, name, client.ContainerStopOptions{Signal: "SIGINT"}); err != nil {
+		return eris.Wrapf(err, "stop container %s", name)
+	}
+	if _, err := c.client.ContainerRemove(ctx, name, client.ContainerRemoveOptions{}); err != nil {
+		return eris.Wrapf(err, "remove container %s", name)
+	}
+	if keepVolumes {
 		return nil
 	}
-
-	// Stop the container
-	_, err = c.client.ContainerStop(ctx, containerName, client.ContainerStopOptions{
-		Signal: "SIGINT",
-	})
-	if err != nil {
-		return eris.Wrapf(err, "Failed to stop container %s", containerName)
+	for _, m := range res.Container.Mounts {
+		if m.Type != mount.TypeVolume || m.Name == "" {
+			continue
+		}
+		if _, err := c.client.VolumeRemove(
+			ctx,
+			m.Name,
+			client.VolumeRemoveOptions{Force: true},
+		); err != nil &&
+			!cerrdefs.IsNotFound(err) {
+			return eris.Wrapf(err, "remove volume %s", m.Name)
+		}
 	}
-
-	// Remove the container but leave any associated volumes intact
-	_, err = c.client.ContainerRemove(ctx, containerName, client.ContainerRemoveOptions{})
-	if err != nil {
-		return eris.Wrapf(err, "Failed to remove container %s", containerName)
-	}
-
 	return nil
 }
 
@@ -77,11 +99,9 @@ func (c *Client) InspectContainer(ctx context.Context, containerName string) (co
 	return inspect.Container, nil
 }
 
-// CardinalDebugHostPort returns the host port bound to the Cardinal debug port (8080/tcp)
-// for the given container. Use this to connect to the debug API from the host without
-// relying on index-based port formulas. Returns an error if the container is not found
-// or the port binding is missing.
-func (c *Client) CardinalDebugHostPort(ctx context.Context, containerName string) (int, error) {
+// CardinalHostPort returns the 127.0.0.1 port bound to a shard container's :8080,
+// so callers never depend on the index formula.
+func (c *Client) CardinalHostPort(ctx context.Context, containerName string) (int, error) {
 	inspect, err := c.InspectContainer(ctx, containerName)
 	if err != nil {
 		return 0, err
@@ -89,7 +109,7 @@ func (c *Client) CardinalDebugHostPort(ctx context.Context, containerName string
 	if inspect.NetworkSettings == nil || inspect.NetworkSettings.Ports == nil {
 		return 0, eris.Errorf("container %s has no network port bindings", containerName)
 	}
-	debugPort := network.MustParsePort(strconv.Itoa(service.DefaultCardinalDebugPort) + "/tcp")
+	debugPort := network.MustParsePort(strconv.Itoa(service.CardinalPort) + "/tcp")
 	bindings, ok := inspect.NetworkSettings.Ports[debugPort]
 	if !ok || len(bindings) == 0 {
 		return 0, eris.Errorf("container %s has no host port for %s", containerName, debugPort)
@@ -128,13 +148,8 @@ func (c *Client) GetContainerLogs(
 		Follow:     false,
 	}
 
-	// Enforce a sane upper bound on log volume. If tailLines is zero or
-	// excessively large, cap it to maxLogTailLines to avoid streaming an
-	// unbounded amount of data back to the agent.
-	if tailLines <= 0 || tailLines > maxLogTailLines {
-		tailLines = maxLogTailLines
-	}
-	opts.Tail = strconv.Itoa(tailLines)
+	// Bound the volume streamed back to an agent, same rule as the follow path.
+	opts.Tail = strconv.Itoa(clampTailLines(tailLines))
 
 	// Cap sinceSeconds to maxLogSinceSeconds (24 hours) to prevent requests
 	// for logs from days/weeks ago which could return huge volumes of data.
@@ -160,4 +175,94 @@ func (c *Client) GetContainerLogs(
 	}
 
 	return string(data), nil
+}
+
+// startContainer creates the container if missing, then starts it.
+func (c *Client) startContainer(ctx context.Context, svc service.Service) error {
+	exist, err := c.containerExists(ctx, svc.Name)
+	if err != nil {
+		return err
+	}
+	if !exist {
+		_, err := c.client.ContainerCreate(ctx, client.ContainerCreateOptions{
+			Config:           &svc.Config,
+			HostConfig:       &svc.HostConfig,
+			NetworkingConfig: &svc.NetworkingConfig,
+			Platform:         &svc.Platform,
+			Name:             svc.Name,
+		})
+		if err != nil {
+			return eris.Wrapf(err, "create container %s", svc.Name)
+		}
+	}
+	if _, err := c.client.ContainerStart(ctx, svc.Name, client.ContainerStartOptions{}); err != nil {
+		return eris.Wrapf(err, "start container %s", svc.Name)
+	}
+	return nil
+}
+
+// stopContainer sends SIGINT and waits for exit; a missing container is a no-op.
+func (c *Client) stopContainer(ctx context.Context, name string) error {
+	exist, err := c.containerExists(ctx, name)
+	if err != nil || !exist {
+		return err
+	}
+	if _, err := c.client.ContainerStop(ctx, name, client.ContainerStopOptions{Signal: "SIGINT"}); err != nil {
+		return eris.Wrapf(err, "stop container %s", name)
+	}
+	return nil
+}
+
+// LogEntry is one demuxed container log line.
+type LogEntry struct {
+	Container string
+	Timestamp time.Time // zero when Docker gave none
+	Line      string
+}
+
+// StreamContainerLogs tails a container's stdout+stderr into out, following live
+// output when follow is set, until the stream ends or ctx is cancelled.
+func (c *Client) StreamContainerLogs(
+	ctx context.Context,
+	name string,
+	tail int,
+	follow bool,
+	out chan<- LogEntry,
+) error {
+	rc, err := c.client.ContainerLogs(ctx, name, client.ContainerLogsOptions{
+		ShowStdout: true, ShowStderr: true, Timestamps: true, Follow: follow,
+		Tail: strconv.Itoa(clampTailLines(tail)),
+	})
+	if err != nil {
+		return eris.Wrapf(err, "logs for %s", name)
+	}
+	defer rc.Close()
+
+	pr, pw := io.Pipe()
+	// Closing rc does not unblock a demux write already parked in pw.Write, so the
+	// reader end must be closed too or the goroutine and the pipe leak per tail.
+	defer pr.Close()
+	go func() {
+		_, err := stdcopy.StdCopy(pw, pw, rc)
+		_ = pw.CloseWithError(err)
+	}()
+	sc := bufio.NewScanner(pr)
+	sc.Buffer(make([]byte, 64*1024), maxLogLineBytes)
+	for sc.Scan() {
+		entry := LogEntry{Container: name, Line: sc.Text()}
+		if ts, rest, ok := strings.Cut(entry.Line, " "); ok {
+			if t, err := time.Parse(time.RFC3339Nano, ts); err == nil {
+				entry.Timestamp, entry.Line = t, rest
+			}
+		}
+		select {
+		case out <- entry:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	if err := sc.Err(); err != nil && ctx.Err() == nil {
+		return eris.Wrapf(err, "read logs for %s", name)
+	}
+	return ctx.Err()
 }

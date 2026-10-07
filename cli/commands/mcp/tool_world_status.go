@@ -9,23 +9,23 @@ import (
 
 // GetWorldStartStatusInput is the structured input for get_world_start_status.
 type GetWorldStartStatusInput struct {
-	OperatorURL string `json:"operator_url,omitempty" jsonschema_description:"cardinal-operator URL (defaults to http://localhost:8090 for local dev)"`
+	Project string `json:"project,omitempty" jsonschema_description:"World project to read (defaults to the world.toml in the working directory)"`
 }
 
 // GetWorldStartStatusOutput is the structured output for get_world_start_status.
 type GetWorldStartStatusOutput struct {
-	Pools []ShardPool `json:"pools" jsonschema_description:"Shard pools and their pod instances reported by the cardinal-operator"`
+	Pools []ShardPool `json:"pools" jsonschema_description:"Shard pools and their container instances"`
 }
 
 // registerWorldStatusTool registers the get_world_start_status tool.
-// It lists the Cardinal shard pools the local cardinal-operator manages.
+// It lists the Cardinal shard pools deployed for the project.
 func registerWorldStatusTool(srv *server.MCPServer) {
 	worldStatusTool := mcp.NewTool(
 		"get_world_start_status",
 		mcp.WithDescription(
-			"List Cardinal shard pools and their pod instances from the cardinal-operator in the local k8s cluster. "+
-				"Shows each shard's pool size, image tag, phase, and per-pod readiness/restarts. "+
-				"Requires a running cluster (cardinal-editor, or 'world start').",
+			"List Cardinal shard pools and their container instances from local Docker. "+
+				"Shows each shard's pool size, image, phase, and per-container readiness/restarts. "+
+				"Requires a running world ('world start').",
 		),
 		mcp.WithInputSchema[GetWorldStartStatusInput](),
 		mcp.WithOutputSchema[GetWorldStartStatusOutput](),
@@ -33,7 +33,7 @@ func registerWorldStatusTool(srv *server.MCPServer) {
 	srv.AddTool(worldStatusTool, strictToolHandler(getWorldStartStatusHandler))
 }
 
-// getWorldStartStatusHandler returns the operator's shard pools/instances.
+// getWorldStartStatusHandler returns the project's shard pools/instances.
 func getWorldStartStatusHandler(
 	ctx context.Context,
 	_ mcp.CallToolRequest,
@@ -42,7 +42,7 @@ func getWorldStartStatusHandler(
 	ctx, cancel := ensureDeadline(ctx, defaultCommandTimeout)
 	defer cancel()
 
-	status, err := operatorStatus(ctx, args.OperatorURL)
+	status, err := worldStatus(ctx, args.Project)
 	if err != nil {
 		return GetWorldStartStatusOutput{}, err
 	}

@@ -51,8 +51,8 @@ type Dependency struct {
 }
 
 func (d Dependency) Check() error {
-	cmd := d.CmdFactory()
-	if err := cmd.Run(); err != nil {
+	err := d.CmdFactory().Run()
+	if err != nil {
 		return eris.Wrapf(err, "dependency check for %q failed", d.Name)
 	}
 	return nil

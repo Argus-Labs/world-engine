@@ -17,7 +17,7 @@ import (
 )
 
 // projectNameErrMsg is shown when a project name isn't dnslabel-canonical (the
-// form the cardinal-operator expects for shard paths). Shared by the interactive
+// form the shard chart's ingress path expects). Shared by the interactive
 // input and the directory-argument path.
 const projectNameErrMsg = "Name must use lowercase letters, numbers, and single hyphens (e.g. my-game)"
 

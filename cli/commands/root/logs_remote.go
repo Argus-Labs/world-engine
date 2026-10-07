@@ -9,42 +9,37 @@ import (
 	"github.com/rotisserie/eris"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/argus-labs/world-engine/cli/internal/auth"
 	"github.com/argus-labs/world-engine/cli/internal/printer"
 	"github.com/argus-labs/world-engine/cli/pkg/cluster"
+	"github.com/argus-labs/world-engine/cli/pkg/worldstatus"
 )
 
-// Shared and branch environments use the regional GCP Gateway. A branch's
-// path prefix selects its namespace-local operator.
-func remoteOperatorEndpoint(env string) string {
-	switch env {
-	case "us-west1", "usw1", "usw2":
-		return "https://operator-usw1.argus.dev"
-	default:
-		return fmt.Sprintf("https://operator-usw1.argus.dev/ephemeral/%s", env)
+// runRemoteLogs tails shard logs on a kubeconfig context (the hosted dev server, an
+// ephemeral environment). Access is whatever the developer's kubeconfig grants.
+func runRemoteLogs(
+	ctx context.Context,
+	kubeContext, namespace, project string,
+	shards []string,
+	tail int32,
+	previous bool,
+) error {
+	kubeContext = strings.TrimSpace(kubeContext)
+	if kubeContext == "" {
+		return eris.New("--context is empty")
 	}
-}
-
-// runRemoteLogs tails a deployed environment's shard logs. Platform pods
-// (NATS, Postgres) are not available: the operator only reaches its own
-// namespace's shards, and the local path to them needs a kubeconfig.
-func runRemoteLogs(ctx context.Context, env string, shards []string, tail int32, previous bool) error {
-	env = strings.TrimSpace(env)
-	if env == "" {
-		return eris.New("--env is empty")
+	if namespace == "" {
+		namespace = cluster.ProjectNamespace(project)
 	}
 
-	cli := cluster.NewClient(cluster.Config{
-		OperatorEndpoint: remoteOperatorEndpoint(env),
-		TokenSource:      auth.New(),
-	})
+	cli := cluster.NewClient(cluster.Config{Context: kubeContext})
 
-	printer.Infof("Tailing %s\n", env)
+	printer.Infof("Tailing %s/%s\n", kubeContext, namespace)
 
-	lines := make(chan cluster.LogLine, 256)
+	lines := make(chan worldstatus.LogLine, 256)
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		return cli.StreamShardLogs(gctx, cluster.LogsOpts{
+		return cli.StreamShardLogs(gctx, worldstatus.LogsOpts{
+			Namespace: namespace,
 			ShardIDs:  shards,
 			TailLines: tail,
 			Previous:  previous,
@@ -58,7 +53,7 @@ func runRemoteLogs(ctx context.Context, env string, shards []string, tail int32,
 	})
 
 	if err := g.Wait(); err != nil {
-		return eris.Wrapf(err, "streaming logs for %s", env)
+		return eris.Wrapf(err, "streaming logs for %s/%s", kubeContext, namespace)
 	}
 	return nil
 }

@@ -2,10 +2,8 @@ package docker
 
 import (
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/rotisserie/eris"
 
@@ -36,10 +34,8 @@ func NewClientConfig(projectDir string, debug bool) (*service.Config, error) {
 		WorldToml: worldToml,
 	}
 
-	cfg.Namespace = filepath.Base(projectDir)
-
-	cfg.NATSURL = fmt.Sprintf("nats://%s", net.JoinHostPort(service.DefaultNatsContainerName,
-		strconv.Itoa(service.DefaultNatsClientPort)))
+	cfg.Project = worldToml.Project
+	cfg.NATSURL = service.NatsURL(worldToml.Project)
 
 	return cfg, nil
 }

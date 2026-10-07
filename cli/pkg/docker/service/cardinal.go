@@ -2,7 +2,9 @@ package service
 
 import (
 	"fmt"
+	"net"
 	"strconv"
+	"strings"
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
@@ -11,34 +13,37 @@ import (
 )
 
 const (
-	// DefaultCardinalDebugPort is the Cardinal debug server port.
-	DefaultCardinalDebugPort = 8080
-	// DefaultCardinalDebugHostPort is the host port for Cardinal debug.
-	DefaultCardinalDebugHostPort = 8081
+	// CardinalPort is the ConnectRPC port inside every shard container.
+	CardinalPort = 8080
+	// ShardHostPortBase is the host port of the first shard instance; instance i gets base+i on 127.0.0.1.
+	ShardHostPortBase = 8081
 
-	// DBDSNEnvVar is the uniform env var carrying the shared project database DSN
-	// to every shard and every db = true service.
+	// DBDSNEnvVar carries the project Postgres DSN into shards and services.
 	DBDSNEnvVar = "DB_DSN"
 
-	// projectDBImage is the Postgres image auto-provisioned for the shared
-	// project database.
 	projectDBImage = "postgres:16"
 
-	// defaultConfigDBPort is the Postgres port assumed when a config_db service
-	// declares none.
 	defaultConfigDBPort = 5432
 
-	// configDBUser/configDBPassword are world-cli's default credentials for the
-	// shared project database; world.toml never sets POSTGRES_* itself.
 	configDBUser     = "postgres"
 	configDBPassword = "postgres"
+
+	// Local-only env the chart does not render; the contract test allowlists it.
+	localLogFormat = "LOG_FORMAT=pretty"
+
+	defaultLogLevel = "info"
+	// defaultMode mirrors the chart's values.yaml default; the chart always renders CARDINAL_MODE.
+	defaultMode = "LEADER"
+	// snapshotStorageType matches the chart's examples/local.yaml so reload --purge wipes real state.
+	snapshotStorageType = "JETSTREAM"
 )
 
+// BuildCardinalShards returns one builder per pool-expanded instance, host port ShardHostPortBase+i.
 func BuildCardinalShards(cfg *Config) []Builder {
 	services := make([]Builder, 0, len(cfg.WorldToml.Shards))
 	for i, sc := range cfg.WorldToml.Shards {
 		shardCfg := sc
-		hostPort := DefaultCardinalDebugHostPort + i
+		hostPort := ShardHostPort(i)
 		services = append(services, func(c *Config) Service {
 			return CardinalFromShard(c, shardCfg, hostPort)
 		})
@@ -46,44 +51,39 @@ func BuildCardinalShards(cfg *Config) []Builder {
 	return services
 }
 
-// CardinalShardContainerName returns the per-instance container name for a
-// Cardinal shard (e.g. "game-2").
-func CardinalShardContainerName(namespace, instanceID string) string {
-	return fmt.Sprintf("%s-%s-shard", namespace, instanceID)
+// ShardHostPort is the 127.0.0.1 port of the i-th instance in world.toml order.
+func ShardHostPort(i int) int { return ShardHostPortBase + i }
+
+// CardinalShardContainerName is "<project>-<instance>-shard".
+func CardinalShardContainerName(project, instanceID string) string {
+	return fmt.Sprintf("%s-%s-shard", project, instanceID)
 }
 
-// CardinalShardImageName returns the image tag shared by a Cardinal shard pool,
-// keyed by the world.toml shard ID.
-func CardinalShardImageName(namespace, shardID string) string {
-	return fmt.Sprintf("%s-%s-shard", namespace, shardID)
+// CardinalShardImageName is "<project>-<shard>-shard"; one image per pool.
+func CardinalShardImageName(project, shardID string) string {
+	return fmt.Sprintf("%s-%s-shard", project, shardID)
 }
 
+// CardinalFromShard builds the container for one shard instance. RestartPolicy is
+// "no" so a crash stays visible in docker ps and world logs.
 func CardinalFromShard(cfg *Config, shard worldtoml.Shard, hostPort int) Service {
-	containerName := CardinalShardContainerName(cfg.Namespace, shard.InstanceID)
-	imageName := CardinalShardImageName(cfg.Namespace, shard.ID)
-
-	env := buildCardinalEnv(cfg, shard)
-	exposedPorts := []int{DefaultCardinalDebugPort}
-	tcp := network.MustParsePort(strconv.Itoa(DefaultCardinalDebugPort) + "/tcp")
-	portBindings := network.PortMap{tcp: []network.PortBinding{{HostPort: strconv.Itoa(hostPort)}}}
-
+	project := cfg.WorldToml.Project
+	tcp := network.MustParsePort(strconv.Itoa(CardinalPort) + "/tcp")
+	labels := Labels(project, RoleShard, shard.ID, shard.InstanceID)
+	labels[OrgLabel] = cfg.WorldToml.Organization
 	svc := Service{
-		Name:          containerName,
-		Image:         imageName,
-		Env:           env,
-		ExposedPorts:  getExposedPorts(exposedPorts),
-		Labels:        map[string]string{CardinalNamespaceLabel: cfg.Namespace},
-		PortBindings:  portBindings,
-		RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
-		NetworkMode:   DefaultNetworkMode,
+		Name:         CardinalShardContainerName(project, shard.InstanceID),
+		Image:        CardinalShardImageName(project, shard.ID),
+		Env:          buildCardinalEnv(cfg, shard),
+		ExposedPorts: getExposedPorts([]int{CardinalPort}),
+		Labels:       labels,
+		PortBindings: network.PortMap{tcp: loopbackBinding(hostPort)},
+		NetworkMode:  container.NetworkMode(NetworkName(project)),
 	}
 	applySourceBuild(&svc, shard.Path)
 	return svc
 }
 
-// applySourceBuild marks out as built from project Go source via the embedded
-// Dockerfile "runtime" target (Go toolchain + distroless base stages). Shared by
-// Cardinal shards and built-from-source game services.
 func applySourceBuild(out *Service, shardPath string) {
 	out.BuildTarget = "runtime"
 	out.BuildArgs = map[string]string{"SOURCE_PATH": ".", "SHARD_PATH": shardPath}
@@ -93,36 +93,62 @@ func applySourceBuild(out *Service, shardPath string) {
 	}
 }
 
-// buildCardinalEnv builds Cardinal's env: the base env plus DB_DSN (the shared
-// project database DSN) when the project uses a database.
-//
-// A shard receives DB_DSN only when the project declares a [[services]] entry with
-// db = true (or a config_db service); projectDBDSN returns "" otherwise. So a shard
-// using cardinal.data with no such service gets no DB_DSN.
+// buildCardinalEnv is the local side of the chart contract: the same keys and values
+// cardinal-shard renders for examples/local.yaml, plus localLogFormat.
 func buildCardinalEnv(cfg *Config, shard worldtoml.Shard) []string {
+	logLevel := shard.LogLevel
+	if logLevel == "" {
+		logLevel = defaultLogLevel
+	}
 	env := []string{
-		fmt.Sprintf("CARDINAL_REGION=%s", cardinalRegion),
-		fmt.Sprintf("CARDINAL_ORG=%s", cfg.WorldToml.Organization),
-		fmt.Sprintf("CARDINAL_PROJECT=%s", cfg.WorldToml.Project),
-		fmt.Sprintf("CARDINAL_SHARD_ID=%s", shard.InstanceID),
-		fmt.Sprintf("NATS_URL=%s", cfg.NATSURL),
-		fmt.Sprintf("LOG_LEVEL=%s", shard.LogLevel),
+		"CARDINAL_SHARD_ID=" + shard.InstanceID,
+		"CARDINAL_ORG=" + cfg.WorldToml.Organization,
+		"CARDINAL_PROJECT=" + cfg.WorldToml.Project,
+		"CARDINAL_REGION=" + CardinalRegion,
+		"LOG_LEVEL=" + logLevel,
+		"CARDINAL_SNAPSHOT_STORAGE_TYPE=" + snapshotStorageType,
+		"CARDINAL_AUTH_MODE=" + shardAuthModeEnv(cfg.WorldToml),
+		"NATS_URL=" + cfg.NATSURL,
+		DBDSNEnvVar + "=" + ShardDBDSN(cfg.WorldToml),
+	}
+	// An argus world validates real Argus Auth tokens, so it can be played with the
+	// same accounts as a hosted one. The chart renders the same pair.
+	if shardAuthMode(cfg.WorldToml) == worldtoml.AuthModeArgus {
+		env = append(env, "CARDINAL_ARGUS_AUTH_URL="+cfg.WorldToml.Auth.URL)
+	}
+	if shard.TickRate > 0 {
+		env = append(env, fmt.Sprintf("CARDINAL_TICK_RATE=%d", shard.TickRate))
+	}
+	mode := shard.Mode
+	if mode == "" {
+		mode = defaultMode
+	}
+	env = append(env,
+		"CARDINAL_MODE="+mode,
 		fmt.Sprintf("CARDINAL_DEBUG=%t", cfg.Debug),
-		"LOG_FORMAT=pretty",
-		// No OTLP collector in local docker; disable sampling to silence the
-		// exporter's "produced zero addresses" spam.
-		"OTEL_TRACE_SAMPLE_RATE=0.0",
-	}
-	// DB_DSN is injected only when the project uses a database (projectDBDSN returns
-	// the shared DSN); shards that don't use the data plugin (e.g. lobby) ignore it.
-	if dsn := projectDBDSN(cfg.WorldToml); dsn != "" {
-		env = append(env, fmt.Sprintf("%s=%s", DBDSNEnvVar, dsn))
-	}
+		"OTEL_EXPORTER_OTLP_ENDPOINT=",
+		fmt.Sprintf("OTEL_RESOURCE_ATTRIBUTES=shard.id=%s,service.instance.id=%s", shard.ID, shard.InstanceID),
+		localLogFormat,
+	)
 	return env
 }
 
-// ProjectDBContainerName returns a project's shared database container/host name
-// ("{project}-db"). One database per project, reached via DB_DSN.
+// shardAuthMode is the world's auth mode. world.toml validation defaults it to dev;
+// callers that build a Config without parsing one (MCP reads by project name) get the
+// same default rather than an empty value the shard would reject.
+func shardAuthMode(worldToml worldtoml.Config) string {
+	if worldToml.Auth.Mode == "" {
+		return worldtoml.AuthModeDev
+	}
+	return worldToml.Auth.Mode
+}
+
+// shardAuthModeEnv is the CARDINAL_AUTH_MODE value: cardinal and the chart's schema
+// spell the modes in upper case, world.toml in lower.
+func shardAuthModeEnv(worldToml worldtoml.Config) string {
+	return strings.ToUpper(shardAuthMode(worldToml))
+}
+
 func ProjectDBContainerName(project string) string {
 	return project + "-db"
 }
@@ -148,11 +174,27 @@ func hasConfigDBService(worldToml worldtoml.Config) bool {
 	return false
 }
 
-// NeedsAutoProjectDB reports whether the docker backend must auto-provision the
-// shared "{project}-db" Postgres: some service set db = true and no config_db
-// service was declared to satisfy it.
+// NeedsAutoProjectDB reports whether world start runs the shared "<project>-db"
+// Postgres. It does for every project, matching the chart (which always renders
+// DB_DSN), unless a config_db [[service]] brings its own database.
 func NeedsAutoProjectDB(worldToml worldtoml.Config) bool {
-	return anyServiceUsesDB(worldToml) && !hasConfigDBService(worldToml)
+	return !hasConfigDBService(worldToml)
+}
+
+// ShardDBDSN is every shard's DB_DSN: the config_db service when declared, else "<project>-db". Never "".
+func ShardDBDSN(worldToml worldtoml.Config) string {
+	if dsn := configDBDSN(worldToml); dsn != "" {
+		return dsn
+	}
+	return autoProjectDBDSN(worldToml.Project)
+}
+
+func autoProjectDBDSN(project string) string {
+	addr := net.JoinHostPort(ProjectDBContainerName(project), strconv.Itoa(defaultConfigDBPort))
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s/%s?sslmode=disable",
+		configDBUser, configDBPassword, addr, project,
+	)
 }
 
 // projectDBDSN returns the shared DB_DSN — one database per project. It prefers a
@@ -163,14 +205,7 @@ func projectDBDSN(worldToml worldtoml.Config) string {
 		return dsn
 	}
 	if anyServiceUsesDB(worldToml) {
-		return fmt.Sprintf(
-			"postgres://%s:%s@%s:%d/%s?sslmode=disable",
-			configDBUser,
-			configDBPassword,
-			ProjectDBContainerName(worldToml.Project),
-			defaultConfigDBPort,
-			worldToml.Project,
-		)
+		return autoProjectDBDSN(worldToml.Project)
 	}
 	return ""
 }

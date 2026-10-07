@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 
 	"connectrpc.com/connect"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -11,20 +12,22 @@ import (
 	"github.com/rotisserie/eris"
 
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
+
+	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
+
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 )
 
 // SendCommandInput is the structured input for the send_command tool.
 type SendCommandInput struct {
-	ShardID      string         `json:"shard_id"                jsonschema_description:"ID of the shard to send the command to (a shard deployed on the cluster)"`
-	InstanceName string         `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance to target (e.g., 'game-2', 'game 2', '2'); defaults to the shard's first instance. Each instance is a distinct pod with its own state."`
-	Organization string         `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the cluster's ShardPool for this shard if omitted)"`
-	Project      string         `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the cluster's ShardPool for this shard if omitted)"`
+	ShardID      string         `json:"shard_id"                jsonschema_description:"ID of the shard to send the command to (a shard running on local Docker)"`
+	InstanceName string         `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance to target (e.g., 'game-2', 'game 2', '2'); defaults to the shard's first instance. Each instance is a distinct container with its own state."`
+	Organization string         `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the project's releases when omitted"`
+	Project      string         `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the project's releases when omitted"`
 	CommandName  string         `json:"command_name"            jsonschema_description:"Name of the command to execute (e.g., 'create-player', 'player-attack')"`
 	Payload      map[string]any `json:"payload"                 jsonschema_description:"JSON payload for the command (the command's input data)"`
-	ShardURL     string         `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved (per instance) from the cluster when omitted. When set, the operator is not contacted: pair it with instance_name (the exact instance, e.g. 'game-2') when targeting a non-default pod so the request address matches the shard. Also pass organization/project to skip the cluster lookup entirely; otherwise they're still auto-resolved via a cluster call."`
-	OperatorURL  string         `json:"operator_url,omitempty"  jsonschema_description:"cardinal-operator URL used to resolve instance_name (defaults to http://localhost:8090 for local dev)"`
+	ShardURL     string         `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved (per instance) from the running containers when omitted. When set, Docker is not contacted: pair it with instance_name (the exact instance, e.g. 'game-2') when targeting a non-default instance so the request address matches the shard. Also pass organization/project to skip the container lookup entirely; otherwise they're still auto-resolved from the containers."`
 	PlayerID     string         `json:"player_id,omitempty"     jsonschema_description:"Player ID for dev auth (defaults to mcp-dev-player)"`
 	Region       string         `json:"region,omitempty"        jsonschema_description:"Service address region (defaults to us-west1 for local dev)"`
 }
@@ -32,7 +35,7 @@ type SendCommandInput struct {
 // SendCommandOutput is the structured output for the send_command tool.
 type SendCommandOutput struct {
 	ShardID      string `json:"shard_id"`
-	InstanceName string `json:"instance_name"     jsonschema_description:"The pool instance (pod) this command was routed to"`
+	InstanceName string `json:"instance_name"     jsonschema_description:"The pool instance (container) this command was routed to"`
 	CommandName  string `json:"command_name"`
 	Message      string `json:"message,omitempty"`
 }
@@ -44,7 +47,7 @@ func registerSendCommandTool(srv *server.MCPServer) {
 		"send_command",
 		mcp.WithDescription(
 			"Send a command to a Cardinal shard. Commands are mutations that trigger game logic (e.g., "+
-				"create-player, player-attack). Requires a running cluster. NOTE: Command names must match "+
+				"create-player, player-attack). Requires a running world. NOTE: Command names must match "+
 				"the shard's registered names (e.g., 'create-player' not 'CreatePlayer'). Call the "+
 				"introspect tool first to list the commands and their payload schemas — it reflects what "+
 				"the running shard actually accepts, which grepping the source does not (unwired or "+
@@ -69,18 +72,18 @@ func sendCommandHandler(
 	ctx, cancel := ensureDeadline(ctx, defaultCommandTimeout)
 	defer cancel()
 
-	// Resolve the shard's organization/project from the cluster (no world.toml).
+	// Resolve the shard's organization/project from the container labels (no world.toml).
 	org, project, err := resolveShardWorld(ctx, args.ShardID, args.Organization, args.Project)
 	if err != nil {
 		return SendCommandOutput{}, err
 	}
 
-	// Resolve how to reach the target pool instance (a specific pod) and the
+	// Resolve how to reach the target pool instance (a specific container) and the
 	// address the shard validates against. Empty instance_name resolves to the
 	// shard's first instance, preserving prior behavior; each instance has its own
-	// Traefik route and its own ECS state.
+	// edge route and its own ECS state.
 	target, err := resolveShardTarget(
-		ctx, args.OperatorURL, args.ShardID, args.InstanceName, args.ShardURL, org, project, args.Region,
+		ctx, args.ShardID, args.InstanceName, args.ShardURL, org, project, args.Region,
 	)
 	if err != nil {
 		return SendCommandOutput{}, err
@@ -96,10 +99,19 @@ func sendCommandHandler(
 		return SendCommandOutput{}, eris.Wrapf(err, "failed to encode payload for command %q", args.CommandName)
 	}
 
+	// Refuse rather than silently drop the token: a caller that pinned shard_url at a
+	// remote host and exported WORLD_ARGUS_TOKEN would otherwise get a puzzling 401, and
+	// the token must not travel there either way.
+	if os.Getenv(argusTokenEnv) != "" && !isLocalShardURL(target.shardURL) {
+		return SendCommandOutput{}, eris.Errorf(
+			"refusing to send %s to %q: the token is only used for worlds on this machine",
+			argusTokenEnv, target.shardURL)
+	}
+
 	client := cardinalv1connect.NewCardinalServiceClient(
 		&http.Client{Timeout: defaultCommandTimeout},
 		target.shardURL,
-		connect.WithInterceptors(&devAuthInterceptor{playerID: args.PlayerID}),
+		connect.WithInterceptors(&devAuthInterceptor{playerID: args.PlayerID, target: target.shardURL}),
 	)
 
 	req := connect.NewRequest(&cardinalv1.SendCommandRequest{
@@ -113,7 +125,7 @@ func sendCommandHandler(
 	_, err = client.SendCommand(ctx, req)
 	if err != nil {
 		return SendCommandOutput{}, eris.Wrapf(
-			err,
+			authHint(err),
 			"failed to send command %q to shard instance %q",
 			args.CommandName,
 			target.instanceName,
@@ -152,4 +164,18 @@ func (s *SendCommandInput) validate() error {
 		s.Payload = make(map[string]any)
 	}
 	return nil
+}
+
+// authHint explains an argus world's rejection: the dev header it would normally send
+// is not a credential there, so say what to do instead of leaving a bare 401.
+func authHint(err error) error {
+	if connect.CodeOf(err) != connect.CodeUnauthenticated || os.Getenv(argusTokenEnv) != "" {
+		return err
+	}
+	return eris.Wrapf(
+		err,
+		"this world authenticates players with Argus Auth; export %s=<token> or set [auth] mode = %q in world.toml and start the world again",
+		argusTokenEnv,
+		worldtoml.AuthModeDev,
+	)
 }

@@ -4,7 +4,10 @@ import (
 	"context"
 	"log/slog"
 	"maps"
+	"net"
 	"net/http"
+	"net/url"
+	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -14,9 +17,9 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/rotisserie/eris"
 
-	"github.com/argus-labs/world-engine/cli/pkg/cluster"
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
+	"github.com/argus-labs/world-engine/cli/pkg/local"
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
@@ -32,34 +35,73 @@ const (
 	defaultDevPlayerID = "mcp-dev-player"
 	// defaultRegion is the region local shards register with (CARDINAL_REGION);
 	// it must match or a command reaches no responders.
-	defaultRegion = cluster.DefaultRegion
+	defaultRegion = local.Region
 	// defaultCommandTimeout is the default timeout for Cardinal RPC requests.
 	defaultCommandTimeout = 30 * time.Second
 )
 
-// devAuthInterceptor implements connect.Interceptor to add the X-Player-Id header to all requests.
-//
-// Cardinal's dev auth middleware (AuthModeDev) requires this header to authenticate requests in
-// development mode. The header value is the player ID for the request.
+// devAuthInterceptor implements connect.Interceptor to authenticate CardinalService
+// requests. Cardinal's dev auth middleware (AuthModeDev) identifies the caller by an
+// X-Player-Id header; an ARGUS world wants a bearer token instead.
 type devAuthInterceptor struct {
 	playerID string
+	// target is the URL the request goes to. The Argus token is only ever attached to a
+	// local one; see setAuthHeader.
+	target string
 }
 
-// WrapUnary injects the X-Player-Id header on unary RPCs (SendCommand) — the
-// only interceptor path the MCP tools use.
+// WrapUnary injects the credential on unary RPCs (SendCommand) — the only
+// interceptor path the MCP tools use.
 func (i *devAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-		req.Header().Set("X-Player-Id", i.playerID)
+		i.setAuthHeader(req.Header())
 		return next(ctx, req)
 	}
 }
 
-// WrapStreamingClient injects the X-Player-Id header on streaming clients. Required
+// devPlayerIDHeader is the header cardinal's dev auth reads as the player identity.
+const devPlayerIDHeader = "X-Player-Id"
+
+// argusTokenEnv carries an Argus JWT for worlds whose world.toml sets auth.mode
+// to ARGUS: those shards reject the dev header, so an agent needs a real token to
+// send commands. Unset (the default DEV world) keeps the dev header.
+// #nosec G101 -- the name of an env var, not a credential
+const argusTokenEnv = "WORLD_ARGUS_TOKEN"
+
+// setAuthHeader writes the credential a shard will accept: a bearer token when one is
+// configured AND the shard is on this machine, the dev player ID otherwise.
+//
+// The token is a real Argus credential and shard_url is caller-supplied, so attaching it
+// to any host the caller names would hand the user's token to that host. Local worlds are
+// the only thing this tool is for, so a non-local target never gets it; isLocalShardURL
+// gates that, and the handler refuses the call outright so the drop is never silent.
+func (i *devAuthInterceptor) setAuthHeader(h http.Header) {
+	if token := strings.TrimSpace(os.Getenv(argusTokenEnv)); token != "" && isLocalShardURL(i.target) {
+		h.Set("Authorization", "Bearer "+token)
+		return
+	}
+	h.Set(devPlayerIDHeader, i.playerID)
+}
+
+// isLocalShardURL reports whether raw addresses a shard on this machine.
+func isLocalShardURL(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	host := u.Hostname()
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.IsLoopback()
+	}
+	return strings.EqualFold(host, "localhost")
+}
+
+// WrapStreamingClient injects the credential on streaming clients. Required
 // by connect.Interceptor; the MCP tools make no streaming calls.
 func (i *devAuthInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
 	return func(ctx context.Context, spec connect.Spec) connect.StreamingClientConn {
 		conn := next(ctx, spec)
-		conn.RequestHeader().Set("X-Player-Id", i.playerID)
+		i.setAuthHeader(conn.RequestHeader())
 		return conn
 	}
 }
@@ -84,27 +126,27 @@ type shardTarget struct {
 // resolveShardTarget resolves how to reach a shard instance and the
 // region.realm.org.project.serviceId address Cardinal validates the request
 // against (serviceId is always the instance name, never the pool id). A
-// pinned shardURL skips the operator but not org/project resolution; pair it
+// pinned shardURL skips instance lookup but not org/project resolution; pair it
 // with the matching instance_name or the shard rejects the address.
 func resolveShardTarget(
 	ctx context.Context,
-	operatorURL, shardID, instanceName, shardURL, org, project, region string,
+	shardID, instanceName, shardURL, org, project, region string,
 ) (shardTarget, error) {
 	instanceName = strings.TrimSpace(instanceName)
 
 	if shardURL != "" {
 		// Explicit URL: trust the caller's instance_name (or the first instance);
-		// don't round-trip the operator to canonicalize it.
+		// don't round-trip Docker to canonicalize it.
 		if instanceName == "" {
 			instanceName = shardID
 		}
 	} else {
-		resolved, err := resolveInstanceName(ctx, operatorURL, shardID, instanceName)
+		resolved, err := resolveInstanceName(ctx, project, shardID, instanceName)
 		if err != nil {
 			return shardTarget{}, err
 		}
 		instanceName = resolved
-		shardURL = cluster.LocalShardAPIURL(org, project, instanceName)
+		shardURL = local.ShardAPIURL(org, project, instanceName)
 	}
 
 	return shardTarget{
@@ -146,7 +188,6 @@ type debugTargetArgs struct {
 	organization string
 	project      string
 	shardURL     string
-	operatorURL  string
 }
 
 // newDebugServiceClient builds a DebugService client for an already-resolved
@@ -159,8 +200,8 @@ func newDebugServiceClient(shardURL string) cardinalv1connect.DebugServiceClient
 }
 
 // dialShardDebugService validates the shard id, resolves the shard's
-// organization/project from the cluster and then the target pool instance's
-// Traefik URL, and returns a DebugService client aimed at it plus the resolved
+// organization/project from the containers and then the target pool instance's
+// edge URL, and returns a DebugService client aimed at it plus the resolved
 // target, so callers can report which instance actually answered.
 func dialShardDebugService(
 	ctx context.Context,
@@ -177,7 +218,7 @@ func dialShardDebugService(
 	}
 
 	target, err := resolveShardTarget(
-		ctx, args.operatorURL, shardID, args.instanceName, args.shardURL, org, project, defaultRegion,
+		ctx, shardID, args.instanceName, args.shardURL, org, project, defaultRegion,
 	)
 	if err != nil {
 		return nil, shardTarget{}, err
@@ -246,21 +287,21 @@ func declaredArgNames[T any]() map[string]struct{} {
 
 // -------------------------------------------------------------------------------------------------
 // World build + (re)deploy lifecycle helpers (shared by tools that compile local
-// shard source and push it to the cluster: reload and cluster).
+// shard source and run it: reload and cluster).
 // -------------------------------------------------------------------------------------------------
 
 // buildWorldShards builds the world's Cardinal shard images via the local Docker
-// daemon and returns the world config plus the operator Deploy payload (project +
-// built image refs). An empty shardID builds every shard. It touches only Docker,
-// never the cluster, so it can run BEFORE any cluster mutation — which is what
+// daemon and returns the world config plus the Deploy payload (project +
+// built image refs). An empty shardID builds every shard. It only builds images,
+// never touches containers, so it can run BEFORE any mutation — which is what
 // lets reload compile before it touches the running world.
 func buildWorldShards(
 	ctx context.Context,
 	worldPath, shardID string,
-) (worldtoml.Config, cluster.DeployOpts, error) {
+) (worldtoml.Config, local.DeployOpts, error) {
 	var (
 		cfg        worldtoml.Config
-		deployOpts cluster.DeployOpts
+		deployOpts local.DeployOpts
 	)
 	err := docker.WithClient(worldPath, false, &docker.ClientOptions{Logger: slog.Default()},
 		func(sc *service.Config, dockerClient *docker.Client) error {
@@ -282,25 +323,21 @@ func buildWorldShards(
 			}
 
 			cfg = sc.WorldToml
-			deployOpts = cluster.DeployOpts{
-				Project: sc.WorldToml.Project,
-				Shards:  deployShardsFromConfig(sc, shardID),
-			}
+			deployOpts = local.DeployOpts{Shards: deployShardsFromConfig(sc, shardID)}
 			return nil
 		},
 	)
 	if err != nil {
-		return worldtoml.Config{}, cluster.DeployOpts{}, err
+		return worldtoml.Config{}, local.DeployOpts{}, err
 	}
 	return cfg, deployOpts, nil
 }
 
-// deployShardsFromConfig builds the operator Deploy payload: one entry per logical
-// shard ID (deduped — pools expand to multiple entries), each pointing at the
-// locally-built image tag. An empty shardID includes every shard.
-func deployShardsFromConfig(cfg *service.Config, shardID string) []cluster.DeployShard {
+// deployShardsFromConfig builds the Deploy payload: one entry per logical
+// shard ID (deduped — pools expand to multiple entries). An empty shardID includes every shard.
+func deployShardsFromConfig(cfg *service.Config, shardID string) []local.DeployShard {
 	seen := make(map[string]struct{}, len(cfg.WorldToml.Shards))
-	shards := make([]cluster.DeployShard, 0, len(cfg.WorldToml.Shards))
+	shards := make([]local.DeployShard, 0, len(cfg.WorldToml.Shards))
 	for _, s := range cfg.WorldToml.Shards {
 		if shardID != "" && s.ID != shardID {
 			continue
@@ -309,10 +346,7 @@ func deployShardsFromConfig(cfg *service.Config, shardID string) []cluster.Deplo
 			continue
 		}
 		seen[s.ID] = struct{}{}
-		shards = append(shards, cluster.DeployShard{
-			ID:          s.ID,
-			SourceImage: service.CardinalShardImageName(cfg.Namespace, s.ID) + ":latest",
-		})
+		shards = append(shards, local.DeployShard{ID: s.ID})
 	}
 	return shards
 }
@@ -320,7 +354,7 @@ func deployShardsFromConfig(cfg *service.Config, shardID string) []cluster.Deplo
 // filterShardServices narrows the built services to one shard's image, deduped —
 // a pool's replicas share a single image, so it is built once.
 func filterShardServices(services []service.Service, cfg *service.Config, shardID string) []service.Service {
-	image := service.CardinalShardImageName(cfg.Namespace, shardID)
+	image := service.CardinalShardImageName(cfg.Project, shardID)
 	filtered := make([]service.Service, 0, 1)
 	for _, s := range services {
 		if s.Image != image {
@@ -335,7 +369,7 @@ func filterShardServices(services []service.Service, cfg *service.Config, shardI
 
 // deployedShardIDs lists the shard IDs in a Deploy payload, for reporting what a
 // reload or start actually rolled out.
-func deployedShardIDs(opts cluster.DeployOpts) []string {
+func deployedShardIDs(opts local.DeployOpts) []string {
 	ids := make([]string, len(opts.Shards))
 	for i, s := range opts.Shards {
 		ids[i] = s.ID

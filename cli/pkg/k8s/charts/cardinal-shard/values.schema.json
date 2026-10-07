@@ -1,0 +1,244 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "shardID",
+    "image",
+    "imageTag",
+    "poolSize",
+    "organization",
+    "project",
+    "region",
+    "nats",
+    "auth"
+  ],
+  "properties": {
+    "global": {
+      "type": "object"
+    },
+    "shardID": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,49}$"
+    },
+    "image": {
+      "type": "string",
+      "minLength": 1
+    },
+    "imageTag": {
+      "type": "string",
+      "minLength": 1
+    },
+    "poolSize": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000
+    },
+    "organization": {
+      "type": "string",
+      "minLength": 1
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1
+    },
+    "region": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tickRate": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "mode": {
+      "enum": [
+        "",
+        "LEADER",
+        "FOLLOWER"
+      ]
+    },
+    "snapshotStorageType": {
+      "enum": [
+        "NOP",
+        "JETSTREAM"
+      ]
+    },
+    "logLevel": {
+      "enum": [
+        "debug",
+        "info",
+        "warn",
+        "error"
+      ]
+    },
+    "configurationURL": {
+      "type": "string"
+    },
+    "nats": {
+      "type": "object",
+      "required": [
+        "url"
+      ],
+      "properties": {
+        "url": {
+          "type": "string",
+          "pattern": "^nats://"
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "DEV",
+            "ARGUS"
+          ]
+        },
+        "argusURL": {
+          "type": "string"
+        }
+      },
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "ARGUS"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "argusURL"
+        ],
+        "properties": {
+          "argusURL": {
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "debug": {
+      "type": "boolean"
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "dsn": {
+          "type": "string"
+        },
+        "secret": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "key": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "not": {
+        "allOf": [
+          {
+            "properties": {
+              "dsn": {
+                "minLength": 1
+              }
+            },
+            "required": [
+              "dsn"
+            ]
+          },
+          {
+            "properties": {
+              "secret": {
+                "properties": {
+                  "name": {
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            },
+            "required": [
+              "secret"
+            ]
+          }
+        ]
+      }
+    },
+    "otlp": {
+      "type": "object",
+      "properties": {
+        "endpoint": {
+          "type": "string"
+        }
+      }
+    },
+    "routing": {
+      "type": "object",
+      "required": [
+        "provider"
+      ],
+      "properties": {
+        "provider": {
+          "enum": [
+            "none",
+            "gke"
+          ]
+        },
+        "gateway": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "hostnames": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "namespace": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "provider": {
+            "const": "gke"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "gateway": {
+            "required": [
+              "name",
+              "hostnames"
+            ],
+            "properties": {
+              "name": {
+                "minLength": 1
+              },
+              "hostnames": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "object"
+    }
+  }
+}

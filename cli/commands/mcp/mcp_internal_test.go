@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -19,7 +20,7 @@ import (
 
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
-	operatorv1 "github.com/argus-labs/world-engine/cli/proto/gen/go/cardinal/operator/v1"
+	"github.com/argus-labs/world-engine/cli/pkg/worldstatus"
 )
 
 func TestBuildMCPServer_RegistersAllTools(t *testing.T) {
@@ -29,7 +30,7 @@ func TestBuildMCPServer_RegistersAllTools(t *testing.T) {
 }
 
 // An empty instance_name resolves to the shard's first instance without an
-// operator round-trip, so send_command keeps working exactly as before for
+// cluster round-trip, so send_command keeps working exactly as before for
 // callers that don't target a specific pod.
 func TestResolveInstanceName_EmptyDefaultsToShardID(t *testing.T) {
 	t.Parallel()
@@ -167,7 +168,7 @@ func TestEnsureDeadline_ReturnedCancelIsNoOpWhenDeadlineExists(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------------------------------
-// k8s helper tests (operator status → MCP shape)
+// k8s helper tests (cluster status → MCP shape)
 // -------------------------------------------------------------------------------------------------
 
 func TestClampTail(t *testing.T) {
@@ -180,121 +181,112 @@ func TestClampTail(t *testing.T) {
 
 func TestToShardPools(t *testing.T) {
 	t.Parallel()
-	status := &operatorv1.StatusResponse{
-		Pools: []*operatorv1.ShardPoolStatus{{
-			ShardId:   "gameplay",
-			Namespace: "cardinal-operator-system",
-			PoolSize:  2,
-			ImageTag:  "dev",
-			Phase:     "Running",
-			Instances: []*operatorv1.ShardInstanceStatus{
-				{
-					Name:         "gameplay",
-					PodName:      "cardinal-gameplay-pool-0",
-					Phase:        "Running",
-					Ready:        true,
-					RestartCount: 1,
-					Age:          "5m",
-				},
-				{Name: "gameplay-2", PodName: "cardinal-gameplay-pool-1", Phase: "Pending", Ready: false},
+	status := []worldstatus.PoolStatus{{
+		ShardID:  "gameplay",
+		PoolSize: 2,
+		Image:    "rampage-gameplay-shard",
+		Phase:    "Running",
+		Instances: []worldstatus.InstanceStatus{
+			{
+				Name:         "gameplay",
+				Runtime:      "cardinal-gameplay-pool-0",
+				Phase:        "Running",
+				Ready:        true,
+				RestartCount: 1,
+				Age:          "5m",
 			},
-		}},
-	}
+			{Name: "gameplay-2", Runtime: "cardinal-gameplay-pool-1", Phase: "Pending", Ready: false},
+		},
+	}}
 
 	pools := toShardPools(status)
 	require.Len(t, pools, 1)
 	assert.Equal(t, "gameplay", pools[0].ShardID)
 	assert.Equal(t, int32(2), pools[0].PoolSize)
 	require.Len(t, pools[0].Instances, 2)
-	assert.Equal(t, "cardinal-gameplay-pool-0", pools[0].Instances[0].PodName)
+	assert.Equal(t, "cardinal-gameplay-pool-0", pools[0].Instances[0].Container)
 	assert.True(t, pools[0].Instances[0].Ready)
 	assert.Equal(t, int32(1), pools[0].Instances[0].RestartCount)
 	assert.False(t, pools[0].Instances[1].Ready)
 }
 
-func TestShardPods(t *testing.T) {
+func TestShardContainers(t *testing.T) {
 	t.Parallel()
-	status := &operatorv1.StatusResponse{
-		Pools: []*operatorv1.ShardPoolStatus{
-			{ShardId: "gameplay", Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "gameplay", PodName: "pod-a"},
-				{Name: "gameplay-2", PodName: "pod-b"},
-			}},
-			{ShardId: "lobby", Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "lobby", PodName: "pod-c"},
-			}},
-		},
-	}
-
-	assert.ElementsMatch(t, []string{"pod-a", "pod-b"}, shardPods(status, "gameplay", ""))
-	assert.Equal(t, []string{"pod-b"}, shardPods(status, "gameplay", "gameplay-2"))
-	assert.Equal(t, []string{"pod-c"}, shardPods(status, "lobby", ""))
-	assert.Empty(t, shardPods(status, "nope", ""))
-}
-
-func TestShardPods_InstanceVariants(t *testing.T) {
-	t.Parallel()
-	status := &operatorv1.StatusResponse{
-		Pools: []*operatorv1.ShardPoolStatus{{
-			ShardId: "game",
-			Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "game", PodName: "pod-1"},
-				{Name: "game-5", PodName: "pod-5"},
-			},
+	status := []worldstatus.PoolStatus{
+		{ShardID: "gameplay", Instances: []worldstatus.InstanceStatus{
+			{Name: "gameplay", Runtime: "pod-a"},
+			{Name: "gameplay-2", Runtime: "pod-b"},
+		}},
+		{ShardID: "lobby", Instances: []worldstatus.InstanceStatus{
+			{Name: "lobby", Runtime: "pod-c"},
 		}},
 	}
 
+	assert.ElementsMatch(t, []string{"pod-a", "pod-b"}, shardContainers(status, "gameplay", ""))
+	assert.Equal(t, []string{"pod-b"}, shardContainers(status, "gameplay", "gameplay-2"))
+	assert.Equal(t, []string{"pod-c"}, shardContainers(status, "lobby", ""))
+	assert.Empty(t, shardContainers(status, "nope", ""))
+}
+
+func TestShardContainers_InstanceVariants(t *testing.T) {
+	t.Parallel()
+	status := []worldstatus.PoolStatus{{
+		ShardID: "game",
+		Instances: []worldstatus.InstanceStatus{
+			{Name: "game", Runtime: "pod-1"},
+			{Name: "game-5", Runtime: "pod-5"},
+		},
+	}}
+
 	// All of these resolve to instance "game-5".
 	for _, in := range []string{"game-5", "game 5", "game5", "GAME-5", "5"} {
-		assert.Equal(t, []string{"pod-5"}, shardPods(status, "game", in), "input %q", in)
+		assert.Equal(t, []string{"pod-5"}, shardContainers(status, "game", in), "input %q", in)
 	}
 	// Index-1 references resolve to the bare first instance "game".
 	for _, in := range []string{"game", "game 1", "game1", "1"} {
-		assert.Equal(t, []string{"pod-1"}, shardPods(status, "game", in), "input %q", in)
+		assert.Equal(t, []string{"pod-1"}, shardContainers(status, "game", in), "input %q", in)
 	}
 	// No instance → every pod of the shard; unknown instance → none.
-	assert.ElementsMatch(t, []string{"pod-1", "pod-5"}, shardPods(status, "game", ""))
-	assert.Empty(t, shardPods(status, "game", "game-9"))
+	assert.ElementsMatch(t, []string{"pod-1", "pod-5"}, shardContainers(status, "game", ""))
+	assert.Empty(t, shardContainers(status, "game", "game-9"))
 }
 
-// TestShardPods_ScopedToShardPool guards against an instance reference resolving
+// TestShardContainers_ScopedToShardPool guards against an instance reference resolving
 // into a different shard's pool: matching must be scoped to pool.ShardId, so a
 // reference naming (or index-colliding with) another shard's instance yields no
 // pod for the requested shard rather than silently routing to the wrong one.
-func TestShardPods_ScopedToShardPool(t *testing.T) {
+func TestShardContainers_ScopedToShardPool(t *testing.T) {
 	t.Parallel()
-	status := &operatorv1.StatusResponse{
-		Pools: []*operatorv1.ShardPoolStatus{
-			{ShardId: "game", Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "game", PodName: "pod-game"},
-			}},
-			{ShardId: "lobby", Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "lobby", PodName: "pod-lobby"},
-			}},
-			{ShardId: "game2", Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "game2", PodName: "pod-game2"},
-			}},
-		},
+	status := []worldstatus.PoolStatus{
+		{ShardID: "game", Instances: []worldstatus.InstanceStatus{
+			{Name: "game", Runtime: "pod-game"},
+		}},
+		{ShardID: "lobby", Instances: []worldstatus.InstanceStatus{
+			{Name: "lobby", Runtime: "pod-lobby"},
+		}},
+		{ShardID: "game2", Instances: []worldstatus.InstanceStatus{
+			{Name: "game2", Runtime: "pod-game2"},
+		}},
 	}
 
 	// A sibling shard's exact name must not match through the requested shard.
-	assert.Empty(t, shardPods(status, "game", "lobby"))
+	assert.Empty(t, shardContainers(status, "game", "lobby"))
 	// An index that collides with another shard's name ("2" ~ "game2") must not
 	// leak: shard "game" is pool size 1, so it has no instance "2".
-	assert.Empty(t, shardPods(status, "game", "2"))
+	assert.Empty(t, shardContainers(status, "game", "2"))
 	// The requested shard still resolves its own instances.
-	assert.Equal(t, []string{"pod-game"}, shardPods(status, "game", "game"))
+	assert.Equal(t, []string{"pod-game"}, shardContainers(status, "game", "game"))
 }
 
-// TestResolveInstanceName_UnknownReturnsError confirms a reference that matches
-// no instance of the requested shard fails clearly rather than resolving to
-// another shard's instance. Empty operatorURL routes to the default endpoint,
-// which is unreachable in tests, so the lookup errors — that itself proves the
-// non-empty path always consults the operator (and the empty path, covered by
-// TestResolveInstanceName_EmptyDefaultsToShardID, never does).
+// TestResolveInstanceName_UnknownReturnsError confirms a non-empty reference is
+// always resolved against the running containers, so an unknown one fails instead
+// of being passed through. (The empty-reference path, covered by
+// TestResolveInstanceName_EmptyDefaultsToShardID, never looks anything up.)
+// Docker is pointed at a dead socket so the lookup cannot accidentally succeed
+// against a world the developer happens to have running.
 func TestResolveInstanceName_UnknownReturnsError(t *testing.T) {
-	t.Parallel()
-	_, err := resolveInstanceName(context.Background(), "http://127.0.0.1:1/nope", "game", "lobby")
+	t.Setenv("DOCKER_HOST", "unix://"+filepath.Join(t.TempDir(), "nonexistent.sock"))
+	_, err := resolveInstanceName(context.Background(), "demo", "game", "lobby")
 	assert.Error(t, err)
 }
 
@@ -629,7 +621,7 @@ func TestDebugControlHandler_InvalidOperation(t *testing.T) {
 	assert.Contains(t, err.Error(), "operation must be one of pause, resume, step, reset")
 }
 
-// An empty operation is rejected before any operator round-trip, alongside the
+// An empty operation is rejected before any cluster round-trip, alongside the
 // other invalid values.
 func TestDebugControlHandler_EmptyOperation(t *testing.T) {
 	t.Parallel()
@@ -662,11 +654,11 @@ func TestReloadHandler_EmptyWorldPath(t *testing.T) {
 }
 
 // deployShardsFromConfig emits one Deploy entry per logical shard ID, deduping the
-// pool replicas that share an ID, each pointing at that shard's built image tag.
+// pool replicas that share an ID.
 func TestDeployShardsFromConfig_DedupesByID(t *testing.T) {
 	t.Parallel()
 	cfg := &service.Config{
-		Namespace: "acme-demo",
+		Project: "acme-demo",
 		WorldToml: worldtoml.Config{
 			Shards: []worldtoml.Shard{{ID: "game"}, {ID: "game"}, {ID: "lobby"}},
 		},
@@ -674,16 +666,14 @@ func TestDeployShardsFromConfig_DedupesByID(t *testing.T) {
 	shards := deployShardsFromConfig(cfg, "")
 	require.Len(t, shards, 2)
 	assert.Equal(t, "game", shards[0].ID)
-	assert.Equal(t, "acme-demo-game-shard:latest", shards[0].SourceImage)
 	assert.Equal(t, "lobby", shards[1].ID)
-	assert.Equal(t, "acme-demo-lobby-shard:latest", shards[1].SourceImage)
 }
 
 // A shard_id narrows the Deploy payload to that pool; an empty one includes all.
 func TestDeployShardsFromConfig_FiltersByShardID(t *testing.T) {
 	t.Parallel()
 	cfg := &service.Config{
-		Namespace: "acme-demo",
+		Project: "acme-demo",
 		WorldToml: worldtoml.Config{
 			Shards: []worldtoml.Shard{{ID: "game"}, {ID: "game"}, {ID: "lobby"}},
 		},
@@ -983,4 +973,45 @@ func TestDescribeWorld_PublishesAnEmptyObjectInputSchema(t *testing.T) {
 	require.NoError(t, json.Unmarshal(published, &listed))
 	assert.JSONEq(t, `{"type":"object","properties":{},"required":[],"additionalProperties":false}`,
 		string(listed.InputSchema))
+}
+
+// shard_url is caller-supplied, so the Argus token must never follow it off this
+// machine: a prompt-injected agent could otherwise name a host and be handed the
+// user's credential.
+func TestDevAuthInterceptor_TokenNeverLeavesLocalhost(t *testing.T) {
+	t.Setenv(argusTokenEnv, "secret-token")
+
+	local := []string{
+		"http://localhost:8080/argus/demo/game",
+		"http://127.0.0.1:8081",
+		"http://[::1]:8080",
+	}
+	for _, target := range local {
+		h := http.Header{}
+		(&devAuthInterceptor{playerID: "mcp-dev-player", target: target}).setAuthHeader(h)
+		assert.Equal(t, "Bearer secret-token", h.Get("Authorization"), target)
+	}
+
+	remote := []string{
+		"https://attacker.example/argus/demo/game",
+		"http://169.254.169.254/latest/meta-data",
+		"http://localhost.attacker.example",
+		"not a url at all",
+		"",
+	}
+	for _, target := range remote {
+		h := http.Header{}
+		(&devAuthInterceptor{playerID: "mcp-dev-player", target: target}).setAuthHeader(h)
+		assert.Empty(t, h.Get("Authorization"), "token must not be sent to %q", target)
+		assert.Equal(t, "mcp-dev-player", h.Get(devPlayerIDHeader), target)
+	}
+}
+
+func TestDevAuthInterceptor_NoTokenUsesDevHeader(t *testing.T) {
+	t.Setenv(argusTokenEnv, "")
+
+	h := http.Header{}
+	(&devAuthInterceptor{playerID: "mcp-dev-player", target: "http://localhost:8080"}).setAuthHeader(h)
+	assert.Empty(t, h.Get("Authorization"))
+	assert.Equal(t, "mcp-dev-player", h.Get(devPlayerIDHeader))
 }
