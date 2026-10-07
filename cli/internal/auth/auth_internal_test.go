@@ -172,6 +172,52 @@ func TestPollFailsOnUnexpectedStatus(t *testing.T) {
 	}
 }
 
+// A 200 with valid JSON but no status field ({}, null, a body carrying only a
+// jwt, or an explicit "") decodes with Status == "" and no error. The poll must
+// treat that as a terminal failure rather than looping on the ticker until the
+// 11-minute pollTimeout — otherwise a degraded auth service wastes the whole
+// wait and reports a misleading timeout instead of the malformed response. Each
+// case runs on a goroutine with a short deadline so a regression (silent loop)
+// fails the test in seconds instead of blocking for the 11-minute ceiling.
+func TestPollFailsOnEmptyStatus(t *testing.T) {
+	for _, body := range []string{
+		`{}`,
+		`null`,
+		`{"jwt":"abc"}`,
+		`{"status":""}`,
+	} {
+		t.Run(body, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = fmt.Fprint(w, body)
+			}))
+			defer srv.Close()
+
+			c := &Client{http: srv.Client()}
+
+			done := make(chan error)
+			go func() {
+				_, err := c.pollEvery(context.Background(), srv.URL, time.Millisecond)
+				done <- err
+			}()
+
+			select {
+			case err := <-done:
+				if err == nil {
+					t.Fatal("poll() error = nil for an empty status, want an error " +
+						"(the bug looped until the 11-minute timeout)")
+				}
+				if !strings.Contains(err.Error(), "empty status") {
+					t.Errorf("poll() error = %q, want one that names the empty status", err)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal(
+					"poll() blocked on an empty status; it should fail fast (the bug loops until the 11-minute timeout)",
+				)
+			}
+		})
+	}
+}
+
 func TestPollHonoursContextCancellation(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = fmt.Fprint(w, `{"status":"pending"}`)
