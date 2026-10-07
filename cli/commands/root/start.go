@@ -87,6 +87,33 @@ func startCluster(dash *phasebox.Dashboard) (*cluster.Client, error) {
 	return cli, nil
 }
 
+// rankStartErrors chooses which error to surface from the concurrent cluster
+// bring-up and shard build. A real failure always wins over a silent
+// (Ctrl+C-induced) cancellation regardless of which side it came from, since a
+// silent cancellation carrying only an interrupt must never mask a real error
+// the user needs to see (on stdout or in Sentry) — mirroring reload.go's
+// IsSilent-aware precedence. When both are silent the cancellation stands;
+// when only one failed it wins; when both succeeded returns nil.
+func rankStartErrors(clusterErr, buildErr error) error {
+	// A real cluster error beats everything — including a Ctrl+C'd build —
+	// preserving the original block's intent.
+	if clusterErr != nil && !errorspkg.IsSilent(clusterErr) {
+		return clusterErr
+	}
+	// A real build error beats a silent cluster cancellation; this is the case
+	// the original block mishandled by returning the silent clusterErr.
+	if buildErr != nil {
+		return eris.Wrap(buildErr, "initial shard build")
+	}
+	// Cluster was silently cancelled and the build succeeded: surface the
+	// cancellation so runK8s returns instead of deploying into a half-dead
+	// cluster.
+	if clusterErr != nil {
+		return clusterErr
+	}
+	return nil
+}
+
 // deployWorld applies worldCfg's operator, DB, services and ShardPools in a "World" box.
 func deployWorld(dash *phasebox.Dashboard, cli *cluster.Client, worldCfg tomlpkg.Config) error {
 	if err := dash.Run("World",
@@ -262,12 +289,10 @@ func (c *StartCmd) runK8s(ctx context.Context, cwd string, worldCfg tomlpkg.Conf
 
 			cli, clusterErr := startCluster(dash)
 			buildErr := <-buildDone
-			// Cluster first, so a Ctrl+C'd build can't hide a real cluster error.
-			if clusterErr != nil {
-				return clusterErr
-			}
-			if buildErr != nil {
-				return eris.Wrap(buildErr, "initial shard build")
+			// A real failure must always win over a silent (Ctrl+C) one, regardless
+			// of which side it came from; see rankStartErrors.
+			if err := rankStartErrors(clusterErr, buildErr); err != nil {
+				return err
 			}
 			if err := deployWorld(dash, cli, worldCfg); err != nil {
 				return err
