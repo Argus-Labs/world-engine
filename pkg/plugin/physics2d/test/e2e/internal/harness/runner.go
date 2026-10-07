@@ -336,6 +336,7 @@ func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 		Organization:        "physics-test",
 		Project:             "physics-test",
 		ShardID:             "0",
+		AuthMode:            cardinal.AuthModeDev,
 		TickRate:            TickRate,
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        math.MaxUint32,

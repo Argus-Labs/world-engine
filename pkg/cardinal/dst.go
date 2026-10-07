@@ -201,6 +201,7 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        cfg.SnapshotRate,
 		Debug:               &debug,
+		AuthMode:            AuthModeDev,
 	})
 	require.NoError(t, err)
 

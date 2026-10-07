@@ -177,6 +177,9 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 
 	// Force all implicit micro.NewClient calls (service/snapshot) to use test NATS.
 	t.Setenv("NATS_URL", natsURL)
+	// The game's setup calls NewWorld, which requires an auth mode; the harness authenticates
+	// players with the dev header (see below), whatever the game configures.
+	t.Setenv("CARDINAL_AUTH_MODE", "DEV")
 
 	w := setup()
 	require.NotNil(t, w, "e2e setup returned nil world")
