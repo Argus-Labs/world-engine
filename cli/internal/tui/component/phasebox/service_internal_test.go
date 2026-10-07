@@ -1,6 +1,7 @@
 package phasebox
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -68,4 +69,30 @@ func TestCanceledRunIsSilent(t *testing.T) {
 
 	require.True(t, errorspkg.IsSilent(runErr))
 	require.Contains(t, m.View(), "✗ canceled")
+}
+
+// With Plain progress each section prints one summary line and rows print
+// nothing; in CI logs the live box printed every frame.
+func TestPlainPrintsSummaries(t *testing.T) {
+	t.Parallel()
+
+	var out bytes.Buffer
+	d := Start(context.Background(), Plain)
+	d.plain = &out
+	defer d.Complete()
+
+	_ = d.Run("Build",
+		func(_ context.Context, sess Session) error {
+			sess.UpsertRow("a", "game-shard", "building…", Active)
+			sess.Fail("a", "game-shard", errors.New("exit code: 1"))
+			return errors.New("exit code: 1")
+		},
+		func(time.Duration) string { return "built" },
+	)
+	_ = d.Run("Shards",
+		func(context.Context, Session) error { return nil },
+		func(time.Duration) string { return "reloaded" },
+	)
+
+	require.Equal(t, "Build: ✗ failed (0s) — see error below\nShards: ✓ reloaded\n", out.String())
 }

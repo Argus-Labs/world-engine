@@ -229,7 +229,7 @@ func (c *StartCmd) runK8s(ctx context.Context, cwd string, worldCfg tomlpkg.Conf
 			// since both write to the terminal directly and would otherwise race
 			// the dashboard's still-redrawing spinner. Complete is idempotent, so
 			// the deferred call after that is a no-op.
-			dash := phasebox.Start(ctx)
+			dash := phasebox.Start(ctx, phasebox.TTY)
 			defer dash.Complete()
 
 			// Discover k3d's own cluster-bootstrap images up front so they pull

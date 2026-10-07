@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,14 +17,28 @@ import (
 	errorspkg "github.com/argus-labs/world-engine/cli/internal/errors"
 	"github.com/argus-labs/world-engine/cli/internal/logger"
 	"github.com/argus-labs/world-engine/cli/internal/tui/kit/program"
+	"github.com/argus-labs/world-engine/cli/internal/tui/style"
+)
+
+// Progress is how a Dashboard shows progress.
+type Progress string
+
+const (
+	// TTY is the live box, redrawn in place; it needs an interactive terminal.
+	TTY Progress = "tty"
+	// Plain prints one line per finished section, for logs that can't redraw,
+	// such as CI's.
+	Plain Progress = "plain"
 )
 
 // Dashboard is one continuous bubbletea program spanning every section a
 // command opens (e.g. "Image Pull", "Build", "Cluster", "Shards" for
 // `world start`), rendered through a single Model so there's no hand-off
-// gap where one box's border could visually merge with the next.
+// gap where one box's border could visually merge with the next. With Plain
+// progress there's no program; each section prints one summary line.
 type Dashboard struct {
-	p      *tea.Program
+	p      *tea.Program // nil with Plain progress
+	plain  io.Writer    // Plain progress's output; nil for the live box
 	done   chan struct{}
 	ctx    context.Context //nolint:containedctx // shared across every Run call in this dashboard's lifetime, mirroring spinner/multispinner's cancel-scoped session pattern
 	nextID atomic.Int64
@@ -30,17 +47,25 @@ type Dashboard struct {
 
 // Box is an opened section; opening it before Run fixes its place in the order.
 type Box struct {
-	d  *Dashboard
-	id string
+	d     *Dashboard
+	id    string
+	title string
 }
 
-// Start opens a dashboard scoped to ctx: Ctrl+C cancels the shared
-// context, so a cancellation is visible to every later section too, not
-// just the active one. Callers should `defer dash.Complete()` immediately.
-func Start(ctx context.Context) *Dashboard {
+// Start opens a dashboard scoped to ctx, shown per progress. Ctrl+C cancels
+// the shared context, so a cancellation is visible to every later section
+// too, not just the active one. Callers should `defer dash.Complete()`
+// immediately.
+func Start(ctx context.Context, progress Progress) *Dashboard {
+	done := make(chan struct{})
+	if progress == Plain {
+		// No keyboard to read; a Ctrl+C arrives as a signal, which cancels ctx.
+		close(done)
+		return &Dashboard{plain: os.Stdout, done: done, ctx: ctx}
+	}
+
 	dctx, cancel := context.WithCancel(ctx)
 	p := program.NewTeaProgram(newModel(cancel), tea.WithContext(dctx))
-	done := make(chan struct{})
 	go func() {
 		if _, err := p.Run(); err != nil {
 			logger.Error("failed to run phasebox dashboard", "error", err)
@@ -50,6 +75,13 @@ func Start(ctx context.Context) *Dashboard {
 	return &Dashboard{p: p, done: done, ctx: dctx}
 }
 
+// send passes msg to the live box; Plain progress has none.
+func (d *Dashboard) send(msg tea.Msg) {
+	if d.p != nil {
+		d.p.Send(msg)
+	}
+}
+
 // Complete stops the dashboard's program, leaving every section's final
 // frame — rows and all — in the terminal scrollback. Idempotent: callers
 // `defer dash.Complete()` and may also call it early to release the
@@ -57,7 +89,7 @@ func Start(ctx context.Context) *Dashboard {
 // be a no-op.
 func (d *Dashboard) Complete() {
 	d.once.Do(func() {
-		d.p.Send(tea.Quit())
+		d.send(tea.Quit())
 		<-d.done
 	})
 }
@@ -65,8 +97,8 @@ func (d *Dashboard) Complete() {
 // Open appends a titled section.
 func (d *Dashboard) Open(title string) *Box {
 	id := strconv.FormatInt(d.nextID.Add(1), 10)
-	d.p.Send(newSectionMsg{id: id, title: title})
-	return &Box{d: d, id: id}
+	d.send(newSectionMsg{id: id, title: title})
+	return &Box{d: d, id: id, title: title}
 }
 
 // Run opens and runs a section; see Box.Run.
@@ -87,7 +119,7 @@ func (b *Box) Run(
 	fn func(ctx context.Context, sess Session) error,
 	summarize func(elapsed time.Duration) string,
 ) error {
-	sess := &sectionSession{p: b.d.p, section: b.id}
+	sess := &sectionSession{d: b.d, section: b.id}
 
 	started := time.Now()
 	opErr := fn(b.d.ctx, sess)
@@ -102,7 +134,14 @@ func (b *Box) Run(
 	default:
 		summary = fmt.Sprintf("failed (%s) — see error below", elapsed.Round(time.Second))
 	}
-	b.d.p.Send(collapseMsg{section: b.id, summary: summary, failed: opErr != nil})
+	b.d.send(collapseMsg{section: b.id, summary: summary, failed: opErr != nil})
+	if b.d.plain != nil {
+		icon := style.TickIcon.Render()
+		if opErr != nil {
+			icon = style.CrossIcon.Render()
+		}
+		fmt.Fprintf(b.d.plain, "%s: %s%s\n", b.title, icon, summary)
+	}
 
 	if isCanceled(opErr) {
 		return errorspkg.NewSilent(opErr)
@@ -116,23 +155,28 @@ func (b *Box) Run(
 // oddly there.
 func (d *Dashboard) Info(title, body string) {
 	b := d.Open(title)
-	d.p.Send(infoMsg{section: b.id, body: body})
+	d.send(infoMsg{section: b.id, body: body})
+	if d.plain != nil {
+		for line := range strings.SplitSeq(body, "\n") {
+			fmt.Fprintf(d.plain, "%s: %s\n", title, line)
+		}
+	}
 }
 
 // sectionSession is the Session implementation for one section within a
 // Dashboard — every UpsertRow/UpsertProgress call is tagged with its
-// section id so Update routes it to the right box.
+// section id so Update routes it to the right box. Plain progress drops rows.
 type sectionSession struct {
-	p       *tea.Program
+	d       *Dashboard
 	section string
 }
 
 func (s *sectionSession) UpsertRow(id, label, detail string, state RowState) {
-	s.p.Send(rowMsg{section: s.section, id: id, label: label, detail: detail, state: state})
+	s.d.send(rowMsg{section: s.section, id: id, label: label, detail: detail, state: state})
 }
 
 func (s *sectionSession) UpsertProgress(id, label string, percent int) {
-	s.p.Send(progressMsg{section: s.section, id: id, label: label, percent: percent})
+	s.d.send(progressMsg{section: s.section, id: id, label: label, percent: percent})
 }
 
 func (s *sectionSession) Fail(id, label string, err error) {
@@ -140,7 +184,7 @@ func (s *sectionSession) Fail(id, label string, err error) {
 	if isCanceled(err) {
 		detail = "canceled"
 	}
-	s.p.Send(rowMsg{section: s.section, id: id, label: label, detail: detail, state: failed})
+	s.d.send(rowMsg{section: s.section, id: id, label: label, detail: detail, state: failed})
 }
 
 // isCanceled uses errors.Is, not eris.Is, so it also sees into errors.Join.
