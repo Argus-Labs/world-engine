@@ -108,9 +108,9 @@ func deployWorld(dash *phasebox.Dashboard, cli *cluster.Client, worldCfg tomlpkg
 // authLabel describes how the world's shards authenticate players.
 func authLabel(auth tomlpkg.Auth) string {
 	if auth.Mode == tomlpkg.AuthModeArgus {
-		return "Argus game tokens from " + auth.URL
+		return "Argus (" + auth.URL + ")"
 	}
-	return "dev (trusts X-Player-Id)"
+	return "dev"
 }
 
 // deployK8sServices builds + imports + deploys every path-kind ([[services]]
