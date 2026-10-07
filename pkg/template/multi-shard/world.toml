@@ -5,10 +5,8 @@
 organization = "organization"
 project = "project"
 
-# How players sign in to every shard. Only `world start` reads this; deployed shards get
-# CARDINAL_AUTH_MODE and CARDINAL_ARGUS_AUTH_URL from their deployment instead.
-# Without [auth], shards use dev auth, which trusts the X-Player-Id header from any caller
-# (the MCP send_command tool needs it). Uncomment to accept Argus Auth game tokens instead:
+# Auth defaults to dev auth. Uncomment to use Argus Auth. Only affects `world start`;
+# deployments use environment variables instead.
 # [auth]
 # mode = "argus"
 # url = "https://api.argus.dev"
