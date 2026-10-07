@@ -66,7 +66,7 @@ func (c *Client) PullImages(ctx context.Context, services []service.Service, pro
 				notify(progress, Progress{Name: imageName, State: StatePulling, Current: percent, Total: 100})
 			})
 			if err != nil {
-				notify(progress, Progress{Name: imageName, State: StatePulling, Err: err})
+				notify(progress, Progress{Name: imageName, State: StatePulling, Err: itemErr(gctx, err)})
 				return eris.Wrapf(err, "error pulling image %s", imageName)
 			}
 
@@ -106,7 +106,7 @@ func (c *Client) PullImageRefs(ctx context.Context, refs []string, progress func
 				notify(progress, Progress{Name: ref, State: StatePulling, Current: percent, Total: 100})
 			})
 			if err != nil {
-				notify(progress, Progress{Name: ref, State: StatePulling, Err: err})
+				notify(progress, Progress{Name: ref, State: StatePulling, Err: itemErr(gctx, err)})
 				return eris.Wrapf(err, "error pulling image %s", ref)
 			}
 

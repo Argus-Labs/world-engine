@@ -38,13 +38,19 @@ func Error(msg string) {
 	printNewlineSafeStyledMessage(string(logsymbols.Error)+" "+msg, errorStyle)
 }
 
+// Errorln prints msg as one ✖ entry, later lines indented under it. Styled
+// line by line: lipgloss pads a multi-line render to its widest line.
 func Errorln(msg string) {
-	fmt.Println(errorStyle.Render(string(logsymbols.Error) + " " + msg))
+	prefix := string(logsymbols.Error) + " "
+	for line := range strings.SplitSeq(msg, "\n") {
+		fmt.Println(errorStyle.Render(prefix + line))
+		prefix = "  "
+	}
 }
 
+// Errorf is Errorln with a format; a trailing newline in it is optional.
 func Errorf(format string, args ...any) {
-	msg := fmt.Sprintf(format, args...)
-	printNewlineSafeStyledMessage(string(logsymbols.Error)+" "+msg, errorStyle)
+	Errorln(strings.TrimSuffix(fmt.Sprintf(format, args...), "\n"))
 }
 
 func Info(msg string) {
