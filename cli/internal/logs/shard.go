@@ -9,19 +9,19 @@ import (
 	"github.com/argus-labs/world-engine/cli/internal/printer"
 	"github.com/argus-labs/world-engine/cli/internal/tui/component/logtail"
 	"github.com/argus-labs/world-engine/cli/internal/tui/kit/program"
-	"github.com/argus-labs/world-engine/cli/pkg/cluster"
+	"github.com/argus-labs/world-engine/cli/pkg/worldstatus"
 )
 
 // HistoryLines is the default history replay count on initial connect
-// (capped server-side at 10000 by cardinal-operator).
+// (the Kubernetes log API caps a tail at what the kubelet keeps).
 const HistoryLines = 200
 
 // StreamFn opens one log stream into out; out is closed by the streamer
 // when the stream ends. Returns when the stream terminates or ctx is canceled.
-type StreamFn func(ctx context.Context, out chan<- cluster.LogLine) error
+type StreamFn func(ctx context.Context, out chan<- worldstatus.LogLine) error
 
 // TailLogsUntilEnterOrReload runs the interactive tail view against any
-// streamer (operator-mediated shard logs, direct-k8s platform logs, …).
+// streamer (shard logs, platform logs, …).
 // Returns when the user presses ENTER or ctx is canceled. On 'r' (reload) or
 // ctrl+r (purge & reload), invokes onReload then re-opens the stream; reload
 // errors are printed, not returned — a failed reload shouldn't end the tail
@@ -40,7 +40,7 @@ func TailLogsUntilEnterOrReload(
 	for {
 		tailCtx, cancel := context.WithCancel(ctx)
 
-		linesCh := make(chan cluster.LogLine, 256)
+		linesCh := make(chan worldstatus.LogLine, 256)
 		streamErrCh := make(chan error, 1)
 		go func() {
 			streamErrCh <- openStream(tailCtx, linesCh)
@@ -88,7 +88,7 @@ func TailLogsUntilEnterOrReload(
 // until the stream closes it, then delivers the stream's terminal error.
 // Safe to keep running past prog.Run() returning: Program.Send becomes a
 // no-op once the Program has exited.
-func pumpLogLines(prog *tea.Program, linesCh <-chan cluster.LogLine, streamErrCh <-chan error) {
+func pumpLogLines(prog *tea.Program, linesCh <-chan worldstatus.LogLine, streamErrCh <-chan error) {
 	for line := range linesCh {
 		prog.Send(logtail.LogLineMsg(line))
 	}

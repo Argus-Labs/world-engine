@@ -30,15 +30,6 @@ func (t *StepTracker) Next(label string) {
 	t.sess.UpsertRow(t.id, label, "", Active)
 }
 
-// Detail updates the current step's trailing detail text (e.g. a log line)
-// without changing its state. No-op before the first Next call.
-func (t *StepTracker) Detail(detail string) {
-	if t.id == "" {
-		return
-	}
-	t.sess.UpsertRow(t.id, t.label, detail, Active)
-}
-
 // Done marks the current (final) step Done. Call once the whole sequence
 // finishes successfully. No-op before the first Next call.
 func (t *StepTracker) Done() {

@@ -1,0 +1,60 @@
+# Required. One pool = one shardID; instances are <shardID>, <shardID>-2, ...
+shardID: ''
+image: ''
+imageTag: ''
+poolSize: 1
+
+# Required. Identity the engine puts in NATS subjects and routes.
+organization: ''
+project: ''
+region: ''
+
+tickRate: 20
+mode: LEADER
+snapshotStorageType: NOP
+logLevel: info
+
+# Link to the values file that produced this release. Informational.
+configurationURL: ''
+
+nats:
+  url: ''
+
+# DEV accepts any caller; ARGUS verifies tokens against auth.argusURL. No default on purpose.
+auth:
+  mode: ''
+  argusURL: ''
+
+# DebugService on :8080 is unauthenticated. Only turn it on where the cluster is private.
+debug: false
+
+# Postgres for DB-backed shards. Set dsn, or secret.name + secret.key, or neither.
+database:
+  dsn: ''
+  secret:
+    name: ''
+    key: ''
+
+# OTLP gRPC endpoint for spans. Empty turns tracing off.
+otlp:
+  endpoint: ''
+
+# Ingress objects for the shards. "none" renders Services only. "gke" adds HTTPRoute,
+# HealthCheckPolicy and GCPBackendPolicy for the GKE Gateway API.
+routing:
+  provider: none
+  gateway:
+    name: ''
+    # Set when the Gateway lives in another namespace (its allowedRoutes must admit this one).
+    namespace: ''
+    hostnames: []
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+    ephemeral-storage: 1Gi
+  limits:
+    cpu: '1'
+    memory: 1Gi
+    ephemeral-storage: 1Gi

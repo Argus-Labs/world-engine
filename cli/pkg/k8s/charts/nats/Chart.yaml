@@ -1,0 +1,10 @@
+apiVersion: v2
+name: nats
+description: NATS with JetStream for World Engine shards, one node by default
+type: application
+version: 0.0.0
+appVersion: 2.12.2
+dependencies:
+  - name: nats
+    version: 2.15.0
+    repository: https://nats-io.github.io/k8s/helm/charts/

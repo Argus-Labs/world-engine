@@ -1,0 +1,28 @@
+shardID: gameplay
+image: us-west1-docker.pkg.dev/argus-gg-dev/dev-containers/rampage/gameplay
+imageTag: v0.0.109
+poolSize: 3
+tickRate: 20
+organization: argus
+project: rampage
+region: us-west1
+configurationURL: https://github.com/Argus-Labs/monorepo/blob/main/infra/k8s/apps/cardinal-shard/overlays/dev-us-west1/gameplay.yaml
+auth:
+  mode: ARGUS
+  argusURL: http://auth-backend.world-core.svc.cluster.local:8080
+nats:
+  url: nats://nats.nats.svc.cluster.local:4222
+database:
+  secret:
+    name: rampage-shard-secret
+    key: SHARD_DB_DSN
+otlp:
+  endpoint: groundcover-sensor.groundcover.svc.cluster.local:4317
+routing:
+  provider: gke
+  gateway:
+    name: cardinal
+    hostnames:
+      - gateway-usw1.argus.dev
+      - gateway-usw2.argus.dev
+      - gateway-us-west1.argus.dev

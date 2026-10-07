@@ -10,13 +10,13 @@ import (
 
 // InspectShardInput is the structured input for the inspect_shard tool.
 type InspectShardInput struct {
-	ShardID     string `json:"shard_id"               jsonschema_description:"ID of the shard to inspect (matches a ShardPool managed by the operator)"`
-	OperatorURL string `json:"operator_url,omitempty" jsonschema_description:"cardinal-operator URL (defaults to http://localhost:8090 for local dev)"`
+	ShardID string `json:"shard_id"          jsonschema_description:"ID of the shard to inspect (matches a pool deployed for the project)"`
+	Project string `json:"project,omitempty" jsonschema_description:"World project whose namespace to read (defaults to the world.toml in the working directory)"`
 }
 
 // InspectShardOutput is the structured output describing a shard pool's state.
 type InspectShardOutput struct {
-	Pool ShardPool `json:"pool" jsonschema_description:"The shard's pool and per-pod instance status"`
+	Pool ShardPool `json:"pool" jsonschema_description:"The shard's pool and per-container instance status"`
 }
 
 // registerInspectShardTool registers the inspect_shard tool.
@@ -24,8 +24,8 @@ func registerInspectShardTool(srv *server.MCPServer) {
 	inspectShardTool := mcp.NewTool(
 		"inspect_shard",
 		mcp.WithDescription(
-			"Inspect the runtime state of a specific Cardinal shard: its operator pool and per-pod "+
-				"phase/readiness/restarts. Requires a running cluster.",
+			"Inspect the runtime state of a specific Cardinal shard: its pool and per-container "+
+				"phase/readiness/restarts. Requires a running world.",
 		),
 		mcp.WithInputSchema[InspectShardInput](),
 		mcp.WithOutputSchema[InspectShardOutput](),
@@ -33,7 +33,7 @@ func registerInspectShardTool(srv *server.MCPServer) {
 	srv.AddTool(inspectShardTool, strictToolHandler(inspectShardHandler))
 }
 
-// inspectShardHandler returns one shard pool's state from the operator.
+// inspectShardHandler returns one shard pool's state.
 func inspectShardHandler(
 	ctx context.Context,
 	_ mcp.CallToolRequest,
@@ -47,7 +47,7 @@ func inspectShardHandler(
 	ctx, cancel := ensureDeadline(ctx, defaultCommandTimeout)
 	defer cancel()
 
-	status, err := operatorStatus(ctx, args.OperatorURL)
+	status, err := worldStatus(ctx, args.Project)
 	if err != nil {
 		return InspectShardOutput{}, err
 	}
@@ -63,5 +63,5 @@ func inspectShardHandler(
 	for _, pool := range pools {
 		available = append(available, pool.ShardID)
 	}
-	return InspectShardOutput{}, eris.Errorf("shard %q not found in cluster; available shards: %v", shardID, available)
+	return InspectShardOutput{}, eris.Errorf("shard %q not found; available shards: %v", shardID, available)
 }

@@ -1,63 +1,54 @@
 package service
 
 import (
-	"fmt"
-	"time"
+	"strconv"
 
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 
 	"github.com/argus-labs/world-engine/cli/pkg/version"
 )
 
 const (
-	// DefaultNatsClientPort is the default NATS client port.
-	DefaultNatsClientPort = 4222
-	// DefaultNatsMonitorPort is the default NATS monitoring port.
+	DefaultNatsClientPort  = 4222
 	DefaultNatsMonitorPort = 8222
-	// DefaultNatsClusterPort is the default NATS cluster port.
-	DefaultNatsClusterPort = 6222
-	// DefaultNatsWebsocketPort is the default NATS websocket port.
-	DefaultNatsWebsocketPort = 4443
 
-	jetstreamStoreDir = "/data/jetstream"
+	jetstreamStoreDir = "/data"
 
-	// DefaultNatsImage is the default Docker image for the NATS service.
 	DefaultNatsImage = "nats:"
-
-	// DefaultNatsContainerName is the default container name for the NATS service.
-	DefaultNatsContainerName = "world-engine-nats"
 )
 
-// NATS creates a NATS service with JetStream support.
-func NATS(_ *Config) Service {
-	// Enable JetStream via CLI flags (no config file needed)
-	cmd := []string{"-js", "-sd", jetstreamStoreDir}
+// NatsContainerName is "<project>-nats"; also the in-network host shards dial.
+func NatsContainerName(project string) string { return project + "-nats" }
 
-	return Service{
-		Name:         DefaultNatsContainerName,
-		Image:        DefaultNatsImage + version.Nats,
-		Cmd:          cmd,
-		Env:          []string{},
-		ExposedPorts: getExposedPorts(getNATSPorts()),
-		Healthcheck: &container.HealthConfig{
-			Test:     []string{"CMD", "curl", "-f", "http://localhost:8222/healthz"},
-			Interval: 5 * time.Second,
-			Timeout:  3 * time.Second,
-			Retries:  5,
-		},
-		PortBindings:  newPortMap(getNATSPorts()),
-		RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
-		NetworkMode:   DefaultNetworkMode,
-		Binds:         []string{fmt.Sprintf("%s:%s", DefaultNatsContainerName, jetstreamStoreDir)},
-	}
+// NatsVolumeName holds the JetStream store; purge removes it.
+func NatsVolumeName(project string) string { return NatsContainerName(project) + "-data" }
+
+// NatsURL is the in-network URL shards and services use.
+func NatsURL(project string) string {
+	return "nats://" + NatsContainerName(project) + ":" + strconv.Itoa(DefaultNatsClientPort)
 }
 
-// getNATSPorts returns the list of NATS ports to expose.
-func getNATSPorts() []int {
-	return []int{
-		DefaultNatsClientPort,
-		DefaultNatsMonitorPort,
-		DefaultNatsClusterPort,
-		DefaultNatsWebsocketPort,
+// NATS is the per-project JetStream server, published on 127.0.0.1:4222 (clients,
+// reload --purge) and :8222 (monitoring). The image is scratch-based, so it cannot run
+// a Docker healthcheck; readiness is the monitoring endpoint's /healthz instead.
+func NATS(cfg *Config) Service {
+	project := cfg.WorldToml.Project
+	ports := []int{DefaultNatsClientPort, DefaultNatsMonitorPort}
+	bindings := network.PortMap{}
+	for _, p := range ports {
+		tcp := network.MustParsePort(strconv.Itoa(p) + "/tcp")
+		bindings[tcp] = loopbackBinding(p)
+	}
+	return Service{
+		Name:         NatsContainerName(project),
+		Image:        DefaultNatsImage + version.Nats,
+		Cmd:          []string{"-js", "-sd", jetstreamStoreDir, "-m", strconv.Itoa(DefaultNatsMonitorPort)},
+		ExposedPorts: getExposedPorts(ports),
+		Labels:       Labels(project, RoleNATS, "", ""),
+		PortBindings: bindings,
+		NetworkMode:  container.NetworkMode(NetworkName(project)),
+		Binds:        []string{NatsVolumeName(project) + ":" + jetstreamStoreDir},
+		ReadyURL:     "http://127.0.0.1:" + strconv.Itoa(DefaultNatsMonitorPort) + "/healthz",
 	}
 }

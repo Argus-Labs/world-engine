@@ -31,8 +31,6 @@ moon run cli:test    # Unit tests
 moon run cli:lint    # golangci-lint with cli/.golangci.yaml
 ```
 
-Install [buf](https://buf.build/docs/installation) to regenerate protobuf code.
-
 ## Development Workflow
 
 ### Project Structure
@@ -50,21 +48,14 @@ The World CLI is organized around several core systems:
   - `globalconfig/` - Global configuration persistence
   - `logger/` - Logging utilities
   - `teacmd/` - Terminal UI command utilities
-- `proto` - Contain proto files for Connect RPC
+- `pkg/local/` - runs a world on Docker (containers, edge proxy, JetStream purge); `pkg/cluster/` reads shards on a Kubernetes cluster (`world logs --context`)
+- `pkg/k8s/charts/` - Helm charts world-engine publishes (cardinal-shard, nats, postgres); not used locally, see its README
 - `tea/` - Terminal UI components using Bubble Tea framework
   - `component/` - Reusable UI components
   - `style/` - Terminal styling utilities
 - `telemetry/` - Telemetry integration for error tracking and analytics
 - `moon.yml` - Moon task definitions for building, testing, and installing World CLI
 - `example-world.toml` - Example configuration file
-
-### Generating Connect and PB files
-
-World CLI talks to the Cardinal Operator over [Connect RPC](https://connectrpc.com/docs/introduction). The API lives in `proto/cardinal/operator/v1`. To regenerate the Go code:
-
-```bash
-moon run cli:generate
-```
 
 ### Running the CLI from Source
 

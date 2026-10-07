@@ -183,7 +183,7 @@ func (m Model) finish(sectionID, summary string, failed, plain bool) Model {
 // the frame's height — style.contentLine truncates rather than wraps, so a
 // row is always exactly one line no matter how its label/detail changes —
 // which is what lets Update skip flushToFit on the far more frequent
-// in-place updates (progress ticks, k3d log lines).
+// in-place updates (progress ticks, log lines).
 func (m Model) upsert(sectionID, id string, row Row) bool {
 	i, ok := m.sectionByID[sectionID]
 	if !ok || m.sections[i].finished {

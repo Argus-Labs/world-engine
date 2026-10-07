@@ -16,7 +16,10 @@ const (
 	StateBuilt    State = "built"
 	StateStarting State = "starting" // running but not yet ready; cardinal-editor shows this for unready shards
 	StateStarted  State = "started"
+	StateStopping State = "stopping"
 	StateStopped  State = "stopped"
+	StateRemoving State = "removing"
+	StateRemoved  State = "removed"
 )
 
 // Progress reports the state of a long-running operation.

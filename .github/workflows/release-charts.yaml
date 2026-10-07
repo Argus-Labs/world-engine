@@ -1,0 +1,31 @@
+name: Release charts
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.18.5
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Package and push
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          mkdir -p dist
+          for chart in cardinal-shard nats postgres; do
+            helm package "cli/pkg/k8s/charts/$chart" --version "$VERSION" --app-version "$TAG" -d dist
+            helm push "dist/$chart-$VERSION.tgz" oci://ghcr.io/argus-labs/charts
+          done

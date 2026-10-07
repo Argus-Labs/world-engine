@@ -26,7 +26,8 @@ type DebugControlInput struct {
 	ShardID      string `json:"shard_id"                jsonschema_description:"ID of the shard to control"`
 	Operation    string `json:"operation"               jsonschema_description:"Debug op: 'pause' halts ticking; 'resume' continues after a pause; 'step' advances exactly one tick (requires paused); 'reset' restores the world to its pre-tick-0 state (requires paused)." jsonschema:"enum=pause,enum=resume,enum=step,enum=reset"`
 	InstanceName string `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance; accepts variants like 'game-5', 'game 5', 'game5', or '5'. Defaults to the shard's first instance."`
-	OperatorURL  string `json:"operator_url,omitempty"  jsonschema_description:"cardinal-operator URL (defaults to http://localhost:8090 for local dev)"`
+	Organization string `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the project's releases when omitted)"`
+	Project      string `json:"project,omitempty"       jsonschema_description:"Project (defaults to the world.toml in the working directory)"`
 }
 
 // DebugControlOutput is the structured output for the debug_control tool.
@@ -46,7 +47,7 @@ func registerDebugControlTool(srv *server.MCPServer) {
 			"Drive a Cardinal shard's debug lifecycle: "+
 				"pause (halt ticking), resume (continue after a pause), step (advance one tick, requires "+
 				"paused), or reset (restore the pre-tick-0 state, requires paused). Pause and step return "+
-				"the current tick height. Requires a running cluster. Pair with the get_state tool to "+
+				"the current tick height. Requires a running world. Pair with the get_state tool to "+
 				"inspect the world's entities while paused.",
 		),
 		mcp.WithInputSchema[DebugControlInput](),
@@ -55,7 +56,7 @@ func registerDebugControlTool(srv *server.MCPServer) {
 	srv.AddTool(debugControlTool, strictToolHandler(debugControlHandler))
 }
 
-// debugControlHandler applies a debug operation to a shard via the operator.
+// debugControlHandler applies a debug operation to a shard's DebugService.
 func debugControlHandler(
 	ctx context.Context,
 	_ mcp.CallToolRequest,
@@ -79,7 +80,8 @@ func debugControlHandler(
 	client, _, err := dialShardDebugService(ctx, debugTargetArgs{
 		shardID:      shardID,
 		instanceName: args.InstanceName,
-		operatorURL:  args.OperatorURL,
+		organization: args.Organization,
+		project:      args.Project,
 	})
 	if err != nil {
 		return DebugControlOutput{}, err
