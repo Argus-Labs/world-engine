@@ -126,9 +126,17 @@ func (c *GenerateCmd) emitProtos(
 		// which the work dir stores in a map: the second silently replaced the first and every message
 		// only the loser held vanished from the client SDK. Merging first lets EmitProtos group them into
 		// the one file they belong in, and its own collision check see them together.
+		//
+		// Both halves are filtered by TargetCSharp. Local system events are dropped here by that filter
+		// already (they carry only TargetGo); external (plugin/dependency) types must be filtered the same
+		// way, or their Go-only system events — engine-internal, never shipped to a client — would leak
+		// into the C# pass as generated classes, breaking the contract documented on Run.
 		p, err := sdkgen.EmitProtos(
 			res.Module, goOutImport,
-			sdkgen.MergeMessages(withTarget(res.Messages, sdkgen.TargetCSharp), res.ExternalMessages),
+			sdkgen.MergeMessages(
+				withTarget(res.Messages, sdkgen.TargetCSharp),
+				withTarget(res.ExternalMessages, sdkgen.TargetCSharp),
+			),
 		)
 		if err != nil {
 			return nil, nil, eris.Wrap(err, "emit C# proto")
