@@ -94,5 +94,6 @@ func TestPlainPrintsSummaries(t *testing.T) {
 		func(time.Duration) string { return "reloaded" },
 	)
 
-	require.Equal(t, "Build: ✗ failed (0s) — see error below\nShards: ✓ reloaded\n", out.String())
+	// The failure summary carries the measured time, so it isn't pinned.
+	require.Regexp(t, `^Build: ✗ failed \(\d+s\) — see error below\nShards: ✓ reloaded\n$`, out.String())
 }

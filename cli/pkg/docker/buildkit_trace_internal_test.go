@@ -47,7 +47,11 @@ func TestBuildOutputTail(t *testing.T) {
 	log := protowire.AppendString(protowire.AppendTag(nil, logMsg, protowire.BytesType), out.String())
 	o.add(protowire.AppendBytes(protowire.AppendTag(nil, statusLogs, protowire.BytesType), log))
 
-	if got := o.tail(); !strings.HasPrefix(got, "\nline 5\n") || !strings.HasSuffix(got, "\nline 24") {
+	var want strings.Builder
+	for i := 5; i < maxOutputLines+5; i++ {
+		fmt.Fprintf(&want, "\nline %d", i)
+	}
+	if got := o.tail(); got != want.String() {
 		t.Fatalf("want lines 5-24, got %q", got)
 	}
 }
