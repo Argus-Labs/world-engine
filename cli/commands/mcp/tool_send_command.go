@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -152,7 +153,8 @@ func (s *SendCommandInput) validate() error {
 		return eris.New("command_name is required")
 	}
 	// Use defaults for optional fields (ShardURL is resolved in the handler).
-	if s.PlayerID == "" {
+	// Cardinal trims the dev player header, so a blank ID would be rejected even by a dev shard.
+	if strings.TrimSpace(s.PlayerID) == "" {
 		s.PlayerID = defaultDevPlayerID
 	}
 	if s.Region == "" {
