@@ -105,6 +105,14 @@ func deployWorld(dash *phasebox.Dashboard, cli *cluster.Client, worldCfg tomlpkg
 	return nil
 }
 
+// authLabel describes how the world's shards authenticate players.
+func authLabel(auth tomlpkg.Auth) string {
+	if auth.Mode == tomlpkg.AuthModeArgus {
+		return "Argus game tokens from " + auth.URL
+	}
+	return "dev (trusts X-Player-Id)"
+}
+
 // deployK8sServices builds + imports + deploys every path-kind ([[services]]
 // with a path=) entry from world.toml, mirroring reloadK8sShards' pull+build
 // but applying Deployments via cluster.DeployServices instead of the operator
@@ -276,6 +284,7 @@ func (c *StartCmd) runK8s(ctx context.Context, cwd string, worldCfg tomlpkg.Conf
 			endpointLines := []string{
 				fmt.Sprintf("API:      %s/<organization>/<project>/<instance>", resolved.APIEndpoint),
 				fmt.Sprintf("Operator: %s", resolved.OperatorEndpoint),
+				"Auth:     " + authLabel(worldCfg.Auth),
 			}
 			if service.NeedsAutoProjectDB(worldCfg) {
 				// Reachable on the host via the k3d NodePort mapping — no port-forward.

@@ -1036,3 +1036,75 @@ func TestLoad_CanonicalNames(t *testing.T) {
 		})
 	}
 }
+
+// A world.toml without [auth] runs its shards with dev auth, so existing projects keep working.
+func TestLoad_NoAuth_DefaultsToDev(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := toml.Load(strings.NewReader(`
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "game"
+	`))
+	require.NoError(t, err)
+	require.Equal(t, toml.Auth{Mode: toml.AuthModeDev}, cfg.Auth)
+}
+
+func TestLoad_ArgusAuth(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := toml.Load(strings.NewReader(`
+	organization = "argus"
+	project = "rampage"
+	[auth]
+	mode = "argus"
+	url = "https://api.argus.dev/"
+	[[shards]]
+	id = "game"
+	`))
+	require.NoError(t, err)
+	require.Equal(t, toml.Auth{Mode: toml.AuthModeArgus, URL: "https://api.argus.dev"}, cfg.Auth)
+}
+
+// Dev auth ignores a leftover URL, so switching modes doesn't mean deleting it.
+func TestLoad_DevAuthKeepsURL(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := toml.Load(strings.NewReader(`
+	organization = "argus"
+	project = "rampage"
+	[auth]
+	mode = "dev"
+	url = "not checked"
+	[[shards]]
+	id = "game"
+	`))
+	require.NoError(t, err)
+	require.Equal(t, toml.AuthModeDev, cfg.Auth.Mode)
+}
+
+func TestLoad_InvalidAuth_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name string
+		auth string
+		want string
+	}{
+		{name: "unknown mode", auth: `mode = "ARGUS"`, want: `[auth].mode must be "argus" or "dev" (got "ARGUS")`},
+		{name: "argus without url", auth: `mode = "argus"`, want: `[auth].url is required when mode = "argus"`},
+		{
+			name: "url without scheme", auth: "mode = \"argus\"\nurl = \"localhost:8100\"",
+			want: `[auth].url must be an http or https URL (got "localhost:8100")`,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := toml.Load(strings.NewReader("organization = \"argus\"\nproject = \"rampage\"\n[auth]\n" +
+				test.auth + "\n[[shards]]\nid = \"game\"\n"))
+			require.ErrorContains(t, err, test.want)
+		})
+	}
+}

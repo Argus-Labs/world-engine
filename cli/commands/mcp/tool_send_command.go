@@ -44,7 +44,9 @@ func registerSendCommandTool(srv *server.MCPServer) {
 		"send_command",
 		mcp.WithDescription(
 			"Send a command to a Cardinal shard. Commands are mutations that trigger game logic (e.g., "+
-				"create-player, player-attack). Requires a running cluster. NOTE: Command names must match "+
+				"create-player, player-attack). Requires a running cluster whose world.toml sets "+
+				"[auth] mode = \"dev\" (or leaves [auth] out), since it sends commands as a dev player "+
+				"(the X-Player-Id header). NOTE: Command names must match "+
 				"the shard's registered names (e.g., 'create-player' not 'CreatePlayer'). Call the "+
 				"introspect tool first to list the commands and their payload schemas — it reflects what "+
 				"the running shard actually accepts, which grepping the source does not (unwired or "+
@@ -111,6 +113,14 @@ func sendCommandHandler(
 	})
 
 	_, err = client.SendCommand(ctx, req)
+	if connect.CodeOf(err) == connect.CodeUnauthenticated {
+		return SendCommandOutput{}, eris.Wrapf(
+			err,
+			"shard instance %q rejected the dev player header: this world uses Argus auth. "+
+				"Set [auth] mode = \"dev\" in world.toml and start the world again",
+			target.instanceName,
+		)
+	}
 	if err != nil {
 		return SendCommandOutput{}, eris.Wrapf(
 			err,
