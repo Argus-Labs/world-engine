@@ -318,6 +318,7 @@ func (w *World) dispatchEvents(ctx context.Context) {
 		span.SetError(err)
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 	}
+	w.service.drainInterShardCommands()
 }
 
 // encodeSnapshot produces the complete snapshot bytes for the current tick: the ECS sizes and
@@ -545,10 +546,10 @@ func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 // its own. It mirrors the client-facing SendCommand RPC — a shard sending to a shard is the same operation,
 // initiated in-engine.
 //
-// Fire-and-forget: the actual network send happens when events flush at end-of-tick, so cmd must not be
-// mutated after this call — a *Command whose fields change before the flush would send the mutated value.
-// A send that fails is not returned (it must not block the tick) but is logged at error level, because a
-// dropped shard-to-shard command is serious.
+// Fire-and-forget: cmd is encoded when events flush at end-of-tick, so it must not be mutated after this
+// call — a *Command whose fields change before the flush would send the mutated value. The send then
+// happens in the background, in order per target shard. A send that fails is not returned but is logged
+// at error level, because a dropped shard-to-shard command is serious.
 func (w *World) SendToShard(to OtherWorld, cmd command.Payload) {
 	if to.ShardID == "" {
 		w.Logger().Error().Str("command", cmd.Name()).Msg("SendToShard: empty target shard address, dropping command")
