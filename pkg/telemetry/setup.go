@@ -74,6 +74,12 @@ func setupOpenTelemetry(
 	}
 	shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
 	otel.SetTracerProvider(tracerProvider)
+	// A binary built with otelc (OpenTelemetry compile-time instrumentation) runs an injected SDK setup
+	// before main that claims the global provider and turns later SetTracerProvider calls into no-ops.
+	if otel.GetTracerProvider() != tracerProvider {
+		logger.Warn().Msg("another tracer provider was installed first, so spans bypass this exporter and " +
+			"sampler; for otelc builds, set OTEL_SDK_DISABLED=true")
+	}
 
 	return logger, shutdown, err
 }
