@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -586,10 +587,24 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 }
 
 func matchesEvent(subscription string, eventName string) bool {
-	return subscription == eventName ||
-		subscription == "*" ||
-		subscription == ">" ||
-		(strings.HasSuffix(subscription, ".>") && strings.HasPrefix(eventName, strings.TrimSuffix(subscription, ">")))
+	if subscription == eventName || subscription == "*" || subscription == ">" {
+		return true
+	}
+	subTokens := strings.Split(subscription, ".")
+	evtTokens := strings.Split(eventName, ".")
+	if subTokens[len(subTokens)-1] == ">" {
+		prefix := subTokens[:len(subTokens)-1]
+		return len(evtTokens) > len(prefix) && slices.Equal(prefix, evtTokens[:len(prefix)])
+	}
+	if len(subTokens) != len(evtTokens) {
+		return false
+	}
+	for i, t := range subTokens {
+		if t != "*" && t != evtTokens[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // -------------------------------------------------------------------------------------------------
