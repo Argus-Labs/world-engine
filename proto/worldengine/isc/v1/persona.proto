@@ -8,7 +8,9 @@ option csharp_namespace = "WorldEngine.Proto.Isc.V1";
 option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1";
 
 message Persona {
-  // Unique identifier for the persona.
+  // Unique identifier for the persona. Cardinal overwrites it on client commands with the
+  // authenticated player ID (the Argus game token's sub, or X-Player-Id in DEV auth mode), so
+  // clients may send a placeholder. Inter-shard commands carry the sending shard's address.
   string id = 1 [
     (buf.validate.field).required = true,
     (buf.validate.field).string = {

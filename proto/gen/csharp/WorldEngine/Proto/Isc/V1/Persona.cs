@@ -89,7 +89,9 @@ namespace WorldEngine.Proto.Isc.V1 {
     public const int IdFieldNumber = 1;
     private string id_ = "";
     /// <summary>
-    /// Unique identifier for the persona.
+    /// Unique identifier for the persona. Cardinal overwrites it on client commands with the
+    /// authenticated player ID (the Argus game token's sub, or X-Player-Id in DEV auth mode), so
+    /// clients may send a placeholder. Inter-shard commands carry the sending shard's address.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

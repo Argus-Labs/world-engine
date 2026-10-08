@@ -18,7 +18,9 @@ export const file_worldengine_isc_v1_persona: GenFile = /*@__PURE__*/
  */
 export type Persona = Message<"worldengine.isc.v1.Persona"> & {
   /**
-   * Unique identifier for the persona.
+   * Unique identifier for the persona. Cardinal overwrites it on client commands with the
+   * authenticated player ID (the Argus game token's sub, or X-Player-Id in DEV auth mode), so
+   * clients may send a placeholder. Inter-shard commands carry the sending shard's address.
    *
    * @generated from field: string id = 1;
    */
