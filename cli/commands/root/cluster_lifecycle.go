@@ -38,17 +38,14 @@ func runSingleStepCluster(
 			opErr := op(ctx, cli)
 			cli.ResetLogRouting()
 			if opErr != nil {
-				sess.UpsertRow(rowID, rowLabel, opErr.Error(), phasebox.Failed)
+				sess.Fail(rowID, rowLabel, opErr)
 				return opErr
 			}
 			sess.UpsertRow(rowID, rowLabel, "", phasebox.Done)
 			return nil
 		},
-		func(err error, elapsed time.Duration) (string, bool) {
-			if err != nil {
-				return err.Error(), true
-			}
-			return fmt.Sprintf("%s — %s (%s)", resultVerb, cli.Config().ClusterName, elapsed.Round(time.Second)), false
+		func(elapsed time.Duration) string {
+			return fmt.Sprintf("%s — %s (%s)", resultVerb, cli.Config().ClusterName, elapsed.Round(time.Second))
 		},
 	)
 	return cli, err

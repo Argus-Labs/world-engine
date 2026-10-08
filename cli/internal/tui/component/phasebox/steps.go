@@ -48,11 +48,11 @@ func (t *StepTracker) Done() {
 	t.sess.UpsertRow(t.id, t.label, "", Done)
 }
 
-// Failed marks the current step Failed with detail (typically the error).
-// No-op before the first Next call.
-func (t *StepTracker) Failed(detail string) {
+// Failed marks the current step failed (see Session.Fail). No-op before the
+// first Next call.
+func (t *StepTracker) Failed(err error) {
 	if t.id == "" {
 		return
 	}
-	t.sess.UpsertRow(t.id, t.label, detail, Failed)
+	t.sess.Fail(t.id, t.label, err)
 }
