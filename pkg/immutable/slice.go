@@ -277,10 +277,6 @@ func (s Slice[T]) CompactFunc(eq func(a, b T) bool) Slice[T] {
 // receiver is unchanged. It panics when count is negative or the result would overflow, like
 // [slices.Repeat].
 //
-// The empty result is the zero value — nil items, not an empty allocation — the same rule every
-// fresh-allocation producer follows and the generated FromProto enforces, so a component built with
-// Repeat(0) compares equal to one restored from a snapshot under [reflect.DeepEqual].
-//
 // NOTE: Requires component set if used.
 func (s Slice[T]) Repeat(count int) Slice[T] {
 	assert.That(count >= 0, "immutable: Repeat(%d) must not be negative", count)
