@@ -112,13 +112,13 @@ func (s *service) init(address string) error {
 	var authenticate func(context.Context, *http.Request) (any, error)
 	switch s.authMode {
 	case AuthModeArgus:
-		authenticator, err := newAuthenticatorArgus(
+		authenticator, err := NewArgusAuthenticator(
 			s.argusAuthURL, s.world.options.Organization, s.world.options.Project,
 		)
 		if err != nil {
 			return eris.Wrap(err, "failed to create argus authenticator")
 		}
-		authenticate = authenticator.authenticate
+		authenticate = authenticator.Authenticate
 	case AuthModeDev:
 		authenticate = authenticatorDev{}.authenticate
 	case AuthModeUndefined:
@@ -743,13 +743,27 @@ func PlayerFromContext(ctx context.Context) *Player {
 // Argus Auth
 // -------------------------------------------------------------------------------------------------
 
-type authenticatorArgus struct {
+// ArgusAuthenticator authenticates game tokens issued by Argus Auth for one organization/project.
+type ArgusAuthenticator struct {
 	audience string
 	keyfunc  keyfunc.Keyfunc
 }
 
-func newAuthenticatorArgus(argusAuthURL, organization, project string) (*authenticatorArgus, error) {
-	assert.That(argusAuthURL != "", "Should've validated the URL")
+// NewArgusAuthenticator fetches Argus Auth's signing keys and returns an authenticator that
+// accepts only EdDSA game tokens with aud equal to organization/project, an unexpired exp, and a
+// non-empty sub. Pass its Authenticate method to authn.NewMiddleware.
+func NewArgusAuthenticator(argusAuthURL, organization, project string) (*ArgusAuthenticator, error) {
+	if argusAuthURL == "" {
+		return nil, eris.New("argus auth URL cannot be empty")
+	}
+	// Argus Auth issues aud as exactly "organization/project", so a '/' in either part could never
+	// match and every token would be rejected.
+	if organization == "" || project == "" || strings.Contains(organization+project, "/") {
+		return nil, eris.Errorf(
+			"organization %q and project %q must be non-empty and must not contain '/' in ARGUS auth mode",
+			organization, project,
+		)
+	}
 
 	jwksURL := argusAuthURL + "/auth/jwks"
 	client := &http.Client{
@@ -781,13 +795,15 @@ func newAuthenticatorArgus(argusAuthURL, organization, project string) (*authent
 		return nil, eris.Wrap(err, "failed to create keyfunc")
 	}
 
-	return &authenticatorArgus{
+	return &ArgusAuthenticator{
 		audience: organization + "/" + project,
 		keyfunc:  keyfn,
 	}, nil
 }
 
-func (a *authenticatorArgus) authenticate(_ context.Context, req *http.Request) (any, error) {
+// Authenticate returns the *Player named by the request's bearer token. It satisfies
+// authn.AuthFunc; every rejection is a connect.CodeUnauthenticated error.
+func (a *ArgusAuthenticator) Authenticate(_ context.Context, req *http.Request) (any, error) {
 	jwtString, ok := authn.BearerToken(req)
 	if !ok {
 		return nil, authn.Errorf("Authorization header must be in format: 'Bearer <JWT>'")

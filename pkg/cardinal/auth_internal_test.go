@@ -3,12 +3,16 @@ package cardinal
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/base64"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/goccy/go-json"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
@@ -19,7 +23,7 @@ func TestAuthenticatorArgusAcceptsGamePlayerToken(t *testing.T) {
 	require.NoError(t, err)
 
 	server := newAuthTestServer(t, publicKey)
-	authenticator, err := newAuthenticatorArgus(server.URL, "argus", "rampage")
+	authenticator, err := NewArgusAuthenticator(server.URL, "argus", "rampage")
 	require.NoError(t, err)
 
 	token := signGameToken(t, privateKey, jwt.RegisteredClaims{
@@ -28,7 +32,7 @@ func TestAuthenticatorArgusAcceptsGamePlayerToken(t *testing.T) {
 		Audience:  jwt.ClaimStrings{"argus/rampage"},
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
 	})
-	player, err := authenticator.authenticate(context.Background(), requestWithBearer(t, token))
+	player, err := authenticator.Authenticate(context.Background(), requestWithBearer(t, token))
 	require.NoError(t, err)
 	require.Equal(t, &Player{ID: "player-123"}, player)
 }
@@ -40,7 +44,7 @@ func TestAuthenticatorArgusRejectsInvalidGameClaims(t *testing.T) {
 	require.NoError(t, err)
 
 	server := newAuthTestServer(t, publicKey)
-	authenticator, err := newAuthenticatorArgus(server.URL, "argus", "rampage")
+	authenticator, err := NewArgusAuthenticator(server.URL, "argus", "rampage")
 	require.NoError(t, err)
 
 	validClaims := jwt.RegisteredClaims{
@@ -97,8 +101,8 @@ func TestAuthenticatorArgusRejectsInvalidGameClaims(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			token := signGameToken(t, test.key, test.claims)
-			_, authErr := authenticator.authenticate(context.Background(), requestWithBearer(t, token))
-			require.Error(t, authErr)
+			_, authErr := authenticator.Authenticate(context.Background(), requestWithBearer(t, token))
+			requireUnauthenticated(t, authErr)
 		})
 	}
 
@@ -107,9 +111,62 @@ func TestAuthenticatorArgusRejectsInvalidGameClaims(t *testing.T) {
 		token.Header["kid"] = "test-key"
 		signed, signErr := token.SignedString([]byte("test-secret"))
 		require.NoError(t, signErr)
-		_, authErr := authenticator.authenticate(context.Background(), requestWithBearer(t, signed))
-		require.Error(t, authErr)
+		_, authErr := authenticator.Authenticate(context.Background(), requestWithBearer(t, signed))
+		requireUnauthenticated(t, authErr)
 	})
+}
+
+// A JWKS may publish a key without "alg", which keyfunc then accepts for any token algorithm.
+// Only the EdDSA allowlist stops a token signed by such a non-EdDSA key.
+func TestAuthenticatorArgusRejectsNonEdDSAKeyFromJWKS(t *testing.T) {
+	publicKey, _, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+	rsaKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	server := newAuthTestServer(t, publicKey, map[string]string{
+		"kty": "RSA",
+		"use": "sig",
+		"kid": "rsa-key",
+		"n":   base64.RawURLEncoding.EncodeToString(rsaKey.N.Bytes()),
+		"e":   base64.RawURLEncoding.EncodeToString(big.NewInt(int64(rsaKey.E)).Bytes()),
+	})
+	authenticator, err := NewArgusAuthenticator(server.URL, "argus", "rampage")
+	require.NoError(t, err)
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.RegisteredClaims{
+		Subject:   "player-123",
+		Audience:  jwt.ClaimStrings{"argus/rampage"},
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+	})
+	token.Header["kid"] = "rsa-key"
+	signed, err := token.SignedString(rsaKey)
+	require.NoError(t, err)
+
+	_, err = authenticator.Authenticate(context.Background(), requestWithBearer(t, signed))
+	requireUnauthenticated(t, err)
+}
+
+func TestNewArgusAuthenticatorRejectsInvalidGameID(t *testing.T) {
+	publicKey, _, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+	server := newAuthTestServer(t, publicKey)
+
+	for _, test := range []struct {
+		name         string
+		organization string
+		project      string
+	}{
+		{name: "slash in organization", organization: "argus/games", project: "rampage"},
+		{name: "slash in project", organization: "argus", project: "games/rampage"},
+		{name: "empty organization", organization: "", project: "rampage"},
+		{name: "empty project", organization: "argus", project: ""},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := NewArgusAuthenticator(server.URL, test.organization, test.project)
+			require.ErrorContains(t, err, "must not contain '/'")
+		})
+	}
 }
 
 func TestAuthenticatorDevUsesPlayerID(t *testing.T) {
@@ -121,24 +178,32 @@ func TestAuthenticatorDevUsesPlayerID(t *testing.T) {
 	require.Equal(t, &Player{ID: "player-123"}, player)
 
 	_, err = (authenticatorDev{}).authenticate(context.Background(), httptest.NewRequest(http.MethodGet, "/", nil))
-	require.Error(t, err)
+	requireUnauthenticated(t, err)
 }
 
-func newAuthTestServer(t *testing.T, publicKey ed25519.PublicKey) *httptest.Server {
+func requireUnauthenticated(t *testing.T, err error) {
 	t.Helper()
+	require.Error(t, err)
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err), "error: %v", err)
+}
+
+// newAuthTestServer serves a JWKS with publicKey as "test-key", followed by extraKeys.
+func newAuthTestServer(t *testing.T, publicKey ed25519.PublicKey, extraKeys ...map[string]string) *httptest.Server {
+	t.Helper()
+	keys := append([]map[string]string{{
+		"kty": "OKP",
+		"crv": "Ed25519",
+		"alg": "EdDSA",
+		"use": "sig",
+		"kid": "test-key",
+		"x":   base64.RawURLEncoding.EncodeToString(publicKey),
+	}}, extraKeys...)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Path != "/auth/jwks" {
 			http.NotFound(w, req)
 			return
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"keys": []map[string]string{{
-			"kty": "OKP",
-			"crv": "Ed25519",
-			"alg": "EdDSA",
-			"use": "sig",
-			"kid": "test-key",
-			"x":   base64.RawURLEncoding.EncodeToString(publicKey),
-		}}})
+		_ = json.NewEncoder(w).Encode(map[string]any{"keys": keys})
 	}))
 	t.Cleanup(server.Close)
 	return server
