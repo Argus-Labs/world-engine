@@ -835,12 +835,15 @@ func (a *ArgusAuthenticator) Authenticate(_ context.Context, req *http.Request) 
 // Dev Auth
 // -------------------------------------------------------------------------------------------------
 
+// devPlayerIDHeader names the caller's player ID in DEV auth mode.
+const devPlayerIDHeader = "X-Player-Id"
+
 type authenticatorDev struct{}
 
 func (a authenticatorDev) authenticate(_ context.Context, req *http.Request) (any, error) {
-	playerID := strings.TrimSpace(req.Header.Get("X-Player-Id"))
+	playerID := strings.TrimSpace(req.Header.Get(devPlayerIDHeader))
 	if playerID == "" {
-		return nil, authn.Errorf("X-Player-ID header is required")
+		return nil, authn.Errorf("%s header is required", devPlayerIDHeader)
 	}
 
 	return &Player{ID: playerID}, nil

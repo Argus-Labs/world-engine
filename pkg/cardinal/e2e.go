@@ -254,7 +254,7 @@ func (f *e2eFixture) sendCommand(t *testing.T, cmd *iscv1.Command) {
 	ctx, cancel := context.WithTimeout(context.Background(), e2eCommandTimeout)
 	defer cancel()
 	req := connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmd})
-	req.Header().Set("X-Player-Id", "e2e-"+cmd.GetPersona().GetId())
+	req.Header().Set(devPlayerIDHeader, "e2e-"+cmd.GetPersona().GetId())
 	_, err := f.client.SendCommand(ctx, req)
 	require.NoError(t, err)
 }
