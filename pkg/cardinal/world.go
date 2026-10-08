@@ -533,7 +533,7 @@ func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 			// semantics, no pointer: Serializable is satisfied by the value type.
 			payload, isT := cmd.Payload.(T)
 			assert.That(isT, "mismatched command type passed to command context")
-			if !yield(CommandContext[T]{Payload: payload, Sender: cmd.Sender}) {
+			if !yield(CommandContext[T]{Payload: payload, sender: cmd.Sender}) {
 				return
 			}
 		}
@@ -612,7 +612,7 @@ func (w *World) Broadcast[T Event](evt T) {
 //
 // Example:
 //
-//	if player, ok := cmd.Sender.Player(); ok {
+//	if player, ok := cmd.Player(); ok {
 //		w.SendTo(player, Result{OK: true})
 //	}
 func (w *World) SendTo[T Event](recipient string, evt T) {

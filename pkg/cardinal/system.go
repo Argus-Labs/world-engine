@@ -64,19 +64,27 @@ func WithHook(hook SystemHook) SystemOption {
 
 type Command = command.Payload
 
-// CommandContext is a command and its sender.
-type CommandContext[T Command] struct {
-	Payload T
-	Sender  Sender
-}
-
-// Sender identifies who sent a command: a player, whose ID Cardinal takes from the client's auth
-// token, or another shard that called SendToShard. Ask with Player or Shard:
+// CommandContext is a command and its sender. The sender is a player, whose ID Cardinal takes from
+// the client's auth token, or another shard that called SendToShard. Ask which with Player or Shard:
 //
-//	if player, ok := cmd.Sender.Player(); ok {
+//	if player, ok := cmd.Player(); ok {
 //		w.SendTo(player, Result{OK: true})
 //	}
-type Sender = command.Sender
+type CommandContext[T Command] struct {
+	Payload T
+	sender  command.Sender
+}
+
+// Sender returns the player ID or the sending shard's address. Use it when any sender will do, such
+// as in logs.
+func (c CommandContext[T]) Sender() string { return c.sender.ID() }
+
+// Player returns the ID of the player who sent the command, or false if a shard sent it.
+func (c CommandContext[T]) Player() (string, bool) { return c.sender.Player() }
+
+// Shard returns the sending shard's address ("region.realm.org.project.shard"), or false if a
+// player sent it.
+func (c CommandContext[T]) Shard() (string, bool) { return c.sender.Shard() }
 
 // -------------------------------------------------------------------------------------------------
 // Inter-Shard Commands

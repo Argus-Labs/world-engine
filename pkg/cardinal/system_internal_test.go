@@ -236,7 +236,7 @@ func TestCommands_Smoke(t *testing.T) {
 		assert.Len(t, results, len(model), "completeness: expected %d commands, got %d", len(model), len(results))
 		for i, result := range results {
 			assert.Equal(t, model[i], result.Payload, "round-trip integrity: payload mismatch at index %d", i)
-			assert.Equal(t, senders[i], result.Sender, "round-trip integrity: sender mismatch at index %d", i)
+			assert.Equal(t, senders[i], result.sender, "round-trip integrity: sender mismatch at index %d", i)
 		}
 	})
 

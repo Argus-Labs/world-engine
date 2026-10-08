@@ -27,7 +27,7 @@ func (s *CreatePlayerSystem) Run(w *cardinal.World) {
 		entity.Set(component.Health{HP: 100})
 
 		w.Broadcast(event.NewPlayer{Nickname: command.Nickname})
-		w.Logger().Info().Uint32("entity", uint32(entity.ID())).Str("sender", cmd.Sender.ID()).
+		w.Logger().Info().Uint32("entity", uint32(entity.ID())).Str("sender", cmd.Sender()).
 			Msgf("Created player %s", command.Nickname)
 	}
 }

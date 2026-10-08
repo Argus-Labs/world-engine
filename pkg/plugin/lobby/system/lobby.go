@@ -963,11 +963,11 @@ func processTimedOutLobby(
 func playerCommands[T cardinal.Command](w *cardinal.World) iter.Seq2[string, cardinal.CommandContext[T]] {
 	return func(yield func(string, cardinal.CommandContext[T]) bool) {
 		for cmd := range w.Commands[T]() {
-			playerID, ok := cmd.Sender.Player()
+			playerID, ok := cmd.Player()
 			if !ok {
 				w.Logger().Warn().
 					Str("command", cmd.Payload.Name()).
-					Str("sender", cmd.Sender.ID()).
+					Str("sender", cmd.Sender()).
 					Msg("player command sent by a shard; dropping")
 				continue
 			}
@@ -2126,10 +2126,10 @@ func processAssignShardCommands(
 			continue
 		}
 
-		if shard, _ := cmd.Sender.Shard(); config.AssignmentAuthority != "" && shard != config.AssignmentAuthority {
+		if shard, _ := cmd.Shard(); config.AssignmentAuthority != "" && shard != config.AssignmentAuthority {
 			w.Logger().Warn().
 				Str("lobby_id", payload.LobbyID).
-				Str("sender", cmd.Sender.ID()).
+				Str("sender", cmd.Sender()).
 				Str("expected", config.AssignmentAuthority).
 				Msg("AssignShardCommand rejected: sender is not the configured AssignmentAuthority")
 			continue

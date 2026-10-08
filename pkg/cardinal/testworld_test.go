@@ -44,7 +44,7 @@ func TestTestWorld_CommandReachesOnlyTheNextStep(t *testing.T) {
 	w.RunSystem(reader)
 	require.Len(t, reader.got, 1)
 	assert.Equal(t, testutils.SimpleCommand{Value: 7}, reader.got[0].Payload)
-	player, ok := reader.got[0].Sender.Player()
+	player, ok := reader.got[0].Player()
 	assert.True(t, ok)
 	assert.Equal(t, "alice", player)
 
