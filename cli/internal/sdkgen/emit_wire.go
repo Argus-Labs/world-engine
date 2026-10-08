@@ -234,7 +234,11 @@ func newWireGen(ownGenImport string) *wireGen {
 	return g
 }
 
-// need records a plain import (no alias) for a package the emitted code names directly.
+// need records a plain import (no alias) for a package the emitted code names directly. The body writes
+// such a name as the import's package leaf (e.g. timestamppb.New), which only resolves when the import is
+// bare — so once need has claimed a path, the entry must STAY bare: a later spec upgrading it to a hand
+// alias would orphan that bare reference. qualify and hand cooperate to keep the body's spelling and the
+// registered alias in agreement instead.
 func (g *wireGen) need(path string) {
 	if _, ok := g.imports[path]; !ok {
 		g.imports[path] = ""
@@ -242,7 +246,10 @@ func (g *wireGen) need(path string) {
 }
 
 // spec records an already-rendered `alias "path"` import spec, as discovery produces for a source
-// package whose type this file names.
+// package whose type this file names. First registration wins: a path already claimed — bare by need, or
+// aliased by an earlier spec — keeps its qualifier. Upgrading a bare entry to an alias here would orphan
+// the bare leaf reference need's caller already wrote, so the body adapts via qualify/hand instead of the
+// import being rewritten underneath it.
 func (g *wireGen) spec(s string) {
 	if s == "" {
 		return
@@ -251,6 +258,25 @@ func (g *wireGen) spec(s string) {
 	if _, ok := g.imports[imp]; !ok {
 		g.imports[imp] = alias
 	}
+}
+
+// qualify returns the Go qualifier the body should use for importPath, agreeing with whatever entry the
+// accumulator already holds for it. A well-known package that a mirrored type also imports under a hand
+// alias (google.golang.org/protobuf/types/known/timestamppb when one field is [time.Time] AND another is a
+// raw timestamppb.Timestamp) is named by BOTH need's bare leaf and the mirror's hand alias; the body must
+// use ONE spelling, and that spelling is whoever claimed the path first (need → bare leaf, mirror →
+// alias). Routing the bare-leaf write sites through qualify — instead of hardcoding the package leaf —
+// lets a mirror that claimed the path first win, and hand re-qualifies the mirror to bare when need won.
+// Either way the import and the body agree and the file compiles, regardless of field order.
+func (g *wireGen) qualify(importPath string) string {
+	if importPath == "" {
+		return ""
+	}
+	if a, ok := g.imports[importPath]; ok && a != "" {
+		return a
+	}
+	g.need(importPath)
+	return path.Base(importPath)
 }
 
 // gen returns the alias for a generated (protoc-gen-go) package, recording its import. Repeated calls
@@ -277,9 +303,26 @@ func (g *wireGen) gen(importPath string) string {
 }
 
 // hand returns how to write a referenced type in this file, recording the import that spelling needs.
+// The qualifier discovery baked into r.GoType (AliasFromPath of the path) is rewritten to the qualifier the
+// accumulator actually registered for that package — so when need has already claimed the package bare
+// (a [time.Time] field plus a raw timestamppb.Timestamp field in one file), the mirror's type is written
+// timestamppb.Timestamp, matching the bare import rather than disagreeing with it under discovery's hand
+// alias known_timestamppb. A mirror that claimed the path first keeps its hand alias unchanged.
 func (g *wireGen) hand(r TypeRef) string {
 	g.spec(r.Import)
-	return r.GoType
+	alias, imp := parseImportSpec(r.Import)
+	return requalifyGoType(r.GoType, alias, g.qualify(imp))
+}
+
+// requalifyGoType rewrites the package qualifier prefix of goType — as discovery wrote it, "<from>.<Type>"
+// — to the qualifier the wire file actually imports (to), so a type whose source package this file also
+// imports bare is written bare rather than under discovery's hand alias. No-op when from is empty (a
+// same-package type, written unqualified) or when from already equals to (no collision to reconcile).
+func requalifyGoType(goType, from, to string) string {
+	if from == "" || from == to || !strings.HasPrefix(goType, from+".") {
+		return goType
+	}
+	return to + goType[len(from):]
 }
 
 // mirrorCall names a mirrored type's free-function converter for dir (ToProto, FromProto, SizeWire or
@@ -513,11 +556,10 @@ func wireToProtoField(b *strings.Builder, g *wireGen, f Field) {
 	case kindMessage:
 		switch {
 		case f.Timestamp && f.Pointer:
-			g.need(timestampPkg)
-			fmt.Fprintf(b, "\tif c.%s != nil {\n\t\tp.%s = timestamppb.New(*c.%s)\n\t}\n", f.Name, f.Name, f.Name)
+			fmt.Fprintf(b, "\tif c.%s != nil {\n\t\tp.%s = %s.New(*c.%s)\n\t}\n",
+				f.Name, f.Name, g.qualify(timestampPkg), f.Name)
 		case f.Timestamp:
-			g.need(timestampPkg)
-			fmt.Fprintf(b, "\tp.%s = timestamppb.New(c.%s)\n", f.Name, f.Name)
+			fmt.Fprintf(b, "\tp.%s = %s.New(c.%s)\n", f.Name, g.qualify(timestampPkg), f.Name)
 		case f.Msg.Own.Mirrored() && f.Pointer:
 			fmt.Fprintf(b, "\tif c.%s != nil {\n\t\tp.%s = %s(*c.%s)\n\t}\n",
 				f.Name, f.Name, g.mirrorCall(f.Msg, "ToProto"), f.Name)
@@ -595,8 +637,7 @@ func elemToProto(g *wireGen, f Field, access string) string {
 	case f.Scalar != nil:
 		return fmt.Sprintf("%s(%s)", protoGoType(f.Scalar), access)
 	case f.Timestamp:
-		g.need(timestampPkg)
-		return fmt.Sprintf("timestamppb.New(%s)", access)
+		return fmt.Sprintf("%s.New(%s)", g.qualify(timestampPkg), access)
 	case f.Msg.Own.Mirrored():
 		return g.mirrorCall(f.Msg, "ToProto") + "(" + access + ")"
 	default:
@@ -709,8 +750,8 @@ func wireToProtoMapField(b *strings.Builder, g *wireGen, f Field) {
 	var valType, conv string
 	switch {
 	case f.Timestamp:
-		g.need(timestampPkg)
-		valType, conv = "*timestamppb.Timestamp", "timestamppb.New(v)"
+		ts := g.qualify(timestampPkg)
+		valType, conv = "*"+ts+".Timestamp", ts+".New(v)"
 	case f.ValSc != nil:
 		valType, conv = protoGoType(f.ValSc), protoGoType(f.ValSc)+"(v)"
 	case f.Val.Own.Mirrored():
