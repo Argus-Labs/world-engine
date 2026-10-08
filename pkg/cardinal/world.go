@@ -181,8 +181,14 @@ func (w *World) run(ctx context.Context) error {
 	if err := w.restore(ctx); err != nil {
 		return eris.Wrap(err, "failed to restore state from snapshot")
 	}
-	// Final snapshot. Uses persistState's pre-increment label so restore's +1 lands correctly.
-	defer w.writeFinalSnapshot()
+	defer func() {
+		if w.currentTick.height == 0 {
+			return
+		}
+		// Label the last completed tick, matching regular snapshots and restore's +1.
+		label := w.currentTick.height - 1
+		w.snapshotWriter.Write(label, w.encodeSnapshot(label, time.Now()))
+	}()
 
 	logger := w.tel.GetLogger("shard")
 	logger.Info().Msg("starting core shard loop")
@@ -328,19 +334,6 @@ func (w *World) dispatchEvents(ctx context.Context) {
 func (w *World) encodeSnapshot(tick uint64, timestamp time.Time) []byte {
 	bodySize := w.world.StateWireSize()
 	return snapshot.Encode(tick, timestamp, bodySize, w.world.AppendStateWire)
-}
-
-// writeFinalSnapshot persists the world's final state on shutdown. restore treats a persisted
-// snapshot as the pre-tick state for the next tick (currentTick.height = snap.GetTickHeight()+1),
-// matching persistState's pre-increment label, so the final snapshot must use the same label and
-// writes currentTick.height-1. A world that never ticked has nothing to snapshot: it is skipped so
-// restore against an empty store leaves the height at 0.
-func (w *World) writeFinalSnapshot() {
-	if w.currentTick.height == 0 {
-		return
-	}
-	label := w.currentTick.height - 1
-	w.snapshotWriter.Write(label, w.encodeSnapshot(label, time.Now()))
 }
 
 func (w *World) restore(ctx context.Context) (err error) {
