@@ -55,12 +55,12 @@ func TestFinalizeRejectsDescriptorWithUnresolvedImport(t *testing.T) {
 
 	// Build a descriptor whose imported file is deliberately absent.
 	file, err := (protodesc.FileOptions{AllowUnresolvable: true}).New(&descriptorpb.FileDescriptorProto{
-		Name:       proto.String("unresolved.proto"),
-		Package:    proto.String("test"),
-		Syntax:     proto.String("proto3"),
+		Name:       new("unresolved.proto"),
+		Package:    new("test"),
+		Syntax:     new("proto3"),
 		Dependency: []string{"missing.proto"},
 		MessageType: []*descriptorpb.DescriptorProto{
-			{Name: proto.String("Command")},
+			{Name: new("Command")},
 		},
 	}, nil)
 	require.NoError(t, err)

@@ -14,7 +14,6 @@ import (
 
 	k3dclient "github.com/k3d-io/k3d/v5/pkg/client"
 	k3dcfg "github.com/k3d-io/k3d/v5/pkg/config"
-	cfgtypes "github.com/k3d-io/k3d/v5/pkg/config/types"
 	cfgv1alpha5 "github.com/k3d-io/k3d/v5/pkg/config/v1alpha5"
 	k3dlogger "github.com/k3d-io/k3d/v5/pkg/logger"
 	"github.com/k3d-io/k3d/v5/pkg/runtimes"
@@ -52,7 +51,7 @@ const (
 // setK3dLogLevel routes a logrus level string into k3d's global logger AND
 // installs the world-cli filter formatter (see k3dEssentialFormatter). Bad
 // level strings fall back to Info rather than silently leaving the prior
-// level. onLog nil routes to os.Stderr (k3d's original behavior); non-nil
+// level. onLog nil routes to [os.Stderr] (k3d's original behavior); non-nil
 // hands each line to the callback instead, so a caller with its own
 // terminal renderer can display it without a second writer racing its
 // redraws.
@@ -176,8 +175,8 @@ func k3dCreate(ctx context.Context, clusterName, registryName, k3sImage string) 
 		return eris.Wrap(err, "find free port for kube API")
 	}
 	simple := cfgv1alpha5.SimpleConfig{
-		TypeMeta:   cfgtypes.TypeMeta{APIVersion: "k3d.io/v1alpha5", Kind: "Simple"},
-		ObjectMeta: cfgtypes.ObjectMeta{Name: clusterName},
+		APIVersion: "k3d.io/v1alpha5", Kind: "Simple",
+		Name: clusterName,
 		// Image: must be explicit; lib has no -ldflags default like the CLI.
 		// ExposeAPI: must have an explicit HostPort; otherwise kubeconfig server
 		// URL is portless and defaults to :443.

@@ -68,7 +68,7 @@ func TestRun_NoColumns(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNoColumns)
 }
 
-// captureStdout captures os.Stdout output produced by fn and returns it as a string.
+// captureStdout captures [os.Stdout] output produced by fn and returns it as a string.
 var stdoutMu sync.Mutex
 
 func captureStdout(t *testing.T, fn func()) string {

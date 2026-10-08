@@ -4,8 +4,6 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv1";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv1";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Snapshot } from "./snapshot_pb";
 import { file_worldengine_cardinal_v1_snapshot } from "./snapshot_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -14,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/cardinal/v1/debug.proto.
  */
 export const file_worldengine_cardinal_v1_debug: GenFile = /*@__PURE__*/
-  fileDesc("CiN3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9kZWJ1Zy5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiEwoRSW50cm9zcGVjdFJlcXVlc3QiqQIKEkludHJvc3BlY3RSZXNwb25zZRI1Cghjb21tYW5kcxgBIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESNwoKY29tcG9uZW50cxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESMwoGZXZlbnRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuVHlwZVNjaGVtYRIUCgx0aWNrX3JhdGVfaHoYBCABKAESOgoJc2NoZWR1bGVzGAUgAygLMicud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3lzdGVtU2NoZWR1bGUSHAoUcHJvdG9fZGVzY3JpcHRvcl9zZXQYBiABKAwieQoOU3lzdGVtU2NoZWR1bGUSMQoEaG9vaxgBIAEoDjIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbUhvb2sSNAoHc3lzdGVtcxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbU5vZGUiJgoKU3lzdGVtTm9kZRIKCgJpZBgBIAEoDRIMCgRuYW1lGAIgASgJInkKClR5cGVTY2hlbWESDAoEbmFtZRgBIAEoCRIaChJwcm90b19tZXNzYWdlX25hbWUYAiABKAkSOQoMYXJyYXlfZmllbGRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuQXJyYXlGaWVsZFIGc2NoZW1hIikKCkFycmF5RmllbGQSDQoFZmllbGQYASABKAkSDAoEZGltcxgCIAMoDSIOCgxQYXVzZVJlcXVlc3QiJAoNUGF1c2VSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIPCg1SZXN1bWVSZXF1ZXN0IhAKDlJlc3VtZVJlc3BvbnNlIg0KC1N0ZXBSZXF1ZXN0IiMKDFN0ZXBSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIOCgxSZXNldFJlcXVlc3QiDwoNUmVzZXRSZXNwb25zZSIRCg9HZXRTdGF0ZVJlcXVlc3QiWgoQR2V0U3RhdGVSZXNwb25zZRIRCglpc19wYXVzZWQYASABKAgSMwoIc25hcHNob3QYAiABKAsyIS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TbmFwc2hvdCITChFTdHJlYW1QZXJmUmVxdWVzdCJBCglQZXJmQmF0Y2gSNAoFdGlja3MYASADKAsyJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5UaWNrVGltZWxpbmUihwEKDFRpY2tUaW1lbGluZRITCgt0aWNrX2hlaWdodBgBIAEoBBIuCgp0aWNrX3N0YXJ0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIyCgVzcGFucxgDIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbVNwYW4ihAEKClN5c3RlbVNwYW4SOAoLc3lzdGVtX2hvb2sYASABKA4yIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TeXN0ZW1Ib29rEg4KBnN5c3RlbRgCIAEoCRIXCg9zdGFydF9vZmZzZXRfbnMYAyABKAQSEwoLZHVyYXRpb25fbnMYBCABKAQqkAEKClN5c3RlbUhvb2sSGwoXU1lTVEVNX0hPT0tfVU5TUEVDSUZJRUQQABIaChZTWVNURU1fSE9PS19QUkVfVVBEQVRFEAESFgoSU1lTVEVNX0hPT0tfVVBEQVRFEAISGwoXU1lTVEVNX0hPT0tfUE9TVF9VUERBVEUQAxIUChBTWVNURU1fSE9PS19JTklUEAQylgUKDERlYnVnU2VydmljZRJlCgpJbnRyb3NwZWN0Eioud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSW50cm9zcGVjdFJlcXVlc3QaKy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5JbnRyb3NwZWN0UmVzcG9uc2USVgoFUGF1c2USJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QYXVzZVJlcXVlc3QaJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QYXVzZVJlc3BvbnNlElkKBlJlc3VtZRImLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc3VtZVJlcXVlc3QaJy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXN1bWVSZXNwb25zZRJTCgRTdGVwEiQud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RlcFJlcXVlc3QaJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TdGVwUmVzcG9uc2USVgoFUmVzZXQSJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXNldFJlcXVlc3QaJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXNldFJlc3BvbnNlEl8KCEdldFN0YXRlEigud29ybGRlbmdpbmUuY2FyZGluYWwudjEuR2V0U3RhdGVSZXF1ZXN0Gikud29ybGRlbmdpbmUuY2FyZGluYWwudjEuR2V0U3RhdGVSZXNwb25zZRJeCgpTdHJlYW1QZXJmEioud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RyZWFtUGVyZlJlcXVlc3QaIi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QZXJmQmF0Y2gwAUJ0WlJnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_worldengine_cardinal_v1_snapshot]);
+  fileDesc("CiN3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9kZWJ1Zy5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiEwoRSW50cm9zcGVjdFJlcXVlc3QiqQIKEkludHJvc3BlY3RSZXNwb25zZRI1Cghjb21tYW5kcxgBIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESNwoKY29tcG9uZW50cxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESMwoGZXZlbnRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuVHlwZVNjaGVtYRIUCgx0aWNrX3JhdGVfaHoYBCABKAESOgoJc2NoZWR1bGVzGAUgAygLMicud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3lzdGVtU2NoZWR1bGUSHAoUcHJvdG9fZGVzY3JpcHRvcl9zZXQYBiABKAwieQoOU3lzdGVtU2NoZWR1bGUSMQoEaG9vaxgBIAEoDjIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbUhvb2sSNAoHc3lzdGVtcxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbU5vZGUiJgoKU3lzdGVtTm9kZRIKCgJpZBgBIAEoDRIMCgRuYW1lGAIgASgJInkKClR5cGVTY2hlbWESDAoEbmFtZRgBIAEoCRIaChJwcm90b19tZXNzYWdlX25hbWUYAiABKAkSOQoMYXJyYXlfZmllbGRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuQXJyYXlGaWVsZFIGc2NoZW1hIikKCkFycmF5RmllbGQSDQoFZmllbGQYASABKAkSDAoEZGltcxgCIAMoDSIOCgxQYXVzZVJlcXVlc3QiJAoNUGF1c2VSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIPCg1SZXN1bWVSZXF1ZXN0IhAKDlJlc3VtZVJlc3BvbnNlIg0KC1N0ZXBSZXF1ZXN0IiMKDFN0ZXBSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIOCgxSZXNldFJlcXVlc3QiDwoNUmVzZXRSZXNwb25zZSIRCg9HZXRTdGF0ZVJlcXVlc3QiWgoQR2V0U3RhdGVSZXNwb25zZRIRCglpc19wYXVzZWQYASABKAgSMwoIc25hcHNob3QYAiABKAsyIS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TbmFwc2hvdCqQAQoKU3lzdGVtSG9vaxIbChdTWVNURU1fSE9PS19VTlNQRUNJRklFRBAAEhoKFlNZU1RFTV9IT09LX1BSRV9VUERBVEUQARIWChJTWVNURU1fSE9PS19VUERBVEUQAhIbChdTWVNURU1fSE9PS19QT1NUX1VQREFURRADEhQKEFNZU1RFTV9IT09LX0lOSVQQBDK2BAoMRGVidWdTZXJ2aWNlEmUKCkludHJvc3BlY3QSKi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5JbnRyb3NwZWN0UmVxdWVzdBorLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkludHJvc3BlY3RSZXNwb25zZRJWCgVQYXVzZRIlLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlBhdXNlUmVxdWVzdBomLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlBhdXNlUmVzcG9uc2USWQoGUmVzdW1lEiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzdW1lUmVxdWVzdBonLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc3VtZVJlc3BvbnNlElMKBFN0ZXASJC53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TdGVwUmVxdWVzdBolLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0ZXBSZXNwb25zZRJWCgVSZXNldBIlLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc2V0UmVxdWVzdBomLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc2V0UmVzcG9uc2USXwoIR2V0U3RhdGUSKC53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5HZXRTdGF0ZVJlcXVlc3QaKS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5HZXRTdGF0ZVJlc3BvbnNlQnRaUmdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2NhcmRpbmFsL3YxO2NhcmRpbmFsdjGqAh1Xb3JsZEVuZ2luZS5Qcm90by5DYXJkaW5hbC5WMWIGcHJvdG8z", [file_worldengine_cardinal_v1_snapshot]);
 
 /**
  * IntrospectRequest is the request message for the Introspect RPC.
@@ -386,103 +384,6 @@ export const GetStateResponseSchema: GenMessage<GetStateResponse> = /*@__PURE__*
   messageDesc(file_worldengine_cardinal_v1_debug, 15);
 
 /**
- * StreamPerfRequest is the request message for the StreamPerf server-streaming RPC.
- *
- * @generated from message worldengine.cardinal.v1.StreamPerfRequest
- */
-export type StreamPerfRequest = Message<"worldengine.cardinal.v1.StreamPerfRequest"> & {
-};
-
-/**
- * Describes the message worldengine.cardinal.v1.StreamPerfRequest.
- * Use `create(StreamPerfRequestSchema)` to create a new message.
- */
-export const StreamPerfRequestSchema: GenMessage<StreamPerfRequest> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 16);
-
-/**
- * PerfBatch is a batch of completed tick timelines pushed to the client.
- *
- * @generated from message worldengine.cardinal.v1.PerfBatch
- */
-export type PerfBatch = Message<"worldengine.cardinal.v1.PerfBatch"> & {
-  /**
-   * @generated from field: repeated worldengine.cardinal.v1.TickTimeline ticks = 1;
-   */
-  ticks: TickTimeline[];
-};
-
-/**
- * Describes the message worldengine.cardinal.v1.PerfBatch.
- * Use `create(PerfBatchSchema)` to create a new message.
- */
-export const PerfBatchSchema: GenMessage<PerfBatch> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 17);
-
-/**
- * @generated from message worldengine.cardinal.v1.TickTimeline
- */
-export type TickTimeline = Message<"worldengine.cardinal.v1.TickTimeline"> & {
-  /**
-   * @generated from field: uint64 tick_height = 1;
-   */
-  tickHeight: bigint;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp tick_start = 2;
-   */
-  tickStart?: Timestamp;
-
-  /**
-   * @generated from field: repeated worldengine.cardinal.v1.SystemSpan spans = 3;
-   */
-  spans: SystemSpan[];
-};
-
-/**
- * Describes the message worldengine.cardinal.v1.TickTimeline.
- * Use `create(TickTimelineSchema)` to create a new message.
- */
-export const TickTimelineSchema: GenMessage<TickTimeline> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 18);
-
-/**
- * @generated from message worldengine.cardinal.v1.SystemSpan
- */
-export type SystemSpan = Message<"worldengine.cardinal.v1.SystemSpan"> & {
-  /**
-   * @generated from field: worldengine.cardinal.v1.SystemHook system_hook = 1;
-   */
-  systemHook: SystemHook;
-
-  /**
-   * @generated from field: string system = 2;
-   */
-  system: string;
-
-  /**
-   * Nanoseconds elapsed from the parent TickTimeline.tick_start to when this span began.
-   *
-   * @generated from field: uint64 start_offset_ns = 3;
-   */
-  startOffsetNs: bigint;
-
-  /**
-   * Duration of this span in nanoseconds.
-   *
-   * @generated from field: uint64 duration_ns = 4;
-   */
-  durationNs: bigint;
-};
-
-/**
- * Describes the message worldengine.cardinal.v1.SystemSpan.
- * Use `create(SystemSpanSchema)` to create a new message.
- */
-export const SystemSpanSchema: GenMessage<SystemSpan> = /*@__PURE__*/
-  messageDesc(file_worldengine_cardinal_v1_debug, 19);
-
-/**
  * SystemHook defines when a system executes in the tick lifecycle.
  *
  * @generated from enum worldengine.cardinal.v1.SystemHook
@@ -587,18 +488,6 @@ export const DebugService: GenService<{
     methodKind: "unary";
     input: typeof GetStateRequestSchema;
     output: typeof GetStateResponseSchema;
-  },
-  /**
-   * StreamPerf streams batches of per-tick timing data to clients.
-   * The server pushes a PerfBatch every N ticks; clients accumulate the full
-   * history and compute their own aggregations (avg, P95, etc.).
-   *
-   * @generated from rpc worldengine.cardinal.v1.DebugService.StreamPerf
-   */
-  streamPerf: {
-    methodKind: "server_streaming";
-    input: typeof StreamPerfRequestSchema;
-    output: typeof PerfBatchSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_worldengine_cardinal_v1_debug, 0);

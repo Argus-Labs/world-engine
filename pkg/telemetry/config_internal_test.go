@@ -7,8 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func boolPtr(b bool) *bool { return &b }
-
 // tracesExporterTarget follows the OTel env spec for precedence and URL schemes, except that a bare
 // host:port defaults to plaintext so the stock jaeger:4317 collector keeps working.
 func TestTracesExporterTarget(t *testing.T) {
@@ -44,27 +42,27 @@ func TestTracesExporterTarget(t *testing.T) {
 		},
 		{
 			name: "URL scheme ignores insecure flags",
-			cfg:  Config{Endpoint: "https://otel.example.com:4317", Insecure: boolPtr(true), TracesInsecure: boolPtr(true)},
+			cfg:  Config{Endpoint: "https://otel.example.com:4317", Insecure: new(true), TracesInsecure: new(true)},
 			want: exporterTarget{Endpoint: "https://otel.example.com:4317", Insecure: false},
 		},
 		{
 			name: "insecure=false on bare endpoint selects TLS",
-			cfg:  Config{Endpoint: "otel.example.com:4317", Insecure: boolPtr(false)},
+			cfg:  Config{Endpoint: "otel.example.com:4317", Insecure: new(false)},
 			want: exporterTarget{Endpoint: "otel.example.com:4317", Insecure: false},
 		},
 		{
 			name: "insecure=true on bare endpoint selects plaintext",
-			cfg:  Config{Endpoint: "otel.example.com:4317", Insecure: boolPtr(true)},
+			cfg:  Config{Endpoint: "otel.example.com:4317", Insecure: new(true)},
 			want: exporterTarget{Endpoint: "otel.example.com:4317", Insecure: true},
 		},
 		{
 			name: "traces insecure=false wins over insecure=true",
-			cfg:  Config{Endpoint: "otel.example.com:4317", Insecure: boolPtr(true), TracesInsecure: boolPtr(false)},
+			cfg:  Config{Endpoint: "otel.example.com:4317", Insecure: new(true), TracesInsecure: new(false)},
 			want: exporterTarget{Endpoint: "otel.example.com:4317", Insecure: false},
 		},
 		{
 			name: "traces insecure=true wins over insecure=false",
-			cfg:  Config{Endpoint: "otel.example.com:4317", Insecure: boolPtr(false), TracesInsecure: boolPtr(true)},
+			cfg:  Config{Endpoint: "otel.example.com:4317", Insecure: new(false), TracesInsecure: new(true)},
 			want: exporterTarget{Endpoint: "otel.example.com:4317", Insecure: true},
 		},
 		{

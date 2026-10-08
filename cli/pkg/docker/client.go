@@ -25,7 +25,7 @@ type Client struct {
 }
 
 func NewClient(cfg *service.Config, opts *ClientOptions) (*Client, error) {
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	cli, err := client.New(client.FromEnv)
 	if err != nil {
 		return nil, eris.Wrap(err, "Failed to create docker client")
 	}

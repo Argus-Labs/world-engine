@@ -2,7 +2,9 @@ package command
 
 import (
 	"context"
+	"maps"
 	"math"
+	"slices"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
@@ -157,13 +159,10 @@ func (m *Manager) Clear() {
 // Test helpers
 // -------------------------------------------------------------------------------------------------
 
-// Names returns the names of all registered command types.
+// Names returns the names of all registered command types, sorted so a seeded fuzzer that draws
+// from them replays.
 func (m *Manager) Names() []string {
-	names := make([]string, 0, len(m.catalog))
-	for name := range m.catalog {
-		names = append(names, name)
-	}
-	return names
+	return slices.Sorted(maps.Keys(m.catalog))
 }
 
 // Zero returns a zero-value instance of the named command's payload type.

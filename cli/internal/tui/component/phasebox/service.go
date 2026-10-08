@@ -80,7 +80,7 @@ func (d *Dashboard) Run(
 // Run runs fn with a Session scoped to this box, then appends summarize's
 // result below its rows (which stay visible, not replaced). Mirrors
 // spinner.Run's shape: fn gets the dashboard's shared, Ctrl+C-cancelable
-// context, and a resulting context.Canceled becomes a silent error instead
+// context, and a resulting [context.Canceled] becomes a silent error instead
 // of a printed stack trace.
 func (b *Box) Run(
 	fn func(ctx context.Context, sess Session) error,

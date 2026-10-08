@@ -130,7 +130,7 @@ func (p *workerPool) close() {
 // workerLoop parks on the job channel and executes one range per received
 // worker index until the channel closes.
 //
-// Self-heal: a dispatched fn that calls runtime.Goexit (t.Fatal inside a user
+// Self-heal: a dispatched fn that calls [runtime.Goexit] (t.Fatal inside a user
 // callback under test, for example) unwinds this goroutine without a panic.
 // runRange has already recorded the sentinel and released the barrier, but
 // the goroutine itself is dying — so the deferred check below respawns a
@@ -157,7 +157,7 @@ func (p *workerPool) workerLoop() {
 // runRange executes the current job's range for worker k. A panic is captured
 // into the worker's padded slot and wg.Done runs in the defer, so a panicking
 // worker always releases the barrier and survives to serve the next job. A
-// fn that exits via runtime.Goexit instead of panicking (recover() == nil but
+// fn that exits via [runtime.Goexit] instead of panicking (recover() == nil but
 // the frame never completed) records a sentinel value so forRange still
 // reports the failure; workerLoop then respawns the dying goroutine.
 func (p *workerPool) runRange(k int) {

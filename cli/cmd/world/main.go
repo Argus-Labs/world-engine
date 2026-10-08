@@ -31,7 +31,7 @@ func checkVerboseFlag() bool {
 
 // formatError extracts the user-facing message from an error chain.
 // Returns the outermost eris wrap message, falling back to the root or err.Error().
-// Handles errors.Join wrappers (e.g. from kong) by unwrapping to find the eris error.
+// Handles [errors.Join] wrappers (e.g. from kong) by unwrapping to find the eris error.
 func formatError(err error) string {
 	if err == nil {
 		return ""

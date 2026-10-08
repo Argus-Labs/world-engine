@@ -50,7 +50,7 @@ func Scaffold(ctx context.Context, tmpl GameTemplate, targetDir string) error {
 // project named after targetDir's base: it writes a go.mod, rewrites example
 // imports to the module path, and sets world.toml's project field. On any failure
 // the partially-created targetDir is removed so the name stays retryable. All
-// paths are explicit — no os.Chdir.
+// paths are explicit — no [os.Chdir].
 func InstantiateTemplate(ctx context.Context, url, version, targetDir, subdir string) error {
 	if err := os.Mkdir(targetDir, 0o755); err != nil {
 		if errors.Is(err, fs.ErrExist) {
@@ -68,7 +68,7 @@ func InstantiateTemplate(ctx context.Context, url, version, targetDir, subdir st
 }
 
 // removeAll removes path best-effort, logging (rather than silently discarding)
-// any failure
+// any failure.
 func removeAll(ctx context.Context, path string) {
 	if err := os.RemoveAll(path); err != nil {
 		slog.Default().WarnContext(ctx, "worldscaffold: failed to clean up directory after failure",

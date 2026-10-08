@@ -4,7 +4,7 @@
 // cmd/physics2d-e2e is the same suite as a CLI, for -digest and -serve.
 //
 // Every scenario runs in a world of its own, in parallel, and every check reports
-// through the subtest's testing.T with the scenario's line as the failure site.
+// through the subtest's [testing.T] with the scenario's line as the failure site.
 package e2e_test
 
 import (

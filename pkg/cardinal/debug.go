@@ -2,23 +2,17 @@ package cardinal
 
 import (
 	"context"
-	"math"
 	"sync/atomic"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/performance"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 )
-
-const perfBatchIntervalSec = 1 // Target wall-clock seconds between perf batches.
 
 // debugModule provides introspection and debugging capabilities for a World instance.
 // Its DebugService handler is mounted on the service port (see service.init).
@@ -26,7 +20,6 @@ type debugModule struct {
 	world   *World
 	control *tickControl
 	catalog *introspect.Catalog
-	perf    *performance.Collector
 	// snapshot is the newest encoded snapshot, stored as the bytes the tick already produced.
 	// Decoding happens in GetState, so an enabled debug service costs the tick nothing.
 	snapshot atomic.Pointer[[]byte]
@@ -36,16 +29,11 @@ var _ cardinalv1connect.DebugServiceHandler = (*debugModule)(nil)
 
 // newDebugModule creates a new debugModule bound to the given World.
 func newDebugModule(world *World) *debugModule {
-	batchSize := max(int(math.Round(world.options.TickRate))*perfBatchIntervalSec, 1)
-	perf := performance.NewCollector(batchSize)
-
-	d := &debugModule{
+	return &debugModule{
 		world:   world,
 		control: newTickControl(),
 		catalog: introspect.NewCatalog(),
-		perf:    perf,
 	}
-	return d
 }
 
 // publishState hands GetState the newest encoded snapshot. No-op when the debug service is
@@ -127,95 +115,6 @@ func ecsHookToProto(hook uint8) cardinalv1.SystemHook {
 		return mapping[hook]
 	}
 	return cardinalv1.SystemHook_SYSTEM_HOOK_UNSPECIFIED
-}
-
-// -------------------------------------------------------------------------------------------------
-// Performance
-// -------------------------------------------------------------------------------------------------
-
-// StreamPerf streams batches of per-tick timing data to connected clients.
-func (d *debugModule) StreamPerf(
-	ctx context.Context,
-	_ *connect.Request[cardinalv1.StreamPerfRequest],
-	stream *connect.ServerStream[cardinalv1.PerfBatch],
-) error {
-	ch := d.perf.Subscribe()
-	defer d.perf.Unsubscribe(ch)
-
-	for {
-		select {
-		case batch := <-ch:
-			proto := batchToProto(batch)
-			if err := stream.Send(proto); err != nil {
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func batchToProto(b performance.Batch) *cardinalv1.PerfBatch {
-	ticks := make([]*cardinalv1.TickTimeline, 0, len(b.Ticks))
-	for _, ts := range b.Ticks {
-		spans := make([]*cardinalv1.SystemSpan, 0, len(ts.Spans))
-		for _, span := range ts.Spans {
-			startOffset := span.StartTime.Sub(ts.TickStart).Nanoseconds()
-			duration := span.EndTime.Sub(span.StartTime).Nanoseconds()
-			if startOffset < 0 {
-				startOffset = 0
-			}
-			if duration < 0 {
-				duration = 0
-			}
-			spans = append(spans, &cardinalv1.SystemSpan{
-				SystemHook:    ecsHookToProto(span.SystemHook),
-				System:        span.SystemName,
-				StartOffsetNs: uint64(startOffset),
-				DurationNs:    uint64(duration),
-			})
-		}
-		ticks = append(ticks, &cardinalv1.TickTimeline{
-			TickHeight: ts.TickHeight,
-			TickStart:  timestamppb.New(ts.TickStart),
-			Spans:      spans,
-		})
-	}
-	return &cardinalv1.PerfBatch{
-		Ticks: ticks,
-	}
-}
-
-// recordTick records a completed tick. Nil-safe.
-func (d *debugModule) recordTick(tickHeight uint64, tickStart time.Time) {
-	if d == nil {
-		return
-	}
-	d.perf.RecordTick(tickHeight, tickStart)
-}
-
-// startPerfTick initializes span storage for a new tick. Nil-safe.
-func (d *debugModule) startPerfTick() {
-	if d == nil {
-		return
-	}
-	d.perf.StartTick()
-}
-
-// resetPerf clears all buffered performance data. Nil-safe.
-func (d *debugModule) resetPerf() {
-	if d == nil {
-		return
-	}
-	d.perf.Reset()
-}
-
-// recordSpan records a per-system span. Nil-safe.
-func (d *debugModule) recordSpan(span performance.TickSpan) {
-	if d == nil {
-		return
-	}
-	d.perf.RecordSpan(span)
 }
 
 // -------------------------------------------------------------------------------------------------

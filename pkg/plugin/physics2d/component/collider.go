@@ -73,12 +73,12 @@ type ColliderShape struct {
 
 	// Geometry (use fields matching ShapeType).
 	Radius         float64                  `json:"radius,omitempty"`
-	HalfExtents    Vec2                     `json:"half_extents,omitempty"`
+	HalfExtents    Vec2                     `json:"half_extents"`
 	Vertices       [MaxPolygonVertices]Vec2 `json:"vertices,omitempty"`
-	ChainPoints    immutable.Slice[Vec2]    `json:"chain_points,omitempty"`
+	ChainPoints    immutable.Slice[Vec2]    `json:"chain_points"`
 	EdgeVertices   [2]Vec2                  `json:"edge_vertices,omitempty"`
-	CapsuleCenter1 Vec2                     `json:"capsule_center1,omitempty"`
-	CapsuleCenter2 Vec2                     `json:"capsule_center2,omitempty"`
+	CapsuleCenter1 Vec2                     `json:"capsule_center1"`
+	CapsuleCenter2 Vec2                     `json:"capsule_center2"`
 
 	// Material and per-shape collision filtering (fixture-level in Box2D).
 	Friction     float64 `json:"friction"`

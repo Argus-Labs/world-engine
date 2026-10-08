@@ -327,8 +327,8 @@ type CreateLobbyResult struct {
 	RequestID string                    `json:"request_id"`
 	IsSuccess bool                      `json:"is_success"`
 	Message   string                    `json:"message"`
-	Lobby     component.LobbyComponent  `json:"lobby,omitempty"`
-	Player    component.PlayerComponent `json:"player,omitempty"`
+	Lobby     component.LobbyComponent  `json:"lobby"`
+	Player    component.PlayerComponent `json:"player"`
 }
 
 // Name returns the request-prefixed event name.
@@ -339,7 +339,7 @@ type JoinLobbyResult struct {
 	RequestID        string                                               `json:"request_id"`
 	IsSuccess        bool                                                 `json:"is_success"`
 	Message          string                                               `json:"message"`
-	Lobby            component.LobbyComponent                             `json:"lobby,omitempty"`
+	Lobby            component.LobbyComponent                             `json:"lobby"`
 	PlayersList      [component.MaxLobbyPlayers]component.PlayerComponent `json:"players_list,omitempty"`
 	PlayersListCount int                                                  `json:"players_list_count"`
 }
@@ -352,7 +352,7 @@ type JoinTeamResult struct {
 	RequestID string                    `json:"request_id"`
 	IsSuccess bool                      `json:"is_success"`
 	Message   string                    `json:"message"`
-	Player    component.PlayerComponent `json:"player,omitempty"`
+	Player    component.PlayerComponent `json:"player"`
 }
 
 // Name returns the request-prefixed event name.
@@ -373,7 +373,7 @@ type SetReadyResult struct {
 	RequestID string                    `json:"request_id"`
 	IsSuccess bool                      `json:"is_success"`
 	Message   string                    `json:"message"`
-	Player    component.PlayerComponent `json:"player,omitempty"`
+	Player    component.PlayerComponent `json:"player"`
 }
 
 // Name returns the request-prefixed event name.
@@ -408,7 +408,7 @@ type StartSessionResult struct {
 	RequestID string                 `json:"request_id"`
 	IsSuccess bool                   `json:"is_success"`
 	Message   string                 `json:"message"`
-	GameWorld component.ShardAddress `json:"game_world,omitempty"`
+	GameWorld component.ShardAddress `json:"game_world"`
 }
 
 // Name returns the request-prefixed event name.
@@ -442,7 +442,7 @@ type UpdatePlayerPassthroughResult struct {
 	RequestID string                    `json:"request_id"`
 	IsSuccess bool                      `json:"is_success"`
 	Message   string                    `json:"message"`
-	Player    component.PlayerComponent `json:"player,omitempty"`
+	Player    component.PlayerComponent `json:"player"`
 }
 
 // Name returns the request-prefixed event name.
@@ -455,7 +455,7 @@ type GetPlayerResult struct {
 	RequestID string                    `json:"request_id"`
 	IsSuccess bool                      `json:"is_success"`
 	Message   string                    `json:"message"`
-	Player    component.PlayerComponent `json:"player,omitempty"`
+	Player    component.PlayerComponent `json:"player"`
 }
 
 // Name returns the request-prefixed event name.
@@ -482,7 +482,7 @@ type GetLobbyResult struct {
 	RequestID string                   `json:"request_id"`
 	IsSuccess bool                     `json:"is_success"`
 	Message   string                   `json:"message"`
-	Lobby     component.LobbyComponent `json:"lobby,omitempty"`
+	Lobby     component.LobbyComponent `json:"lobby"`
 }
 
 // Name returns the request-prefixed event name.
@@ -1061,7 +1061,7 @@ func resolvePreset(preset string, presets map[string][]TeamConfig) ([]TeamConfig
 // cannot arise and this reduces to a plain "code is unused" check.
 //
 // seed comes from the tick timestamp rather than the wall clock: a system should
-// read the tick's clock, not time.Now(). The attempt index is mixed in so each
+// read the tick's clock, not [time.Now](). The attempt index is mixed in so each
 // retry is guaranteed a distinct code even though the tick timestamp does not
 // advance between attempts. Two lobbies created in the same tick still differ,
 // because the lobby ID is part of the hash.
@@ -1841,7 +1841,11 @@ func processTransferLeaderCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
 
 		// Only leader can transfer
 		if !lobby.IsLeader(playerID) {
-			w.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).Msg("only leader can transfer leadership")
+			w.Logger().
+				Warn().
+				Str("lobby_id", lobbyID).
+				Str("player_id", playerID).
+				Msg("only leader can transfer leadership")
 			w.Broadcast(TransferLeaderResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,
@@ -2260,7 +2264,11 @@ func processGenerateInviteCodeCommands(s *LobbySystem, w *cardinal.World, lobbyI
 
 		// Only leader can generate
 		if !lobby.IsLeader(playerID) {
-			w.Logger().Warn().Str("lobby_id", lobbyID).Str("player_id", playerID).Msg("only leader can generate invite code")
+			w.Logger().
+				Warn().
+				Str("lobby_id", lobbyID).
+				Str("player_id", playerID).
+				Msg("only leader can generate invite code")
 			w.Broadcast(GenerateInviteCodeResult{
 				RequestID: payload.RequestID,
 				IsSuccess: false,

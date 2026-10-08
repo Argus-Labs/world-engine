@@ -17,14 +17,15 @@ import (
 // Client represents a NATS client with enhanced logging and error handling.
 type Client struct {
 	*nats.Conn
+
 	log        zerolog.Logger
 	natsConfig NATSConfig
 }
 
 // NATSConfig holds the configuration for the NATS client.
 type NATSConfig struct {
-	Name            string `env:"NATS_NAME" envDefault:"isc"`
-	URL             string `env:"NATS_URL" envDefault:"nats://nats:4222"`
+	Name            string `env:"NATS_NAME"             envDefault:"isc"`
+	URL             string `env:"NATS_URL"              envDefault:"nats://nats:4222"`
 	CredentialsFile string `env:"NATS_CREDENTIALS_FILE"`
 }
 
