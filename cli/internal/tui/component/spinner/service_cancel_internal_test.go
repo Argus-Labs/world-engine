@@ -17,21 +17,28 @@ import (
 // bug. exec.CommandContext, once the process has started, returns *exec.ExitError ("signal: killed") on
 // cancellation — its chain never carries context.Canceled — so the old eris.Is(opErr, context.Canceled)
 // gate missed this case and the noisy "signal: killed" reached main.go's print+Sentry path. The fix keys
-// off the cancelled spinCtx instead. This cancels mid-run (the realistic "user waits, then gives up" path)
-// and asserts the result is silenced.
+// off the cancelled spinCtx instead. This cancels mid-run (the realistic "user wait, then gives up" path)
+// using a process-start barrier (cmd.Start + a ready channel) so the cancel reliably lands AFTER the
+// child is running, not on the before-start path.
 func TestRun_MidRunExecCancel_ReturnsSilentError(t *testing.T) {
 	// parentCtx stands in for the top-level ctx that contextWithSigterm cancels on a real Ctrl+C;
 	// cancelling it cancels the spinCtx Run derives from it.
 	parentCtx, parentCancel := context.WithCancel(context.Background())
 	defer parentCancel()
 
+	started := make(chan struct{})
+	go func() {
+		<-started // block until the subprocess has actually started, then cancel mid-run
+		parentCancel()
+	}()
+
 	err := Run(parentCtx, "building (test)", func(ctx context.Context) error {
 		cmd := exec.CommandContext(ctx, "sleep", "5")
-		go func() {
-			time.Sleep(100 * time.Millisecond)
-			parentCancel()
-		}()
-		if runErr := cmd.Run(); runErr != nil {
+		if startErr := cmd.Start(); startErr != nil {
+			return startErr
+		}
+		close(started)
+		if runErr := cmd.Wait(); runErr != nil {
 			return eris.Wrap(runErr, "ensure buf image")
 		}
 		return nil
@@ -93,6 +100,40 @@ func TestRun_GenuineError_NotSilent(t *testing.T) {
 	assert.False(t, errorspkg.IsSilent(err),
 		"a genuine non-cancellation failure must NOT be silenced")
 	assert.Contains(t, err.Error(), "simulated real failure")
+}
+
+// TestRun_DeadlineExceeded_NotSilent guards against over-suppression: when the parent context's
+// deadline fires — a timeout, NOT a Ctrl+C — the failure must stay printable so the user learns the
+// op timed out and Sentry captures it. spinCtx (derived via WithCancel) surfaces the parent deadline as
+// context.DeadlineExceeded, and the returned error is not a cancellation, so neither silent branch fires.
+func TestRun_DeadlineExceeded_NotSilent(t *testing.T) {
+	parentCtx, parentCancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer parentCancel()
+
+	err := Run(parentCtx, "building (test)", func(ctx context.Context) error {
+		<-ctx.Done()
+		return ctx.Err() // context.DeadlineExceeded
+	})
+
+	require.Error(t, err)
+	assert.False(t, errorspkg.IsSilent(err),
+		"a deadline expiry must NOT be silenced — only Ctrl+C is")
+}
+
+// TestRun_ChildContextCancel_ReturnsSilentError confirms fn cancelling its OWN child context (not the
+// spinner's spinCtx) and returning context.Canceled is silenced. The spinner's spinCtx stays live, so the
+// spinCtx.Err() branch alone would miss this; the errors.Is(opErr, context.Canceled) branch catches it,
+// restoring the case the old eris.Is(opErr, context.Canceled) gate handled.
+func TestRun_ChildContextCancel_ReturnsSilentError(t *testing.T) {
+	err := Run(context.Background(), "building (test)", func(ctx context.Context) error {
+		child, childCancel := context.WithCancel(ctx)
+		childCancel()
+		return child.Err() // context.Canceled
+	})
+
+	require.Error(t, err)
+	assert.True(t, errorspkg.IsSilent(err),
+		"fn cancelling its own child context must stay silent")
 }
 
 // TestRun_Success_ReturnsNil confirms the happy path: a successful fn yields nil (no fabricated error)

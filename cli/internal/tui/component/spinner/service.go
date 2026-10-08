@@ -2,6 +2,7 @@ package spinner
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -100,14 +101,21 @@ func Run(ctx context.Context, msg string, fn func(context.Context) error, opts .
 	}
 	opErr := fn(spinCtx)
 	sp.Complete()
-	// fn shells out via exec.CommandContext (Docker builds); once a subprocess has started,
-	// cancellation SIGKILLs it and os/exec returns *exec.ExitError ("signal: killed") whose
-	// chain never contains context.Canceled. So the cancelled spinCtx — not fn's error chain
-	// — is the source of truth for "the user interrupted." Silencing any error returned after
-	// a cancelled spinCtx matches the doc-comment contract (suppress the stack trace on Ctrl+C)
-	// and the phasebox.Dashboard.Run precedent; the rare genuine failure that races with a
-	// Ctrl+C is tolerable since the user already chose to interrupt.
-	if spinCtx.Err() != nil && opErr != nil {
+	// Silence Ctrl+C, not deadline expiry. Two cases are treated as "user interrupted":
+	//
+	//   1. spinCtx was cancelled via its cancel func — the spinner's ctx is derived with
+	//      context.WithCancel, so a parent WithCancel (the real Ctrl+C path) surfaces here
+	//      as context.Canceled. A parent deadline expiring surfaces as context.DeadlineExceeded,
+	//      which is NOT silenced: a timeout is a real (printable) failure, not an interrupt.
+	//      fn shells out via exec.CommandContext (Docker builds); once a subprocess has started,
+	//      cancellation SIGKILLs it and os/exec returns *exec.ExitError ("signal: killed") whose
+	//      chain never contains context.Canceled, so the cancelled spinCtx — not fn's error chain
+	//      — is the source of truth for this case.
+	//   2. fn cancelled its own child context and returned an error wrapping context.Canceled —
+	//      the old eris.Is(opErr, context.Canceled) gate caught this, and exec.CommandContext's
+	//      before-start path (os/exec returns context.Canceled when ctx is done before Start)
+	//      lands here too.
+	if opErr != nil && (spinCtx.Err() == context.Canceled || errors.Is(opErr, context.Canceled)) {
 		return errorspkg.NewSilent(opErr)
 	}
 	return opErr
