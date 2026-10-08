@@ -25,10 +25,10 @@ type Config struct {
 	HeartbeatTimeout int64 `json:"heartbeat_timeout"`
 
 	// AssignmentAuthority is an accident-prevention filter, NOT an
-	// authentication boundary. The plugin compares it against cmd.Shard
+	// authentication boundary. The plugin compares it against the sending shard
 	// and drops mismatches. This prevents an unrelated system that
 	// happens to send AssignShardCommand from accidentally completing the
-	// wrong lobby's session start. Clients cannot set cmd.Shard, but it
+	// wrong lobby's session start. Clients cannot send as a shard, but it
 	// does NOT defend against a service on NATS that names another
 	// sender, because the sender address is not signature-verified. Real
 	// authentication must live above the plugin (NATS ACLs). Empty = no

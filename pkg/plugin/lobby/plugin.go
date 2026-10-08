@@ -128,8 +128,8 @@ type Config struct {
 	Provider Provider
 
 	// AssignmentAuthority is an accident-prevention filter — not
-	// authentication. Drops commands whose cmd.Shard differs from this
-	// address. Clients cannot set cmd.Shard, but any service that can
+	// authentication. Drops commands whose sending shard differs from
+	// this address. Clients cannot send as a shard, but any service that can
 	// publish to this shard over NATS can name any sender; real auth
 	// belongs above the plugin (NATS ACLs). Empty = no filter.
 	AssignmentAuthority string

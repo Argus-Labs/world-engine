@@ -49,7 +49,7 @@ func TestQueue_ModelFuzz(t *testing.T) {
 			if corruptName {
 				name = "wrong-name"
 			}
-			sender := command.Sender{Player: "value doesn't matter"}
+			sender := command.PlayerSender("value doesn't matter")
 
 			cmdpb := &iscv1.Command{
 				Name:    name,

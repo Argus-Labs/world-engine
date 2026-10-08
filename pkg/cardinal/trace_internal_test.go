@@ -124,7 +124,7 @@ func TestTickLinksCommandsAndTracesEvents(t *testing.T) {
 		Name:    testutils.SimpleCommand{}.Name(),
 		Address: w.address,
 		Payload: testutils.SimpleCommand{Value: 7}.MarshalWire(),
-	}, command.Sender{Player: "player-1"}))
+	}, command.PlayerSender("player-1")))
 	requestSpan.End()
 
 	w.events.Enqueue(
@@ -184,7 +184,7 @@ func TestTickSkipsLinksToUnsampledRequests(t *testing.T) {
 		Name:    testutils.SimpleCommand{}.Name(),
 		Address: w.address,
 		Payload: testutils.SimpleCommand{Value: 7}.MarshalWire(),
-	}, command.Sender{Player: "player-1"}))
+	}, command.PlayerSender("player-1")))
 	requestSpan.End()
 	exporter.Reset()
 
@@ -214,7 +214,6 @@ func TestInterShardCommandPropagatesTrace(t *testing.T) {
 		Payload: command.Command{
 			Name:    payload.Name(),
 			Address: fixtureB.world.address,
-			Sender:  command.Sender{Shard: fixtureA.world.address},
 			Payload: payload,
 		},
 	}))
@@ -291,7 +290,7 @@ func TestTickCapsCommandLinks(t *testing.T) {
 			Name:    testutils.SimpleCommand{}.Name(),
 			Address: w.address,
 			Payload: testutils.SimpleCommand{Value: i}.MarshalWire(),
-		}, command.Sender{Player: "player-1"}))
+		}, command.PlayerSender("player-1")))
 	}
 	requestSpan.End()
 	exporter.Reset()

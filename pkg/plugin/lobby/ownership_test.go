@@ -87,22 +87,29 @@ type ownershipPayload interface {
 
 func (w *ownershipWorld) send(t *testing.T, player string, payload ownershipPayload) {
 	t.Helper()
-	w.enqueueFrom(t, "Player", reflect.ValueOf(player), payload)
+	w.enqueueFrom(t, player, false, payload)
 }
 
-func (w *ownershipWorld) sendFromShard(t *testing.T, shard *microv1.ServiceAddress, payload ownershipPayload) {
+func (w *ownershipWorld) sendFromShard(t *testing.T, shard string, payload ownershipPayload) {
 	t.Helper()
-	w.enqueueFrom(t, "Shard", reflect.ValueOf(shard), payload)
+	w.enqueueFrom(t, shard, true, payload)
 }
 
-// enqueueFrom enqueues payload with the sender field named field set to value.
-func (w *ownershipWorld) enqueueFrom(t *testing.T, field string, value reflect.Value, payload ownershipPayload) {
+// enqueueFrom enqueues payload from the sender id, a shard's address when shard is set. Only
+// Cardinal builds a sender, so this reaches into its unexported fields the same way
+// newOwnershipWorldWithSetup reaches into the world.
+func (w *ownershipWorld) enqueueFrom(t *testing.T, id string, shard bool, payload ownershipPayload) {
 	t.Helper()
 	cmd := &iscv1.Command{Name: payload.Name(), Address: &microv1.ServiceAddress{}, Payload: payload.MarshalWire()}
 	sender := reflect.New(w.enqueue.Type().In(2)).Elem()
-	sender.FieldByName(field).Set(value)
+	unexported(sender.FieldByName("id")).SetString(id)
+	unexported(sender.FieldByName("shard")).SetBool(shard)
 	out := w.enqueue.Call([]reflect.Value{reflect.ValueOf(context.Background()), reflect.ValueOf(cmd), sender})
 	require.True(t, out[0].IsNil(), "enqueue %s: %v", payload.Name(), out[0])
+}
+
+func unexported(field reflect.Value) reflect.Value {
+	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
 }
 
 func (w *ownershipWorld) tick(timestamp int64) { w.world.Tick(time.Unix(timestamp, 0)) }
@@ -201,7 +208,7 @@ func TestPlayerCommandsFromShardsAreDropped(t *testing.T) {
 	w := newOwnershipWorld(t, lobby.Config{
 		LobbyPresets: map[string][]lobby.TeamConfig{"solo": {{TeamID: "solo", MaxPlayers: 1}}},
 	})
-	shard := &microv1.ServiceAddress{Region: "local", ServiceId: "other"}
+	shard := "local.world.org.project.other"
 	w.sendFromShard(t, shard, lobby.CreateLobbyCommand{RequestID: "from-shard", Preset: "solo"})
 	w.tick(100)
 	assert.Empty(t, w.lobbies())

@@ -146,7 +146,7 @@ func (w *TestWorld) Command(player string, cmd Command) {
 		Name:    cmd.Name(),
 		Address: w.address,
 		Payload: schema.Marshal(cmd),
-	}, command.Sender{Player: player})
+	}, command.PlayerSender(player))
 	if err != nil {
 		w.tb.Fatalf("cardinal: Command %s: %v", cmd.Name(), err)
 	}

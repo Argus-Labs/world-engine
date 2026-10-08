@@ -63,7 +63,7 @@ func TestService_SendCommand(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, cmds, 1)
 		assert.Equal(t, payload, cmds[0].Payload)
-		assert.Equal(t, command.Sender{Player: userID}, cmds[0].Sender)
+		assert.Equal(t, command.PlayerSender(userID), cmds[0].Sender)
 	})
 
 	t.Run("wrong address rejected", func(t *testing.T) {
@@ -147,7 +147,6 @@ func TestService_PublishInterShardCommand(t *testing.T) {
 			Payload: command.Command{
 				Name:    payload.Name(),
 				Address: fixtureB.world.address,
-				Sender:  command.Sender{Shard: fixtureA.world.address},
 				Payload: payload,
 			},
 		})
@@ -159,8 +158,7 @@ func TestService_PublishInterShardCommand(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, cmds, 1)
 		assert.Equal(t, payload, cmds[0].Payload)
-		assert.Empty(t, cmds[0].Sender.Player)
-		assert.Equal(t, micro.String(fixtureA.world.address), micro.String(cmds[0].Sender.Shard))
+		assert.Equal(t, command.ShardSender(fixtureA.world.address), cmds[0].Sender)
 	})
 }
 

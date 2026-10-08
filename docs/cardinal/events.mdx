@@ -47,7 +47,7 @@ func (s *CombatSystem) Run(w *cardinal.World) {
 }
 ```
 
-Use `w.SendTo(cmd.Player, event)` instead to deliver the event only to one player. If that player has no open event stream, the event is dropped.
+Use `w.SendTo(playerID, event)` instead, with a player ID from `cmd.Sender.Player()`, to deliver the event only to one player. If that player has no open event stream, the event is dropped.
 
 <Note>
   Just like with commands, an event type must be registered before it is sent. `Broadcast` and

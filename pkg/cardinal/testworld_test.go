@@ -12,6 +12,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTestWorld_RunSystemRunsOnlyThatSystem(t *testing.T) {
@@ -41,9 +42,11 @@ func TestTestWorld_CommandReachesOnlyTheNextStep(t *testing.T) {
 
 	w.Command("alice", testutils.SimpleCommand{Value: 7})
 	w.RunSystem(reader)
-	assert.Equal(t, []cardinal.CommandContext[testutils.SimpleCommand]{
-		{Payload: testutils.SimpleCommand{Value: 7}, Player: "alice"},
-	}, reader.got)
+	require.Len(t, reader.got, 1)
+	assert.Equal(t, testutils.SimpleCommand{Value: 7}, reader.got[0].Payload)
+	player, ok := reader.got[0].Sender.Player()
+	assert.True(t, ok)
+	assert.Equal(t, "alice", player)
 
 	w.RunSystem(reader)
 	assert.Empty(t, reader.got)

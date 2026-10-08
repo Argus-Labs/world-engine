@@ -57,9 +57,9 @@ func TestCommand_ModelFuzz(t *testing.T) {
 			pbPayload := schema.Marshal(payload)
 			require.NotNil(t, pbPayload)
 
-			sender := command.Sender{Player: testutils.RandString(prng, 8)}
+			sender := command.PlayerSender(testutils.RandString(prng, 8))
 			if testutils.RandBool(prng) {
-				sender = command.Sender{Shard: &microv1.ServiceAddress{ServiceId: testutils.RandString(prng, 8)}}
+				sender = command.ShardSender(&microv1.ServiceAddress{ServiceId: testutils.RandString(prng, 8)})
 			}
 			cmdpb := &iscv1.Command{
 				Name:    payload.Name(),
@@ -339,7 +339,7 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 					Payload: pbPayload,
 				}
 
-				if err := impl.Enqueue(context.Background(), cmdpb, command.Sender{Player: "test-player"}); err != nil {
+				if err := impl.Enqueue(context.Background(), cmdpb, command.PlayerSender("test-player")); err != nil {
 					t.Errorf("Enqueue failed: %v", err)
 					return
 				}
@@ -348,7 +348,7 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 				expected = append(expected, command.Command{
 					Name:    payload.Name(),
 					Address: &microv1.ServiceAddress{},
-					Sender:  command.Sender{Player: "test-player"},
+					Sender:  command.PlayerSender("test-player"),
 					Payload: payload,
 				})
 				mu.Unlock()

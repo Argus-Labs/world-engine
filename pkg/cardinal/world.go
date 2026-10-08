@@ -261,7 +261,7 @@ func (w *World) step(timestamp time.Time, run func()) {
 			break
 		}
 		links = append(links, oteltrace.Link{SpanContext: cmd.Span, Attributes: []attribute.KeyValue{
-			attrCommandName.String(cmd.Name), attrCommandSender.String(cmd.Sender.String())}})
+			attrCommandName.String(cmd.Name), attrCommandSender.String(cmd.Sender.ID())}})
 	}
 
 	ctx, span := trace.New(context.Background(), spanTick,
@@ -533,11 +533,7 @@ func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 			// semantics, no pointer: Serializable is satisfied by the value type.
 			payload, isT := cmd.Payload.(T)
 			assert.That(isT, "mismatched command type passed to command context")
-			cc := CommandContext[T]{Payload: payload, Player: cmd.Sender.Player}
-			if cmd.Sender.Shard != nil {
-				cc.Shard = micro.String(cmd.Sender.Shard)
-			}
-			if !yield(cc) {
+			if !yield(CommandContext[T]{Payload: payload, Sender: cmd.Sender}) {
 				return
 			}
 		}
@@ -565,7 +561,6 @@ func (w *World) SendToShard(to OtherWorld, cmd command.Payload) {
 		Kind: event.KindInterShardCommand,
 		Payload: command.Command{
 			Name:    cmd.Name(),
-			Sender:  command.Sender{Shard: w.address},
 			Address: serviceAddress,
 			Payload: cmd,
 		},
@@ -617,7 +612,9 @@ func (w *World) Broadcast[T Event](evt T) {
 //
 // Example:
 //
-//	w.SendTo(cmd.Player, Result{OK: true})
+//	if player, ok := cmd.Sender.Player(); ok {
+//		w.SendTo(player, Result{OK: true})
+//	}
 func (w *World) SendTo[T Event](recipient string, evt T) {
 	assert.That(recipient != "", "recipient must not be empty (use Broadcast for fan-out)")
 	w.checkEventRegistered[T]()

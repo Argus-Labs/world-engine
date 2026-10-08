@@ -31,7 +31,7 @@ func assertCodecRoundTripType[T command.Payload](t *testing.T, value T) {
 		Name:    value.Name(),
 		Address: &microv1.ServiceAddress{},
 		Payload: payload,
-	}, command.Sender{Player: "round-trip"}))
+	}, command.PlayerSender("round-trip")))
 
 	var drained []command.Command
 	q.Drain(&drained)

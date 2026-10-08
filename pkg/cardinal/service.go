@@ -240,7 +240,7 @@ func (s *service) SendCommand(
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 	}
 
-	if err := s.world.commands.Enqueue(ctx, cmd, command.Sender{Player: player.ID}); err != nil {
+	if err := s.world.commands.Enqueue(ctx, cmd, command.PlayerSender(player.ID)); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
@@ -271,7 +271,7 @@ func (s *service) SendCommandWithReply(
 	waiter := s.addReplyWaiter(req.Msg.GetEventName())
 	defer s.removeReplyWaiter(req.Msg.GetEventName(), waiter)
 
-	if err := s.world.commands.Enqueue(ctx, cmd, command.Sender{Player: player.ID}); err != nil {
+	if err := s.world.commands.Enqueue(ctx, cmd, command.PlayerSender(player.ID)); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
@@ -619,7 +619,7 @@ func (s *service) handleInterShardCommand(ctx context.Context, req *micro.Reques
 	}
 
 	oteltrace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))
-	if err := s.world.commands.Enqueue(ctx, cmd, command.Sender{Shard: isc.GetSender()}); err != nil {
+	if err := s.world.commands.Enqueue(ctx, cmd, command.ShardSender(isc.GetSender())); err != nil {
 		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), codes.InvalidArgument)
 	}
 
@@ -647,7 +647,7 @@ func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event)
 			Address: isc.Address,
 			Payload: payload,
 		},
-		Sender: isc.Sender.Shard,
+		Sender: s.world.address,
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)

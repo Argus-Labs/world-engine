@@ -957,19 +957,21 @@ func processTimedOutLobby(
 	return playerEntities, nil
 }
 
-// playerCommands yields the commands of type T that players sent. Lobby state is keyed by player
-// ID, so a command another shard sent has no player to act for and is dropped.
-func playerCommands[T cardinal.Command](w *cardinal.World) iter.Seq[cardinal.CommandContext[T]] {
-	return func(yield func(cardinal.CommandContext[T]) bool) {
+// playerCommands yields the commands of type T that players sent, with the sending player's ID.
+// Lobby state is keyed by player ID, so a command another shard sent has no player to act for and
+// is dropped.
+func playerCommands[T cardinal.Command](w *cardinal.World) iter.Seq2[string, cardinal.CommandContext[T]] {
+	return func(yield func(string, cardinal.CommandContext[T]) bool) {
 		for cmd := range w.Commands[T]() {
-			if cmd.Player == "" {
+			playerID, ok := cmd.Sender.Player()
+			if !ok {
 				w.Logger().Warn().
 					Str("command", cmd.Payload.Name()).
-					Str("sender", cmd.Shard).
+					Str("sender", cmd.Sender.ID()).
 					Msg("player command sent by a shard; dropping")
 				continue
 			}
-			if !yield(cmd) {
+			if !yield(playerID, cmd) {
 				return
 			}
 		}
@@ -982,8 +984,7 @@ func processHeartbeatCommands(
 	lobbyIndex *lookupIndex,
 	now, timeout int64,
 ) {
-	for cmd := range playerCommands[HeartbeatCommand](w) {
-		playerID := cmd.Player
+	for playerID := range playerCommands[HeartbeatCommand](w) {
 		lobbyID, exists := lobbyIndex.GetPlayerLobby(playerID)
 
 		w.Logger().Debug().
@@ -1194,8 +1195,7 @@ func processCreateLobbyCommands(
 	lobbyIndex *lookupIndex,
 	now, timeout int64,
 ) {
-	for cmd := range playerCommands[CreateLobbyCommand](w) {
-		playerID := cmd.Player
+	for playerID, cmd := range playerCommands[CreateLobbyCommand](w) {
 		payload := cmd.Payload
 
 		// Check if player is already in a lobby
@@ -1421,8 +1421,7 @@ func processJoinLobbyCommands(
 	lobbyIndex *lookupIndex,
 	now, timeout int64,
 ) {
-	for cmd := range playerCommands[JoinLobbyCommand](w) {
-		playerID := cmd.Player
+	for playerID, cmd := range playerCommands[JoinLobbyCommand](w) {
 		payload := cmd.Payload
 
 		// Check if player is already in a lobby. invite_code is logged even though the
@@ -1489,8 +1488,7 @@ func processJoinLobbyCommands(
 }
 
 func processJoinTeamCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
-	for cmd := range playerCommands[JoinTeamCommand](w) {
-		playerID := cmd.Player
+	for playerID, cmd := range playerCommands[JoinTeamCommand](w) {
 		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
@@ -1590,8 +1588,7 @@ func processJoinTeamCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
 }
 
 func processLeaveLobbyCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
-	for cmd := range playerCommands[LeaveLobbyCommand](w) {
-		playerID := cmd.Player
+	for playerID, cmd := range playerCommands[LeaveLobbyCommand](w) {
 		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
@@ -1686,8 +1683,7 @@ func processLeaveLobbyCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
 }
 
 func processSetReadyCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
-	for cmd := range playerCommands[SetReadyCommand](w) {
-		playerID := cmd.Player
+	for playerID, cmd := range playerCommands[SetReadyCommand](w) {
 		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
@@ -1759,8 +1755,7 @@ func processSetReadyCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
 }
 
 func processKickPlayerCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
-	for cmd := range playerCommands[KickPlayerCommand](w) {
-		playerID := cmd.Player
+	for playerID, cmd := range playerCommands[KickPlayerCommand](w) {
 		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
@@ -1843,8 +1838,7 @@ func processKickPlayerCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
 }
 
 func processTransferLeaderCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
-	for cmd := range playerCommands[TransferLeaderCommand](w) {
-		playerID := cmd.Player
+	for playerID, cmd := range playerCommands[TransferLeaderCommand](w) {
 		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
@@ -1917,8 +1911,7 @@ func processStartSessionCommands(
 	w *cardinal.World,
 	lobbyIndex *lookupIndex,
 ) {
-	for cmd := range playerCommands[StartSessionCommand](w) {
-		playerID := cmd.Player
+	for playerID, cmd := range playerCommands[StartSessionCommand](w) {
 		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
@@ -2133,11 +2126,11 @@ func processAssignShardCommands(
 			continue
 		}
 
-		if authority := config.AssignmentAuthority; authority != "" && cmd.Shard != authority {
+		if shard, _ := cmd.Sender.Shard(); config.AssignmentAuthority != "" && shard != config.AssignmentAuthority {
 			w.Logger().Warn().
 				Str("lobby_id", payload.LobbyID).
-				Str("sender", cmd.Shard).
-				Str("expected", authority).
+				Str("sender", cmd.Sender.ID()).
+				Str("expected", config.AssignmentAuthority).
 				Msg("AssignShardCommand rejected: sender is not the configured AssignmentAuthority")
 			continue
 		}
@@ -2266,8 +2259,7 @@ func processNotifySessionEndCommands(w *cardinal.World, lobbyIndex *lookupIndex)
 }
 
 func processGenerateInviteCodeCommands(s *LobbySystem, w *cardinal.World, lobbyIndex *lookupIndex) {
-	for cmd := range playerCommands[GenerateInviteCodeCommand](w) {
-		playerID := cmd.Player
+	for playerID, cmd := range playerCommands[GenerateInviteCodeCommand](w) {
 		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
@@ -2345,8 +2337,7 @@ func processGenerateInviteCodeCommands(s *LobbySystem, w *cardinal.World, lobbyI
 }
 
 func processUpdateSessionPassthroughCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
-	for cmd := range playerCommands[UpdateSessionPassthroughCommand](w) {
-		playerID := cmd.Player
+	for playerID, cmd := range playerCommands[UpdateSessionPassthroughCommand](w) {
 		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
@@ -2397,8 +2388,7 @@ func processUpdateSessionPassthroughCommands(w *cardinal.World, lobbyIndex *look
 }
 
 func processUpdatePlayerPassthroughCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
-	for cmd := range playerCommands[UpdatePlayerPassthroughCommand](w) {
-		playerID := cmd.Player
+	for playerID, cmd := range playerCommands[UpdatePlayerPassthroughCommand](w) {
 		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
@@ -2458,8 +2448,7 @@ func processUpdatePlayerPassthroughCommands(w *cardinal.World, lobbyIndex *looku
 }
 
 func processGetPlayerCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
-	for cmd := range playerCommands[GetPlayerCommand](w) {
-		callerID := cmd.Player
+	for callerID, cmd := range playerCommands[GetPlayerCommand](w) {
 		payload := cmd.Payload
 
 		// Determine target player ID (self if empty)
@@ -2501,8 +2490,7 @@ func processGetPlayerCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
 }
 
 func processGetLobbyCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
-	for cmd := range playerCommands[GetLobbyCommand](w) {
-		playerID := cmd.Player
+	for playerID, cmd := range playerCommands[GetLobbyCommand](w) {
 		payload := cmd.Payload
 
 		result := getPlayerLobby(playerID, lobbyIndex, w.Contains[lobbyArchetype]())
@@ -2525,8 +2513,7 @@ func processGetLobbyCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
 }
 
 func processGetAllPlayersCommands(w *cardinal.World, lobbyIndex *lookupIndex) {
-	for cmd := range playerCommands[GetAllPlayersCommand](w) {
-		playerID := cmd.Player
+	for playerID, cmd := range playerCommands[GetAllPlayersCommand](w) {
 		payload := cmd.Payload
 
 		// Get caller's lobby

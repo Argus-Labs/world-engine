@@ -8,7 +8,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
-	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
@@ -218,9 +217,9 @@ func TestCommands_Smoke(t *testing.T) {
 		for i := range count {
 			// Bounded to avoid JSON float64 precision loss.
 			model[i] = testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
-			senders[i] = command.Sender{Player: testutils.RandString(prng, 8)}
+			senders[i] = command.PlayerSender(testutils.RandString(prng, 8))
 			if testutils.RandBool(prng) {
-				senders[i] = command.Sender{Shard: RandServiceAddress(prng)}
+				senders[i] = command.ShardSender(RandServiceAddress(prng))
 			}
 		}
 
@@ -237,11 +236,7 @@ func TestCommands_Smoke(t *testing.T) {
 		assert.Len(t, results, len(model), "completeness: expected %d commands, got %d", len(model), len(results))
 		for i, result := range results {
 			assert.Equal(t, model[i], result.Payload, "round-trip integrity: payload mismatch at index %d", i)
-			want := CommandContext[testutils.SimpleCommand]{Payload: model[i], Player: senders[i].Player}
-			if senders[i].Shard != nil {
-				want.Shard = micro.String(senders[i].Shard)
-			}
-			assert.Equal(t, want, result, "round-trip integrity: sender mismatch at index %d", i)
+			assert.Equal(t, senders[i], result.Sender, "round-trip integrity: sender mismatch at index %d", i)
 		}
 	})
 
@@ -319,7 +314,7 @@ func newCommandWorld(t *testing.T) *World {
 // from player.
 func enqueueCommand(t *testing.T, w *World, payload command.Payload, player string) {
 	t.Helper()
-	enqueueCommandFrom(t, w, payload, command.Sender{Player: player})
+	enqueueCommandFrom(t, w, payload, command.PlayerSender(player))
 }
 
 // enqueueCommandFrom is enqueueCommand for any sender.

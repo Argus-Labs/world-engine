@@ -67,7 +67,7 @@ A test that needs another clock can call `w.World.Tick(timestamp)`. That tick is
 
 ## Inputs
 
-**Commands.** `w.Command(player, cmd)` sends a command as a client would, with `cmd.Player` set to `player`. The command is encoded and decoded on the way in, and `w.Commands[T]()` returns it during the next step only. Sending a command type that was not registered fails the test.
+**Commands.** `w.Command(player, cmd)` sends a command as a client would, with `player` as its sender. The command is encoded and decoded on the way in, and `w.Commands[T]()` returns it during the next step only. Sending a command type that was not registered fails the test.
 
 **System events.** Call `w.EmitSystemEvent(evt)` before a step to hand a system event to that step's systems. System events are cleared when the step ends, as at the end of a tick.
 
