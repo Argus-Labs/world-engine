@@ -220,15 +220,17 @@ func TestInterShardCommandPropagatesTrace(t *testing.T) {
 			Payload: payload,
 		},
 	}))
+	fixtureA.svc.drainInterShardCommands() // what the tick does after dispatch
 
-	send, ok := spansByName(exporter)[spanInterShardSend]
-	require.True(t, ok, "missing inter-shard send span")
+	cmds := awaitCommands(t, fixtureB)
+	var send tracetest.SpanStub
+	require.Eventually(t, func() bool {
+		var ok bool
+		send, ok = spansByName(exporter)[spanInterShardSend]
+		return ok
+	}, 5*time.Second, 10*time.Millisecond, "missing inter-shard send span")
 	require.Contains(t, send.Attributes, attrCommandTarget.String(micro.String(fixtureB.world.address)))
 
-	fixtureB.world.commands.Drain()
-	cmds, err := fixtureB.world.commands.Get(fixtureB.commandID)
-	require.NoError(t, err)
-	require.Len(t, cmds, 1)
 	require.True(t, cmds[0].Span.IsValid(), "command lost its trace context crossing NATS")
 	require.Equal(t, send.SpanContext.TraceID(), cmds[0].Span.TraceID())
 }

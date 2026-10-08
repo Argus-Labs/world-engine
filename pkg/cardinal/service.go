@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"buf.build/go/protovalidate"
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
 	"connectrpc.com/otelconnect"
@@ -31,7 +30,6 @@ import (
 	otelcodes "go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc/codes"
 )
 
 // service hosts the direct client-facing Cardinal service.
@@ -43,6 +41,7 @@ type service struct {
 	argusAuthURL string
 	client       *micro.Client
 	microService *micro.Service
+	interShard   *interShard
 	commands     map[string]struct{}
 	subscribers  map[string]*streamSubscriber
 	replyWaiters map[string][]chan *iscv1.Event
@@ -89,16 +88,15 @@ func (s *service) init(address string) error {
 		return eris.Wrap(err, "failed to create micro service")
 	}
 	s.microService = microService
+	s.interShard = newInterShard(s.world.address, client, &s.world.commands, s.log)
 
 	// Keep these for now cuz ISC requires a bit more work than client connections. Will need another
 	// refactor after the current clients are migrated to connect directly to the shards.
 	if err = s.microService.AddEndpoint("ping", s.handlePing); err != nil {
 		return eris.Wrap(err, "failed to register ping handler")
 	}
-	for cmd := range s.commands {
-		if err := s.microService.AddGroup("command").AddEndpoint(cmd, s.handleInterShardCommand); err != nil {
-			return eris.Wrapf(err, "failed to register %s command handler", cmd)
-		}
+	if err := s.interShard.start(s.microService, s.commands); err != nil {
+		return err
 	}
 
 	otelInterceptor, err := otelconnect.NewInterceptor()
@@ -177,6 +175,10 @@ func (s *service) mountDebugService(mux *http.ServeMux, interceptors ...connect.
 }
 
 func (s *service) shutdown(ctx context.Context) error {
+	// Before server.Shutdown: an open event stream holds it until ctx expires, and its error returns early.
+	if s.interShard != nil {
+		s.interShard.stop(ctx)
+	}
 	if s.server != nil {
 		if err := s.server.Shutdown(ctx); err != nil {
 			return eris.Wrap(err, "failed to shutdown service server")
@@ -598,43 +600,11 @@ func (s *service) handlePing(_ context.Context, req *micro.Request) *micro.Respo
 	return micro.NewSuccessResponse(req, nil)
 }
 
-func (s *service) handleInterShardCommand(ctx context.Context, req *micro.Request) *micro.Response {
-	select {
-	case <-ctx.Done():
-		return micro.NewErrorResponse(req, eris.Wrap(ctx.Err(), "context cancelled"), codes.Canceled)
-	default:
+// drainInterShardCommands is a no-op when the service never connected to NATS, as in the DST harness.
+func (s *service) drainInterShardCommands() {
+	if s.interShard != nil {
+		s.interShard.drain()
 	}
-
-	cmd := &iscv1.Command{}
-	if err := req.Payload.UnmarshalTo(cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to parse request payload"), codes.InvalidArgument)
-	}
-
-	if err := protovalidate.Validate(cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to validate command"), codes.InvalidArgument)
-	}
-	if _, err := micro.ParseAddress(cmd.GetPersona().GetId()); err != nil {
-		return micro.NewErrorResponse(
-			req,
-			eris.Wrap(err, "command persona is not a shard address"),
-			codes.InvalidArgument,
-		)
-	}
-
-	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
-		return micro.NewErrorResponse(
-			req,
-			eris.New("command address doesn't match shard address"),
-			codes.InvalidArgument,
-		)
-	}
-
-	oteltrace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))
-	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), codes.InvalidArgument)
-	}
-
-	return micro.NewSuccessResponse(req, nil)
 }
 
 func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event) error {
@@ -643,36 +613,14 @@ func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event)
 		return eris.Errorf("invalid inter shard command %v", evt.Payload)
 	}
 	assert.That(isc.Address != nil, "inter shard command has nil address")
+	assert.That(s.interShard != nil, "inter shard command published before the service started")
 
-	// The NATS client injects this span into the request headers, so the receiving shard's handler
-	// span (and the tick that drains the command there) joins this tick's oteltrace.
-	ctx, span := trace.New(ctx, spanInterShardSend, oteltrace.WithAttributes(
-		attrCommandName.String(isc.Payload.Name()), attrCommandTarget.String(micro.String(isc.Address))))
-	defer span.End()
-
-	payload := schema.Marshal(isc.Payload)
-
-	commandPb := &iscv1.Command{
+	s.interShard.enqueue(ctx, &iscv1.Command{
 		Name:    isc.Payload.Name(),
 		Address: isc.Address,
 		Persona: &iscv1.Persona{Id: isc.Persona},
-		Payload: payload,
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	// TODO: revisit shard-to-shard blocking. Dispatch runs synchronously in the tick loop, so this
-	// request-reply blocks the whole world up to 10s per send — and we discard the reply anyway. If
-	// shard-to-shard isn't meant to block the tick, make this async (worker) or fire-and-forget Publish.
-	_, err := s.client.Request(ctx, isc.Address, "command."+isc.Payload.Name(), commandPb)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(otelcodes.Error, "send failed")
-		s.log.Error().Err(err).Str("command", isc.Payload.Name()).Msg("inter-shard command dropped: send failed")
-		return nil
-	}
-
+		Payload: schema.Marshal(isc.Payload),
+	})
 	return nil
 }
 
