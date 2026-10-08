@@ -344,7 +344,9 @@ func (s *service) StartEventStream(
 			return connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 		}
 	}
-	s.subscribeEvents(user, req.Msg.GetSubscriptions())
+	if err := s.subscribeEvents(user, req.Msg.GetSubscriptions()); err != nil {
+		return err
+	}
 
 	if err := subscriber.send(&cardinalv1.StartEventStreamResponse{}); err != nil {
 		return connect.NewError(connect.CodeInternal, eris.Wrap(err, "failed to send initial empty event to client"))
@@ -378,7 +380,9 @@ func (s *service) SubscribeEvents(
 	if err != nil {
 		return nil, err
 	}
-	s.subscribeEvents(user, req.Msg.GetSubscriptions())
+	if err := s.subscribeEvents(user, req.Msg.GetSubscriptions()); err != nil {
+		return nil, err
+	}
 
 	return connect.NewResponse(&cardinalv1.SubscribeEventsResponse{}), nil
 }
@@ -391,12 +395,14 @@ func (s *service) UnsubscribeEvents(
 	if err != nil {
 		return nil, err
 	}
-	s.unsubscribeEvents(user, req.Msg.GetSubscriptions())
+	if err := s.unsubscribeEvents(user, req.Msg.GetSubscriptions()); err != nil {
+		return nil, err
+	}
 
 	return connect.NewResponse(&cardinalv1.UnsubscribeEventsResponse{}), nil
 }
 
-// subscriptionRequest validates a subscribe or unsubscribe request from a user with an open stream.
+// subscriptionRequest validates a subscribe or unsubscribe request.
 func (s *service) subscriptionRequest(
 	ctx context.Context, subscriptions []*cardinalv1.EventSubscription,
 ) (*User, error) {
@@ -404,10 +410,6 @@ func (s *service) subscriptionRequest(
 	assert.That(user != nil, "user should exist in authenticated request context")
 	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID),
 		attrEventSubscriptions.Int(countSubscriptions(subscriptions)))
-
-	if !s.hasSubscriber(user) {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
-	}
 
 	for _, subscription := range subscriptions {
 		if micro.String(s.world.address) != micro.String(subscription.GetAddress()) {
@@ -445,40 +447,38 @@ func (s *service) removeSubscriber(user *User) {
 	delete(s.subscribers, user.ID)
 }
 
-func (s *service) subscribeEvents(user *User, subscriptions []*cardinalv1.EventSubscription) {
+func (s *service) subscribeEvents(user *User, subscriptions []*cardinalv1.EventSubscription) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	subscriber := s.subscribers[user.ID]
-	assert.That(subscriber != nil, "subscriber should exist for authenticated stream")
+	if subscriber == nil {
+		return connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
+	}
 
 	for _, subscription := range subscriptions {
 		for _, eventName := range subscription.GetEvents() {
 			subscriber.events[eventName] = struct{}{}
 		}
 	}
+	return nil
 }
 
-func (s *service) unsubscribeEvents(user *User, subscriptions []*cardinalv1.EventSubscription) {
+func (s *service) unsubscribeEvents(user *User, subscriptions []*cardinalv1.EventSubscription) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	subscriber := s.subscribers[user.ID]
-	assert.That(subscriber != nil, "subscriber should exist for authenticated stream")
+	if subscriber == nil {
+		return connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
+	}
 
 	for _, subscription := range subscriptions {
 		for _, eventName := range subscription.GetEvents() {
 			delete(subscriber.events, eventName)
 		}
 	}
-}
-
-func (s *service) hasSubscriber(user *User) bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	_, ok := s.subscribers[user.ID]
-	return ok
+	return nil
 }
 
 // countSubscriptions returns the number of event names across all subscriptions.
