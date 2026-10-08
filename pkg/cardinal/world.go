@@ -393,13 +393,17 @@ func (w *World) shutdown() {
 }
 
 func (w *World) reset() {
-	// Reset the ECS world and run initialization systems again.
+	// Reset the ECS world.
 	w.world.Reset()
-	w.init()
 
-	// Clear pending commands and events.
+	// Clear pending commands and events from before the reset. Init systems may
+	// Broadcast/SendTo client-facing events that must survive reset and be delivered
+	// on the next tick, matching cold-start behavior, so the clears run before init.
 	w.commands.Clear()
 	w.events.Clear()
+
+	// Run initialization systems again.
+	w.init()
 
 	// Reset the tick.
 	w.currentTick.height = 0
