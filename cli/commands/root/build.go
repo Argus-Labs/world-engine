@@ -84,11 +84,8 @@ func (c *BuildCmd) Run(ctx context.Context) error {
 						phasebox.BuildProgress(sess, imageNames),
 					)
 				},
-				func(err error, elapsed time.Duration) (string, bool) {
-					if err != nil {
-						return err.Error(), true
-					}
-					return fmt.Sprintf("%d image(s) built (%s)", len(dockerServices), elapsed.Round(time.Second)), false
+				func(elapsed time.Duration) string {
+					return fmt.Sprintf("%d image(s) built (%s)", len(dockerServices), elapsed.Round(time.Second))
 				},
 			); err != nil {
 				return eris.Wrap(err, "Failed to build Cardinal images")

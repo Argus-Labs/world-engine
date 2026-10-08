@@ -6,9 +6,8 @@ import (
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
 )
 
-// maxDetailLen bounds how much of a log line / error message a row shows —
-// long docker errors or k3d image refs would otherwise blow out the box's
-// width indefinitely.
+// maxDetailLen bounds how much of a k3d log line a row shows, so a long one
+// can't blow out the box's width.
 const maxDetailLen = 96
 
 // PullProgress adapts docker.Client.PullImages' progress into row updates:
@@ -18,7 +17,7 @@ func PullProgress(sess Session) func(docker.Progress) {
 	return func(p docker.Progress) {
 		switch {
 		case p.Err != nil:
-			sess.UpsertRow(p.Name, p.Name, truncate(p.Err.Error()), Failed)
+			sess.Fail(p.Name, p.Name, p.Err)
 		case p.State == docker.StatePulled:
 			sess.UpsertRow(p.Name, p.Name, "", Done)
 		default:
@@ -38,7 +37,7 @@ func BuildProgress(sess Session, imageNames []string) func(docker.Progress) {
 	return func(p docker.Progress) {
 		switch {
 		case p.Err != nil:
-			sess.UpsertRow(p.Name, p.Name, truncate(p.Err.Error()), Failed)
+			sess.Fail(p.Name, p.Name, p.Err)
 		case p.State == docker.StateBuilt:
 			sess.UpsertRow(p.Name, p.Name, "", Done)
 		default:
@@ -57,8 +56,8 @@ func ClusterLogRow(sess Session, id, label string) func(line string) {
 	}
 }
 
-// truncate collapses newlines and caps s to maxDetailLen runes so a long
-// docker error or k3d log line can't blow out the box's width.
+// truncate collapses newlines and caps s to maxDetailLen runes so a long k3d
+// log line can't blow out the box's width.
 func truncate(s string) string {
 	s = strings.ReplaceAll(s, "\n", " ")
 	r := []rune(s)

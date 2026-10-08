@@ -154,7 +154,7 @@ func (c *Client) BuildCardinalImages(
 
 			err := c.buildSingleCardinalWithDocker(gctx, build, platform, ignorePatterns)
 			if err != nil {
-				notify(progress, Progress{Name: build.image, State: StateBuilding, Err: err})
+				notify(progress, Progress{Name: build.image, State: StateBuilding, Err: itemErr(gctx, err)})
 				return err
 			}
 

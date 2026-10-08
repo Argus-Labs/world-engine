@@ -2,13 +2,14 @@ package phasebox
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/rotisserie/eris"
 
 	errorspkg "github.com/argus-labs/world-engine/cli/internal/errors"
 	"github.com/argus-labs/world-engine/cli/internal/logger"
@@ -72,28 +73,38 @@ func (d *Dashboard) Open(title string) *Box {
 func (d *Dashboard) Run(
 	title string,
 	fn func(ctx context.Context, sess Session) error,
-	summarize func(err error, elapsed time.Duration) (summary string, failed bool),
+	summarize func(elapsed time.Duration) string,
 ) error {
 	return d.Open(title).Run(fn, summarize)
 }
 
-// Run runs fn with a Session scoped to this box, then appends summarize's
-// result below its rows (which stay visible, not replaced). Mirrors
-// spinner.Run's shape: fn gets the dashboard's shared, Ctrl+C-cancelable
-// context, and a resulting [context.Canceled] becomes a silent error instead
-// of a printed stack trace.
+// Run runs fn with a Session scoped to this box, then appends a summary below
+// its rows (which stay visible, not replaced): summarize's on success, a fixed
+// failed/canceled line otherwise, since the error is printed after the
+// dashboard. fn gets the dashboard's shared, Ctrl+C-cancelable context, and a
+// resulting [context.Canceled] becomes a silent error.
 func (b *Box) Run(
 	fn func(ctx context.Context, sess Session) error,
-	summarize func(err error, elapsed time.Duration) (summary string, failed bool),
+	summarize func(elapsed time.Duration) string,
 ) error {
 	sess := &sectionSession{p: b.d.p, section: b.id}
 
 	started := time.Now()
 	opErr := fn(b.d.ctx, sess)
-	summary, failed := summarize(opErr, time.Since(started))
-	b.d.p.Send(collapseMsg{section: b.id, summary: summary, failed: failed})
+	elapsed := time.Since(started)
 
-	if eris.Is(opErr, context.Canceled) {
+	var summary string
+	switch {
+	case opErr == nil:
+		summary = summarize(elapsed)
+	case isCanceled(opErr):
+		summary = "canceled"
+	default:
+		summary = fmt.Sprintf("failed (%s) — see error below", elapsed.Round(time.Second))
+	}
+	b.d.p.Send(collapseMsg{section: b.id, summary: summary, failed: opErr != nil})
+
+	if isCanceled(opErr) {
 		return errorspkg.NewSilent(opErr)
 	}
 	return opErr
@@ -122,4 +133,17 @@ func (s *sectionSession) UpsertRow(id, label, detail string, state RowState) {
 
 func (s *sectionSession) UpsertProgress(id, label string, percent int) {
 	s.p.Send(progressMsg{section: s.section, id: id, label: label, percent: percent})
+}
+
+func (s *sectionSession) Fail(id, label string, err error) {
+	detail := "failed"
+	if isCanceled(err) {
+		detail = "canceled"
+	}
+	s.p.Send(rowMsg{section: s.section, id: id, label: label, detail: detail, state: failed})
+}
+
+// isCanceled uses errors.Is, not eris.Is, so it also sees into errors.Join.
+func isCanceled(err error) bool {
+	return errors.Is(err, context.Canceled)
 }

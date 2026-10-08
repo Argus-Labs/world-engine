@@ -183,9 +183,13 @@ func (w *World) run(ctx context.Context) error {
 	if err := w.restore(ctx); err != nil {
 		return eris.Wrap(err, "failed to restore state from snapshot")
 	}
-	// Final snapshot.
 	defer func() {
-		w.snapshotWriter.Write(w.currentTick.height, w.encodeSnapshot(time.Now()))
+		if w.currentTick.height == 0 {
+			return
+		}
+		// Label the last completed tick, matching regular snapshots and restore's +1.
+		label := w.currentTick.height - 1
+		w.snapshotWriter.Write(label, w.encodeSnapshot(label, time.Now()))
 	}()
 
 	logger := w.tel.GetLogger("shard")
@@ -194,29 +198,38 @@ func (w *World) run(ctx context.Context) error {
 	ticker := time.NewTicker(time.Duration(float64(time.Second) / w.options.TickRate))
 	defer ticker.Stop()
 
+	// A single select listens on every control channel regardless of pause state. This
+	// prevents a handler send from becoming unreachable after a state transition (which
+	// caused uncancellable hangs and late out-of-band Step/Reset fulfillment). The isPaused
+	// guards inside the step/reset/ticker arms ensure stale requests that arrive while the
+	// world is running are NACKed (reply channel closed) instead of mutating state.
 	for {
-		if w.debug.isPaused() {
-			select {
-			case <-w.debug.resumeChan():
-				w.debug.setPaused(false)
-			case replyCh := <-w.debug.stepChan():
-				w.Tick(time.Now())
-				replyCh <- w.currentTick.height
-			case replyCh := <-w.debug.resetChan():
-				w.reset()
-				replyCh <- struct{}{}
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-			continue
-		}
-
 		select {
 		case <-ticker.C:
-			w.Tick(time.Now())
+			if !w.debug.isPaused() {
+				w.Tick(time.Now())
+			}
 		case replyCh := <-w.debug.pauseChan():
 			w.debug.setPaused(true)
 			replyCh <- w.currentTick.height
+		case <-w.debug.resumeChan():
+			if w.debug.isPaused() {
+				w.debug.setPaused(false)
+			}
+		case replyCh := <-w.debug.stepChan():
+			if !w.debug.isPaused() {
+				close(replyCh)
+				continue
+			}
+			w.Tick(time.Now())
+			replyCh <- w.currentTick.height
+		case replyCh := <-w.debug.resetChan():
+			if !w.debug.isPaused() {
+				close(replyCh)
+				continue
+			}
+			w.reset()
+			replyCh <- struct{}{}
 		case <-ctx.Done():
 			return ctx.Err()
 		}
@@ -293,7 +306,7 @@ func (w *World) step(timestamp time.Time, run func()) {
 			oteltrace.WithAttributes(attrSnapshotDue.Bool(snapshotDue)))
 		defer persistSpan.End()
 
-		data := w.encodeSnapshot(timestamp)
+		data := w.encodeSnapshot(w.currentTick.height, timestamp)
 
 		// Hand the debug service the same frozen bytes. Nobody writes to them, so sharing with the
 		// writer below is safe.
@@ -318,14 +331,19 @@ func (w *World) dispatchEvents(ctx context.Context) {
 		span.SetError(err)
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 	}
+	w.service.drainInterShardCommands()
 }
 
 // encodeSnapshot produces the complete snapshot bytes for the current tick: the ECS sizes and
 // streams its world state directly into one exactly-sized buffer, and the envelope is hand-encoded
 // around it. No intermediate proto graph exists; the buffer is the freeze-frame.
-func (w *World) encodeSnapshot(timestamp time.Time) []byte {
+//
+// tick is the label stamped into the envelope's tick_height, supplied by the caller so the same
+// world state can be labeled with the pre-increment height (persistState, the final shutdown
+// snapshot) rather than always reading w.currentTick.height.
+func (w *World) encodeSnapshot(tick uint64, timestamp time.Time) []byte {
 	bodySize := w.world.StateWireSize()
-	return snapshot.Encode(w.currentTick.height, timestamp, bodySize, w.world.AppendStateWire)
+	return snapshot.Encode(tick, timestamp, bodySize, w.world.AppendStateWire)
 }
 
 func (w *World) restore(ctx context.Context) (err error) {
@@ -406,8 +424,18 @@ func (w *World) reset() {
 
 	// Publish the reset state when the debug service is enabled.
 	if w.debug != nil {
-		w.debug.publishState(w.encodeSnapshot(w.currentTick.timestamp))
+		w.debug.publishState(w.encodeSnapshot(0, w.currentTick.timestamp))
 	}
+}
+
+// useSyncSnapshotStorage swaps the world's snapshot storage and installs a synchronous writer backed
+// by it, so a test observes every Write immediately. It stops any writer the world already holds.
+func (w *World) useSyncSnapshotStorage(store snapshot.Storage) {
+	if w.snapshotWriter != nil {
+		w.snapshotWriter.Stop(context.Background())
+	}
+	w.snapshotStorage = store
+	w.snapshotWriter = snapshot.NewSyncWriter(store, w.tel.GetLogger("snapshot"))
 }
 
 type Tick struct {
@@ -545,10 +573,10 @@ func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 // its own. It mirrors the client-facing SendCommand RPC — a shard sending to a shard is the same operation,
 // initiated in-engine.
 //
-// Fire-and-forget: the actual network send happens when events flush at end-of-tick, so cmd must not be
-// mutated after this call — a *Command whose fields change before the flush would send the mutated value.
-// A send that fails is not returned (it must not block the tick) but is logged at error level, because a
-// dropped shard-to-shard command is serious.
+// Fire-and-forget: cmd is encoded when events flush at end-of-tick, so it must not be mutated after this
+// call — a *Command whose fields change before the flush would send the mutated value. The send then
+// happens in the background, in order per target shard. A send that fails is not returned but is logged
+// at error level, because a dropped shard-to-shard command is serious.
 func (w *World) SendToShard(to OtherWorld, cmd command.Payload) {
 	if to.ShardID == "" {
 		w.Logger().Error().Str("command", cmd.Name()).Msg("SendToShard: empty target shard address, dropping command")
