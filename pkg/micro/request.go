@@ -61,11 +61,17 @@ func NewRequestFromNATSMsg(msg *nats.Msg, serviceAddr *microv1.ServiceAddress) (
 		if err := proto.Unmarshal(msg.Data, &request); err != nil {
 			return nil, eris.Wrap(err, "failed to unmarshal request")
 		}
-		if err := protovalidate.Validate(&request); err != nil {
-			return nil, eris.Wrap(err, "request validation failed")
-		}
+		// Copy request_id into req before validation so that when validation
+		// fails we can still return req (with the parsed request_id) to the
+		// caller. This lets error responses echo the client's request_id for
+		// correlation even when the request is otherwise rejected.
+		// proto.Unmarshal failure still returns nil because request_id is not
+		// reliably populated at that point.
 		if request.RequestId != nil {
 			req.RequestID = request.GetRequestId()
+		}
+		if err := protovalidate.Validate(&request); err != nil {
+			return req, eris.Wrap(err, "request validation failed")
 		}
 		req.Payload = request.GetPayload()
 	}
