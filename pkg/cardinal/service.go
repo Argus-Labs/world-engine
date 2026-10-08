@@ -348,7 +348,9 @@ func (s *service) StartEventStream(
 			return connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 		}
 	}
-	s.subscribeEvents(player, req.Msg.GetSubscriptions())
+	if err := s.subscribeEvents(player, req.Msg.GetSubscriptions()); err != nil {
+		return err
+	}
 
 	if err := subscriber.send(&cardinalv1.StartEventStreamResponse{}); err != nil {
 		return connect.NewError(connect.CodeInternal, eris.Wrap(err, "failed to send initial empty event to client"))
@@ -382,7 +384,9 @@ func (s *service) SubscribeEvents(
 	if err != nil {
 		return nil, err
 	}
-	s.subscribeEvents(player, req.Msg.GetSubscriptions())
+	if err := s.subscribeEvents(player, req.Msg.GetSubscriptions()); err != nil {
+		return nil, err
+	}
 
 	return connect.NewResponse(&cardinalv1.SubscribeEventsResponse{}), nil
 }
@@ -395,12 +399,18 @@ func (s *service) UnsubscribeEvents(
 	if err != nil {
 		return nil, err
 	}
-	s.unsubscribeEvents(player, req.Msg.GetSubscriptions())
+	if err := s.unsubscribeEvents(player, req.Msg.GetSubscriptions()); err != nil {
+		return nil, err
+	}
 
 	return connect.NewResponse(&cardinalv1.UnsubscribeEventsResponse{}), nil
 }
 
-// subscriptionRequest validates a subscribe or unsubscribe request from a player with an open stream.
+// subscriptionRequest validates a subscribe or unsubscribe request from a player. It performs the
+// state-independent checks (authentication and shard-address matching); the subscriber existence
+// check is deferred to subscribeEvents/unsubscribeEvents, which perform it under the same write
+// lock as the mutation so a concurrent removeSubscriber (from a closing stream) cannot turn a
+// passing check into a nil-subscriber panic.
 func (s *service) subscriptionRequest(
 	ctx context.Context, subscriptions []*cardinalv1.EventSubscription,
 ) (*Player, error) {
@@ -408,10 +418,6 @@ func (s *service) subscriptionRequest(
 	assert.That(player != nil, "player should exist in authenticated request context")
 	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(player.ID),
 		attrEventSubscriptions.Int(countSubscriptions(subscriptions)))
-
-	if !s.hasSubscriber(player) {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
-	}
 
 	for _, subscription := range subscriptions {
 		if micro.String(s.world.address) != micro.String(subscription.GetAddress()) {
@@ -449,40 +455,38 @@ func (s *service) removeSubscriber(player *Player) {
 	delete(s.subscribers, player.ID)
 }
 
-func (s *service) subscribeEvents(player *Player, subscriptions []*cardinalv1.EventSubscription) {
+func (s *service) subscribeEvents(player *Player, subscriptions []*cardinalv1.EventSubscription) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	subscriber := s.subscribers[player.ID]
-	assert.That(subscriber != nil, "subscriber should exist for authenticated stream")
+	if subscriber == nil {
+		return connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
+	}
 
 	for _, subscription := range subscriptions {
 		for _, eventName := range subscription.GetEvents() {
 			subscriber.events[eventName] = struct{}{}
 		}
 	}
+	return nil
 }
 
-func (s *service) unsubscribeEvents(player *Player, subscriptions []*cardinalv1.EventSubscription) {
+func (s *service) unsubscribeEvents(player *Player, subscriptions []*cardinalv1.EventSubscription) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	subscriber := s.subscribers[player.ID]
-	assert.That(subscriber != nil, "subscriber should exist for authenticated stream")
+	if subscriber == nil {
+		return connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
+	}
 
 	for _, subscription := range subscriptions {
 		for _, eventName := range subscription.GetEvents() {
 			delete(subscriber.events, eventName)
 		}
 	}
-}
-
-func (s *service) hasSubscriber(player *Player) bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	_, ok := s.subscribers[player.ID]
-	return ok
+	return nil
 }
 
 // countSubscriptions returns the number of event names across all subscriptions.
