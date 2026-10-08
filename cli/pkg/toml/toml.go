@@ -61,8 +61,7 @@ func validate(cfg *Config) error {
 		return err
 	}
 
-	// Validate project — becomes a k8s object name ({project}-db, {project}-{id}-service),
-	// so require dnslabel-canonical (DNS-1123 label) to reject it here rather than at k8s apply.
+	// Validate project
 	if err := normalizeAndValidateCanonicalName(&cfg.Project, "project"); err != nil {
 		return err
 	}
@@ -78,9 +77,7 @@ func validate(cfg *Config) error {
 			return eris.New(fmt.Sprintf("shards[%d].id is required", i))
 		}
 
-		// Normalize and validate in-place so changes persist. The shard ID becomes a k8s
-		// object name (ShardPool metadata.name), so require dnslabel-canonical (DNS-1123 label)
-		// to reject it here rather than at k8s apply.
+		// Normalize and validate in-place so changes persist
 		if err := normalizeAndValidateCanonicalName(&cfg.Shards[i].ID, "shardID"); err != nil {
 			return err
 		}
@@ -179,8 +176,6 @@ func validateServices(cfg *Config) error {
 			return eris.New(fmt.Sprintf("services[%d].id is required", i))
 		}
 
-		// The service ID becomes a k8s object name ({project}-{id}-service), so require
-		// dnslabel-canonical (DNS-1123 label) to reject it here rather than at k8s apply.
 		if err := normalizeAndValidateCanonicalName(&svc.ID, "serviceID"); err != nil {
 			return err
 		}
