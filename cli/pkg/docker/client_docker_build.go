@@ -35,13 +35,6 @@ var cardinalDockerfile []byte
 // collisions with anything a user might check in.
 const cardinalDockerfileName = "__cardinal.Dockerfile"
 
-// cardinalCacheMountPrefix matches the BuildKit cache-mount IDs used by the
-// embedded Dockerfile (cardinal-gomod, cardinal-gobuild). Shared across all
-// Cardinal projects on the host so common dependencies stay deduplicated;
-// PruneCardinalBuildCache uses this as a description-substring filter to
-// remove every Cardinal-related cache mount on the daemon.
-const cardinalCacheMountPrefix = "cardinal-"
-
 // defaultBuildIgnores are always excluded from the build context, regardless
 // of the project's .dockerignore. Keeps the context small when a consumer
 // has no .dockerignore at the project root.
@@ -336,10 +329,13 @@ func writeBuildContextTar(tw *tar.Writer, src io.Reader, dfContent []byte, dfNam
 	}
 }
 
-// buildEvent captures only the error fields from /build's JSON event stream
-// (covering both the legacy builder and BuildKit shapes). Stream/aux progress
-// is intentionally ignored — progress is reported via the Progress callback.
+// buildEvent captures the error fields from /build's JSON event stream
+// (covering both the legacy builder and BuildKit shapes), plus BuildKit's
+// trace, whose step output a build error quotes. Other progress is ignored —
+// it's reported via the Progress callback.
 type buildEvent struct {
+	ID          string            `json:"id,omitempty"`
+	Aux         json.RawMessage   `json:"aux,omitempty"`
 	ErrorDetail *buildErrorDetail `json:"errorDetail,omitempty"`
 	Error       string            `json:"error,omitempty"`
 }
@@ -349,6 +345,7 @@ type buildErrorDetail struct {
 }
 
 func drainBuildResponse(ctx context.Context, body io.Reader, imageName string) error {
+	var output buildOutput
 	decoder := json.NewDecoder(body)
 	for decoder.More() {
 		select {
@@ -365,11 +362,18 @@ func drainBuildResponse(ctx context.Context, body io.Reader, imageName string) e
 			return eris.Wrapf(err, "decode build event for %s", imageName)
 		}
 
+		if event.ID == buildKitTraceID {
+			var payload []byte
+			if json.Unmarshal(event.Aux, &payload) == nil {
+				output.add(payload)
+			}
+			continue
+		}
 		if event.ErrorDetail != nil && event.ErrorDetail.Message != "" {
-			return eris.Errorf("build error for %s: %s", imageName, event.ErrorDetail.Message)
+			return eris.Errorf("build error for %s: %s%s", imageName, event.ErrorDetail.Message, output.tail())
 		}
 		if event.Error != "" {
-			return eris.Errorf("build error for %s: %s", imageName, event.Error)
+			return eris.Errorf("build error for %s: %s%s", imageName, event.Error, output.tail())
 		}
 	}
 	return nil
