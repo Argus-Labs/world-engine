@@ -29,8 +29,14 @@ func PutCredential(c Credential) error {
 	if err != nil {
 		return eris.Wrap(err, "encoding credentials")
 	}
+	path := filepath.Join(dir, credentialFile)
 	// 0600: this is a bearer token with operator access.
-	return os.WriteFile(filepath.Join(dir, credentialFile), data, 0o600)
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		return eris.Wrap(err, "writing credentials")
+	}
+	// os.WriteFile only applies perm on create, so an existing file retains its
+	// prior mode. Tighten explicitly, mirroring SetupStoreDir's directory Chmod.
+	return eris.Wrap(os.Chmod(path, 0o600), "tightening credential file mode")
 }
 
 // GetCredential reads the cached credential. A missing file surfaces as an
