@@ -181,9 +181,13 @@ func (w *World) run(ctx context.Context) error {
 	if err := w.restore(ctx); err != nil {
 		return eris.Wrap(err, "failed to restore state from snapshot")
 	}
-	// Final snapshot.
 	defer func() {
-		w.snapshotWriter.Write(w.currentTick.height, w.encodeSnapshot(time.Now()))
+		if w.currentTick.height == 0 {
+			return
+		}
+		// Label the last completed tick, matching regular snapshots and restore's +1.
+		label := w.currentTick.height - 1
+		w.snapshotWriter.Write(label, w.encodeSnapshot(label, time.Now()))
 	}()
 
 	logger := w.tel.GetLogger("shard")
@@ -288,7 +292,7 @@ func (w *World) step(timestamp time.Time, run func()) {
 			oteltrace.WithAttributes(attrSnapshotDue.Bool(snapshotDue)))
 		defer persistSpan.End()
 
-		data := w.encodeSnapshot(timestamp)
+		data := w.encodeSnapshot(w.currentTick.height, timestamp)
 
 		// Hand the debug service the same frozen bytes. Nobody writes to them, so sharing with the
 		// writer below is safe.
@@ -324,9 +328,13 @@ func (w *World) dispatchEvents(ctx context.Context) {
 // encodeSnapshot produces the complete snapshot bytes for the current tick: the ECS sizes and
 // streams its world state directly into one exactly-sized buffer, and the envelope is hand-encoded
 // around it. No intermediate proto graph exists; the buffer is the freeze-frame.
-func (w *World) encodeSnapshot(timestamp time.Time) []byte {
+//
+// tick is the label stamped into the envelope's tick_height, supplied by the caller so the same
+// world state can be labeled with the pre-increment height (persistState, the final shutdown
+// snapshot) rather than always reading w.currentTick.height.
+func (w *World) encodeSnapshot(tick uint64, timestamp time.Time) []byte {
 	bodySize := w.world.StateWireSize()
-	return snapshot.Encode(w.currentTick.height, timestamp, bodySize, w.world.AppendStateWire)
+	return snapshot.Encode(tick, timestamp, bodySize, w.world.AppendStateWire)
 }
 
 func (w *World) restore(ctx context.Context) (err error) {
@@ -407,8 +415,18 @@ func (w *World) reset() {
 
 	// Publish the reset state when the debug service is enabled.
 	if w.debug != nil {
-		w.debug.publishState(w.encodeSnapshot(w.currentTick.timestamp))
+		w.debug.publishState(w.encodeSnapshot(0, w.currentTick.timestamp))
 	}
+}
+
+// useSyncSnapshotStorage swaps the world's snapshot storage and installs a synchronous writer backed
+// by it, so a test observes every Write immediately. It stops any writer the world already holds.
+func (w *World) useSyncSnapshotStorage(store snapshot.Storage) {
+	if w.snapshotWriter != nil {
+		w.snapshotWriter.Stop(context.Background())
+	}
+	w.snapshotStorage = store
+	w.snapshotWriter = snapshot.NewSyncWriter(store, w.tel.GetLogger("snapshot"))
 }
 
 type Tick struct {
