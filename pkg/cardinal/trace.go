@@ -8,7 +8,6 @@ const (
 	spanInit           = "cardinal.init"
 	spanRestore        = "cardinal.restore"
 	spanTick           = "cardinal.tick"
-	spanSystem         = "cardinal.system"
 	spanEventDispatch  = "cardinal.events.dispatch"
 	spanPersistState   = "cardinal.persist_state"
 	spanEventPublish   = "cardinal.event.publish"

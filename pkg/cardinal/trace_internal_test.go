@@ -85,13 +85,14 @@ func TestTickEmitsSpans(t *testing.T) {
 	require.Contains(t, tick.Attributes, attrTickHeight.Int64(0))
 	require.Contains(t, tick.Attributes, attrTickCommands.Int(0))
 
-	for _, name := range []string{spanSystem, spanEventDispatch, spanPersistState} {
+	const systemSpan = "*cardinal.tracedSystem"
+	for _, name := range []string{systemSpan, spanEventDispatch, spanPersistState} {
 		child, ok := byName[name]
 		require.True(t, ok, "missing span %s", name)
 		require.Equal(t, tick.SpanContext.SpanID(), child.Parent.SpanID(), "%s is a child of the tick", name)
 	}
-	require.Contains(t, byName[spanSystem].Attributes, attrSystemName.String("*cardinal.tracedSystem"))
-	require.Contains(t, byName[spanSystem].Attributes, attrSystemHook.String("SYSTEM_HOOK_POST_UPDATE"))
+	require.Contains(t, byName[systemSpan].Attributes, attrSystemName.String(systemSpan))
+	require.Contains(t, byName[systemSpan].Attributes, attrSystemHook.String("SYSTEM_HOOK_POST_UPDATE"))
 	require.Contains(t, byName[spanPersistState].Attributes, attrSnapshotDue.Bool(true))
 }
 
