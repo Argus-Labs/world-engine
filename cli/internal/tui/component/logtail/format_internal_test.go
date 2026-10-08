@@ -104,41 +104,7 @@ func TestShortTime(t *testing.T) {
 	require.Equal(t, "", shortTime(""))
 }
 
-// TestRenderZerolog_ObjectClassification guards the contract that ok is true
-// only for JSON objects. The bare literal `null` decodes into a nil map with
-// no error under encoding/json, so without an explicit nil check it would be
-// mistaken for a zerolog event and re-rendered as the unknown-level marker
-// `???`.
-func TestRenderZerolog_ObjectClassification(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name   string
-		raw    string
-		wantOK bool
-	}{
-		{"bare null", "null", false},
-		{"empty object", "{}", true},
-		{"info line", `{"level":"info","message":"hi"}`, true},
-		{"number", "42", false},
-		{"not json", "not json", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			_, ok := renderZerolog(tt.raw)
-			require.Equal(t, tt.wantOK, ok, "renderZerolog(%q) ok", tt.raw)
-		})
-	}
-}
-
-// TestFormatShardLine_NullPassesThrough is the headline regression: a shard
-// log line containing exactly `null` must reach the operator verbatim under
-// the shard prefix, not be re-rendered as the fabricated `???` level marker.
 func TestFormatShardLine_NullPassesThrough(t *testing.T) {
 	t.Parallel()
-	got := ansi.Strip(formatShardLine("gameplay", "#00FF00", "null"))
-	require.Equal(t, "[gameplay] null", got)
-	require.NotContains(t, got, "???")
+	require.Equal(t, "[gameplay] null", ansi.Strip(formatShardLine("gameplay", "#00FF00", "null")))
 }

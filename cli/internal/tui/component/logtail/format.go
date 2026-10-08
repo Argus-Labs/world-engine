@@ -2,7 +2,6 @@ package logtail
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -47,14 +46,8 @@ func formatShardLine(label, labelColor, raw string) string {
 // is false when raw isn't a JSON object, in which case the caller passes the
 // line through verbatim.
 func renderZerolog(raw string) (string, bool) {
-	// ConsoleWriter relies on json.Decode into a map as its "is this a zerolog
-	// event?" test, but encoding/json accepts the bare literal `null` as a nil
-	// map with no error — so `null` would otherwise be re-rendered as the
-	// unknown-level marker `???` instead of passing through verbatim. Unmarshal
-	// into a map ourselves first: it errors on every non-object JSON value
-	// (numbers, strings, arrays, booleans) and leaves a nil map only for `null`.
-	var evt map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(raw), &evt); err != nil || evt == nil {
+	// ConsoleWriter accepts a bare `null` and renders it as `???`.
+	if !strings.HasPrefix(strings.TrimSpace(raw), "{") {
 		return "", false
 	}
 	var buf bytes.Buffer
