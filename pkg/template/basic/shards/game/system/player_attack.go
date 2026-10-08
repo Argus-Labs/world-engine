@@ -22,6 +22,9 @@ type AttackPlayerSystem struct{}
 func (s *AttackPlayerSystem) Run(w *cardinal.World) {
 	players := w.Exact[Player]()
 	for cmd := range w.Commands[AttackPlayerCommand]() {
+		if cmd.Player == "" {
+			continue // Only players attack; another shard has no one to send PlayerDeath to.
+		}
 		command := cmd.Payload
 		for player := range players.Iter() {
 			entity := player.ID()
@@ -41,7 +44,7 @@ func (s *AttackPlayerSystem) Run(w *cardinal.World) {
 			} else {
 				player.Destroy()
 
-				w.SendTo(cmd.Persona, event.PlayerDeath{Nickname: tag.Nickname})
+				w.SendTo(cmd.Player, event.PlayerDeath{Nickname: tag.Nickname})
 
 				w.EmitSystemEvent(systemevent.PlayerDeath{Nickname: tag.Nickname})
 

@@ -18,9 +18,23 @@ import (
 type Command struct {
 	Name    string                // The command name
 	Address *micro.ServiceAddress // Service address this command is sent to
-	Persona string                // Sender's persona
+	Sender  Sender                // Who sent the command
 	Payload Payload               // The command payload itself
 	Span    trace.SpanContext     // Span that enqueued the command; invalid when the caller was untraced
+}
+
+// Sender identifies who sent a command. Exactly one field is set.
+type Sender struct {
+	Player string                // Authenticated player ID, when a client sent the command
+	Shard  *micro.ServiceAddress // Sending service's address, when another service sent the command
+}
+
+// String returns the player ID, or the sending service's address.
+func (s Sender) String() string {
+	if s.Shard != nil {
+		return micro.String(s.Shard)
+	}
+	return s.Player
 }
 
 // Payload is the interface all command payloads must implement.
@@ -91,15 +105,15 @@ func (m *Manager) Register(name string, queue Queue) (ID, error) {
 // Enqueue stores a command in its corresponding queue. The queues map isn't lock protected, and it
 // is expected that there exists only 1 caller for each command type, therefore each caller reads
 // a different key. This is ok because concurrent reads on Go maps are allowed.
-func (m *Manager) Enqueue(ctx context.Context, command *iscv1.Command) error {
+func (m *Manager) Enqueue(ctx context.Context, command *iscv1.Command, sender Sender) error {
 	// Enqueue expects callers to validate the command, so here we just assert for defense in depth.
 	// NOTE: one extra assertion that we can't put here is if command.address == this shard.address.
 	// The caller must be responsible for checking this.
 	assert.That(command.GetName() != "", "command has empty name")
 	assert.That(command.GetAddress() != nil, "command has nil address")
-	assert.That(command.GetPersona() != nil, "command has nil persona")
+	assert.That((sender.Player == "") != (sender.Shard == nil), "command sender must be a player or a shard")
 	// Payload may be empty: a command whose proto message has no set fields serializes to zero
-	// bytes (e.g. lobby_heartbeat). Identity lives in name/address/persona, so an empty payload
+	// bytes (e.g. lobby_heartbeat). Identity lives in name/address/sender, so an empty payload
 	// is valid — only those three are real invariants.
 
 	// We're doing 2 lookups here to keep the Enqueue caller simple, at the cost of less performance.
@@ -110,7 +124,7 @@ func (m *Manager) Enqueue(ctx context.Context, command *iscv1.Command) error {
 	if !exists {
 		return eris.Errorf("unregistered command: %s", name)
 	}
-	return m.queues[id].Enqueue(ctx, command)
+	return m.queues[id].Enqueue(ctx, command, sender)
 }
 
 // Get retrieves a slice of commands given the command ID. The ID is returned from Register, and

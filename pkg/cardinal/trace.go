@@ -21,7 +21,7 @@ const (
 	attrSnapshotDue  = attribute.Key("cardinal.snapshot.due")
 
 	attrCommandName        = attribute.Key("cardinal.command.name")
-	attrCommandPersona     = attribute.Key("cardinal.command.persona")
+	attrCommandSender      = attribute.Key("cardinal.command.sender")
 	attrCommandTarget      = attribute.Key("cardinal.command.target")
 	attrEventName          = attribute.Key("cardinal.event.name")
 	attrEventRecipient     = attribute.Key("cardinal.event.recipient")

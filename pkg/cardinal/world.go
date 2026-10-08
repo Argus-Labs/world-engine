@@ -261,7 +261,7 @@ func (w *World) step(timestamp time.Time, run func()) {
 			break
 		}
 		links = append(links, oteltrace.Link{SpanContext: cmd.Span, Attributes: []attribute.KeyValue{
-			attrCommandName.String(cmd.Name), attrCommandPersona.String(cmd.Persona)}})
+			attrCommandName.String(cmd.Name), attrCommandSender.String(cmd.Sender.String())}})
 	}
 
 	ctx, span := trace.New(context.Background(), spanTick,
@@ -533,7 +533,11 @@ func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 			// semantics, no pointer: Serializable is satisfied by the value type.
 			payload, isT := cmd.Payload.(T)
 			assert.That(isT, "mismatched command type passed to command context")
-			if !yield(CommandContext[T]{Payload: payload, Persona: cmd.Persona}) {
+			cc := CommandContext[T]{Payload: payload, Player: cmd.Sender.Player}
+			if cmd.Sender.Shard != nil {
+				cc.Shard = micro.String(cmd.Sender.Shard)
+			}
+			if !yield(cc) {
 				return
 			}
 		}
@@ -561,7 +565,7 @@ func (w *World) SendToShard(to OtherWorld, cmd command.Payload) {
 		Kind: event.KindInterShardCommand,
 		Payload: command.Command{
 			Name:    cmd.Name(),
-			Persona: micro.String(w.address),
+			Sender:  command.Sender{Shard: w.address},
 			Address: serviceAddress,
 			Payload: cmd,
 		},
@@ -607,13 +611,13 @@ func (w *World) Broadcast[T Event](evt T) {
 	})
 }
 
-// SendTo enqueues a targeted event that is delivered only to the named recipient (a user ID),
+// SendTo enqueues a targeted event that is delivered only to the named recipient (a player ID),
 // provided they have an open event stream subscribed to this event. If the recipient has no open
 // stream, the event is silently dropped. It panics if T was not registered with RegisterEvent.
 //
 // Example:
 //
-//	w.SendTo(cmd.Persona, Result{OK: true})
+//	w.SendTo(cmd.Player, Result{OK: true})
 func (w *World) SendTo[T Event](recipient string, evt T) {
 	assert.That(recipient != "", "recipient must not be empty (use Broadcast for fan-out)")
 	w.checkEventRegistered[T]()

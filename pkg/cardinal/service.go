@@ -233,16 +233,14 @@ func (s *service) SendCommand(
 
 	cmd := req.Msg.GetCommand()
 	assert.That(cmd != nil, "command should have been validated")
-	assert.That(cmd.GetPersona() != nil, "command persona should have been validated")
 
-	cmd.Persona.Id = player.ID
 	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(player.ID), attrCommandName.String(cmd.GetName()))
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 	}
 
-	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
+	if err := s.world.commands.Enqueue(ctx, cmd, command.Sender{Player: player.ID}); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
@@ -258,9 +256,7 @@ func (s *service) SendCommandWithReply(
 
 	cmd := req.Msg.GetCommand()
 	assert.That(cmd != nil, "command should have been validated")
-	assert.That(cmd.GetPersona() != nil, "command persona should have been validated")
 
-	cmd.Persona.Id = player.ID
 	span := oteltrace.SpanFromContext(ctx)
 	span.SetAttributes(semconv.EnduserID(player.ID), attrCommandName.String(cmd.GetName()),
 		attrEventName.String(req.Msg.GetEventName()))
@@ -275,7 +271,7 @@ func (s *service) SendCommandWithReply(
 	waiter := s.addReplyWaiter(req.Msg.GetEventName())
 	defer s.removeReplyWaiter(req.Msg.GetEventName(), waiter)
 
-	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
+	if err := s.world.commands.Enqueue(ctx, cmd, command.Sender{Player: player.ID}); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
@@ -604,21 +600,15 @@ func (s *service) handleInterShardCommand(ctx context.Context, req *micro.Reques
 	default:
 	}
 
-	cmd := &iscv1.Command{}
-	if err := req.Payload.UnmarshalTo(cmd); err != nil {
+	isc := &iscv1.InterShardCommand{}
+	if err := req.Payload.UnmarshalTo(isc); err != nil {
 		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to parse request payload"), codes.InvalidArgument)
 	}
 
-	if err := protovalidate.Validate(cmd); err != nil {
+	if err := protovalidate.Validate(isc); err != nil {
 		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to validate command"), codes.InvalidArgument)
 	}
-	if _, err := micro.ParseAddress(cmd.GetPersona().GetId()); err != nil {
-		return micro.NewErrorResponse(
-			req,
-			eris.Wrap(err, "command persona is not a shard address"),
-			codes.InvalidArgument,
-		)
-	}
+	cmd := isc.GetCommand()
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
 		return micro.NewErrorResponse(
@@ -629,7 +619,7 @@ func (s *service) handleInterShardCommand(ctx context.Context, req *micro.Reques
 	}
 
 	oteltrace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))
-	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
+	if err := s.world.commands.Enqueue(ctx, cmd, command.Sender{Shard: isc.GetSender()}); err != nil {
 		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), codes.InvalidArgument)
 	}
 
@@ -651,11 +641,13 @@ func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event)
 
 	payload := schema.Marshal(isc.Payload)
 
-	commandPb := &iscv1.Command{
-		Name:    isc.Payload.Name(),
-		Address: isc.Address,
-		Persona: &iscv1.Persona{Id: isc.Persona},
-		Payload: payload,
+	commandPb := &iscv1.InterShardCommand{
+		Command: &iscv1.Command{
+			Name:    isc.Payload.Name(),
+			Address: isc.Address,
+			Payload: payload,
+		},
+		Sender: isc.Sender.Shard,
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)

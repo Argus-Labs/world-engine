@@ -54,27 +54,26 @@ func (s *AttackSystem) Run(w *cardinal.World) {
 }
 ```
 
-### Personas
+### Senders
 
-A persona is the unique identity associated with a player’s account. All commands include metadata containing the sender’s persona, which you can use for authorization checks like verifying entity ownership.
+Every command carries its sender, which you can use for authorization checks like verifying entity ownership. Exactly one of these fields is set:
 
-If your client is authenticated, commands sent from it will automatically include your account's persona. In multi-shard setups, personas remain consistent across shards, allowing any shard to verify and act on the same player identity.
-
-You can get a command's persona from the `Persona` field:
+- `cmd.Player` is the player ID of the client that sent the command. Cardinal takes it from the client's auth token, so a client cannot claim to be another player. Player IDs are the same on every shard of a project.
+- `cmd.Shard` is the address of the shard that sent the command with `w.SendToShard`.
 
 ```go
 func (s *AttackSystem) Run(w *cardinal.World) {
     players := w.Contains[struct{ Owner Owner }]()
     for cmd := range w.Commands[AttackCommand]() {
         attack := cmd.Payload
-        sender := cmd.Persona
+        sender := cmd.Player
 
         // Get the player's entity and verify ownership.
         player, err := players.GetByID(attack.PlayerID)
         if err != nil {
             continue
         }
-        if player.Get[Owner]().Persona != sender {
+        if player.Get[Owner]().PlayerID != sender {
             continue // Skip unauthorized commands.
         }
 

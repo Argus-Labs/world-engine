@@ -42,7 +42,7 @@ func TestTestWorld_CommandReachesOnlyTheNextStep(t *testing.T) {
 	w.Command("alice", testutils.SimpleCommand{Value: 7})
 	w.RunSystem(reader)
 	assert.Equal(t, []cardinal.CommandContext[testutils.SimpleCommand]{
-		{Payload: testutils.SimpleCommand{Value: 7}, Persona: "alice"},
+		{Payload: testutils.SimpleCommand{Value: 7}, Player: "alice"},
 	}, reader.got)
 
 	w.RunSystem(reader)

@@ -134,8 +134,8 @@ type tickingReplyQueue struct {
 	tick func()
 }
 
-func (q *tickingReplyQueue) Enqueue(ctx context.Context, cmd *iscv1.Command) error {
-	if err := q.Queue.Enqueue(ctx, cmd); err != nil {
+func (q *tickingReplyQueue) Enqueue(ctx context.Context, cmd *iscv1.Command, sender command.Sender) error {
+	if err := q.Queue.Enqueue(ctx, cmd, sender); err != nil {
 		return err
 	}
 	q.tick()
@@ -149,7 +149,7 @@ type failingQueue struct {
 	command.Queue
 }
 
-func (q *failingQueue) Enqueue(context.Context, *iscv1.Command) error {
+func (q *failingQueue) Enqueue(context.Context, *iscv1.Command, command.Sender) error {
 	return eris.New("simulated enqueue failure")
 }
 
@@ -215,7 +215,6 @@ func TestService_SendCommandWithReply_WaiterRegisteredBeforeEnqueue(t *testing.T
 		cmdPb := &iscv1.Command{
 			Name:    testutils.SimpleCommand{}.Name(),
 			Address: w.address,
-			Persona: &iscv1.Persona{Id: "client-provided-persona"},
 			Payload: testutils.SimpleCommand{Value: prng.IntN(1_000_000)}.MarshalWire(),
 		}
 
@@ -251,7 +250,6 @@ func TestService_SendCommandWithReply_WaiterRegisteredBeforeEnqueue(t *testing.T
 		cmdPb := &iscv1.Command{
 			Name:    testutils.SimpleCommand{}.Name(),
 			Address: w.address,
-			Persona: &iscv1.Persona{Id: "client-provided-persona"},
 			Payload: testutils.SimpleCommand{Value: 42}.MarshalWire(),
 		}
 
@@ -320,7 +318,6 @@ func TestService_SendCommandWithReply_ReplyDeliveredUnderHotTickLoop(t *testing.
 				cmdPb := &iscv1.Command{
 					Name:    scwrCommandName,
 					Address: w.address,
-					Persona: &iscv1.Persona{Id: "stress-user"},
 					Payload: schema.Marshal(replyCommand{ReplyID: replyID, Value: value}),
 				}
 				callCtx, callCancel := context.WithTimeout(context.Background(), scwrStressPerCallTimeout)

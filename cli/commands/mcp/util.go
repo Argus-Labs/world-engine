@@ -30,8 +30,6 @@ import (
 const (
 	// defaultDevPlayerID is the default player ID used for dev auth.
 	defaultDevPlayerID = "mcp-dev-player"
-	// devPersonaID is a placeholder persona (regex-safe); the shard overwrites Persona.Id from X-Player-Id.
-	devPersonaID = "-1"
 	// defaultRegion is the region local shards register with (CARDINAL_REGION);
 	// it must match or a command reaches no responders.
 	defaultRegion = cluster.DefaultRegion

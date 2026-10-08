@@ -3,14 +3,18 @@ syntax = "proto3";
 package worldengine.isc.v1;
 
 import "buf/validate/validate.proto";
-import "worldengine/isc/v1/persona.proto";
 import "worldengine/micro/v1/service.proto";
 
 option csharp_namespace = "WorldEngine.Proto.Isc.V1";
 option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1";
 
-// Command represents the data payload of a command to trigger systems in a shard.
+// Command represents the data payload of a command to trigger systems in a shard. It names no
+// sender: Cardinal takes a client's player ID from its auth token, and a shard's address from
+// InterShardCommand.
 message Command {
+  reserved 3;
+  reserved "persona";
+
   // The name of the command.
   string name = 1 [
     (buf.validate.field).required = true,
@@ -24,10 +28,15 @@ message Command {
   // The address of the cardinal shard to send the command to.
   micro.v1.ServiceAddress address = 2 [(buf.validate.field).required = true];
 
-  // The persona sending the command.
-  Persona persona = 3 [(buf.validate.field).required = true];
-
   // The serialized command payload. May be empty: a command whose proto message
   // has no set fields serializes to zero bytes, so this is not marked required.
   bytes payload = 4;
+}
+
+// InterShardCommand is a command one service sends to a shard over NATS.
+message InterShardCommand {
+  Command command = 1 [(buf.validate.field).required = true];
+
+  // The address of the sending service.
+  micro.v1.ServiceAddress sender = 2 [(buf.validate.field).required = true];
 }

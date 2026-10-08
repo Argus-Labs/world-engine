@@ -105,7 +105,6 @@ func sendCommandHandler(
 	req := connect.NewRequest(&cardinalv1.SendCommandRequest{
 		Command: &iscv1.Command{
 			Name:    args.CommandName,
-			Persona: &iscv1.Persona{Id: devPersonaID},
 			Address: target.address,
 			Payload: payloadBytes,
 		},

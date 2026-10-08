@@ -84,7 +84,7 @@ type (
 	SessionPassthroughUpdatedEvent = system.SessionPassthroughUpdatedEvent
 	PlayerPassthroughUpdatedEvent  = system.PlayerPassthroughUpdatedEvent
 
-	// CommandResult (persona-prefixed responses).
+	// CommandResult (responses sent to the commanding player).
 	CreateLobbyResult              = system.CreateLobbyResult
 	JoinLobbyResult                = system.JoinLobbyResult
 	JoinTeamResult                 = system.JoinTeamResult
@@ -128,10 +128,10 @@ type Config struct {
 	Provider Provider
 
 	// AssignmentAuthority is an accident-prevention filter — not
-	// authentication. Dropped commands whose cmd.Persona differs from
-	// this value. cmd.Persona is not signature-verified at this layer, so
-	// this does NOT protect against a malicious client; real auth belongs
-	// above the plugin (NATS ACLs, gateway auth). Empty = no filter.
+	// authentication. Drops commands whose cmd.Shard differs from this
+	// address. Clients cannot set cmd.Shard, but any service that can
+	// publish to this shard over NATS can name any sender; real auth
+	// belongs above the plugin (NATS ACLs). Empty = no filter.
 	AssignmentAuthority string
 
 	// MaxAllocationTimeout bounds how long (in seconds) a lobby may sit in

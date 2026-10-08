@@ -5,8 +5,6 @@
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv1";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
-import type { Persona } from "./persona_pb";
-import { file_worldengine_isc_v1_persona } from "./persona_pb";
 import type { ServiceAddress } from "../../micro/v1/service_pb";
 import { file_worldengine_micro_v1_service } from "../../micro/v1/service_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -15,10 +13,12 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/isc/v1/command.proto.
  */
 export const file_worldengine_isc_v1_command: GenFile = /*@__PURE__*/
-  fileDesc("CiB3b3JsZGVuZ2luZS9pc2MvdjEvY29tbWFuZC5wcm90bxISd29ybGRlbmdpbmUuaXNjLnYxIr4BCgdDb21tYW5kEi0KBG5hbWUYASABKAlCH7pIHMgBAXIXEAEYgAEyEF5bYS16QS1aMC05Xy1dKyQSPQoHYWRkcmVzcxgCIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRyZXNzQga6SAPIAQESNAoHcGVyc29uYRgDIAEoCzIbLndvcmxkZW5naW5lLmlzYy52MS5QZXJzb25hQga6SAPIAQESDwoHcGF5bG9hZBgEIAEoDEJlWkhnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9pc2MvdjE7aXNjdjGqAhhXb3JsZEVuZ2luZS5Qcm90by5Jc2MuVjFiBnByb3RvMw", [file_buf_validate_validate, file_worldengine_isc_v1_persona, file_worldengine_micro_v1_service]);
+  fileDesc("CiB3b3JsZGVuZ2luZS9pc2MvdjEvY29tbWFuZC5wcm90bxISd29ybGRlbmdpbmUuaXNjLnYxIpcBCgdDb21tYW5kEi0KBG5hbWUYASABKAlCH7pIHMgBAXIXEAEYgAEyEF5bYS16QS1aMC05Xy1dKyQSPQoHYWRkcmVzcxgCIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRyZXNzQga6SAPIAQESDwoHcGF5bG9hZBgEIAEoDEoECAMQBFIHcGVyc29uYSKHAQoRSW50ZXJTaGFyZENvbW1hbmQSNAoHY29tbWFuZBgBIAEoCzIbLndvcmxkZW5naW5lLmlzYy52MS5Db21tYW5kQga6SAPIAQESPAoGc2VuZGVyGAIgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEuU2VydmljZUFkZHJlc3NCBrpIA8gBAUJlWkhnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9pc2MvdjE7aXNjdjGqAhhXb3JsZEVuZ2luZS5Qcm90by5Jc2MuVjFiBnByb3RvMw", [file_buf_validate_validate, file_worldengine_micro_v1_service]);
 
 /**
- * Command represents the data payload of a command to trigger systems in a shard.
+ * Command represents the data payload of a command to trigger systems in a shard. It names no
+ * sender: Cardinal takes a client's player ID from its auth token, and a shard's address from
+ * InterShardCommand.
  *
  * @generated from message worldengine.isc.v1.Command
  */
@@ -38,13 +38,6 @@ export type Command = Message<"worldengine.isc.v1.Command"> & {
   address?: ServiceAddress;
 
   /**
-   * The persona sending the command.
-   *
-   * @generated from field: worldengine.isc.v1.Persona persona = 3;
-   */
-  persona?: Persona;
-
-  /**
    * The serialized command payload. May be empty: a command whose proto message
    * has no set fields serializes to zero bytes, so this is not marked required.
    *
@@ -59,4 +52,30 @@ export type Command = Message<"worldengine.isc.v1.Command"> & {
  */
 export const CommandSchema: GenMessage<Command> = /*@__PURE__*/
   messageDesc(file_worldengine_isc_v1_command, 0);
+
+/**
+ * InterShardCommand is a command one service sends to a shard over NATS.
+ *
+ * @generated from message worldengine.isc.v1.InterShardCommand
+ */
+export type InterShardCommand = Message<"worldengine.isc.v1.InterShardCommand"> & {
+  /**
+   * @generated from field: worldengine.isc.v1.Command command = 1;
+   */
+  command?: Command;
+
+  /**
+   * The address of the sending service.
+   *
+   * @generated from field: worldengine.micro.v1.ServiceAddress sender = 2;
+   */
+  sender?: ServiceAddress;
+};
+
+/**
+ * Describes the message worldengine.isc.v1.InterShardCommand.
+ * Use `create(InterShardCommandSchema)` to create a new message.
+ */
+export const InterShardCommandSchema: GenMessage<InterShardCommand> = /*@__PURE__*/
+  messageDesc(file_worldengine_isc_v1_command, 1);
 

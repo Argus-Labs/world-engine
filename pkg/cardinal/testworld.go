@@ -137,17 +137,16 @@ func roundTrip[T schema.Serializable](p T) T {
 	return typed
 }
 
-// Command sends cmd from persona the way a client does. The command is encoded, decoded by its
+// Command sends cmd from player the way a client does. The command is encoded, decoded by its
 // queue and read by Commands[T] during the next step only. It fails the test if the command type was
 // not registered in setup.
-func (w *TestWorld) Command(persona string, cmd Command) {
+func (w *TestWorld) Command(player string, cmd Command) {
 	w.tb.Helper()
 	err := w.commands.Enqueue(context.Background(), &iscv1.Command{
 		Name:    cmd.Name(),
 		Address: w.address,
-		Persona: &iscv1.Persona{Id: persona},
 		Payload: schema.Marshal(cmd),
-	})
+	}, command.Sender{Player: player})
 	if err != nil {
 		w.tb.Fatalf("cardinal: Command %s: %v", cmd.Name(), err)
 	}

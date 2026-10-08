@@ -8,6 +8,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
+	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
@@ -213,15 +214,18 @@ func TestCommands_Smoke(t *testing.T) {
 
 		count := prng.IntN(100)
 		model := make([]testutils.SimpleCommand, count)
-		personas := make([]string, count)
+		senders := make([]command.Sender, count)
 		for i := range count {
 			// Bounded to avoid JSON float64 precision loss.
 			model[i] = testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
-			personas[i] = testutils.RandString(prng, 8)
+			senders[i] = command.Sender{Player: testutils.RandString(prng, 8)}
+			if testutils.RandBool(prng) {
+				senders[i] = command.Sender{Shard: RandServiceAddress(prng)}
+			}
 		}
 
 		for i, cmd := range model {
-			enqueueCommand(t, w, cmd, personas[i])
+			enqueueCommandFrom(t, w, cmd, senders[i])
 		}
 		w.commands.Drain()
 
@@ -233,7 +237,11 @@ func TestCommands_Smoke(t *testing.T) {
 		assert.Len(t, results, len(model), "completeness: expected %d commands, got %d", len(model), len(results))
 		for i, result := range results {
 			assert.Equal(t, model[i], result.Payload, "round-trip integrity: payload mismatch at index %d", i)
-			assert.Equal(t, personas[i], result.Persona, "round-trip integrity: persona mismatch at index %d", i)
+			want := CommandContext[testutils.SimpleCommand]{Payload: model[i], Player: senders[i].Player}
+			if senders[i].Shard != nil {
+				want.Shard = micro.String(senders[i].Shard)
+			}
+			assert.Equal(t, want, result, "round-trip integrity: sender mismatch at index %d", i)
 		}
 	})
 
@@ -307,8 +315,15 @@ func newCommandWorld(t *testing.T) *World {
 	return w
 }
 
-// enqueueCommand is a helper that marshals a command payload through its wire layer and enqueues it.
-func enqueueCommand(t *testing.T, w *World, payload command.Payload, persona string) {
+// enqueueCommand is a helper that marshals a command payload through its wire layer and enqueues it
+// from player.
+func enqueueCommand(t *testing.T, w *World, payload command.Payload, player string) {
+	t.Helper()
+	enqueueCommandFrom(t, w, payload, command.Sender{Player: player})
+}
+
+// enqueueCommandFrom is enqueueCommand for any sender.
+func enqueueCommandFrom(t *testing.T, w *World, payload command.Payload, sender command.Sender) {
 	t.Helper()
 
 	bytes := schema.Marshal(payload)
@@ -317,11 +332,10 @@ func enqueueCommand(t *testing.T, w *World, payload command.Payload, persona str
 	cmdpb := &iscv1.Command{
 		Name:    payload.Name(),
 		Address: &microv1.ServiceAddress{},
-		Persona: &iscv1.Persona{Id: persona},
 		Payload: bytes,
 	}
 
-	err := w.commands.Enqueue(context.Background(), cmdpb)
+	err := w.commands.Enqueue(context.Background(), cmdpb, sender)
 	require.NoError(t, err)
 }
 

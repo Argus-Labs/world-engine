@@ -64,9 +64,13 @@ func WithHook(hook SystemHook) SystemOption {
 
 type Command = command.Payload
 
+// CommandContext is a command and its sender. Exactly one of Player and Shard is set.
 type CommandContext[T Command] struct {
 	Payload T
-	Persona string
+	// Player is the authenticated player ID, when a client sent the command.
+	Player string
+	// Shard is the sending shard's address, when another shard sent the command with SendToShard.
+	Shard string
 }
 
 // -------------------------------------------------------------------------------------------------

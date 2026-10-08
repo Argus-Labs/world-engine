@@ -760,7 +760,7 @@ func TestConfig_AssignmentFields(t *testing.T) {
 	t.Parallel()
 
 	// Assignment-related config fields. AssignmentAuthority is an
-	// accident-prevention filter (not authentication — cmd.Persona is
+	// accident-prevention filter (not authentication — cmd.Shard is
 	// not verified at this layer). MaxAllocationTimeout bounds the
 	// pending-allocation lifetime.
 	cfg := Config{

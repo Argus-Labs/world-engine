@@ -99,7 +99,7 @@ closes and Init sees a zero `time.Time{}`. The audit lists every such test.
 | `cardinal.NewWorld` with `StorageTypeNop` and `t.Setenv`        | `cardinal.NewTestWorld(t, setup)`. It reads no env and connects to nothing.                                     |
 | `w.RegisterSystem(...)` after `NewWorld`, before the first tick | Move it into setup. Register* after `NewTestWorld` returns panics: the world has started.                       |
 | Reflection on the unexported `world` field to call `Init`       | Delete it. `NewTestWorld` runs the Init systems setup registers. Calling it again panics.                       |
-| Reflection on the unexported `commands` field to call `Enqueue` | `w.Command(persona, cmd)`.                                                                                      |
+| Reflection on the unexported `commands` field to call `Enqueue` | `w.Command(player, cmd)`.                                                                                       |
 | Init-hook seed system that creates entities                     | `w.Create[A]()` and `e.Set(c)` in the test body.                                                                |
 | Driver system that emits system events from a package variable  | `w.EmitSystemEvent(ev)` before the step. A driver that runs after the system under test stays a system (Rules). |
 | Observer system writing to a package-level variable             | Read state after the step: `e.Get[C]()`, `w.Exact[A]().Iter()`.                                                 |

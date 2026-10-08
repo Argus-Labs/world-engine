@@ -30,9 +30,8 @@ func assertCodecRoundTripType[T command.Payload](t *testing.T, value T) {
 	require.NoError(t, q.Enqueue(context.Background(), &iscv1.Command{
 		Name:    value.Name(),
 		Address: &microv1.ServiceAddress{},
-		Persona: &iscv1.Persona{Id: "round-trip"},
 		Payload: payload,
-	}))
+	}, command.Sender{Player: "round-trip"}))
 
 	var drained []command.Command
 	q.Drain(&drained)
