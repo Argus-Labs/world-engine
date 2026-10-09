@@ -50,7 +50,6 @@ func TestService_SendCommand(t *testing.T) {
 		cmdPb := &iscv1.Command{
 			Name:    payload.Name(),
 			Address: fixture.world.address,
-			Persona: &iscv1.Persona{Id: "client-provided-persona"},
 			Payload: payloadBytes,
 		}
 
@@ -65,7 +64,7 @@ func TestService_SendCommand(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, cmds, 1)
 		assert.Equal(t, payload, cmds[0].Payload)
-		assert.Equal(t, userID, cmds[0].Persona)
+		assert.Equal(t, command.PlayerSender(userID), cmds[0].Sender)
 	})
 
 	t.Run("wrong address rejected", func(t *testing.T) {
@@ -78,7 +77,6 @@ func TestService_SendCommand(t *testing.T) {
 		cmdPb := &iscv1.Command{
 			Name:    payload.Name(),
 			Address: RandServiceAddress(prng),
-			Persona: &iscv1.Persona{Id: "client-provided-persona"},
 			Payload: payloadBytes,
 		}
 
@@ -108,8 +106,9 @@ func TestService_PublishDefaultEvent(t *testing.T) {
 		fixture := newServiceFixture(t, prng, false)
 
 		payload := testutils.SimpleEvent{Value: prng.Int()}
-		waiter := fixture.svc.addReplyWaiter(payload.Name())
-		defer fixture.svc.removeReplyWaiter(payload.Name(), waiter)
+		playerID := testutils.RandString(prng, 8)
+		waiter := fixture.svc.addReplyWaiter(playerID, payload.Name())
+		defer fixture.svc.removeReplyWaiter(playerID, payload.Name(), waiter)
 
 		err := fixture.svc.publishDefaultEvent(context.Background(), event.Event{
 			Kind:    event.KindDefault,
@@ -145,23 +144,21 @@ func TestService_PublishInterShardCommand(t *testing.T) {
 
 		// Have service A send an inter-shard command targeting service B.
 		payload := testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
-		sender := micro.String(fixtureA.world.address)
 		err := fixtureA.svc.publishInterShardCommand(context.Background(), event.Event{
 			Kind: event.KindInterShardCommand,
 			Payload: command.Command{
 				Name:    payload.Name(),
 				Address: fixtureB.world.address,
-				Persona: sender,
 				Payload: payload,
 			},
 		})
 		require.NoError(t, err)
 		fixtureA.svc.drainInterShardCommands() // what the tick does after dispatch
 
-		// Drain service B and verify the command arrived with correct payload/persona.
+		// Drain service B and verify the command arrived with correct payload/sender.
 		cmds := awaitCommands(t, fixtureB)
 		assert.Equal(t, payload, cmds[0].Payload)
-		assert.Equal(t, sender, cmds[0].Persona)
+		assert.Equal(t, command.ShardSender(fixtureA.world.address), cmds[0].Sender)
 	})
 }
 
@@ -280,5 +277,5 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool
 }
 
 func serviceTestContext(userID string) context.Context {
-	return authn.SetInfo(context.Background(), &User{ID: userID})
+	return authn.SetInfo(context.Background(), &Player{ID: userID})
 }

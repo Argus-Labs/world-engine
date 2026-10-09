@@ -15,13 +15,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func simpleCommandTo(from, to *micro.ServiceAddress, value int) *iscv1.Command {
+func simpleCommandTo(from, to *micro.ServiceAddress, value int) *iscv1.InterShardCommand {
 	payload := testutils.SimpleCommand{Value: value}
-	return &iscv1.Command{
-		Name:    payload.Name(),
-		Address: to,
-		Persona: &iscv1.Persona{Id: micro.String(from)},
-		Payload: payload.MarshalWire(),
+	return &iscv1.InterShardCommand{
+		Command: &iscv1.Command{
+			Name:    payload.Name(),
+			Address: to,
+			Payload: payload.MarshalWire(),
+		},
+		Sender: from,
 	}
 }
 
