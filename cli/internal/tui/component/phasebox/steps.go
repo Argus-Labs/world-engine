@@ -2,7 +2,7 @@ package phasebox
 
 import "strconv"
 
-// StepTracker turns a sequence of named steps (e.g. cluster.StartOpts.OnStep)
+// StepTracker turns a sequence of named steps (e.g. local.Runtime.StartPlatform's step)
 // into a live checklist of Session rows: each Next call marks the previous
 // step Done and starts the next Active, showing which phase a multi-phase
 // operation is in instead of one static spinner.

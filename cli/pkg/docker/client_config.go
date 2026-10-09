@@ -3,7 +3,6 @@ package docker
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/rotisserie/eris"
 
@@ -14,8 +13,7 @@ import (
 // NewClientConfig builds a service.Config by reading world.toml from projectDir.
 // projectDir must be an absolute path to the World Engine project root.
 func NewClientConfig(projectDir string, debug bool) (*service.Config, error) {
-	worldTomlPath := filepath.Join(projectDir, worldtoml.FileName)
-	worldToml, err := worldtoml.LoadFile(worldTomlPath)
+	worldToml, err := worldtoml.LoadDir(projectDir)
 	if err != nil {
 		userMsg := fmt.Sprintf("Cannot find %s in %s", worldtoml.FileName, projectDir)
 		if !eris.Is(err, os.ErrNotExist) {

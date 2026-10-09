@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -32,7 +31,7 @@ const (
 )
 
 // Dashboard is one continuous bubbletea program spanning every section a
-// command opens (e.g. "Image Pull", "Build", "Cluster", "Shards" for
+// command opens (e.g. "Build", "Platform", "Services" for
 // `world start`), rendered through a single Model so there's no hand-off
 // gap where one box's border could visually merge with the next. With Plain
 // progress there's no program; each section prints one summary line.
@@ -147,20 +146,6 @@ func (b *Box) Run(
 		return errorspkg.NewSilent(opErr)
 	}
 	return opErr
-}
-
-// Info adds a titled section showing body as static, finished content —
-// no spinner, rows, or icon. For content that isn't a pass/fail task (e.g.
-// endpoint URLs), since Run's summary always carries a ✓/✗ icon that reads
-// oddly there.
-func (d *Dashboard) Info(title, body string) {
-	b := d.Open(title)
-	d.send(infoMsg{section: b.id, body: body})
-	if d.plain != nil {
-		for line := range strings.SplitSeq(body, "\n") {
-			fmt.Fprintf(d.plain, "%s: %s\n", title, line)
-		}
-	}
 }
 
 // sectionSession is the Session implementation for one section within a
