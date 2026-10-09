@@ -274,6 +274,82 @@ func TestTransport_SendCommandWithReply_RoutesReplyByRecipient(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------------------------------
+// SendCommandWithReply reply timeout
+// -------------------------------------------------------------------------------------------------
+// Options.ReplyTimeout caps the wait for a reply after dispatch. A request with no reply within the
+// cap fails with DeadlineExceeded. The cap does not count the handler's own time, and zero leaves the
+// wait to the client's deadline.
+// -------------------------------------------------------------------------------------------------
+
+// newReplyTimeoutTransport returns a transport with the given reply cap whose SimpleCommand handler
+// signals waiting when it starts, sleeps for handlerDelay, then signals dispatched before returning.
+func newReplyTimeoutTransport(
+	t *testing.T, replyTimeout, handlerDelay time.Duration,
+) (*Transport, *micro.ServiceAddress, <-chan struct{}, <-chan struct{}) {
+	t.Helper()
+	address := RandServiceAddress(testutils.NewRand(t))
+	tr, err := New(Options{
+		Address:      address,
+		AuthMode:     AuthModeDev,
+		Telemetry:    &telemetry.Telemetry{Logger: zerolog.Nop()},
+		ReplyTimeout: replyTimeout,
+	})
+	require.NoError(t, err)
+	started := make(chan struct{}, 1)
+	done := make(chan struct{}, 1)
+	tr.Handle(testutils.SimpleCommand{}.Name(), func(context.Context, *iscv1.Command, Sender) error {
+		started <- struct{}{}
+		time.Sleep(handlerDelay)
+		done <- struct{}{}
+		return nil
+	})
+	return tr, address, started, done
+}
+
+func TestTransport_SendCommandWithReply_ReplyTimeout(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no reply within the cap fails with deadline exceeded", func(t *testing.T) {
+		t.Parallel()
+		tr, address, waiting, _ := newReplyTimeoutTransport(t, 50*time.Millisecond, 0)
+		res := <-startReplyRequest(t, tr, address, waiting, "alice")
+		require.Error(t, res.err)
+		assert.Equal(t, connect.CodeDeadlineExceeded, connect.CodeOf(res.err))
+	})
+
+	t.Run("cap starts after dispatch", func(t *testing.T) {
+		t.Parallel()
+		// The handler takes twice the cap, so a cap that counted it would fail the request.
+		const replyTimeout = 200 * time.Millisecond
+		tr, address, waiting, dispatched := newReplyTimeoutTransport(t, replyTimeout, 2*replyTimeout)
+		results := startReplyRequest(t, tr, address, waiting, "alice")
+
+		<-dispatched
+		tr.Publish(t.Context(), testutils.SimpleEvent{Value: 1}, "alice")
+		res := <-results
+		require.NoError(t, res.err)
+		assert.Equal(t, testutils.SimpleEvent{Value: 1}, res.reply)
+	})
+
+	t.Run("zero cap waits until the client's deadline", func(t *testing.T) {
+		t.Parallel()
+		tr, address, _, _ := newReplyTimeoutTransport(t, 0, 0)
+		ctx, cancel := context.WithTimeout(transportTestContext("alice"), 100*time.Millisecond)
+		defer cancel()
+		_, err := tr.clients.SendCommandWithReply(ctx, connect.NewRequest(&cardinalv1.SendCommandWithReplyRequest{
+			Command: &iscv1.Command{
+				Name:    testutils.SimpleCommand{}.Name(),
+				Address: address,
+				Payload: testutils.SimpleCommand{}.MarshalWire(),
+			},
+			EventName: testutils.SimpleEvent{}.Name(),
+		}))
+		require.Error(t, err)
+		assert.Equal(t, connect.CodeCanceled, connect.CodeOf(err))
+	})
+}
+
+// -------------------------------------------------------------------------------------------------
 // Inter-shard smoke tests
 // -------------------------------------------------------------------------------------------------
 // Verifies that a command enqueued and flushed by one transport is received over NATS by another,
@@ -489,10 +565,11 @@ func TestNew_InvalidOptions(t *testing.T) {
 		}
 	}
 	tests := map[string]func(*Options){
-		"no address":          func(o *Options) { o.Address = nil },
-		"undefined auth mode": func(o *Options) { o.AuthMode = AuthModeUndefined },
-		"argus without url":   func(o *Options) { o.AuthMode = AuthModeArgus },
-		"no telemetry":        func(o *Options) { o.Telemetry = nil },
+		"no address":             func(o *Options) { o.Address = nil },
+		"undefined auth mode":    func(o *Options) { o.AuthMode = AuthModeUndefined },
+		"argus without url":      func(o *Options) { o.AuthMode = AuthModeArgus },
+		"no telemetry":           func(o *Options) { o.Telemetry = nil },
+		"negative reply timeout": func(o *Options) { o.ReplyTimeout = -time.Second },
 	}
 	for name, mutate := range tests {
 		t.Run(name, func(t *testing.T) {
