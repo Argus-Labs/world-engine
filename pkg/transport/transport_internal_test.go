@@ -118,7 +118,12 @@ func TestTransport_Publish(t *testing.T) {
 
 		fixture.tr.Publish(context.Background(), payload, "")
 
-		eventPb := <-waiter
+		var eventPb *iscv1.Event
+		select {
+		case eventPb = <-waiter:
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "timed out waiting for published event")
+		}
 		assert.Equal(t, payload.Name(), eventPb.GetName())
 		decoded, err := testutils.SimpleEvent{}.UnmarshalWire(eventPb.GetPayload())
 		require.NoError(t, err)
