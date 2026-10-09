@@ -13,7 +13,7 @@ import (
 
 // GetNatsLogsInput is the structured input for the get_nats_logs tool.
 type GetNatsLogsInput struct {
-	TailLines int    `json:"tail_lines,omitempty" jsonschema_description:"Maximum number of log lines to return (0 or unset defaults to 2000, capped at 10000)"`
+	TailLines int    `json:"tail_lines,omitempty" jsonschema_description:"Maximum number of log lines to return (0 or unset defaults to 2000, capped at 2000)"`
 	Project   string `json:"project,omitempty"    jsonschema_description:"World project whose NATS to read (defaults to the world.toml in the working directory)"`
 }
 

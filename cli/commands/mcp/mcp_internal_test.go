@@ -961,7 +961,10 @@ func TestSdkGenerate_PublishedGoOutDefaultDoc(t *testing.T) {
 		"the schema must warn that cs_out withholds the go_out default (the client-only entry)")
 }
 
-func TestDescribeWorld_PublishesAnEmptyObjectInputSchema(t *testing.T) {
+// The handler falls back to the working directory's world.toml, so an agent running
+// anywhere else has to pass project. additionalProperties is false, which makes an
+// unpublished parameter unusable rather than merely undocumented.
+func TestDescribeWorld_PublishesProjectInItsInputSchema(t *testing.T) {
 	t.Parallel()
 	srv := server.NewMCPServer("test", "0")
 	registerDescribeWorldTool(srv)
@@ -972,11 +975,17 @@ func TestDescribeWorld_PublishesAnEmptyObjectInputSchema(t *testing.T) {
 	require.NoError(t, err, "tools/list must be able to serialize the tool")
 
 	var listed struct {
-		InputSchema json.RawMessage `json:"inputSchema"`
+		InputSchema struct {
+			Type                 string                     `json:"type"`
+			AdditionalProperties bool                       `json:"additionalProperties"`
+			Properties           map[string]json.RawMessage `json:"properties"`
+		} `json:"inputSchema"`
 	}
 	require.NoError(t, json.Unmarshal(published, &listed))
-	assert.JSONEq(t, `{"type":"object","properties":{},"required":[],"additionalProperties":false}`,
-		string(listed.InputSchema))
+	assert.Equal(t, "object", listed.InputSchema.Type)
+	assert.False(t, listed.InputSchema.AdditionalProperties)
+	assert.Contains(t, listed.InputSchema.Properties, "project",
+		"project is the only way to describe a world from outside its directory")
 }
 
 // shard_url is caller-supplied, so the Argus token must never follow it off this

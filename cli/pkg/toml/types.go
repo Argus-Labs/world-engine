@@ -42,7 +42,7 @@ type Shard struct {
 	Path       string `toml:"path,omitempty"        json:"path,omitempty"`
 	PoolSize   int    `toml:"pool_size,omitempty"   json:"poolSize,omitempty"`
 
-	// TickRate is the game-loop frequency in Hz. Optional; k8s backend only.
+	// TickRate is the game-loop frequency in Hz. Optional.
 	TickRate int32 `toml:"tick_rate,omitempty" json:"tickRate,omitempty"`
 
 	// Mode is the shard mode, LEADER (the default) or FOLLOWER, matching the
@@ -50,7 +50,7 @@ type Shard struct {
 	Mode string `toml:"mode,omitempty" json:"mode,omitempty"`
 
 	// Resources is the per-instance CPU + memory request/limit pair.
-	// Optional; k8s backend only. Nil means "use translator default."
+	// Optional. Nil means "use translator default."
 	Resources *ShardResources `toml:"resources,omitempty" json:"resources,omitempty"`
 
 	// InstanceID is the runtime shard instance ID after pool expansion. Pooled

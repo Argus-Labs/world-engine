@@ -11,7 +11,7 @@ import (
 // InspectShardInput is the structured input for the inspect_shard tool.
 type InspectShardInput struct {
 	ShardID string `json:"shard_id"          jsonschema_description:"ID of the shard to inspect (matches a pool deployed for the project)"`
-	Project string `json:"project,omitempty" jsonschema_description:"World project whose namespace to read (defaults to the world.toml in the working directory)"`
+	Project string `json:"project,omitempty" jsonschema_description:"World project to read (defaults to the world.toml in the working directory)"`
 }
 
 // InspectShardOutput is the structured output describing a shard pool's state.

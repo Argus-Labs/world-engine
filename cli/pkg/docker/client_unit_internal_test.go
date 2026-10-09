@@ -259,3 +259,45 @@ func TestIsCardinalService_IncludesPathKindGameServices(t *testing.T) {
 		t.Fatalf("build image names = %v, want just the path-kind service", names)
 	}
 }
+
+// The project label arrived after the image label, so purge has to recognise images an
+// older CLI built — by name — without ever matching another project's.
+func TestOwnsBuiltImage(t *testing.T) {
+	t.Parallel()
+
+	owned := map[string]struct{}{"demo-game-shard": {}, "demo-meta-service": {}}
+
+	cases := map[string]struct {
+		labels map[string]string
+		want   bool
+	}{
+		"this project, labelled": {
+			map[string]string{service.ProjectLabel: "demo", service.CardinalImageNameLabel: "demo-game-shard"}, true,
+		},
+		"another project, labelled": {
+			map[string]string{service.ProjectLabel: "other", service.CardinalImageNameLabel: "other-game-shard"}, false,
+		},
+		"legacy image of this project": {
+			map[string]string{service.CardinalImageNameLabel: "demo-game-shard"}, true,
+		},
+		"legacy path-kind service of this project": {
+			map[string]string{service.CardinalImageNameLabel: "demo-meta-service"}, true,
+		},
+		"legacy image of another project": {
+			map[string]string{service.CardinalImageNameLabel: "other-game-shard"}, false,
+		},
+		"no labels at all": {map[string]string{}, false},
+		// A labelled image wins on the label even when the name happens to collide.
+		"another project whose image name we also build": {
+			map[string]string{service.ProjectLabel: "other", service.CardinalImageNameLabel: "demo-game-shard"}, false,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if got := ownsBuiltImage(tc.labels, "demo", owned); got != tc.want {
+				t.Fatalf("ownsBuiltImage(%v) = %v, want %v", tc.labels, got, tc.want)
+			}
+		})
+	}
+}

@@ -33,7 +33,7 @@ func clampTail(n int) int32 {
 type GetShardLogsInput struct {
 	ShardID      string `json:"shard_id"                jsonschema_description:"ID of the shard whose container logs should be fetched"`
 	InstanceName string `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance; accepts variants like 'game-5', 'game 5', 'game5', or '5'. Omit to fetch every instance of the shard."`
-	TailLines    int    `json:"tail_lines,omitempty"    jsonschema_description:"Maximum log lines per container (0 or unset returns the full history; 2000 is the cap)"`
+	TailLines    int    `json:"tail_lines,omitempty"    jsonschema_description:"Maximum log lines per container (unset or 0 returns the most recent 2000 lines, which is also the cap)"`
 	Project      string `json:"project,omitempty"       jsonschema_description:"World project to read (defaults to the world.toml in the working directory)"`
 }
 

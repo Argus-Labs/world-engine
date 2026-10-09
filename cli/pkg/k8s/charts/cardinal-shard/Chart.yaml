@@ -1,6 +1,0 @@
-apiVersion: v2
-name: cardinal-shard
-description: World Engine shards as Deployments, one per pool instance
-type: application
-version: 0.0.0
-appVersion: 0.0.0

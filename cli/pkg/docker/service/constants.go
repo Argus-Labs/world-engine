@@ -21,6 +21,11 @@ const (
 	// CardinalImageLabel marks images built by `world`; purge --image prunes by it.
 	CardinalImageLabel = "world-cli"
 	CardinalImageValue = "cardinal"
+	// CardinalImageNameLabel is the image's own name. Predates ProjectLabel, so purge
+	// falls back to it to recognise images an older CLI built.
+	CardinalImageNameLabel = "world-cli-image-name"
+	// CardinalServiceNameLabel is the representative service the image was built for.
+	CardinalServiceNameLabel = "world-cli-service-name"
 
 	// BaseImage is the distroless runtime base for built-from-source images.
 	BaseImage = "gcr.io/distroless/base-debian12"
@@ -35,8 +40,12 @@ const (
 	CardinalRegion = "us-west1"
 )
 
-// NetworkName is the per-project Docker bridge network.
-func NetworkName(project string) string { return project }
+// NetworkName is the per-project Docker bridge network. The prefix matters: bare
+// "host", "bridge" and "none" are Docker's built-in network modes, and host mode
+// ignores PortBindings, so a project with one of those names would publish every
+// shard on all interfaces instead of loopback. It also keeps start from adopting —
+// and purge from deleting — an unrelated network that happens to share the name.
+func NetworkName(project string) string { return "world-" + project }
 
 // Labels returns the common label set for a container of a project.
 func Labels(project, role, shardID, instance string) map[string]string {

@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
 	"github.com/argus-labs/world-engine/cli/pkg/version"
 )
 
@@ -127,14 +128,22 @@ func fakeRepoTagCount(images []image.Summary, id string) int {
 	return 0
 }
 
-// cardinalImage builds a world-cli=cardinal-labeled image with the given image
-// ID and repo tags — modeling what `world reload` leaves on the host.
+// cardinalImage builds an image world built for project "rampage" with the given
+// image ID and repo tags — modeling what `world reload` leaves on the host.
 func cardinalImage(id string, tags ...string) image.Summary {
 	return image.Summary{
 		ID:       id,
 		RepoTags: tags,
-		Labels:   map[string]string{"world-cli": "cardinal"},
+		Labels: map[string]string{
+			service.CardinalImageLabel: service.CardinalImageValue,
+			service.ProjectLabel:       "rampage",
+		},
 	}
+}
+
+// prune runs the purge for project "rampage" against fake.
+func prune(fake *fakeImageClient) error {
+	return pruneCardinalImages(context.Background(), fake, discardLogger(), "rampage", nil)
 }
 
 func discardLogger() *slog.Logger { return slog.New(slog.DiscardHandler) }
@@ -164,7 +173,7 @@ func TestPruneCardinalImages_ForcesRemovalOfEveryLabeledImage(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, pruneCardinalImages(context.Background(), fake, discardLogger()))
+	require.NoError(t, prune(fake))
 
 	require.Len(t, fake.removed, 2, "both labeled images must be removed")
 	for _, call := range fake.removed {
@@ -194,7 +203,7 @@ func TestPruneCardinalImages_RemovesStaleMultiTaggedID(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, pruneCardinalImages(context.Background(), fake, discardLogger()))
+	require.NoError(t, prune(fake))
 	require.Len(t, fake.removed, 1)
 	assert.Equal(t, staleID, fake.removed[0].imageRef)
 	assert.True(t, fake.removed[0].force, "stale multi-tagged image requires Force")
@@ -217,7 +226,7 @@ func TestPruneCardinalImages_RemovesSingleTaggedLabeledImage(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, pruneCardinalImages(context.Background(), fake, discardLogger()))
+	require.NoError(t, prune(fake))
 	require.Len(t, fake.removed, 1)
 	assert.NoError(t, fake.removed[0].err, "single-tagged labeled image must be removed")
 	assert.True(t, fake.removed[0].force)
@@ -242,7 +251,7 @@ func TestPruneCardinalImages_BestEffortLogsAndContinues(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, pruneCardinalImages(context.Background(), fake, discardLogger()))
+	require.NoError(t, prune(fake))
 	require.Len(t, fake.removed, 2, "removal must be attempted for every labeled image")
 	require.Error(t, fake.removed[0].err, "the failing image's error must be recorded")
 	assert.NoError(t, fake.removed[1].err, "the healthy image must still be removed")
@@ -255,7 +264,7 @@ func TestPruneCardinalImages_NoLabeledImagesIsNoOp(t *testing.T) {
 
 	fake := &fakeImageClient{images: nil}
 
-	require.NoError(t, pruneCardinalImages(context.Background(), fake, discardLogger()))
+	require.NoError(t, prune(fake))
 	assert.Empty(t, fake.removed, "no Cardinal-labeled images means no removal attempts")
 }
 
@@ -275,7 +284,7 @@ func TestPruneCardinalImages_NATSKeepsCurrentAndPrunesOld(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, pruneCardinalImages(context.Background(), fake, discardLogger()))
+	require.NoError(t, prune(fake))
 
 	removed := make([]string, 0, len(fake.removed))
 	for _, c := range fake.removed {
@@ -298,7 +307,7 @@ func TestPruneCardinalImages_CardinalListErrorPropagates(t *testing.T) {
 		},
 	}
 
-	err := pruneCardinalImages(context.Background(), fake, discardLogger())
+	err := prune(fake)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cardinal list failed")
 }
@@ -317,7 +326,7 @@ func TestPruneCardinalImages_NATSListErrorPropagates(t *testing.T) {
 		},
 	}
 
-	err := pruneCardinalImages(context.Background(), fake, discardLogger())
+	err := prune(fake)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nats list failed")
 }
@@ -336,7 +345,24 @@ func TestPruneCardinalImages_OnlyCardinalLabeledImagesTargeted(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, pruneCardinalImages(context.Background(), fake, discardLogger()))
+	require.NoError(t, prune(fake))
 	require.Len(t, fake.removed, 1, "only the labeled image must be removed")
 	assert.Equal(t, "sha256:card", fake.removed[0].imageRef)
+}
+
+// TestPruneCardinalImages_LeavesOtherProjectsImages pins the project scope: an image
+// world built for another project carries the same world-cli label and must survive.
+func TestPruneCardinalImages_LeavesOtherProjectsImages(t *testing.T) {
+	t.Parallel()
+
+	other := cardinalImage("sha256:other", "demo-gameplay-shard:latest")
+	other.Labels[service.ProjectLabel] = "demo"
+	fake := &fakeImageClient{images: []image.Summary{
+		cardinalImage("sha256:mine", "rampage-gameplay-shard:latest"),
+		other,
+	}}
+
+	require.NoError(t, prune(fake))
+	require.Len(t, fake.removed, 1, "only this project's image may be removed")
+	assert.Equal(t, "sha256:mine", fake.removed[0].imageRef)
 }

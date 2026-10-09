@@ -231,8 +231,9 @@ func envMap(t *testing.T, env []string) map[string]string {
 	return out
 }
 
-// TestBuildCardinalEnvContract pins the local half of the chart contract (see
-// cli/pkg/local contract test for the render comparison).
+// TestBuildCardinalEnvContract pins the env `world start` gives a shard. The
+// cardinal-shard chart must render the same keys; it lives in monorepo, so nothing
+// here can check that mechanically.
 func TestBuildCardinalEnvContract(t *testing.T) {
 	t.Parallel()
 
@@ -308,7 +309,7 @@ func TestBuildCardinalShardsBindLoopbackPorts(t *testing.T) {
 		if len(b) != 1 || b[0].HostPort != want || b[0].HostIP.String() != "127.0.0.1" {
 			t.Fatalf("instance %d bindings = %#v", i, b)
 		}
-		if svc.NetworkMode != "g" || svc.RestartPolicy.Name != "" {
+		if svc.NetworkMode != "world-g" || svc.RestartPolicy.Name != "" {
 			t.Fatalf("instance %d host config = %#v", i, svc.HostConfig)
 		}
 		if svc.Labels[RoleLabel] != RoleShard || svc.Labels[ShardIDLabel] != "gameplay" ||
@@ -327,14 +328,14 @@ func TestNATSAndProjectDBArePerProject(t *testing.T) {
 	cfg := &Config{Project: "g", WorldToml: worldtoml.Config{Project: "g"}}
 	n := NATS(cfg)
 	if n.Name != "g-nats" || n.ReadyURL != "http://127.0.0.1:8222/healthz" || n.Healthcheck != nil ||
-		n.NetworkMode != "g" {
+		n.NetworkMode != "world-g" {
 		t.Fatalf("nats = %#v", n)
 	}
 	if !slices.Equal(n.Binds, []string{"g-nats-data:/data"}) || !slices.Contains(n.Cmd, "-js") {
 		t.Fatalf("nats store = %#v %#v", n.Binds, n.Cmd)
 	}
 	db := ProjectDBService(cfg)
-	if db.Name != "g-db" || db.Healthcheck == nil || db.NetworkMode != "g" || db.Labels[RoleLabel] != RoleDB {
+	if db.Name != "g-db" || db.Healthcheck == nil || db.NetworkMode != "world-g" || db.Labels[RoleLabel] != RoleDB {
 		t.Fatalf("db = %#v", db)
 	}
 	if !slices.Equal(db.Binds, []string{"g-db-data:/var/lib/postgresql/data"}) {
@@ -368,5 +369,21 @@ func TestBuildCardinalEnvDefaultsToDevAuth(t *testing.T) {
 	}
 	if _, ok := got["CARDINAL_ARGUS_AUTH_URL"]; ok {
 		t.Fatalf("DEV must not carry an argus URL: %#v", got)
+	}
+}
+
+// Docker treats bare "host", "bridge" and "none" as built-in network modes rather
+// than user networks. Host mode ignores PortBindings, so a project with that name
+// would publish every shard, NATS and Postgres on all interfaces instead of 127.0.0.1.
+func TestNetworkNameNeverCollidesWithDockerBuiltins(t *testing.T) {
+	t.Parallel()
+
+	for _, project := range []string{"host", "bridge", "none"} {
+		if got := NetworkName(project); got == project {
+			t.Fatalf("project %q yields network mode %q, Docker's built-in", project, got)
+		}
+	}
+	if got := NetworkName("rampage"); got != "world-rampage" {
+		t.Fatalf("NetworkName(rampage) = %q, want world-rampage", got)
 	}
 }

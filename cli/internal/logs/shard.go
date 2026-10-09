@@ -13,7 +13,7 @@ import (
 )
 
 // HistoryLines is the default history replay count on initial connect
-// (the Kubernetes log API caps a tail at what the kubelet keeps).
+// (Docker caps a tail at what the container's log driver keeps).
 const HistoryLines = 200
 
 // StreamFn opens one log stream into out; out is closed by the streamer
@@ -77,7 +77,7 @@ func TailLogsUntilEnterOrReload(
 			} else {
 				printer.Infoln("✓ Reload complete — resuming tail")
 			}
-			// loop reopens the log stream against any new pods
+			// loop reopens the log stream against any new container
 		default:
 			return nil
 		}

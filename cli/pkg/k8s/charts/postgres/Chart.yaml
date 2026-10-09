@@ -1,6 +1,0 @@
-apiVersion: v2
-name: postgres
-description: One Postgres for a World Engine project, for local and small clusters
-type: application
-version: 0.0.0
-appVersion: '16'

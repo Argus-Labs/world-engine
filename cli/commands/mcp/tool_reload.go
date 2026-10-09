@@ -79,7 +79,7 @@ func reloadHandler(
 
 	// Build first. A compile error returns here with nothing touched, so the
 	// running world is left exactly as it was — the "does my new code compile?" check.
-	cfg, deployOpts, err := buildWorldShards(ctx, worldPath, shardID)
+	cfg, deployOpts, err := buildWorldShards(ctx, worldPath, shardID, false)
 	if err != nil {
 		return ReloadOutput{}, eris.Wrap(err, "build failed (did the new shard code compile?)")
 	}

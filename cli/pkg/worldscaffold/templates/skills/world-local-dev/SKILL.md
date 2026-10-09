@@ -19,14 +19,16 @@ Prefer the project's pinned CLI: run `go tool world …` in the project director
 |---|---|---|
 | Check prerequisites | `world doctor` | Git, Go, Docker daemon |
 | Build and run everything | `world start` | Starts NATS + Postgres, builds `<project>-<shard>-shard` images, one container per `[[shards]]` instance, then opens the log picker. **Stays attached: Ctrl+C stops every container (data kept)** |
-| Rebuild and roll shards | `world reload [instance…]` | Rebuilds the image and recreates the containers; state kept. Instances are `gameplay`, `gameplay-2`, … |
+| Rebuild and roll shards | `world reload [instance…]` | Rebuilds the image and recreates the containers; state kept. Instances are `gameplay`, `gameplay-2`, …. Fails if a shard does not come back up, so a non-zero exit means check its logs |
 | Rebuild from a clean world | `world reload --purge [instance…]` | Removes the pool's containers, wipes the named instances' JetStream state, recreates on the new image |
-| Logs | `world logs` | Picker over shards, NATS, project DB, `[[services]]`. `--context <ctx> --namespace <ns>` tails a Kubernetes environment instead |
+| Logs | `world logs` | Picker over shards, NATS, project DB, `[[services]]` |
 | Stop, keep data | `world stop` | Stops all containers; volumes stay |
 | Delete the world | `world purge` | Removes containers, volumes and the network. `--image` also prunes the built images |
 
 Everything is also visible with plain Docker: `docker ps -a --filter label=world.argus.gg/project=<project>`,
-`docker logs <project>-<instance>-shard`, `docker volume ls --filter name=<project>-`.
+`docker logs <project>-<instance>-shard`, `docker volume ls --filter name=<project>-`,
+`docker network inspect world-<project>` (the network is prefixed; a bare `host`/`bridge`/`none`
+project name would otherwise be a Docker built-in).
 
 ## Where things are
 
@@ -72,10 +74,10 @@ makes the MCP tools send it, and only ever to a shard on this machine. `world de
 
 | Message | Cause | Do |
 |---|---|---|
-| `edge cannot listen on 127.0.0.1:8080` | Another process owns the port (an old `world start`, a k3d cluster, another proxy) | `lsof -i :8080`; stop the other listener |
-| `port is already allocated` on 4222 / 5432 | A local NATS or Postgres, or another project's containers | `lsof -i :5432`; stop it, or `world stop` the other project |
-| `timeout waiting for <project>-nats` / `-db to become ready` | Container started but never healthy | `docker logs <project>-db`; `world purge` if the volume is corrupt |
-| Shard container `exited` right after start | Game code panics, or DB unreachable | `world logs` → the shard; `DB_DSN` host is `<project>-db` on the project network |
+| `edge cannot listen on 127.0.0.1:8080` | Another process owns the port (an old `world start`, another proxy) | `lsof -i :8080`; stop the other listener |
+| `port is already allocated` on 4222 / 5432 | A local NATS or Postgres, or another project's containers | `lsof -i :<the port in the message>`; stop it, or `world stop` the other project |
+| `timeout waiting for <project>-nats` / `-db to become ready` | Container started but never healthy | `docker logs` the container the message names, not the other one; if its volume is corrupt, `world purge` — ask first, it wipes all state |
+| Shard container `exited` right after start | Game code panics, or DB unreachable | `world logs` → the shard; `DB_DSN` host is `<project>-db`, or the `config_db` service's container if `world.toml` declares one |
 | An auth-header error from a client | The world runs dev auth and the client sent an Argus token | Send the dev header, or set `[auth] mode = "argus"` in `world.toml` |
 | `failed to fetch JWKS` on startup | `[auth].url` is wrong or unreachable from the container | `curl <url>/auth/jwks`; it must answer 200 |
 | `build constraints exclude all Go files … cgo` | The shard needs cgo; `world start` builds with `CGO_ENABLED=0` | Not supported by `world start` yet |

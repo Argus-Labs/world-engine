@@ -165,7 +165,7 @@ func startWorld(
 	worldPath string,
 	args WorldLifecycleInput,
 ) (WorldLifecycleOutput, error) {
-	cfg, deployOpts, err := buildWorldShards(ctx, worldPath, "")
+	cfg, deployOpts, err := buildWorldShards(ctx, worldPath, "", true)
 	if err != nil {
 		// No purge advice here: nothing was touched and a purge cannot fix
 		// code that doesn't compile.

@@ -37,8 +37,8 @@ type GetStateInput struct {
 	Match        string   `json:"match,omitempty"         jsonschema_description:"How find is applied: 'contains' (entity has at least these components — the default) or 'exact' (entity has exactly these and nothing else)."`
 	Where        string   `json:"where,omitempty"         jsonschema_description:"expr-lang boolean expression filtering entities, e.g. 'Health.HP > 50'. Component names are the variables and '_id' is the entity ID. Fields are the component's protobuf field names, which match its Go struct field names; every field is readable, unset ones included. An entity missing a component the expression reads fields from doesn't match; a bare comparison like 'Gravestone == nil' still evaluates for every entity."`
 	MaxEntities  int      `json:"max_entities,omitempty"  jsonschema_description:"Maximum entities to return (default 100). Use a negative value to return every match."`
-	Organization string   `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the project's releases when omitted"`
-	Project      string   `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the project's releases when omitted"`
+	Organization string   `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the running containers when omitted)"`
+	Project      string   `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the running containers when omitted)"`
 	ShardURL     string   `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved per instance from the running containers when omitted. When set, pair it with instance_name; pass organization/project too to skip the container lookup entirely."`
 }
 

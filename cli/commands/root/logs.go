@@ -19,7 +19,6 @@ import (
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
 	"github.com/argus-labs/world-engine/cli/pkg/local"
-	tomlpkg "github.com/argus-labs/world-engine/cli/pkg/toml"
 	"github.com/argus-labs/world-engine/cli/pkg/worldstatus"
 )
 
@@ -29,34 +28,15 @@ import (
 // purges just that instance's state, Ctrl+C exits (the world keeps running;
 // the edge on :8080 belongs to `world start`).
 type LogsCmd struct {
-	Debug     bool     `help:"Enable debug mode"                                                                            default:"true" negatable:""`
-	Context   string   `help:"Tail a deployed environment on this kubeconfig context instead of the local world"`
-	Namespace string   `help:"Namespace on --context (defaults to the project's own, e.g. rampage-eph-<env> for ephemeral)"`
-	Shard     []string `help:"Limit to these shards (remote only); repeatable"`
-	Tail      int32    `help:"Historical lines to replay before tailing (remote only)"                                      default:"200"`
-	Previous  bool     `help:"Logs from the previous container, for a crashed pod (remote only)"`
+	Debug bool `help:"Enable debug mode" default:"true" negatable:""`
 }
 
 func (c *LogsCmd) Run(ctx context.Context) error {
-	telemetry.PosthogCaptureEvent("logs-cardinal-command", map[string]any{
-		"remote": c.Context != "",
-	})
+	telemetry.PosthogCaptureEvent("logs-cardinal-command", nil)
 
 	cwd, err := os.Getwd()
 	if err != nil {
 		return eris.Wrap(err, "failed to get current directory")
-	}
-
-	// A deployed environment is read through kubeconfig; Docker is not involved.
-	if c.Context != "" {
-		worldCfg, err := tomlpkg.LoadDir(cwd)
-		if err != nil {
-			return err
-		}
-		return runRemoteLogs(ctx, c.Context, c.Namespace, worldCfg.Project, c.Shard, c.Tail, c.Previous)
-	}
-	if c.Namespace != "" {
-		return eris.New("--namespace only applies with --context")
 	}
 
 	deps := []dependency.Dependency{dependency.Git, dependency.Docker, dependency.DockerDaemon}

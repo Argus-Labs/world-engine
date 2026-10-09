@@ -1,5 +1,5 @@
 // Package worldstatus holds the status and log shapes shared by the local Docker
-// runtime (cli/pkg/local) and the remote Kubernetes reads (cli/pkg/cluster), so
+// runtime (cli/pkg/local) and the readers above it, so
 // commands and MCP tools see one model.
 package worldstatus
 

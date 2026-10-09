@@ -7,10 +7,9 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-// DescribeWorldInput is the (empty) input for describe_world; it reads the
-// Docker, not a local path.
+// DescribeWorldInput is the input for describe_world; it reads Docker, not a local path.
 type DescribeWorldInput struct {
-	Project string `json:"project,omitempty" jsonschema_description:"World project whose namespace to read (defaults to the world.toml in the working directory)"`
+	Project string `json:"project,omitempty" jsonschema_description:"World project to describe (defaults to the world.toml in the working directory)"`
 }
 
 // DescribeWorldOutput summarizes the worlds running on local Docker.
@@ -34,8 +33,7 @@ func registerDescribeWorldTool(srv *server.MCPServer) {
 			"List the world deployed for a project on local Docker (organization, project, and shards), "+
 				"read from its container labels. Requires a running world.",
 		),
-		// No WithInputSchema: the schema it generates for an empty struct has no "properties", which
-		// some MCP hosts reject on an object parameter. NewTool's default publishes an empty one.
+		mcp.WithInputSchema[DescribeWorldInput](),
 		mcp.WithSchemaAdditionalProperties(false),
 		mcp.WithOutputSchema[DescribeWorldOutput](),
 	)

@@ -50,6 +50,14 @@ type worlds struct {
 var started = &worlds{runtimes: map[string]*local.Runtime{}, edges: map[string]context.CancelFunc{}}
 
 // open returns the Runtime for the world at worldPath, creating and caching it.
+//
+// world.toml is re-read on every call and the cached runtime adopts it. `world mcp` is a
+// long-lived stdio server, so keeping the first snapshot would pin it for the whole
+// session: a shard added mid-session is built (buildWorldShards re-reads the file) but
+// invisible to Deploy, WaitForShardsReady and PruneOrphanedShards, which would report a
+// successful reload for a shard that never started. The runtime is updated in place
+// rather than replaced because it owns the running edge proxy; the Docker client holds
+// the same *service.Config, so one assignment refreshes both.
 func (w *worlds) open(worldPath string) (*local.Runtime, error) {
 	cfg, err := docker.NewClientConfig(worldPath, false)
 	if err != nil {
@@ -58,6 +66,7 @@ func (w *worlds) open(worldPath string) (*local.Runtime, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if rt, ok := w.runtimes[cfg.Project]; ok {
+		*rt.Config() = *cfg
 		return rt, nil
 	}
 	dc, err := docker.NewClient(cfg, &docker.ClientOptions{Logger: slog.Default()})

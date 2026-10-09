@@ -112,7 +112,7 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 			dash.Complete()
 			// Its own box: the dashboard's width is frozen by now. 0 width = not a terminal.
 			width, _, _ := term.GetSize(int(os.Stdout.Fd()))
-			printer.Infoln(endpointsBox(endpointLines(cfg), width))
+			printer.Infoln(endpointsBox(endpointList(cfg), width))
 
 			err = runLogSelectionEntry(ctx, rt, cfg, dockerClient)
 			if ctx.Err() != nil {
@@ -218,53 +218,62 @@ func deployServices(
 	)
 }
 
-// endpointIndent is the column every endpoint address starts at ("NATS: ").
-const endpointIndent = 6
+// endpoint is one "where things are" entry; the label is shown as "<label>: ".
+type endpoint struct{ label, addr string }
 
-// endpointLines is the static "where things are" list printed after the dashboard.
-func endpointLines(cfg *service.Config) []string {
+// endpointList is the static "where things are" list printed after the dashboard.
+func endpointList(cfg *service.Config) []endpoint {
 	org, project := local.Sanitized(cfg.WorldToml.Organization, cfg.WorldToml.Project)
-	lines := []string{
-		endpointLine("API", fmt.Sprintf("%s/%s/%s/<instance>", local.APIEndpoint, org, project)),
-		endpointLine("NATS", local.NatsHostURL),
+	eps := []endpoint{
+		{"API", fmt.Sprintf("%s/%s/%s/<instance>", local.APIEndpoint, org, project)},
+		{"NATS", local.NatsHostURL},
 	}
 	if service.NeedsAutoProjectDB(cfg.WorldToml) {
-		lines = append(lines, endpointLine(
-			"DB", fmt.Sprintf("postgres://postgres:postgres@%s/%s", local.DBEndpoint, cfg.WorldToml.Project),
-		))
+		eps = append(eps, endpoint{
+			"Project DB", fmt.Sprintf("postgres://postgres:postgres@%s/%s", local.DBEndpoint, cfg.WorldToml.Project),
+		})
 	}
 	for i, sh := range cfg.WorldToml.Shards {
-		lines = append(lines, endpointLine(sh.InstanceID, fmt.Sprintf("127.0.0.1:%d", service.ShardHostPort(i))))
+		eps = append(eps, endpoint{sh.InstanceID, fmt.Sprintf("127.0.0.1:%d (direct)", service.ShardHostPort(i))})
 	}
 	for _, gs := range cfg.WorldToml.Services {
 		for _, port := range gs.Ports {
-			lines = append(lines, endpointLine(gs.ID, fmt.Sprintf("localhost:%d", port)))
+			eps = append(eps, endpoint{gs.ID, fmt.Sprintf("localhost:%d", port)})
 		}
 	}
-	return lines
+	return eps
 }
 
-func endpointLine(label, addr string) string {
-	return fmt.Sprintf("%-*s %s", endpointIndent-1, label+":", addr)
-}
+// endpointsBox boxes the endpoints, capped at termWidth (0 = no cap). Addresses
+// share one column, sized to the longest label — instance IDs are arbitrarily
+// long, so a fixed indent misaligns them. Lines that don't fit wrap under that
+// column instead of being cut; a label too wide for the box drops the indent.
+func endpointsBox(eps []endpoint, termWidth int) string {
+	pad := 0
+	for _, e := range eps {
+		pad = max(pad, ansi.StringWidth(e.label)+1) // +1 for the colon
+	}
+	lines := make([]string, len(eps))
+	for i, e := range eps {
+		lines[i] = fmt.Sprintf("%-*s %s", pad, e.label+":", e.addr)
+	}
 
-// endpointsBox boxes the endpoint lines, capped at termWidth (0 = no cap).
-// Lines that don't fit wrap under the address column instead of being cut.
-func endpointsBox(lines []string, termWidth int) string {
 	var opts style.BoxOpts
-	body := make([]string, len(lines))
-	copy(body, lines)
-	if inner := termWidth - style.BoxChrome; termWidth > 0 && inner > endpointIndent {
+	if inner := termWidth - style.BoxChrome; termWidth > 0 && inner > 0 {
 		opts.MaxWidth = termWidth
-		indent := strings.Repeat(" ", endpointIndent)
-		for i, line := range body {
+		hang := pad + 1
+		if hang >= inner {
+			hang = 0
+		}
+		indent := strings.Repeat(" ", hang)
+		for i, line := range lines {
 			if ansi.StringWidth(line) > inner {
-				body[i] = strings.ReplaceAll(ansi.Wrap(line, inner-endpointIndent, "/"), "\n", "\n"+indent)
+				lines[i] = strings.ReplaceAll(ansi.Wrap(line, inner-hang, "/"), "\n", "\n"+indent)
 			}
 		}
 	}
 	out, _ := style.MultiSectionBoxOpts(
-		[]style.Section{{Title: "Endpoints", Body: strings.Join(body, "\n")}}, opts,
+		[]style.Section{{Title: "Endpoints", Body: strings.Join(lines, "\n")}}, opts,
 	)
 	return out
 }

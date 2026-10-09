@@ -165,15 +165,10 @@ func (c *Client) buildSingleCardinalWithDocker(
 	platform ocispec.Platform,
 	ignorePatterns []string,
 ) error {
-	// Remove all containers on this image so they are recreated from the rebuild.
-	for _, name := range sb.containers {
-		if err := c.removeContainer(ctx, name, true); err != nil {
-			c.logger.WarnContext(ctx,
-				"failed to remove existing container before rebuild",
-				"container", name, "error", err)
-		}
-	}
-
+	// Containers on this image are deliberately left alone: the deploy that follows a
+	// successful build recreates them (local.Runtime.recreate), and removing them here
+	// would take the running world down when the build fails — which is exactly when
+	// `world reload` promises to leave it untouched.
 	c.logger.InfoContext(ctx, "building Cardinal shard with docker",
 		"image", sb.image, "containers", sb.containers, "import", sb.shardPath)
 
@@ -212,8 +207,11 @@ func (c *Client) buildSingleCardinalWithDocker(
 		},
 		Labels: map[string]string{
 			service.CardinalImageLabel: service.CardinalImageValue,
-			"world-cli-service-name":   sb.serviceName,
-			"world-cli-image-name":     sb.image,
+			// Scopes `purge --image` to this world; without it the prune filter matches
+			// every project's images on the machine.
+			service.ProjectLabel:             c.cfg.WorldToml.Project,
+			service.CardinalServiceNameLabel: sb.serviceName,
+			service.CardinalImageNameLabel:   sb.image,
 		},
 	}
 

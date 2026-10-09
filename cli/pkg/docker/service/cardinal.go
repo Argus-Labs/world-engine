@@ -28,13 +28,13 @@ const (
 	configDBUser     = "postgres"
 	configDBPassword = "postgres"
 
-	// Local-only env the chart does not render; the contract test allowlists it.
+	// Local-only env the cardinal-shard chart does not render.
 	localLogFormat = "LOG_FORMAT=pretty"
 
 	defaultLogLevel = "info"
 	// defaultMode mirrors the chart's values.yaml default; the chart always renders CARDINAL_MODE.
 	defaultMode = "LEADER"
-	// snapshotStorageType matches the chart's examples/local.yaml so reload --purge wipes real state.
+	// snapshotStorageType matches what the chart renders locally so reload --purge wipes real state.
 	snapshotStorageType = "JETSTREAM"
 )
 
@@ -94,7 +94,8 @@ func applySourceBuild(out *Service, shardPath string) {
 }
 
 // buildCardinalEnv is the local side of the chart contract: the same keys and values
-// cardinal-shard renders for examples/local.yaml, plus localLogFormat.
+// the cardinal-shard chart renders for a local world, plus localLogFormat.
+// The chart lives in monorepo (infra/k8s/apps/cardinal-shard); keep the two in step.
 func buildCardinalEnv(cfg *Config, shard worldtoml.Shard) []string {
 	logLevel := shard.LogLevel
 	if logLevel == "" {

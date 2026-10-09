@@ -191,9 +191,13 @@ func deployShardImages(
 	}
 
 	// Always runs, even after a purge error, so a failed wipe never leaves a shard undeployed.
+	// Readiness is checked on every reload, not just after a purge: a shard that compiles
+	// but dies on startup would otherwise exit 0 with "reloaded 1 shard(s)". Skipped after a
+	// failed purge, where the shard is expected to be in a bad state and the purge error is
+	// the one worth reporting.
 	shardsErr := dash.Run("Shards",
 		func(ctx context.Context, sess phasebox.Session) error {
-			return rollShards(ctx, sess, rt, targets, deployShards, purge && purgeErr == nil)
+			return rollShards(ctx, sess, rt, targets, deployShards, purgeErr == nil)
 		},
 		func(elapsed time.Duration) string {
 			return fmt.Sprintf("reloaded %d shard(s) (%s)", len(targetIDs), elapsed.Round(time.Second))
@@ -265,17 +269,14 @@ func rollShards(
 	if waitReady {
 		// Scoped to this reload's instances: another instance the developer left down is
 		// not this reload's problem, and waiting for it would burn the whole timeout.
-		ready, expected := rt.WaitForShardsReady(ctx, targets.instanceIDs, func(ready, expected int) {
-			sess.UpsertRow(
-				"ready",
-				"Waiting for shards ready",
-				fmt.Sprintf("%d/%d", ready, expected),
-				phasebox.Active,
-			)
+		var ready, expected int
+		waitForShardsReadyRow(sess, func(onProgress func(ready, expected int)) {
+			ready, expected = rt.WaitForShardsReady(ctx, targets.instanceIDs, onProgress)
 		})
 		if ready < expected {
-			sess.Fail("ready", "Waiting for shards ready",
-				eris.Errorf("%d/%d instances are serving; check `world logs`", ready, expected))
+			// Returned, not just shown: the row is already Failed, but the summary and the
+			// exit code are what a script or an agent reads, and plain progress has no rows.
+			return eris.Errorf("%d/%d instances are serving; check `world logs`", ready, expected)
 		}
 	}
 	return nil
@@ -283,11 +284,11 @@ func rollShards(
 
 // waitForShardsReadyRow drives the "ready" progress row through WaitForShardsReady
 // to a terminal state. waitForReady performs the actual wait and invokes
-// onProgress for every poll tick (typically cli.WaitForShardsReady). The row is
+// onProgress for every poll tick (local.Runtime.WaitForShardsReady). The row is
 // set Active on every tick, then closed to Done when ready >= expected or Failed
-// ("timed out …") otherwise — but only if onProgress was ever invoked.
-// WaitForShardsReady's early-skip paths (no pools, no clientset, no desired
-// images) return without a single tick, leaving no "ready" row to close.
+// ("timed out …") otherwise. The progressed guard is defensive: WaitForShardsReady
+// always ticks at least once because its counter starts below zero, so it only
+// protects a future waitForReady that could return without reporting anything.
 //
 // Must run before the enclosing section finishes: phasebox drops upserts to a
 // finished section (see Model.upsert), so a terminal update after dash.Run
@@ -298,7 +299,7 @@ func waitForShardsReadyRow(sess phasebox.Session, waitForReady func(onProgress f
 	waitForReady(func(ready, exp int) {
 		lastReady, expected = ready, exp
 		progressed = true
-		sess.UpsertRow("ready", "Waiting for pods ready", fmt.Sprintf("%d/%d", ready, exp), phasebox.Active)
+		sess.UpsertRow("ready", "Waiting for shards ready", fmt.Sprintf("%d/%d", ready, exp), phasebox.Active)
 	})
 	if !progressed {
 		return
@@ -307,7 +308,7 @@ func waitForShardsReadyRow(sess phasebox.Session, waitForReady func(onProgress f
 	if lastReady < expected {
 		state, detail = phasebox.Failed, fmt.Sprintf("timed out (%d/%d ready)", lastReady, expected)
 	}
-	sess.UpsertRow("ready", "Waiting for pods ready", detail, state)
+	sess.UpsertRow("ready", "Waiting for shards ready", detail, state)
 }
 
 type reloadTargets struct {

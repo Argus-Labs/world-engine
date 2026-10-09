@@ -22,8 +22,8 @@ import (
 type IntrospectInput struct {
 	ShardID      string `json:"shard_id"                jsonschema_description:"ID of the shard to introspect"`
 	InstanceName string `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance; accepts variants like 'game-5', 'game 5', 'game5', or '5'. Defaults to the shard's first instance."`
-	Organization string `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the project's releases when omitted"`
-	Project      string `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the project's releases when omitted"`
+	Organization string `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the running containers when omitted)"`
+	Project      string `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the running containers when omitted)"`
 	ShardURL     string `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved (per instance) from the running containers when omitted. When set, Docker is not contacted: pair it with instance_name (the exact instance, e.g. 'game-2'). Also pass organization/project to skip the container lookup entirely; otherwise they're still auto-resolved from the containers."`
 }
 
