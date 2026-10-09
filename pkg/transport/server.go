@@ -142,6 +142,12 @@ func (s *clientService) SendCommandWithReply(
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 	}
 
+	select {
+	case <-ctx.Done():
+		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "context cancelled"))
+	default:
+	}
+
 	// Register the waiter before dispatching: a handler that replies before returning would otherwise
 	// publish before anyone waits.
 	waiter := s.addReplyWaiter(player.ID, req.Msg.GetEventName())
@@ -236,8 +242,8 @@ func (s *clientService) StartEventStream(
 	if err != nil {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	defer subscriber.close()
 	defer s.removeSubscriber(player)
+	defer subscriber.close()
 
 	for _, subscription := range req.Msg.GetSubscriptions() {
 		if micro.String(s.address) != micro.String(subscription.GetAddress()) {

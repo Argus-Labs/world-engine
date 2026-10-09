@@ -62,7 +62,11 @@ func TestTransport_StopWaitsForHandlerReply(t *testing.T) {
 
 	firstErr := make(chan error, 1)
 	go func() { firstErr <- send(1) }()
-	<-entered
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "timed out waiting for the handler to run")
+	}
 
 	stopErr := make(chan error, 1)
 	go func() { stopErr <- tr.Stop(context.Background()) }()
