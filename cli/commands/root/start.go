@@ -15,6 +15,7 @@ import (
 	"github.com/argus-labs/world-engine/cli/internal/printer"
 	"github.com/argus-labs/world-engine/cli/internal/telemetry"
 	"github.com/argus-labs/world-engine/cli/internal/tui/component/phasebox"
+	"github.com/argus-labs/world-engine/cli/internal/tui/style"
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
 	"github.com/argus-labs/world-engine/cli/pkg/local"
@@ -41,7 +42,7 @@ func (c *StartCmd) Run(ctx context.Context) error {
 	if err != nil {
 		return eris.Wrap(err, "failed to get current directory")
 	}
-	worldCfg, err := tomlpkg.LoadFile(cwd + "/" + tomlpkg.FileName)
+	worldCfg, err := tomlpkg.LoadDir(cwd)
 	if err != nil {
 		return eris.Wrap(err, "load world.toml")
 	}
@@ -106,8 +107,11 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 			case <-time.After(200 * time.Millisecond):
 			}
 
-			dash.Info("Endpoints", strings.Join(endpointLines(cfg), "\n"))
 			dash.Complete()
+			// Its own box, sized to its lines: the dashboard's width is frozen by now.
+			printer.Infoln(style.MultiSectionBox([]style.Section{
+				{Title: "Endpoints", Body: strings.Join(endpointLines(cfg), "\n")},
+			}))
 
 			err = runLogSelectionEntry(ctx, rt, cfg, dockerClient)
 			if ctx.Err() != nil {
@@ -213,25 +217,25 @@ func deployServices(
 	)
 }
 
-// endpointLines is the static "where things are" block under the boxes.
+// endpointLines is the static "where things are" box printed after the dashboard.
 func endpointLines(cfg *service.Config) []string {
 	org, project := local.Sanitized(cfg.WorldToml.Organization, cfg.WorldToml.Project)
 	lines := []string{
-		fmt.Sprintf("API:        %s/%s/%s/<instance>", local.APIEndpoint, org, project),
-		fmt.Sprintf("NATS:       %s", local.NatsHostURL),
+		fmt.Sprintf("API:  %s/%s/%s/<instance>", local.APIEndpoint, org, project),
+		fmt.Sprintf("NATS: %s", local.NatsHostURL),
 	}
 	if service.NeedsAutoProjectDB(cfg.WorldToml) {
 		lines = append(
 			lines,
-			fmt.Sprintf("Project DB: postgres://postgres:postgres@%s/%s", local.DBEndpoint, cfg.WorldToml.Project),
+			fmt.Sprintf("DB:   postgres://postgres:postgres@%s/%s", local.DBEndpoint, cfg.WorldToml.Project),
 		)
 	}
 	for i, sh := range cfg.WorldToml.Shards {
-		lines = append(lines, fmt.Sprintf("%-11s 127.0.0.1:%d (direct)", sh.InstanceID+":", service.ShardHostPort(i)))
+		lines = append(lines, fmt.Sprintf("%-5s 127.0.0.1:%d", sh.InstanceID+":", service.ShardHostPort(i)))
 	}
 	for _, gs := range cfg.WorldToml.Services {
 		for _, port := range gs.Ports {
-			lines = append(lines, fmt.Sprintf("%-11s localhost:%d", gs.ID+":", port))
+			lines = append(lines, fmt.Sprintf("%-5s localhost:%d", gs.ID+":", port))
 		}
 	}
 	return lines
@@ -255,10 +259,4 @@ func warnConfigDBOverrides(cfg tomlpkg.Config) {
 			}
 		}
 	}
-}
-
-// stopWorld stops every container of the project (volumes kept) in a one-row box.
-func stopWorld(ctx context.Context, rt *local.Runtime, cfg *service.Config) error {
-	return runSingleStep(ctx, cfg.WorldToml.Project, "stop", "Stopping containers", "stopped",
-		func(ctx context.Context) error { return rt.Stop(ctx, nil) })
 }

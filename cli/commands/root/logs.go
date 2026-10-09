@@ -19,6 +19,7 @@ import (
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
 	"github.com/argus-labs/world-engine/cli/pkg/local"
+	tomlpkg "github.com/argus-labs/world-engine/cli/pkg/toml"
 	"github.com/argus-labs/world-engine/cli/pkg/worldstatus"
 )
 
@@ -41,9 +42,14 @@ func (c *LogsCmd) Run(ctx context.Context) error {
 		"remote": c.Context != "",
 	})
 
+	cwd, err := os.Getwd()
+	if err != nil {
+		return eris.Wrap(err, "failed to get current directory")
+	}
+
 	// A deployed environment is read through kubeconfig; Docker is not involved.
 	if c.Context != "" {
-		worldCfg, err := loadWorldConfig()
+		worldCfg, err := tomlpkg.LoadDir(cwd)
 		if err != nil {
 			return err
 		}
@@ -56,11 +62,6 @@ func (c *LogsCmd) Run(ctx context.Context) error {
 	deps := []dependency.Dependency{dependency.Git, dependency.Docker, dependency.DockerDaemon}
 	if err := dependency.Check(deps...); err != nil {
 		return err
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		return eris.Wrap(err, "failed to get current directory")
 	}
 
 	return docker.WithClient(cwd, c.Debug, &docker.ClientOptions{Logger: logger.Slog()},

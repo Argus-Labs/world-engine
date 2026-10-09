@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -31,7 +30,7 @@ func resolveProject(project string) (string, error) {
 	if err != nil {
 		return "", eris.Wrap(err, "current directory")
 	}
-	cfg, err := worldtoml.LoadFile(filepath.Join(cwd, worldtoml.FileName))
+	cfg, err := worldtoml.LoadDir(cwd)
 	if err != nil {
 		return "", eris.Wrap(err, "project not given and no world.toml in the working directory")
 	}

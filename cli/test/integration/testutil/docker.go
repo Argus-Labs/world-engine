@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -29,7 +28,7 @@ import (
 // ProjectName reads the project a world.toml declares; container names derive from it,
 // not from the directory name.
 func ProjectName(projectDir string) (string, error) {
-	cfg, err := worldtoml.LoadFile(filepath.Join(projectDir, worldtoml.FileName))
+	cfg, err := worldtoml.LoadDir(projectDir)
 	if err != nil {
 		return "", err
 	}

@@ -37,7 +37,7 @@ func TestBuildCardinalImagesWithKo_BareBoneTemplate(t *testing.T) {
 	}
 
 	// Load the template world.toml.
-	worldCfg, err := worldtoml.LoadFile(filepath.Join(templateDir, worldtoml.FileName))
+	worldCfg, err := worldtoml.LoadDir(templateDir)
 	if err != nil {
 		t.Fatalf("failed to load template world.toml: %v", err)
 	}

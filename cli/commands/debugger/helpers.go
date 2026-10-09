@@ -3,7 +3,6 @@ package debugger
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/rotisserie/eris"
@@ -30,7 +29,7 @@ func resolveTargets(dir string, instanceIDs []string) ([]debugTarget, error) {
 		dir = wd
 	}
 
-	cfg, err := worldtoml.LoadFile(filepath.Join(dir, worldtoml.FileName))
+	cfg, err := worldtoml.LoadDir(dir)
 	if err != nil {
 		return nil, eris.Wrapf(err, "failed to load %s", worldtoml.FileName)
 	}
