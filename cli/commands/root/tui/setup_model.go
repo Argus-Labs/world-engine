@@ -75,12 +75,8 @@ type WorldSetupModel struct {
 	logs             []string
 	steps            steps.Model
 	projectNameInput textinput.Model
-	// targetDir is the directory the project is created in. It retains the
-	// full path supplied via the Directory argument (already made absolute by
-	// Kong's "path" mapper) so the scaffolder creates the project there rather
-	// than under the process working directory. It is empty for the
-	// no-argument interactive path, where the project name typed into
-	// projectNameInput is used as the target (created under the CWD).
+	// targetDir stores the full destination path. projectNameInput stores only the project name.
+	// An empty targetDir selects the interactive input.
 	targetDir        string
 	templateList     list.Model
 	selectedTemplate *worldscaffold.GameTemplate
@@ -134,10 +130,6 @@ func NewWorldSetupModel(directory, env, templateFlag string) WorldSetupModel {
 	nameErr := ""
 	targetDir := ""
 	if directory != "" {
-		// Retain the full user-supplied path so the project is created at the
-		// directory the user asked for. projectNameInput carries only the
-		// trailing segment, which is what the interactive name/validation
-		// surface and dnslabel.IsCanonical expect.
 		targetDir = directory
 		dirName := filepath.Base(directory)
 		pnInput.SetValue(dirName)

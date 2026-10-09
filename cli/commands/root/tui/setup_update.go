@@ -225,11 +225,6 @@ func (m WorldSetupModel) updateSteps(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// targetDirectory returns the directory the project is created in: the
-// user-supplied Directory argument (an absolute path once Kong's "path"
-// mapper has expanded it) when one was provided, or the project name typed
-// into the interactive input for the no-argument path (a bare name created
-// under the process working directory).
 func (m WorldSetupModel) targetDirectory() string {
 	if m.targetDir != "" {
 		return m.targetDir
@@ -237,9 +232,6 @@ func (m WorldSetupModel) targetDirectory() string {
 	return m.projectNameInput.Value()
 }
 
-// displayDir renders the project's on-disk location for log messages: the
-// user-supplied directory verbatim (e.g. an absolute path), or "./<name>" for
-// the interactive no-argument path where the project lands under the CWD.
 func (m WorldSetupModel) displayDir() string {
 	if m.targetDir != "" {
 		return m.targetDir
