@@ -8,12 +8,14 @@ import (
 )
 
 // DescribeWorldInput is the (empty) input for describe_world; it reads the
-// cluster, not a local path.
-type DescribeWorldInput struct{}
+// Docker, not a local path.
+type DescribeWorldInput struct {
+	Project string `json:"project,omitempty" jsonschema_description:"World project whose namespace to read (defaults to the world.toml in the working directory)"`
+}
 
-// DescribeWorldOutput summarizes the worlds deployed on the cluster.
+// DescribeWorldOutput summarizes the worlds running on local Docker.
 type DescribeWorldOutput struct {
-	Worlds []DescribedWorld `json:"worlds" jsonschema_description:"Worlds currently deployed on the local cluster"`
+	Worlds []DescribedWorld `json:"worlds" jsonschema_description:"Worlds currently deployed on local Docker"`
 }
 
 // DescribedWorld is one deployed world and its shards.
@@ -24,13 +26,13 @@ type DescribedWorld struct {
 }
 
 // registerDescribeWorldTool registers the describe_world tool. It lists the
-// worlds the cardinal-operator currently has deployed, read from ShardPool CRs.
+// project's deployed shards, read from its container labels.
 func registerDescribeWorldTool(srv *server.MCPServer) {
 	describeWorldTool := mcp.NewTool(
 		"describe_world",
 		mcp.WithDescription(
-			"List the worlds currently deployed on the local cluster (organization, project, and shards), "+
-				"read from the cardinal-operator's ShardPool resources. No project path needed. Requires a running cluster.",
+			"List the world deployed for a project on local Docker (organization, project, and shards), "+
+				"read from its container labels. Requires a running world.",
 		),
 		// No WithInputSchema: the schema it generates for an empty struct has no "properties", which
 		// some MCP hosts reject on an object parameter. NewTool's default publishes an empty one.
@@ -40,16 +42,16 @@ func registerDescribeWorldTool(srv *server.MCPServer) {
 	srv.AddTool(describeWorldTool, strictToolHandler(describeWorldHandler))
 }
 
-// describeWorldHandler groups the cluster's deployed shards by world.
+// describeWorldHandler groups the running shards by world.
 func describeWorldHandler(
 	ctx context.Context,
 	_ mcp.CallToolRequest,
-	_ DescribeWorldInput,
+	args DescribeWorldInput,
 ) (DescribeWorldOutput, error) {
 	ctx, cancel := ensureDeadline(ctx, defaultCommandTimeout)
 	defer cancel()
 
-	shards, err := deployedShards(ctx)
+	shards, err := deployedShards(ctx, args.Project)
 	if err != nil {
 		return DescribeWorldOutput{}, err
 	}

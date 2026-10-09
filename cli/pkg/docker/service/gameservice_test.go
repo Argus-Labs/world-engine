@@ -12,7 +12,7 @@ func TestGameServiceFromConfigImageKind(t *testing.T) {
 	t.Parallel()
 
 	cfg := &Config{
-		Namespace: "rampage-backend",
+		Project:   "rampage",
 		NATSURL:   "nats://world-engine-nats:4222",
 		WorldToml: worldtoml.Config{Project: "rampage"},
 	}
@@ -46,13 +46,8 @@ func TestGameServiceFromConfigImageKind(t *testing.T) {
 	if !slices.Equal(svc.Binds, wantBinds) {
 		t.Fatalf("expected binds %#v, got %#v", wantBinds, svc.Binds)
 	}
-	if svc.Labels[GameServiceLabel] != "rampage" {
-		t.Fatalf("expected game service label %q, got %#v", "rampage", svc.Labels)
-	}
-	// Pulled kind must not carry the cardinal label or the build pipeline
-	// errors on a missing SHARD_PATH.
-	if _, ok := svc.Labels[CardinalNamespaceLabel]; ok {
-		t.Fatalf("image-kind service must not carry the cardinal label, got %#v", svc.Labels)
+	if svc.Labels[ProjectLabel] != "rampage" || svc.Labels[RoleLabel] != RoleService {
+		t.Fatalf("expected project/service labels, got %#v", svc.Labels)
 	}
 	if svc.BuildTarget != "" || svc.Dockerfile != "" {
 		t.Fatalf("image-kind service must be pull-only, got target %q dockerfile %q", svc.BuildTarget, svc.Dockerfile)
@@ -70,7 +65,7 @@ func TestGameServiceFromConfigPathKind(t *testing.T) {
 	t.Parallel()
 
 	cfg := &Config{
-		Namespace: "rampage-backend",
+		Project:   "rampage",
 		NATSURL:   "nats://world-engine-nats:4222",
 		WorldToml: worldtoml.Config{Project: "rampage"},
 	}
@@ -95,13 +90,8 @@ func TestGameServiceFromConfigPathKind(t *testing.T) {
 	if svc.BuildArgs["SHARD_PATH"] != "services/meta/cmd" || svc.BuildArgs["SOURCE_PATH"] != "." {
 		t.Fatalf("unexpected build args: %#v", svc.BuildArgs)
 	}
-	// Built kind carries both labels: cardinal label rides the shard build +
-	// image-prune pipeline, game service label drives start/stop/purge buckets.
-	if svc.Labels[GameServiceLabel] != "rampage" {
-		t.Fatalf("expected game service label %q, got %#v", "rampage", svc.Labels)
-	}
-	if svc.Labels[CardinalNamespaceLabel] != "rampage-backend" {
-		t.Fatalf("expected cardinal label %q, got %#v", "rampage-backend", svc.Labels)
+	if svc.Labels[ProjectLabel] != "rampage" || svc.Labels[RoleLabel] != RoleService {
+		t.Fatalf("expected project/service labels, got %#v", svc.Labels)
 	}
 	if !slices.Contains(
 		svc.Env,
@@ -124,7 +114,7 @@ func TestGameServiceFromConfigInjectsConfigDBCreds(t *testing.T) {
 	t.Parallel()
 
 	cfg := &Config{
-		Namespace: "rampage-backend",
+		Project:   "rampage",
 		NATSURL:   "nats://world-engine-nats:4222",
 		WorldToml: worldtoml.Config{Project: "rampage"},
 	}
@@ -153,7 +143,7 @@ func TestGameServiceFromConfigConfigDBCredsTakePrecedence(t *testing.T) {
 	t.Parallel()
 
 	cfg := &Config{
-		Namespace: "rampage-backend",
+		Project:   "rampage",
 		NATSURL:   "nats://world-engine-nats:4222",
 		WorldToml: worldtoml.Config{Project: "rampage"},
 	}
@@ -183,8 +173,8 @@ func TestGameServiceFromConfigInjectsDBDSN(t *testing.T) {
 	t.Parallel()
 
 	cfg := &Config{
-		Namespace: "rampage-backend",
-		NATSURL:   "nats://world-engine-nats:4222",
+		Project: "rampage",
+		NATSURL: "nats://world-engine-nats:4222",
 		WorldToml: worldtoml.Config{
 			Project:  "rampage",
 			Services: []worldtoml.GameService{{ID: "meta", Path: "services/meta/cmd", DB: true}},
@@ -209,7 +199,7 @@ func TestGameServiceFromConfigDBDSNOverridable(t *testing.T) {
 		Env:  map[string]string{"DB_DSN": "postgres://custom@host:5432/db"},
 	}
 	cfg := &Config{
-		Namespace: "rampage-backend",
+		Project:   "rampage",
 		NATSURL:   "nats://world-engine-nats:4222",
 		WorldToml: worldtoml.Config{Project: "rampage", Services: []worldtoml.GameService{meta}},
 	}
@@ -249,18 +239,13 @@ func TestProjectDBService(t *testing.T) {
 	if !slices.Equal(svc.Env, wantEnv) {
 		t.Fatalf("expected env %#v, got %#v", wantEnv, svc.Env)
 	}
-	if svc.Labels[GameServiceLabel] != "rampage" {
-		t.Fatalf("expected game service label %q, got %#v", "rampage", svc.Labels)
-	}
-	// Auto-provisioned DB is pull-only — never rides the cardinal build pipeline.
-	if _, ok := svc.Labels[CardinalNamespaceLabel]; ok {
-		t.Fatalf("project db must not carry the cardinal label, got %#v", svc.Labels)
+	if svc.Labels[ProjectLabel] != "rampage" || svc.Labels[RoleLabel] != RoleDB {
+		t.Fatalf("expected project/db labels, got %#v", svc.Labels)
 	}
 	if svc.BuildTarget != "" {
 		t.Fatalf("project db must be pull-only, got build target %q", svc.BuildTarget)
 	}
-	// Named volume == container name, so purge's volume delete cleans it up.
-	if !slices.Equal(svc.Binds, []string{"rampage-db:/var/lib/postgresql/data"}) {
+	if !slices.Equal(svc.Binds, []string{"rampage-db-data:/var/lib/postgresql/data"}) {
 		t.Fatalf("expected named volume bind, got %#v", svc.Binds)
 	}
 	hc := svc.Healthcheck
@@ -303,7 +288,7 @@ func TestBuildGameServicesPreservesDeclarationOrder(t *testing.T) {
 			},
 		},
 	}
-	builders := BuildGameServices(cfg)
+	builders := BuildGameServices(cfg)[1:] // [0] is the auto project db
 	if len(builders) != 2 {
 		t.Fatalf("expected 2 builders, got %d", len(builders))
 	}

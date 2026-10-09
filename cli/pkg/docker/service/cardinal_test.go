@@ -1,8 +1,12 @@
 package service
 
 import (
+	"maps"
 	"slices"
+	"strings"
 	"testing"
+
+	"github.com/moby/moby/api/types/network"
 
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
@@ -129,7 +133,7 @@ func TestNeedsAutoProjectDB(t *testing.T) {
 		want bool
 	}{
 		{
-			name: "db = true and no config_db -> auto-provision",
+			name: "no config_db -> auto-provision",
 			cfg: worldtoml.Config{
 				Project:  "rampage",
 				Services: []worldtoml.GameService{{ID: "meta", Path: "x", DB: true}},
@@ -137,7 +141,7 @@ func TestNeedsAutoProjectDB(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "db = true but explicit config_db satisfies it",
+			name: "explicit config_db replaces it",
 			cfg: worldtoml.Config{Project: "rampage", Services: []worldtoml.GameService{
 				{ID: "postgres", Image: "postgres:16", ConfigDB: true},
 				{ID: "meta", Path: "x", DB: true},
@@ -145,9 +149,9 @@ func TestNeedsAutoProjectDB(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "no db service",
+			name: "shards alone still get a project db",
 			cfg:  worldtoml.Config{Project: "rampage", Services: []worldtoml.GameService{{ID: "meta", Path: "x"}}},
-			want: false,
+			want: true,
 		},
 	}
 	for _, tt := range tests {
@@ -181,12 +185,12 @@ func TestBuildCardinalEnvSharesProjectDB(t *testing.T) {
 func TestCardinalFromShardUsesLogicalIDForImageAndInstanceIDForContainer(t *testing.T) {
 	t.Parallel()
 
-	cfg := &Config{Namespace: "world"}
+	cfg := &Config{Project: "world", WorldToml: worldtoml.Config{Project: "world"}}
 	svc := CardinalFromShard(cfg, worldtoml.Shard{
 		ID:         "game",
 		InstanceID: "game-2",
 		Path:       "shards/game/",
-	}, DefaultCardinalDebugHostPort)
+	}, ShardHostPortBase)
 
 	if svc.Name != "world-game-2-shard" {
 		t.Fatalf("expected container name %q, got %q", "world-game-2-shard", svc.Name)
@@ -210,5 +214,176 @@ func TestCardinalFromShardUsesLogicalIDForImageAndInstanceIDForContainer(t *test
 	}
 	if svc.Dependencies[0].Name != GoBuilderImage || svc.Dependencies[1].Name != BaseImage {
 		t.Fatalf("unexpected dependency images: %#v", svc.Dependencies)
+	}
+}
+
+// envMap turns KEY=VALUE pairs into a map, failing on duplicates.
+func envMap(t *testing.T, env []string) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	for _, kv := range env {
+		k, v, _ := strings.Cut(kv, "=")
+		if _, dup := out[k]; dup {
+			t.Fatalf("duplicate env %s", k)
+		}
+		out[k] = v
+	}
+	return out
+}
+
+// TestBuildCardinalEnvContract pins the env `world start` gives a shard. The
+// cardinal-shard chart must render the same keys; it lives in monorepo, so nothing
+// here can check that mechanically.
+func TestBuildCardinalEnvContract(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		Project: "rampage",
+		NATSURL: NatsURL("rampage"),
+		Debug:   true,
+		WorldToml: worldtoml.Config{
+			Organization: "argus",
+			Project:      "rampage",
+			Services:     []worldtoml.GameService{{ID: "meta", Path: "services/meta/cmd", DB: true}},
+		},
+	}
+	got := envMap(t, buildCardinalEnv(cfg, worldtoml.Shard{ID: "gameplay", InstanceID: "gameplay-2", TickRate: 20}))
+	want := map[string]string{
+		"CARDINAL_SHARD_ID":              "gameplay-2",
+		"CARDINAL_ORG":                   "argus",
+		"CARDINAL_PROJECT":               "rampage",
+		"CARDINAL_REGION":                "us-west1",
+		"LOG_LEVEL":                      "info",
+		"CARDINAL_SNAPSHOT_STORAGE_TYPE": "JETSTREAM",
+		"CARDINAL_AUTH_MODE":             "DEV",
+		"NATS_URL":                       "nats://rampage-nats:4222",
+		"DB_DSN":                         "postgres://postgres:postgres@rampage-db:5432/rampage?sslmode=disable",
+		"CARDINAL_TICK_RATE":             "20",
+		"CARDINAL_MODE":                  "LEADER",
+		"CARDINAL_DEBUG":                 "true",
+		"OTEL_EXPORTER_OTLP_ENDPOINT":    "",
+		"OTEL_RESOURCE_ATTRIBUTES":       "shard.id=gameplay,service.instance.id=gameplay-2",
+		"LOG_FORMAT":                     "pretty",
+	}
+	if !maps.Equal(got, want) {
+		t.Fatalf("env mismatch:\n got %#v\nwant %#v", got, want)
+	}
+}
+
+func TestBuildCardinalEnvOmitsOptionalKeys(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{Project: "g", NATSURL: NatsURL("g"), WorldToml: worldtoml.Config{Organization: "o", Project: "g"}}
+	got := envMap(t, buildCardinalEnv(cfg, worldtoml.Shard{ID: "a", InstanceID: "a"}))
+	for _, k := range []string{"CARDINAL_TICK_RATE", "OTEL_TRACE_SAMPLE_RATE"} {
+		if _, ok := got[k]; ok {
+			t.Fatalf("%s must be omitted when unset, got %#v", k, got)
+		}
+	}
+	if got["CARDINAL_DEBUG"] != "false" || got["DB_DSN"] == "" || got["CARDINAL_MODE"] != "LEADER" {
+		t.Fatalf("unexpected env %#v", got)
+	}
+	got = envMap(
+		t,
+		buildCardinalEnv(cfg, worldtoml.Shard{ID: "a", InstanceID: "a", Mode: "FOLLOWER", LogLevel: "debug"}),
+	)
+	if got["CARDINAL_MODE"] != "FOLLOWER" || got["LOG_LEVEL"] != "debug" {
+		t.Fatalf("unexpected env %#v", got)
+	}
+}
+
+func TestBuildCardinalShardsBindLoopbackPorts(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{Project: "g", NATSURL: NatsURL("g"), WorldToml: worldtoml.Config{
+		Organization: "o", Project: "g",
+		Shards: []worldtoml.Shard{{ID: "gameplay", InstanceID: "gameplay"}, {ID: "gameplay", InstanceID: "gameplay-2"}},
+	}}
+	builders := BuildCardinalShards(cfg)
+	if len(builders) != 2 {
+		t.Fatalf("builders = %d", len(builders))
+	}
+	for i, want := range []string{"8081", "8082"} {
+		svc := builders[i](cfg)
+		b := svc.PortBindings[network.MustParsePort("8080/tcp")]
+		if len(b) != 1 || b[0].HostPort != want || b[0].HostIP.String() != "127.0.0.1" {
+			t.Fatalf("instance %d bindings = %#v", i, b)
+		}
+		if svc.NetworkMode != "world-g" || svc.RestartPolicy.Name != "" {
+			t.Fatalf("instance %d host config = %#v", i, svc.HostConfig)
+		}
+		if svc.Labels[RoleLabel] != RoleShard || svc.Labels[ShardIDLabel] != "gameplay" ||
+			svc.Labels[ProjectLabel] != "g" {
+			t.Fatalf("instance %d labels = %#v", i, svc.Labels)
+		}
+	}
+	if builders[1](cfg).Labels[InstanceLabel] != "gameplay-2" {
+		t.Fatal("instance label")
+	}
+}
+
+func TestNATSAndProjectDBArePerProject(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{Project: "g", WorldToml: worldtoml.Config{Project: "g"}}
+	n := NATS(cfg)
+	if n.Name != "g-nats" || n.ReadyURL != "http://127.0.0.1:8222/healthz" || n.Healthcheck != nil ||
+		n.NetworkMode != "world-g" {
+		t.Fatalf("nats = %#v", n)
+	}
+	if !slices.Equal(n.Binds, []string{"g-nats-data:/data"}) || !slices.Contains(n.Cmd, "-js") {
+		t.Fatalf("nats store = %#v %#v", n.Binds, n.Cmd)
+	}
+	db := ProjectDBService(cfg)
+	if db.Name != "g-db" || db.Healthcheck == nil || db.NetworkMode != "world-g" || db.Labels[RoleLabel] != RoleDB {
+		t.Fatalf("db = %#v", db)
+	}
+	if !slices.Equal(db.Binds, []string{"g-db-data:/var/lib/postgresql/data"}) {
+		t.Fatalf("db binds = %#v", db.Binds)
+	}
+}
+
+// TestBuildCardinalEnvArgusAuth locks the ARGUS pair: a local world can then be
+// played with the same Argus accounts a hosted one uses.
+func TestBuildCardinalEnvArgusAuth(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{Project: "g", NATSURL: NatsURL("g"), WorldToml: worldtoml.Config{
+		Organization: "o", Project: "g",
+		Auth: worldtoml.Auth{Mode: worldtoml.AuthModeArgus, URL: "https://api.argus.dev"},
+	}}
+	got := envMap(t, buildCardinalEnv(cfg, worldtoml.Shard{ID: "a", InstanceID: "a"}))
+	if got["CARDINAL_AUTH_MODE"] != "ARGUS" || got["CARDINAL_ARGUS_AUTH_URL"] != "https://api.argus.dev" {
+		t.Fatalf("argus env = %#v", got)
+	}
+}
+
+// An unparsed config (MCP reads by project name) must still produce a mode the shard accepts.
+func TestBuildCardinalEnvDefaultsToDevAuth(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{Project: "g", NATSURL: NatsURL("g"), WorldToml: worldtoml.Config{Organization: "o", Project: "g"}}
+	got := envMap(t, buildCardinalEnv(cfg, worldtoml.Shard{ID: "a", InstanceID: "a"}))
+	if got["CARDINAL_AUTH_MODE"] != "DEV" {
+		t.Fatalf("auth mode = %q, want DEV", got["CARDINAL_AUTH_MODE"])
+	}
+	if _, ok := got["CARDINAL_ARGUS_AUTH_URL"]; ok {
+		t.Fatalf("DEV must not carry an argus URL: %#v", got)
+	}
+}
+
+// Docker treats bare "host", "bridge" and "none" as built-in network modes rather
+// than user networks. Host mode ignores PortBindings, so a project with that name
+// would publish every shard, NATS and Postgres on all interfaces instead of 127.0.0.1.
+func TestNetworkNameNeverCollidesWithDockerBuiltins(t *testing.T) {
+	t.Parallel()
+
+	for _, project := range []string{"host", "bridge", "none"} {
+		if got := NetworkName(project); got == project {
+			t.Fatalf("project %q yields network mode %q, Docker's built-in", project, got)
+		}
+	}
+	if got := NetworkName("rampage"); got != "world-rampage" {
+		t.Fatalf("NetworkName(rampage) = %q, want world-rampage", got)
 	}
 }

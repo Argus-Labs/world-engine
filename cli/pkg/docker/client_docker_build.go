@@ -167,7 +167,7 @@ func (c *Client) buildSingleCardinalWithDocker(
 ) error {
 	// Remove all containers on this image so they are recreated from the rebuild.
 	for _, name := range sb.containers {
-		if err := c.removeContainerKeepVolume(ctx, name); err != nil {
+		if err := c.removeContainer(ctx, name, true); err != nil {
 			c.logger.WarnContext(ctx,
 				"failed to remove existing container before rebuild",
 				"container", name, "error", err)
@@ -211,9 +211,9 @@ func (c *Client) buildSingleCardinalWithDocker(
 			"GO_IMAGE":   &goImage,
 		},
 		Labels: map[string]string{
-			"world-cli":              "cardinal",
-			"world-cli-service-name": sb.serviceName,
-			"world-cli-image-name":   sb.image,
+			service.CardinalImageLabel: service.CardinalImageValue,
+			"world-cli-service-name":   sb.serviceName,
+			"world-cli-image-name":     sb.image,
 		},
 	}
 
@@ -392,12 +392,9 @@ func closeAndLog(ctx context.Context, logger *slog.Logger, label string, c io.Cl
 	}
 }
 
-// IsCardinalService returns true if the given service represents a Cardinal
-// shard (identified by the Cardinal namespace label).
+// IsCardinalService reports whether the service's image is built from project source.
+// Shards always are; so are path-kind [[services]]. Keying off the build rather than the
+// role is what keeps a service's image building — a role check silently skipped them.
 func IsCardinalService(s service.Service) bool {
-	if len(s.Labels) == 0 {
-		return false
-	}
-	_, ok := s.Labels[service.CardinalNamespaceLabel]
-	return ok
+	return s.BuildTarget != ""
 }

@@ -27,9 +27,6 @@ type Row struct {
 // border, later ones on divider lines. Dashboard.Run opens one per call;
 // once finished, a summary line is appended below its rows, which stay
 // visible so the box keeps showing what happened.
-//
-// Dashboard.Info opens a plain section instead — no rows, no ✓/✗ icon —
-// for static content (e.g. endpoint URLs) that isn't a pass/fail task.
 type section struct {
 	id       string
 	title    string
@@ -39,7 +36,6 @@ type section struct {
 	finished bool
 	summary  string
 	failed   bool
-	plain    bool
 }
 
 // Model is the bubbletea model backing a Dashboard — one continuous
@@ -104,12 +100,6 @@ type collapseMsg struct {
 	failed           bool
 }
 
-// infoMsg marks section finished with plain static content — no icon, no
-// rows (see Dashboard.Info).
-type infoMsg struct {
-	section, body string
-}
-
 func newModel(cancel func()) Model {
 	s := spinner.New(
 		spinner.WithSpinner(spinner.Dot),
@@ -155,9 +145,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.flushToFit()
 		}
 	case collapseMsg:
-		return m.finish(msg.section, msg.summary, msg.failed, false).flushToFit()
-	case infoMsg:
-		return m.finish(msg.section, msg.body, false, true).flushToFit()
+		return m.finish(msg.section, msg.summary, msg.failed).flushToFit()
 	}
 	return m, nil
 }
@@ -165,7 +153,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // finish marks a section done and appends its summary line below its rows,
 // which stay visible. Unknown sections — already finished and committed to
 // scrollback — are ignored.
-func (m Model) finish(sectionID, summary string, failed, plain bool) Model {
+func (m Model) finish(sectionID, summary string, failed bool) Model {
 	i, ok := m.sectionByID[sectionID]
 	if !ok {
 		return m
@@ -174,7 +162,6 @@ func (m Model) finish(sectionID, summary string, failed, plain bool) Model {
 	sec.finished = true
 	sec.summary = summary
 	sec.failed = failed
-	sec.plain = plain
 	return m
 }
 
@@ -183,7 +170,7 @@ func (m Model) finish(sectionID, summary string, failed, plain bool) Model {
 // the frame's height — style.contentLine truncates rather than wraps, so a
 // row is always exactly one line no matter how its label/detail changes —
 // which is what lets Update skip flushToFit on the far more frequent
-// in-place updates (progress ticks, k3d log lines).
+// in-place updates (progress ticks, log lines).
 func (m Model) upsert(sectionID, id string, row Row) bool {
 	i, ok := m.sectionByID[sectionID]
 	if !ok || m.sections[i].finished {
@@ -316,15 +303,11 @@ func renderSection(sec section, sp spinner.Model) string {
 	}
 
 	if sec.finished {
-		if sec.plain {
-			lines = append(lines, sec.summary)
-		} else {
-			icon := style.TickIcon.Render()
-			if sec.failed {
-				icon = style.CrossIcon.Render()
-			}
-			lines = append(lines, icon+sec.summary)
+		icon := style.TickIcon.Render()
+		if sec.failed {
+			icon = style.CrossIcon.Render()
 		}
+		lines = append(lines, icon+sec.summary)
 	}
 
 	return strings.Join(lines, "\n")

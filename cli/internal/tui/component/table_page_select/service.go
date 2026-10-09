@@ -2,7 +2,9 @@ package tablepageselect
 
 import (
 	"context"
+	"errors"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rotisserie/eris"
 
 	errorspkg "github.com/argus-labs/world-engine/cli/internal/errors"
@@ -39,6 +41,9 @@ func RunWithHotkeys(
 	prog := program.NewTeaProgram(model)
 	m, err := prog.Run()
 	if err != nil {
+		if errors.Is(err, tea.ErrInterrupted) || errors.Is(err, tea.ErrProgramKilled) {
+			return -1, "", context.Canceled // SIGINT without a TTY; same exit as ctrl+c in the picker
+		}
 		return -1, "", eris.Wrap(err, "failed to run paginated select UI")
 	}
 

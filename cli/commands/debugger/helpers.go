@@ -3,14 +3,13 @@ package debugger
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/rotisserie/eris"
 
 	"github.com/argus-labs/world-engine/cli/internal/debug"
 	"github.com/argus-labs/world-engine/cli/internal/printer"
-	"github.com/argus-labs/world-engine/cli/pkg/cluster"
+	"github.com/argus-labs/world-engine/cli/pkg/local"
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
@@ -30,7 +29,7 @@ func resolveTargets(dir string, instanceIDs []string) ([]debugTarget, error) {
 		dir = wd
 	}
 
-	cfg, err := worldtoml.LoadFile(filepath.Join(dir, worldtoml.FileName))
+	cfg, err := worldtoml.LoadDir(dir)
 	if err != nil {
 		return nil, eris.Wrapf(err, "failed to load %s", worldtoml.FileName)
 	}
@@ -44,7 +43,7 @@ func resolveTargets(dir string, instanceIDs []string) ([]debugTarget, error) {
 	for _, instance := range instances {
 		targets = append(targets, debugTarget{
 			instanceID: instance.InstanceID,
-			url:        cluster.LocalShardAPIURL(cfg.Organization, cfg.Project, instance.InstanceID),
+			url:        local.ShardAPIURL(cfg.Organization, cfg.Project, instance.InstanceID),
 		})
 	}
 	return targets, nil

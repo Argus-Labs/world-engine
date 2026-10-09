@@ -4,24 +4,23 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-// ShardInstance describes one running pod (instance) of a shard pool.
+// ShardInstance describes one container (instance) of a shard pool.
 type ShardInstance struct {
-	Name         string `json:"name"                    jsonschema_description:"Operator instance name ('gameplay', or 'gameplay-2' … for pool_size>1)"`
-	PodName      string `json:"pod_name,omitempty"      jsonschema_description:"Kubernetes pod name (ephemeral; changes on rolling deploy)"`
-	Phase        string `json:"phase,omitempty"         jsonschema_description:"Pod phase: Running, Pending, Failed, etc."`
-	Ready        bool   `json:"ready"                   jsonschema_description:"Whether the pod passes its readiness checks"`
+	Name         string `json:"name"                    jsonschema_description:"Instance name ('gameplay', or 'gameplay-2' … for pool_size>1)"`
+	Container    string `json:"container,omitempty"     jsonschema_description:"Docker container name"`
+	Phase        string `json:"phase,omitempty"         jsonschema_description:"Container state: running, exited, created, etc."`
+	Ready        bool   `json:"ready"                   jsonschema_description:"Whether the shard accepts connections"`
 	RestartCount int32  `json:"restart_count,omitempty" jsonschema_description:"Container restart count"`
-	Age          string `json:"age,omitempty"           jsonschema_description:"How long the pod has been running"`
+	Age          string `json:"age,omitempty"           jsonschema_description:"How long the container has been running"`
 }
 
-// ShardPool describes a shard's operator-managed deployment pool in the cluster.
+// ShardPool describes a shard's pool of containers.
 type ShardPool struct {
 	ShardID   string          `json:"shard_id"            jsonschema_description:"Shard identifier from world.toml (e.g. 'gameplay')"`
-	Namespace string          `json:"namespace,omitempty" jsonschema_description:"Kubernetes namespace the pool runs in"`
 	PoolSize  int32           `json:"pool_size,omitempty" jsonschema_description:"Number of instances in the pool"`
-	ImageTag  string          `json:"image_tag,omitempty" jsonschema_description:"Deployed image tag"`
-	Phase     string          `json:"phase,omitempty"     jsonschema_description:"Pool phase reported by the operator"`
-	Instances []ShardInstance `json:"instances"           jsonschema_description:"Per-pod status"`
+	Image     string          `json:"image,omitempty"     jsonschema_description:"Image the instances run"`
+	Phase     string          `json:"phase,omitempty"     jsonschema_description:"Pool phase: Running, Partial, Stopped or NotDeployed"`
+	Instances []ShardInstance `json:"instances"           jsonschema_description:"Per-container status"`
 }
 
 // NewServer creates and configures the Cardinal MCP server with all tools
@@ -52,7 +51,7 @@ func NewServer() *server.MCPServer {
 	registerGetStateTool(srv)
 	registerDebugControlTool(srv)
 	registerReloadTool(srv)
-	registerClusterTool(srv)
+	registerWorldLifecycleTool(srv)
 	registerSdkGenerateTool(srv)
 
 	return srv

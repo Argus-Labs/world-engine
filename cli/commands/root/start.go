@@ -7,7 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/rotisserie/eris"
+	"golang.org/x/term"
 
 	"github.com/argus-labs/world-engine/cli/internal/dependency"
 	errorspkg "github.com/argus-labs/world-engine/cli/internal/errors"
@@ -15,9 +17,10 @@ import (
 	"github.com/argus-labs/world-engine/cli/internal/printer"
 	"github.com/argus-labs/world-engine/cli/internal/telemetry"
 	"github.com/argus-labs/world-engine/cli/internal/tui/component/phasebox"
-	"github.com/argus-labs/world-engine/cli/pkg/cluster"
+	"github.com/argus-labs/world-engine/cli/internal/tui/style"
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
+	"github.com/argus-labs/world-engine/cli/pkg/local"
 	tomlpkg "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
@@ -25,6 +28,9 @@ type StartCmd struct {
 	Debug bool `help:"Enable debug mode" default:"true" negatable:""`
 }
 
+// Run brings the world up on Docker and stays attached: the edge proxy lives in
+// this process, so Ctrl+C (or quitting the log picker) stops the containers again,
+// keeping their volumes, like `docker compose up`.
 func (c *StartCmd) Run(ctx context.Context) error {
 	telemetry.PosthogCaptureEvent("start-cardinal-command", map[string]any{
 		"debug": c.Debug,
@@ -38,58 +44,108 @@ func (c *StartCmd) Run(ctx context.Context) error {
 	if err != nil {
 		return eris.Wrap(err, "failed to get current directory")
 	}
-	worldCfg, err := tomlpkg.LoadFile(cwd + "/" + tomlpkg.FileName)
+	worldCfg, err := tomlpkg.LoadDir(cwd)
 	if err != nil {
 		return eris.Wrap(err, "load world.toml")
 	}
+	warnConfigDBOverrides(worldCfg)
 
-	err = c.runK8s(ctx, cwd, worldCfg)
+	err = c.run(ctx, cwd)
 	if err != nil && errorspkg.ShouldPrint(err) {
-		printer.Notificationln("(run `world purge` to clear cluster state)")
+		printer.Notificationln("(run `world purge` to clear local state)")
 	}
 	return err
 }
 
-////////////////////////////////////
-// Pull, Build, Start Helpers //////
-////////////////////////////////////
-
-// startCluster brings up the world-agnostic platform (k3d, NATS, Traefik) in a "Cluster" box.
-func startCluster(dash *phasebox.Dashboard) (*cluster.Client, error) {
-	var cli *cluster.Client
-	if err := dash.Run("Cluster",
-		func(ctx context.Context, sess phasebox.Session) error {
-			// One row per phase; k3d log lines update the current row.
-			tracker := phasebox.NewStepTracker(sess)
-			cli = cluster.NewClient(cluster.Config{
-				LogLevel: os.Getenv("WORLD_K3D_LOG_LEVEL"),
-				OnK3DLog: tracker.Detail,
-			})
-			err := cli.StartPlatform(ctx, tracker.Next)
-			// k3d's logger is global; unhook it so late lines can't reopen the finished row.
-			cli.ResetLogRouting()
+func (c *StartCmd) run(ctx context.Context, cwd string) error {
+	return docker.WithClient(cwd, c.Debug, &docker.ClientOptions{Logger: logger.Slog()},
+		func(cfg *service.Config, dockerClient *docker.Client) error {
+			rt := local.New(dockerClient, cfg)
+			targets, err := resolveReloadTargets(cfg, nil)
 			if err != nil {
-				tracker.Failed(err)
 				return err
 			}
-			tracker.Done()
-			return nil
+			services := dockerClient.ResolveServices(service.GetServices(cfg, service.CardinalShardsFirst)...)
+			dockerServices := filterCardinalServicesByID(services, cfg, targets.shardIDs)
+
+			// One dashboard spans every box (Image Pull, Build, Platform, Shards,
+			// Services); Complete hands the terminal back before the log picker.
+			dash := phasebox.Start(ctx, phasebox.TTY)
+			defer dash.Complete()
+
+			if err := pullBuildDeps(ctx, dash, dockerClient, dockerServices, platformImageRefs(cfg)); err != nil {
+				return err
+			}
+
+			// Build while NATS and Postgres come up; shards deploy only after a good build.
+			buildBox := dash.Open("Build")
+			buildDone := make(chan error, 1)
+			go func() { buildDone <- buildShardImages(buildBox, dockerClient, dockerServices) }()
+
+			platformErr := startPlatform(dash, rt, cfg)
+			buildErr := <-buildDone
+			if platformErr != nil {
+				return platformErr
+			}
+			if buildErr != nil {
+				return eris.Wrap(buildErr, "initial shard build")
+			}
+
+			if err := deployShardImages(dash, rt, targets, false); err != nil {
+				return eris.Wrap(err, "initial shard deploy")
+			}
+			if err := deployServices(dash, rt, dockerClient, cfg); err != nil {
+				return eris.Wrap(err, "initial service deploy")
+			}
+
+			// The edge is the only entry point; it dies with this process.
+			edgeCtx, stopEdge := context.WithCancel(ctx)
+			defer stopEdge()
+			edgeErr := make(chan error, 1)
+			go func() { edgeErr <- rt.ServeEdge(edgeCtx) }()
+			select {
+			case err := <-edgeErr:
+				return eris.Wrap(err, "start edge")
+			case <-time.After(200 * time.Millisecond):
+			}
+
+			dash.Complete()
+			// Its own box: the dashboard's width is frozen by now. 0 width = not a terminal.
+			width, _, _ := term.GetSize(int(os.Stdout.Fd()))
+			printer.Infoln(endpointsBox(endpointList(cfg), width))
+
+			err = runLogSelectionEntry(ctx, rt, cfg, dockerClient)
+			if ctx.Err() != nil {
+				err = errorspkg.NewSilent(ctx.Err()) // Ctrl+C is the normal way out
+			}
+			// The edge dying mid-session makes every client call fail with connection
+			// refused, which looks like a shard problem unless we say otherwise.
+			select {
+			case edgeFailure := <-edgeErr:
+				if edgeFailure != nil {
+					printer.Errorf("Edge proxy stopped: %v\n", edgeFailure)
+				}
+			default:
+			}
+
+			// Attached semantics: leaving world start stops the world, volumes stay.
+			stopCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+			stopEdge()
+			if stopErr := stopWorld(stopCtx, rt, cfg); stopErr != nil {
+				printer.Errorf("Stop failed: %v\n", stopErr)
+			}
+			return err
 		},
-		func(elapsed time.Duration) string {
-			return fmt.Sprintf("ready — %s (%s)", cli.Config().ClusterName, elapsed.Round(time.Second))
-		},
-	); err != nil {
-		return nil, eris.Wrap(err, "cluster start")
-	}
-	return cli, nil
+	)
 }
 
-// deployWorld applies worldCfg's operator, DB, services and ShardPools in a "World" box.
-func deployWorld(dash *phasebox.Dashboard, cli *cluster.Client, worldCfg tomlpkg.Config) error {
-	if err := dash.Run("World",
+// startPlatform starts the network, NATS, Postgres and image-kind services in a "Platform" box.
+func startPlatform(dash *phasebox.Dashboard, rt *local.Runtime, cfg *service.Config) error {
+	if err := dash.Run("Platform",
 		func(ctx context.Context, sess phasebox.Session) error {
 			tracker := phasebox.NewStepTracker(sess)
-			if err := cli.DeployWorld(ctx, worldCfg, tracker.Next); err != nil {
+			if err := rt.StartPlatform(ctx, tracker.Next); err != nil {
 				tracker.Failed(err)
 				return err
 			}
@@ -97,23 +153,32 @@ func deployWorld(dash *phasebox.Dashboard, cli *cluster.Client, worldCfg tomlpkg
 			return nil
 		},
 		func(elapsed time.Duration) string {
-			return fmt.Sprintf("ready — %s (%s)", worldCfg.Project, elapsed.Round(time.Second))
+			return fmt.Sprintf("ready — %s (%s)", cfg.WorldToml.Project, elapsed.Round(time.Second))
 		},
 	); err != nil {
-		return eris.Wrap(err, "deploy world")
+		return eris.Wrap(err, "start platform")
 	}
 	return nil
 }
 
-// deployK8sServices builds + imports + deploys every path-kind ([[services]]
-// with a path=) entry from world.toml, mirroring reloadK8sShards' pull+build
-// but applying Deployments via cluster.DeployServices instead of the operator
-// RPC (k8s rolls the pod on image change). Image-kind services are already
-// applied by cluster.Start's ensureServices. No-op when no path-kind services
-// are declared. Called from runK8s right after the shard reload.
-func deployK8sServices(
+// platformImageRefs lists the pulled images the platform needs, so Image Pull shows them.
+func platformImageRefs(cfg *service.Config) []string {
+	refs := []string{service.NATS(cfg).Image}
+	if service.NeedsAutoProjectDB(cfg.WorldToml) {
+		refs = append(refs, service.ProjectDBService(cfg).Image)
+	}
+	for _, gs := range cfg.WorldToml.Services {
+		if !gs.IsBuiltFromSource() {
+			refs = append(refs, gs.Image)
+		}
+	}
+	return refs
+}
+
+// deployServices builds and (re)creates path-kind [[services]] in a "Services" box; no-op without any.
+func deployServices(
 	dash *phasebox.Dashboard,
-	cli *cluster.Client,
+	rt *local.Runtime,
 	dockerClient *docker.Client,
 	cfg *service.Config,
 ) error {
@@ -129,8 +194,6 @@ func deployK8sServices(
 
 	return dash.Run("Services",
 		func(ctx context.Context, sess phasebox.Session) error {
-			// Pre-pull build dependencies (golang/runtime base images) before
-			// building, same rationale as reloadK8sShards.
 			if err := dockerClient.PullImages(ctx, pathKind, phasebox.PullProgress(sess)); err != nil {
 				return eris.Wrap(err, "pull service build dependencies")
 			}
@@ -142,16 +205,11 @@ func deployK8sServices(
 			); err != nil {
 				return eris.Wrap(err, "build service images")
 			}
-
-			sess.UpsertRow("deploy", "Importing images + rolling pods", "", phasebox.Active)
-			if err := cli.DeployServices(ctx, cluster.DeployServicesOpts{
-				Project: cfg.WorldToml.Project,
-				Config:  cfg.WorldToml,
-			}); err != nil {
-				sess.Fail("deploy", "Importing images + rolling pods", err)
+			sess.UpsertRow("deploy", "Starting containers", "", phasebox.Active)
+			if err := rt.DeployServices(ctx); err != nil {
 				return eris.Wrap(err, "deploy services")
 			}
-			sess.UpsertRow("deploy", "Importing images + rolling pods", "", phasebox.Done)
+			sess.UpsertRow("deploy", "Starting containers", "", phasebox.Done)
 			return nil
 		},
 		func(elapsed time.Duration) string {
@@ -160,141 +218,82 @@ func deployK8sServices(
 	)
 }
 
+// endpoint is one "where things are" entry; the label is shown as "<label>: ".
+type endpoint struct{ label, addr string }
+
+// endpointList is the static "where things are" list printed after the dashboard.
+func endpointList(cfg *service.Config) []endpoint {
+	org, project := local.Sanitized(cfg.WorldToml.Organization, cfg.WorldToml.Project)
+	eps := []endpoint{
+		{"API", fmt.Sprintf("%s/%s/%s/<instance>", local.APIEndpoint, org, project)},
+		{"NATS", local.NatsHostURL},
+	}
+	if service.NeedsAutoProjectDB(cfg.WorldToml) {
+		eps = append(eps, endpoint{
+			"Project DB", fmt.Sprintf("postgres://postgres:postgres@%s/%s", local.DBEndpoint, cfg.WorldToml.Project),
+		})
+	}
+	for i, sh := range cfg.WorldToml.Shards {
+		eps = append(eps, endpoint{sh.InstanceID, fmt.Sprintf("127.0.0.1:%d (direct)", service.ShardHostPort(i))})
+	}
+	for _, gs := range cfg.WorldToml.Services {
+		for _, port := range gs.Ports {
+			eps = append(eps, endpoint{gs.ID, fmt.Sprintf("localhost:%d", port)})
+		}
+	}
+	return eps
+}
+
+// endpointsBox boxes the endpoints, capped at termWidth (0 = no cap). Addresses
+// share one column, sized to the longest label — instance IDs are arbitrarily
+// long, so a fixed indent misaligns them. Lines that don't fit wrap under that
+// column instead of being cut; a label too wide for the box drops the indent.
+func endpointsBox(eps []endpoint, termWidth int) string {
+	pad := 0
+	for _, e := range eps {
+		pad = max(pad, ansi.StringWidth(e.label)+1) // +1 for the colon
+	}
+	lines := make([]string, len(eps))
+	for i, e := range eps {
+		lines[i] = fmt.Sprintf("%-*s %s", pad, e.label+":", e.addr)
+	}
+
+	var opts style.BoxOpts
+	if inner := termWidth - style.BoxChrome; termWidth > 0 && inner > 0 {
+		opts.MaxWidth = termWidth
+		hang := pad + 1
+		if hang >= inner {
+			hang = 0
+		}
+		indent := strings.Repeat(" ", hang)
+		for i, line := range lines {
+			if ansi.StringWidth(line) > inner {
+				lines[i] = strings.ReplaceAll(ansi.Wrap(line, inner-hang, "/"), "\n", "\n"+indent)
+			}
+		}
+	}
+	out, _ := style.MultiSectionBoxOpts(
+		[]style.Section{{Title: "Endpoints", Body: strings.Join(lines, "\n")}}, opts,
+	)
+	return out
+}
+
 // warnConfigDBOverrides notes any POSTGRES_* env a config_db service declares:
-// world-cli always overrides them with the shared-DB defaults (see cluster's
-// serviceEnv), so a user's values would otherwise be silently discarded.
+// world start always overrides them with the shared-DB defaults, so a user's
+// values would otherwise be silently discarded.
 func warnConfigDBOverrides(cfg tomlpkg.Config) {
 	for _, svc := range cfg.Services {
 		if !svc.ConfigDB {
 			continue
 		}
-		// Exactly the three keys serviceEnv force-overrides for config_db; any
-		// other POSTGRES_* the user sets is passed through untouched.
 		for _, key := range []string{"POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"} {
 			if _, ok := svc.Env[key]; ok {
 				printer.Notificationf(
-					"config_db service %q sets %s in [[services.env]]; world-cli overrides it with the shared-DB default.\n",
+					"config_db service %q sets %s in [[services.env]]; world start overrides it with the shared-DB default.\n",
 					svc.ID,
 					key,
 				)
 			}
 		}
 	}
-}
-
-// warnUnforwardedServicePorts notes that [[services]] ports run in-cluster only
-// — host-side port-forward is deferred (deleted with #699's PortForward rework).
-// Reach them from the host with `kubectl port-forward`.
-func warnUnforwardedServicePorts(cfg tomlpkg.Config) {
-	for _, svc := range cfg.Services {
-		for _, port := range svc.Ports {
-			printer.Notificationf(
-				"service %q port %d is in-cluster only — use `kubectl port-forward` to reach it from host.\n",
-				svc.ID,
-				port,
-			)
-		}
-	}
-}
-
-////////////////////////////////////
-// Cluster Lifecycle ///////////////
-////////////////////////////////////
-
-// runK8s brings up the k3d cluster + operator + ShardPools, reloads every
-// shard from world.toml so pods leave ImagePullBackOff, then tails shard logs
-// (with 'r' to reload, ctrl+r to purge + reload, without leaving the viewer).
-// Blocks until Ctrl+C.
-// cwd and worldCfg are resolved by Run before the "run `world purge`" hint
-// becomes applicable — every error surfaced from here on is a cluster
-// failure the hint can plausibly help with.
-func (c *StartCmd) runK8s(ctx context.Context, cwd string, worldCfg tomlpkg.Config) error {
-	warnConfigDBOverrides(worldCfg)
-
-	// Open Docker first: shard builds don't need the cluster.
-	return docker.WithClient(cwd, c.Debug, &docker.ClientOptions{Logger: logger.Slog()},
-		func(cfg *service.Config, dockerClient *docker.Client) error {
-			targets, err := resolveReloadTargets(cfg, nil)
-			if err != nil {
-				return err
-			}
-			services := dockerClient.ResolveServices(service.GetServices(cfg, service.CardinalShardsFirst)...)
-			dockerServices := filterCardinalServicesByID(services, cfg, targets.shardIDs)
-
-			// One dashboard spans every box this start opens (Image Pull, Build,
-			// Cluster, World, Shards, Services), so adjacent boxes never visually split
-			// across separate bubbletea programs. The defer covers every error
-			// return below (and a panic); the success path additionally stops it
-			// explicitly before warnUnforwardedServicePorts and the log picker,
-			// since both write to the terminal directly and would otherwise race
-			// the dashboard's still-redrawing spinner. Complete is idempotent, so
-			// the deferred call after that is a no-op.
-			dash := phasebox.Start(ctx, phasebox.TTY)
-			defer dash.Complete()
-
-			// Discover k3d's own cluster-bootstrap images up front so they pull
-			// in the same "Image Pull" box as the shard images, instead of
-			// pulling opaquely inside k3d's cluster-create. Empty (not an error)
-			// when the cluster already exists — nothing new to pull on resume.
-			bootstrapImages, err := cluster.NewClient(cluster.Config{
-				LogLevel: os.Getenv("WORLD_K3D_LOG_LEVEL"),
-			}).RequiredBootstrapImages(ctx)
-			if err != nil {
-				return eris.Wrap(err, "discover cluster bootstrap images")
-			}
-
-			if err := pullBuildDeps(ctx, dash, dockerClient, dockerServices, bootstrapImages); err != nil {
-				return err
-			}
-
-			// Build while the platform comes up; the world deploys only after a good build.
-			buildBox := dash.Open("Build")
-			buildDone := make(chan error, 1)
-			go func() { buildDone <- buildShardImages(buildBox, dockerClient, dockerServices) }()
-
-			cli, clusterErr := startCluster(dash)
-			buildErr := eris.Wrap(<-buildDone, "initial shard build")
-			// Both halves' failures; a Ctrl+C'd half can't hide the other's.
-			if err := errorspkg.JoinFailures(clusterErr, buildErr); err != nil {
-				return err
-			}
-			if err := deployWorld(dash, cli, worldCfg); err != nil {
-				return err
-			}
-			// NOTE: [[services]] still run in-cluster only — unlike the single shared
-			// DB they're dynamic, so they can't take a fixed k3d NodePort mapping (set
-			// at cluster-create). Host-side port-forward + log selection for them
-			// stays deferred; reach a service port with `kubectl port-forward`.
-
-			if err := deployShardImages(dash, cli, cfg, targets, false); err != nil {
-				return eris.Wrap(err, "initial shard deploy")
-			}
-
-			// Static info, not a task — no spinner/checkmark, just the endpoint
-			// URLs once the cluster + shards are up.
-			resolved := cli.Config()
-			endpointLines := []string{
-				fmt.Sprintf("API:      %s/<organization>/<project>/<instance>", resolved.APIEndpoint),
-				fmt.Sprintf("Operator: %s", resolved.OperatorEndpoint),
-			}
-			if service.NeedsAutoProjectDB(worldCfg) {
-				// Reachable on the host via the k3d NodePort mapping — no port-forward.
-				endpointLines = append(endpointLines, fmt.Sprintf("Project DB: %s", resolved.DBEndpoint))
-			}
-			dash.Info("Endpoints", strings.Join(endpointLines, "\n"))
-
-			// Build + import + deploy path-kind [[services]] (e.g. services/meta);
-			// no-op when none are declared.
-			if err := deployK8sServices(dash, cli, dockerClient, cfg); err != nil {
-				return eris.Wrap(err, "initial service deploy")
-			}
-
-			// Hand the terminal back before anything writes to it directly.
-			dash.Complete()
-
-			warnUnforwardedServicePorts(cfg.WorldToml)
-
-			return runLogSelectionEntry(ctx, cli, cfg, dockerClient)
-		},
-	)
 }

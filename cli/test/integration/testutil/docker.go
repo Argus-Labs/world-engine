@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -23,20 +22,36 @@ import (
 
 	dockerpkg "github.com/argus-labs/world-engine/cli/pkg/docker"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
+	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
-const (
-	// CardinalNamespaceLabel is the label used to identify Cardinal containers.
-	CardinalNamespaceLabel = "com.world.cardinal.namespace"
+// ProjectName reads the project a world.toml declares; container names derive from it,
+// not from the directory name.
+func ProjectName(projectDir string) (string, error) {
+	cfg, err := worldtoml.LoadDir(projectDir)
+	if err != nil {
+		return "", err
+	}
+	return cfg.Project, nil
+}
 
-	// WorldEnginePrefix is used for core services like NATS.
-	WorldEnginePrefix = "world-engine-"
-)
+// CardinalShardContainerName derives the Docker container name for one shard
+// instance of the project at projectDir.
+func CardinalShardContainerName(projectDir, instanceID string) (string, error) {
+	project, err := ProjectName(projectDir)
+	if err != nil {
+		return "", err
+	}
+	return service.CardinalShardContainerName(project, instanceID), nil
+}
 
-// CardinalShardContainerName derives the Docker container name for a shard
-// from the project directory path and shard ID.
-func CardinalShardContainerName(projectDir, shardID string) string {
-	return service.CardinalShardContainerName(filepath.Base(projectDir), shardID)
+// NatsContainerName is the project's NATS container.
+func NatsContainerName(projectDir string) (string, error) {
+	project, err := ProjectName(projectDir)
+	if err != nil {
+		return "", err
+	}
+	return service.NatsContainerName(project), nil
 }
 
 // DockerClient wraps the Docker API client for test utilities.
@@ -60,20 +75,19 @@ func (d *DockerClient) Close() error {
 
 // ContainerInfo holds information about a container.
 type ContainerInfo struct {
-	ID        string
-	Name      string
-	Image     string
-	State     string
-	Status    string
-	Ports     []string
-	Running   bool
-	Healthy   bool
-	Namespace string
+	ID      string
+	Name    string
+	Image   string
+	State   string
+	Status  string
+	Ports   []string
+	Running bool
+	Healthy bool
+	Project string
 }
 
-// ListCardinalContainers returns all Cardinal-related containers.
-// This includes containers with the cardinal namespace label and
-// core services like NATS (world-engine-*).
+// ListCardinalContainers returns every container world start created for a
+// project: shards, NATS, the project database and [[services]].
 func (d *DockerClient) ListCardinalContainers(ctx context.Context) ([]ContainerInfo, error) {
 	containers, err := d.cli.ContainerList(ctx, client.ContainerListOptions{
 		All: true,
@@ -90,23 +104,20 @@ func (d *DockerClient) ListCardinalContainers(ctx context.Context) ([]ContainerI
 			cleanName = strings.TrimPrefix(c.Names[0], "/")
 		}
 
-		// Check if it's a Cardinal container (has namespace label)
-		// or a core service (world-engine-*)
-		namespace := c.Labels[CardinalNamespaceLabel]
-		isWorldEngine := strings.HasPrefix(cleanName, WorldEnginePrefix)
-
-		if namespace == "" && !isWorldEngine {
+		// Every container world start creates carries the project label.
+		project := c.Labels[service.ProjectLabel]
+		if project == "" {
 			continue
 		}
 
 		info := ContainerInfo{
-			ID:        c.ID[:12],
-			Name:      cleanName,
-			Image:     c.Image,
-			State:     string(c.State),
-			Status:    c.Status,
-			Running:   string(c.State) == "running",
-			Namespace: namespace,
+			ID:      c.ID[:12],
+			Name:    cleanName,
+			Image:   c.Image,
+			State:   string(c.State),
+			Status:  c.Status,
+			Running: string(c.State) == "running",
+			Project: project,
 		}
 
 		// Check health status
@@ -208,8 +219,9 @@ func (d *DockerClient) NetworkExists(ctx context.Context, name string) (bool, er
 	return len(networks.Items) > 0, nil
 }
 
-// WaitForNATS waits until NATS is reachable on port 4222.
-func WaitForNATS(timeout time.Duration) bool {
+// WaitForNATS waits until the project's NATS is reachable on port 4222.
+// projectDir only names the container to dump on failure; pass "" to skip that.
+func WaitForNATS(timeout time.Duration, projectDir string) bool {
 	addr := "localhost:4222"
 	fmt.Printf("DEBUG: WaitForNATS trying to connect to %s\n", addr)
 
@@ -217,8 +229,9 @@ func WaitForNATS(timeout time.Duration) bool {
 
 	if !result {
 		fmt.Printf("DEBUG: WaitForNATS failed to connect to %s after %v\n", addr, timeout)
-		// Log container state
-		logNATSContainerState()
+		if name, err := NatsContainerName(projectDir); err == nil {
+			logNATSContainerState(name)
+		}
 	}
 	return result
 }
@@ -258,16 +271,16 @@ func waitForPortDown(addr string, timeout time.Duration) bool {
 
 // WaitForCardinalDebugReady polls the Cardinal debug ConnectRPC service until
 // it responds successfully to an Introspect RPC. The host port is resolved by
-// inspecting the Docker container's port bindings, falling back to
-// DefaultCardinalDebugHostPort if the container is not found.
+// inspecting the Docker container's port bindings, falling back to the first
+// instance's port if the container is not found.
 func WaitForCardinalDebugReady(t testing.TB, timeout time.Duration, containerName string) bool {
 	t.Helper()
 
-	port := service.DefaultCardinalDebugHostPort
+	port := service.ShardHostPortBase
 	if dockerClient, err := dockerpkg.NewClient(&service.Config{}, nil); err == nil {
 		defer dockerClient.Close()
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		if hp, err := dockerClient.CardinalDebugHostPort(ctx, containerName); err == nil {
+		if hp, err := dockerClient.CardinalHostPort(ctx, containerName); err == nil {
 			port = hp
 		}
 		cancel()
@@ -295,8 +308,8 @@ func WaitForCardinalDebugReady(t testing.TB, timeout time.Duration, containerNam
 	return false
 }
 
-// logNATSContainerState logs the NATS container state for debugging.
-func logNATSContainerState() {
+// logNATSContainerState logs the project's NATS container state for debugging.
+func logNATSContainerState(natsContainer string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -308,7 +321,7 @@ func logNATSContainerState() {
 	defer cli.Close()
 
 	// Check if NATS container exists
-	inspectResult, err := cli.ContainerInspect(ctx, "world-engine-nats", client.ContainerInspectOptions{})
+	inspectResult, err := cli.ContainerInspect(ctx, natsContainer, client.ContainerInspectOptions{})
 	if err != nil {
 		fmt.Printf("DEBUG: NATS container inspect failed: %v\n", err)
 		return
@@ -337,7 +350,7 @@ func logNATSContainerState() {
 		ShowStderr: true,
 		Tail:       "10",
 	}
-	reader, err := cli.ContainerLogs(ctx, "world-engine-nats", logsOpts)
+	reader, err := cli.ContainerLogs(ctx, natsContainer, logsOpts)
 	if err != nil {
 		fmt.Printf("DEBUG: failed to get NATS logs: %v\n", err)
 		return

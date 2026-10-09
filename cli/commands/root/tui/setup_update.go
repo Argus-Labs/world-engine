@@ -65,7 +65,7 @@ func (m WorldSetupModel) handleNameInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		}
 		name := m.projectNameInput.Value()
 		// Match the cardinal-editor: the name must already be dnslabel-canonical so
-		// world.toml's project (and the shard paths the operator derives from it)
+		// world.toml's project (and the shard paths derived from it)
 		// address cleanly with no surprising normalization.
 		if !dnslabel.IsCanonical(name) {
 			m.nameErr = projectNameErrMsg

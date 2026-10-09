@@ -2,14 +2,25 @@ package service
 
 // Common string values used across service configurations.
 const (
-	// DefaultNetworkMode is the docker network shared by all services.
-	DefaultNetworkMode = "world-engine-network"
+	// ProjectLabel marks every container of one project; NetworkName(project) is its network.
+	ProjectLabel = "world.argus.gg/project"
+	// ShardIDLabel is the pool id of a shard container ("gameplay").
+	ShardIDLabel = "world.argus.gg/shard-id"
+	// InstanceLabel is the pool-expanded instance id ("gameplay-2"); also set on service containers.
+	InstanceLabel = "world.argus.gg/instance"
+	// RoleLabel is one of the Role* values; StartContainers orders containers by it.
+	RoleLabel = "world.argus.gg/role"
+	// OrgLabel is the world's organization, set on shard containers so readers without world.toml can address them.
+	OrgLabel = "world.argus.gg/organization"
 
-	// CardinalNamespaceLabel labels Cardinal shard containers/images by namespace.
-	CardinalNamespaceLabel = "com.world.cardinal.namespace"
+	RoleShard   = "shard"
+	RoleNATS    = "nats"
+	RoleDB      = "db"
+	RoleService = "service"
 
-	// GameServiceLabel labels [[services]] containers by project.
-	GameServiceLabel = "com.world.service.project"
+	// CardinalImageLabel marks images built by `world`; purge --image prunes by it.
+	CardinalImageLabel = "world-cli"
+	CardinalImageValue = "cardinal"
 
 	// BaseImage is the distroless runtime base for built-from-source images.
 	BaseImage = "gcr.io/distroless/base-debian12"
@@ -19,7 +30,26 @@ const (
 	// (go = "...").
 	GoBuilderImage = "golang:1.27.1-bookworm"
 
-	// cardinalRegion is injected into shard + game-service env. Hard coded for
+	// CardinalRegion is injected into shard + game-service env. Hard coded for
 	// local dev until multi-region is wired up.
-	cardinalRegion = "us-west1"
+	CardinalRegion = "us-west1"
 )
+
+// NetworkName is the per-project Docker bridge network. The prefix matters: bare
+// "host", "bridge" and "none" are Docker's built-in network modes, and host mode
+// ignores PortBindings, so a project with one of those names would publish every
+// shard on all interfaces instead of loopback. It also keeps start from adopting —
+// and purge from deleting — an unrelated network that happens to share the name.
+func NetworkName(project string) string { return "world-" + project }
+
+// Labels returns the common label set for a container of a project.
+func Labels(project, role, shardID, instance string) map[string]string {
+	l := map[string]string{ProjectLabel: project, RoleLabel: role}
+	if shardID != "" {
+		l[ShardIDLabel] = shardID
+	}
+	if instance != "" {
+		l[InstanceLabel] = instance
+	}
+	return l
+}

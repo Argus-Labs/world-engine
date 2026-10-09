@@ -22,10 +22,9 @@ import (
 type IntrospectInput struct {
 	ShardID      string `json:"shard_id"                jsonschema_description:"ID of the shard to introspect"`
 	InstanceName string `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance; accepts variants like 'game-5', 'game 5', 'game5', or '5'. Defaults to the shard's first instance."`
-	Organization string `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the cluster's ShardPool for this shard if omitted)"`
-	Project      string `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the cluster's ShardPool for this shard if omitted)"`
-	ShardURL     string `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved (per instance) from the cluster when omitted. When set, the operator is not contacted: pair it with instance_name (the exact instance, e.g. 'game-2'). Also pass organization/project to skip the cluster lookup entirely; otherwise they're still auto-resolved via a cluster call."`
-	OperatorURL  string `json:"operator_url,omitempty"  jsonschema_description:"cardinal-operator URL used to resolve instance_name (defaults to http://localhost:8090 for local dev)"`
+	Organization string `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the project's releases when omitted"`
+	Project      string `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the project's releases when omitted"`
+	ShardURL     string `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved (per instance) from the running containers when omitted. When set, Docker is not contacted: pair it with instance_name (the exact instance, e.g. 'game-2'). Also pass organization/project to skip the container lookup entirely; otherwise they're still auto-resolved from the containers."`
 }
 
 // IntrospectOutput is the structured output for the introspect tool.
@@ -53,9 +52,9 @@ func registerIntrospectTool(srv *server.MCPServer) {
 				"Returns each type's schema, useful for understanding the shard's API and generating code. "+
 				"The result describes the deployed shard binary, so it stays valid for the whole session — "+
 				"call it once and reuse it rather than re-calling before every command. It only goes stale "+
-				"when the shard is redeployed with changed types: after a reload (or cluster start) that "+
+				"when the shard is redeployed with changed types: after a reload (or start) that "+
 				"added, removed, or changed a command, component, or event, call it again. "+
-				"Requires a running cluster.",
+				"Requires a running world.",
 		),
 		mcp.WithInputSchema[IntrospectInput](),
 		mcp.WithOutputSchema[IntrospectOutput](),
@@ -79,7 +78,6 @@ func introspectHandler(
 		organization: args.Organization,
 		project:      args.Project,
 		shardURL:     args.ShardURL,
-		operatorURL:  args.OperatorURL,
 	})
 	if err != nil {
 		return IntrospectOutput{}, err

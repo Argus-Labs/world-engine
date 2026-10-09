@@ -91,7 +91,7 @@ func TestMultiSectionBox_Empty(t *testing.T) {
 func TestMultiSectionBoxOpts_ClampsToMaxWidth(t *testing.T) {
 	t.Parallel()
 
-	// A long k3d failure is fed in raw at ~10 call sites; unclamped it makes
+	// A long cluster failure is fed in raw at ~10 call sites; unclamped it makes
 	// every line wider than the screen, and bubbletea's renderer then cuts the
 	// closing "│" off the long rows while short rows keep theirs.
 	long := "ensure cluster: " + strings.Repeat("failure detail ", 20)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -19,6 +20,11 @@ func LoadFile(path string) (Config, error) {
 	}
 	defer func() { _ = f.Close() }()
 	return Load(f)
+}
+
+// LoadDir loads the world.toml in dir.
+func LoadDir(dir string) (Config, error) {
+	return LoadFile(filepath.Join(dir, FileName))
 }
 
 func Load(r io.Reader) (Config, error) {
@@ -106,25 +112,31 @@ func validate(cfg *Config) error {
 			cfg.Shards[i].LogLevel = zerolog.InfoLevel.String()
 		}
 
+		// Normalize shard mode against the chart's enum, so a value world.toml accepts
+		// cannot be one the chart would reject on a cluster.
+		cfg.Shards[i].Mode = strings.ToUpper(strings.TrimSpace(cfg.Shards[i].Mode))
+		switch cfg.Shards[i].Mode {
+		case "", ShardModeLeader, ShardModeFollower:
+		default:
+			return eris.Errorf("shards[%d] (%s) mode %q must be %s or %s",
+				i, cfg.Shards[i].ID, cfg.Shards[i].Mode, ShardModeLeader, ShardModeFollower)
+		}
+
 		// Validate shard path
 		if err := validatePath(cfg.Shards[i].Path); err != nil || cfg.Shards[i].Path == "" {
 			return err
 		}
 
-		// Validate tick_rate. Zero is allowed: it's omitted from the ShardPool
-		// CR, so the operator skips CARDINAL_TICK_RATE and the shard binary
-		// falls back to its own default tick rate.
+		// Validate tick_rate. Zero is allowed: the chart then omits CARDINAL_TICK_RATE
+		// and the shard binary falls back to its own default tick rate.
 		if cfg.Shards[i].TickRate < 0 {
 			return eris.New(fmt.Sprintf("shards[%d].tick_rate must be non-negative", i))
 		}
 
-		// Validate resources if present. The ShardPool CRD marks
-		// requests.{cpu,memory} and limits.{cpu,memory} all required with a
-		// minimum of 1, and kubelet rejects a limit below its request. The CR
-		// encoder emits every value (no omitempty), so a zero/omitted field
-		// reaches the API server as 0 and is rejected at apply time. Enforce the
-		// full constraint here so the error names the world.toml field instead of
-		// surfacing later at operator reconcile.
+		// Validate resources if present. requests.{cpu,memory} and limits.{cpu,memory}
+		// are all rendered, a zero reaches the API server as 0 and is rejected, and
+		// kubelet rejects a limit below its request. Enforce the full constraint here
+		// so the error names the world.toml field.
 		if r := cfg.Shards[i].Resources; r != nil {
 			if r.Requests.CPU < 1 || r.Requests.Memory < 1 {
 				return eris.New(fmt.Sprintf(
@@ -150,7 +162,7 @@ func validate(cfg *Config) error {
 	}
 
 	// Expand pool_size > 1 into multiple shard entries. Naming mirrors
-	// cardinal-operator: the first instance keeps the base ID, subsequent
+	// the cardinal-shard chart: the first instance keeps the base ID, subsequent
 	// instances are numbered from 2 (e.g. "game", "game-2", "game-3").
 	expanded, err := expandPools(cfg.Shards)
 	if err != nil {
@@ -162,7 +174,7 @@ func validate(cfg *Config) error {
 		return err
 	}
 
-	return nil
+	return validateAuth(&cfg.Auth)
 }
 
 // validateServices validates the [[services]] section. Unlike shards there is no

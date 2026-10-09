@@ -14,7 +14,7 @@ import (
 
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 
-	"github.com/argus-labs/world-engine/cli/pkg/cluster"
+	"github.com/argus-labs/world-engine/cli/pkg/local"
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
@@ -50,11 +50,11 @@ func TestResolveTargets(t *testing.T) {
 		assert.Equal(t, []debugTarget{
 			{
 				instanceID: "game-2",
-				url:        cluster.LocalShardAPIURL("test-org", "test-project", "game-2"),
+				url:        local.ShardAPIURL("test-org", "test-project", "game-2"),
 			},
 			{
 				instanceID: "meta",
-				url:        cluster.LocalShardAPIURL("test-org", "test-project", "meta"),
+				url:        local.ShardAPIURL("test-org", "test-project", "meta"),
 			},
 		}, targets)
 	})
