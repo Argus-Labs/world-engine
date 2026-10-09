@@ -13,10 +13,23 @@ import (
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	oteltrace "go.opentelemetry.io/otel/trace"
+)
+
+// Span names and attribute keys the transport emits for Cardinal. Copied, not imported, so a rename
+// in the transport fails these tests: dashboards and alerts key on them.
+const (
+	spanEventPublish   = "cardinal.event.publish"
+	spanInterShardSend = "cardinal.command.send"
+
+	attrCommandTarget    = attribute.Key("cardinal.command.target")
+	attrEventName        = attribute.Key("cardinal.event.name")
+	attrEventRecipient   = attribute.Key("cardinal.event.recipient")
+	attrEventSubscribers = attribute.Key("cardinal.event.subscribers")
 )
 
 // newRecordingTracer installs an in-memory span exporter as the global tracer provider for the
@@ -210,7 +223,7 @@ func TestInterShardCommandPropagatesTrace(t *testing.T) {
 	exporter := newRecordingTracer(t)
 
 	payload := testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
-	require.NoError(t, fixtureA.svc.publishInterShardCommand(context.Background(), event.Event{
+	require.NoError(t, fixtureA.world.sendInterShardCommand(context.Background(), event.Event{
 		Kind: event.KindInterShardCommand,
 		Payload: command.Command{
 			Name:    payload.Name(),
@@ -218,7 +231,7 @@ func TestInterShardCommandPropagatesTrace(t *testing.T) {
 			Payload: payload,
 		},
 	}))
-	fixtureA.svc.drainInterShardCommands() // what the tick does after dispatch
+	fixtureA.world.transport.Flush() // what the tick does after dispatch
 
 	cmds := awaitCommands(t, fixtureB)
 	var send tracetest.SpanStub
@@ -248,7 +261,7 @@ func TestEventPublishSpanRecordsPanic(t *testing.T) {
 	exporter := newRecordingTracer(t)
 
 	require.PanicsWithValue(t, "unencodable payload", func() {
-		_ = fixture.svc.publishDefaultEvent(context.Background(), event.Event{
+		_ = fixture.world.publishEvent(context.Background(), event.Event{
 			Kind: event.KindDefault, Payload: panickingEvent{}, Recipient: "player-1",
 		})
 	})

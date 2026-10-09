@@ -91,6 +91,10 @@ signal that a plain struct is a wire type (and one the runtime needs anyway):
 | component | `RegisterComponent[T]()` | Go + C# |
 | system event | `RegisterSystemEvent[T]()` | Go only (in-process; the client never sees it) |
 
+A service that serves through `pkg/transport` without Cardinal declares its commands and events with
+the transport's `RegisterCommand[T](handler)` and `RegisterEvent[T]()`; they get the same kinds and
+targets. Transport is matched by its exact import path, Cardinal by package name.
+
 Post-codec, kind no longer changes the emitted code — every kind gets identical wire
 methods. It survives only as the **target** policy (`kindTargets`). A type can play
 **several roles** (e.g. an event that's also a system event): it is generated **once**,
