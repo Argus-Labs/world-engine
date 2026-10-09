@@ -17,6 +17,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/testutils"
+	"github.com/argus-labs/world-engine/pkg/transport"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
@@ -187,15 +188,20 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 		w.options.NATSConfig.URL = natsURL
 	}
 	w.options.AuthMode = AuthModeDev
-	w.service = newService(w, w.options.AuthMode, w.options.ArgusAuthURL)
-	w.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
+
+	// Rebuild the transport with the options above; NewWorld built it with the setup's options.
+	tr, err := w.newTransport()
+	require.NoError(t, err)
+	w.transport = tr
 
 	connectAddr := "127.0.0.1:5000"
-	require.NoError(t, w.service.init(connectAddr))
+	require.NoError(t, w.startTransport(connectAddr))
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		require.NoError(t, w.service.shutdown(ctx))
+		err := w.stopTransport(ctx)
+		w.client.Close()
+		require.NoError(t, err)
 	})
 
 	// Replace inter-shard event handler with local assertions.
@@ -253,7 +259,7 @@ func (f *e2eFixture) sendCommand(t *testing.T, player string, cmd *iscv1.Command
 	ctx, cancel := context.WithTimeout(context.Background(), e2eCommandTimeout)
 	defer cancel()
 	req := connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmd})
-	req.Header().Set(devPlayerIDHeader, player)
+	req.Header().Set(transport.DevPlayerIDHeader, player)
 	_, err := f.client.SendCommand(ctx, req)
 	require.NoError(t, err)
 }

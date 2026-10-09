@@ -8,9 +8,11 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
+	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -295,7 +297,7 @@ func TestCommands_Smoke(t *testing.T) {
 	})
 }
 
-// newCommandWorld returns a world with the command manager and service wired, and SimpleCommand
+// newCommandWorld returns a world with the command manager and transport wired, and SimpleCommand
 // registered.
 func newCommandWorld(t *testing.T) *World {
 	t.Helper()
@@ -303,8 +305,10 @@ func newCommandWorld(t *testing.T) *World {
 	w := &World{
 		world:    ecs.NewWorld(),
 		commands: command.NewManager(),
+		address:  RandServiceAddress(testutils.NewRand(t)),
+		tel:      telemetry.Telemetry{Logger: zerolog.Nop()},
 	}
-	w.service = newService(w, AuthModeDev, "")
+	w.transport = newTestTransport(t, w)
 	w.RegisterCommand[testutils.SimpleCommand]()
 
 	return w
@@ -409,7 +413,12 @@ func TestEvents_Smoke(t *testing.T) {
 func newEventWorld(t *testing.T) *World {
 	t.Helper()
 
-	w := &World{events: event.NewManager(1024)}
+	w := &World{
+		events:  event.NewManager(1024),
+		address: RandServiceAddress(testutils.NewRand(t)),
+		tel:     telemetry.Telemetry{Logger: zerolog.Nop()},
+	}
+	w.transport = newTestTransport(t, w)
 	w.RegisterEvent[testutils.SimpleEvent]()
 
 	return w

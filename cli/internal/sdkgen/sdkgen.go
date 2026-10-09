@@ -824,7 +824,7 @@ type discoverer struct {
 	ownerPkg    *types.Package // package of the message currently being built (for same/cross-package scope)
 }
 
-// discoverRosters enqueues every wire type a module registers on cardinal's World: commands
+// discoverRosters enqueues every wire type a module registers on cardinal's World or on transport: commands
 // (RegisterCommand, plus send-only ones via SendToShard), events (RegisterEvent), components
 // (RegisterComponent), and system events (RegisterSystemEvent). A type reached under several rosters is
 // enqueued once and unions its targets (see enqueue). Requires collectWireNames to have run first.
@@ -1712,9 +1712,17 @@ func discoverGenericInstances(pkgs []*packages.Package, generics ...string) map[
 	return out
 }
 
-// cardinalGeneric returns the cardinal generic an instantiation is of, or nil if it is not cardinal's.
-// A generic type is recorded with a *Named type; a generic function or method (w.RegisterCommand[T](),
-// Go 1.27) with a *Signature, whose declaring object only the identifier's use records.
+// transportPkgPath is world-engine's client and inter-shard layer. A service that serves through it without
+// cardinal declares its wire types with its RegisterCommand and RegisterEvent.
+const transportPkgPath = "github.com/argus-labs/world-engine/pkg/transport"
+
+// cardinalGeneric returns the cardinal or transport generic an instantiation is of, or nil if it is
+// neither. A generic type is recorded with a *Named type; a generic function or method
+// (w.RegisterCommand[T](), Go 1.27) with a *Signature, whose declaring object only the identifier's use
+// records.
+//
+// Cardinal is matched by package name and transport by exact path. Cardinal's own registration calls
+// transport's with its type parameter, not a named type, so a cardinal backend's types are found once.
 //
 // go/types records an explicit instantiation even when T fails the constraint, which is the steady state
 // here: discovery hides wire.gen.go, so no T has its wire methods yet. An INFERRED call that fails its
@@ -1733,7 +1741,7 @@ func cardinalGeneric(info *types.Info, id *ast.Ident, inst types.Instance) types
 	default:
 		return nil
 	}
-	if o.Pkg() == nil || o.Pkg().Name() != "cardinal" {
+	if o.Pkg() == nil || (o.Pkg().Name() != "cardinal" && o.Pkg().Path() != transportPkgPath) {
 		return nil
 	}
 	return o

@@ -9,6 +9,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/micro"
+	"github.com/argus-labs/world-engine/pkg/transport"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rotisserie/eris"
 	"go.opentelemetry.io/otel/trace"
@@ -23,44 +24,15 @@ type Command struct {
 	Span    trace.SpanContext     // Span that enqueued the command; invalid when the caller was untraced
 }
 
-// Sender identifies who sent a command: a player or another shard. Only Cardinal builds one, with
-// PlayerSender or ShardSender, so a received command's sender is always one of the two.
-type Sender struct {
-	id    string // Player ID, or the sending shard's address
-	shard bool   // Whether id is a shard's address
-}
+// Sender identifies who sent a command: a player or another shard. The transport builds it for every
+// command it receives.
+type Sender = transport.Sender
 
 // PlayerSender is the sender of a command a client sent as the authenticated player id.
-func PlayerSender(id string) Sender {
-	assert.That(id != "", "player sender has empty ID")
-	return Sender{id: id}
-}
+func PlayerSender(id string) Sender { return transport.PlayerSender(id) }
 
 // ShardSender is the sender of a command the service at address sent.
-func ShardSender(address *micro.ServiceAddress) Sender {
-	assert.That(address != nil, "shard sender has nil address")
-	return Sender{id: micro.String(address), shard: true}
-}
-
-// ID returns the player ID, or the sending shard's address ("region.realm.org.project.shard").
-// Use it when any sender will do, such as in logs.
-func (s Sender) ID() string { return s.id }
-
-// Player returns the player ID and true when a player sent the command.
-func (s Sender) Player() (string, bool) {
-	if s.shard {
-		return "", false
-	}
-	return s.id, s.id != ""
-}
-
-// Shard returns the sending shard's address and true when another shard sent the command.
-func (s Sender) Shard() (string, bool) {
-	if !s.shard {
-		return "", false
-	}
-	return s.id, true
-}
+func ShardSender(address *micro.ServiceAddress) Sender { return transport.ShardSender(address) }
 
 // Payload is the interface all command payloads must implement.
 type Payload interface {
@@ -136,7 +108,7 @@ func (m *Manager) Enqueue(ctx context.Context, command *iscv1.Command, sender Se
 	// The caller must be responsible for checking this.
 	assert.That(command.GetName() != "", "command has empty name")
 	assert.That(command.GetAddress() != nil, "command has nil address")
-	assert.That(sender.id != "", "command has no sender")
+	assert.That(sender.ID() != "", "command has no sender")
 	// Payload may be empty: a command whose proto message has no set fields serializes to zero
 	// bytes (e.g. lobby_heartbeat). Identity lives in name/address/sender, so an empty payload
 	// is valid — only those three are real invariants.
@@ -150,6 +122,17 @@ func (m *Manager) Enqueue(ctx context.Context, command *iscv1.Command, sender Se
 		return eris.Errorf("unregistered command: %s", name)
 	}
 	return m.queues[id].Enqueue(ctx, command, sender)
+}
+
+// Push stores a command whose payload is already decoded in its queue. Like Enqueue, it expects one
+// caller per command type.
+func (m *Manager) Push(cmd Command) error {
+	id, exists := m.catalog[cmd.Name]
+	if !exists {
+		return eris.Errorf("unregistered command: %s", cmd.Name)
+	}
+	m.queues[id].Push(cmd)
+	return nil
 }
 
 // Get retrieves a slice of commands given the command ID. The ID is returned from Register, and

@@ -13,6 +13,7 @@ import (
 // It provides methods to enqueue commands and drain all queued commands.
 type Queue interface {
 	Enqueue(context.Context, *iscv1.Command, Sender) error
+	Push(Command)
 	Drain(target *[]Command)
 	Len() int
 	Zero() Payload
@@ -56,16 +57,21 @@ func (q *sliceQueue[T]) Enqueue(ctx context.Context, cmd *iscv1.Command, sender 
 		return eris.Errorf("command %q decoded to non-payload type %T", zero.Name(), decoded)
 	}
 
-	q.mu.Lock()
-	q.commands = append(q.commands, Command{
+	q.Push(Command{
 		Name:    cmd.GetName(),
 		Address: cmd.GetAddress(),
 		Sender:  sender,
 		Payload: payload,
 		Span:    trace.SpanContextFromContext(ctx),
 	})
-	q.mu.Unlock()
 	return nil
+}
+
+// Push appends a command whose payload is already decoded.
+func (q *sliceQueue[T]) Push(cmd Command) {
+	q.mu.Lock()
+	q.commands = append(q.commands, cmd)
+	q.mu.Unlock()
 }
 
 // Drain returns all queued commands to the target slice and resets the queue.

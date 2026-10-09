@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"net/http"
 	"os/signal"
 	"reflect"
 	"syscall"
@@ -24,6 +25,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
 	"github.com/argus-labs/world-engine/pkg/telemetry/sentry"
 	"github.com/argus-labs/world-engine/pkg/telemetry/trace"
+	"github.com/argus-labs/world-engine/pkg/transport"
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
@@ -39,7 +41,9 @@ type World struct {
 	commands        command.Manager       // Commands for systems
 	events          event.Manager         // Events and event handlers
 	address         *micro.ServiceAddress // NATS address
-	service         *service              // ConnectRPC client service
+	transport       *transport.Transport  // Client and inter-shard communication
+	client          *micro.Client         // NATS connection, shared; opened on first use and closed last
+	server          *http.Server          // Serves the transport and debug service to clients
 	snapshotStorage snapshot.Storage      // Snapshot reader
 	snapshotWriter  snapshot.Writer       // Snapshot writer
 	debug           *debugModule          // Debug tools and services
@@ -50,6 +54,7 @@ type World struct {
 
 	archetypes map[reflect.Type]bitmap.Bitmap // Component sets resolved from archetype structs
 	eventTypes map[reflect.Type]struct{}      // Events registered with RegisterEvent
+	registered []func(*transport.Transport)   // Transport registrations, repeated by newTransport
 	started    bool                           // Set by init; Register* methods panic afterwards
 
 	systemEventTap func(ecs.SystemEvent) // Sees each emitted system event; set only by TestWorld
@@ -102,22 +107,29 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		return world.debug.register(introspect.Component, zero)
 	})
 
-	// Create the ConnectRPC client service.
-	world.service = newService(world, options.AuthMode, options.ArgusAuthURL)
+	// Create the transport for clients and other shards.
+	world.transport, err = world.newTransport()
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to create transport")
+	}
 
-	// Connect event handlers to service publishers.
-	world.events.RegisterHandler(event.KindDefault, world.service.publishDefaultEvent)
-	world.events.RegisterHandler(event.KindInterShardCommand, world.service.publishInterShardCommand)
+	// Connect event handlers to the transport.
+	world.events.RegisterHandler(event.KindDefault, world.publishEvent)
+	world.events.RegisterHandler(event.KindInterShardCommand, world.sendInterShardCommand)
 
 	// Initialize snapshot storage.
 	switch options.SnapshotStorageType {
 	case snapshot.StorageTypeJetStream:
+		client, err := world.natsClient()
+		if err != nil {
+			return nil, err
+		}
 		snapshotJS, err := snapshot.NewJetStreamStorage(snapshot.JetStreamStorageOptions{
-			Logger:     tel.GetLogger("snapshot"),
-			Address:    world.address,
-			NATSConfig: options.NATSConfig,
+			Address: world.address,
+			Client:  client,
 		})
 		if err != nil {
+			client.Close() // No World is returned, so shutdown never runs to close it
 			return nil, eris.Wrap(err, "failed to create jetstream snapshot storage")
 		}
 		world.snapshotStorage = snapshotJS
@@ -162,7 +174,7 @@ func (w *World) StartGame() {
 	defer w.tel.RecoverAndFlush(true)
 
 	// Start the NATS connection and ConnectRPC service.
-	if err := w.service.init(addressService); err != nil {
+	if err := w.startTransport(addressService); err != nil {
 		panic(eris.Wrap(err, "failed to initialize service"))
 	}
 
@@ -330,7 +342,7 @@ func (w *World) dispatchEvents(ctx context.Context) {
 		span.SetError(err)
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 	}
-	w.service.drainInterShardCommands()
+	w.transport.Flush()
 }
 
 // encodeSnapshot produces the complete snapshot bytes for the current tick: the ECS sizes and
@@ -395,9 +407,14 @@ func (w *World) shutdown() {
 	w.snapshotWriter.Stop(ctx)
 
 	// Drain queued commands and events.
-	if err := w.service.shutdown(ctx); err != nil {
+	if err := w.stopTransport(ctx); err != nil {
 		w.tel.Logger.Error().Err(err).Msg("service shutdown error")
 		w.tel.CaptureException(ctx, err)
+	}
+
+	// Close NATS after everything that uses it has stopped.
+	if w.client != nil {
+		w.client.Close()
 	}
 
 	// Stop telemetry last so it can send all shutdown logs.
@@ -521,7 +538,7 @@ func (w *World) Logger() *zerolog.Logger {
 // -------------------------------------------------------------------------------------------------
 
 // RegisterCommand registers a command type before world startup. Registering it again is a no-op.
-// The service accepts a command from clients only once it is registered here.
+// The transport accepts a command from clients and other shards only once it is registered here.
 func (w *World) RegisterCommand[T Command]() {
 	if w.started {
 		panic(ErrWorldStarted)
@@ -531,6 +548,7 @@ func (w *World) RegisterCommand[T Command]() {
 	// here. There is no codec registry to consult.
 	var zero T
 	name := zero.Name()
+	_, registered := w.commands.Lookup(name)
 
 	if _, err := w.commands.Register(name, command.NewQueue[T]()); err != nil {
 		panic(eris.Wrapf(err, "failed to register command %s", name))
@@ -538,7 +556,20 @@ func (w *World) RegisterCommand[T Command]() {
 	if err := w.debug.register(introspect.Command, zero); err != nil {
 		panic(eris.Wrapf(err, "failed to register command to debug module %s", name))
 	}
-	w.service.registerCommandHandler(name)
+	if !registered {
+		w.registerWithTransport(func(tr *transport.Transport) {
+			tr.RegisterCommand[T](func(ctx context.Context, cmd transport.Command[T]) error {
+				// The transport has decoded the payload and checked the address, so the queue only stores it.
+				return w.commands.Push(command.Command{
+					Name:    name,
+					Address: w.address,
+					Sender:  cmd.Sender,
+					Payload: cmd.Payload,
+					Span:    oteltrace.SpanContextFromContext(ctx),
+				})
+			})
+		})
+	}
 }
 
 // Commands yields the commands of type T received for the current tick. It panics if T was not
@@ -610,6 +641,9 @@ func (w *World) RegisterEvent[T Event]() {
 	}
 	if w.eventTypes == nil {
 		w.eventTypes = make(map[reflect.Type]struct{})
+	}
+	if _, registered := w.eventTypes[reflect.TypeFor[T]()]; !registered {
+		w.registerWithTransport(func(tr *transport.Transport) { tr.RegisterEvent[T]() })
 	}
 	w.eventTypes[reflect.TypeFor[T]()] = struct{}{}
 }
