@@ -17,6 +17,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
+	"github.com/argus-labs/world-engine/pkg/transport"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rs/zerolog"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -105,8 +106,12 @@ func NewTestWorld(t testing.TB, setup func(w *World)) *TestWorld {
 		tel:     tel,
 		metrics: metrics,
 	}
-	// RegisterCommand records the command with the service. The service is never started.
-	w.service = newService(w, AuthModeDev, "")
+	// RegisterCommand records the command with the transport. The transport is never started.
+	tr, err := transport.New(transport.Options{Address: w.address, AuthMode: AuthModeDev, Telemetry: &w.tel})
+	if err != nil {
+		t.Fatalf("cardinal: NewTestWorld: %v", err)
+	}
+	w.transport = tr
 
 	tw := &TestWorld{World: w, tb: t}
 	// Both handlers keep what a receiver would get: the payload encoded as the service does when it

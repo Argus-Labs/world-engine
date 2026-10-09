@@ -1,4 +1,4 @@
-package cardinal
+package transport
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
@@ -192,9 +191,7 @@ func TestEventStream_TickSendsWhileStreamsClose(t *testing.T) {
 				return
 			default:
 			}
-			_ = h.fixture.svc.publishDefaultEvent(context.Background(), event.Event{
-				Kind: event.KindDefault, Payload: testutils.SimpleEvent{Value: 1}, Recipient: "player-1",
-			})
+			h.fixture.tr.Publish(context.Background(), testutils.SimpleEvent{Value: 1}, "player-1")
 		}
 	}()
 
@@ -303,7 +300,6 @@ func TestEventStream_QueueOverflowEndsStoppedStreamAsLagged(t *testing.T) {
 // streamLagLimit, and the race detector makes each write 1-2 ms.
 func TestEventStream_LargeTickBurstReachesReadingClient(t *testing.T) {
 	h := newStreamHarness(t)
-	h.fixture.world.events.RegisterHandler(event.KindDefault, h.fixture.svc.publishDefaultEvent)
 
 	stream := h.open(t, "player-1", "*")
 	stream.read()
@@ -313,12 +309,9 @@ func TestEventStream_LargeTickBurstReachesReadingClient(t *testing.T) {
 	const burst = 1280
 	want := make([]string, burst)
 	for i := range burst {
-		h.fixture.world.events.Enqueue(event.Event{
-			Kind: event.KindDefault, Payload: testutils.SimpleEvent{Value: i}, Recipient: "player-1",
-		})
+		h.fixture.tr.Publish(context.Background(), testutils.SimpleEvent{Value: i}, "player-1")
 		want[i] = "simple_event:" + strconv.Itoa(i)
 	}
-	h.fixture.world.dispatchEvents(context.Background())
 
 	require.Equal(t, want, stream.next(t, burst))
 	stream.requireOpen(t)
@@ -481,7 +474,7 @@ func TestEventStream_StoppedReaderStallMeasurement(t *testing.T) {
 // -------------------------------------------------------------------------------------------------
 
 type streamHarness struct {
-	fixture *serviceFixture
+	fixture *transportFixture
 	client  cardinalv1connect.CardinalServiceClient
 	ctx     context.Context
 	cancel  context.CancelFunc
@@ -493,9 +486,11 @@ type streamHarness struct {
 
 func newStreamHarness(t *testing.T) *streamHarness {
 	t.Helper()
-	fixture := newServiceFixture(t, testutils.NewRand(t), false)
-	mux, err := fixture.svc.newMux(authenticatorDev{}.authenticate)
+	fixture := newTransportFixture(t, testutils.NewRand(t), false)
+	path, handler, err := fixture.tr.Handler()
 	require.NoError(t, err)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
 
 	h := &streamHarness{fixture: fixture, exits: make(map[string]time.Time)}
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -526,7 +521,7 @@ func newStreamHarness(t *testing.T) *streamHarness {
 }
 
 func (h *streamHarness) subscriptions(events ...string) []*cardinalv1.EventSubscription {
-	return []*cardinalv1.EventSubscription{{Address: h.fixture.world.address, Events: events}}
+	return []*cardinalv1.EventSubscription{{Address: h.fixture.address, Events: events}}
 }
 
 // open starts a stream and waits for its initial empty message, which the server sends only after
@@ -541,7 +536,7 @@ func (h *streamHarness) open(t *testing.T, player string, events ...string) *cli
 func (h *streamHarness) tryOpen(player string, events ...string) (*clientStream, error) {
 	ctx, cancel := context.WithCancel(h.ctx)
 	req := connect.NewRequest(&cardinalv1.StartEventStreamRequest{Subscriptions: h.subscriptions(events...)})
-	req.Header().Set(devPlayerIDHeader, player)
+	req.Header().Set(DevPlayerIDHeader, player)
 	id := strconv.FormatInt(h.nextID.Add(1), 10)
 	req.Header().Set(testStreamIDHeader, id)
 
@@ -568,23 +563,21 @@ func (h *streamHarness) tryOpen(player string, events ...string) (*clientStream,
 	}, nil
 }
 
-func (h *streamHarness) publish(t *testing.T, payload event.Payload, recipient string) {
+func (h *streamHarness) publish(t *testing.T, payload Payload, recipient string) {
 	t.Helper()
-	require.NoError(t, h.fixture.svc.publishDefaultEvent(context.Background(), event.Event{
-		Kind: event.KindDefault, Payload: payload, Recipient: recipient,
-	}))
+	h.fixture.tr.Publish(context.Background(), payload, recipient)
 }
 
 func (h *streamHarness) trySubscribe(player string, events ...string) error {
 	req := connect.NewRequest(&cardinalv1.SubscribeEventsRequest{Subscriptions: h.subscriptions(events...)})
-	req.Header().Set(devPlayerIDHeader, player)
+	req.Header().Set(DevPlayerIDHeader, player)
 	_, err := h.client.SubscribeEvents(h.ctx, req)
 	return err
 }
 
 func (h *streamHarness) tryUnsubscribe(player string, events ...string) error {
 	req := connect.NewRequest(&cardinalv1.UnsubscribeEventsRequest{Subscriptions: h.subscriptions(events...)})
-	req.Header().Set(devPlayerIDHeader, player)
+	req.Header().Set(DevPlayerIDHeader, player)
 	_, err := h.client.UnsubscribeEvents(h.ctx, req)
 	return err
 }
@@ -717,9 +710,9 @@ func queuedBytes(subscriber *streamSubscriber) int {
 // subscriber returns player's registered stream.
 func (h *streamHarness) subscriber(t *testing.T, player string) *streamSubscriber {
 	t.Helper()
-	h.fixture.svc.mu.RLock()
-	defer h.fixture.svc.mu.RUnlock()
-	subscriber, ok := h.fixture.svc.subscribers[player]
+	h.fixture.tr.clients.mu.RLock()
+	defer h.fixture.tr.clients.mu.RUnlock()
+	subscriber, ok := h.fixture.tr.clients.subscribers[player]
 	require.True(t, ok, "%s has no stream", player)
 	return subscriber
 }
@@ -731,8 +724,8 @@ type tickSample struct {
 	took  time.Duration
 }
 
-// tickRecorder broadcasts one event per tick through the world's event dispatch, like a running
-// world, and records how long each dispatch took.
+// tickRecorder broadcasts one event per tick through Publish, like a running world's event
+// dispatch, and records how long each dispatch took.
 type tickRecorder struct {
 	mu      sync.Mutex
 	samples []tickSample
@@ -740,9 +733,8 @@ type tickRecorder struct {
 	stopped chan struct{}
 }
 
-func startTicks(t *testing.T, h *streamHarness, payload event.Payload) *tickRecorder {
+func startTicks(t *testing.T, h *streamHarness, payload Payload) *tickRecorder {
 	t.Helper()
-	h.fixture.world.events.RegisterHandler(event.KindDefault, h.fixture.svc.publishDefaultEvent)
 	r := &tickRecorder{quit: make(chan struct{}), stopped: make(chan struct{})}
 	t.Cleanup(func() {
 		select {
@@ -762,8 +754,7 @@ func startTicks(t *testing.T, h *streamHarness, payload event.Payload) *tickReco
 			}
 			next = next.Add(testTickRate)
 			start := time.Now()
-			h.fixture.world.events.Enqueue(event.Event{Kind: event.KindDefault, Payload: payload})
-			h.fixture.world.dispatchEvents(context.Background())
+			h.fixture.tr.Publish(context.Background(), payload, "")
 			r.mu.Lock()
 			r.samples = append(r.samples, tickSample{start: start, took: time.Since(start)})
 			r.mu.Unlock()
@@ -864,4 +855,12 @@ func percentile(durations []time.Duration, p int) time.Duration {
 	sorted := slices.Clone(durations)
 	slices.Sort(sorted)
 	return sorted[(len(sorted)-1)*p/100]
+}
+
+// h2cProtocols enables HTTP/1.1 and unencrypted HTTP/2 (h2c), as Cardinal's server does.
+func h2cProtocols() *http.Protocols {
+	p := new(http.Protocols)
+	p.SetHTTP1(true)
+	p.SetUnencryptedHTTP2(true)
+	return p
 }

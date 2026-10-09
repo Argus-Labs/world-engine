@@ -1,11 +1,10 @@
-package cardinal
+package transport
 
 import (
 	"context"
 	"sync"
 	"time"
 
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry/trace"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
@@ -20,8 +19,8 @@ import (
 const interShardSendTimeout = 10 * time.Second
 
 // interShard receives commands from other shards and sends this shard's commands to them, without the
-// tick ever waiting on NATS. Receiving mirrors sending: handlers queue incoming commands for the tick to
-// drain at its start, and the tick queues outgoing commands for the senders, draining at its end.
+// caller ever waiting on NATS. Received commands go to the dispatch handler; outgoing commands are staged
+// by enqueue and handed to the senders by drain.
 //
 // Each target with unsent commands has one sender goroutine, which sends them one at a time and waits
 // for each ack before the next. A target that cannot ack one command gets no more until it does or the
@@ -30,15 +29,18 @@ const interShardSendTimeout = 10 * time.Second
 // A sender removes its target's entry and exits when its queue is empty, so idle targets cost nothing;
 // a hung target's backlog grows in memory until it drains, by design.
 //
-// enqueue, drain and stop must be called from the tick goroutine, which owns queued.
+// enqueue and drain may be called from any goroutine: a service that handles commands concurrently
+// sends from inside its handlers. queued sits behind mu rather than a channel: a channel's fixed capacity
+// would make enqueue wait or drop once full, and mu is already taken by drain.
 type interShard struct {
-	address *micro.ServiceAddress
-	client  *micro.Client
-	inbox   *command.Manager // Shared with client commands
-	log     zerolog.Logger
-	queued  []queuedCommand
+	address  *micro.ServiceAddress
+	client   *micro.Client
+	dispatch Handler // Same as client commands
+	log      zerolog.Logger
 
-	mu      sync.Mutex              // Guards senders and every targetQueue; never held during a send
+	mu      sync.Mutex              // Guards queued, stopped, senders and every targetQueue; never held during a send
+	queued  []queuedCommand         // Enqueued, not yet drained
+	stopped bool                    // Set by stop; drain drops commands afterwards
 	senders map[string]*targetQueue // Exactly the targets whose sender is running
 	running sync.WaitGroup          // Running senders, for stop
 }
@@ -48,7 +50,7 @@ type targetQueue struct {
 	pending [][]queuedCommand
 }
 
-// queuedCommand keeps the enqueuing span as parent, so the send joins the tick's trace after the tick ends.
+// queuedCommand keeps the enqueuing span as parent, so the send joins the enqueuer's trace after it ends.
 type queuedCommand struct {
 	parent  oteltrace.SpanContext
 	to      *micro.ServiceAddress
@@ -57,19 +59,19 @@ type queuedCommand struct {
 }
 
 func newInterShard(
-	address *micro.ServiceAddress, client *micro.Client, inbox *command.Manager, log zerolog.Logger,
+	address *micro.ServiceAddress, client *micro.Client, dispatch Handler, log zerolog.Logger,
 ) *interShard {
 	return &interShard{
-		address: address,
-		client:  client,
-		inbox:   inbox,
-		log:     log,
-		senders: make(map[string]*targetQueue),
+		address:  address,
+		client:   client,
+		dispatch: dispatch,
+		log:      log,
+		senders:  make(map[string]*targetQueue),
 	}
 }
 
-func (s *interShard) start(svc *micro.Service, commands map[string]struct{}) error {
-	for name := range commands {
+func (s *interShard) start(svc *micro.Service, handlers map[string]Handler) error {
+	for name := range handlers {
 		if err := svc.AddCommand(name, s.handle); err != nil {
 			return eris.Wrapf(err, "failed to register %s command handler", name)
 		}
@@ -77,8 +79,8 @@ func (s *interShard) start(svc *micro.Service, commands map[string]struct{}) err
 	return nil
 }
 
-// handle receives one command from another shard. The ack it returns means the command was queued,
-// not that a tick has processed it.
+// handle receives one command from another shard. The ack it returns means the handler accepted the
+// command, not that it has been processed.
 func (s *interShard) handle(ctx context.Context, cmd micro.Command) error {
 	if err := ctx.Err(); err != nil {
 		return status.Error(codes.Canceled, eris.Wrap(err, "context cancelled").Error())
@@ -86,23 +88,35 @@ func (s *interShard) handle(ctx context.Context, cmd micro.Command) error {
 
 	oteltrace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.Name))
 	received := &iscv1.Command{Name: cmd.Name, Address: s.address, Payload: cmd.Payload}
-	if err := s.inbox.Enqueue(ctx, received, command.ShardSender(cmd.From)); err != nil {
-		return status.Error(codes.InvalidArgument, eris.Wrap(err, "failed to enqueue command").Error())
+	if err := s.dispatch(ctx, received, ShardSender(cmd.From)); err != nil {
+		code := codes.InvalidArgument
+		if eris.Is(err, errStopping) {
+			code = codes.Unavailable
+		}
+		return status.Error(code, eris.Wrap(err, "failed to enqueue command").Error())
 	}
 	return nil
 }
 
 func (s *interShard) enqueue(ctx context.Context, to *micro.ServiceAddress, name string, payload []byte) {
-	s.queued = append(s.queued, queuedCommand{
-		parent:  oteltrace.SpanContextFromContext(ctx),
-		to:      to,
-		name:    name,
-		payload: payload,
-	})
+	c := queuedCommand{parent: oteltrace.SpanContextFromContext(ctx), to: to, name: name, payload: payload}
+	s.mu.Lock()
+	s.queued = append(s.queued, c)
+	s.mu.Unlock()
 }
 
+// drain hands every queued command to its target's sender. Taking queued and handing it over happen under
+// one lock: if two drains could interleave there, the later one could hand over its commands first, and a
+// goroutine's commands to one target would go out of order.
 func (s *interShard) drain() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if len(s.queued) == 0 {
+		return
+	}
+	if s.stopped {
+		s.log.Error().Int("commands", len(s.queued)).Msg("inter-shard commands dropped: flushed after stop")
+		s.queued = nil
 		return
 	}
 	batches := make(map[string][]queuedCommand)
@@ -112,8 +126,6 @@ func (s *interShard) drain() {
 	}
 	s.queued = nil
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	for target, batch := range batches {
 		q, ok := s.senders[target]
 		if !ok {
@@ -151,7 +163,7 @@ func (s *interShard) sendLoop(target string, q *targetQueue) {
 
 func (s *interShard) send(c queuedCommand) {
 	// The NATS client injects this span into the request headers, so the receiving shard's handler
-	// span (and the tick that drains the command there) joins the sending tick's trace.
+	// span (and whatever processes the command there) joins the enqueuer's trace.
 	ctx := oteltrace.ContextWithSpanContext(context.Background(), c.parent)
 	ctx, span := trace.New(ctx, spanInterShardSend, oteltrace.WithAttributes(
 		attrCommandName.String(c.name), attrCommandTarget.String(micro.String(c.to))))
@@ -167,9 +179,13 @@ func (s *interShard) send(c queuedCommand) {
 	}
 }
 
-// stop waits until ctx for drained commands to be sent. Commands enqueued but not drained belong to a tick
-// that did not finish and are dropped. Call it once, after the tick loop has stopped.
+// stop waits until ctx for drained commands to be sent. Commands enqueued but not drained are dropped,
+// and so are commands drained after stop begins.
 func (s *interShard) stop(ctx context.Context) {
+	s.mu.Lock()
+	s.stopped = true
+	s.mu.Unlock()
+
 	done := make(chan struct{})
 	go func() {
 		s.running.Wait()

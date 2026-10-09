@@ -15,7 +15,7 @@ import (
 )
 
 // debugModule provides introspection and debugging capabilities for a World instance.
-// Its DebugService handler is mounted on the service port (see service.init).
+// Its DebugService handler is served next to CardinalService (see debugServiceHandler).
 type debugModule struct {
 	world   *World
 	control *tickControl
