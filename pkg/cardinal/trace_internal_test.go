@@ -324,9 +324,8 @@ func enqueueDistinctSampledCommands(t *testing.T, w *World, n int) []oteltrace.S
 		require.NoError(t, w.commands.Enqueue(ctx, &iscv1.Command{
 			Name:    testutils.SimpleCommand{}.Name(),
 			Address: w.address,
-			Persona: &iscv1.Persona{Id: "player-1"},
 			Payload: testutils.SimpleCommand{Value: i}.MarshalWire(),
-		}))
+		}, command.PlayerSender("player-1")))
 		span.End()
 	}
 	return scs
