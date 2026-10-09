@@ -25,7 +25,7 @@ func runSingleStepCluster(
 	rowID, rowLabel, resultVerb string,
 	op func(ctx context.Context, cli *cluster.Client) error,
 ) (*cluster.Client, error) {
-	dash := phasebox.Start(ctx)
+	dash := phasebox.Start(ctx, phasebox.TTY)
 	defer dash.Complete()
 	var cli *cluster.Client
 	err := dash.Run("Cluster",

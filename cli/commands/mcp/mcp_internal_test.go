@@ -66,7 +66,7 @@ func TestSendCommandInput_Validate_Valid(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Empty(t, input.ShardURL) // resolved from the cluster in the handler, not validate()
-	assert.Equal(t, defaultDevEmail, input.Email)
+	assert.Equal(t, defaultDevPlayerID, input.PlayerID)
 	assert.Equal(t, defaultRegion, input.Region)
 	assert.NotNil(t, input.Payload)
 }
@@ -108,7 +108,7 @@ func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
 		ShardID:     "game",
 		CommandName: "create-player",
 		ShardURL:    "http://custom:9999",
-		Email:       "custom@example.com",
+		PlayerID:    "custom-player",
 		Region:      "ap-southeast-1",
 	}
 
@@ -116,7 +116,7 @@ func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "http://custom:9999", input.ShardURL)
-	assert.Equal(t, "custom@example.com", input.Email)
+	assert.Equal(t, "custom-player", input.PlayerID)
 	assert.Equal(t, "ap-southeast-1", input.Region)
 }
 

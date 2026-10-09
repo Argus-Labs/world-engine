@@ -124,9 +124,8 @@ func TestTickLinksCommandsAndTracesEvents(t *testing.T) {
 	require.NoError(t, w.commands.Enqueue(requestCtx, &iscv1.Command{
 		Name:    testutils.SimpleCommand{}.Name(),
 		Address: w.address,
-		Persona: &iscv1.Persona{Id: "player-1"},
 		Payload: testutils.SimpleCommand{Value: 7}.MarshalWire(),
-	}))
+	}, command.PlayerSender("player-1")))
 	requestSpan.End()
 
 	w.events.Enqueue(
@@ -142,7 +141,7 @@ func TestTickLinksCommandsAndTracesEvents(t *testing.T) {
 	require.Len(t, tick.Links, 1)
 	require.Equal(t, requestSpan.SpanContext().SpanID(), tick.Links[0].SpanContext.SpanID())
 	require.Contains(t, tick.Links[0].Attributes, attrCommandName.String(testutils.SimpleCommand{}.Name()))
-	require.Contains(t, tick.Links[0].Attributes, attrCommandPersona.String("player-1"))
+	require.Contains(t, tick.Links[0].Attributes, attrCommandSender.String("player-1"))
 
 	publish, ok := byName[spanEventPublish]
 	require.True(t, ok, "missing event publish span")
@@ -185,9 +184,8 @@ func TestTickSkipsLinksToUnsampledRequests(t *testing.T) {
 	require.NoError(t, w.commands.Enqueue(requestCtx, &iscv1.Command{
 		Name:    testutils.SimpleCommand{}.Name(),
 		Address: w.address,
-		Persona: &iscv1.Persona{Id: "player-1"},
 		Payload: testutils.SimpleCommand{Value: 7}.MarshalWire(),
-	}))
+	}, command.PlayerSender("player-1")))
 	requestSpan.End()
 	exporter.Reset()
 
@@ -217,7 +215,6 @@ func TestInterShardCommandPropagatesTrace(t *testing.T) {
 		Payload: command.Command{
 			Name:    payload.Name(),
 			Address: fixtureB.world.address,
-			Persona: micro.String(fixtureA.world.address),
 			Payload: payload,
 		},
 	}))
@@ -297,9 +294,8 @@ func TestTickCapsCommandLinks(t *testing.T) {
 		require.NoError(t, w.commands.Enqueue(requestCtx, &iscv1.Command{
 			Name:    testutils.SimpleCommand{}.Name(),
 			Address: w.address,
-			Persona: &iscv1.Persona{Id: "player-1"},
 			Payload: testutils.SimpleCommand{Value: i}.MarshalWire(),
-		}))
+		}, command.PlayerSender("player-1")))
 	}
 	requestSpan.End()
 	exporter.Reset()

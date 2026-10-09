@@ -21,7 +21,7 @@ import (
 // operator is what verifies signatures.
 func jwtWithExp(t *testing.T, exp time.Time, email string) string {
 	t.Helper()
-	payload, err := json.Marshal(Claims{Email: email, PersonaID: "p-1", Exp: exp.Unix()})
+	payload, err := json.Marshal(Claims{Email: email, Exp: exp.Unix()})
 	if err != nil {
 		t.Fatalf("marshal claims: %v", err)
 	}
@@ -36,9 +36,6 @@ func TestParseClaims(t *testing.T) {
 	}
 	if claims.Email != "dev@argus.gg" {
 		t.Errorf("Email = %q, want dev@argus.gg", claims.Email)
-	}
-	if claims.PersonaID != "p-1" {
-		t.Errorf("PersonaID = %q, want p-1", claims.PersonaID)
 	}
 	if !claims.ExpiresAt().Equal(exp) {
 		t.Errorf("ExpiresAt() = %v, want %v", claims.ExpiresAt(), exp)
