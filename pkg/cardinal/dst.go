@@ -1,18 +1,3 @@
-// DST (Deterministic Simulation Testing) provides a game-logic-agnostic fuzzer and structural
-// state checker for Cardinal. It generates random commands by introspecting registered command
-// types (via reflection), injects engine operations (tick, restart, snapshot/restore) with
-// randomized weights, and validates structural ECS invariants after every tick. Game logic
-// correctness is irrelevant — only engine correctness matters.
-//
-// Usage from a game shard's test directory:
-//
-//	func TestDST(t *testing.T) {
-//	    cardinal.RunDST(t, func(w *cardinal.World) {
-//	        w.RegisterComponent[component.MyComponent]()
-//	        w.RegisterSystem(&system.MySystem{})
-//	        // ... register all components and systems
-//	    }, []cardinal.Command{system.BootstrapCommand{Seed: 42}})
-//	}
 package cardinal
 
 import (
@@ -45,9 +30,21 @@ var numTicks = flag.Int("dst.ticks", 1000, "number of ticks to run in DST") //no
 // fixture creation, before the first tick.
 type DSTSetupFunc func(w *World)
 
-// RunDST executes a deterministic simulation test. The setup function registers game-specific
-// systems; the harness handles everything else: randomized engine config, command generation,
-// ticking, restart/restore operations, and structural invariant checking.
+// RunDST executes a deterministic simulation test (DST): a game-logic-agnostic fuzzer and structural
+// state checker. The setup function registers game-specific systems; the harness handles everything
+// else: randomized engine config, command generation from the registered command types, ticking,
+// restart/restore and snapshot operations with randomized weights, and structural ECS invariant
+// checking after every tick. Game logic correctness is irrelevant; only engine correctness matters.
+//
+// Usage from a game shard's test directory:
+//
+//	func TestDST(t *testing.T) {
+//	    cardinal.RunDST(t, func(w *cardinal.World) {
+//	        w.RegisterComponent[component.MyComponent]()
+//	        w.RegisterSystem(&system.MySystem{})
+//	        // ... register all components and systems
+//	    }, []cardinal.Command{system.BootstrapCommand{Seed: 42}})
+//	}
 //
 // preTestCommands are enqueued before randomized fuzz operations begin. This supports worlds that
 // require deterministic bootstrap commands before entering an active state.
@@ -93,7 +90,8 @@ func RunDST(t *testing.T, setup DSTSetupFunc, preTestCommands []Command) {
 		case strings.HasPrefix(op, opCommandPrefix):
 			cmdName := strings.TrimPrefix(op, opCommandPrefix)
 			cmd := fix.randCommand(t, prng, cmdName)
-			require.NoError(t, fix.world.commands.Enqueue(context.Background(), cmd))
+			require.NoError(t, fix.world.commands.Enqueue(
+				context.Background(), cmd, command.PlayerSender(testutils.RandString(prng, 8))))
 
 		case op == opRestart:
 			fix.world.reset()
@@ -231,7 +229,9 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	// and an upload goroutine decides which snapshots survive latest-wins by how it interleaves
 	// with the tick loop. memSnapshotStorage also asserts on t, which only this goroutine may do.
 	storage := &memSnapshotStorage{t: t}
-	w.useSyncSnapshotStorage(storage)
+	w.snapshotWriter.Stop(context.Background())
+	w.snapshotStorage = storage
+	w.snapshotWriter = snapshot.NewSyncWriter(storage, w.tel.GetLogger("snapshot"))
 
 	// Initialize ECS and run init systems under the init span, as run and reset do.
 	w.init()
@@ -267,13 +267,12 @@ func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 	t.Helper()
 	val := reflect.New(f.cmdTypes[name]).Elem()
 	fillRandom(rng, val, f.world.world.LiveEntityIDs()) // Recursive so not inlined
-	p, ok := val.Interface().(command.Payload)
+	p, ok := reflect.TypeAssert[command.Payload](val)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
 	payload := schema.Marshal(p)
 	return &iscv1.Command{
 		Name:    name,
 		Address: f.world.address,
-		Persona: &iscv1.Persona{Id: testutils.RandString(rng, 8)},
 		Payload: payload,
 	}
 }
@@ -283,12 +282,11 @@ func (f *dstFixture) enqueueCommand(cmd Command) error {
 	return f.world.commands.Enqueue(context.Background(), &iscv1.Command{
 		Name:    cmd.Name(),
 		Address: f.world.address,
-		Persona: &iscv1.Persona{Id: "dst-pretest"},
 		Payload: payload,
-	})
+	}, command.PlayerSender("dst-pretest"))
 }
 
-// fillRandom recursively fills a reflect.Value with random data based on its type.
+// fillRandom recursively fills a [reflect.Value] with random data based on its type.
 func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 	t := v.Type()
 	if len(liveEntityIDs) > 0 &&
@@ -320,9 +318,9 @@ func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 		if fillImmutableSlice(prng, v, liveEntityIDs) {
 			return
 		}
-		for i := range v.NumField() {
-			if v.Field(i).CanSet() {
-				fillRandom(prng, v.Field(i), liveEntityIDs)
+		for _, field := range v.Fields() {
+			if field.CanSet() {
+				fillRandom(prng, field, liveEntityIDs)
 			}
 		}
 	case reflect.Slice:
@@ -371,17 +369,9 @@ func fillImmutableSlice(prng *rand.Rand, v reflect.Value, liveEntityIDs []Entity
 // In-memory snapshot storage
 // -------------------------------------------------------------------------------------------------
 
-func (w *World) useSyncSnapshotStorage(store snapshot.Storage) {
-	if w.snapshotWriter != nil {
-		w.snapshotWriter.Stop(context.Background())
-	}
-	w.snapshotStorage = store
-	w.snapshotWriter = snapshot.NewSyncWriter(store, w.tel.GetLogger("snapshot"))
-}
-
 // memSnapshotStorage keeps the last snapshot in memory and checks the envelope on the way in.
 //
-// It must only be driven by the synchronous snapshot writer (World.useSyncSnapshotStorage), never by
+// It must only be driven by the synchronous snapshot writer (installed by RunDST), never by
 // the background one. The reason is the assertions, not the field: require fails a test by calling
 // t.FailNow, which is only valid on the goroutine running the test, so a mutex around snap would
 // silence the race detector while leaving the actual defect in place. Storage that is worth

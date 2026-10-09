@@ -49,21 +49,6 @@ type Response struct {
 	Payload *anypb.Any
 }
 
-// Bytes returns the response as a byte slice ready to be sent over NATS.
-func (r *Response) Bytes() ([]byte, error) {
-	resp := &microv1.Response{
-		Status:         r.Status,
-		ServiceAddress: r.ServiceAddress,
-		Payload:        r.Payload,
-	}
-
-	if r.RequestID != "" {
-		resp.RequestId = &r.RequestID
-	}
-
-	return proto.Marshal(resp)
-}
-
 // NewRequestFromNATSMsg converts a nats.Msg to a Request, parsing the payload if present.
 func NewRequestFromNATSMsg(msg *nats.Msg, serviceAddr *microv1.ServiceAddress) (*Request, error) {
 	req := &Request{
@@ -126,4 +111,19 @@ func NewErrorResponse(req *Request, err error, code codes.Code) *Response {
 		ServiceAddress: req.ServiceAddress,
 		Status:         status.New(code, message).Proto(),
 	}
+}
+
+// Bytes returns the response as a byte slice ready to be sent over NATS.
+func (r *Response) Bytes() ([]byte, error) {
+	resp := &microv1.Response{
+		Status:         r.Status,
+		ServiceAddress: r.ServiceAddress,
+		Payload:        r.Payload,
+	}
+
+	if r.RequestID != "" {
+		resp.RequestId = &r.RequestID
+	}
+
+	return proto.Marshal(resp)
 }

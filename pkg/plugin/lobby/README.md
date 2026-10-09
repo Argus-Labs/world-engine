@@ -157,7 +157,7 @@ Session
 | `LobbyWorld` | This lobby shard's address (for game shard to send NotifySessionEndCommand back) | required |
 | `Provider` | Custom provider (optional, default provided) | `DefaultProvider` |
 | `HeartbeatTimeout` | Seconds before a player is removed for not sending heartbeats. Clients should send heartbeats more frequently (e.g., every timeout/3 seconds). | 30 |
-| `AssignmentAuthority` | Accident-prevention filter for `AssignShardCommand` — dropped when `cmd.Persona` differs. **Not authentication.** `cmd.Persona` is not signature-verified at this layer, so a forged client command still passes if it matches. Real auth (NATS ACLs, gateway auth) must live above the plugin. | empty |
+| `AssignmentAuthority` | Accident-prevention filter for `AssignShardCommand` — dropped when the sending shard (`cmd.Shard()`) differs. **Not authentication.** Clients cannot send as a shard, but any service that can publish to the shard over NATS can name any sender. Real auth (NATS ACLs) must live above the plugin. | empty |
 | `MaxAllocationTimeout` | Max seconds a lobby may sit in `awaiting_allocation` before the plugin fails the pending request. `<= 0` disables timeout enforcement. | 0 (disabled) |
 
 ## Cross-Shard Communication
@@ -436,7 +436,7 @@ Send `AssignShardCommand` to the lobby shard's own address with:
   `ShardID` (+ `Reason`) to fail the start
 
 The plugin's handler validates the `RequestID`, checks
-`cmd.Persona` against `AssignmentAuthority` if configured, and rejects
+the sending shard against `AssignmentAuthority` if configured, and rejects
 anything that doesn't match. On success it writes `GameWorld` onto
 `lobby.GameWorld`, transitions to `in_session`, dispatches
 `NotifySessionStartCommand`, and emits the final `StartSessionResult`.

@@ -798,7 +798,7 @@ func TestOracleIdPool_FreeArrayGrowthFromEmpty(t *testing.T) {
 // sizeof(int32_t) == sizeof(int) at math_functions.c:8). A freshly created pool
 // reserves 32 entries, so the C reports 128 bytes. Go's int is 64 bits on every
 // platform this package targets, and getIDBytes multiplies by
-// strconv.IntSize/8, so it reports 256 bytes: exactly double.
+// [strconv.IntSize]/8, so it reports 256 bytes: exactly double.
 //
 // The C-correct assertion below is written as the oracle demands and skipped,
 // so the difference is recorded rather than hidden.

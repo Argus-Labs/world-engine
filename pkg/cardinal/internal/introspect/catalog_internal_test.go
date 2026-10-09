@@ -18,9 +18,9 @@ type descriptorSample struct {
 	descriptor protoreflect.MessageDescriptor
 }
 
-func (sample descriptorSample) Name() string          { return sample.name }
-func (c descriptorSample) SizeWire() int              { return len(c.MarshalWire()) }
-func (c descriptorSample) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+func (sample descriptorSample) Name() string               { return sample.name }
+func (sample descriptorSample) SizeWire() int              { return len(sample.MarshalWire()) }
+func (sample descriptorSample) AppendWire(b []byte) []byte { return append(b, sample.MarshalWire()...) }
 
 func (descriptorSample) MarshalWire() []byte               { return nil }
 func (descriptorSample) UnmarshalWire([]byte) (any, error) { return descriptorSample{}, nil }
@@ -30,9 +30,9 @@ func (sample descriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor 
 
 type wireOnlySample struct{ name string }
 
-func (sample wireOnlySample) Name() string          { return sample.name }
-func (c wireOnlySample) SizeWire() int              { return len(c.MarshalWire()) }
-func (c wireOnlySample) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
+func (sample wireOnlySample) Name() string               { return sample.name }
+func (sample wireOnlySample) SizeWire() int              { return len(sample.MarshalWire()) }
+func (sample wireOnlySample) AppendWire(b []byte) []byte { return append(b, sample.MarshalWire()...) }
 
 func (wireOnlySample) MarshalWire() []byte               { return nil }
 func (wireOnlySample) UnmarshalWire([]byte) (any, error) { return wireOnlySample{}, nil }
@@ -55,12 +55,12 @@ func TestFinalizeRejectsDescriptorWithUnresolvedImport(t *testing.T) {
 
 	// Build a descriptor whose imported file is deliberately absent.
 	file, err := (protodesc.FileOptions{AllowUnresolvable: true}).New(&descriptorpb.FileDescriptorProto{
-		Name:       proto.String("unresolved.proto"),
-		Package:    proto.String("test"),
-		Syntax:     proto.String("proto3"),
+		Name:       new("unresolved.proto"),
+		Package:    new("test"),
+		Syntax:     new("proto3"),
 		Dependency: []string{"missing.proto"},
 		MessageType: []*descriptorpb.DescriptorProto{
-			{Name: proto.String("Command")},
+			{Name: new("Command")},
 		},
 	}, nil)
 	require.NoError(t, err)

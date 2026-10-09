@@ -63,7 +63,7 @@ func TestStreamShardLogsClosesOutOnError(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for range out { //nolint:revive // draining until closed is the point
+		for range out {
 		}
 	}()
 	select {
@@ -263,7 +263,7 @@ func TestTailPodResubscribesPreviousAsLiveFollow(t *testing.T) {
 
 	closed := make(chan struct{})
 	go func() {
-		for range out { //nolint:revive // draining until closed is the point
+		for range out {
 		}
 		close(closed)
 	}()
@@ -383,7 +383,7 @@ func TestTailPodNoPreviousContainerTerminates(t *testing.T) {
 
 			closed := make(chan struct{})
 			go func() {
-				for range out { //nolint:revive // draining until closed is the point
+				for range out {
 				}
 				close(closed)
 			}()

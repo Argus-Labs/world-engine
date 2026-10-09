@@ -59,7 +59,7 @@ type GenerateCmd struct {
 // A type another module owns — a plugin's, or a library's — is rebuilt into this schema from its Go
 // source, so it needs nothing from its author and reports under the same rules as anything local.
 //
-// Clean: scalars, string, nested structs, fixed arrays ([N]T; [N]byte becomes proto bytes), time.Time
+// Clean: scalars, string, nested structs, fixed arrays ([N]T; [N]byte becomes proto bytes), [time.Time]
 // (becomes Timestamp).
 //
 // Versioning: put the version in Name() ("move.v2"); append fields only within a version; a breaking

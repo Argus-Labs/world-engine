@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // newRecordingTracer installs an in-memory span exporter as the global tracer provider for the
@@ -63,7 +64,6 @@ func TestTickEmitsSpans(t *testing.T) {
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        1,
 		Debug:               &off,
-		Pprof:               &off,
 	})
 	require.NoError(t, err)
 
@@ -112,7 +112,6 @@ func TestTickLinksCommandsAndTracesEvents(t *testing.T) {
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        1000,
 		Debug:               &off,
-		Pprof:               &off,
 	})
 	require.NoError(t, err)
 	exporter := newRecordingTracer(t)
@@ -125,12 +124,13 @@ func TestTickLinksCommandsAndTracesEvents(t *testing.T) {
 	require.NoError(t, w.commands.Enqueue(requestCtx, &iscv1.Command{
 		Name:    testutils.SimpleCommand{}.Name(),
 		Address: w.address,
-		Persona: &iscv1.Persona{Id: "player-1"},
 		Payload: testutils.SimpleCommand{Value: 7}.MarshalWire(),
-	}))
+	}, command.PlayerSender("player-1")))
 	requestSpan.End()
 
-	w.events.Enqueue(event.Event{Kind: event.KindDefault, Payload: testutils.SimpleEvent{Value: 1}, Recipient: "player-1"})
+	w.events.Enqueue(
+		event.Event{Kind: event.KindDefault, Payload: testutils.SimpleEvent{Value: 1}, Recipient: "player-1"},
+	)
 	exporter.Reset()
 
 	w.Tick(time.Now())
@@ -141,7 +141,7 @@ func TestTickLinksCommandsAndTracesEvents(t *testing.T) {
 	require.Len(t, tick.Links, 1)
 	require.Equal(t, requestSpan.SpanContext().SpanID(), tick.Links[0].SpanContext.SpanID())
 	require.Contains(t, tick.Links[0].Attributes, attrCommandName.String(testutils.SimpleCommand{}.Name()))
-	require.Contains(t, tick.Links[0].Attributes, attrCommandPersona.String("player-1"))
+	require.Contains(t, tick.Links[0].Attributes, attrCommandSender.String("player-1"))
 
 	publish, ok := byName[spanEventPublish]
 	require.True(t, ok, "missing event publish span")
@@ -168,7 +168,6 @@ func TestTickSkipsLinksToUnsampledRequests(t *testing.T) {
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        1000,
 		Debug:               &off,
-		Pprof:               &off,
 	})
 	require.NoError(t, err)
 	exporter := newRecordingTracer(t)
@@ -185,9 +184,8 @@ func TestTickSkipsLinksToUnsampledRequests(t *testing.T) {
 	require.NoError(t, w.commands.Enqueue(requestCtx, &iscv1.Command{
 		Name:    testutils.SimpleCommand{}.Name(),
 		Address: w.address,
-		Persona: &iscv1.Persona{Id: "player-1"},
 		Payload: testutils.SimpleCommand{Value: 7}.MarshalWire(),
-	}))
+	}, command.PlayerSender("player-1")))
 	requestSpan.End()
 	exporter.Reset()
 
@@ -217,19 +215,20 @@ func TestInterShardCommandPropagatesTrace(t *testing.T) {
 		Payload: command.Command{
 			Name:    payload.Name(),
 			Address: fixtureB.world.address,
-			Persona: micro.String(fixtureA.world.address),
 			Payload: payload,
 		},
 	}))
+	fixtureA.svc.drainInterShardCommands() // what the tick does after dispatch
 
-	send, ok := spansByName(exporter)[spanInterShardSend]
-	require.True(t, ok, "missing inter-shard send span")
+	cmds := awaitCommands(t, fixtureB)
+	var send tracetest.SpanStub
+	require.Eventually(t, func() bool {
+		var ok bool
+		send, ok = spansByName(exporter)[spanInterShardSend]
+		return ok
+	}, 5*time.Second, 10*time.Millisecond, "missing inter-shard send span")
 	require.Contains(t, send.Attributes, attrCommandTarget.String(micro.String(fixtureB.world.address)))
 
-	fixtureB.world.commands.Drain()
-	cmds, err := fixtureB.world.commands.Get(fixtureB.commandID)
-	require.NoError(t, err)
-	require.Len(t, cmds, 1)
 	require.True(t, cmds[0].Span.IsValid(), "command lost its trace context crossing NATS")
 	require.Equal(t, send.SpanContext.TraceID(), cmds[0].Span.TraceID())
 }
@@ -265,7 +264,8 @@ func TestEventPublishSpanRecordsPanic(t *testing.T) {
 }
 
 // TestTickCapsCommandLinks checks that a tick draining more traced commands than the link cap still
-// reports every command in its attributes while keeping the link count at the cap.
+// reports every command in its attributes while keeping the link count at the cap. With the
+// default config the cap equals the SDK's default link limit (128), so nothing is dropped.
 func TestTickCapsCommandLinks(t *testing.T) {
 	t.Setenv("LOG_LEVEL", "disabled")
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
@@ -280,23 +280,22 @@ func TestTickCapsCommandLinks(t *testing.T) {
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        1000,
 		Debug:               &off,
-		Pprof:               &off,
 	})
 	require.NoError(t, err)
+	require.Equal(t, 128, w.tel.MaxCommandLinks(), "default cap is the SDK default link limit")
 	exporter := newRecordingTracer(t)
 
 	w.RegisterCommand[testutils.SimpleCommand]()
 	w.init()
 
-	total := maxCommandLinks + 5
+	total := 128 + 5
 	requestCtx, requestSpan := otel.Tracer("test").Start(context.Background(), "request")
 	for i := range total {
 		require.NoError(t, w.commands.Enqueue(requestCtx, &iscv1.Command{
 			Name:    testutils.SimpleCommand{}.Name(),
 			Address: w.address,
-			Persona: &iscv1.Persona{Id: "player-1"},
 			Payload: testutils.SimpleCommand{Value: i}.MarshalWire(),
-		}))
+		}, command.PlayerSender("player-1")))
 	}
 	requestSpan.End()
 	exporter.Reset()
@@ -305,6 +304,149 @@ func TestTickCapsCommandLinks(t *testing.T) {
 
 	tick := spansByName(exporter)[spanTick]
 	require.Contains(t, tick.Attributes, attrTickCommands.Int(total))
-	require.Len(t, tick.Links, maxCommandLinks)
+	require.Len(t, tick.Links, 128)
 	require.Zero(t, tick.DroppedLinks, "links past the cap must not be built and then dropped by the SDK")
+}
+
+// enqueueDistinctSampledCommands enqueues n commands under n distinct, sampled request spans,
+// mirroring the production ConnectRPC handler which traces each inbound command request
+// independently (one server span per request). It returns the request spans' SpanContexts in
+// enqueue order so tests can assert which commands the tick span links to. The recording tracer
+// must already be installed so the spans carry sampled SpanContexts.
+func enqueueDistinctSampledCommands(t *testing.T, w *World, n int) []oteltrace.SpanContext {
+	t.Helper()
+	tr := otel.Tracer("test")
+	scs := make([]oteltrace.SpanContext, n)
+	for i := range n {
+		ctx, span := tr.Start(context.Background(), "request")
+		scs[i] = span.SpanContext()
+		require.True(t, scs[i].IsSampled(), "request span must be sampled so it produces a link")
+		require.NoError(t, w.commands.Enqueue(ctx, &iscv1.Command{
+			Name:    testutils.SimpleCommand{}.Name(),
+			Address: w.address,
+			Payload: testutils.SimpleCommand{Value: i}.MarshalWire(),
+		}, command.PlayerSender("player-1")))
+		span.End()
+	}
+	return scs
+}
+
+// keptLinkSpanIDs returns the set of SpanIDs the tick span linked to.
+func keptLinkSpanIDs(t *testing.T, span tracetest.SpanStub) map[oteltrace.SpanID]struct{} {
+	t.Helper()
+	ids := make(map[oteltrace.SpanID]struct{}, len(span.Links))
+	for _, l := range span.Links {
+		ids[l.SpanContext.SpanID()] = struct{}{}
+	}
+	return ids
+}
+
+// TestTickCapMatchesEnvLinkLimitBelowDefault is the regression test for the link-cap bug. With
+// OTEL_SPAN_LINK_COUNT_LIMIT set below the former hardcoded cap (128), the cap must track the env
+// var so the cap and the provider share one limit. Before the fix, cardinal built 128 links and
+// the SDK dropped (128 - limit) of them; after the fix, cardinal builds exactly `limit` links and
+// the SDK keeps all of them — nothing is built only to be dropped.
+//
+// This is the combined regime from the bug report: linkLimit < 128 AND numCommands > 128, the only
+// regime where the old hardcoded cap changed the kept set versus a no-cap baseline.
+func TestTickCapMatchesEnvLinkLimitBelowDefault(t *testing.T) {
+	const linkLimit = 64    // OTEL_SPAN_LINK_COUNT_LIMIT, below the former hardcoded cap of 128.
+	const numCommands = 200 // > 128, so the former hardcoded cap would have fired.
+
+	t.Setenv("OTEL_SPAN_LINK_COUNT_LIMIT", "64")
+	t.Setenv("LOG_LEVEL", "disabled")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+
+	off := false
+	w, err := NewWorld(WorldOptions{
+		Region:              "trace",
+		Organization:        "trace",
+		Project:             "trace",
+		ShardID:             "cap-below-default",
+		TickRate:            60,
+		SnapshotStorageType: snapshot.StorageTypeNop,
+		SnapshotRate:        1000,
+		Debug:               &off,
+	})
+	require.NoError(t, err)
+	require.Equal(t, linkLimit, w.tel.MaxCommandLinks(),
+		"cap must track OTEL_SPAN_LINK_COUNT_LIMIT, not the hardcoded 128")
+
+	exporter := newRecordingTracer(t)
+
+	w.RegisterCommand[testutils.SimpleCommand]()
+	w.init()
+	scs := enqueueDistinctSampledCommands(t, w, numCommands)
+	exporter.Reset()
+
+	w.Tick(time.Now())
+
+	tick := spansByName(exporter)[spanTick]
+	require.Contains(t, tick.Attributes, attrTickCommands.Int(numCommands))
+	require.Len(t, tick.Links, linkLimit)
+
+	// Decisive: with the cap matching the provider limit, the cap builds exactly linkLimit links
+	// and the SDK keeps all of them. Before the fix this was 64 (maxCommandLinks - linkLimit) because
+	// the cap built 128 links and the SDK dropped 64 of them; it must now be zero.
+	require.Zero(t, tick.DroppedLinks,
+		"cap matches provider limit; no link is built only to be dropped by the SDK")
+
+	// The cap keeps the first linkLimit sampled commands (prefix). Commands past the cap must not
+	// appear as links: this guards against the cap silently regressing to a larger prefix.
+	kept := keptLinkSpanIDs(t, tick)
+	for i := range linkLimit {
+		_, ok := kept[scs[i].SpanID()]
+		require.True(t, ok, "command #%d (within cap) should be linked", i)
+	}
+	for i := linkLimit; i < numCommands; i++ {
+		_, ok := kept[scs[i].SpanID()]
+		require.False(t, ok, "command #%d (past cap) should not be linked", i)
+	}
+}
+
+// TestTickCapMatchesEnvLinkLimitAboveDefault checks the cap also tracks an env limit above the
+// default. Before the fix, the hardcoded cap of 128 would have kept only 128 of these 200 links;
+// after the fix the cap is 256, all 200 sampled commands are linked and none are dropped.
+func TestTickCapMatchesEnvLinkLimitAboveDefault(t *testing.T) {
+	const linkLimit = 256   // OTEL_SPAN_LINK_COUNT_LIMIT, above the default 128.
+	const numCommands = 200 // < linkLimit, so the cap does not fire.
+
+	t.Setenv("OTEL_SPAN_LINK_COUNT_LIMIT", "256")
+	t.Setenv("LOG_LEVEL", "disabled")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+
+	off := false
+	w, err := NewWorld(WorldOptions{
+		Region:              "trace",
+		Organization:        "trace",
+		Project:             "trace",
+		ShardID:             "cap-above-default",
+		TickRate:            60,
+		SnapshotStorageType: snapshot.StorageTypeNop,
+		SnapshotRate:        1000,
+		Debug:               &off,
+	})
+	require.NoError(t, err)
+	require.Equal(t, linkLimit, w.tel.MaxCommandLinks(),
+		"cap must track OTEL_SPAN_LINK_COUNT_LIMIT above the default")
+
+	exporter := newRecordingTracer(t)
+
+	w.RegisterCommand[testutils.SimpleCommand]()
+	w.init()
+	scs := enqueueDistinctSampledCommands(t, w, numCommands)
+	exporter.Reset()
+
+	w.Tick(time.Now())
+
+	tick := spansByName(exporter)[spanTick]
+	require.Contains(t, tick.Attributes, attrTickCommands.Int(numCommands))
+	require.Len(t, tick.Links, numCommands, "all sampled commands link when below the cap")
+	require.Zero(t, tick.DroppedLinks)
+
+	kept := keptLinkSpanIDs(t, tick)
+	for i := range numCommands {
+		_, ok := kept[scs[i].SpanID()]
+		require.True(t, ok, "command #%d should be linked (below cap)", i)
+	}
 }

@@ -38,14 +38,12 @@ type ownershipECS interface {
 	FromProto(*cardinalv1.WorldState) error
 }
 
-type ownershipCommands interface {
-	Enqueue(context.Context, *iscv1.Command) error
-}
-
 type ownershipWorld struct {
-	world    *cardinal.World
-	ecs      ownershipECS
-	commands ownershipCommands
+	world *cardinal.World
+	ecs   ownershipECS
+	// enqueue is the world's internal command.Manager.Enqueue method. Its sender type is internal to
+	// Cardinal, so tests build it by reflection.
+	enqueue reflect.Value
 }
 
 func newOwnershipWorld(t *testing.T, config lobby.Config) *ownershipWorld {
@@ -73,25 +71,45 @@ func newOwnershipWorldWithSetup(t *testing.T, setup func(*cardinal.World)) *owne
 	value := reflect.ValueOf(world).Elem()
 	ecsField := value.FieldByName("world")
 	ecsValue := reflect.NewAt(ecsField.Type(), unsafe.Pointer(ecsField.UnsafeAddr())).Elem()
-	ecs, ok := ecsValue.Interface().(ownershipECS)
+	ecs, ok := reflect.TypeAssert[ownershipECS](ecsValue)
 	require.True(t, ok)
 	commandField := value.FieldByName("commands")
-	commandValue := reflect.NewAt(commandField.Type(), unsafe.Pointer(commandField.UnsafeAddr())).Interface()
-	commands, ok := commandValue.(ownershipCommands)
-	require.True(t, ok)
+	enqueue := reflect.NewAt(commandField.Type(), unsafe.Pointer(commandField.UnsafeAddr())).MethodByName("Enqueue")
+	require.True(t, enqueue.IsValid())
 	ecs.Init()
-	return &ownershipWorld{world: world, ecs: ecs, commands: commands}
+	return &ownershipWorld{world: world, ecs: ecs, enqueue: enqueue}
 }
 
-func (w *ownershipWorld) send(t *testing.T, persona string, payload interface {
+type ownershipPayload interface {
 	Name() string
 	MarshalWire() []byte
-}) {
+}
+
+func (w *ownershipWorld) send(t *testing.T, player string, payload ownershipPayload) {
 	t.Helper()
-	require.NoError(t, w.commands.Enqueue(context.Background(), &iscv1.Command{
-		Name: payload.Name(), Address: &microv1.ServiceAddress{},
-		Persona: &iscv1.Persona{Id: persona}, Payload: payload.MarshalWire(),
-	}))
+	w.enqueueFrom(t, player, false, payload)
+}
+
+func (w *ownershipWorld) sendFromShard(t *testing.T, shard string, payload ownershipPayload) {
+	t.Helper()
+	w.enqueueFrom(t, shard, true, payload)
+}
+
+// enqueueFrom enqueues payload from the sender id, a shard's address when shard is set. Only
+// Cardinal builds a sender, so this reaches into its unexported fields the same way
+// newOwnershipWorldWithSetup reaches into the world.
+func (w *ownershipWorld) enqueueFrom(t *testing.T, id string, shard bool, payload ownershipPayload) {
+	t.Helper()
+	cmd := &iscv1.Command{Name: payload.Name(), Address: &microv1.ServiceAddress{}, Payload: payload.MarshalWire()}
+	sender := reflect.New(w.enqueue.Type().In(2)).Elem()
+	unexported(sender.FieldByName("id")).SetString(id)
+	unexported(sender.FieldByName("shard")).SetBool(shard)
+	out := w.enqueue.Call([]reflect.Value{reflect.ValueOf(context.Background()), reflect.ValueOf(cmd), sender})
+	require.True(t, out[0].IsNil(), "enqueue %s: %v", payload.Name(), out[0])
+}
+
+func unexported(field reflect.Value) reflect.Value {
+	return reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
 }
 
 func (w *ownershipWorld) tick(timestamp int64) { w.world.Tick(time.Unix(timestamp, 0)) }
@@ -181,6 +199,23 @@ func TestPluginRestoreRebuildsOnlyItsOwnIndex(t *testing.T) {
 	assert.Equal(t, 2, restored.onlyLobby(t).PlayerCount)
 	restored.tick(1_005)
 	assert.Empty(t, restored.lobbies())
+}
+
+// Lobby state is keyed by player ID, so a player command from a shard must not create a lobby led by
+// an empty player ID that every other shard would share.
+func TestPlayerCommandsFromShardsAreDropped(t *testing.T) {
+	t.Setenv("LOG_LEVEL", "disabled")
+	w := newOwnershipWorld(t, lobby.Config{
+		LobbyPresets: map[string][]lobby.TeamConfig{"solo": {{TeamID: "solo", MaxPlayers: 1}}},
+	})
+	shard := "local.world.org.project.other"
+	w.sendFromShard(t, shard, lobby.CreateLobbyCommand{RequestID: "from-shard", Preset: "solo"})
+	w.tick(100)
+	assert.Empty(t, w.lobbies())
+
+	w.send(t, "leader", lobby.CreateLobbyCommand{RequestID: "from-player", Preset: "solo"})
+	w.tick(101)
+	assert.Equal(t, "leader", w.onlyLobby(t).LeaderID)
 }
 
 func TestPluginNilProviderUsesItsOwnDefault(t *testing.T) {

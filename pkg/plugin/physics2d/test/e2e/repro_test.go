@@ -74,14 +74,20 @@ func TestReproManualReleaseVelocityDrop(t *testing.T) {
 				c.EditBody(s.releasedFR, func(pb *physics.PhysicsBody2D) { pb.BodyType = physics.BodyTypeDynamic })
 				ctrl := box()
 				ctrl.BodyType = physics.BodyTypeDynamic
-				s.control = c.SpawnMoving("control", 0, 5, vx, 0, ctrl) // FullRebuild-equivalent: born Dynamic with {7,0}
+				// FullRebuild-equivalent: born Dynamic with {7,0}.
+				s.control = c.SpawnMoving("control", 0, 5, vx, 0, ctrl)
 			}},
 			{Tick: checkTick, Do: func(c *harness.Ctx) {
 				t.Logf("positions after %d dynamic ticks: control.X=%.4f released.X=%.4f releasedFR.X=%.4f want=%.4f",
 					checkTick-releaseTick, c.Pos(s.control).X, c.Pos(s.released).X, c.Pos(s.releasedFR).X, wantX)
 				c.Near("control (FullRebuild-equivalent) reaches want X", c.Pos(s.control).X, wantX, 0.1)
 				c.Near("released (Manual->Dynamic) matches control X", c.Pos(s.released).X, c.Pos(s.control).X, 0.1)
-				c.Near("released-FR (Manual->Dynamic+FixedRotation) matches", c.Pos(s.releasedFR).X, c.Pos(s.control).X, 0.1)
+				c.Near(
+					"released-FR (Manual->Dynamic+FixedRotation) matches",
+					c.Pos(s.releasedFR).X,
+					c.Pos(s.control).X,
+					0.1,
+				)
 			}},
 		},
 	}
@@ -116,7 +122,8 @@ func TestReproManualReleaseKinematic(t *testing.T) {
 				c.EditBody(s.released, func(pb *physics.PhysicsBody2D) { pb.BodyType = physics.BodyTypeKinematic })
 				ctrl := mk()
 				ctrl.BodyType = physics.BodyTypeKinematic
-				s.control = c.SpawnMoving("control", 0, 5, vx, 0, ctrl) // FullRebuild-equivalent: born Kinematic with {5,0}
+				// FullRebuild-equivalent: born Kinematic with {5,0}.
+				s.control = c.SpawnMoving("control", 0, 5, vx, 0, ctrl)
 			}},
 			{Tick: checkTick, Do: func(c *harness.Ctx) {
 				t.Logf("positions after %d kinematic ticks: control.X=%.4f released.X=%.4f want=%.4f",
@@ -212,7 +219,8 @@ func TestReproManualReleaseParityVsRebuild(t *testing.T) {
 				c.EditBody(s.released, func(pb *physics.PhysicsBody2D) { pb.BodyType = physics.BodyTypeDynamic })
 				ctrl := mk()
 				ctrl.BodyType = physics.BodyTypeDynamic
-				s.control = c.SpawnMoving("control", 0, 5, vx, 0, ctrl) // FullRebuild-equivalent: born Dynamic with {7,0}
+				// FullRebuild-equivalent: born Dynamic with {7,0}.
+				s.control = c.SpawnMoving("control", 0, 5, vx, 0, ctrl)
 			}},
 			{Tick: readTick, Do: func(c *harness.Ctx) {
 				relV := engVelX(c, s.released)

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Go CLI"
+  short_description: "Go command and terminal UI guidance"
+  default_prompt: "Use $go-cli to design or edit Go CLI and terminal interfaces."

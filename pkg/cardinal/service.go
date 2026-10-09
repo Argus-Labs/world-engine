@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"buf.build/go/protovalidate"
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
 	"connectrpc.com/otelconnect"
@@ -29,9 +28,8 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	otelcodes "go.opentelemetry.io/otel/codes"
-	semconv "go.opentelemetry.io/otel/semconv/v1.41.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc/codes"
 )
 
 // service hosts the direct client-facing Cardinal service.
@@ -43,9 +41,10 @@ type service struct {
 	argusAuthURL string
 	client       *micro.Client
 	microService *micro.Service
+	interShard   *interShard
 	commands     map[string]struct{}
 	subscribers  map[string]*streamSubscriber
-	replyWaiters map[string][]chan *iscv1.Event
+	replyWaiters map[string]map[string][]chan *iscv1.Event // event name -> player ID -> waiters
 	mu           sync.RWMutex
 }
 
@@ -60,7 +59,7 @@ func newService(world *World, authMode AuthMode, argusAuthURL string) *service {
 		argusAuthURL: argusAuthURL,
 		commands:     make(map[string]struct{}),
 		subscribers:  make(map[string]*streamSubscriber),
-		replyWaiters: make(map[string][]chan *iscv1.Event),
+		replyWaiters: make(map[string]map[string][]chan *iscv1.Event),
 	}
 }
 
@@ -89,16 +88,15 @@ func (s *service) init(address string) error {
 		return eris.Wrap(err, "failed to create micro service")
 	}
 	s.microService = microService
+	s.interShard = newInterShard(s.world.address, client, &s.world.commands, s.log)
 
 	// Keep these for now cuz ISC requires a bit more work than client connections. Will need another
 	// refactor after the current clients are migrated to connect directly to the shards.
 	if err = s.microService.AddEndpoint("ping", s.handlePing); err != nil {
 		return eris.Wrap(err, "failed to register ping handler")
 	}
-	for cmd := range s.commands {
-		if err := s.microService.AddGroup("command").AddEndpoint(cmd, s.handleInterShardCommand); err != nil {
-			return eris.Wrapf(err, "failed to register %s command handler", cmd)
-		}
+	if err := s.interShard.start(s.microService, s.commands); err != nil {
+		return err
 	}
 
 	otelInterceptor, err := otelconnect.NewInterceptor()
@@ -112,11 +110,13 @@ func (s *service) init(address string) error {
 	var authenticate func(context.Context, *http.Request) (any, error)
 	switch s.authMode {
 	case AuthModeArgus:
-		authenticator, err := newAuthenticatorArgus(s.argusAuthURL)
+		authenticator, err := NewArgusAuthenticator(
+			s.argusAuthURL, s.world.options.Organization, s.world.options.Project,
+		)
 		if err != nil {
 			return eris.Wrap(err, "failed to create argus authenticator")
 		}
-		authenticate = authenticator.authenticate
+		authenticate = authenticator.Authenticate
 	case AuthModeDev:
 		authenticate = authenticatorDev{}.authenticate
 	case AuthModeUndefined:
@@ -177,6 +177,10 @@ func (s *service) mountDebugService(mux *http.ServeMux, interceptors ...connect.
 }
 
 func (s *service) shutdown(ctx context.Context) error {
+	// Before server.Shutdown: an open event stream holds it until ctx expires, and its error returns early.
+	if s.interShard != nil {
+		s.interShard.stop(ctx)
+	}
 	if s.server != nil {
 		if err := s.server.Shutdown(ctx); err != nil {
 			return eris.Wrap(err, "failed to shutdown service server")
@@ -202,9 +206,6 @@ func (s *service) registerCommandHandler(name string) {
 // Command handlers
 // -------------------------------------------------------------------------------------------------
 
-// TODO: eventually, we'll probably have more user fields in the command metadata, possibly a User
-// struct field instead of a single persona ID.
-
 type streamSubscriber struct {
 	ctx    context.Context
 	stream *connect.ServerStream[cardinalv1.StartEventStreamResponse]
@@ -229,21 +230,19 @@ func (s *service) SendCommand(
 	default:
 	}
 
-	user := UserFromContext(ctx)
-	assert.That(user != nil, "user should exist in authenticated request context")
+	player := PlayerFromContext(ctx)
+	assert.That(player != nil, "player should exist in authenticated request context")
 
 	cmd := req.Msg.GetCommand()
 	assert.That(cmd != nil, "command should have been validated")
-	assert.That(cmd.GetPersona() != nil, "command persona should have been validated")
 
-	cmd.Persona.Id = user.ID
-	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID), attrCommandName.String(cmd.GetName()))
+	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(player.ID), attrCommandName.String(cmd.GetName()))
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 	}
 
-	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
+	if err := s.world.commands.Enqueue(ctx, cmd, command.PlayerSender(player.ID)); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
@@ -254,32 +253,32 @@ func (s *service) SendCommandWithReply(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.SendCommandWithReplyRequest],
 ) (*connect.Response[cardinalv1.SendCommandWithReplyResponse], error) {
-	user := UserFromContext(ctx)
-	assert.That(user != nil, "user should exist in authenticated request context")
+	player := PlayerFromContext(ctx)
+	assert.That(player != nil, "player should exist in authenticated request context")
 
 	cmd := req.Msg.GetCommand()
 	assert.That(cmd != nil, "command should have been validated")
-	assert.That(cmd.GetPersona() != nil, "command persona should have been validated")
 
-	cmd.Persona.Id = user.ID
 	span := oteltrace.SpanFromContext(ctx)
-	span.SetAttributes(semconv.EnduserID(user.ID), attrCommandName.String(cmd.GetName()),
+	span.SetAttributes(semconv.EnduserID(player.ID), attrCommandName.String(cmd.GetName()),
 		attrEventName.String(req.Msg.GetEventName()))
 
 	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 	}
 
-	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
+	// Register the reply waiter before enqueuing the command. Enqueueing first opens a window
+	// where a tick can drain the command, emit the reply, and find no waiter — dropping the
+	// reply and deadlocking the client until its context times out.
+	waiter := s.addReplyWaiter(player.ID, req.Msg.GetEventName())
+	defer s.removeReplyWaiter(player.ID, req.Msg.GetEventName(), waiter)
+
+	if err := s.world.commands.Enqueue(ctx, cmd, command.PlayerSender(player.ID)); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
 	}
 
-	waiter := s.addReplyWaiter(req.Msg.GetEventName())
-	defer s.removeReplyWaiter(req.Msg.GetEventName(), waiter)
-
-	// The span's duration is the round trip; this event marks where the enqueue ended and the wait
-	// for the reply began. A cancelled wait ends the span with only this event and an error status.
 	span.AddEvent("command enqueued")
+
 	select {
 	case <-ctx.Done():
 		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "waiting for reply event"))
@@ -289,28 +288,37 @@ func (s *service) SendCommandWithReply(
 	}
 }
 
-func (s *service) addReplyWaiter(eventName string) chan *iscv1.Event {
+func (s *service) addReplyWaiter(playerID, eventName string) chan *iscv1.Event {
 	waiter := make(chan *iscv1.Event, 1)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.replyWaiters[eventName] = append(s.replyWaiters[eventName], waiter)
+	byPlayer := s.replyWaiters[eventName]
+	if byPlayer == nil {
+		byPlayer = make(map[string][]chan *iscv1.Event)
+		s.replyWaiters[eventName] = byPlayer
+	}
+	byPlayer[playerID] = append(byPlayer[playerID], waiter)
 	return waiter
 }
 
-func (s *service) removeReplyWaiter(eventName string, waiter chan *iscv1.Event) {
+func (s *service) removeReplyWaiter(playerID, eventName string, waiter chan *iscv1.Event) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	waiters := s.replyWaiters[eventName]
+	byPlayer := s.replyWaiters[eventName]
+	waiters := byPlayer[playerID]
 	for i, current := range waiters {
 		if current == waiter {
-			s.replyWaiters[eventName] = append(waiters[:i], waiters[i+1:]...)
+			byPlayer[playerID] = append(waiters[:i], waiters[i+1:]...)
 			break
 		}
 	}
-	if len(s.replyWaiters[eventName]) == 0 {
+	if len(byPlayer[playerID]) == 0 {
+		delete(byPlayer, playerID)
+	}
+	if len(byPlayer) == 0 {
 		delete(s.replyWaiters, eventName)
 	}
 }
@@ -324,23 +332,23 @@ func (s *service) StartEventStream(
 	req *connect.Request[cardinalv1.StartEventStreamRequest],
 	stream *connect.ServerStream[cardinalv1.StartEventStreamResponse],
 ) error {
-	user := UserFromContext(ctx)
-	assert.That(user != nil, "user should exist in authenticated stream context")
-	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID),
+	player := PlayerFromContext(ctx)
+	assert.That(player != nil, "player should exist in authenticated stream context")
+	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(player.ID),
 		attrEventSubscriptions.Int(countSubscriptions(req.Msg.GetSubscriptions())))
 
-	subscriber, err := s.addSubscriber(ctx, user, stream)
+	subscriber, err := s.addSubscriber(ctx, player, stream)
 	if err != nil {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	defer s.removeSubscriber(user)
+	defer s.removeSubscriber(player)
 
 	for _, subscription := range req.Msg.GetSubscriptions() {
 		if micro.String(s.world.address) != micro.String(subscription.GetAddress()) {
 			return connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 		}
 	}
-	s.subscribeEvents(user, req.Msg.GetSubscriptions())
+	s.subscribeEvents(player, req.Msg.GetSubscriptions())
 
 	if err := subscriber.send(&cardinalv1.StartEventStreamResponse{}); err != nil {
 		return connect.NewError(connect.CodeInternal, eris.Wrap(err, "failed to send initial empty event to client"))
@@ -370,11 +378,11 @@ func (s *service) SubscribeEvents(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.SubscribeEventsRequest],
 ) (*connect.Response[cardinalv1.SubscribeEventsResponse], error) {
-	user, err := s.subscriptionRequest(ctx, req.Msg.GetSubscriptions())
+	player, err := s.subscriptionRequest(ctx, req.Msg.GetSubscriptions())
 	if err != nil {
 		return nil, err
 	}
-	s.subscribeEvents(user, req.Msg.GetSubscriptions())
+	s.subscribeEvents(player, req.Msg.GetSubscriptions())
 
 	return connect.NewResponse(&cardinalv1.SubscribeEventsResponse{}), nil
 }
@@ -383,25 +391,25 @@ func (s *service) UnsubscribeEvents(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.UnsubscribeEventsRequest],
 ) (*connect.Response[cardinalv1.UnsubscribeEventsResponse], error) {
-	user, err := s.subscriptionRequest(ctx, req.Msg.GetSubscriptions())
+	player, err := s.subscriptionRequest(ctx, req.Msg.GetSubscriptions())
 	if err != nil {
 		return nil, err
 	}
-	s.unsubscribeEvents(user, req.Msg.GetSubscriptions())
+	s.unsubscribeEvents(player, req.Msg.GetSubscriptions())
 
 	return connect.NewResponse(&cardinalv1.UnsubscribeEventsResponse{}), nil
 }
 
-// subscriptionRequest validates a subscribe or unsubscribe request from a user with an open stream.
+// subscriptionRequest validates a subscribe or unsubscribe request from a player with an open stream.
 func (s *service) subscriptionRequest(
 	ctx context.Context, subscriptions []*cardinalv1.EventSubscription,
-) (*User, error) {
-	user := UserFromContext(ctx)
-	assert.That(user != nil, "user should exist in authenticated request context")
-	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(user.ID),
+) (*Player, error) {
+	player := PlayerFromContext(ctx)
+	assert.That(player != nil, "player should exist in authenticated request context")
+	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(player.ID),
 		attrEventSubscriptions.Int(countSubscriptions(subscriptions)))
 
-	if !s.hasSubscriber(user) {
+	if !s.hasSubscriber(player) {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
 	}
 
@@ -410,19 +418,19 @@ func (s *service) subscriptionRequest(
 			return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 		}
 	}
-	return user, nil
+	return player, nil
 }
 
 func (s *service) addSubscriber(
 	ctx context.Context,
-	user *User,
+	player *Player,
 	stream *connect.ServerStream[cardinalv1.StartEventStreamResponse],
 ) (*streamSubscriber, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, exists := s.subscribers[user.ID]; exists {
-		return nil, eris.Errorf("user %s already has an open stream", user.ID)
+	if _, exists := s.subscribers[player.ID]; exists {
+		return nil, eris.Errorf("player %s already has an open stream", player.ID)
 	}
 
 	subscriber := &streamSubscriber{
@@ -430,22 +438,22 @@ func (s *service) addSubscriber(
 		stream: stream,
 		events: make(map[string]struct{}),
 	}
-	s.subscribers[user.ID] = subscriber
+	s.subscribers[player.ID] = subscriber
 	return subscriber, nil
 }
 
-func (s *service) removeSubscriber(user *User) {
+func (s *service) removeSubscriber(player *Player) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	delete(s.subscribers, user.ID)
+	delete(s.subscribers, player.ID)
 }
 
-func (s *service) subscribeEvents(user *User, subscriptions []*cardinalv1.EventSubscription) {
+func (s *service) subscribeEvents(player *Player, subscriptions []*cardinalv1.EventSubscription) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	subscriber := s.subscribers[user.ID]
+	subscriber := s.subscribers[player.ID]
 	assert.That(subscriber != nil, "subscriber should exist for authenticated stream")
 
 	for _, subscription := range subscriptions {
@@ -455,11 +463,11 @@ func (s *service) subscribeEvents(user *User, subscriptions []*cardinalv1.EventS
 	}
 }
 
-func (s *service) unsubscribeEvents(user *User, subscriptions []*cardinalv1.EventSubscription) {
+func (s *service) unsubscribeEvents(player *Player, subscriptions []*cardinalv1.EventSubscription) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	subscriber := s.subscribers[user.ID]
+	subscriber := s.subscribers[player.ID]
 	assert.That(subscriber != nil, "subscriber should exist for authenticated stream")
 
 	for _, subscription := range subscriptions {
@@ -469,11 +477,11 @@ func (s *service) unsubscribeEvents(user *User, subscriptions []*cardinalv1.Even
 	}
 }
 
-func (s *service) hasSubscriber(user *User) bool {
+func (s *service) hasSubscriber(player *Player) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	_, ok := s.subscribers[user.ID]
+	_, ok := s.subscribers[player.ID]
 	return ok
 }
 
@@ -524,7 +532,10 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 				}
 			}
 		} else {
-			s.log.Debug().Str("recipient", evt.Recipient).Str("event", eventPb.GetName()).Msg("recipient has no open stream")
+			s.log.Debug().
+				Str("recipient", evt.Recipient).
+				Str("event", eventPb.GetName()).
+				Msg("recipient has no open stream")
 		}
 	} else {
 		subscribers = make([]*streamSubscriber, 0, len(s.subscribers))
@@ -537,7 +548,16 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 			}
 		}
 	}
-	waiters := append([]chan *iscv1.Event(nil), s.replyWaiters[eventPb.GetName()]...)
+	// A targeted reply resolves only its recipient's waiters. A broadcast is visible to every
+	// player, so it resolves every waiter for the event name.
+	var waiters []chan *iscv1.Event
+	if evt.Recipient != "" {
+		waiters = append(waiters, s.replyWaiters[eventPb.GetName()][evt.Recipient]...)
+	} else {
+		for _, playerWaiters := range s.replyWaiters[eventPb.GetName()] {
+			waiters = append(waiters, playerWaiters...)
+		}
+	}
 	s.mu.RUnlock()
 	span.SetAttributes(attrEventSubscribers.Int(len(subscribers)), attrEventWaiters.Int(len(waiters)))
 
@@ -593,35 +613,11 @@ func (s *service) handlePing(_ context.Context, req *micro.Request) *micro.Respo
 	return micro.NewSuccessResponse(req, nil)
 }
 
-func (s *service) handleInterShardCommand(ctx context.Context, req *micro.Request) *micro.Response {
-	select {
-	case <-ctx.Done():
-		return micro.NewErrorResponse(req, eris.Wrap(ctx.Err(), "context cancelled"), codes.Canceled)
-	default:
+// drainInterShardCommands is a no-op when the service never connected to NATS, as in the DST harness.
+func (s *service) drainInterShardCommands() {
+	if s.interShard != nil {
+		s.interShard.drain()
 	}
-
-	cmd := &iscv1.Command{}
-	if err := req.Payload.UnmarshalTo(cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to parse request payload"), codes.InvalidArgument)
-	}
-
-	if err := protovalidate.Validate(cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to validate command"), codes.InvalidArgument)
-	}
-	if _, err := micro.ParseAddress(cmd.GetPersona().GetId()); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "command persona is not a shard address"), codes.InvalidArgument)
-	}
-
-	if micro.String(s.world.address) != micro.String(cmd.GetAddress()) {
-		return micro.NewErrorResponse(req, eris.New("command address doesn't match shard address"), codes.InvalidArgument)
-	}
-
-	oteltrace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))
-	if err := s.world.commands.Enqueue(ctx, cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), codes.InvalidArgument)
-	}
-
-	return micro.NewSuccessResponse(req, nil)
 }
 
 func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event) error {
@@ -630,36 +626,16 @@ func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event)
 		return eris.Errorf("invalid inter shard command %v", evt.Payload)
 	}
 	assert.That(isc.Address != nil, "inter shard command has nil address")
+	assert.That(s.interShard != nil, "inter shard command published before the service started")
 
-	// The NATS client injects this span into the request headers, so the receiving shard's handler
-	// span (and the tick that drains the command there) joins this tick's oteltrace.
-	ctx, span := trace.New(ctx, spanInterShardSend, oteltrace.WithAttributes(
-		attrCommandName.String(isc.Payload.Name()), attrCommandTarget.String(micro.String(isc.Address))))
-	defer span.End()
-
-	payload := schema.Marshal(isc.Payload)
-
-	commandPb := &iscv1.Command{
-		Name:    isc.Payload.Name(),
-		Address: isc.Address,
-		Persona: &iscv1.Persona{Id: isc.Persona},
-		Payload: payload,
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	// TODO: revisit shard-to-shard blocking. Dispatch runs synchronously in the tick loop, so this
-	// request-reply blocks the whole world up to 10s per send — and we discard the reply anyway. If
-	// shard-to-shard isn't meant to block the tick, make this async (worker) or fire-and-forget Publish.
-	_, err := s.client.Request(ctx, isc.Address, "command."+isc.Payload.Name(), commandPb)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(otelcodes.Error, "send failed")
-		s.log.Error().Err(err).Str("command", isc.Payload.Name()).Msg("inter-shard command dropped: send failed")
-		return nil
-	}
-
+	s.interShard.enqueue(ctx, &iscv1.InterShardCommand{
+		Command: &iscv1.Command{
+			Name:    isc.Payload.Name(),
+			Address: isc.Address,
+			Payload: schema.Marshal(isc.Payload),
+		},
+		Sender: s.world.address,
+	})
 	return nil
 }
 
@@ -667,12 +643,9 @@ func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event)
 // Authentication
 // -------------------------------------------------------------------------------------------------
 
-type User struct {
-	jwt.RegisteredClaims
-
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+// Player is the authenticated gameplay identity supplied to Cardinal handlers.
+type Player struct {
+	ID string
 }
 
 // AuthMode selects the authentication mode for the client-facing ConnectRPC service.
@@ -718,28 +691,43 @@ func ParseAuthMode(s string) (AuthMode, error) {
 	}
 }
 
-func UserFromContext(ctx context.Context) *User {
+func PlayerFromContext(ctx context.Context) *Player {
 	info := authn.GetInfo(ctx)
 	if info == nil {
 		return nil
 	}
-	user, ok := info.(*User)
+	player, ok := info.(*Player)
 	if !ok {
 		return nil
 	}
-	return user
+	return player
 }
 
 // -------------------------------------------------------------------------------------------------
 // Argus Auth
 // -------------------------------------------------------------------------------------------------
 
-type authenticatorArgus struct {
-	keyfunc keyfunc.Keyfunc
+// ArgusAuthenticator authenticates game tokens issued by Argus Auth for one organization/project.
+type ArgusAuthenticator struct {
+	audience string
+	keyfunc  keyfunc.Keyfunc
 }
 
-func newAuthenticatorArgus(argusAuthURL string) (*authenticatorArgus, error) {
-	assert.That(argusAuthURL != "", "Should've validated the URL")
+// NewArgusAuthenticator fetches Argus Auth's signing keys and returns an authenticator that
+// accepts only EdDSA game tokens with aud equal to organization/project, an unexpired exp, and a
+// non-empty sub. Pass its Authenticate method to authn.NewMiddleware.
+func NewArgusAuthenticator(argusAuthURL, organization, project string) (*ArgusAuthenticator, error) {
+	if argusAuthURL == "" {
+		return nil, eris.New("argus auth URL cannot be empty")
+	}
+	// Argus Auth issues aud as exactly "organization/project", so a '/' in either part could never
+	// match and every token would be rejected.
+	if organization == "" || project == "" || strings.Contains(organization+project, "/") {
+		return nil, eris.Errorf(
+			"organization %q and project %q must be non-empty and must not contain '/' in ARGUS auth mode",
+			organization, project,
+		)
+	}
 
 	jwksURL := argusAuthURL + "/auth/jwks"
 	client := &http.Client{
@@ -771,43 +759,56 @@ func newAuthenticatorArgus(argusAuthURL string) (*authenticatorArgus, error) {
 		return nil, eris.Wrap(err, "failed to create keyfunc")
 	}
 
-	return &authenticatorArgus{keyfunc: keyfn}, nil
+	return &ArgusAuthenticator{
+		audience: organization + "/" + project,
+		keyfunc:  keyfn,
+	}, nil
 }
 
-func (a *authenticatorArgus) authenticate(_ context.Context, req *http.Request) (any, error) {
+// Authenticate returns the *Player named by the request's bearer token. It satisfies
+// authn.AuthFunc; every rejection is a connect.CodeUnauthenticated error.
+func (a *ArgusAuthenticator) Authenticate(_ context.Context, req *http.Request) (any, error) {
 	jwtString, ok := authn.BearerToken(req)
 	if !ok {
 		return nil, authn.Errorf("Authorization header must be in format: 'Bearer <JWT>'")
 	}
 
-	user := &User{}
-	token, err := jwt.ParseWithClaims(jwtString, user, a.keyfunc.Keyfunc)
+	claims := &jwt.RegisteredClaims{}
+	token, err := jwt.ParseWithClaims(
+		jwtString,
+		claims,
+		a.keyfunc.Keyfunc,
+		jwt.WithValidMethods([]string{jwt.SigningMethodEdDSA.Alg()}),
+		jwt.WithAudience(a.audience),
+		jwt.WithExpirationRequired(),
+	)
 	if err != nil {
-		return nil, eris.Wrap(err, "JWT parse error")
+		return nil, authn.Errorf("invalid JWT: %v", err)
 	}
 	if !token.Valid {
-		return nil, eris.New("JWT token is invalid")
+		return nil, authn.Errorf("JWT token is invalid")
+	}
+	if strings.TrimSpace(claims.Subject) == "" {
+		return nil, authn.Errorf("JWT subject is required")
 	}
 
-	// TODO: Remove this comment once persona ID is removed from the JWT.
-	// if u.PersonaID == "" {
-	// 	return nil, authn.Errorf("JWT token is missing persona ID")
-	// }
-
-	return user, nil
+	return &Player{ID: claims.Subject}, nil
 }
 
 // -------------------------------------------------------------------------------------------------
 // Dev Auth
 // -------------------------------------------------------------------------------------------------
 
+// devPlayerIDHeader names the caller's player ID in DEV auth mode.
+const devPlayerIDHeader = "X-Player-Id"
+
 type authenticatorDev struct{}
 
 func (a authenticatorDev) authenticate(_ context.Context, req *http.Request) (any, error) {
-	email := strings.TrimSpace(req.Header.Get("X-Email"))
-	if email == "" {
-		return nil, authn.Errorf("X-Email header is required")
+	playerID := strings.TrimSpace(req.Header.Get(devPlayerIDHeader))
+	if playerID == "" {
+		return nil, authn.Errorf("%s header is required", devPlayerIDHeader)
 	}
 
-	return &User{ID: email, Email: email}, nil
+	return &Player{ID: playerID}, nil
 }

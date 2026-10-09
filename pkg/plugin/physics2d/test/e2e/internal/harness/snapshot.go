@@ -194,7 +194,7 @@ func SnapshotWorld(w *cardinal.World) (any, error) {
 		panic("ecs.World: no EncodeState method; the snapshot shim needs updating")
 	}
 	out := m.Call([]reflect.Value{reflect.ValueOf([]byte(nil))})
-	data, ok := out[0].Interface().([]byte)
+	data, ok := reflect.TypeAssert[[]byte](out[0])
 	if !ok {
 		return nil, fmt.Errorf("EncodeState returned %T, want []byte", out[0].Interface())
 	}
@@ -212,7 +212,7 @@ func RestoreWorld(w *cardinal.World, state any) error {
 		panic("ecs.World: no FromProto method; the snapshot shim needs updating")
 	}
 	out := m.Call([]reflect.Value{reflect.ValueOf(state)})
-	if err, _ := out[0].Interface().(error); err != nil {
+	if err, _ := reflect.TypeAssert[error](out[0]); err != nil {
 		return err
 	}
 	return nil

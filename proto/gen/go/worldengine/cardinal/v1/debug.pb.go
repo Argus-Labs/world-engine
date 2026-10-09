@@ -9,7 +9,6 @@ package cardinalv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -847,223 +846,11 @@ func (x *GetStateResponse) GetSnapshot() *Snapshot {
 	return nil
 }
 
-// StreamPerfRequest is the request message for the StreamPerf server-streaming RPC.
-type StreamPerfRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StreamPerfRequest) Reset() {
-	*x = StreamPerfRequest{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[16]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StreamPerfRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StreamPerfRequest) ProtoMessage() {}
-
-func (x *StreamPerfRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[16]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StreamPerfRequest.ProtoReflect.Descriptor instead.
-func (*StreamPerfRequest) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{16}
-}
-
-// PerfBatch is a batch of completed tick timelines pushed to the client.
-type PerfBatch struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ticks         []*TickTimeline        `protobuf:"bytes,1,rep,name=ticks,proto3" json:"ticks,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PerfBatch) Reset() {
-	*x = PerfBatch{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[17]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PerfBatch) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PerfBatch) ProtoMessage() {}
-
-func (x *PerfBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[17]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PerfBatch.ProtoReflect.Descriptor instead.
-func (*PerfBatch) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{17}
-}
-
-func (x *PerfBatch) GetTicks() []*TickTimeline {
-	if x != nil {
-		return x.Ticks
-	}
-	return nil
-}
-
-type TickTimeline struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TickHeight    uint64                 `protobuf:"varint,1,opt,name=tick_height,json=tickHeight,proto3" json:"tick_height,omitempty"`
-	TickStart     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=tick_start,json=tickStart,proto3" json:"tick_start,omitempty"`
-	Spans         []*SystemSpan          `protobuf:"bytes,3,rep,name=spans,proto3" json:"spans,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *TickTimeline) Reset() {
-	*x = TickTimeline{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[18]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *TickTimeline) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TickTimeline) ProtoMessage() {}
-
-func (x *TickTimeline) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[18]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TickTimeline.ProtoReflect.Descriptor instead.
-func (*TickTimeline) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{18}
-}
-
-func (x *TickTimeline) GetTickHeight() uint64 {
-	if x != nil {
-		return x.TickHeight
-	}
-	return 0
-}
-
-func (x *TickTimeline) GetTickStart() *timestamppb.Timestamp {
-	if x != nil {
-		return x.TickStart
-	}
-	return nil
-}
-
-func (x *TickTimeline) GetSpans() []*SystemSpan {
-	if x != nil {
-		return x.Spans
-	}
-	return nil
-}
-
-type SystemSpan struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	SystemHook SystemHook             `protobuf:"varint,1,opt,name=system_hook,json=systemHook,proto3,enum=worldengine.cardinal.v1.SystemHook" json:"system_hook,omitempty"`
-	System     string                 `protobuf:"bytes,2,opt,name=system,proto3" json:"system,omitempty"`
-	// Nanoseconds elapsed from the parent TickTimeline.tick_start to when this span began.
-	StartOffsetNs uint64 `protobuf:"varint,3,opt,name=start_offset_ns,json=startOffsetNs,proto3" json:"start_offset_ns,omitempty"`
-	// Duration of this span in nanoseconds.
-	DurationNs    uint64 `protobuf:"varint,4,opt,name=duration_ns,json=durationNs,proto3" json:"duration_ns,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SystemSpan) Reset() {
-	*x = SystemSpan{}
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[19]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SystemSpan) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SystemSpan) ProtoMessage() {}
-
-func (x *SystemSpan) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_cardinal_v1_debug_proto_msgTypes[19]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SystemSpan.ProtoReflect.Descriptor instead.
-func (*SystemSpan) Descriptor() ([]byte, []int) {
-	return file_worldengine_cardinal_v1_debug_proto_rawDescGZIP(), []int{19}
-}
-
-func (x *SystemSpan) GetSystemHook() SystemHook {
-	if x != nil {
-		return x.SystemHook
-	}
-	return SystemHook_SYSTEM_HOOK_UNSPECIFIED
-}
-
-func (x *SystemSpan) GetSystem() string {
-	if x != nil {
-		return x.System
-	}
-	return ""
-}
-
-func (x *SystemSpan) GetStartOffsetNs() uint64 {
-	if x != nil {
-		return x.StartOffsetNs
-	}
-	return 0
-}
-
-func (x *SystemSpan) GetDurationNs() uint64 {
-	if x != nil {
-		return x.DurationNs
-	}
-	return 0
-}
-
 var File_worldengine_cardinal_v1_debug_proto protoreflect.FileDescriptor
 
 const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\n" +
-	"#worldengine/cardinal/v1/debug.proto\x12\x17worldengine.cardinal.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a&worldengine/cardinal/v1/snapshot.proto\"\x13\n" +
+	"#worldengine/cardinal/v1/debug.proto\x12\x17worldengine.cardinal.v1\x1a&worldengine/cardinal/v1/snapshot.proto\"\x13\n" +
 	"\x11IntrospectRequest\"\xf2\x02\n" +
 	"\x12IntrospectResponse\x12?\n" +
 	"\bcommands\x18\x01 \x03(\v2#.worldengine.cardinal.v1.TypeSchemaR\bcommands\x12C\n" +
@@ -1106,31 +893,14 @@ const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\x0fGetStateRequest\"n\n" +
 	"\x10GetStateResponse\x12\x1b\n" +
 	"\tis_paused\x18\x01 \x01(\bR\bisPaused\x12=\n" +
-	"\bsnapshot\x18\x02 \x01(\v2!.worldengine.cardinal.v1.SnapshotR\bsnapshot\"\x13\n" +
-	"\x11StreamPerfRequest\"H\n" +
-	"\tPerfBatch\x12;\n" +
-	"\x05ticks\x18\x01 \x03(\v2%.worldengine.cardinal.v1.TickTimelineR\x05ticks\"\xa5\x01\n" +
-	"\fTickTimeline\x12\x1f\n" +
-	"\vtick_height\x18\x01 \x01(\x04R\n" +
-	"tickHeight\x129\n" +
-	"\n" +
-	"tick_start\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttickStart\x129\n" +
-	"\x05spans\x18\x03 \x03(\v2#.worldengine.cardinal.v1.SystemSpanR\x05spans\"\xb3\x01\n" +
-	"\n" +
-	"SystemSpan\x12D\n" +
-	"\vsystem_hook\x18\x01 \x01(\x0e2#.worldengine.cardinal.v1.SystemHookR\n" +
-	"systemHook\x12\x16\n" +
-	"\x06system\x18\x02 \x01(\tR\x06system\x12&\n" +
-	"\x0fstart_offset_ns\x18\x03 \x01(\x04R\rstartOffsetNs\x12\x1f\n" +
-	"\vduration_ns\x18\x04 \x01(\x04R\n" +
-	"durationNs*\x90\x01\n" +
+	"\bsnapshot\x18\x02 \x01(\v2!.worldengine.cardinal.v1.SnapshotR\bsnapshot*\x90\x01\n" +
 	"\n" +
 	"SystemHook\x12\x1b\n" +
 	"\x17SYSTEM_HOOK_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16SYSTEM_HOOK_PRE_UPDATE\x10\x01\x12\x16\n" +
 	"\x12SYSTEM_HOOK_UPDATE\x10\x02\x12\x1b\n" +
 	"\x17SYSTEM_HOOK_POST_UPDATE\x10\x03\x12\x14\n" +
-	"\x10SYSTEM_HOOK_INIT\x10\x042\x96\x05\n" +
+	"\x10SYSTEM_HOOK_INIT\x10\x042\xb6\x04\n" +
 	"\fDebugService\x12e\n" +
 	"\n" +
 	"Introspect\x12*.worldengine.cardinal.v1.IntrospectRequest\x1a+.worldengine.cardinal.v1.IntrospectResponse\x12V\n" +
@@ -1138,9 +908,7 @@ const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\x06Resume\x12&.worldengine.cardinal.v1.ResumeRequest\x1a'.worldengine.cardinal.v1.ResumeResponse\x12S\n" +
 	"\x04Step\x12$.worldengine.cardinal.v1.StepRequest\x1a%.worldengine.cardinal.v1.StepResponse\x12V\n" +
 	"\x05Reset\x12%.worldengine.cardinal.v1.ResetRequest\x1a&.worldengine.cardinal.v1.ResetResponse\x12_\n" +
-	"\bGetState\x12(.worldengine.cardinal.v1.GetStateRequest\x1a).worldengine.cardinal.v1.GetStateResponse\x12^\n" +
-	"\n" +
-	"StreamPerf\x12*.worldengine.cardinal.v1.StreamPerfRequest\x1a\".worldengine.cardinal.v1.PerfBatch0\x01BtZRgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1\xaa\x02\x1dWorldEngine.Proto.Cardinal.V1b\x06proto3"
+	"\bGetState\x12(.worldengine.cardinal.v1.GetStateRequest\x1a).worldengine.cardinal.v1.GetStateResponseBtZRgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1;cardinalv1\xaa\x02\x1dWorldEngine.Proto.Cardinal.V1b\x06proto3"
 
 var (
 	file_worldengine_cardinal_v1_debug_proto_rawDescOnce sync.Once
@@ -1155,31 +923,26 @@ func file_worldengine_cardinal_v1_debug_proto_rawDescGZIP() []byte {
 }
 
 var file_worldengine_cardinal_v1_debug_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_worldengine_cardinal_v1_debug_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_worldengine_cardinal_v1_debug_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_worldengine_cardinal_v1_debug_proto_goTypes = []any{
-	(SystemHook)(0),               // 0: worldengine.cardinal.v1.SystemHook
-	(*IntrospectRequest)(nil),     // 1: worldengine.cardinal.v1.IntrospectRequest
-	(*IntrospectResponse)(nil),    // 2: worldengine.cardinal.v1.IntrospectResponse
-	(*SystemSchedule)(nil),        // 3: worldengine.cardinal.v1.SystemSchedule
-	(*SystemNode)(nil),            // 4: worldengine.cardinal.v1.SystemNode
-	(*TypeSchema)(nil),            // 5: worldengine.cardinal.v1.TypeSchema
-	(*ArrayField)(nil),            // 6: worldengine.cardinal.v1.ArrayField
-	(*PauseRequest)(nil),          // 7: worldengine.cardinal.v1.PauseRequest
-	(*PauseResponse)(nil),         // 8: worldengine.cardinal.v1.PauseResponse
-	(*ResumeRequest)(nil),         // 9: worldengine.cardinal.v1.ResumeRequest
-	(*ResumeResponse)(nil),        // 10: worldengine.cardinal.v1.ResumeResponse
-	(*StepRequest)(nil),           // 11: worldengine.cardinal.v1.StepRequest
-	(*StepResponse)(nil),          // 12: worldengine.cardinal.v1.StepResponse
-	(*ResetRequest)(nil),          // 13: worldengine.cardinal.v1.ResetRequest
-	(*ResetResponse)(nil),         // 14: worldengine.cardinal.v1.ResetResponse
-	(*GetStateRequest)(nil),       // 15: worldengine.cardinal.v1.GetStateRequest
-	(*GetStateResponse)(nil),      // 16: worldengine.cardinal.v1.GetStateResponse
-	(*StreamPerfRequest)(nil),     // 17: worldengine.cardinal.v1.StreamPerfRequest
-	(*PerfBatch)(nil),             // 18: worldengine.cardinal.v1.PerfBatch
-	(*TickTimeline)(nil),          // 19: worldengine.cardinal.v1.TickTimeline
-	(*SystemSpan)(nil),            // 20: worldengine.cardinal.v1.SystemSpan
-	(*Snapshot)(nil),              // 21: worldengine.cardinal.v1.Snapshot
-	(*timestamppb.Timestamp)(nil), // 22: google.protobuf.Timestamp
+	(SystemHook)(0),            // 0: worldengine.cardinal.v1.SystemHook
+	(*IntrospectRequest)(nil),  // 1: worldengine.cardinal.v1.IntrospectRequest
+	(*IntrospectResponse)(nil), // 2: worldengine.cardinal.v1.IntrospectResponse
+	(*SystemSchedule)(nil),     // 3: worldengine.cardinal.v1.SystemSchedule
+	(*SystemNode)(nil),         // 4: worldengine.cardinal.v1.SystemNode
+	(*TypeSchema)(nil),         // 5: worldengine.cardinal.v1.TypeSchema
+	(*ArrayField)(nil),         // 6: worldengine.cardinal.v1.ArrayField
+	(*PauseRequest)(nil),       // 7: worldengine.cardinal.v1.PauseRequest
+	(*PauseResponse)(nil),      // 8: worldengine.cardinal.v1.PauseResponse
+	(*ResumeRequest)(nil),      // 9: worldengine.cardinal.v1.ResumeRequest
+	(*ResumeResponse)(nil),     // 10: worldengine.cardinal.v1.ResumeResponse
+	(*StepRequest)(nil),        // 11: worldengine.cardinal.v1.StepRequest
+	(*StepResponse)(nil),       // 12: worldengine.cardinal.v1.StepResponse
+	(*ResetRequest)(nil),       // 13: worldengine.cardinal.v1.ResetRequest
+	(*ResetResponse)(nil),      // 14: worldengine.cardinal.v1.ResetResponse
+	(*GetStateRequest)(nil),    // 15: worldengine.cardinal.v1.GetStateRequest
+	(*GetStateResponse)(nil),   // 16: worldengine.cardinal.v1.GetStateResponse
+	(*Snapshot)(nil),           // 17: worldengine.cardinal.v1.Snapshot
 }
 var file_worldengine_cardinal_v1_debug_proto_depIdxs = []int32{
 	5,  // 0: worldengine.cardinal.v1.IntrospectResponse.commands:type_name -> worldengine.cardinal.v1.TypeSchema
@@ -1189,30 +952,24 @@ var file_worldengine_cardinal_v1_debug_proto_depIdxs = []int32{
 	0,  // 4: worldengine.cardinal.v1.SystemSchedule.hook:type_name -> worldengine.cardinal.v1.SystemHook
 	4,  // 5: worldengine.cardinal.v1.SystemSchedule.systems:type_name -> worldengine.cardinal.v1.SystemNode
 	6,  // 6: worldengine.cardinal.v1.TypeSchema.array_fields:type_name -> worldengine.cardinal.v1.ArrayField
-	21, // 7: worldengine.cardinal.v1.GetStateResponse.snapshot:type_name -> worldengine.cardinal.v1.Snapshot
-	19, // 8: worldengine.cardinal.v1.PerfBatch.ticks:type_name -> worldengine.cardinal.v1.TickTimeline
-	22, // 9: worldengine.cardinal.v1.TickTimeline.tick_start:type_name -> google.protobuf.Timestamp
-	20, // 10: worldengine.cardinal.v1.TickTimeline.spans:type_name -> worldengine.cardinal.v1.SystemSpan
-	0,  // 11: worldengine.cardinal.v1.SystemSpan.system_hook:type_name -> worldengine.cardinal.v1.SystemHook
-	1,  // 12: worldengine.cardinal.v1.DebugService.Introspect:input_type -> worldengine.cardinal.v1.IntrospectRequest
-	7,  // 13: worldengine.cardinal.v1.DebugService.Pause:input_type -> worldengine.cardinal.v1.PauseRequest
-	9,  // 14: worldengine.cardinal.v1.DebugService.Resume:input_type -> worldengine.cardinal.v1.ResumeRequest
-	11, // 15: worldengine.cardinal.v1.DebugService.Step:input_type -> worldengine.cardinal.v1.StepRequest
-	13, // 16: worldengine.cardinal.v1.DebugService.Reset:input_type -> worldengine.cardinal.v1.ResetRequest
-	15, // 17: worldengine.cardinal.v1.DebugService.GetState:input_type -> worldengine.cardinal.v1.GetStateRequest
-	17, // 18: worldengine.cardinal.v1.DebugService.StreamPerf:input_type -> worldengine.cardinal.v1.StreamPerfRequest
-	2,  // 19: worldengine.cardinal.v1.DebugService.Introspect:output_type -> worldengine.cardinal.v1.IntrospectResponse
-	8,  // 20: worldengine.cardinal.v1.DebugService.Pause:output_type -> worldengine.cardinal.v1.PauseResponse
-	10, // 21: worldengine.cardinal.v1.DebugService.Resume:output_type -> worldengine.cardinal.v1.ResumeResponse
-	12, // 22: worldengine.cardinal.v1.DebugService.Step:output_type -> worldengine.cardinal.v1.StepResponse
-	14, // 23: worldengine.cardinal.v1.DebugService.Reset:output_type -> worldengine.cardinal.v1.ResetResponse
-	16, // 24: worldengine.cardinal.v1.DebugService.GetState:output_type -> worldengine.cardinal.v1.GetStateResponse
-	18, // 25: worldengine.cardinal.v1.DebugService.StreamPerf:output_type -> worldengine.cardinal.v1.PerfBatch
-	19, // [19:26] is the sub-list for method output_type
-	12, // [12:19] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	17, // 7: worldengine.cardinal.v1.GetStateResponse.snapshot:type_name -> worldengine.cardinal.v1.Snapshot
+	1,  // 8: worldengine.cardinal.v1.DebugService.Introspect:input_type -> worldengine.cardinal.v1.IntrospectRequest
+	7,  // 9: worldengine.cardinal.v1.DebugService.Pause:input_type -> worldengine.cardinal.v1.PauseRequest
+	9,  // 10: worldengine.cardinal.v1.DebugService.Resume:input_type -> worldengine.cardinal.v1.ResumeRequest
+	11, // 11: worldengine.cardinal.v1.DebugService.Step:input_type -> worldengine.cardinal.v1.StepRequest
+	13, // 12: worldengine.cardinal.v1.DebugService.Reset:input_type -> worldengine.cardinal.v1.ResetRequest
+	15, // 13: worldengine.cardinal.v1.DebugService.GetState:input_type -> worldengine.cardinal.v1.GetStateRequest
+	2,  // 14: worldengine.cardinal.v1.DebugService.Introspect:output_type -> worldengine.cardinal.v1.IntrospectResponse
+	8,  // 15: worldengine.cardinal.v1.DebugService.Pause:output_type -> worldengine.cardinal.v1.PauseResponse
+	10, // 16: worldengine.cardinal.v1.DebugService.Resume:output_type -> worldengine.cardinal.v1.ResumeResponse
+	12, // 17: worldengine.cardinal.v1.DebugService.Step:output_type -> worldengine.cardinal.v1.StepResponse
+	14, // 18: worldengine.cardinal.v1.DebugService.Reset:output_type -> worldengine.cardinal.v1.ResetResponse
+	16, // 19: worldengine.cardinal.v1.DebugService.GetState:output_type -> worldengine.cardinal.v1.GetStateResponse
+	14, // [14:20] is the sub-list for method output_type
+	8,  // [8:14] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_worldengine_cardinal_v1_debug_proto_init() }
@@ -1227,7 +984,7 @@ func file_worldengine_cardinal_v1_debug_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_worldengine_cardinal_v1_debug_proto_rawDesc), len(file_worldengine_cardinal_v1_debug_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   20,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

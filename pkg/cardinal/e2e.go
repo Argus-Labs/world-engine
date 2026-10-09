@@ -1,20 +1,12 @@
-// E2E test helper with real (in-memory) NATS. Similar to the DST harness in dst.go, but
-// runs the full World.run loop (ticking, snapshotting, restoring) while a separate goroutine
-// sends randomized commands through the real ConnectRPC service.
 package cardinal
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"flag"
 	"math/rand/v2"
-	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"reflect"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -32,7 +24,6 @@ import (
 	"github.com/nats-io/nats-server/v2/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/http2"
 )
 
 //nolint:gochecknoglobals // test flags registered via flag package
@@ -121,7 +112,7 @@ sendLoop:
 			}
 			name := testutils.RandWeightedOp(prng, cfg.CommandWeights)
 			cmd := fix.randCommand(t, prng, name)
-			fix.sendCommand(t, cmd)
+			fix.sendCommand(t, "e2e-"+testutils.RandString(prng, 8), cmd)
 		}
 	}
 
@@ -222,14 +213,10 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 	})
 
 	// Create a separate ConnectRPC client for sending commands (acts as an external caller).
+	var protocols http.Protocols
+	protocols.SetUnencryptedHTTP2(true)
 	client := cardinalv1connect.NewCardinalServiceClient(&http.Client{
-		Transport: &http2.Transport{
-			AllowHTTP: true,
-			DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
-				var dialer net.Dialer
-				return dialer.DialContext(ctx, network, addr)
-			},
-		},
+		Transport: &http.Transport{Protocols: &protocols},
 	}, "http://"+connectAddr)
 
 	// Cache concrete payload types for random command generation.
@@ -249,24 +236,25 @@ func (f *e2eFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 	t.Helper()
 	val := reflect.New(f.cmdTypes[name]).Elem()
 	fillRandom(rng, val, f.world.world.LiveEntityIDs())
-	p, ok := val.Interface().(command.Payload)
+	p, ok := reflect.TypeAssert[command.Payload](val)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
 	payload := schema.Marshal(p)
 	return &iscv1.Command{
 		Name:    name,
 		Address: f.world.address,
-		Persona: &iscv1.Persona{Id: testutils.RandString(rng, 8)},
 		Payload: payload,
 	}
 }
 
-// sendCommand sends a command to the world's ConnectRPC service.
-func (f *e2eFixture) sendCommand(t *testing.T, cmd *iscv1.Command) {
+// sendCommand sends a command to the world's ConnectRPC service as player.
+func (f *e2eFixture) sendCommand(t *testing.T, player string, cmd *iscv1.Command) {
 	t.Helper()
 	// 2s absorbs normal scheduling/reconnect jitter while still failing fast on deadlocks.
 	ctx, cancel := context.WithTimeout(context.Background(), e2eCommandTimeout)
 	defer cancel()
-	_, err := f.client.SendCommand(ctx, connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmd}))
+	req := connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmd})
+	req.Header().Set(devPlayerIDHeader, player)
+	_, err := f.client.SendCommand(ctx, req)
 	require.NoError(t, err)
 }
 
@@ -275,10 +263,10 @@ func (f *e2eFixture) sendCommand(t *testing.T, cmd *iscv1.Command) {
 // -------------------------------------------------------------------------------------------------
 
 // newE2ENATS starts a dedicated in-memory NATS server with JetStream enabled.
-// The returned cleanup function shuts down the server and removes its temp storage.
+// The returned cleanup function shuts down the server. Its storage lives in t.TempDir.
 func newE2ENATS(t *testing.T) (*server.Server, func()) {
 	t.Helper()
-	tempDir := filepath.Join(os.TempDir(), "nats-e2e-"+strconv.Itoa(os.Getpid())+"-"+t.Name())
+	tempDir := t.TempDir()
 	srv := test.RunServer(&server.Options{
 		Host:                  "127.0.0.1",
 		Port:                  -1,
@@ -289,8 +277,5 @@ func newE2ENATS(t *testing.T) (*server.Server, func()) {
 		JetStream:             true,
 		StoreDir:              tempDir,
 	})
-	return srv, func() {
-		srv.Shutdown()
-		_ = os.RemoveAll(tempDir)
-	}
+	return srv, srv.Shutdown
 }

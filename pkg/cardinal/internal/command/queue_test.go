@@ -49,17 +49,16 @@ func TestQueue_ModelFuzz(t *testing.T) {
 			if corruptName {
 				name = "wrong-name"
 			}
-			persona := "value doesn't matter"
+			sender := command.PlayerSender("value doesn't matter")
 
 			cmdpb := &iscv1.Command{
 				Name:    name,
 				Address: &microv1.ServiceAddress{},
-				Persona: &iscv1.Persona{Id: persona},
 				Payload: payload,
 			}
 
 			sizeBefore := impl.Len()
-			err := impl.Enqueue(context.Background(), cmdpb)
+			err := impl.Enqueue(context.Background(), cmdpb, sender)
 
 			if corruptName {
 				// Property: enqueue with wrong name must fail.
@@ -71,7 +70,7 @@ func TestQueue_ModelFuzz(t *testing.T) {
 				model = append(model, command.Command{
 					Name:    name,
 					Address: &microv1.ServiceAddress{},
-					Persona: persona,
+					Sender:  sender,
 					Payload: cmd,
 				})
 			}

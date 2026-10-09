@@ -58,7 +58,8 @@ func AppendEnvelopeFooter(buf []byte) []byte {
 func timestampWireSize(t time.Time) int {
 	n := 0
 	if s := t.Unix(); s != 0 {
-		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(s)) //nolint:gosec // sign-extends, matching proto varint
+		v := uint64(s) //nolint:gosec // sign-extends, matching proto varint
+		n += protowire.SizeTag(1) + protowire.SizeVarint(v)
 	}
 	if ns := int64(t.Nanosecond()); ns != 0 {
 		n += protowire.SizeTag(2) + protowire.SizeVarint(uint64(ns)) //nolint:gosec // nanos are non-negative

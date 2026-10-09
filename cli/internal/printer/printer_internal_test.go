@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/guumaster/logsymbols"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +19,7 @@ func stripANSI(s string) string {
 	return ansiPattern.ReplaceAllString(s, "")
 }
 
-// captureStdout captures os.Stdout output produced by fn and returns it as a string.
+// captureStdout captures [os.Stdout] output produced by fn and returns it as a string.
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 	orig := os.Stdout
@@ -61,6 +62,15 @@ func TestErrorVariants(t *testing.T) {
 
 	out = captureStdout(t, func() { Errorf("e=%s", "X") })
 	assert.Contains(t, out, "e=X")
+}
+
+// Later lines sit under the first, with no trailing padding (it wraps into
+// blank rows on a narrow terminal).
+func TestErrorMultiline(t *testing.T) {
+	want := string(logsymbols.Error) + " first\n  second line\n"
+	assert.Equal(t, want, stripANSI(captureStdout(t, func() { Errorln("first\nsecond line") })))
+	// The log viewer's reload keys print through Errorf.
+	assert.Equal(t, want, stripANSI(captureStdout(t, func() { Errorf("first\n%s\n", "second line") })))
 }
 
 func TestInfoVariants(t *testing.T) {

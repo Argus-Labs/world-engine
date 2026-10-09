@@ -2,13 +2,13 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
 
-	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
@@ -179,10 +179,8 @@ func TestIsCardinalService(t *testing.T) {
 
 	cardinalSvc := service.Service{
 		Name: "cardinal-shard",
-		Config: container.Config{
-			Labels: map[string]string{
-				service.CardinalNamespaceLabel: "ns",
-			},
+		Labels: map[string]string{
+			service.CardinalNamespaceLabel: "ns",
 		},
 	}
 	if !IsCardinalService(cardinalSvc) {
@@ -200,30 +198,24 @@ func TestCardinalBuildImageNamesDedupesInOrder(t *testing.T) {
 
 	services := []service.Service{
 		{
-			Name: "world-game-shard",
-			Config: container.Config{
-				Image: "world-game-shard",
-				Labels: map[string]string{
-					service.CardinalNamespaceLabel: "world",
-				},
+			Name:  "world-game-shard",
+			Image: "world-game-shard",
+			Labels: map[string]string{
+				service.CardinalNamespaceLabel: "world",
 			},
 		},
 		{
-			Name: "world-game-2-shard",
-			Config: container.Config{
-				Image: "world-game-shard",
-				Labels: map[string]string{
-					service.CardinalNamespaceLabel: "world",
-				},
+			Name:  "world-game-2-shard",
+			Image: "world-game-shard",
+			Labels: map[string]string{
+				service.CardinalNamespaceLabel: "world",
 			},
 		},
 		{
-			Name: "world-chat-shard",
-			Config: container.Config{
-				Image: "world-chat-shard",
-				Labels: map[string]string{
-					service.CardinalNamespaceLabel: "world",
-				},
+			Name:  "world-chat-shard",
+			Image: "world-chat-shard",
+			Labels: map[string]string{
+				service.CardinalNamespaceLabel: "world",
 			},
 		},
 		service.NATS(&service.Config{}),
@@ -260,10 +252,8 @@ func TestBuildCardinalImages_MissingShardPath(t *testing.T) {
 
 	cardinalSvc := service.Service{
 		Name: "cardinal-shard",
-		Config: container.Config{
-			Labels: map[string]string{
-				service.CardinalNamespaceLabel: "ns",
-			},
+		Labels: map[string]string{
+			service.CardinalNamespaceLabel: "ns",
 		},
 		// BuildArgs intentionally missing SHARD_PATH.
 		BuildArgs: map[string]string{},
@@ -271,5 +261,22 @@ func TestBuildCardinalImages_MissingShardPath(t *testing.T) {
 
 	if err := c.BuildCardinalImages(context.Background(), []service.Service{cardinalSvc}, nil); err == nil {
 		t.Fatalf("expected error when Cardinal service is missing SHARD_PATH build arg")
+	}
+}
+
+// Regression: a build stopped by a sibling's failure reported "returned success
+// but image is not present: error during connect: <the sibling's error>".
+func TestItemErrReportsFalloutAsCanceled(t *testing.T) {
+	t.Parallel()
+
+	own := errors.New("exit code: 1")
+	gctx, cancel := context.WithCancelCause(context.Background())
+	if got := itemErr(gctx, own); !errors.Is(got, own) {
+		t.Fatalf("live group: want the item's own error, got %v", got)
+	}
+
+	cancel(errors.New("sibling failed"))
+	if got := itemErr(gctx, own); !errors.Is(got, context.Canceled) {
+		t.Fatalf("canceled group: want context.Canceled, got %v", got)
 	}
 }

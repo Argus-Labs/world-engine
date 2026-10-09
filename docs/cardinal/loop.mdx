@@ -52,11 +52,11 @@ Each tick is one root trace named `cardinal.tick` with these children:
 | `cardinal.system` | `cardinal.system.name`, `cardinal.system.hook` (one span per system run) |
 | `cardinal.events.dispatch` | error status when any event handler fails |
 | `cardinal.event.publish` | `cardinal.event.name`, `cardinal.event.recipient`, `cardinal.event.subscribers`, `cardinal.event.waiters` (one per event) |
-| `cardinal.command.send` | `cardinal.command.name`, `cardinal.command.target` (one per inter-shard command) |
+| `cardinal.command.send` | `cardinal.command.name`, `cardinal.command.target` (one per inter-shard command; sent in the background once events are dispatched, so it can end after `cardinal.tick`) |
 | `cardinal.persist_state` | `cardinal.snapshot.due` (present only on ticks that serialize state) |
 
 Startup emits `cardinal.init` (init systems, also on debug reset) and `cardinal.restore` (snapshot load).
 
-**Commands.** The `SendCommand` request span (from ConnectRPC) and, for a command from another shard, the `handler.execute` span under the NATS `handler.command.*` span carry `cardinal.command.name`. The request finishes before the tick that processes the command, so the tick is not its child. Instead, `cardinal.tick` holds one span link per drained command whose request span was sampled (capped at 128, the SDK's default link limit), tagged with `cardinal.command.name` and `cardinal.command.persona`. Follow the link from the tick to find the request, or search the request's trace for linked ticks.
+**Commands.** The `SendCommand` request span (from ConnectRPC) and, for a command from another shard, the `handler.execute` span under the NATS `handler.command.*` span carry `cardinal.command.name`. The request finishes before the tick that processes the command, so the tick is not its child. Instead, `cardinal.tick` holds one span link per drained command whose request span was sampled (capped at 128, the SDK's default link limit), tagged with `cardinal.command.name` and `cardinal.command.sender` (the player ID, or the sending shard's address). Follow the link from the tick to find the request, or search the request's trace for linked ticks.
 
 **Inter-shard commands.** `cardinal.command.send` injects the tick's trace context into the NATS request headers, so the receiving shard's handler span joins the sending tick's trace. The receiving tick is a new root trace of its own and links back to that handler span, the same way a local `SendCommand` is linked. A cross-shard hop is therefore two traces joined by a link, not one continuous trace.

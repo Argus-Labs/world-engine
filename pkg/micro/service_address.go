@@ -54,16 +54,23 @@ type ServiceAddress = microv1.ServiceAddress
 
 // String returns the string representation of a ServiceAddress without the endpoint.
 func String(s *ServiceAddress) string {
-	return fmt.Sprintf("%s.%s.%s.%s.%s", s.Region, realmToString(s.Realm), s.Organization, s.Project, s.ServiceId)
+	return fmt.Sprintf(
+		"%s.%s.%s.%s.%s",
+		s.GetRegion(),
+		realmToString(s.GetRealm()),
+		s.GetOrganization(),
+		s.GetProject(),
+		s.GetServiceId(),
+	)
 }
 
 // realmToString converts a Realm (microv1.ServiceAddress_Realm) to its string representation.
 func realmToString(realm Realm) string {
 	// The protobuf enum name is in the format REALM_X, we want to extract just X and lowercase it
 	enumStr := realm.String()
-	if strings.HasPrefix(enumStr, "REALM_") {
+	if after, ok := strings.CutPrefix(enumStr, "REALM_"); ok {
 		// Remove "REALM_" prefix and convert to lowercase
-		return strings.ToLower(strings.TrimPrefix(enumStr, "REALM_"))
+		return strings.ToLower(after)
 	}
 	return "unspecified"
 }

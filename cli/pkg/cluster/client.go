@@ -40,7 +40,7 @@ func (c *Client) Config() Config { return c.cfg }
 // OnK3DLog updates per-operation UI (e.g. a phasebox row) must call this
 // once the operation finishes, or a lingering background goroutine could
 // resurrect already-torn-down UI. Falls back to a silent no-op, not
-// os.Stderr, since a stray late line has nowhere useful to go.
+// [os.Stderr], since a stray late line has nowhere useful to go.
 func (c *Client) ResetLogRouting() {
 	setK3dLogLevel(c.cfg.LogLevel, func(string) {})
 }
@@ -385,8 +385,6 @@ type DeployOpts struct {
 	Project string
 	Shards  []DeployShard
 
-	// OnStep, if non-nil, gets a shard ID and a short label before each phase
-	// of that shard's deploy (tag, import, roll) — lets a caller show live
-	// per-shard progress instead of one static row for the whole batch.
-	OnStep func(shardID, step string)
+	// OnResult, if non-nil, gets each shard's result once (nil on success).
+	OnResult func(shardID string, err error)
 }

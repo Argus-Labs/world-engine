@@ -25,7 +25,7 @@ type SendCommandInput struct {
 	Payload      map[string]any `json:"payload"                 jsonschema_description:"JSON payload for the command (the command's input data)"`
 	ShardURL     string         `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved (per instance) from the cluster when omitted. When set, the operator is not contacted: pair it with instance_name (the exact instance, e.g. 'game-2') when targeting a non-default pod so the request address matches the shard. Also pass organization/project to skip the cluster lookup entirely; otherwise they're still auto-resolved via a cluster call."`
 	OperatorURL  string         `json:"operator_url,omitempty"  jsonschema_description:"cardinal-operator URL used to resolve instance_name (defaults to http://localhost:8090 for local dev)"`
-	Email        string         `json:"email,omitempty"         jsonschema_description:"Email for dev auth (defaults to mcp@dev.local)"`
+	PlayerID     string         `json:"player_id,omitempty"     jsonschema_description:"Player ID for dev auth (defaults to mcp-dev-player)"`
 	Region       string         `json:"region,omitempty"        jsonschema_description:"Service address region (defaults to us-west1 for local dev)"`
 }
 
@@ -99,13 +99,12 @@ func sendCommandHandler(
 	client := cardinalv1connect.NewCardinalServiceClient(
 		&http.Client{Timeout: defaultCommandTimeout},
 		target.shardURL,
-		connect.WithInterceptors(&devAuthInterceptor{email: args.Email}),
+		connect.WithInterceptors(&devAuthInterceptor{playerID: args.PlayerID}),
 	)
 
 	req := connect.NewRequest(&cardinalv1.SendCommandRequest{
 		Command: &iscv1.Command{
 			Name:    args.CommandName,
-			Persona: &iscv1.Persona{Id: devPersonaID},
 			Address: target.address,
 			Payload: payloadBytes,
 		},
@@ -143,8 +142,8 @@ func (s *SendCommandInput) validate() error {
 		return eris.New("command_name is required")
 	}
 	// Use defaults for optional fields (ShardURL is resolved in the handler).
-	if s.Email == "" {
-		s.Email = defaultDevEmail
+	if s.PlayerID == "" {
+		s.PlayerID = defaultDevPlayerID
 	}
 	if s.Region == "" {
 		s.Region = defaultRegion
