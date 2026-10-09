@@ -5,6 +5,7 @@ package transport
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
@@ -43,6 +44,11 @@ type Options struct {
 	ArgusURL        string                // Argus Auth service URL; required when AuthMode is ARGUS
 	ArgusAuthGameID string                // Game tokens' audience, <owner>/<name>; required when AuthMode is ARGUS
 	Telemetry       *telemetry.Telemetry
+
+	// ReplyTimeout caps how long SendCommandWithReply waits for its reply after the command is
+	// dispatched. Zero means no cap: the wait ends only when the reply arrives, the client's deadline
+	// passes or it disconnects, or the transport stops.
+	ReplyTimeout time.Duration
 }
 
 func (o Options) validate() error {
@@ -57,6 +63,9 @@ func (o Options) validate() error {
 	}
 	if o.Telemetry == nil {
 		return eris.New("telemetry is required")
+	}
+	if o.ReplyTimeout < 0 {
+		return eris.Errorf("reply timeout must not be negative: %s", o.ReplyTimeout)
 	}
 	return nil
 }
@@ -86,7 +95,7 @@ func New(opts Options) (*Transport, error) {
 		log:      opts.Telemetry.GetLogger("service"),
 		handlers: make(map[string]Handler),
 	}
-	t.clients = newClientService(opts.Address, t.dispatch, t.log)
+	t.clients = newClientService(opts.Address, opts.ReplyTimeout, t.dispatch, t.log)
 	return t, nil
 }
 

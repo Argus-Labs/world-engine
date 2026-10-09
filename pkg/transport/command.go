@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -76,11 +77,29 @@ func (s *clientService) SendCommandWithReply(
 	// The span's duration is the round trip; this event marks where the enqueue ended and the wait
 	// for the reply began. A cancelled wait ends the span with only this event and an error status.
 	span.AddEvent("command enqueued")
+	// The cap starts after dispatch, so it bounds only the wait, not the handler. Without one, timeout
+	// stays nil and never fires.
+	var timeout <-chan time.Time
+	if s.replyTimeout > 0 {
+		timer := time.NewTimer(s.replyTimeout)
+		defer timer.Stop()
+		timeout = timer.C
+	}
 	select {
 	case <-ctx.Done():
 		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "waiting for reply event"))
 	case <-s.stopped:
 		return nil, connect.NewError(connect.CodeUnavailable, eris.Wrap(errStopping, "waiting for reply event"))
+	case <-timeout:
+		// The client is still waiting, so no reply within the cap is a server-side bug.
+		s.log.Error().
+			Str("command", cmd.GetName()).
+			Str("event", req.Msg.GetEventName()).
+			Str("player", player.ID).
+			Dur("waited", s.replyTimeout).
+			Msg("no reply event emitted for command")
+		return nil, connect.NewError(connect.CodeDeadlineExceeded,
+			eris.Errorf("no %s emitted within %s", req.Msg.GetEventName(), s.replyTimeout))
 	case event := <-waiter:
 		span.AddEvent("reply received")
 		return connect.NewResponse(&cardinalv1.SendCommandWithReplyResponse{Event: event}), nil

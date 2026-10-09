@@ -2,6 +2,7 @@ package transport
 
 import (
 	"sync"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -15,6 +16,7 @@ import (
 // publishing (event.go).
 type clientService struct {
 	address      *micro.ServiceAddress
+	replyTimeout time.Duration // Zero means SendCommandWithReply waits without a cap
 	dispatch     Handler
 	log          zerolog.Logger
 	subscribers  map[string]*streamSubscriber
@@ -26,9 +28,12 @@ type clientService struct {
 
 var _ cardinalv1connect.CardinalServiceHandler = (*clientService)(nil)
 
-func newClientService(address *micro.ServiceAddress, dispatch Handler, log zerolog.Logger) *clientService {
+func newClientService(
+	address *micro.ServiceAddress, replyTimeout time.Duration, dispatch Handler, log zerolog.Logger,
+) *clientService {
 	return &clientService{
 		address:      address,
+		replyTimeout: replyTimeout,
 		dispatch:     dispatch,
 		log:          log,
 		subscribers:  make(map[string]*streamSubscriber),
