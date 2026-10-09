@@ -50,8 +50,8 @@ func stopWorld(ctx context.Context, rt *local.Runtime, cfg *service.Config) erro
 }
 
 // runSingleStep runs one lifecycle op (`world stop`, `world purge`) through a
-// one-row phasebox section; rowLabel + resultVerb becomes the collapsed summary
-// (e.g. "stopped — rampage (2s)").
+// one-row phasebox section labelled rowLabel; resultVerb + project becomes the
+// collapsed summary (e.g. "stopped — rampage (2s)").
 func runSingleStep(
 	ctx context.Context,
 	project, rowID, rowLabel, resultVerb string,

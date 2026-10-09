@@ -7,7 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/rotisserie/eris"
+	"golang.org/x/term"
 
 	"github.com/argus-labs/world-engine/cli/internal/dependency"
 	errorspkg "github.com/argus-labs/world-engine/cli/internal/errors"
@@ -108,10 +110,9 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 			}
 
 			dash.Complete()
-			// Its own box, sized to its lines: the dashboard's width is frozen by now.
-			printer.Infoln(style.MultiSectionBox([]style.Section{
-				{Title: "Endpoints", Body: strings.Join(endpointLines(cfg), "\n")},
-			}))
+			// Its own box: the dashboard's width is frozen by now. 0 width = not a terminal.
+			width, _, _ := term.GetSize(int(os.Stdout.Fd()))
+			printer.Infoln(endpointsBox(endpointLines(cfg), width))
 
 			err = runLogSelectionEntry(ctx, rt, cfg, dockerClient)
 			if ctx.Err() != nil {
@@ -217,28 +218,55 @@ func deployServices(
 	)
 }
 
-// endpointLines is the static "where things are" box printed after the dashboard.
+// endpointIndent is the column every endpoint address starts at ("NATS: ").
+const endpointIndent = 6
+
+// endpointLines is the static "where things are" list printed after the dashboard.
 func endpointLines(cfg *service.Config) []string {
 	org, project := local.Sanitized(cfg.WorldToml.Organization, cfg.WorldToml.Project)
 	lines := []string{
-		fmt.Sprintf("API:  %s/%s/%s/<instance>", local.APIEndpoint, org, project),
-		fmt.Sprintf("NATS: %s", local.NatsHostURL),
+		endpointLine("API", fmt.Sprintf("%s/%s/%s/<instance>", local.APIEndpoint, org, project)),
+		endpointLine("NATS", local.NatsHostURL),
 	}
 	if service.NeedsAutoProjectDB(cfg.WorldToml) {
-		lines = append(
-			lines,
-			fmt.Sprintf("DB:   postgres://postgres:postgres@%s/%s", local.DBEndpoint, cfg.WorldToml.Project),
-		)
+		lines = append(lines, endpointLine(
+			"DB", fmt.Sprintf("postgres://postgres:postgres@%s/%s", local.DBEndpoint, cfg.WorldToml.Project),
+		))
 	}
 	for i, sh := range cfg.WorldToml.Shards {
-		lines = append(lines, fmt.Sprintf("%-5s 127.0.0.1:%d", sh.InstanceID+":", service.ShardHostPort(i)))
+		lines = append(lines, endpointLine(sh.InstanceID, fmt.Sprintf("127.0.0.1:%d", service.ShardHostPort(i))))
 	}
 	for _, gs := range cfg.WorldToml.Services {
 		for _, port := range gs.Ports {
-			lines = append(lines, fmt.Sprintf("%-5s localhost:%d", gs.ID+":", port))
+			lines = append(lines, endpointLine(gs.ID, fmt.Sprintf("localhost:%d", port)))
 		}
 	}
 	return lines
+}
+
+func endpointLine(label, addr string) string {
+	return fmt.Sprintf("%-*s %s", endpointIndent-1, label+":", addr)
+}
+
+// endpointsBox boxes the endpoint lines, capped at termWidth (0 = no cap).
+// Lines that don't fit wrap under the address column instead of being cut.
+func endpointsBox(lines []string, termWidth int) string {
+	var opts style.BoxOpts
+	body := make([]string, len(lines))
+	copy(body, lines)
+	if inner := termWidth - style.BoxChrome; termWidth > 0 && inner > endpointIndent {
+		opts.MaxWidth = termWidth
+		indent := strings.Repeat(" ", endpointIndent)
+		for i, line := range body {
+			if ansi.StringWidth(line) > inner {
+				body[i] = strings.ReplaceAll(ansi.Wrap(line, inner-endpointIndent, "/"), "\n", "\n"+indent)
+			}
+		}
+	}
+	out, _ := style.MultiSectionBoxOpts(
+		[]style.Section{{Title: "Endpoints", Body: strings.Join(body, "\n")}}, opts,
+	)
+	return out
 }
 
 // warnConfigDBOverrides notes any POSTGRES_* env a config_db service declares:
