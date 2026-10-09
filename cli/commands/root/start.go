@@ -69,17 +69,14 @@ func startCluster(dash *phasebox.Dashboard) (*cluster.Client, error) {
 			// k3d's logger is global; unhook it so late lines can't reopen the finished row.
 			cli.ResetLogRouting()
 			if err != nil {
-				tracker.Failed(err.Error())
+				tracker.Failed(err)
 				return err
 			}
 			tracker.Done()
 			return nil
 		},
-		func(err error, elapsed time.Duration) (string, bool) {
-			if err != nil {
-				return err.Error(), true
-			}
-			return fmt.Sprintf("ready — %s (%s)", cli.Config().ClusterName, elapsed.Round(time.Second)), false
+		func(elapsed time.Duration) string {
+			return fmt.Sprintf("ready — %s (%s)", cli.Config().ClusterName, elapsed.Round(time.Second))
 		},
 	); err != nil {
 		return nil, eris.Wrap(err, "cluster start")
@@ -93,17 +90,14 @@ func deployWorld(dash *phasebox.Dashboard, cli *cluster.Client, worldCfg tomlpkg
 		func(ctx context.Context, sess phasebox.Session) error {
 			tracker := phasebox.NewStepTracker(sess)
 			if err := cli.DeployWorld(ctx, worldCfg, tracker.Next); err != nil {
-				tracker.Failed(err.Error())
+				tracker.Failed(err)
 				return err
 			}
 			tracker.Done()
 			return nil
 		},
-		func(err error, elapsed time.Duration) (string, bool) {
-			if err != nil {
-				return err.Error(), true
-			}
-			return fmt.Sprintf("ready — %s (%s)", worldCfg.Project, elapsed.Round(time.Second)), false
+		func(elapsed time.Duration) string {
+			return fmt.Sprintf("ready — %s (%s)", worldCfg.Project, elapsed.Round(time.Second))
 		},
 	); err != nil {
 		return eris.Wrap(err, "deploy world")
@@ -154,16 +148,14 @@ func deployK8sServices(
 				Project: cfg.WorldToml.Project,
 				Config:  cfg.WorldToml,
 			}); err != nil {
+				sess.Fail("deploy", "Importing images + rolling pods", err)
 				return eris.Wrap(err, "deploy services")
 			}
 			sess.UpsertRow("deploy", "Importing images + rolling pods", "", phasebox.Done)
 			return nil
 		},
-		func(err error, elapsed time.Duration) (string, bool) {
-			if err != nil {
-				return err.Error(), true
-			}
-			return fmt.Sprintf("deployed %d service(s) (%s)", len(pathKind), elapsed.Round(time.Second)), false
+		func(elapsed time.Duration) string {
+			return fmt.Sprintf("deployed %d service(s) (%s)", len(pathKind), elapsed.Round(time.Second))
 		},
 	)
 }
@@ -237,7 +229,7 @@ func (c *StartCmd) runK8s(ctx context.Context, cwd string, worldCfg tomlpkg.Conf
 			// since both write to the terminal directly and would otherwise race
 			// the dashboard's still-redrawing spinner. Complete is idempotent, so
 			// the deferred call after that is a no-op.
-			dash := phasebox.Start(ctx)
+			dash := phasebox.Start(ctx, phasebox.TTY)
 			defer dash.Complete()
 
 			// Discover k3d's own cluster-bootstrap images up front so they pull
@@ -261,13 +253,10 @@ func (c *StartCmd) runK8s(ctx context.Context, cwd string, worldCfg tomlpkg.Conf
 			go func() { buildDone <- buildShardImages(buildBox, dockerClient, dockerServices) }()
 
 			cli, clusterErr := startCluster(dash)
-			buildErr := <-buildDone
-			// Cluster first, so a Ctrl+C'd build can't hide a real cluster error.
-			if clusterErr != nil {
-				return clusterErr
-			}
-			if buildErr != nil {
-				return eris.Wrap(buildErr, "initial shard build")
+			buildErr := eris.Wrap(<-buildDone, "initial shard build")
+			// Both halves' failures; a Ctrl+C'd half can't hide the other's.
+			if err := errorspkg.JoinFailures(clusterErr, buildErr); err != nil {
+				return err
 			}
 			if err := deployWorld(dash, cli, worldCfg); err != nil {
 				return err

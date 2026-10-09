@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
@@ -152,12 +153,10 @@ func TestService_PublishInterShardCommand(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
+		fixtureA.svc.drainInterShardCommands() // what the tick does after dispatch
 
 		// Drain service B and verify the command arrived with correct payload/sender.
-		fixtureB.world.commands.Drain()
-		cmds, err := fixtureB.world.commands.Get(fixtureB.commandID)
-		require.NoError(t, err)
-		require.Len(t, cmds, 1)
+		cmds := awaitCommands(t, fixtureB)
 		assert.Equal(t, payload, cmds[0].Payload)
 		assert.Equal(t, command.ShardSender(fixtureA.world.address), cmds[0].Sender)
 	})
@@ -205,6 +204,20 @@ func TestService_ShutdownBeforeInitializationCompletes(t *testing.T) {
 // Fixture
 // -------------------------------------------------------------------------------------------------
 
+// awaitCommands drains fixture's world until its SimpleCommand queue has one command, and returns it.
+func awaitCommands(t *testing.T, fixture *serviceFixture) []command.Command {
+	t.Helper()
+	var cmds []command.Command
+	require.Eventually(t, func() bool {
+		fixture.world.commands.Drain()
+		var err error
+		cmds, err = fixture.world.commands.Get(fixture.commandID)
+		require.NoError(t, err)
+		return len(cmds) == 1
+	}, 5*time.Second, 10*time.Millisecond)
+	return cmds
+}
+
 type serviceFixture struct {
 	client    *micro.Client
 	svc       *service
@@ -246,6 +259,9 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool
 		client := NewTestClient(t)
 		svc.client = client
 		fixture.client = client
+		svc.interShard = newInterShard(address, client, &w.commands, zerolog.Nop())
+		// Registered after the client, so it runs first: queued sends finish before the client closes.
+		t.Cleanup(func() { svc.interShard.stop(context.Background()) })
 
 		microService, err := micro.NewService(client, address, &tel)
 		require.NoError(t, err)
@@ -253,10 +269,7 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool
 		svc.microService = microService
 
 		require.NoError(t, microService.AddEndpoint("ping", svc.handlePing))
-		require.NoError(t, microService.AddGroup("command").AddEndpoint(
-			testutils.SimpleCommand{}.Name(),
-			svc.handleInterShardCommand,
-		))
+		require.NoError(t, svc.interShard.start(microService, svc.commands))
 		require.NoError(t, client.Flush())
 	}
 

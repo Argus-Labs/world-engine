@@ -2,7 +2,6 @@ package root
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -77,7 +76,7 @@ func reloadK8sShards(
 	// One dashboard spans every box this reload opens (Image Pull, Build,
 	// optionally Purge, Shards) through a single bubbletea program, so
 	// adjacent boxes can't visually merge across a program hand-off.
-	dash := phasebox.Start(ctx)
+	dash := phasebox.Start(ctx, phasebox.TTY)
 	defer dash.Complete()
 
 	if err := pullBuildDeps(ctx, dash, dockerClient, dockerServices, nil); err != nil {
@@ -124,12 +123,9 @@ func pullBuildDeps(
 				}
 				return g.Wait()
 			},
-			func(err error, elapsed time.Duration) (string, bool) {
-				if err != nil {
-					return err.Error(), true
-				}
+			func(elapsed time.Duration) string {
 				total := len(toPull) + len(toPullRefs)
-				return fmt.Sprintf("%d image(s) pulled (%s)", total, elapsed.Round(time.Second)), false
+				return fmt.Sprintf("%d image(s) pulled (%s)", total, elapsed.Round(time.Second))
 			},
 		); err != nil {
 			return eris.Wrap(err, "pull build dependencies")
@@ -145,11 +141,8 @@ func buildShardImages(box *phasebox.Box, dockerClient *docker.Client, dockerServ
 			imageNames := docker.CardinalBuildImageNames(dockerServices)
 			return dockerClient.BuildCardinalImages(ctx, dockerServices, phasebox.BuildProgress(sess, imageNames))
 		},
-		func(err error, elapsed time.Duration) (string, bool) {
-			if err != nil {
-				return err.Error(), true
-			}
-			return fmt.Sprintf("%d image(s) built (%s)", len(dockerServices), elapsed.Round(time.Second)), false
+		func(elapsed time.Duration) string {
+			return fmt.Sprintf("%d image(s) built (%s)", len(dockerServices), elapsed.Round(time.Second))
 		},
 	)
 }
@@ -191,51 +184,26 @@ func deployShardImages(
 						errs = append(errs, err)
 					}
 				}
-				return errors.Join(errs...)
+				return errorspkg.JoinFailures(errs...)
 			},
-			func(err error, elapsed time.Duration) (string, bool) {
-				if err != nil {
-					return err.Error(), true
-				}
-				return fmt.Sprintf("purged %d shard(s) (%s)", len(targetIDs), elapsed.Round(time.Second)), false
+			func(elapsed time.Duration) string {
+				return fmt.Sprintf("purged %d shard(s) (%s)", len(targetIDs), elapsed.Round(time.Second))
 			},
 		)
 	}
 
 	// Always runs, even after a purge error, so the re-applied ShardPool CRs
 	// get their images and leave ImagePullBackOff.
-	if err := dash.Run("Shards",
+	shardsErr := dash.Run("Shards",
 		func(ctx context.Context, sess phasebox.Session) error {
 			return rollShards(ctx, sess, cli, cfg, deployShards, purge && purgeErr == nil)
 		},
-		func(err error, elapsed time.Duration) (string, bool) {
-			if err != nil {
-				return err.Error(), true
-			}
-			return fmt.Sprintf("reloaded %d shard(s) (%s)", len(targetIDs), elapsed.Round(time.Second)), false
+		func(elapsed time.Duration) string {
+			return fmt.Sprintf("reloaded %d shard(s) (%s)", len(targetIDs), elapsed.Round(time.Second))
 		},
-	); err != nil {
-		if errorspkg.IsSilent(err) {
-			return err
-		}
-		if errorspkg.IsSilent(purgeErr) {
-			return purgeErr
-		}
-		// Both halves genuinely failed — surface them together so the deploy
-		// error doesn't mask an incomplete wipe.
-		if purgeErr != nil {
-			return errors.Join(eris.Wrap(purgeErr, "purge and redeploy shard(s)"), err)
-		}
-		return err
-	}
-
-	// Deploy succeeded, so the re-applied ShardPool CRs have their images and
-	// the pods are rolling; only now is it safe to fail on a purge error.
-	if purgeErr != nil {
-		return eris.Wrap(purgeErr, "purge and redeploy shard(s)")
-	}
-
-	return nil
+	)
+	// Both halves' failures; a Ctrl+C'd half can't hide the other's.
+	return errorspkg.JoinFailures(eris.Wrap(purgeErr, "purge and redeploy shard(s)"), shardsErr)
 }
 
 // purgeAndRedeploy wipes the selected instances, then restores the shard.
@@ -245,7 +213,7 @@ func purgeAndRedeploy(
 ) error {
 	sess.UpsertRow(shardID, shardID, "undeploying", phasebox.Active)
 	if err := cli.UndeployShard(ctx, shardID); err != nil {
-		sess.UpsertRow(shardID, shardID, err.Error(), phasebox.Failed)
+		sess.Fail(shardID, shardID, err)
 		return eris.Wrapf(err, "undeploy shard %s for purge", shardID)
 	}
 
@@ -262,8 +230,8 @@ func purgeAndRedeploy(
 		errs = append(errs, eris.Wrapf(err, "redeploy shard %s", shardID))
 	}
 
-	if err := errors.Join(errs...); err != nil {
-		sess.UpsertRow(shardID, shardID, err.Error(), phasebox.Failed)
+	if err := errorspkg.JoinFailures(errs...); err != nil {
+		sess.Fail(shardID, shardID, err)
 		return err
 	}
 	sess.UpsertRow(shardID, shardID, "", phasebox.Done)
@@ -294,7 +262,7 @@ func rollShards(
 		Shards:  deployShards,
 		OnResult: func(shardID string, err error) {
 			if err != nil {
-				sess.UpsertRow(shardID, shardID, err.Error(), phasebox.Failed)
+				sess.Fail(shardID, shardID, err)
 				return
 			}
 			sess.UpsertRow(shardID, shardID, "", phasebox.Done)

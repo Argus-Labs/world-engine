@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -70,8 +71,11 @@ func (c *Client) Deploy(ctx context.Context, opts DeployOpts) error {
 		return fail(eris.Wrap(err, "import shard images"))
 	}
 
-	// Roll every shard even if one fails, so one bad shard can't hold back the rest.
-	var firstErr error
+	// Roll every shard even if one fails, so one bad shard can't hold back the
+	// rest, and return every failure, not just the first. A cancel (Ctrl+C)
+	// isn't one, so it can't hide one; it's returned only if nothing failed.
+	var errs []error
+	var canceled error
 	for _, s := range opts.Shards {
 		req := connect.NewRequest(&operatorv1.DeployRequest{
 			ShardId:  s.ID,
@@ -80,13 +84,18 @@ func (c *Client) Deploy(ctx context.Context, opts DeployOpts) error {
 		_, err := rpc.Deploy(ctx, req)
 		if err != nil {
 			err = eris.Wrapf(err, "operator Deploy RPC for shard %s", s.ID)
-			if firstErr == nil {
-				firstErr = err
+			if !errors.Is(err, context.Canceled) {
+				errs = append(errs, err)
+			} else if canceled == nil {
+				canceled = err
 			}
 		}
 		report(s.ID, err)
 	}
-	return firstErr
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return canceled
 }
 
 // uniqueTag guarantees a fresh image string each call. The operator rolls

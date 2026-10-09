@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -260,5 +261,22 @@ func TestBuildCardinalImages_MissingShardPath(t *testing.T) {
 
 	if err := c.BuildCardinalImages(context.Background(), []service.Service{cardinalSvc}, nil); err == nil {
 		t.Fatalf("expected error when Cardinal service is missing SHARD_PATH build arg")
+	}
+}
+
+// Regression: a build stopped by a sibling's failure reported "returned success
+// but image is not present: error during connect: <the sibling's error>".
+func TestItemErrReportsFalloutAsCanceled(t *testing.T) {
+	t.Parallel()
+
+	own := errors.New("exit code: 1")
+	gctx, cancel := context.WithCancelCause(context.Background())
+	if got := itemErr(gctx, own); !errors.Is(got, own) {
+		t.Fatalf("live group: want the item's own error, got %v", got)
+	}
+
+	cancel(errors.New("sibling failed"))
+	if got := itemErr(gctx, own); !errors.Is(got, context.Canceled) {
+		t.Fatalf("canceled group: want context.Canceled, got %v", got)
 	}
 }

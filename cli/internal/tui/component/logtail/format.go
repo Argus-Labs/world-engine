@@ -43,9 +43,13 @@ func formatShardLine(label, labelColor, raw string) string {
 }
 
 // renderZerolog pretty-prints a single zerolog JSON line via ConsoleWriter. ok
-// is false when raw isn't a JSON object (ConsoleWriter rejects it), in which
-// case the caller passes the line through verbatim.
+// is false when raw isn't a JSON object, in which case the caller passes the
+// line through verbatim.
 func renderZerolog(raw string) (string, bool) {
+	// ConsoleWriter accepts a bare `null` and renders it as `???`.
+	if !strings.HasPrefix(strings.TrimSpace(raw), "{") {
+		return "", false
+	}
 	var buf bytes.Buffer
 	cw := zerolog.ConsoleWriter{
 		Out:     &buf,

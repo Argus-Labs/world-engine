@@ -9,7 +9,6 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/getsentry/sentry-go"
-	"github.com/rotisserie/eris"
 
 	"github.com/argus-labs/world-engine/cli/commands/root"
 	pkgerrors "github.com/argus-labs/world-engine/cli/internal/errors"
@@ -29,31 +28,18 @@ func checkVerboseFlag() bool {
 	return false
 }
 
-// formatError extracts the user-facing message from an error chain.
-// Returns the outermost eris wrap message, falling back to the root or err.Error().
-// Handles [errors.Join] wrappers (e.g. from kong) by unwrapping to find the eris error.
-func formatError(err error) string {
-	if err == nil {
-		return ""
-	}
-	// kong wraps command errors with errors.Join, which eris can't unpack.
-	// Unwrap joined errors to find the underlying eris error.
+// failureMessages gives one message per independent failure: kong's and
+// errorspkg.JoinFailures' top-level joins are split, while a join under a wrap
+// is one step's causes and stays one (multi-line) message.
+func failureMessages(err error) []string {
 	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		var msgs []string
 		for _, inner := range joined.Unwrap() {
-			if msg := formatError(inner); msg != "" {
-				return msg
-			}
+			msgs = append(msgs, failureMessages(inner)...)
 		}
+		return msgs
 	}
-	unpacked := eris.Unpack(err)
-	// ErrChain is ordered inner-to-outer; last element = outermost wrap = most user-facing
-	if n := len(unpacked.ErrChain); n > 0 {
-		return unpacked.ErrChain[n-1].Msg
-	}
-	if unpacked.ErrRoot.Msg != "" {
-		return unpacked.ErrRoot.Msg
-	}
-	return err.Error()
+	return []string{err.Error()}
 }
 
 func main() {
@@ -140,7 +126,11 @@ func main() {
 		// Only print errors that should be shown to the user, non expected errors should be captured by Sentry
 		if pkgerrors.ShouldPrint(err) {
 			sentry.CaptureException(err)
-			printer.Errorln(formatError(err))
+			// One ✖ per failure, each with its whole chain: the outermost wrap
+			// alone ("initial shard build") hides the cause.
+			for _, msg := range failureMessages(err) {
+				printer.Errorln(msg)
+			}
 		}
 		exitCode = 1
 	}
