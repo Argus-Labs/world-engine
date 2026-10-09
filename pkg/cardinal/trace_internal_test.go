@@ -282,13 +282,13 @@ func TestTickCapsCommandLinks(t *testing.T) {
 		Debug:               &off,
 	})
 	require.NoError(t, err)
-	require.Equal(t, 128, w.maxCommandLinks, "default cap is the SDK default link limit")
+	require.Equal(t, 128, w.tel.MaxCommandLinks(), "default cap is the SDK default link limit")
 	exporter := newRecordingTracer(t)
 
 	w.RegisterCommand[testutils.SimpleCommand]()
 	w.init()
 
-	total := w.maxCommandLinks + 5
+	total := 128 + 5
 	requestCtx, requestSpan := otel.Tracer("test").Start(context.Background(), "request")
 	for i := range total {
 		require.NoError(t, w.commands.Enqueue(requestCtx, &iscv1.Command{
@@ -304,7 +304,7 @@ func TestTickCapsCommandLinks(t *testing.T) {
 
 	tick := spansByName(exporter)[spanTick]
 	require.Contains(t, tick.Attributes, attrTickCommands.Int(total))
-	require.Len(t, tick.Links, w.maxCommandLinks)
+	require.Len(t, tick.Links, 128)
 	require.Zero(t, tick.DroppedLinks, "links past the cap must not be built and then dropped by the SDK")
 }
 
@@ -370,7 +370,7 @@ func TestTickCapMatchesEnvLinkLimitBelowDefault(t *testing.T) {
 		Debug:               &off,
 	})
 	require.NoError(t, err)
-	require.Equal(t, linkLimit, w.maxCommandLinks,
+	require.Equal(t, linkLimit, w.tel.MaxCommandLinks(),
 		"cap must track OTEL_SPAN_LINK_COUNT_LIMIT, not the hardcoded 128")
 
 	exporter := newRecordingTracer(t)
@@ -428,7 +428,7 @@ func TestTickCapMatchesEnvLinkLimitAboveDefault(t *testing.T) {
 		Debug:               &off,
 	})
 	require.NoError(t, err)
-	require.Equal(t, linkLimit, w.maxCommandLinks,
+	require.Equal(t, linkLimit, w.tel.MaxCommandLinks(),
 		"cap must track OTEL_SPAN_LINK_COUNT_LIMIT above the default")
 
 	exporter := newRecordingTracer(t)
