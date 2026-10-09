@@ -295,9 +295,12 @@ func declaredArgNames[T any]() map[string]struct{} {
 // built image refs). An empty shardID builds every shard. It only builds images,
 // never touches containers, so it can run BEFORE any mutation — which is what
 // lets reload compile before it touches the running world.
+// withServices also builds path-kind [[services]]; pass it only when the caller
+// deploys them afterwards (world_lifecycle start), never for reload.
 func buildWorldShards(
 	ctx context.Context,
 	worldPath, shardID string,
+	withServices bool,
 ) (worldtoml.Config, local.DeployOpts, error) {
 	var (
 		cfg        worldtoml.Config
@@ -305,20 +308,30 @@ func buildWorldShards(
 	)
 	err := docker.WithClient(worldPath, false, &docker.ClientOptions{Logger: slog.Default()},
 		func(sc *service.Config, dockerClient *docker.Client) error {
-			shardServices := dockerClient.ResolveServices(service.BuildCardinalShards(sc)...)
+			buildServices := dockerClient.ResolveServices(service.BuildCardinalShards(sc)...)
 			if shardID != "" {
-				shardServices = filterShardServices(shardServices, sc, shardID)
-				if len(shardServices) == 0 {
+				buildServices = filterShardServices(buildServices, sc, shardID)
+				if len(buildServices) == 0 {
 					return eris.Errorf("shard %q is not defined in world.toml", shardID)
+				}
+			}
+			// Only for callers that deploy services afterwards. Building an image first
+			// removes every container on it, so building these for reload — which never
+			// calls DeployServices — would leave them removed and not running.
+			if withServices {
+				for _, gs := range sc.WorldToml.Services {
+					if gs.IsBuiltFromSource() {
+						buildServices = append(buildServices, service.GameServiceFromConfig(sc, gs))
+					}
 				}
 			}
 
 			// Pull build dependencies (golang + runtime base) before building, or the
 			// first build on a fresh machine fails with BuildKit "no active sessions".
-			if err := dockerClient.PullImages(ctx, shardServices, nil); err != nil {
+			if err := dockerClient.PullImages(ctx, buildServices, nil); err != nil {
 				return eris.Wrap(err, "failed to pull build dependencies")
 			}
-			if err := dockerClient.BuildCardinalImages(ctx, shardServices, nil); err != nil {
+			if err := dockerClient.BuildCardinalImages(ctx, buildServices, nil); err != nil {
 				return eris.Wrap(err, "failed to build Cardinal images")
 			}
 

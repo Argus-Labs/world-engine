@@ -49,7 +49,6 @@ The World CLI is organized around several core systems:
   - `logger/` - Logging utilities
   - `teacmd/` - Terminal UI command utilities
 - `pkg/local/` - runs a world on Docker (containers, edge proxy, JetStream purge); `pkg/cluster/` reads shards on a Kubernetes cluster (`world logs --context`)
-- `pkg/k8s/charts/` - Helm charts world-engine publishes (cardinal-shard, nats, postgres); not used locally, see its README
 - `tea/` - Terminal UI components using Bubble Tea framework
   - `component/` - Reusable UI components
   - `style/` - Terminal styling utilities

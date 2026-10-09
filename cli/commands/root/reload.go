@@ -274,8 +274,11 @@ func rollShards(
 			)
 		})
 		if ready < expected {
-			sess.Fail("ready", "Waiting for shards ready",
-				eris.Errorf("%d/%d instances are serving; check `world logs`", ready, expected))
+			// Returned, not just shown: the summary and the exit code are what a script
+			// or an agent reads, and plain progress drops the failed row entirely.
+			err := eris.Errorf("%d/%d instances are serving; check `world logs`", ready, expected)
+			sess.Fail("ready", "Waiting for shards ready", err)
+			return err
 		}
 	}
 	return nil

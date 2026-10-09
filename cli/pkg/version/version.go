@@ -7,7 +7,7 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-// Nats is the pinned NATS server version; cli/pkg/k8s/charts/nats/values.yaml must agree.
+// Nats is the pinned NATS server version.
 const Nats = "2.12.2"
 
 const worldEngineModule = "github.com/argus-labs/world-engine"

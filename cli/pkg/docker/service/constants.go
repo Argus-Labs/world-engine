@@ -35,8 +35,12 @@ const (
 	CardinalRegion = "us-west1"
 )
 
-// NetworkName is the per-project Docker bridge network.
-func NetworkName(project string) string { return project }
+// NetworkName is the per-project Docker bridge network. The prefix matters: bare
+// "host", "bridge" and "none" are Docker's built-in network modes, and host mode
+// ignores PortBindings, so a project with one of those names would publish every
+// shard on all interfaces instead of loopback. It also keeps start from adopting —
+// and purge from deleting — an unrelated network that happens to share the name.
+func NetworkName(project string) string { return "world-" + project }
 
 // Labels returns the common label set for a container of a project.
 func Labels(project, role, shardID, instance string) map[string]string {

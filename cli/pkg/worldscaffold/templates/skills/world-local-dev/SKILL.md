@@ -74,8 +74,8 @@ makes the MCP tools send it, and only ever to a shard on this machine. `world de
 |---|---|---|
 | `edge cannot listen on 127.0.0.1:8080` | Another process owns the port (an old `world start`, a k3d cluster, another proxy) | `lsof -i :8080`; stop the other listener |
 | `port is already allocated` on 4222 / 5432 | A local NATS or Postgres, or another project's containers | `lsof -i :5432`; stop it, or `world stop` the other project |
-| `timeout waiting for <project>-nats` / `-db to become ready` | Container started but never healthy | `docker logs <project>-db`; `world purge` if the volume is corrupt |
-| Shard container `exited` right after start | Game code panics, or DB unreachable | `world logs` → the shard; `DB_DSN` host is `<project>-db` on the project network |
+| `timeout waiting for <project>-nats` / `-db to become ready` | Container started but never healthy | `docker logs` the container the message names, not the other one; if its volume is corrupt, `world purge` — ask first, it wipes all state |
+| Shard container `exited` right after start | Game code panics, or DB unreachable | `world logs` → the shard; `DB_DSN` host is `<project>-db`, or the `config_db` service's container if `world.toml` declares one |
 | An auth-header error from a client | The world runs dev auth and the client sent an Argus token | Send the dev header, or set `[auth] mode = "argus"` in `world.toml` |
 | `failed to fetch JWKS` on startup | `[auth].url` is wrong or unreachable from the container | `curl <url>/auth/jwks`; it must answer 200 |
 | `build constraints exclude all Go files … cgo` | The shard needs cgo; `world start` builds with `CGO_ENABLED=0` | Not supported by `world start` yet |
