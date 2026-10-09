@@ -29,8 +29,8 @@ func TestBuildMCPServer_RegistersAllTools(t *testing.T) {
 	require.NotNil(t, srv)
 }
 
-// An empty instance_name resolves to the shard's first instance without an
-// cluster round-trip, so send_command keeps working exactly as before for
+// An empty instance_name resolves to the shard's first instance without a
+// container lookup, so send_command keeps working exactly as before for
 // callers that don't target a specific pod.
 func TestResolveInstanceName_EmptyDefaultsToShardID(t *testing.T) {
 	t.Parallel()
@@ -66,7 +66,7 @@ func TestSendCommandInput_Validate_Valid(t *testing.T) {
 	err := input.validate()
 	require.NoError(t, err)
 
-	assert.Empty(t, input.ShardURL) // resolved from the cluster in the handler, not validate()
+	assert.Empty(t, input.ShardURL) // resolved from the running containers in the handler, not validate()
 	assert.Equal(t, defaultDevPlayerID, input.PlayerID)
 	assert.Equal(t, defaultRegion, input.Region)
 	assert.NotNil(t, input.Payload)
@@ -168,7 +168,7 @@ func TestEnsureDeadline_ReturnedCancelIsNoOpWhenDeadlineExists(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------------------------------
-// k8s helper tests (cluster status → MCP shape)
+// container helper tests (world status → MCP shape)
 // -------------------------------------------------------------------------------------------------
 
 func TestClampTail(t *testing.T) {
@@ -621,7 +621,7 @@ func TestDebugControlHandler_InvalidOperation(t *testing.T) {
 	assert.Contains(t, err.Error(), "operation must be one of pause, resume, step, reset")
 }
 
-// An empty operation is rejected before any cluster round-trip, alongside the
+// An empty operation is rejected before any shard round-trip, alongside the
 // other invalid values.
 func TestDebugControlHandler_EmptyOperation(t *testing.T) {
 	t.Parallel()
@@ -644,7 +644,7 @@ func TestDebugStatusMessage(t *testing.T) {
 // reload handler tests
 // -------------------------------------------------------------------------------------------------
 
-// An empty world_path is rejected before any Docker or cluster work, so the tool
+// An empty world_path is rejected before any Docker work, so the tool
 // can never tear a world down without a source tree to rebuild from.
 func TestReloadHandler_EmptyWorldPath(t *testing.T) {
 	t.Parallel()
@@ -708,30 +708,34 @@ func TestShardInstances_FallsBackToShardID(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------------------------------
-// cluster handler tests
+// world_lifecycle handler tests
 // -------------------------------------------------------------------------------------------------
 
-func TestClusterHandler_InvalidOperation(t *testing.T) {
+func TestWorldLifecycleHandler_InvalidOperation(t *testing.T) {
 	t.Parallel()
-	_, err := clusterHandler(context.Background(), mcp.CallToolRequest{}, ClusterInput{Operation: "restart"})
+	_, err := worldLifecycleHandler(
+		context.Background(),
+		mcp.CallToolRequest{},
+		WorldLifecycleInput{Operation: "restart"},
+	)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "operation must be one of start, stop, purge")
 }
 
-func TestClusterHandler_EmptyOperation(t *testing.T) {
+func TestWorldLifecycleHandler_EmptyOperation(t *testing.T) {
 	t.Parallel()
-	_, err := clusterHandler(context.Background(), mcp.CallToolRequest{}, ClusterInput{})
+	_, err := worldLifecycleHandler(context.Background(), mcp.CallToolRequest{}, WorldLifecycleInput{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "operation must be one of")
 }
 
-// purge only combines with start: the purge op already deletes the cluster and
+// purge only combines with start: the purge op already deletes the world and
 // stop deliberately preserves state, so either pairing is rejected rather than
 // silently ignored.
-func TestClusterHandler_PurgeOnlyValidWithStart(t *testing.T) {
+func TestWorldLifecycleHandler_PurgeOnlyValidWithStart(t *testing.T) {
 	t.Parallel()
-	for _, op := range []string{clusterOpStop, clusterOpPurge} {
-		_, err := clusterHandler(context.Background(), mcp.CallToolRequest{}, ClusterInput{
+	for _, op := range []string{lifecycleOpStop, lifecycleOpPurge} {
+		_, err := worldLifecycleHandler(context.Background(), mcp.CallToolRequest{}, WorldLifecycleInput{
 			Operation: op,
 			Purge:     true,
 		})
@@ -741,11 +745,11 @@ func TestClusterHandler_PurgeOnlyValidWithStart(t *testing.T) {
 }
 
 // start compiles and deploys a world, so it needs a source tree; the check runs
-// before any cluster work.
-func TestClusterHandler_StartRequiresWorldPath(t *testing.T) {
+// before any Docker work.
+func TestWorldLifecycleHandler_StartRequiresWorldPath(t *testing.T) {
 	t.Parallel()
-	_, err := clusterHandler(context.Background(), mcp.CallToolRequest{}, ClusterInput{
-		Operation: clusterOpStart,
+	_, err := worldLifecycleHandler(context.Background(), mcp.CallToolRequest{}, WorldLifecycleInput{
+		Operation: lifecycleOpStart,
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "world_path is required")

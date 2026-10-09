@@ -287,7 +287,7 @@ func declaredArgNames[T any]() map[string]struct{} {
 
 // -------------------------------------------------------------------------------------------------
 // World build + (re)deploy lifecycle helpers (shared by tools that compile local
-// shard source and run it: reload and cluster).
+// shard source and run it: reload and world_lifecycle).
 // -------------------------------------------------------------------------------------------------
 
 // buildWorldShards builds the world's Cardinal shard images via the local Docker

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -19,6 +20,11 @@ func LoadFile(path string) (Config, error) {
 	}
 	defer func() { _ = f.Close() }()
 	return Load(f)
+}
+
+// LoadDir loads the world.toml in dir.
+func LoadDir(dir string) (Config, error) {
+	return LoadFile(filepath.Join(dir, FileName))
 }
 
 func Load(r io.Reader) (Config, error) {
