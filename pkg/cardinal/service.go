@@ -45,7 +45,7 @@ type service struct {
 	microService *micro.Service
 	commands     map[string]struct{}
 	subscribers  map[string]*streamSubscriber
-	replyWaiters map[string][]chan *iscv1.Event
+	replyWaiters map[string]map[string][]chan *iscv1.Event // event name -> player ID -> waiters
 	mu           sync.RWMutex
 }
 
@@ -60,7 +60,7 @@ func newService(world *World, authMode AuthMode, argusAuthURL string) *service {
 		argusAuthURL: argusAuthURL,
 		commands:     make(map[string]struct{}),
 		subscribers:  make(map[string]*streamSubscriber),
-		replyWaiters: make(map[string][]chan *iscv1.Event),
+		replyWaiters: make(map[string]map[string][]chan *iscv1.Event),
 	}
 }
 
@@ -268,8 +268,8 @@ func (s *service) SendCommandWithReply(
 	// Register the reply waiter before enqueuing the command. Enqueueing first opens a window
 	// where a tick can drain the command, emit the reply, and find no waiter — dropping the
 	// reply and deadlocking the client until its context times out.
-	waiter := s.addReplyWaiter(req.Msg.GetEventName())
-	defer s.removeReplyWaiter(req.Msg.GetEventName(), waiter)
+	waiter := s.addReplyWaiter(player.ID, req.Msg.GetEventName())
+	defer s.removeReplyWaiter(player.ID, req.Msg.GetEventName(), waiter)
 
 	if err := s.world.commands.Enqueue(ctx, cmd, command.PlayerSender(player.ID)); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, eris.Wrap(err, "failed to enqueue command"))
@@ -286,28 +286,37 @@ func (s *service) SendCommandWithReply(
 	}
 }
 
-func (s *service) addReplyWaiter(eventName string) chan *iscv1.Event {
+func (s *service) addReplyWaiter(playerID, eventName string) chan *iscv1.Event {
 	waiter := make(chan *iscv1.Event, 1)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.replyWaiters[eventName] = append(s.replyWaiters[eventName], waiter)
+	byPlayer := s.replyWaiters[eventName]
+	if byPlayer == nil {
+		byPlayer = make(map[string][]chan *iscv1.Event)
+		s.replyWaiters[eventName] = byPlayer
+	}
+	byPlayer[playerID] = append(byPlayer[playerID], waiter)
 	return waiter
 }
 
-func (s *service) removeReplyWaiter(eventName string, waiter chan *iscv1.Event) {
+func (s *service) removeReplyWaiter(playerID, eventName string, waiter chan *iscv1.Event) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	waiters := s.replyWaiters[eventName]
+	byPlayer := s.replyWaiters[eventName]
+	waiters := byPlayer[playerID]
 	for i, current := range waiters {
 		if current == waiter {
-			s.replyWaiters[eventName] = append(waiters[:i], waiters[i+1:]...)
+			byPlayer[playerID] = append(waiters[:i], waiters[i+1:]...)
 			break
 		}
 	}
-	if len(s.replyWaiters[eventName]) == 0 {
+	if len(byPlayer[playerID]) == 0 {
+		delete(byPlayer, playerID)
+	}
+	if len(byPlayer) == 0 {
 		delete(s.replyWaiters, eventName)
 	}
 }
@@ -537,7 +546,16 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 			}
 		}
 	}
-	waiters := append([]chan *iscv1.Event(nil), s.replyWaiters[eventPb.GetName()]...)
+	// A targeted reply resolves only its recipient's waiters. A broadcast is visible to every
+	// player, so it resolves every waiter for the event name.
+	var waiters []chan *iscv1.Event
+	if evt.Recipient != "" {
+		waiters = append(waiters, s.replyWaiters[eventPb.GetName()][evt.Recipient]...)
+	} else {
+		for _, playerWaiters := range s.replyWaiters[eventPb.GetName()] {
+			waiters = append(waiters, playerWaiters...)
+		}
+	}
 	s.mu.RUnlock()
 	span.SetAttributes(attrEventSubscribers.Int(len(subscribers)), attrEventWaiters.Int(len(waiters)))
 

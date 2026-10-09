@@ -268,9 +268,8 @@ func TestService_SendCommandWithReply_WaiterRegisteredBeforeEnqueue(t *testing.T
 		// The deferred removeReplyWaiter must have cleaned up the waiter registered before the
 		// failed Enqueue; otherwise waiters accumulate on every failing call (a leak).
 		svc.mu.RLock()
-		_, leak := svc.replyWaiters[eventName]
-		svc.mu.RUnlock()
-		assert.False(t, leak, "reply waiter leaked after enqueue failure")
+		defer svc.mu.RUnlock()
+		assert.Empty(t, svc.replyWaiters, "reply waiter leaked after enqueue failure")
 	})
 }
 
@@ -379,4 +378,118 @@ func newSCWRWorld(t *testing.T, prng *rand.Rand) *World {
 	w.RegisterEvent[replyEvent]()
 	require.NotPanics(t, func() { w.RegisterSystem(&replySystem{}) })
 	return w
+}
+
+// -------------------------------------------------------------------------------------------------
+// SendCommandWithReply reply routing tests
+// -------------------------------------------------------------------------------------------------
+// Reply waiters are keyed by player and event name. A targeted reply (w.SendTo) must resolve only
+// the recipient's pending request, so one player never receives another player's private reply. A
+// broadcast is visible to every player, so it resolves every pending request for the event name.
+// -------------------------------------------------------------------------------------------------
+
+type scwrResult struct {
+	reply any
+	err   error
+}
+
+// newSCWRRoutingFixture returns a fixture whose command queue signals each successful Enqueue.
+// SendCommandWithReply registers its waiter before enqueueing, so a signal means the request is
+// waiting for its reply.
+func newSCWRRoutingFixture(t *testing.T) (*service, *World, <-chan struct{}) {
+	t.Helper()
+	waiting := make(chan struct{})
+	svc, w := newSCWRFixture(t, testutils.NewRand(t), func(*World) command.Queue {
+		return &tickingReplyQueue{
+			Queue: command.NewQueue[testutils.SimpleCommand](),
+			tick:  func() { waiting <- struct{}{} },
+		}
+	})
+	w.RegisterEvent[testutils.SimpleEvent]()
+	return svc, w, waiting
+}
+
+// scwrStartRequest sends a SimpleCommand with reply as playerID in the background and returns once
+// the request is waiting for its reply. The channel yields the decoded reply or the call's error.
+func scwrStartRequest(
+	t *testing.T, svc *service, w *World, waiting <-chan struct{}, playerID string,
+) <-chan scwrResult {
+	t.Helper()
+	results := make(chan scwrResult, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), scwrReplyTimeout)
+		defer cancel()
+		resp, err := svc.SendCommandWithReply(
+			scwrAuthCtx(ctx, playerID),
+			connect.NewRequest(&cardinalv1.SendCommandWithReplyRequest{
+				Command: &iscv1.Command{
+					Name:    testutils.SimpleCommand{}.Name(),
+					Address: w.address,
+					Payload: testutils.SimpleCommand{}.MarshalWire(),
+				},
+				EventName: testutils.SimpleEvent{}.Name(),
+			}),
+		)
+		if err != nil {
+			results <- scwrResult{err: err}
+			return
+		}
+		reply, err := testutils.SimpleEvent{}.UnmarshalWire(resp.Msg.GetEvent().GetPayload())
+		results <- scwrResult{reply: reply, err: err}
+	}()
+	select {
+	case <-waiting:
+	case res := <-results:
+		require.FailNow(t, "request returned before it was enqueued", "error: %v", res.err)
+	}
+	return results
+}
+
+func TestService_SendCommandWithReply_RoutesReplyByRecipient(t *testing.T) {
+	t.Parallel()
+
+	t.Run("targeted reply resolves only the recipient's request", func(t *testing.T) {
+		t.Parallel()
+		svc, w, waiting := newSCWRRoutingFixture(t)
+		alice := scwrStartRequest(t, svc, w, waiting, "alice")
+		bob := scwrStartRequest(t, svc, w, waiting, "bob")
+
+		w.SendTo("bob", testutils.SimpleEvent{Value: 2})
+		require.NoError(t, w.events.Dispatch(t.Context()))
+		bobResult := <-bob
+		require.NoError(t, bobResult.err)
+		assert.Equal(t, testutils.SimpleEvent{Value: 2}, bobResult.reply)
+
+		select {
+		case res := <-alice:
+			require.FailNow(t, "Bob's reply resolved Alice's request", "result: %+v", res)
+		default:
+		}
+
+		w.SendTo("alice", testutils.SimpleEvent{Value: 1})
+		require.NoError(t, w.events.Dispatch(t.Context()))
+		aliceResult := <-alice
+		require.NoError(t, aliceResult.err)
+		assert.Equal(t, testutils.SimpleEvent{Value: 1}, aliceResult.reply)
+
+		// Each request removed its own waiter before returning, leaving no empty map entries behind.
+		svc.mu.RLock()
+		defer svc.mu.RUnlock()
+		assert.Empty(t, svc.replyWaiters)
+	})
+
+	t.Run("broadcast resolves every pending request", func(t *testing.T) {
+		t.Parallel()
+		svc, w, waiting := newSCWRRoutingFixture(t)
+		alice := scwrStartRequest(t, svc, w, waiting, "alice")
+		bob := scwrStartRequest(t, svc, w, waiting, "bob")
+
+		w.Broadcast(testutils.SimpleEvent{Value: 3})
+		require.NoError(t, w.events.Dispatch(t.Context()))
+		for _, results := range []<-chan scwrResult{alice, bob} {
+			res := <-results
+			require.NoError(t, res.err)
+			assert.Equal(t, testutils.SimpleEvent{Value: 3}, res.reply)
+		}
+	})
 }

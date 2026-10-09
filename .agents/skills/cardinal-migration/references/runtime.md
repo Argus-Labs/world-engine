@@ -57,6 +57,7 @@ Snapshots, generated wire code, `.proto` output, client SDKs, `world.toml`, the 
 | Under ARGUS, the player ID is the token's `sub`, not the account `id` claim                | State keyed by old persona IDs does not carry over                                                        |
 | `iscv1.Persona` removed; shards send `InterShardCommand{command, sender}` over NATS        | Stop setting `Persona` on client commands. Upgrade every shard of a game together                         |
 | Tick link attribute `cardinal.command.persona` renamed `cardinal.command.sender`           | Update trace queries                                                                                      |
+| `SendCommandWithReply` resolves only on `SendTo` the requesting player or `Broadcast`      | Reply with `w.SendTo` to the ID from `cmd.Player()`. A `SendTo` to another ID now times out the request   |
 | ARGUS startup fails when `CARDINAL_ORG` or `CARDINAL_PROJECT` contains `/`                 | Rename the organization or project                                                                        |
 | `cardinal.NewArgusAuthenticator` exported                                                  | Services outside Cardinal pass its `Authenticate` to `authn.NewMiddleware` instead of their own JWT check |
 

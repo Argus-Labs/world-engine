@@ -131,6 +131,8 @@ Some command types are more synchronous in nature, like updating game config, wh
   </Tab>
 </Tabs>
 
+In the system that handles the command, send the reply with `w.SendTo(playerID, event)`, using the player ID from `cmd.Player()`. A targeted reply answers only that player's pending requests for that event name, while `w.Broadcast` answers every player's.
+
 ## Inter-Shard Commands
 
 In a multi-shard setup, you can send commands from within a system to another shard. This allows you to trigger systems in other shards or coordinate game state.

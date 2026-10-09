@@ -607,8 +607,9 @@ func (w *World) Broadcast[T Event](evt T) {
 }
 
 // SendTo enqueues a targeted event that is delivered only to the named recipient (a player ID),
-// provided they have an open event stream subscribed to this event. If the recipient has no open
-// stream, the event is silently dropped. It panics if T was not registered with RegisterEvent.
+// provided they have an open event stream subscribed to this event or a pending SendCommandWithReply
+// waiting for it. Otherwise the event is silently dropped. It panics if T was not registered with
+// RegisterEvent.
 //
 // Example:
 //

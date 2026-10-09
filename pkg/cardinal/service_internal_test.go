@@ -105,8 +105,9 @@ func TestService_PublishDefaultEvent(t *testing.T) {
 		fixture := newServiceFixture(t, prng, false)
 
 		payload := testutils.SimpleEvent{Value: prng.Int()}
-		waiter := fixture.svc.addReplyWaiter(payload.Name())
-		defer fixture.svc.removeReplyWaiter(payload.Name(), waiter)
+		playerID := testutils.RandString(prng, 8)
+		waiter := fixture.svc.addReplyWaiter(playerID, payload.Name())
+		defer fixture.svc.removeReplyWaiter(playerID, payload.Name(), waiter)
 
 		err := fixture.svc.publishDefaultEvent(context.Background(), event.Event{
 			Kind:    event.KindDefault,
