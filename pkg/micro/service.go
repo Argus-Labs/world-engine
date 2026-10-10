@@ -104,7 +104,7 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 		start := time.Now()
 
 		// Process the request.
-		replyBz, err := handleNATSMessage(ctx, msg, handler, s.Address, requestLogger)
+		req, replyBz, err := handleNATSMessage(ctx, msg, handler, s.Address, requestLogger)
 
 		// Calculate duration and add to span.
 		duration := time.Since(start)
@@ -117,10 +117,19 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 			span.SetStatus(otelcodes.Error, err.Error())
 			durationLogger.Error().Err(err).Msg("failed to marshal response payload")
 
-			errResp := NewErrorResponse(&Request{
-				Raw:            msg,
-				ServiceAddress: s.Address,
-			}, err, codes.Internal)
+			// Reuse the parsed request (if available) so the error response echoes the
+			// client's request_id for correlation. When the request could not be parsed
+			// at all (e.g. malformed protobuf), req is nil and we fall back to a fresh
+			// Request with no request_id.
+			errReq := req
+			if errReq == nil {
+				errReq = &Request{
+					Raw:            msg,
+					ServiceAddress: s.Address,
+				}
+			}
+
+			errResp := NewErrorResponse(errReq, err, codes.Internal)
 
 			// The raw msg is validated in handleNATSMessage, so if we ever reach this error, something
 			// is definitely wrong. This marshal should not fail.
@@ -149,13 +158,17 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 
 // handleNATSMessage converts a NATS message to a Request, calls the handler, and converts
 // the Response back to bytes for NATS. This is used internally by the Service.
+//
+// It returns the parsed *Request even when an error occurs (when possible), so that callers
+// can echo the client's request_id on error responses for correlation. The returned *Request
+// may be nil when the request could not be parsed at all (e.g. malformed protobuf).
 func handleNATSMessage(
 	ctx context.Context,
 	msg *nats.Msg,
 	handler Handler,
 	serviceAddr *microv1.ServiceAddress,
 	logger zerolog.Logger,
-) ([]byte, error) {
+) (*Request, []byte, error) {
 	// Create child span for handler execution
 	ctx, span := trace.New(ctx, "handler.execute",
 		oteltrace.WithSpanKind(oteltrace.SpanKindInternal))
@@ -165,7 +178,7 @@ func handleNATSMessage(
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(otelcodes.Error, err.Error())
-		return nil, eris.Wrap(err, "failed to parse request")
+		return req, nil, eris.Wrap(err, "failed to parse request")
 	}
 	span.SetAttributes(attribute.String("request.id", req.RequestID))
 
@@ -196,10 +209,10 @@ func handleNATSMessage(
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(otelcodes.Error, err.Error())
-		return nil, eris.Wrap(err, "failed to marshal response")
+		return req, nil, eris.Wrap(err, "failed to marshal response")
 	}
 
-	return respBytes, nil
+	return req, respBytes, nil
 }
 
 // Close closes all the endpoints registered with the service.
