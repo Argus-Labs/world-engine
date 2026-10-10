@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/testutils"
@@ -254,4 +255,70 @@ func TestResetClearsSystemEventsThroughShippedPath(t *testing.T) {
 	require.Len(t, observed, 1,
 		"receiver should see only the fresh post-reset event; got stale+fresh: %v", observed)
 	require.Equal(t, testutils.SimpleSystemEvent{Value: emitVal}, observed[0])
+}
+
+// broadcastOnInitSystem is an Init-hook system that broadcasts a client-facing event. The
+// cardinal Broadcast/SendTo API has no guard against use inside an Init system, so a game may
+// emit a "world initialized" event here that clients expect on the first tick.
+type broadcastOnInitSystem struct {
+	value int
+}
+
+func (s *broadcastOnInitSystem) Run(w *World) {
+	w.Broadcast(testutils.SimpleEvent{Value: s.value})
+}
+
+// TestResetPreservesInitEmittedClientEvents verifies that the shipped cardinal reset() path
+// preserves init-emitted client-facing events for delivery on the next tick, matching
+// cold-start behavior. It is the client-event (event.Manager) analogue of
+// TestResetClearsSystemEventsThroughShippedPath (which covers ECS system events). reset() must
+// clear stale pre-reset events before re-running init, so the next tick delivers exactly the
+// fresh init-emitted event — neither the stale one from the first Init nor zero (the bug, where
+// w.events.Clear() ran after w.init() and dropped the fresh event).
+func TestResetPreservesInitEmittedClientEvents(t *testing.T) {
+	t.Setenv("LOG_LEVEL", "disabled")
+
+	debug := true
+	w, err := NewWorld(WorldOptions{
+		Region:              "reset-client-events",
+		Organization:        "reset-client-events",
+		Project:             "reset-client-events",
+		ShardID:             "0",
+		TickRate:            60,
+		SnapshotStorageType: snapshot.StorageTypeNop,
+		SnapshotRate:        5,
+		Debug:               &debug,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, w.debug)
+
+	w.RegisterEvent[testutils.SimpleEvent]()
+
+	const emitVal = 42
+	require.NotPanics(t, func() {
+		w.RegisterSystem(&broadcastOnInitSystem{value: emitVal}, WithHook(Init))
+	})
+
+	var observed []testutils.SimpleEvent
+	w.events.RegisterHandler(event.KindDefault, func(_ context.Context, e event.Event) error {
+		if payload, ok := e.Payload.(testutils.SimpleEvent); ok {
+			observed = append(observed, payload)
+		}
+		return nil
+	})
+
+	// First Init emits one event into the event manager channel (the "stale" pre-reset event).
+	w.world.Init()
+
+	// Shipped reset: Reset() -> Clear() -> init(). Init re-emits; the clears ran before init so
+	// the fresh event survives and the stale one does not.
+	w.reset()
+
+	// First post-reset tick: dispatchEvents delivers only the surviving fresh event.
+	w.Tick(time.Unix(0, 0))
+
+	require.Len(t, observed, 1,
+		"init-emitted client event should survive reset and be delivered on the next tick, "+
+			"matching cold-start behavior; got %v", observed)
+	require.Equal(t, emitVal, observed[0].Value)
 }
