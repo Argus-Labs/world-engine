@@ -8,7 +8,7 @@ import (
 )
 
 type StepCmd struct {
-	Instances []string `help:"Instance IDs to step, e.g. game or game-2. Repeatable or comma-separated; steps every instance if omitted."`
+	Instances []string `name:"shards" aliases:"shard-id,instances" help:"Shard IDs to step, e.g. game or game-2. Repeatable or comma-separated; steps every shard if omitted."`
 }
 
 func (c *StepCmd) Run(ctx context.Context) error {

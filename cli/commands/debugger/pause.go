@@ -8,7 +8,7 @@ import (
 )
 
 type PauseCmd struct {
-	Instances []string `help:"Instance IDs to pause, e.g. game or game-2. Repeatable or comma-separated; pauses every instance if omitted."`
+	Instances []string `name:"shards" aliases:"shard-id,instances" help:"Shard IDs to pause, e.g. game or game-2. Repeatable or comma-separated; pauses every shard if omitted."`
 }
 
 func (c *PauseCmd) Run(ctx context.Context) error {
