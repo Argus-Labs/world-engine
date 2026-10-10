@@ -100,10 +100,13 @@ func validate(cfg *Config) error {
 			cfg.Shards[i].PoolSize = 1
 		}
 
-		// Validate shard log level
-		if err := validateLogLevel(cfg.Shards[i].LogLevel, "shard: "+cfg.Shards[i].ID); err != nil ||
-			cfg.Shards[i].LogLevel == "" {
+		// Validate shard log level. An empty value defaults to info; a
+		// non-empty value the runtime cannot accept is a config error and
+		// is returned here, mirroring validatePath/tick_rate/resources below.
+		if cfg.Shards[i].LogLevel == "" {
 			cfg.Shards[i].LogLevel = zerolog.InfoLevel.String()
+		} else if err := validateLogLevel(cfg.Shards[i].LogLevel, "shard: "+cfg.Shards[i].ID); err != nil {
+			return err
 		}
 
 		// Validate shard path
