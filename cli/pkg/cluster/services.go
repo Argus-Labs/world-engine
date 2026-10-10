@@ -130,8 +130,17 @@ func (c *Client) ensureServices(ctx context.Context, k *kubeClient, cfg toml.Con
 			return eris.Wrapf(err, "apply service %s", name)
 		}
 
-		if len(svc.Ports) > 0 {
-			svcDoc, err := yaml.Marshal(serviceService(name, ns, cfg.Project, svc.Ports))
+		// Always expose a Service for config_db so its DSN host resolves in-cluster.
+		// A config_db may legitimately omit ports (host publishing is optional), but
+		// in-cluster consumers (shards via DB_DSN, db=true services) still reach it
+		// via the Service DNS name projectDBDSN builds — so synthesize the Postgres
+		// port when none is declared. See toml.validateServices for the 0-port rule.
+		ports := svc.Ports
+		if svc.ConfigDB && len(ports) == 0 {
+			ports = []int{int(projectDBPort)}
+		}
+		if len(ports) > 0 {
+			svcDoc, err := yaml.Marshal(serviceService(name, ns, cfg.Project, ports))
 			if err != nil {
 				return eris.Wrapf(err, "marshal service %s Service", name)
 			}
