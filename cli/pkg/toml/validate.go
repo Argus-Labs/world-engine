@@ -2,6 +2,7 @@ package toml
 
 import (
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -87,5 +88,29 @@ func validatePath(path string) error {
 		return eris.New("path contains invalid characters; allowed: letters, numbers, '/', '.', '_', '-'")
 	}
 
+	return nil
+}
+
+// validateAuth validates the [auth] section, defaulting a missing mode to dev auth.
+func validateAuth(auth *Auth) error {
+	switch auth.Mode {
+	case "":
+		auth.Mode = AuthModeDev
+		return nil
+	case AuthModeDev:
+		return nil
+	case AuthModeArgus:
+	default:
+		return eris.Errorf("world.toml: [auth].mode must be %q or %q (got %q)", AuthModeArgus, AuthModeDev, auth.Mode)
+	}
+
+	if auth.URL == "" {
+		return eris.Errorf("world.toml: [auth].url is required when mode = %q", AuthModeArgus)
+	}
+	u, err := url.Parse(auth.URL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return eris.Errorf("world.toml: [auth].url must be an http or https URL (got %q)", auth.URL)
+	}
+	auth.URL = strings.TrimSuffix(auth.URL, "/")
 	return nil
 }

@@ -36,7 +36,7 @@ func newDefaultWorldOptions() WorldOptions {
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        0,
 		Debug:               nil,
-		AuthMode:            AuthModeDev,
+		AuthMode:            AuthModeUndefined,
 		ArgusAuthURL:        "",
 	}
 }
@@ -105,7 +105,7 @@ func (opt *WorldOptions) validate() error {
 		return eris.New("debug must be specified")
 	}
 	if !opt.AuthMode.IsValid() {
-		return eris.Errorf("invalid auth mode: %s (must be one of: ARGUS, DEV)", opt.AuthMode)
+		return eris.New("auth mode must be specified: set CARDINAL_AUTH_MODE to ARGUS or DEV")
 	}
 	if opt.AuthMode == AuthModeArgus && opt.ArgusAuthURL == "" {
 		return eris.New("argus auth URL cannot be empty when auth mode is ARGUS")
@@ -159,8 +159,9 @@ type worldOptionsEnv struct {
 	// Enables the debug server.
 	Debug bool `env:"CARDINAL_DEBUG" envDefault:"false"`
 
-	// Authentication mode for the client ConnectRPC service: ARGUS or DEV.
-	AuthModeStr string `env:"CARDINAL_AUTH_MODE" envDefault:"DEV"`
+	// Authentication mode for the client ConnectRPC service: ARGUS or DEV. There is no default, so a
+	// shard that forgets it fails to start instead of trusting every caller.
+	AuthModeStr string `env:"CARDINAL_AUTH_MODE"`
 
 	// Argus Auth service URL. This value is required when AuthMode is ARGUS.
 	ArgusAuthURL string `env:"CARDINAL_ARGUS_AUTH_URL"`
@@ -186,6 +187,9 @@ func (cfg *worldOptionsEnv) validate() error {
 	if _, err := snapshot.ParseStorageType(cfg.SnapshotStorageTypeStr); err != nil {
 		return err
 	}
+	if cfg.AuthModeStr == "" {
+		return nil
+	}
 	authMode, err := ParseAuthMode(cfg.AuthModeStr)
 	if err != nil {
 		return eris.Wrap(err, "failed to parse auth mode")
@@ -201,8 +205,11 @@ func (cfg *worldOptionsEnv) toOptions() WorldOptions {
 	snapshotStorageType, err := snapshot.ParseStorageType(cfg.SnapshotStorageTypeStr)
 	assert.That(err == nil, "config not validated")
 
-	authMode, err := ParseAuthMode(cfg.AuthModeStr)
-	assert.That(err == nil, "config not validated")
+	authMode := AuthModeUndefined
+	if cfg.AuthModeStr != "" {
+		authMode, err = ParseAuthMode(cfg.AuthModeStr)
+		assert.That(err == nil, "config not validated")
+	}
 
 	return WorldOptions{
 		Region:              cfg.Region,

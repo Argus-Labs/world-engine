@@ -57,6 +57,7 @@ func TestE2E(t *testing.T) {
 			Organization:        "organization",
 			Project:             "project",
 			ShardID:             "lobby",
+			AuthMode:            cardinal.AuthModeDev,
 			TickRate:            1,
 			SnapshotRate:        50,
 			SnapshotStorageType: snapshot.StorageTypeJetStream,

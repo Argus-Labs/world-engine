@@ -27,6 +27,7 @@ func benchWorld(b *testing.B, gravity physics.Vec2, workers int) (*cardinal.Worl
 		Organization:        "bench",
 		Project:             "bench",
 		ShardID:             "0",
+		AuthMode:            cardinal.AuthModeDev,
 		TickRate:            60,
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        1_000_000,

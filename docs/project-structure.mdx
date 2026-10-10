@@ -39,6 +39,24 @@ id = "matchmaking"
 path = "./custom-path/to-your-shard" # Override default shards/matchmaking/ location, instead looks in: shards/custom-path/to-your-shard/
 ```
 
+## Player Authentication
+
+The `[auth]` section sets how every shard that `world start` runs authenticates players:
+
+```toml world.toml
+[auth]
+mode = "argus"                # Accept Argus Auth game tokens
+url = "https://api.argus.dev" # The Argus Auth service, as the shards reach it
+```
+
+- `mode = "argus"` validates the game token each client sends. `url` is required.
+- `mode = "dev"` trusts the player ID in the `X-Player-Id` header from any caller, so a client can skip sign-in. The MCP `send_command` tool needs it. `url` is ignored.
+- Without `[auth]`, shards use dev auth.
+
+The scaffolded `world.toml` includes this section commented out. Changes apply the next time you run `world start`; `world reload` keeps the current setting.
+
+Only `world start` reads `[auth]`. In a deployment, the shard's environment is the only source: `CARDINAL_AUTH_MODE` (`ARGUS` or `DEV`) and `CARDINAL_ARGUS_AUTH_URL`. A shard started without `CARDINAL_AUTH_MODE` refuses to start, rather than trusting every caller. Don't set `AuthMode` or `ArgusAuthURL` in `cardinal.NewWorld`: options in code take precedence over the environment, so they would also apply in deployment.
+
 <Danger>TODO: Fix the link below.</Danger>
 
 For a complete reference of available configuration options, see the [Configuration Reference](#).

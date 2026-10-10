@@ -50,6 +50,7 @@ func snapshotBenchWorld(b *testing.B, rate uint32, bodies, warmup int) *cardinal
 		Organization:        "bench",
 		Project:             "bench",
 		ShardID:             "0",
+		AuthMode:            cardinal.AuthModeDev,
 		TickRate:            60,
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        rate,
