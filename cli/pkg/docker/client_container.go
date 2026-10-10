@@ -1,12 +1,14 @@
 package docker
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"strconv"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
@@ -66,6 +68,32 @@ func (c *Client) removeContainerKeepVolume(ctx context.Context, containerName st
 	}
 
 	return nil
+}
+
+// readContainerLogs demultiplexes the stdout/stderr stream returned by the
+// Docker daemon into a single readable string.
+//
+// For non-TTY containers (which is the case for every world-cli-managed
+// container), the daemon multiplexes stdout and stderr into a single stream
+// where each chunk is prefixed with an 8-byte binary header
+// (STREAM_TYPE, 0, 0, 0, SIZE1..4). Reading that stream verbatim yields
+// garbled output with those headers interleaved between log lines, so it is
+// demultiplexed with [stdcopy.StdCopy] before being returned.
+//
+// stdout and stderr are demultiplexed into separate buffers and concatenated
+// (all stdout, then all stderr). The daemon does not guarantee the relative
+// ordering of stdout and stderr frames in the multiplexed stream, so grouping
+// by stream keeps the returned text deterministic for callers while still
+// preserving the within-stream order of each. The total read is capped at
+// maxLogBytes of the underlying multiplexed stream to protect against
+// unbounded output; a frame truncated by the cap is dropped rather than
+// returned partially.
+func readContainerLogs(reader io.Reader) (string, error) {
+	var outBuf, errBuf bytes.Buffer
+	if _, err := stdcopy.StdCopy(&outBuf, &errBuf, io.LimitReader(reader, maxLogBytes)); err != nil {
+		return "", err
+	}
+	return outBuf.String() + errBuf.String(), nil
 }
 
 // InspectContainer inspects a Docker container by name and returns its inspection data.
@@ -152,12 +180,10 @@ func (c *Client) GetContainerLogs(
 	}
 	defer reader.Close()
 
-	// Limit total bytes read to protect against OOM from extremely long log lines.
-	limitedReader := io.LimitReader(reader, maxLogBytes)
-	data, err := io.ReadAll(limitedReader)
+	logText, err := readContainerLogs(reader)
 	if err != nil {
 		return "", eris.Wrapf(err, "failed to read logs for container %s", containerName)
 	}
 
-	return string(data), nil
+	return logText, nil
 }
