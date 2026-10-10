@@ -398,6 +398,197 @@ func Setup(w *cardinal.World) {
 	}
 }
 
+// TestExternalCorrelatedWireName is the consumer-module counterpart of TestCorrelatedWireName: the
+// correlated event is registered by a DEPENDENCY module's own Setup (mirroring the real lobby plugin,
+// whose plugin.go registers its *Result events), and the game module only calls that Setup. Routing is
+// by the type's own package, so the type surfaces in res.ExternalMessages and is built by the second-pass
+// discoverer d2. d2 shares wireNames (static Name()) from the primary discoverer but must ALSO share
+// wireCorr (dynamic/correlated Name()), or external correlated types lose their WireSuffix/WireField and
+// EmitWireNamesCS silently omits their IWireCorrelated partial — a partial failure easy to miss because
+// static-Name() externals keep working.
+func TestExternalCorrelatedWireName(t *testing.T) {
+	t.Parallel()
+
+	root := multiModule(t, map[string]string{
+		"cardinalshim/go.mod":               "module cardinalshim\n\ngo 1.27\n",
+		"cardinalshim/cardinal/cardinal.go": cardinalShim,
+		"dep/go.mod": "module dep\n\ngo 1.27\n\nrequire cardinalshim v0.0.0\n" +
+			"\nreplace cardinalshim => ../cardinalshim\n",
+		// The DEP's own Setup registers the event, faithful to the real lobby plugin's plugin.go.
+		"dep/component/component.go": `package component
+
+import "cardinalshim/cardinal"
+
+type CreateLobbyResult struct{ RequestID string }
+
+func (r CreateLobbyResult) Name() string { return r.RequestID + "_create_lobby_result" }
+
+func Setup(w *cardinal.World) {
+	w.RegisterEvent[CreateLobbyResult]()
+}`,
+		"game/go.mod": "module game\n\ngo 1.27\n\nrequire (\n\tcardinalshim v0.0.0\n\tdep v0.0.0\n)\n\n" +
+			"replace cardinalshim => ../cardinalshim\n\nreplace dep => ../dep\n",
+		// The game just calls the dep's Setup — like importing the lobby plugin.
+		"game/game.go": `package game
+
+import (
+	"cardinalshim/cardinal"
+	"dep/component"
+)
+
+func Setup(w *cardinal.World) {
+	component.Setup(w)
+}`,
+	})
+
+	res, err := sdkgen.Discover(filepath.Join(root, "game"))
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+
+	var found bool
+	for _, m := range res.ExternalMessages {
+		if m.Name != "CreateLobbyResult" {
+			continue
+		}
+		found = true
+		if m.Wire != "" {
+			t.Errorf("ExternalMessages CreateLobbyResult: Wire = %q, want empty (correlated types carry no exact name)",
+				m.Wire)
+		}
+		if m.WireSuffix != "_create_lobby_result" {
+			t.Errorf("ExternalMessages CreateLobbyResult: WireSuffix = %q, want %q (wireCorr not shared with d2)",
+				m.WireSuffix, "_create_lobby_result")
+		}
+		if m.WireField != "RequestID" {
+			t.Errorf("ExternalMessages CreateLobbyResult: WireField = %q, want %q",
+				m.WireField, "RequestID")
+		}
+	}
+	if !found {
+		t.Fatal("CreateLobbyResult not found in ExternalMessages; the fixture no longer exercises the external pass")
+	}
+
+	cs := sdkgen.EmitWireNamesCS(res)
+	for _, want := range []string{
+		"public sealed partial class CreateLobbyResult : global::WorldEngine.SDK.IWireCorrelated",
+		`public string WireSuffix => "_create_lobby_result";`,
+		`public string CorrelationField => "RequestID";`,
+	} {
+		if !strings.Contains(cs, want) {
+			t.Errorf("EmitWireNamesCS missing %q\n--- output ---\n%s", want, cs)
+		}
+	}
+	// A correlated type must NOT also be emitted as an exact IWireNamed.
+	if strings.Contains(cs, "class CreateLobbyResult : global::WorldEngine.SDK.IWireNamed") {
+		t.Fatalf("external correlated type wrongly emitted as IWireNamed:\n%s", cs)
+	}
+}
+
+// TestExternalWireNames_StaticAndCorrelatedTogether covers the asymmetric-omission scenario at the heart of
+// the bug: a single dependency module ships both a static-Name() type (covered by wireNames, which d2
+// already shares) and a correlated-Name() type (covered by wireCorr, which d2 must ALSO share). Both must
+// surface in res.ExternalMessages with the correct wire identity, and EmitWireNamesCS must emit an
+// IWireNamed partial for the static type AND an IWireCorrelated partial for the correlated one — so a fix
+// that only restored one kind would still fail this test.
+func TestExternalWireNames_StaticAndCorrelatedTogether(t *testing.T) {
+	t.Parallel()
+
+	root := multiModule(t, map[string]string{
+		"cardinalshim/go.mod":               "module cardinalshim\n\ngo 1.27\n",
+		"cardinalshim/cardinal/cardinal.go": cardinalShim,
+		"dep/go.mod": "module dep\n\ngo 1.27\n\nrequire cardinalshim v0.0.0\n" +
+			"\nreplace cardinalshim => ../cardinalshim\n",
+		"dep/component/component.go": `package component
+
+import "cardinalshim/cardinal"
+
+type Health struct{ HP int32 }
+
+func (Health) Name() string { return "health" }
+
+type JoinLobbyResult struct{ RequestID string }
+
+func (r JoinLobbyResult) Name() string { return r.RequestID + "_join_lobby_result" }
+
+func Setup(w *cardinal.World) {
+	w.RegisterEvent[Health]()
+	w.RegisterEvent[JoinLobbyResult]()
+}`,
+		"game/go.mod": "module game\n\ngo 1.27\n\nrequire (\n\tcardinalshim v0.0.0\n\tdep v0.0.0\n)\n\n" +
+			"replace cardinalshim => ../cardinalshim\n\nreplace dep => ../dep\n",
+		"game/game.go": `package game
+
+import (
+	"cardinalshim/cardinal"
+	"dep/component"
+)
+
+func Setup(w *cardinal.World) {
+	component.Setup(w)
+}`,
+	})
+
+	res, err := sdkgen.Discover(filepath.Join(root, "game"))
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+
+	externalByName := map[string]sdkgen.Message{}
+	for _, m := range res.ExternalMessages {
+		externalByName[m.Name] = m
+	}
+
+	if m, ok := externalByName["Health"]; !ok {
+		t.Fatal("static external type Health not found in ExternalMessages")
+	} else {
+		if m.Wire != "health" {
+			t.Errorf("ExternalMessages Health: Wire = %q, want %q (wireNames must stay shared)",
+				m.Wire, "health")
+		}
+		if m.WireSuffix != "" {
+			t.Errorf("ExternalMessages Health: WireSuffix = %q, want empty (static type carries no correlation)",
+				m.WireSuffix)
+		}
+	}
+
+	if m, ok := externalByName["JoinLobbyResult"]; !ok {
+		t.Fatal("correlated external type JoinLobbyResult not found in ExternalMessages")
+	} else {
+		if m.Wire != "" {
+			t.Errorf("ExternalMessages JoinLobbyResult: Wire = %q, want empty (correlated types carry no exact name)",
+				m.Wire)
+		}
+		if m.WireSuffix != "_join_lobby_result" {
+			t.Errorf("ExternalMessages JoinLobbyResult: WireSuffix = %q, want %q (wireCorr not shared with d2)",
+				m.WireSuffix, "_join_lobby_result")
+		}
+		if m.WireField != "RequestID" {
+			t.Errorf("ExternalMessages JoinLobbyResult: WireField = %q, want %q", m.WireField, "RequestID")
+		}
+	}
+
+	cs := sdkgen.EmitWireNamesCS(res)
+	for _, want := range []string{
+		"public sealed partial class Health : global::WorldEngine.SDK.IWireNamed",
+		`public string WireName => "health";`,
+		"public sealed partial class JoinLobbyResult : global::WorldEngine.SDK.IWireCorrelated",
+		`public string WireSuffix => "_join_lobby_result";`,
+		`public string CorrelationField => "RequestID";`,
+	} {
+		if !strings.Contains(cs, want) {
+			t.Errorf("EmitWireNamesCS missing %q\n--- output ---\n%s", want, cs)
+		}
+	}
+	// The two wire-identity kinds must not cross: Health is not IWireCorrelated, JoinLobbyResult is not IWireNamed.
+	if strings.Contains(cs, "class Health : global::WorldEngine.SDK.IWireCorrelated") {
+		t.Errorf("static external type Health wrongly emitted as IWireCorrelated:\n%s", cs)
+	}
+	if strings.Contains(cs, "class JoinLobbyResult : global::WorldEngine.SDK.IWireNamed") {
+		t.Errorf("correlated external type JoinLobbyResult wrongly emitted as IWireNamed:\n%s", cs)
+	}
+}
+
 // TestEmitProtos_CrossPackage verifies package-per-directory emission: a type in one Go package that
 // references a nested type in another gets its own proto package, qualifies the cross-package field, and
 // imports the other file — so same-named types across packages can no longer collide.

@@ -617,6 +617,7 @@ func (d *discoverer) buildExternalMessages(all []*packages.Package, local map[st
 	}
 	d2 := &discoverer{
 		wireNames:   d.wireNames,
+		wireCorr:    d.wireCorr,
 		seenKind:    map[*types.Named]string{},
 		queued:      map[*types.Named]bool{},
 		kinds:       map[*types.Named][]string{},
