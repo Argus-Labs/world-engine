@@ -9,7 +9,8 @@ func TestRemoteOperatorEndpoint(t *testing.T) {
 	}{
 		{"us-west1", "https://operator-usw1.argus.dev"},
 		{"usw1", "https://operator-usw1.argus.dev"},
-		{"usw2", "https://operator-usw1.argus.dev"},
+		{"us-west2", "https://operator-usw2.argus.dev"},
+		{"usw2", "https://operator-usw2.argus.dev"},
 		{"daim-eph-test", "https://operator-usw1.argus.dev/ephemeral/daim-eph-test"},
 	} {
 		t.Run(tc.env, func(t *testing.T) {
