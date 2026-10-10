@@ -5,14 +5,19 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/goccy/go-json"
+	"github.com/rotisserie/eris"
 
 	"github.com/argus-labs/world-engine/cli/internal/store"
 )
@@ -529,6 +534,283 @@ func TestTokenFailsFastWithoutTTY(t *testing.T) {
 			// path (session POST + a single status GET at most).
 			if elapsed > 2*time.Second {
 				t.Errorf("Token() took %v with no TTY, want a fast failure (the bug hung ~11 minutes)", elapsed)
+			}
+		})
+	}
+}
+
+// A transient HTTP 502 mid-poll must not abort the sign-in — the user has
+// already (or is about to) authorize in the browser, and the very next poll
+// would retrieve the JWT. Before the fix, any error from status() (including a
+// single 502) returned immediately and killed the whole flow.
+func TestPollRetriesAfterTransientHTTPError(t *testing.T) {
+	want := jwtWithExp(t, time.Now().Add(time.Hour), "dev@argus.gg")
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		if calls == 1 {
+			w.WriteHeader(http.StatusBadGateway) // 502 — transient
+			return
+		}
+		fmt.Fprintf(w, `{"status":"success","jwt":%q}`, want)
+	}))
+	defer srv.Close()
+
+	c := &Client{http: srv.Client()}
+	got, err := c.pollEvery(context.Background(), srv.URL, time.Millisecond)
+	if err != nil {
+		t.Fatalf("pollEvery() error = %v, want nil: a transient 502 should be retried", err)
+	}
+	if got != want {
+		t.Errorf("pollEvery() token = %q, want %q", got, want)
+	}
+	if calls < 2 {
+		t.Errorf("only %d call(s), want at least 2 (retry after transient error)", calls)
+	}
+}
+
+// A transient transport error mid-poll (the server closes the connection,
+// surfacing as an EOF from net/http) must be retried, not treated as terminal.
+// Before the fix, a single connection reset aborted the entire sign-in.
+func TestPollRetriesAfterTransientTransportError(t *testing.T) {
+	want := jwtWithExp(t, time.Now().Add(time.Hour), "dev@argus.gg")
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		if calls == 1 {
+			hj, ok := w.(http.Hijacker)
+			if !ok {
+				t.Fatal("server does not support hijacking")
+			}
+			conn, _, _ := hj.Hijack()
+			_ = conn.Close()
+			return
+		}
+		fmt.Fprintf(w, `{"status":"success","jwt":%q}`, want)
+	}))
+	defer srv.Close()
+
+	c := &Client{http: srv.Client()}
+	got, err := c.pollEvery(context.Background(), srv.URL, time.Millisecond)
+	if err != nil {
+		t.Fatalf("pollEvery() error = %v, want nil: a transient transport error should be retried", err)
+	}
+	if got != want {
+		t.Errorf("pollEvery() token = %q, want %q", got, want)
+	}
+	if calls < 2 {
+		t.Errorf("only %d call(s), want at least 2 (retry after transient error)", calls)
+	}
+}
+
+// A 4xx other than 429 is a client-side error (expired session, bad request)
+// that retrying cannot fix: it must surface immediately rather than burn the
+// retry budget — or worse, re-poll a session the auth service has revoked.
+func TestPollFailsOnNonTransientHTTP4xx(t *testing.T) {
+	for _, code := range []int{
+		http.StatusBadRequest,
+		http.StatusUnauthorized,
+		http.StatusForbidden,
+		http.StatusNotFound,
+		http.StatusGone,
+	} {
+		t.Run(strconv.Itoa(code), func(t *testing.T) {
+			var calls int
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				calls++
+				http.Error(w, "no", code)
+			}))
+			defer srv.Close()
+
+			c := &Client{http: srv.Client()}
+			_, err := c.pollEvery(context.Background(), srv.URL, time.Millisecond)
+			if err == nil {
+				t.Fatalf("pollEvery() error = nil for HTTP %d, want an error (4xx is not retried)", code)
+			}
+			if !strings.Contains(err.Error(), strconv.Itoa(code)) {
+				t.Errorf("pollEvery() error = %q, want one that surfaces the HTTP %d", err, code)
+			}
+			if calls != 1 {
+				t.Errorf("polled %d time(s) for HTTP %d, want 1 (non-transient 4xx must not retry)", calls, code)
+			}
+		})
+	}
+}
+
+// A sustained outage — every poll returns a transient error — must still give
+// up: bounded retry, not infinite. After maxTransientRetries consecutive
+// transient failures the error surfaces so the user is not left polling a
+// hard-down auth service for the full 11-minute window.
+func TestPollFailsAfterMaxTransientRetries(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusBadGateway) // always 502
+	}))
+	defer srv.Close()
+
+	c := &Client{http: srv.Client()}
+	_, err := c.pollEvery(context.Background(), srv.URL, time.Millisecond)
+	if err == nil {
+		t.Fatal("pollEvery() error = nil for a persistent 502, want an error after exhausting retries")
+	}
+	wantCalls := maxTransientRetries + 1
+	if calls != wantCalls {
+		t.Errorf("polled %d time(s) for a persistent 502, want %d (1 initial + %d retries)",
+			calls, wantCalls, maxTransientRetries)
+	}
+	if !strings.Contains(err.Error(), "502") {
+		t.Errorf("pollEvery() error = %q, want one that surfaces the 502 once retries are exhausted", err)
+	}
+}
+
+// The transient-retry counter resets on any clean response: isolated
+// transient errors scattered across the ~220-poll window never accumulate to
+// the cap, so a once-per-minute hiccup does not abort a sign-in. Without the
+// reset, maxTransientRetries+1 isolated failures (even spread out) would abort.
+func TestPollResetsTransientRetryCountOnCleanResponse(t *testing.T) {
+	want := jwtWithExp(t, time.Now().Add(time.Hour), "dev@argus.gg")
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		// Alternate a transient 502 with a clean "pending" until the cap is
+		// exceeded, then succeed. With a reset, each 502 is isolated (retry
+		// count never exceeds 1); without a reset, the (maxTransientRetries+1)th
+		// 502 hits the cap and aborts.
+		if calls%2 == 1 && calls < 2*(maxTransientRetries+1) {
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		if calls == 2*(maxTransientRetries+1) {
+			fmt.Fprintf(w, `{"status":"success","jwt":%q}`, want)
+			return
+		}
+		fmt.Fprint(w, `{"status":"pending"}`)
+	}))
+	defer srv.Close()
+
+	c := &Client{http: srv.Client()}
+	got, err := c.pollEvery(context.Background(), srv.URL, time.Millisecond)
+	if err != nil {
+		t.Fatalf("pollEvery() error = %v, want nil: isolated transient errors reset the retry budget", err)
+	}
+	if got != want {
+		t.Errorf("pollEvery() token = %q, want %q", got, want)
+	}
+}
+
+// A malformed response body (200 OK but invalid JSON) is not a transient
+// transport failure: retrying would just re-read the same broken response. It
+// must surface immediately.
+func TestPollDoesNotRetryMalformedResponse(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		// 200 OK with a truncated JSON body: the HTTP layer succeeds, but the
+		// decode fails.
+		fmt.Fprint(w, `{"status":"pending"`) // missing closing brace
+	}))
+	defer srv.Close()
+
+	c := &Client{http: srv.Client()}
+	_, err := c.pollEvery(context.Background(), srv.URL, time.Millisecond)
+	if err == nil {
+		t.Fatal("pollEvery() error = nil for a malformed response, want a decode error")
+	}
+	if calls != 1 {
+		t.Errorf("polled %d time(s) for a malformed response, want 1 (decode errors must not retry)", calls)
+	}
+}
+
+// When the poll window's deadline fires during a status() request — not in
+// the ticker/select branch — pollEvery must still report the friendly "timed
+// out waiting for authorization" message rather than a raw transport error,
+// matching the behaviour of the ctx.Done() branch. This guards the ctx.Err()
+// check that intercepts context errors before the transient classifier.
+func TestPollTimeoutMessageWhenDeadlineFiresDuringStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		// Block longer than the caller's deadline so the request context
+		// expires while http.Do is waiting for a response.
+		time.Sleep(100 * time.Millisecond)
+		fmt.Fprint(w, `{"status":"pending"}`)
+	}))
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	c := &Client{http: srv.Client()}
+	_, err := c.pollEvery(ctx, srv.URL, time.Millisecond)
+	if err == nil {
+		t.Fatal("pollEvery() error = nil for an expired deadline, want the timeout error")
+	}
+	if !strings.Contains(err.Error(), "timed out waiting for authorization") {
+		t.Errorf("pollEvery() error = %q, want the friendly timeout message", err)
+	}
+}
+
+// isTransientStatusErr is the retry classifier: it must accept the transient
+// failures the bug targets (transport errors, 429, 5xx) and reject everything
+// else (client 4xx, decode errors, context cancellation) so the poll loop
+// fails fast where retrying cannot help.
+func TestIsTransientStatusErr(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"nil", nil, false},
+		{"status 429", &statusError{code: http.StatusTooManyRequests, status: "429 Too Many Requests"}, true},
+		{"status 500", &statusError{code: http.StatusInternalServerError, status: "500 Internal Server Error"}, true},
+		{"status 502", &statusError{code: http.StatusBadGateway, status: "502 Bad Gateway"}, true},
+		{"status 503", &statusError{code: http.StatusServiceUnavailable, status: "503 Service Unavailable"}, true},
+		{"status 504", &statusError{code: http.StatusGatewayTimeout, status: "504 Gateway Timeout"}, true},
+		{"status 400", &statusError{code: http.StatusBadRequest, status: "400 Bad Request"}, false},
+		{"status 401", &statusError{code: http.StatusUnauthorized, status: "401 Unauthorized"}, false},
+		{"status 403", &statusError{code: http.StatusForbidden, status: "403 Forbidden"}, false},
+		{"status 404", &statusError{code: http.StatusNotFound, status: "404 Not Found"}, false},
+		{"status 410", &statusError{code: http.StatusGone, status: "410 Gone"}, false},
+		{
+			"transport EOF (eris-wrapped, as status returns it)",
+			eris.Wrap(&url.Error{Op: "Get", URL: "http://x", Err: io.EOF}, "polling authorization status"),
+			true,
+		},
+		{
+			"transport unexpected EOF",
+			eris.Wrap(&url.Error{Op: "Get", URL: "http://x", Err: io.ErrUnexpectedEOF}, "polling authorization status"),
+			true,
+		},
+		{
+			"connection refused (net.OpError)",
+			eris.Wrap(&url.Error{Op: "Get", URL: "http://x",
+				Err: &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("connection refused")}},
+				"polling authorization status"),
+			true,
+		},
+		{
+			"context canceled (must not retry)",
+			eris.Wrap(&url.Error{Op: "Get", URL: "http://x", Err: context.Canceled}, "polling authorization status"),
+			false,
+		},
+		{
+			"context deadline exceeded (must not retry)",
+			eris.Wrap(&url.Error{Op: "Get", URL: "http://x", Err: context.DeadlineExceeded}, "polling authorization status"),
+			false,
+		},
+		{
+			"decode error (not a transport error)",
+			eris.Wrap(errors.New("unexpected EOF"), "decoding auth status response"),
+			false,
+		},
+		{
+			"request build error (not a transport error)",
+			eris.Wrap(errors.New("parse http://!!: missing protocol scheme"), "building auth status request"),
+			false,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isTransientStatusErr(tt.err); got != tt.want {
+				t.Errorf("isTransientStatusErr(%v) = %v, want %v", tt.err, got, tt.want)
 			}
 		})
 	}

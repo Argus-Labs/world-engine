@@ -6,7 +6,9 @@ import (
 	"context"
 	"encoding/base64"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -28,6 +30,17 @@ const (
 	sessionPath  = "/auth/service-auth-session"
 	pollInterval = 3 * time.Second
 	pollTimeout  = 11 * time.Minute
+
+	// maxTransientRetries bounds how many consecutive transient failures
+	// (transport errors, HTTP 429/5xx) pollEvery rides out before giving up.
+	// A single failure no longer aborts a sign-in the user has already
+	// completed in the browser. A clean response resets the counter, so
+	// isolated transient errors scattered across the ~220-poll window never
+	// accumulate to the cap; only a sustained outage — where retries cannot
+	// help — hits it. Five at the 3s poll interval absorbs a ~15s network
+	// hiccup: long enough for a brief outage to clear while still failing
+	// fast when the auth service is hard-down.
+	maxTransientRetries = 5
 
 	// renewBefore treats a token as expired early, so a long-running command does
 	// not start with one about to lapse.
@@ -98,6 +111,18 @@ type sessionResponse struct {
 type statusResponse struct {
 	Status string `json:"status"`
 	JWT    string `json:"jwt"`
+}
+
+// statusError is the typed error status returns for a non-200 response. It
+// carries the HTTP status code so pollEvery's transient classifier can detect
+// retryable server errors (429, 5xx) without parsing the error message.
+type statusError struct {
+	code   int
+	status string
+}
+
+func (e *statusError) Error() string {
+	return "auth status returned " + e.status
 }
 
 func (c *Client) signIn(ctx context.Context) (string, error) {
@@ -241,17 +266,40 @@ func (c *Client) pollEvery(ctx context.Context, callbackURL string, interval tim
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	transientRetries := 0
 	for {
 		status, err := c.status(ctx, callbackURL)
 		switch {
 		case err != nil:
-			return "", err
+			// Context cancellation/deadline is user-intent (Ctrl+C) or the
+			// poll window ending — never a transient failure to retry, and the
+			// context is dead so a retry would fail instantly anyway. Surface
+			// it exactly as the ctx.Done() branch below does, so a deadline
+			// still reads as "timed out waiting for authorization".
+			if ctx.Err() != nil {
+				if eris.Is(ctx.Err(), context.DeadlineExceeded) {
+					return "", eris.New("timed out waiting for authorization; run the command again")
+				}
+				return "", ctx.Err()
+			}
+			if isTransientStatusErr(err) && transientRetries < maxTransientRetries {
+				transientRetries++
+				// Fall through to the ticker wait so a retry happens on the
+				// next interval, not in a tight loop that hammers a struggling
+				// server.
+			} else {
+				return "", err
+			}
 		case status.Status == "success" && status.JWT != "":
 			return status.JWT, nil
 		case status.Status == "":
 			return "", eris.New("auth service returned an empty status")
 		case status.Status != "pending":
 			return "", eris.Errorf("authorization failed: %s", status.Status)
+		default:
+			// A clean response (pending or empty) means the transient
+			// condition has passed, so a future hiccup starts a fresh budget.
+			transientRetries = 0
 		}
 
 		select {
@@ -277,13 +325,65 @@ func (c *Client) status(ctx context.Context, callbackURL string) (*statusRespons
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, eris.Errorf("auth status returned %s", resp.Status)
+		return nil, &statusError{code: resp.StatusCode, status: resp.Status}
 	}
 	var status statusResponse
 	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
 		return nil, eris.Wrap(err, "decoding auth status response")
 	}
 	return &status, nil
+}
+
+// isTransientStatusErr reports whether a status error is worth retrying on the
+// next poll cycle.
+//
+// Transient — a single retry can ride out the failure and the next poll would
+// retrieve the JWT the user already authorized in the browser:
+//   - HTTP 429 (rate limited) and 5xx (server fault) responses.
+//   - Transport-level failures: the server closed the connection (EOF), the
+//     network dropped it (reset, refused), or the per-request HTTP client
+//     deadline fired. These arrive from net/http as [url.Error] values.
+//
+// Not transient — retrying cannot help, so the error surfaces immediately:
+//   - Client-side HTTP errors (4xx other than 429): a malformed request or an
+//     expired session is not going to fix itself.
+//   - Malformed response bodies and request-building failures.
+//
+// Context cancellation is user-intent (Ctrl+C) or the poll window ending; it is
+// handled by pollEvery before this classifier runs, but the guard below keeps
+// the classifier correct if it is ever called with a context error.
+func isTransientStatusErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	// Context cancellation/deadline is never a transient failure to retry.
+	if eris.Is(err, context.Canceled) || eris.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	// HTTP 429 / 5xx from a non-200 status response.
+	var se *statusError
+	if eris.As(err, &se) {
+		return se.code == http.StatusTooManyRequests || se.code >= 500
+	}
+	// Transport errors from net/http arrive as *url.Error.
+	var urlErr *url.Error
+	if !eris.As(err, &urlErr) {
+		return false
+	}
+	// Per-request HTTP client timeout (the 30s client Deadline, distinct from
+	// the poll context's 11m window) is transient: the next poll can succeed.
+	if urlErr.Timeout() {
+		return true
+	}
+	// Server closed the connection mid-response.
+	if eris.Is(urlErr.Err, io.EOF) || eris.Is(urlErr.Err, io.ErrUnexpectedEOF) {
+		return true
+	}
+	// Connection-level failures: refused, reset, broken pipe, DNS. *net.OpError
+	// wraps most of these; a persistent one (e.g. no such host) still hits the
+	// maxTransientRetries cap and fails fast rather than looping forever.
+	var opErr *net.OpError
+	return eris.As(urlErr.Err, &opErr)
 }
 
 // cached returns the stored token, or an error if it is missing or expired.
