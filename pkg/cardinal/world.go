@@ -478,14 +478,15 @@ func (w *World) RegisterSystem(s System, opts ...SystemOption) {
 	name := fmt.Sprintf("%T", s)
 	hookName := ecsHookToProto(uint8(cfg.hook)).String()
 
-	// Every system run is a child span of the current tick (or init) span. The attributes are
-	// fixed per system, so they are built once here. When the tick span is not recording
-	// (tracing disabled or the tick sampled out) the child would be discarded anyway, so it is
-	// skipped to keep the per-system cost at one interface call.
+	// Every system run is a child span of the current tick (or init) span, named after the system
+	// so trace views and per-span latency tell systems apart. The attributes are fixed per system,
+	// so they are built once here. When the tick span is not recording (tracing disabled or the
+	// tick sampled out) the child would be discarded anyway, so it is skipped to keep the
+	// per-system cost at one interface call.
 	attrs := oteltrace.WithAttributes(attrSystemName.String(name), attrSystemHook.String(hookName))
 	fn := func() {
 		if oteltrace.SpanFromContext(w.tickCtx).IsRecording() {
-			_, span := trace.New(w.tickCtx, spanSystem, attrs)
+			_, span := trace.New(w.tickCtx, name, attrs)
 			defer span.End()
 		}
 		s.Run(w)
