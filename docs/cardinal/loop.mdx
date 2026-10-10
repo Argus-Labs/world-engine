@@ -67,3 +67,16 @@ defer span.End()
 **Commands.** The `SendCommand` request span (from ConnectRPC) and, for a command from another shard, the `handler.execute` span under the NATS `handler.command.*` span carry `cardinal.command.name`. The request finishes before the tick that processes the command, so the tick is not its child. Instead, `cardinal.tick` holds one span link per drained command whose request span was sampled (capped at 128, the SDK's default link limit), tagged with `cardinal.command.name` and `cardinal.command.sender` (the player ID, or the sending shard's address). Follow the link from the tick to find the request, or search the request's trace for linked ticks.
 
 **Inter-shard commands.** `cardinal.command.send` injects the tick's trace context into the NATS request headers, so the receiving shard's handler span joins the sending tick's trace. The receiving tick is a new root trace of its own and links back to that handler span, the same way a local `SendCommand` is linked. A cross-shard hop is therefore two traces joined by a link, not one continuous trace.
+
+### Metrics
+
+Cardinal exports OpenTelemetry metrics over OTLP gRPC when `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` is set, for example to `groundcover-sensor.groundcover.svc.cluster.local:4317`. Unlike traces, metrics never fall back to `OTEL_EXPORTER_OTLP_ENDPOINT`, because the cardinal operator points that variable at a collector that accepts traces only. The endpoint takes the same forms as the trace endpoint, and `OTEL_EXPORTER_OTLP_METRICS_INSECURE` overrides `OTEL_EXPORTER_OTLP_INSECURE`. Metrics are pushed every `OTEL_METRIC_EXPORT_INTERVAL` milliseconds (default 60000) and are not sampled.
+
+| Metric | Type | Attributes |
+|:--|:--|:--|
+| `cardinal.tick.duration` | histogram, seconds | wall time of each tick, from draining commands to persisting state |
+| `cardinal.tick.overruns` | counter | ticks that ran longer than the tick interval |
+| `cardinal.tick.commands` | counter | `cardinal.command.name` (commands handed to systems) |
+| `cardinal.events.sent` | counter | `cardinal.event.type`, the event's Go type (events passed to `Broadcast` or `SendTo`) |
+
+**Game metrics.** Create instruments from `otel.Meter("mygame")` after `NewWorld`, which installs the meter provider, and record them from systems. Without a metrics endpoint they are no-ops.
