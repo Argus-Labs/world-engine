@@ -57,6 +57,13 @@ Each tick is one root trace named `cardinal.tick` with these children:
 
 Startup emits `cardinal.init` (init systems, also on debug reset) and `cardinal.restore` (snapshot load).
 
+**Game spans and logs.** Inside a system, `world.Context()` is the trace context of that system's span. Start your own spans from it to nest them in the tick's trace, and pass it to instrumented clients so their spans join too. Log lines from `world.Logger()` carry the same span's `trace_id` and `span_id`.
+
+```go
+ctx, span := otel.Tracer("mygame").Start(world.Context(), "mygame.pathfind")
+defer span.End()
+```
+
 **Commands.** The `SendCommand` request span (from ConnectRPC) and, for a command from another shard, the `handler.execute` span under the NATS `handler.command.*` span carry `cardinal.command.name`. The request finishes before the tick that processes the command, so the tick is not its child. Instead, `cardinal.tick` holds one span link per drained command whose request span was sampled (capped at 128, the SDK's default link limit), tagged with `cardinal.command.name` and `cardinal.command.sender` (the player ID, or the sending shard's address). Follow the link from the tick to find the request, or search the request's trace for linked ticks.
 
 **Inter-shard commands.** `cardinal.command.send` injects the tick's trace context into the NATS request headers, so the receiving shard's handler span joins the sending tick's trace. The receiving tick is a new root trace of its own and links back to that handler span, the same way a local `SendCommand` is linked. A cross-shard hop is therefore two traces joined by a link, not one continuous trace.

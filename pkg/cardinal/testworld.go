@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rs/zerolog"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // TestWorld runs a game's systems inside a Go test, one step at a time. It embeds *World, so tests
@@ -92,7 +94,7 @@ func NewTestWorld(t testing.TB, setup func(w *World)) *TestWorld {
 		address:         micro.GetAddress("test", micro.RealmWorld, "test", "test", "test"),
 		snapshotStorage: storage,
 		snapshotWriter:  snapshot.NewSyncWriter(storage, tel.GetLogger("snapshot")),
-		tickCtx:         context.Background(),
+		traceCtx:        context.Background(),
 		// Encode the state every step, so a component that cannot be serialized fails the step that
 		// stored it rather than a production snapshot.
 		options: WorldOptions{SnapshotRate: 1},
@@ -154,10 +156,12 @@ func (w *TestWorld) Command(player string, cmd Command) {
 
 // RunSystem runs exactly one system as a step. The system need not be registered. System events
 // emitted before the step are visible to it and are cleared when it returns, as at the end of a tick.
+// It runs under a span named after the system like a registered system, without the hook attribute.
 func (w *TestWorld) RunSystem(s System) {
 	w.runStep(func() {
 		defer w.world.ClearSystemEvents()
-		s.Run(w.World)
+		name := fmt.Sprintf("%T", s)
+		w.runSystem(s, name, oteltrace.WithAttributes(attrSystemName.String(name)))
 	})
 }
 

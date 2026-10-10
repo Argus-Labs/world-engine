@@ -1,7 +1,9 @@
 package cardinal
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -94,6 +97,78 @@ func TestTickEmitsSpans(t *testing.T) {
 	require.Contains(t, byName[systemSpan].Attributes, attrSystemName.String(systemSpan))
 	require.Contains(t, byName[systemSpan].Attributes, attrSystemHook.String("SYSTEM_HOOK_POST_UPDATE"))
 	require.Contains(t, byName[spanPersistState].Attributes, attrSnapshotDue.Bool(true))
+}
+
+// gameSpanSystem stands in for game code that traces its own work and logs from inside a system.
+type gameSpanSystem struct{}
+
+func (gameSpanSystem) Run(w *World) {
+	_, span := otel.Tracer("game").Start(w.Context(), "game.pathfind")
+	span.End()
+	w.Logger().Warn().Msg("pathfind done")
+}
+
+// TestSystemContextNestsGameSpansAndLogs checks that a span started from World.Context nests under
+// the running system's span, that the system's log line carries that span's IDs, and that the next
+// system's span is a sibling under the tick rather than a child of the previous system.
+func TestSystemContextNestsGameSpansAndLogs(t *testing.T) {
+	t.Setenv("LOG_LEVEL", "disabled")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+
+	off := false
+	w, err := NewWorld(WorldOptions{
+		Region:              "trace",
+		Organization:        "trace",
+		Project:             "trace",
+		ShardID:             "0",
+		TickRate:            60,
+		SnapshotStorageType: snapshot.StorageTypeNop,
+		SnapshotRate:        1000,
+		Debug:               &off,
+	})
+	require.NoError(t, err)
+	var logs bytes.Buffer
+	w.tel.Logger = zerolog.New(&logs)
+	exporter := newRecordingTracer(t)
+
+	w.RegisterSystem(&gameSpanSystem{})
+	w.RegisterSystem(&tracedSystem{})
+	w.init()
+	exporter.Reset()
+
+	w.Tick(time.Now())
+
+	byName := spansByName(exporter)
+	tick, gameSystem, game := byName[spanTick], byName["*cardinal.gameSpanSystem"], byName["game.pathfind"]
+	for _, name := range []string{"*cardinal.gameSpanSystem", "*cardinal.tracedSystem"} {
+		require.Equal(t, tick.SpanContext.SpanID(), byName[name].Parent.SpanID(), "%s is a child of the tick", name)
+	}
+	require.Equal(t, gameSystem.SpanContext.SpanID(), game.Parent.SpanID(), "game span nests under its system")
+	require.Equal(t, tick.SpanContext.TraceID(), game.SpanContext.TraceID())
+
+	var entry struct {
+		TraceID string `json:"trace_id"`
+		SpanID  string `json:"span_id"`
+	}
+	require.NoError(t, json.Unmarshal(logs.Bytes(), &entry))
+	require.Equal(t, gameSystem.SpanContext.TraceID().String(), entry.TraceID)
+	require.Equal(t, gameSystem.SpanContext.SpanID().String(), entry.SpanID)
+	require.Equal(t, context.Background(), w.Context(), "no trace context leaks past the tick")
+}
+
+// TestRunSystemNestsGameSpansUnderSystemSpan checks that a system driven by TestWorld.RunSystem sees
+// the same span layout as a registered one, so tests of a game's own spans observe production nesting.
+func TestRunSystemNestsGameSpansUnderSystemSpan(t *testing.T) {
+	tw := NewTestWorld(t, func(*World) {})
+	exporter := newRecordingTracer(t)
+
+	tw.RunSystem(&gameSpanSystem{})
+
+	byName := spansByName(exporter)
+	system, game := byName["*cardinal.gameSpanSystem"], byName["game.pathfind"]
+	require.Contains(t, system.Attributes, attrSystemName.String("*cardinal.gameSpanSystem"))
+	require.Equal(t, byName[spanTick].SpanContext.SpanID(), system.Parent.SpanID())
+	require.Equal(t, system.SpanContext.SpanID(), game.Parent.SpanID(), "game span nests under the system span")
 }
 
 // TestTickLinksCommandsAndTracesEvents checks that a command enqueued under a request span shows up
