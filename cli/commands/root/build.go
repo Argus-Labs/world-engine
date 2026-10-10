@@ -76,22 +76,38 @@ func (c *BuildCmd) Run(ctx context.Context) error {
 			dash := phasebox.Start(ctx, c.Progress)
 			defer dash.Complete()
 
+			// Compute the deduped, Cardinal-only image list once: BuildCardinalImages
+			// builds one image per distinct Cardinal image name (pool replicas share a
+			// single image, and non-Cardinal services like NATS, pulled images, and the
+			// auto-provisioned project database are skipped), so this — not the raw
+			// service-slice length — is the number of images actually built.
+			imageNames := docker.CardinalBuildImageNames(dockerServices)
+
 			if err := dash.Run("Build",
 				func(ctx context.Context, sess phasebox.Session) error {
-					imageNames := docker.CardinalBuildImageNames(dockerServices)
 					return dockerClient.BuildCardinalImages(
 						ctx,
 						dockerServices,
 						phasebox.BuildProgress(sess, imageNames),
 					)
 				},
-				func(elapsed time.Duration) string {
-					return fmt.Sprintf("%d image(s) built (%s)", len(dockerServices), elapsed.Round(time.Second))
-				},
+				buildSummary(imageNames),
 			); err != nil {
 				return eris.Wrap(err, "Failed to build Cardinal images")
 			}
 			return nil
 		},
 	)
+}
+
+// buildSummary returns the phasebox summary callback for the Build phase. It
+// reports the number of distinct Cardinal images actually built — one per
+// unique image name produced by docker.CardinalBuildImageNames — rather than
+// the raw service-slice length, which overcounts non-Cardinal services (NATS,
+// pulled images, the auto-provisioned project database) and pool replicas that
+// share a single image.
+func buildSummary(imageNames []string) func(time.Duration) string {
+	return func(elapsed time.Duration) string {
+		return fmt.Sprintf("%d image(s) built (%s)", len(imageNames), elapsed.Round(time.Second))
+	}
 }
