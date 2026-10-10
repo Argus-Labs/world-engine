@@ -28,6 +28,7 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
@@ -47,10 +48,11 @@ type World struct {
 	traceCtx        context.Context       // Trace context of the running system, else of the current tick or init
 	options         WorldOptions          // World options
 	tel             telemetry.Telemetry   // Logs and traces
+	metrics         *worldMetrics         // Tick, command and event metrics; nil records nothing
 
-	archetypes map[reflect.Type]bitmap.Bitmap // Component sets resolved from archetype structs
-	eventTypes map[reflect.Type]struct{}      // Events registered with RegisterEvent
-	started    bool                           // Set by init; Register* methods panic afterwards
+	archetypes map[reflect.Type]bitmap.Bitmap      // Component sets resolved from archetype structs
+	eventTypes map[reflect.Type][]metric.AddOption // Registered events, with the attributes they are counted under
+	started    bool                                // Set by init; Register* methods panic afterwards
 
 	systemEventTap func(ecs.SystemEvent) // Sees each emitted system event; set only by TestWorld
 }
@@ -85,6 +87,11 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	}
 	defer tel.RecoverAndFlush(true)
 
+	metrics, err := newWorldMetrics(options.tickInterval())
+	if err != nil {
+		return nil, err
+	}
+
 	world := &World{
 		world:    ecs.NewWorld(),
 		commands: command.NewManager(),
@@ -95,6 +102,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		traceCtx:    context.Background(),
 		options:     options,
 		tel:         tel,
+		metrics:     metrics,
 	}
 
 	// Register components for introspection.
@@ -193,7 +201,7 @@ func (w *World) run(ctx context.Context) error {
 	logger := w.tel.GetLogger("shard")
 	logger.Info().Msg("starting core shard loop")
 
-	ticker := time.NewTicker(time.Duration(float64(time.Second) / w.options.TickRate))
+	ticker := time.NewTicker(w.options.tickInterval())
 	defer ticker.Stop()
 
 	// A single select listens on every control channel regardless of pause state. This
@@ -260,6 +268,8 @@ func (w *World) Tick(timestamp time.Time) {
 // Each tick is a root trace: ticks are driven by the clock, not by a request, so command spans from
 // the ConnectRPC service are not their parents.
 func (w *World) step(timestamp time.Time, run func()) {
+	start := time.Now()
+
 	// Drain before starting the span: links must be passed at start for a sampler to see them.
 	commands := w.commands.Drain()
 
@@ -293,6 +303,10 @@ func (w *World) step(timestamp time.Time, run func()) {
 	w.traceCtx = ctx
 	defer func() { w.traceCtx = prevCtx }()
 
+	for _, cmd := range commands {
+		w.metrics.countCommand(ctx, cmd.Name)
+	}
+
 	w.currentTick.timestamp = timestamp
 
 	// Advance the ECS world.
@@ -321,6 +335,8 @@ func (w *World) step(timestamp time.Time, run func()) {
 
 	// Increase the tick height.
 	w.currentTick.height++
+
+	w.metrics.recordTick(ctx, time.Since(start))
 }
 
 // dispatchEvents runs the tick's event handlers under their own span. The span is ended by a
@@ -561,6 +577,7 @@ func (w *World) RegisterCommand[T Command]() {
 		panic(eris.Wrapf(err, "failed to register command to debug module %s", name))
 	}
 	w.service.registerCommandHandler(name)
+	w.metrics.registerCommand(name)
 }
 
 // Commands yields the commands of type T received for the current tick. It panics if T was not
@@ -631,28 +648,32 @@ func (w *World) RegisterEvent[T Event]() {
 		panic(eris.Wrapf(err, "failed to register event to debug module %s", zero.Name()))
 	}
 	if w.eventTypes == nil {
-		w.eventTypes = make(map[reflect.Type]struct{})
+		w.eventTypes = make(map[reflect.Type][]metric.AddOption)
 	}
-	w.eventTypes[reflect.TypeFor[T]()] = struct{}{}
+	w.eventTypes[reflect.TypeFor[T]()] = addOptions(attrEventType.String(fmt.Sprintf("%T", zero)))
 }
 
-// checkEventRegistered panics if T was not registered with RegisterEvent. It checks the type, not
-// Name(): some events derive their name from instance data (e.g. request-scoped results), so only
-// the type is stable at registration. A plain panic, not assert.That, so it fires in release too.
-func (w *World) checkEventRegistered[T Event]() {
-	if _, ok := w.eventTypes[reflect.TypeFor[T]()]; !ok {
+// registeredEvent returns the attributes T's sends are counted under, and panics if T was not
+// registered with RegisterEvent. It checks the type, not Name(): some events derive their name from
+// instance data (e.g. request-scoped results), so only the type is stable at registration. A plain
+// panic, not assert.That, so it fires in release too.
+func (w *World) registeredEvent[T Event]() []metric.AddOption {
+	attrs, ok := w.eventTypes[reflect.TypeFor[T]()]
+	if !ok {
 		panic(eris.Errorf("event %T is not registered; call RegisterEvent before StartGame", *new(T)))
 	}
+	return attrs
 }
 
 // Broadcast enqueues an event delivered to every open event stream at the end of the tick. It
 // panics if T was not registered with RegisterEvent.
 func (w *World) Broadcast[T Event](evt T) {
-	w.checkEventRegistered[T]()
+	attrs := w.registeredEvent[T]()
 	w.events.Enqueue(event.Event{
 		Kind:    event.KindDefault,
 		Payload: evt,
 	})
+	w.metrics.countEvent(w.traceCtx, attrs)
 }
 
 // SendTo enqueues a targeted event that is delivered only to the named recipient (a player ID),
@@ -667,12 +688,13 @@ func (w *World) Broadcast[T Event](evt T) {
 //	}
 func (w *World) SendTo[T Event](recipient string, evt T) {
 	assert.That(recipient != "", "recipient must not be empty (use Broadcast for fan-out)")
-	w.checkEventRegistered[T]()
+	attrs := w.registeredEvent[T]()
 	w.events.Enqueue(event.Event{
 		Kind:      event.KindDefault,
 		Payload:   evt,
 		Recipient: recipient,
 	})
+	w.metrics.countEvent(w.traceCtx, attrs)
 }
 
 // -------------------------------------------------------------------------------------------------

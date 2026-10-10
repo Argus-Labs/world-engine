@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -14,18 +15,20 @@ import (
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 )
 
 // setupOpenTelemetry sets up OpenTelemetry for the service. It installs the global tracer
-// provider and propagator that trace.New relies on, and returns the logger, the resolved span
-// link limit, and a shutdown function. The globals are process-wide, so a process owns exactly
-// one Telemetry: a second instance would take over the first one's spans, and shutting either
-// down stops both.
+// provider and propagator that trace.New relies on, and the global meter provider when a metrics
+// endpoint is set. It returns the logger, the resolved span link limit, and a shutdown function.
+// The globals are process-wide, so a process owns exactly one Telemetry: a second instance would
+// take over the first one's spans and metrics, and shutting either down stops both.
 //
 // The resolved link limit mirrors what the tracer provider applies (OTEL_SPAN_LINK_COUNT_LIMIT,
 // default 128): it is threaded out so callers that pre-cap links (cardinal's tick span) can match
@@ -39,13 +42,17 @@ func setupOpenTelemetry(
 	var shutdownFuncs []func(context.Context) error
 	var err error
 
+	// Providers shut down concurrently, so an exporter stalled on an unreachable collector cannot
+	// spend the deadline the others need for their final flush.
 	shutdown := func(ctx context.Context) error {
-		var shutdownErrs error
-		for _, fn := range shutdownFuncs {
-			shutdownErrs = errors.Join(shutdownErrs, fn(ctx))
+		errs := make([]error, len(shutdownFuncs))
+		var wg sync.WaitGroup
+		for i, fn := range shutdownFuncs {
+			wg.Go(func() { errs[i] = fn(ctx) })
 		}
+		wg.Wait()
 		shutdownFuncs = nil
-		return shutdownErrs
+		return errors.Join(errs...)
 	}
 
 	handleErr := func(inErr error) {
@@ -59,8 +66,8 @@ func setupOpenTelemetry(
 	// 128). Threaded out so link cappers share the provider's actual limit.
 	linkLimit := trace.NewSpanLimits().LinkCountLimit
 
-	// An empty endpoint disables tracing: the global provider stays the SDK default no-op.
-	if opts.Endpoint == "" {
+	// An empty endpoint disables its signal: that global provider stays the SDK default no-op.
+	if opts.Endpoint == "" && opts.MetricsEndpoint == "" {
 		return logger, linkLimit, shutdown, nil
 	}
 
@@ -70,23 +77,35 @@ func setupOpenTelemetry(
 		return logger, linkLimit, shutdown, err
 	}
 
-	propagator := newPropagator()
-	otel.SetTextMapPropagator(propagator)
-
 	// Route exporter failures through the service logger instead of OTel's own stderr logger.
 	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
 		logger.Warn().Err(err).Msg("opentelemetry export failed")
 	}))
 
-	tracerProvider, providerLinkLimit, err := newTracerProvider(ctx, res, opts)
-	if err != nil {
-		handleErr(err)
-		return logger, linkLimit, shutdown, err
-	}
-	shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
-	otel.SetTracerProvider(tracerProvider)
+	if opts.Endpoint != "" {
+		otel.SetTextMapPropagator(newPropagator())
 
-	return logger, providerLinkLimit, shutdown, err
+		tracerProvider, providerLinkLimit, err := newTracerProvider(ctx, res, opts)
+		if err != nil {
+			handleErr(err)
+			return logger, linkLimit, shutdown, err
+		}
+		shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
+		otel.SetTracerProvider(tracerProvider)
+		linkLimit = providerLinkLimit
+	}
+
+	if opts.MetricsEndpoint != "" {
+		meterProvider, err := newMeterProvider(ctx, res, opts)
+		if err != nil {
+			handleErr(err)
+			return logger, linkLimit, shutdown, err
+		}
+		shutdownFuncs = append(shutdownFuncs, meterProvider.Shutdown)
+		otel.SetMeterProvider(meterProvider)
+	}
+
+	return logger, linkLimit, shutdown, err
 }
 
 func newResource(opts Options) (*resource.Resource, error) {
@@ -140,6 +159,33 @@ func exporterEndpointOptions(endpoint string, insecure bool) []otlptracegrpc.Opt
 		options = append(options, otlptracegrpc.WithInsecure())
 	}
 	return options
+}
+
+// metricExporterEndpointOptions is exporterEndpointOptions for the metric exporter.
+func metricExporterEndpointOptions(endpoint string, insecure bool) []otlpmetricgrpc.Option {
+	if strings.Contains(endpoint, "://") {
+		return []otlpmetricgrpc.Option{otlpmetricgrpc.WithEndpointURL(endpoint)}
+	}
+	options := []otlpmetricgrpc.Option{otlpmetricgrpc.WithEndpoint(endpoint)}
+	if insecure {
+		options = append(options, otlpmetricgrpc.WithInsecure())
+	}
+	return options
+}
+
+// newMeterProvider builds the SDK MeterProvider that pushes to the metrics endpoint every
+// OTEL_METRIC_EXPORT_INTERVAL (default 60s), and once more on shutdown.
+func newMeterProvider(ctx context.Context, res *resource.Resource, opts Options) (*metric.MeterProvider, error) {
+	exporter, err := otlpmetricgrpc.New(
+		ctx,
+		metricExporterEndpointOptions(opts.MetricsEndpoint, opts.MetricsInsecure)...)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to create OTLP metric exporter")
+	}
+	return metric.NewMeterProvider(
+		metric.WithReader(metric.NewPeriodicReader(exporter)),
+		metric.WithResource(res),
+	), nil
 }
 
 // newTracerProvider builds the SDK TracerProvider for the resolved config and returns it together

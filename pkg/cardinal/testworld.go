@@ -85,6 +85,10 @@ func NewTestWorld(t testing.TB, setup func(w *World)) *TestWorld {
 	t.Helper()
 
 	tel := telemetry.Telemetry{Logger: zerolog.New(zerolog.NewTestWriter(t))}
+	metrics, err := newWorldMetrics(0)
+	if err != nil {
+		t.Fatal(err)
+	}
 	storage := snapshot.NewNopStorage()
 	w := &World{
 		world:    ecs.NewWorld(),
@@ -99,6 +103,7 @@ func NewTestWorld(t testing.TB, setup func(w *World)) *TestWorld {
 		// stored it rather than a production snapshot.
 		options: WorldOptions{SnapshotRate: 1},
 		tel:     tel,
+		metrics: metrics,
 	}
 	// RegisterCommand records the command with the service. The service is never started.
 	w.service = newService(w, AuthModeDev, "")
