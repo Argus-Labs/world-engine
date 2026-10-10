@@ -44,7 +44,7 @@ type World struct {
 	snapshotWriter  snapshot.Writer       // Snapshot writer
 	debug           *debugModule          // Debug tools and services
 	currentTick     Tick                  // Current tick
-	tickCtx         context.Context       // Parent context for spans started by systems in the current tick
+	traceCtx        context.Context       // Trace context of the running system, else of the current tick or init
 	options         WorldOptions          // World options
 	tel             telemetry.Telemetry   // Logs and traces
 
@@ -92,7 +92,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		address: micro.GetAddress(
 			options.Region, micro.RealmWorld, options.Organization, options.Project, options.ShardID),
 		currentTick: Tick{height: 0},
-		tickCtx:     context.Background(),
+		traceCtx:    context.Background(),
 		options:     options,
 		tel:         tel,
 	}
@@ -234,14 +234,16 @@ func (w *World) run(ctx context.Context) error {
 	}
 }
 
-// init runs the init systems under a root span so their child spans have a parent. tickCtx is
-// restored by defer, as in Tick, so a recovered init panic does not leave it on an ended span.
+// init runs the init systems under a root span so their child spans have a parent. traceCtx is
+// restored by defer, as in Tick, so a recovered init panic or a nested run does not leave it on an
+// ended span.
 func (w *World) init() {
 	ctx, span := trace.New(context.Background(), spanInit)
 	defer span.End()
 
-	w.tickCtx = ctx
-	defer func() { w.tickCtx = context.Background() }()
+	prevCtx := w.traceCtx
+	w.traceCtx = ctx
+	defer func() { w.traceCtx = prevCtx }()
 	w.started = true // Closes registration before the first system runs; never reopened by reset.
 	w.world.Init()
 }
@@ -287,8 +289,9 @@ func (w *World) step(timestamp time.Time, run func()) {
 			attrTickCommands.Int(len(commands))),
 		oteltrace.WithLinks(links...))
 	defer span.End()
-	w.tickCtx = ctx
-	defer func() { w.tickCtx = context.Background() }()
+	prevCtx := w.traceCtx
+	w.traceCtx = ctx
+	defer func() { w.traceCtx = prevCtx }()
 
 	w.currentTick.timestamp = timestamp
 
@@ -478,23 +481,27 @@ func (w *World) RegisterSystem(s System, opts ...SystemOption) {
 	name := fmt.Sprintf("%T", s)
 	hookName := ecsHookToProto(uint8(cfg.hook)).String()
 
-	// Every system run is a child span of the current tick (or init) span, named after the system
-	// so trace views and per-span latency tell systems apart. The attributes are fixed per system,
-	// so they are built once here. When the tick span is not recording (tracing disabled or the
-	// tick sampled out) the child would be discarded anyway, so it is skipped to keep the
-	// per-system cost at one interface call.
+	// The attributes are fixed per system, so they are built once here.
 	attrs := oteltrace.WithAttributes(attrSystemName.String(name), attrSystemHook.String(hookName))
-	fn := func() {
-		if oteltrace.SpanFromContext(w.tickCtx).IsRecording() {
-			_, span := trace.New(w.tickCtx, name, attrs)
-			defer span.End()
-		}
-		s.Run(w)
-	}
+	fn := func() { w.runSystem(s, name, attrs) }
 
 	if err := w.world.RegisterSystem(name, cfg.hook, fn); err != nil {
 		panic(eris.Wrapf(err, "error registering system"))
 	}
+}
+
+// runSystem runs s as a child span of the current tick (or init) span, named after the system so
+// trace views and per-span latency tell systems apart, and which s sees through Context while it
+// runs. When the tick span is not recording (tracing disabled or the tick sampled out) the child
+// would be discarded anyway, so it is skipped to keep the per-system cost at one interface call.
+func (w *World) runSystem(s System, name string, attrs oteltrace.SpanStartEventOption) {
+	if tickCtx := w.traceCtx; oteltrace.SpanFromContext(tickCtx).IsRecording() {
+		ctx, span := trace.New(tickCtx, name, attrs)
+		w.traceCtx = ctx
+		defer func() { w.traceCtx = tickCtx }()
+		defer span.End()
+	}
+	s.Run(w)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -511,9 +518,23 @@ func (w *World) Timestamp() time.Time {
 	return w.currentTick.timestamp
 }
 
-// Logger returns the logger for systems in this world.
+// Context returns the trace context of the running system. Spans started from it nest under the
+// system's span in the tick's trace:
+//
+//	ctx, span := otel.Tracer("mygame").Start(w.Context(), "pathfind")
+//	defer span.End()
+//
+// Pass it to instrumented clients (HTTP, SQL) so their spans join the tick's trace too. It carries
+// trace context only: it is never cancelled and has no deadline. When tracing is disabled or the
+// tick is sampled out, spans started from it are no-ops.
+func (w *World) Context() context.Context {
+	return w.traceCtx
+}
+
+// Logger returns the logger for systems in this world. In a traced system its entries carry the
+// system span's trace_id and span_id, so a log line leads to the tick that wrote it.
 func (w *World) Logger() *zerolog.Logger {
-	logger := w.tel.GetLogger("system")
+	logger := w.tel.GetLoggerWithTrace(w.traceCtx, "system")
 	return &logger
 }
 
