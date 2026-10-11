@@ -29,31 +29,24 @@ const (
 // The only exception being <endpoint> which can contain . as a delimiter to leverage NATS routing.
 //
 // The ServiceAddress convention is as follows:
-// <region>.<organization>.<project>.<service_id>.<endpoint>
+// <project>.<service_id>.<endpoint>
 //
-// <region> identifies the deployment region (e.g., "us-west1").
-//
-// <organization> represents the entity that owns the project (e.g., "argus").
-//
-// <project> is an arbitrary token to related services together (e.g., "platform", "game-rampage").
+// <project> groups related services (e.g., "rampage").
 //
 // <service_id> is a unique identifier for the service instance. It must be unique within the project.
+// A deployment that runs a service in several places puts the place in the ID (e.g., "gameplay-usw1-3").
 //
 // <endpoint> is an arbitrary token that identifies specific functionality within a service.
 // An endpoint can contain . as a delimiter to leverage NATS routing.
 //
 // Examples:
-// - us-west1.argus.rampage.gameplay-3.ping
-// - us-west1.argus.rampage.gameplay-3.isc.plat_result.platform
+// - rampage.gameplay-usw1-3.ping
+// - rampage.gameplay-usw1-3.isc.plat_result.rampage.platform
 type ServiceAddress struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The deployment region (e.g., "us-west1").
-	Region string `protobuf:"bytes,1,opt,name=region,proto3" json:"region,omitempty"`
-	// The organization that owns the project (e.g., "argus").
-	// Must contain only lowercase alphanumeric characters, hyphens, or underscores.
-	Organization string `protobuf:"bytes,3,opt,name=organization,proto3" json:"organization,omitempty"`
 	// The project name that groups related services (e.g., "platform", "rampage").
-	// Must contain only lowercase alphanumeric characters, hyphens, or underscores.
+	// Must contain only lowercase alphanumeric characters or hyphens. It has no underscore, so names
+	// that join it to the service ID with one (e.g. snapshot buckets) stay unambiguous.
 	Project string `protobuf:"bytes,4,opt,name=project,proto3" json:"project,omitempty"`
 	// The unique identifier for the service instance within the project.
 	// Must be unique within the project and contain only lowercase alphanumeric characters,
@@ -93,20 +86,6 @@ func (*ServiceAddress) Descriptor() ([]byte, []int) {
 	return file_worldengine_micro_v1_service_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ServiceAddress) GetRegion() string {
-	if x != nil {
-		return x.Region
-	}
-	return ""
-}
-
-func (x *ServiceAddress) GetOrganization() string {
-	if x != nil {
-		return x.Organization
-	}
-	return ""
-}
-
 func (x *ServiceAddress) GetProject() string {
 	if x != nil {
 		return x.Project
@@ -125,13 +104,11 @@ var File_worldengine_micro_v1_service_proto protoreflect.FileDescriptor
 
 const file_worldengine_micro_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"\"worldengine/micro/v1/service.proto\x12\x14worldengine.micro.v1\x1a\x1bbuf/validate/validate.proto\"\xf1\x01\n" +
-	"\x0eServiceAddress\x12-\n" +
-	"\x06region\x18\x01 \x01(\tB\x15\xbaH\x12r\x10\x10\x012\f^[a-z0-9-]+$R\x06region\x12:\n" +
-	"\forganization\x18\x03 \x01(\tB\x16\xbaH\x13r\x11\x10\x012\r^[a-z0-9_-]+$R\forganization\x120\n" +
-	"\aproject\x18\x04 \x01(\tB\x16\xbaH\x13r\x11\x10\x012\r^[a-z0-9_-]+$R\aproject\x125\n" +
+	"\"worldengine/micro/v1/service.proto\x12\x14worldengine.micro.v1\x1a\x1bbuf/validate/validate.proto\"\xa7\x01\n" +
+	"\x0eServiceAddress\x12/\n" +
+	"\aproject\x18\x04 \x01(\tB\x15\xbaH\x12r\x10\x10\x012\f^[a-z0-9-]+$R\aproject\x125\n" +
 	"\n" +
-	"service_id\x18\x05 \x01(\tB\x16\xbaH\x13r\x11\x10\x012\r^[a-z0-9_-]+$R\tserviceIdJ\x04\b\x02\x10\x03R\x05realmBkZLgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1;microv1\xaa\x02\x1aWorldEngine.Proto.Micro.V1b\x06proto3"
+	"service_id\x18\x05 \x01(\tB\x16\xbaH\x13r\x11\x10\x012\r^[a-z0-9_-]+$R\tserviceIdJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x06regionR\x05realmR\forganizationBkZLgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1;microv1\xaa\x02\x1aWorldEngine.Proto.Micro.V1b\x06proto3"
 
 var (
 	file_worldengine_micro_v1_service_proto_rawDescOnce sync.Once

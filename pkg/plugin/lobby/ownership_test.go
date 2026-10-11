@@ -62,7 +62,7 @@ func newOwnershipWorldWithSetup(t *testing.T, setup func(*cardinal.World)) *owne
 	t.Helper()
 	debug := false
 	world, err := cardinal.NewWorld(cardinal.WorldOptions{
-		Region: "local", Organization: "lobby-test", Project: "lobby-test", ShardID: "0",
+		Project: "lobby-test", ShardID: "0",
 		TickRate: 1, SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate: 1_000_000, Debug: &debug,
 	})
@@ -208,7 +208,7 @@ func TestPlayerCommandsFromShardsAreDropped(t *testing.T) {
 	w := newOwnershipWorld(t, lobby.Config{
 		LobbyPresets: map[string][]lobby.TeamConfig{"solo": {{TeamID: "solo", MaxPlayers: 1}}},
 	})
-	shard := "local.world.org.project.other"
+	shard := "project.other"
 	w.sendFromShard(t, shard, lobby.CreateLobbyCommand{RequestID: "from-shard", Preset: "solo"})
 	w.tick(100)
 	assert.Empty(t, w.lobbies())

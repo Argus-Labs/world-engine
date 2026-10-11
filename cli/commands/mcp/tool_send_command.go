@@ -26,7 +26,6 @@ type SendCommandInput struct {
 	ShardURL     string         `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved (per instance) from the cluster when omitted. When set, the operator is not contacted: pair it with instance_name (the exact instance, e.g. 'game-2') when targeting a non-default pod so the request address matches the shard. Also pass organization/project to skip the cluster lookup entirely; otherwise they're still auto-resolved via a cluster call."`
 	OperatorURL  string         `json:"operator_url,omitempty"  jsonschema_description:"cardinal-operator URL used to resolve instance_name (defaults to http://localhost:8090 for local dev)"`
 	PlayerID     string         `json:"player_id,omitempty"     jsonschema_description:"Player ID for dev auth (defaults to mcp-dev-player)"`
-	Region       string         `json:"region,omitempty"        jsonschema_description:"Service address region (defaults to us-west1 for local dev)"`
 }
 
 // SendCommandOutput is the structured output for the send_command tool.
@@ -80,7 +79,7 @@ func sendCommandHandler(
 	// shard's first instance, preserving prior behavior; each instance has its own
 	// Traefik route and its own ECS state.
 	target, err := resolveShardTarget(
-		ctx, args.OperatorURL, args.ShardID, args.InstanceName, args.ShardURL, org, project, args.Region,
+		ctx, args.OperatorURL, args.ShardID, args.InstanceName, args.ShardURL, org, project,
 	)
 	if err != nil {
 		return SendCommandOutput{}, err
@@ -144,9 +143,6 @@ func (s *SendCommandInput) validate() error {
 	// Use defaults for optional fields (ShardURL is resolved in the handler).
 	if s.PlayerID == "" {
 		s.PlayerID = defaultDevPlayerID
-	}
-	if s.Region == "" {
-		s.Region = defaultRegion
 	}
 	if s.Payload == nil {
 		s.Payload = make(map[string]any)

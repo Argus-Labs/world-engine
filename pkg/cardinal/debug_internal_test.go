@@ -191,8 +191,6 @@ func newDebugStateWorld(t *testing.T) *World {
 
 	debug := true
 	w, err := NewWorld(WorldOptions{
-		Region:              "debug-state",
-		Organization:        "debug-state",
 		Project:             "debug-state",
 		ShardID:             "0",
 		TickRate:            60,
@@ -220,8 +218,6 @@ func TestResetClearsSystemEventsThroughShippedPath(t *testing.T) {
 
 	debug := true
 	w, err := NewWorld(WorldOptions{
-		Region:              "reset-events",
-		Organization:        "reset-events",
 		Project:             "reset-events",
 		ShardID:             "0",
 		TickRate:            60,

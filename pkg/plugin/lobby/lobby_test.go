@@ -18,10 +18,8 @@ type testOrchestratorSystem struct{}
 
 func (*testOrchestratorSystem) Run(w *cardinal.World) {
 	self := cardinal.OtherWorld{
-		Region:       "local",
-		Organization: "organization",
-		Project:      "project",
-		ShardID:      "lobby",
+		Project: "project",
+		ShardID: "lobby",
 	}
 	for refs := range w.Contains[struct{ Lobby lobby.Component }]().Iter() {
 		lob := refs.Get[lobby.Component]()
@@ -32,10 +30,8 @@ func (*testOrchestratorSystem) Run(w *cardinal.World) {
 			LobbyID:   lob.ID,
 			RequestID: lob.Session.PendingRequestID,
 			GameWorld: lobby.ShardAddress{
-				Region:       "local",
-				Organization: "organization",
-				Project:      "project",
-				ShardID:      "game-test-1",
+				Project: "project",
+				ShardID: "game-test-1",
 			},
 		})
 	}
@@ -53,8 +49,6 @@ func TestE2E(t *testing.T) {
 		debug := false
 
 		w, err := cardinal.NewWorld(cardinal.WorldOptions{
-			Region:              "local",
-			Organization:        "organization",
 			Project:             "project",
 			ShardID:             "lobby",
 			TickRate:            1,

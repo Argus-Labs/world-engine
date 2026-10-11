@@ -14,44 +14,29 @@ option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine
 // The only exception being <endpoint> which can contain . as a delimiter to leverage NATS routing.
 //
 // The ServiceAddress convention is as follows:
-// <region>.<organization>.<project>.<service_id>.<endpoint>
+// <project>.<service_id>.<endpoint>
 //
-// <region> identifies the deployment region (e.g., "us-west1").
-//
-// <organization> represents the entity that owns the project (e.g., "argus").
-//
-// <project> is an arbitrary token to related services together (e.g., "platform", "game-rampage").
+// <project> groups related services (e.g., "rampage").
 //
 // <service_id> is a unique identifier for the service instance. It must be unique within the project.
+// A deployment that runs a service in several places puts the place in the ID (e.g., "gameplay-usw1-3").
 //
 // <endpoint> is an arbitrary token that identifies specific functionality within a service.
 // An endpoint can contain . as a delimiter to leverage NATS routing.
 //
 // Examples:
-// - us-west1.argus.rampage.gameplay-3.ping
-// - us-west1.argus.rampage.gameplay-3.isc.plat_result.platform
+// - rampage.gameplay-usw1-3.ping
+// - rampage.gameplay-usw1-3.isc.plat_result.rampage.platform
 message ServiceAddress {
-  reserved 2;
-  reserved "realm";
-
-  // The deployment region (e.g., "us-west1").
-  string region = 1 [(buf.validate.field).string = {
-    min_len: 1
-    pattern: "^[a-z0-9-]+$"
-  }];
-
-  // The organization that owns the project (e.g., "argus").
-  // Must contain only lowercase alphanumeric characters, hyphens, or underscores.
-  string organization = 3 [(buf.validate.field).string = {
-    min_len: 1
-    pattern: "^[a-z0-9_-]+$"
-  }];
+  reserved 1, 2, 3;
+  reserved "region", "realm", "organization";
 
   // The project name that groups related services (e.g., "platform", "rampage").
-  // Must contain only lowercase alphanumeric characters, hyphens, or underscores.
+  // Must contain only lowercase alphanumeric characters or hyphens. It has no underscore, so names
+  // that join it to the service ID with one (e.g. snapshot buckets) stay unambiguous.
   string project = 4 [(buf.validate.field).string = {
     min_len: 1
-    pattern: "^[a-z0-9_-]+$"
+    pattern: "^[a-z0-9-]+$"
   }];
 
   // The unique identifier for the service instance within the project.

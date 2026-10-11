@@ -77,7 +77,7 @@ func TestTestWorld_EventsAreTheLastStepsOutput(t *testing.T) {
 func TestTestWorld_EncodesOutputsAsPublishingDoes(t *testing.T) {
 	t.Parallel()
 
-	lobby := cardinal.OtherWorld{Region: "us", Organization: "org", Project: "proj", ShardID: "lobby"}
+	lobby := cardinal.OtherWorld{Project: "proj", ShardID: "lobby"}
 	for _, tc := range []struct {
 		name string
 		send func(w *cardinal.World)
@@ -97,7 +97,7 @@ func TestTestWorld_EncodesOutputsAsPublishingDoes(t *testing.T) {
 func TestTestWorld_OutputsAreWhatAReceiverGets(t *testing.T) {
 	t.Parallel()
 
-	lobby := cardinal.OtherWorld{Region: "us", Organization: "org", Project: "proj", ShardID: "lobby"}
+	lobby := cardinal.OtherWorld{Project: "proj", ShardID: "lobby"}
 	w := cardinal.NewTestWorld(t, func(w *cardinal.World) { w.RegisterEvent[list]() })
 
 	values := []int{1}
@@ -115,7 +115,7 @@ func TestTestWorld_OutputsAreWhatAReceiverGets(t *testing.T) {
 func TestTestWorld_ShardCommandsAreTheLastStepsOutput(t *testing.T) {
 	t.Parallel()
 
-	lobby := cardinal.OtherWorld{Region: "us", Organization: "org", Project: "proj", ShardID: "lobby"}
+	lobby := cardinal.OtherWorld{Project: "proj", ShardID: "lobby"}
 	w := cardinal.NewTestWorld(t, func(*cardinal.World) {})
 
 	w.RunSystem(&sendToShard{to: lobby})
@@ -216,7 +216,7 @@ func TestTestWorld_Misuse(t *testing.T) {
 func TestRequireDeterministic_PassesAScriptThatReplays(t *testing.T) {
 	t.Parallel()
 
-	lobby := cardinal.OtherWorld{Region: "us", Organization: "org", Project: "proj", ShardID: "lobby"}
+	lobby := cardinal.OtherWorld{Project: "proj", ShardID: "lobby"}
 	cardinal.RequireDeterministic(t, func(w *cardinal.World) {
 		w.RegisterComponent[testutils.ComponentA]()
 		w.RegisterComponent[testutils.ComponentB]()
@@ -244,7 +244,7 @@ func TestRequireDeterministic_PassesAScriptThatReplays(t *testing.T) {
 func TestRequireDeterministic_NamesTheFirstStepThatDiffers(t *testing.T) {
 	t.Parallel()
 
-	lobby := cardinal.OtherWorld{Region: "us", Organization: "org", Project: "proj", ShardID: "lobby"}
+	lobby := cardinal.OtherWorld{Project: "proj", ShardID: "lobby"}
 	tests := []struct {
 		differs string
 		system  func(w *cardinal.World, built int)

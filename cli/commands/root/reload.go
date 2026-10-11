@@ -220,7 +220,7 @@ func purgeAndRedeploy(
 	var errs []error
 	for _, instanceID := range instanceIDs {
 		sess.UpsertRow(shardID, shardID, fmt.Sprintf("wiping state for %s", instanceID), phasebox.Active)
-		if err := cli.PurgeShardState(ctx, cfg.WorldToml.Organization, cfg.WorldToml.Project, instanceID); err != nil {
+		if err := cli.PurgeShardState(ctx, cfg.WorldToml.Project, instanceID); err != nil {
 			errs = append(errs, eris.Wrapf(err, "wipe state for shard %s", instanceID))
 		}
 	}

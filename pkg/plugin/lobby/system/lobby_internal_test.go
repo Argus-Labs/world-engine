@@ -4,7 +4,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/argus-labs/world-engine/pkg/cardinal"
 	"github.com/argus-labs/world-engine/pkg/plugin/lobby/component"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -309,40 +308,6 @@ func TestNotifySessionEndCommand(t *testing.T) {
 
 	assert.Equal(t, "lobby-123", cmd.LobbyID)
 	assert.Equal(t, "lobby_notify_session_end", cmd.Name())
-}
-
-func TestGameWorld(t *testing.T) {
-	t.Parallel()
-
-	gameWorld := cardinal.OtherWorld{
-		Region:       "us-west",
-		Organization: "argus-labs",
-		Project:      "my-game",
-		ShardID:      "game-shard-1",
-	}
-
-	assert.Equal(t, "us-west", gameWorld.Region)
-	assert.Equal(t, "argus-labs", gameWorld.Organization)
-	assert.Equal(t, "my-game", gameWorld.Project)
-	assert.Equal(t, "game-shard-1", gameWorld.ShardID)
-}
-
-func TestLobbyComponent_WithGameWorld(t *testing.T) {
-	t.Parallel()
-
-	lobby := component.LobbyComponent{
-		GameWorld: component.ShardAddress{
-			Region:  "eu-central",
-			ShardID: "game-eu-1",
-		},
-		Session: component.Session{
-			State: component.SessionStateIdle,
-		},
-	}
-
-	assert.Equal(t, "game-eu-1", lobby.GameWorld.ShardID)
-	assert.Equal(t, "eu-central", lobby.GameWorld.Region)
-	assert.Equal(t, component.SessionStateIdle, lobby.Session.State)
 }
 
 func TestGetPlayerCommand(t *testing.T) {
@@ -764,10 +729,10 @@ func TestConfig_AssignmentFields(t *testing.T) {
 	// reports its own address). MaxAllocationTimeout bounds the
 	// pending-allocation lifetime.
 	cfg := Config{
-		AssignmentAuthority:  "region.world.org.project.lobby",
+		AssignmentAuthority:  "rampage.orchestrator",
 		MaxAllocationTimeout: 300,
 	}
-	assert.Equal(t, "region.world.org.project.lobby", cfg.AssignmentAuthority)
+	assert.Equal(t, "rampage.orchestrator", cfg.AssignmentAuthority)
 	assert.Equal(t, int64(300), cfg.MaxAllocationTimeout)
 
 	// MaxAllocationTimeout <= 0 is the documented "disabled" sentinel.

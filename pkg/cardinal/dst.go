@@ -193,8 +193,6 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	const dstNamespace = "dst"
 	debug := false
 	w, err := NewWorld(WorldOptions{
-		Region:              dstNamespace,
-		Organization:        dstNamespace,
 		Project:             dstNamespace,
 		ShardID:             "0",
 		TickRate:            1,

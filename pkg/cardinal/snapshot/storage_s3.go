@@ -59,10 +59,8 @@ func NewS3Storage(opts S3StorageOptions) (*S3Storage, error) {
 		return nil, eris.Wrap(err, "invalid options passed")
 	}
 
-	// Build the S3 key. Region scoping is handled at the bucket level (one bucket per region),
-	// so the key only needs org/project/serviceId to be unique within a region.
-	objectKey := fmt.Sprintf("%s/%s/%s/%s",
-		opts.Address.GetOrganization(),
+	// Build the S3 key. The project and service ID name one shard.
+	objectKey := fmt.Sprintf("%s/%s/%s",
 		opts.Address.GetProject(),
 		opts.Address.GetServiceId(),
 		defaultS3ObjectKey,

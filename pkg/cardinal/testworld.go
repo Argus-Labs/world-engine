@@ -95,7 +95,7 @@ func NewTestWorld(t testing.TB, setup func(w *World)) *TestWorld {
 		commands: command.NewManager(),
 		events:   event.NewManager(1024),
 		// SendToShard stamps the sender's address on every command, so the world needs one.
-		address:         micro.GetAddress("test", "test", "test", "test"),
+		address:         micro.GetAddress("test", "test"),
 		snapshotStorage: storage,
 		snapshotWriter:  snapshot.NewSyncWriter(storage, tel.GetLogger("snapshot")),
 		traceCtx:        context.Background(),
@@ -215,10 +215,8 @@ func (w *TestWorld) ShardCommands[T Command]() []ShardCommand[T] {
 		}
 		sent = append(sent, ShardCommand[T]{
 			To: OtherWorld{
-				Region:       cmd.Address.GetRegion(),
-				Organization: cmd.Address.GetOrganization(),
-				Project:      cmd.Address.GetProject(),
-				ShardID:      cmd.Address.GetServiceId(),
+				Project: cmd.Address.GetProject(),
+				ShardID: cmd.Address.GetServiceId(),
 			},
 			Payload: payload,
 		})

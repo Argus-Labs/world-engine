@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/micro/v1/service.proto.
  */
 export const file_worldengine_micro_v1_service: GenFile = /*@__PURE__*/
-  fileDesc("CiJ3b3JsZGVuZ2luZS9taWNyby92MS9zZXJ2aWNlLnByb3RvEhR3b3JsZGVuZ2luZS5taWNyby52MSLHAQoOU2VydmljZUFkZHJlc3MSJQoGcmVnaW9uGAEgASgJQhW6SBJyEBABMgxeW2EtejAtOS1dKyQSLAoMb3JnYW5pemF0aW9uGAMgASgJQha6SBNyERABMg1eW2EtejAtOV8tXSskEicKB3Byb2plY3QYBCABKAlCFrpIE3IREAEyDV5bYS16MC05Xy1dKyQSKgoKc2VydmljZV9pZBgFIAEoCUIWukgTchEQATINXlthLXowLTlfLV0rJEoECAIQA1IFcmVhbG1Ca1pMZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRlbmdpbmUvbWljcm8vdjE7bWljcm92MaoCGldvcmxkRW5naW5lLlByb3RvLk1pY3JvLlYxYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("CiJ3b3JsZGVuZ2luZS9taWNyby92MS9zZXJ2aWNlLnByb3RvEhR3b3JsZGVuZ2luZS5taWNyby52MSKTAQoOU2VydmljZUFkZHJlc3MSJgoHcHJvamVjdBgEIAEoCUIVukgSchAQATIMXlthLXowLTktXSskEioKCnNlcnZpY2VfaWQYBSABKAlCFrpIE3IREAEyDV5bYS16MC05Xy1dKyRKBAgBEAJKBAgCEANKBAgDEARSBnJlZ2lvblIFcmVhbG1SDG9yZ2FuaXphdGlvbkJrWkxnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9taWNyby92MTttaWNyb3YxqgIaV29ybGRFbmdpbmUuUHJvdG8uTWljcm8uVjFiBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * ServiceAddress is used to identify a unique service instance and corresponds to its NATS subject.
@@ -21,44 +21,27 @@ export const file_worldengine_micro_v1_service: GenFile = /*@__PURE__*/
  * The only exception being <endpoint> which can contain . as a delimiter to leverage NATS routing.
  *
  * The ServiceAddress convention is as follows:
- * <region>.<organization>.<project>.<service_id>.<endpoint>
+ * <project>.<service_id>.<endpoint>
  *
- * <region> identifies the deployment region (e.g., "us-west1").
- *
- * <organization> represents the entity that owns the project (e.g., "argus").
- *
- * <project> is an arbitrary token to related services together (e.g., "platform", "game-rampage").
+ * <project> groups related services (e.g., "rampage").
  *
  * <service_id> is a unique identifier for the service instance. It must be unique within the project.
+ * A deployment that runs a service in several places puts the place in the ID (e.g., "gameplay-usw1-3").
  *
  * <endpoint> is an arbitrary token that identifies specific functionality within a service.
  * An endpoint can contain . as a delimiter to leverage NATS routing.
  *
  * Examples:
- * - us-west1.argus.rampage.gameplay-3.ping
- * - us-west1.argus.rampage.gameplay-3.isc.plat_result.platform
+ * - rampage.gameplay-usw1-3.ping
+ * - rampage.gameplay-usw1-3.isc.plat_result.rampage.platform
  *
  * @generated from message worldengine.micro.v1.ServiceAddress
  */
 export type ServiceAddress = Message<"worldengine.micro.v1.ServiceAddress"> & {
   /**
-   * The deployment region (e.g., "us-west1").
-   *
-   * @generated from field: string region = 1;
-   */
-  region: string;
-
-  /**
-   * The organization that owns the project (e.g., "argus").
-   * Must contain only lowercase alphanumeric characters, hyphens, or underscores.
-   *
-   * @generated from field: string organization = 3;
-   */
-  organization: string;
-
-  /**
    * The project name that groups related services (e.g., "platform", "rampage").
-   * Must contain only lowercase alphanumeric characters, hyphens, or underscores.
+   * Must contain only lowercase alphanumeric characters or hyphens. It has no underscore, so names
+   * that join it to the service ID with one (e.g. snapshot buckets) stay unambiguous.
    *
    * @generated from field: string project = 4;
    */

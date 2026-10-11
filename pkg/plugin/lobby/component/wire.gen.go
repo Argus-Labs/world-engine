@@ -305,8 +305,6 @@ func (c Session) AppendWire(b []byte) []byte {
 
 func (c ShardAddress) ToProto() *pbcomponent.ShardAddress {
 	p := &pbcomponent.ShardAddress{}
-	p.Region = string(c.Region)
-	p.Organization = string(c.Organization)
 	p.Project = string(c.Project)
 	p.ShardID = string(c.ShardID)
 	return p
@@ -316,8 +314,6 @@ func (c ShardAddress) FromProto(p *pbcomponent.ShardAddress) ShardAddress {
 	if p == nil {
 		return c
 	}
-	c.Region = string(p.Region)
-	c.Organization = string(p.Organization)
 	c.Project = string(p.Project)
 	c.ShardID = string(p.ShardID)
 	return c
@@ -325,36 +321,22 @@ func (c ShardAddress) FromProto(p *pbcomponent.ShardAddress) ShardAddress {
 
 func (c ShardAddress) SizeWire() int {
 	n := 0
-	if len(c.Region) > 0 {
-		n += protowire.SizeTag(1) + wireStringSize("ShardAddress.Region", string(c.Region))
-	}
-	if len(c.Organization) > 0 {
-		n += protowire.SizeTag(2) + wireStringSize("ShardAddress.Organization", string(c.Organization))
-	}
 	if len(c.Project) > 0 {
-		n += protowire.SizeTag(3) + wireStringSize("ShardAddress.Project", string(c.Project))
+		n += protowire.SizeTag(1) + wireStringSize("ShardAddress.Project", string(c.Project))
 	}
 	if len(c.ShardID) > 0 {
-		n += protowire.SizeTag(4) + wireStringSize("ShardAddress.ShardID", string(c.ShardID))
+		n += protowire.SizeTag(2) + wireStringSize("ShardAddress.ShardID", string(c.ShardID))
 	}
 	return n
 }
 
 func (c ShardAddress) AppendWire(b []byte) []byte {
-	if len(c.Region) > 0 {
-		b = protowire.AppendTag(b, 1, protowire.BytesType)
-		b = protowire.AppendString(b, string(c.Region))
-	}
-	if len(c.Organization) > 0 {
-		b = protowire.AppendTag(b, 2, protowire.BytesType)
-		b = protowire.AppendString(b, string(c.Organization))
-	}
 	if len(c.Project) > 0 {
-		b = protowire.AppendTag(b, 3, protowire.BytesType)
+		b = protowire.AppendTag(b, 1, protowire.BytesType)
 		b = protowire.AppendString(b, string(c.Project))
 	}
 	if len(c.ShardID) > 0 {
-		b = protowire.AppendTag(b, 4, protowire.BytesType)
+		b = protowire.AppendTag(b, 2, protowire.BytesType)
 		b = protowire.AppendString(b, string(c.ShardID))
 	}
 	return b

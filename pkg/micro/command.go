@@ -23,15 +23,15 @@ import (
 // no envelope, so any NATS client in any language can send or serve one:
 //
 //	subject  <to>.isc.<name>.<from>
-//	         us-west1.argus.rampage.gameplay-3.isc.plat_result.us-west1.argus.rampage.platform
+//	         rampage.gameplay-usw1-3.isc.plat_result.rampage.platform
 //	body     the command's protobuf encoding, verbatim; empty when no field is set
 //	headers  W3C trace context (traceparent, tracestate) when the sender is traced
 //	reply    no headers: the receiver accepted the command
 //	         Nats-Service-Error-Code (a gRPC code number) and Nats-Service-Error: it rejected it
 //
-// The sender's address is the last four subject tokens, which the NATS server can enforce: allow each
-// service to publish only to "*.*.*.*.isc.*.<its own address>". With JWT auth, one template does it
-// for every service, "*.*.*.*.isc.*.{{name()}}", if each user's name is its service address. Without
+// The sender's address is the last two subject tokens, which the NATS server can enforce: allow each
+// service to publish only to "*.*.isc.*.<its own address>". With JWT auth, one template does it for
+// every service, "*.*.isc.*.{{name()}}", if each user's name is its service address. Without
 // such a permission the sender is only what the publisher claims.
 //
 // Replies need care, because a response permission lets a service publish to whatever reply subject a

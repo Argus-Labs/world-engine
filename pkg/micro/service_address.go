@@ -11,22 +11,19 @@ import (
 // This file contains the convention for naming service addresses for all Worldbase related services.
 //
 // The ServiceAddress convention is as follows:
-// <region>.<organization>.<project>.<service_id>.<endpoint>
+// <project>.<service_id>.<endpoint>
 //
-// <region> identifies the deployment region (e.g., "us-west1").
-//
-// <organization> represents the entity that owns the project (e.g., "argus").
-//
-// <project> is an arbitrary token to related services together (e.g., "platform", "game-rampage").
+// <project> groups related services (e.g., "rampage").
 //
 // <service_id> is a unique identifier for the service instance. It must be unique within the project.
+// A deployment that runs a service in several places puts the place in the ID (e.g., "gameplay-usw1-3").
 //
 // <endpoint> is an arbitrary token that identifies specific functionality within a service.
 // An endpoint can contain . as a delimiter to leverage NATS routing.
 //
 // Examples:
-// - us-west1.argus.rampage.gameplay-3.ping
-// - us-west1.argus.rampage.gameplay-3.isc.plat_result.platform
+// - rampage.gameplay-usw1-3.ping
+// - rampage.gameplay-usw1-3.isc.plat_result.rampage.platform
 
 // ServiceID represents a unique identifier for a service.
 type ServiceID = string
@@ -36,14 +33,14 @@ var (
 )
 
 // addressTokens is the number of subject tokens in a service address.
-const addressTokens = 4
+const addressTokens = 2
 
 // ServiceAddress is an alias to the protobuf-generated ServiceAddress type.
 type ServiceAddress = microv1.ServiceAddress
 
 // String returns the string representation of a ServiceAddress without the endpoint.
 func String(s *ServiceAddress) string {
-	return fmt.Sprintf("%s.%s.%s.%s", s.GetRegion(), s.GetOrganization(), s.GetProject(), s.GetServiceId())
+	return fmt.Sprintf("%s.%s", s.GetProject(), s.GetServiceId())
 }
 
 // Endpoint returns the full service address including the endpoint.
@@ -52,26 +49,22 @@ func Endpoint(s *ServiceAddress, endpoint string) string {
 }
 
 // ParseAddress parses a string into a ServiceAddress.
-// The format should be "<region>.<organization>.<project>.<service_id>".
+// The format should be "<project>.<service_id>".
 func ParseAddress(address string) (*ServiceAddress, error) {
 	parts := strings.Split(address, ".")
 	if len(parts) != addressTokens {
 		return nil, eris.Wrapf(ErrInvalidAddress, "address must have %d parts but got %d", addressTokens, len(parts))
 	}
 	return &ServiceAddress{
-		Region:       parts[0],
-		Organization: parts[1],
-		Project:      parts[2],
-		ServiceId:    parts[3],
+		Project:   parts[0],
+		ServiceId: parts[1],
 	}, nil
 }
 
-// GetAddress creates a new ServiceAddress with the given region, organization, project, and service ID.
-func GetAddress(region, organization, project string, serviceID ServiceID) *ServiceAddress {
+// GetAddress creates a new ServiceAddress with the given project and service ID.
+func GetAddress(project string, serviceID ServiceID) *ServiceAddress {
 	return &ServiceAddress{
-		Region:       region,
-		Organization: organization,
-		Project:      project,
-		ServiceId:    serviceID,
+		Project:   project,
+		ServiceId: serviceID,
 	}
 }

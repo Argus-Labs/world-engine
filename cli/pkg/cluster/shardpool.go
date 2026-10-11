@@ -8,9 +8,8 @@ import (
 	"github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
-// DefaultRegion is the region for all local (k3d) shards + [[services]]. It
-// matches the docker backend so the same game-client config reaches both.
-// Override a single service via [[services.env]] CARDINAL_REGION.
+// DefaultRegion fills the ShardPool CR's required region field. Shards no
+// longer read it; the operator still requires it for its ingress host.
 const DefaultRegion = "us-west1"
 
 // ShardPool CR API identity — single source of truth for shardPoolYAML's

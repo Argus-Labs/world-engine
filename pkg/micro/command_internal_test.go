@@ -19,9 +19,9 @@ import (
 func TestParseCommandSubject(t *testing.T) {
 	t.Parallel()
 
-	gameplay := GetAddress("us-west1", "argus", "rampage", "gameplay-3")
-	platform := GetAddress("us-west1", "argus", "rampage", "platform")
-	const subject = "us-west1.argus.rampage.gameplay-3.isc.plat_result.us-west1.argus.rampage.platform"
+	gameplay := GetAddress("rampage", "gameplay-usw1-3")
+	platform := GetAddress("rampage", "platform")
+	const subject = "rampage.gameplay-usw1-3.isc.plat_result.rampage.platform"
 
 	require.Equal(t, subject, CommandRoute{To: gameplay, Name: "plat_result", From: platform}.Subject())
 
@@ -32,16 +32,16 @@ func TestParseCommandSubject(t *testing.T) {
 	assert.True(t, proto.Equal(platform, route.From), "from = %v", route.From)
 
 	for _, bad := range []string{
-		// The sender has three tokens.
-		"us-west1.argus.rampage.gameplay-3.isc.plat_result.us-west1.argus.rampage",
+		// The sender has one token.
+		"rampage.gameplay-usw1-3.isc.plat_result.rampage",
 		// The old "command" endpoint.
-		"us-west1.argus.rampage.gameplay-3.command.plat_result.us-west1.argus.rampage.platform",
-		// A sender with five tokens (the old realm-bearing address).
-		"us-west1.argus.rampage.gameplay-3.isc.plat_result.us-west1.world.argus.rampage.platform",
+		"rampage.gameplay-usw1-3.command.plat_result.rampage.platform",
+		// A sender with four tokens (the old region and organization address).
+		"rampage.gameplay-usw1-3.isc.plat_result.us-west1.argus.rampage.platform",
 		// A name that is not one subject token's worth of [a-zA-Z0-9_-].
-		"us-west1.argus.rampage.gameplay-3.isc.plat$result.us-west1.argus.rampage.platform",
+		"rampage.gameplay-usw1-3.isc.plat$result.rampage.platform",
 		// An uppercase service ID.
-		"us-west1.argus.rampage.gameplay-3.isc.plat_result.us-west1.argus.rampage.Platform",
+		"rampage.gameplay-usw1-3.isc.plat_result.rampage.Platform",
 	} {
 		_, err := ParseCommandSubject(bad)
 		assert.Error(t, err, bad)
@@ -53,7 +53,7 @@ func TestCommand_RoundTrip(t *testing.T) {
 	prng := testutils.NewRand(t)
 
 	svc, client := newTestService(t, prng)
-	from := GetAddress("us-west1", "argus", "rampage", "sender-"+strconv.FormatUint(prng.Uint64(), 36))
+	from := GetAddress("rampage", "sender-"+strconv.FormatUint(prng.Uint64(), 36))
 	received := make(chan Command, 8)
 	require.NoError(t, svc.AddCommand("greet", func(_ context.Context, cmd Command) error {
 		received <- cmd
@@ -80,7 +80,7 @@ func TestCommand_RoundTrip(t *testing.T) {
 
 		raw, err := wire.NextMsgWithContext(ctx)
 		require.NoError(t, err)
-		assert.Equal(t, String(svc.Address)+".isc.greet.us-west1.argus.rampage."+from.GetServiceId(), raw.Subject)
+		assert.Equal(t, String(svc.Address)+".isc.greet.rampage."+from.GetServiceId(), raw.Subject)
 		assert.Equal(t, []byte{0x08, 0x2a}, raw.Data)
 
 		cmd := <-received
@@ -109,7 +109,7 @@ func TestCommand_RoundTrip(t *testing.T) {
 	{
 		reply, err := client.RequestWithContext(
 			ctx,
-			String(svc.Address)+".isc.greet.us-west1.argus.rampage",
+			String(svc.Address)+".isc.greet.rampage",
 			[]byte("x"),
 		)
 		require.NoError(t, err)
@@ -139,8 +139,8 @@ func TestCommand_RoundTrip(t *testing.T) {
 
 	// Names must be one subject token, or one subscription would overlap another.
 	{
-		require.Error(t, svc.AddCommand("greet.us-west1", func(context.Context, Command) error { return nil }))
-		require.Error(t, client.SendCommand(ctx, from, svc.Address, "greet.us-west1", nil))
+		require.Error(t, svc.AddCommand("greet.rampage", func(context.Context, Command) error { return nil }))
+		require.Error(t, client.SendCommand(ctx, from, svc.Address, "greet.rampage", nil))
 	}
 
 	// A name nobody serves has no responders.

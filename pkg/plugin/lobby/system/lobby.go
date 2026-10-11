@@ -520,7 +520,7 @@ func (NotifySessionEndCommand) Name() string { return "lobby_notify_session_end"
 // lobby writes GameWorld directly onto the lobby component, transitions
 // to SessionStateInSession, and dispatches NotifySessionStartCommand.
 // The orchestrator is responsible for providing a complete GameWorld
-// address (Region, Organization, Project, ShardID).
+// address (Project, ShardID).
 //
 // If GameWorld.ShardID is empty, the assignment is treated as a failure:
 // the lobby returns to SessionStateIdle and a failure StartSessionResult

@@ -120,7 +120,7 @@ func reloadShards(ctx context.Context, cfg worldtoml.Config, deployOpts cluster.
 			// failure IS fatal: redeploying over stale snapshots would resume the
 			// old tick — the opposite of the fresh start asked for.
 			for _, instance := range shardInstances(cfg, shard.ID) {
-				if err := cli.PurgeShardState(ctx, cfg.Organization, cfg.Project, instance); err != nil {
+				if err := cli.PurgeShardState(ctx, cfg.Project, instance); err != nil {
 					return eris.Wrapf(err, "failed to wipe state for %q", instance)
 				}
 			}

@@ -20,17 +20,15 @@ func TestSender(t *testing.T) {
 	assert.Equal(t, "alice", player.ID())
 
 	shard := command.ShardSender(&microv1.ServiceAddress{
-		Region:       "us",
-		Organization: "org",
-		Project:      "proj",
-		ServiceId:    "lobby",
+		Project:   "proj",
+		ServiceId: "lobby",
 	})
 	address, ok := shard.Shard()
-	assert.Equal(t, "us.org.proj.lobby", address)
+	assert.Equal(t, "proj.lobby", address)
 	assert.True(t, ok)
 	_, ok = shard.Player()
 	assert.False(t, ok)
-	assert.Equal(t, "us.org.proj.lobby", shard.ID())
+	assert.Equal(t, "proj.lobby", shard.ID())
 
 	_, ok = command.Sender{}.Player()
 	assert.False(t, ok, "a zero sender is not a player")

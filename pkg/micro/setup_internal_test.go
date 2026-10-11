@@ -66,8 +66,6 @@ func RandServiceAddress(t *testing.T, rng *rand.Rand) *ServiceAddress {
 	t.Helper()
 
 	return GetAddress(
-		"r-"+strconv.FormatInt(rng.Int64(), 10),
-		"o-"+strconv.FormatInt(rng.Int64(), 10),
 		"p-"+strconv.FormatInt(rng.Int64(), 10),
 		"s-"+strconv.FormatInt(rng.Int64(), 10),
 	)
