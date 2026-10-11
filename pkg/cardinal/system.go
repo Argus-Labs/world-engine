@@ -82,7 +82,7 @@ func (c CommandContext[T]) Sender() string { return c.sender.ID() }
 // Player returns the ID of the player who sent the command, or false if a shard sent it.
 func (c CommandContext[T]) Player() (string, bool) { return c.sender.Player() }
 
-// Shard returns the sending shard's address ("region.realm.org.project.shard"), or false if a
+// Shard returns the sending shard's address ("region.org.project.shard"), or false if a
 // player sent it.
 func (c CommandContext[T]) Shard() (string, bool) { return c.sender.Shard() }
 

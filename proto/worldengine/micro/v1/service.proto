@@ -14,13 +14,9 @@ option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine
 // The only exception being <endpoint> which can contain . as a delimiter to leverage NATS routing.
 //
 // The ServiceAddress convention is as follows:
-// <region>.<realm>.<organization>.<project>.<service_id>.<endpoint>
+// <region>.<organization>.<project>.<service_id>.<endpoint>
 //
 // <region> identifies the deployment region (e.g., "us-west1").
-//
-// <realm> is one of the following:
-// - internal: Reserved for internal services
-// - world: Publicly accessible services that is a part of Worldbase network
 //
 // <organization> represents the entity that owns the project (e.g., "argus").
 //
@@ -32,30 +28,16 @@ option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine
 // An endpoint can contain . as a delimiter to leverage NATS routing.
 //
 // Examples:
-// - us-west1.internal.argus.platform.gateway-us-west1.micro.ping
-// - us-west1.world.argus.rampage.lobby-1.shard.message.player.connect
+// - us-west1.argus.rampage.gameplay-3.ping
+// - us-west1.argus.rampage.gameplay-3.isc.plat_result.platform
 message ServiceAddress {
-  // Realm represents the access scope of the service.
-  enum Realm {
-    // Unspecified realm, should not be used.
-    REALM_UNSPECIFIED = 0;
+  reserved 2;
+  reserved "realm";
 
-    // Reserved for internal services
-    REALM_INTERNAL = 1;
-
-    // Publicly accessible services that are part of Worldbase network.
-    REALM_WORLD = 2;
-  }
-
+  // The deployment region (e.g., "us-west1").
   string region = 1 [(buf.validate.field).string = {
     min_len: 1
     pattern: "^[a-z0-9-]+$"
-  }];
-
-  // The realm of the service.
-  Realm realm = 2 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0] /* Disallow REALM_UNSPECIFIED */
   }];
 
   // The organization that owns the project (e.g., "argus").

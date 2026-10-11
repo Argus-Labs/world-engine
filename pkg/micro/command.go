@@ -23,15 +23,15 @@ import (
 // no envelope, so any NATS client in any language can send or serve one:
 //
 //	subject  <to>.isc.<name>.<from>
-//	         us-west1.world.argus.rampage.gameplay-3.isc.plat_result.us-west1.world.argus.rampage.platform
+//	         us-west1.argus.rampage.gameplay-3.isc.plat_result.us-west1.argus.rampage.platform
 //	body     the command's protobuf encoding, verbatim; empty when no field is set
 //	headers  W3C trace context (traceparent, tracestate) when the sender is traced
 //	reply    no headers: the receiver accepted the command
 //	         Nats-Service-Error-Code (a gRPC code number) and Nats-Service-Error: it rejected it
 //
-// The sender's address is the last five subject tokens, which the NATS server can enforce: allow each
-// service to publish only to "*.*.*.*.*.isc.*.<its own address>". With JWT auth, one template does it
-// for every service, "*.*.*.*.*.isc.*.{{name()}}", if each user's name is its service address. Without
+// The sender's address is the last four subject tokens, which the NATS server can enforce: allow each
+// service to publish only to "*.*.*.*.isc.*.<its own address>". With JWT auth, one template does it
+// for every service, "*.*.*.*.isc.*.{{name()}}", if each user's name is its service address. Without
 // such a permission the sender is only what the publisher claims.
 //
 // Replies need care, because a response permission lets a service publish to whatever reply subject a
@@ -48,8 +48,8 @@ func replyOutsideInbox(msg *nats.Msg) bool {
 // commandEndpoint is the subject token between the receiver's address and the command name.
 const commandEndpoint = "isc"
 
-// commandSubjectTokens is the receiver's five address tokens, "isc", the name, and the sender's five.
-const commandSubjectTokens = 12
+// commandSubjectTokens is the receiver's address, "isc", the name, and the sender's address.
+const commandSubjectTokens = addressTokens + 2 + addressTokens
 
 // commandName is the command name rule iscv1.Command enforces: one subject token.
 var commandName = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,128}$`)
@@ -80,21 +80,23 @@ func (r CommandRoute) Subject() string {
 // ParseCommandSubject reads a command's route from its subject.
 func ParseCommandSubject(subject string) (CommandRoute, error) {
 	tokens := strings.Split(subject, ".")
-	if len(tokens) != commandSubjectTokens || tokens[5] != commandEndpoint || !commandName.MatchString(tokens[6]) {
+	const endpoint, name = addressTokens, addressTokens + 1
+	if len(tokens) != commandSubjectTokens || tokens[endpoint] != commandEndpoint ||
+		!commandName.MatchString(tokens[name]) {
 		return CommandRoute{}, eris.Errorf("not a command subject: %q", subject)
 	}
-	to, err := ParseAddress(strings.Join(tokens[:5], "."))
+	to, err := ParseAddress(strings.Join(tokens[:addressTokens], "."))
 	if err != nil {
 		return CommandRoute{}, eris.Wrap(err, "invalid receiver address")
 	}
-	from, err := ParseAddress(strings.Join(tokens[7:], "."))
+	from, err := ParseAddress(strings.Join(tokens[name+1:], "."))
 	if err != nil {
 		return CommandRoute{}, eris.Wrap(err, "invalid sender address")
 	}
 	if err := protovalidate.Validate(from); err != nil {
 		return CommandRoute{}, eris.Wrap(err, "invalid sender address")
 	}
-	return CommandRoute{To: to, Name: tokens[6], From: from}, nil
+	return CommandRoute{To: to, Name: tokens[name], From: from}, nil
 }
 
 // SendCommand sends a command and waits for the receiver to accept it. The timeout should be set in

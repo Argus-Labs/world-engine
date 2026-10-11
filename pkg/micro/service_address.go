@@ -11,13 +11,9 @@ import (
 // This file contains the convention for naming service addresses for all Worldbase related services.
 //
 // The ServiceAddress convention is as follows:
-// <region>.<realm>.<organization>.<project>.<service_id>.<endpoint>
+// <region>.<organization>.<project>.<service_id>.<endpoint>
 //
 // <region> identifies the deployment region (e.g., "us-west1").
-//
-// <realm> is one of the following:
-// - internal: Reserved for internal services
-// - world: Publicly accessible services that is a part of Worldbase network
 //
 // <organization> represents the entity that owns the project (e.g., "argus").
 //
@@ -29,18 +25,8 @@ import (
 // An endpoint can contain . as a delimiter to leverage NATS routing.
 //
 // Examples:
-// - us-west1.internal.argus.platform.gateway-us-west1.micro.ping
-// - us-west1.world.argus.rampage.lobby-1.shard.message.player.connect
-
-// Realm represents the access scope of the service.
-type Realm = microv1.ServiceAddress_Realm
-
-const (
-	RealmUnspecified = microv1.ServiceAddress_REALM_UNSPECIFIED // Should not be used
-	RealmInternal    = microv1.ServiceAddress_REALM_INTERNAL    // Reserved for internal services
-	RealmWorld       = microv1.ServiceAddress_REALM_WORLD       // Publicly accessible services that are
-	// part of Worldbase network.
-)
+// - us-west1.argus.rampage.gameplay-3.ping
+// - us-west1.argus.rampage.gameplay-3.isc.plat_result.platform
 
 // ServiceID represents a unique identifier for a service.
 type ServiceID = string
@@ -49,44 +35,15 @@ var (
 	ErrInvalidAddress = eris.New("invalid service address format")
 )
 
+// addressTokens is the number of subject tokens in a service address.
+const addressTokens = 4
+
 // ServiceAddress is an alias to the protobuf-generated ServiceAddress type.
 type ServiceAddress = microv1.ServiceAddress
 
 // String returns the string representation of a ServiceAddress without the endpoint.
 func String(s *ServiceAddress) string {
-	return fmt.Sprintf(
-		"%s.%s.%s.%s.%s",
-		s.GetRegion(),
-		realmToString(s.GetRealm()),
-		s.GetOrganization(),
-		s.GetProject(),
-		s.GetServiceId(),
-	)
-}
-
-// realmToString converts a Realm (microv1.ServiceAddress_Realm) to its string representation.
-func realmToString(realm Realm) string {
-	// The protobuf enum name is in the format REALM_X, we want to extract just X and lowercase it
-	enumStr := realm.String()
-	if after, ok := strings.CutPrefix(enumStr, "REALM_"); ok {
-		// Remove "REALM_" prefix and convert to lowercase
-		return strings.ToLower(after)
-	}
-	return "unspecified"
-}
-
-// stringToRealm converts a string to a Realm (microv1.ServiceAddress_Realm).
-func stringToRealm(str string) Realm {
-	// Convert string to uppercase and add REALM_ prefix to match enum name format
-	enumName := "REALM_" + strings.ToUpper(str)
-
-	// Try to find the enum value by name
-	enumValues := microv1.ServiceAddress_Realm_value
-	if val, ok := enumValues[enumName]; ok {
-		return Realm(val)
-	}
-
-	return RealmUnspecified
+	return fmt.Sprintf("%s.%s.%s.%s", s.GetRegion(), s.GetOrganization(), s.GetProject(), s.GetServiceId())
 }
 
 // Endpoint returns the full service address including the endpoint.
@@ -95,32 +52,24 @@ func Endpoint(s *ServiceAddress, endpoint string) string {
 }
 
 // ParseAddress parses a string into a ServiceAddress.
-// The format should be "<region>.<realm>.<organization>.<project>.<service_id>".
+// The format should be "<region>.<organization>.<project>.<service_id>".
 func ParseAddress(address string) (*ServiceAddress, error) {
 	parts := strings.Split(address, ".")
-	if len(parts) != 5 {
-		return nil, eris.Wrapf(ErrInvalidAddress, "address must have 5 parts but got %d", len(parts))
+	if len(parts) != addressTokens {
+		return nil, eris.Wrapf(ErrInvalidAddress, "address must have %d parts but got %d", addressTokens, len(parts))
 	}
-
-	realm := stringToRealm(parts[1])
-	if realm == microv1.ServiceAddress_REALM_UNSPECIFIED {
-		return nil, eris.Wrapf(ErrInvalidAddress, "unknown realm '%s'", parts[1])
-	}
-
 	return &ServiceAddress{
 		Region:       parts[0],
-		Realm:        realm,
-		Organization: parts[2],
-		Project:      parts[3],
-		ServiceId:    parts[4],
+		Organization: parts[1],
+		Project:      parts[2],
+		ServiceId:    parts[3],
 	}, nil
 }
 
-// GetAddress creates a new ServiceAddress with the given realm, organization, project, and service ID.
-func GetAddress(region string, realm Realm, organization, project string, serviceID ServiceID) *ServiceAddress {
+// GetAddress creates a new ServiceAddress with the given region, organization, project, and service ID.
+func GetAddress(region, organization, project string, serviceID ServiceID) *ServiceAddress {
 	return &ServiceAddress{
 		Region:       region,
-		Realm:        realm,
 		Organization: organization,
 		Project:      project,
 		ServiceId:    serviceID,

@@ -19,9 +19,9 @@ import (
 func TestParseCommandSubject(t *testing.T) {
 	t.Parallel()
 
-	gameplay := GetAddress("us-west1", RealmWorld, "argus", "rampage", "gameplay-3")
-	platform := GetAddress("us-west1", RealmWorld, "argus", "rampage", "platform")
-	const subject = "us-west1.world.argus.rampage.gameplay-3.isc.plat_result.us-west1.world.argus.rampage.platform"
+	gameplay := GetAddress("us-west1", "argus", "rampage", "gameplay-3")
+	platform := GetAddress("us-west1", "argus", "rampage", "platform")
+	const subject = "us-west1.argus.rampage.gameplay-3.isc.plat_result.us-west1.argus.rampage.platform"
 
 	require.Equal(t, subject, CommandRoute{To: gameplay, Name: "plat_result", From: platform}.Subject())
 
@@ -32,16 +32,16 @@ func TestParseCommandSubject(t *testing.T) {
 	assert.True(t, proto.Equal(platform, route.From), "from = %v", route.From)
 
 	for _, bad := range []string{
-		// The sender has four tokens.
-		"us-west1.world.argus.rampage.gameplay-3.isc.plat_result.us-west1.world.argus.rampage",
+		// The sender has three tokens.
+		"us-west1.argus.rampage.gameplay-3.isc.plat_result.us-west1.argus.rampage",
 		// The old "command" endpoint.
-		"us-west1.world.argus.rampage.gameplay-3.command.plat_result.us-west1.world.argus.rampage.platform",
-		// An unknown realm.
-		"us-west1.world.argus.rampage.gameplay-3.isc.plat_result.us-west1.nope.argus.rampage.platform",
+		"us-west1.argus.rampage.gameplay-3.command.plat_result.us-west1.argus.rampage.platform",
+		// A sender with five tokens (the old realm-bearing address).
+		"us-west1.argus.rampage.gameplay-3.isc.plat_result.us-west1.world.argus.rampage.platform",
 		// A name that is not one subject token's worth of [a-zA-Z0-9_-].
-		"us-west1.world.argus.rampage.gameplay-3.isc.plat$result.us-west1.world.argus.rampage.platform",
+		"us-west1.argus.rampage.gameplay-3.isc.plat$result.us-west1.argus.rampage.platform",
 		// An uppercase service ID.
-		"us-west1.world.argus.rampage.gameplay-3.isc.plat_result.us-west1.world.argus.rampage.Platform",
+		"us-west1.argus.rampage.gameplay-3.isc.plat_result.us-west1.argus.rampage.Platform",
 	} {
 		_, err := ParseCommandSubject(bad)
 		assert.Error(t, err, bad)
@@ -53,7 +53,7 @@ func TestCommand_RoundTrip(t *testing.T) {
 	prng := testutils.NewRand(t)
 
 	svc, client := newTestService(t, prng)
-	from := GetAddress("us-west1", RealmWorld, "argus", "rampage", "sender-"+strconv.FormatUint(prng.Uint64(), 36))
+	from := GetAddress("us-west1", "argus", "rampage", "sender-"+strconv.FormatUint(prng.Uint64(), 36))
 	received := make(chan Command, 8)
 	require.NoError(t, svc.AddCommand("greet", func(_ context.Context, cmd Command) error {
 		received <- cmd
@@ -80,7 +80,7 @@ func TestCommand_RoundTrip(t *testing.T) {
 
 		raw, err := wire.NextMsgWithContext(ctx)
 		require.NoError(t, err)
-		assert.Equal(t, String(svc.Address)+".isc.greet.us-west1.world.argus.rampage."+from.GetServiceId(), raw.Subject)
+		assert.Equal(t, String(svc.Address)+".isc.greet.us-west1.argus.rampage."+from.GetServiceId(), raw.Subject)
 		assert.Equal(t, []byte{0x08, 0x2a}, raw.Data)
 
 		cmd := <-received
@@ -107,7 +107,11 @@ func TestCommand_RoundTrip(t *testing.T) {
 
 	// A malformed sender is rejected before the handler, which still serves the next good command.
 	{
-		reply, err := client.RequestWithContext(ctx, String(svc.Address)+".isc.greet.us-west1.world.argus", []byte("x"))
+		reply, err := client.RequestWithContext(
+			ctx,
+			String(svc.Address)+".isc.greet.us-west1.argus.rampage",
+			[]byte("x"),
+		)
 		require.NoError(t, err)
 		assert.Equal(t, "3", reply.Header.Get("Nats-Service-Error-Code")) // codes.InvalidArgument
 

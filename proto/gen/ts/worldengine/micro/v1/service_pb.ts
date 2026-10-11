@@ -2,8 +2,8 @@
 // @generated from file worldengine/micro/v1/service.proto (package worldengine.micro.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
-import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv1";
+import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
+import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv1";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/micro/v1/service.proto.
  */
 export const file_worldengine_micro_v1_service: GenFile = /*@__PURE__*/
-  fileDesc("CiJ3b3JsZGVuZ2luZS9taWNyby92MS9zZXJ2aWNlLnByb3RvEhR3b3JsZGVuZ2luZS5taWNyby52MSLGAgoOU2VydmljZUFkZHJlc3MSJQoGcmVnaW9uGAEgASgJQhW6SBJyEBABMgxeW2EtejAtOS1dKyQSRQoFcmVhbG0YAiABKA4yKi53b3JsZGVuZ2luZS5taWNyby52MS5TZXJ2aWNlQWRkcmVzcy5SZWFsbUIKukgHggEEEAEgABIsCgxvcmdhbml6YXRpb24YAyABKAlCFrpIE3IREAEyDV5bYS16MC05Xy1dKyQSJwoHcHJvamVjdBgEIAEoCUIWukgTchEQATINXlthLXowLTlfLV0rJBIqCgpzZXJ2aWNlX2lkGAUgASgJQha6SBNyERABMg1eW2EtejAtOV8tXSskIkMKBVJlYWxtEhUKEVJFQUxNX1VOU1BFQ0lGSUVEEAASEgoOUkVBTE1fSU5URVJOQUwQARIPCgtSRUFMTV9XT1JMRBACQmtaTGdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL21pY3JvL3YxO21pY3JvdjGqAhpXb3JsZEVuZ2luZS5Qcm90by5NaWNyby5WMWIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("CiJ3b3JsZGVuZ2luZS9taWNyby92MS9zZXJ2aWNlLnByb3RvEhR3b3JsZGVuZ2luZS5taWNyby52MSLHAQoOU2VydmljZUFkZHJlc3MSJQoGcmVnaW9uGAEgASgJQhW6SBJyEBABMgxeW2EtejAtOS1dKyQSLAoMb3JnYW5pemF0aW9uGAMgASgJQha6SBNyERABMg1eW2EtejAtOV8tXSskEicKB3Byb2plY3QYBCABKAlCFrpIE3IREAEyDV5bYS16MC05Xy1dKyQSKgoKc2VydmljZV9pZBgFIAEoCUIWukgTchEQATINXlthLXowLTlfLV0rJEoECAIQA1IFcmVhbG1Ca1pMZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRlbmdpbmUvbWljcm8vdjE7bWljcm92MaoCGldvcmxkRW5naW5lLlByb3RvLk1pY3JvLlYxYgZwcm90bzM", [file_buf_validate_validate]);
 
 /**
  * ServiceAddress is used to identify a unique service instance and corresponds to its NATS subject.
@@ -21,13 +21,9 @@ export const file_worldengine_micro_v1_service: GenFile = /*@__PURE__*/
  * The only exception being <endpoint> which can contain . as a delimiter to leverage NATS routing.
  *
  * The ServiceAddress convention is as follows:
- * <region>.<realm>.<organization>.<project>.<service_id>.<endpoint>
+ * <region>.<organization>.<project>.<service_id>.<endpoint>
  *
  * <region> identifies the deployment region (e.g., "us-west1").
- *
- * <realm> is one of the following:
- * - internal: Reserved for internal services
- * - world: Publicly accessible services that is a part of Worldbase network
  *
  * <organization> represents the entity that owns the project (e.g., "argus").
  *
@@ -39,23 +35,18 @@ export const file_worldengine_micro_v1_service: GenFile = /*@__PURE__*/
  * An endpoint can contain . as a delimiter to leverage NATS routing.
  *
  * Examples:
- * - us-west1.internal.argus.platform.gateway-us-west1.micro.ping
- * - us-west1.world.argus.rampage.lobby-1.shard.message.player.connect
+ * - us-west1.argus.rampage.gameplay-3.ping
+ * - us-west1.argus.rampage.gameplay-3.isc.plat_result.platform
  *
  * @generated from message worldengine.micro.v1.ServiceAddress
  */
 export type ServiceAddress = Message<"worldengine.micro.v1.ServiceAddress"> & {
   /**
+   * The deployment region (e.g., "us-west1").
+   *
    * @generated from field: string region = 1;
    */
   region: string;
-
-  /**
-   * The realm of the service.
-   *
-   * @generated from field: worldengine.micro.v1.ServiceAddress.Realm realm = 2;
-   */
-  realm: ServiceAddress_Realm;
 
   /**
    * The organization that owns the project (e.g., "argus").
@@ -89,38 +80,4 @@ export type ServiceAddress = Message<"worldengine.micro.v1.ServiceAddress"> & {
  */
 export const ServiceAddressSchema: GenMessage<ServiceAddress> = /*@__PURE__*/
   messageDesc(file_worldengine_micro_v1_service, 0);
-
-/**
- * Realm represents the access scope of the service.
- *
- * @generated from enum worldengine.micro.v1.ServiceAddress.Realm
- */
-export enum ServiceAddress_Realm {
-  /**
-   * Unspecified realm, should not be used.
-   *
-   * @generated from enum value: REALM_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * Reserved for internal services
-   *
-   * @generated from enum value: REALM_INTERNAL = 1;
-   */
-  INTERNAL = 1,
-
-  /**
-   * Publicly accessible services that are part of Worldbase network.
-   *
-   * @generated from enum value: REALM_WORLD = 2;
-   */
-  WORLD = 2,
-}
-
-/**
- * Describes the enum worldengine.micro.v1.ServiceAddress.Realm.
- */
-export const ServiceAddress_RealmSchema: GenEnum<ServiceAddress_Realm> = /*@__PURE__*/
-  enumDesc(file_worldengine_micro_v1_service, 0, 0);
 

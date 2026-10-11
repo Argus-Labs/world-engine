@@ -42,7 +42,7 @@ func ShardSender(address *micro.ServiceAddress) Sender {
 	return Sender{id: micro.String(address), shard: true}
 }
 
-// ID returns the player ID, or the sending shard's address ("region.realm.org.project.shard").
+// ID returns the player ID, or the sending shard's address ("region.org.project.shard").
 // Use it when any sender will do, such as in logs.
 func (s Sender) ID() string { return s.id }
 

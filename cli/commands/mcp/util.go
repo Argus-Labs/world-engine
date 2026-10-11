@@ -82,7 +82,7 @@ type shardTarget struct {
 }
 
 // resolveShardTarget resolves how to reach a shard instance and the
-// region.realm.org.project.serviceId address Cardinal validates the request
+// region.org.project.serviceId address Cardinal validates the request
 // against (serviceId is always the instance name, never the pool id). A
 // pinned shardURL skips the operator but not org/project resolution; pair it
 // with the matching instance_name or the shard rejects the address.
@@ -112,7 +112,6 @@ func resolveShardTarget(
 		shardURL:     shardURL,
 		address: &microv1.ServiceAddress{
 			Region:       region,
-			Realm:        microv1.ServiceAddress_REALM_WORLD,
 			Organization: org,
 			Project:      project,
 			ServiceId:    instanceName,
