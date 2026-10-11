@@ -99,14 +99,6 @@ func (s *service) init(address string) error {
 		return err
 	}
 
-	otelInterceptor, err := otelconnect.NewInterceptor()
-	if err != nil {
-		return eris.Wrap(err, "failed to create otel interceptor")
-	}
-	validateInterceptor := validate.NewInterceptor()
-
-	mux := http.NewServeMux()
-
 	var authenticate func(context.Context, *http.Request) (any, error)
 	switch s.authMode {
 	case AuthModeArgus:
@@ -124,18 +116,8 @@ func (s *service) init(address string) error {
 	default:
 		return eris.Errorf("invalid service auth mode: %s", s.authMode)
 	}
-	authMiddleware := authn.NewMiddleware(authenticate)
-
-	cardinalPath, cardinalHandler := cardinalv1connect.NewCardinalServiceHandler(
-		s,
-		connect.WithInterceptors(
-			otelInterceptor,
-			validateInterceptor,
-		),
-	)
-	mux.Handle(cardinalPath, authMiddleware.Wrap(cardinalHandler))
-
-	if err := s.mountDebugService(mux, otelInterceptor, validateInterceptor); err != nil {
+	mux, err := s.newMux(authenticate)
+	if err != nil {
 		return err
 	}
 
@@ -158,6 +140,31 @@ func (s *service) init(address string) error {
 	}()
 
 	return nil
+}
+
+// newMux returns the client-facing handler: the Cardinal service behind authenticate, plus the
+// debug service when enabled.
+func (s *service) newMux(authenticate authn.AuthFunc) (*http.ServeMux, error) {
+	otelInterceptor, err := otelconnect.NewInterceptor()
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to create otel interceptor")
+	}
+	validateInterceptor := validate.NewInterceptor()
+
+	cardinalPath, cardinalHandler := cardinalv1connect.NewCardinalServiceHandler(
+		s,
+		connect.WithInterceptors(
+			otelInterceptor,
+			validateInterceptor,
+		),
+	)
+	mux := http.NewServeMux()
+	mux.Handle(cardinalPath, withStreamWriteDeadline(authn.NewMiddleware(authenticate).Wrap(cardinalHandler)))
+
+	if err := s.mountDebugService(mux, otelInterceptor, validateInterceptor); err != nil {
+		return nil, err
+	}
+	return mux, nil
 }
 
 func (s *service) mountDebugService(mux *http.ServeMux, interceptors ...connect.Interceptor) error {
@@ -208,16 +215,35 @@ func (s *service) registerCommandHandler(name string) {
 
 type streamSubscriber struct {
 	ctx    context.Context
+	cancel context.CancelCauseFunc // Ends the stream's handler; errStreamSuperseded marks a replacement.
 	stream *connect.ServerStream[cardinalv1.StartEventStreamResponse]
-	events map[string]struct{}
-	mu     sync.Mutex
+	events map[string]struct{} // Guarded by service.mu, not by mu.
+	mu     sync.Mutex          // Serializes sends and close.
+	closed bool
 }
+
+var errStreamClosed = eris.New("event stream closed")
 
 func (s *streamSubscriber) send(response *cardinalv1.StartEventStreamResponse) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.closed {
+		return errStreamClosed
+	}
 	return s.stream.Send(response)
+}
+
+// close waits for an in-flight send, then fails every later one. A tick may still hold the
+// subscriber after its handler returns, and a ServerStream must not be written after that.
+// Cancelling first arms the forced write deadline, so a send blocked on a stopped reader cannot
+// hold close forever.
+func (s *streamSubscriber) close() {
+	s.cancel(nil)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.closed = true
 }
 
 func (s *service) SendCommand(
@@ -327,6 +353,16 @@ func (s *service) removeReplyWaiter(playerID, eventName string, waiter chan *isc
 // Event streams
 // -------------------------------------------------------------------------------------------------
 
+// errStreamSuperseded is the cancel cause of an event stream replaced by a newer stream for the
+// same player. Clients see it as CodeAborted and may reconnect.
+var errStreamSuperseded = eris.New("event stream superseded by a newer stream for this player")
+
+// streamTeardownGrace is how long a cancelled stream may stay blocked writing before its response
+// is forced closed. See withStreamWriteDeadline.
+const streamTeardownGrace = time.Second
+
+// StartEventStream opens a player's event stream. The newest stream wins: opening one while the
+// player already has a stream replaces it, and the old one ends with CodeAborted ("superseded").
 func (s *service) StartEventStream(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.StartEventStreamRequest],
@@ -337,18 +373,34 @@ func (s *service) StartEventStream(
 	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(player.ID),
 		attrEventSubscriptions.Int(countSubscriptions(req.Msg.GetSubscriptions())))
 
-	subscriber, err := s.addSubscriber(ctx, player, stream)
-	if err != nil {
-		return connect.NewError(connect.CodeFailedPrecondition, err)
-	}
-	defer s.removeSubscriber(player)
-
 	for _, subscription := range req.Msg.GetSubscriptions() {
 		if micro.String(s.world.address) != micro.String(subscription.GetAddress()) {
 			return connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 		}
 	}
-	s.subscribeEvents(player, req.Msg.GetSubscriptions())
+
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	// Once the stream is cancelled, for any reason, give its pending writes a grace period, then
+	// force them to fail. Otherwise a client that stopped reading pins this handler, and any tick
+	// sending to it, in a flow-controlled write forever.
+	if deadline := streamWriteDeadlineFromContext(ctx); deadline != nil {
+		context.AfterFunc(ctx, func() { deadline.expireAfter(streamTeardownGrace) })
+	}
+
+	// The initial subscriptions belong to this stream, so they are set before it is published.
+	subscriber := &streamSubscriber{
+		ctx:    ctx,
+		cancel: cancel,
+		stream: stream,
+		events: make(map[string]struct{}),
+	}
+	addSubscriptions(subscriber, req.Msg.GetSubscriptions())
+	s.addSubscriber(player.ID, subscriber)
+	defer func() {
+		s.removeSubscriber(player.ID, subscriber)
+		subscriber.close()
+	}()
 
 	if err := subscriber.send(&cardinalv1.StartEventStreamResponse{}); err != nil {
 		return connect.NewError(connect.CodeInternal, eris.Wrap(err, "failed to send initial empty event to client"))
@@ -362,6 +414,9 @@ func (s *service) StartEventStream(
 	for {
 		select {
 		case <-ctx.Done():
+			if cause := context.Cause(ctx); eris.Is(cause, errStreamSuperseded) {
+				return connect.NewError(connect.CodeAborted, cause)
+			}
 			if err := ctx.Err(); !eris.Is(err, context.Canceled) {
 				return connect.NewError(connect.CodeCanceled, eris.Wrap(err, "stream cancelled"))
 			}
@@ -378,12 +433,9 @@ func (s *service) SubscribeEvents(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.SubscribeEventsRequest],
 ) (*connect.Response[cardinalv1.SubscribeEventsResponse], error) {
-	player, err := s.subscriptionRequest(ctx, req.Msg.GetSubscriptions())
-	if err != nil {
+	if err := s.updateSubscriptions(ctx, req.Msg.GetSubscriptions(), addSubscriptions); err != nil {
 		return nil, err
 	}
-	s.subscribeEvents(player, req.Msg.GetSubscriptions())
-
 	return connect.NewResponse(&cardinalv1.SubscribeEventsResponse{}), nil
 }
 
@@ -391,71 +443,65 @@ func (s *service) UnsubscribeEvents(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.UnsubscribeEventsRequest],
 ) (*connect.Response[cardinalv1.UnsubscribeEventsResponse], error) {
-	player, err := s.subscriptionRequest(ctx, req.Msg.GetSubscriptions())
-	if err != nil {
+	if err := s.updateSubscriptions(ctx, req.Msg.GetSubscriptions(), removeSubscriptions); err != nil {
 		return nil, err
 	}
-	s.unsubscribeEvents(player, req.Msg.GetSubscriptions())
-
 	return connect.NewResponse(&cardinalv1.UnsubscribeEventsResponse{}), nil
 }
 
-// subscriptionRequest validates a subscribe or unsubscribe request from a player with an open stream.
-func (s *service) subscriptionRequest(
-	ctx context.Context, subscriptions []*cardinalv1.EventSubscription,
-) (*Player, error) {
+// updateSubscriptions applies a subscribe or unsubscribe request to the player's current stream.
+// The lookup and the update share one lock, so a request racing a stream's replacement or close
+// either updates the stream registered at that moment or fails with CodeFailedPrecondition.
+func (s *service) updateSubscriptions(
+	ctx context.Context,
+	subscriptions []*cardinalv1.EventSubscription,
+	update func(*streamSubscriber, []*cardinalv1.EventSubscription),
+) error {
 	player := PlayerFromContext(ctx)
 	assert.That(player != nil, "player should exist in authenticated request context")
 	oteltrace.SpanFromContext(ctx).SetAttributes(semconv.EnduserID(player.ID),
 		attrEventSubscriptions.Int(countSubscriptions(subscriptions)))
 
-	if !s.hasSubscriber(player) {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
-	}
-
 	for _, subscription := range subscriptions {
 		if micro.String(s.world.address) != micro.String(subscription.GetAddress()) {
-			return nil, connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
+			return connect.NewError(connect.CodeInvalidArgument, eris.New("address doesn't match shard address"))
 		}
 	}
-	return player, nil
-}
 
-func (s *service) addSubscriber(
-	ctx context.Context,
-	player *Player,
-	stream *connect.ServerStream[cardinalv1.StartEventStreamResponse],
-) (*streamSubscriber, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, exists := s.subscribers[player.ID]; exists {
-		return nil, eris.Errorf("player %s already has an open stream", player.ID)
+	subscriber, ok := s.subscribers[player.ID]
+	if !ok {
+		return connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
 	}
+	update(subscriber, subscriptions)
+	return nil
+}
 
-	subscriber := &streamSubscriber{
-		ctx:    ctx,
-		stream: stream,
-		events: make(map[string]struct{}),
+// addSubscriber registers subscriber as the player's stream and cancels the stream it replaces.
+func (s *service) addSubscriber(playerID string, subscriber *streamSubscriber) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if previous, ok := s.subscribers[playerID]; ok {
+		previous.cancel(errStreamSuperseded)
 	}
-	s.subscribers[player.ID] = subscriber
-	return subscriber, nil
+	s.subscribers[playerID] = subscriber
 }
 
-func (s *service) removeSubscriber(player *Player) {
+// removeSubscriber unregisters subscriber unless a newer stream has already replaced it.
+func (s *service) removeSubscriber(playerID string, subscriber *streamSubscriber) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	delete(s.subscribers, player.ID)
+	if s.subscribers[playerID] == subscriber {
+		delete(s.subscribers, playerID)
+	}
 }
 
-func (s *service) subscribeEvents(player *Player, subscriptions []*cardinalv1.EventSubscription) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	subscriber := s.subscribers[player.ID]
-	assert.That(subscriber != nil, "subscriber should exist for authenticated stream")
-
+// addSubscriptions and removeSubscriptions require service.mu, or a subscriber not yet registered.
+func addSubscriptions(subscriber *streamSubscriber, subscriptions []*cardinalv1.EventSubscription) {
 	for _, subscription := range subscriptions {
 		for _, eventName := range subscription.GetEvents() {
 			subscriber.events[eventName] = struct{}{}
@@ -463,26 +509,12 @@ func (s *service) subscribeEvents(player *Player, subscriptions []*cardinalv1.Ev
 	}
 }
 
-func (s *service) unsubscribeEvents(player *Player, subscriptions []*cardinalv1.EventSubscription) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	subscriber := s.subscribers[player.ID]
-	assert.That(subscriber != nil, "subscriber should exist for authenticated stream")
-
+func removeSubscriptions(subscriber *streamSubscriber, subscriptions []*cardinalv1.EventSubscription) {
 	for _, subscription := range subscriptions {
 		for _, eventName := range subscription.GetEvents() {
 			delete(subscriber.events, eventName)
 		}
 	}
-}
-
-func (s *service) hasSubscriber(player *Player) bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	_, ok := s.subscribers[player.ID]
-	return ok
 }
 
 // countSubscriptions returns the number of event names across all subscriptions.
@@ -603,6 +635,81 @@ func matchesEvent(subscription string, eventName string) bool {
 		subscription == "*" ||
 		subscription == ">" ||
 		(strings.HasSuffix(subscription, ".>") && strings.HasPrefix(eventName, strings.TrimSuffix(subscription, ">")))
+}
+
+// -------------------------------------------------------------------------------------------------
+// Forced stream teardown
+// -------------------------------------------------------------------------------------------------
+
+// Cancelling a stream handler's context does not unblock a write in progress. Over HTTP/2, a
+// response write to a client that stopped reading waits for flow-control window that never
+// arrives, so a superseded stream, and any tick sending to it, could stay blocked forever. Connect
+// hides the http.ResponseWriter, so this middleware captures an http.ResponseController for each
+// event stream request. After the grace period, StartEventStream sets a write deadline in the past:
+// the HTTP/2 server then resets the stream (RST_STREAM) and every blocked or later write on it
+// fails. Over HTTP/1.1 the deadline applies to the connection, so every write on it fails.
+// A client whose whole TCP connection is stalled is not covered: the reset frame itself cannot be
+// written, so only the connection's own failure releases the writes.
+
+type streamWriteDeadlineKey struct{}
+
+// withStreamWriteDeadline makes a streamWriteDeadline available to StartEventStream handlers.
+func withStreamWriteDeadline(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != cardinalv1connect.CardinalServiceStartEventStreamProcedure {
+			next.ServeHTTP(w, r)
+			return
+		}
+		deadline := &streamWriteDeadline{controller: http.NewResponseController(w)}
+		defer deadline.handlerDone()
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), streamWriteDeadlineKey{}, deadline)))
+	})
+}
+
+func streamWriteDeadlineFromContext(ctx context.Context) *streamWriteDeadline {
+	deadline, _ := ctx.Value(streamWriteDeadlineKey{}).(*streamWriteDeadline)
+	return deadline
+}
+
+// streamWriteDeadline forces one response's writes to fail. A ResponseController must not be used
+// after its handler returns, so the timer only touches it while the handler is still running.
+type streamWriteDeadline struct {
+	mu         sync.Mutex
+	controller *http.ResponseController
+	timer      *time.Timer
+	done       bool
+}
+
+// expireAfter forces the response's writes to fail after grace, unless the handler returns first.
+func (d *streamWriteDeadline) expireAfter(grace time.Duration) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.done || d.timer != nil {
+		return
+	}
+	d.timer = time.AfterFunc(grace, d.expire)
+}
+
+func (d *streamWriteDeadline) expire() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.done {
+		return
+	}
+	// A deadline in the past fails the pending write immediately (HTTP/2 resets the stream).
+	_ = d.controller.SetWriteDeadline(time.Unix(1, 0))
+}
+
+func (d *streamWriteDeadline) handlerDone() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	d.done = true
+	if d.timer != nil {
+		d.timer.Stop()
+	}
 }
 
 // -------------------------------------------------------------------------------------------------
