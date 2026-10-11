@@ -30,6 +30,7 @@ import (
 	otelcodes "go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"google.golang.org/protobuf/proto"
 )
 
 // service hosts the direct client-facing Cardinal service.
@@ -215,35 +216,82 @@ func (s *service) registerCommandHandler(name string) {
 
 type streamSubscriber struct {
 	ctx    context.Context
-	cancel context.CancelCauseFunc // Ends the stream's handler; errStreamSuperseded marks a replacement.
+	cancel context.CancelCauseFunc // Ends the stream's handler; the cause says why (superseded, lagged).
+	events map[string]struct{}     // Guarded by service.mu.
 	stream *connect.ServerStream[cardinalv1.StartEventStreamResponse]
-	events map[string]struct{} // Guarded by service.mu, not by mu.
-	mu     sync.Mutex          // Serializes sends and close.
-	closed bool
+	lagged *time.Timer // Armed during each write; ends the stream as lagged when it fires.
+
+	// Events waiting for the stream's handler, its only writer, which drains them in order.
+	queueMu     sync.Mutex
+	queue       []queuedEvent // Guarded by queueMu.
+	queuedBytes int           // Guarded by queueMu. Counts events until they are written.
+	queueReady  chan struct{} // Signalled after each enqueue; capacity 1.
 }
 
-var errStreamClosed = eris.New("event stream closed")
+type queuedEvent struct {
+	response *cardinalv1.StartEventStreamResponse
+	queuedAt time.Time
+	size     int // Charged against streamQueueBytes until written.
+}
 
-func (s *streamSubscriber) send(response *cardinalv1.StartEventStreamResponse) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.closed {
-		return errStreamClosed
+// enqueue hands an event of size bytes to the stream's writer without blocking. A stream already
+// holding streamQueueBytes of unwritten events ends as lagged instead, so a stopped reader cannot
+// grow without bound. A reader that is merely behind a large tick is ended by age, not by this
+// limit: see streamLagLimit.
+func (s *streamSubscriber) enqueue(response *cardinalv1.StartEventStreamResponse, size int) error {
+	size += queuedEventOverhead
+	s.queueMu.Lock()
+	if s.queuedBytes+size > streamQueueBytes {
+		s.queueMu.Unlock()
+		s.cancel(errStreamLagged)
+		return errStreamLagged
 	}
-	return s.stream.Send(response)
+	s.queue = append(s.queue, queuedEvent{response: response, queuedAt: time.Now(), size: size})
+	s.queuedBytes += size
+	s.queueMu.Unlock()
+
+	select {
+	case s.queueReady <- struct{}{}:
+	default: // The writer is already signalled.
+	}
+	return nil
 }
 
-// close waits for an in-flight send, then fails every later one. A tick may still hold the
-// subscriber after its handler returns, and a ServerStream must not be written after that.
-// Cancelling first arms the forced write deadline, so a send blocked on a stopped reader cannot
-// hold close forever.
-func (s *streamSubscriber) close() {
-	s.cancel(nil)
+// writeQueued writes every waiting event, oldest first, releasing each one's charge once written.
+// It stops at a failed write, or once the stream is cancelled, leaving the rest unwritten.
+func (s *streamSubscriber) writeQueued() error {
+	s.queueMu.Lock()
+	queued := s.queue
+	s.queue = nil
+	s.queueMu.Unlock()
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.closed = true
+	for _, evt := range queued {
+		if s.ctx.Err() != nil { // Superseded, lagged, or closed.
+			return streamEndError(s.ctx)
+		}
+		if err := s.write(evt.response, evt.queuedAt); err != nil {
+			return err
+		}
+		s.queueMu.Lock()
+		s.queuedBytes -= evt.size
+		s.queueMu.Unlock()
+	}
+	return nil
+}
+
+// write sends one response; only the stream's handler calls it. A write still pending
+// streamLagLimit after its event was queued ends the stream as lagged, and the cancellation then
+// forces the write to fail after streamTeardownGrace.
+func (s *streamSubscriber) write(response *cardinalv1.StartEventStreamResponse, queuedAt time.Time) error {
+	s.lagged.Reset(streamLagLimit - time.Since(queuedAt))
+	defer s.lagged.Stop()
+	if err := s.stream.Send(response); err != nil {
+		if s.ctx.Err() != nil {
+			return streamEndError(s.ctx)
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *service) SendCommand(
@@ -357,12 +405,34 @@ func (s *service) removeReplyWaiter(playerID, eventName string, waiter chan *isc
 // same player. Clients see it as CodeAborted and may reconnect.
 var errStreamSuperseded = eris.New("event stream superseded by a newer stream for this player")
 
+// errStreamLagged is the cancel cause of an event stream whose client fell too far behind: its
+// queue was full, or an event waited streamLagLimit to be written. Clients see it as
+// CodeUnavailable and may reconnect.
+var errStreamLagged = eris.New("event stream lagged: the client is not reading events fast enough")
+
 // streamTeardownGrace is how long a cancelled stream may stay blocked writing before its response
 // is forced closed. See withStreamWriteDeadline.
 const streamTeardownGrace = time.Second
 
+// streamQueueBytes bounds the unwritten events one stream may hold, in encoded bytes plus
+// queuedEventOverhead each. It is a memory guard, not the lag signal: one tick can queue thousands
+// of events for a stream (a resync, a large wave) faster than any writer drains them, and a reader
+// that keeps up must survive that. A reader that stopped normally ends by streamLagLimit first;
+// this bound ends it sooner only when more than 16 MiB is sent to it within that time.
+const streamQueueBytes = 16 << 20
+
+// queuedEventOverhead is charged per queued event on top of its encoded size, for the queue entry
+// and response wrapper, so a burst of empty events is bounded too.
+const queuedEventOverhead = 128
+
+// streamLagLimit is how long an event may wait, queued or mid-write, before its stream ends as
+// lagged. The writer drains oldest first and times each write from its event's enqueue, so the
+// oldest unwritten event always carries the deadline.
+const streamLagLimit = 5 * time.Second
+
 // StartEventStream opens a player's event stream. The newest stream wins: opening one while the
 // player already has a stream replaces it, and the old one ends with CodeAborted ("superseded").
+// A stream whose client falls behind ends with CodeUnavailable ("lagged"); see streamLagLimit.
 func (s *service) StartEventStream(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.StartEventStreamRequest],
@@ -382,27 +452,33 @@ func (s *service) StartEventStream(
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
 	// Once the stream is cancelled, for any reason, give its pending writes a grace period, then
-	// force them to fail. Otherwise a client that stopped reading pins this handler, and any tick
-	// sending to it, in a flow-controlled write forever.
+	// force them to fail. Otherwise a client that stopped reading pins this handler in a
+	// flow-controlled write forever.
 	if deadline := streamWriteDeadlineFromContext(ctx); deadline != nil {
 		context.AfterFunc(ctx, func() { deadline.expireAfter(streamTeardownGrace) })
 	}
 
 	// The initial subscriptions belong to this stream, so they are set before it is published.
 	subscriber := &streamSubscriber{
-		ctx:    ctx,
-		cancel: cancel,
-		stream: stream,
-		events: make(map[string]struct{}),
+		ctx:        ctx,
+		cancel:     cancel,
+		events:     make(map[string]struct{}),
+		stream:     stream,
+		lagged:     time.AfterFunc(streamLagLimit, func() { cancel(errStreamLagged) }),
+		queueReady: make(chan struct{}, 1),
 	}
+	subscriber.lagged.Stop()
+	defer subscriber.lagged.Stop()
 	addSubscriptions(subscriber, req.Msg.GetSubscriptions())
 	s.addSubscriber(player.ID, subscriber)
-	defer func() {
-		s.removeSubscriber(player.ID, subscriber)
-		subscriber.close()
-	}()
+	defer s.removeSubscriber(player.ID, subscriber)
 
-	if err := subscriber.send(&cardinalv1.StartEventStreamResponse{}); err != nil {
+	// This handler is the stream's only writer, so writes keep queue order and none follows its
+	// return.
+	if err := subscriber.write(&cardinalv1.StartEventStreamResponse{}, time.Now()); err != nil {
+		if ctx.Err() != nil {
+			return err
+		}
 		return connect.NewError(connect.CodeInternal, eris.Wrap(err, "failed to send initial empty event to client"))
 	}
 
@@ -414,18 +490,30 @@ func (s *service) StartEventStream(
 	for {
 		select {
 		case <-ctx.Done():
-			if cause := context.Cause(ctx); eris.Is(cause, errStreamSuperseded) {
-				return connect.NewError(connect.CodeAborted, cause)
+			return streamEndError(ctx)
+		case <-subscriber.queueReady:
+			if err := subscriber.writeQueued(); err != nil {
+				return err
 			}
-			if err := ctx.Err(); !eris.Is(err, context.Canceled) {
-				return connect.NewError(connect.CodeCanceled, eris.Wrap(err, "stream cancelled"))
-			}
-			return nil
 		case <-ticker.C:
-			if err := subscriber.send(&cardinalv1.StartEventStreamResponse{}); err != nil {
+			if err := subscriber.write(&cardinalv1.StartEventStreamResponse{}, time.Now()); err != nil {
 				return err
 			}
 		}
+	}
+}
+
+// streamEndError is the status a cancelled stream's handler returns.
+func streamEndError(ctx context.Context) error {
+	switch cause := context.Cause(ctx); {
+	case eris.Is(cause, errStreamSuperseded):
+		return connect.NewError(connect.CodeAborted, cause)
+	case eris.Is(cause, errStreamLagged):
+		return connect.NewError(connect.CodeUnavailable, cause)
+	case !eris.Is(ctx.Err(), context.Canceled):
+		return connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "stream cancelled"))
+	default:
+		return nil
 	}
 }
 
@@ -601,8 +689,9 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 		}
 	}
 
-	// Send events to stream subscribers. A failed send is logged and recorded on the span but does not
-	// fail the dispatch: one dead stream must not block delivery to the others.
+	// Queue events for stream subscribers. Queuing never blocks: a stream too far behind ends as
+	// lagged and is recorded on the span, and delivery to the others continues.
+	eventSize := proto.Size(eventPb)
 	sendFailures := 0
 	for _, subscriber := range subscribers {
 		select {
@@ -611,15 +700,14 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 		default:
 		}
 
-		err := subscriber.send(&cardinalv1.StartEventStreamResponse{
+		err := subscriber.enqueue(&cardinalv1.StartEventStreamResponse{
 			Address: s.world.address,
 			Event:   eventPb,
-		})
+		}, eventSize)
 		if err != nil {
 			sendFailures++
 			span.RecordError(err)
-			s.log.Error().Err(err).Str("event", eventPb.GetName()).Msg("failed to send event to subscriber")
-			continue
+			s.log.Warn().Err(err).Str("event", eventPb.GetName()).Msg("ended a lagging event stream")
 		}
 	}
 	span.SetAttributes(attrEventSendFailures.Int(sendFailures))
@@ -643,8 +731,8 @@ func matchesEvent(subscription string, eventName string) bool {
 
 // Cancelling a stream handler's context does not unblock a write in progress. Over HTTP/2, a
 // response write to a client that stopped reading waits for flow-control window that never
-// arrives, so a superseded stream, and any tick sending to it, could stay blocked forever. Connect
-// hides the http.ResponseWriter, so this middleware captures an http.ResponseController for each
+// arrives, so a superseded or lagged stream could stay blocked forever. Connect hides the
+// http.ResponseWriter, so this middleware captures an http.ResponseController for each
 // event stream request. After the grace period, StartEventStream sets a write deadline in the past:
 // the HTTP/2 server then resets the stream (RST_STREAM) and every blocked or later write on it
 // fails. Over HTTP/1.1 the deadline applies to the connection, so every write on it fails.

@@ -199,13 +199,8 @@ func TestEventStream_TickSendsWhileStreamsClose(t *testing.T) {
 	}()
 
 	for range 300 {
-		stream, err := h.tryOpen("player-1", "*")
-		if err != nil {
-			// An event can reach a registered stream before its initial empty message. That stream
-			// was still opened and is now cancelled, which is the cycle this test needs.
-			require.EqualError(t, err, "initial message must be empty")
-			continue
-		}
+		// The handler writes the initial empty message before any event queued for it.
+		stream := h.open(t, "player-1", "*")
 		stream.read()
 		stream.cancel()
 		<-stream.done
@@ -219,39 +214,225 @@ func TestEventStream_TickSendsWhileStreamsClose(t *testing.T) {
 	assert.Equal(t, []string{"simple_event:5"}, final.next(t, 1))
 }
 
-// A stream whose client stopped reading blocks the tick's send once flow control fills. Replacing it
-// must release both the old handler and the blocked send within the 1 s teardown target.
+// A stream whose client stopped reading pins its handler in a blocked write once flow control
+// fills. Replacing it must release that handler within the 1 s teardown target, and the tick's
+// sends to it never block meanwhile. Not parallel: it asserts timing bounds.
 func TestEventStream_StoppedReaderTornDownAfterReplacement(t *testing.T) {
-	t.Parallel()
 	h := newStreamHarness(t)
 
 	stalled := h.open(t, "player-1", "*") // Never read again.
-	tick := startPublisher(t, h, "player-1", 64<<10)
-	blockedAt := tick.awaitBlocked(t)
-	t.Logf("publisher blocked after %d events", tick.published.Load())
+	subscriber := h.subscriber(t, "player-1")
+	payload := testutils.AnotherEvent{Data: incompressible(64 << 10)}
+	sends := make([]time.Duration, 0, 200)
+	for range 200 { // 12.5 MiB: more than the transport buffers, less than the queue bound.
+		start := time.Now()
+		h.publish(t, payload, "player-1")
+		sends = append(sends, time.Since(start))
+	}
+	// A blocked send lasts until the stream is replaced (seconds, before the writer queue). The
+	// slowest one is bounded loosely: under -race on a loaded host, the scheduler and GC alone
+	// can delay a send by a few hundred milliseconds.
+	assert.Less(t, percentile(sends, 99), 50*time.Millisecond, "sends to a stopped reader blocked the tick")
+	assert.Less(t, percentile(sends, 100), time.Second, "a send to a stopped reader blocked the tick")
+	require.Eventually(t, func() bool { return queuedBytes(subscriber) > 0 }, 5*time.Second, time.Millisecond,
+		"the stopped reader's writer never fell behind")
+	time.Sleep(300 * time.Millisecond)
+	require.Positive(t, queuedBytes(subscriber), "the stopped reader's writer is not blocked")
 
 	replacement := h.open(t, "player-1", "*")
 	replacedAt := time.Now()
 	replacement.read()
 
-	exitedAt := h.awaitHandlerExit(t, stalled.id)
-	resumedAt := tick.awaitProgressAfter(t, replacedAt)
-	t.Logf("old handler exited %v and the publisher resumed %v after replacement (blocked %v before it)",
-		exitedAt.Sub(replacedAt), resumedAt.Sub(replacedAt), replacedAt.Sub(blockedAt))
-	target := streamTeardownGrace + 500*time.Millisecond // Scheduling slack under -race.
-	assert.Less(t, exitedAt.Sub(replacedAt), target)
-	assert.Less(t, resumedAt.Sub(replacedAt), target)
+	exitedAt := h.awaitHandlerExit(t, stalled.id, 5*time.Second)
+	t.Logf("old handler exited %v after replacement", exitedAt.Sub(replacedAt))
+	assert.Less(t, exitedAt.Sub(replacedAt), streamTeardownGrace+500*time.Millisecond) // Slack for -race.
 
-	// The tick now delivers to the replacement.
-	require.NotEmpty(t, replacement.next(t, 1))
+	h.publish(t, testutils.SimpleEvent{Value: 4}, "player-1")
+	assert.Equal(t, []string{"simple_event:4"}, replacement.next(t, 1))
 	replacement.requireOpen(t)
+}
+
+// A stopped reader's unwritten events are bounded. Once they pass streamQueueBytes its stream ends
+// as lagged at once, well before streamLagLimit, without blocking the tick. The other player's
+// stream keeps receiving. Not parallel: it asserts timing bounds.
+func TestEventStream_QueueOverflowEndsStoppedStreamAsLagged(t *testing.T) {
+	h := newStreamHarness(t)
+
+	stalled := h.open(t, "player-1", "*") // Never read again.
+	subscriber := h.subscriber(t, "player-1")
+	other := h.open(t, "player-2", "*")
+	other.read()
+
+	const eventBytes = 64 << 10
+	payload := testutils.AnotherEvent{Data: incompressible(eventBytes)}
+	start := time.Now()
+	for range 200 { // 12.5 MiB: more than the transport buffers, less than the queue bound.
+		h.publish(t, payload, "player-1")
+	}
+	require.Eventually(t, func() bool { return queuedBytes(subscriber) > 0 }, 5*time.Second, time.Millisecond,
+		"the stopped reader's writer never fell behind")
+	time.Sleep(300 * time.Millisecond)
+	require.NoError(t, subscriber.ctx.Err(), "the stream ended before its queue bound")
+	require.Positive(t, queuedBytes(subscriber), "the stopped reader's writer is not blocked")
+
+	published := 0
+	for ; subscriber.ctx.Err() == nil && published < 1024; published++ { // 64 MiB at most.
+		h.publish(t, payload, "player-1")
+	}
+	took := time.Since(start)
+	t.Logf("stream ended as lagged after %d more events, %v after the first", published, took)
+
+	require.ErrorIs(t, context.Cause(subscriber.ctx), errStreamLagged)
+	assert.Less(t, took, streamLagLimit/2, "the stream ended by age, not by its queue bound")
+	h.awaitHandlerExit(t, stalled.id, streamTeardownGrace+time.Second)
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(h.trySubscribe("player-1", "*")))
+
+	// A reader that resumes drains what its transport buffered, then sees the stream's end.
+	for stalled.stream.Receive() {
+	}
+	requireStoppedReaderEnd(t, stalled.stream.Err())
+
+	h.publish(t, testutils.SimpleEvent{Value: 8}, "")
+	assert.Equal(t, []string{"simple_event:8"}, other.next(t, 1))
+	other.requireOpen(t)
+}
+
+// One tick can queue thousands of events for one stream, as a resync of a dense wave does, far
+// faster than the stream's writer sends them. A client that keeps reading receives all of them in
+// order, and its stream stays open. Not parallel: the writer must send the burst within
+// streamLagLimit, and the race detector makes each write 1-2 ms.
+func TestEventStream_LargeTickBurstReachesReadingClient(t *testing.T) {
+	h := newStreamHarness(t)
+	h.fixture.world.events.RegisterHandler(event.KindDefault, h.fixture.svc.publishDefaultEvent)
+
+	stream := h.open(t, "player-1", "*")
+	stream.read()
+
+	// More than the 1024-event bound this queue used to have. Under -race a loaded host writes
+	// about 2 ms per event, so a much larger burst would end by streamLagLimit instead.
+	const burst = 1280
+	want := make([]string, burst)
+	for i := range burst {
+		h.fixture.world.events.Enqueue(event.Event{
+			Kind: event.KindDefault, Payload: testutils.SimpleEvent{Value: i}, Recipient: "player-1",
+		})
+		want[i] = "simple_event:" + strconv.Itoa(i)
+	}
+	h.fixture.world.dispatchEvents(context.Background())
+
+	require.Equal(t, want, stream.next(t, burst))
+	stream.requireOpen(t)
+}
+
+// Each stream receives its events in publish order, whether broadcast or sent to it directly.
+func TestEventStream_OrderPreservedUnderLoad(t *testing.T) {
+	t.Parallel()
+	h := newStreamHarness(t)
+
+	both := h.open(t, "player-1", "*")
+	both.read()
+	broadcasts := h.open(t, "player-2", "*")
+	broadcasts.read()
+
+	// The server buffers each burst while the test reads the previous one.
+	const bursts, perBurst = 10, 512
+	for b := range bursts {
+		var wantBoth, wantBroadcasts []string
+		for i := range perBurst {
+			value := b*perBurst + i
+			recipient := "" // Even values are broadcast, odd values go to player-1 only.
+			if value%2 == 1 {
+				recipient = "player-1"
+			}
+			h.publish(t, testutils.SimpleEvent{Value: value}, recipient)
+			wantBoth = append(wantBoth, "simple_event:"+strconv.Itoa(value))
+			if recipient == "" {
+				wantBroadcasts = append(wantBroadcasts, "simple_event:"+strconv.Itoa(value))
+			}
+		}
+		require.Equal(t, wantBoth, both.next(t, perBurst))
+		require.Equal(t, wantBroadcasts, broadcasts.next(t, perBurst/2))
+	}
+	both.requireOpen(t)
+	broadcasts.requireOpen(t)
+}
+
+// One stopped reader must not slow the world tick or another player's events. Once its oldest
+// pending event has waited streamLagLimit, its stream ends as lagged and frees its handler.
+// Not parallel: it asserts timing bounds.
+func TestEventStream_StoppedReaderDoesNotStallTick(t *testing.T) {
+	h := newStreamHarness(t)
+
+	healthy := recordArrivals(h.open(t, "healthy", "*"))
+	stopper := h.open(t, "stopper", "*")
+	stopperReader := recordArrivals(stopper)
+	// 2.5 MiB/s per subscriber fills the stopped reader's transport buffers within about 2 s.
+	ticks := startTicks(t, h, testutils.AnotherEvent{Data: incompressible(128 << 10)})
+
+	time.Sleep(500 * time.Millisecond)
+	stopperReader.stop()
+	stoppedAt := time.Now()
+
+	exitedAt := h.awaitHandlerExit(t, stopper.id, 2*streamLagLimit)
+	time.Sleep(time.Second) // Keep ticking after the stopped stream is gone.
+	samples := ticks.stop()
+	arrivals := healthy.times()
+
+	t.Logf("stopped stream ended %v after its reader stopped", exitedAt.Sub(stoppedAt))
+	assert.Greater(t, exitedAt.Sub(stoppedAt), streamLagLimit-testTickRate)
+	assert.Less(t, exitedAt.Sub(stoppedAt), 2*streamLagLimit)
+	require.Greater(t, len(samples), 100)
+	// Before the writer queue, the stopped reader stalled dispatch and the healthy stream for
+	// seconds (4.2 s measured). The slowest tick is bounded loosely: under -race on a loaded host,
+	// the scheduler and GC alone can delay one by a few hundred milliseconds.
+	took := tookBetween(samples, time.Time{}, time.Now())
+	assert.Less(t, percentile(took, 99), testTickRate, "dispatch p99")
+	assert.Less(t, percentile(took, 100), time.Second, "slowest dispatch")
+	assert.Less(t, maxGap(arrivals, stoppedAt, time.Now()), time.Second, "healthy stream's longest gap")
+	assert.Greater(t, len(arrivals), len(samples)-5)
+
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(h.trySubscribe("stopper", "*")))
+	healthy.requireReading(t)
+
+	// A reader that resumes drains what its transport buffered, then sees the stream's end.
+	<-stopperReader.done
+	for stopper.stream.Receive() {
+	}
+	requireStoppedReaderEnd(t, stopper.stream.Err())
+}
+
+// A client that keeps reading but is sent more than streamQueueBytes in one burst sees its stream
+// end with the retryable "lagged" status, not a clean close.
+func TestEventStream_OverflowEndsReadingStreamAsLagged(t *testing.T) {
+	t.Parallel()
+	h := newStreamHarness(t)
+
+	stream := h.open(t, "player-1", "*")
+	subscriber := h.subscriber(t, "player-1")
+	reader := recordArrivals(stream)
+
+	payload := testutils.AnotherEvent{Data: incompressible(64 << 10)}
+	for published := 0; subscriber.ctx.Err() == nil && published < 1024; published++ { // 64 MiB at most.
+		h.publish(t, payload, "player-1")
+	}
+	require.ErrorIs(t, context.Cause(subscriber.ctx), errStreamLagged)
+
+	select {
+	case <-reader.done:
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "lagged stream did not end")
+	}
+	err := stream.stream.Err()
+	assert.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+	assert.ErrorContains(t, err, "lagged")
 }
 
 // -------------------------------------------------------------------------------------------------
 // Stopped-reader measurement
 // -------------------------------------------------------------------------------------------------
-// Records whether one stopped reader stalls the world tick and another player's event cadence.
-// Run with CARDINAL_STREAM_STALL_MEASURE=1 go test -run StoppedReaderStallMeasurement -v.
+// Records how one stopped reader affects the world tick and another player's event cadence, and
+// how long its stream lives. Run with CARDINAL_STREAM_STALL_MEASURE=1 go test -run
+// StoppedReaderStallMeasurement -v.
 // -------------------------------------------------------------------------------------------------
 
 func TestEventStream_StoppedReaderStallMeasurement(t *testing.T) {
@@ -259,126 +440,40 @@ func TestEventStream_StoppedReaderStallMeasurement(t *testing.T) {
 		t.Skip("set CARDINAL_STREAM_STALL_MEASURE=1 to measure stopped-reader tick stalls")
 	}
 	h := newStreamHarness(t)
-	h.fixture.world.events.RegisterHandler(event.KindDefault, h.fixture.svc.publishDefaultEvent)
 
 	const (
-		tickRate     = 50 * time.Millisecond // 20 Hz.
-		payloadBytes = 16 << 10              // Per broadcast event.
-		readingFor   = 2 * time.Second       // Both clients read.
-		stalledFor   = 3 * time.Second       // After the first stalled tick, before replacement.
-		afterFor     = 2 * time.Second       // After replacement.
+		payloadBytes = 16 << 10        // Per broadcast event.
+		readingFor   = 2 * time.Second // Both clients read.
+		afterFor     = 2 * time.Second // After replacement.
 	)
 
-	healthy := h.open(t, "healthy", "*")
-	var arrivals []time.Time
-	var arrivalsMu sync.Mutex
-	go func() {
-		for healthy.stream.Receive() {
-			arrivalsMu.Lock()
-			arrivals = append(arrivals, time.Now())
-			arrivalsMu.Unlock()
-		}
-	}()
-
+	healthy := recordArrivals(h.open(t, "healthy", "*"))
 	stopper := h.open(t, "stopper", "*")
-	var stopperReading atomic.Bool
-	stopperReading.Store(true)
-	go func() {
-		for stopperReading.Load() && stopper.stream.Receive() {
-		}
-	}()
-
-	type tickSample struct {
-		start time.Time
-		took  time.Duration
-	}
-	var samples []tickSample
-	var samplesMu sync.Mutex
-	ticking := make(chan struct{})
-	payload := testutils.AnotherEvent{Data: incompressible(payloadBytes)}
-	go func() {
-		defer close(ticking)
-		next := time.Now()
-		for {
-			select {
-			case <-h.ctx.Done():
-				return
-			default:
-			}
-			time.Sleep(time.Until(next))
-			next = next.Add(tickRate)
-			start := time.Now()
-			h.fixture.world.events.Enqueue(event.Event{Kind: event.KindDefault, Payload: payload})
-			h.fixture.world.dispatchEvents(context.Background())
-			samplesMu.Lock()
-			samples = append(samples, tickSample{start: start, took: time.Since(start)})
-			samplesMu.Unlock()
-		}
-	}()
+	stopperReader := recordArrivals(stopper)
+	ticks := startTicks(t, h, testutils.AnotherEvent{Data: incompressible(payloadBytes)})
 
 	time.Sleep(readingFor)
+	stopperReader.stop()
 	stoppedAt := time.Now()
-	stopperReading.Store(false)
 
-	// Wait for the first stalled tick: one still running after 5 tick periods.
-	var stallStart time.Time
-	require.Eventually(t, func() bool {
-		samplesMu.Lock()
-		defer samplesMu.Unlock()
-		last := samples[len(samples)-1]
-		if time.Since(last.start.Add(last.took)) > 5*tickRate {
-			stallStart = last.start.Add(last.took)
-			return true
-		}
-		return false
-	}, 30*time.Second, 10*time.Millisecond, "the tick never stalled")
-	time.Sleep(stalledFor)
-
-	replacement := h.open(t, "stopper", "*")
+	exitedAt := h.awaitHandlerExit(t, stopper.id, time.Minute)
+	replacement := recordArrivals(h.open(t, "stopper", "*"))
 	replacedAt := time.Now()
-	go func() {
-		for replacement.stream.Receive() {
-		}
-	}()
 	time.Sleep(afterFor)
-	h.cancel()
-	<-ticking
+	samples := ticks.stop()
+	arrivals := healthy.times()
 
-	samplesMu.Lock()
-	arrivalsMu.Lock()
-	defer samplesMu.Unlock()
-	defer arrivalsMu.Unlock()
-
-	var before, after []time.Duration
-	var longest tickSample
-	ticksBeforeStall := 0
-	for _, s := range samples {
-		if s.took > longest.took {
-			longest = s
-		}
-		switch {
-		case s.start.Before(stoppedAt):
-			before = append(before, s.took)
-		case s.start.After(replacedAt):
-			after = append(after, s.took)
-		}
-		if s.start.After(stoppedAt) && s.start.Before(stallStart) {
-			ticksBeforeStall++
-		}
-	}
-	healthyGap := maxGap(arrivals, stoppedAt, replacedAt.Add(afterFor))
-	baselineGap := maxGap(arrivals, time.Time{}, stoppedAt)
-
-	t.Logf("tick rate %v, %d KiB broadcast per tick, 2 subscribers", tickRate, payloadBytes>>10)
+	before := tookBetween(samples, time.Time{}, stoppedAt)
+	stopped := tookBetween(samples, stoppedAt, replacedAt)
+	after := tookBetween(samples, replacedAt, time.Now())
+	t.Logf("tick rate %v, %d KiB broadcast per tick, 2 subscribers", testTickRate, payloadBytes>>10)
 	t.Logf("both reading: dispatch p50 %v, max %v; healthy max inter-arrival %v",
-		percentile(before, 50), percentile(before, 100), baselineGap)
-	t.Logf("stopper stopped reading: %d ticks (%d KiB) were accepted before dispatch blocked",
-		ticksBeforeStall, ticksBeforeStall*payloadBytes>>10)
-	t.Logf("longest dispatch %v (started %v after the stop); stalled tick resumed %v after replacement",
-		longest.took, longest.start.Sub(stoppedAt), longest.start.Add(longest.took).Sub(replacedAt))
-	t.Logf("healthy subscriber max inter-arrival while stalled: %v", healthyGap)
-	t.Logf("after replacement: dispatch p50 %v, max %v over %d ticks",
-		percentile(after, 50), percentile(after, 100), len(after))
+		percentile(before, 50), percentile(before, 100), maxGap(arrivals, time.Time{}, stoppedAt))
+	t.Logf("stopper stopped reading: its stream ended %v later; dispatch p50 %v, max %v over %d ticks",
+		exitedAt.Sub(stoppedAt), percentile(stopped, 50), percentile(stopped, 100), len(stopped))
+	t.Logf("healthy subscriber max inter-arrival while stopped: %v", maxGap(arrivals, stoppedAt, replacedAt))
+	t.Logf("after replacement: dispatch p50 %v, max %v over %d ticks; replacement received %d events",
+		percentile(after, 50), percentile(after, 100), len(after), len(replacement.times()))
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -500,7 +595,7 @@ func (h *streamHarness) subscribe(t *testing.T, player string, events ...string)
 }
 
 // awaitHandlerExit returns when the server's handler for stream id returned.
-func (h *streamHarness) awaitHandlerExit(t *testing.T, id string) time.Time {
+func (h *streamHarness) awaitHandlerExit(t *testing.T, id string, within time.Duration) time.Time {
 	t.Helper()
 	var exited time.Time
 	require.Eventually(t, func() bool {
@@ -509,7 +604,7 @@ func (h *streamHarness) awaitHandlerExit(t *testing.T, id string) time.Time {
 		var ok bool
 		exited, ok = h.exits[id]
 		return ok
-	}, 5*time.Second, time.Millisecond, "handler for stream %s never returned", id)
+	}, within, time.Millisecond, "handler for stream %s never returned", id)
 	return exited
 }
 
@@ -598,57 +693,142 @@ func describe(msg *cardinalv1.StartEventStreamResponse) string {
 	}
 }
 
-// publisher sends large SendTo events to one player as fast as possible, like a tick dispatching
-// to a stream, and records when each send returned.
-type publisher struct {
-	published atomic.Int64
-	lastDone  atomic.Int64 // UnixNano.
+// requireStoppedReaderEnd checks how a stopped reader's stream ended once it reads again. If the
+// handler was blocked in a write, the "lagged" status cannot pass the full flow-control window,
+// so the forced teardown resets the stream. If the writer was still sending when the stream
+// ended, the status fits in what is left of the window.
+func requireStoppedReaderEnd(t *testing.T, err error) {
+	t.Helper()
+	if connect.CodeOf(err) == connect.CodeUnavailable {
+		require.ErrorContains(t, err, "lagged")
+		return
+	}
+	require.Equal(t, connect.CodeInternal, connect.CodeOf(err), "%v", err)
+	require.ErrorContains(t, err, "INTERNAL_ERROR")
 }
 
-func startPublisher(t *testing.T, h *streamHarness, player string, payloadBytes int) *publisher {
+// queuedBytes returns the bytes charged for a stream's unwritten events.
+func queuedBytes(subscriber *streamSubscriber) int {
+	subscriber.queueMu.Lock()
+	defer subscriber.queueMu.Unlock()
+	return subscriber.queuedBytes
+}
+
+// subscriber returns player's registered stream.
+func (h *streamHarness) subscriber(t *testing.T, player string) *streamSubscriber {
 	t.Helper()
-	p := &publisher{}
-	p.lastDone.Store(time.Now().UnixNano())
-	payload := testutils.AnotherEvent{Data: incompressible(payloadBytes)}
-	stopped := make(chan struct{})
+	h.fixture.svc.mu.RLock()
+	defer h.fixture.svc.mu.RUnlock()
+	subscriber, ok := h.fixture.svc.subscribers[player]
+	require.True(t, ok, "%s has no stream", player)
+	return subscriber
+}
+
+const testTickRate = 50 * time.Millisecond // 20 Hz.
+
+type tickSample struct {
+	start time.Time
+	took  time.Duration
+}
+
+// tickRecorder broadcasts one event per tick through the world's event dispatch, like a running
+// world, and records how long each dispatch took.
+type tickRecorder struct {
+	mu      sync.Mutex
+	samples []tickSample
+	quit    chan struct{}
+	stopped chan struct{}
+}
+
+func startTicks(t *testing.T, h *streamHarness, payload event.Payload) *tickRecorder {
+	t.Helper()
+	h.fixture.world.events.RegisterHandler(event.KindDefault, h.fixture.svc.publishDefaultEvent)
+	r := &tickRecorder{quit: make(chan struct{}), stopped: make(chan struct{})}
+	t.Cleanup(func() {
+		select {
+		case <-r.quit:
+		default:
+			r.stop()
+		}
+	})
 	go func() {
-		defer close(stopped)
-		for h.ctx.Err() == nil {
-			_ = h.fixture.svc.publishDefaultEvent(context.Background(), event.Event{
-				Kind: event.KindDefault, Payload: payload, Recipient: player,
-			})
-			p.published.Add(1)
-			p.lastDone.Store(time.Now().UnixNano())
+		defer close(r.stopped)
+		next := time.Now()
+		for {
+			select {
+			case <-r.quit:
+				return
+			case <-time.After(time.Until(next)):
+			}
+			next = next.Add(testTickRate)
+			start := time.Now()
+			h.fixture.world.events.Enqueue(event.Event{Kind: event.KindDefault, Payload: payload})
+			h.fixture.world.dispatchEvents(context.Background())
+			r.mu.Lock()
+			r.samples = append(r.samples, tickSample{start: start, took: time.Since(start)})
+			r.mu.Unlock()
 		}
 	}()
-	t.Cleanup(func() {
-		h.cancel() // Ends the client streams, which releases a blocked send.
-		<-stopped
-	})
-	return p
+	return r
 }
 
-// awaitBlocked returns when a send has been in progress for 300 ms.
-func (p *publisher) awaitBlocked(t *testing.T) time.Time {
-	t.Helper()
-	var blockedAt time.Time
-	require.Eventually(t, func() bool {
-		last := time.Unix(0, p.lastDone.Load())
-		blockedAt = last
-		return p.published.Load() > 0 && time.Since(last) > 300*time.Millisecond
-	}, 20*time.Second, 10*time.Millisecond, "publisher never blocked")
-	return blockedAt
+// stop ends the ticks and returns the samples.
+func (r *tickRecorder) stop() []tickSample {
+	close(r.quit)
+	<-r.stopped
+	return r.samples
 }
 
-// awaitProgressAfter returns when a send completed after since.
-func (p *publisher) awaitProgressAfter(t *testing.T, since time.Time) time.Time {
+func tookBetween(samples []tickSample, from, to time.Time) []time.Duration {
+	var took []time.Duration
+	for _, s := range samples {
+		if s.start.After(from) && s.start.Before(to) {
+			took = append(took, s.took)
+		}
+	}
+	return took
+}
+
+// arrivalRecorder reads a stream until stopped and records when each event arrived.
+type arrivalRecorder struct {
+	reading  atomic.Bool
+	mu       sync.Mutex
+	arrivals []time.Time
+	done     chan struct{}
+}
+
+func recordArrivals(c *clientStream) *arrivalRecorder {
+	r := &arrivalRecorder{done: make(chan struct{})}
+	r.reading.Store(true)
+	go func() {
+		defer close(r.done)
+		for r.reading.Load() && c.stream.Receive() {
+			if c.stream.Msg().GetEvent() != nil {
+				r.mu.Lock()
+				r.arrivals = append(r.arrivals, time.Now())
+				r.mu.Unlock()
+			}
+		}
+	}()
+	return r
+}
+
+// stop stops reading: the client takes no more events off the stream.
+func (r *arrivalRecorder) stop() { r.reading.Store(false) }
+
+func (r *arrivalRecorder) times() []time.Time {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.arrivals)
+}
+
+func (r *arrivalRecorder) requireReading(t *testing.T) {
 	t.Helper()
-	var done time.Time
-	require.Eventually(t, func() bool {
-		done = time.Unix(0, p.lastDone.Load())
-		return done.After(since)
-	}, 5*time.Second, time.Millisecond, "publisher never resumed")
-	return done
+	select {
+	case <-r.done:
+		require.FailNow(t, "stream ended")
+	default:
+	}
 }
 
 // incompressible returns n random bytes. The Connect client negotiates gzip, which would shrink a
