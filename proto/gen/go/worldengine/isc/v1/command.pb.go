@@ -24,8 +24,8 @@ const (
 )
 
 // Command represents the data payload of a command to trigger systems in a shard. It names no
-// sender: Cardinal takes a client's player ID from its auth token, and a shard's address from
-// InterShardCommand.
+// sender: Cardinal takes a client's player ID from its auth token, and a shard's address from the
+// NATS subject the command arrived on (see pkg/micro/command.go).
 type Command struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The name of the command.
@@ -90,60 +90,6 @@ func (x *Command) GetPayload() []byte {
 	return nil
 }
 
-// InterShardCommand is a command one service sends to a shard over NATS.
-type InterShardCommand struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Command *Command               `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
-	// The address of the sending service.
-	Sender        *v1.ServiceAddress `protobuf:"bytes,2,opt,name=sender,proto3" json:"sender,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *InterShardCommand) Reset() {
-	*x = InterShardCommand{}
-	mi := &file_worldengine_isc_v1_command_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *InterShardCommand) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*InterShardCommand) ProtoMessage() {}
-
-func (x *InterShardCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_worldengine_isc_v1_command_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use InterShardCommand.ProtoReflect.Descriptor instead.
-func (*InterShardCommand) Descriptor() ([]byte, []int) {
-	return file_worldengine_isc_v1_command_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *InterShardCommand) GetCommand() *Command {
-	if x != nil {
-		return x.Command
-	}
-	return nil
-}
-
-func (x *InterShardCommand) GetSender() *v1.ServiceAddress {
-	if x != nil {
-		return x.Sender
-	}
-	return nil
-}
-
 var File_worldengine_isc_v1_command_proto protoreflect.FileDescriptor
 
 const file_worldengine_isc_v1_command_proto_rawDesc = "" +
@@ -152,10 +98,7 @@ const file_worldengine_isc_v1_command_proto_rawDesc = "" +
 	"\aCommand\x123\n" +
 	"\x04name\x18\x01 \x01(\tB\x1f\xbaH\x1c\xc8\x01\x01r\x17\x10\x01\x18\x80\x012\x10^[a-zA-Z0-9_-]+$R\x04name\x12F\n" +
 	"\aaddress\x18\x02 \x01(\v2$.worldengine.micro.v1.ServiceAddressB\x06\xbaH\x03\xc8\x01\x01R\aaddress\x12\x18\n" +
-	"\apayload\x18\x04 \x01(\fR\apayloadJ\x04\b\x03\x10\x04R\apersona\"\x98\x01\n" +
-	"\x11InterShardCommand\x12=\n" +
-	"\acommand\x18\x01 \x01(\v2\x1b.worldengine.isc.v1.CommandB\x06\xbaH\x03\xc8\x01\x01R\acommand\x12D\n" +
-	"\x06sender\x18\x02 \x01(\v2$.worldengine.micro.v1.ServiceAddressB\x06\xbaH\x03\xc8\x01\x01R\x06senderBeZHgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1\xaa\x02\x18WorldEngine.Proto.Isc.V1b\x06proto3"
+	"\apayload\x18\x04 \x01(\fR\apayloadJ\x04\b\x03\x10\x04R\apersonaBeZHgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1\xaa\x02\x18WorldEngine.Proto.Isc.V1b\x06proto3"
 
 var (
 	file_worldengine_isc_v1_command_proto_rawDescOnce sync.Once
@@ -169,21 +112,18 @@ func file_worldengine_isc_v1_command_proto_rawDescGZIP() []byte {
 	return file_worldengine_isc_v1_command_proto_rawDescData
 }
 
-var file_worldengine_isc_v1_command_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_worldengine_isc_v1_command_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_worldengine_isc_v1_command_proto_goTypes = []any{
 	(*Command)(nil),           // 0: worldengine.isc.v1.Command
-	(*InterShardCommand)(nil), // 1: worldengine.isc.v1.InterShardCommand
-	(*v1.ServiceAddress)(nil), // 2: worldengine.micro.v1.ServiceAddress
+	(*v1.ServiceAddress)(nil), // 1: worldengine.micro.v1.ServiceAddress
 }
 var file_worldengine_isc_v1_command_proto_depIdxs = []int32{
-	2, // 0: worldengine.isc.v1.Command.address:type_name -> worldengine.micro.v1.ServiceAddress
-	0, // 1: worldengine.isc.v1.InterShardCommand.command:type_name -> worldengine.isc.v1.Command
-	2, // 2: worldengine.isc.v1.InterShardCommand.sender:type_name -> worldengine.micro.v1.ServiceAddress
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	1, // 0: worldengine.isc.v1.Command.address:type_name -> worldengine.micro.v1.ServiceAddress
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_worldengine_isc_v1_command_proto_init() }
@@ -197,7 +137,7 @@ func file_worldengine_isc_v1_command_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_worldengine_isc_v1_command_proto_rawDesc), len(file_worldengine_isc_v1_command_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -823,14 +823,7 @@ func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event)
 	assert.That(isc.Address != nil, "inter shard command has nil address")
 	assert.That(s.interShard != nil, "inter shard command published before the service started")
 
-	s.interShard.enqueue(ctx, &iscv1.InterShardCommand{
-		Command: &iscv1.Command{
-			Name:    isc.Payload.Name(),
-			Address: isc.Address,
-			Payload: schema.Marshal(isc.Payload),
-		},
-		Sender: s.world.address,
-	})
+	s.interShard.enqueue(ctx, isc.Address, isc.Payload.Name(), schema.Marshal(isc.Payload))
 	return nil
 }
 
