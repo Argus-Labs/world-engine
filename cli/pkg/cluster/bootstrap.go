@@ -15,6 +15,7 @@ import (
 
 	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
 	cardinaloperator "github.com/argus-labs/world-engine/cli/pkg/k8s/cardinal-operator"
+	"github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
 // localOperatorImageEnv, when set, makes ensureOperator deploy a locally-built
@@ -111,7 +112,7 @@ func (c *Client) ensurePlatform(ctx context.Context, k *kubeClient) error {
 // ensureOperator applies the cardinal-operator manifest. The embedded bundle
 // pins the operator to a single namespace (operatorNamespace); projects share
 // it.
-func (c *Client) ensureOperator(ctx context.Context, k *kubeClient, shardDBDSN string) error {
+func (c *Client) ensureOperator(ctx context.Context, k *kubeClient, shardDBDSN string, auth toml.Auth) error {
 	// The embedded operator manifest is namespace-scoped to operatorNamespace
 	// but does not include its own Namespace doc (the kustomize overlay
 	// intentionally drops it so the manifest can be applied into any
@@ -136,6 +137,7 @@ func (c *Client) ensureOperator(ctx context.Context, k *kubeClient, shardDBDSN s
 	if shardDBDSN != "" {
 		doc = patchOperatorEnv(doc, "SHARD_DB_DSN", shardDBDSN)
 	}
+	doc = patchOperatorAuth(doc, auth)
 
 	if err := k.applyYAML(ctx, doc); err != nil {
 		return err
@@ -202,9 +204,21 @@ func patchOperatorImage(doc []byte, localImage string) []byte {
 	return []byte(strings.Join(lines, "\n"))
 }
 
-// patchOperatorEnv inserts a name/value pair into the CI-synced manifest's env block at apply time.
+// patchOperatorEnv sets a name/value pair in the CI-synced manifest's env block at apply time:
+// it replaces the value of an existing entry for name, or inserts a new entry.
 func patchOperatorEnv(doc []byte, name, value string) []byte {
 	lines := strings.Split(string(doc), "\n")
+	for i, line := range lines {
+		if strings.TrimSpace(line) != "- name: "+name || i+1 == len(lines) {
+			continue
+		}
+		next := lines[i+1]
+		if strings.HasPrefix(strings.TrimSpace(next), "value:") {
+			indent := next[:len(next)-len(strings.TrimLeft(next, " "))]
+			lines[i+1] = indent + "value: " + strconv.Quote(value)
+			return []byte(strings.Join(lines, "\n"))
+		}
+	}
 	for i, line := range lines {
 		if strings.TrimSpace(line) != "env:" {
 			continue
@@ -214,6 +228,16 @@ func patchOperatorEnv(doc []byte, name, value string) []byte {
 		break
 	}
 	return []byte(strings.Join(lines, "\n"))
+}
+
+// patchOperatorAuth sets the operator env it passes to every shard as CARDINAL_AUTH_MODE and
+// CARDINAL_ARGUS_AUTH_URL, from world.toml's [auth].
+func patchOperatorAuth(doc []byte, auth toml.Auth) []byte {
+	if auth.Mode != toml.AuthModeArgus {
+		return patchOperatorEnv(doc, "SHARD_AUTH_MODE", "DEV")
+	}
+	doc = patchOperatorEnv(doc, "SHARD_AUTH_MODE", "ARGUS")
+	return patchOperatorEnv(doc, "ARGUS_AUTH_URL", auth.URL)
 }
 
 // applyNamespace ensures a namespace exists via server-side apply (idempotent).

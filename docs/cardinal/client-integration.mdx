@@ -11,7 +11,9 @@ For the full SDK reference documentation, see:
 
 ## Initializing the Client
 
-Create a client with a configuration object that specifies the auth URL and region configs. For local development, use dev auth to bypass the normal authentication flow.
+Create a client with a configuration object that specifies the auth URL and region configs.
+
+Locally, shards authenticate players the way the project's `world.toml` `[auth]` section says (see [Project Structure](/project-structure#player-authentication)). With `mode = "argus"`, sign in as you would in production. With `mode = "dev"`, use dev auth to skip sign-in, as below.
 
 <Tabs>
   <Tab title="Unity C#">

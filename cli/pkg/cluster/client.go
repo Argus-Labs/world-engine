@@ -151,7 +151,7 @@ func (c *Client) DeployWorld(ctx context.Context, cfg toml.Config, onStep func(s
 	}
 	// Operator first so it's reconciling before the ShardPools land.
 	step("Installing operator")
-	if err := c.ensureOperator(ctx, k, shardDBDSN(cfg)); err != nil {
+	if err := c.ensureOperator(ctx, k, shardDBDSN(cfg), cfg.Auth); err != nil {
 		return err
 	}
 	step("Waiting for operator")

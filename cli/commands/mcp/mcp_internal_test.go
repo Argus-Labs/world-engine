@@ -71,6 +71,15 @@ func TestSendCommandInput_Validate_Valid(t *testing.T) {
 	assert.NotNil(t, input.Payload)
 }
 
+// A blank player ID gets the default, since Cardinal would reject it even in dev mode.
+func TestSendCommandInput_Validate_BlankPlayerIDUsesDefault(t *testing.T) {
+	t.Parallel()
+	input := SendCommandInput{ShardID: "game", CommandName: "create-player", PlayerID: "  "}
+
+	require.NoError(t, input.validate())
+	assert.Equal(t, defaultDevPlayerID, input.PlayerID)
+}
+
 func TestSendCommandInput_Validate_MissingShardID(t *testing.T) {
 	t.Parallel()
 	input := SendCommandInput{CommandName: "create-player"}

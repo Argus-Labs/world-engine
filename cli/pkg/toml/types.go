@@ -5,8 +5,26 @@ const FileName = "world.toml"
 type Config struct {
 	Organization string        `toml:"organization" json:"organization"`
 	Project      string        `toml:"project"      json:"project"`
+	Auth         Auth          `toml:"auth"         json:"auth"`
 	Shards       []Shard       `toml:"shards"       json:"shards"`
 	Services     []GameService `toml:"services"     json:"services"`
+}
+
+// Shard auth modes for the [auth] section.
+const (
+	AuthModeDev   = "dev"
+	AuthModeArgus = "argus"
+)
+
+// Auth is how every shard `world start` runs authenticates players. Deployed shards don't read
+// world.toml; their deployment sets CARDINAL_AUTH_MODE and CARDINAL_ARGUS_AUTH_URL instead.
+type Auth struct {
+	// Mode is AuthModeArgus (validate Argus Auth game tokens) or AuthModeDev (trust the
+	// X-Player-Id header). validate sets it to AuthModeDev when world.toml leaves it out.
+	Mode string `toml:"mode,omitempty" json:"mode,omitempty"`
+	// URL is the Argus Auth service as the shards reach it. Required for AuthModeArgus; ignored
+	// for AuthModeDev, so switching modes doesn't mean deleting it.
+	URL string `toml:"url,omitempty" json:"url,omitempty"`
 }
 
 type Shard struct {

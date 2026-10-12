@@ -7,6 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
+
+	cardinaloperator "github.com/argus-labs/world-engine/cli/pkg/k8s/cardinal-operator"
+	"github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
 // parseShardPoolCR round-trips the rendered document back through a YAML
@@ -239,4 +242,37 @@ func TestPatchOperatorEnv(t *testing.T) {
 
 	var parsed map[string]any
 	require.NoError(t, yaml.Unmarshal(patchOperatorEnv(doc, "A", "b"), &parsed)) // stays valid YAML
+}
+
+// patchOperatorEnv replaces an entry the manifest already sets, such as its SHARD_AUTH_MODE,
+// instead of adding a duplicate that the existing entry would override.
+func TestPatchOperatorEnv_ReplacesExistingEntry(t *testing.T) {
+	t.Parallel()
+
+	doc := []byte("spec:\n  containers:\n  - name: manager\n    env:\n" +
+		"    - name: SHARD_AUTH_MODE\n      value: DEV\n" +
+		"    - name: NATS_URL\n      value: nats://x:4222\n")
+	got := string(patchOperatorEnv(doc, "SHARD_AUTH_MODE", "ARGUS"))
+
+	require.Contains(t, got, "    - name: SHARD_AUTH_MODE\n      value: \"ARGUS\"\n")
+	require.Equal(t, 1, strings.Count(got, "SHARD_AUTH_MODE"))
+	require.NotContains(t, got, "DEV")
+	require.Contains(t, got, "- name: NATS_URL")
+}
+
+// world.toml's [auth] reaches the operator env that the operator copies onto every shard.
+func TestPatchOperatorAuth(t *testing.T) {
+	t.Parallel()
+
+	doc, err := cardinaloperator.Manifests.ReadFile(manifestOperator)
+	require.NoError(t, err)
+
+	argus := string(patchOperatorAuth(doc, toml.Auth{Mode: toml.AuthModeArgus, URL: "https://api.argus.dev"}))
+	require.Contains(t, argus, "- name: SHARD_AUTH_MODE\n          value: \"ARGUS\"")
+	require.Contains(t, argus, "- name: ARGUS_AUTH_URL\n          value: \"https://api.argus.dev\"")
+
+	// Dev auth keeps the manifest's mode and passes no URL, even if world.toml still has one.
+	dev := string(patchOperatorAuth(doc, toml.Auth{Mode: toml.AuthModeDev, URL: "https://api.argus.dev"}))
+	require.Contains(t, dev, "- name: SHARD_AUTH_MODE\n          value: \"DEV\"")
+	require.NotContains(t, dev, "ARGUS_AUTH_URL")
 }

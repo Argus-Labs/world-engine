@@ -66,6 +66,10 @@ func validate(cfg *Config) error {
 		return err
 	}
 
+	if err := validateAuth(&cfg.Auth); err != nil {
+		return err
+	}
+
 	if len(cfg.Shards) == 0 {
 		return eris.New("at least one shard is required")
 	}

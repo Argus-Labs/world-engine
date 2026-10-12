@@ -21,6 +21,12 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	// Tests build worlds with NewWorld, which requires an auth mode.
+	if err := os.Setenv("CARDINAL_AUTH_MODE", "DEV"); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to set CARDINAL_AUTH_MODE: %v\n", err)
+		os.Exit(1)
+	}
+
 	tempDir := filepath.Join(os.TempDir(), "nats-test-shared-"+strconv.Itoa(os.Getpid()))
 
 	// Uses modified values of NATS's own default test server config.

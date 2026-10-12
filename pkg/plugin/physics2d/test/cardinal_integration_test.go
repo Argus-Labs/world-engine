@@ -772,6 +772,7 @@ func TestPhysics2D_CardinalIntegration(t *testing.T) {
 		Organization:        "physics2d-e2e",
 		Project:             "physics2d-e2e",
 		ShardID:             "0",
+		AuthMode:            cardinal.AuthModeDev,
 		TickRate:            60,
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        1_000_000,

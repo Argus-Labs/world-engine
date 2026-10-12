@@ -55,6 +55,7 @@ func newWorld(t *testing.T) *cardinal.World {
 		Organization:        "data-test",
 		Project:             "data-test",
 		ShardID:             "0",
+		AuthMode:            cardinal.AuthModeDev,
 		TickRate:            60,
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        1_000_000,

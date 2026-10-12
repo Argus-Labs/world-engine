@@ -64,7 +64,7 @@ func newOwnershipWorldWithSetup(t *testing.T, setup func(*cardinal.World)) *owne
 	world, err := cardinal.NewWorld(cardinal.WorldOptions{
 		Region: "local", Organization: "lobby-test", Project: "lobby-test", ShardID: "0",
 		TickRate: 1, SnapshotStorageType: snapshot.StorageTypeNop,
-		SnapshotRate: 1_000_000, Debug: &debug,
+		SnapshotRate: 1_000_000, Debug: &debug, AuthMode: cardinal.AuthModeDev,
 	})
 	require.NoError(t, err)
 	setup(world)
