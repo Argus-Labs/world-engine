@@ -22,8 +22,9 @@ import (
 // Hidden from `world -h` because it exists for deployment CI, not interactive
 // use — `world start` is the supported user flow.
 type BuildCmd struct {
-	Debug bool   `default:"true" help:"Enable debug mode"                                                        negatable:""`
-	Shard string `               help:"Build only the specified shard ID (defaults to all shards in world.toml)"`
+	Debug    bool              `default:"true" help:"Enable debug mode"                                                                          negatable:""`
+	Shard    string            `               help:"Build only the specified shard ID (defaults to all shards in world.toml)"`
+	Progress phasebox.Progress `default:"tty"  help:"How to show progress: tty (live box) or plain (one line per finished section, for CI logs)"              enum:"tty,plain"`
 }
 
 func (c *BuildCmd) Run(ctx context.Context) error {
@@ -72,7 +73,7 @@ func (c *BuildCmd) Run(ctx context.Context) error {
 				return eris.New("no Cardinal shards found in this project")
 			}
 
-			dash := phasebox.Start(ctx)
+			dash := phasebox.Start(ctx, c.Progress)
 			defer dash.Complete()
 
 			if err := dash.Run("Build",
@@ -84,11 +85,8 @@ func (c *BuildCmd) Run(ctx context.Context) error {
 						phasebox.BuildProgress(sess, imageNames),
 					)
 				},
-				func(err error, elapsed time.Duration) (string, bool) {
-					if err != nil {
-						return err.Error(), true
-					}
-					return fmt.Sprintf("%d image(s) built (%s)", len(dockerServices), elapsed.Round(time.Second)), false
+				func(elapsed time.Duration) string {
+					return fmt.Sprintf("%d image(s) built (%s)", len(dockerServices), elapsed.Round(time.Second))
 				},
 			); err != nil {
 				return eris.Wrap(err, "Failed to build Cardinal images")

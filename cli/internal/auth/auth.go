@@ -153,8 +153,8 @@ func (c *Client) signIn(ctx context.Context) (string, error) {
 //
 // All three are checked because the sign-in flow spreads across all three, and
 // redirection rarely takes them together: signIn prints the link through
-// printer, which writes to os.Stdout; the prompt reads os.Stdin; and
-// program.NewTeaProgram keys off os.Stderr. `world logs 2>&1 | tee run.log`
+// printer, which writes to [os.Stdout]; the prompt reads [os.Stdin]; and
+// program.NewTeaProgram keys off [os.Stderr]. `world logs 2>&1 | tee run.log`
 // leaves only stdin attached, `world logs </dev/null 2>/dev/null` only stdout.
 //
 // Redirecting all three from a terminal (`world logs >out.log 2>err.log`) still
@@ -248,7 +248,9 @@ func (c *Client) pollEvery(ctx context.Context, callbackURL string, interval tim
 			return "", err
 		case status.Status == "success" && status.JWT != "":
 			return status.JWT, nil
-		case status.Status != "pending" && status.Status != "":
+		case status.Status == "":
+			return "", eris.New("auth service returned an empty status")
+		case status.Status != "pending":
 			return "", eris.Errorf("authorization failed: %s", status.Status)
 		}
 
@@ -302,9 +304,8 @@ func (c *Client) cached() (string, error) {
 
 // Claims is the subset of the Argus JWT this CLI reads.
 type Claims struct {
-	Email     string `json:"email"`
-	PersonaID string `json:"personaID"`
-	Exp       int64  `json:"exp"`
+	Email string `json:"email"`
+	Exp   int64  `json:"exp"`
 }
 
 func (c Claims) ExpiresAt() time.Time { return time.Unix(c.Exp, 0) }

@@ -199,8 +199,8 @@ func serviceDeployment(name, ns, project, image string, env []corev1.EnvVar, por
 		})
 	}
 	return &appsv1.Deployment{
-		TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns, Labels: managedServiceLabels(name, project)},
+		APIVersion: "apps/v1", Kind: "Deployment",
+		Name: name, Namespace: ns, Labels: managedServiceLabels(name, project),
 		Spec: appsv1.DeploymentSpec{
 			Replicas: new(int32(1)),
 			Selector: &metav1.LabelSelector{MatchLabels: podLabels},
@@ -234,8 +234,8 @@ func serviceService(name, ns, project string, ports []int) *corev1.Service {
 		})
 	}
 	return &corev1.Service{
-		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "Service"},
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns, Labels: managedServiceLabels(name, project)},
+		APIVersion: "v1", Kind: "Service",
+		Name: name, Namespace: ns, Labels: managedServiceLabels(name, project),
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{"app": name},

@@ -65,3 +65,26 @@ func TestWorldMethods_SystemEvents(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, events)
 }
+
+// TestWorldMethods_SystemEvents_ResetClearsInitBuffer verifies that Reset drains the
+// system-event buffer. Init emits into the buffer outside Tick's deferred clear, so
+// Reset must take ownership of draining init-emitted events to keep re-Init self-contained.
+func TestWorldMethods_SystemEvents_ResetClearsInitBuffer(t *testing.T) {
+	t.Parallel()
+	w := NewWorld()
+	_, err := w.RegisterSystemEvent[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+	require.NoError(t, w.RegisterSystem("emit-on-init", Init, func() {
+		require.NoError(t, w.EmitSystemEvent(testutils.SimpleSystemEvent{Value: 1}))
+	}))
+
+	w.Init() // emits one event into the buffer
+	events, err := w.GetSystemEvents[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+
+	w.Reset() // must drain the buffer alongside world state
+	events, err = w.GetSystemEvents[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+	require.Empty(t, events, "Reset must clear buffered system events")
+}

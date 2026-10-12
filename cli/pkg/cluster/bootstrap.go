@@ -10,7 +10,6 @@ import (
 
 	"github.com/rotisserie/eris"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/yaml"
 
@@ -44,7 +43,7 @@ const operatorNamespace = "cardinal-operator-system"
 // every world's shards into. Exported for the editor; see operatorNamespace.
 func ShardNamespace() string { return operatorNamespace }
 
-// Manifest paths inside cardinaloperator.Manifests (an embed.FS).
+// Manifest paths inside cardinaloperator.Manifests (an [embed.FS]).
 const (
 	manifestCRD      = "manifests/crd/cardinal.argus.gg_shardpools.yaml"
 	manifestOperator = "manifests/operator/operator.yaml"
@@ -162,12 +161,10 @@ func (c *Client) ensureOperator(ctx context.Context, k *kubeClient, shardDBDSN s
 // YAML.
 func operatorNodePortServiceYAML() ([]byte, error) {
 	svc := &corev1.Service{
-		TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Service"},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cardinal-operator-nodeport",
-			Namespace: operatorNamespace,
-			Labels:    map[string]string{"managed-by": "world-cli"},
-		},
+		APIVersion: "v1", Kind: "Service",
+		Name:      "cardinal-operator-nodeport",
+		Namespace: operatorNamespace,
+		Labels:    map[string]string{"managed-by": "world-cli"},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeNodePort,
 			Selector: map[string]string{"app.kubernetes.io/name": "cardinal-operator"},

@@ -9,5 +9,4 @@ breaking:
   use:
     - FILE
 deps:
-  - buf.build/argus-labs/world-engine
   - buf.build/bufbuild/protovalidate

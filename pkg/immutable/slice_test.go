@@ -176,9 +176,9 @@ func TestEqual(t *testing.T) {
 	require.True(t, immutable.Equal(immutable.Slice[int]{}, immutable.SliceOf[int]()), "empty equals empty")
 }
 
-// Empty Slices are not interchangeable under reflect.DeepEqual, and that is the deliberate trade:
+// Empty Slices are not interchangeable under [reflect.DeepEqual], and that is the deliberate trade:
 // a derivation that empties one leaves its backing array allocated, while the zero value has none.
-// Equal compares elements and agrees with slices.Equal that nil and empty are the same list, so that
+// Equal compares elements and agrees with [slices.Equal] that nil and empty are the same list, so that
 // is what comparisons go through.
 //
 // The case this used to protect — a component restored from a snapshot versus one built fresh — is
@@ -197,6 +197,47 @@ func TestSlice_EmptyComparison(t *testing.T) {
 	require.True(t, zero.EqualFunc(derived, func(a, b int) bool { return a == b }))
 
 	require.NotEqual(t, zero, derived, "use Equal, not require.Equal, on a possibly-empty Slice")
+}
+
+// Every fresh-allocation producer — one that builds a new backing array and leaves the receiver
+// alone — must return the zero value for an empty result, not an empty-but-allocated Slice. That is
+// the rule the generated FromProto and UnmarshalJSON both enforce so a component built fresh compares
+// equal to one restored from a snapshot under [reflect.DeepEqual]. Repeat used to be the lone
+// outlier: it forwarded to [slices.Repeat], which is never-nil. This table pins every producer at
+// once so a future regression to any one of them — Repeat most of all — fails here.
+func TestSlice_ProducerEmptyIsZeroValue(t *testing.T) {
+	t.Parallel()
+
+	zero := immutable.Slice[int]{}
+	empty := immutable.SliceOf[int]()
+	id := func(int) int { return 0 }
+
+	producers := []struct {
+		name string
+		got  immutable.Slice[int]
+	}{
+		{"Repeat(zero,0)", zero.Repeat(0)},
+		{"Repeat(empty,0)", empty.Repeat(0)},
+		{"Repeat(non-empty,0)", immutable.SliceOf(1, 2, 3).Repeat(0)},
+		{"Repeat(zero,3)", zero.Repeat(3)},
+		{"Map(zero,id)", immutable.Map(zero, id)},
+		{"Map(empty,id)", immutable.Map(empty, id)},
+		{"Concat()", immutable.Concat[int]()},
+		{"Concat(zero,empty)", immutable.Concat(zero, empty)},
+		{"Collect(zero.Values)", immutable.Collect(zero.Values())},
+		{"Append(zero)", zero.Append()},
+		{"Append(empty)", empty.Append()},
+	}
+
+	for _, p := range producers {
+		t.Run(p.name, func(t *testing.T) {
+			t.Parallel()
+
+			require.Equal(t, 0, p.got.Len(), "empty producer result has no elements")
+			require.True(t, reflect.DeepEqual(zero, p.got),
+				"%s: empty producer result must be DeepEqual to the zero value", p.name)
+		})
+	}
 }
 
 // Slice copies the engine type's name and layout but lives in this package, so SliceElem must
@@ -325,7 +366,11 @@ func TestSlice_MapConcatCollectCompact(t *testing.T) {
 	require.Equal(t, []string{"1", "2", "3"}, collect(immutable.Map(s, strconv.Itoa)))
 	require.Equal(t, 0, immutable.Map(immutable.Slice[int]{}, strconv.Itoa).Len())
 
-	require.Equal(t, []int{1, 2, 3, 4, 5}, collect(immutable.Concat(s, immutable.Slice[int]{}, immutable.SliceOf(4, 5))))
+	require.Equal(
+		t,
+		[]int{1, 2, 3, 4, 5},
+		collect(immutable.Concat(s, immutable.Slice[int]{}, immutable.SliceOf(4, 5))),
+	)
 	require.Equal(t, 0, immutable.Concat[int]().Len())
 
 	require.Equal(t, []int{1, 2, 3}, collect(immutable.Collect(s.Values())))

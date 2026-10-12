@@ -31,7 +31,11 @@ func main() {
 		digest  = flag.Bool("digest", false, "print a hash of every body's final state; two runs must match")
 		hostile = flag.String("hostile", "", "run one crash-prone case alone instead of the suite (see -hostile list)")
 		restore = flag.Bool("restore", false, "run the crash-restore check instead of the suite")
-		noReset = flag.Bool("restore-no-reset", false, "with -restore, skip the documented Plugin.Reset after FromProto")
+		noReset = flag.Bool(
+			"restore-no-reset",
+			false,
+			"with -restore, skip the documented Plugin.Reset after FromProto",
+		)
 	)
 	flag.Parse()
 

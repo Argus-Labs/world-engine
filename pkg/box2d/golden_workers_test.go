@@ -265,7 +265,7 @@ func installWorkerStressCallbacks(w *box2d.World) {
 // world exposes — body move, contact begin/end/hit, sensor begin/end, joint —
 // into the signature hash, field by field, so any cross-worker-count event
 // divergence (content OR order, not just count) fails loudly. Only existing
-// values are hashed (float bit patterns via math.Float64bits); no arithmetic
+// values are hashed (float bit patterns via [math.Float64bits]); no arithmetic
 // is performed on them. Ids are folded with the world0 owner token masked out
 // (worldTokenMask, world_identity_test.go) because the serial and parallel
 // signatures come from two distinct worlds with distinct tokens.

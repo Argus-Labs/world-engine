@@ -6,7 +6,7 @@ package box2d
 
 import "math"
 
-// Pi matches the upstream B2_PI decimal literal (not math.Pi) so ported
+// Pi matches the upstream B2_PI decimal literal (not [math.Pi]) so ported
 // expressions stay diffable against the C source.
 //
 // DELIBERATE DEVIATION: upstream writes `3.14159265359f`, a float32 literal

@@ -56,10 +56,6 @@ type (
 	// Source after the primary JSON has been unmarshaled.
 	Resolver = system.Resolver
 
-	// Singleton is an optional Definition marker: the kind's config is a single JSON object rather
-	// than a collection, so its source returns one object instead of an array.
-	Singleton = system.Singleton
-
 	// Validator is an optional Definition interface for enforcing post-load invariants. A
 	// non-nil error panics.
 	Validator = system.Validator

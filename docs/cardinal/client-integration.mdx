@@ -22,7 +22,10 @@ Create a client with a configuration object that specifies the auth URL and regi
     var config = new WorldClientConfig
     {
         AuthUrl = "http://localhost:3000",
-        AuthClientOverride = new DevAuth("dev@argus.gg"),
+        // The game: sign-in and every shard use this organization and project.
+        Organization = "my-org",
+        Project = "my-game",
+        AuthClientOverride = new DevAuth("dev-player-1"),
         Regions = new Dictionary<string, RegionConfig>
         {
             ["us-west1"] = new RegionConfig
@@ -45,20 +48,26 @@ Create a client with a configuration object that specifies the auth URL and regi
 
 ## Authentication
 
-Sign in to authenticate the user. You can retrieve the current user's information and persona after signing in.
+`client.AuthStatus` says what the game can do: `SignedOut`, `NeedsRefresh` (a saved login needs a fresh game token), or `Ready`. `client.Player` says who is playing. `client.AuthChanged` fires on Unity's main thread whenever either changes. Cardinal identifies the player by the stable player ID in the game token.
 
 <Tabs>
   <Tab title="Unity C#">
     ```csharp
-    var result = await client.SignInAsync();
-    if (result.Error == null)
-    {
-        var user = result.Data;
-        Debug.Log($"Signed in as {user.Email} (Persona: {user.PersonaId})");
-    }
+    client.AuthChanged += Render;
+    Render();
+    if (client.AuthStatus == AuthStatus.NeedsRefresh)
+        await client.RefreshAuthAsync();
 
-    // Get current user
-    var currentUser = client.GetUser();
+    // On a sign-in button:
+    var result = await client.SignInAsync(); // or SignInAsGuestAsync()
+    if (result != AuthResult.Success)
+        Debug.LogWarning($"Sign-in did not finish: {result}");
+
+    void Render()
+    {
+        if (client.Player is PlayerState.Registered player)
+            Debug.Log($"Signed in as {player.Email} (Player: {player.Id})");
+    }
     ```
   </Tab>
   <Tab title="TypeScript">
@@ -73,7 +82,7 @@ Sign out when the user logs out of your game.
 <Tabs>
   <Tab title="Unity C#">
     ```csharp
-    await client.SignOutAsync();
+    client.SignOut();
     ```
   </Tab>
   <Tab title="TypeScript">
@@ -85,9 +94,9 @@ Sign out when the user logs out of your game.
 
 ## Connecting to a Shard
 
-A shard is a single instance of your game world running on the server. The shard client is your connection to that instance, allowing you to query entities, send commands, and subscribe to events.
+A shard is a single instance of your game world running on the server. The shard client is your connection to that instance, allowing you to send commands and subscribe to events.
 
-To connect, specify the shard's address (region, organization, project, and shard ID) and call connect to get a shard client.
+To connect, specify the shard's region and ID and call connect to get a shard client. The organization and project come from the client config.
 
 <Tabs>
   <Tab title="Unity C#">
@@ -95,12 +104,10 @@ To connect, specify the shard's address (region, organization, project, and shar
     var addr = new ShardAddress
     {
         Region = "us-west1",
-        Organization = "my-org",
-        Project = "my-game",
         ShardId = "game-shard"
     };
 
-    var shard = client.ConnectShard(addr);
+    var shard = await client.ConnectShardAsync(addr);
     ```
   </Tab>
   <Tab title="TypeScript">
@@ -116,56 +123,6 @@ Disconnect from the shard when you no longer need it.
   <Tab title="Unity C#">
     ```csharp
     client.DisconnectShard(addr);
-    ```
-  </Tab>
-  <Tab title="TypeScript">
-    ```ts
-    // TODO: update
-    ```
-  </Tab>
-</Tabs>
-
-## Querying Entities
-
-To query entities, define client-side classes with field mappings that correspond to component field names on the server. Build queries to specify which components to find and how to match them. See [Queries](/cardinal/queries) for more details.
-
-<Tabs>
-  <Tab title="Unity C#">
-    ```csharp
-    // Define entity classes with Field attribute mapping
-    public class PlayerTag
-    {
-        [Field("nickname")]
-        public string Nickname { get; set; }
-    }
-
-    public class Health
-    {
-        [Field("hp")]
-        public float Hp { get; set; }
-    }
-
-    public class PlayerEntity
-    {
-        [Field("playertag")]
-        public PlayerTag PlayerTag { get; set; }
-
-        [Field("health")]
-        public Health Health { get; set; }
-    }
-
-    // Build and execute query
-    var query = new QueryInfo
-    {
-        Find = new List<string> { "playertag", "health" },
-        Match = QueryMatch.Contains,
-    };
-
-    var results = await shard.QueryAsync<PlayerEntity>(query);
-    foreach (var (entity, id) in results)
-    {
-        Debug.Log($"Player: {entity.PlayerTag.Nickname} Health: {entity.Health.Hp}");
-    }
     ```
   </Tab>
   <Tab title="TypeScript">

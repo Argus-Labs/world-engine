@@ -27,6 +27,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -86,7 +87,7 @@ func TestNoFusedMultiplyAdd(t *testing.T) {
 	// different inlining budget. Correctness does not rest on -a in the first
 	// place: the package source hash is part of every build action ID, PGO or
 	// not, so an edited source file can never hit a cached object.
-	for _, build := range builds[:len(builds):len(builds)] {
+	for _, build := range slices.Clip(builds) {
 		args := make([]string, 0, len(build.args)+1)
 		args = append(args, build.args[0], "-pgo="+pgoProfile)
 		for _, arg := range build.args[1:] {
@@ -122,7 +123,7 @@ func assertNoFMA(t *testing.T, label string, env, args []string) {
 	require.NoError(t, err, "compiling %s failed:\n%s", label, out)
 
 	var offenders []string
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		if fmaMnemonic.MatchString(line) {
 			offenders = append(offenders, strings.TrimSpace(line))
 		}

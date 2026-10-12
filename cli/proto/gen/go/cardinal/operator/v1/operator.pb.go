@@ -8,7 +8,6 @@ package operatorv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
-	v1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -940,226 +939,6 @@ func (x *PodLogLine) GetLine() string {
 	return ""
 }
 
-type ProfileRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// ShardPool ID (e.g. "lobby", "gameplay") — consistent with other RPCs.
-	ShardId string `protobuf:"bytes,1,opt,name=shard_id,json=shardId,proto3" json:"shard_id,omitempty"`
-	// Specific instance to profile (e.g. "lobby-0"). Required; profiling is
-	// always pod-specific so callers know exactly which process was sampled.
-	InstanceName string `protobuf:"bytes,2,opt,name=instance_name,json=instanceName,proto3" json:"instance_name,omitempty"`
-	// Profile type. Maps to the path segment after /debug/pprof/.
-	Profile string `protobuf:"bytes,3,opt,name=profile,proto3" json:"profile,omitempty"`
-	// Sampling duration. Only applies to "profile" (CPU) and "trace".
-	// Ignored by all other profile types. Defaults to 30 if zero/unset.
-	// Capped at 300 to prevent indefinite holds on the shard process.
-	Seconds       int32 `protobuf:"varint,4,opt,name=seconds,proto3" json:"seconds,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ProfileRequest) Reset() {
-	*x = ProfileRequest{}
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[15]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ProfileRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ProfileRequest) ProtoMessage() {}
-
-func (x *ProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[15]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ProfileRequest.ProtoReflect.Descriptor instead.
-func (*ProfileRequest) Descriptor() ([]byte, []int) {
-	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{15}
-}
-
-func (x *ProfileRequest) GetShardId() string {
-	if x != nil {
-		return x.ShardId
-	}
-	return ""
-}
-
-func (x *ProfileRequest) GetInstanceName() string {
-	if x != nil {
-		return x.InstanceName
-	}
-	return ""
-}
-
-func (x *ProfileRequest) GetProfile() string {
-	if x != nil {
-		return x.Profile
-	}
-	return ""
-}
-
-func (x *ProfileRequest) GetSeconds() int32 {
-	if x != nil {
-		return x.Seconds
-	}
-	return 0
-}
-
-// ProfileResponse carries a chunk of profile.proto bytes. The full profile
-// is the concatenation of every chunk in stream order; the operator does
-// not parse the payload, only forwards it.
-type ProfileResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Data          []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ProfileResponse) Reset() {
-	*x = ProfileResponse{}
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[16]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ProfileResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ProfileResponse) ProtoMessage() {}
-
-func (x *ProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[16]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ProfileResponse.ProtoReflect.Descriptor instead.
-func (*ProfileResponse) Descriptor() ([]byte, []int) {
-	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *ProfileResponse) GetData() []byte {
-	if x != nil {
-		return x.Data
-	}
-	return nil
-}
-
-// Addressing for the StreamShardPerf forwarder: pick a specific shard pool +
-// instance. Same selectors Restart / StreamPodLogs use.
-type StreamShardPerfRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ShardId       string                 `protobuf:"bytes,1,opt,name=shard_id,json=shardId,proto3" json:"shard_id,omitempty"`
-	InstanceName  string                 `protobuf:"bytes,2,opt,name=instance_name,json=instanceName,proto3" json:"instance_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StreamShardPerfRequest) Reset() {
-	*x = StreamShardPerfRequest{}
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[17]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StreamShardPerfRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StreamShardPerfRequest) ProtoMessage() {}
-
-func (x *StreamShardPerfRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[17]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StreamShardPerfRequest.ProtoReflect.Descriptor instead.
-func (*StreamShardPerfRequest) Descriptor() ([]byte, []int) {
-	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{17}
-}
-
-func (x *StreamShardPerfRequest) GetShardId() string {
-	if x != nil {
-		return x.ShardId
-	}
-	return ""
-}
-
-func (x *StreamShardPerfRequest) GetInstanceName() string {
-	if x != nil {
-		return x.InstanceName
-	}
-	return ""
-}
-
-type StreamShardPerfResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PerfBatch     *v1.PerfBatch          `protobuf:"bytes,1,opt,name=perf_batch,json=perfBatch,proto3" json:"perf_batch,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StreamShardPerfResponse) Reset() {
-	*x = StreamShardPerfResponse{}
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[18]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StreamShardPerfResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StreamShardPerfResponse) ProtoMessage() {}
-
-func (x *StreamShardPerfResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[18]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StreamShardPerfResponse.ProtoReflect.Descriptor instead.
-func (*StreamShardPerfResponse) Descriptor() ([]byte, []int) {
-	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{18}
-}
-
-func (x *StreamShardPerfResponse) GetPerfBatch() *v1.PerfBatch {
-	if x != nil {
-		return x.PerfBatch
-	}
-	return nil
-}
-
 type StreamPodMetricsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// shard_id is used as a Kubernetes label-selector value at the
@@ -1173,7 +952,7 @@ type StreamPodMetricsRequest struct {
 
 func (x *StreamPodMetricsRequest) Reset() {
 	*x = StreamPodMetricsRequest{}
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[19]
+	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1185,7 +964,7 @@ func (x *StreamPodMetricsRequest) String() string {
 func (*StreamPodMetricsRequest) ProtoMessage() {}
 
 func (x *StreamPodMetricsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[19]
+	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1198,7 +977,7 @@ func (x *StreamPodMetricsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamPodMetricsRequest.ProtoReflect.Descriptor instead.
 func (*StreamPodMetricsRequest) Descriptor() ([]byte, []int) {
-	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{19}
+	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *StreamPodMetricsRequest) GetShardId() string {
@@ -1222,7 +1001,7 @@ type StreamPodMetricsResponse struct {
 
 func (x *StreamPodMetricsResponse) Reset() {
 	*x = StreamPodMetricsResponse{}
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[20]
+	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1234,7 +1013,7 @@ func (x *StreamPodMetricsResponse) String() string {
 func (*StreamPodMetricsResponse) ProtoMessage() {}
 
 func (x *StreamPodMetricsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[20]
+	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1247,7 +1026,7 @@ func (x *StreamPodMetricsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamPodMetricsResponse.ProtoReflect.Descriptor instead.
 func (*StreamPodMetricsResponse) Descriptor() ([]byte, []int) {
-	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{20}
+	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *StreamPodMetricsResponse) GetSamples() []*PodMetricsSample {
@@ -1274,7 +1053,7 @@ type StreamSpansRequest struct {
 
 func (x *StreamSpansRequest) Reset() {
 	*x = StreamSpansRequest{}
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[21]
+	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1286,7 +1065,7 @@ func (x *StreamSpansRequest) String() string {
 func (*StreamSpansRequest) ProtoMessage() {}
 
 func (x *StreamSpansRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[21]
+	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1299,7 +1078,7 @@ func (x *StreamSpansRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamSpansRequest.ProtoReflect.Descriptor instead.
 func (*StreamSpansRequest) Descriptor() ([]byte, []int) {
-	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{21}
+	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *StreamSpansRequest) GetShardId() string {
@@ -1318,7 +1097,7 @@ type StreamSpansResponse struct {
 
 func (x *StreamSpansResponse) Reset() {
 	*x = StreamSpansResponse{}
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[22]
+	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1330,7 +1109,7 @@ func (x *StreamSpansResponse) String() string {
 func (*StreamSpansResponse) ProtoMessage() {}
 
 func (x *StreamSpansResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[22]
+	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1343,7 +1122,7 @@ func (x *StreamSpansResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamSpansResponse.ProtoReflect.Descriptor instead.
 func (*StreamSpansResponse) Descriptor() ([]byte, []int) {
-	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{22}
+	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *StreamSpansResponse) GetSpans() []*DebugSpan {
@@ -1382,7 +1161,7 @@ type DebugSpan struct {
 
 func (x *DebugSpan) Reset() {
 	*x = DebugSpan{}
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[23]
+	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1394,7 +1173,7 @@ func (x *DebugSpan) String() string {
 func (*DebugSpan) ProtoMessage() {}
 
 func (x *DebugSpan) ProtoReflect() protoreflect.Message {
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[23]
+	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1407,7 +1186,7 @@ func (x *DebugSpan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DebugSpan.ProtoReflect.Descriptor instead.
 func (*DebugSpan) Descriptor() ([]byte, []int) {
-	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{23}
+	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DebugSpan) GetTraceId() string {
@@ -1515,7 +1294,7 @@ type PodMetricsSample struct {
 
 func (x *PodMetricsSample) Reset() {
 	*x = PodMetricsSample{}
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[24]
+	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1527,7 +1306,7 @@ func (x *PodMetricsSample) String() string {
 func (*PodMetricsSample) ProtoMessage() {}
 
 func (x *PodMetricsSample) ProtoReflect() protoreflect.Message {
-	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[24]
+	mi := &file_cardinal_operator_v1_operator_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1540,7 +1319,7 @@ func (x *PodMetricsSample) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PodMetricsSample.ProtoReflect.Descriptor instead.
 func (*PodMetricsSample) Descriptor() ([]byte, []int) {
-	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{24}
+	return file_cardinal_operator_v1_operator_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *PodMetricsSample) GetInstanceName() string {
@@ -1589,7 +1368,7 @@ var File_cardinal_operator_v1_operator_proto protoreflect.FileDescriptor
 
 const file_cardinal_operator_v1_operator_proto_rawDesc = "" +
 	"\n" +
-	"#cardinal/operator/v1/operator.proto\x12\x14cardinal.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#worldengine/cardinal/v1/debug.proto\"Y\n" +
+	"#cardinal/operator/v1/operator.proto\x12\x14cardinal.operator.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"Y\n" +
 	"\rDeployRequest\x12\"\n" +
 	"\bshard_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\ashardId\x12$\n" +
 	"\timage_tag\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bimageTag\"*\n" +
@@ -1655,21 +1434,7 @@ const file_cardinal_operator_v1_operator_proto_rawDesc = "" +
 	"\n" +
 	"PodLogLine\x12\x1c\n" +
 	"\ttimestamp\x18\x01 \x01(\tR\ttimestamp\x12\x12\n" +
-	"\x04line\x18\x02 \x01(\tR\x04line\"\xee\x01\n" +
-	"\x0eProfileRequest\x12\"\n" +
-	"\bshard_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\ashardId\x12,\n" +
-	"\rinstance_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\finstanceName\x12d\n" +
-	"\aprofile\x18\x03 \x01(\tBJ\xbaHGrER\aprofileR\x04heapR\tgoroutineR\x06allocsR\x05blockR\x05mutexR\fthreadcreateR\x05traceR\aprofile\x12$\n" +
-	"\aseconds\x18\x04 \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\xac\x02(\x00R\aseconds\"%\n" +
-	"\x0fProfileResponse\x12\x12\n" +
-	"\x04data\x18\x01 \x01(\fR\x04data\"j\n" +
-	"\x16StreamShardPerfRequest\x12\"\n" +
-	"\bshard_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\ashardId\x12,\n" +
-	"\rinstance_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\finstanceName\"\\\n" +
-	"\x17StreamShardPerfResponse\x12A\n" +
-	"\n" +
-	"perf_batch\x18\x01 \x01(\v2\".worldengine.cardinal.v1.PerfBatchR\tperfBatch\"n\n" +
+	"\x04line\x18\x02 \x01(\tR\x04line\"n\n" +
 	"\x17StreamPodMetricsRequest\x12S\n" +
 	"\bshard_id\x18\x01 \x01(\tB8\xbaH5r3\x10\x012/^[a-z0-9A-Z]([-a-z0-9A-Z_.]{0,61}[a-z0-9A-Z])?$R\ashardId\"\xa6\x01\n" +
 	"\x18StreamPodMetricsResponse\x12@\n" +
@@ -1706,7 +1471,7 @@ const file_cardinal_operator_v1_operator_proto_rawDesc = "" +
 	"\x18memory_working_set_bytes\x18\x04 \x01(\x03R\x15memoryWorkingSetBytes\x12\x17\n" +
 	"\apod_uid\x18\x06 \x01(\tR\x06podUid\x129\n" +
 	"\n" +
-	"scraped_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tscrapedAtJ\x04\b\x05\x10\x06R\tnode_name2\xd9\a\n" +
+	"scraped_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tscrapedAtJ\x04\b\x05\x10\x06R\tnode_name2\x8d\x06\n" +
 	"\x0fOperatorService\x12S\n" +
 	"\x06Deploy\x12#.cardinal.operator.v1.DeployRequest\x1a$.cardinal.operator.v1.DeployResponse\x12V\n" +
 	"\aRestart\x12$.cardinal.operator.v1.RestartRequest\x1a%.cardinal.operator.v1.RestartResponse\x12P\n" +
@@ -1714,9 +1479,7 @@ const file_cardinal_operator_v1_operator_proto_rawDesc = "" +
 	"\x06Status\x12#.cardinal.operator.v1.StatusRequest\x1a$.cardinal.operator.v1.StatusResponse\x12_\n" +
 	"\n" +
 	"PoolPolicy\x12'.cardinal.operator.v1.PoolPolicyRequest\x1a(.cardinal.operator.v1.PoolPolicyResponse\x12j\n" +
-	"\rStreamPodLogs\x12*.cardinal.operator.v1.StreamPodLogsRequest\x1a+.cardinal.operator.v1.StreamPodLogsResponse0\x01\x12X\n" +
-	"\aProfile\x12$.cardinal.operator.v1.ProfileRequest\x1a%.cardinal.operator.v1.ProfileResponse0\x01\x12p\n" +
-	"\x0fStreamShardPerf\x12,.cardinal.operator.v1.StreamShardPerfRequest\x1a-.cardinal.operator.v1.StreamShardPerfResponse0\x01\x12s\n" +
+	"\rStreamPodLogs\x12*.cardinal.operator.v1.StreamPodLogsRequest\x1a+.cardinal.operator.v1.StreamPodLogsResponse0\x01\x12s\n" +
 	"\x10StreamPodMetrics\x12-.cardinal.operator.v1.StreamPodMetricsRequest\x1a..cardinal.operator.v1.StreamPodMetricsResponse0\x01\x12d\n" +
 	"\vStreamSpans\x12(.cardinal.operator.v1.StreamSpansRequest\x1a).cardinal.operator.v1.StreamSpansResponse0\x01BUZSgithub.com/argus-labs/world-engine/cli/proto/gen/go/cardinal/operator/v1;operatorv1b\x06proto3"
 
@@ -1732,7 +1495,7 @@ func file_cardinal_operator_v1_operator_proto_rawDescGZIP() []byte {
 	return file_cardinal_operator_v1_operator_proto_rawDescData
 }
 
-var file_cardinal_operator_v1_operator_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_cardinal_operator_v1_operator_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_cardinal_operator_v1_operator_proto_goTypes = []any{
 	(*DeployRequest)(nil),            // 0: cardinal.operator.v1.DeployRequest
 	(*DeployResponse)(nil),           // 1: cardinal.operator.v1.DeployResponse
@@ -1749,57 +1512,47 @@ var file_cardinal_operator_v1_operator_proto_goTypes = []any{
 	(*StreamPodLogsRequest)(nil),     // 12: cardinal.operator.v1.StreamPodLogsRequest
 	(*StreamPodLogsResponse)(nil),    // 13: cardinal.operator.v1.StreamPodLogsResponse
 	(*PodLogLine)(nil),               // 14: cardinal.operator.v1.PodLogLine
-	(*ProfileRequest)(nil),           // 15: cardinal.operator.v1.ProfileRequest
-	(*ProfileResponse)(nil),          // 16: cardinal.operator.v1.ProfileResponse
-	(*StreamShardPerfRequest)(nil),   // 17: cardinal.operator.v1.StreamShardPerfRequest
-	(*StreamShardPerfResponse)(nil),  // 18: cardinal.operator.v1.StreamShardPerfResponse
-	(*StreamPodMetricsRequest)(nil),  // 19: cardinal.operator.v1.StreamPodMetricsRequest
-	(*StreamPodMetricsResponse)(nil), // 20: cardinal.operator.v1.StreamPodMetricsResponse
-	(*StreamSpansRequest)(nil),       // 21: cardinal.operator.v1.StreamSpansRequest
-	(*StreamSpansResponse)(nil),      // 22: cardinal.operator.v1.StreamSpansResponse
-	(*DebugSpan)(nil),                // 23: cardinal.operator.v1.DebugSpan
-	(*PodMetricsSample)(nil),         // 24: cardinal.operator.v1.PodMetricsSample
-	nil,                              // 25: cardinal.operator.v1.DebugSpan.AttributesEntry
-	(*v1.PerfBatch)(nil),             // 26: worldengine.cardinal.v1.PerfBatch
-	(*timestamppb.Timestamp)(nil),    // 27: google.protobuf.Timestamp
+	(*StreamPodMetricsRequest)(nil),  // 15: cardinal.operator.v1.StreamPodMetricsRequest
+	(*StreamPodMetricsResponse)(nil), // 16: cardinal.operator.v1.StreamPodMetricsResponse
+	(*StreamSpansRequest)(nil),       // 17: cardinal.operator.v1.StreamSpansRequest
+	(*StreamSpansResponse)(nil),      // 18: cardinal.operator.v1.StreamSpansResponse
+	(*DebugSpan)(nil),                // 19: cardinal.operator.v1.DebugSpan
+	(*PodMetricsSample)(nil),         // 20: cardinal.operator.v1.PodMetricsSample
+	nil,                              // 21: cardinal.operator.v1.DebugSpan.AttributesEntry
+	(*timestamppb.Timestamp)(nil),    // 22: google.protobuf.Timestamp
 }
 var file_cardinal_operator_v1_operator_proto_depIdxs = []int32{
 	8,  // 0: cardinal.operator.v1.StatusResponse.pools:type_name -> cardinal.operator.v1.ShardPoolStatus
 	9,  // 1: cardinal.operator.v1.ShardPoolStatus.instances:type_name -> cardinal.operator.v1.ShardInstanceStatus
 	14, // 2: cardinal.operator.v1.StreamPodLogsResponse.lines:type_name -> cardinal.operator.v1.PodLogLine
-	26, // 3: cardinal.operator.v1.StreamShardPerfResponse.perf_batch:type_name -> worldengine.cardinal.v1.PerfBatch
-	24, // 4: cardinal.operator.v1.StreamPodMetricsResponse.samples:type_name -> cardinal.operator.v1.PodMetricsSample
-	27, // 5: cardinal.operator.v1.StreamPodMetricsResponse.cycle_completed_at:type_name -> google.protobuf.Timestamp
-	23, // 6: cardinal.operator.v1.StreamSpansResponse.spans:type_name -> cardinal.operator.v1.DebugSpan
-	27, // 7: cardinal.operator.v1.DebugSpan.start_time:type_name -> google.protobuf.Timestamp
-	27, // 8: cardinal.operator.v1.DebugSpan.end_time:type_name -> google.protobuf.Timestamp
-	25, // 9: cardinal.operator.v1.DebugSpan.attributes:type_name -> cardinal.operator.v1.DebugSpan.AttributesEntry
-	27, // 10: cardinal.operator.v1.PodMetricsSample.scraped_at:type_name -> google.protobuf.Timestamp
-	0,  // 11: cardinal.operator.v1.OperatorService.Deploy:input_type -> cardinal.operator.v1.DeployRequest
-	2,  // 12: cardinal.operator.v1.OperatorService.Restart:input_type -> cardinal.operator.v1.RestartRequest
-	4,  // 13: cardinal.operator.v1.OperatorService.Scale:input_type -> cardinal.operator.v1.ScaleRequest
-	6,  // 14: cardinal.operator.v1.OperatorService.Status:input_type -> cardinal.operator.v1.StatusRequest
-	10, // 15: cardinal.operator.v1.OperatorService.PoolPolicy:input_type -> cardinal.operator.v1.PoolPolicyRequest
-	12, // 16: cardinal.operator.v1.OperatorService.StreamPodLogs:input_type -> cardinal.operator.v1.StreamPodLogsRequest
-	15, // 17: cardinal.operator.v1.OperatorService.Profile:input_type -> cardinal.operator.v1.ProfileRequest
-	17, // 18: cardinal.operator.v1.OperatorService.StreamShardPerf:input_type -> cardinal.operator.v1.StreamShardPerfRequest
-	19, // 19: cardinal.operator.v1.OperatorService.StreamPodMetrics:input_type -> cardinal.operator.v1.StreamPodMetricsRequest
-	21, // 20: cardinal.operator.v1.OperatorService.StreamSpans:input_type -> cardinal.operator.v1.StreamSpansRequest
-	1,  // 21: cardinal.operator.v1.OperatorService.Deploy:output_type -> cardinal.operator.v1.DeployResponse
-	3,  // 22: cardinal.operator.v1.OperatorService.Restart:output_type -> cardinal.operator.v1.RestartResponse
-	5,  // 23: cardinal.operator.v1.OperatorService.Scale:output_type -> cardinal.operator.v1.ScaleResponse
-	7,  // 24: cardinal.operator.v1.OperatorService.Status:output_type -> cardinal.operator.v1.StatusResponse
-	11, // 25: cardinal.operator.v1.OperatorService.PoolPolicy:output_type -> cardinal.operator.v1.PoolPolicyResponse
-	13, // 26: cardinal.operator.v1.OperatorService.StreamPodLogs:output_type -> cardinal.operator.v1.StreamPodLogsResponse
-	16, // 27: cardinal.operator.v1.OperatorService.Profile:output_type -> cardinal.operator.v1.ProfileResponse
-	18, // 28: cardinal.operator.v1.OperatorService.StreamShardPerf:output_type -> cardinal.operator.v1.StreamShardPerfResponse
-	20, // 29: cardinal.operator.v1.OperatorService.StreamPodMetrics:output_type -> cardinal.operator.v1.StreamPodMetricsResponse
-	22, // 30: cardinal.operator.v1.OperatorService.StreamSpans:output_type -> cardinal.operator.v1.StreamSpansResponse
-	21, // [21:31] is the sub-list for method output_type
-	11, // [11:21] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	20, // 3: cardinal.operator.v1.StreamPodMetricsResponse.samples:type_name -> cardinal.operator.v1.PodMetricsSample
+	22, // 4: cardinal.operator.v1.StreamPodMetricsResponse.cycle_completed_at:type_name -> google.protobuf.Timestamp
+	19, // 5: cardinal.operator.v1.StreamSpansResponse.spans:type_name -> cardinal.operator.v1.DebugSpan
+	22, // 6: cardinal.operator.v1.DebugSpan.start_time:type_name -> google.protobuf.Timestamp
+	22, // 7: cardinal.operator.v1.DebugSpan.end_time:type_name -> google.protobuf.Timestamp
+	21, // 8: cardinal.operator.v1.DebugSpan.attributes:type_name -> cardinal.operator.v1.DebugSpan.AttributesEntry
+	22, // 9: cardinal.operator.v1.PodMetricsSample.scraped_at:type_name -> google.protobuf.Timestamp
+	0,  // 10: cardinal.operator.v1.OperatorService.Deploy:input_type -> cardinal.operator.v1.DeployRequest
+	2,  // 11: cardinal.operator.v1.OperatorService.Restart:input_type -> cardinal.operator.v1.RestartRequest
+	4,  // 12: cardinal.operator.v1.OperatorService.Scale:input_type -> cardinal.operator.v1.ScaleRequest
+	6,  // 13: cardinal.operator.v1.OperatorService.Status:input_type -> cardinal.operator.v1.StatusRequest
+	10, // 14: cardinal.operator.v1.OperatorService.PoolPolicy:input_type -> cardinal.operator.v1.PoolPolicyRequest
+	12, // 15: cardinal.operator.v1.OperatorService.StreamPodLogs:input_type -> cardinal.operator.v1.StreamPodLogsRequest
+	15, // 16: cardinal.operator.v1.OperatorService.StreamPodMetrics:input_type -> cardinal.operator.v1.StreamPodMetricsRequest
+	17, // 17: cardinal.operator.v1.OperatorService.StreamSpans:input_type -> cardinal.operator.v1.StreamSpansRequest
+	1,  // 18: cardinal.operator.v1.OperatorService.Deploy:output_type -> cardinal.operator.v1.DeployResponse
+	3,  // 19: cardinal.operator.v1.OperatorService.Restart:output_type -> cardinal.operator.v1.RestartResponse
+	5,  // 20: cardinal.operator.v1.OperatorService.Scale:output_type -> cardinal.operator.v1.ScaleResponse
+	7,  // 21: cardinal.operator.v1.OperatorService.Status:output_type -> cardinal.operator.v1.StatusResponse
+	11, // 22: cardinal.operator.v1.OperatorService.PoolPolicy:output_type -> cardinal.operator.v1.PoolPolicyResponse
+	13, // 23: cardinal.operator.v1.OperatorService.StreamPodLogs:output_type -> cardinal.operator.v1.StreamPodLogsResponse
+	16, // 24: cardinal.operator.v1.OperatorService.StreamPodMetrics:output_type -> cardinal.operator.v1.StreamPodMetricsResponse
+	18, // 25: cardinal.operator.v1.OperatorService.StreamSpans:output_type -> cardinal.operator.v1.StreamSpansResponse
+	18, // [18:26] is the sub-list for method output_type
+	10, // [10:18] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_cardinal_operator_v1_operator_proto_init() }
@@ -1813,7 +1566,7 @@ func file_cardinal_operator_v1_operator_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cardinal_operator_v1_operator_proto_rawDesc), len(file_cardinal_operator_v1_operator_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   26,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

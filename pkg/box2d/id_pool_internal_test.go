@@ -39,7 +39,7 @@ func TestIDPool_CountAndCapacity(t *testing.T) {
 
 	pool := createIDPool()
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_ = allocID(&pool)
 	}
 
@@ -70,7 +70,7 @@ func TestIDPool_GetIDBytes(t *testing.T) {
 	// Allocate 64 live ids, then free them all so the free list must grow
 	// beyond its initial capacity of 32.
 	ids := make([]int, 0, 64)
-	for i := 0; i < 64; i++ {
+	for range 64 {
 		ids = append(ids, allocID(&pool))
 	}
 	for _, id := range ids {
@@ -84,7 +84,7 @@ func TestIDPool_Destroy(t *testing.T) {
 	t.Parallel()
 
 	pool := createIDPool()
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		_ = allocID(&pool)
 	}
 

@@ -8,6 +8,8 @@ import (
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
+
+	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
 )
 
 // normalizeAndValidate normalizes a string by removing spaces and validates it contains only standard characters.
@@ -38,19 +40,30 @@ func normalizeAndValidateString(s *string, fieldName string) error {
 	return nil
 }
 
+// normalizeAndValidateCanonicalName also requires a DNS-1123 label, for names that become k8s objects.
+func normalizeAndValidateCanonicalName(s *string, fieldName string) error {
+	if s != nil {
+		if v := strings.ReplaceAll(*s, " ", ""); v != "" && !dnslabel.IsCanonical(v) {
+			return eris.New(fmt.Sprintf(
+				"%s contains invalid characters. Only lowercase alphanumeric characters and hyphens are allowed (e.g. my-game)",
+				fieldName,
+			))
+		}
+	}
+	return normalizeAndValidateString(s, fieldName)
+}
+
 func validateLogLevel(logLevel, fieldName string) error {
-	switch logLevel {
-	case zerolog.DebugLevel.String():
-		return nil
-	case zerolog.InfoLevel.String():
-		return nil
-	case zerolog.WarnLevel.String():
-		return nil
-	case zerolog.ErrorLevel.String():
+	switch strings.ToLower(logLevel) {
+	case zerolog.TraceLevel.String(),
+		zerolog.DebugLevel.String(),
+		zerolog.InfoLevel.String(),
+		zerolog.WarnLevel.String(),
+		zerolog.ErrorLevel.String():
 		return nil
 	}
 
-	return eris.New(fmt.Sprintf("log level must be one of: debug, info, warn, error for %s", fieldName))
+	return eris.New(fmt.Sprintf("log level must be one of: trace, debug, info, warn, error for %s", fieldName))
 }
 
 func validatePath(path string) error {
