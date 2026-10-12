@@ -12,8 +12,10 @@ const (
 	Active
 	// Done marks a row that finished successfully.
 	Done
-	// failed marks a row that errored; set only via Session.Fail.
-	failed
+	// Failed marks a row that errored; set only via Session.Fail, but callers
+	// that need a custom "failed" detail (e.g. a timed-out readiness row) may
+	// upsert it directly via UpsertRow.
+	Failed
 )
 
 // Session is the live handle into a running phasebox, scoped to the

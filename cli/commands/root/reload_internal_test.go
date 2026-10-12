@@ -32,6 +32,10 @@ func (f *fakeSession) UpsertRow(id, label, detail string, state phasebox.RowStat
 
 func (f *fakeSession) UpsertProgress(_ string, _ string, _ int) {}
 
+func (f *fakeSession) Fail(id, label string, _ error) {
+	f.rows = append(f.rows, fakeRow{id, label, "failed", phasebox.Failed})
+}
+
 // emitTicks returns a waitForReady closure that replays ticks as onProgress
 // callbacks, mirroring how cli.WaitForShardsReady drives onProgress each poll.
 func emitTicks(ticks []readyTick) func(onProgress func(ready, expected int)) {

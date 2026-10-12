@@ -338,7 +338,7 @@ func rowIcon(state RowState, sp spinner.Model) string {
 		return sp.View() + " "
 	case Done:
 		return style.TickIcon.Render()
-	case failed:
+	case Failed:
 		return style.CrossIcon.Render()
 	default:
 		return sp.View() + " "
