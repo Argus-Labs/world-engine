@@ -95,8 +95,7 @@ func instantiate(ctx context.Context, url, version, targetDir, subdir string) er
 	}
 	_, err = gogit.PlainCloneContext(ctx, tempDir, false, cloneOpts)
 	if err != nil {
-		// Tag not found — retry as branch
-		if eris.Is(err, plumbing.ErrReferenceNotFound) {
+		if eris.Is(err, plumbing.ErrReferenceNotFound) || errors.As(err, &gogit.NoMatchingRefSpecError{}) {
 			cloneOpts.ReferenceName = plumbing.NewBranchReferenceName(version)
 			_, err = gogit.PlainCloneContext(ctx, tempDir, false, cloneOpts)
 		}
