@@ -34,7 +34,7 @@ func PutCredential(c Credential) error {
 }
 
 // GetCredential reads the cached credential. A missing file surfaces as an
-// os.IsNotExist error, which callers treat as "not signed in".
+// [os.IsNotExist] error, which callers treat as "not signed in".
 func GetCredential() (Credential, error) {
 	dir, err := GetStoreDir()
 	if err != nil {

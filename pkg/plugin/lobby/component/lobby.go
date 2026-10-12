@@ -1,5 +1,7 @@
 package component
 
+import "slices"
+
 // ShardAddress mirrors cardinal.OtherWorld for wire types (commands, events, components). A wire type
 // can't carry cardinal.OtherWorld directly — it's cross-module to the generator, which would block. The
 // fields are identical, so the two convert with a plain Go struct cast: cardinal.OtherWorld(a) and back.
@@ -186,12 +188,7 @@ func (l *LobbyComponent) AddTeam(team Team) bool {
 
 // HasPlayer returns true if the player is in this lobby.
 func (l *LobbyComponent) HasPlayer(playerID string) bool {
-	for _, pid := range l.Players() {
-		if pid == playerID {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(l.Players(), playerID)
 }
 
 // IsLeader returns true if the player is the lobby leader.

@@ -8,6 +8,8 @@ import (
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
+
+	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
 )
 
 // normalizeAndValidate normalizes a string by removing spaces and validates it contains only standard characters.
@@ -36,6 +38,19 @@ func normalizeAndValidateString(s *string, fieldName string) error {
 
 	*s = normalized
 	return nil
+}
+
+// normalizeAndValidateCanonicalName also requires a DNS-1123 label, for names that become k8s objects.
+func normalizeAndValidateCanonicalName(s *string, fieldName string) error {
+	if s != nil {
+		if v := strings.ReplaceAll(*s, " ", ""); v != "" && !dnslabel.IsCanonical(v) {
+			return eris.New(fmt.Sprintf(
+				"%s contains invalid characters. Only lowercase alphanumeric characters and hyphens are allowed (e.g. my-game)",
+				fieldName,
+			))
+		}
+	}
+	return normalizeAndValidateString(s, fieldName)
 }
 
 func validateLogLevel(logLevel, fieldName string) error {

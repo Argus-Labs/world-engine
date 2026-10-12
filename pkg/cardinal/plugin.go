@@ -22,12 +22,3 @@ package cardinal
 type Plugin interface {
 	Register(w *World)
 }
-
-// RegisterPlugin registers a plugin with the world. Must be called before StartGame().
-// Panics if the plugin fails to register, consistent with other registration functions.
-func (w *World) RegisterPlugin(plugin Plugin) {
-	if w.started {
-		panic(ErrWorldStarted)
-	}
-	plugin.Register(w)
-}

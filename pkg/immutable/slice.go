@@ -44,10 +44,10 @@ import (
 // original has to survive. Each derivation's doc
 // says whether it writes through.
 //
-// Two empty Slices are not always reflect.DeepEqual. A derivation that empties one leaves its backing
+// Two empty Slices are not always [reflect.DeepEqual]. A derivation that empties one leaves its backing
 // array allocated, while the zero value and SliceOf have none, and DeepEqual looks at the field rather
 // than the elements. Compare with Equal or EqualFunc, which compare elements and agree with
-// slices.Equal that nil and empty are the same list. The generated decoder leaves an empty repeated
+// [slices.Equal] that nil and empty are the same list. The generated decoder leaves an empty repeated
 // field as the zero value, so a component restored from a snapshot does match one built fresh.
 //
 // The element type must be value-safe too: scalars, strings, fixed arrays, or structs of those.
@@ -108,13 +108,13 @@ func (s Slice[T]) ContainsFunc(f func(T) bool) bool {
 }
 
 // MinFunc returns the minimal element according to compare. It panics when the Slice is empty,
-// like slices.MinFunc.
+// like [slices.MinFunc].
 func (s Slice[T]) MinFunc(compare func(a, b T) int) T {
 	return slices.MinFunc(s.items, compare)
 }
 
 // MaxFunc returns the maximal element according to compare. It panics when the Slice is empty,
-// like slices.MaxFunc.
+// like [slices.MaxFunc].
 func (s Slice[T]) MaxFunc(compare func(a, b T) int) T {
 	return slices.MaxFunc(s.items, compare)
 }
@@ -125,7 +125,7 @@ func (s Slice[T]) IsSortedFunc(compare func(a, b T) int) bool {
 }
 
 // Chunk returns an iterator over consecutive sub-Slices of up to n elements. It panics when n is
-// less than one, like slices.Chunk.
+// less than one, like [slices.Chunk].
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) Chunk(n int) iter.Seq[Slice[T]] {
@@ -196,7 +196,7 @@ func (s Slice[T]) Filter(keep func(T) bool) Slice[T] {
 
 // Insert returns a Slice with items inserted at index i, which may equal Len. It writes through
 // whenever the receiver has the spare capacity to hold the result and allocates otherwise, so treat
-// the receiver as changed either way. It panics when i is out of range, like slices.Insert.
+// the receiver as changed either way. It panics when i is out of range, like [slices.Insert].
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) Insert(i int, items ...T) Slice[T] {
@@ -244,7 +244,7 @@ func (s Slice[T]) SortedFunc(compare func(a, b T) int) Slice[T] {
 
 // Delete returns a Slice with the elements in [i, j) removed. It writes through: the receiver keeps
 // its old length over the shifted, zero-filled tail. It panics when the range is out of bounds, like
-// slices.Delete.
+// [slices.Delete].
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) Delete(i, j int) Slice[T] {
@@ -255,7 +255,7 @@ func (s Slice[T]) Delete(i, j int) Slice[T] {
 
 // Replace returns a Slice with the elements in [i, j) replaced by items. It writes through whenever
 // the receiver has the spare capacity to hold the result and allocates otherwise, so treat the
-// receiver as changed either way. It panics when the range is out of bounds, like slices.Replace.
+// receiver as changed either way. It panics when the range is out of bounds, like [slices.Replace].
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) Replace(i, j int, items ...T) Slice[T] {
@@ -265,7 +265,7 @@ func (s Slice[T]) Replace(i, j int, items ...T) Slice[T] {
 }
 
 // CompactFunc returns a Slice with runs of consecutive elements that eq reports equal collapsed to
-// one, like slices.CompactFunc. It writes through: the receiver keeps its old length over the
+// one, like [slices.CompactFunc]. It writes through: the receiver keeps its old length over the
 // shifted, zero-filled tail.
 //
 // NOTE: Requires component set if used.
@@ -275,11 +275,14 @@ func (s Slice[T]) CompactFunc(eq func(a, b T) bool) Slice[T] {
 
 // Repeat returns a Slice holding the elements count times over. It allocates a new array, so the
 // receiver is unchanged. It panics when count is negative or the result would overflow, like
-// slices.Repeat.
+// [slices.Repeat].
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) Repeat(count int) Slice[T] {
 	assert.That(count >= 0, "immutable: Repeat(%d) must not be negative", count)
+	if count == 0 || len(s.items) == 0 {
+		return Slice[T]{}
+	}
 	return Slice[T]{items: slices.Repeat(s.items, count)}
 }
 
@@ -299,13 +302,13 @@ func Equal[T comparable](a, b Slice[T]) bool {
 	return slices.Equal(a.items, b.items)
 }
 
-// Compare compares a and b element by element, like slices.Compare.
+// Compare compares a and b element by element, like [slices.Compare].
 func Compare[T cmp.Ordered](a, b Slice[T]) int {
 	return slices.Compare(a.items, b.items)
 }
 
 // CompareFunc is Compare with a comparison function, whose Slices may hold different element
-// types, like slices.CompareFunc.
+// types, like [slices.CompareFunc].
 func CompareFunc[E1, E2 any](a Slice[E1], b Slice[E2], compare func(E1, E2) int) int {
 	return slices.CompareFunc(a.items, b.items, compare)
 }
@@ -333,7 +336,7 @@ func Sorted[T cmp.Ordered](s Slice[T]) Slice[T] {
 }
 
 // Compact returns a Slice with runs of consecutive equal elements collapsed to one, like
-// slices.Compact. Like CompactFunc it writes through, so s keeps its old length over the shifted,
+// [slices.Compact]. Like CompactFunc it writes through, so s keeps its old length over the shifted,
 // zero-filled tail.
 //
 // NOTE: Requires component set if used.
@@ -341,12 +344,12 @@ func Compact[T comparable](s Slice[T]) Slice[T] {
 	return Slice[T]{items: slices.Compact(s.items)}
 }
 
-// Min returns the smallest element of s. It panics when s is empty, like slices.Min.
+// Min returns the smallest element of s. It panics when s is empty, like [slices.Min].
 func Min[T cmp.Ordered](s Slice[T]) T {
 	return slices.Min(s.items)
 }
 
-// Max returns the largest element of s. It panics when s is empty, like slices.Max.
+// Max returns the largest element of s. It panics when s is empty, like [slices.Max].
 func Max[T cmp.Ordered](s Slice[T]) T {
 	return slices.Max(s.items)
 }
@@ -357,13 +360,13 @@ func IsSorted[T cmp.Ordered](s Slice[T]) bool {
 }
 
 // BinarySearch searches a sorted s for target and returns the position where it is, or would be
-// inserted, and whether it was found, like slices.BinarySearch.
+// inserted, and whether it was found, like [slices.BinarySearch].
 func BinarySearch[T cmp.Ordered](s Slice[T], target T) (int, bool) {
 	return slices.BinarySearch(s.items, target)
 }
 
 // BinarySearchFunc is BinarySearch with a comparison function, whose target may be of another type,
-// like slices.BinarySearchFunc.
+// like [slices.BinarySearchFunc].
 func BinarySearchFunc[E, T any](s Slice[E], target T, compare func(E, T) int) (int, bool) {
 	return slices.BinarySearchFunc(s.items, target, compare)
 }
@@ -426,7 +429,7 @@ func (s Slice[T]) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON replaces the Slice with the array in data. An empty array and `null` both yield the
 // zero value — nil items, not an empty allocation — so a decoded empty Slice compares equal to a
-// fresh one under reflect.DeepEqual, the same rule the generated FromProto follows.
+// fresh one under [reflect.DeepEqual], the same rule the generated FromProto follows.
 func (s *Slice[T]) UnmarshalJSON(data []byte) error {
 	var items []T
 	if err := json.Unmarshal(data, &items); err != nil {

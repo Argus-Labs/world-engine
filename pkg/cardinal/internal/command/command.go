@@ -2,7 +2,9 @@ package command
 
 import (
 	"context"
+	"maps"
 	"math"
+	"slices"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
@@ -16,9 +18,48 @@ import (
 type Command struct {
 	Name    string                // The command name
 	Address *micro.ServiceAddress // Service address this command is sent to
-	Persona string                // Sender's persona
+	Sender  Sender                // Who sent the command; zero for a command this world sends
 	Payload Payload               // The command payload itself
 	Span    trace.SpanContext     // Span that enqueued the command; invalid when the caller was untraced
+}
+
+// Sender identifies who sent a command: a player or another shard. Only Cardinal builds one, with
+// PlayerSender or ShardSender, so a received command's sender is always one of the two.
+type Sender struct {
+	id    string // Player ID, or the sending shard's address
+	shard bool   // Whether id is a shard's address
+}
+
+// PlayerSender is the sender of a command a client sent as the authenticated player id.
+func PlayerSender(id string) Sender {
+	assert.That(id != "", "player sender has empty ID")
+	return Sender{id: id}
+}
+
+// ShardSender is the sender of a command the service at address sent.
+func ShardSender(address *micro.ServiceAddress) Sender {
+	assert.That(address != nil, "shard sender has nil address")
+	return Sender{id: micro.String(address), shard: true}
+}
+
+// ID returns the player ID, or the sending shard's address ("region.realm.org.project.shard").
+// Use it when any sender will do, such as in logs.
+func (s Sender) ID() string { return s.id }
+
+// Player returns the player ID and true when a player sent the command.
+func (s Sender) Player() (string, bool) {
+	if s.shard {
+		return "", false
+	}
+	return s.id, s.id != ""
+}
+
+// Shard returns the sending shard's address and true when another shard sent the command.
+func (s Sender) Shard() (string, bool) {
+	if !s.shard {
+		return "", false
+	}
+	return s.id, true
 }
 
 // Payload is the interface all command payloads must implement.
@@ -89,15 +130,15 @@ func (m *Manager) Register(name string, queue Queue) (ID, error) {
 // Enqueue stores a command in its corresponding queue. The queues map isn't lock protected, and it
 // is expected that there exists only 1 caller for each command type, therefore each caller reads
 // a different key. This is ok because concurrent reads on Go maps are allowed.
-func (m *Manager) Enqueue(ctx context.Context, command *iscv1.Command) error {
+func (m *Manager) Enqueue(ctx context.Context, command *iscv1.Command, sender Sender) error {
 	// Enqueue expects callers to validate the command, so here we just assert for defense in depth.
 	// NOTE: one extra assertion that we can't put here is if command.address == this shard.address.
 	// The caller must be responsible for checking this.
 	assert.That(command.GetName() != "", "command has empty name")
 	assert.That(command.GetAddress() != nil, "command has nil address")
-	assert.That(command.GetPersona() != nil, "command has nil persona")
+	assert.That(sender.id != "", "command has no sender")
 	// Payload may be empty: a command whose proto message has no set fields serializes to zero
-	// bytes (e.g. lobby_heartbeat). Identity lives in name/address/persona, so an empty payload
+	// bytes (e.g. lobby_heartbeat). Identity lives in name/address/sender, so an empty payload
 	// is valid — only those three are real invariants.
 
 	// We're doing 2 lookups here to keep the Enqueue caller simple, at the cost of less performance.
@@ -108,7 +149,7 @@ func (m *Manager) Enqueue(ctx context.Context, command *iscv1.Command) error {
 	if !exists {
 		return eris.Errorf("unregistered command: %s", name)
 	}
-	return m.queues[id].Enqueue(ctx, command)
+	return m.queues[id].Enqueue(ctx, command, sender)
 }
 
 // Get retrieves a slice of commands given the command ID. The ID is returned from Register, and
@@ -157,13 +198,10 @@ func (m *Manager) Clear() {
 // Test helpers
 // -------------------------------------------------------------------------------------------------
 
-// Names returns the names of all registered command types.
+// Names returns the names of all registered command types, sorted so a seeded fuzzer that draws
+// from them replays.
 func (m *Manager) Names() []string {
-	names := make([]string, 0, len(m.catalog))
-	for name := range m.catalog {
-		names = append(names, name)
-	}
-	return names
+	return slices.Sorted(maps.Keys(m.catalog))
 }
 
 // Zero returns a zero-value instance of the named command's payload type.

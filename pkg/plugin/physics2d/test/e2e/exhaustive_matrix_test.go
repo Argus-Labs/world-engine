@@ -170,8 +170,13 @@ func matrixScene(combos []matrixCombo) harness.Scenario {
 				// SleepingAllowed=false is forced awake) — a documented gap, pinned here
 				// by its absence from the check.
 				if m.active && m.kind != physics.BodyTypeManual {
-					c.True(label+": component Awake mirrors the engine", c.Body(ids[i]).Awake == eng.IsBodyAwake(bodyID),
-						"component awake=%v, engine awake=%v", c.Body(ids[i]).Awake, eng.IsBodyAwake(bodyID))
+					c.True(
+						label+": component Awake mirrors the engine",
+						c.Body(ids[i]).Awake == eng.IsBodyAwake(bodyID),
+						"component awake=%v, engine awake=%v",
+						c.Body(ids[i]).Awake,
+						eng.IsBodyAwake(bodyID),
+					)
 				}
 			}
 		}

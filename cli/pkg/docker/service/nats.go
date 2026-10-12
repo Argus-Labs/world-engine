@@ -34,25 +34,21 @@ func NATS(_ *Config) Service {
 	cmd := []string{"-js", "-sd", jetstreamStoreDir}
 
 	return Service{
-		Name: DefaultNatsContainerName,
-		Config: container.Config{
-			Image:        DefaultNatsImage + version.Nats,
-			Cmd:          cmd,
-			Env:          []string{},
-			ExposedPorts: getExposedPorts(getNATSPorts()),
-			Healthcheck: &container.HealthConfig{
-				Test:     []string{"CMD", "curl", "-f", "http://localhost:8222/healthz"},
-				Interval: 5 * time.Second,
-				Timeout:  3 * time.Second,
-				Retries:  5,
-			},
+		Name:         DefaultNatsContainerName,
+		Image:        DefaultNatsImage + version.Nats,
+		Cmd:          cmd,
+		Env:          []string{},
+		ExposedPorts: getExposedPorts(getNATSPorts()),
+		Healthcheck: &container.HealthConfig{
+			Test:     []string{"CMD", "curl", "-f", "http://localhost:8222/healthz"},
+			Interval: 5 * time.Second,
+			Timeout:  3 * time.Second,
+			Retries:  5,
 		},
-		HostConfig: container.HostConfig{
-			PortBindings:  newPortMap(getNATSPorts()),
-			RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
-			NetworkMode:   DefaultNetworkMode,
-			Binds:         []string{fmt.Sprintf("%s:%s", DefaultNatsContainerName, jetstreamStoreDir)},
-		},
+		PortBindings:  newPortMap(getNATSPorts()),
+		RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
+		NetworkMode:   DefaultNetworkMode,
+		Binds:         []string{fmt.Sprintf("%s:%s", DefaultNatsContainerName, jetstreamStoreDir)},
 	}
 }
 

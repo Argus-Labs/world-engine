@@ -22,7 +22,7 @@ const (
 	UseCaller = false // for developer, if you want to expose line of code of caller
 )
 
-// syncBuffer is a thread-safe wrapper around bytes.Buffer.
+// syncBuffer is a thread-safe wrapper around [bytes.Buffer].
 type syncBuffer struct {
 	mu  sync.Mutex
 	buf bytes.Buffer
@@ -87,7 +87,7 @@ func init() {
 	slogLogger = slog.New(zerologHandler{})
 }
 
-// zerologHandler is an slog.Handler that routes records through the package-level
+// zerologHandler is an [slog.Handler] that routes records through the package-level
 // zerolog logger so output format matches the rest of the CLI.
 type zerologHandler struct {
 	attrs []slog.Attr
@@ -129,7 +129,7 @@ func (h zerologHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 
 func (h zerologHandler) WithGroup(_ string) slog.Handler { return h }
 
-// Slog returns a *slog.Logger that routes through zerolog and is
+// Slog returns a *[slog.Logger] that routes through zerolog and is
 // gated on Verbose().
 func Slog() *slog.Logger {
 	return slogLogger

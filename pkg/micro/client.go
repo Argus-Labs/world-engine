@@ -17,14 +17,15 @@ import (
 // Client represents a NATS client with enhanced logging and error handling.
 type Client struct {
 	*nats.Conn
+
 	log        zerolog.Logger
 	natsConfig NATSConfig
 }
 
 // NATSConfig holds the configuration for the NATS client.
 type NATSConfig struct {
-	Name            string `env:"NATS_NAME" envDefault:"isc"`
-	URL             string `env:"NATS_URL" envDefault:"nats://nats:4222"`
+	Name            string `env:"NATS_NAME"             envDefault:"isc"`
+	URL             string `env:"NATS_URL"              envDefault:"nats://nats:4222"`
 	CredentialsFile string `env:"NATS_CREDENTIALS_FILE"`
 }
 
@@ -196,9 +197,14 @@ func (c *Client) Close() {
 }
 
 // handleDisconnect handles NATS disconnection events.
+//
+// nats.go transitions the connection status away from CONNECTED (to RECONNECTING
+// or CLOSED) *before* invoking the disconnect callback, so nc.ConnectedUrl()
+// always returns "" here. Use the configured URL instead — nats.go exposes no
+// public API for the previously-connected URL during a disconnect.
 func (c *Client) handleDisconnect(nc *nats.Conn, err error) {
 	log := c.log.With().
-		Str("nats_url", nc.ConnectedUrl()).
+		Str("nats_url", c.natsConfig.URL).
 		Uint64("reconnect_attempts", nc.Reconnects).
 		Logger()
 

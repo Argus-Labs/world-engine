@@ -57,21 +57,23 @@ func TestCommand_ModelFuzz(t *testing.T) {
 			pbPayload := schema.Marshal(payload)
 			require.NotNil(t, pbPayload)
 
-			persona := testutils.RandString(prng, 8)
+			sender := command.PlayerSender(testutils.RandString(prng, 8))
+			if testutils.RandBool(prng) {
+				sender = command.ShardSender(&microv1.ServiceAddress{ServiceId: testutils.RandString(prng, 8)})
+			}
 			cmdpb := &iscv1.Command{
 				Name:    payload.Name(),
 				Address: &microv1.ServiceAddress{},
-				Persona: &iscv1.Persona{Id: persona},
 				Payload: pbPayload,
 			}
 
-			err := impl.Enqueue(context.Background(), cmdpb)
+			err := impl.Enqueue(context.Background(), cmdpb, sender)
 			require.NoError(t, err)
 
 			model.enqueue(payload.Name(), command.Command{
 				Name:    payload.Name(),
 				Address: &microv1.ServiceAddress{},
-				Persona: persona,
+				Sender:  sender,
 				Payload: payload,
 			})
 
@@ -274,6 +276,19 @@ func TestCommand_RegisterModelFuzz(t *testing.T) {
 	}
 }
 
+// Names feeds DST's command ops, so its order must not depend on map iteration.
+func TestCommand_NamesSorted(t *testing.T) {
+	t.Parallel()
+
+	m := command.NewManager()
+	for _, name := range []string{"c", "a", "b"} {
+		_, err := m.Register(name, nil)
+		require.NoError(t, err)
+	}
+
+	assert.Equal(t, []string{"a", "b", "c"}, m.Names())
+}
+
 // -------------------------------------------------------------------------------------------------
 // Concurrent enqueue test
 // -------------------------------------------------------------------------------------------------
@@ -321,11 +336,10 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 				cmdpb := &iscv1.Command{
 					Name:    payload.Name(),
 					Address: &microv1.ServiceAddress{},
-					Persona: &iscv1.Persona{Id: "test-persona"},
 					Payload: pbPayload,
 				}
 
-				if err := impl.Enqueue(context.Background(), cmdpb); err != nil {
+				if err := impl.Enqueue(context.Background(), cmdpb, command.PlayerSender("test-player")); err != nil {
 					t.Errorf("Enqueue failed: %v", err)
 					return
 				}
@@ -334,7 +348,7 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 				expected = append(expected, command.Command{
 					Name:    payload.Name(),
 					Address: &microv1.ServiceAddress{},
-					Persona: "test-persona",
+					Sender:  command.PlayerSender("test-player"),
 					Payload: payload,
 				})
 				mu.Unlock()

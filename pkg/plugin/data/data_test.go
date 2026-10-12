@@ -747,7 +747,7 @@ func TestPlugin_PointerTypeReg_RunsResolver(t *testing.T) {
 // Tests — hook dispatch invariants
 // -------------------------------------------------------------------------------------------------
 
-// countingValidatorCalls counts Validate invocations for the exactly-once test. atomic.Int32 is
+// countingValidatorCalls counts Validate invocations for the exactly-once test. [atomic.Int32] is
 // used so reassignment (which the reassign linter flags on package-level vars) is avoided.
 var countingValidatorCalls atomic.Int32
 

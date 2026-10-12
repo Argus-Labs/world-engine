@@ -1,6 +1,8 @@
 package cardinal
 
 import (
+	"time"
+
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -19,10 +21,17 @@ type WorldOptions struct {
 	SnapshotStorageType snapshot.StorageType // Snapshot storage type
 	SnapshotRate        uint32               // Number of ticks between snapshots
 	Debug               *bool                // Enables the debug server
-	Pprof               *bool                // Enables the pprof server
 	NATSConfig          *micro.NATSConfig    // Optional NATS configuration; nil uses environment values or defaults
 	AuthMode            AuthMode             // Authentication mode for the client ConnectRPC service
 	ArgusAuthURL        string               // Argus Auth service URL; required when AuthMode is ARGUS
+}
+
+// tickInterval is the time between ticks, or zero when no tick rate is set (as in TestWorld).
+func (opt *WorldOptions) tickInterval() time.Duration {
+	if opt.TickRate <= 0 {
+		return 0
+	}
+	return time.Duration(float64(time.Second) / opt.TickRate)
 }
 
 // newDefaultWorldOptions creates WorldOptions with default values.
@@ -37,7 +46,6 @@ func newDefaultWorldOptions() WorldOptions {
 		SnapshotStorageType: snapshot.StorageTypeNop,
 		SnapshotRate:        0,
 		Debug:               nil,
-		Pprof:               nil,
 		AuthMode:            AuthModeDev,
 		ArgusAuthURL:        "",
 	}
@@ -68,9 +76,6 @@ func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	}
 	if newOpt.Debug != nil {
 		opt.Debug = newOpt.Debug
-	}
-	if newOpt.Pprof != nil {
-		opt.Pprof = newOpt.Pprof
 	}
 	if newOpt.NATSConfig != nil {
 		opt.NATSConfig = newOpt.NATSConfig
@@ -108,9 +113,6 @@ func (opt *WorldOptions) validate() error {
 	}
 	if opt.Debug == nil {
 		return eris.New("debug must be specified")
-	}
-	if opt.Pprof == nil {
-		return eris.New("pprof must be specified")
 	}
 	if !opt.AuthMode.IsValid() {
 		return eris.Errorf("invalid auth mode: %s (must be one of: ARGUS, DEV)", opt.AuthMode)
@@ -167,9 +169,6 @@ type worldOptionsEnv struct {
 	// Enables the debug server.
 	Debug bool `env:"CARDINAL_DEBUG" envDefault:"false"`
 
-	// Enables the pprof server.
-	Pprof bool `env:"CARDINAL_PPROF" envDefault:"false"`
-
 	// Authentication mode for the client ConnectRPC service: ARGUS or DEV.
 	AuthModeStr string `env:"CARDINAL_AUTH_MODE" envDefault:"DEV"`
 
@@ -223,7 +222,6 @@ func (cfg *worldOptionsEnv) toOptions() WorldOptions {
 		SnapshotStorageType: snapshotStorageType,
 		SnapshotRate:        cfg.SnapshotRate,
 		Debug:               &cfg.Debug,
-		Pprof:               &cfg.Pprof,
 		AuthMode:            authMode,
 		ArgusAuthURL:        cfg.ArgusAuthURL,
 	}

@@ -122,7 +122,7 @@ func (r TypeRef) Key() string { return r.PkgPath + "." + r.Name }
 //
 // Named after the source package's import alias rather than its leaf. The leaf alone collides the moment
 // one file mirrors two packages that share it — "component" names a package in every plugin — and the
-// collision lands as a redeclaration in the emitted file, since format.Source only parses. Reusing the
+// collision lands as a redeclaration in the emitted file, since [format.Source] only parses. Reusing the
 // alias makes the name unique for free: checkImportAliases already refuses a run whose aliases clash.
 func (r TypeRef) ConvFunc(dir string) string {
 	alias := AliasFromPath(r.PkgPath)
@@ -1193,7 +1193,7 @@ func refusedCategory(t types.Type) string {
 }
 
 // notData reports whether t holds, anywhere inside it, something that is not data: a chan or func (a
-// handle to live machinery), an unsafe.Pointer, a method interface, or a struct whose fields are all
+// handle to live machinery), an [unsafe.Pointer], a method interface, or a struct whose fields are all
 // unexported. No encoding of any format can carry these, which is what separates them from a type this
 // generator merely declines to map.
 //
@@ -1422,7 +1422,7 @@ func (d *discoverer) classifySingle(t types.Type) (Field, error) {
 }
 
 // classifyPointer handles a pointer field. A *scalar becomes a proto3 `optional` scalar (nil/presence
-// preserved on the wire); a *struct is a nested message pointer. *time.Time becomes a nil-able
+// preserved on the wire); a *struct is a nested message pointer. *[time.Time] becomes a nil-able
 // google.protobuf.Timestamp.
 func (d *discoverer) classifyPointer(t types.Type, p *types.Pointer) (Field, error) {
 	// *scalar → optional scalar. protoc-gen-go models `optional double` as *float64, so this round-trips
@@ -1580,7 +1580,7 @@ const (
 const protoBytes = "bytes"
 
 // wktTimestampProto is the import path of the google.protobuf.Timestamp well-known type (bundled with
-// protoc/buf, so no image change), used to carry time.Time fields.
+// protoc/buf, so no image change), used to carry [time.Time] fields.
 const wktTimestampProto = "google/protobuf/timestamp.proto"
 
 var (
@@ -1743,7 +1743,7 @@ func cardinalGeneric(info *types.Info, id *ast.Ident, inst types.Instance) types
 // RegisterCommand discovery only sees commands a module receives; a command a module only sends (e.g. the
 // lobby plugin's NotifySessionStart) would otherwise be invisible to its own module and never get a
 // codec. The command is SendToShard's last argument; we resolve its concrete type (unwrapping pointers
-// and aliases — a re-exported command is a types.Alias, not a Named). enqueue's local filter still scopes
+// and aliases — a re-exported command is a [types.Alias], not a Named). enqueue's local filter still scopes
 // emission to this module. An argument forwarded as the command interface has no concrete type to
 // resolve and is skipped. Gating on wireNames keeps unrelated SendToShard-named methods out.
 func discoverSentCommandTypes(
@@ -2633,8 +2633,8 @@ func sanitizeToIdent(s string) string {
 // GoImportPath returns the import-path half of a DeriveGoPackage result
 // ("<import-path>;<pkg>" -> "<import-path>").
 func GoImportPath(goPackage string) string {
-	if i := strings.LastIndex(goPackage, ";"); i >= 0 {
-		return goPackage[:i]
+	if before, _, ok := strings.CutLast(goPackage, ";"); ok {
+		return before
 	}
 	return goPackage
 }
@@ -2642,8 +2642,8 @@ func GoImportPath(goPackage string) string {
 // GoPackageName returns the package-name half of a DeriveGoPackage result
 // ("<import-path>;<pkg>" -> "<pkg>").
 func GoPackageName(goPackage string) string {
-	if i := strings.LastIndex(goPackage, ";"); i >= 0 {
-		return goPackage[i+1:]
+	if _, after, ok := strings.CutLast(goPackage, ";"); ok {
+		return after
 	}
 	return goPackage
 }

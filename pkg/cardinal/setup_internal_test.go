@@ -1,7 +1,7 @@
 package cardinal
 
 import (
-	"log"
+	"fmt"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 
 	TestNATS.Shutdown()
 	if err := os.RemoveAll(tempDir); err != nil {
-		log.Printf("failed to remove temp dir: %v", err)
+		fmt.Fprintf(os.Stderr, "failed to remove temp dir: %v\n", err)
 	}
 	os.Exit(code)
 }

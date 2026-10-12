@@ -12,8 +12,8 @@ const (
 	Active
 	// Done marks a row that finished successfully.
 	Done
-	// Failed marks a row that errored.
-	Failed
+	// failed marks a row that errored; set only via Session.Fail.
+	failed
 )
 
 // Session is the live handle into a running phasebox, scoped to the
@@ -26,6 +26,9 @@ type Session interface {
 	// UpsertProgress renders id's row as label + a percent-complete bar
 	// (e.g. "golang:1.26.2 ████████░░░░░░░░ 42%") instead of an icon, for
 	// determinate operations like image pulls. Always implicitly Active;
-	// follow with UpsertRow(..., Done/Failed) to swap back to an icon row.
+	// follow with UpsertRow(..., Done) or Fail to swap back to an icon row.
 	UpsertProgress(id, label string, percent int)
+	// Fail marks id's row ✗ "failed" or "canceled". err's text never goes in
+	// the box (a row is one truncated line); it's printed after the dashboard.
+	Fail(id, label string, err error)
 }

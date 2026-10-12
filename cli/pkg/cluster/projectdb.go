@@ -133,8 +133,8 @@ func ensureProjectDB(ctx context.Context, k *kubeClient, project string) error {
 
 func projectDBPVC(name, ns string) *corev1.PersistentVolumeClaim {
 	return &corev1.PersistentVolumeClaim{
-		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "PersistentVolumeClaim"},
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns},
+		APIVersion: "v1", Kind: "PersistentVolumeClaim",
+		Name: name, Namespace: ns,
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			Resources: corev1.VolumeResourceRequirements{
@@ -147,8 +147,8 @@ func projectDBPVC(name, ns string) *corev1.PersistentVolumeClaim {
 func projectDBDeployment(name, ns, project string) *appsv1.Deployment {
 	podLabels := map[string]string{"app": name}
 	return &appsv1.Deployment{
-		TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns, Labels: podLabels},
+		APIVersion: "apps/v1", Kind: "Deployment",
+		Name: name, Namespace: ns, Labels: podLabels,
 		Spec: appsv1.DeploymentSpec{
 			Replicas: new(int32(1)),
 			// Recreate so the new pod can attach the ReadWriteOnce PVC without
@@ -183,18 +183,14 @@ func projectDBDeployment(name, ns, project string) *appsv1.Deployment {
 							{Name: "data", MountPath: "/var/lib/postgresql/data"},
 						},
 						ReadinessProbe: &corev1.Probe{
-							ProbeHandler: corev1.ProbeHandler{
-								Exec: &corev1.ExecAction{
-									Command: []string{"pg_isready", "-U", configDBUser, "-d", project},
-								},
+							Exec: &corev1.ExecAction{
+								Command: []string{"pg_isready", "-U", configDBUser, "-d", project},
 							},
 						},
 					}},
 					Volumes: []corev1.Volume{{
-						Name: "data",
-						VolumeSource: corev1.VolumeSource{
-							PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: name},
-						},
+						Name:                  "data",
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: name},
 					}},
 				},
 			},
@@ -208,8 +204,8 @@ func projectDBDeployment(name, ns, project string) *appsv1.Deployment {
 // DNS name as before (NodePort is a ClusterIP superset).
 func projectDBService(name, ns string) *corev1.Service {
 	return &corev1.Service{
-		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "Service"},
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns, Labels: map[string]string{"app": name}},
+		APIVersion: "v1", Kind: "Service",
+		Name: name, Namespace: ns, Labels: map[string]string{"app": name},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeNodePort,
 			Selector: map[string]string{"app": name},

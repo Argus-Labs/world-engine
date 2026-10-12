@@ -75,6 +75,9 @@ type WorldSetupModel struct {
 	logs             []string
 	steps            steps.Model
 	projectNameInput textinput.Model
+	// targetDir stores the full destination path. projectNameInput stores only the project name.
+	// An empty targetDir selects the interactive input.
+	targetDir        string
 	templateList     list.Model
 	selectedTemplate *worldscaffold.GameTemplate
 	templateFlag     string // Template name from --template flag (validated when step starts)
@@ -125,8 +128,9 @@ func NewWorldSetupModel(directory, env, templateFlag string) WorldSetupModel {
 	}
 
 	nameErr := ""
+	targetDir := ""
 	if directory != "" {
-		// Extract just the directory name from the path
+		targetDir = directory
 		dirName := filepath.Base(directory)
 		pnInput.SetValue(dirName)
 		if !dnslabel.IsCanonical(dirName) {
@@ -137,6 +141,7 @@ func NewWorldSetupModel(directory, env, templateFlag string) WorldSetupModel {
 	return WorldSetupModel{
 		steps:            setupSteps,
 		projectNameInput: pnInput,
+		targetDir:        targetDir,
 		templateList:     templateList,
 		templateFlag:     templateFlag,
 		templateErr:      templateErr,

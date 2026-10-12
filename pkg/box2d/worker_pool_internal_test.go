@@ -162,7 +162,7 @@ func TestPoolEngagementCanary(t *testing.T) {
 }
 
 // TestGoexitSelfHealRespawnsWorker exercises the workerLoop self-heal: a
-// dispatched fn that exits via runtime.Goexit (t.Fatal inside a user callback
+// dispatched fn that exits via [runtime.Goexit] (t.Fatal inside a user callback
 // under test, for example) must surface as the sentinel panic on the
 // dispatcher — not a deadlock — and the pool must respawn the dead goroutine
 // so the NEXT dispatch on the same pool still engages every worker. The
