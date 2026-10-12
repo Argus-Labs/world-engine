@@ -184,7 +184,7 @@ func (s *sectionSession) Fail(id, label string, err error) {
 	if isCanceled(err) {
 		detail = "canceled"
 	}
-	s.d.send(rowMsg{section: s.section, id: id, label: label, detail: detail, state: failed})
+	s.d.send(rowMsg{section: s.section, id: id, label: label, detail: detail, state: Failed})
 }
 
 // isCanceled uses errors.Is, not eris.Is, so it also sees into errors.Join.
