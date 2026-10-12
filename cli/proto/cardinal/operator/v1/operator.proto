@@ -4,7 +4,6 @@ package cardinal.operator.v1;
 
 import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
-import "worldengine/cardinal/v1/debug.proto";
 
 option go_package = "github.com/argus-labs/world-engine/cli/proto/gen/go/cardinal/operator/v1;operatorv1";
 
@@ -20,15 +19,6 @@ service OperatorService {
   // log file rotates (underlying kubelet stream ends), or the operator
   // encounters an error reading from Kubernetes.
   rpc StreamPodLogs(StreamPodLogsRequest) returns (stream StreamPodLogsResponse);
-  // Profile fetches a Go runtime pprof profile from a shard instance.
-  // Server-streaming: the operator dials the shard pod's pprof endpoint
-  // and forwards the raw profile.proto bytes to the client in chunks.
-  // The shard pod must have CARDINAL_PPROF=true set (off by default).
-  // Stream closes when the underlying pprof endpoint finishes, the client
-  // disconnects, or the operator encounters an error reaching the pod.
-  rpc Profile(ProfileRequest) returns (stream ProfileResponse);
-  // Forwards DebugService.StreamPerf.
-  rpc StreamShardPerf(StreamShardPerfRequest) returns (stream StreamShardPerfResponse);
   // StreamPodMetrics emits a snapshot of pod CPU/memory for every shard
   // instance in the pool on each scrape cycle. Sourced from the
   // metrics.k8s.io aggregated API (metrics-server).
@@ -165,52 +155,6 @@ message PodLogLine {
   // Log line content (no trailing newline). Raw bytes as UTF-8; preserves
   // ANSI escape codes for terminal-style output.
   string line = 2;
-}
-
-message ProfileRequest {
-  // ShardPool ID (e.g. "lobby", "gameplay") — consistent with other RPCs.
-  string shard_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Specific instance to profile (e.g. "lobby-0"). Required; profiling is
-  // always pod-specific so callers know exactly which process was sampled.
-  string instance_name = 2 [(buf.validate.field).string.min_len = 1];
-  // Profile type. Maps to the path segment after /debug/pprof/.
-  string profile = 3 [(buf.validate.field).string = {
-    in: [
-      "profile",
-      "heap",
-      "goroutine",
-      "allocs",
-      "block",
-      "mutex",
-      "threadcreate",
-      "trace"
-    ]
-  }];
-  // Sampling duration. Only applies to "profile" (CPU) and "trace".
-  // Ignored by all other profile types. Defaults to 30 if zero/unset.
-  // Capped at 300 to prevent indefinite holds on the shard process.
-  int32 seconds = 4 [(buf.validate.field).int32 = {
-    gte: 0
-    lte: 300
-  }];
-}
-
-// ProfileResponse carries a chunk of profile.proto bytes. The full profile
-// is the concatenation of every chunk in stream order; the operator does
-// not parse the payload, only forwards it.
-message ProfileResponse {
-  bytes data = 1;
-}
-
-// Addressing for the StreamShardPerf forwarder: pick a specific shard pool +
-// instance. Same selectors Restart / StreamPodLogs use.
-message StreamShardPerfRequest {
-  string shard_id = 1 [(buf.validate.field).string.min_len = 1];
-  string instance_name = 2 [(buf.validate.field).string.min_len = 1];
-}
-
-message StreamShardPerfResponse {
-  worldengine.cardinal.v1.PerfBatch perf_batch = 1;
 }
 
 message StreamPodMetricsRequest {

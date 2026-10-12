@@ -299,7 +299,7 @@ func TestRenderGoWireDirect_Mirrored(t *testing.T) {
 // TestRenderGoWireDirect_NamedScalars pins that every encode-side cast goes to the basic type, so a
 // NAMED scalar (type Flag bool, type Angle float64, type Label string) compiles wherever it appears:
 // a named bool is a valid condition but not a valid argument to wireBool's bool parameter, and a named
-// float or string is not assignable to math.Float64bits or AppendString either.
+// float or string is not assignable to [math.Float64bits] or AppendString either.
 func TestRenderGoWireDirect_NamedScalars(t *testing.T) {
 	t.Parallel()
 	flag := scalarOf("bool", "Flag", "bool")

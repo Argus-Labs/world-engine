@@ -71,7 +71,7 @@ func (w *World) Has[T Component](eid EntityID) bool {
 
 // IterEntities iterates all entities that match the given component bitmap and match mode.
 //
-// We intentionally keep this as a callback-based iterator instead of returning iter.Seq because
+// We intentionally keep this as a callback-based iterator instead of returning [iter.Seq] because
 // the additional closure/layer on hot query paths adds measurable allocations in cardinal
 // benchmarks. This still resolves matching archetypes dynamically on every call.
 func (w *World) IterEntities( //nolint:gocognit // it's fine

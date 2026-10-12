@@ -57,7 +57,7 @@ func TestHashSet_CollisionHeavyKeys(t *testing.T) {
 	set := createHashSet(16)
 
 	const n = 200
-	for i := 0; i < n; i++ {
+	for i := range n {
 		for j := i + 1; j < n; j++ {
 			key := shapePairKey(uint32(i), uint32(j))
 			tassert.Falsef(t, addKey(&set, key), "duplicate at (%d,%d)", i, j)
@@ -67,7 +67,7 @@ func TestHashSet_CollisionHeavyKeys(t *testing.T) {
 	expectedCount := n * (n - 1) / 2
 	tassert.Equal(t, expectedCount, getSetCount(&set))
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		for j := i + 1; j < n; j++ {
 			key := shapePairKey(uint32(i), uint32(j))
 			tassert.Truef(t, containsKey(&set, key), "missing (%d,%d)", i, j)
@@ -85,7 +85,7 @@ func TestHashSet_CollisionHeavyKeys(t *testing.T) {
 
 	tassert.Equal(t, expectedCount-removed, getSetCount(&set))
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		for j := i + 1; j < n; j++ {
 			key := shapePairKey(uint32(i), uint32(j))
 			if i%2 == 0 && j%2 == 1 {

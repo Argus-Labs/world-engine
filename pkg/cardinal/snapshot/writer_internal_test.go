@@ -234,6 +234,7 @@ func newTestAsyncWriter(t *testing.T, storage Storage) *AsyncWriter {
 
 type observedWriterContext struct {
 	context.Context
+
 	entered chan struct{}
 	once    sync.Once
 }

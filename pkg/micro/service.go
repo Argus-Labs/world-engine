@@ -51,10 +51,10 @@ func NewService(client *Client, address *ServiceAddress, tel *telemetry.Telemetr
 // Logger returns a logger for the service with service-specific context.
 func (s *Service) Logger() *zerolog.Logger {
 	logger := s.tel.GetLogger("service").With().
-		Str("realm", realmToString(s.Address.Realm)).
-		Str("organization", s.Address.Organization).
-		Str("project", s.Address.Project).
-		Str("service_id", s.Address.ServiceId).
+		Str("realm", realmToString(s.Address.GetRealm())).
+		Str("organization", s.Address.GetOrganization()).
+		Str("project", s.Address.GetProject()).
+		Str("service_id", s.Address.GetServiceId()).
 		Logger()
 	return &logger
 }

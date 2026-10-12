@@ -167,7 +167,7 @@ func (m WorldSetupModel) handleStepCompleted(msg steps.SignalStepCompletedMsg) (
 		}
 	case stepClone:
 		return m, NewLogCmd(style.ChevronIcon.Render() +
-			"Successfully created a starter game shard in ./" + m.projectNameInput.Value())
+			"Successfully created a starter game shard in " + m.displayDir())
 	}
 	return m, nil
 }
@@ -192,7 +192,7 @@ func (m WorldSetupModel) handleTidyFinished(msg TidyFinishedMsg) (tea.Model, tea
 		m.logs = append(m.logs, style.CrossIcon.Render()+msg.Err.Error())
 		if msg.Removed {
 			m.logs = append(m.logs, style.ChevronIcon.Render()+
-				"Removed ./"+m.projectNameInput.Value()+" — fix the issue above and run setup again with the same name.")
+				"Removed "+m.displayDir()+" — fix the issue above and run setup again with the same name.")
 		}
 		return m, m.steps.CompleteStepCmd(msg.Err)
 	}
@@ -225,6 +225,20 @@ func (m WorldSetupModel) updateSteps(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m WorldSetupModel) targetDirectory() string {
+	if m.targetDir != "" {
+		return m.targetDir
+	}
+	return m.projectNameInput.Value()
+}
+
+func (m WorldSetupModel) displayDir() string {
+	if m.targetDir != "" {
+		return m.targetDir
+	}
+	return "./" + m.projectNameInput.Value()
+}
+
 // cloneTemplateCmd returns a tea.Cmd that performs the clone operation.
 func (m WorldSetupModel) cloneTemplateCmd() tea.Cmd {
 	return func() tea.Msg {
@@ -232,7 +246,7 @@ func (m WorldSetupModel) cloneTemplateCmd() tea.Cmd {
 			context.Background(),
 			m.selectedTemplate.URL,
 			version.WorldEngine(),
-			m.projectNameInput.Value(),
+			m.targetDirectory(),
 			m.selectedTemplate.Subdir,
 		)
 		return CloneFinishedMsg{Err: err}
@@ -242,7 +256,7 @@ func (m WorldSetupModel) cloneTemplateCmd() tea.Cmd {
 // tidyCmd returns a tea.Cmd that performs the go mod tidy operation.
 func (m WorldSetupModel) tidyCmd() tea.Cmd {
 	return func() tea.Msg {
-		projectDir := m.projectNameInput.Value()
+		projectDir := m.targetDirectory()
 		err := worldscaffold.Tidy(context.Background(), projectDir)
 		removed := false
 		if err != nil {

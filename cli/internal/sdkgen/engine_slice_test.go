@@ -206,7 +206,7 @@ func Setup(w *cardinal.World) {
 }
 
 // TestEngineSliceOfTime pins the well-known-type path: a Slice[time.Time] is repeated Timestamp on the
-// wire, and the collecting slice names time.Time, which needs the time import.
+// wire, and the collecting slice names [time.Time], which needs the time import.
 func TestEngineSliceOfTime(t *testing.T) {
 	t.Parallel()
 
@@ -344,7 +344,7 @@ func Setup(w *cardinal.World) {
 // failure here.
 //
 // The typed vars pin the signatures, which usage alone does not: swapping Values back to All fails
-// with "cannot use ... iter.Seq2[int, int32] as func(...) iter.Seq[int32]". The loop below pins the
+// with "cannot use ... [iter.Seq2][int, int32] as func(...) [iter.Seq][int32]". The loop below pins the
 // shape the emitter actually writes, so a failure reads the way the game's build error would.
 //
 // It does NOT prove a whole generated file compiles — that needs protoc and a real build. This covers
@@ -394,7 +394,7 @@ func TestSliceGuidanceIsNotCircular(t *testing.T) {
 //
 // A component restored from a snapshot has to compare equal to the same component built fresh. Go's
 // zero value has a nil backing array and cannot be changed, so the decode side is what has to match
-// it: constructing unconditionally would hand back an empty-but-allocated Slice, and reflect.DeepEqual
+// it: constructing unconditionally would hand back an empty-but-allocated Slice, and [reflect.DeepEqual]
 // — so require.Equal — would call the two different.
 func TestEmittedDecodeLeavesEmptyAsZero(t *testing.T) {
 	t.Parallel()

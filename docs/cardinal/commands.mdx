@@ -54,27 +54,30 @@ func (s *AttackSystem) Run(w *cardinal.World) {
 }
 ```
 
-### Personas
+### Senders
 
-A persona is the unique identity associated with a player’s account. All commands include metadata containing the sender’s persona, which you can use for authorization checks like verifying entity ownership.
+Every command knows who sent it, which you can use for authorization checks like verifying entity ownership. A sender is either a player or another shard:
 
-If your client is authenticated, commands sent from it will automatically include your account's persona. In multi-shard setups, personas remain consistent across shards, allowing any shard to verify and act on the same player identity.
-
-You can get a command's persona from the `Persona` field:
+- `cmd.Player()` returns the player ID and `true` when a client sent the command. Cardinal takes the ID from the client's auth token, so a client cannot claim to be another player. Player IDs are the same on every shard of a project.
+- `cmd.Shard()` returns the sending shard's address and `true` when another shard sent the command with `w.SendToShard`.
+- `cmd.Sender()` returns either one, for code that doesn't care which, such as logs.
 
 ```go
 func (s *AttackSystem) Run(w *cardinal.World) {
     players := w.Contains[struct{ Owner Owner }]()
     for cmd := range w.Commands[AttackCommand]() {
         attack := cmd.Payload
-        sender := cmd.Persona
+        sender, ok := cmd.Player()
+        if !ok {
+            continue // Sent by another shard, not a player.
+        }
 
         // Get the player's entity and verify ownership.
         player, err := players.GetByID(attack.PlayerID)
         if err != nil {
             continue
         }
-        if player.Get[Owner]().Persona != sender {
+        if player.Get[Owner]().PlayerID != sender {
             continue // Skip unauthorized commands.
         }
 
@@ -127,6 +130,8 @@ Some command types are more synchronous in nature, like updating game config, wh
     ```
   </Tab>
 </Tabs>
+
+In the system that handles the command, send the reply with `w.SendTo(playerID, event)`, using the player ID from `cmd.Player()`. A targeted reply answers only that player's pending requests for that event name, while `w.Broadcast` answers every player's.
 
 ## Inter-Shard Commands
 

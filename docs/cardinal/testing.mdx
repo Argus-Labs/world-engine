@@ -1,0 +1,115 @@
+---
+title: Testing Systems
+---
+
+`cardinal.NewTestWorld` runs your systems inside an ordinary Go test. It needs no NATS server, environment variables or snapshot storage. You seed the world, send commands, run one system or a whole tick, then assert on the resulting state and outputs.
+
+## Your First Test
+
+This test runs the attack system from the game template once and checks that the target died:
+
+```go
+func TestAttackKillsPlayer(t *testing.T) {
+    w := cardinal.NewTestWorld(t, func(w *cardinal.World) {
+        w.RegisterComponent[component.PlayerTag]()
+        w.RegisterComponent[component.Health]()
+        w.RegisterCommand[system.AttackPlayerCommand]()
+        w.RegisterEvent[event.PlayerDeath]()
+        w.RegisterSystemEvent[systemevent.PlayerDeath]()
+    })
+    bob := w.Create[system.Player]()
+    bob.Set(component.PlayerTag{Nickname: "bob"})
+    bob.Set(component.Health{HP: 10})
+
+    w.Command("alice", system.AttackPlayerCommand{Target: "bob", Damage: 10})
+    w.RunSystem(&system.AttackPlayerSystem{})
+
+    assert.False(t, bob.Alive())
+    assert.Equal(t, []cardinal.Sent[event.PlayerDeath]{
+        {Recipient: "alice", Payload: event.PlayerDeath{Nickname: "bob"}},
+    }, w.Events[event.PlayerDeath]())
+    assert.Equal(t, []systemevent.PlayerDeath{{Nickname: "bob"}}, w.Emitted[systemevent.PlayerDeath]())
+}
+```
+
+Run it with `go test ./...`.
+
+## Setting Up the World
+
+The second argument to `NewTestWorld` registers components, commands, events, system events and systems, as your `main` does before `StartGame`. `NewTestWorld` then runs your `Init` systems, as `StartGame` does.
+
+<Tip>
+  Move your registration into a function that `main` and your tests both call. Then every test runs
+  against the same world your game does.
+</Tip>
+
+`TestWorld` embeds `*cardinal.World`, so you seed and read state with the API your systems already use: `w.Create`, `w.Entity`, `w.Exact`, `w.Contains` and `entity.Set`. Logs go to the test log.
+
+## Steps
+
+A test advances the world one step at a time:
+
+| Method           | Runs                                                                          |
+| ---------------- | ----------------------------------------------------------------------------- |
+| `w.RunSystem(s)` | Exactly one system. The system does not need to be registered.                |
+| `w.Tick()`       | One full tick: every `PreUpdate`, `Update` and `PostUpdate` system, in order. |
+
+Around the systems, each step does what a production tick does:
+
+- Delivers the commands sent since the last step.
+- Dispatches the events and shard commands sent since the last step, encoding each as publishing does. A payload that cannot be serialized fails the step that sent it. The outputs hold the decoded copy a receiver gets, so editing a value after sending it does not change them.
+- Encodes the world state as a snapshot would. A component that cannot be serialized fails the step that stored it.
+- Increments the tick height.
+
+The clock is fixed. A step at height `h` runs at `time.Unix(h, 0)`. `Init` systems and the first step run at height 0. The height increments at the end of each step, so between steps `w.Timestamp()` is the last step's time, one second behind `w.TickHeight()`.
+
+A test that needs another clock can call `w.World.Tick(timestamp)`. That tick is not a step: `w.Events` and `w.ShardCommands` add its outputs to the last step's, and `w.Emitted` does not record it.
+
+## Inputs
+
+**Commands.** `w.Command(player, cmd)` sends a command as a client would, with `player` as its sender. The command is encoded and decoded on the way in, and `w.Commands[T]()` returns it during the next step only. Sending a command type that was not registered fails the test.
+
+**System events.** Call `w.EmitSystemEvent(evt)` before a step to hand a system event to that step's systems. System events are cleared when the step ends, as at the end of a tick.
+
+## Outputs
+
+These methods return what the last step produced, in the order it was produced. Events and shard commands include everything sent since the step before, so sends from `Init` systems arrive with the first step, and sends your test makes between steps arrive with the next one:
+
+| Method                 | Returns                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------ |
+| `w.Events[T]()`        | `[]cardinal.Sent[T]` for each `Broadcast` and `SendTo`. `Recipient` is `""` for a broadcast.           |
+| `w.Emitted[T]()`       | `[]T` for each system event the systems emitted. System events you emitted as inputs are not included. |
+| `w.ShardCommands[T]()` | `[]cardinal.ShardCommand[T]` for each `SendToShard`, with the target in `To`.                          |
+
+Each step replaces the previous step's outputs.
+
+## Checking Determinism
+
+`cardinal.RequireDeterministic` runs a script on two fresh worlds. It fails the test at the first step after which the world state, events, shard commands or emitted system events differ between the two runs:
+
+```go
+func TestCombatIsDeterministic(t *testing.T) {
+    cardinal.RequireDeterministic(t, register, func(w *cardinal.TestWorld) {
+        w.Command("alice", system.CreatePlayerCommand{Nickname: "bob"})
+        w.Tick()
+        w.Command("alice", system.AttackPlayerCommand{Target: "bob", Damage: 30})
+        for range 10 {
+            w.Tick()
+        }
+    })
+}
+```
+
+A failure names the step and what differed:
+
+```
+cardinal: RequireDeterministic: step 3 differs between runs in world state
+```
+
+Step 0 is the world after `Init`. Step `n` is the `n`th `RunSystem` or `Tick` in the script. `RequireDeterministic` also compares the worlds when the script returns, which covers ticks the script runs with `w.World.Tick(timestamp)`.
+
+Common causes are reading `time.Now`, unseeded randomness, map iteration order or package-level variables inside a system. The check compares two runs in one process, so it catches a cause only when the two runs differ. Package-level state, unseeded randomness and nanosecond clock reads almost always do. Iteration over a map of a few keys, or a clock read at second granularity, often does not. Range over `slices.Sorted(maps.Keys(m))` and read `w.Timestamp()` instead of `time.Now`.
+
+## What a Test World Does Not Run
+
+A `TestWorld` does not connect to NATS, authenticate clients, restore or store snapshots, or export telemetry. Calling `w.StartGame()` fails the test. Cover those paths with the end-to-end tests in your shard's `main_test.go`.

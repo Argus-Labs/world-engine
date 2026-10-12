@@ -7,8 +7,8 @@ import (
 	"github.com/rotisserie/eris"
 )
 
-// CmdFactory creates a new exec.Cmd for each check.
-// This is necessary because exec.Cmd can only be Run() once.
+// CmdFactory creates a new [exec.Cmd] for each check.
+// This is necessary because [exec.Cmd] can only be Run() once.
 type CmdFactory func() *exec.Cmd
 
 //nolint:gochecknoglobals // Predefined dependencies

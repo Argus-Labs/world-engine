@@ -109,8 +109,8 @@ func TestContactRegistersCoverAllShapeTypePairs(t *testing.T) {
 		{ChainSegmentShape, ChainSegmentShape}: true,
 	}
 
-	for typeA := ShapeType(0); typeA < ShapeTypeCount; typeA++ {
-		for typeB := ShapeType(0); typeB < ShapeTypeCount; typeB++ {
+	for typeA := range ShapeTypeCount {
+		for typeB := range ShapeTypeCount {
 			entry := contactRegisters[typeA][typeB]
 			mirror := contactRegisters[typeB][typeA]
 

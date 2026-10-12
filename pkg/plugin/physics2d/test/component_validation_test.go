@@ -478,7 +478,12 @@ func TestNewPhysicsBody2D_MultipleShapes(t *testing.T) {
 	t.Parallel()
 	shapes := []phycomp.ColliderShape{
 		{ShapeType: phycomp.ShapeTypeCircle, Radius: 0.5, CategoryBits: 0xFFFF, MaskBits: 0xFFFF},
-		{ShapeType: phycomp.ShapeTypeBox, HalfExtents: phycomp.Vec2{X: 1, Y: 1}, CategoryBits: 0xFFFF, MaskBits: 0xFFFF},
+		{
+			ShapeType:    phycomp.ShapeTypeBox,
+			HalfExtents:  phycomp.Vec2{X: 1, Y: 1},
+			CategoryBits: 0xFFFF,
+			MaskBits:     0xFFFF,
+		},
 	}
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeStatic, shapes...)
 	require.Equal(t, 2, pb.Shapes.Len())

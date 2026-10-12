@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"time"
 
@@ -66,15 +67,11 @@ func buildBaseGameService(cfg *Config, svc worldtoml.GameService) Service {
 	containerName := GameServiceContainerName(cfg.WorldToml.Project, svc.ID)
 
 	out := Service{
-		Name: containerName,
-		Config: container.Config{
-			Env:    buildGameServiceEnv(cfg, svc),
-			Labels: map[string]string{GameServiceLabel: cfg.WorldToml.Project},
-		},
-		HostConfig: container.HostConfig{
-			RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
-			NetworkMode:   DefaultNetworkMode,
-		},
+		Name:          containerName,
+		Env:           buildGameServiceEnv(cfg, svc),
+		Labels:        map[string]string{GameServiceLabel: cfg.WorldToml.Project},
+		RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
+		NetworkMode:   DefaultNetworkMode,
 	}
 
 	if len(svc.Ports) > 0 {
@@ -117,9 +114,7 @@ func buildGameServiceEnv(cfg *Config, svc worldtoml.GameService) []string {
 	}
 	// svc.Env (world.toml) overwrites the world-cli seeds above, so world.toml
 	// wins for NATS_URL/CARDINAL_REGION.
-	for k, v := range svc.Env {
-		merged[k] = v
-	}
+	maps.Copy(merged, svc.Env)
 	if svc.DB {
 		if dsn := projectDBDSN(cfg.WorldToml); dsn != "" {
 			// A world.toml DB_DSN wins, so only fill it in when absent.
@@ -158,31 +153,27 @@ func buildGameServiceEnv(cfg *Config, svc worldtoml.GameService) []string {
 func ProjectDBService(cfg *Config) Service {
 	name := ProjectDBContainerName(cfg.WorldToml.Project)
 	return Service{
-		Name: name,
-		Config: container.Config{
-			Image: projectDBImage,
-			Env: []string{
-				fmt.Sprintf("POSTGRES_USER=%s", configDBUser),
-				fmt.Sprintf("POSTGRES_PASSWORD=%s", configDBPassword),
-				fmt.Sprintf("POSTGRES_DB=%s", cfg.WorldToml.Project),
-			},
-			Labels:       map[string]string{GameServiceLabel: cfg.WorldToml.Project},
-			ExposedPorts: getExposedPorts([]int{defaultConfigDBPort}),
-			Healthcheck: &container.HealthConfig{
-				Test: []string{
-					"CMD-SHELL",
-					fmt.Sprintf("pg_isready -U %s -d %s", configDBUser, cfg.WorldToml.Project),
-				},
-				Interval: gameServiceHealthInterval,
-				Timeout:  gameServiceHealthTimeout,
-				Retries:  gameServiceHealthRetries,
-			},
+		Name:  name,
+		Image: projectDBImage,
+		Env: []string{
+			fmt.Sprintf("POSTGRES_USER=%s", configDBUser),
+			fmt.Sprintf("POSTGRES_PASSWORD=%s", configDBPassword),
+			fmt.Sprintf("POSTGRES_DB=%s", cfg.WorldToml.Project),
 		},
-		HostConfig: container.HostConfig{
-			PortBindings:  newPortMap([]int{defaultConfigDBPort}),
-			RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
-			NetworkMode:   DefaultNetworkMode,
-			Binds:         []string{fmt.Sprintf("%s:/var/lib/postgresql/data", name)},
+		Labels:       map[string]string{GameServiceLabel: cfg.WorldToml.Project},
+		ExposedPorts: getExposedPorts([]int{defaultConfigDBPort}),
+		Healthcheck: &container.HealthConfig{
+			Test: []string{
+				"CMD-SHELL",
+				fmt.Sprintf("pg_isready -U %s -d %s", configDBUser, cfg.WorldToml.Project),
+			},
+			Interval: gameServiceHealthInterval,
+			Timeout:  gameServiceHealthTimeout,
+			Retries:  gameServiceHealthRetries,
 		},
+		PortBindings:  newPortMap([]int{defaultConfigDBPort}),
+		RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
+		NetworkMode:   DefaultNetworkMode,
+		Binds:         []string{fmt.Sprintf("%s:/var/lib/postgresql/data", name)},
 	}
 }

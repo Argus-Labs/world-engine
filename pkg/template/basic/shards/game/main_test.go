@@ -10,6 +10,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/template/basic/shards/game/event"
 	"github.com/argus-labs/world-engine/pkg/template/basic/shards/game/system"
 	systemevent "github.com/argus-labs/world-engine/pkg/template/basic/shards/game/system_event"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,6 +18,22 @@ func TestDST(t *testing.T) {
 	cardinal.RunDST(t, func(w *cardinal.World) {
 		registerSystems(w)
 	}, nil)
+}
+
+func TestGraveyardSystem(t *testing.T) {
+	t.Parallel()
+
+	// registerSystems also runs PlayerSpawnerSystem at init, so the world starts with 10 players.
+	w := cardinal.NewTestWorld(t, registerSystems)
+	w.EmitSystemEvent(systemevent.PlayerDeath{Nickname: "bob"})
+
+	w.RunSystem(&system.GraveyardSystem{})
+
+	var graves []component.Gravestone
+	for grave := range w.Exact[system.Grave]().Iter() {
+		graves = append(graves, grave.Get[component.Gravestone]())
+	}
+	assert.Equal(t, []component.Gravestone{{Nickname: "bob"}}, graves)
 }
 
 func TestE2E(t *testing.T) {

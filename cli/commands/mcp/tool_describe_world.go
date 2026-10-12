@@ -32,7 +32,9 @@ func registerDescribeWorldTool(srv *server.MCPServer) {
 			"List the worlds currently deployed on the local cluster (organization, project, and shards), "+
 				"read from the cardinal-operator's ShardPool resources. No project path needed. Requires a running cluster.",
 		),
-		mcp.WithInputSchema[DescribeWorldInput](),
+		// No WithInputSchema: the schema it generates for an empty struct has no "properties", which
+		// some MCP hosts reject on an object parameter. NewTool's default publishes an empty one.
+		mcp.WithSchemaAdditionalProperties(false),
 		mcp.WithOutputSchema[DescribeWorldOutput](),
 	)
 	srv.AddTool(describeWorldTool, strictToolHandler(describeWorldHandler))

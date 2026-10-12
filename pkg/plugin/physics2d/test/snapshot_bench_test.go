@@ -25,7 +25,7 @@ import (
 // serialization cost.
 //
 // The matrix deliberately runs with Debug off. Debug on forces the full ToProto graph build on every
-// tick regardless of SnapshotRate (cardinal.go persistState), which is not how production runs and
+// tick regardless of SnapshotRate (World.Tick), which is not how production runs and
 // makes per-tick numbers unusable as a snapshot-path baseline.
 
 // ---------------------------------------------------------------------------
@@ -134,7 +134,7 @@ func worldStateProto(b *testing.B, w *cardinal.World) *cardinalv1.WorldState {
 		b.Fatal("ecs.World: missing EncodeState method")
 	}
 	out := m.Call([]reflect.Value{reflect.ValueOf([]byte(nil))})
-	data, ok := out[0].Interface().([]byte)
+	data, ok := reflect.TypeAssert[[]byte](out[0])
 	if !ok {
 		b.Fatalf("EncodeState returned %T, want []byte", out[0].Interface())
 	}

@@ -47,11 +47,6 @@ const (
 	// OperatorServiceStreamPodLogsProcedure is the fully-qualified name of the OperatorService's
 	// StreamPodLogs RPC.
 	OperatorServiceStreamPodLogsProcedure = "/cardinal.operator.v1.OperatorService/StreamPodLogs"
-	// OperatorServiceProfileProcedure is the fully-qualified name of the OperatorService's Profile RPC.
-	OperatorServiceProfileProcedure = "/cardinal.operator.v1.OperatorService/Profile"
-	// OperatorServiceStreamShardPerfProcedure is the fully-qualified name of the OperatorService's
-	// StreamShardPerf RPC.
-	OperatorServiceStreamShardPerfProcedure = "/cardinal.operator.v1.OperatorService/StreamShardPerf"
 	// OperatorServiceStreamPodMetricsProcedure is the fully-qualified name of the OperatorService's
 	// StreamPodMetrics RPC.
 	OperatorServiceStreamPodMetricsProcedure = "/cardinal.operator.v1.OperatorService/StreamPodMetrics"
@@ -73,15 +68,6 @@ type OperatorServiceClient interface {
 	// log file rotates (underlying kubelet stream ends), or the operator
 	// encounters an error reading from Kubernetes.
 	StreamPodLogs(context.Context, *connect.Request[v1.StreamPodLogsRequest]) (*connect.ServerStreamForClient[v1.StreamPodLogsResponse], error)
-	// Profile fetches a Go runtime pprof profile from a shard instance.
-	// Server-streaming: the operator dials the shard pod's pprof endpoint
-	// and forwards the raw profile.proto bytes to the client in chunks.
-	// The shard pod must have CARDINAL_PPROF=true set (off by default).
-	// Stream closes when the underlying pprof endpoint finishes, the client
-	// disconnects, or the operator encounters an error reaching the pod.
-	Profile(context.Context, *connect.Request[v1.ProfileRequest]) (*connect.ServerStreamForClient[v1.ProfileResponse], error)
-	// Forwards DebugService.StreamPerf.
-	StreamShardPerf(context.Context, *connect.Request[v1.StreamShardPerfRequest]) (*connect.ServerStreamForClient[v1.StreamShardPerfResponse], error)
 	// StreamPodMetrics emits a snapshot of pod CPU/memory for every shard
 	// instance in the pool on each scrape cycle. Sourced from the
 	// metrics.k8s.io aggregated API (metrics-server).
@@ -137,18 +123,6 @@ func NewOperatorServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(operatorServiceMethods.ByName("StreamPodLogs")),
 			connect.WithClientOptions(opts...),
 		),
-		profile: connect.NewClient[v1.ProfileRequest, v1.ProfileResponse](
-			httpClient,
-			baseURL+OperatorServiceProfileProcedure,
-			connect.WithSchema(operatorServiceMethods.ByName("Profile")),
-			connect.WithClientOptions(opts...),
-		),
-		streamShardPerf: connect.NewClient[v1.StreamShardPerfRequest, v1.StreamShardPerfResponse](
-			httpClient,
-			baseURL+OperatorServiceStreamShardPerfProcedure,
-			connect.WithSchema(operatorServiceMethods.ByName("StreamShardPerf")),
-			connect.WithClientOptions(opts...),
-		),
 		streamPodMetrics: connect.NewClient[v1.StreamPodMetricsRequest, v1.StreamPodMetricsResponse](
 			httpClient,
 			baseURL+OperatorServiceStreamPodMetricsProcedure,
@@ -172,8 +146,6 @@ type operatorServiceClient struct {
 	status           *connect.Client[v1.StatusRequest, v1.StatusResponse]
 	poolPolicy       *connect.Client[v1.PoolPolicyRequest, v1.PoolPolicyResponse]
 	streamPodLogs    *connect.Client[v1.StreamPodLogsRequest, v1.StreamPodLogsResponse]
-	profile          *connect.Client[v1.ProfileRequest, v1.ProfileResponse]
-	streamShardPerf  *connect.Client[v1.StreamShardPerfRequest, v1.StreamShardPerfResponse]
 	streamPodMetrics *connect.Client[v1.StreamPodMetricsRequest, v1.StreamPodMetricsResponse]
 	streamSpans      *connect.Client[v1.StreamSpansRequest, v1.StreamSpansResponse]
 }
@@ -208,16 +180,6 @@ func (c *operatorServiceClient) StreamPodLogs(ctx context.Context, req *connect.
 	return c.streamPodLogs.CallServerStream(ctx, req)
 }
 
-// Profile calls cardinal.operator.v1.OperatorService.Profile.
-func (c *operatorServiceClient) Profile(ctx context.Context, req *connect.Request[v1.ProfileRequest]) (*connect.ServerStreamForClient[v1.ProfileResponse], error) {
-	return c.profile.CallServerStream(ctx, req)
-}
-
-// StreamShardPerf calls cardinal.operator.v1.OperatorService.StreamShardPerf.
-func (c *operatorServiceClient) StreamShardPerf(ctx context.Context, req *connect.Request[v1.StreamShardPerfRequest]) (*connect.ServerStreamForClient[v1.StreamShardPerfResponse], error) {
-	return c.streamShardPerf.CallServerStream(ctx, req)
-}
-
 // StreamPodMetrics calls cardinal.operator.v1.OperatorService.StreamPodMetrics.
 func (c *operatorServiceClient) StreamPodMetrics(ctx context.Context, req *connect.Request[v1.StreamPodMetricsRequest]) (*connect.ServerStreamForClient[v1.StreamPodMetricsResponse], error) {
 	return c.streamPodMetrics.CallServerStream(ctx, req)
@@ -241,15 +203,6 @@ type OperatorServiceHandler interface {
 	// log file rotates (underlying kubelet stream ends), or the operator
 	// encounters an error reading from Kubernetes.
 	StreamPodLogs(context.Context, *connect.Request[v1.StreamPodLogsRequest], *connect.ServerStream[v1.StreamPodLogsResponse]) error
-	// Profile fetches a Go runtime pprof profile from a shard instance.
-	// Server-streaming: the operator dials the shard pod's pprof endpoint
-	// and forwards the raw profile.proto bytes to the client in chunks.
-	// The shard pod must have CARDINAL_PPROF=true set (off by default).
-	// Stream closes when the underlying pprof endpoint finishes, the client
-	// disconnects, or the operator encounters an error reaching the pod.
-	Profile(context.Context, *connect.Request[v1.ProfileRequest], *connect.ServerStream[v1.ProfileResponse]) error
-	// Forwards DebugService.StreamPerf.
-	StreamShardPerf(context.Context, *connect.Request[v1.StreamShardPerfRequest], *connect.ServerStream[v1.StreamShardPerfResponse]) error
 	// StreamPodMetrics emits a snapshot of pod CPU/memory for every shard
 	// instance in the pool on each scrape cycle. Sourced from the
 	// metrics.k8s.io aggregated API (metrics-server).
@@ -301,18 +254,6 @@ func NewOperatorServiceHandler(svc OperatorServiceHandler, opts ...connect.Handl
 		connect.WithSchema(operatorServiceMethods.ByName("StreamPodLogs")),
 		connect.WithHandlerOptions(opts...),
 	)
-	operatorServiceProfileHandler := connect.NewServerStreamHandler(
-		OperatorServiceProfileProcedure,
-		svc.Profile,
-		connect.WithSchema(operatorServiceMethods.ByName("Profile")),
-		connect.WithHandlerOptions(opts...),
-	)
-	operatorServiceStreamShardPerfHandler := connect.NewServerStreamHandler(
-		OperatorServiceStreamShardPerfProcedure,
-		svc.StreamShardPerf,
-		connect.WithSchema(operatorServiceMethods.ByName("StreamShardPerf")),
-		connect.WithHandlerOptions(opts...),
-	)
 	operatorServiceStreamPodMetricsHandler := connect.NewServerStreamHandler(
 		OperatorServiceStreamPodMetricsProcedure,
 		svc.StreamPodMetrics,
@@ -339,10 +280,6 @@ func NewOperatorServiceHandler(svc OperatorServiceHandler, opts ...connect.Handl
 			operatorServicePoolPolicyHandler.ServeHTTP(w, r)
 		case OperatorServiceStreamPodLogsProcedure:
 			operatorServiceStreamPodLogsHandler.ServeHTTP(w, r)
-		case OperatorServiceProfileProcedure:
-			operatorServiceProfileHandler.ServeHTTP(w, r)
-		case OperatorServiceStreamShardPerfProcedure:
-			operatorServiceStreamShardPerfHandler.ServeHTTP(w, r)
 		case OperatorServiceStreamPodMetricsProcedure:
 			operatorServiceStreamPodMetricsHandler.ServeHTTP(w, r)
 		case OperatorServiceStreamSpansProcedure:
@@ -378,14 +315,6 @@ func (UnimplementedOperatorServiceHandler) PoolPolicy(context.Context, *connect.
 
 func (UnimplementedOperatorServiceHandler) StreamPodLogs(context.Context, *connect.Request[v1.StreamPodLogsRequest], *connect.ServerStream[v1.StreamPodLogsResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("cardinal.operator.v1.OperatorService.StreamPodLogs is not implemented"))
-}
-
-func (UnimplementedOperatorServiceHandler) Profile(context.Context, *connect.Request[v1.ProfileRequest], *connect.ServerStream[v1.ProfileResponse]) error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("cardinal.operator.v1.OperatorService.Profile is not implemented"))
-}
-
-func (UnimplementedOperatorServiceHandler) StreamShardPerf(context.Context, *connect.Request[v1.StreamShardPerfRequest], *connect.ServerStream[v1.StreamShardPerfResponse]) error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("cardinal.operator.v1.OperatorService.StreamShardPerf is not implemented"))
 }
 
 func (UnimplementedOperatorServiceHandler) StreamPodMetrics(context.Context, *connect.Request[v1.StreamPodMetricsRequest], *connect.ServerStream[v1.StreamPodMetricsResponse]) error {

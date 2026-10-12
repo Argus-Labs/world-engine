@@ -53,7 +53,7 @@ func NewReport(verbose bool) *Report {
 	}
 }
 
-// BindTB routes every result to a testing.TB as well as the report: failures
+// BindTB routes every result to a [testing.TB] as well as the report: failures
 // through Errorf, attributed to the scenario's own line via Helper; notes, skips
 // and (when verbose) passes through Logf. Colour is switched off because the
 // destination is a test log. The CLI never binds.
@@ -62,7 +62,7 @@ func (r *Report) BindTB(tb testing.TB) {
 	r.color = false
 }
 
-// Bound reports whether results are being routed to a testing.TB.
+// Bound reports whether results are being routed to a [testing.TB].
 func (r *Report) Bound() bool { return r.tb != nil }
 
 func (r *Report) tally(scenario string) *scenarioTally {

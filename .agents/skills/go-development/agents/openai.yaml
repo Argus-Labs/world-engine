@@ -1,0 +1,4 @@
+interface:
+  display_name: "Go Development"
+  short_description: "Idiomatic Go development guidance"
+  default_prompt: "Use $go-development to design, review, or edit Go code with idiomatic defaults."

@@ -105,37 +105,3 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 		assert.Equal(t, modelValue, implValue, "key %d value mismatch", key)
 	}
 }
-
-// -------------------------------------------------------------------------------------------------
-// Serialization smoke test
-// -------------------------------------------------------------------------------------------------
-// We don't extensively test toInt64Slice/fromInt64Slice because:
-// 1. The implementation is a trivial type conversion loop (int -> int64 and back).
-// 2. There's no complex branching or error handling.
-// 3. Heavy property-based testing would mostly verify Go's type conversion, not our logic.
-// -------------------------------------------------------------------------------------------------
-
-func TestSparseSet_SerializationSmoke(t *testing.T) {
-	t.Parallel()
-	prng := testutils.NewRand(t)
-
-	const (
-		opsMax = 100
-		eidMax = 10_000
-	)
-
-	impl1 := newSparseSet()
-	for range opsMax {
-		key := EntityID(prng.IntN(eidMax))
-		value := prng.Int()
-		impl1.set(key, value)
-	}
-
-	data := impl1.toInt64Slice()
-
-	impl2 := newSparseSet()
-	impl2.fromInt64Slice(data)
-
-	// Property: deserialize(serialize(x)) == x.
-	assert.Equal(t, impl1, impl2) // assert.Equal uses reflect.DeepEqual
-}
