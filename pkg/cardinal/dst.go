@@ -90,7 +90,8 @@ func RunDST(t *testing.T, setup DSTSetupFunc, preTestCommands []Command) {
 		case strings.HasPrefix(op, opCommandPrefix):
 			cmdName := strings.TrimPrefix(op, opCommandPrefix)
 			cmd := fix.randCommand(t, prng, cmdName)
-			require.NoError(t, fix.world.commands.Enqueue(context.Background(), cmd))
+			require.NoError(t, fix.world.commands.Enqueue(
+				context.Background(), cmd, command.PlayerSender(testutils.RandString(prng, 8))))
 
 		case op == opRestart:
 			fix.world.reset()
@@ -272,7 +273,6 @@ func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 	return &iscv1.Command{
 		Name:    name,
 		Address: f.world.address,
-		Persona: &iscv1.Persona{Id: testutils.RandString(rng, 8)},
 		Payload: payload,
 	}
 }
@@ -282,9 +282,8 @@ func (f *dstFixture) enqueueCommand(cmd Command) error {
 	return f.world.commands.Enqueue(context.Background(), &iscv1.Command{
 		Name:    cmd.Name(),
 		Address: f.world.address,
-		Persona: &iscv1.Persona{Id: "dst-pretest"},
 		Payload: payload,
-	})
+	}, command.PlayerSender("dst-pretest"))
 }
 
 // fillRandom recursively fills a [reflect.Value] with random data based on its type.

@@ -25,20 +25,23 @@ namespace WorldEngine.Proto.Isc.V1 {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "CiB3b3JsZGVuZ2luZS9pc2MvdjEvY29tbWFuZC5wcm90bxISd29ybGRlbmdp",
-            "bmUuaXNjLnYxGhtidWYvdmFsaWRhdGUvdmFsaWRhdGUucHJvdG8aIHdvcmxk",
-            "ZW5naW5lL2lzYy92MS9wZXJzb25hLnByb3RvGiJ3b3JsZGVuZ2luZS9taWNy",
-            "by92MS9zZXJ2aWNlLnByb3RvIt8BCgdDb21tYW5kEjMKBG5hbWUYASABKAlC",
-            "H7pIHHIXEAEYgAEyEF5bYS16QS1aMC05Xy1dKyTIAQFSBG5hbWUSRgoHYWRk",
-            "cmVzcxgCIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRy",
-            "ZXNzQga6SAPIAQFSB2FkZHJlc3MSPQoHcGVyc29uYRgDIAEoCzIbLndvcmxk",
-            "ZW5naW5lLmlzYy52MS5QZXJzb25hQga6SAPIAQFSB3BlcnNvbmESGAoHcGF5",
-            "bG9hZBgEIAEoDFIHcGF5bG9hZEJlWkhnaXRodWIuY29tL2FyZ3VzLWxhYnMv",
-            "d29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9pc2MvdjE7",
-            "aXNjdjGqAhhXb3JsZEVuZ2luZS5Qcm90by5Jc2MuVjFiBnByb3RvMw=="));
+            "bmUuaXNjLnYxGhtidWYvdmFsaWRhdGUvdmFsaWRhdGUucHJvdG8aIndvcmxk",
+            "ZW5naW5lL21pY3JvL3YxL3NlcnZpY2UucHJvdG8irwEKB0NvbW1hbmQSMwoE",
+            "bmFtZRgBIAEoCUIfukgcchcQARiAATIQXlthLXpBLVowLTlfLV0rJMgBAVIE",
+            "bmFtZRJGCgdhZGRyZXNzGAIgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEu",
+            "U2VydmljZUFkZHJlc3NCBrpIA8gBAVIHYWRkcmVzcxIYCgdwYXlsb2FkGAQg",
+            "ASgMUgdwYXlsb2FkSgQIAxAEUgdwZXJzb25hIpgBChFJbnRlclNoYXJkQ29t",
+            "bWFuZBI9Cgdjb21tYW5kGAEgASgLMhsud29ybGRlbmdpbmUuaXNjLnYxLkNv",
+            "bW1hbmRCBrpIA8gBAVIHY29tbWFuZBJECgZzZW5kZXIYAiABKAsyJC53b3Js",
+            "ZGVuZ2luZS5taWNyby52MS5TZXJ2aWNlQWRkcmVzc0IGukgDyAEBUgZzZW5k",
+            "ZXJCZVpIZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90",
+            "by9nZW4vZ28vd29ybGRlbmdpbmUvaXNjL3YxO2lzY3YxqgIYV29ybGRFbmdp",
+            "bmUuUHJvdG8uSXNjLlYxYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::WorldEngine.Proto.Isc.V1.PersonaReflection.Descriptor, global::WorldEngine.Proto.Micro.V1.ServiceReflection.Descriptor, },
+          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::WorldEngine.Proto.Micro.V1.ServiceReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.Command), global::WorldEngine.Proto.Isc.V1.Command.Parser, new[]{ "Name", "Address", "Persona", "Payload" }, null, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.Command), global::WorldEngine.Proto.Isc.V1.Command.Parser, new[]{ "Name", "Address", "Payload" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.InterShardCommand), global::WorldEngine.Proto.Isc.V1.InterShardCommand.Parser, new[]{ "Command", "Sender" }, null, null, null, null)
           }));
     }
     #endregion
@@ -46,7 +49,9 @@ namespace WorldEngine.Proto.Isc.V1 {
   }
   #region Messages
   /// <summary>
-  /// Command represents the data payload of a command to trigger systems in a shard.
+  /// Command represents the data payload of a command to trigger systems in a shard. It names no
+  /// sender: Cardinal takes a client's player ID from its auth token, and a shard's address from
+  /// InterShardCommand.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class Command : pb::IMessage<Command>
@@ -85,7 +90,6 @@ namespace WorldEngine.Proto.Isc.V1 {
     public Command(Command other) : this() {
       name_ = other.name_;
       address_ = other.address_ != null ? other.address_.Clone() : null;
-      persona_ = other.persona_ != null ? other.persona_.Clone() : null;
       payload_ = other.payload_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
@@ -126,21 +130,6 @@ namespace WorldEngine.Proto.Isc.V1 {
       }
     }
 
-    /// <summary>Field number for the "persona" field.</summary>
-    public const int PersonaFieldNumber = 3;
-    private global::WorldEngine.Proto.Isc.V1.Persona persona_;
-    /// <summary>
-    /// The persona sending the command.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::WorldEngine.Proto.Isc.V1.Persona Persona {
-      get { return persona_; }
-      set {
-        persona_ = value;
-      }
-    }
-
     /// <summary>Field number for the "payload" field.</summary>
     public const int PayloadFieldNumber = 4;
     private pb::ByteString payload_ = pb::ByteString.Empty;
@@ -174,7 +163,6 @@ namespace WorldEngine.Proto.Isc.V1 {
       }
       if (Name != other.Name) return false;
       if (!object.Equals(Address, other.Address)) return false;
-      if (!object.Equals(Persona, other.Persona)) return false;
       if (Payload != other.Payload) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -185,7 +173,6 @@ namespace WorldEngine.Proto.Isc.V1 {
       int hash = 1;
       if (Name.Length != 0) hash ^= Name.GetHashCode();
       if (address_ != null) hash ^= Address.GetHashCode();
-      if (persona_ != null) hash ^= Persona.GetHashCode();
       if (Payload.Length != 0) hash ^= Payload.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -213,10 +200,6 @@ namespace WorldEngine.Proto.Isc.V1 {
         output.WriteRawTag(18);
         output.WriteMessage(Address);
       }
-      if (persona_ != null) {
-        output.WriteRawTag(26);
-        output.WriteMessage(Persona);
-      }
       if (Payload.Length != 0) {
         output.WriteRawTag(34);
         output.WriteBytes(Payload);
@@ -239,10 +222,6 @@ namespace WorldEngine.Proto.Isc.V1 {
         output.WriteRawTag(18);
         output.WriteMessage(Address);
       }
-      if (persona_ != null) {
-        output.WriteRawTag(26);
-        output.WriteMessage(Persona);
-      }
       if (Payload.Length != 0) {
         output.WriteRawTag(34);
         output.WriteBytes(Payload);
@@ -262,9 +241,6 @@ namespace WorldEngine.Proto.Isc.V1 {
       }
       if (address_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Address);
-      }
-      if (persona_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Persona);
       }
       if (Payload.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeBytesSize(Payload);
@@ -289,12 +265,6 @@ namespace WorldEngine.Proto.Isc.V1 {
           Address = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
         }
         Address.MergeFrom(other.Address);
-      }
-      if (other.persona_ != null) {
-        if (persona_ == null) {
-          Persona = new global::WorldEngine.Proto.Isc.V1.Persona();
-        }
-        Persona.MergeFrom(other.Persona);
       }
       if (other.Payload.Length != 0) {
         Payload = other.Payload;
@@ -327,13 +297,6 @@ namespace WorldEngine.Proto.Isc.V1 {
               Address = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
             }
             input.ReadMessage(Address);
-            break;
-          }
-          case 26: {
-            if (persona_ == null) {
-              Persona = new global::WorldEngine.Proto.Isc.V1.Persona();
-            }
-            input.ReadMessage(Persona);
             break;
           }
           case 34: {
@@ -370,15 +333,267 @@ namespace WorldEngine.Proto.Isc.V1 {
             input.ReadMessage(Address);
             break;
           }
-          case 26: {
-            if (persona_ == null) {
-              Persona = new global::WorldEngine.Proto.Isc.V1.Persona();
-            }
-            input.ReadMessage(Persona);
-            break;
-          }
           case 34: {
             Payload = input.ReadBytes();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  /// <summary>
+  /// InterShardCommand is a command one service sends to a shard over NATS.
+  /// </summary>
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class InterShardCommand : pb::IMessage<InterShardCommand>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<InterShardCommand> _parser = new pb::MessageParser<InterShardCommand>(() => new InterShardCommand());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<InterShardCommand> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::WorldEngine.Proto.Isc.V1.CommandReflection.Descriptor.MessageTypes[1]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public InterShardCommand() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public InterShardCommand(InterShardCommand other) : this() {
+      command_ = other.command_ != null ? other.command_.Clone() : null;
+      sender_ = other.sender_ != null ? other.sender_.Clone() : null;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public InterShardCommand Clone() {
+      return new InterShardCommand(this);
+    }
+
+    /// <summary>Field number for the "command" field.</summary>
+    public const int CommandFieldNumber = 1;
+    private global::WorldEngine.Proto.Isc.V1.Command command_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::WorldEngine.Proto.Isc.V1.Command Command {
+      get { return command_; }
+      set {
+        command_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "sender" field.</summary>
+    public const int SenderFieldNumber = 2;
+    private global::WorldEngine.Proto.Micro.V1.ServiceAddress sender_;
+    /// <summary>
+    /// The address of the sending service.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::WorldEngine.Proto.Micro.V1.ServiceAddress Sender {
+      get { return sender_; }
+      set {
+        sender_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as InterShardCommand);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(InterShardCommand other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (!object.Equals(Command, other.Command)) return false;
+      if (!object.Equals(Sender, other.Sender)) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (command_ != null) hash ^= Command.GetHashCode();
+      if (sender_ != null) hash ^= Sender.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (command_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Command);
+      }
+      if (sender_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Sender);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (command_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Command);
+      }
+      if (sender_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Sender);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (command_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Command);
+      }
+      if (sender_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Sender);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(InterShardCommand other) {
+      if (other == null) {
+        return;
+      }
+      if (other.command_ != null) {
+        if (command_ == null) {
+          Command = new global::WorldEngine.Proto.Isc.V1.Command();
+        }
+        Command.MergeFrom(other.Command);
+      }
+      if (other.sender_ != null) {
+        if (sender_ == null) {
+          Sender = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+        }
+        Sender.MergeFrom(other.Sender);
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            if (command_ == null) {
+              Command = new global::WorldEngine.Proto.Isc.V1.Command();
+            }
+            input.ReadMessage(Command);
+            break;
+          }
+          case 18: {
+            if (sender_ == null) {
+              Sender = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            }
+            input.ReadMessage(Sender);
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            if (command_ == null) {
+              Command = new global::WorldEngine.Proto.Isc.V1.Command();
+            }
+            input.ReadMessage(Command);
+            break;
+          }
+          case 18: {
+            if (sender_ == null) {
+              Sender = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
+            }
+            input.ReadMessage(Sender);
             break;
           }
         }

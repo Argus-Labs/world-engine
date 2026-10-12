@@ -1,6 +1,8 @@
 package cardinal
 
 import (
+	"time"
+
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -22,6 +24,14 @@ type WorldOptions struct {
 	NATSConfig          *micro.NATSConfig    // Optional NATS configuration; nil uses environment values or defaults
 	AuthMode            AuthMode             // Authentication mode for the client ConnectRPC service
 	ArgusAuthURL        string               // Argus Auth service URL; required when AuthMode is ARGUS
+}
+
+// tickInterval is the time between ticks, or zero when no tick rate is set (as in TestWorld).
+func (opt *WorldOptions) tickInterval() time.Duration {
+	if opt.TickRate <= 0 {
+		return 0
+	}
+	return time.Duration(float64(time.Second) / opt.TickRate)
 }
 
 // newDefaultWorldOptions creates WorldOptions with default values.

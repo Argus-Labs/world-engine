@@ -304,9 +304,8 @@ func (c *Client) cached() (string, error) {
 
 // Claims is the subset of the Argus JWT this CLI reads.
 type Claims struct {
-	Email     string `json:"email"`
-	PersonaID string `json:"personaID"`
-	Exp       int64  `json:"exp"`
+	Email string `json:"email"`
+	Exp   int64  `json:"exp"`
 }
 
 func (c Claims) ExpiresAt() time.Time { return time.Unix(c.Exp, 0) }

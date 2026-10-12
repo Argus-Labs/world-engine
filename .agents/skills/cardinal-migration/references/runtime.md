@@ -46,6 +46,21 @@
 Snapshots, generated wire code, `.proto` output, client SDKs, `world.toml`, the other
 `CARDINAL_*` variables and every World CLI command and flag are unchanged.
 
+## After v0.18.0 (unreleased): player auth
+
+| Change                                                                                     | Action                                                                                                    |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `cardinal.User` and `UserFromContext` removed; `PlayerFromContext` returns `*Player{ID}`   | Rename callers. The name, email and JWT claim fields are gone                                             |
+| DEV auth reads `X-Player-Id` instead of `X-Email`; `RunE2E` and World CLI MCP send it      | Send `X-Player-Id` from dev tools. `X-Email` alone gets `Unauthenticated`                                 |
+| ARGUS auth accepts only EdDSA game tokens with `aud` = `<org>/<project>`, `exp` and `sub`  | Upgrade clients to Unity SDK 0.5 together. Older login tokens get `Unauthenticated`                       |
+| `CommandContext.Persona` replaced by `Player()`, `Shard()`, and `Sender()` methods | Use `cmd.Player()` for player checks and `SendTo`; `cmd.Shard()` for shard senders; `cmd.Sender()` for logs |
+| Under ARGUS, the player ID is the token's `sub`, not the account `id` claim                | State keyed by old persona IDs does not carry over                                                        |
+| `iscv1.Persona` removed; shards send `InterShardCommand{command, sender}` over NATS        | Stop setting `Persona` on client commands. Upgrade every shard of a game together                         |
+| Tick link attribute `cardinal.command.persona` renamed `cardinal.command.sender`           | Update trace queries                                                                                      |
+| `SendCommandWithReply` resolves only on `SendTo` the requesting player or `Broadcast`      | Reply with `w.SendTo` to the ID from `cmd.Player()`. A `SendTo` to another ID now times out the request   |
+| ARGUS startup fails when `CARDINAL_ORG` or `CARDINAL_PROJECT` contains `/`                 | Rename the organization or project                                                                        |
+| `cardinal.NewArgusAuthenticator` exported                                                  | Services outside Cardinal pass its `Authenticate` to `authn.NewMiddleware` instead of their own JWT check |
+
 ## Generated wire code
 
 Every component, command, event and system event must implement `SizeWire() int` and
