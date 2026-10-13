@@ -146,11 +146,9 @@ func TestEncodeCommandPayloadRejectsUnknownField(t *testing.T) {
 	require.Error(t, err)
 }
 
-// TestEncodeCommandPayload_PreservesLargeIntegers pins the bug fix: feeding the raw JSON string to
-// protojson preserves int64/uint64 values above 2^53 bit-for-bit. The previous map[string]any path
-// coerced every number through float64, silently rounding values above 2^53 (e.g. 9007199254740993
-// became 9007199254740992 on the wire with no error) and rejecting near-MaxInt64 values with an
-// error naming the float64-rounded number the caller never sent.
+// A JSON string lets protojson decode large int64 and uint64 values exactly.
+// The previous map payload converted numbers to float64, which rounded 9007199254740993 to 9007199254740992 without an error.
+// Values near MaxInt64 could fail with an error that showed the rounded number instead of the original value.
 func TestEncodeCommandPayload_PreservesLargeIntegers(t *testing.T) {
 	t.Parallel()
 
@@ -158,7 +156,7 @@ func TestEncodeCommandPayload_PreservesLargeIntegers(t *testing.T) {
 		name  string
 		field *descriptorpb.FieldDescriptorProto
 		json  string
-		want  any // native Go type decodeMessage returns (int64 or uint64)
+		want  any // decodeMessage returns int64, uint64, or a slice of these values.
 	}{
 		{
 			name:  "int64 just above 2^53 was silently rounded before the fix",

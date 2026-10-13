@@ -69,7 +69,7 @@ func TestSendCommandInput_Validate_Valid(t *testing.T) {
 
 	assert.Empty(t, input.ShardURL) // resolved from the cluster in the handler, not validate()
 	assert.Equal(t, defaultDevPlayerID, input.PlayerID)
-	assert.JSONEq(t, `{"name": "test"}`, input.Payload) // preserved verbatim, no float64 coercion
+	assert.JSONEq(t, `{"name": "test"}`, input.Payload) // The payload keeps the same JSON value.
 }
 
 // TestResolveShardTarget_PinnedURL checks the address a request carries: the shard's project and
@@ -113,7 +113,7 @@ func TestSendCommandInput_Validate_NilPayload(t *testing.T) {
 
 	err := input.validate()
 	require.NoError(t, err)
-	assert.Equal(t, "{}", input.Payload) // empty payload defaults to an empty JSON object
+	assert.Equal(t, "{}", input.Payload) // An empty payload defaults to an empty JSON object.
 }
 
 func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
@@ -132,20 +132,15 @@ func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
 	assert.Equal(t, "custom-player", input.PlayerID)
 }
 
-// TestSendCommandInput_BindArguments_PreservesLargeInt64Payload exercises the exact coercion path
-// that caused the bug: mcp-go's transport unmarshals the JSON-RPC frame into CallToolRequest where
-// Arguments is `any`, so stdlib encoding/json floats every number before BindArguments runs. With a
-// string-typed Payload the JSON-stringified object survives untouched (JSON strings are never
-// floated), and the large int64 it carries then encodes to the wire bit-for-byte exact. The prior
-// map[string]any payload would arrive here already rounded (e.g. ...993 -> ...992, no error) or be
-// rejected with an error naming a number the caller never sent (e.g. ...807 -> ...6000).
+// The MCP transport decodes JSON numbers as float64 before BindArguments runs.
+// This can round large integers or cause protojson to reject a valid value.
+// This test checks that a string payload preserves MaxInt64 through transport decoding and protobuf encoding.
 func TestSendCommandInput_BindArguments_PreservesLargeInt64Payload(t *testing.T) {
 	t.Parallel()
 
 	const payloadJSON = `{"ID": 9223372036854775807}` // math.MaxInt64
 
-	// Build the JSON-RPC frame the way an MCP client sends it: the command payload is a JSON
-	// string nested inside arguments, so it never passes through float64 at the transport layer.
+	// Use a string payload so the transport does not convert its numbers to float64.
 	frame, err := json.Marshal(map[string]any{
 		"params": map[string]any{
 			"arguments": map[string]any{
@@ -157,23 +152,23 @@ func TestSendCommandInput_BindArguments_PreservesLargeInt64Payload(t *testing.T)
 	})
 	require.NoError(t, err)
 
-	// Simulate mcp-go's transport unmarshal of the whole frame into CallToolRequest.
+	// Decode the frame as the MCP transport does.
 	var req mcp.CallToolRequest
 	require.NoError(t, json.Unmarshal(frame, &req))
 
-	// BindArguments re-marshals the (already-floated) arguments map and unmarshals into the
-	// target struct. The payload string is preserved verbatim because it was never a number.
+	// BindArguments encodes the arguments as JSON, then decodes them into the input struct.
+	// The payload remains a string throughout these steps.
 	var in SendCommandInput
 	require.NoError(t, req.BindArguments(&in))
 	assert.JSONEq(t, payloadJSON, in.Payload, "payload string must survive mcp-go transport intact")
 
-	// And the exact int64 reaches the proto wire bytes.
+	// Check that protobuf encoding preserves the exact int64 value.
 	raw := testDescriptorSet(t, &descriptorpb.DescriptorProto{
 		Name:  new("Cmd"),
 		Field: []*descriptorpb.FieldDescriptorProto{scalarField("ID", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64)},
 	})
 	md := testMessageDescriptor(t, raw, "Cmd")
-	require.NoError(t, in.validate()) // normalize empty-payload default; no-op here
+	require.NoError(t, in.validate()) // Validation leaves this nonempty payload unchanged.
 
 	wire, err := encodeCommandPayload(md, in.Payload)
 	require.NoError(t, err)
@@ -182,10 +177,8 @@ func TestSendCommandInput_BindArguments_PreservesLargeInt64Payload(t *testing.T)
 	assert.Equal(t, int64(9223372036854775807), decoded["ID"], "MaxInt64 must encode to the wire bit-for-bit exact")
 }
 
-// TestSendCommand_PublishedPayloadSchemaIsString pins the type choice that the fix relies on:
-// Payload must be a string (a JSON-stringified object), not a bare object, so the value bypasses
-// mcp-go's float64 coercion. If the field is reverted to map[string]any the published schema would
-// describe an object again and the silent int64 corruption would return; this test fails first.
+// The schema must require a string payload so the MCP transport does not round its numbers.
+// This test detects a change back to an object payload.
 func TestSendCommand_PublishedPayloadSchemaIsString(t *testing.T) {
 	t.Parallel()
 	tool := mcp.NewTool("send_command", mcp.WithInputSchema[SendCommandInput]())

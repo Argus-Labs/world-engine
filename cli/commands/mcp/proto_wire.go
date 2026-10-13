@@ -56,12 +56,9 @@ func findMessageDescriptor(files *protoregistry.Files, fullName string) (protore
 // message descriptor. It populates a dynamic message from the payload via protojson (which rejects
 // unknown fields, surfacing name mismatches) and marshals it.
 //
-// payload is a JSON-stringified object (a string holding a serialized JSON object), fed to protojson
-// verbatim. Taking the raw JSON string instead of a map[string]any avoids the float64 coercion that
-// mcp-go's transport applies when decoding Arguments: encoding/json turns every number in a
-// map[string]any into float64, so any int64/uint64 above 2^53 would be silently rounded before
-// reaching this function and could never be recovered. protojson itself decodes large integers
-// exactly when handed the original JSON text.
+// payload contains a JSON object as text. The MCP transport converts numbers in
+// map[string]any to float64, which can round integers above 2^53.
+// A string preserves the original JSON text so protojson can decode int64 and uint64 values exactly.
 func encodeCommandPayload(md protoreflect.MessageDescriptor, payload string) ([]byte, error) {
 	msg := dynamicpb.NewMessage(md)
 	if err := protojson.Unmarshal([]byte(payload), msg); err != nil {
