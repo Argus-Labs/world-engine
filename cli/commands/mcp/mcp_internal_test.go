@@ -14,6 +14,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -1062,4 +1063,14 @@ func TestDescribeWorld_PublishesAnEmptyObjectInputSchema(t *testing.T) {
 	require.NoError(t, json.Unmarshal(published, &listed))
 	assert.JSONEq(t, `{"type":"object","properties":{},"required":[],"additionalProperties":false}`,
 		string(listed.InputSchema))
+}
+
+func TestConvertTypeSchemasKeepsArrayFields(t *testing.T) {
+	t.Parallel()
+	dims := []*cardinalv1.ArrayField{{Field: "cells", Dims: []uint32{4, 8}}}
+
+	out := convertTypeSchemas([]*cardinalv1.TypeSchema{{Name: "Grid", ArrayFields: dims}}, new(protoregistry.Files))
+
+	require.Len(t, out, 1)
+	assert.Equal(t, dims, out[0].ArrayFields)
 }
