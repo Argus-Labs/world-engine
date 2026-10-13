@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -60,7 +61,7 @@ func TestSendCommandInput_Validate_Valid(t *testing.T) {
 	input := SendCommandInput{
 		ShardID:     "game",
 		CommandName: "create-player",
-		Payload:     map[string]any{"name": "test"},
+		Payload:     `{"name": "test"}`,
 	}
 
 	err := input.validate()
@@ -68,7 +69,7 @@ func TestSendCommandInput_Validate_Valid(t *testing.T) {
 
 	assert.Empty(t, input.ShardURL) // resolved from the cluster in the handler, not validate()
 	assert.Equal(t, defaultDevPlayerID, input.PlayerID)
-	assert.NotNil(t, input.Payload)
+	assert.JSONEq(t, `{"name": "test"}`, input.Payload) // The payload keeps the same JSON value.
 }
 
 // TestResolveShardTarget_PinnedURL checks the address a request carries: the shard's project and
@@ -107,12 +108,12 @@ func TestSendCommandInput_Validate_NilPayload(t *testing.T) {
 	input := SendCommandInput{
 		ShardID:     "game",
 		CommandName: "create-player",
-		Payload:     nil,
+		Payload:     "",
 	}
 
 	err := input.validate()
 	require.NoError(t, err)
-	assert.NotNil(t, input.Payload)
+	assert.Equal(t, "{}", input.Payload) // An empty payload defaults to an empty JSON object.
 }
 
 func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
@@ -129,6 +130,73 @@ func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
 
 	assert.Equal(t, "http://custom:9999", input.ShardURL)
 	assert.Equal(t, "custom-player", input.PlayerID)
+}
+
+// The MCP transport decodes JSON numbers as float64 before BindArguments runs.
+// This can round large integers or cause protojson to reject a valid value.
+// This test checks that a string payload preserves MaxInt64 through transport decoding and protobuf encoding.
+func TestSendCommandInput_BindArguments_PreservesLargeInt64Payload(t *testing.T) {
+	t.Parallel()
+
+	const payloadJSON = `{"ID": 9223372036854775807}` // math.MaxInt64
+
+	// Use a string payload so the transport does not convert its numbers to float64.
+	frame, err := json.Marshal(map[string]any{
+		"params": map[string]any{
+			"arguments": map[string]any{
+				"shard_id":     "game",
+				"command_name": "create-player",
+				"payload":      payloadJSON,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	// Decode the frame as the MCP transport does.
+	var req mcp.CallToolRequest
+	require.NoError(t, json.Unmarshal(frame, &req))
+
+	// BindArguments encodes the arguments as JSON, then decodes them into the input struct.
+	// The payload remains a string throughout these steps.
+	var in SendCommandInput
+	require.NoError(t, req.BindArguments(&in))
+	assert.JSONEq(t, payloadJSON, in.Payload, "payload string must survive mcp-go transport intact")
+
+	// Check that protobuf encoding preserves the exact int64 value.
+	raw := testDescriptorSet(t, &descriptorpb.DescriptorProto{
+		Name:  new("Cmd"),
+		Field: []*descriptorpb.FieldDescriptorProto{scalarField("ID", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64)},
+	})
+	md := testMessageDescriptor(t, raw, "Cmd")
+	require.NoError(t, in.validate()) // Validation leaves this nonempty payload unchanged.
+
+	wire, err := encodeCommandPayload(md, in.Payload)
+	require.NoError(t, err)
+	decoded, err := decodeMessage(md, wire)
+	require.NoError(t, err)
+	assert.Equal(t, int64(9223372036854775807), decoded["ID"], "MaxInt64 must encode to the wire bit-for-bit exact")
+}
+
+// The schema must require a string payload so the MCP transport does not round its numbers.
+// This test detects a change back to an object payload.
+func TestSendCommand_PublishedPayloadSchemaIsString(t *testing.T) {
+	t.Parallel()
+	tool := mcp.NewTool("send_command", mcp.WithInputSchema[SendCommandInput]())
+	require.NotEmpty(t, tool.RawInputSchema, "the tool must publish a generated input schema")
+
+	var schema struct {
+		Properties map[string]struct {
+			Type        string `json:"type"`
+			Description string `json:"description"`
+		} `json:"properties"`
+	}
+	require.NoError(t, json.Unmarshal(tool.RawInputSchema, &schema))
+	require.Contains(t, schema.Properties, "payload", "payload must appear in the published schema")
+
+	prop := schema.Properties["payload"]
+	assert.Equal(t, "string", prop.Type, "payload must be a string to bypass mcp-go's float64 coercion")
+	assert.Contains(t, prop.Description, "JSON-stringified object",
+		"the schema must tell callers to pass a serialized JSON object, not a bare object")
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -343,7 +411,7 @@ func stateDescriptors(t *testing.T) componentDescriptors {
 func componentBlob(t *testing.T, descriptors componentDescriptors, name string, value int) []byte {
 	t.Helper()
 	field := map[string]string{"Health": "HP", "Position": "X"}[name]
-	blob, err := encodeCommandPayload(descriptors[name], map[string]any{field: value})
+	blob, err := encodeCommandPayload(descriptors[name], fmt.Sprintf(`{%q: %d}`, field, value))
 	require.NoError(t, err)
 	return blob
 }
