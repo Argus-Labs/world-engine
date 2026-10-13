@@ -43,7 +43,7 @@ func resolveTargets(dir string, instanceIDs []string) ([]debugTarget, error) {
 	for _, instance := range instances {
 		targets = append(targets, debugTarget{
 			instanceID: instance.InstanceID,
-			url:        local.ShardAPIURL(cfg.Organization, cfg.Project, instance.InstanceID),
+			url:        local.ShardAPIURL(cfg.Project, instance.InstanceID),
 		})
 	}
 	return targets, nil

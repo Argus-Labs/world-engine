@@ -12,8 +12,8 @@ import (
 )
 
 func TestShardAPIURLMatchesChartPath(t *testing.T) {
-	got := ShardAPIURL("Argus Labs", "My_Game", "gameplay-2")
-	if got != "http://localhost:8080/argus-labs/my-game/gameplay-2" {
+	got := ShardAPIURL("my-game", "gameplay-2")
+	if got != "http://localhost:8080/my-game/gameplay-2" {
 		t.Fatalf("url = %q", got)
 	}
 }
@@ -74,7 +74,7 @@ func TestPlatformContainersAndShardServices(t *testing.T) {
 
 func TestRefreshRoutesIsStaticFromWorldToml(t *testing.T) {
 	cfg := &service.Config{Project: "g", WorldToml: worldtoml.Config{
-		Organization: "Argus Labs", Project: "g",
+		Organization: "argus", Project: "g",
 		Shards: []worldtoml.Shard{{ID: "a", InstanceID: "a"}, {ID: "a", InstanceID: "a-2"}},
 	}}
 	r := New(nil, cfg)
@@ -82,8 +82,18 @@ func TestRefreshRoutesIsStaticFromWorldToml(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := r.Routes()
-	if got["argus-labs/g/a"].Host != "127.0.0.1:8081" || got["argus-labs/g/a-2"].Host != "127.0.0.1:8082" ||
-		len(got) != 2 {
-		t.Fatalf("routes = %v", got)
+	// Both prefixes the chart routes: the one clients dial, and the org-prefixed one kept
+	// while the world has an organization.
+	want := map[string]string{
+		"g/a": "127.0.0.1:8081", "g/a-2": "127.0.0.1:8082",
+		"argus/g/a": "127.0.0.1:8081", "argus/g/a-2": "127.0.0.1:8082",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("routes = %v, want %d entries", got, len(want))
+	}
+	for key, host := range want {
+		if got[key] == nil || got[key].Host != host {
+			t.Fatalf("route %q = %v, want host %s", key, got[key], host)
+		}
 	}
 }

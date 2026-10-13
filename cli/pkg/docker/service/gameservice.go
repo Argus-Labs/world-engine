@@ -95,22 +95,21 @@ func buildBaseGameService(cfg *Config, svc worldtoml.GameService) Service {
 // "KEY=VALUE" slice sorted by key (deterministic). Precedence is per-key, not
 // uniformly "world-cli wins":
 //
-//   - NATS_URL / CARDINAL_REGION: world.toml wins. They're seeded as world-cli
-//     defaults first, then svc.Env is applied on top, overwriting any matching key.
+//   - NATS_URL: world.toml wins. It's seeded as a world-cli default first, then
+//     svc.Env is applied on top, overwriting a matching key.
 //   - DB_DSN (db = true): world.toml wins. world-cli only fills the shared DSN
 //     when svc.Env didn't already set DB_DSN.
 //   - POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB (config_db): world-cli's
 //     config_db credentials win. They're written after svc.Env, overriding any
 //     world.toml values, so they stay consistent with the DSN world-cli builds.
 func buildGameServiceEnv(cfg *Config, svc worldtoml.GameService) []string {
-	// NATS_URL/CARDINAL_REGION seed every service, including a config_db Postgres
-	// (which ignores them); kept uniform to avoid a per-kind env branch.
+	// NATS_URL seeds every service, including a config_db Postgres (which
+	// ignores it); kept uniform to avoid a per-kind env branch.
 	merged := map[string]string{
-		"NATS_URL":        cfg.NATSURL,
-		"CARDINAL_REGION": CardinalRegion,
+		"NATS_URL": cfg.NATSURL,
 	}
-	// svc.Env (world.toml) overwrites the world-cli seeds above, so world.toml
-	// wins for NATS_URL/CARDINAL_REGION.
+	// svc.Env (world.toml) overwrites the world-cli seed above, so world.toml
+	// wins for NATS_URL.
 	maps.Copy(merged, svc.Env)
 	if svc.DB {
 		if dsn := projectDBDSN(cfg.WorldToml); dsn != "" {

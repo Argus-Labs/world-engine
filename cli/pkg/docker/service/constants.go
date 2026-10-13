@@ -34,10 +34,6 @@ const (
 	// built-from-source game services. Keep the Go version in sync with .prototools
 	// (go = "...").
 	GoBuilderImage = "golang:1.27.1-bookworm"
-
-	// CardinalRegion is injected into shard + game-service env. Hard coded for
-	// local dev until multi-region is wired up.
-	CardinalRegion = "us-west1"
 )
 
 // NetworkName is the per-project Docker bridge network. The prefix matters: bare

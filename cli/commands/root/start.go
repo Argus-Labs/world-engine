@@ -223,9 +223,8 @@ type endpoint struct{ label, addr string }
 
 // endpointList is the static "where things are" list printed after the dashboard.
 func endpointList(cfg *service.Config) []endpoint {
-	org, project := local.Sanitized(cfg.WorldToml.Organization, cfg.WorldToml.Project)
 	eps := []endpoint{
-		{"API", fmt.Sprintf("%s/%s/%s/<instance>", local.APIEndpoint, org, project)},
+		{"API", fmt.Sprintf("%s/%s/<instance>", local.APIEndpoint, cfg.WorldToml.Project)},
 		{"NATS", local.NatsHostURL},
 	}
 	if service.NeedsAutoProjectDB(cfg.WorldToml) {

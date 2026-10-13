@@ -103,9 +103,7 @@ func buildCardinalEnv(cfg *Config, shard worldtoml.Shard) []string {
 	}
 	env := []string{
 		"CARDINAL_SHARD_ID=" + shard.InstanceID,
-		"CARDINAL_ORG=" + cfg.WorldToml.Organization,
 		"CARDINAL_PROJECT=" + cfg.WorldToml.Project,
-		"CARDINAL_REGION=" + CardinalRegion,
 		"LOG_LEVEL=" + logLevel,
 		"CARDINAL_SNAPSHOT_STORAGE_TYPE=" + snapshotStorageType,
 		"CARDINAL_AUTH_MODE=" + shardAuthModeEnv(cfg.WorldToml),
@@ -113,9 +111,14 @@ func buildCardinalEnv(cfg *Config, shard worldtoml.Shard) []string {
 		DBDSNEnvVar + "=" + ShardDBDSN(cfg.WorldToml),
 	}
 	// An argus world validates real Argus Auth tokens, so it can be played with the
-	// same accounts as a hosted one. The chart renders the same pair.
+	// same accounts as a hosted one. The game ID is the token audience the engine
+	// requires in this mode; "<organization>/<project>" is how Argus Auth names a game
+	// and what rampage derives when the variable is unset.
 	if shardAuthMode(cfg.WorldToml) == worldtoml.AuthModeArgus {
-		env = append(env, "CARDINAL_ARGUS_AUTH_URL="+cfg.WorldToml.Auth.URL)
+		env = append(env,
+			"CARDINAL_ARGUS_AUTH_URL="+cfg.WorldToml.Auth.URL,
+			"CARDINAL_ARGUS_AUTH_GAME_ID="+cfg.WorldToml.Organization+"/"+cfg.WorldToml.Project,
+		)
 	}
 	if shard.TickRate > 0 {
 		env = append(env, fmt.Sprintf("CARDINAL_TICK_RATE=%d", shard.TickRate))

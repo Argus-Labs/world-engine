@@ -22,6 +22,7 @@ import (
 	"github.com/argus-labs/world-engine/cli/pkg/local"
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 
+	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
 )
@@ -33,9 +34,6 @@ import (
 const (
 	// defaultDevPlayerID is the default player ID used for dev auth.
 	defaultDevPlayerID = "mcp-dev-player"
-	// defaultRegion is the region local shards register with (CARDINAL_REGION);
-	// it must match or a command reaches no responders.
-	defaultRegion = local.Region
 	// defaultCommandTimeout is the default timeout for Cardinal RPC requests.
 	defaultCommandTimeout = 30 * time.Second
 )
@@ -124,13 +122,14 @@ type shardTarget struct {
 }
 
 // resolveShardTarget resolves how to reach a shard instance and the
-// region.realm.org.project.serviceId address Cardinal validates the request
-// against (serviceId is always the instance name, never the pool id). A
-// pinned shardURL skips instance lookup but not org/project resolution; pair it
-// with the matching instance_name or the shard rejects the address.
+// project.serviceId address Cardinal validates the request against (serviceId
+// is always the instance name, never the pool id). The organization only names
+// a route the edge still serves. A pinned shardURL skips instance lookup but not
+// project resolution; pair it with the matching instance_name or the shard
+// rejects the address.
 func resolveShardTarget(
 	ctx context.Context,
-	shardID, instanceName, shardURL, org, project, region string,
+	shardID, instanceName, shardURL, project string,
 ) (shardTarget, error) {
 	instanceName = strings.TrimSpace(instanceName)
 
@@ -146,19 +145,13 @@ func resolveShardTarget(
 			return shardTarget{}, err
 		}
 		instanceName = resolved
-		shardURL = local.ShardAPIURL(org, project, instanceName)
+		shardURL = local.ShardAPIURL(project, instanceName)
 	}
 
 	return shardTarget{
 		instanceName: instanceName,
 		shardURL:     shardURL,
-		address: &microv1.ServiceAddress{
-			Region:       region,
-			Realm:        microv1.ServiceAddress_REALM_WORLD,
-			Organization: org,
-			Project:      project,
-			ServiceId:    instanceName,
-		},
+		address:      micro.GetAddress(project, instanceName),
 	}, nil
 }
 
@@ -212,13 +205,13 @@ func dialShardDebugService(
 		return nil, shardTarget{}, err
 	}
 
-	org, project, err := resolveShardWorld(ctx, shardID, args.organization, args.project)
+	project, err := resolveShardWorld(ctx, shardID, args.project)
 	if err != nil {
 		return nil, shardTarget{}, err
 	}
 
 	target, err := resolveShardTarget(
-		ctx, shardID, args.instanceName, args.shardURL, org, project, defaultRegion,
+		ctx, shardID, args.instanceName, args.shardURL, project,
 	)
 	if err != nil {
 		return nil, shardTarget{}, err

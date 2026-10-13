@@ -1,6 +1,6 @@
 // Package local runs a world as Docker containers: one network, NATS and Postgres
 // per project, one container per shard instance, plus the in-process edge proxy
-// that gives them the same /<org>/<project>/<instance> URLs a cluster serves.
+// that gives them the same /<project>/<instance> URLs a cluster serves.
 package local
 
 import (
@@ -15,7 +15,6 @@ import (
 
 	"github.com/rotisserie/eris"
 
-	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
 	"github.com/argus-labs/world-engine/cli/pkg/edge"
@@ -23,10 +22,6 @@ import (
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 	"github.com/argus-labs/world-engine/cli/pkg/worldstatus"
 )
-
-// Region is the CARDINAL_REGION every local shard runs with; the shard env is
-// built from the same constant, so addressing and the container agree.
-const Region = service.CardinalRegion
 
 // EdgeAddr is where the edge listens; APIEndpoint is its URL for humans and clients.
 const (
@@ -61,8 +56,8 @@ func (r *Runtime) Config() *service.Config { return r.cfg }
 func (r *Runtime) project() string { return r.cfg.WorldToml.Project }
 
 // ShardAPIURL is the edge URL of one shard instance, the same path the chart routes on a cluster.
-func ShardAPIURL(org, project, instance string) string {
-	return APIEndpoint + "/" + edge.RouteKey(org, project, instance)
+func ShardAPIURL(project, instance string) string {
+	return APIEndpoint + "/" + edge.RouteKey(project, instance)
 }
 
 // StartPlatform creates the network and starts NATS, the project DB and image-kind
@@ -445,8 +440,15 @@ func (r *Runtime) WaitForShardsReady(
 func (r *Runtime) RefreshRoutes(ctx context.Context) error {
 	org := r.cfg.WorldToml.Organization
 	routes := map[string]*url.URL{}
+	add := func(org, instance string, u *url.URL) {
+		routes[edge.RouteKey(r.project(), instance)] = u
+		// The chart routes the org-prefixed path too while organization is set; mirror it.
+		if org != "" {
+			routes[edge.LegacyRouteKey(org, r.project(), instance)] = u
+		}
+	}
 	for i, sh := range r.cfg.WorldToml.Shards {
-		routes[edge.RouteKey(org, r.project(), sh.InstanceID)] = hostURL(service.ShardHostPort(i))
+		add(org, sh.InstanceID, hostURL(service.ShardHostPort(i)))
 	}
 	if len(routes) == 0 {
 		cs, err := r.docker.ListProjectContainers(ctx, r.project())
@@ -461,9 +463,7 @@ func (r *Runtime) RefreshRoutes(ctx context.Context) error {
 			if err != nil {
 				continue
 			}
-			routes[edge.RouteKey(c.Labels[service.OrgLabel], r.project(), c.Labels[service.InstanceLabel])] = hostURL(
-				port,
-			)
+			add(c.Labels[service.OrgLabel], c.Labels[service.InstanceLabel], hostURL(port))
 		}
 	}
 	r.edge.SetRoutes(routes)
@@ -606,11 +606,6 @@ func (r *Runtime) PlatformContainers() []string {
 		out = append(out, service.GameServiceContainerName(r.project(), gs.ID))
 	}
 	return out
-}
-
-// Sanitized returns the org/project path segments the edge and the chart agree on.
-func Sanitized(org, project string) (string, string) {
-	return dnslabel.Sanitize(org), dnslabel.Sanitize(project)
 }
 
 // Containers lists every container of the project with its labels.

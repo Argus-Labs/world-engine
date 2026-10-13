@@ -250,9 +250,7 @@ func TestBuildCardinalEnvContract(t *testing.T) {
 	got := envMap(t, buildCardinalEnv(cfg, worldtoml.Shard{ID: "gameplay", InstanceID: "gameplay-2", TickRate: 20}))
 	want := map[string]string{
 		"CARDINAL_SHARD_ID":              "gameplay-2",
-		"CARDINAL_ORG":                   "argus",
 		"CARDINAL_PROJECT":               "rampage",
-		"CARDINAL_REGION":                "us-west1",
 		"LOG_LEVEL":                      "info",
 		"CARDINAL_SNAPSHOT_STORAGE_TYPE": "JETSTREAM",
 		"CARDINAL_AUTH_MODE":             "DEV",
@@ -353,6 +351,11 @@ func TestBuildCardinalEnvArgusAuth(t *testing.T) {
 		Auth: worldtoml.Auth{Mode: worldtoml.AuthModeArgus, URL: "https://api.argus.dev"},
 	}}
 	got := envMap(t, buildCardinalEnv(cfg, worldtoml.Shard{ID: "a", InstanceID: "a"}))
+	// The engine refuses to start an ARGUS shard without the game ID the tokens are issued for.
+	if got["CARDINAL_ARGUS_AUTH_GAME_ID"] != "o/g" {
+		t.Fatalf("CARDINAL_ARGUS_AUTH_GAME_ID = %q, want o/g (<organization>/<project>)",
+			got["CARDINAL_ARGUS_AUTH_GAME_ID"])
+	}
 	if got["CARDINAL_AUTH_MODE"] != "ARGUS" || got["CARDINAL_ARGUS_AUTH_URL"] != "https://api.argus.dev" {
 		t.Fatalf("argus env = %#v", got)
 	}

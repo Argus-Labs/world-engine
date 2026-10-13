@@ -89,7 +89,7 @@ Start your project:
 world start
 ```
 
-This builds your shard images and runs them as Docker containers, with NATS and Postgres alongside. Shards are reachable at `http://localhost:8080/<organization>/<project>/<instance>` through a proxy inside `world start`; Ctrl+C stops the containers and keeps their data.
+This builds your shard images and runs them as Docker containers, with NATS and Postgres alongside. Shards are reachable at `http://localhost:8080/<project>/<instance>` through a proxy inside `world start`; Ctrl+C stops the containers and keeps their data.
 
 Shards trust the dev identity header by default. To sign in with real Argus Auth accounts, as hosted environments do, add to `world.toml`:
 

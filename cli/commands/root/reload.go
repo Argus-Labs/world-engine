@@ -138,13 +138,14 @@ func pullBuildDeps(
 
 // buildShardImages builds every shard image in box; run pullBuildDeps first.
 func buildShardImages(box *phasebox.Box, dockerClient *docker.Client, dockerServices []service.Service) error {
+	imageNames := docker.CardinalBuildImageNames(dockerServices)
 	return box.Run(
 		func(ctx context.Context, sess phasebox.Session) error {
-			imageNames := docker.CardinalBuildImageNames(dockerServices)
 			return dockerClient.BuildCardinalImages(ctx, dockerServices, phasebox.BuildProgress(sess, imageNames))
 		},
 		func(elapsed time.Duration) string {
-			return fmt.Sprintf("%d image(s) built (%s)", len(dockerServices), elapsed.Round(time.Second))
+			// Pooled instances share an image, so count images, not services.
+			return fmt.Sprintf("%d image(s) built (%s)", len(imageNames), elapsed.Round(time.Second))
 		},
 	)
 }

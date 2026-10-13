@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/descriptorpb"
 
+	"github.com/argus-labs/world-engine/pkg/micro"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
@@ -60,7 +62,7 @@ func TestSendCommandInput_Validate_Valid(t *testing.T) {
 	input := SendCommandInput{
 		ShardID:     "game",
 		CommandName: "create-player",
-		Payload:     map[string]any{"name": "test"},
+		Payload:     `{"name": "test"}`,
 	}
 
 	err := input.validate()
@@ -68,8 +70,7 @@ func TestSendCommandInput_Validate_Valid(t *testing.T) {
 
 	assert.Empty(t, input.ShardURL) // resolved from the running containers in the handler, not validate()
 	assert.Equal(t, defaultDevPlayerID, input.PlayerID)
-	assert.Equal(t, defaultRegion, input.Region)
-	assert.NotNil(t, input.Payload)
+	assert.JSONEq(t, `{"name": "test"}`, input.Payload) // The payload keeps the same JSON value.
 }
 
 func TestSendCommandInput_Validate_MissingShardID(t *testing.T) {
@@ -95,12 +96,12 @@ func TestSendCommandInput_Validate_NilPayload(t *testing.T) {
 	input := SendCommandInput{
 		ShardID:     "game",
 		CommandName: "create-player",
-		Payload:     nil,
+		Payload:     "",
 	}
 
 	err := input.validate()
 	require.NoError(t, err)
-	assert.NotNil(t, input.Payload)
+	assert.Equal(t, "{}", input.Payload) // An empty payload defaults to an empty JSON object.
 }
 
 func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
@@ -110,7 +111,6 @@ func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
 		CommandName: "create-player",
 		ShardURL:    "http://custom:9999",
 		PlayerID:    "custom-player",
-		Region:      "ap-southeast-1",
 	}
 
 	err := input.validate()
@@ -118,7 +118,6 @@ func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
 
 	assert.Equal(t, "http://custom:9999", input.ShardURL)
 	assert.Equal(t, "custom-player", input.PlayerID)
-	assert.Equal(t, "ap-southeast-1", input.Region)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -324,7 +323,7 @@ func stateDescriptors(t *testing.T) componentDescriptors {
 func componentBlob(t *testing.T, descriptors componentDescriptors, name string, value int) []byte {
 	t.Helper()
 	field := map[string]string{"Health": "HP", "Position": "X"}[name]
-	blob, err := encodeCommandPayload(descriptors[name], map[string]any{field: value})
+	blob, err := encodeCommandPayload(descriptors[name], fmt.Sprintf("{%q: %d}", field, value))
 	require.NoError(t, err)
 	return blob
 }
@@ -1027,4 +1026,53 @@ func TestDevAuthInterceptor_NoTokenUsesDevHeader(t *testing.T) {
 	(&devAuthInterceptor{playerID: "mcp-dev-player", target: "http://localhost:8080"}).setAuthHeader(h)
 	assert.Empty(t, h.Get("Authorization"))
 	assert.Equal(t, "mcp-dev-player", h.Get(devPlayerIDHeader))
+}
+
+// TestResolveShardTarget_PinnedURL checks the address a request carries: the shard's project and
+// instance, which the shard compares against its own address. No organization, no region.
+func TestResolveShardTarget_PinnedURL(t *testing.T) {
+	t.Parallel()
+
+	target, err := resolveShardTarget(context.Background(), "game", "game-2", "http://custom:9999", "rampage")
+	require.NoError(t, err)
+	assert.Equal(t, "http://custom:9999", target.shardURL)
+	assert.Equal(t, "rampage.game-2", micro.String(target.address))
+}
+
+// The MCP transport decodes JSON numbers as float64 before BindArguments runs, which rounds
+// large integers. A string payload survives transport decoding and protobuf encoding intact.
+func TestSendCommandInput_BindArguments_PreservesLargeInt64Payload(t *testing.T) {
+	t.Parallel()
+
+	const payloadJSON = `{"ID": 9223372036854775807}` // math.MaxInt64
+
+	frame, err := json.Marshal(map[string]any{
+		"params": map[string]any{
+			"arguments": map[string]any{
+				"shard_id":     "game",
+				"command_name": "create-player",
+				"payload":      payloadJSON,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	var req mcp.CallToolRequest
+	require.NoError(t, json.Unmarshal(frame, &req))
+	var in SendCommandInput
+	require.NoError(t, req.BindArguments(&in))
+	assert.JSONEq(t, payloadJSON, in.Payload, "payload string must survive mcp-go transport intact")
+
+	raw := testDescriptorSet(t, &descriptorpb.DescriptorProto{
+		Name:  new("Cmd"),
+		Field: []*descriptorpb.FieldDescriptorProto{scalarField("ID", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64)},
+	})
+	md := testMessageDescriptor(t, raw, "Cmd")
+	require.NoError(t, in.validate()) // Validation leaves this nonempty payload unchanged.
+
+	wire, err := encodeCommandPayload(md, in.Payload)
+	require.NoError(t, err)
+	decoded, err := decodeMessage(md, wire)
+	require.NoError(t, err)
+	assert.Equal(t, int64(9223372036854775807), decoded["ID"], "MaxInt64 must encode to the wire bit-for-bit exact")
 }

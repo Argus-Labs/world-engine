@@ -32,7 +32,7 @@ project name would otherwise be a Docker built-in).
 
 ## Where things are
 
-- Shard API: `http://localhost:8080/<organization>/<project>/<instance>` (the edge proxy in
+- Shard API: `http://localhost:8080/<project>/<instance>` (the edge proxy in
   `world start`). Instances are `<shard>`, `<shard>-2`, … for `pool_size > 1`. The same path
   works against a hosted environment.
 - Each shard is also on `127.0.0.1:8081`, `8082`, … in `world.toml` order (direct, no proxy).
@@ -55,7 +55,8 @@ url = "https://api.argus.dev"  # required for argus; ignored for dev
 ```
 
 `argus` makes a local world behave like a hosted one: shards validate real Argus Auth
-tokens, so the game client signs in with its normal account. The shards must reach
+tokens issued for `<organization>/<project>` (the game ID `world start` sets from
+`world.toml`), so the game client signs in with its normal account. The shards must reach
 `url` at startup, and `send_command` then needs a token — `WORLD_ARGUS_TOKEN=<token>`
 makes the MCP tools send it, and only ever to a shard on this machine. `world debug`,
 `introspect` and `get_state` use the DebugService, which is unauthenticated either way.

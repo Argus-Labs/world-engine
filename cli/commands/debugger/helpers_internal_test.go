@@ -50,11 +50,11 @@ func TestResolveTargets(t *testing.T) {
 		assert.Equal(t, []debugTarget{
 			{
 				instanceID: "game-2",
-				url:        local.ShardAPIURL("test-org", "test-project", "game-2"),
+				url:        local.ShardAPIURL("test-project", "game-2"),
 			},
 			{
 				instanceID: "meta",
-				url:        local.ShardAPIURL("test-org", "test-project", "meta"),
+				url:        local.ShardAPIURL("test-project", "meta"),
 			},
 		}, targets)
 	})

@@ -1,5 +1,5 @@
 // Package edge is the local reverse proxy world start runs in-process: it routes
-// localhost:8080/<org>/<project>/<instance>/... to that shard instance's host
+// localhost:8080/<project>/<instance>/... (and /<org>/<project>/<instance>/...) to that shard instance's host
 // port, the same URL shape the chart's GKE HTTPRoute serves on a cluster.
 package edge
 
@@ -16,8 +16,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-
-	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
 )
 
 // DefaultAddr is where world start listens; the chart's local example has no routing, so this is the only edge.
@@ -26,7 +24,8 @@ const DefaultAddr = "127.0.0.1:8080"
 // routeKey carries the resolved backend from ServeHTTP to the shared proxy's Rewrite.
 type routeKey struct{}
 
-// Edge routes by the first three path segments and strips them, like GKE's ReplacePrefixMatch.
+// Edge routes by the leading /<project>/<instance> (or /<org>/<project>/<instance>) segments and
+// strips them, like GKE's ReplacePrefixMatch.
 type Edge struct {
 	routes atomic.Pointer[map[string]*url.URL] // RouteKey -> http://127.0.0.1:<port>
 	proxy  *httputil.ReverseProxy
@@ -80,9 +79,16 @@ type resolvedRoute struct {
 	instance string
 }
 
-// RouteKey is "org/project/instance" with org and project sanitized the way the chart's pathSegment does.
-func RouteKey(org, project, instance string) string {
-	return dnslabel.Sanitize(org) + "/" + dnslabel.Sanitize(project) + "/" + instance
+// RouteKey is "project/instance": the path a client dials, and the first prefix the
+// chart's HTTPRoute matches. Segments are used as-is, as the chart uses them.
+func RouteKey(project, instance string) string {
+	return project + "/" + instance
+}
+
+// LegacyRouteKey is "org/project/instance", the second prefix the chart still routes
+// while organization is set, for clients built before the organization left the path.
+func LegacyRouteKey(org, project, instance string) string {
+	return org + "/" + project + "/" + instance
 }
 
 // SetRoutes swaps the table atomically; called after start and after each reload.
@@ -102,17 +108,28 @@ func (e *Edge) Routes() map[string]*url.URL {
 }
 
 func (e *Edge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	seg := strings.SplitN(r.URL.Path, "/", 5) // "", org, project, instance, rest
-	if len(seg) < 5 {
-		http.NotFound(w, r)
-		return
+	routes := *e.routes.Load()
+	// Two prefixes, the same two the chart's HTTPRoute matches: /<project>/<instance>/... is
+	// what clients dial; /<org>/<project>/<instance>/... is kept while the world has an
+	// organization, for clients built before it left the path.
+	seg := strings.SplitN(r.URL.Path, "/", 5) // "", a, b, c, rest
+	if len(seg) >= 4 {
+		if backend, ok := routes[seg[1]+"/"+seg[2]]; ok {
+			e.serve(w, r, backend, "/"+strings.Join(seg[3:], "/"), seg[2])
+			return
+		}
 	}
-	backend, ok := (*e.routes.Load())[seg[1]+"/"+seg[2]+"/"+seg[3]]
-	if !ok {
-		http.NotFound(w, r)
-		return
+	if len(seg) == 5 {
+		if backend, ok := routes[seg[1]+"/"+seg[2]+"/"+seg[3]]; ok {
+			e.serve(w, r, backend, "/"+seg[4], seg[3])
+			return
+		}
 	}
-	route := &resolvedRoute{backend: backend, path: "/" + seg[4], instance: seg[3]}
+	http.NotFound(w, r)
+}
+
+func (e *Edge) serve(w http.ResponseWriter, r *http.Request, backend *url.URL, path, instance string) {
+	route := &resolvedRoute{backend: backend, path: path, instance: instance}
 	e.proxy.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), routeKey{}, route)))
 }
 

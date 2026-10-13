@@ -12,7 +12,6 @@ import (
 	"github.com/rotisserie/eris"
 
 	"github.com/argus-labs/world-engine/cli/pkg/local"
-	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
 // Operations supported by the world_lifecycle tool.
@@ -194,8 +193,8 @@ func startWorld(
 	ready, expected := rt.WaitForShardsReady(ctx, nil, nil) // a start brings up every instance
 
 	shardIDs := deployedShardIDs(deployOpts)
-	status := fmt.Sprintf("started %d shard(s) for %s/%s on Docker; API at %s/%s/%s/<instance>",
-		len(shardIDs), cfg.Organization, cfg.Project, local.APIEndpoint, sanitizedOrg(cfg), sanitizedProject(cfg))
+	status := fmt.Sprintf("started %d shard(s) for %s/%s on Docker; API at %s/%s/<instance>",
+		len(shardIDs), cfg.Organization, cfg.Project, local.APIEndpoint, cfg.Project)
 	if args.Purge {
 		status += " (all previous state wiped)"
 	}
@@ -213,14 +212,4 @@ func startWorld(
 		Shards:       shardIDs,
 		Status:       status,
 	}, nil
-}
-
-func sanitizedOrg(cfg worldtoml.Config) string {
-	org, _ := local.Sanitized(cfg.Organization, cfg.Project)
-	return org
-}
-
-func sanitizedProject(cfg worldtoml.Config) string {
-	_, project := local.Sanitized(cfg.Organization, cfg.Project)
-	return project
 }

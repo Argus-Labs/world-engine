@@ -21,15 +21,14 @@ import (
 
 // SendCommandInput is the structured input for the send_command tool.
 type SendCommandInput struct {
-	ShardID      string         `json:"shard_id"                jsonschema_description:"ID of the shard to send the command to (a shard running on local Docker)"`
-	InstanceName string         `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance to target (e.g., 'game-2', 'game 2', '2'); defaults to the shard's first instance. Each instance is a distinct container with its own state."`
-	Organization string         `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the running containers when omitted)"`
-	Project      string         `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the running containers when omitted)"`
-	CommandName  string         `json:"command_name"            jsonschema_description:"Name of the command to execute (e.g., 'create-player', 'player-attack')"`
-	Payload      map[string]any `json:"payload"                 jsonschema_description:"JSON payload for the command (the command's input data)"`
-	ShardURL     string         `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved (per instance) from the running containers when omitted. When set, Docker is not contacted: pair it with instance_name (the exact instance, e.g. 'game-2') when targeting a non-default instance so the request address matches the shard. Also pass organization/project to skip the container lookup entirely; otherwise they're still auto-resolved from the containers."`
-	PlayerID     string         `json:"player_id,omitempty"     jsonschema_description:"Player ID for dev auth (defaults to mcp-dev-player)"`
-	Region       string         `json:"region,omitempty"        jsonschema_description:"Service address region (defaults to us-west1 for local dev)"`
+	ShardID      string `json:"shard_id"                jsonschema_description:"ID of the shard to send the command to (a shard running on local Docker)"`
+	InstanceName string `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance to target (e.g., 'game-2', 'game 2', '2'); defaults to the shard's first instance. Each instance is a distinct container with its own state."`
+	Organization string `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the running containers when omitted)"`
+	Project      string `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the running containers when omitted)"`
+	CommandName  string `json:"command_name"            jsonschema_description:"Name of the command to execute (e.g., 'create-player', 'player-attack')"`
+	Payload      string `json:"payload"                 jsonschema_description:"JSON payload for the command as a JSON-stringified object (a string containing a serialized JSON object, not a bare object). Serialize the command input object to a JSON string and pass that string here so large int64/uint64 values (e.g. nanosecond timestamps, large IDs) survive the MCP transport without float64 rounding."`
+	ShardURL     string `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved (per instance) from the running containers when omitted. When set, Docker is not contacted: pair it with instance_name (the exact instance, e.g. 'game-2') when targeting a non-default instance so the request address matches the shard. Also pass organization/project to skip the container lookup entirely; otherwise they're still auto-resolved from the containers."`
+	PlayerID     string `json:"player_id,omitempty"     jsonschema_description:"Player ID for dev auth (defaults to mcp-dev-player)"`
 }
 
 // SendCommandOutput is the structured output for the send_command tool.
@@ -72,8 +71,9 @@ func sendCommandHandler(
 	ctx, cancel := ensureDeadline(ctx, defaultCommandTimeout)
 	defer cancel()
 
-	// Resolve the shard's organization/project from the container labels (no world.toml).
-	org, project, err := resolveShardWorld(ctx, args.ShardID, args.Organization, args.Project)
+	// Resolve the shard's project from the container labels (no world.toml). The
+	// organization is not part of the address any more.
+	project, err := resolveShardWorld(ctx, args.ShardID, args.Project)
 	if err != nil {
 		return SendCommandOutput{}, err
 	}
@@ -83,7 +83,7 @@ func sendCommandHandler(
 	// shard's first instance, preserving prior behavior; each instance has its own
 	// edge route and its own ECS state.
 	target, err := resolveShardTarget(
-		ctx, args.ShardID, args.InstanceName, args.ShardURL, org, project, args.Region,
+		ctx, args.ShardID, args.InstanceName, args.ShardURL, project,
 	)
 	if err != nil {
 		return SendCommandOutput{}, err
@@ -157,11 +157,8 @@ func (s *SendCommandInput) validate() error {
 	if s.PlayerID == "" {
 		s.PlayerID = defaultDevPlayerID
 	}
-	if s.Region == "" {
-		s.Region = defaultRegion
-	}
-	if s.Payload == nil {
-		s.Payload = make(map[string]any)
+	if s.Payload == "" {
+		s.Payload = "{}"
 	}
 	return nil
 }

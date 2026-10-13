@@ -50,7 +50,7 @@ func h2cBackend(t *testing.T, release <-chan struct{}) *url.URL {
 func newEdge(t *testing.T, release <-chan struct{}) (*edge.Edge, *httptest.Server) {
 	t.Helper()
 	e := edge.New()
-	e.SetRoutes(map[string]*url.URL{edge.RouteKey("Argus Labs", "My_Game", "gameplay-2"): h2cBackend(t, release)})
+	e.SetRoutes(map[string]*url.URL{edge.RouteKey("my-game", "gameplay-2"): h2cBackend(t, release)})
 	srv := httptest.NewUnstartedServer(e)
 	p := new(http.Protocols)
 	p.SetHTTP1(true)
@@ -63,7 +63,7 @@ func newEdge(t *testing.T, release <-chan struct{}) (*edge.Edge, *httptest.Serve
 
 func TestEdgeStripsPrefixAndSpeaksH2CToShard(t *testing.T) {
 	_, srv := newEdge(t, nil)
-	resp, err := http.Get(srv.URL + "/argus-labs/my-game/gameplay-2/worldengine.cardinal.v1.CardinalService/Query")
+	resp, err := http.Get(srv.URL + "/my-game/gameplay-2/worldengine.cardinal.v1.CardinalService/Query")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestEdgeAcceptsH2CFromClient(t *testing.T) {
 	tr := &http.Transport{Protocols: new(http.Protocols)}
 	tr.Protocols.SetUnencryptedHTTP2(true)
 	client := &http.Client{Transport: tr}
-	resp, err := client.Get(srv.URL + "/argus-labs/my-game/gameplay-2/x")
+	resp, err := client.Get(srv.URL + "/my-game/gameplay-2/x")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestEdgeAcceptsH2CFromClient(t *testing.T) {
 
 func TestEdgeUnknownRouteIs404(t *testing.T) {
 	_, srv := newEdge(t, nil)
-	for _, path := range []string{"/nope", "/argus-labs/my-game/gameplay-2", "/argus-labs/my-game/lobby/x", "/"} {
+	for _, path := range []string{"/nope", "/my-game/gameplay-2", "/my-game/lobby/x", "/"} {
 		resp, err := http.Get(srv.URL + path)
 		if err != nil {
 			t.Fatal(err)
@@ -112,7 +112,7 @@ func TestEdgeUnknownRouteIs404(t *testing.T) {
 func TestEdgeStreamsFlushes(t *testing.T) {
 	release := make(chan struct{})
 	_, srv := newEdge(t, release)
-	resp, err := http.Get(srv.URL + "/argus-labs/my-game/gameplay-2/stream")
+	resp, err := http.Get(srv.URL + "/my-game/gameplay-2/stream")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestEdgeStreamsFlushes(t *testing.T) {
 func TestEdgeRoutesSwapAtomically(t *testing.T) {
 	e, srv := newEdge(t, nil)
 	e.SetRoutes(nil)
-	resp, err := http.Get(srv.URL + "/argus-labs/my-game/gameplay-2/x")
+	resp, err := http.Get(srv.URL + "/my-game/gameplay-2/x")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,12 +153,12 @@ func TestEdgeDownShardGetsActionable502(t *testing.T) {
 	addr := dead.Addr().String()
 	_ = dead.Close() // nothing is listening there now
 	e.SetRoutes(map[string]*url.URL{
-		edge.RouteKey("argus", "demo", "gameplay-2"): {Scheme: "http", Host: addr},
+		edge.RouteKey("demo", "gameplay-2"): {Scheme: "http", Host: addr},
 	})
 	srv := httptest.NewServer(e)
 	defer srv.Close()
 
-	resp, err := http.Get(srv.URL + "/argus/demo/gameplay-2/x")
+	resp, err := http.Get(srv.URL + "/demo/gameplay-2/x")
 	if err != nil {
 		t.Fatal(err)
 	}

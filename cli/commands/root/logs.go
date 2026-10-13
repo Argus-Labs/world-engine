@@ -211,7 +211,7 @@ func debugActions(cfg *service.Config, sel *logTarget) []logtail.ExtraAction {
 		// There is no single instance to control when tailing all shards.
 		return nil
 	}
-	url := local.ShardAPIURL(cfg.WorldToml.Organization, cfg.WorldToml.Project, sel.Instance)
+	url := local.ShardAPIURL(cfg.WorldToml.Project, sel.Instance)
 	client := debug.NewClient(url)
 	bind := func(digit, label string, action debug.Action) logtail.ExtraAction {
 		return logtail.ExtraAction{

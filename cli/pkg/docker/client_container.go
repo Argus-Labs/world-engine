@@ -2,6 +2,7 @@ package docker
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"io"
 	"strconv"
@@ -169,12 +170,13 @@ func (c *Client) GetContainerLogs(
 
 	// Limit total bytes read to protect against OOM from extremely long log lines.
 	limitedReader := io.LimitReader(reader, maxLogBytes)
-	data, err := io.ReadAll(limitedReader)
-	if err != nil {
+	// Docker multiplexes stdout and stderr with 8-byte frame headers; without demuxing,
+	// those bytes land in the text an agent reads.
+	var buf bytes.Buffer
+	if _, err := stdcopy.StdCopy(&buf, &buf, limitedReader); err != nil {
 		return "", eris.Wrapf(err, "failed to read logs for container %s", containerName)
 	}
-
-	return string(data), nil
+	return buf.String(), nil
 }
 
 // startContainer creates the container if missing, then starts it.

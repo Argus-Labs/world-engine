@@ -345,24 +345,24 @@ func deployedShards(ctx context.Context, project string) ([]deployedShard, error
 	return out, nil
 }
 
-// resolveShardWorld returns the organization/project of a deployed shard.
-// Explicit org+project (both set) short-circuit the lookup.
-func resolveShardWorld(ctx context.Context, shardID, org, project string) (string, string, error) {
-	if org != "" && project != "" {
-		return org, project, nil
+// resolveShardWorld returns the project of a deployed shard; an explicit project
+// short-circuits the lookup. The organization is no longer part of a shard's address.
+func resolveShardWorld(ctx context.Context, shardID, project string) (string, error) {
+	if project != "" {
+		return project, nil
 	}
 	shards, err := deployedShards(ctx, project)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 	for _, s := range shards {
 		if s.ShardID == shardID {
-			return s.Organization, s.Project, nil
+			return s.Project, nil
 		}
 	}
 	available := make([]string, 0, len(shards))
 	for _, s := range shards {
 		available = append(available, s.ShardID)
 	}
-	return "", "", eris.Errorf("shard %q is not running; running shards: %v", shardID, available)
+	return "", eris.Errorf("shard %q is not running; running shards: %v", shardID, available)
 }
