@@ -28,6 +28,8 @@ const (
 	sessionPath  = "/auth/service-auth-session"
 	pollInterval = 3 * time.Second
 	pollTimeout  = 11 * time.Minute
+	// maxPollFailures is how many failed polls in a row sign-in tolerates.
+	maxPollFailures = 5
 
 	// renewBefore treats a token as expired early, so a long-running command does
 	// not start with one about to lapse.
@@ -241,15 +243,21 @@ func (c *Client) pollEvery(ctx context.Context, callbackURL string, interval tim
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	failures := 0
 	for {
 		status, err := c.status(ctx, callbackURL)
 		switch {
 		case err != nil:
-			return "", err
+			// Retry on the next tick; a cancelled ctx exits in the select below.
+			if failures++; failures > maxPollFailures {
+				return "", err
+			}
 		case status.Status == "success" && status.JWT != "":
 			return status.JWT, nil
 		case status.Status != "pending" && status.Status != "":
 			return "", eris.Errorf("authorization failed: %s", status.Status)
+		default:
+			failures = 0
 		}
 
 		select {
