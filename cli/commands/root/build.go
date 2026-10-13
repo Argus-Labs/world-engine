@@ -2,10 +2,8 @@ package root
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"slices"
-	"time"
 
 	"github.com/rotisserie/eris"
 
@@ -76,19 +74,7 @@ func (c *BuildCmd) Run(ctx context.Context) error {
 			dash := phasebox.Start(ctx, c.Progress)
 			defer dash.Complete()
 
-			if err := dash.Run("Build",
-				func(ctx context.Context, sess phasebox.Session) error {
-					imageNames := docker.CardinalBuildImageNames(dockerServices)
-					return dockerClient.BuildCardinalImages(
-						ctx,
-						dockerServices,
-						phasebox.BuildProgress(sess, imageNames),
-					)
-				},
-				func(elapsed time.Duration) string {
-					return fmt.Sprintf("%d image(s) built (%s)", len(dockerServices), elapsed.Round(time.Second))
-				},
-			); err != nil {
+			if err := buildShardImages(dash.Open("Build"), dockerClient, dockerServices); err != nil {
 				return eris.Wrap(err, "Failed to build Cardinal images")
 			}
 			return nil
