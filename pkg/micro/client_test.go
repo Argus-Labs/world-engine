@@ -34,7 +34,8 @@ func TestClient_Request(t *testing.T) {
 
 	t.Run("happy path", func(t *testing.T) {
 		t.Parallel()
-		address := micro.RandServiceAddress(t, prng)
+		rng := testutils.NewRand(t)
+		address := micro.RandServiceAddress(t, rng)
 		endpoint := "happy"
 
 		sub := newTestHandler(t, client, micro.Endpoint(address, endpoint), func(msg *nats.Msg) {
@@ -64,7 +65,8 @@ func TestClient_Request(t *testing.T) {
 
 	t.Run("handler returns error", func(t *testing.T) {
 		t.Parallel()
-		address := micro.RandServiceAddress(t, prng)
+		rng := testutils.NewRand(t)
+		address := micro.RandServiceAddress(t, rng)
 		endpoint := "app-error"
 
 		sub := newTestHandler(t, client, micro.Endpoint(address, endpoint), func(msg *nats.Msg) {
@@ -93,7 +95,8 @@ func TestClient_Request(t *testing.T) {
 
 	t.Run("handler returns malformed response", func(t *testing.T) {
 		t.Parallel()
-		address := micro.RandServiceAddress(t, prng)
+		rng := testutils.NewRand(t)
+		address := micro.RandServiceAddress(t, rng)
 		endpoint := "malformed"
 
 		sub := newTestHandler(t, client, micro.Endpoint(address, endpoint), func(msg *nats.Msg) {
@@ -131,7 +134,8 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 
 	t.Run("happy path", func(t *testing.T) {
 		t.Parallel()
-		address := micro.RandServiceAddress(t, prng)
+		rng := testutils.NewRand(t)
+		address := micro.RandServiceAddress(t, rng)
 		commandEndpoint := "command"
 		eventEndpoint := "event"
 
@@ -170,7 +174,8 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 
 	t.Run("send failure propagates", func(t *testing.T) {
 		t.Parallel()
-		address := micro.RandServiceAddress(t, prng)
+		rng := testutils.NewRand(t)
+		address := micro.RandServiceAddress(t, rng)
 		commandEndpoint := "command-fail"
 		eventEndpoint := "event-fail"
 
@@ -200,7 +205,8 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 
 	t.Run("no double unsubscribe errors", func(t *testing.T) {
 		t.Parallel()
-		address := micro.RandServiceAddress(t, prng)
+		rng := testutils.NewRand(t)
+		address := micro.RandServiceAddress(t, rng)
 		commandEndpoint := "command-double-unsub"
 		eventEndpoint := "event-double-unsub"
 
@@ -226,7 +232,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		for range prng.IntN(9) + 2 {
+		for range rng.IntN(9) + 2 {
 			msg, err := client.RequestAndSubscribe(ctx, address, commandEndpoint, address, eventEndpoint, testPayload)
 			require.NoError(t, err)
 			require.NotNil(t, msg)
