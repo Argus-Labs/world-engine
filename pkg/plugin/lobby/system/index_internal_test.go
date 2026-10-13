@@ -63,7 +63,7 @@ func TestLookupIndex_PlayerToLobby(t *testing.T) {
 	assert.Equal(t, playerEntityID, entityID)
 
 	// Verify deadline was initialized
-	playerDeadline, exists := idx.GetPlayerDeadline("player1")
+	playerDeadline, exists := idx.PlayerDeadline["player1"]
 	assert.True(t, exists)
 	assert.Equal(t, deadline, playerDeadline)
 
@@ -73,7 +73,7 @@ func TestLookupIndex_PlayerToLobby(t *testing.T) {
 	// Update deadline
 	newDeadline := int64(2000)
 	idx.UpdatePlayerDeadline("player1", newDeadline)
-	playerDeadline, _ = idx.GetPlayerDeadline("player1")
+	playerDeadline, _ = idx.PlayerDeadline["player1"]
 	assert.Equal(t, newDeadline, playerDeadline)
 
 	// Update team
@@ -96,26 +96,11 @@ func TestLookupIndex_PlayerToLobby(t *testing.T) {
 	assert.False(t, exists)
 
 	// Verify deadline was also removed
-	_, exists = idx.GetPlayerDeadline("player1")
+	_, exists = idx.PlayerDeadline["player1"]
 	assert.False(t, exists)
 
 	// Verify lobby player count is 0
 	assert.Equal(t, 0, idx.GetLobbyPlayerCount("lobby1"))
-}
-
-func TestLookupIndex_HasPlayer(t *testing.T) {
-	t.Parallel()
-
-	idx := &lookupIndex{}
-	idx.Init()
-
-	assert.False(t, idx.HasPlayer("player1"))
-
-	idx.AddPlayerToLobby("player1", "lobby1", "team1", 100, 1000)
-	assert.True(t, idx.HasPlayer("player1"))
-
-	idx.RemovePlayerFromLobby("player1")
-	assert.False(t, idx.HasPlayer("player1"))
 }
 
 func TestLookupIndex_LobbyPlayerCount(t *testing.T) {
@@ -216,7 +201,7 @@ func TestRebuildIndexResetsDeadlines(t *testing.T) {
 
 	runtime.rebuildIndex(nil, players, now, timeout)
 
-	deadline, exists := index.GetPlayerDeadline("p1")
+	deadline, exists := index.PlayerDeadline["p1"]
 	require.True(t, exists)
 	assert.Equal(t, now+timeout, deadline)
 	assert.Greater(t, deadline, now, "a rebuilt deadline must be in the future")

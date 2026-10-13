@@ -181,12 +181,6 @@ func (idx *lookupIndex) UpdatePlayerDeadline(playerID string, deadline int64) {
 	idx.PlayerDeadline[playerID] = deadline
 }
 
-// GetPlayerDeadline returns the deadline for a player.
-func (idx *lookupIndex) GetPlayerDeadline(playerID string) (int64, bool) {
-	deadline, exists := idx.PlayerDeadline[playerID]
-	return deadline, exists
-}
-
 // GetPlayerTeam returns the team ID for a player.
 func (idx *lookupIndex) GetPlayerTeam(playerID string) (string, bool) {
 	teamID, exists := idx.PlayerToTeam[playerID]
@@ -201,12 +195,6 @@ func (idx *lookupIndex) UpdatePlayerTeam(playerID, teamID string) {
 // GetLobbyPlayerCount returns the player count for a lobby.
 func (idx *lookupIndex) GetLobbyPlayerCount(lobbyID string) int {
 	return idx.LobbyPlayerCount[lobbyID]
-}
-
-// HasPlayer returns true if player exists in the index (O(1)).
-func (idx *lookupIndex) HasPlayer(playerID string) bool {
-	_, exists := idx.PlayerToLobby[playerID]
-	return exists
 }
 
 // UpdateInviteCode updates the invite code for a lobby.
