@@ -169,6 +169,47 @@ func TestPollFailsOnUnexpectedStatus(t *testing.T) {
 	}
 }
 
+// A failed poll must not abort a sign-in the next poll would complete.
+func TestPollRetriesAfterFailure(t *testing.T) {
+	want := jwtWithExp(t, time.Now().Add(time.Hour), "dev@argus.gg")
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		if calls == 1 {
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		_, _ = fmt.Fprintf(w, `{"status":"success","jwt":%q}`, want)
+	}))
+	defer srv.Close()
+
+	c := &Client{http: srv.Client()}
+	got, err := c.pollEvery(context.Background(), srv.URL, time.Millisecond)
+	if err != nil {
+		t.Fatalf("poll() error = %v", err)
+	}
+	if got != want {
+		t.Errorf("poll() returned the wrong token")
+	}
+}
+
+func TestPollGivesUpAfterMaxFailures(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer srv.Close()
+
+	c := &Client{http: srv.Client()}
+	if _, err := c.pollEvery(context.Background(), srv.URL, time.Millisecond); err == nil {
+		t.Fatal("poll() error = nil for a persistent 502, want an error")
+	}
+	if calls != maxPollFailures+1 {
+		t.Errorf("polled %d times, want %d", calls, maxPollFailures+1)
+	}
+}
+
 func TestPollHonoursContextCancellation(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = fmt.Fprint(w, `{"status":"pending"}`)
