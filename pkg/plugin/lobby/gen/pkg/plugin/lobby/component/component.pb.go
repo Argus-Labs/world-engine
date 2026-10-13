@@ -297,10 +297,8 @@ func (x *Session) GetPendingStartedAt() int64 {
 
 type ShardAddress struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Region        string                 `protobuf:"bytes,1,opt,name=Region,proto3" json:"Region,omitempty"`
-	Organization  string                 `protobuf:"bytes,2,opt,name=Organization,proto3" json:"Organization,omitempty"`
-	Project       string                 `protobuf:"bytes,3,opt,name=Project,proto3" json:"Project,omitempty"`
-	ShardID       string                 `protobuf:"bytes,4,opt,name=ShardID,proto3" json:"ShardID,omitempty"`
+	Project       string                 `protobuf:"bytes,1,opt,name=Project,proto3" json:"Project,omitempty"`
+	ShardID       string                 `protobuf:"bytes,2,opt,name=ShardID,proto3" json:"ShardID,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -333,20 +331,6 @@ func (x *ShardAddress) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ShardAddress.ProtoReflect.Descriptor instead.
 func (*ShardAddress) Descriptor() ([]byte, []int) {
 	return file_pkg_plugin_lobby_component_component_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *ShardAddress) GetRegion() string {
-	if x != nil {
-		return x.Region
-	}
-	return ""
-}
-
-func (x *ShardAddress) GetOrganization() string {
-	if x != nil {
-		return x.Organization
-	}
-	return ""
 }
 
 func (x *ShardAddress) GetProject() string {
@@ -453,12 +437,10 @@ const file_pkg_plugin_lobby_component_component_proto_rawDesc = "" +
 	"\x05State\x18\x01 \x01(\tR\x05State\x12(\n" +
 	"\x0fPassthroughData\x18\x02 \x01(\tR\x0fPassthroughData\x12*\n" +
 	"\x10PendingRequestID\x18\x03 \x01(\tR\x10PendingRequestID\x12*\n" +
-	"\x10PendingStartedAt\x18\x04 \x01(\x03R\x10PendingStartedAt\"~\n" +
-	"\fShardAddress\x12\x16\n" +
-	"\x06Region\x18\x01 \x01(\tR\x06Region\x12\"\n" +
-	"\fOrganization\x18\x02 \x01(\tR\fOrganization\x12\x18\n" +
-	"\aProject\x18\x03 \x01(\tR\aProject\x12\x18\n" +
-	"\aShardID\x18\x04 \x01(\tR\aShardID\"`\n" +
+	"\x10PendingStartedAt\x18\x04 \x01(\x03R\x10PendingStartedAt\"B\n" +
+	"\fShardAddress\x12\x18\n" +
+	"\aProject\x18\x01 \x01(\tR\aProject\x12\x18\n" +
+	"\aShardID\x18\x02 \x01(\tR\aShardID\"`\n" +
 	"\x04Team\x12\x16\n" +
 	"\x06TeamID\x18\x01 \x01(\tR\x06TeamID\x12\x1e\n" +
 	"\n" +

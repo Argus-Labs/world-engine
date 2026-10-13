@@ -30,10 +30,8 @@ func main() {
 
     w.RegisterPlugin(lobby.NewPlugin(lobby.Config{
         LobbyWorld: cardinal.OtherWorld{
-            Region:       "us-west",
-            Organization: "myorg",
-            Project:      "myproject",
-            ShardID:      "lobby-shard-1",
+            Project: "myproject",
+            ShardID: "lobby-shard-1",
         },
     }))
 
@@ -303,10 +301,8 @@ type lobbyRow struct {
 func (*AssignerSystem) Run(w *cardinal.World) {
     // REPLACE: your lobby shard's own address.
     self := cardinal.OtherWorld{
-        Region:       "us-west", // REPLACE
-        Organization: "myorg",   // REPLACE
-        Project:      "mygame",  // REPLACE
-        ShardID:      "lobby",   // REPLACE
+        Project: "mygame", // REPLACE
+        ShardID: "lobby",  // REPLACE
     }
 
     for refs := range w.Contains[lobbyRow]().Iter() {
@@ -317,11 +313,9 @@ func (*AssignerSystem) Run(w *cardinal.World) {
         w.SendToShard(self, lobby.AssignShardCommand{
             LobbyID:   lob.ID,
             RequestID: lob.Session.PendingRequestID,
-            GameWorld: cardinal.OtherWorld{
-                Region:       "us-west", // REPLACE
-                Organization: "myorg",   // REPLACE
-                Project:      "mygame",  // REPLACE
-                ShardID:      "game-shard-1", // REPLACE: pick your target shard
+            GameWorld: lobby.ShardAddress{
+                Project: "mygame",       // REPLACE
+                ShardID: "game-shard-1", // REPLACE: pick your target shard
             },
         })
     }
@@ -348,7 +342,7 @@ All three fields are required for the command to be accepted:
 |---|---|---|
 | `LobbyID` | `lob.ID` (from the `Lobby` entity) | Tells the plugin which pending lobby this assignment is for. |
 | `RequestID` | `lob.Session.PendingRequestID` (echoed verbatim) | Plugin rejects stale or mismatched assignments. Never generate your own — always read it from the lobby. |
-| `GameWorld` | `cardinal.OtherWorld` with at minimum a non-empty `ShardID` | The full address of the game shard for this session. Empty `ShardID` = failure (regardless of `Reason`); `Reason` is only used as the failure message. |
+| `GameWorld` | `lobby.ShardAddress` (`Project`, `ShardID`) with at minimum a non-empty `ShardID` | The full address of the game shard for this session. Empty `ShardID` = failure (regardless of `Reason`); `Reason` is only used as the failure message. |
 
 ### Example: pool-based orchestrator (probe + claim)
 

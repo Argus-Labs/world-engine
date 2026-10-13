@@ -42,8 +42,6 @@ func newWorld(t *testing.T) *cardinal.World {
 	t.Helper()
 	debug := true
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
-		Region:              "local",
-		Organization:        "wb-test",
 		Project:             "wb-test",
 		ShardID:             "0",
 		TickRate:            60,

@@ -89,8 +89,6 @@ func TestTickRecordsMetrics(t *testing.T) {
 
 	off := false
 	w, err := NewWorld(WorldOptions{
-		Region:              "metrics",
-		Organization:        "metrics",
 		Project:             "metrics",
 		ShardID:             "0",
 		TickRate:            10,

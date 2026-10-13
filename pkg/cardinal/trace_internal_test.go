@@ -59,8 +59,6 @@ func TestTickEmitsSpans(t *testing.T) {
 
 	off := false
 	w, err := NewWorld(WorldOptions{
-		Region:              "trace",
-		Organization:        "trace",
 		Project:             "trace",
 		ShardID:             "0",
 		TickRate:            60,
@@ -117,8 +115,6 @@ func TestSystemContextNestsGameSpansAndLogs(t *testing.T) {
 
 	off := false
 	w, err := NewWorld(WorldOptions{
-		Region:              "trace",
-		Organization:        "trace",
 		Project:             "trace",
 		ShardID:             "0",
 		TickRate:            60,
@@ -180,8 +176,6 @@ func TestTickLinksCommandsAndTracesEvents(t *testing.T) {
 
 	off := false
 	w, err := NewWorld(WorldOptions{
-		Region:              "trace",
-		Organization:        "trace",
 		Project:             "trace",
 		ShardID:             "1",
 		TickRate:            60,
@@ -236,8 +230,6 @@ func TestTickSkipsLinksToUnsampledRequests(t *testing.T) {
 
 	off := false
 	w, err := NewWorld(WorldOptions{
-		Region:              "trace",
-		Organization:        "trace",
 		Project:             "trace",
 		ShardID:             "3",
 		TickRate:            60,
@@ -348,8 +340,6 @@ func TestTickCapsCommandLinks(t *testing.T) {
 
 	off := false
 	w, err := NewWorld(WorldOptions{
-		Region:              "trace",
-		Organization:        "trace",
 		Project:             "trace",
 		ShardID:             "2",
 		TickRate:            60,
@@ -435,8 +425,6 @@ func TestTickCapMatchesEnvLinkLimitBelowDefault(t *testing.T) {
 
 	off := false
 	w, err := NewWorld(WorldOptions{
-		Region:              "trace",
-		Organization:        "trace",
 		Project:             "trace",
 		ShardID:             "cap-below-default",
 		TickRate:            60,
@@ -493,8 +481,6 @@ func TestTickCapMatchesEnvLinkLimitAboveDefault(t *testing.T) {
 
 	off := false
 	w, err := NewWorld(WorldOptions{
-		Region:              "trace",
-		Organization:        "trace",
 		Project:             "trace",
 		ShardID:             "cap-above-default",
 		TickRate:            60,

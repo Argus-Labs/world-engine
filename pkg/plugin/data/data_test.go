@@ -51,8 +51,6 @@ func newWorld(t *testing.T) *cardinal.World {
 	t.Setenv("LOG_LEVEL", "disabled")
 	debug := true
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
-		Region:              "local",
-		Organization:        "data-test",
 		Project:             "data-test",
 		ShardID:             "0",
 		TickRate:            60,

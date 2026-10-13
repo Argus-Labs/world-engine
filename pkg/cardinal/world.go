@@ -78,7 +78,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 			Tags: options.getSentryTags(),
 		},
 		PosthogOptions: posthog.Options{
-			DistinctID:     options.Organization,
+			DistinctID:     options.Project,
 			BaseProperties: options.getPosthogBaseProperties(),
 		},
 	})
@@ -93,11 +93,10 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	}
 
 	world := &World{
-		world:    ecs.NewWorld(),
-		commands: command.NewManager(),
-		events:   event.NewManager(1024),
-		address: micro.GetAddress(
-			options.Region, micro.RealmWorld, options.Organization, options.Project, options.ShardID),
+		world:       ecs.NewWorld(),
+		commands:    command.NewManager(),
+		events:      event.NewManager(1024),
+		address:     micro.GetAddress(options.Project, options.ShardID),
 		currentTick: Tick{height: 0},
 		traceCtx:    context.Background(),
 		options:     options,
@@ -622,7 +621,7 @@ func (w *World) SendToShard(to OtherWorld, cmd command.Payload) {
 	}
 	// cmd is a command.Payload, so it carries its generated MarshalWire — no registry check needed; an
 	// ungenerated command wouldn't satisfy the parameter type and wouldn't compile at the call site.
-	serviceAddress := micro.GetAddress(to.Region, micro.RealmWorld, to.Organization, to.Project, to.ShardID)
+	serviceAddress := micro.GetAddress(to.Project, to.ShardID)
 	w.events.Enqueue(event.Event{
 		Kind: event.KindInterShardCommand,
 		Payload: command.Command{

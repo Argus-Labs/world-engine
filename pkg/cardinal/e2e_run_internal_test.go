@@ -18,8 +18,6 @@ func newTestWorld(t *testing.T) *World {
 
 	debug := true
 	w, err := NewWorld(WorldOptions{
-		Region:              "bug-repro",
-		Organization:        "bug-repro",
 		Project:             "bug-repro",
 		ShardID:             "0",
 		TickRate:            1,
@@ -118,7 +116,7 @@ func TestRunLoopRestartPreservesHeight(t *testing.T) {
 
 	debugOn := true
 	w1, err := NewWorld(WorldOptions{
-		Region: "e2e-restart", Organization: "e2e-restart", Project: "e2e-restart", ShardID: "0",
+		Project: "e2e-restart", ShardID: "0",
 		TickRate: 1000, SnapshotStorageType: snapshot.StorageTypeNop, SnapshotRate: 1, Debug: &debugOn,
 	})
 	require.NoError(t, err)
@@ -148,7 +146,7 @@ func TestRunLoopRestartPreservesHeight(t *testing.T) {
 	// Boot a fresh World sharing the same storage and restore (simulates a real restart).
 	debugOff := false
 	w2, err := NewWorld(WorldOptions{
-		Region: "e2e-restart", Organization: "e2e-restart", Project: "e2e-restart", ShardID: "0",
+		Project: "e2e-restart", ShardID: "0",
 		TickRate: 1000, SnapshotStorageType: snapshot.StorageTypeNop, SnapshotRate: 1, Debug: &debugOff,
 	})
 	require.NoError(t, err)
@@ -167,7 +165,7 @@ func TestRunLoopZeroTicksStaysAtZero(t *testing.T) {
 
 	debugOn := true
 	w1, err := NewWorld(WorldOptions{
-		Region: "e2e-zero", Organization: "e2e-zero", Project: "e2e-zero", ShardID: "0",
+		Project: "e2e-zero", ShardID: "0",
 		TickRate: 1000, SnapshotStorageType: snapshot.StorageTypeNop, SnapshotRate: 1, Debug: &debugOn,
 	})
 	require.NoError(t, err)
@@ -191,7 +189,7 @@ func TestRunLoopZeroTicksStaysAtZero(t *testing.T) {
 
 	debugOff := false
 	w2, err := NewWorld(WorldOptions{
-		Region: "e2e-zero", Organization: "e2e-zero", Project: "e2e-zero", ShardID: "0",
+		Project: "e2e-zero", ShardID: "0",
 		TickRate: 1000, SnapshotStorageType: snapshot.StorageTypeNop, SnapshotRate: 1, Debug: &debugOff,
 	})
 	require.NoError(t, err)

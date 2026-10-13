@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/descriptorpb"
 
+	"github.com/argus-labs/world-engine/pkg/micro"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
@@ -67,8 +68,20 @@ func TestSendCommandInput_Validate_Valid(t *testing.T) {
 
 	assert.Empty(t, input.ShardURL) // resolved from the cluster in the handler, not validate()
 	assert.Equal(t, defaultDevPlayerID, input.PlayerID)
-	assert.Equal(t, defaultRegion, input.Region)
 	assert.NotNil(t, input.Payload)
+}
+
+// TestResolveShardTarget_PinnedURL checks the address a request carries: the shard's project and
+// instance, which the shard compares against its own address.
+func TestResolveShardTarget_PinnedURL(t *testing.T) {
+	t.Parallel()
+
+	target, err := resolveShardTarget(
+		context.Background(), "", "game", "game-2", "http://custom:9999", "argus", "rampage",
+	)
+	require.NoError(t, err)
+	assert.Equal(t, "http://custom:9999", target.shardURL)
+	assert.Equal(t, "rampage.game-2", micro.String(target.address))
 }
 
 func TestSendCommandInput_Validate_MissingShardID(t *testing.T) {
@@ -109,7 +122,6 @@ func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
 		CommandName: "create-player",
 		ShardURL:    "http://custom:9999",
 		PlayerID:    "custom-player",
-		Region:      "ap-southeast-1",
 	}
 
 	err := input.validate()
@@ -117,7 +129,6 @@ func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
 
 	assert.Equal(t, "http://custom:9999", input.ShardURL)
 	assert.Equal(t, "custom-player", input.PlayerID)
-	assert.Equal(t, "ap-southeast-1", input.Region)
 }
 
 // -------------------------------------------------------------------------------------------------

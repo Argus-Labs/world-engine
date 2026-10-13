@@ -23,7 +23,7 @@ func TestAuthenticatorArgusAcceptsGamePlayerToken(t *testing.T) {
 	require.NoError(t, err)
 
 	server := newAuthTestServer(t, publicKey)
-	authenticator, err := NewArgusAuthenticator(server.URL, "argus", "rampage")
+	authenticator, err := NewArgusAuthenticator(server.URL, "argus/rampage")
 	require.NoError(t, err)
 
 	token := signGameToken(t, privateKey, jwt.RegisteredClaims{
@@ -44,7 +44,7 @@ func TestAuthenticatorArgusRejectsInvalidGameClaims(t *testing.T) {
 	require.NoError(t, err)
 
 	server := newAuthTestServer(t, publicKey)
-	authenticator, err := NewArgusAuthenticator(server.URL, "argus", "rampage")
+	authenticator, err := NewArgusAuthenticator(server.URL, "argus/rampage")
 	require.NoError(t, err)
 
 	validClaims := jwt.RegisteredClaims{
@@ -131,7 +131,7 @@ func TestAuthenticatorArgusRejectsNonEdDSAKeyFromJWKS(t *testing.T) {
 		"n":   base64.RawURLEncoding.EncodeToString(rsaKey.N.Bytes()),
 		"e":   base64.RawURLEncoding.EncodeToString(big.NewInt(int64(rsaKey.E)).Bytes()),
 	})
-	authenticator, err := NewArgusAuthenticator(server.URL, "argus", "rampage")
+	authenticator, err := NewArgusAuthenticator(server.URL, "argus/rampage")
 	require.NoError(t, err)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.RegisteredClaims{
@@ -152,20 +152,9 @@ func TestNewArgusAuthenticatorRejectsInvalidGameID(t *testing.T) {
 	require.NoError(t, err)
 	server := newAuthTestServer(t, publicKey)
 
-	for _, test := range []struct {
-		name         string
-		organization string
-		project      string
-	}{
-		{name: "slash in organization", organization: "argus/games", project: "rampage"},
-		{name: "slash in project", organization: "argus", project: "games/rampage"},
-		{name: "empty organization", organization: "", project: "rampage"},
-		{name: "empty project", organization: "argus", project: ""},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			_, err := NewArgusAuthenticator(server.URL, test.organization, test.project)
-			require.ErrorContains(t, err, "must not contain '/'")
-		})
+	for _, gameID := range []string{"", "rampage", "/rampage", "argus/", "argus/games/rampage", "argus/ram page"} {
+		_, err := NewArgusAuthenticator(server.URL, gameID)
+		require.ErrorContains(t, err, "must have the form <owner>/<name>", "game ID %q", gameID)
 	}
 }
 

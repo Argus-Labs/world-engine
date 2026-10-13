@@ -46,8 +46,6 @@ func snapshotBenchWorld(b *testing.B, rate uint32, bodies, warmup int) *cardinal
 	b.Setenv("LOG_LEVEL", "disabled")
 	debug := false
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
-		Region:              "local",
-		Organization:        "bench",
 		Project:             "bench",
 		ShardID:             "0",
 		TickRate:            60,

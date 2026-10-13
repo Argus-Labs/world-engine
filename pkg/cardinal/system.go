@@ -82,7 +82,7 @@ func (c CommandContext[T]) Sender() string { return c.sender.ID() }
 // Player returns the ID of the player who sent the command, or false if a shard sent it.
 func (c CommandContext[T]) Player() (string, bool) { return c.sender.Player() }
 
-// Shard returns the sending shard's address ("region.realm.org.project.shard"), or false if a
+// Shard returns the sending shard's address ("project.shard"), or false if a
 // player sent it.
 func (c CommandContext[T]) Shard() (string, bool) { return c.sender.Shard() }
 
@@ -92,10 +92,8 @@ func (c CommandContext[T]) Shard() (string, bool) { return c.sender.Shard() }
 
 // OtherWorld is a type that represents the address of an external service.
 type OtherWorld struct {
-	Region       string
-	Organization string
-	Project      string
-	ShardID      string
+	Project string
+	ShardID string
 }
 
 // -------------------------------------------------------------------------------------------------

@@ -9,22 +9,14 @@ import (
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/argus-labs/world-engine/pkg/testutils"
-	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func simpleCommandTo(from, to *micro.ServiceAddress, value int) *iscv1.InterShardCommand {
+func enqueueSimple(link *interShard, to *micro.ServiceAddress, value int) {
 	payload := testutils.SimpleCommand{Value: value}
-	return &iscv1.InterShardCommand{
-		Command: &iscv1.Command{
-			Name:    payload.Name(),
-			Address: to,
-			Payload: payload.MarshalWire(),
-		},
-		Sender: from,
-	}
+	link.enqueue(context.Background(), to, payload.Name(), payload.MarshalWire())
 }
 
 // TestInterShard_StopSendsDrainedInOrder checks order across ticks, and that stop waits for every send.
@@ -39,8 +31,7 @@ func TestInterShard_StopSendsDrainedInOrder(t *testing.T) {
 	const ticks, perTick = 5, 4
 	for tick := range ticks {
 		for i := range perTick {
-			link.enqueue(context.Background(),
-				simpleCommandTo(fixtureA.world.address, fixtureB.world.address, tick*perTick+i))
+			enqueueSimple(link, fixtureB.world.address, tick*perTick+i)
 		}
 		link.drain()
 	}
@@ -71,14 +62,14 @@ func TestInterShard_HungTargetIsolated(t *testing.T) {
 	hungClient := NewTestClient(t)
 	hung, err := micro.NewService(hungClient, hungAddress, &telemetry.Telemetry{Logger: zerolog.Nop()})
 	require.NoError(t, err)
-	require.NoError(t, hung.AddGroup("command").AddEndpoint(testutils.SimpleCommand{}.Name(),
-		func(_ context.Context, req *micro.Request) *micro.Response {
+	require.NoError(t, hung.AddCommand(testutils.SimpleCommand{}.Name(),
+		func(context.Context, micro.Command) error {
 			select {
 			case entered <- struct{}{}:
 			default:
 			}
 			<-release
-			return micro.NewSuccessResponse(req, nil)
+			return nil
 		}))
 	require.NoError(t, hungClient.Flush())
 
@@ -90,8 +81,8 @@ func TestInterShard_HungTargetIsolated(t *testing.T) {
 	})
 
 	for tick := range 3 {
-		link.enqueue(context.Background(), simpleCommandTo(fixtureA.world.address, hungAddress, tick))
-		link.enqueue(context.Background(), simpleCommandTo(fixtureA.world.address, fixtureB.world.address, tick))
+		enqueueSimple(link, hungAddress, tick)
+		enqueueSimple(link, fixtureB.world.address, tick)
 		start := time.Now()
 		link.drain()
 		assert.Less(t, time.Since(start), 500*time.Millisecond, "drain waited on a send")
@@ -134,7 +125,7 @@ func TestInterShard_SenderExitsWhenIdle(t *testing.T) {
 	}
 
 	for round := range 2 {
-		link.enqueue(context.Background(), simpleCommandTo(fixtureA.world.address, fixtureB.world.address, round))
+		enqueueSimple(link, fixtureB.world.address, round)
 		link.drain()
 		cmds := awaitCommands(t, fixtureB)
 		assert.Equal(t, testutils.SimpleCommand{Value: round}, cmds[0].Payload)

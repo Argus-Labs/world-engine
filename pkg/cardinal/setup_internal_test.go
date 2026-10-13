@@ -65,9 +65,6 @@ func NewTestClient(t *testing.T) *micro.Client {
 
 func RandServiceAddress(prng *rand.Rand) *micro.ServiceAddress {
 	return micro.GetAddress(
-		"r-"+strconv.FormatInt(prng.Int64(), 10),
-		micro.RealmInternal,
-		"o-"+strconv.FormatInt(prng.Int64(), 10),
 		"p-"+strconv.FormatInt(prng.Int64(), 10),
 		"s-"+strconv.FormatInt(prng.Int64(), 10),
 	)

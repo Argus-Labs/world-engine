@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
@@ -103,9 +104,7 @@ func (s *service) init(address string) error {
 	var authenticate func(context.Context, *http.Request) (any, error)
 	switch s.authMode {
 	case AuthModeArgus:
-		authenticator, err := NewArgusAuthenticator(
-			s.argusAuthURL, s.world.options.Organization, s.world.options.Project,
-		)
+		authenticator, err := NewArgusAuthenticator(s.argusAuthURL, s.world.options.ArgusAuthGameID)
 		if err != nil {
 			return eris.Wrap(err, "failed to create argus authenticator")
 		}
@@ -823,14 +822,7 @@ func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event)
 	assert.That(isc.Address != nil, "inter shard command has nil address")
 	assert.That(s.interShard != nil, "inter shard command published before the service started")
 
-	s.interShard.enqueue(ctx, &iscv1.InterShardCommand{
-		Command: &iscv1.Command{
-			Name:    isc.Payload.Name(),
-			Address: isc.Address,
-			Payload: schema.Marshal(isc.Payload),
-		},
-		Sender: s.world.address,
-	})
+	s.interShard.enqueue(ctx, isc.Address, isc.Payload.Name(), schema.Marshal(isc.Payload))
 	return nil
 }
 
@@ -902,26 +894,24 @@ func PlayerFromContext(ctx context.Context) *Player {
 // Argus Auth
 // -------------------------------------------------------------------------------------------------
 
-// ArgusAuthenticator authenticates game tokens issued by Argus Auth for one organization/project.
+// ArgusAuthenticator authenticates game tokens issued by Argus Auth for one game.
 type ArgusAuthenticator struct {
 	audience string
 	keyfunc  keyfunc.Keyfunc
 }
 
 // NewArgusAuthenticator fetches Argus Auth's signing keys and returns an authenticator that
-// accepts only EdDSA game tokens with aud equal to organization/project, an unexpired exp, and a
-// non-empty sub. Pass its Authenticate method to authn.NewMiddleware.
-func NewArgusAuthenticator(argusAuthURL, organization, project string) (*ArgusAuthenticator, error) {
+// accepts only EdDSA game tokens with aud equal to gameID, an unexpired exp, and a non-empty sub.
+// Pass its Authenticate method to authn.NewMiddleware.
+func NewArgusAuthenticator(argusAuthURL, gameID string) (*ArgusAuthenticator, error) {
 	if argusAuthURL == "" {
 		return nil, eris.New("argus auth URL cannot be empty")
 	}
-	// Argus Auth issues aud as exactly "organization/project", so a '/' in either part could never
-	// match and every token would be rejected.
-	if organization == "" || project == "" || strings.Contains(organization+project, "/") {
-		return nil, eris.Errorf(
-			"organization %q and project %q must be non-empty and must not contain '/' in ARGUS auth mode",
-			organization, project,
-		)
+	// Argus Auth only issues tokens for game IDs of the form "a/b", so any other ID would reject
+	// every token. Fail at startup instead.
+	if owner, name, ok := strings.Cut(gameID, "/"); !ok || owner == "" || name == "" ||
+		strings.Contains(name, "/") || strings.ContainsFunc(gameID, unicode.IsSpace) {
+		return nil, eris.Errorf("argus auth game ID %q must have the form <owner>/<name>", gameID)
 	}
 
 	jwksURL := argusAuthURL + "/auth/jwks"
@@ -955,7 +945,7 @@ func NewArgusAuthenticator(argusAuthURL, organization, project string) (*ArgusAu
 	}
 
 	return &ArgusAuthenticator{
-		audience: organization + "/" + project,
+		audience: gameID,
 		keyfunc:  keyfn,
 	}, nil
 }

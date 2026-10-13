@@ -33,7 +33,6 @@ func TestGameServiceFromConfigImageKind(t *testing.T) {
 	}
 	// All env merged into a single deduplicated slice sorted by key.
 	wantEnv := []string{
-		"CARDINAL_REGION=us-west1",
 		"NATS_URL=nats://world-engine-nats:4222",
 		"POSTGRES_DB=meta",
 		"POSTGRES_USER=meta",
@@ -138,7 +137,6 @@ func TestGameServiceFromConfigInjectsConfigDBCreds(t *testing.T) {
 	})
 
 	wantEnv := []string{
-		"CARDINAL_REGION=us-west1",
 		"NATS_URL=nats://world-engine-nats:4222",
 		"POSTGRES_DB=rampage",
 		"POSTGRES_PASSWORD=postgres",
@@ -168,7 +166,6 @@ func TestGameServiceFromConfigConfigDBCredsTakePrecedence(t *testing.T) {
 	})
 
 	wantEnv := []string{
-		"CARDINAL_REGION=us-west1",
 		"NATS_URL=nats://world-engine-nats:4222",
 		"POSTGRES_DB=rampage",
 		"POSTGRES_PASSWORD=postgres",
