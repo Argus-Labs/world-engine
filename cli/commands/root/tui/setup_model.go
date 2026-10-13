@@ -93,7 +93,6 @@ func NewWorldSetupModel(directory, env, templateFlag string) WorldSetupModel {
 	pnInput := textinput.New()
 	pnInput.Prompt = style.DoubleRightIcon.Render()
 	pnInput.Placeholder = "starter-game"
-	pnInput.Focus()
 	pnInput.Width = 50
 
 	setupSteps := newSetupSteps()
@@ -136,6 +135,10 @@ func NewWorldSetupModel(directory, env, templateFlag string) WorldSetupModel {
 		if !dnslabel.IsCanonical(dirName) {
 			nameErr = projectNameErrMsg
 		}
+	}
+	// Only ask for a name when no valid one was passed; Init skips the name step otherwise.
+	if targetDir == "" || nameErr != "" {
+		pnInput.Focus()
 	}
 
 	return WorldSetupModel{
