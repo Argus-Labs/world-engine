@@ -24,8 +24,6 @@ func TestE2E(t *testing.T) {
 
 		// Keep world setup aligned with shards/chat/main.go.
 		w, err := cardinal.NewWorld(cardinal.WorldOptions{
-			Region:              "local",
-			Organization:        "organization",
 			Project:             "project",
 			ShardID:             "chat",
 			TickRate:            20,

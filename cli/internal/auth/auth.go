@@ -28,6 +28,8 @@ const (
 	sessionPath  = "/auth/service-auth-session"
 	pollInterval = 3 * time.Second
 	pollTimeout  = 11 * time.Minute
+	// maxPollFailures is how many failed polls in a row sign-in tolerates.
+	maxPollFailures = 5
 
 	// renewBefore treats a token as expired early, so a long-running command does
 	// not start with one about to lapse.
@@ -241,15 +243,23 @@ func (c *Client) pollEvery(ctx context.Context, callbackURL string, interval tim
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	failures := 0
 	for {
 		status, err := c.status(ctx, callbackURL)
 		switch {
 		case err != nil:
-			return "", err
+			// Retry on the next tick; a cancelled ctx exits in the select below.
+			if failures++; failures > maxPollFailures {
+				return "", err
+			}
 		case status.Status == "success" && status.JWT != "":
 			return status.JWT, nil
-		case status.Status != "pending" && status.Status != "":
+		case status.Status == "":
+			return "", eris.New("auth service returned an empty status")
+		case status.Status != "pending":
 			return "", eris.Errorf("authorization failed: %s", status.Status)
+		default:
+			failures = 0
 		}
 
 		select {
@@ -302,9 +312,8 @@ func (c *Client) cached() (string, error) {
 
 // Claims is the subset of the Argus JWT this CLI reads.
 type Claims struct {
-	Email     string `json:"email"`
-	PersonaID string `json:"personaID"`
-	Exp       int64  `json:"exp"`
+	Email string `json:"email"`
+	Exp   int64  `json:"exp"`
 }
 
 func (c Claims) ExpiresAt() time.Time { return time.Unix(c.Exp, 0) }

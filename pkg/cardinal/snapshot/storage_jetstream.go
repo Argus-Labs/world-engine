@@ -51,9 +51,8 @@ func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error
 
 	ctx := context.Background()
 
-	// Same format as streams because it regular service address format isn't accepted.
-	bucketName := fmt.Sprintf("%s_%s_%s_snapshot",
-		opts.Address.GetOrganization(), opts.Address.GetProject(), opts.Address.GetServiceId())
+	// Bucket names cannot contain '.'. The project has no '_', so the first '_' ends it.
+	bucketName := fmt.Sprintf("%s_%s_snapshot", opts.Address.GetProject(), opts.Address.GetServiceId())
 
 	if opts.SnapshotStorageMaxBytes > math.MaxInt64 {
 		return nil, eris.New("snapshot storage max bytes exceeds maximum int64 value")

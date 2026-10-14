@@ -1,12 +1,14 @@
 package docker
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"strconv"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
@@ -154,10 +156,9 @@ func (c *Client) GetContainerLogs(
 
 	// Limit total bytes read to protect against OOM from extremely long log lines.
 	limitedReader := io.LimitReader(reader, maxLogBytes)
-	data, err := io.ReadAll(limitedReader)
-	if err != nil {
+	var buf bytes.Buffer
+	if _, err := stdcopy.StdCopy(&buf, &buf, limitedReader); err != nil {
 		return "", eris.Wrapf(err, "failed to read logs for container %s", containerName)
 	}
-
-	return string(data), nil
+	return buf.String(), nil
 }

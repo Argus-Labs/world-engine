@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"github.com/goccy/go-json"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -56,14 +55,13 @@ func findMessageDescriptor(files *protoregistry.Files, fullName string) (protore
 // encodeCommandPayload encodes a JSON command payload as protobuf wire bytes against the command's
 // message descriptor. It populates a dynamic message from the payload via protojson (which rejects
 // unknown fields, surfacing name mismatches) and marshals it.
-func encodeCommandPayload(md protoreflect.MessageDescriptor, payload map[string]any) ([]byte, error) {
-	jsonBytes, err := json.Marshal(payload)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to marshal payload to json")
-	}
-
+//
+// payload contains a JSON object as text. The MCP transport converts numbers in
+// map[string]any to float64, which can round integers above 2^53.
+// A string preserves the original JSON text so protojson can decode int64 and uint64 values exactly.
+func encodeCommandPayload(md protoreflect.MessageDescriptor, payload string) ([]byte, error) {
 	msg := dynamicpb.NewMessage(md)
-	if err := protojson.Unmarshal(jsonBytes, msg); err != nil {
+	if err := protojson.Unmarshal([]byte(payload), msg); err != nil {
 		return nil, eris.Wrap(err, "failed to build command message from payload")
 	}
 	// Deterministic: a dynamicpb message holds its fields in a map, so a plain

@@ -101,8 +101,6 @@ func applySourceBuild(out *Service, shardPath string) {
 // using cardinal.data with no such service gets no DB_DSN.
 func buildCardinalEnv(cfg *Config, shard worldtoml.Shard) []string {
 	env := []string{
-		fmt.Sprintf("CARDINAL_REGION=%s", cardinalRegion),
-		fmt.Sprintf("CARDINAL_ORG=%s", cfg.WorldToml.Organization),
 		fmt.Sprintf("CARDINAL_PROJECT=%s", cfg.WorldToml.Project),
 		fmt.Sprintf("CARDINAL_SHARD_ID=%s", shard.InstanceID),
 		fmt.Sprintf("NATS_URL=%s", cfg.NATSURL),

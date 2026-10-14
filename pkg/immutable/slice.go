@@ -280,6 +280,9 @@ func (s Slice[T]) CompactFunc(eq func(a, b T) bool) Slice[T] {
 // NOTE: Requires component set if used.
 func (s Slice[T]) Repeat(count int) Slice[T] {
 	assert.That(count >= 0, "immutable: Repeat(%d) must not be negative", count)
+	if count == 0 || len(s.items) == 0 {
+		return Slice[T]{}
+	}
 	return Slice[T]{items: slices.Repeat(s.items, count)}
 }
 

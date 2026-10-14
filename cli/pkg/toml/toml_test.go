@@ -1,6 +1,7 @@
 package toml_test
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -983,4 +984,55 @@ func TestGameService_IsBuiltFromSource(t *testing.T) {
 
 	require.True(t, toml.GameService{Path: "services/meta/cmd"}.IsBuiltFromSource())
 	require.False(t, toml.GameService{Image: "postgres:16"}.IsBuiltFromSource())
+}
+
+// worldTomlFor builds a minimal valid world.toml with one field set to value.
+func worldTomlFor(field, value string) string {
+	org, project, shardID, serviceID := "argus", "rampage", "gameplay", "meta"
+	switch field {
+	case "organization":
+		org = value
+	case "project":
+		project = value
+	case "shardID":
+		shardID = value
+	case "serviceID":
+		serviceID = value
+	}
+	return fmt.Sprintf(`
+	organization = %q
+	project = %q
+	[[shards]]
+	id = %q
+	[[services]]
+	id = %q
+	image = "postgres:16"
+	`, org, project, shardID, serviceID)
+}
+
+func TestLoad_CanonicalNames(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		field, value string
+		ok           bool
+	}{
+		{"project", "Rampage", false},
+		{"project", "my_proj", false},
+		{"project", "-game", false},
+		{"shardID", "Game", false},
+		{"serviceID", "meta_svc", false},
+		{"organization", "My_Org", true},
+	}
+	for _, c := range cases {
+		t.Run(c.field+"="+c.value, func(t *testing.T) {
+			t.Parallel()
+			_, err := toml.Load(strings.NewReader(worldTomlFor(c.field, c.value)))
+			if c.ok {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, c.field+" contains invalid characters")
+		})
+	}
 }

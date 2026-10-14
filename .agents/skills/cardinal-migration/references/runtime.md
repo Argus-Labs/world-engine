@@ -46,6 +46,40 @@
 Snapshots, generated wire code, `.proto` output, client SDKs, `world.toml`, the other
 `CARDINAL_*` variables and every World CLI command and flag are unchanged.
 
+## After v0.18.0 (unreleased): player auth
+
+| Change                                                                                     | Action                                                                                                    |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `cardinal.User` and `UserFromContext` removed; `PlayerFromContext` returns `*Player{ID}`   | Rename callers. The name, email and JWT claim fields are gone                                             |
+| DEV auth reads `X-Player-Id` instead of `X-Email`; `RunE2E` and World CLI MCP send it      | Send `X-Player-Id` from dev tools. `X-Email` alone gets `Unauthenticated`                                 |
+| ARGUS auth accepts only EdDSA game tokens with `aud` = `<org>/<project>`, `exp` and `sub`  | Upgrade clients to Unity SDK 0.5 together. Older login tokens get `Unauthenticated`                       |
+| `CommandContext.Persona` replaced by `Player()`, `Shard()`, and `Sender()` methods | Use `cmd.Player()` for player checks and `SendTo`; `cmd.Shard()` for shard senders; `cmd.Sender()` for logs |
+| Under ARGUS, the player ID is the token's `sub`, not the account `id` claim                | State keyed by old persona IDs does not carry over                                                        |
+| `iscv1.Persona` removed; shards send `InterShardCommand{command, sender}` over NATS        | Stop setting `Persona` on client commands. Upgrade every shard of a game together                         |
+| Tick link attribute `cardinal.command.persona` renamed `cardinal.command.sender`           | Update trace queries                                                                                      |
+| `SendCommandWithReply` resolves only on `SendTo` the requesting player or `Broadcast`      | Reply with `w.SendTo` to the ID from `cmd.Player()`. A `SendTo` to another ID now times out the request   |
+| ARGUS startup fails when `CARDINAL_ORG` or `CARDINAL_PROJECT` contains `/`                 | Rename the organization or project                                                                        |
+| `cardinal.NewArgusAuthenticator` exported                                                  | Services outside Cardinal pass its `Authenticate` to `authn.NewMiddleware` instead of their own JWT check |
+
+## After v0.20.0 (unreleased): service addresses
+
+A Cardinal address is `<project>.<shard_id>`; the region and organization are gone. These rows
+replace the `aud`, `CARDINAL_ORG` and `InterShardCommand` rows above.
+
+| Change                                                                                                                             | Action                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `WorldOptions.Region` and `WorldOptions.Organization` removed                                                                      | Delete both fields: `unknown field Region in struct literal`                                                                    |
+| `cardinal.OtherWorld` and lobby `ShardAddress` are `{Project, ShardID}`                                                            | Delete `Region:` and `Organization:` from every literal                                                                         |
+| `CARDINAL_REGION` and `CARDINAL_ORG` removed                                                                                       | Delete from deploy config; the variables are silently ignored                                                                   |
+| Shard IDs must be unique within a project, across regions                                                                          | Put the region in the shard ID (`gameplay-usw1-3`) when a game runs in several regions                                          |
+| Project and shard ID are validated at startup; the project allows only `[a-z0-9-]` | Rename a project that has `_` or uppercase letters: `invalid project or shard ID` |
+| ISC sends the raw command protobuf on `<to>.isc.<name>.<from>`, such as `rampage.gameplay-usw1-3.isc.plat_result.rampage.platform` | Upgrade every shard and service of a game together. NATS publish permission template: `*.*.isc.*.{{name()}}`                    |
+| `cmd.Shard()` returns `<project>.<shard_id>`                                                                                       | Update `AssignmentAuthority` and any stored sender address                                                                      |
+| ARGUS requires `CARDINAL_ARGUS_AUTH_GAME_ID` (`ArgusAuthGameID`); token `aud` must equal it                                        | Set it to the Argus Auth game ID, such as `argus/rampage`. Startup fails if it is empty or not `<owner>/<name>`                 |
+| Snapshot names: JetStream bucket `<project>_<shardID>_snapshot`, S3 key `<project>/<shardID>/snapshot` | A shard finds no snapshot at the new name and starts an empty world without an error. Copy each snapshot first if its state must survive. The lobby plugin component is now `lobby_v2`, so a copied lobby snapshot fails to restore |
+| World CLI MCP `send_command` drops its `region` argument                                                                           | Stop passing it                                                                                                                 |
+| `world.toml` keeps `organization`; only the local cluster uses it, Cardinal does not                                               | Keep it                                                                                                                         |
+
 ## Generated wire code
 
 Every component, command, event and system event must implement `SizeWire() int` and

@@ -37,9 +37,7 @@ func TestServiceEnv_SeedsCardinalIdentity(t *testing.T) {
 	`)
 	env := envMap(serviceEnv(cfg, cfg.Services[0]))
 	require.Equal(t, natsClusterURL, env["NATS_URL"])
-	require.Equal(t, DefaultRegion, env["CARDINAL_REGION"])
 	// Full wire identity so a service like meta subscribes on the right subject.
-	require.Equal(t, "argus", env["CARDINAL_ORG"])
 	require.Equal(t, "rampage", env["CARDINAL_PROJECT"])
 	require.Equal(t, "meta", env["CARDINAL_SHARD_ID"])
 	require.NotContains(t, env, dbDSNEnvVar)
@@ -54,11 +52,11 @@ func TestServiceEnv_SvcEnvOverridesSeeds(t *testing.T) {
 		[[services]]
 		id = "gameplay"
 		path = "."
-		env = { NATS_URL = "nats://custom:4222", CARDINAL_REGION = "us-west1", FOO = "bar" }
+		env = { NATS_URL = "nats://custom:4222", CARDINAL_SHARD_ID = "gameplay-usw1-0", FOO = "bar" }
 	`)
 	env := envMap(serviceEnv(cfg, cfg.Services[0]))
 	require.Equal(t, "nats://custom:4222", env["NATS_URL"])
-	require.Equal(t, "us-west1", env["CARDINAL_REGION"])
+	require.Equal(t, "gameplay-usw1-0", env["CARDINAL_SHARD_ID"])
 	require.Equal(t, "bar", env["FOO"])
 }
 

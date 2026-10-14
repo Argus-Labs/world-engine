@@ -61,9 +61,10 @@ func (c *PurgeCmd) Run(ctx context.Context) error {
 //  1. Cardinal-labeled shard source images (e.g. rampage-backend-gameplay-shard:latest)
 //     via the existing dockerClient.PruneCardinalImages — same logic the docker
 //     backend's --image flag uses.
-//  2. The retagged k3d-registry push tags this stack creates per reload
+//  2. The retagged k3d-registry push tags this stack creates per reload for each
+//     shard and path-kind service
 //     (e.g. k3d-world-engine-registry.localhost:5000/rampage/gameplay:local-1780199123).
-//     One tag accumulates per reload + per shard, so over a long dev session
+//     One tag accumulates per reload + per ID, so over a long dev session
 //     this can be 100+ images each pointing at a different ID. Listed via
 //     reference-filter and best-effort-removed.
 //
@@ -75,7 +76,13 @@ func purgeK8sImages(ctx context.Context, dockerClient *docker.Client, cfg *servi
 	}
 	printer.Step("pruned", "Cardinal", "images")
 
-	removed, err := removeRegistryPushTags(ctx, registryName, cfg.WorldToml.Project, cfg.WorldToml.ShardIDs())
+	ids := cfg.WorldToml.ShardIDs()
+	for _, svc := range cfg.WorldToml.Services {
+		if svc.IsBuiltFromSource() {
+			ids = append(ids, svc.ID)
+		}
+	}
+	removed, err := removeRegistryPushTags(ctx, registryName, cfg.WorldToml.Project, ids)
 	if err != nil {
 		return eris.Wrap(err, "remove registry push tags")
 	}
@@ -86,10 +93,10 @@ func purgeK8sImages(ctx context.Context, dockerClient *docker.Client, cfg *servi
 }
 
 // removeRegistryPushTags removes every host-side docker image tag matching
-// the per-shard push prefix the reload path uses (`k3d-<registry>.localhost
-// :5000/<project>/<shard>:*`). Best-effort: a single tag failing doesn't
+// the per-ID push prefix the reload path uses (`k3d-<registry>.localhost
+// :5000/<project>/<id>:*`). Best-effort: a single tag failing doesn't
 // abort the rest. Returns the number actually removed.
-func removeRegistryPushTags(ctx context.Context, registryName, project string, shardIDs []string) (int, error) {
+func removeRegistryPushTags(ctx context.Context, registryName, project string, ids []string) (int, error) {
 	cli, err := client.New(client.FromEnv)
 	if err != nil {
 		return 0, eris.Wrap(err, "docker client")
@@ -97,7 +104,7 @@ func removeRegistryPushTags(ctx context.Context, registryName, project string, s
 	defer func() { _ = cli.Close() }()
 
 	count := 0
-	for _, id := range shardIDs {
+	for _, id := range ids {
 		ref := fmt.Sprintf("k3d-%s.localhost:5000/%s/%s", registryName, project, id)
 		list, lerr := cli.ImageList(ctx, client.ImageListOptions{
 			Filters: make(client.Filters).Add("reference", ref+":*"),

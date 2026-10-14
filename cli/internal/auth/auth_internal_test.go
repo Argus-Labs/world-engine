@@ -21,7 +21,7 @@ import (
 // operator is what verifies signatures.
 func jwtWithExp(t *testing.T, exp time.Time, email string) string {
 	t.Helper()
-	payload, err := json.Marshal(Claims{Email: email, PersonaID: "p-1", Exp: exp.Unix()})
+	payload, err := json.Marshal(Claims{Email: email, Exp: exp.Unix()})
 	if err != nil {
 		t.Fatalf("marshal claims: %v", err)
 	}
@@ -36,9 +36,6 @@ func TestParseClaims(t *testing.T) {
 	}
 	if claims.Email != "dev@argus.gg" {
 		t.Errorf("Email = %q, want dev@argus.gg", claims.Email)
-	}
-	if claims.PersonaID != "p-1" {
-		t.Errorf("PersonaID = %q, want p-1", claims.PersonaID)
 	}
 	if !claims.ExpiresAt().Equal(exp) {
 		t.Errorf("ExpiresAt() = %v, want %v", claims.ExpiresAt(), exp)
@@ -169,6 +166,47 @@ func TestPollFailsOnUnexpectedStatus(t *testing.T) {
 	c := &Client{http: srv.Client()}
 	if _, err := c.pollEvery(context.Background(), srv.URL, time.Millisecond); err == nil {
 		t.Error("poll() error = nil for status \"denied\", want an error")
+	}
+}
+
+// A failed poll must not abort a sign-in the next poll would complete.
+func TestPollRetriesAfterFailure(t *testing.T) {
+	want := jwtWithExp(t, time.Now().Add(time.Hour), "dev@argus.gg")
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		if calls == 1 {
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		_, _ = fmt.Fprintf(w, `{"status":"success","jwt":%q}`, want)
+	}))
+	defer srv.Close()
+
+	c := &Client{http: srv.Client()}
+	got, err := c.pollEvery(context.Background(), srv.URL, time.Millisecond)
+	if err != nil {
+		t.Fatalf("poll() error = %v", err)
+	}
+	if got != want {
+		t.Errorf("poll() returned the wrong token")
+	}
+}
+
+func TestPollGivesUpAfterMaxFailures(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer srv.Close()
+
+	c := &Client{http: srv.Client()}
+	if _, err := c.pollEvery(context.Background(), srv.URL, time.Millisecond); err == nil {
+		t.Fatal("poll() error = nil for a persistent 502, want an error")
+	}
+	if calls != maxPollFailures+1 {
+		t.Errorf("polled %d times, want %d", calls, maxPollFailures+1)
 	}
 }
 

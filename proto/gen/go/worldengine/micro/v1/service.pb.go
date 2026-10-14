@@ -22,59 +22,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Realm represents the access scope of the service.
-type ServiceAddress_Realm int32
-
-const (
-	// Unspecified realm, should not be used.
-	ServiceAddress_REALM_UNSPECIFIED ServiceAddress_Realm = 0
-	// Reserved for internal services
-	ServiceAddress_REALM_INTERNAL ServiceAddress_Realm = 1
-	// Publicly accessible services that are part of Worldbase network.
-	ServiceAddress_REALM_WORLD ServiceAddress_Realm = 2
-)
-
-// Enum value maps for ServiceAddress_Realm.
-var (
-	ServiceAddress_Realm_name = map[int32]string{
-		0: "REALM_UNSPECIFIED",
-		1: "REALM_INTERNAL",
-		2: "REALM_WORLD",
-	}
-	ServiceAddress_Realm_value = map[string]int32{
-		"REALM_UNSPECIFIED": 0,
-		"REALM_INTERNAL":    1,
-		"REALM_WORLD":       2,
-	}
-)
-
-func (x ServiceAddress_Realm) Enum() *ServiceAddress_Realm {
-	p := new(ServiceAddress_Realm)
-	*p = x
-	return p
-}
-
-func (x ServiceAddress_Realm) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (ServiceAddress_Realm) Descriptor() protoreflect.EnumDescriptor {
-	return file_worldengine_micro_v1_service_proto_enumTypes[0].Descriptor()
-}
-
-func (ServiceAddress_Realm) Type() protoreflect.EnumType {
-	return &file_worldengine_micro_v1_service_proto_enumTypes[0]
-}
-
-func (x ServiceAddress_Realm) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use ServiceAddress_Realm.Descriptor instead.
-func (ServiceAddress_Realm) EnumDescriptor() ([]byte, []int) {
-	return file_worldengine_micro_v1_service_proto_rawDescGZIP(), []int{0, 0}
-}
-
 // ServiceAddress is used to identify a unique service instance and corresponds to its NATS subject.
 //
 // The acceptable NATS subject is a subset of the acceptable NATS subject naming convention:
@@ -82,36 +29,24 @@ func (ServiceAddress_Realm) EnumDescriptor() ([]byte, []int) {
 // The only exception being <endpoint> which can contain . as a delimiter to leverage NATS routing.
 //
 // The ServiceAddress convention is as follows:
-// <region>.<realm>.<organization>.<project>.<service_id>.<endpoint>
+// <project>.<service_id>.<endpoint>
 //
-// <region> identifies the deployment region (e.g., "us-west1").
-//
-// <realm> is one of the following:
-// - internal: Reserved for internal services
-// - world: Publicly accessible services that is a part of Worldbase network
-//
-// <organization> represents the entity that owns the project (e.g., "argus").
-//
-// <project> is an arbitrary token to related services together (e.g., "platform", "game-rampage").
+// <project> groups related services (e.g., "rampage").
 //
 // <service_id> is a unique identifier for the service instance. It must be unique within the project.
+// A deployment that runs a service in several places puts the place in the ID (e.g., "gameplay-usw1-3").
 //
 // <endpoint> is an arbitrary token that identifies specific functionality within a service.
 // An endpoint can contain . as a delimiter to leverage NATS routing.
 //
 // Examples:
-// - us-west1.internal.argus.platform.gateway-us-west1.micro.ping
-// - us-west1.world.argus.rampage.lobby-1.shard.message.player.connect
+// - rampage.gameplay-usw1-3.ping
+// - rampage.gameplay-usw1-3.isc.plat_result.rampage.platform
 type ServiceAddress struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	Region string                 `protobuf:"bytes,1,opt,name=region,proto3" json:"region,omitempty"`
-	// The realm of the service.
-	Realm ServiceAddress_Realm `protobuf:"varint,2,opt,name=realm,proto3,enum=worldengine.micro.v1.ServiceAddress_Realm" json:"realm,omitempty"`
-	// The organization that owns the project (e.g., "argus").
-	// Must contain only lowercase alphanumeric characters, hyphens, or underscores.
-	Organization string `protobuf:"bytes,3,opt,name=organization,proto3" json:"organization,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
 	// The project name that groups related services (e.g., "platform", "rampage").
-	// Must contain only lowercase alphanumeric characters, hyphens, or underscores.
+	// Must contain only lowercase alphanumeric characters or hyphens. It has no underscore, so names
+	// that join it to the service ID with one (e.g. snapshot buckets) stay unambiguous.
 	Project string `protobuf:"bytes,4,opt,name=project,proto3" json:"project,omitempty"`
 	// The unique identifier for the service instance within the project.
 	// Must be unique within the project and contain only lowercase alphanumeric characters,
@@ -151,27 +86,6 @@ func (*ServiceAddress) Descriptor() ([]byte, []int) {
 	return file_worldengine_micro_v1_service_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ServiceAddress) GetRegion() string {
-	if x != nil {
-		return x.Region
-	}
-	return ""
-}
-
-func (x *ServiceAddress) GetRealm() ServiceAddress_Realm {
-	if x != nil {
-		return x.Realm
-	}
-	return ServiceAddress_REALM_UNSPECIFIED
-}
-
-func (x *ServiceAddress) GetOrganization() string {
-	if x != nil {
-		return x.Organization
-	}
-	return ""
-}
-
 func (x *ServiceAddress) GetProject() string {
 	if x != nil {
 		return x.Project
@@ -190,19 +104,11 @@ var File_worldengine_micro_v1_service_proto protoreflect.FileDescriptor
 
 const file_worldengine_micro_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"\"worldengine/micro/v1/service.proto\x12\x14worldengine.micro.v1\x1a\x1bbuf/validate/validate.proto\"\xf7\x02\n" +
-	"\x0eServiceAddress\x12-\n" +
-	"\x06region\x18\x01 \x01(\tB\x15\xbaH\x12r\x10\x10\x012\f^[a-z0-9-]+$R\x06region\x12L\n" +
-	"\x05realm\x18\x02 \x01(\x0e2*.worldengine.micro.v1.ServiceAddress.RealmB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x05realm\x12:\n" +
-	"\forganization\x18\x03 \x01(\tB\x16\xbaH\x13r\x11\x10\x012\r^[a-z0-9_-]+$R\forganization\x120\n" +
-	"\aproject\x18\x04 \x01(\tB\x16\xbaH\x13r\x11\x10\x012\r^[a-z0-9_-]+$R\aproject\x125\n" +
+	"\"worldengine/micro/v1/service.proto\x12\x14worldengine.micro.v1\x1a\x1bbuf/validate/validate.proto\"\xa7\x01\n" +
+	"\x0eServiceAddress\x12/\n" +
+	"\aproject\x18\x04 \x01(\tB\x15\xbaH\x12r\x10\x10\x012\f^[a-z0-9-]+$R\aproject\x125\n" +
 	"\n" +
-	"service_id\x18\x05 \x01(\tB\x16\xbaH\x13r\x11\x10\x012\r^[a-z0-9_-]+$R\tserviceId\"C\n" +
-	"\x05Realm\x12\x15\n" +
-	"\x11REALM_UNSPECIFIED\x10\x00\x12\x12\n" +
-	"\x0eREALM_INTERNAL\x10\x01\x12\x0f\n" +
-	"\vREALM_WORLD\x10\x02BkZLgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1;microv1\xaa\x02\x1aWorldEngine.Proto.Micro.V1b\x06proto3"
+	"service_id\x18\x05 \x01(\tB\x16\xbaH\x13r\x11\x10\x012\r^[a-z0-9_-]+$R\tserviceIdJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x06regionR\x05realmR\forganizationBkZLgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1;microv1\xaa\x02\x1aWorldEngine.Proto.Micro.V1b\x06proto3"
 
 var (
 	file_worldengine_micro_v1_service_proto_rawDescOnce sync.Once
@@ -216,19 +122,16 @@ func file_worldengine_micro_v1_service_proto_rawDescGZIP() []byte {
 	return file_worldengine_micro_v1_service_proto_rawDescData
 }
 
-var file_worldengine_micro_v1_service_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_worldengine_micro_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_worldengine_micro_v1_service_proto_goTypes = []any{
-	(ServiceAddress_Realm)(0), // 0: worldengine.micro.v1.ServiceAddress.Realm
-	(*ServiceAddress)(nil),    // 1: worldengine.micro.v1.ServiceAddress
+	(*ServiceAddress)(nil), // 0: worldengine.micro.v1.ServiceAddress
 }
 var file_worldengine_micro_v1_service_proto_depIdxs = []int32{
-	0, // 0: worldengine.micro.v1.ServiceAddress.realm:type_name -> worldengine.micro.v1.ServiceAddress.Realm
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	0, // [0:0] is the sub-list for method output_type
+	0, // [0:0] is the sub-list for method input_type
+	0, // [0:0] is the sub-list for extension type_name
+	0, // [0:0] is the sub-list for extension extendee
+	0, // [0:0] is the sub-list for field type_name
 }
 
 func init() { file_worldengine_micro_v1_service_proto_init() }
@@ -241,14 +144,13 @@ func file_worldengine_micro_v1_service_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_worldengine_micro_v1_service_proto_rawDesc), len(file_worldengine_micro_v1_service_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_worldengine_micro_v1_service_proto_goTypes,
 		DependencyIndexes: file_worldengine_micro_v1_service_proto_depIdxs,
-		EnumInfos:         file_worldengine_micro_v1_service_proto_enumTypes,
 		MessageInfos:      file_worldengine_micro_v1_service_proto_msgTypes,
 	}.Build()
 	File_worldengine_micro_v1_service_proto = out.File

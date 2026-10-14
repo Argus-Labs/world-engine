@@ -62,7 +62,7 @@ func validate(cfg *Config) error {
 	}
 
 	// Validate project
-	if err := normalizeAndValidateString(&cfg.Project, "project"); err != nil {
+	if err := normalizeAndValidateCanonicalName(&cfg.Project, "project"); err != nil {
 		return err
 	}
 
@@ -78,7 +78,7 @@ func validate(cfg *Config) error {
 		}
 
 		// Normalize and validate in-place so changes persist
-		if err := normalizeAndValidateString(&cfg.Shards[i].ID, "shardID"); err != nil {
+		if err := normalizeAndValidateCanonicalName(&cfg.Shards[i].ID, "shardID"); err != nil {
 			return err
 		}
 
@@ -100,10 +100,13 @@ func validate(cfg *Config) error {
 			cfg.Shards[i].PoolSize = 1
 		}
 
-		// Validate shard log level
-		if err := validateLogLevel(cfg.Shards[i].LogLevel, "shard: "+cfg.Shards[i].ID); err != nil ||
-			cfg.Shards[i].LogLevel == "" {
+		// Validate shard log level. An empty value defaults to info; a
+		// non-empty value the runtime cannot accept is a config error and
+		// is returned here, mirroring validatePath/tick_rate/resources below.
+		if cfg.Shards[i].LogLevel == "" {
 			cfg.Shards[i].LogLevel = zerolog.InfoLevel.String()
+		} else if err := validateLogLevel(cfg.Shards[i].LogLevel, "shard: "+cfg.Shards[i].ID); err != nil {
+			return err
 		}
 
 		// Validate shard path
@@ -176,7 +179,7 @@ func validateServices(cfg *Config) error {
 			return eris.New(fmt.Sprintf("services[%d].id is required", i))
 		}
 
-		if err := normalizeAndValidateString(&svc.ID, "serviceID"); err != nil {
+		if err := normalizeAndValidateCanonicalName(&svc.ID, "serviceID"); err != nil {
 			return err
 		}
 

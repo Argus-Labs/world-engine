@@ -23,7 +23,7 @@ func (m WorldSetupModel) View() string {
 	if m.showTemplateList {
 		output += "  Choose a starting template for your game\n"
 		output += m.templateList.View() + "\n\n"
-	} else {
+	} else if m.projectNameInput.Focused() {
 		output += style.QuestionIcon.Render() + "What is your game shard name? "
 		output += m.projectNameInput.View() + "\n"
 		if m.nameErr != "" {

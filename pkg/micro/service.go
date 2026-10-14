@@ -51,8 +51,6 @@ func NewService(client *Client, address *ServiceAddress, tel *telemetry.Telemetr
 // Logger returns a logger for the service with service-specific context.
 func (s *Service) Logger() *zerolog.Logger {
 	logger := s.tel.GetLogger("service").With().
-		Str("realm", realmToString(s.Address.GetRealm())).
-		Str("organization", s.Address.GetOrganization()).
 		Str("project", s.Address.GetProject()).
 		Str("service_id", s.Address.GetServiceId()).
 		Logger()
@@ -99,6 +97,14 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 
 		// Use trace-aware logger.
 		requestLogger := s.tel.GetLoggerWithTrace(ctx, "service.handler").With().Str("endpoint", name).Logger()
+
+		// The response could otherwise arrive as a command on another service's subject; see command.go.
+		if replyOutsideInbox(msg) {
+			span.SetStatus(otelcodes.Error, "reply subject outside the inbox namespace")
+			requestLogger.Error().Str("reply", msg.Reply).
+				Msg("request dropped: reply subject outside the inbox namespace")
+			return
+		}
 
 		// Start timing the request handler.
 		start := time.Now()

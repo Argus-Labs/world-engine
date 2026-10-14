@@ -12,7 +12,7 @@ import (
 // Queue defines the interface for command queuing operations.
 // It provides methods to enqueue commands and drain all queued commands.
 type Queue interface {
-	Enqueue(context.Context, *iscv1.Command) error
+	Enqueue(context.Context, *iscv1.Command, Sender) error
 	Drain(target *[]Command)
 	Len() int
 	Zero() Payload
@@ -40,7 +40,7 @@ func NewQueue[T Payload]() Queue {
 // Enqueue validates and adds a command to the queue. It performs type checking to ensure the
 // command matches the expected type T, unmarshals the command payload, and appends it to the queue.
 // Returns an error if validation fails or marshaling/unmarshaling operations fail.
-func (q *sliceQueue[T]) Enqueue(ctx context.Context, cmd *iscv1.Command) error {
+func (q *sliceQueue[T]) Enqueue(ctx context.Context, cmd *iscv1.Command, sender Sender) error {
 	var zero T
 
 	if cmd.GetName() != zero.Name() {
@@ -60,7 +60,7 @@ func (q *sliceQueue[T]) Enqueue(ctx context.Context, cmd *iscv1.Command) error {
 	q.commands = append(q.commands, Command{
 		Name:    cmd.GetName(),
 		Address: cmd.GetAddress(),
-		Persona: cmd.GetPersona().GetId(),
+		Sender:  sender,
 		Payload: payload,
 		Span:    trace.SpanContextFromContext(ctx),
 	})

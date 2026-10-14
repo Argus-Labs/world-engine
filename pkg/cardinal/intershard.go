@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"buf.build/go/protovalidate"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry/trace"
@@ -15,6 +14,7 @@ import (
 	otelcodes "go.opentelemetry.io/otel/codes"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const interShardSendTimeout = 10 * time.Second
@@ -50,8 +50,10 @@ type targetQueue struct {
 
 // queuedCommand keeps the enqueuing span as parent, so the send joins the tick's trace after the tick ends.
 type queuedCommand struct {
-	parent oteltrace.SpanContext
-	cmd    *iscv1.Command
+	parent  oteltrace.SpanContext
+	to      *micro.ServiceAddress
+	name    string
+	payload []byte
 }
 
 func newInterShard(
@@ -68,7 +70,7 @@ func newInterShard(
 
 func (s *interShard) start(svc *micro.Service, commands map[string]struct{}) error {
 	for name := range commands {
-		if err := svc.AddGroup("command").AddEndpoint(name, s.handle); err != nil {
+		if err := svc.AddCommand(name, s.handle); err != nil {
 			return eris.Wrapf(err, "failed to register %s command handler", name)
 		}
 	}
@@ -77,47 +79,26 @@ func (s *interShard) start(svc *micro.Service, commands map[string]struct{}) err
 
 // handle receives one command from another shard. The ack it returns means the command was queued,
 // not that a tick has processed it.
-func (s *interShard) handle(ctx context.Context, req *micro.Request) *micro.Response {
-	select {
-	case <-ctx.Done():
-		return micro.NewErrorResponse(req, eris.Wrap(ctx.Err(), "context cancelled"), codes.Canceled)
-	default:
+func (s *interShard) handle(ctx context.Context, cmd micro.Command) error {
+	if err := ctx.Err(); err != nil {
+		return status.Error(codes.Canceled, eris.Wrap(err, "context cancelled").Error())
 	}
 
-	cmd := &iscv1.Command{}
-	if err := req.Payload.UnmarshalTo(cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to parse request payload"), codes.InvalidArgument)
+	oteltrace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.Name))
+	received := &iscv1.Command{Name: cmd.Name, Address: s.address, Payload: cmd.Payload}
+	if err := s.inbox.Enqueue(ctx, received, command.ShardSender(cmd.From)); err != nil {
+		return status.Error(codes.InvalidArgument, eris.Wrap(err, "failed to enqueue command").Error())
 	}
-
-	if err := protovalidate.Validate(cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to validate command"), codes.InvalidArgument)
-	}
-	if _, err := micro.ParseAddress(cmd.GetPersona().GetId()); err != nil {
-		return micro.NewErrorResponse(
-			req,
-			eris.Wrap(err, "command persona is not a shard address"),
-			codes.InvalidArgument,
-		)
-	}
-
-	if micro.String(s.address) != micro.String(cmd.GetAddress()) {
-		return micro.NewErrorResponse(
-			req,
-			eris.New("command address doesn't match shard address"),
-			codes.InvalidArgument,
-		)
-	}
-
-	oteltrace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.GetName()))
-	if err := s.inbox.Enqueue(ctx, cmd); err != nil {
-		return micro.NewErrorResponse(req, eris.Wrap(err, "failed to enqueue command"), codes.InvalidArgument)
-	}
-
-	return micro.NewSuccessResponse(req, nil)
+	return nil
 }
 
-func (s *interShard) enqueue(ctx context.Context, cmd *iscv1.Command) {
-	s.queued = append(s.queued, queuedCommand{parent: oteltrace.SpanContextFromContext(ctx), cmd: cmd})
+func (s *interShard) enqueue(ctx context.Context, to *micro.ServiceAddress, name string, payload []byte) {
+	s.queued = append(s.queued, queuedCommand{
+		parent:  oteltrace.SpanContextFromContext(ctx),
+		to:      to,
+		name:    name,
+		payload: payload,
+	})
 }
 
 func (s *interShard) drain() {
@@ -126,7 +107,7 @@ func (s *interShard) drain() {
 	}
 	batches := make(map[string][]queuedCommand)
 	for _, c := range s.queued {
-		target := micro.String(c.cmd.GetAddress())
+		target := micro.String(c.to)
 		batches[target] = append(batches[target], c)
 	}
 	s.queued = nil
@@ -173,16 +154,16 @@ func (s *interShard) send(c queuedCommand) {
 	// span (and the tick that drains the command there) joins the sending tick's trace.
 	ctx := oteltrace.ContextWithSpanContext(context.Background(), c.parent)
 	ctx, span := trace.New(ctx, spanInterShardSend, oteltrace.WithAttributes(
-		attrCommandName.String(c.cmd.GetName()), attrCommandTarget.String(micro.String(c.cmd.GetAddress()))))
+		attrCommandName.String(c.name), attrCommandTarget.String(micro.String(c.to))))
 	defer span.End()
 
 	ctx, cancel := context.WithTimeout(ctx, interShardSendTimeout)
 	defer cancel()
 
-	if _, err := s.client.Request(ctx, c.cmd.GetAddress(), "command."+c.cmd.GetName(), c.cmd); err != nil {
+	if err := s.client.SendCommand(ctx, s.address, c.to, c.name, c.payload); err != nil {
 		span.RecordError(err)
 		span.SetStatus(otelcodes.Error, "send failed")
-		s.log.Error().Err(err).Str("command", c.cmd.GetName()).Msg("inter-shard command dropped: send failed")
+		s.log.Error().Err(err).Str("command", c.name).Msg("inter-shard command dropped: send failed")
 	}
 }
 

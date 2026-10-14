@@ -10,10 +10,8 @@ import "slices"
 // long-term fix is to import world-engine's committed other_world.proto instead of mirroring — deferred,
 // the import path (per-module type→proto manifest + buf staging) is high effort. See sdkgen.go.
 type ShardAddress struct {
-	Region       string
-	Organization string
-	Project      string
-	ShardID      string
+	Project string
+	ShardID string
 }
 
 // Structural ceilings for the lobby roster. These are storage bounds, not game rules: the game rule is
@@ -142,8 +140,10 @@ type LobbyComponent struct {
 	CreatedAt int64 `json:"created_at"`
 }
 
-// Name returns the component name for ECS registration.
-func (LobbyComponent) Name() string { return "lobby" }
+// Name returns the component name for ECS registration. v2: ShardAddress lost Region and
+// Organization, which renumbered its wire fields, so a v1 snapshot fails to restore rather than
+// reading a region as the project.
+func (LobbyComponent) Name() string { return "lobby_v2" }
 
 // Players returns the live roster. Callers must not retain it across a mutation of the lobby.
 // livePlayers and liveTeams clamp the stored counts to what the arrays can actually hold. The

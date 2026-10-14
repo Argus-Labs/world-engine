@@ -18,8 +18,4 @@ const (
 	// built-from-source game services. Keep the Go version in sync with .prototools
 	// (go = "...").
 	GoBuilderImage = "golang:1.27.1-bookworm"
-
-	// cardinalRegion is injected into shard + game-service env. Hard coded for
-	// local dev until multi-region is wired up.
-	cardinalRegion = "us-west1"
 )

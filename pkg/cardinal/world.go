@@ -28,6 +28,7 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
@@ -44,13 +45,14 @@ type World struct {
 	snapshotWriter  snapshot.Writer       // Snapshot writer
 	debug           *debugModule          // Debug tools and services
 	currentTick     Tick                  // Current tick
-	tickCtx         context.Context       // Parent context for spans started by systems in the current tick
+	traceCtx        context.Context       // Trace context of the running system, else of the current tick or init
 	options         WorldOptions          // World options
 	tel             telemetry.Telemetry   // Logs and traces
+	metrics         *worldMetrics         // Tick, command and event metrics; nil records nothing
 
-	archetypes map[reflect.Type]bitmap.Bitmap // Component sets resolved from archetype structs
-	eventTypes map[reflect.Type]struct{}      // Events registered with RegisterEvent
-	started    bool                           // Set by init; Register* methods panic afterwards
+	archetypes map[reflect.Type]bitmap.Bitmap      // Component sets resolved from archetype structs
+	eventTypes map[reflect.Type][]metric.AddOption // Registered events, with the attributes they are counted under
+	started    bool                                // Set by init; Register* methods panic afterwards
 
 	systemEventTap func(ecs.SystemEvent) // Sees each emitted system event; set only by TestWorld
 }
@@ -76,7 +78,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 			Tags: options.getSentryTags(),
 		},
 		PosthogOptions: posthog.Options{
-			DistinctID:     options.Organization,
+			DistinctID:     options.Project,
 			BaseProperties: options.getPosthogBaseProperties(),
 		},
 	})
@@ -85,16 +87,21 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	}
 	defer tel.RecoverAndFlush(true)
 
+	metrics, err := newWorldMetrics(options.tickInterval())
+	if err != nil {
+		return nil, err
+	}
+
 	world := &World{
-		world:    ecs.NewWorld(),
-		commands: command.NewManager(),
-		events:   event.NewManager(1024),
-		address: micro.GetAddress(
-			options.Region, micro.RealmWorld, options.Organization, options.Project, options.ShardID),
+		world:       ecs.NewWorld(),
+		commands:    command.NewManager(),
+		events:      event.NewManager(1024),
+		address:     micro.GetAddress(options.Project, options.ShardID),
 		currentTick: Tick{height: 0},
-		tickCtx:     context.Background(),
+		traceCtx:    context.Background(),
 		options:     options,
 		tel:         tel,
+		metrics:     metrics,
 	}
 
 	// Register components for introspection.
@@ -181,54 +188,69 @@ func (w *World) run(ctx context.Context) error {
 	if err := w.restore(ctx); err != nil {
 		return eris.Wrap(err, "failed to restore state from snapshot")
 	}
-	// Final snapshot.
 	defer func() {
-		w.snapshotWriter.Write(w.currentTick.height, w.encodeSnapshot(time.Now()))
+		if w.currentTick.height == 0 {
+			return
+		}
+		// Label the last completed tick, matching regular snapshots and restore's +1.
+		label := w.currentTick.height - 1
+		w.snapshotWriter.Write(label, w.encodeSnapshot(label, time.Now()))
 	}()
 
 	logger := w.tel.GetLogger("shard")
 	logger.Info().Msg("starting core shard loop")
 
-	ticker := time.NewTicker(time.Duration(float64(time.Second) / w.options.TickRate))
+	ticker := time.NewTicker(w.options.tickInterval())
 	defer ticker.Stop()
 
+	// A single select listens on every control channel regardless of pause state. This
+	// prevents a handler send from becoming unreachable after a state transition (which
+	// caused uncancellable hangs and late out-of-band Step/Reset fulfillment). The isPaused
+	// guards inside the step/reset/ticker arms ensure stale requests that arrive while the
+	// world is running are NACKed (reply channel closed) instead of mutating state.
 	for {
-		if w.debug.isPaused() {
-			select {
-			case <-w.debug.resumeChan():
-				w.debug.setPaused(false)
-			case replyCh := <-w.debug.stepChan():
-				w.Tick(time.Now())
-				replyCh <- w.currentTick.height
-			case replyCh := <-w.debug.resetChan():
-				w.reset()
-				replyCh <- struct{}{}
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-			continue
-		}
-
 		select {
 		case <-ticker.C:
-			w.Tick(time.Now())
+			if !w.debug.isPaused() {
+				w.Tick(time.Now())
+			}
 		case replyCh := <-w.debug.pauseChan():
 			w.debug.setPaused(true)
 			replyCh <- w.currentTick.height
+		case <-w.debug.resumeChan():
+			if w.debug.isPaused() {
+				w.debug.setPaused(false)
+			}
+		case replyCh := <-w.debug.stepChan():
+			if !w.debug.isPaused() {
+				close(replyCh)
+				continue
+			}
+			w.Tick(time.Now())
+			replyCh <- w.currentTick.height
+		case replyCh := <-w.debug.resetChan():
+			if !w.debug.isPaused() {
+				close(replyCh)
+				continue
+			}
+			w.reset()
+			replyCh <- struct{}{}
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
 }
 
-// init runs the init systems under a root span so their child spans have a parent. tickCtx is
-// restored by defer, as in Tick, so a recovered init panic does not leave it on an ended span.
+// init runs the init systems under a root span so their child spans have a parent. traceCtx is
+// restored by defer, as in Tick, so a recovered init panic or a nested run does not leave it on an
+// ended span.
 func (w *World) init() {
 	ctx, span := trace.New(context.Background(), spanInit)
 	defer span.End()
 
-	w.tickCtx = ctx
-	defer func() { w.tickCtx = context.Background() }()
+	prevCtx := w.traceCtx
+	w.traceCtx = ctx
+	defer func() { w.traceCtx = prevCtx }()
 	w.started = true // Closes registration before the first system runs; never reopened by reset.
 	w.world.Init()
 }
@@ -245,13 +267,19 @@ func (w *World) Tick(timestamp time.Time) {
 // Each tick is a root trace: ticks are driven by the clock, not by a request, so command spans from
 // the ConnectRPC service are not their parents.
 func (w *World) step(timestamp time.Time, run func()) {
+	start := time.Now()
+
 	// Drain before starting the span: links must be passed at start for a sampler to see them.
 	commands := w.commands.Drain()
 
-	// Link each drained command whose enqueuing request was sampled, up to maxCommandLinks. Links,
+	// Link each drained command whose enqueuing request was sampled, up to maxCommandLinks. The
+	// cap is the tracer provider's resolved span link limit (OTEL_SPAN_LINK_COUNT_LIMIT, default
+	// 128), threaded in from telemetry.New, so the cap and the provider share one source of truth:
+	// links are never built only to be dropped by the SDK, under any supported configuration. Links,
 	// not children: that request finished before this tick. A request the sampler dropped was never
 	// exported, so a link to it would dangle; skipping it also skips the zero SpanContext of an
 	// untraced caller. Nil when no command qualifies, so an untraced tick pays no allocation here.
+	maxCommandLinks := w.tel.MaxCommandLinks()
 	var links []oteltrace.Link
 	for _, cmd := range commands {
 		if !cmd.Span.IsSampled() {
@@ -261,7 +289,7 @@ func (w *World) step(timestamp time.Time, run func()) {
 			break
 		}
 		links = append(links, oteltrace.Link{SpanContext: cmd.Span, Attributes: []attribute.KeyValue{
-			attrCommandName.String(cmd.Name), attrCommandPersona.String(cmd.Persona)}})
+			attrCommandName.String(cmd.Name), attrCommandSender.String(cmd.Sender.ID())}})
 	}
 
 	ctx, span := trace.New(context.Background(), spanTick,
@@ -270,8 +298,13 @@ func (w *World) step(timestamp time.Time, run func()) {
 			attrTickCommands.Int(len(commands))),
 		oteltrace.WithLinks(links...))
 	defer span.End()
-	w.tickCtx = ctx
-	defer func() { w.tickCtx = context.Background() }()
+	prevCtx := w.traceCtx
+	w.traceCtx = ctx
+	defer func() { w.traceCtx = prevCtx }()
+
+	for _, cmd := range commands {
+		w.metrics.countCommand(ctx, cmd.Name)
+	}
 
 	w.currentTick.timestamp = timestamp
 
@@ -288,7 +321,7 @@ func (w *World) step(timestamp time.Time, run func()) {
 			oteltrace.WithAttributes(attrSnapshotDue.Bool(snapshotDue)))
 		defer persistSpan.End()
 
-		data := w.encodeSnapshot(timestamp)
+		data := w.encodeSnapshot(w.currentTick.height, timestamp)
 
 		// Hand the debug service the same frozen bytes. Nobody writes to them, so sharing with the
 		// writer below is safe.
@@ -301,12 +334,9 @@ func (w *World) step(timestamp time.Time, run func()) {
 
 	// Increase the tick height.
 	w.currentTick.height++
-}
 
-// maxCommandLinks caps the links on a tick span. It matches the OpenTelemetry SDK's default link
-// limit (OTEL_SPAN_LINK_COUNT_LIMIT); links past it would only be built to be dropped, and the SDK
-// drops them one memmove at a time.
-const maxCommandLinks = 128
+	w.metrics.recordTick(ctx, time.Since(start))
+}
 
 // dispatchEvents runs the tick's event handlers under their own span. The span is ended by a
 // direct defer so a panicking handler (encoding panics on unencodable payloads) still closes
@@ -324,9 +354,13 @@ func (w *World) dispatchEvents(ctx context.Context) {
 // encodeSnapshot produces the complete snapshot bytes for the current tick: the ECS sizes and
 // streams its world state directly into one exactly-sized buffer, and the envelope is hand-encoded
 // around it. No intermediate proto graph exists; the buffer is the freeze-frame.
-func (w *World) encodeSnapshot(timestamp time.Time) []byte {
+//
+// tick is the label stamped into the envelope's tick_height, supplied by the caller so the same
+// world state can be labeled with the pre-increment height (persistState, the final shutdown
+// snapshot) rather than always reading w.currentTick.height.
+func (w *World) encodeSnapshot(tick uint64, timestamp time.Time) []byte {
 	bodySize := w.world.StateWireSize()
-	return snapshot.Encode(w.currentTick.height, timestamp, bodySize, w.world.AppendStateWire)
+	return snapshot.Encode(tick, timestamp, bodySize, w.world.AppendStateWire)
 }
 
 func (w *World) restore(ctx context.Context) (err error) {
@@ -407,8 +441,18 @@ func (w *World) reset() {
 
 	// Publish the reset state when the debug service is enabled.
 	if w.debug != nil {
-		w.debug.publishState(w.encodeSnapshot(w.currentTick.timestamp))
+		w.debug.publishState(w.encodeSnapshot(0, w.currentTick.timestamp))
 	}
+}
+
+// useSyncSnapshotStorage swaps the world's snapshot storage and installs a synchronous writer backed
+// by it, so a test observes every Write immediately. It stops any writer the world already holds.
+func (w *World) useSyncSnapshotStorage(store snapshot.Storage) {
+	if w.snapshotWriter != nil {
+		w.snapshotWriter.Stop(context.Background())
+	}
+	w.snapshotStorage = store
+	w.snapshotWriter = snapshot.NewSyncWriter(store, w.tel.GetLogger("snapshot"))
 }
 
 type Tick struct {
@@ -452,22 +496,27 @@ func (w *World) RegisterSystem(s System, opts ...SystemOption) {
 	name := fmt.Sprintf("%T", s)
 	hookName := ecsHookToProto(uint8(cfg.hook)).String()
 
-	// Every system run is a child span of the current tick (or init) span. The attributes are
-	// fixed per system, so they are built once here. When the tick span is not recording
-	// (tracing disabled or the tick sampled out) the child would be discarded anyway, so it is
-	// skipped to keep the per-system cost at one interface call.
+	// The attributes are fixed per system, so they are built once here.
 	attrs := oteltrace.WithAttributes(attrSystemName.String(name), attrSystemHook.String(hookName))
-	fn := func() {
-		if oteltrace.SpanFromContext(w.tickCtx).IsRecording() {
-			_, span := trace.New(w.tickCtx, spanSystem, attrs)
-			defer span.End()
-		}
-		s.Run(w)
-	}
+	fn := func() { w.runSystem(s, name, attrs) }
 
 	if err := w.world.RegisterSystem(name, cfg.hook, fn); err != nil {
 		panic(eris.Wrapf(err, "error registering system"))
 	}
+}
+
+// runSystem runs s as a child span of the current tick (or init) span, named after the system so
+// trace views and per-span latency tell systems apart, and which s sees through Context while it
+// runs. When the tick span is not recording (tracing disabled or the tick sampled out) the child
+// would be discarded anyway, so it is skipped to keep the per-system cost at one interface call.
+func (w *World) runSystem(s System, name string, attrs oteltrace.SpanStartEventOption) {
+	if tickCtx := w.traceCtx; oteltrace.SpanFromContext(tickCtx).IsRecording() {
+		ctx, span := trace.New(tickCtx, name, attrs)
+		w.traceCtx = ctx
+		defer func() { w.traceCtx = tickCtx }()
+		defer span.End()
+	}
+	s.Run(w)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -484,9 +533,23 @@ func (w *World) Timestamp() time.Time {
 	return w.currentTick.timestamp
 }
 
-// Logger returns the logger for systems in this world.
+// Context returns the trace context of the running system. Spans started from it nest under the
+// system's span in the tick's trace:
+//
+//	ctx, span := otel.Tracer("mygame").Start(w.Context(), "pathfind")
+//	defer span.End()
+//
+// Pass it to instrumented clients (HTTP, SQL) so their spans join the tick's trace too. It carries
+// trace context only: it is never cancelled and has no deadline. When tracing is disabled or the
+// tick is sampled out, spans started from it are no-ops.
+func (w *World) Context() context.Context {
+	return w.traceCtx
+}
+
+// Logger returns the logger for systems in this world. In a traced system its entries carry the
+// system span's trace_id and span_id, so a log line leads to the tick that wrote it.
 func (w *World) Logger() *zerolog.Logger {
-	logger := w.tel.GetLogger("system")
+	logger := w.tel.GetLoggerWithTrace(w.traceCtx, "system")
 	return &logger
 }
 
@@ -513,6 +576,7 @@ func (w *World) RegisterCommand[T Command]() {
 		panic(eris.Wrapf(err, "failed to register command to debug module %s", name))
 	}
 	w.service.registerCommandHandler(name)
+	w.metrics.registerCommand(name)
 }
 
 // Commands yields the commands of type T received for the current tick. It panics if T was not
@@ -534,7 +598,7 @@ func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 			// semantics, no pointer: Serializable is satisfied by the value type.
 			payload, isT := cmd.Payload.(T)
 			assert.That(isT, "mismatched command type passed to command context")
-			if !yield(CommandContext[T]{Payload: payload, Persona: cmd.Persona}) {
+			if !yield(CommandContext[T]{Payload: payload, sender: cmd.Sender}) {
 				return
 			}
 		}
@@ -557,12 +621,11 @@ func (w *World) SendToShard(to OtherWorld, cmd command.Payload) {
 	}
 	// cmd is a command.Payload, so it carries its generated MarshalWire — no registry check needed; an
 	// ungenerated command wouldn't satisfy the parameter type and wouldn't compile at the call site.
-	serviceAddress := micro.GetAddress(to.Region, micro.RealmWorld, to.Organization, to.Project, to.ShardID)
+	serviceAddress := micro.GetAddress(to.Project, to.ShardID)
 	w.events.Enqueue(event.Event{
 		Kind: event.KindInterShardCommand,
 		Payload: command.Command{
 			Name:    cmd.Name(),
-			Persona: micro.String(w.address),
 			Address: serviceAddress,
 			Payload: cmd,
 		},
@@ -584,45 +647,53 @@ func (w *World) RegisterEvent[T Event]() {
 		panic(eris.Wrapf(err, "failed to register event to debug module %s", zero.Name()))
 	}
 	if w.eventTypes == nil {
-		w.eventTypes = make(map[reflect.Type]struct{})
+		w.eventTypes = make(map[reflect.Type][]metric.AddOption)
 	}
-	w.eventTypes[reflect.TypeFor[T]()] = struct{}{}
+	w.eventTypes[reflect.TypeFor[T]()] = addOptions(attrEventType.String(fmt.Sprintf("%T", zero)))
 }
 
-// checkEventRegistered panics if T was not registered with RegisterEvent. It checks the type, not
-// Name(): some events derive their name from instance data (e.g. request-scoped results), so only
-// the type is stable at registration. A plain panic, not assert.That, so it fires in release too.
-func (w *World) checkEventRegistered[T Event]() {
-	if _, ok := w.eventTypes[reflect.TypeFor[T]()]; !ok {
+// registeredEvent returns the attributes T's sends are counted under, and panics if T was not
+// registered with RegisterEvent. It checks the type, not Name(): some events derive their name from
+// instance data (e.g. request-scoped results), so only the type is stable at registration. A plain
+// panic, not assert.That, so it fires in release too.
+func (w *World) registeredEvent[T Event]() []metric.AddOption {
+	attrs, ok := w.eventTypes[reflect.TypeFor[T]()]
+	if !ok {
 		panic(eris.Errorf("event %T is not registered; call RegisterEvent before StartGame", *new(T)))
 	}
+	return attrs
 }
 
 // Broadcast enqueues an event delivered to every open event stream at the end of the tick. It
 // panics if T was not registered with RegisterEvent.
 func (w *World) Broadcast[T Event](evt T) {
-	w.checkEventRegistered[T]()
+	attrs := w.registeredEvent[T]()
 	w.events.Enqueue(event.Event{
 		Kind:    event.KindDefault,
 		Payload: evt,
 	})
+	w.metrics.countEvent(w.traceCtx, attrs)
 }
 
-// SendTo enqueues a targeted event that is delivered only to the named recipient (a user ID),
-// provided they have an open event stream subscribed to this event. If the recipient has no open
-// stream, the event is silently dropped. It panics if T was not registered with RegisterEvent.
+// SendTo enqueues a targeted event that is delivered only to the named recipient (a player ID),
+// provided they have an open event stream subscribed to this event or a pending SendCommandWithReply
+// waiting for it. Otherwise the event is silently dropped. It panics if T was not registered with
+// RegisterEvent.
 //
 // Example:
 //
-//	w.SendTo(cmd.Persona, Result{OK: true})
+//	if player, ok := cmd.Player(); ok {
+//		w.SendTo(player, Result{OK: true})
+//	}
 func (w *World) SendTo[T Event](recipient string, evt T) {
 	assert.That(recipient != "", "recipient must not be empty (use Broadcast for fan-out)")
-	w.checkEventRegistered[T]()
+	attrs := w.registeredEvent[T]()
 	w.events.Enqueue(event.Event{
 		Kind:      event.KindDefault,
 		Payload:   evt,
 		Recipient: recipient,
 	})
+	w.metrics.countEvent(w.traceCtx, attrs)
 }
 
 // -------------------------------------------------------------------------------------------------

@@ -31,7 +31,7 @@ const (
 	shardPodsGoneTimeout = 45 * time.Second
 
 	// snapshotBucketSuffix is the trailing segment of world-engine's JetStream
-	// snapshot Object Store buckets, named "{org}_{project}_{shardID}_snapshot"
+	// snapshot Object Store buckets, named "{project}_{shardID}_snapshot"
 	// (see world-engine pkg/cardinal/snapshot/storage_jetstream.go).
 	snapshotBucketSuffix = "_snapshot"
 
@@ -59,15 +59,15 @@ func instancePodSelector(instanceID string) string {
 
 // PurgeWorldState wipes one world's persisted state so its next deploy starts on
 // a fresh tick: it deletes every JetStream snapshot bucket under the
-// "{org}_{project}_" prefix (also catching shards since removed from config, which
+// "{project}_" prefix (also catching shards since removed from config, which
 // a per-shard match would miss). Assumes no two local worlds share that prefix —
 // safe one-world-at-a-time.
 //
 // Call AFTER undeploying the shards: it first waits for this world's shard pods to
 // terminate so a shutting-down shard can't re-snapshot over the wipe.
-func (c *Client) PurgeWorldState(ctx context.Context, org, project string) error {
-	if org == "" || project == "" {
-		return eris.New("PurgeWorldState: org and project are required")
+func (c *Client) PurgeWorldState(ctx context.Context, project string) error {
+	if project == "" {
+		return eris.New("PurgeWorldState: project is required")
 	}
 
 	k, cs, err := c.kubeAndClientset(ctx)
@@ -89,7 +89,7 @@ func (c *Client) PurgeWorldState(ctx context.Context, org, project string) error
 
 	// Drain the lister fully before deleting (delete is request/reply over the
 	// same connection the lister streams on).
-	prefix := fmt.Sprintf("%s_%s_", org, project)
+	prefix := project + "_"
 	lister := js.ObjectStoreNames(ctx)
 	var targets []string
 	for name := range lister.Name() {
@@ -118,9 +118,9 @@ func (c *Client) PurgeWorldState(ctx context.Context, org, project string) error
 // instanceID's JetStream snapshot bucket, leaving every other instance's state (and
 // pods) untouched. Call AFTER UndeployShard: it first waits for that instance's pods
 // to terminate, so a shutting-down replica can't re-snapshot over the wipe.
-func (c *Client) PurgeShardState(ctx context.Context, org, project, instanceID string) error {
-	if org == "" || project == "" || instanceID == "" {
-		return eris.New("PurgeShardState: org, project, and instanceID are required")
+func (c *Client) PurgeShardState(ctx context.Context, project, instanceID string) error {
+	if project == "" || instanceID == "" {
+		return eris.New("PurgeShardState: project and instanceID are required")
 	}
 
 	k, cs, err := c.kubeAndClientset(ctx)
@@ -141,7 +141,7 @@ func (c *Client) PurgeShardState(ctx context.Context, org, project, instanceID s
 
 	// A shard that never snapshotted has no bucket yet, so not-found is the normal
 	// case here, not an edge one. See the errors.Is note in PurgeWorldState.
-	bucket := fmt.Sprintf("%s_%s_%s%s", org, project, instanceID, snapshotBucketSuffix)
+	bucket := fmt.Sprintf("%s_%s%s", project, instanceID, snapshotBucketSuffix)
 	if err := js.DeleteObjectStore(ctx, bucket); err != nil && !errors.Is(err, jetstream.ErrBucketNotFound) {
 		return eris.Wrapf(err, "delete snapshot bucket %s", bucket)
 	}

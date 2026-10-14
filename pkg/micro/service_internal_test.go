@@ -31,12 +31,13 @@ func TestService_Handler(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
 
-	svc, client := newTestService(t, prng)
 	testPayload := RandServiceAddress(t, prng) // Use ServiceAddress as test payload
 
 	t.Run("happy path", func(t *testing.T) {
 		t.Parallel()
-		endpoint := randEndpointName(prng)
+		rng := testutils.NewRand(t)
+		svc, client := newTestService(t, rng)
+		endpoint := randEndpointName(rng)
 
 		err := svc.AddEndpoint(endpoint, func(_ context.Context, req *Request) *Response {
 			return NewSuccessResponse(req, testPayload)
@@ -58,7 +59,9 @@ func TestService_Handler(t *testing.T) {
 
 	t.Run("handler returns error", func(t *testing.T) {
 		t.Parallel()
-		endpoint := randEndpointName(prng)
+		rng := testutils.NewRand(t)
+		svc, client := newTestService(t, rng)
+		endpoint := randEndpointName(rng)
 
 		err := svc.AddEndpoint(endpoint, func(_ context.Context, req *Request) *Response {
 			return NewErrorResponse(req, assert.AnError, codes.InvalidArgument)
@@ -78,7 +81,9 @@ func TestService_Handler(t *testing.T) {
 
 	t.Run("malformed request", func(t *testing.T) {
 		t.Parallel()
-		endpoint := randEndpointName(prng)
+		rng := testutils.NewRand(t)
+		svc, client := newTestService(t, rng)
+		endpoint := randEndpointName(rng)
 
 		handlerCalled := false
 		err := svc.AddEndpoint(endpoint, func(_ context.Context, req *Request) *Response {
@@ -105,7 +110,9 @@ func TestService_Handler(t *testing.T) {
 
 	t.Run("empty request", func(t *testing.T) {
 		t.Parallel()
-		endpoint := randEndpointName(prng)
+		rng := testutils.NewRand(t)
+		svc, client := newTestService(t, rng)
+		endpoint := randEndpointName(rng)
 
 		var receivedReq *Request
 		err := svc.AddEndpoint(endpoint, func(_ context.Context, req *Request) *Response {
@@ -133,8 +140,10 @@ func TestService_Handler(t *testing.T) {
 
 	t.Run("grouped endpoint", func(t *testing.T) {
 		t.Parallel()
-		groupName := randEndpointName(prng)
-		endpointName := randEndpointName(prng)
+		rng := testutils.NewRand(t)
+		svc, client := newTestService(t, rng)
+		groupName := randEndpointName(rng)
+		endpointName := randEndpointName(rng)
 
 		group := svc.AddGroup(groupName)
 		err := group.AddEndpoint(endpointName, func(_ context.Context, req *Request) *Response {
@@ -152,6 +161,42 @@ func TestService_Handler(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, int32(codes.OK), resp.GetStatus().GetCode())
+	})
+
+	// A reply subject outside _INBOX. could turn the response into a command the service never sent, so
+	// the request is dropped unhandled and nothing is published there.
+	t.Run("reply outside inbox", func(t *testing.T) {
+		t.Parallel()
+		rng := testutils.NewRand(t)
+		svc, client := newTestService(t, rng)
+		endpoint := randEndpointName(rng)
+
+		handled := make(chan string, 2)
+		err := svc.AddEndpoint(endpoint, func(_ context.Context, req *Request) *Response {
+			handled <- req.RequestID
+			return NewSuccessResponse(req, nil)
+		})
+		require.NoError(t, err)
+
+		victim := CommandRoute{To: RandServiceAddress(t, rng), Name: "privileged", From: svc.Address}.Subject()
+		spoofed, err := client.SubscribeSync(victim)
+		require.NoError(t, err)
+		require.NoError(t, client.Flush())
+
+		spoof, err := proto.Marshal(&microv1.Request{RequestId: new("spoof")})
+		require.NoError(t, err)
+		require.NoError(t, client.PublishMsg(&nats.Msg{
+			Subject: Endpoint(svc.Address, endpoint), Reply: victim, Data: spoof,
+		}))
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_, err = client.Request(ctx, svc.Address, endpoint, testPayload)
+		require.NoError(t, err)
+
+		assert.NotEqual(t, "spoof", <-handled, "handler saw the spoofing request")
+		_, err = spoofed.NextMsg(100 * time.Millisecond)
+		require.ErrorIs(t, err, nats.ErrTimeout, "service replied onto another service's command subject")
 	})
 }
 

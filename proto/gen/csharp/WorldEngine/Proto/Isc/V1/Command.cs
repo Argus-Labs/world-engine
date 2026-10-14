@@ -25,20 +25,19 @@ namespace WorldEngine.Proto.Isc.V1 {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "CiB3b3JsZGVuZ2luZS9pc2MvdjEvY29tbWFuZC5wcm90bxISd29ybGRlbmdp",
-            "bmUuaXNjLnYxGhtidWYvdmFsaWRhdGUvdmFsaWRhdGUucHJvdG8aIHdvcmxk",
-            "ZW5naW5lL2lzYy92MS9wZXJzb25hLnByb3RvGiJ3b3JsZGVuZ2luZS9taWNy",
-            "by92MS9zZXJ2aWNlLnByb3RvIt8BCgdDb21tYW5kEjMKBG5hbWUYASABKAlC",
-            "H7pIHHIXEAEYgAEyEF5bYS16QS1aMC05Xy1dKyTIAQFSBG5hbWUSRgoHYWRk",
-            "cmVzcxgCIAEoCzIkLndvcmxkZW5naW5lLm1pY3JvLnYxLlNlcnZpY2VBZGRy",
-            "ZXNzQga6SAPIAQFSB2FkZHJlc3MSPQoHcGVyc29uYRgDIAEoCzIbLndvcmxk",
-            "ZW5naW5lLmlzYy52MS5QZXJzb25hQga6SAPIAQFSB3BlcnNvbmESGAoHcGF5",
-            "bG9hZBgEIAEoDFIHcGF5bG9hZEJlWkhnaXRodWIuY29tL2FyZ3VzLWxhYnMv",
-            "d29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9pc2MvdjE7",
-            "aXNjdjGqAhhXb3JsZEVuZ2luZS5Qcm90by5Jc2MuVjFiBnByb3RvMw=="));
+            "bmUuaXNjLnYxGhtidWYvdmFsaWRhdGUvdmFsaWRhdGUucHJvdG8aIndvcmxk",
+            "ZW5naW5lL21pY3JvL3YxL3NlcnZpY2UucHJvdG8irwEKB0NvbW1hbmQSMwoE",
+            "bmFtZRgBIAEoCUIfukgcchcQARiAATIQXlthLXpBLVowLTlfLV0rJMgBAVIE",
+            "bmFtZRJGCgdhZGRyZXNzGAIgASgLMiQud29ybGRlbmdpbmUubWljcm8udjEu",
+            "U2VydmljZUFkZHJlc3NCBrpIA8gBAVIHYWRkcmVzcxIYCgdwYXlsb2FkGAQg",
+            "ASgMUgdwYXlsb2FkSgQIAxAEUgdwZXJzb25hQmVaSGdpdGh1Yi5jb20vYXJn",
+            "dXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5l",
+            "L2lzYy92MTtpc2N2MaoCGFdvcmxkRW5naW5lLlByb3RvLklzYy5WMWIGcHJv",
+            "dG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::WorldEngine.Proto.Isc.V1.PersonaReflection.Descriptor, global::WorldEngine.Proto.Micro.V1.ServiceReflection.Descriptor, },
+          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::WorldEngine.Proto.Micro.V1.ServiceReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.Command), global::WorldEngine.Proto.Isc.V1.Command.Parser, new[]{ "Name", "Address", "Persona", "Payload" }, null, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Isc.V1.Command), global::WorldEngine.Proto.Isc.V1.Command.Parser, new[]{ "Name", "Address", "Payload" }, null, null, null, null)
           }));
     }
     #endregion
@@ -46,7 +45,9 @@ namespace WorldEngine.Proto.Isc.V1 {
   }
   #region Messages
   /// <summary>
-  /// Command represents the data payload of a command to trigger systems in a shard.
+  /// Command represents the data payload of a command to trigger systems in a shard. It names no
+  /// sender: Cardinal takes a client's player ID from its auth token, and a shard's address from the
+  /// NATS subject the command arrived on (see pkg/micro/command.go).
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class Command : pb::IMessage<Command>
@@ -85,7 +86,6 @@ namespace WorldEngine.Proto.Isc.V1 {
     public Command(Command other) : this() {
       name_ = other.name_;
       address_ = other.address_ != null ? other.address_.Clone() : null;
-      persona_ = other.persona_ != null ? other.persona_.Clone() : null;
       payload_ = other.payload_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
@@ -126,21 +126,6 @@ namespace WorldEngine.Proto.Isc.V1 {
       }
     }
 
-    /// <summary>Field number for the "persona" field.</summary>
-    public const int PersonaFieldNumber = 3;
-    private global::WorldEngine.Proto.Isc.V1.Persona persona_;
-    /// <summary>
-    /// The persona sending the command.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::WorldEngine.Proto.Isc.V1.Persona Persona {
-      get { return persona_; }
-      set {
-        persona_ = value;
-      }
-    }
-
     /// <summary>Field number for the "payload" field.</summary>
     public const int PayloadFieldNumber = 4;
     private pb::ByteString payload_ = pb::ByteString.Empty;
@@ -174,7 +159,6 @@ namespace WorldEngine.Proto.Isc.V1 {
       }
       if (Name != other.Name) return false;
       if (!object.Equals(Address, other.Address)) return false;
-      if (!object.Equals(Persona, other.Persona)) return false;
       if (Payload != other.Payload) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -185,7 +169,6 @@ namespace WorldEngine.Proto.Isc.V1 {
       int hash = 1;
       if (Name.Length != 0) hash ^= Name.GetHashCode();
       if (address_ != null) hash ^= Address.GetHashCode();
-      if (persona_ != null) hash ^= Persona.GetHashCode();
       if (Payload.Length != 0) hash ^= Payload.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -213,10 +196,6 @@ namespace WorldEngine.Proto.Isc.V1 {
         output.WriteRawTag(18);
         output.WriteMessage(Address);
       }
-      if (persona_ != null) {
-        output.WriteRawTag(26);
-        output.WriteMessage(Persona);
-      }
       if (Payload.Length != 0) {
         output.WriteRawTag(34);
         output.WriteBytes(Payload);
@@ -239,10 +218,6 @@ namespace WorldEngine.Proto.Isc.V1 {
         output.WriteRawTag(18);
         output.WriteMessage(Address);
       }
-      if (persona_ != null) {
-        output.WriteRawTag(26);
-        output.WriteMessage(Persona);
-      }
       if (Payload.Length != 0) {
         output.WriteRawTag(34);
         output.WriteBytes(Payload);
@@ -262,9 +237,6 @@ namespace WorldEngine.Proto.Isc.V1 {
       }
       if (address_ != null) {
         size += 1 + pb::CodedOutputStream.ComputeMessageSize(Address);
-      }
-      if (persona_ != null) {
-        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Persona);
       }
       if (Payload.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeBytesSize(Payload);
@@ -289,12 +261,6 @@ namespace WorldEngine.Proto.Isc.V1 {
           Address = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
         }
         Address.MergeFrom(other.Address);
-      }
-      if (other.persona_ != null) {
-        if (persona_ == null) {
-          Persona = new global::WorldEngine.Proto.Isc.V1.Persona();
-        }
-        Persona.MergeFrom(other.Persona);
       }
       if (other.Payload.Length != 0) {
         Payload = other.Payload;
@@ -329,13 +295,6 @@ namespace WorldEngine.Proto.Isc.V1 {
             input.ReadMessage(Address);
             break;
           }
-          case 26: {
-            if (persona_ == null) {
-              Persona = new global::WorldEngine.Proto.Isc.V1.Persona();
-            }
-            input.ReadMessage(Persona);
-            break;
-          }
           case 34: {
             Payload = input.ReadBytes();
             break;
@@ -368,13 +327,6 @@ namespace WorldEngine.Proto.Isc.V1 {
               Address = new global::WorldEngine.Proto.Micro.V1.ServiceAddress();
             }
             input.ReadMessage(Address);
-            break;
-          }
-          case 26: {
-            if (persona_ == null) {
-              Persona = new global::WorldEngine.Proto.Isc.V1.Persona();
-            }
-            input.ReadMessage(Persona);
             break;
           }
           case 34: {

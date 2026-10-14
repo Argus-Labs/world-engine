@@ -86,11 +86,13 @@ func TestResolveInstanceIDsReportsEveryUnknownID(t *testing.T) {
 
 	_, err := cfg.ResolveInstanceIDs([]string{"nope"})
 	require.Error(t, err)
-	assert.Equal(t, `unknown instance IDs in world.toml: "nope"`, err.Error())
+	assert.Equal(t, `instance IDs not found in world.toml: "nope"`, err.Error())
+	assert.ErrorContains(t, err, "not found")
 
 	// One typo must not hide the next, and a valid id alongside them still fails
 	// the whole command rather than quietly acting on the subset that matched.
 	_, err = cfg.ResolveInstanceIDs([]string{"nope", "game", "game-3"})
 	require.Error(t, err)
-	assert.Equal(t, `unknown instance IDs in world.toml: "nope", "game-3"`, err.Error())
+	assert.Equal(t, `instance IDs not found in world.toml: "nope", "game-3"`, err.Error())
+	assert.ErrorContains(t, err, "not found")
 }

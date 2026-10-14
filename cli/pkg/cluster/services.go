@@ -44,15 +44,13 @@ func serviceContainerName(project, id string) string {
 }
 
 // serviceEnv builds a [[services]] entry's env. It seeds the Cardinal wire
-// identity (CARDINAL_REGION/ORG/PROJECT/SHARD_ID — the same set the operator
-// gives shards, so a service like meta subscribes on the right NATS subject) plus
+// identity (CARDINAL_PROJECT/SHARD_ID — the same pair the operator gives
+// shards, so a service like meta subscribes on the right NATS subject) plus
 // NATS_URL; svc.Env (world.toml) overrides them. DB_DSN (db = true) is filled only
 // when absent; POSTGRES_* (config_db) always win. Sorted by name for determinism.
 func serviceEnv(cfg toml.Config, svc toml.GameService) []corev1.EnvVar {
 	merged := map[string]string{
 		"NATS_URL":          natsClusterURL,
-		"CARDINAL_REGION":   DefaultRegion,
-		"CARDINAL_ORG":      cfg.Organization,
 		"CARDINAL_PROJECT":  cfg.Project,
 		"CARDINAL_SHARD_ID": svc.ID,
 	}

@@ -2,11 +2,13 @@ package textinput
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/rotisserie/eris"
+	"golang.org/x/term"
 
 	errorspkg "github.com/argus-labs/world-engine/cli/internal/errors"
 	"github.com/argus-labs/world-engine/cli/internal/printer"
@@ -59,6 +61,10 @@ func Prompt(
 
 // Confirm asks for y/n with default and inline error when invalid value entered.
 func Confirm(prompt string, defaultValue string) (bool, error) {
+	// NewTeaProgram reads no input without a stderr TTY, so the prompt could never be answered.
+	if !term.IsTerminal(int(os.Stderr.Fd())) {
+		return false, nil
+	}
 	ti := textinput.New()
 	ti.Prompt = ""
 	ti.PlaceholderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))

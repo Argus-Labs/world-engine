@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"slices"
 	"sort"
-	"strconv"
 	"unsafe"
 
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/probe"
@@ -112,31 +111,6 @@ func contactKey(p physics.ContactPairEntry) string {
 		p.FilterBCategoryBits, p.FilterBMaskBits, p.FilterBGroupIndex)
 }
 
-// CompareContacts reports differences between two worlds' ActiveContacts.
-func CompareContacts(want, got Capture) []Diff {
-	var diffs []Diff
-	if got.Singletons != want.Singletons {
-		diffs = append(diffs, Diff{"<singleton>", "count",
-			strconv.Itoa(got.Singletons), strconv.Itoa(want.Singletons)})
-	}
-
-	seen := map[string]bool{}
-	for _, p := range got.Contacts {
-		seen[contactKey(p)] = true
-	}
-	for _, p := range want.Contacts {
-		key := contactKey(p)
-		if !seen[key] {
-			diffs = append(diffs, Diff{"<active-contacts>", key, missing, present})
-		}
-		delete(seen, key)
-	}
-	for key := range seen {
-		diffs = append(diffs, Diff{"<active-contacts>", key, present, missing})
-	}
-	return diffs
-}
-
 // RegisterPreCapture registers a capture that runs before the physics plugin.
 // Call it before RegisterPlugin. After a snapshot restore, the first tick's
 // pre-capture is the deserialized ECS state with nothing else having touched it.
@@ -166,18 +140,8 @@ func innerWorld(w *cardinal.World) reflect.Value {
 	return reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
 }
 
-// EncodeSnapshot marshals a world state to protobuf bytes, the form a snapshot
-// actually takes on its way to JetStream or S3. Going through bytes is what makes
-// a two-process restore a real one.
-func EncodeSnapshot(state any) ([]byte, error) {
-	msg, ok := state.(*cardinalv1.WorldState)
-	if !ok {
-		return nil, fmt.Errorf("expected *cardinalv1.WorldState, got %T", state)
-	}
-	return proto.Marshal(msg)
-}
-
-// DecodeSnapshot is the inverse of EncodeSnapshot.
+// DecodeSnapshot unmarshals a world-state protobuf message from raw snapshot
+// bytes.
 func DecodeSnapshot(raw []byte) (any, error) {
 	var msg cardinalv1.WorldState
 	if err := proto.Unmarshal(raw, &msg); err != nil {

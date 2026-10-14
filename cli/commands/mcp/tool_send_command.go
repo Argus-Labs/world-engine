@@ -17,16 +17,15 @@ import (
 
 // SendCommandInput is the structured input for the send_command tool.
 type SendCommandInput struct {
-	ShardID      string         `json:"shard_id"                jsonschema_description:"ID of the shard to send the command to (a shard deployed on the cluster)"`
-	InstanceName string         `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance to target (e.g., 'game-2', 'game 2', '2'); defaults to the shard's first instance. Each instance is a distinct pod with its own state."`
-	Organization string         `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the cluster's ShardPool for this shard if omitted)"`
-	Project      string         `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the cluster's ShardPool for this shard if omitted)"`
-	CommandName  string         `json:"command_name"            jsonschema_description:"Name of the command to execute (e.g., 'create-player', 'player-attack')"`
-	Payload      map[string]any `json:"payload"                 jsonschema_description:"JSON payload for the command (the command's input data)"`
-	ShardURL     string         `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved (per instance) from the cluster when omitted. When set, the operator is not contacted: pair it with instance_name (the exact instance, e.g. 'game-2') when targeting a non-default pod so the request address matches the shard. Also pass organization/project to skip the cluster lookup entirely; otherwise they're still auto-resolved via a cluster call."`
-	OperatorURL  string         `json:"operator_url,omitempty"  jsonschema_description:"cardinal-operator URL used to resolve instance_name (defaults to http://localhost:8090 for local dev)"`
-	Email        string         `json:"email,omitempty"         jsonschema_description:"Email for dev auth (defaults to mcp@dev.local)"`
-	Region       string         `json:"region,omitempty"        jsonschema_description:"Service address region (defaults to us-west1 for local dev)"`
+	ShardID      string `json:"shard_id"                jsonschema_description:"ID of the shard to send the command to (a shard deployed on the cluster)"`
+	InstanceName string `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance to target (e.g., 'game-2', 'game 2', '2'); defaults to the shard's first instance. Each instance is a distinct pod with its own state."`
+	Organization string `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the cluster's ShardPool for this shard if omitted)"`
+	Project      string `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the cluster's ShardPool for this shard if omitted)"`
+	CommandName  string `json:"command_name"            jsonschema_description:"Name of the command to execute (e.g., 'create-player', 'player-attack')"`
+	Payload      string `json:"payload"                 jsonschema_description:"JSON payload for the command as a JSON-stringified object (a string containing a serialized JSON object, not a bare object). Serialize the command input object to a JSON string and pass that string here so large int64/uint64 values (e.g. nanosecond timestamps, large IDs) survive the MCP transport without float64 rounding."`
+	ShardURL     string `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved (per instance) from the cluster when omitted. When set, the operator is not contacted: pair it with instance_name (the exact instance, e.g. 'game-2') when targeting a non-default pod so the request address matches the shard. Also pass organization/project to skip the cluster lookup entirely; otherwise they're still auto-resolved via a cluster call."`
+	OperatorURL  string `json:"operator_url,omitempty"  jsonschema_description:"cardinal-operator URL used to resolve instance_name (defaults to http://localhost:8090 for local dev)"`
+	PlayerID     string `json:"player_id,omitempty"     jsonschema_description:"Player ID for dev auth (defaults to mcp-dev-player)"`
 }
 
 // SendCommandOutput is the structured output for the send_command tool.
@@ -80,7 +79,7 @@ func sendCommandHandler(
 	// shard's first instance, preserving prior behavior; each instance has its own
 	// Traefik route and its own ECS state.
 	target, err := resolveShardTarget(
-		ctx, args.OperatorURL, args.ShardID, args.InstanceName, args.ShardURL, org, project, args.Region,
+		ctx, args.OperatorURL, args.ShardID, args.InstanceName, args.ShardURL, org, project,
 	)
 	if err != nil {
 		return SendCommandOutput{}, err
@@ -99,13 +98,12 @@ func sendCommandHandler(
 	client := cardinalv1connect.NewCardinalServiceClient(
 		&http.Client{Timeout: defaultCommandTimeout},
 		target.shardURL,
-		connect.WithInterceptors(&devAuthInterceptor{email: args.Email}),
+		connect.WithInterceptors(&devAuthInterceptor{playerID: args.PlayerID}),
 	)
 
 	req := connect.NewRequest(&cardinalv1.SendCommandRequest{
 		Command: &iscv1.Command{
 			Name:    args.CommandName,
-			Persona: &iscv1.Persona{Id: devPersonaID},
 			Address: target.address,
 			Payload: payloadBytes,
 		},
@@ -143,14 +141,11 @@ func (s *SendCommandInput) validate() error {
 		return eris.New("command_name is required")
 	}
 	// Use defaults for optional fields (ShardURL is resolved in the handler).
-	if s.Email == "" {
-		s.Email = defaultDevEmail
+	if s.PlayerID == "" {
+		s.PlayerID = defaultDevPlayerID
 	}
-	if s.Region == "" {
-		s.Region = defaultRegion
-	}
-	if s.Payload == nil {
-		s.Payload = make(map[string]any)
+	if s.Payload == "" {
+		s.Payload = "{}"
 	}
 	return nil
 }

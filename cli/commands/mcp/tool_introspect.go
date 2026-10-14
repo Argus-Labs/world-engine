@@ -36,10 +36,11 @@ type IntrospectOutput struct {
 }
 
 // NamedSchema is one registered type (command, component, or event) with its schema — the type's
-// protobuf message definition rendered as JSON.
+// protobuf message definition rendered as JSON — plus the shape of any multi-dimensional arrays.
 type NamedSchema struct {
-	Name   string         `json:"name"`
-	Schema map[string]any `json:"schema"`
+	Name        string                   `json:"name"`
+	Schema      map[string]any           `json:"schema"`
+	ArrayFields []*cardinalv1.ArrayField `json:"array_fields,omitempty"`
 }
 
 // registerIntrospectTool registers the introspect tool. It retrieves metadata
@@ -177,7 +178,11 @@ func convertTypeSchemas(schemas []*cardinalv1.TypeSchema, files *protoregistry.F
 		if err != nil {
 			schemaMap = map[string]any{"error": err.Error()}
 		}
-		result = append(result, NamedSchema{Name: ts.GetName(), Schema: schemaMap})
+		result = append(result, NamedSchema{
+			Name:        ts.GetName(),
+			Schema:      schemaMap,
+			ArrayFields: ts.GetArrayFields(),
+		})
 	}
 	return result
 }
