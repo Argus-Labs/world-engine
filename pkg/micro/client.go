@@ -205,7 +205,7 @@ func (c *Client) Close() {
 func (c *Client) handleDisconnect(nc *nats.Conn, err error) {
 	log := c.log.With().
 		Str("nats_url", c.natsConfig.URL).
-		Uint64("reconnect_attempts", nc.Reconnects).
+		Uint64("reconnect_attempts", nc.Stats().Reconnects).
 		Logger()
 
 	if err != nil {
@@ -219,14 +219,14 @@ func (c *Client) handleDisconnect(nc *nats.Conn, err error) {
 func (c *Client) handleReconnect(nc *nats.Conn) {
 	c.log.Info().
 		Str("nats_url", nc.ConnectedUrl()).
-		Uint64("reconnect_attempts", nc.Reconnects).
+		Uint64("reconnect_attempts", nc.Stats().Reconnects).
 		Msg("Reconnected to NATS")
 }
 
 // handleClosed handles NATS connection closure events.
 func (c *Client) handleClosed(nc *nats.Conn) {
 	log := c.log.With().
-		Uint64("reconnect_attempts", nc.Reconnects).
+		Uint64("reconnect_attempts", nc.Stats().Reconnects).
 		Logger()
 
 	if err := nc.LastError(); err != nil {
