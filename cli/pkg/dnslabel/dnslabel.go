@@ -1,9 +1,7 @@
-// Package dnslabel normalizes arbitrary strings into DNS-label-safe path
-// segments. Shard URLs are assembled from these segments in two independent
-// places — the cardinal-shard chart in monorepo (the HTTPRoute path it renders,
-// see templates/_helpers.tpl pathSegment) and pkg/edge (the local proxy's route
-// table) — and the two MUST produce identical segments or shard requests 404.
-// This package is the single source of that normalization.
+// Package dnslabel normalizes arbitrary strings into DNS-label-safe segments.
+// world.toml validation requires project and shard IDs to already be canonical, so
+// the names the cardinal-shard chart turns into Kubernetes objects and route paths
+// are used as-is on both the cluster and the local edge.
 package dnslabel
 
 import "strings"

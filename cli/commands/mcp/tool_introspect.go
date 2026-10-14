@@ -22,9 +22,9 @@ import (
 type IntrospectInput struct {
 	ShardID      string `json:"shard_id"                jsonschema_description:"ID of the shard to introspect"`
 	InstanceName string `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance; accepts variants like 'game-5', 'game 5', 'game5', or '5'. Defaults to the shard's first instance."`
-	Organization string `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the running containers when omitted)"`
+	Organization string `json:"organization,omitempty"  jsonschema_description:"Ignored: since the organization left a shard's address, project alone identifies the world"`
 	Project      string `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the running containers when omitted)"`
-	ShardURL     string `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved (per instance) from the running containers when omitted. When set, Docker is not contacted: pair it with instance_name (the exact instance, e.g. 'game-2'). Also pass organization/project to skip the container lookup entirely; otherwise they're still auto-resolved from the containers."`
+	ShardURL     string `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved (per instance) from the running containers when omitted. When set, Docker is not contacted: pair it with instance_name (the exact instance, e.g. 'game-2'). Also pass project to skip the container lookup entirely; otherwise it is still auto-resolved from the containers."`
 }
 
 // IntrospectOutput is the structured output for the introspect tool.
@@ -76,7 +76,6 @@ func introspectHandler(
 	client, _, err := dialShardDebugService(ctx, debugTargetArgs{
 		shardID:      args.ShardID,
 		instanceName: args.InstanceName,
-		organization: args.Organization,
 		project:      args.Project,
 		shardURL:     args.ShardURL,
 	})

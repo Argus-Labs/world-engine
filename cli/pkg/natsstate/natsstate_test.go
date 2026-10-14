@@ -7,7 +7,9 @@ import (
 )
 
 func TestSnapshotBucket(t *testing.T) {
-	if got := natsstate.SnapshotBucket("argus", "rampage", "gameplay-2"); got != "argus_rampage_gameplay-2_snapshot" {
+	// Must match pkg/cardinal/snapshot/storage_jetstream.go, which names the bucket from
+	// the shard's project.serviceId address; the organization is not part of it.
+	if got := natsstate.SnapshotBucket("rampage", "gameplay-2"); got != "rampage_gameplay-2_snapshot" {
 		t.Fatalf("bucket = %q", got)
 	}
 }

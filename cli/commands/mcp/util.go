@@ -178,7 +178,6 @@ func ensureDeadline(ctx context.Context, fallback time.Duration) (context.Contex
 type debugTargetArgs struct {
 	shardID      string
 	instanceName string
-	organization string
 	project      string
 	shardURL     string
 }
@@ -192,9 +191,8 @@ func newDebugServiceClient(shardURL string) cardinalv1connect.DebugServiceClient
 	)
 }
 
-// dialShardDebugService validates the shard id, resolves the shard's
-// organization/project from the containers and then the target pool instance's
-// edge URL, and returns a DebugService client aimed at it plus the resolved
+// dialShardDebugService validates the shard id, resolves the shard's project from
+// the containers and then the target pool instance's edge URL, and returns a DebugService client aimed at it plus the resolved
 // target, so callers can report which instance actually answered.
 func dialShardDebugService(
 	ctx context.Context,

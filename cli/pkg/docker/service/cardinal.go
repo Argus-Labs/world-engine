@@ -32,9 +32,10 @@ const (
 	localLogFormat = "LOG_FORMAT=pretty"
 
 	defaultLogLevel = "info"
-	// defaultMode mirrors the chart's values.yaml default; the chart always renders CARDINAL_MODE.
+	// defaultMode is the chart's values.yaml default (the chart omits CARDINAL_MODE when mode is empty).
 	defaultMode = "LEADER"
-	// snapshotStorageType matches what the chart renders locally so reload --purge wipes real state.
+	// snapshotStorageType is JETSTREAM so state survives a container restart and reload --purge has
+	// a bucket to wipe; the chart defaults to NOP and hosted values choose per environment.
 	snapshotStorageType = "JETSTREAM"
 )
 

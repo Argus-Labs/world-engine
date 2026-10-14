@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-// DefaultAddr is where world start listens; the chart's local example has no routing, so this is the only edge.
+// DefaultAddr is where world start listens: the one entry point to a local world.
 const DefaultAddr = "127.0.0.1:8080"
 
 // routeKey carries the resolved backend from ServeHTTP to the shared proxy's Rewrite.

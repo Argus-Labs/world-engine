@@ -208,7 +208,7 @@ func (r *Runtime) PruneOrphanedShards(ctx context.Context) error {
 
 // PurgeShardState wipes one instance's JetStream snapshot bucket. The instance must be undeployed.
 func (r *Runtime) PurgeShardState(ctx context.Context, instanceID string) error {
-	return natsstate.PurgeShard(ctx, NatsHostURL, r.cfg.WorldToml.Organization, r.project(), instanceID)
+	return natsstate.PurgeShard(ctx, NatsHostURL, r.project(), instanceID)
 }
 
 // Stop stops every container of the project; volumes and containers stay for the next start.

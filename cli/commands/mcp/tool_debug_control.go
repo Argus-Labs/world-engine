@@ -26,7 +26,6 @@ type DebugControlInput struct {
 	ShardID      string `json:"shard_id"                jsonschema_description:"ID of the shard to control"`
 	Operation    string `json:"operation"               jsonschema_description:"Debug op: 'pause' halts ticking; 'resume' continues after a pause; 'step' advances exactly one tick (requires paused); 'reset' restores the world to its pre-tick-0 state (requires paused)." jsonschema:"enum=pause,enum=resume,enum=step,enum=reset"`
 	InstanceName string `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance; accepts variants like 'game-5', 'game 5', 'game5', or '5'. Defaults to the shard's first instance."`
-	Organization string `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the running containers when omitted)"`
 	Project      string `json:"project,omitempty"       jsonschema_description:"Project (defaults to the world.toml in the working directory)"`
 }
 
@@ -80,7 +79,6 @@ func debugControlHandler(
 	client, _, err := dialShardDebugService(ctx, debugTargetArgs{
 		shardID:      shardID,
 		instanceName: args.InstanceName,
-		organization: args.Organization,
 		project:      args.Project,
 	})
 	if err != nil {

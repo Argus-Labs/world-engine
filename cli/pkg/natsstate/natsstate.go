@@ -1,5 +1,6 @@
 // Package natsstate wipes shard snapshot buckets in JetStream. Buckets are named
-// "<org>_<project>_<instance>_snapshot"; callers stop the shard before wiping.
+// "<project>_<instance>_snapshot" (pkg/cardinal/snapshot/storage_jetstream.go); callers
+// stop the shard before wiping.
 package natsstate
 
 import (
@@ -15,21 +16,21 @@ import (
 const snapshotBucketSuffix = "_snapshot"
 
 // SnapshotBucket is the object store a shard instance snapshots into.
-func SnapshotBucket(org, project, instanceID string) string {
-	return fmt.Sprintf("%s_%s_%s%s", org, project, instanceID, snapshotBucketSuffix)
+func SnapshotBucket(project, instanceID string) string {
+	return fmt.Sprintf("%s_%s%s", project, instanceID, snapshotBucketSuffix)
 }
 
 // PurgeShard deletes one instance's snapshot bucket; a missing bucket is fine.
-func PurgeShard(ctx context.Context, natsURL, org, project, instanceID string) error {
-	if org == "" || project == "" || instanceID == "" {
-		return eris.New("PurgeShard: org, project, and instanceID are required")
+func PurgeShard(ctx context.Context, natsURL, project, instanceID string) error {
+	if project == "" || instanceID == "" {
+		return eris.New("PurgeShard: project and instanceID are required")
 	}
 	js, done, err := connect(natsURL)
 	if err != nil {
 		return err
 	}
 	defer done()
-	bucket := SnapshotBucket(org, project, instanceID)
+	bucket := SnapshotBucket(project, instanceID)
 	if err := js.DeleteObjectStore(ctx, bucket); err != nil && !errors.Is(err, jetstream.ErrBucketNotFound) {
 		return eris.Wrapf(err, "delete snapshot bucket %s", bucket)
 	}

@@ -23,11 +23,11 @@ import (
 type SendCommandInput struct {
 	ShardID      string `json:"shard_id"                jsonschema_description:"ID of the shard to send the command to (a shard running on local Docker)"`
 	InstanceName string `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance to target (e.g., 'game-2', 'game 2', '2'); defaults to the shard's first instance. Each instance is a distinct container with its own state."`
-	Organization string `json:"organization,omitempty"  jsonschema_description:"Organization (auto-derived from the running containers when omitted)"`
+	Organization string `json:"organization,omitempty"  jsonschema_description:"Ignored: since the organization left a shard's address, project alone identifies the world"`
 	Project      string `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the running containers when omitted)"`
 	CommandName  string `json:"command_name"            jsonschema_description:"Name of the command to execute (e.g., 'create-player', 'player-attack')"`
 	Payload      string `json:"payload"                 jsonschema_description:"JSON payload for the command as a JSON-stringified object (a string containing a serialized JSON object, not a bare object). Serialize the command input object to a JSON string and pass that string here so large int64/uint64 values (e.g. nanosecond timestamps, large IDs) survive the MCP transport without float64 rounding."`
-	ShardURL     string `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved (per instance) from the running containers when omitted. When set, Docker is not contacted: pair it with instance_name (the exact instance, e.g. 'game-2') when targeting a non-default instance so the request address matches the shard. Also pass organization/project to skip the container lookup entirely; otherwise they're still auto-resolved from the containers."`
+	ShardURL     string `json:"shard_url,omitempty"     jsonschema_description:"Cardinal shard API URL; auto-resolved (per instance) from the running containers when omitted. When set, Docker is not contacted: pair it with instance_name (the exact instance, e.g. 'game-2') when targeting a non-default instance so the request address matches the shard. Also pass project to skip the container lookup entirely; otherwise it is still auto-resolved from the containers."`
 	PlayerID     string `json:"player_id,omitempty"     jsonschema_description:"Player ID for dev auth (defaults to mcp-dev-player)"`
 }
 
