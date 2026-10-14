@@ -38,7 +38,7 @@ func New() *Edge {
 	e := &Edge{}
 	e.SetRoutes(nil)
 	// One proxy for every request: the backend and stripped path ride on the request
-	// context, so nothing per-request has to be allocated on the game's hot path.
+	// context in a small route descriptor, so no ReverseProxy is built per request.
 	e.proxy = &httputil.ReverseProxy{
 		Transport:     t,
 		FlushInterval: -1, // flush every write so server streams are not buffered
@@ -133,13 +133,22 @@ func (e *Edge) serve(w http.ResponseWriter, r *http.Request, backend *url.URL, p
 	e.proxy.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), routeKey{}, route)))
 }
 
-// Serve listens on addr for HTTP/1.1 and h2c until ctx is cancelled. A bind
-// failure names the port so the user can find the squatter.
+// Serve listens on addr for HTTP/1.1 and h2c until ctx is cancelled.
 func (e *Edge) Serve(ctx context.Context, addr string) error {
+	ln, err := e.Listen(ctx, addr)
+	if err != nil {
+		return err
+	}
+	return e.ServeListener(ctx, ln)
+}
+
+// Listen binds addr, so the caller learns synchronously whether the port is its own. A
+// bind failure names the port so the user can find the squatter.
+func (e *Edge) Listen(ctx context.Context, addr string) (net.Listener, error) {
 	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", addr)
 	if err != nil {
 		_, port, _ := net.SplitHostPort(addr)
-		return fmt.Errorf(
+		return nil, fmt.Errorf(
 			"edge cannot listen on %s (something else holds port %s; try `lsof -i :%s`): %w",
 			addr,
 			port,
@@ -147,10 +156,21 @@ func (e *Edge) Serve(ctx context.Context, addr string) error {
 			err,
 		)
 	}
+	return ln, nil
+}
+
+// ServeListener serves HTTP/1.1 and h2c on ln until ctx is cancelled.
+func (e *Edge) ServeListener(ctx context.Context, ln net.Listener) error {
 	p := new(http.Protocols)
 	p.SetHTTP1(true)
 	p.SetUnencryptedHTTP2(true) // Unity and curl --http2-prior-knowledge send h2c directly
-	srv := &http.Server{Handler: e, Protocols: p, ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{
+		Handler:           e,
+		Protocols:         p,
+		ReadHeaderTimeout: 10 * time.Second,
+		// A stray TLS hello or port scan on 8080 would otherwise log over the running TUI.
+		ErrorLog: slog.NewLogLogger(slog.DiscardHandler, slog.LevelError),
+	}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Serve(ln) }()
 	select {

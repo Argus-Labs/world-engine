@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rotisserie/eris"
+	"golang.org/x/term"
 
 	"github.com/argus-labs/world-engine/cli/internal/dependency"
 	"github.com/argus-labs/world-engine/cli/internal/logger"
@@ -49,6 +50,15 @@ func stopWorld(ctx context.Context, rt *local.Runtime, cfg *service.Config) erro
 		func(ctx context.Context) error { return rt.Stop(ctx, nil) })
 }
 
+// progressForTerminal is the live box on a terminal and one line per section otherwise,
+// so a captured log gets no redraw frames.
+func progressForTerminal() phasebox.Progress {
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		return phasebox.TTY
+	}
+	return phasebox.Plain
+}
+
 // runSingleStep runs one lifecycle op (`world stop`, `world purge`) through a
 // one-row phasebox section labelled rowLabel; resultVerb + project becomes the
 // collapsed summary (e.g. "stopped — rampage (2s)").
@@ -57,7 +67,7 @@ func runSingleStep(
 	project, rowID, rowLabel, resultVerb string,
 	op func(ctx context.Context) error,
 ) error {
-	dash := phasebox.Start(ctx, phasebox.TTY)
+	dash := phasebox.Start(ctx, progressForTerminal())
 	defer dash.Complete()
 	return dash.Run("World",
 		func(ctx context.Context, sess phasebox.Session) error {

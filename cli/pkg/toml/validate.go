@@ -109,6 +109,10 @@ func validateAuth(auth *Auth) error {
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return eris.Errorf("world.toml: [auth].url must be an http or https URL (got %q)", auth.URL)
 	}
-	auth.URL = strings.TrimSuffix(auth.URL, "/")
+	// Cardinal appends /auth/jwks to the string, so a query or fragment would land inside the path.
+	if u.RawQuery != "" || u.ForceQuery || u.Fragment != "" {
+		return eris.Errorf("world.toml: [auth].url must not carry a query or fragment (got %q)", auth.URL)
+	}
+	auth.URL = strings.TrimRight(auth.URL, "/")
 	return nil
 }

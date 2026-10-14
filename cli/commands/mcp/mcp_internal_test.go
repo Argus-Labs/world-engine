@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1075,4 +1077,29 @@ func TestSendCommandInput_BindArguments_PreservesLargeInt64Payload(t *testing.T)
 	decoded, err := decodeMessage(md, wire)
 	require.NoError(t, err)
 	assert.Equal(t, int64(9223372036854775807), decoded["ID"], "MaxInt64 must encode to the wire bit-for-bit exact")
+}
+
+// mcp-go runs tool calls in parallel; calls on one project must not overlap, or a reload
+// rewrites the runtime's config under a status read. Other projects are not held up.
+func TestWorldsLockSerializesPerProject(t *testing.T) {
+	w := &worlds{locks: map[string]*sync.Mutex{}}
+	var inside, overlaps int32
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Go(func() {
+			release := w.lock("game")
+			defer release()
+			if n := atomic.AddInt32(&inside, 1); n != 1 {
+				atomic.AddInt32(&overlaps, 1)
+			}
+			time.Sleep(time.Millisecond)
+			atomic.AddInt32(&inside, -1)
+		})
+	}
+	other := w.lock("other")
+	wg.Wait()
+	other()
+	if overlaps != 0 {
+		t.Fatalf("%d tool calls overlapped on one project", overlaps)
+	}
 }

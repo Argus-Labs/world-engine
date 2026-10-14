@@ -12,6 +12,7 @@ import (
 	"github.com/rotisserie/eris"
 
 	"github.com/argus-labs/world-engine/cli/pkg/local"
+	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
 // Operations supported by the world_lifecycle tool.
@@ -122,10 +123,26 @@ func worldLifecycleHandler(
 		)
 	}
 	worldPath = filepath.Clean(worldPath)
-	rt, err := started.open(worldPath)
+
+	// Build before taking the project: compiling can take minutes and touches no
+	// container, so status and log reads need not wait behind it. A compile error
+	// returns here with Docker untouched; a purge cannot fix code that doesn't compile.
+	var (
+		cfg        worldtoml.Config
+		deployOpts local.DeployOpts
+		err        error
+	)
+	if op == lifecycleOpStart {
+		cfg, deployOpts, err = buildWorldShards(ctx, worldPath, "", true)
+		if err != nil {
+			return WorldLifecycleOutput{}, eris.Wrap(err, "build failed (did the shard code compile?)")
+		}
+	}
+	rt, release, err := started.open(worldPath)
 	if err != nil {
 		return WorldLifecycleOutput{}, eris.Wrap(err, "open world")
 	}
+	defer release()
 	args.Organization, args.Project = rt.Config().WorldToml.Organization, rt.Config().Project
 
 	switch op {
@@ -151,26 +168,18 @@ func worldLifecycleHandler(
 		}, nil
 	}
 
-	return startWorld(ctx, rt, worldPath, args)
+	return startWorld(ctx, rt, cfg, deployOpts, args)
 }
 
-// startWorld builds the world's shards, optionally purges the existing
-// containers, then starts the platform and deploys onto it. The build runs before
-// anything is torn down or started, so a compile error leaves Docker exactly as
-// it was — the same guarantee the reload tool gives.
+// startWorld optionally purges the existing containers, then starts the platform and
+// deploys the already-built shards onto it.
 func startWorld(
 	ctx context.Context,
 	rt *local.Runtime,
-	worldPath string,
+	cfg worldtoml.Config,
+	deployOpts local.DeployOpts,
 	args WorldLifecycleInput,
 ) (WorldLifecycleOutput, error) {
-	cfg, deployOpts, err := buildWorldShards(ctx, worldPath, "", true)
-	if err != nil {
-		// No purge advice here: nothing was touched and a purge cannot fix
-		// code that doesn't compile.
-		return WorldLifecycleOutput{}, eris.Wrap(err, "build failed (did the shard code compile?)")
-	}
-
 	if args.Purge {
 		started.stopEdge(cfg.Project)
 		if err := rt.Purge(ctx, false, nil); err != nil {

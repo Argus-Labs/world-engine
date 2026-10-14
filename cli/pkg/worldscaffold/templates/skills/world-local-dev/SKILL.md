@@ -75,8 +75,9 @@ makes the MCP tools send it, and only ever to a shard on this machine. `world de
 
 | Message | Cause | Do |
 |---|---|---|
-| `edge cannot listen on 127.0.0.1:8080` | Another process owns the port (an old `world start`, another proxy) | `lsof -i :8080`; stop the other listener |
-| `port is already allocated` on 4222 / 5432 | A local NATS or Postgres, or another project's containers | `lsof -i :<the port in the message>`; stop it, or `world stop` the other project |
+| `edge cannot listen on 127.0.0.1:8080` | Another process owns the port (an old `world start`, another proxy, or the k3d cluster an older CLI left behind) | `lsof -i :8080`; stop the other listener. For k3d: `k3d cluster delete world-engine` |
+| `port is already allocated` on 4222 / 5432 | A local NATS or Postgres, another project's containers, or an old k3d cluster | `lsof -i :<the port in the message>`; stop it, `world stop` the other project, or `k3d cluster delete world-engine` |
+| `the shard list in world.toml changed since world start` from `world reload` | An instance was added or moved; the proxy in `world start` routes from the list it started with | Stop and start the world again (Ctrl+C in the `world start` terminal, then `world start`) |
 | `timeout waiting for <project>-nats` / `-db to become ready` | Container started but never healthy | `docker logs` the container the message names, not the other one; if its volume is corrupt, `world purge` — ask first, it wipes all state |
 | Shard container `exited` right after start | Game code panics, or DB unreachable | `world logs` → the shard; `DB_DSN` host is `<project>-db`, or the `config_db` service's container if `world.toml` declares one |
 | An auth-header error from a client | The world runs dev auth and the client sent an Argus token | Send the dev header, or set `[auth] mode = "argus"` in `world.toml` |

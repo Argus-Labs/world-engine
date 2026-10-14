@@ -83,10 +83,11 @@ func reloadHandler(
 	if err != nil {
 		return ReloadOutput{}, eris.Wrap(err, "build failed (did the new shard code compile?)")
 	}
-	rt, err := started.open(worldPath)
+	rt, release, err := started.open(worldPath)
 	if err != nil {
 		return ReloadOutput{}, eris.Wrap(err, "open world")
 	}
+	defer release()
 	if err := reloadShards(ctx, rt, cfg, deployOpts, args.Purge); err != nil {
 		return ReloadOutput{}, err
 	}
@@ -117,6 +118,10 @@ func reloadShards(
 	deployOpts local.DeployOpts,
 	purge bool,
 ) error {
+	// A world started by `world start` is routed by that process; refuse what it would misroute.
+	if err := rt.CheckLayout(ctx); err != nil {
+		return err
+	}
 	if purge {
 		for _, shard := range deployOpts.Shards {
 			if err := rt.UndeployShard(ctx, shard.ID); err != nil {

@@ -10,7 +10,7 @@ type Config struct {
 	Services     []GameService `toml:"services"     json:"services"`
 }
 
-// Auth is how every shard `world start` runs authenticates players. Deployed shards
+// Auth configures how the shards `world start` runs authenticate players. Deployed shards
 // don't read world.toml; their deployment sets CARDINAL_AUTH_MODE and
 // CARDINAL_ARGUS_AUTH_URL instead.
 type Auth struct {

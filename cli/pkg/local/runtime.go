@@ -6,6 +6,7 @@ package local
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"sort"
@@ -35,14 +36,14 @@ const NatsHostURL = "nats://127.0.0.1:4222"
 // DBEndpoint is the project Postgres as seen from the host.
 const DBEndpoint = "localhost:5432"
 
-// stateRunning is Docker's running container state.
-const stateRunning = "running"
-
 // Runtime drives one project's containers and routes.
 type Runtime struct {
 	docker *docker.Client
 	cfg    *service.Config
 	edge   *edge.Edge
+	// servesEdge is set once ListenEdge bound the proxy: this process owns the routes
+	// and refreshes them itself, so CheckLayout has nothing to guard.
+	servesEdge bool
 }
 
 // New wraps a Docker client opened on the project (docker.WithClient).
@@ -246,7 +247,7 @@ func (r *Runtime) IsRunning(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	for _, c := range cs {
-		if c.Labels[service.RoleLabel] == service.RoleNATS && c.State == stateRunning {
+		if c.Labels[service.RoleLabel] == service.RoleNATS && c.State == docker.ContainerRunning {
 			return true, nil
 		}
 	}
@@ -326,7 +327,7 @@ func poolPhase(p worldstatus.PoolStatus) string {
 	}
 	running := 0
 	for _, in := range p.Instances {
-		if in.Phase == stateRunning {
+		if in.Phase == docker.ContainerRunning {
 			running++
 		}
 	}
@@ -418,6 +419,11 @@ func (r *Runtime) WaitForShardsReady(
 				ready++
 			}
 		}
+		if ctx.Err() != nil {
+			// Cancelled mid-round: every probe failed at once, so this round says nothing
+			// about the shards. Report the last complete one instead of a false zero.
+			return max(last, 0), expected
+		}
 		if ready != last && onProgress != nil {
 			onProgress(ready, expected)
 			last = ready
@@ -456,7 +462,7 @@ func (r *Runtime) RefreshRoutes(ctx context.Context) error {
 			return err
 		}
 		for _, c := range cs {
-			if c.Labels[service.RoleLabel] != service.RoleShard || c.State != stateRunning {
+			if c.Labels[service.RoleLabel] != service.RoleShard || c.State != docker.ContainerRunning {
 				continue
 			}
 			port, err := r.docker.CardinalHostPort(ctx, c.Name)
@@ -476,7 +482,76 @@ func hostURL(port int) *url.URL {
 
 // ServeEdge runs the proxy on EdgeAddr until ctx ends.
 func (r *Runtime) ServeEdge(ctx context.Context) error {
-	return r.edge.Serve(ctx, EdgeAddr)
+	ln, err := r.ListenEdge(ctx)
+	if err != nil {
+		return err
+	}
+	return r.ServeEdgeOn(ctx, ln)
+}
+
+// ListenEdge binds EdgeAddr, so a taken port is an error here rather than in a goroutine
+// later. The runtime then owns the routes (see CheckLayout).
+func (r *Runtime) ListenEdge(ctx context.Context) (net.Listener, error) {
+	ln, err := r.edge.Listen(ctx, EdgeAddr)
+	if err != nil {
+		return nil, err
+	}
+	r.servesEdge = true
+	return ln, nil
+}
+
+// ServeEdgeOn serves the proxy on a listener from ListenEdge until ctx ends.
+func (r *Runtime) ServeEdgeOn(ctx context.Context, ln net.Listener) error {
+	return r.edge.ServeListener(ctx, ln)
+}
+
+// CheckLayout refuses a reload whose world.toml no longer matches the running world. An
+// instance's host port is its position in world.toml, and the edge in `world start`
+// built its routes from that once; a reload from another process that moves an instance
+// to a new port, or adds one, would leave that proxy sending a route to the wrong
+// container (or nowhere) with no error. The process serving the edge refreshes its own
+// routes and skips this.
+func (r *Runtime) CheckLayout(ctx context.Context) error {
+	if r.servesEdge {
+		return nil
+	}
+	cs, err := r.docker.ListProjectContainers(ctx, r.project())
+	if err != nil {
+		return err
+	}
+	ports := map[string]int{}
+	for _, c := range cs {
+		if c.Labels[service.RoleLabel] != service.RoleShard {
+			continue
+		}
+		if port, err := r.docker.CardinalHostPort(ctx, c.Name); err == nil {
+			ports[c.Labels[service.InstanceLabel]] = port
+		}
+	}
+	return layoutMismatch(r.cfg.WorldToml.Shards, ports)
+}
+
+// layoutMismatch compares world.toml's instances with the ports the existing shard
+// containers hold; ports is empty when no shard has been deployed yet.
+func layoutMismatch(shards []worldtoml.Shard, ports map[string]int) error {
+	if len(ports) == 0 {
+		return nil
+	}
+	for i, sh := range shards {
+		want := service.ShardHostPort(i)
+		got, ok := ports[sh.InstanceID]
+		switch {
+		case !ok:
+			return eris.Errorf(
+				"instance %q was added to world.toml after `world start`; "+
+					"stop and start the world again so it is routed", sh.InstanceID)
+		case got != want:
+			return eris.Errorf(
+				"instance %q would move from port %d to %d: the shard list in world.toml changed since `world start`; "+
+					"stop and start the world again", sh.InstanceID, got, want)
+		}
+	}
+	return nil
 }
 
 // Routes returns the current edge table, for status output and tests.
@@ -534,18 +609,30 @@ func (r *Runtime) StreamShardLogs(
 	for _, sh := range instances {
 		byContainer[service.CardinalShardContainerName(r.project(), sh.InstanceID)] = sh
 	}
+	return pumpLogs(ctx, entries, errCh, active, func(e docker.LogEntry) {
+		sh := byContainer[e.Container]
+		line := worldstatus.LogLine{ShardID: sh.ID, InstanceName: sh.InstanceID, Source: e.Container, Line: e.Line}
+		emitLogLine(ctx, out, line, e)
+	})
+}
+
+// pumpLogs forwards entries to emit until every one of the active producers has reported
+// on errCh, then drains what they left buffered. A producer pushes its tail into entries
+// and returns at once, so errCh and entries are often ready together and a select alone
+// would drop the end of the log — where the panic is. Once every producer has returned
+// nothing writes to entries, so the drain is complete. A producer's error ends the pump
+// early unless the context is already over or the container simply does not exist.
+func pumpLogs(
+	ctx context.Context,
+	entries <-chan docker.LogEntry,
+	errCh <-chan error,
+	active int,
+	emit func(docker.LogEntry),
+) error {
 	for active > 0 {
 		select {
 		case e := <-entries:
-			sh := byContainer[e.Container]
-			line := worldstatus.LogLine{ShardID: sh.ID, InstanceName: sh.InstanceID, Source: e.Container, Line: e.Line}
-			if !e.Timestamp.IsZero() {
-				line.Timestamp = e.Timestamp.Format(time.RFC3339Nano)
-			}
-			select {
-			case out <- line:
-			case <-ctx.Done():
-			}
+			emit(e)
 		case err := <-errCh:
 			active--
 			if err != nil && ctx.Err() == nil && !isNotFound(err) {
@@ -553,7 +640,25 @@ func (r *Runtime) StreamShardLogs(
 			}
 		}
 	}
-	return nil
+	for {
+		select {
+		case e := <-entries:
+			emit(e)
+		default:
+			return nil
+		}
+	}
+}
+
+// emitLogLine sends line, stamped from e, unless ctx is over.
+func emitLogLine(ctx context.Context, out chan<- worldstatus.LogLine, line worldstatus.LogLine, e docker.LogEntry) {
+	if !e.Timestamp.IsZero() {
+		line.Timestamp = e.Timestamp.Format(time.RFC3339Nano)
+	}
+	select {
+	case out <- line:
+	case <-ctx.Done():
+	}
 }
 
 // StreamContainerLogs tails one named container (nats, db, a [[service]]) into out.
@@ -572,24 +677,11 @@ func (r *Runtime) StreamContainerLogs(
 	entries := make(chan docker.LogEntry, 256)
 	errCh := make(chan error, 1)
 	go func() { errCh <- r.docker.StreamContainerLogs(ctx, name, int(opts.TailLines), true, entries) }()
-	for {
-		select {
-		case e := <-entries:
-			line := worldstatus.LogLine{InstanceName: name, Source: name, Line: e.Line}
-			if !e.Timestamp.IsZero() {
-				line.Timestamp = e.Timestamp.Format(time.RFC3339Nano)
-			}
-			select {
-			case out <- line:
-			case <-ctx.Done():
-			}
-		case err := <-errCh:
-			if err != nil && ctx.Err() == nil {
-				return err
-			}
-			return nil
-		}
-	}
+	// A platform container that was never created (a [[service]] added since start) is an
+	// empty stream, as a missing shard container is above, not an error over the TUI.
+	return pumpLogs(ctx, entries, errCh, 1, func(e docker.LogEntry) {
+		emitLogLine(ctx, out, worldstatus.LogLine{InstanceName: name, Source: name, Line: e.Line}, e)
+	})
 }
 
 func isNotFound(err error) bool {

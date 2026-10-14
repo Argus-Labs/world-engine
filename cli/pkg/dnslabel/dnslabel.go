@@ -1,7 +1,8 @@
 // Package dnslabel normalizes arbitrary strings into DNS-label-safe segments.
-// world.toml validation requires project and shard IDs to already be canonical, so
-// the names the cardinal-shard chart turns into Kubernetes objects and route paths
-// are used as-is on both the cluster and the local edge.
+// world.toml validation normalizes project and shard IDs to canonical form (spaces
+// dropped, anything else must already be a DNS label), so the names the cardinal-shard
+// chart turns into Kubernetes objects and route paths are used as-is on both the
+// cluster and the local edge.
 package dnslabel
 
 import "strings"

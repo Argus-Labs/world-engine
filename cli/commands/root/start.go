@@ -70,7 +70,7 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 
 			// One dashboard spans every box (Image Pull, Build, Platform, Shards,
 			// Services); Complete hands the terminal back before the log picker.
-			dash := phasebox.Start(ctx, phasebox.TTY)
+			dash := phasebox.Start(ctx, progressForTerminal())
 			defer dash.Complete()
 
 			if err := pullBuildDeps(ctx, dash, dockerClient, dockerServices, platformImageRefs(cfg)); err != nil {
@@ -84,12 +84,26 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 
 			platformErr := startPlatform(dash, rt, cfg)
 			buildErr := <-buildDone
-			if platformErr != nil {
-				return platformErr
-			}
 			if buildErr != nil {
-				return eris.Wrap(buildErr, "initial shard build")
+				buildErr = eris.Wrap(buildErr, "initial shard build")
 			}
+			if platformErr != nil || buildErr != nil {
+				// They ran concurrently, so report both: the Build box only says "see error below".
+				return errorspkg.JoinFailures(platformErr, buildErr)
+			}
+			// The platform is up. Until the run commits to the log picker, a failure stops it
+			// again, so a failed start does not leave NATS, Postgres and services holding ports.
+			committed := false
+			defer func() {
+				if committed {
+					return
+				}
+				stopCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+				defer cancel()
+				if stopErr := stopWorld(stopCtx, rt, cfg); stopErr != nil {
+					printer.Errorf("Stop failed: %v\n", stopErr)
+				}
+			}()
 
 			if err := deployShardImages(dash, rt, targets, false); err != nil {
 				return eris.Wrap(err, "initial shard deploy")
@@ -98,17 +112,18 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 				return eris.Wrap(err, "initial service deploy")
 			}
 
-			// The edge is the only entry point; it dies with this process.
+			// The edge is the only entry point; it dies with this process. Binding first
+			// makes a taken port this call's error, not a goroutine's later.
 			edgeCtx, stopEdge := context.WithCancel(ctx)
 			defer stopEdge()
-			edgeErr := make(chan error, 1)
-			go func() { edgeErr <- rt.ServeEdge(edgeCtx) }()
-			select {
-			case err := <-edgeErr:
+			ln, err := rt.ListenEdge(edgeCtx)
+			if err != nil {
 				return eris.Wrap(err, "start edge")
-			case <-time.After(200 * time.Millisecond):
 			}
+			edgeErr := make(chan error, 1)
+			go func() { edgeErr <- rt.ServeEdgeOn(edgeCtx, ln) }()
 
+			committed = true
 			dash.Complete()
 			// Its own box: the dashboard's width is frozen by now. 0 width = not a terminal.
 			width, _, _ := term.GetSize(int(os.Stdout.Fd()))

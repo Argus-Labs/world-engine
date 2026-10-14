@@ -50,5 +50,7 @@ func NATS(cfg *Config) Service {
 		NetworkMode:  container.NetworkMode(NetworkName(project)),
 		Binds:        []string{NatsVolumeName(project) + ":" + jetstreamStoreDir},
 		ReadyURL:     "http://127.0.0.1:" + strconv.Itoa(DefaultNatsMonitorPort) + "/healthz",
+		// Platform pieces come back from a crash; an explicit stop still sticks.
+		RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
 	}
 }

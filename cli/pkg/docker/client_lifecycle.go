@@ -17,6 +17,9 @@ import (
 const (
 	readyTimeout = 5 * time.Minute
 	probeTimeout = 2 * time.Second
+
+	// ContainerRunning is Docker's running container state.
+	ContainerRunning = "running"
 )
 
 // probeClient has no keep-alives: each probe must make a fresh connection, or a pooled
@@ -113,9 +116,9 @@ func (c *Client) waitForReady(ctx context.Context, svc service.Service) error {
 	}
 }
 
-// httpReady reports whether url answers with any HTTP response. Docker's port proxy
-// accepts a TCP connection the moment the container starts, so only a reply from the
-// process inside proves it is serving.
+// httpReady reports whether url answers 2xx. Docker's port proxy accepts a TCP
+// connection the moment the container starts, so only a reply from the process inside
+// proves it is serving, and NATS's /healthz answers non-2xx while it is still unhealthy.
 func httpReady(ctx context.Context, url string) bool {
 	ctx, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
@@ -128,7 +131,7 @@ func httpReady(ctx context.Context, url string) bool {
 		return false
 	}
 	_ = resp.Body.Close()
-	return true
+	return resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices
 }
 
 // logContainerDebugInfo logs state and the last log lines after a readiness failure.

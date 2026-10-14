@@ -1130,3 +1130,22 @@ mode = "PRIMARY"
 `))
 	require.ErrorContains(t, err, "must be LEADER or FOLLOWER")
 }
+
+// Cardinal appends /auth/jwks to the URL string, so anything after the path is rejected
+// and every trailing slash is dropped.
+func TestLoad_AuthURLShape(t *testing.T) {
+	const world = "organization = \"o\"\nproject = \"g\"\n[[shards]]\nid = \"a\"\npath = \"a\"\n[auth]\nmode = \"argus\"\n"
+	for _, bad := range []string{"https://api.argus.dev?x=1", "https://api.argus.dev/#frag", "https://api.argus.dev/?"} {
+		_, err := toml.Load(strings.NewReader(world + "url = \"" + bad + "\"\n"))
+		if err == nil || !strings.Contains(err.Error(), "query or fragment") {
+			t.Errorf("%s: err = %v, want a query/fragment rejection", bad, err)
+		}
+	}
+	cfg, err := toml.Load(strings.NewReader(world + "url = \"https://api.argus.dev//\"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Auth.URL != "https://api.argus.dev" {
+		t.Errorf("url = %q, want every trailing slash dropped", cfg.Auth.URL)
+	}
+}

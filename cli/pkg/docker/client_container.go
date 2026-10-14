@@ -101,18 +101,22 @@ func (c *Client) InspectContainer(ctx context.Context, containerName string) (co
 }
 
 // CardinalHostPort returns the 127.0.0.1 port bound to a shard container's :8080,
-// so callers never depend on the index formula.
+// so callers never depend on the index formula. A stopped container has no live
+// NetworkSettings, so the binding it was created with is read from its HostConfig.
 func (c *Client) CardinalHostPort(ctx context.Context, containerName string) (int, error) {
 	inspect, err := c.InspectContainer(ctx, containerName)
 	if err != nil {
 		return 0, err
 	}
-	if inspect.NetworkSettings == nil || inspect.NetworkSettings.Ports == nil {
-		return 0, eris.Errorf("container %s has no network port bindings", containerName)
-	}
 	debugPort := network.MustParsePort(strconv.Itoa(service.CardinalPort) + "/tcp")
-	bindings, ok := inspect.NetworkSettings.Ports[debugPort]
-	if !ok || len(bindings) == 0 {
+	var bindings []network.PortBinding
+	if inspect.NetworkSettings != nil {
+		bindings = inspect.NetworkSettings.Ports[debugPort]
+	}
+	if len(bindings) == 0 && inspect.HostConfig != nil {
+		bindings = inspect.HostConfig.PortBindings[debugPort]
+	}
+	if len(bindings) == 0 {
 		return 0, eris.Errorf("container %s has no host port for %s", containerName, debugPort)
 	}
 	hostPort, err := strconv.Atoi(bindings[0].HostPort)

@@ -69,6 +69,8 @@ func buildBaseGameService(cfg *Config, svc worldtoml.GameService) Service {
 		Env:         buildGameServiceEnv(cfg, svc),
 		Labels:      Labels(cfg.WorldToml.Project, RoleService, "", svc.ID),
 		NetworkMode: container.NetworkMode(NetworkName(cfg.WorldToml.Project)),
+		// Platform pieces come back from a crash; an explicit stop still sticks.
+		RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
 	}
 
 	if len(svc.Ports) > 0 {

@@ -38,5 +38,7 @@ func ProjectDBService(cfg *Config) Service {
 		},
 		NetworkMode: container.NetworkMode(NetworkName(project)),
 		Binds:       []string{ProjectDBVolumeName(project) + ":/var/lib/postgresql/data"},
+		// Platform pieces come back from a crash; an explicit stop still sticks.
+		RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
 	}
 }

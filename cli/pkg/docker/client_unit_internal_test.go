@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -299,5 +300,22 @@ func TestOwnsBuiltImage(t *testing.T) {
 				t.Fatalf("ownsBuiltImage(%v) = %v, want %v", tc.labels, got, tc.want)
 			}
 		})
+	}
+}
+
+// Build and pull fan-outs classify a sibling's cancellation fallout as canceled, not as
+// the item's own failure.
+func TestItemErrReportsFalloutAsCanceled(t *testing.T) {
+	t.Parallel()
+
+	own := errors.New("exit code: 1")
+	gctx, cancel := context.WithCancelCause(context.Background())
+	if got := itemErr(gctx, own); !errors.Is(got, own) {
+		t.Fatalf("live group: want the item's own error, got %v", got)
+	}
+
+	cancel(errors.New("sibling failed"))
+	if got := itemErr(gctx, own); !errors.Is(got, context.Canceled) {
+		t.Fatalf("canceled group: want context.Canceled, got %v", got)
 	}
 }

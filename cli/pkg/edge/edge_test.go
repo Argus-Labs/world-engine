@@ -117,8 +117,8 @@ func TestEdgeStreamsFlushes(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
-	buf := make([]byte, 16)
-	n, err := resp.Body.Read(buf) // must return before the backend writes "two"
+	buf := make([]byte, len("one;"))
+	n, err := io.ReadFull(resp.Body, buf) // must return before the backend writes "two"
 	if err != nil || string(buf[:n]) != "one;" {
 		t.Fatalf("first read = %q, %v; want the first flushed chunk alone", buf[:n], err)
 	}

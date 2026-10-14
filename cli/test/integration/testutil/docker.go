@@ -219,21 +219,43 @@ func (d *DockerClient) NetworkExists(ctx context.Context, name string) (bool, er
 	return len(networks.Items) > 0, nil
 }
 
-// WaitForNATS waits until the project's NATS is reachable on port 4222.
-// projectDir only names the container to dump on failure; pass "" to skip that.
+// WaitForNATS waits until the project's NATS container is running and reachable on
+// port 4222. Any listener satisfies the dial, so the container is checked too; with
+// projectDir "" only the port is checked.
 func WaitForNATS(timeout time.Duration, projectDir string) bool {
 	addr := "localhost:4222"
 	fmt.Printf("DEBUG: WaitForNATS trying to connect to %s\n", addr)
 
 	result := waitForPort(addr, timeout)
+	name, nameErr := NatsContainerName(projectDir)
+	if result && projectDir != "" && nameErr == nil && !containerRunning(name) {
+		fmt.Printf("DEBUG: %s accepts connections but %s is not running\n", addr, name)
+		result = false
+	}
 
 	if !result {
 		fmt.Printf("DEBUG: WaitForNATS failed to connect to %s after %v\n", addr, timeout)
-		if name, err := NatsContainerName(projectDir); err == nil {
+		if nameErr == nil {
 			logNATSContainerState(name)
 		}
 	}
 	return result
+}
+
+// containerRunning reports whether the named container exists and is running.
+func containerRunning(name string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cli, err := client.New(client.FromEnv)
+	if err != nil {
+		return false
+	}
+	defer cli.Close()
+	res, err := cli.ContainerInspect(ctx, name, client.ContainerInspectOptions{})
+	if err != nil || res.Container.State == nil {
+		return false
+	}
+	return res.Container.State.Running
 }
 
 // WaitForNATSDown waits until NATS is no longer reachable on port 4222.

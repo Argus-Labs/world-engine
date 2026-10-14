@@ -260,6 +260,7 @@ World CLI manages the complete deployment lifecycle:
 **Cardinal won't start**
 - Run `world doctor`: it checks that the Docker daemon is reachable
 - Check that ports 8080 (shard API), 4222 (NATS) and 5432 (project database) are free on your machine
+- Upgrading from a CLI that used k3d: its cluster may still hold those ports — run `k3d cluster delete world-engine` once
 - Run `world purge` to start from clean containers and volumes
 
 ### Support

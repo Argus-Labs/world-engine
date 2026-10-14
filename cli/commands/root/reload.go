@@ -75,6 +75,11 @@ func reloadShards(
 		return err
 	}
 	targetIDs := targets.shardIDs
+	// This process does not serve the edge; the one that does built its routes from the
+	// world.toml it started with, so refuse a layout it would misroute.
+	if err := rt.CheckLayout(ctx); err != nil {
+		return err
+	}
 
 	services := dockerClient.ResolveServices(service.GetServices(cfg, service.CardinalShardsFirst)...)
 	dockerServices := filterCardinalServicesByID(services, cfg, targetIDs)
@@ -82,7 +87,7 @@ func reloadShards(
 	// One dashboard spans every box this reload opens (Image Pull, Build,
 	// optionally Purge, Shards) through a single bubbletea program, so
 	// adjacent boxes can't visually merge across a program hand-off.
-	dash := phasebox.Start(ctx, phasebox.TTY)
+	dash := phasebox.Start(ctx, progressForTerminal())
 	defer dash.Complete()
 
 	if err := pullBuildDeps(ctx, dash, dockerClient, dockerServices, nil); err != nil {

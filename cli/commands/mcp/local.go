@@ -44,12 +44,34 @@ type worlds struct {
 	mu       sync.Mutex
 	runtimes map[string]*local.Runtime
 	edges    map[string]context.CancelFunc
+	locks    map[string]*sync.Mutex
 }
 
 //nolint:gochecknoglobals // process-wide registry of started worlds
-var started = &worlds{runtimes: map[string]*local.Runtime{}, edges: map[string]context.CancelFunc{}}
+var started = &worlds{
+	runtimes: map[string]*local.Runtime{},
+	edges:    map[string]context.CancelFunc{},
+	locks:    map[string]*sync.Mutex{},
+}
 
-// open returns the Runtime for the world at worldPath, creating and caching it.
+// lock serializes tool calls on one project and returns the release. mcp-go runs tool
+// calls in parallel; open rewrites a runtime's config in place and the lifecycle tools
+// recreate its containers, so readers hold the lock too and never see a half-written
+// config or two reloads racing over the same containers. Not held across tool calls.
+func (w *worlds) lock(project string) func() {
+	w.mu.Lock()
+	m, ok := w.locks[project]
+	if !ok {
+		m = &sync.Mutex{}
+		w.locks[project] = m
+	}
+	w.mu.Unlock()
+	m.Lock()
+	return m.Unlock
+}
+
+// open returns the Runtime for the world at worldPath, creating and caching it, with the
+// project locked until release is called.
 //
 // world.toml is re-read on every call and the cached runtime adopts it. `world mcp` is a
 // long-lived stdio server, so keeping the first snapshot would pin it for the whole
@@ -58,27 +80,30 @@ var started = &worlds{runtimes: map[string]*local.Runtime{}, edges: map[string]c
 // successful reload for a shard that never started. The runtime is updated in place
 // rather than replaced because it owns the running edge proxy; the Docker client holds
 // the same *service.Config, so one assignment refreshes both.
-func (w *worlds) open(worldPath string) (*local.Runtime, error) {
+func (w *worlds) open(worldPath string) (*local.Runtime, func(), error) {
 	cfg, err := docker.NewClientConfig(worldPath, false)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	release := w.lock(cfg.Project)
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if rt, ok := w.runtimes[cfg.Project]; ok {
 		*rt.Config() = *cfg
-		return rt, nil
+		return rt, release, nil
 	}
 	dc, err := docker.NewClient(cfg, &docker.ClientOptions{Logger: slog.Default()})
 	if err != nil {
-		return nil, eris.Wrap(err, "docker client")
+		release()
+		return nil, nil, eris.Wrap(err, "docker client")
 	}
 	rt := local.New(dc, cfg)
 	w.runtimes[cfg.Project] = rt
-	return rt, nil
+	return rt, release, nil
 }
 
-// serveEdge starts the project's edge proxy if it is not already running.
+// serveEdge starts the project's edge proxy if it is not already running. The bind is
+// synchronous, so a taken port is this call's error.
 func (w *worlds) serveEdge(rt *local.Runtime) error {
 	project := rt.Config().Project
 	w.mu.Lock()
@@ -87,14 +112,12 @@ func (w *worlds) serveEdge(rt *local.Runtime) error {
 		return nil
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	errCh := make(chan error, 1)
-	go func() { errCh <- rt.ServeEdge(ctx) }()
-	select {
-	case err := <-errCh:
+	ln, err := rt.ListenEdge(ctx)
+	if err != nil {
 		cancel()
 		return err
-	case <-time.After(200 * time.Millisecond):
 	}
+	go func() { _ = rt.ServeEdgeOn(ctx, ln) }()
 	w.edges[project] = cancel
 	return nil
 }
@@ -109,19 +132,20 @@ func (w *worlds) stopEdge(project string) {
 	}
 }
 
-// reader returns a Runtime for reads on a project: the cached one when this
-// process started it, else one built from the project label alone (no world.toml
-// needed; status and logs come from the containers).
+// reader returns a Runtime for reads on a project, with the project locked until done is
+// called: the cached one when this process started it, else one built from the project
+// label alone (no world.toml needed; status and logs come from the containers).
 func (w *worlds) reader(project string) (*local.Runtime, func(), error) {
 	project, err := resolveProject(project)
 	if err != nil {
 		return nil, nil, err
 	}
+	release := w.lock(project)
 	w.mu.Lock()
 	rt, ok := w.runtimes[project]
 	w.mu.Unlock()
 	if ok {
-		return rt, func() {}, nil
+		return rt, release, nil
 	}
 	cfg := &service.Config{
 		Project:   project,
@@ -130,9 +154,10 @@ func (w *worlds) reader(project string) (*local.Runtime, func(), error) {
 	}
 	dc, err := docker.NewClient(cfg, &docker.ClientOptions{Logger: slog.Default()})
 	if err != nil {
+		release()
 		return nil, nil, eris.Wrap(err, "docker client")
 	}
-	return local.New(dc, cfg), func() { _ = dc.Close() }, nil
+	return local.New(dc, cfg), func() { _ = dc.Close(); release() }, nil
 }
 
 // worldStatus reads the project's pools from its containers.
@@ -310,7 +335,8 @@ type deployedShard struct {
 	Project      string
 }
 
-// deployedShards lists the project's shard pools with their organization/project from container labels.
+// deployedShards lists the project's running shard pools with their organization/project
+// from container labels; a stopped or exited instance is not somewhere to send an RPC.
 func deployedShards(ctx context.Context, project string) ([]deployedShard, error) {
 	project, err := resolveProject(project)
 	if err != nil {
@@ -329,7 +355,7 @@ func deployedShards(ctx context.Context, project string) ([]deployedShard, error
 	var out []deployedShard
 	for _, c := range cs {
 		id := c.Labels[service.ShardIDLabel]
-		if c.Labels[service.RoleLabel] != service.RoleShard || seen[id] {
+		if c.Labels[service.RoleLabel] != service.RoleShard || c.State != docker.ContainerRunning || seen[id] {
 			continue
 		}
 		seen[id] = true
