@@ -39,7 +39,9 @@ func (*testOrchestratorSystem) Run(w *cardinal.World) {
 
 func TestDST(t *testing.T) {
 	cardinal.RunDST(t, func(w *cardinal.World) {
-		w.RegisterPlugin(lobby.NewPlugin(lobby.Config{}))
+		w.RegisterPlugin(lobby.NewPlugin(lobby.Config{
+			LobbyPresets: map[string][]lobby.TeamConfig{"default": {{TeamID: "default", MaxPlayers: 4}}},
+		}))
 		w.RegisterSystem(&testOrchestratorSystem{})
 	}, nil)
 }
@@ -58,7 +60,9 @@ func TestE2E(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		w.RegisterPlugin(lobby.NewPlugin(lobby.Config{}))
+		w.RegisterPlugin(lobby.NewPlugin(lobby.Config{
+			LobbyPresets: map[string][]lobby.TeamConfig{"default": {{TeamID: "default", MaxPlayers: 4}}},
+		}))
 		w.RegisterSystem(&testOrchestratorSystem{})
 
 		return w
