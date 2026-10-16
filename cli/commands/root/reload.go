@@ -282,7 +282,7 @@ func rollShards(
 		if ready < expected {
 			// Returned, not just shown: the row is already Failed, but the summary and the
 			// exit code are what a script or an agent reads, and plain progress has no rows.
-			return eris.Errorf("%d/%d instances are serving; check `world logs`", ready, expected)
+			return &shardsNotReadyError{ready: ready, expected: expected}
 		}
 	}
 	return nil
@@ -315,6 +315,15 @@ func waitForShardsReadyRow(sess phasebox.Session, waitForReady func(onProgress f
 		state, detail = phasebox.Failed, fmt.Sprintf("timed out (%d/%d ready)", lastReady, expected)
 	}
 	sess.UpsertRow("ready", "Waiting for shards ready", detail, state)
+}
+
+// shardsNotReadyError reports instances that were deployed but never answered. It is its
+// own type so `world start` can stay attached on it: the shards are up for the picker to
+// read, which a stop would take away.
+type shardsNotReadyError struct{ ready, expected int }
+
+func (e *shardsNotReadyError) Error() string {
+	return fmt.Sprintf("%d/%d instances are serving; check `world logs`", e.ready, e.expected)
 }
 
 type reloadTargets struct {

@@ -424,8 +424,10 @@ func (r *Runtime) WaitForShardsReady(
 			// about the shards. Report the last complete one instead of a false zero.
 			return max(last, 0), expected
 		}
-		if ready != last && onProgress != nil {
-			onProgress(ready, expected)
+		if ready != last {
+			if onProgress != nil {
+				onProgress(ready, expected)
+			}
 			last = ready
 		}
 		if ready == expected {

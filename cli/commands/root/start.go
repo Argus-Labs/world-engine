@@ -2,6 +2,7 @@ package root
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -98,6 +99,7 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 				if committed {
 					return
 				}
+				dash.Complete() // stopWorld draws its own box; two live dashboards would fight
 				stopCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 				defer cancel()
 				if stopErr := stopWorld(stopCtx, rt, cfg); stopErr != nil {
@@ -105,7 +107,10 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 				}
 			}()
 
-			if err := deployShardImages(dash, rt, targets, false); err != nil {
+			// Instances that never answered are not a reason to stop: the picker below is
+			// where their crash is read, and stopping would take `world logs` down with it.
+			var notReady *shardsNotReadyError
+			if err := deployShardImages(dash, rt, targets, false); err != nil && !errors.As(err, &notReady) {
 				return eris.Wrap(err, "initial shard deploy")
 			}
 			if err := deployServices(dash, rt, dockerClient, cfg); err != nil {
@@ -128,6 +133,9 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 			// Its own box: the dashboard's width is frozen by now. 0 width = not a terminal.
 			width, _, _ := term.GetSize(int(os.Stdout.Fd()))
 			printer.Infoln(endpointsBox(endpointList(cfg), width))
+			if notReady != nil {
+				printer.Errorf("%v\n", notReady)
+			}
 
 			err = runLogSelectionEntry(ctx, rt, cfg, dockerClient)
 			if ctx.Err() != nil {
