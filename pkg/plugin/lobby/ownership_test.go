@@ -238,9 +238,10 @@ func TestPluginNilProviderUsesItsOwnDefault(t *testing.T) {
 
 func TestPluginRejectsReuse(t *testing.T) {
 	t.Setenv("LOG_LEVEL", "disabled")
-	plugin := lobby.NewPlugin(lobby.Config{})
+	presets := map[string][]lobby.TeamConfig{"default": {{TeamID: "default", MaxPlayers: 4}}}
+	plugin := lobby.NewPlugin(lobby.Config{LobbyPresets: presets})
 	first := newOwnershipWorldWithPlugin(t, plugin)
-	second := newOwnershipWorld(t, lobby.Config{})
+	second := newOwnershipWorld(t, lobby.Config{LobbyPresets: presets})
 	first.tick(100)
 	assert.PanicsWithValue(t,
 		"lobby: Plugin.Register called twice on the same instance; create a separate plugin instance per world",

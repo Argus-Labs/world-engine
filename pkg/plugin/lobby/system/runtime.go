@@ -56,6 +56,13 @@ type Runtime struct {
 // NewRuntime validates and copies the server-owned configuration.
 // Invalid presets panic at registration rather than rejecting every lobby creation at runtime.
 func NewRuntime(config Config, provider LobbyProvider, presets map[string][]component.TeamConfig) *Runtime {
+	// An empty registry dooms every CreateLobbyCommand: resolvePreset has no fallback, so the
+	// shard boots looking healthy and then rejects 100% of lobby creations with "unknown preset"
+	// or "preset is required". Fail fast with an operator-facing message instead.
+	if len(presets) == 0 {
+		panic("no lobby presets configured: every CreateLobbyCommand would be rejected with \"unknown preset\"")
+	}
+
 	// Every bad preset at once, sorted: map order is random, so reporting the first one found would
 	// make an operator with two mistakes fix one, redeploy, and hit the other.
 	var unusable []string

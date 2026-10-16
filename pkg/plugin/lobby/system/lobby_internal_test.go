@@ -721,6 +721,25 @@ func TestNewRuntimePanicsOnUnusablePreset(t *testing.T) {
 		})
 }
 
+// An empty or nil presets registry dooms every CreateLobbyCommand — resolvePreset has no fallback,
+// so the shard would boot healthy and then reject all lobby creations with "unknown preset" or
+// "preset is required". NewRuntime must fail fast at boot instead.
+func TestNewRuntimePanicsOnEmptyPresets(t *testing.T) {
+	t.Parallel()
+	t.Run("nil", func(t *testing.T) {
+		t.Parallel()
+		assert.PanicsWithValue(t,
+			`no lobby presets configured: every CreateLobbyCommand would be rejected with "unknown preset"`,
+			func() { NewRuntime(Config{}, nil, nil) })
+	})
+	t.Run("empty", func(t *testing.T) {
+		t.Parallel()
+		assert.PanicsWithValue(t,
+			`no lobby presets configured: every CreateLobbyCommand would be rejected with "unknown preset"`,
+			func() { NewRuntime(Config{}, nil, map[string][]component.TeamConfig{}) })
+	})
+}
+
 func TestConfig_AssignmentFields(t *testing.T) {
 	t.Parallel()
 

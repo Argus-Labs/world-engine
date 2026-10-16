@@ -9,6 +9,13 @@ import (
 	"github.com/argus-labs/world-engine/pkg/plugin/lobby/component"
 )
 
+// testPresets is a minimal valid preset registry for tests that exercise index
+// rebuilding but do not depend on preset semantics. NewRuntime rejects an empty
+// registry to fail fast at boot rather than silently rejecting every lobby creation.
+var testPresets = map[string][]component.TeamConfig{
+	"default": {{TeamID: "default", MaxPlayers: 4}},
+}
+
 func TestLookupIndex_AddRemoveLobby(t *testing.T) {
 	t.Parallel()
 
@@ -165,7 +172,7 @@ func TestLookupIndex_UpdateInviteCode(t *testing.T) {
 
 func TestRebuildIndexFromEntities(t *testing.T) {
 	t.Parallel()
-	runtime := NewRuntime(Config{}, nil, nil)
+	runtime := NewRuntime(Config{}, nil, testPresets)
 	index := &runtime.index
 
 	lobbies := []lobbyRow{
@@ -203,7 +210,7 @@ func TestRebuildIndexFromEntities(t *testing.T) {
 // downtime exceeded the heartbeat timeout would otherwise evict every player on its first tick.
 func TestRebuildIndexResetsDeadlines(t *testing.T) {
 	t.Parallel()
-	runtime := NewRuntime(Config{}, nil, nil)
+	runtime := NewRuntime(Config{}, nil, testPresets)
 	index := &runtime.index
 
 	const (
@@ -225,7 +232,7 @@ func TestRebuildIndexResetsDeadlines(t *testing.T) {
 // A rebuild replaces the index outright rather than merging into whatever was there.
 func TestRebuildIndexDiscardsPriorState(t *testing.T) {
 	t.Parallel()
-	runtime := NewRuntime(Config{}, nil, nil)
+	runtime := NewRuntime(Config{}, nil, testPresets)
 	index := &runtime.index
 
 	index.Init()
