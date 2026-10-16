@@ -66,7 +66,7 @@ func TestLocalDevelopment(t *testing.T) {
 
 		// Wait for services to be reachable (proves containers are up)
 		t.Log("Waiting for NATS to be reachable...")
-		if !testutil.WaitForNATS(5 * time.Minute) {
+		if !testutil.WaitForNATS(5*time.Minute, testProjectDir) {
 			captureStartOutput()
 			t.Fatal("NATS did not become reachable")
 		}
@@ -131,7 +131,7 @@ func TestLocalDevelopment(t *testing.T) {
 
 		// Wait for services to be reachable again
 		t.Log("Waiting for NATS to be reachable...")
-		if !testutil.WaitForNATS(3 * time.Minute) {
+		if !testutil.WaitForNATS(3*time.Minute, testProjectDir) {
 			captureStartOutput()
 			t.Fatal("NATS did not become reachable")
 		}

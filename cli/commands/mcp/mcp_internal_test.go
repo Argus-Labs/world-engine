@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -14,7 +17,6 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -22,7 +24,7 @@ import (
 
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
-	operatorv1 "github.com/argus-labs/world-engine/cli/proto/gen/go/cardinal/operator/v1"
+	"github.com/argus-labs/world-engine/cli/pkg/worldstatus"
 )
 
 func TestBuildMCPServer_RegistersAllTools(t *testing.T) {
@@ -31,8 +33,8 @@ func TestBuildMCPServer_RegistersAllTools(t *testing.T) {
 	require.NotNil(t, srv)
 }
 
-// An empty instance_name resolves to the shard's first instance without an
-// operator round-trip, so send_command keeps working exactly as before for
+// An empty instance_name resolves to the shard's first instance without a
+// container lookup, so send_command keeps working exactly as before for
 // callers that don't target a specific pod.
 func TestResolveInstanceName_EmptyDefaultsToShardID(t *testing.T) {
 	t.Parallel()
@@ -68,22 +70,9 @@ func TestSendCommandInput_Validate_Valid(t *testing.T) {
 	err := input.validate()
 	require.NoError(t, err)
 
-	assert.Empty(t, input.ShardURL) // resolved from the cluster in the handler, not validate()
+	assert.Empty(t, input.ShardURL) // resolved from the running containers in the handler, not validate()
 	assert.Equal(t, defaultDevPlayerID, input.PlayerID)
 	assert.JSONEq(t, `{"name": "test"}`, input.Payload) // The payload keeps the same JSON value.
-}
-
-// TestResolveShardTarget_PinnedURL checks the address a request carries: the shard's project and
-// instance, which the shard compares against its own address.
-func TestResolveShardTarget_PinnedURL(t *testing.T) {
-	t.Parallel()
-
-	target, err := resolveShardTarget(
-		context.Background(), "", "game", "game-2", "http://custom:9999", "argus", "rampage",
-	)
-	require.NoError(t, err)
-	assert.Equal(t, "http://custom:9999", target.shardURL)
-	assert.Equal(t, "rampage.game-2", micro.String(target.address))
 }
 
 func TestSendCommandInput_Validate_MissingShardID(t *testing.T) {
@@ -133,73 +122,6 @@ func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
 	assert.Equal(t, "custom-player", input.PlayerID)
 }
 
-// The MCP transport decodes JSON numbers as float64 before BindArguments runs.
-// This can round large integers or cause protojson to reject a valid value.
-// This test checks that a string payload preserves MaxInt64 through transport decoding and protobuf encoding.
-func TestSendCommandInput_BindArguments_PreservesLargeInt64Payload(t *testing.T) {
-	t.Parallel()
-
-	const payloadJSON = `{"ID": 9223372036854775807}` // math.MaxInt64
-
-	// Use a string payload so the transport does not convert its numbers to float64.
-	frame, err := json.Marshal(map[string]any{
-		"params": map[string]any{
-			"arguments": map[string]any{
-				"shard_id":     "game",
-				"command_name": "create-player",
-				"payload":      payloadJSON,
-			},
-		},
-	})
-	require.NoError(t, err)
-
-	// Decode the frame as the MCP transport does.
-	var req mcp.CallToolRequest
-	require.NoError(t, json.Unmarshal(frame, &req))
-
-	// BindArguments encodes the arguments as JSON, then decodes them into the input struct.
-	// The payload remains a string throughout these steps.
-	var in SendCommandInput
-	require.NoError(t, req.BindArguments(&in))
-	assert.JSONEq(t, payloadJSON, in.Payload, "payload string must survive mcp-go transport intact")
-
-	// Check that protobuf encoding preserves the exact int64 value.
-	raw := testDescriptorSet(t, &descriptorpb.DescriptorProto{
-		Name:  new("Cmd"),
-		Field: []*descriptorpb.FieldDescriptorProto{scalarField("ID", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64)},
-	})
-	md := testMessageDescriptor(t, raw, "Cmd")
-	require.NoError(t, in.validate()) // Validation leaves this nonempty payload unchanged.
-
-	wire, err := encodeCommandPayload(md, in.Payload)
-	require.NoError(t, err)
-	decoded, err := decodeMessage(md, wire)
-	require.NoError(t, err)
-	assert.Equal(t, int64(9223372036854775807), decoded["ID"], "MaxInt64 must encode to the wire bit-for-bit exact")
-}
-
-// The schema must require a string payload so the MCP transport does not round its numbers.
-// This test detects a change back to an object payload.
-func TestSendCommand_PublishedPayloadSchemaIsString(t *testing.T) {
-	t.Parallel()
-	tool := mcp.NewTool("send_command", mcp.WithInputSchema[SendCommandInput]())
-	require.NotEmpty(t, tool.RawInputSchema, "the tool must publish a generated input schema")
-
-	var schema struct {
-		Properties map[string]struct {
-			Type        string `json:"type"`
-			Description string `json:"description"`
-		} `json:"properties"`
-	}
-	require.NoError(t, json.Unmarshal(tool.RawInputSchema, &schema))
-	require.Contains(t, schema.Properties, "payload", "payload must appear in the published schema")
-
-	prop := schema.Properties["payload"]
-	assert.Equal(t, "string", prop.Type, "payload must be a string to bypass mcp-go's float64 coercion")
-	assert.Contains(t, prop.Description, "JSON-stringified object",
-		"the schema must tell callers to pass a serialized JSON object, not a bare object")
-}
-
 // -------------------------------------------------------------------------------------------------
 // ensureDeadline tests
 // -------------------------------------------------------------------------------------------------
@@ -247,7 +169,7 @@ func TestEnsureDeadline_ReturnedCancelIsNoOpWhenDeadlineExists(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------------------------------
-// k8s helper tests (operator status → MCP shape)
+// container helper tests (world status → MCP shape)
 // -------------------------------------------------------------------------------------------------
 
 func TestClampTail(t *testing.T) {
@@ -260,121 +182,112 @@ func TestClampTail(t *testing.T) {
 
 func TestToShardPools(t *testing.T) {
 	t.Parallel()
-	status := &operatorv1.StatusResponse{
-		Pools: []*operatorv1.ShardPoolStatus{{
-			ShardId:   "gameplay",
-			Namespace: "cardinal-operator-system",
-			PoolSize:  2,
-			ImageTag:  "dev",
-			Phase:     "Running",
-			Instances: []*operatorv1.ShardInstanceStatus{
-				{
-					Name:         "gameplay",
-					PodName:      "cardinal-gameplay-pool-0",
-					Phase:        "Running",
-					Ready:        true,
-					RestartCount: 1,
-					Age:          "5m",
-				},
-				{Name: "gameplay-2", PodName: "cardinal-gameplay-pool-1", Phase: "Pending", Ready: false},
+	status := []worldstatus.PoolStatus{{
+		ShardID:  "gameplay",
+		PoolSize: 2,
+		Image:    "rampage-gameplay-shard",
+		Phase:    "Running",
+		Instances: []worldstatus.InstanceStatus{
+			{
+				Name:         "gameplay",
+				Runtime:      "cardinal-gameplay-pool-0",
+				Phase:        "Running",
+				Ready:        true,
+				RestartCount: 1,
+				Age:          "5m",
 			},
-		}},
-	}
+			{Name: "gameplay-2", Runtime: "cardinal-gameplay-pool-1", Phase: "Pending", Ready: false},
+		},
+	}}
 
 	pools := toShardPools(status)
 	require.Len(t, pools, 1)
 	assert.Equal(t, "gameplay", pools[0].ShardID)
 	assert.Equal(t, int32(2), pools[0].PoolSize)
 	require.Len(t, pools[0].Instances, 2)
-	assert.Equal(t, "cardinal-gameplay-pool-0", pools[0].Instances[0].PodName)
+	assert.Equal(t, "cardinal-gameplay-pool-0", pools[0].Instances[0].Container)
 	assert.True(t, pools[0].Instances[0].Ready)
 	assert.Equal(t, int32(1), pools[0].Instances[0].RestartCount)
 	assert.False(t, pools[0].Instances[1].Ready)
 }
 
-func TestShardPods(t *testing.T) {
+func TestShardContainers(t *testing.T) {
 	t.Parallel()
-	status := &operatorv1.StatusResponse{
-		Pools: []*operatorv1.ShardPoolStatus{
-			{ShardId: "gameplay", Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "gameplay", PodName: "pod-a"},
-				{Name: "gameplay-2", PodName: "pod-b"},
-			}},
-			{ShardId: "lobby", Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "lobby", PodName: "pod-c"},
-			}},
-		},
-	}
-
-	assert.ElementsMatch(t, []string{"pod-a", "pod-b"}, shardPods(status, "gameplay", ""))
-	assert.Equal(t, []string{"pod-b"}, shardPods(status, "gameplay", "gameplay-2"))
-	assert.Equal(t, []string{"pod-c"}, shardPods(status, "lobby", ""))
-	assert.Empty(t, shardPods(status, "nope", ""))
-}
-
-func TestShardPods_InstanceVariants(t *testing.T) {
-	t.Parallel()
-	status := &operatorv1.StatusResponse{
-		Pools: []*operatorv1.ShardPoolStatus{{
-			ShardId: "game",
-			Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "game", PodName: "pod-1"},
-				{Name: "game-5", PodName: "pod-5"},
-			},
+	status := []worldstatus.PoolStatus{
+		{ShardID: "gameplay", Instances: []worldstatus.InstanceStatus{
+			{Name: "gameplay", Runtime: "pod-a"},
+			{Name: "gameplay-2", Runtime: "pod-b"},
+		}},
+		{ShardID: "lobby", Instances: []worldstatus.InstanceStatus{
+			{Name: "lobby", Runtime: "pod-c"},
 		}},
 	}
 
+	assert.ElementsMatch(t, []string{"pod-a", "pod-b"}, shardContainers(status, "gameplay", ""))
+	assert.Equal(t, []string{"pod-b"}, shardContainers(status, "gameplay", "gameplay-2"))
+	assert.Equal(t, []string{"pod-c"}, shardContainers(status, "lobby", ""))
+	assert.Empty(t, shardContainers(status, "nope", ""))
+}
+
+func TestShardContainers_InstanceVariants(t *testing.T) {
+	t.Parallel()
+	status := []worldstatus.PoolStatus{{
+		ShardID: "game",
+		Instances: []worldstatus.InstanceStatus{
+			{Name: "game", Runtime: "pod-1"},
+			{Name: "game-5", Runtime: "pod-5"},
+		},
+	}}
+
 	// All of these resolve to instance "game-5".
 	for _, in := range []string{"game-5", "game 5", "game5", "GAME-5", "5"} {
-		assert.Equal(t, []string{"pod-5"}, shardPods(status, "game", in), "input %q", in)
+		assert.Equal(t, []string{"pod-5"}, shardContainers(status, "game", in), "input %q", in)
 	}
 	// Index-1 references resolve to the bare first instance "game".
 	for _, in := range []string{"game", "game 1", "game1", "1"} {
-		assert.Equal(t, []string{"pod-1"}, shardPods(status, "game", in), "input %q", in)
+		assert.Equal(t, []string{"pod-1"}, shardContainers(status, "game", in), "input %q", in)
 	}
 	// No instance → every pod of the shard; unknown instance → none.
-	assert.ElementsMatch(t, []string{"pod-1", "pod-5"}, shardPods(status, "game", ""))
-	assert.Empty(t, shardPods(status, "game", "game-9"))
+	assert.ElementsMatch(t, []string{"pod-1", "pod-5"}, shardContainers(status, "game", ""))
+	assert.Empty(t, shardContainers(status, "game", "game-9"))
 }
 
-// TestShardPods_ScopedToShardPool guards against an instance reference resolving
+// TestShardContainers_ScopedToShardPool guards against an instance reference resolving
 // into a different shard's pool: matching must be scoped to pool.ShardId, so a
 // reference naming (or index-colliding with) another shard's instance yields no
 // pod for the requested shard rather than silently routing to the wrong one.
-func TestShardPods_ScopedToShardPool(t *testing.T) {
+func TestShardContainers_ScopedToShardPool(t *testing.T) {
 	t.Parallel()
-	status := &operatorv1.StatusResponse{
-		Pools: []*operatorv1.ShardPoolStatus{
-			{ShardId: "game", Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "game", PodName: "pod-game"},
-			}},
-			{ShardId: "lobby", Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "lobby", PodName: "pod-lobby"},
-			}},
-			{ShardId: "game2", Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "game2", PodName: "pod-game2"},
-			}},
-		},
+	status := []worldstatus.PoolStatus{
+		{ShardID: "game", Instances: []worldstatus.InstanceStatus{
+			{Name: "game", Runtime: "pod-game"},
+		}},
+		{ShardID: "lobby", Instances: []worldstatus.InstanceStatus{
+			{Name: "lobby", Runtime: "pod-lobby"},
+		}},
+		{ShardID: "game2", Instances: []worldstatus.InstanceStatus{
+			{Name: "game2", Runtime: "pod-game2"},
+		}},
 	}
 
 	// A sibling shard's exact name must not match through the requested shard.
-	assert.Empty(t, shardPods(status, "game", "lobby"))
+	assert.Empty(t, shardContainers(status, "game", "lobby"))
 	// An index that collides with another shard's name ("2" ~ "game2") must not
 	// leak: shard "game" is pool size 1, so it has no instance "2".
-	assert.Empty(t, shardPods(status, "game", "2"))
+	assert.Empty(t, shardContainers(status, "game", "2"))
 	// The requested shard still resolves its own instances.
-	assert.Equal(t, []string{"pod-game"}, shardPods(status, "game", "game"))
+	assert.Equal(t, []string{"pod-game"}, shardContainers(status, "game", "game"))
 }
 
-// TestResolveInstanceName_UnknownReturnsError confirms a reference that matches
-// no instance of the requested shard fails clearly rather than resolving to
-// another shard's instance. Empty operatorURL routes to the default endpoint,
-// which is unreachable in tests, so the lookup errors — that itself proves the
-// non-empty path always consults the operator (and the empty path, covered by
-// TestResolveInstanceName_EmptyDefaultsToShardID, never does).
+// TestResolveInstanceName_UnknownReturnsError confirms a non-empty reference is
+// always resolved against the running containers, so an unknown one fails instead
+// of being passed through. (The empty-reference path, covered by
+// TestResolveInstanceName_EmptyDefaultsToShardID, never looks anything up.)
+// Docker is pointed at a dead socket so the lookup cannot accidentally succeed
+// against a world the developer happens to have running.
 func TestResolveInstanceName_UnknownReturnsError(t *testing.T) {
-	t.Parallel()
-	_, err := resolveInstanceName(context.Background(), "http://127.0.0.1:1/nope", "game", "lobby")
+	t.Setenv("DOCKER_HOST", "unix://"+filepath.Join(t.TempDir(), "nonexistent.sock"))
+	_, err := resolveInstanceName(context.Background(), "demo", "game", "lobby")
 	assert.Error(t, err)
 }
 
@@ -412,7 +325,7 @@ func stateDescriptors(t *testing.T) componentDescriptors {
 func componentBlob(t *testing.T, descriptors componentDescriptors, name string, value int) []byte {
 	t.Helper()
 	field := map[string]string{"Health": "HP", "Position": "X"}[name]
-	blob, err := encodeCommandPayload(descriptors[name], fmt.Sprintf(`{%q: %d}`, field, value))
+	blob, err := encodeCommandPayload(descriptors[name], fmt.Sprintf("{%q: %d}", field, value))
 	require.NoError(t, err)
 	return blob
 }
@@ -709,7 +622,7 @@ func TestDebugControlHandler_InvalidOperation(t *testing.T) {
 	assert.Contains(t, err.Error(), "operation must be one of pause, resume, step, reset")
 }
 
-// An empty operation is rejected before any operator round-trip, alongside the
+// An empty operation is rejected before any shard round-trip, alongside the
 // other invalid values.
 func TestDebugControlHandler_EmptyOperation(t *testing.T) {
 	t.Parallel()
@@ -732,7 +645,7 @@ func TestDebugStatusMessage(t *testing.T) {
 // reload handler tests
 // -------------------------------------------------------------------------------------------------
 
-// An empty world_path is rejected before any Docker or cluster work, so the tool
+// An empty world_path is rejected before any Docker work, so the tool
 // can never tear a world down without a source tree to rebuild from.
 func TestReloadHandler_EmptyWorldPath(t *testing.T) {
 	t.Parallel()
@@ -742,11 +655,11 @@ func TestReloadHandler_EmptyWorldPath(t *testing.T) {
 }
 
 // deployShardsFromConfig emits one Deploy entry per logical shard ID, deduping the
-// pool replicas that share an ID, each pointing at that shard's built image tag.
+// pool replicas that share an ID.
 func TestDeployShardsFromConfig_DedupesByID(t *testing.T) {
 	t.Parallel()
 	cfg := &service.Config{
-		Namespace: "acme-demo",
+		Project: "acme-demo",
 		WorldToml: worldtoml.Config{
 			Shards: []worldtoml.Shard{{ID: "game"}, {ID: "game"}, {ID: "lobby"}},
 		},
@@ -754,16 +667,14 @@ func TestDeployShardsFromConfig_DedupesByID(t *testing.T) {
 	shards := deployShardsFromConfig(cfg, "")
 	require.Len(t, shards, 2)
 	assert.Equal(t, "game", shards[0].ID)
-	assert.Equal(t, "acme-demo-game-shard:latest", shards[0].SourceImage)
 	assert.Equal(t, "lobby", shards[1].ID)
-	assert.Equal(t, "acme-demo-lobby-shard:latest", shards[1].SourceImage)
 }
 
 // A shard_id narrows the Deploy payload to that pool; an empty one includes all.
 func TestDeployShardsFromConfig_FiltersByShardID(t *testing.T) {
 	t.Parallel()
 	cfg := &service.Config{
-		Namespace: "acme-demo",
+		Project: "acme-demo",
 		WorldToml: worldtoml.Config{
 			Shards: []worldtoml.Shard{{ID: "game"}, {ID: "game"}, {ID: "lobby"}},
 		},
@@ -798,30 +709,34 @@ func TestShardInstances_FallsBackToShardID(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------------------------------
-// cluster handler tests
+// world_lifecycle handler tests
 // -------------------------------------------------------------------------------------------------
 
-func TestClusterHandler_InvalidOperation(t *testing.T) {
+func TestWorldLifecycleHandler_InvalidOperation(t *testing.T) {
 	t.Parallel()
-	_, err := clusterHandler(context.Background(), mcp.CallToolRequest{}, ClusterInput{Operation: "restart"})
+	_, err := worldLifecycleHandler(
+		context.Background(),
+		mcp.CallToolRequest{},
+		WorldLifecycleInput{Operation: "restart"},
+	)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "operation must be one of start, stop, purge")
 }
 
-func TestClusterHandler_EmptyOperation(t *testing.T) {
+func TestWorldLifecycleHandler_EmptyOperation(t *testing.T) {
 	t.Parallel()
-	_, err := clusterHandler(context.Background(), mcp.CallToolRequest{}, ClusterInput{})
+	_, err := worldLifecycleHandler(context.Background(), mcp.CallToolRequest{}, WorldLifecycleInput{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "operation must be one of")
 }
 
-// purge only combines with start: the purge op already deletes the cluster and
+// purge only combines with start: the purge op already deletes the world and
 // stop deliberately preserves state, so either pairing is rejected rather than
 // silently ignored.
-func TestClusterHandler_PurgeOnlyValidWithStart(t *testing.T) {
+func TestWorldLifecycleHandler_PurgeOnlyValidWithStart(t *testing.T) {
 	t.Parallel()
-	for _, op := range []string{clusterOpStop, clusterOpPurge} {
-		_, err := clusterHandler(context.Background(), mcp.CallToolRequest{}, ClusterInput{
+	for _, op := range []string{lifecycleOpStop, lifecycleOpPurge} {
+		_, err := worldLifecycleHandler(context.Background(), mcp.CallToolRequest{}, WorldLifecycleInput{
 			Operation: op,
 			Purge:     true,
 		})
@@ -831,11 +746,11 @@ func TestClusterHandler_PurgeOnlyValidWithStart(t *testing.T) {
 }
 
 // start compiles and deploys a world, so it needs a source tree; the check runs
-// before any cluster work.
-func TestClusterHandler_StartRequiresWorldPath(t *testing.T) {
+// before any Docker work.
+func TestWorldLifecycleHandler_StartRequiresWorldPath(t *testing.T) {
 	t.Parallel()
-	_, err := clusterHandler(context.Background(), mcp.CallToolRequest{}, ClusterInput{
-		Operation: clusterOpStart,
+	_, err := worldLifecycleHandler(context.Background(), mcp.CallToolRequest{}, WorldLifecycleInput{
+		Operation: lifecycleOpStart,
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "world_path is required")
@@ -1047,7 +962,10 @@ func TestSdkGenerate_PublishedGoOutDefaultDoc(t *testing.T) {
 		"the schema must warn that cs_out withholds the go_out default (the client-only entry)")
 }
 
-func TestDescribeWorld_PublishesAnEmptyObjectInputSchema(t *testing.T) {
+// The handler falls back to the working directory's world.toml, so an agent running
+// anywhere else has to pass project. additionalProperties is false, which makes an
+// unpublished parameter unusable rather than merely undocumented.
+func TestDescribeWorld_PublishesProjectInItsInputSchema(t *testing.T) {
 	t.Parallel()
 	srv := server.NewMCPServer("test", "0")
 	registerDescribeWorldTool(srv)
@@ -1058,19 +976,130 @@ func TestDescribeWorld_PublishesAnEmptyObjectInputSchema(t *testing.T) {
 	require.NoError(t, err, "tools/list must be able to serialize the tool")
 
 	var listed struct {
-		InputSchema json.RawMessage `json:"inputSchema"`
+		InputSchema struct {
+			Type                 string                     `json:"type"`
+			AdditionalProperties bool                       `json:"additionalProperties"`
+			Properties           map[string]json.RawMessage `json:"properties"`
+		} `json:"inputSchema"`
 	}
 	require.NoError(t, json.Unmarshal(published, &listed))
-	assert.JSONEq(t, `{"type":"object","properties":{},"required":[],"additionalProperties":false}`,
-		string(listed.InputSchema))
+	assert.Equal(t, "object", listed.InputSchema.Type)
+	assert.False(t, listed.InputSchema.AdditionalProperties)
+	assert.Contains(t, listed.InputSchema.Properties, "project",
+		"project is the only way to describe a world from outside its directory")
 }
 
-func TestConvertTypeSchemasKeepsArrayFields(t *testing.T) {
+// shard_url is caller-supplied, so the Argus token must never follow it off this
+// machine: a prompt-injected agent could otherwise name a host and be handed the
+// user's credential.
+func TestDevAuthInterceptor_TokenNeverLeavesLocalhost(t *testing.T) {
+	t.Setenv(argusTokenEnv, "secret-token")
+
+	local := []string{
+		"http://localhost:8080/argus/demo/game",
+		"http://127.0.0.1:8081",
+		"http://[::1]:8080",
+	}
+	for _, target := range local {
+		h := http.Header{}
+		(&devAuthInterceptor{playerID: "mcp-dev-player", target: target}).setAuthHeader(h)
+		assert.Equal(t, "Bearer secret-token", h.Get("Authorization"), target)
+	}
+
+	remote := []string{
+		"https://attacker.example/argus/demo/game",
+		"http://169.254.169.254/latest/meta-data",
+		"http://localhost.attacker.example",
+		"not a url at all",
+		"",
+	}
+	for _, target := range remote {
+		h := http.Header{}
+		(&devAuthInterceptor{playerID: "mcp-dev-player", target: target}).setAuthHeader(h)
+		assert.Empty(t, h.Get("Authorization"), "token must not be sent to %q", target)
+		assert.Equal(t, "mcp-dev-player", h.Get(devPlayerIDHeader), target)
+	}
+}
+
+func TestDevAuthInterceptor_NoTokenUsesDevHeader(t *testing.T) {
+	t.Setenv(argusTokenEnv, "")
+
+	h := http.Header{}
+	(&devAuthInterceptor{playerID: "mcp-dev-player", target: "http://localhost:8080"}).setAuthHeader(h)
+	assert.Empty(t, h.Get("Authorization"))
+	assert.Equal(t, "mcp-dev-player", h.Get(devPlayerIDHeader))
+}
+
+// TestResolveShardTarget_PinnedURL checks the address a request carries: the shard's project and
+// instance, which the shard compares against its own address. No organization, no region.
+func TestResolveShardTarget_PinnedURL(t *testing.T) {
 	t.Parallel()
-	dims := []*cardinalv1.ArrayField{{Field: "cells", Dims: []uint32{4, 8}}}
 
-	out := convertTypeSchemas([]*cardinalv1.TypeSchema{{Name: "Grid", ArrayFields: dims}}, new(protoregistry.Files))
+	target, err := resolveShardTarget(context.Background(), "game", "game-2", "http://custom:9999", "rampage")
+	require.NoError(t, err)
+	assert.Equal(t, "http://custom:9999", target.shardURL)
+	assert.Equal(t, "rampage.game-2", micro.String(target.address))
+}
 
-	require.Len(t, out, 1)
-	assert.Equal(t, dims, out[0].ArrayFields)
+// The MCP transport decodes JSON numbers as float64 before BindArguments runs, which rounds
+// large integers. A string payload survives transport decoding and protobuf encoding intact.
+func TestSendCommandInput_BindArguments_PreservesLargeInt64Payload(t *testing.T) {
+	t.Parallel()
+
+	const payloadJSON = `{"ID": 9223372036854775807}` // math.MaxInt64
+
+	frame, err := json.Marshal(map[string]any{
+		"params": map[string]any{
+			"arguments": map[string]any{
+				"shard_id":     "game",
+				"command_name": "create-player",
+				"payload":      payloadJSON,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	var req mcp.CallToolRequest
+	require.NoError(t, json.Unmarshal(frame, &req))
+	var in SendCommandInput
+	require.NoError(t, req.BindArguments(&in))
+	assert.JSONEq(t, payloadJSON, in.Payload, "payload string must survive mcp-go transport intact")
+
+	raw := testDescriptorSet(t, &descriptorpb.DescriptorProto{
+		Name:  new("Cmd"),
+		Field: []*descriptorpb.FieldDescriptorProto{scalarField("ID", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64)},
+	})
+	md := testMessageDescriptor(t, raw, "Cmd")
+	require.NoError(t, in.validate()) // Validation leaves this nonempty payload unchanged.
+
+	wire, err := encodeCommandPayload(md, in.Payload)
+	require.NoError(t, err)
+	decoded, err := decodeMessage(md, wire)
+	require.NoError(t, err)
+	assert.Equal(t, int64(9223372036854775807), decoded["ID"], "MaxInt64 must encode to the wire bit-for-bit exact")
+}
+
+// mcp-go runs tool calls in parallel; calls on one project must not overlap, or a reload
+// rewrites the runtime's config under a status read. Other projects are not held up.
+func TestWorldsLockSerializesPerProject(t *testing.T) {
+	w := &worlds{locks: map[string]*sync.Mutex{}}
+	var inside, overlaps int32
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Go(func() {
+			release := w.lock("game")
+			defer release()
+			if n := atomic.AddInt32(&inside, 1); n != 1 {
+				atomic.AddInt32(&overlaps, 1)
+			}
+			time.Sleep(time.Millisecond)
+			atomic.AddInt32(&inside, -1)
+		})
+	}
+	other := w.lock("other")
+	wg.Wait()
+	other()
+	if overlaps != 0 {
+		t.Fatalf("%d tool calls overlapped on one project", overlaps)
+	}
 }

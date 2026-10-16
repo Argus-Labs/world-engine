@@ -7,11 +7,8 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-// These are pinned versions of the Nats and Cardinal Operator services.
-const (
-	Nats             = "2.12.2"
-	CardinalOperator = "v0.10.0" // matches the CRD embedded under pkg/k8s/cardinal-operator/manifests/
-)
+// Nats is the pinned NATS server version.
+const Nats = "2.12.2"
 
 const worldEngineModule = "github.com/argus-labs/world-engine"
 

@@ -6,13 +6,11 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strconv"
 	"testing"
 
 	"github.com/moby/moby/api/types/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
-	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
@@ -61,18 +59,16 @@ id = "matchmaking"
 	if !cfg.Debug {
 		t.Fatalf("expected Debug to be true")
 	}
-	if cfg.Namespace != dnslabel.Sanitize(filepath.Base(tmp)) {
-		t.Fatalf("expected Namespace %q, got %q", dnslabel.Sanitize(filepath.Base(tmp)), cfg.Namespace)
+	if cfg.Project != "rampage" {
+		t.Fatalf("expected Project %q, got %q", "rampage", cfg.Project)
 	}
 
 	if cfg.WorldToml.Organization != "argus" || cfg.WorldToml.Project != "rampage" {
 		t.Fatalf("unexpected world.toml values: %+v", cfg.WorldToml)
 	}
 
-	expectedNATS := "nats://" + service.DefaultNatsContainerName + ":" +
-		strconv.Itoa(service.DefaultNatsClientPort)
-	if cfg.NATSURL != expectedNATS {
-		t.Fatalf("expected NATSURL %q, got %q", expectedNATS, cfg.NATSURL)
+	if cfg.NATSURL != "nats://rampage-nats:4222" {
+		t.Fatalf("unexpected NATSURL %q", cfg.NATSURL)
 	}
 }
 
@@ -83,117 +79,6 @@ func TestNewClientConfig_MissingWorldToml(t *testing.T) {
 
 	if _, err := NewClientConfig(tmp, false); err == nil {
 		t.Fatalf("expected error when %s is missing", worldtoml.FileName)
-	}
-}
-
-func TestNewClientConfig_SanitizesNamespace(t *testing.T) {
-	t.Parallel()
-
-	const sample = `
-organization = "argus"
-project = "rampage"
-[[shards]]
-id = "matchmaking"
-`
-
-	cases := []struct {
-		name          string
-		dirName       string
-		wantNS        string
-		wantImage     string
-		wantContainer string
-		shard         worldtoml.Shard
-	}{
-		{
-			name:          "uppercase directory lowercased",
-			dirName:       "MyGame",
-			wantNS:        "mygame",
-			wantImage:     "mygame-matchmaking-shard",
-			wantContainer: "mygame-matchmaking-shard",
-			shard:         worldtoml.Shard{ID: "matchmaking", InstanceID: "matchmaking", Path: "shards/matchmaking/"},
-		},
-		{
-			name:          "spaces collapsed to hyphen",
-			dirName:       "my game",
-			wantNS:        "my-game",
-			wantImage:     "my-game-matchmaking-shard",
-			wantContainer: "my-game-matchmaking-shard",
-			shard:         worldtoml.Shard{ID: "matchmaking", InstanceID: "matchmaking", Path: "shards/matchmaking/"},
-		},
-		{
-			name:          "mixed case and underscores",
-			dirName:       "My_Cool_Game",
-			wantNS:        "my-cool-game",
-			wantImage:     "my-cool-game-matchmaking-shard",
-			wantContainer: "my-cool-game-matchmaking-shard",
-			shard:         worldtoml.Shard{ID: "matchmaking", InstanceID: "matchmaking", Path: "shards/matchmaking/"},
-		},
-		{
-			name:          "dots replaced with hyphens",
-			dirName:       "my.game",
-			wantNS:        "my-game",
-			wantImage:     "my-game-matchmaking-shard",
-			wantContainer: "my-game-matchmaking-shard",
-			shard:         worldtoml.Shard{ID: "matchmaking", InstanceID: "matchmaking", Path: "shards/matchmaking/"},
-		},
-		{
-			name:          "already canonical passthrough",
-			dirName:       "my-game",
-			wantNS:        "my-game",
-			wantImage:     "my-game-matchmaking-shard",
-			wantContainer: "my-game-matchmaking-shard",
-			shard:         worldtoml.Shard{ID: "matchmaking", InstanceID: "matchmaking", Path: "shards/matchmaking/"},
-		},
-		{
-			name:          "instance container name differs from shard image id",
-			dirName:       "MyGame",
-			wantNS:        "mygame",
-			wantImage:     "mygame-matchmaking-shard",
-			wantContainer: "mygame-matchmaking-2-shard",
-			shard:         worldtoml.Shard{ID: "matchmaking", InstanceID: "matchmaking-2", Path: "shards/matchmaking/"},
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			root := t.TempDir()
-			projectDir := filepath.Join(root, tc.dirName)
-			if err := os.Mkdir(projectDir, 0o755); err != nil {
-				t.Fatalf("failed to create project dir: %v", err)
-			}
-
-			if err := os.WriteFile(filepath.Join(projectDir, worldtoml.FileName), []byte(sample), 0o600); err != nil {
-				t.Fatalf("failed to write world.toml: %v", err)
-			}
-
-			cfg, err := NewClientConfig(projectDir, false)
-			if err != nil {
-				t.Fatalf("NewClientConfig returned error: %v", err)
-			}
-
-			if cfg.Namespace != tc.wantNS {
-				t.Fatalf("expected Namespace %q, got %q", tc.wantNS, cfg.Namespace)
-			}
-
-			image := service.CardinalShardImageName(cfg.Namespace, tc.shard.ID)
-			if image != tc.wantImage {
-				t.Fatalf("expected image %q, got %q", tc.wantImage, image)
-			}
-
-			container := service.CardinalShardContainerName(cfg.Namespace, tc.shard.InstanceID)
-			if container != tc.wantContainer {
-				t.Fatalf("expected container %q, got %q", tc.wantContainer, container)
-			}
-
-			if !dnslabel.IsCanonical(image) {
-				t.Fatalf("image tag %q is not canonical (lowercase DNS-label-safe)", image)
-			}
-			if !dnslabel.IsCanonical(container) {
-				t.Fatalf("container name %q is not canonical (lowercase DNS-label-safe)", container)
-			}
-		})
 	}
 }
 
@@ -288,19 +173,16 @@ func TestExtractPullPercent(t *testing.T) {
 func TestIsCardinalService(t *testing.T) {
 	t.Parallel()
 
-	cardinalSvc := service.Service{
-		Name: "cardinal-shard",
-		Labels: map[string]string{
-			service.CardinalNamespaceLabel: "ns",
-		},
-	}
-	if !IsCardinalService(cardinalSvc) {
-		t.Fatalf("expected IsCardinalService to return true when label is present")
+	// A real shard, as CardinalFromShard builds it: the build pipeline selects on the
+	// build target, so the fixture has to carry one.
+	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{Project: "demo"}}
+	shard := service.CardinalFromShard(cfg, worldtoml.Shard{ID: "game", InstanceID: "game", Path: "shards/game"}, 8081)
+	if !IsCardinalService(shard) {
+		t.Fatalf("expected a shard to be built: %#v", shard)
 	}
 
-	nonCardinal := service.Service{Name: "nats"}
-	if IsCardinalService(nonCardinal) {
-		t.Fatalf("expected IsCardinalService to return false when label is absent")
+	if IsCardinalService(service.NATS(cfg)) {
+		t.Fatal("expected a pulled image not to be built")
 	}
 }
 
@@ -308,27 +190,9 @@ func TestCardinalBuildImageNamesDedupesInOrder(t *testing.T) {
 	t.Parallel()
 
 	services := []service.Service{
-		{
-			Name:  "world-game-shard",
-			Image: "world-game-shard",
-			Labels: map[string]string{
-				service.CardinalNamespaceLabel: "world",
-			},
-		},
-		{
-			Name:  "world-game-2-shard",
-			Image: "world-game-shard",
-			Labels: map[string]string{
-				service.CardinalNamespaceLabel: "world",
-			},
-		},
-		{
-			Name:  "world-chat-shard",
-			Image: "world-chat-shard",
-			Labels: map[string]string{
-				service.CardinalNamespaceLabel: "world",
-			},
-		},
+		{Name: "world-game-shard", Image: "world-game-shard", BuildTarget: "runtime"},
+		{Name: "world-game-2-shard", Image: "world-game-shard", BuildTarget: "runtime"},
+		{Name: "world-chat-shard", Image: "world-chat-shard", BuildTarget: "runtime"},
 		service.NATS(&service.Config{}),
 	}
 
@@ -348,7 +212,7 @@ func TestBuildCardinalImages_NoCardinalServices(t *testing.T) {
 	t.Parallel()
 
 	c := &Client{cfg: &service.Config{RootDir: t.TempDir()}, logger: slog.New(slog.DiscardHandler)}
-	// NATS has no Cardinal label, so BuildCardinalImages should be a no-op.
+	// NATS is a pulled image, so BuildCardinalImages should be a no-op.
 	natsSvc := service.NATS(&service.Config{})
 
 	if err := c.BuildCardinalImages(context.Background(), []service.Service{natsSvc}, nil); err != nil {
@@ -362,10 +226,8 @@ func TestBuildCardinalImages_MissingShardPath(t *testing.T) {
 	c := &Client{cfg: &service.Config{RootDir: t.TempDir()}, logger: slog.New(slog.DiscardHandler)}
 
 	cardinalSvc := service.Service{
-		Name: "cardinal-shard",
-		Labels: map[string]string{
-			service.CardinalNamespaceLabel: "ns",
-		},
+		Name:        "cardinal-shard",
+		BuildTarget: "runtime",
 		// BuildArgs intentionally missing SHARD_PATH.
 		BuildArgs: map[string]string{},
 	}
@@ -375,8 +237,74 @@ func TestBuildCardinalImages_MissingShardPath(t *testing.T) {
 	}
 }
 
-// Regression: a build stopped by a sibling's failure reported "returned success
-// but image is not present: error during connect: <the sibling's error>".
+// A path-kind [[services]] entry builds from project source, so the build pipeline must
+// pick it up. Selecting by role instead silently skipped it and `world start` then tried
+// to pull an image that only ever exists locally.
+func TestIsCardinalService_IncludesPathKindGameServices(t *testing.T) {
+	t.Parallel()
+
+	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{Project: "demo"}}
+	built := service.GameServiceFromConfig(cfg, worldtoml.GameService{ID: "meta", Path: "services/meta"})
+	pulled := service.GameServiceFromConfig(cfg, worldtoml.GameService{ID: "db", Image: "postgres:16"})
+
+	if !IsCardinalService(built) {
+		t.Fatalf("path-kind service must be built: %#v", built)
+	}
+	if IsCardinalService(pulled) {
+		t.Fatalf("image-kind service must not be built: %#v", pulled)
+	}
+	if names := CardinalBuildImageNames(
+		[]service.Service{built, pulled},
+	); len(names) != 1 ||
+		names[0] != "demo-meta-service" {
+		t.Fatalf("build image names = %v, want just the path-kind service", names)
+	}
+}
+
+// The project label arrived after the image label, so purge has to recognise images an
+// older CLI built — by name — without ever matching another project's.
+func TestOwnsBuiltImage(t *testing.T) {
+	t.Parallel()
+
+	owned := map[string]struct{}{"demo-game-shard": {}, "demo-meta-service": {}}
+
+	cases := map[string]struct {
+		labels map[string]string
+		want   bool
+	}{
+		"this project, labelled": {
+			map[string]string{service.ProjectLabel: "demo", service.CardinalImageNameLabel: "demo-game-shard"}, true,
+		},
+		"another project, labelled": {
+			map[string]string{service.ProjectLabel: "other", service.CardinalImageNameLabel: "other-game-shard"}, false,
+		},
+		"legacy image of this project": {
+			map[string]string{service.CardinalImageNameLabel: "demo-game-shard"}, true,
+		},
+		"legacy path-kind service of this project": {
+			map[string]string{service.CardinalImageNameLabel: "demo-meta-service"}, true,
+		},
+		"legacy image of another project": {
+			map[string]string{service.CardinalImageNameLabel: "other-game-shard"}, false,
+		},
+		"no labels at all": {map[string]string{}, false},
+		// A labelled image wins on the label even when the name happens to collide.
+		"another project whose image name we also build": {
+			map[string]string{service.ProjectLabel: "other", service.CardinalImageNameLabel: "demo-game-shard"}, false,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if got := ownsBuiltImage(tc.labels, "demo", owned); got != tc.want {
+				t.Fatalf("ownsBuiltImage(%v) = %v, want %v", tc.labels, got, tc.want)
+			}
+		})
+	}
+}
+
+// Build and pull fan-outs classify a sibling's cancellation fallout as canceled, not as
+// the item's own failure.
 func TestItemErrReportsFalloutAsCanceled(t *testing.T) {
 	t.Parallel()
 

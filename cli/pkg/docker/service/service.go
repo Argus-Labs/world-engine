@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"net/netip"
 	"strconv"
 
 	"github.com/moby/moby/api/types/container"
@@ -38,6 +39,16 @@ type Service struct {
 	BuildTarget string
 	// BuildArgs are ARGs passed to the Docker build (e.g., SOURCE_PATH)
 	BuildArgs map[string]string
+	// ReadyURL is polled for readiness when the image has no Docker healthcheck (NATS is
+	// scratch-based, so it cannot run one). It must be an HTTP endpoint: Docker's port
+	// proxy accepts TCP connections before the container listens, so dialling the published
+	// port reports ready immediately and proves nothing.
+	ReadyURL string
+}
+
+// loopbackBinding publishes a container port on 127.0.0.1 only; nothing is reachable off-machine.
+func loopbackBinding(hostPort int) []network.PortBinding {
+	return []network.PortBinding{{HostIP: netip.MustParseAddr("127.0.0.1"), HostPort: strconv.Itoa(hostPort)}}
 }
 
 func getExposedPorts(ports []int) network.PortSet {
@@ -81,9 +92,10 @@ func newPortMap(ports []int) network.PortMap {
 		if port < 1 || port > 65535 {
 			panic(fmt.Sprintf("invalid port %d: must be between 1 and 65535", port))
 		}
-		portStr := strconv.Itoa(port)
-		tcpPort := network.MustParsePort(portStr + "/tcp")
-		portMap[tcpPort] = []network.PortBinding{{HostPort: portStr}}
+		tcpPort := network.MustParsePort(strconv.Itoa(port) + "/tcp")
+		// Loopback like every other published port: a config_db would otherwise put
+		// Postgres with default credentials on the LAN.
+		portMap[tcpPort] = loopbackBinding(port)
 	}
 	return portMap
 }
