@@ -9,6 +9,7 @@ import (
 
 	"github.com/rotisserie/eris"
 
+	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
@@ -36,7 +37,7 @@ func NewClientConfig(projectDir string, debug bool) (*service.Config, error) {
 		WorldToml: worldToml,
 	}
 
-	cfg.Namespace = filepath.Base(projectDir)
+	cfg.Namespace = dnslabel.Sanitize(filepath.Base(projectDir))
 
 	cfg.NATSURL = fmt.Sprintf("nats://%s", net.JoinHostPort(service.DefaultNatsContainerName,
 		strconv.Itoa(service.DefaultNatsClientPort)))

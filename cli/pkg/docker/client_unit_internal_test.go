@@ -12,9 +12,9 @@ import (
 	"github.com/moby/moby/api/types/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
-	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
-
+	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
+	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
 func TestHasWorldImagePrefix(t *testing.T) {
@@ -61,8 +61,8 @@ id = "matchmaking"
 	if !cfg.Debug {
 		t.Fatalf("expected Debug to be true")
 	}
-	if cfg.Namespace != filepath.Base(tmp) {
-		t.Fatalf("expected Namespace %q, got %q", filepath.Base(tmp), cfg.Namespace)
+	if cfg.Namespace != dnslabel.Sanitize(filepath.Base(tmp)) {
+		t.Fatalf("expected Namespace %q, got %q", dnslabel.Sanitize(filepath.Base(tmp)), cfg.Namespace)
 	}
 
 	if cfg.WorldToml.Organization != "argus" || cfg.WorldToml.Project != "rampage" {
@@ -83,6 +83,117 @@ func TestNewClientConfig_MissingWorldToml(t *testing.T) {
 
 	if _, err := NewClientConfig(tmp, false); err == nil {
 		t.Fatalf("expected error when %s is missing", worldtoml.FileName)
+	}
+}
+
+func TestNewClientConfig_SanitizesNamespace(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "matchmaking"
+`
+
+	cases := []struct {
+		name          string
+		dirName       string
+		wantNS        string
+		wantImage     string
+		wantContainer string
+		shard         worldtoml.Shard
+	}{
+		{
+			name:          "uppercase directory lowercased",
+			dirName:       "MyGame",
+			wantNS:        "mygame",
+			wantImage:     "mygame-matchmaking-shard",
+			wantContainer: "mygame-matchmaking-shard",
+			shard:         worldtoml.Shard{ID: "matchmaking", InstanceID: "matchmaking", Path: "shards/matchmaking/"},
+		},
+		{
+			name:          "spaces collapsed to hyphen",
+			dirName:       "my game",
+			wantNS:        "my-game",
+			wantImage:     "my-game-matchmaking-shard",
+			wantContainer: "my-game-matchmaking-shard",
+			shard:         worldtoml.Shard{ID: "matchmaking", InstanceID: "matchmaking", Path: "shards/matchmaking/"},
+		},
+		{
+			name:          "mixed case and underscores",
+			dirName:       "My_Cool_Game",
+			wantNS:        "my-cool-game",
+			wantImage:     "my-cool-game-matchmaking-shard",
+			wantContainer: "my-cool-game-matchmaking-shard",
+			shard:         worldtoml.Shard{ID: "matchmaking", InstanceID: "matchmaking", Path: "shards/matchmaking/"},
+		},
+		{
+			name:          "dots replaced with hyphens",
+			dirName:       "my.game",
+			wantNS:        "my-game",
+			wantImage:     "my-game-matchmaking-shard",
+			wantContainer: "my-game-matchmaking-shard",
+			shard:         worldtoml.Shard{ID: "matchmaking", InstanceID: "matchmaking", Path: "shards/matchmaking/"},
+		},
+		{
+			name:          "already canonical passthrough",
+			dirName:       "my-game",
+			wantNS:        "my-game",
+			wantImage:     "my-game-matchmaking-shard",
+			wantContainer: "my-game-matchmaking-shard",
+			shard:         worldtoml.Shard{ID: "matchmaking", InstanceID: "matchmaking", Path: "shards/matchmaking/"},
+		},
+		{
+			name:          "instance container name differs from shard image id",
+			dirName:       "MyGame",
+			wantNS:        "mygame",
+			wantImage:     "mygame-matchmaking-shard",
+			wantContainer: "mygame-matchmaking-2-shard",
+			shard:         worldtoml.Shard{ID: "matchmaking", InstanceID: "matchmaking-2", Path: "shards/matchmaking/"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			root := t.TempDir()
+			projectDir := filepath.Join(root, tc.dirName)
+			if err := os.Mkdir(projectDir, 0o755); err != nil {
+				t.Fatalf("failed to create project dir: %v", err)
+			}
+
+			if err := os.WriteFile(filepath.Join(projectDir, worldtoml.FileName), []byte(sample), 0o600); err != nil {
+				t.Fatalf("failed to write world.toml: %v", err)
+			}
+
+			cfg, err := NewClientConfig(projectDir, false)
+			if err != nil {
+				t.Fatalf("NewClientConfig returned error: %v", err)
+			}
+
+			if cfg.Namespace != tc.wantNS {
+				t.Fatalf("expected Namespace %q, got %q", tc.wantNS, cfg.Namespace)
+			}
+
+			image := service.CardinalShardImageName(cfg.Namespace, tc.shard.ID)
+			if image != tc.wantImage {
+				t.Fatalf("expected image %q, got %q", tc.wantImage, image)
+			}
+
+			container := service.CardinalShardContainerName(cfg.Namespace, tc.shard.InstanceID)
+			if container != tc.wantContainer {
+				t.Fatalf("expected container %q, got %q", tc.wantContainer, container)
+			}
+
+			if !dnslabel.IsCanonical(image) {
+				t.Fatalf("image tag %q is not canonical (lowercase DNS-label-safe)", image)
+			}
+			if !dnslabel.IsCanonical(container) {
+				t.Fatalf("container name %q is not canonical (lowercase DNS-label-safe)", container)
+			}
+		})
 	}
 }
 
