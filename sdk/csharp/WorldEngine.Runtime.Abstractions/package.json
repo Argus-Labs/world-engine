@@ -1,0 +1,21 @@
+{
+  "name": "dev.world.runtime",
+  "version": "1.0.0",
+  "displayName": "World Engine Runtime",
+  "description": "Portable contracts for deterministic C# game modules shared by Unity and Cardinal.",
+  "unity": "2022.3",
+  "documentationUrl": "https://world.dev/docs",
+  "licensesUrl": "https://github.com/Argus-Labs/world-engine/blob/main/LICENSE",
+  "keywords": [
+    "world-engine",
+    "cardinal",
+    "nativeaot",
+    "simulation"
+  ],
+  "author": {
+    "name": "World Engine",
+    "email": "support@world.dev",
+    "url": "https://world.dev"
+  },
+  "type": "library"
+}

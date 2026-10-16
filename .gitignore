@@ -49,6 +49,9 @@ go.work.sum
 bin/
 dist/
 
+# .NET intermediate output
+obj/
+
 # Local development environment
 .env
 .env.local
