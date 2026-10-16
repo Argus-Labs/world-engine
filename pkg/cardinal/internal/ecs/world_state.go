@@ -3,6 +3,7 @@ package ecs
 import (
 	"fmt"
 	"math"
+	"reflect"
 	"sync"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -219,7 +220,10 @@ func (ws *worldState) setComponent[T Component](eid EntityID, component T) error
 	}
 	archetype := ws.archetypes[aid]
 
-	cid, err := ws.components.getID(component.Name())
+	// Resolve the component ID with a type-aware lookup so a name-only collision (an unregistered
+	// Go type whose Name() matches a registered component of a different type) is rejected before
+	// any archetype mutation. This matches the type-conflict handling in get/removeComponent.
+	cid, err := ws.components.lookup(component.Name(), reflect.TypeFor[T]())
 	if err != nil {
 		return eris.Wrap(err, "failed to get component id")
 	}
