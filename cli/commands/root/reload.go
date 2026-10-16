@@ -196,7 +196,7 @@ func deployShardImages(
 	// get their images and leave ImagePullBackOff.
 	shardsErr := dash.Run("Shards",
 		func(ctx context.Context, sess phasebox.Session) error {
-			return rollShards(ctx, sess, cli, cfg, deployShards, purge && purgeErr == nil)
+			return rollShards(ctx, sess, cli, cfg, deployShards, shouldWaitForShardsReady(purgeErr))
 		},
 		func(elapsed time.Duration) string {
 			return fmt.Sprintf("reloaded %d shard(s) (%s)", len(targetIDs), elapsed.Round(time.Second))
@@ -236,6 +236,15 @@ func purgeAndRedeploy(
 	}
 	sess.UpsertRow(shardID, shardID, "", phasebox.Done)
 	return nil
+}
+
+// shouldWaitForShardsReady reports whether rollShards should block until the
+// rolled pods report Ready. Readiness is checked on every reload, not just
+// after a purge: a shard that compiles but dies on startup would otherwise
+// exit 0 with "reloaded 1 shard(s)". A failed purge skips the wait since the
+// purge error is already the failure to report.
+func shouldWaitForShardsReady(purgeErr error) bool {
+	return purgeErr == nil
 }
 
 // rollShards rolls the targeted shards' images via the operator, one dashboard
