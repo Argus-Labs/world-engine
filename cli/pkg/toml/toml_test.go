@@ -1036,3 +1036,116 @@ func TestLoad_CanonicalNames(t *testing.T) {
 		})
 	}
 }
+func TestLoad_AuthDefaultsToDev(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := toml.Load(strings.NewReader(`
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "game"
+`))
+	require.NoError(t, err)
+	require.Equal(t, toml.AuthModeDev, cfg.Auth.Mode)
+	require.Empty(t, cfg.Auth.URL)
+}
+
+func TestLoad_AuthArgus(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := toml.Load(strings.NewReader(`
+organization = "argus"
+project = "rampage"
+[auth]
+mode = "argus"
+url = "https://api.argus.dev/"
+[[shards]]
+id = "game"
+`))
+	require.NoError(t, err)
+	require.Equal(t, toml.AuthModeArgus, cfg.Auth.Mode)
+	require.Equal(t, "https://api.argus.dev", cfg.Auth.URL) // trailing slash trimmed
+}
+
+func TestLoad_AuthRejectsBadSections(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct{ section, want string }{
+		"unknown mode":      {"mode = \"none\"", `must be "argus" or "dev"`},
+		"uppercase mode":    {"mode = \"ARGUS\"", `must be "argus" or "dev"`},
+		"argus without url": {"mode = \"argus\"", "url is required"},
+		"argus bad url":     {"mode = \"argus\"\nurl = \"api.argus.dev\"", "must be an http or https URL"},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, err := toml.Load(strings.NewReader(`
+organization = "argus"
+project = "rampage"
+[auth]
+` + tt.section + `
+[[shards]]
+id = "game"
+`))
+			require.ErrorContains(t, err, tt.want)
+		})
+	}
+}
+
+func TestLoad_AuthDevIgnoresURL(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := toml.Load(strings.NewReader(`
+organization = "argus"
+project = "rampage"
+[auth]
+mode = "dev"
+url = "https://api.argus.dev"
+[[shards]]
+id = "game"
+`))
+	require.NoError(t, err)
+	require.Equal(t, toml.AuthModeDev, cfg.Auth.Mode)
+}
+
+func TestLoad_ShardModeNormalizedAndChecked(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := toml.Load(strings.NewReader(`
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "game"
+mode = " follower "
+`))
+	require.NoError(t, err)
+	require.Equal(t, toml.ShardModeFollower, cfg.Shards[0].Mode)
+
+	_, err = toml.Load(strings.NewReader(`
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "game"
+mode = "PRIMARY"
+`))
+	require.ErrorContains(t, err, "must be LEADER or FOLLOWER")
+}
+
+// Cardinal appends /auth/jwks to the URL string, so anything after the path is rejected
+// and every trailing slash is dropped.
+func TestLoad_AuthURLShape(t *testing.T) {
+	const world = "organization = \"o\"\nproject = \"g\"\n[[shards]]\nid = \"a\"\npath = \"a\"\n[auth]\nmode = \"argus\"\n"
+	for _, bad := range []string{"https://api.argus.dev?x=1", "https://api.argus.dev/#frag", "https://api.argus.dev/?"} {
+		_, err := toml.Load(strings.NewReader(world + "url = \"" + bad + "\"\n"))
+		if err == nil || !strings.Contains(err.Error(), "query or fragment") {
+			t.Errorf("%s: err = %v, want a query/fragment rejection", bad, err)
+		}
+	}
+	cfg, err := toml.Load(strings.NewReader(world + "url = \"https://api.argus.dev//\"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Auth.URL != "https://api.argus.dev" {
+		t.Errorf("url = %q, want every trailing slash dropped", cfg.Auth.URL)
+	}
+}

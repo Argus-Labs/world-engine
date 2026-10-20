@@ -12,10 +12,10 @@ import (
 
 	tuikeys "github.com/argus-labs/world-engine/cli/internal/tui/kit/keys"
 	"github.com/argus-labs/world-engine/cli/internal/tui/style"
-	"github.com/argus-labs/world-engine/cli/pkg/cluster"
+	"github.com/argus-labs/world-engine/cli/pkg/worldstatus"
 )
 
-type LogLineMsg cluster.LogLine
+type LogLineMsg worldstatus.LogLine
 
 // StreamEndedMsg reports that the log stream ended.
 type StreamEndedMsg struct{ Err error }
@@ -96,13 +96,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKey(msg)
 
 	case LogLineMsg:
-		line := cluster.LogLine(msg)
+		line := worldstatus.LogLine(msg)
 		label := line.InstanceName
 		if label == "" {
 			label = line.ShardID
 		}
 		if label == "" {
-			label = line.PodName
+			label = line.Source
 		}
 		return m, tea.Println(m.fit(formatShardLine(label, m.labelColor(label), line.Line)))
 

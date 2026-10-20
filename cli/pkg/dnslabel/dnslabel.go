@@ -1,9 +1,8 @@
-// Package dnslabel normalizes arbitrary strings into DNS-label-safe path
-// segments. Shard ingress paths are assembled from these segments in two
-// independent places — the cardinal-operator (the Ingress path it programs) and
-// pkg/cluster (the URL used to address a shard through Traefik) — and the two
-// MUST produce identical segments or shard requests 404. This package is the
-// single source of that normalization so those callers can't drift apart.
+// Package dnslabel normalizes arbitrary strings into DNS-label-safe segments.
+// world.toml validation normalizes project and shard IDs to canonical form (spaces
+// dropped, anything else must already be a DNS label), so the names the cardinal-shard
+// chart turns into Kubernetes objects and route paths are used as-is on both the
+// cluster and the local edge.
 package dnslabel
 
 import "strings"
