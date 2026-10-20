@@ -52,7 +52,6 @@ func NewServer() *server.MCPServer {
 	registerDebugControlTool(srv)
 	registerReloadTool(srv)
 	registerWorldLifecycleTool(srv)
-	registerClusterTool(srv)
 
 	return srv
 }
