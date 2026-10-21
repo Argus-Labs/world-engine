@@ -15,18 +15,8 @@ type SystemEventID = uint32
 // maxSystemEventID is the maximum number of system event types that can be registered.
 const maxSystemEventID = math.MaxUint32 - 1
 
-// SystemEvent is an interface that all system events must implement.
-// SystemEvents are events emitted by a system to be handled by another system. Though they are consumed
-// in-process, they implement the same Serializable interface as the other wire kinds (generated
-// MarshalWire/UnmarshalWire) so they can be consumed uniformly — e.g. streamed as typed values to a
-// telemetry/debug service — without a special-case interface.
-// name that says which role the type plays. Collapsing them would let a component be enqueued
-// as a system event.
-//
-//nolint:iface // identical to Component by construction: both are schema.Serializable under a
-type SystemEvent interface {
-	schema.Serializable
-}
+// SystemEvent is an in-process event emitted by one system for another system to handle.
+type SystemEvent = schema.Serializable
 
 // systemEventManager manages the registration and storage of system events.
 type systemEventManager struct {

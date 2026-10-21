@@ -6,6 +6,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/assert"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 // World represents the root ECS state.
@@ -105,22 +106,9 @@ func (w *World) OnComponentRegister(callback func(zero Component) error) {
 // Serialization methods
 // -------------------------------------------------------------------------------------------------
 
-// StateWireSize computes the exact encoded size of the world's WorldState message. Call
-// AppendStateWire immediately after, with no world mutation in between.
-func (w *World) StateWireSize() int {
-	return w.state.wireBodySize()
-}
-
-// AppendStateWire appends the WorldState message to buf, exactly StateWireSize bytes of it.
-func (w *World) AppendStateWire(buf []byte) []byte {
-	return w.state.appendWireBody(buf)
-}
-
-// EncodeState sizes and appends the WorldState message in one call, for callers that don't
-// need the size ahead of time (tests, serializability checks).
-func (w *World) EncodeState(buf []byte) []byte {
-	w.state.wireBodySize()
-	return w.state.appendWireBody(buf)
+// ToProto captures the world with MessagePack component payloads. Call only while the tick owns it.
+func (w *World) ToProto() (*cardinalv1.WorldState, error) {
+	return w.state.toProto()
 }
 
 // FromProto populates the World's state from a proto message.
@@ -130,6 +118,20 @@ func (w *World) FromProto(pb *cardinalv1.WorldState) error {
 		return err
 	}
 	return nil
+}
+
+// EncodeState appends a serialized WorldState for test harnesses and serializability checks.
+// Like snapshot production, it fails fast if a component cannot be encoded.
+func (w *World) EncodeState(buf []byte) []byte {
+	state, err := w.ToProto()
+	if err != nil {
+		panic(err)
+	}
+	data, err := proto.MarshalOptions{}.MarshalAppend(buf, state)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
 
 // -------------------------------------------------------------------------------------------------
