@@ -1,0 +1,9 @@
+# Run from the repository root:
+# buf generate pkg/cardinal/runtime/nativeaot/testdata/fixture.proto --template pkg/cardinal/runtime/nativeaot/testdata/buf.gen.yaml
+version: v2
+plugins:
+  - local: protoc-gen-go
+    out: pkg/cardinal/runtime/nativeaot/testdata/fixturepb
+    opt: paths=source_relative
+  - remote: buf.build/protocolbuffers/csharp:v31.1
+    out: sdk/csharp/testapps/CounterModule
