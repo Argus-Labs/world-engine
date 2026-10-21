@@ -321,7 +321,8 @@ func enqueueCommand(t *testing.T, w *World, payload command.Payload, player stri
 func enqueueCommandFrom(t *testing.T, w *World, payload command.Payload, sender command.Sender) {
 	t.Helper()
 
-	bytes := schema.Marshal(payload)
+	bytes, err := schema.Serialize(payload)
+	require.NoError(t, err)
 	require.NotNil(t, bytes)
 
 	cmdpb := &iscv1.Command{
@@ -330,7 +331,7 @@ func enqueueCommandFrom(t *testing.T, w *World, payload command.Payload, sender 
 		Payload: bytes,
 	}
 
-	err := w.commands.Enqueue(context.Background(), cmdpb, sender)
+	err = w.commands.Enqueue(context.Background(), cmdpb, sender)
 	require.NoError(t, err)
 }
 

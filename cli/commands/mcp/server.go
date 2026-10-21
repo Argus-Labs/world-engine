@@ -52,7 +52,7 @@ func NewServer() *server.MCPServer {
 	registerDebugControlTool(srv)
 	registerReloadTool(srv)
 	registerWorldLifecycleTool(srv)
-	registerSdkGenerateTool(srv)
+	registerClusterTool(srv)
 
 	return srv
 }

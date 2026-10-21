@@ -1,18 +1,19 @@
 package introspect
 
 import (
-	"cmp"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 
+	"github.com/goccy/go-json"
+	"github.com/invopop/jsonschema"
 	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protodesc"
-	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/types/descriptorpb"
+	orderedmap "github.com/wk8/go-ordered-map/v2"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 )
 
@@ -28,28 +29,20 @@ const (
 	Event
 )
 
-// Catalog collects registered types before the debug service starts. Finalize freezes
-// registration and builds the immutable protobuf metadata used by Introspect.
+// Catalog freezes registered payload metadata before the debug service starts.
 type Catalog struct {
-	finalized bool
-
-	// The three slots are commands, components, and events, indexed by Kind.
+	finalized  bool
 	registered [3]map[string]schema.Serializable
-	// Finalized API metadata using the same Kind indexes.
-	types [3][]*cardinalv1.TypeSchema
-	// Shared serialized protobuf definitions returned by Introspect.
-	descriptors []byte
+	types      [3][]*cardinalv1.TypeSchema
 }
 
 // NewCatalog creates an empty catalog.
 func NewCatalog() *Catalog {
-	return &Catalog{
-		registered: [3]map[string]schema.Serializable{
-			make(map[string]schema.Serializable),
-			make(map[string]schema.Serializable),
-			make(map[string]schema.Serializable),
-		},
+	c := &Catalog{}
+	for i := range c.registered {
+		c.registered[i] = make(map[string]schema.Serializable)
 	}
+	return c
 }
 
 // Register adds a type before the catalog is finalized.
@@ -60,206 +53,206 @@ func (c *Catalog) Register(kind Kind, value schema.Serializable) error {
 	if kind > Event {
 		return eris.Errorf("unknown introspection kind: %d", kind)
 	}
-
-	catalog := c.registered[kind]
 	name := value.Name()
-	if _, exists := catalog[name]; exists {
-		return nil
+	if _, exists := c.registered[kind][name]; !exists {
+		c.registered[kind][name] = value
 	}
-
-	catalog[name] = value
 	return nil
 }
 
-// protoDescriptor returns the generated protobuf metadata for one registered type.
-func protoDescriptor(value schema.Serializable) (protoreflect.MessageDescriptor, error) {
-	describer, ok := value.(schema.ProtoDescriber)
-	if !ok {
-		return nil, eris.New("protobuf metadata is missing; regenerate wire code with the latest World CLI")
-	}
-	descriptor := describer.ProtoDescriptor()
-	if descriptor == nil {
-		return nil, eris.New("generated protobuf descriptor is nil")
-	}
-	if !hasCompleteDescriptor(descriptor.ParentFile()) {
-		return nil, eris.Errorf("protobuf descriptor %q has unresolved imports", descriptor.ParentFile().Path())
-	}
-	return descriptor, nil
-}
-
-// hasCompleteDescriptor checks that a protobuf file and all its imports are available.
-func hasCompleteDescriptor(file protoreflect.FileDescriptor) bool {
-	imports := file.Imports()
-	for i := range imports.Len() {
-		dependency := imports.Get(i)
-		if dependency.IsPlaceholder() || !hasCompleteDescriptor(dependency.FileDescriptor) {
-			return false
-		}
-	}
-	return true
-}
-
-// Finalize builds the metadata and prevents further registration.
+// Finalize builds metadata atomically and prevents further registration.
 func (c *Catalog) Finalize() error {
 	if c.finalized {
 		return nil
 	}
-
-	// Build everything first so a failure leaves the catalog unchanged and retryable.
 	var types [3][]*cardinalv1.TypeSchema
-	descriptors := make([]protoreflect.MessageDescriptor, 0)
-	issues := make([]string, 0)
 	for kind, registered := range c.registered {
-		inspected := make(map[string]protoreflect.MessageDescriptor, len(registered))
-		for name, value := range registered {
-			descriptor, err := protoDescriptor(value)
-			if err != nil {
-				issues = append(issues, eris.Wrapf(err, "failed to inspect %s", name).Error())
-				continue
-			}
-			inspected[name] = descriptor
-			descriptors = append(descriptors, descriptor)
+		names := make([]string, 0, len(registered))
+		for name := range registered {
+			names = append(names, name)
 		}
-		types[kind] = buildTypeSchemas(inspected, registered)
-	}
-	if len(issues) > 0 {
-		slices.Sort(issues)
-		return eris.Errorf("invalid protobuf metadata:\n  %s", strings.Join(issues, "\n  "))
-	}
-
-	descriptorSet, err := buildDescriptorSet(descriptors)
-	if err != nil {
-		return eris.Wrap(err, "failed to build introspection descriptor set")
+		slices.Sort(names)
+		for _, name := range names {
+			s, err := reflectSchema(registered[name])
+			if err != nil {
+				return eris.Wrap(err, "failed to inspect "+name)
+			}
+			types[kind] = append(types[kind], &cardinalv1.TypeSchema{Name: name, JsonSchema: s})
+		}
 	}
 	c.types = types
-	c.descriptors = descriptorSet
 	c.finalized = true
 	return nil
 }
 
-// Commands returns the registered command metadata.
-func (c *Catalog) Commands() []*cardinalv1.TypeSchema {
-	return c.schemas(Command)
-}
+// Commands returns the finalized command metadata.
+func (c *Catalog) Commands() []*cardinalv1.TypeSchema { return c.types[Command] }
 
-// Components returns the registered component metadata.
-func (c *Catalog) Components() []*cardinalv1.TypeSchema {
-	return c.schemas(Component)
-}
+// Components returns the finalized component metadata.
+func (c *Catalog) Components() []*cardinalv1.TypeSchema { return c.types[Component] }
 
-// Events returns the registered event metadata.
-func (c *Catalog) Events() []*cardinalv1.TypeSchema {
-	return c.schemas(Event)
-}
+// Events returns the finalized event metadata.
+func (c *Catalog) Events() []*cardinalv1.TypeSchema { return c.types[Event] }
 
-func (c *Catalog) schemas(kind Kind) []*cardinalv1.TypeSchema {
-	return c.types[kind]
-}
-
-// DescriptorSet returns the shared protobuf descriptor set.
-func (c *Catalog) DescriptorSet() []byte {
-	return c.descriptors
-}
-
-// buildTypeSchemas creates the sorted command, component, or event list returned by Introspect.
-func buildTypeSchemas(
-	inspected map[string]protoreflect.MessageDescriptor,
-	values map[string]schema.Serializable,
-) []*cardinalv1.TypeSchema {
-	names := make([]string, 0, len(inspected))
-	for name := range inspected {
-		names = append(names, name)
+// reflectSchema describes ordinary MessagePack payloads, not arbitrary custom codecs.
+// Definitions are local to each payload; references must resolve against that payload's root.
+func reflectSchema(value any) (*structpb.Struct, error) {
+	b := schemaBuilder{definitions: make(jsonschema.Definitions), seen: make(map[reflect.Type]string)}
+	s := b.reflectType(reflect.TypeOf(value))
+	if b.err != nil {
+		return nil, eris.Wrap(b.err, "failed to reflect MessagePack schema")
 	}
-	slices.Sort(names)
-
-	types := make([]*cardinalv1.TypeSchema, 0, len(names))
-	for _, name := range names {
-		types = append(types, &cardinalv1.TypeSchema{
-			Name:             name,
-			ProtoMessageName: string(inspected[name].FullName()),
-			ArrayFields:      arrayFields(values[name]),
-		})
+	s.Definitions = b.definitions
+	data, err := json.Marshal(s)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to marshal JSON schema")
 	}
-	return types
+	var fields map[string]any
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return nil, eris.Wrap(err, "failed to decode JSON schema")
+	}
+	out, err := structpb.NewStruct(fields)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to create JSON schema struct")
+	}
+	return out, nil
 }
 
-// arrayFields reports the shape of a type's multi-dimensional fixed-size array fields.
-//
-// A fixed array travels as one flat repeated field, which says everything in one dimension and not
-// enough beyond it: 32 elements could be 4x8 or 8x4. One-dimensional arrays are therefore skipped —
-// there is nothing to rebuild — and so is everything else, since only a fixed array has a shape that
-// is known ahead of time rather than carried with the data.
-//
-// This is metadata for clients decoding types they do not know in advance. A client written against
-// a known schema indexes the flat field directly and never needs it.
-//
-// Only the registered type's OWN fields are walked, so an empty result means "none at the top level",
-// not "none anywhere": a multi-dimensional array nested in another struct, or in a slice of them
-// (PhysicsBody2D.Shapes), reports nothing, and so does a non-struct receiver. Widening this means
-// emitting a path rather than a bare field name, which is a wire change to ArrayField; do that when a
-// client needs it.
-func arrayFields(value schema.Serializable) []*cardinalv1.ArrayField {
-	if value == nil {
-		return nil
-	}
-	t := reflect.TypeOf(value)
-	if t == nil || t.Kind() != reflect.Struct {
-		return nil
-	}
+type schemaBuilder struct {
+	definitions jsonschema.Definitions
+	seen        map[reflect.Type]string
+	err         error
+}
 
-	var out []*cardinalv1.ArrayField
-	for field := range t.Fields() {
-		if !field.IsExported() {
-			continue // never serialized, so never reconstructed
+const (
+	arrayType   = "array"
+	integerType = "integer"
+	stringType  = "string"
+)
+
+func (b *schemaBuilder) reflectType(t reflect.Type) *jsonschema.Schema {
+	if t == nil {
+		return &jsonschema.Schema{}
+	}
+	if t.Kind() == reflect.Pointer {
+		return nullable(b.reflectType(t.Elem()))
+	}
+	if elem, ok := immutable.SliceElem(t); ok {
+		return &jsonschema.Schema{Type: arrayType, Items: b.reflectType(elem)}
+	}
+	switch t.Kind() { //nolint:exhaustive // Unsupported payload kinds produce an error below.
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return &jsonschema.Schema{Type: integerType, Format: "int" + strconv.Itoa(t.Bits())}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return &jsonschema.Schema{Type: integerType, Format: "uint" + strconv.Itoa(t.Bits())}
+	case reflect.Float32, reflect.Float64:
+		return &jsonschema.Schema{Type: "number"}
+	case reflect.Bool:
+		return &jsonschema.Schema{Type: "boolean"}
+	case reflect.String:
+		return &jsonschema.Schema{Type: stringType}
+	case reflect.Interface:
+		return &jsonschema.Schema{}
+	case reflect.Struct:
+		if name, ok := b.seen[t]; ok {
+			return &jsonschema.Schema{Ref: "#/$defs/" + name}
 		}
-		var dims []uint32
-		for ft := field.Type; ft.Kind() == reflect.Array; ft = ft.Elem() {
-			dims = append(dims, uint32(ft.Len())) //nolint:gosec // an array length is never negative
+		name := "type" + strconv.Itoa(len(b.seen))
+		b.seen[t] = name
+		s := &jsonschema.Schema{
+			Type: "object", Properties: orderedmap.New[string, *jsonschema.Schema](),
+			AdditionalProperties: jsonschema.FalseSchema,
 		}
-		if len(dims) < 2 {
-			continue // a flat repeated field is already unambiguous
+		b.definitions[name] = s
+		for _, f := range wireFields(t) {
+			s.Properties.Set(f.name, b.reflectType(f.typ))
 		}
-		out = append(out, &cardinalv1.ArrayField{Field: field.Name, Dims: dims})
+		return &jsonschema.Schema{Ref: "#/$defs/" + name}
+	case reflect.Array:
+		// The domain codec encodes byte arrays as MessagePack binary, just like []byte.
+		if t.Elem().Kind() == reflect.Uint8 {
+			return &jsonschema.Schema{Type: stringType, ContentEncoding: "base64"}
+		}
+		n := uint64(t.Len()) //nolint:gosec // Array lengths cannot be negative.
+		return &jsonschema.Schema{Type: arrayType, Items: b.reflectType(t.Elem()), MinItems: &n, MaxItems: &n}
+	case reflect.Slice:
+		if t.Elem().Kind() == reflect.Uint8 {
+			return nullable(&jsonschema.Schema{Type: stringType, ContentEncoding: "base64"})
+		}
+		return nullable(&jsonschema.Schema{Type: arrayType, Items: b.reflectType(t.Elem())})
+	case reflect.Map:
+		s := &jsonschema.Schema{Type: "object", AdditionalProperties: b.reflectType(t.Elem())}
+		if t.Key().Kind() != reflect.String {
+			key := b.reflectType(t.Key())
+			if key.Type != integerType {
+				b.err = eris.Errorf("unsupported MessagePack map key %s", t.Key())
+			}
+			s.Extras = map[string]any{"x-msgpack-key-format": key.Format}
+		}
+		return nullable(s)
+	default:
+		b.err = eris.Errorf("unsupported MessagePack schema type %s", t)
+		return &jsonschema.Schema{}
 	}
-	return out
 }
 
-// buildDescriptorSet packages every referenced protobuf file and its imports into one validated bundle.
-func buildDescriptorSet(messages []protoreflect.MessageDescriptor) ([]byte, error) {
-	if len(messages) == 0 {
-		return nil, nil
-	}
+func nullable(s *jsonschema.Schema) *jsonschema.Schema {
+	return &jsonschema.Schema{AnyOf: []*jsonschema.Schema{s, {Type: "null"}}}
+}
 
-	// Stable ordering makes the same catalog produce the same bytes.
-	sortedMessages := slices.Clone(messages)
-	slices.SortFunc(sortedMessages, func(a, b protoreflect.MessageDescriptor) int {
-		return cmp.Compare(a.FullName(), b.FullName())
-	})
+type wireField struct {
+	name string
+	typ  reflect.Type
+}
 
+// Match vmihailenco's declaration-order embedding: renamed anonymous structs still
+// auto-inline unless noinline is set or an earlier field conflicts. Explicit inline
+// skips conflicting fields. JSON tags do not participate in MessagePack naming.
+func wireFields(t reflect.Type) []wireField {
+	var fields []wireField
 	seen := make(map[string]bool)
-	files := make([]*descriptorpb.FileDescriptorProto, 0, len(sortedMessages))
-	var addFile func(protoreflect.FileDescriptor)
-	addFile = func(file protoreflect.FileDescriptor) {
-		// Add imports first and include each file only once.
-		if seen[file.Path()] {
-			return
+	for f := range t.Fields() {
+		tags := strings.Split(f.Tag.Get("msgpack"), ",")
+		if tags[0] == "-" || (f.PkgPath != "" && !f.Anonymous) {
+			continue
 		}
-		seen[file.Path()] = true
-
-		imports := file.Imports()
-		for i := range imports.Len() {
-			addFile(imports.Get(i).FileDescriptor)
+		name := tags[0]
+		if name == "" {
+			name = f.Name
 		}
-		files = append(files, protodesc.ToFileDescriptorProto(file))
+		ft := f.Type
+		for ft.Kind() == reflect.Pointer {
+			ft = ft.Elem()
+		}
+		_, immutableSlice := immutable.SliceElem(ft)
+		if f.Anonymous && ft.Kind() == reflect.Struct && !immutableSlice && !slices.Contains(tags[1:], "noinline") {
+			nested := wireFields(ft)
+			if canInline(nested, seen, slices.Contains(tags[1:], "inline")) {
+				fields = appendUnshadowed(fields, nested, seen)
+				continue
+			}
+		}
+		fields = append(fields, wireField{name: name, typ: f.Type})
+		seen[name] = true
 	}
+	return fields
+}
 
-	for _, message := range sortedMessages {
-		addFile(message.ParentFile())
+func appendUnshadowed(fields, nested []wireField, seen map[string]bool) []wireField {
+	for _, child := range nested {
+		if !seen[child.name] {
+			fields = append(fields, child)
+			seen[child.name] = true
+		}
 	}
+	return fields
+}
 
-	set := &descriptorpb.FileDescriptorSet{File: files}
-	if _, err := protodesc.NewFiles(set); err != nil {
-		return nil, eris.Wrap(err, "invalid protobuf descriptor set")
+func canInline(fields []wireField, seen map[string]bool, explicit bool) bool {
+	for _, field := range fields {
+		if seen[field.name] && !explicit {
+			return false
+		}
 	}
-	return proto.MarshalOptions{Deterministic: true}.Marshal(set)
+	return true
 }

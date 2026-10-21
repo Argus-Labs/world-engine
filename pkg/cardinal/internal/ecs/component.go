@@ -12,7 +12,7 @@ import (
 
 // Component is the interface that all components must implement.
 // Components are pure data containers that can be attached to entities.
-type Component interface { //nolint:iface // the wire contract lives on schema.Serializable; this names the ECS role
+type Component interface {
 	// Name returns a unique string identifier for the component type.
 	// This should be consistent across program executions.
 	//

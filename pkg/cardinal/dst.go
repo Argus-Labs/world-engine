@@ -267,7 +267,8 @@ func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 	fillRandom(rng, val, f.world.world.LiveEntityIDs()) // Recursive so not inlined
 	p, ok := reflect.TypeAssert[command.Payload](val)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
-	payload := schema.Marshal(p)
+	payload, err := schema.Serialize(p)
+	require.NoError(t, err)
 	return &iscv1.Command{
 		Name:    name,
 		Address: f.world.address,
@@ -276,7 +277,10 @@ func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 }
 
 func (f *dstFixture) enqueueCommand(cmd Command) error {
-	payload := schema.Marshal(cmd)
+	payload, err := schema.Serialize(cmd)
+	if err != nil {
+		return err
+	}
 	return f.world.commands.Enqueue(context.Background(), &iscv1.Command{
 		Name:    cmd.Name(),
 		Address: f.world.address,

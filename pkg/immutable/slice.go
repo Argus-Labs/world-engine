@@ -15,6 +15,8 @@ import (
 	"strings"
 
 	"github.com/goccy/go-json"
+	"github.com/rotisserie/eris"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
 )
@@ -409,7 +411,7 @@ func Collect[T any](seq iter.Seq[T]) Slice[T] {
 }
 
 // -------------------------------------------------------------------------------------------------
-// JSON and Reflection
+// Serialization and Reflection
 // -------------------------------------------------------------------------------------------------
 // A Slice is a list, so on the wire it is a JSON array — the same text a []T would produce. Without
 // these two methods the encoder sees a struct with one unexported field and writes `{}`, and the
@@ -441,6 +443,41 @@ func (s *Slice[T]) UnmarshalJSON(data []byte) error {
 	s.items = items
 	return nil
 }
+
+// EncodeMsgpack encodes a Slice as an array, including empty and byte-valued Slices.
+func (s Slice[T]) EncodeMsgpack(enc *msgpack.Encoder) error {
+	if err := enc.EncodeArrayLen(len(s.items)); err != nil {
+		return eris.Wrap(err, "failed to encode immutable slice length")
+	}
+	for _, item := range s.items {
+		if err := enc.Encode(item); err != nil {
+			return eris.Wrap(err, "failed to encode immutable slice element")
+		}
+	}
+	return nil
+}
+
+// DecodeMsgpack replaces the Slice only after every element has decoded successfully.
+// Empty arrays and nil normalize to the zero value, as with JSON.
+func (s *Slice[T]) DecodeMsgpack(dec *msgpack.Decoder) error {
+	n, err := dec.DecodeArrayLen()
+	if err != nil {
+		return eris.Wrap(err, "failed to decode immutable slice length")
+	}
+	var items []T
+	for range n {
+		var item T
+		if err := dec.Decode(&item); err != nil {
+			return eris.Wrap(err, "failed to decode immutable slice element")
+		}
+		items = append(items, item)
+	}
+	s.items = items
+	return nil
+}
+
+// IsZero lets MessagePack's omitempty distinguish populated Slices from empty ones.
+func (s Slice[T]) IsZero() bool { return len(s.items) == 0 }
 
 // SliceElem reports whether t is an instantiation of Slice and, if so, returns its element type.
 // It exists so tooling that works through reflection, such as the DST random filler, can recognise

@@ -1,180 +1,167 @@
 package introspect
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protodesc"
-	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/types/descriptorpb"
+	"github.com/vmihailenco/msgpack/v5"
 
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 )
 
-type descriptorSample struct {
-	name       string
-	descriptor protoreflect.MessageDescriptor
+type sample struct {
+	Renamed  int    `msgpack:"wire" json:"other"`
+	Skipped  int    `msgpack:"-"    json:"visible"`
+	Default  string `               json:"not_default"`
+	Grid     [2][3]int
+	Nested   immutable.Slice[immutable.Slice[[2]int]]
+	Objects  []map[string]*sample
+	Bytes    [2]byte
+	ByteList immutable.Slice[byte]
+	Counts   map[uint64]int8
 }
 
-func (sample descriptorSample) Name() string               { return sample.name }
-func (sample descriptorSample) SizeWire() int              { return len(sample.MarshalWire()) }
-func (sample descriptorSample) AppendWire(b []byte) []byte { return append(b, sample.MarshalWire()...) }
+func (sample) Name() string { return "sample" }
 
-func (descriptorSample) MarshalWire() []byte               { return nil }
-func (descriptorSample) UnmarshalWire([]byte) (any, error) { return descriptorSample{}, nil }
-func (sample descriptorSample) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return sample.descriptor
-}
+type named string
 
-type wireOnlySample struct{ name string }
+func (n named) Name() string { return string(n) }
 
-func (sample wireOnlySample) Name() string               { return sample.name }
-func (sample wireOnlySample) SizeWire() int              { return len(sample.MarshalWire()) }
-func (sample wireOnlySample) AppendWire(b []byte) []byte { return append(b, sample.MarshalWire()...) }
-
-func (wireOnlySample) MarshalWire() []byte               { return nil }
-func (wireOnlySample) UnmarshalWire([]byte) (any, error) { return wireOnlySample{}, nil }
-
-func TestFinalizeRequiresGeneratedProtobufDescriptor(t *testing.T) {
+func TestCatalogLifecycle(t *testing.T) {
 	t.Parallel()
-
-	catalog := NewCatalog()
-	require.NoError(t, catalog.Register(Command, wireOnlySample{name: "wire-only"}))
-	require.NoError(t, catalog.Register(Component, descriptorSample{name: "nil-descriptor"}))
-	err := catalog.Finalize()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to inspect nil-descriptor")
-	assert.Contains(t, err.Error(), "failed to inspect wire-only")
-	assert.Contains(t, err.Error(), "regenerate wire code")
-}
-
-func TestFinalizeRejectsDescriptorWithUnresolvedImport(t *testing.T) {
-	t.Parallel()
-
-	// Build a descriptor whose imported file is deliberately absent.
-	file, err := (protodesc.FileOptions{AllowUnresolvable: true}).New(&descriptorpb.FileDescriptorProto{
-		Name:       new("unresolved.proto"),
-		Package:    new("test"),
-		Syntax:     new("proto3"),
-		Dependency: []string{"missing.proto"},
-		MessageType: []*descriptorpb.DescriptorProto{
-			{Name: new("Command")},
-		},
-	}, nil)
-	require.NoError(t, err)
-
-	catalog := NewCatalog()
-	require.NoError(t, catalog.Register(Command, descriptorSample{
-		name:       "unresolved-descriptor",
-		descriptor: file.Messages().Get(0),
-	}))
-	err = catalog.Finalize()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to inspect unresolved-descriptor")
-	assert.Contains(t, err.Error(), "unresolved imports")
-}
-
-func TestFinalizeRejectsLaterRegistration(t *testing.T) {
-	t.Parallel()
-
-	catalog := NewCatalog()
-	require.NoError(t, catalog.Finalize())
-	err := catalog.Register(Command, descriptorSample{name: "late"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "catalog is finalized")
-}
-
-func TestFinalizeSortsTypesByName(t *testing.T) {
-	t.Parallel()
-
-	descriptor := (&cardinalv1.TypeSchema{}).ProtoReflect().Descriptor()
-	catalog := NewCatalog()
-	require.NoError(t, catalog.Register(Command, descriptorSample{name: "z-command", descriptor: descriptor}))
-	require.NoError(t, catalog.Register(Command, descriptorSample{name: "a-command", descriptor: descriptor}))
-	require.NoError(t, catalog.Finalize())
-
-	types := catalog.Commands()
-	require.Len(t, types, 2)
-	assert.Equal(t, "a-command", types[0].GetName())
-	assert.Equal(t, "z-command", types[1].GetName())
-}
-
-func TestBuildDescriptorSetIsDeterministicAndDeduplicated(t *testing.T) {
-	t.Parallel()
-
-	snapshot := (&cardinalv1.Snapshot{}).ProtoReflect().Descriptor()
-	entity := (&cardinalv1.Entity{}).ProtoReflect().Descriptor()
-
-	first, err := buildDescriptorSet([]protoreflect.MessageDescriptor{entity, snapshot, entity})
-	require.NoError(t, err)
-	second, err := buildDescriptorSet([]protoreflect.MessageDescriptor{snapshot, entity})
-	require.NoError(t, err)
-	assert.Equal(t, first, second)
-
-	var set descriptorpb.FileDescriptorSet
-	require.NoError(t, proto.Unmarshal(first, &set))
-	seen := make(map[string]bool, len(set.GetFile()))
-	for _, file := range set.GetFile() {
-		require.False(t, seen[file.GetName()], "duplicate file in descriptor set: %s", file.GetName())
-		seen[file.GetName()] = true
+	c := NewCatalog()
+	for _, kind := range []Kind{Command, Component, Event} {
+		require.NoError(t, c.Register(kind, named("z")))
+		require.NoError(t, c.Register(kind, named("a")))
+		require.NoError(t, c.Register(kind, named("a")))
 	}
-	assert.True(t, hasFile(&set, "google/protobuf/timestamp.proto"), "transitive imports must be included")
-}
-
-func hasFile(set *descriptorpb.FileDescriptorSet, path string) bool {
-	for _, file := range set.GetFile() {
-		if file.GetName() == path {
-			return true
-		}
+	require.NoError(t, c.Finalize())
+	require.NoError(t, c.Finalize())
+	require.ErrorContains(t, c.Register(Command, sample{}), "finalized")
+	for _, types := range [][]string{
+		{c.Commands()[0].GetName(), c.Commands()[1].GetName()},
+		{c.Components()[0].GetName(), c.Components()[1].GetName()},
+		{c.Events()[0].GetName(), c.Events()[1].GetName()},
+	} {
+		assert.Equal(t, []string{"a", "z"}, types)
 	}
-	return false
+	assert.Equal(t, "string", c.Commands()[0].GetJsonSchema().AsMap()["type"])
 }
 
-// -------------------------------------------------------------------------------------------------
-// Fixed-array shape metadata
-// -------------------------------------------------------------------------------------------------
-
-type arrayShapes struct {
-	Flat   [8]int32    // one dimension: the flat field is already unambiguous
-	Grid   [4][8]int32 // two: 32 elements could be 4x8 or 8x4
-	Cube   [2][3][4]int32
-	Scalar int32
-	Slice  []int32
-	hidden [2][2]int32 //nolint:unused // unexported fields are never serialized
+func resolve(t *testing.T, root, node map[string]any) map[string]any {
+	t.Helper()
+	if ref, ok := node["$ref"].(string); ok {
+		return root["$defs"].(map[string]any)[strings.TrimPrefix(ref, "#/$defs/")].(map[string]any)
+	}
+	return node
 }
 
-func (arrayShapes) Name() string                 { return "array_shapes" }
-func (c arrayShapes) SizeWire() int              { return len(c.MarshalWire()) }
-func (c arrayShapes) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
-
-func (arrayShapes) MarshalWire() []byte               { return nil }
-func (arrayShapes) UnmarshalWire([]byte) (any, error) { return arrayShapes{}, nil }
-
-func TestArrayFields_OnlyMultiDimensional(t *testing.T) {
+func TestCatalogMatchesMessagePack(t *testing.T) {
 	t.Parallel()
-
-	got := arrayFields(arrayShapes{})
-	require.Len(t, got, 2, "only the multi-dimensional exported arrays carry a shape")
-
-	assert.Equal(t, "Grid", got[0].GetField())
-	assert.Equal(t, []uint32{4, 8}, got[0].GetDims())
-	assert.Equal(t, "Cube", got[1].GetField())
-	assert.Equal(t, []uint32{2, 3, 4}, got[1].GetDims())
+	v := sample{Renamed: 7, Skipped: 99, Default: "text", Grid: [2][3]int{{1, 2, 3}, {4, 5, 6}},
+		Nested: immutable.SliceOf(immutable.SliceOf([2]int{8, 9})),
+		Bytes:  [2]byte{1, 2}, ByteList: immutable.SliceOf(byte(3), byte(4)),
+		Objects: []map[string]*sample{{"child": {Renamed: 10}, "absent": nil}}}
+	c := NewCatalog()
+	require.NoError(t, c.Register(Command, v))
+	require.NoError(t, c.Finalize())
+	root := c.Commands()[0].GetJsonSchema().AsMap()
+	properties := resolve(t, root, root)["properties"].(map[string]any)
+	data, err := schema.Serialize(v)
+	require.NoError(t, err)
+	var wire map[string]any
+	require.NoError(t, msgpack.Unmarshal(data, &wire))
+	assert.Len(t, properties, len(wire))
+	for key := range wire {
+		assert.Contains(t, properties, key)
+	}
+	assert.Contains(t, properties, "wire")
+	assert.NotContains(t, properties, "other")
+	assert.NotContains(t, properties, "Skipped")
+	assert.Contains(t, properties, "Default")
+	assert.Equal(t, false, resolve(t, root, root)["additionalProperties"])
+	counts := properties["Counts"].(map[string]any)["anyOf"].([]any)[0].(map[string]any)
+	assert.Equal(t, "uint64", counts["x-msgpack-key-format"])
+	assert.Equal(t, "int8", counts["additionalProperties"].(map[string]any)["format"])
+	grid := properties["Grid"].(map[string]any)
+	assert.InDelta(t, 2, grid["minItems"], 0)
+	assert.InDelta(t, 2, grid["maxItems"], 0)
+	row := grid["items"].(map[string]any)
+	assert.InDelta(t, 3, row["minItems"], 0)
+	assert.Len(t, wire["Grid"], 2)
+	assert.Len(t, wire["Grid"].([]any)[0], 3)
+	nested := properties["Nested"].(map[string]any)
+	for range 2 {
+		assert.Equal(t, "array", nested["type"])
+		nested = nested["items"].(map[string]any)
+	}
+	assert.InDelta(t, 2, nested["maxItems"], 0)
+	assert.Equal(t, []any{[]any{[]any{int8(8), int8(9)}}}, wire["Nested"])
+	assert.Equal(t, []byte{1, 2}, wire["Bytes"])
+	assert.Equal(t, "base64", properties["Bytes"].(map[string]any)["contentEncoding"])
+	assert.Equal(t, []any{uint8(3), uint8(4)}, wire["ByteList"])
+	assert.Equal(t, "array", properties["ByteList"].(map[string]any)["type"])
+	objects := properties["Objects"].(map[string]any)["anyOf"].([]any)[0].(map[string]any)
+	assert.Equal(t, "array", objects["type"])
+	objectMap := objects["items"].(map[string]any)["anyOf"].([]any)[0].(map[string]any)
+	assert.Equal(t, "object", objectMap["type"])
+	pointer := objectMap["additionalProperties"].(map[string]any)["anyOf"].([]any)
+	assert.Equal(t, resolve(t, root, root), resolve(t, root, pointer[0].(map[string]any)))
+	assert.Equal(t, "null", pointer[1].(map[string]any)["type"])
+	children := wire["Objects"].([]any)[0].(map[string]any)
+	assert.Nil(t, children["absent"])
+	assert.Equal(t, int8(10), children["child"].(map[string]any)["wire"])
 }
 
-func TestArrayFields_IgnoresNonStructs(t *testing.T) {
-	t.Parallel()
-
-	assert.Nil(t, arrayFields(nil))
+type Embedded struct {
+	Value int `msgpack:"value" json:"wrong"`
 }
 
-// arrayFields walks the registered type's own fields, so a pointer receiver reports nothing. Nothing
-// registers a pointer today; this pins the documented behaviour so a change to it is deliberate.
-func TestArrayFieldsIgnoresPointerReceiver(t *testing.T) {
-	t.Parallel()
+type embeddedRenamed struct {
+	Embedded `msgpack:"ignored_name"`
+}
 
-	assert.NotEmpty(t, arrayFields(arrayShapes{}), "value receiver reports its arrays")
-	assert.Nil(t, arrayFields(&arrayShapes{}), "pointer receiver reports none")
+func (embeddedRenamed) Name() string { return "embedded" }
+
+type embeddedNoInline struct {
+	Embedded `msgpack:"nested,noinline"`
+}
+
+func (embeddedNoInline) Name() string { return "noinline" }
+
+type embeddedConflict struct {
+	Value int `msgpack:"value"`
+	//nolint:embeddedstructfieldcheck // Field order exercises codec conflict handling.
+	Embedded
+}
+
+func (embeddedConflict) Name() string { return "conflict" }
+
+func TestCatalogEmbeddingMatchesMessagePack(t *testing.T) {
+	t.Parallel()
+	for _, value := range []schema.Serializable{
+		embeddedRenamed{Embedded{Value: 1}},
+		embeddedNoInline{Embedded{Value: 2}},
+		embeddedConflict{Value: 3, Embedded: Embedded{Value: 4}},
+	} {
+		t.Run(value.Name(), func(t *testing.T) {
+			t.Parallel()
+			c := NewCatalog()
+			require.NoError(t, c.Register(Command, value))
+			require.NoError(t, c.Finalize())
+			root := c.Commands()[0].GetJsonSchema().AsMap()
+			properties := resolve(t, root, root)["properties"].(map[string]any)
+			data, err := schema.Serialize(value)
+			require.NoError(t, err)
+			var wire map[string]any
+			require.NoError(t, msgpack.Unmarshal(data, &wire))
+			assert.Len(t, properties, len(wire))
+			for key := range wire {
+				assert.Contains(t, properties, key)
+			}
+		})
+	}
 }
