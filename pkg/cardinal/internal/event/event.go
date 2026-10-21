@@ -17,10 +17,7 @@ type Event struct {
 	Recipient string // Empty recipient means broadcast to all matching subscribers; non-empty targets a single user
 }
 
-// Payload is the interface all default event payloads must implement. It is schema.Serializable — the
-// same single interface commands and components use. Events dispatch by concrete type (no codec
-// registry); the generated MarshalWire encodes the event, and consumers know the type on decode. An
-// event without generated wire code doesn't satisfy this interface, so it fails to compile.
+// Payload is the interface all default event payloads must implement.
 type Payload interface {
 	schema.Serializable
 }

@@ -477,13 +477,6 @@ linters:
       # Suppress gosec G117 (secret pattern field names) - data model fields, not actual secrets
       - text: "G117:"
         linters: [gosec]
-      # Suppress gosec G204 in sdkgen - on-device dev CLI intentionally runs buf/protoc in docker
-      # with a temp work dir it created itself; args are values we produce, not external input.
-      # To remove this: stop shelling out to docker entirely (have the Go CLI emit the Go + C#
-      # serialization code itself, in-process), which deletes the exec call this flags.
-      - path: 'internal/sdkgen/'
-        text: "G204:"
-        linters: [gosec]
       # Suppress gocheckcompilerdirectives for //go:fix (Go 1.26 directive not yet recognized)
       - text: "compiler directive unrecognized: //go:fix"
         linters: [gocheckcompilerdirectives]

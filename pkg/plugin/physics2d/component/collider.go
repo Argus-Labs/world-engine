@@ -64,7 +64,7 @@ const (
 // Filter, ...) still write through to the world's column, so always Set the component after one.
 //
 // ChainPoints encodes as a plain JSON array ("chain_points": [{"x":0,"y":0}, ...]), so a
-// hand-written payload can carry one; snapshots still travel as protobuf via MarshalWire.
+// hand-written payload can carry one; snapshot component payloads use MessagePack.
 type ColliderShape struct {
 	ShapeType     ShapeType `json:"shape_type"`
 	LocalOffset   Vec2      `json:"local_offset"`

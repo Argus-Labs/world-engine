@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -137,9 +138,16 @@ func NewTestWorld(t testing.TB, setup func(w *World)) *TestWorld {
 
 // roundTrip encodes p and decodes the bytes into a fresh value of the same type.
 func roundTrip[T schema.Serializable](p T) T {
-	decoded, err := p.UnmarshalWire(schema.Marshal(p))
-	assert.That(err == nil, "decode %s: %v", p.Name(), err)
-	typed, ok := decoded.(T)
+	data, err := schema.Serialize(p)
+	if err != nil {
+		panic(fmt.Sprintf("encode %s: %v", p.Name(), err))
+	}
+	decoded := reflect.New(reflect.TypeOf(p))
+	err = schema.Deserialize(data, decoded.Interface())
+	if err != nil {
+		panic(fmt.Sprintf("decode %s: %v", p.Name(), err))
+	}
+	typed, ok := reflect.TypeAssert[T](decoded.Elem())
 	assert.That(ok, "decode %s returned %T, want %T", p.Name(), decoded, p)
 	return typed
 }
@@ -149,10 +157,14 @@ func roundTrip[T schema.Serializable](p T) T {
 // not registered in setup.
 func (w *TestWorld) Command(player string, cmd Command) {
 	w.tb.Helper()
-	err := w.commands.Enqueue(context.Background(), &iscv1.Command{
+	payload, err := schema.Serialize(cmd)
+	if err != nil {
+		w.tb.Fatalf("cardinal: encode Command %s: %v", cmd.Name(), err)
+	}
+	err = w.commands.Enqueue(context.Background(), &iscv1.Command{
 		Name:    cmd.Name(),
 		Address: w.address,
-		Payload: schema.Marshal(cmd),
+		Payload: payload,
 	}, command.PlayerSender(player))
 	if err != nil {
 		w.tb.Fatalf("cardinal: Command %s: %v", cmd.Name(), err)
@@ -339,7 +351,11 @@ func appendString(b []byte, s string) []byte {
 }
 
 func appendPayload(b []byte, p schema.Serializable) []byte {
+	payload, err := schema.Serialize(p)
+	if err != nil {
+		panic(fmt.Sprintf("encode %s: %v", p.Name(), err))
+	}
 	b = appendString(b, p.Name())
-	b = binary.AppendUvarint(b, uint64(p.SizeWire())) //nolint:gosec // a size is non-negative
-	return p.AppendWire(b)
+	b = binary.AppendUvarint(b, uint64(len(payload)))
+	return append(b, payload...)
 }

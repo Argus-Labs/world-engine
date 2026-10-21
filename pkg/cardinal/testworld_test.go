@@ -89,7 +89,10 @@ func TestTestWorld_EncodesOutputsAsPublishingDoes(t *testing.T) {
 			t.Parallel()
 			w := cardinal.NewTestWorld(t, func(w *cardinal.World) { w.RegisterEvent[unencodable]() })
 
-			assert.PanicsWithValue(t, "unencodable: invalid UTF-8", func() { w.RunSystem(systemFunc(tc.send)) })
+			defer func() {
+				assert.Contains(t, fmt.Sprint(recover()), "encode unencodable: failed to serialize")
+			}()
+			w.RunSystem(systemFunc(tc.send))
 		})
 	}
 }
@@ -419,13 +422,10 @@ func (hit) UnmarshalWire(b []byte) (any, error) {
 	return hit{Damage: int(v)}, nil
 }
 
-// unencodable panics when encoded, like a generated codec given a string that is not valid UTF-8.
-type unencodable struct{}
+// unencodable has a field MessagePack cannot encode, even when nil.
+type unencodable struct{ Callback func() }
 
-func (unencodable) Name() string                      { return "unencodable" }
-func (unencodable) SizeWire() int                     { panic("unencodable: invalid UTF-8") }
-func (unencodable) AppendWire(b []byte) []byte        { panic("unencodable: invalid UTF-8") }
-func (unencodable) UnmarshalWire([]byte) (any, error) { return unencodable{}, nil }
+func (unencodable) Name() string { return "unencodable" }
 
 // list is an event and command with a slice field and a hand-written varint codec.
 type list struct {

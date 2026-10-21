@@ -4,15 +4,16 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv1";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv1";
+import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
 import type { Snapshot } from "./snapshot_pb";
 import { file_worldengine_cardinal_v1_snapshot } from "./snapshot_pb";
-import type { Message } from "@bufbuild/protobuf";
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file worldengine/cardinal/v1/debug.proto.
  */
 export const file_worldengine_cardinal_v1_debug: GenFile = /*@__PURE__*/
-  fileDesc("CiN3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9kZWJ1Zy5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiEwoRSW50cm9zcGVjdFJlcXVlc3QiqQIKEkludHJvc3BlY3RSZXNwb25zZRI1Cghjb21tYW5kcxgBIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESNwoKY29tcG9uZW50cxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESMwoGZXZlbnRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuVHlwZVNjaGVtYRIUCgx0aWNrX3JhdGVfaHoYBCABKAESOgoJc2NoZWR1bGVzGAUgAygLMicud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3lzdGVtU2NoZWR1bGUSHAoUcHJvdG9fZGVzY3JpcHRvcl9zZXQYBiABKAwieQoOU3lzdGVtU2NoZWR1bGUSMQoEaG9vaxgBIAEoDjIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbUhvb2sSNAoHc3lzdGVtcxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbU5vZGUiJgoKU3lzdGVtTm9kZRIKCgJpZBgBIAEoDRIMCgRuYW1lGAIgASgJInkKClR5cGVTY2hlbWESDAoEbmFtZRgBIAEoCRIaChJwcm90b19tZXNzYWdlX25hbWUYAiABKAkSOQoMYXJyYXlfZmllbGRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuQXJyYXlGaWVsZFIGc2NoZW1hIikKCkFycmF5RmllbGQSDQoFZmllbGQYASABKAkSDAoEZGltcxgCIAMoDSIOCgxQYXVzZVJlcXVlc3QiJAoNUGF1c2VSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIPCg1SZXN1bWVSZXF1ZXN0IhAKDlJlc3VtZVJlc3BvbnNlIg0KC1N0ZXBSZXF1ZXN0IiMKDFN0ZXBSZXNwb25zZRITCgt0aWNrX2hlaWdodBgBIAEoBCIOCgxSZXNldFJlcXVlc3QiDwoNUmVzZXRSZXNwb25zZSIRCg9HZXRTdGF0ZVJlcXVlc3QiWgoQR2V0U3RhdGVSZXNwb25zZRIRCglpc19wYXVzZWQYASABKAgSMwoIc25hcHNob3QYAiABKAsyIS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TbmFwc2hvdCqQAQoKU3lzdGVtSG9vaxIbChdTWVNURU1fSE9PS19VTlNQRUNJRklFRBAAEhoKFlNZU1RFTV9IT09LX1BSRV9VUERBVEUQARIWChJTWVNURU1fSE9PS19VUERBVEUQAhIbChdTWVNURU1fSE9PS19QT1NUX1VQREFURRADEhQKEFNZU1RFTV9IT09LX0lOSVQQBDK2BAoMRGVidWdTZXJ2aWNlEmUKCkludHJvc3BlY3QSKi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5JbnRyb3NwZWN0UmVxdWVzdBorLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkludHJvc3BlY3RSZXNwb25zZRJWCgVQYXVzZRIlLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlBhdXNlUmVxdWVzdBomLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlBhdXNlUmVzcG9uc2USWQoGUmVzdW1lEiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzdW1lUmVxdWVzdBonLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc3VtZVJlc3BvbnNlElMKBFN0ZXASJC53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TdGVwUmVxdWVzdBolLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0ZXBSZXNwb25zZRJWCgVSZXNldBIlLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc2V0UmVxdWVzdBomLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc2V0UmVzcG9uc2USXwoIR2V0U3RhdGUSKC53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5HZXRTdGF0ZVJlcXVlc3QaKS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5HZXRTdGF0ZVJlc3BvbnNlQnRaUmdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2NhcmRpbmFsL3YxO2NhcmRpbmFsdjGqAh1Xb3JsZEVuZ2luZS5Qcm90by5DYXJkaW5hbC5WMWIGcHJvdG8z", [file_worldengine_cardinal_v1_snapshot]);
+  fileDesc("CiN3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9kZWJ1Zy5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEiEwoRSW50cm9zcGVjdFJlcXVlc3QiqQIKEkludHJvc3BlY3RSZXNwb25zZRI1Cghjb21tYW5kcxgBIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESNwoKY29tcG9uZW50cxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlR5cGVTY2hlbWESMwoGZXZlbnRzGAMgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuVHlwZVNjaGVtYRIUCgx0aWNrX3JhdGVfaHoYBCABKAESOgoJc2NoZWR1bGVzGAUgAygLMicud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3lzdGVtU2NoZWR1bGUSHAoUcHJvdG9fZGVzY3JpcHRvcl9zZXQYBiABKAwieQoOU3lzdGVtU2NoZWR1bGUSMQoEaG9vaxgBIAEoDjIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbUhvb2sSNAoHc3lzdGVtcxgCIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbU5vZGUiJgoKU3lzdGVtTm9kZRIKCgJpZBgBIAEoDRIMCgRuYW1lGAIgASgJIqcBCgpUeXBlU2NoZW1hEgwKBG5hbWUYASABKAkSGgoScHJvdG9fbWVzc2FnZV9uYW1lGAIgASgJEjkKDGFycmF5X2ZpZWxkcxgDIAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkFycmF5RmllbGQSLAoLanNvbl9zY2hlbWEYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0UgZzY2hlbWEiKQoKQXJyYXlGaWVsZBINCgVmaWVsZBgBIAEoCRIMCgRkaW1zGAIgAygNIg4KDFBhdXNlUmVxdWVzdCIkCg1QYXVzZVJlc3BvbnNlEhMKC3RpY2tfaGVpZ2h0GAEgASgEIg8KDVJlc3VtZVJlcXVlc3QiEAoOUmVzdW1lUmVzcG9uc2UiDQoLU3RlcFJlcXVlc3QiIwoMU3RlcFJlc3BvbnNlEhMKC3RpY2tfaGVpZ2h0GAEgASgEIg4KDFJlc2V0UmVxdWVzdCIPCg1SZXNldFJlc3BvbnNlIhEKD0dldFN0YXRlUmVxdWVzdCJaChBHZXRTdGF0ZVJlc3BvbnNlEhEKCWlzX3BhdXNlZBgBIAEoCBIzCghzbmFwc2hvdBgCIAEoCzIhLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlNuYXBzaG90KpABCgpTeXN0ZW1Ib29rEhsKF1NZU1RFTV9IT09LX1VOU1BFQ0lGSUVEEAASGgoWU1lTVEVNX0hPT0tfUFJFX1VQREFURRABEhYKElNZU1RFTV9IT09LX1VQREFURRACEhsKF1NZU1RFTV9IT09LX1BPU1RfVVBEQVRFEAMSFAoQU1lTVEVNX0hPT0tfSU5JVBAEMrYECgxEZWJ1Z1NlcnZpY2USZQoKSW50cm9zcGVjdBIqLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkludHJvc3BlY3RSZXF1ZXN0Gisud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSW50cm9zcGVjdFJlc3BvbnNlElYKBVBhdXNlEiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUGF1c2VSZXF1ZXN0GiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUGF1c2VSZXNwb25zZRJZCgZSZXN1bWUSJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXN1bWVSZXF1ZXN0Gicud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzdW1lUmVzcG9uc2USUwoEU3RlcBIkLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0ZXBSZXF1ZXN0GiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuU3RlcFJlc3BvbnNlElYKBVJlc2V0EiUud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzZXRSZXF1ZXN0GiYud29ybGRlbmdpbmUuY2FyZGluYWwudjEuUmVzZXRSZXNwb25zZRJfCghHZXRTdGF0ZRIoLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkdldFN0YXRlUmVxdWVzdBopLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkdldFN0YXRlUmVzcG9uc2VCdFpSZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRlbmdpbmUvY2FyZGluYWwvdjE7Y2FyZGluYWx2MaoCHVdvcmxkRW5naW5lLlByb3RvLkNhcmRpbmFsLlYxYgZwcm90bzM", [file_google_protobuf_struct, file_worldengine_cardinal_v1_snapshot]);
 
 /**
  * IntrospectRequest is the request message for the Introspect RPC.
@@ -71,9 +72,7 @@ export type IntrospectResponse = Message<"worldengine.cardinal.v1.IntrospectResp
   schedules: SystemSchedule[];
 
   /**
-   * Protobuf type definitions for the commands, components, and events in this response,
-   * including any types they depend on. Clients use them to encode and decode protobuf data.
-   * Empty when the world has no registered types.
+   * Legacy protobuf payload metadata. Not populated by MessagePack shards.
    *
    * @generated from field: bytes proto_descriptor_set = 6;
    */
@@ -153,15 +152,14 @@ export type TypeSchema = Message<"worldengine.cardinal.v1.TypeSchema"> & {
   name: string;
 
   /**
-   * Name of this command, component, or event in proto_descriptor_set.
-   * Clients use it to find the correct protobuf type definition.
+   * Legacy protobuf message name. Not populated by MessagePack shards.
    *
    * @generated from field: string proto_message_name = 2;
    */
   protoMessageName: string;
 
   /**
-   * Shape of any multi-dimensional fixed-size array fields this type has.
+   * Legacy protobuf array shape metadata. Not populated by MessagePack shards.
    * A fixed array is carried as one flat repeated field, which is unambiguous in one dimension but
    * not beyond it: 32 elements could be 4x8 or 8x4. Clients that decode types they do not know ahead
    * of time (the debug tooling) use this to rebuild the indices; clients written against a known
@@ -170,6 +168,14 @@ export type TypeSchema = Message<"worldengine.cardinal.v1.TypeSchema"> & {
    * @generated from field: repeated worldengine.cardinal.v1.ArrayField array_fields = 3;
    */
   arrayFields: ArrayField[];
+
+  /**
+   * JSON Schema describing the MessagePack payload. Property names are wire keys, not JSON tags.
+   * Arrays retain their nesting; no flattening or array_fields reconstruction is needed.
+   *
+   * @generated from field: google.protobuf.Struct json_schema = 4;
+   */
+  jsonSchema?: JsonObject;
 };
 
 /**
@@ -430,7 +436,7 @@ export const SystemHookSchema: GenEnum<SystemHook> = /*@__PURE__*/
 export const DebugService: GenService<{
   /**
    * Introspect returns metadata about the registered types in the world.
-   * The result includes protobuf metadata for commands, components, and events.
+   * The result includes JSON Schemas for MessagePack commands, components, and events.
    *
    * @generated from rpc worldengine.cardinal.v1.DebugService.Introspect
    */

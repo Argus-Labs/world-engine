@@ -6,18 +6,15 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/guumaster/logsymbols"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/argus-labs/world-engine/pkg/micro"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
@@ -307,21 +304,13 @@ func noFilter(t *testing.T) stateFilter {
 // fixtures use, standing in for what a shard advertises through introspect.
 func stateDescriptors(t *testing.T) componentDescriptors {
 	t.Helper()
-	raw := testDescriptorSet(t,
-		&descriptorpb.DescriptorProto{Name: new("Health"), Field: []*descriptorpb.FieldDescriptorProto{
-			scalarField("HP", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
-		}},
-		&descriptorpb.DescriptorProto{Name: new("Position"), Field: []*descriptorpb.FieldDescriptorProto{
-			scalarField("X", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
-		}},
-	)
 	return componentDescriptors{
-		"Health":   testMessageDescriptor(t, raw, "Health"),
-		"Position": testMessageDescriptor(t, raw, "Position"),
+		"Health":   testObjectSchema("HP", map[string]any{"type": "integer"}),
+		"Position": testObjectSchema("X", map[string]any{"type": "integer"}),
 	}
 }
 
-// componentBlob encodes a component value as the protobuf wire bytes a snapshot payload stores.
+// componentBlob encodes a component value as the MessagePack bytes a snapshot payload stores.
 func componentBlob(t *testing.T, descriptors componentDescriptors, name string, value int) []byte {
 	t.Helper()
 	field := map[string]string{"Health": "HP", "Position": "X"}[name]
@@ -567,7 +556,7 @@ func TestEntityComponents_SkipsMissingPayloadAndKeepsUndecodableRaw(t *testing.T
 	descriptors := stateDescriptors(t)
 	// "Broken" resolves to a descriptor, so it exercises a failed decode rather than a missing type.
 	descriptors["Broken"] = descriptors["Health"]
-	undecodable := []byte{0xff, 0xff, 0xff} // field 31 with wire type 7, which does not exist
+	undecodable := []byte{0xff, 0xff, 0xff} // Not a MessagePack object.
 
 	got := entityComponents(
 		// "Unknown" is registered by the world but absent from the descriptor set. "Missing" has no
@@ -756,212 +745,6 @@ func TestWorldLifecycleHandler_StartRequiresWorldPath(t *testing.T) {
 	assert.Contains(t, err.Error(), "world_path is required")
 }
 
-// -------------------------------------------------------------------------------------------------
-// sdk_generate handler tests
-// -------------------------------------------------------------------------------------------------
-
-func TestSdkGenerateHandler_MissingSource(t *testing.T) {
-	t.Parallel()
-	_, err := sdkGenerateHandler(context.Background(), mcp.CallToolRequest{}, SdkGenerateInput{})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "source is required")
-}
-
-// The spinner redraws one line with carriage returns and colours it; only the
-// final frame should survive into the tool result.
-func TestCleanTerminalOutput_StripsAnsiAndSpinnerFrames(t *testing.T) {
-	t.Parallel()
-	raw := []byte("\x1b[32m✔ ok\x1b[0m\n" +
-		"⣾ working (0s)\r⣽ working (1s)\r✔ done (2s)\n" +
-		"   \n" +
-		"Generated 6 commands\n")
-
-	got := cleanTerminalOutput(raw)
-
-	assert.Equal(t, "✔ ok\n✔ done (2s)\nGenerated 6 commands", got)
-}
-
-func TestCleanTerminalOutput_Empty(t *testing.T) {
-	t.Parallel()
-	assert.Empty(t, cleanTerminalOutput(nil))
-}
-
-// `world sdk generate` exits 0 even when it refuses to generate, so failure is
-// detected from the printed report instead of the exit status.
-func TestReportFailed(t *testing.T) {
-	t.Parallel()
-	marker := string(logsymbols.Error)
-
-	assert.True(t, reportFailed(marker+" sdk generate: backend doesn't type-check — nothing generated"))
-	assert.True(t, reportFailed("Discovered 6 commands\n"+marker+" resolve --go-out's Go module"))
-	// Indented, as printer renders it after a newline.
-	assert.True(t, reportFailed("   "+marker+" something went wrong"))
-
-	assert.False(t, reportFailed("Generated 6 commands → Go: /tmp/gen"))
-	assert.False(t, reportFailed("ORPHANS — declared with Name() but wired to no system"))
-	assert.False(t, reportFailed(""))
-}
-
-// sdkGenerateArgs' defaulting matrix is the heart of the go_out/cs_out contract
-// the schema advertises: go_out defaults to <source>/gen ONLY when no other
-// output is named, so a {source, cs_out} call stays a client-only C# run (the
-// CLI's deliberately-supported mode) and is not silently turned into a Go write
-// into the backend's module.
-func TestSdkGenerateArgs_DefaultsMatrix(t *testing.T) {
-	t.Parallel()
-	const source = "/world/shards/game"
-	genDefault := filepath.Join(source, "gen")
-	goDir := "/world/shards/game/go-gen"
-	csDir := "/world/shards/game/csharp"
-	protoDir := "/world/shards/game/proto"
-
-	// {source} — no outputs named → go_out defaulted to <source>/gen.
-	goOut, csOut, protoOut := sdkGenerateArgs(source, SdkGenerateInput{})
-	assert.Equal(t, genDefault, goOut)
-	assert.Empty(t, csOut)
-	assert.Empty(t, protoOut)
-
-	// {source, cs_out} — go_out omitted with cs_out set: client-only. The default
-	// must NOT fire (it only applies when no other output is set), so go_out stays
-	// empty and the CLI runs its C#-only branch instead of writing Go.
-	goOut, csOut, protoOut = sdkGenerateArgs(source, SdkGenerateInput{CsOut: csDir})
-	assert.Empty(t, goOut, "go_out must stay empty when cs_out is set and go_out omitted (client-only)")
-	assert.Equal(t, csDir, csOut)
-	assert.Empty(t, protoOut)
-
-	// {source, go_out, cs_out} — both named: no defaulting, both passed through.
-	goOut, csOut, protoOut = sdkGenerateArgs(source, SdkGenerateInput{GoOut: goDir, CsOut: csDir})
-	assert.Equal(t, goDir, goOut)
-	assert.Equal(t, csDir, csOut)
-	assert.Empty(t, protoOut)
-
-	// {source, go_out} — only Go named: passed through, no cs_out.
-	goOut, csOut, protoOut = sdkGenerateArgs(source, SdkGenerateInput{GoOut: goDir})
-	assert.Equal(t, goDir, goOut)
-	assert.Empty(t, csOut)
-	assert.Empty(t, protoOut)
-
-	// {source, proto_out} — proto_out requires go_out, so the go_out default fires
-	// (cs_out empty) and proto_out passes through; the CLI then accepts it.
-	goOut, csOut, protoOut = sdkGenerateArgs(source, SdkGenerateInput{ProtoOut: protoDir})
-	assert.Equal(t, genDefault, goOut)
-	assert.Empty(t, csOut)
-	assert.Equal(t, protoDir, protoOut)
-
-	// {source, cs_out, proto_out} — cs_out set withholds the go_out default, so
-	// go_out stays empty; the CLI rejects the run (proto-out requires go-out)
-	// rather than the handler silently inventing a Go output dir.
-	goOut, csOut, protoOut = sdkGenerateArgs(source, SdkGenerateInput{CsOut: csDir, ProtoOut: protoDir})
-	assert.Empty(t, goOut)
-	assert.Equal(t, csDir, csOut)
-	assert.Equal(t, protoDir, protoOut)
-}
-
-// The flag loop omits a flag whose resolved value is empty (the CLI's
-// empty==skip contract), so the presence of --go-out in cmdArgs is exactly
-// what decides wire regeneration vs client-only. This pins that mapping for the
-// full matrix.
-func TestSdkGenerateCmdArgs_FlagPresence(t *testing.T) {
-	t.Parallel()
-	const source = "/world/shards/game"
-
-	hasFlag := func(args []string, flag string) bool {
-		for _, a := range args {
-			if strings.HasPrefix(a, flag+"=") {
-				return true
-			}
-		}
-		return false
-	}
-	flagValue := func(args []string, flag string) string {
-		for _, a := range args {
-			if v, ok := strings.CutPrefix(a, flag+"="); ok {
-				return v
-			}
-		}
-		return ""
-	}
-
-	// {source} (go_out defaulted) → --go-out present, others absent.
-	args := sdkGenerateCmdArgs(source, filepath.Join(source, "gen"), "", "")
-	assert.Equal(t, []string{"sdk", "generate", source, "--go-out=" + filepath.Join(source, "gen")}, args)
-	assert.True(t, hasFlag(args, "--go-out"))
-	assert.False(t, hasFlag(args, "--cs-out"))
-	assert.False(t, hasFlag(args, "--proto-out"))
-
-	// {source, cs_out} (client-only) → --go-out ABSENT, --cs-out present.
-	args = sdkGenerateCmdArgs(source, "", "/csharp", "")
-	assert.Equal(t, []string{"sdk", "generate", source, "--cs-out=/csharp"}, args)
-	assert.False(t, hasFlag(args, "--go-out"), "--go-out must be absent on a client-only run")
-	assert.True(t, hasFlag(args, "--cs-out"))
-	assert.False(t, hasFlag(args, "--proto-out"))
-
-	// {source, go_out, cs_out} → both present, exact values preserved.
-	args = sdkGenerateCmdArgs(source, "/go", "/csharp", "")
-	assert.Equal(t, []string{"sdk", "generate", source, "--go-out=/go", "--cs-out=/csharp"}, args)
-	assert.Equal(t, "/go", flagValue(args, "--go-out"))
-	assert.Equal(t, "/csharp", flagValue(args, "--cs-out"))
-	assert.False(t, hasFlag(args, "--proto-out"))
-
-	// All three outputs present.
-	args = sdkGenerateCmdArgs(source, "/go", "/csharp", "/proto")
-	assert.Equal(t, []string{
-		"sdk", "generate", source,
-		"--go-out=/go", "--cs-out=/csharp", "--proto-out=/proto",
-	}, args)
-}
-
-// status must reflect what was actually generated, not claim wire regeneration
-// unconditionally. The bug returned "regenerated the wire layer …" even on a
-// client-only C# run; these assert the branched mapping and pin the exact
-// strings an agent parses.
-func TestSdkGenerateStatus_ReflectsOutput(t *testing.T) {
-	t.Parallel()
-	const (
-		wireOnly  = "regenerated the wire layer; rebuild or reload the shard to pick it up"
-		wireAndCS = "regenerated the wire layer and the C# client SDK; rebuild or reload the shard to pick it up"
-		csOnly    = "generated the C# client SDK"
-	)
-
-	// {source} / {source, go_out} — go_out set, no cs_out: wire regeneration.
-	assert.Equal(t, wireOnly, sdkGenerateStatus("/go", ""))
-
-	// {source, go_out, cs_out} — both: wire + client SDK.
-	assert.Equal(t, wireAndCS, sdkGenerateStatus("/go", "/csharp"))
-
-	// {source, cs_out} — client-only: NO wire claim. The regression that the
-	// status field contradicted the `go_out`-absent authoritative fields lives
-	// here: status must say C#-only.
-	assert.Equal(t, csOnly, sdkGenerateStatus("", "/csharp"))
-}
-
-// The published input schema is generated from the struct's jsonschema tags by
-// mcp.WithInputSchema (google/jsonschema-go), and is exactly what the LLM driving
-// the tool sees. The go_out description must document that the <source>/gen
-// default only applies when no other output is set — the contract the
-// implementation actually honors — and tell the caller how to get Go+CS vs
-// client-only. This pins both halves of the schema fix against a future
-// tag-only regression.
-func TestSdkGenerate_PublishedGoOutDefaultDoc(t *testing.T) {
-	t.Parallel()
-	tool := mcp.NewTool("sdk_generate", mcp.WithInputSchema[SdkGenerateInput]())
-	require.NotEmpty(t, tool.RawInputSchema, "the tool must publish a generated input schema")
-
-	var schema struct {
-		Properties map[string]struct {
-			Description string `json:"description"`
-		} `json:"properties"`
-	}
-	require.NoError(t, json.Unmarshal(tool.RawInputSchema, &schema))
-	require.Contains(t, schema.Properties, "go_out", "go_out must appear in the published schema")
-
-	desc := schema.Properties["go_out"].Description
-	assert.Contains(t, desc, "Defaults to <source>/gen when no other output is set",
-		"the conditional default must be documented, not an unconditional one")
-	assert.Contains(t, desc, "When cs_out is also passed go_out is NOT defaulted",
-		"the schema must warn that cs_out withholds the go_out default (the client-only entry)")
-}
-
 // The handler falls back to the working directory's world.toml, so an agent running
 // anywhere else has to pass project. additionalProperties is false, which makes an
 // unpublished parameter unusable rather than merely undocumented.
@@ -1042,7 +825,7 @@ func TestResolveShardTarget_PinnedURL(t *testing.T) {
 }
 
 // The MCP transport decodes JSON numbers as float64 before BindArguments runs, which rounds
-// large integers. A string payload survives transport decoding and protobuf encoding intact.
+// large integers. A string payload survives transport decoding and MessagePack encoding intact.
 func TestSendCommandInput_BindArguments_PreservesLargeInt64Payload(t *testing.T) {
 	t.Parallel()
 
@@ -1065,16 +848,12 @@ func TestSendCommandInput_BindArguments_PreservesLargeInt64Payload(t *testing.T)
 	require.NoError(t, req.BindArguments(&in))
 	assert.JSONEq(t, payloadJSON, in.Payload, "payload string must survive mcp-go transport intact")
 
-	raw := testDescriptorSet(t, &descriptorpb.DescriptorProto{
-		Name:  new("Cmd"),
-		Field: []*descriptorpb.FieldDescriptorProto{scalarField("ID", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64)},
-	})
-	md := testMessageDescriptor(t, raw, "Cmd")
+	md := testObjectSchema("ID", map[string]any{"type": "integer"})
 	require.NoError(t, in.validate()) // Validation leaves this nonempty payload unchanged.
 
 	wire, err := encodeCommandPayload(md, in.Payload)
 	require.NoError(t, err)
-	decoded, err := decodeMessage(md, wire)
+	decoded, err := decodeMessage(wire)
 	require.NoError(t, err)
 	assert.Equal(t, int64(9223372036854775807), decoded["ID"], "MaxInt64 must encode to the wire bit-for-bit exact")
 }
