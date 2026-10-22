@@ -98,8 +98,7 @@ component may hold values only:
 
 A component may **not** hold pointers, maps, plain slices (`[]T`), interfaces, channels, or funcs.
 A plain slice inside a copy still shares its backing array with the stored component, so writing
-through it changes the world without a `Set`. `world sdk generate` refuses such fields and prints
-the fix for each one. The same rule applies to commands and events, which cross the same generator.
+through it changes the world without a `Set`.
 
 A list with a known upper bound is a fixed array plus a count:
 
@@ -188,11 +187,6 @@ derivations write through it regardless.
 
   Each method's Go doc says whether it writes through.
 </Warning>
-
-<Note>
-  `immutable.Slice` needs a World CLI new enough to generate it. An older one reports the field as an
-  unsupported type when you run `world sdk generate`.
-</Note>
 
 <Note>
   The element type follows the same rule as any field: values only. A Slice directly inside another

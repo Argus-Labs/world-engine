@@ -134,7 +134,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     {
       /// <summary>
       /// Introspect returns metadata about the registered types in the world.
-      /// The result includes protobuf metadata for commands, components, and events.
+      /// The result includes JSON Schemas for MessagePack commands, components, and events.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -236,7 +236,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
       /// <summary>
       /// Introspect returns metadata about the registered types in the world.
-      /// The result includes protobuf metadata for commands, components, and events.
+      /// The result includes JSON Schemas for MessagePack commands, components, and events.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -250,7 +250,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       /// <summary>
       /// Introspect returns metadata about the registered types in the world.
-      /// The result includes protobuf metadata for commands, components, and events.
+      /// The result includes JSON Schemas for MessagePack commands, components, and events.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -262,7 +262,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       /// <summary>
       /// Introspect returns metadata about the registered types in the world.
-      /// The result includes protobuf metadata for commands, components, and events.
+      /// The result includes JSON Schemas for MessagePack commands, components, and events.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -276,7 +276,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       /// <summary>
       /// Introspect returns metadata about the registered types in the world.
-      /// The result includes protobuf metadata for commands, components, and events.
+      /// The result includes JSON Schemas for MessagePack commands, components, and events.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>

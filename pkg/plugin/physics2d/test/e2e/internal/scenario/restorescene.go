@@ -14,14 +14,14 @@ import (
 //
 // Every body here carries at least one value that differs from the default it
 // would fall back to. That is the whole design. A field that is dropped by
-// MarshalWire, or defaulted by UnmarshalJSON when it should not be, or lost in
+// serialization, defaulted during decoding when it should not be, or lost in
 // the ECS -> Box2D rebuild, shows up as that field reverting — which the
 // comparison names exactly.
 //
 // So: no body has Active, Awake and SleepingAllowed all true; no body is left at
 // GravityScale 1 alone; filters use high bits and non-zero group indices;
 // materials avoid the defaults; and every shape type is present, because shape
-// geometry travels as JSON too.
+// geometry must survive serialization too.
 func RestoreScene() harness.Scenario {
 	return harness.Scenario{
 		Name:  "restore",

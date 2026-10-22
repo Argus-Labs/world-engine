@@ -301,25 +301,22 @@ func TestInterShardCommandPropagatesTrace(t *testing.T) {
 	require.Equal(t, send.SpanContext.TraceID(), cmds[0].Span.TraceID())
 }
 
-// panickingEvent is an event payload whose wire encoding panics, as the generated wire methods do
-// for an unencodable field. schema.Marshal sizes first, so SizeWire is the one that fires.
-type panickingEvent struct{ testutils.SimpleEvent }
+type unencodableEvent struct {
+	testutils.SimpleEvent
 
-func (panickingEvent) SizeWire() int            { panic("unencodable payload") }
-func (panickingEvent) AppendWire([]byte) []byte { panic("unencodable payload") }
+	Callback func()
+}
 
-// TestEventPublishSpanRecordsPanic checks that a payload that panics while encoding is recorded as
-// an exception on the publish span, the one span that names the event.
-func TestEventPublishSpanRecordsPanic(t *testing.T) {
+// TestEventPublishSpanRecordsError checks that an encoding failure is recorded on the publish span.
+func TestEventPublishSpanRecordsError(t *testing.T) {
 	prng := testutils.NewRand(t)
 	fixture := newServiceFixture(t, prng, false)
 	exporter := newRecordingTracer(t)
 
-	require.PanicsWithValue(t, "unencodable payload", func() {
-		_ = fixture.svc.publishDefaultEvent(context.Background(), event.Event{
-			Kind: event.KindDefault, Payload: panickingEvent{}, Recipient: "player-1",
-		})
+	err := fixture.svc.publishDefaultEvent(context.Background(), event.Event{
+		Kind: event.KindDefault, Payload: unencodableEvent{}, Recipient: "player-1",
 	})
+	require.ErrorContains(t, err, "failed to encode event")
 
 	publish, ok := spansByName(exporter)[spanEventPublish]
 	require.True(t, ok, "publish span was not ended")

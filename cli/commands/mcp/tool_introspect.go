@@ -5,14 +5,9 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"github.com/goccy/go-json"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/reflect/protodesc"
-	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/reflect/protoregistry"
 
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
@@ -34,8 +29,7 @@ type IntrospectOutput struct {
 	Events     []NamedSchema `json:"events"     jsonschema_description:"List of available events with their schemas"`
 }
 
-// NamedSchema is one registered type (command, component, or event) with its schema — the type's
-// protobuf message definition rendered as JSON — plus the shape of any multi-dimensional arrays.
+// NamedSchema is one registered type with its reflection-derived JSON Schema.
 type NamedSchema struct {
 	Name        string                   `json:"name"`
 	Schema      map[string]any           `json:"schema"`
@@ -80,100 +74,85 @@ func introspectHandler(
 		shardURL:     args.ShardURL,
 	})
 	if err != nil {
-		return IntrospectOutput{}, err
+		return IntrospectOutput{}, eris.Wrap(err, "failed to resolve introspection target")
 	}
 
-	resp, files, err := introspectShardTypes(ctx, client)
+	resp, err := introspectShardTypes(ctx, client)
 	if err != nil {
 		return IntrospectOutput{}, eris.Wrapf(err, "failed to introspect shard %q", strings.TrimSpace(args.ShardID))
 	}
 
 	return IntrospectOutput{
-		Commands:   convertTypeSchemas(resp.GetCommands(), files),
-		Components: convertTypeSchemas(resp.GetComponents(), files),
-		Events:     convertTypeSchemas(resp.GetEvents(), files),
+		Commands:   convertTypeSchemas(resp.GetCommands()),
+		Components: convertTypeSchemas(resp.GetComponents()),
+		Events:     convertTypeSchemas(resp.GetEvents()),
 	}, nil
 }
 
-// introspectShardTypes fetches a shard's introspect response and resolves its proto descriptor
-// set. A world with no registered types has no descriptor set; it resolves to nil files, which is
-// safe because there are then no types to look up. Callers wrap the error with their own context.
+// introspectShardTypes fetches metadata without requiring SDK-generated descriptors.
 func introspectShardTypes(
 	ctx context.Context,
 	client cardinalv1connect.DebugServiceClient,
-) (*cardinalv1.IntrospectResponse, *protoregistry.Files, error) {
+) (*cardinalv1.IntrospectResponse, error) {
 	res, err := client.Introspect(ctx, connect.NewRequest(&cardinalv1.IntrospectRequest{}))
 	if err != nil {
-		return nil, nil, err
+		return nil, eris.Wrap(err, "failed to introspect shard types")
 	}
-	resp := res.Msg
-	if len(resp.GetCommands())+len(resp.GetComponents())+len(resp.GetEvents()) == 0 {
-		return resp, nil, nil
-	}
-	files, err := resolveDescriptorFiles(resp.GetProtoDescriptorSet())
-	if err != nil {
-		return nil, nil, err
-	}
-	return resp, files, nil
+	return res.Msg, nil
 }
 
-// fetchCommandDescriptor introspects the shard and resolves the named command's message descriptor
-// from the response's proto descriptor set, used to encode its payload as proto wire. DebugService
-// is unauthenticated in dev.
-func fetchCommandDescriptor(
+// fetchCommandSchema retrieves the deployed command's JSON Schema.
+func fetchCommandSchema(
 	ctx context.Context,
 	shardURL, commandName string,
-) (protoreflect.MessageDescriptor, error) {
-	resp, files, err := introspectShardTypes(ctx, newDebugServiceClient(shardURL))
+) (map[string]any, error) {
+	resp, err := introspectShardTypes(ctx, newDebugServiceClient(shardURL))
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to introspect shard for command schema")
 	}
 
 	for _, ts := range resp.GetCommands() {
 		if ts.GetName() == commandName {
-			return findMessageDescriptor(files, ts.GetProtoMessageName())
+			if ts.GetJsonSchema() == nil {
+				return nil, eris.Errorf("command %q has no JSON Schema", commandName)
+			}
+			return ts.GetJsonSchema().AsMap(), nil
 		}
 	}
 	return nil, eris.Errorf("command %q not found on shard", commandName)
 }
 
-// componentDescriptors maps a component's registered name to its protobuf message descriptor.
-type componentDescriptors map[string]protoreflect.MessageDescriptor
+// componentDescriptors maps registered component names to their JSON Schemas.
+type componentDescriptors map[string]map[string]any
 
-// fetchComponentDescriptors introspects the shard and resolves every registered component's message
-// descriptor, so get_state can decode the snapshot's component blobs. A component whose descriptor
-// is unresolvable is left out — its blob stays raw rather than costing every other component.
+// fetchComponentDescriptors identifies components that can be decoded as MessagePack.
+// Components without metadata stay raw rather than failing the whole read.
 func fetchComponentDescriptors(
 	ctx context.Context,
 	client cardinalv1connect.DebugServiceClient,
 ) (componentDescriptors, error) {
-	resp, files, err := introspectShardTypes(ctx, client)
+	resp, err := introspectShardTypes(ctx, client)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to introspect shard for component schemas")
 	}
 
 	descriptors := make(componentDescriptors, len(resp.GetComponents()))
 	for _, ts := range resp.GetComponents() {
-		md, err := findMessageDescriptor(files, ts.GetProtoMessageName())
-		if err != nil {
+		if ts.GetJsonSchema() == nil {
 			continue
 		}
-		descriptors[ts.GetName()] = md
+		descriptors[ts.GetName()] = ts.GetJsonSchema().AsMap()
 	}
 	return descriptors, nil
 }
 
-// convertTypeSchemas converts proto TypeSchema slices to the MCP output shape. Each type's schema
-// is its message descriptor rendered as JSON (protodesc → protojson), i.e. the shard's generated
-// protobuf definition verbatim — fields with their names, numbers, and types. A type whose
-// descriptor cannot be resolved is still listed, with the failure under an "error" key instead of
-// failing the whole introspect.
-func convertTypeSchemas(schemas []*cardinalv1.TypeSchema, files *protoregistry.Files) []NamedSchema {
+// convertTypeSchemas retains the advertised JSON Schema verbatim, including $defs.
+func convertTypeSchemas(schemas []*cardinalv1.TypeSchema) []NamedSchema {
 	result := make([]NamedSchema, 0, len(schemas))
 	for _, ts := range schemas {
-		schemaMap, err := descriptorSchema(files, ts.GetProtoMessageName())
-		if err != nil {
-			schemaMap = map[string]any{"error": err.Error()}
+		schemaMap := ts.GetJsonSchema().AsMap()
+		if ts.GetJsonSchema() == nil {
+			schemaMap = map[string]any{"error": "type has no JSON Schema"}
 		}
 		result = append(result, NamedSchema{
 			Name:        ts.GetName(),
@@ -182,21 +161,4 @@ func convertTypeSchemas(schemas []*cardinalv1.TypeSchema, files *protoregistry.F
 		})
 	}
 	return result
-}
-
-// descriptorSchema renders a message's descriptor as a JSON map, straight from the descriptor set.
-func descriptorSchema(files *protoregistry.Files, protoMessageName string) (map[string]any, error) {
-	md, err := findMessageDescriptor(files, protoMessageName)
-	if err != nil {
-		return nil, err
-	}
-	jsonBytes, err := protojson.Marshal(protodesc.ToDescriptorProto(md))
-	if err != nil {
-		return nil, eris.Wrapf(err, "failed to render descriptor for %q", protoMessageName)
-	}
-	var schemaMap map[string]any
-	if err := json.Unmarshal(jsonBytes, &schemaMap); err != nil {
-		return nil, eris.Wrapf(err, "failed to decode rendered descriptor for %q", protoMessageName)
-	}
-	return schemaMap, nil
 }

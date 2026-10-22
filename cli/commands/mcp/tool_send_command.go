@@ -75,7 +75,7 @@ func sendCommandHandler(
 	// organization is not part of the address any more.
 	project, err := resolveShardWorld(ctx, args.ShardID, args.Project)
 	if err != nil {
-		return SendCommandOutput{}, err
+		return SendCommandOutput{}, eris.Wrap(err, "failed to resolve command world")
 	}
 
 	// Resolve how to reach the target pool instance (a specific container) and the
@@ -86,15 +86,15 @@ func sendCommandHandler(
 		ctx, args.ShardID, args.InstanceName, args.ShardURL, project,
 	)
 	if err != nil {
-		return SendCommandOutput{}, err
+		return SendCommandOutput{}, eris.Wrap(err, "failed to resolve command target")
 	}
 
-	// Commands are decoded from proto wire, so encode the payload against the command's message descriptor.
-	commandDesc, err := fetchCommandDescriptor(ctx, target.shardURL, args.CommandName)
+	// Validate against the deployed schema before encoding the domain MessagePack payload.
+	commandSchema, err := fetchCommandSchema(ctx, target.shardURL, args.CommandName)
 	if err != nil {
-		return SendCommandOutput{}, err
+		return SendCommandOutput{}, eris.Wrap(err, "failed to fetch command schema")
 	}
-	payloadBytes, err := encodeCommandPayload(commandDesc, args.Payload)
+	payloadBytes, err := encodeCommandPayload(commandSchema, args.Payload)
 	if err != nil {
 		return SendCommandOutput{}, eris.Wrapf(err, "failed to encode payload for command %q", args.CommandName)
 	}

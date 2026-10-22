@@ -25,60 +25,62 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "CiN3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9kZWJ1Zy5wcm90bxIXd29ybGRl",
-            "bmdpbmUuY2FyZGluYWwudjEaJndvcmxkZW5naW5lL2NhcmRpbmFsL3YxL3Nu",
-            "YXBzaG90LnByb3RvIhMKEUludHJvc3BlY3RSZXF1ZXN0IvICChJJbnRyb3Nw",
-            "ZWN0UmVzcG9uc2USPwoIY29tbWFuZHMYASADKAsyIy53b3JsZGVuZ2luZS5j",
-            "YXJkaW5hbC52MS5UeXBlU2NoZW1hUghjb21tYW5kcxJDCgpjb21wb25lbnRz",
-            "GAIgAygLMiMud29ybGRlbmdpbmUuY2FyZGluYWwudjEuVHlwZVNjaGVtYVIK",
-            "Y29tcG9uZW50cxI7CgZldmVudHMYAyADKAsyIy53b3JsZGVuZ2luZS5jYXJk",
-            "aW5hbC52MS5UeXBlU2NoZW1hUgZldmVudHMSIAoMdGlja19yYXRlX2h6GAQg",
-            "ASgBUgp0aWNrUmF0ZUh6EkUKCXNjaGVkdWxlcxgFIAMoCzInLndvcmxkZW5n",
-            "aW5lLmNhcmRpbmFsLnYxLlN5c3RlbVNjaGVkdWxlUglzY2hlZHVsZXMSMAoU",
-            "cHJvdG9fZGVzY3JpcHRvcl9zZXQYBiABKAxSEnByb3RvRGVzY3JpcHRvclNl",
-            "dCKIAQoOU3lzdGVtU2NoZWR1bGUSNwoEaG9vaxgBIAEoDjIjLndvcmxkZW5n",
-            "aW5lLmNhcmRpbmFsLnYxLlN5c3RlbUhvb2tSBGhvb2sSPQoHc3lzdGVtcxgC",
-            "IAMoCzIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN5c3RlbU5vZGVSB3N5",
-            "c3RlbXMiMAoKU3lzdGVtTm9kZRIOCgJpZBgBIAEoDVICaWQSEgoEbmFtZRgC",
-            "IAEoCVIEbmFtZSKeAQoKVHlwZVNjaGVtYRISCgRuYW1lGAEgASgJUgRuYW1l",
-            "EiwKEnByb3RvX21lc3NhZ2VfbmFtZRgCIAEoCVIQcHJvdG9NZXNzYWdlTmFt",
-            "ZRJGCgxhcnJheV9maWVsZHMYAyADKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5h",
-            "bC52MS5BcnJheUZpZWxkUgthcnJheUZpZWxkc1IGc2NoZW1hIjYKCkFycmF5",
-            "RmllbGQSFAoFZmllbGQYASABKAlSBWZpZWxkEhIKBGRpbXMYAiADKA1SBGRp",
-            "bXMiDgoMUGF1c2VSZXF1ZXN0IjAKDVBhdXNlUmVzcG9uc2USHwoLdGlja19o",
-            "ZWlnaHQYASABKARSCnRpY2tIZWlnaHQiDwoNUmVzdW1lUmVxdWVzdCIQCg5S",
-            "ZXN1bWVSZXNwb25zZSINCgtTdGVwUmVxdWVzdCIvCgxTdGVwUmVzcG9uc2US",
-            "HwoLdGlja19oZWlnaHQYASABKARSCnRpY2tIZWlnaHQiDgoMUmVzZXRSZXF1",
-            "ZXN0Ig8KDVJlc2V0UmVzcG9uc2UiEQoPR2V0U3RhdGVSZXF1ZXN0Im4KEEdl",
-            "dFN0YXRlUmVzcG9uc2USGwoJaXNfcGF1c2VkGAEgASgIUghpc1BhdXNlZBI9",
-            "CghzbmFwc2hvdBgCIAEoCzIhLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlNu",
-            "YXBzaG90UghzbmFwc2hvdCqQAQoKU3lzdGVtSG9vaxIbChdTWVNURU1fSE9P",
-            "S19VTlNQRUNJRklFRBAAEhoKFlNZU1RFTV9IT09LX1BSRV9VUERBVEUQARIW",
-            "ChJTWVNURU1fSE9PS19VUERBVEUQAhIbChdTWVNURU1fSE9PS19QT1NUX1VQ",
-            "REFURRADEhQKEFNZU1RFTV9IT09LX0lOSVQQBDK2BAoMRGVidWdTZXJ2aWNl",
-            "EmUKCkludHJvc3BlY3QSKi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5JbnRy",
-            "b3NwZWN0UmVxdWVzdBorLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkludHJv",
-            "c3BlY3RSZXNwb25zZRJWCgVQYXVzZRIlLndvcmxkZW5naW5lLmNhcmRpbmFs",
-            "LnYxLlBhdXNlUmVxdWVzdBomLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlBh",
-            "dXNlUmVzcG9uc2USWQoGUmVzdW1lEiYud29ybGRlbmdpbmUuY2FyZGluYWwu",
-            "djEuUmVzdW1lUmVxdWVzdBonLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJl",
-            "c3VtZVJlc3BvbnNlElMKBFN0ZXASJC53b3JsZGVuZ2luZS5jYXJkaW5hbC52",
-            "MS5TdGVwUmVxdWVzdBolLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlN0ZXBS",
-            "ZXNwb25zZRJWCgVSZXNldBIlLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJl",
-            "c2V0UmVxdWVzdBomLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLlJlc2V0UmVz",
-            "cG9uc2USXwoIR2V0U3RhdGUSKC53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5H",
-            "ZXRTdGF0ZVJlcXVlc3QaKS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5HZXRT",
-            "dGF0ZVJlc3BvbnNlQnRaUmdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1l",
-            "bmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2NhcmRpbmFsL3YxO2Nh",
-            "cmRpbmFsdjGqAh1Xb3JsZEVuZ2luZS5Qcm90by5DYXJkaW5hbC5WMWIGcHJv",
-            "dG8z"));
+            "bmdpbmUuY2FyZGluYWwudjEaHGdvb2dsZS9wcm90b2J1Zi9zdHJ1Y3QucHJv",
+            "dG8aJndvcmxkZW5naW5lL2NhcmRpbmFsL3YxL3NuYXBzaG90LnByb3RvIhMK",
+            "EUludHJvc3BlY3RSZXF1ZXN0IvICChJJbnRyb3NwZWN0UmVzcG9uc2USPwoI",
+            "Y29tbWFuZHMYASADKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5UeXBl",
+            "U2NoZW1hUghjb21tYW5kcxJDCgpjb21wb25lbnRzGAIgAygLMiMud29ybGRl",
+            "bmdpbmUuY2FyZGluYWwudjEuVHlwZVNjaGVtYVIKY29tcG9uZW50cxI7CgZl",
+            "dmVudHMYAyADKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5UeXBlU2No",
+            "ZW1hUgZldmVudHMSIAoMdGlja19yYXRlX2h6GAQgASgBUgp0aWNrUmF0ZUh6",
+            "EkUKCXNjaGVkdWxlcxgFIAMoCzInLndvcmxkZW5naW5lLmNhcmRpbmFsLnYx",
+            "LlN5c3RlbVNjaGVkdWxlUglzY2hlZHVsZXMSMAoUcHJvdG9fZGVzY3JpcHRv",
+            "cl9zZXQYBiABKAxSEnByb3RvRGVzY3JpcHRvclNldCKIAQoOU3lzdGVtU2No",
+            "ZWR1bGUSNwoEaG9vaxgBIAEoDjIjLndvcmxkZW5naW5lLmNhcmRpbmFsLnYx",
+            "LlN5c3RlbUhvb2tSBGhvb2sSPQoHc3lzdGVtcxgCIAMoCzIjLndvcmxkZW5n",
+            "aW5lLmNhcmRpbmFsLnYxLlN5c3RlbU5vZGVSB3N5c3RlbXMiMAoKU3lzdGVt",
+            "Tm9kZRIOCgJpZBgBIAEoDVICaWQSEgoEbmFtZRgCIAEoCVIEbmFtZSLYAQoK",
+            "VHlwZVNjaGVtYRISCgRuYW1lGAEgASgJUgRuYW1lEiwKEnByb3RvX21lc3Nh",
+            "Z2VfbmFtZRgCIAEoCVIQcHJvdG9NZXNzYWdlTmFtZRJGCgxhcnJheV9maWVs",
+            "ZHMYAyADKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5BcnJheUZpZWxk",
+            "UgthcnJheUZpZWxkcxI4Cgtqc29uX3NjaGVtYRgEIAEoCzIXLmdvb2dsZS5w",
+            "cm90b2J1Zi5TdHJ1Y3RSCmpzb25TY2hlbWFSBnNjaGVtYSI2CgpBcnJheUZp",
+            "ZWxkEhQKBWZpZWxkGAEgASgJUgVmaWVsZBISCgRkaW1zGAIgAygNUgRkaW1z",
+            "Ig4KDFBhdXNlUmVxdWVzdCIwCg1QYXVzZVJlc3BvbnNlEh8KC3RpY2tfaGVp",
+            "Z2h0GAEgASgEUgp0aWNrSGVpZ2h0Ig8KDVJlc3VtZVJlcXVlc3QiEAoOUmVz",
+            "dW1lUmVzcG9uc2UiDQoLU3RlcFJlcXVlc3QiLwoMU3RlcFJlc3BvbnNlEh8K",
+            "C3RpY2tfaGVpZ2h0GAEgASgEUgp0aWNrSGVpZ2h0Ig4KDFJlc2V0UmVxdWVz",
+            "dCIPCg1SZXNldFJlc3BvbnNlIhEKD0dldFN0YXRlUmVxdWVzdCJuChBHZXRT",
+            "dGF0ZVJlc3BvbnNlEhsKCWlzX3BhdXNlZBgBIAEoCFIIaXNQYXVzZWQSPQoI",
+            "c25hcHNob3QYAiABKAsyIS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TbmFw",
+            "c2hvdFIIc25hcHNob3QqkAEKClN5c3RlbUhvb2sSGwoXU1lTVEVNX0hPT0tf",
+            "VU5TUEVDSUZJRUQQABIaChZTWVNURU1fSE9PS19QUkVfVVBEQVRFEAESFgoS",
+            "U1lTVEVNX0hPT0tfVVBEQVRFEAISGwoXU1lTVEVNX0hPT0tfUE9TVF9VUERB",
+            "VEUQAxIUChBTWVNURU1fSE9PS19JTklUEAQytgQKDERlYnVnU2VydmljZRJl",
+            "CgpJbnRyb3NwZWN0Eioud29ybGRlbmdpbmUuY2FyZGluYWwudjEuSW50cm9z",
+            "cGVjdFJlcXVlc3QaKy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5JbnRyb3Nw",
+            "ZWN0UmVzcG9uc2USVgoFUGF1c2USJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52",
+            "MS5QYXVzZVJlcXVlc3QaJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5QYXVz",
+            "ZVJlc3BvbnNlElkKBlJlc3VtZRImLndvcmxkZW5naW5lLmNhcmRpbmFsLnYx",
+            "LlJlc3VtZVJlcXVlc3QaJy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXN1",
+            "bWVSZXNwb25zZRJTCgRTdGVwEiQud29ybGRlbmdpbmUuY2FyZGluYWwudjEu",
+            "U3RlcFJlcXVlc3QaJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5TdGVwUmVz",
+            "cG9uc2USVgoFUmVzZXQSJS53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXNl",
+            "dFJlcXVlc3QaJi53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5SZXNldFJlc3Bv",
+            "bnNlEl8KCEdldFN0YXRlEigud29ybGRlbmdpbmUuY2FyZGluYWwudjEuR2V0",
+            "U3RhdGVSZXF1ZXN0Gikud29ybGRlbmdpbmUuY2FyZGluYWwudjEuR2V0U3Rh",
+            "dGVSZXNwb25zZUJ0WlJnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5n",
+            "aW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJk",
+            "aW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3Rv",
+            "Mw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { global::WorldEngine.Proto.Cardinal.V1.SnapshotReflection.Descriptor, },
+          new pbr::FileDescriptor[] { global::Google.Protobuf.WellKnownTypes.StructReflection.Descriptor, global::WorldEngine.Proto.Cardinal.V1.SnapshotReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::WorldEngine.Proto.Cardinal.V1.SystemHook), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest), global::WorldEngine.Proto.Cardinal.V1.IntrospectRequest.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse), global::WorldEngine.Proto.Cardinal.V1.IntrospectResponse.Parser, new[]{ "Commands", "Components", "Events", "TickRateHz", "Schedules", "ProtoDescriptorSet" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.SystemSchedule), global::WorldEngine.Proto.Cardinal.V1.SystemSchedule.Parser, new[]{ "Hook", "Systems" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.SystemNode), global::WorldEngine.Proto.Cardinal.V1.SystemNode.Parser, new[]{ "Id", "Name" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.TypeSchema), global::WorldEngine.Proto.Cardinal.V1.TypeSchema.Parser, new[]{ "Name", "ProtoMessageName", "ArrayFields" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.TypeSchema), global::WorldEngine.Proto.Cardinal.V1.TypeSchema.Parser, new[]{ "Name", "ProtoMessageName", "ArrayFields", "JsonSchema" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.ArrayField), global::WorldEngine.Proto.Cardinal.V1.ArrayField.Parser, new[]{ "Field", "Dims" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.PauseRequest), global::WorldEngine.Proto.Cardinal.V1.PauseRequest.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.PauseResponse), global::WorldEngine.Proto.Cardinal.V1.PauseResponse.Parser, new[]{ "TickHeight" }, null, null, null, null),
@@ -402,9 +404,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public const int ProtoDescriptorSetFieldNumber = 6;
     private pb::ByteString protoDescriptorSet_ = pb::ByteString.Empty;
     /// <summary>
-    /// Protobuf type definitions for the commands, components, and events in this response,
-    /// including any types they depend on. Clients use them to encode and decode protobuf data.
-    /// Empty when the world has no registered types.
+    /// Legacy protobuf payload metadata. Not populated by MessagePack shards.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1148,6 +1148,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       name_ = other.name_;
       protoMessageName_ = other.protoMessageName_;
       arrayFields_ = other.arrayFields_.Clone();
+      jsonSchema_ = other.jsonSchema_ != null ? other.jsonSchema_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -1176,8 +1177,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public const int ProtoMessageNameFieldNumber = 2;
     private string protoMessageName_ = "";
     /// <summary>
-    /// Name of this command, component, or event in proto_descriptor_set.
-    /// Clients use it to find the correct protobuf type definition.
+    /// Legacy protobuf message name. Not populated by MessagePack shards.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1194,7 +1194,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         = pb::FieldCodec.ForMessage(26, global::WorldEngine.Proto.Cardinal.V1.ArrayField.Parser);
     private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.ArrayField> arrayFields_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.ArrayField>();
     /// <summary>
-    /// Shape of any multi-dimensional fixed-size array fields this type has.
+    /// Legacy protobuf array shape metadata. Not populated by MessagePack shards.
     /// A fixed array is carried as one flat repeated field, which is unambiguous in one dimension but
     /// not beyond it: 32 elements could be 4x8 or 8x4. Clients that decode types they do not know ahead
     /// of time (the debug tooling) use this to rebuild the indices; clients written against a known
@@ -1204,6 +1204,22 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.ArrayField> ArrayFields {
       get { return arrayFields_; }
+    }
+
+    /// <summary>Field number for the "json_schema" field.</summary>
+    public const int JsonSchemaFieldNumber = 4;
+    private global::Google.Protobuf.WellKnownTypes.Struct jsonSchema_;
+    /// <summary>
+    /// JSON Schema describing the MessagePack payload. Property names are wire keys, not JSON tags.
+    /// Arrays retain their nesting; no flattening or array_fields reconstruction is needed.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Google.Protobuf.WellKnownTypes.Struct JsonSchema {
+      get { return jsonSchema_; }
+      set {
+        jsonSchema_ = value;
+      }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1224,6 +1240,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (Name != other.Name) return false;
       if (ProtoMessageName != other.ProtoMessageName) return false;
       if(!arrayFields_.Equals(other.arrayFields_)) return false;
+      if (!object.Equals(JsonSchema, other.JsonSchema)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -1234,6 +1251,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (Name.Length != 0) hash ^= Name.GetHashCode();
       if (ProtoMessageName.Length != 0) hash ^= ProtoMessageName.GetHashCode();
       hash ^= arrayFields_.GetHashCode();
+      if (jsonSchema_ != null) hash ^= JsonSchema.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -1261,6 +1279,10 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteString(ProtoMessageName);
       }
       arrayFields_.WriteTo(output, _repeated_arrayFields_codec);
+      if (jsonSchema_ != null) {
+        output.WriteRawTag(34);
+        output.WriteMessage(JsonSchema);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -1280,6 +1302,10 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         output.WriteString(ProtoMessageName);
       }
       arrayFields_.WriteTo(ref output, _repeated_arrayFields_codec);
+      if (jsonSchema_ != null) {
+        output.WriteRawTag(34);
+        output.WriteMessage(JsonSchema);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -1297,6 +1323,9 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(ProtoMessageName);
       }
       size += arrayFields_.CalculateSize(_repeated_arrayFields_codec);
+      if (jsonSchema_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(JsonSchema);
+      }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -1316,6 +1345,12 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         ProtoMessageName = other.ProtoMessageName;
       }
       arrayFields_.Add(other.arrayFields_);
+      if (other.jsonSchema_ != null) {
+        if (jsonSchema_ == null) {
+          JsonSchema = new global::Google.Protobuf.WellKnownTypes.Struct();
+        }
+        JsonSchema.MergeFrom(other.JsonSchema);
+      }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -1347,6 +1382,13 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             arrayFields_.AddEntriesFrom(input, _repeated_arrayFields_codec);
             break;
           }
+          case 34: {
+            if (jsonSchema_ == null) {
+              JsonSchema = new global::Google.Protobuf.WellKnownTypes.Struct();
+            }
+            input.ReadMessage(JsonSchema);
+            break;
+          }
         }
       }
     #endif
@@ -1376,6 +1418,13 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           }
           case 26: {
             arrayFields_.AddEntriesFrom(ref input, _repeated_arrayFields_codec);
+            break;
+          }
+          case 34: {
+            if (jsonSchema_ == null) {
+              JsonSchema = new global::Google.Protobuf.WellKnownTypes.Struct();
+            }
+            input.ReadMessage(JsonSchema);
             break;
           }
         }

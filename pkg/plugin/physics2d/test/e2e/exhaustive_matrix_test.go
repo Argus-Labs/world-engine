@@ -13,6 +13,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/scenario"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // Exhaustive body matrix: every body type x every shape type x every combination of
@@ -186,10 +187,13 @@ func matrixScene(combos []matrixCombo) harness.Scenario {
 		Setup: func(c *harness.Ctx) {
 			for i, m := range combos {
 				pb := m.body()
-				decoded, err := physics.PhysicsBody2D{}.UnmarshalWire(pb.MarshalWire())
-				if c.NoError("wire decodes: "+m.label(), err) {
-					c.True("wire round-trip is lossless: "+m.label(), reflect.DeepEqual(decoded, pb),
-						"got %+v\nwant %+v", decoded, pb)
+				raw, err := msgpack.Marshal(pb)
+				if c.NoError("wire encodes: "+m.label(), err) {
+					var decoded physics.PhysicsBody2D
+					if c.NoError("wire decodes: "+m.label(), msgpack.Unmarshal(raw, &decoded)) {
+						c.True("wire round-trip is lossless: "+m.label(), reflect.DeepEqual(decoded, pb),
+							"got %+v\nwant %+v", decoded, pb)
+					}
 				}
 				ids[i] = c.Spawn(m.label(), float64(i%perRow)*spacing, float64(i/perRow)*spacing, pb)
 			}
