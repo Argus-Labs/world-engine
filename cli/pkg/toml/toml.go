@@ -52,7 +52,7 @@ func Load(r io.Reader) (Config, error) {
 	return cfg, nil
 }
 
-//nolint:gocognit // This function is complex but it's ok for this use case.
+//nolint:gocognit,funlen // This function is complex but it's ok for this use case.
 func validate(cfg *Config) error {
 	if cfg.Organization == "" {
 		return eris.New("world.toml is missing an Organization")
@@ -104,6 +104,16 @@ func validate(cfg *Config) error {
 		// also covers the "field omitted" case.
 		if cfg.Shards[i].PoolSize < 1 {
 			cfg.Shards[i].PoolSize = 1
+		}
+
+		// Upper-bound pool_size. A huge value (e.g. an extra-zero typo) would
+		// otherwise reach expandPools and fatal the process with a runtime
+		// out-of-memory in make([]Shard, 0, total), which is not recoverable.
+		// Reject it up front with a config error naming the field, mirroring
+		// tick_rate and resources below.
+		if cfg.Shards[i].PoolSize > maxShardPoolSize {
+			return eris.Errorf("shards[%d] (%s) pool_size %d exceeds maximum of %d",
+				i, cfg.Shards[i].ID, cfg.Shards[i].PoolSize, maxShardPoolSize)
 		}
 
 		// Validate shard log level. An empty value defaults to info; a
@@ -298,6 +308,13 @@ func expandPools(shards []Shard) ([]Shard, error) {
 	total := 0
 	for _, s := range shards {
 		total += s.PoolSize
+	}
+	// Guard the pre-allocation: reject an oversized total before make(), so a
+	// sum of many individually-valid pool sizes (or a future caller that skips
+	// validate) cannot reintroduce the fatal runtime out-of-memory below.
+	if total > maxExpandedInstances {
+		return nil, eris.Errorf("total expanded shard instances %d exceeds maximum of %d; "+
+			"reduce pool_size across shards", total, maxExpandedInstances)
 	}
 	expanded := make([]Shard, 0, total)
 	// final instance ID -> shard ID that produced it. Lets us name both
