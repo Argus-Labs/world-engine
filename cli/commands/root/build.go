@@ -74,10 +74,27 @@ func (c *BuildCmd) Run(ctx context.Context) error {
 			dash := phasebox.Start(ctx, c.Progress)
 			defer dash.Complete()
 
-			if err := buildShardImages(dash.Open("Build"), dockerClient, dockerServices); err != nil {
-				return eris.Wrap(err, "Failed to build Cardinal images")
-			}
-			return nil
+			return buildShards(ctx, dash, dockerClient, dockerServices)
 		},
 	)
+}
+
+// buildShards pulls build dependencies then builds every shard image. BuildKit
+// needs the FROM images already cached, so the pull must precede the build —
+// on a cold Docker cache the build otherwise fails with "no active sessions".
+// Mirrors [world start] and [world reload]; the build path has no platform
+// images, so extraImageRefs is nil.
+func buildShards(
+	ctx context.Context,
+	dash *phasebox.Dashboard,
+	b shardBuilder,
+	dockerServices []service.Service,
+) error {
+	if err := pullBuildDeps(ctx, dash, b, dockerServices, nil); err != nil {
+		return err
+	}
+	if err := buildShardImages(dash.Open("Build"), b, dockerServices); err != nil {
+		return eris.Wrap(err, "Failed to build Cardinal images")
+	}
+	return nil
 }

@@ -100,11 +100,22 @@ func reloadShards(
 	return deployShardImages(dash, rt, targets, purge)
 }
 
+// shardBuilder is the subset of docker.Client's pull + build API the build
+// path uses. Defined as an interface so the build path can be unit-tested
+// without a running daemon; *docker.Client satisfies it.
+type shardBuilder interface {
+	ImagesToPull(ctx context.Context, services []service.Service) []string
+	RefsToPull(ctx context.Context, refs []string) []string
+	PullImages(ctx context.Context, services []service.Service, progress func(docker.Progress)) error
+	PullImageRefs(ctx context.Context, refs []string, progress func(docker.Progress)) error
+	BuildCardinalImages(ctx context.Context, services []service.Service, progress func(docker.Progress)) error
+}
+
 // pullBuildDeps pulls shard base images and extraImageRefs in one "Image Pull" box.
 func pullBuildDeps(
 	ctx context.Context,
 	dash *phasebox.Dashboard,
-	dockerClient *docker.Client,
+	dockerClient shardBuilder,
 	dockerServices []service.Service,
 	extraImageRefs []string,
 ) error {
@@ -142,7 +153,7 @@ func pullBuildDeps(
 }
 
 // buildShardImages builds every shard image in box; run pullBuildDeps first.
-func buildShardImages(box *phasebox.Box, dockerClient *docker.Client, dockerServices []service.Service) error {
+func buildShardImages(box *phasebox.Box, dockerClient shardBuilder, dockerServices []service.Service) error {
 	imageNames := docker.CardinalBuildImageNames(dockerServices)
 	return box.Run(
 		func(ctx context.Context, sess phasebox.Session) error {
