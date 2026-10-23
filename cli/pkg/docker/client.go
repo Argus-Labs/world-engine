@@ -37,6 +37,18 @@ type dockerImageClient interface {
 	) (client.ImageRemoveResult, error)
 }
 
+// dockerContainerClient is the subset of the moby docker client used to inspect
+// containers during readiness checks. Defined as an interface so the readiness
+// path can be unit-tested with a fake daemon instead of requiring a running one;
+// *client.Client satisfies it.
+type dockerContainerClient interface {
+	ContainerInspect(
+		ctx context.Context,
+		containerID string,
+		options client.ContainerInspectOptions,
+	) (client.ContainerInspectResult, error)
+}
+
 func NewClient(cfg *service.Config, opts *ClientOptions) (*Client, error) {
 	cli, err := client.New(client.FromEnv)
 	if err != nil {
