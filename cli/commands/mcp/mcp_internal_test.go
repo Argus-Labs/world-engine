@@ -15,6 +15,7 @@ import (
 	"github.com/guumaster/logsymbols"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/rotisserie/eris"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -652,6 +653,32 @@ func TestReloadHandler_EmptyWorldPath(t *testing.T) {
 	_, err := reloadHandler(context.Background(), mcp.CallToolRequest{}, ReloadInput{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "world_path is required")
+}
+
+// requireRunning is the running-world guard the MCP reload handler shares with
+// `world reload`. It takes the (running, err) pair IsRunning returns so the
+// decision is testable without a Docker daemon, and produces the CLI's exact
+// refusal so an MCP agent gets the same actionable message.
+
+func TestRequireRunning_RunningWorldPasses(t *testing.T) {
+	t.Parallel()
+	assert.NoError(t, requireRunning(true, nil))
+}
+
+func TestRequireRunning_StoppedWorldRefused(t *testing.T) {
+	t.Parallel()
+	err := requireRunning(false, nil)
+	require.Error(t, err)
+	assert.Equal(t, "world is not running — start it with `world start`", err.Error())
+}
+
+func TestRequireRunning_DaemonErrorIsWrapped(t *testing.T) {
+	t.Parallel()
+	cause := eris.New("cannot connect to docker endpoint")
+	err := requireRunning(false, cause)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "check world state")
+	assert.ErrorIs(t, err, cause, "the underlying daemon error must be reachable via errors.Is/eris.Is")
 }
 
 // deployShardsFromConfig emits one Deploy entry per logical shard ID, deduping the
