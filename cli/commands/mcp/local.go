@@ -335,22 +335,10 @@ type deployedShard struct {
 	Project      string
 }
 
-// deployedShards lists the project's running shard pools with their organization/project
-// from container labels; a stopped or exited instance is not somewhere to send an RPC.
-func deployedShards(ctx context.Context, project string) ([]deployedShard, error) {
-	project, err := resolveProject(project)
-	if err != nil {
-		return nil, err
-	}
-	rt, done, err := started.reader(project)
-	if err != nil {
-		return nil, err
-	}
-	defer done()
-	cs, err := rt.Containers(ctx)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to list shard containers")
-	}
+// shardsFromContainers collects running shard pools from a container list,
+// deduping by shard id and reading each pool's world identity from its labels;
+// a stopped or exited instance is not somewhere to send an RPC.
+func shardsFromContainers(cs []docker.ContainerSummary) []deployedShard {
 	seen := map[string]bool{}
 	var out []deployedShard
 	for _, c := range cs {
@@ -368,19 +356,61 @@ func deployedShards(ctx context.Context, project string) ([]deployedShard, error
 			},
 		)
 	}
-	return out, nil
+	return out
 }
 
-// resolveShardWorld returns the project of a deployed shard; an explicit project
-// short-circuits the lookup. The organization is no longer part of a shard's address.
+// deployedShards lists the project's running shard pools with their organization/project
+// from container labels. An empty project resolves to the world.toml in the working
+// directory, so callers outside the project directory must pass project explicitly —
+// this is the contract describe_world's schema advertises. The shard-targeting tools
+// (send_command, get_state, introspect) instead auto-derive the project across every
+// project via resolveShardWorld; they never reach this with an empty project.
+func deployedShards(ctx context.Context, project string) ([]deployedShard, error) {
+	project, err := resolveProject(project)
+	if err != nil {
+		return nil, err
+	}
+	rt, done, err := started.reader(project)
+	if err != nil {
+		return nil, err
+	}
+	defer done()
+	cs, err := rt.Containers(ctx)
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to list shard containers")
+	}
+	return shardsFromContainers(cs), nil
+}
+
+// listAllShardContainers lists every shard container across all projects, so a caller
+// with no project can find a running shard and derive its project from the container
+// labels — what the shard-targeting tools' schemas describe as "auto-derived from the
+// running containers". The docker client is built from the environment (no world.toml
+// needed, no project known ahead of time) and closed when the listing is done.
+func listAllShardContainers(ctx context.Context) ([]docker.ContainerSummary, error) {
+	cfg := &service.Config{}
+	dc, err := docker.NewClient(cfg, &docker.ClientOptions{Logger: slog.Default()})
+	if err != nil {
+		return nil, eris.Wrap(err, "docker client")
+	}
+	defer dc.Close()
+	return dc.ListShardContainers(ctx)
+}
+
+// resolveShardWorld returns the project of a deployed shard. An explicit project
+// short-circuits the lookup; an empty one is auto-derived from the running shard
+// containers across every project (read from their labels), matching what the
+// shard-targeting tools' schemas advertise — no world.toml is read. The
+// organization is no longer part of a shard's address.
 func resolveShardWorld(ctx context.Context, shardID, project string) (string, error) {
 	if project != "" {
 		return project, nil
 	}
-	shards, err := deployedShards(ctx, project)
+	cs, err := listAllShardContainers(ctx)
 	if err != nil {
 		return "", err
 	}
+	shards := shardsFromContainers(cs)
 	for _, s := range shards {
 		if s.ShardID == shardID {
 			return s.Project, nil

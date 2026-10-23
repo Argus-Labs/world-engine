@@ -264,3 +264,27 @@ func (c *Client) ListProjectContainers(ctx context.Context, project string) ([]C
 	}
 	return out, nil
 }
+
+// ListShardContainers returns every container labelled as a shard, across all
+// projects. Unlike ListProjectContainers it is not scoped to one project, so the
+// project is read from each container's labels rather than known ahead of time.
+// MCP tools use it to auto-derive a shard's project from the running containers
+// when the caller omits project — the behavior their schemas advertise.
+func (c *Client) ListShardContainers(ctx context.Context) ([]ContainerSummary, error) {
+	res, err := c.client.ContainerList(ctx, client.ContainerListOptions{
+		All:     true,
+		Filters: make(client.Filters).Add("label", service.RoleLabel+"="+service.RoleShard),
+	})
+	if err != nil {
+		return nil, eris.Wrap(err, "list shard containers")
+	}
+	out := make([]ContainerSummary, 0, len(res.Items))
+	for _, it := range res.Items {
+		name := ""
+		if len(it.Names) > 0 {
+			name = strings.TrimPrefix(it.Names[0], "/")
+		}
+		out = append(out, ContainerSummary{Name: name, Image: it.Image, State: string(it.State), Labels: it.Labels})
+	}
+	return out, nil
+}
