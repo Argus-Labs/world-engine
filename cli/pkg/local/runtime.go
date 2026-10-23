@@ -663,6 +663,16 @@ func emitLogLine(ctx context.Context, out chan<- worldstatus.LogLine, line world
 	}
 }
 
+// ContainerExists reports whether a container with the given name exists
+// (running or stopped, so a merely stopped container still counts: it serves
+// its stored logs). The one-shot MCP log fetch uses this to surface a missing
+// container as an error instead of inheriting pumpLogs' swallow of "no such
+// container" — a swallow meant only for the interactive world logs TUI, where a
+// not-yet-created container must not kill a long-lived stream.
+func (r *Runtime) ContainerExists(ctx context.Context, name string) (bool, error) {
+	return r.docker.ContainerExists(ctx, name)
+}
+
 // StreamContainerLogs tails one named container (nats, db, a [[service]]) into out.
 func (r *Runtime) StreamContainerLogs(
 	ctx context.Context,

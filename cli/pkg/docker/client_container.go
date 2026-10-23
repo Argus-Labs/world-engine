@@ -44,7 +44,12 @@ func clampTailLines(tail int) int {
 // maxLogLineBytes caps one streamed log line; longer lines end the scan.
 const maxLogLineBytes = 1024 * 1024
 
-func (c *Client) containerExists(ctx context.Context, containerName string) (bool, error) {
+// ContainerExists reports whether a container with the given name exists
+// (running or stopped). A missing container returns (false, nil); any other
+// inspection failure returns the wrapped error. The one-shot MCP log fetch
+// uses this to distinguish a missing container (an error) from a live
+// container that produced no logs (an empty stream).
+func (c *Client) ContainerExists(ctx context.Context, containerName string) (bool, error) {
 	_, err := c.client.ContainerInspect(ctx, containerName, client.ContainerInspectOptions{})
 	if err != nil {
 		if cerrdefs.IsNotFound(err) {
@@ -185,7 +190,7 @@ func (c *Client) GetContainerLogs(
 
 // startContainer creates the container if missing, then starts it.
 func (c *Client) startContainer(ctx context.Context, svc service.Service) error {
-	exist, err := c.containerExists(ctx, svc.Name)
+	exist, err := c.ContainerExists(ctx, svc.Name)
 	if err != nil {
 		return err
 	}
@@ -209,7 +214,7 @@ func (c *Client) startContainer(ctx context.Context, svc service.Service) error 
 
 // stopContainer sends SIGINT and waits for exit; a missing container is a no-op.
 func (c *Client) stopContainer(ctx context.Context, name string) error {
-	exist, err := c.containerExists(ctx, name)
+	exist, err := c.ContainerExists(ctx, name)
 	if err != nil || !exist {
 		return err
 	}
