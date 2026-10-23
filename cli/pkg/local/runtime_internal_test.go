@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/moby/moby/api/types/network"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
@@ -257,4 +259,244 @@ func TestIsPlatformRunning(t *testing.T) {
 	if err == nil || running {
 		t.Fatalf("daemon error: running=%v err=%v, want false/non-nil", running, err)
 	}
+}
+
+// -------------------------------------------------------------------------------------------------
+// pruneOrphanedShards tests
+// -------------------------------------------------------------------------------------------------
+
+// fakeShardPruneClient is a stand-in shardPruneClient for unit-testing the prune path
+// without a running Docker daemon. It serves a fixed population of containers and records
+// every RemoveContainers call (names, keepVolumes and the returned error).
+type fakeShardPruneClient struct {
+	containers  []docker.ContainerSummary
+	removed     []string
+	keepVolumes *bool
+	listErr     error
+	removeErr   error
+}
+
+func (f *fakeShardPruneClient) ListProjectContainers(_ context.Context, _ string) ([]docker.ContainerSummary, error) {
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
+	return f.containers, nil
+}
+
+func (f *fakeShardPruneClient) RemoveContainers(
+	_ context.Context, names []string, keepVolumes bool, _ func(docker.Progress),
+) error {
+	f.removed = append(f.removed, names...)
+	f.keepVolumes = &keepVolumes
+	return f.removeErr
+}
+
+// pruneShardContainer builds a container summary for a shard-role container labelled with
+// the full set the real Runtime stamps, matching the layout PruneOrphanedShards keys off.
+func pruneShardContainer(project, shardID, instance string) docker.ContainerSummary {
+	return docker.ContainerSummary{
+		Name:   service.CardinalShardContainerName(project, instance),
+		State:  docker.ContainerRunning,
+		Labels: service.Labels(project, service.RoleShard, shardID, instance),
+	}
+}
+
+// prunePlatformContainer builds a container summary for a non-shard (nats/db/service)
+// container, which the prune must never touch.
+func prunePlatformContainer(project, role, name string) docker.ContainerSummary {
+	return docker.ContainerSummary{
+		Name:   name,
+		State:  docker.ContainerRunning,
+		Labels: service.Labels(project, role, "", ""),
+	}
+}
+
+// TestPruneOrphanedShards_RemovesOrphanedInstances is the primary regression guard:
+// a shard container whose instance was removed from world.toml must be removed by the
+// prune, while those still declared survive.
+func TestPruneOrphanedShards_RemovesOrphanedInstances(t *testing.T) {
+	t.Parallel()
+	fake := &fakeShardPruneClient{
+		containers: []docker.ContainerSummary{
+			pruneShardContainer("rampage", "game", "game"),     // kept
+			pruneShardContainer("rampage", "old", "old-2"),     // orphan: instance not in world.toml
+			pruneShardContainer("rampage", "stale", "stale-3"), // orphan: shard removed from world.toml
+		},
+	}
+	shards := []worldtoml.Shard{{ID: "game", InstanceID: "game"}}
+
+	err := pruneOrphanedShards(context.Background(), fake, "rampage", shards)
+
+	require.NoError(t, err)
+	assert.ElementsMatch(t,
+		[]string{"rampage-old-2-shard", "rampage-stale-3-shard"}, fake.removed)
+}
+
+// TestPruneOrphanedShards_KeepsKnownInstances confirms no shard declared in world.toml
+// is ever removed, including pooled replicas sharing one shard ID.
+func TestPruneOrphanedShards_KeepsKnownInstances(t *testing.T) {
+	t.Parallel()
+	fake := &fakeShardPruneClient{
+		containers: []docker.ContainerSummary{
+			pruneShardContainer("rampage", "game", "game"),
+			pruneShardContainer("rampage", "game", "game-2"),
+		},
+	}
+	shards := []worldtoml.Shard{
+		{ID: "game", InstanceID: "game"},
+		{ID: "game", InstanceID: "game-2"},
+	}
+
+	err := pruneOrphanedShards(context.Background(), fake, "rampage", shards)
+
+	require.NoError(t, err)
+	assert.Empty(t, fake.removed, "no known instance should be removed")
+}
+
+// TestPruneOrphanedShards_IgnoresNonShardContainers confirms the prune filter is scoped
+// to the shard role: NATS, the project DB and [[services]] are never pruned, even when
+// world.toml has no shards at all.
+func TestPruneOrphanedShards_IgnoresNonShardContainers(t *testing.T) {
+	t.Parallel()
+	fake := &fakeShardPruneClient{
+		containers: []docker.ContainerSummary{
+			prunePlatformContainer("rampage", service.RoleNATS, "rampage-nats"),
+			prunePlatformContainer("rampage", service.RoleDB, "rampage-db"),
+			prunePlatformContainer("rampage", service.RoleService, "rampage-meta-service"),
+		},
+	}
+
+	err := pruneOrphanedShards(context.Background(), fake, "rampage", nil)
+
+	require.NoError(t, err)
+	assert.Empty(t, fake.removed, "platform containers (nats/db/service) must never be pruned")
+}
+
+// TestPruneOrphanedShards_NoOrphansIsNoOp confirms RemoveContainers is not called at all
+// when every shard container's instance is still declared — the common case on a start
+// that follows an unchanged world.toml.
+func TestPruneOrphanedShards_NoOrphansIsNoOp(t *testing.T) {
+	t.Parallel()
+	fake := &fakeShardPruneClient{
+		containers: []docker.ContainerSummary{
+			pruneShardContainer("rampage", "game", "game"),
+		},
+	}
+	shards := []worldtoml.Shard{{ID: "game", InstanceID: "game"}}
+
+	err := pruneOrphanedShards(context.Background(), fake, "rampage", shards)
+
+	require.NoError(t, err)
+	assert.Empty(t, fake.removed, "RemoveContainers must not be called when there are no orphans")
+	assert.Nil(t, fake.keepVolumes, "RemoveContainers must not be called at all")
+}
+
+// TestPruneOrphanedShards_EmptyWorldTomlRemovesAllShards covers the stop/start cycle that
+// leaves stopped shard containers behind: with no shards in world.toml, every shard
+// container is an orphan.
+func TestPruneOrphanedShards_EmptyWorldTomlRemovesAllShards(t *testing.T) {
+	t.Parallel()
+	fake := &fakeShardPruneClient{
+		containers: []docker.ContainerSummary{
+			pruneShardContainer("rampage", "game", "game"),
+			pruneShardContainer("rampage", "lobby", "lobby"),
+			pruneShardContainer("rampage", "chat", "chat-2"),
+		},
+	}
+
+	err := pruneOrphanedShards(context.Background(), fake, "rampage", nil)
+
+	require.NoError(t, err)
+	assert.Len(t, fake.removed, 3, "every shard container is an orphan when world.toml has no shards")
+}
+
+// TestPruneOrphanedShards_MixedOrphansAndKnown exercises a realistic world.toml edit: one
+// replica of a pool was removed, an entire pool was removed, and a platform container is
+// present — only the orphans should be removed.
+func TestPruneOrphanedShards_MixedOrphansAndKnown(t *testing.T) {
+	t.Parallel()
+	fake := &fakeShardPruneClient{
+		containers: []docker.ContainerSummary{
+			pruneShardContainer("rampage", "game", "game"),                      // kept
+			pruneShardContainer("rampage", "game", "game-2"),                    // kept
+			pruneShardContainer("rampage", "game", "game-3"),                    // orphan (replica removed)
+			pruneShardContainer("rampage", "lobby", "lobby"),                    // orphan (entire pool removed)
+			prunePlatformContainer("rampage", service.RoleNATS, "rampage-nats"), // untouched
+		},
+	}
+	shards := []worldtoml.Shard{
+		{ID: "game", InstanceID: "game"},
+		{ID: "game", InstanceID: "game-2"},
+	}
+
+	err := pruneOrphanedShards(context.Background(), fake, "rampage", shards)
+
+	require.NoError(t, err)
+	assert.ElementsMatch(t,
+		[]string{"rampage-game-3-shard", "rampage-lobby-shard"}, fake.removed)
+}
+
+// TestPruneOrphanedShards_ListErrorPropagates confirms a Docker list failure is returned
+// to the caller rather than swallowed — the start path surfaces it as a deploy error.
+func TestPruneOrphanedShards_ListErrorPropagates(t *testing.T) {
+	t.Parallel()
+	fake := &fakeShardPruneClient{listErr: errors.New("daemon unavailable")}
+
+	err := pruneOrphanedShards(context.Background(), fake, "rampage", nil)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "daemon unavailable")
+	assert.Empty(t, fake.removed)
+}
+
+// TestPruneOrphanedShards_RemoveErrorPropagates confirms a removal failure is returned,
+// so a start that cannot remove an orphan reports the error instead of silently leaving
+// it behind.
+func TestPruneOrphanedShards_RemoveErrorPropagates(t *testing.T) {
+	t.Parallel()
+	fake := &fakeShardPruneClient{
+		containers: []docker.ContainerSummary{
+			pruneShardContainer("rampage", "old", "old"),
+		},
+		removeErr: errors.New("container busy"),
+	}
+
+	err := pruneOrphanedShards(context.Background(), fake, "rampage", nil)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "container busy")
+}
+
+// TestPruneOrphanedShards_KeepVolumesTrue pins the keepVolumes contract: orphan removal
+// keeps volumes so a later start of a re-added instance can resume rather than wipe state.
+func TestPruneOrphanedShards_KeepVolumesTrue(t *testing.T) {
+	t.Parallel()
+	fake := &fakeShardPruneClient{
+		containers: []docker.ContainerSummary{
+			pruneShardContainer("rampage", "old", "old"),
+		},
+	}
+
+	err := pruneOrphanedShards(context.Background(), fake, "rampage", nil)
+
+	require.NoError(t, err)
+	require.NotNil(t, fake.keepVolumes, "keepVolumes must be passed to RemoveContainers")
+	assert.True(t, *fake.keepVolumes, "orphan removal keeps volumes so a later start can resume")
+}
+
+// TestPruneOrphanedShards_RemovesStoppedOrphans confirms the prune does not skip
+// containers that are not running: a stopped orphan from a stop/start cycle must also be
+// removed, since the state label is not part of the prune filter.
+func TestPruneOrphanedShards_RemovesStoppedOrphans(t *testing.T) {
+	t.Parallel()
+	stoppedOrphan := pruneShardContainer("rampage", "old", "old")
+	stoppedOrphan.State = "exited"
+	fake := &fakeShardPruneClient{
+		containers: []docker.ContainerSummary{stoppedOrphan},
+	}
+
+	err := pruneOrphanedShards(context.Background(), fake, "rampage", nil)
+
+	require.NoError(t, err)
+	assert.Len(t, fake.removed, 1, "state (running vs stopped) does not affect the prune decision")
 }
