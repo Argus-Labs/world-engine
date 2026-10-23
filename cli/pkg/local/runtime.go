@@ -230,6 +230,16 @@ func (r *Runtime) Purge(ctx context.Context, images bool, progress func(docker.P
 	if err := r.docker.RemoveContainers(ctx, names, false, progress); err != nil {
 		return err
 	}
+	// Sweep the project's named volumes by name too: RemoveContainers deletes a
+	// container's volumes by walking its mounts, so a volume whose container was
+	// already removed (a failed recreate, `docker rm`, or `docker container
+	// prune`) is invisible to it and would survive purge — and the next
+	// `world start` re-binds the same deterministic name, resurrecting the old
+	// state. VolumeNames lists every volume this CLI creates for the project from
+	// world.toml, so this reclaims orphans independently of container existence.
+	if err := r.docker.RemoveVolumes(ctx, service.VolumeNames(r.cfg)); err != nil {
+		return err
+	}
 	if err := r.docker.RemoveNetwork(ctx, service.NetworkName(r.project())); err != nil {
 		return err
 	}
