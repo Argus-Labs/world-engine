@@ -11,6 +11,8 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
+	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
 )
 
 func LoadFile(path string) (Config, error) {
@@ -310,6 +312,17 @@ func expandPools(shards []Shard) ([]Shard, error) {
 			instanceID := baseID
 			if r > 1 {
 				instanceID = fmt.Sprintf("%s-%d", baseID, r)
+			}
+			// The base shard ID was already validated as a DNS-1123 label, but
+			// the "-2", "-3" suffix appended above can push the instance ID past
+			// dnslabel.MaxLength. Reject it here so the expanded ID the chart and
+			// Docker consume is always label-safe.
+			if len(instanceID) > dnslabel.MaxLength {
+				return nil, eris.New(fmt.Sprintf(
+					"shard instance id %q exceeds the %d-character DNS-1123 label limit"+
+						" (from shard %q with pool_size %d); shorten the shard id or reduce pool_size",
+					instanceID, dnslabel.MaxLength, baseID, s.PoolSize,
+				))
 			}
 			entry.PoolSize = 1
 			entry.InstanceID = instanceID

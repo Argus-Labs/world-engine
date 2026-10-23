@@ -1149,3 +1149,97 @@ func TestLoad_AuthURLShape(t *testing.T) {
 		t.Errorf("url = %q, want every trailing slash dropped", cfg.Auth.URL)
 	}
 }
+
+// TestLoad_CanonicalNameTooLong rejects project, shard, and service IDs that exceed
+// the 63-character DNS-1123 label limit. Each gets a dedicated "too long" error
+// rather than the misleading "invalid characters" message, because the character
+// set is otherwise canonical.
+func TestLoad_CanonicalNameTooLong(t *testing.T) {
+	t.Parallel()
+
+	overLen := strings.Repeat("a", 64)
+	cases := []struct {
+		field, value, wantErr string
+	}{
+		{"project", overLen, "project is too long (max 63 characters)"},
+		{"shardID", overLen, "shardID is too long (max 63 characters)"},
+		{"serviceID", overLen, "serviceID is too long (max 63 characters)"},
+	}
+	for _, c := range cases {
+		t.Run(c.field, func(t *testing.T) {
+			t.Parallel()
+			_, err := toml.Load(strings.NewReader(worldTomlFor(c.field, c.value)))
+			require.Error(t, err)
+			require.Contains(t, err.Error(), c.wantErr)
+			// Must NOT say "invalid characters" — the charset is fine, only length is wrong.
+			require.NotContains(t, err.Error(), "contains invalid characters")
+		})
+	}
+}
+
+// TestLoad_CanonicalNameMaxLengthAccepted locks the boundary: a 63-character
+// canonical name (project, shard, service) is accepted — the limit is <= 63,
+// not < 63.
+func TestLoad_CanonicalNameMaxLengthAccepted(t *testing.T) {
+	t.Parallel()
+
+	maxLen := strings.Repeat("a", 63)
+	for _, field := range []string{"project", "shardID", "serviceID"} {
+		t.Run(field, func(t *testing.T) {
+			t.Parallel()
+			cfg, err := toml.Load(strings.NewReader(worldTomlFor(field, maxLen)))
+			require.NoError(t, err)
+			switch field {
+			case "project":
+				require.Equal(t, maxLen, cfg.Project)
+			case "shardID":
+				require.Equal(t, maxLen, cfg.Shards[0].ID)
+			case "serviceID":
+				require.Equal(t, maxLen, cfg.Services[0].ID)
+			}
+		})
+	}
+}
+
+// TestLoad_PoolExpansionExceedsLabelLength rejects a shard whose pool-expanded
+// instance IDs ("base-2", "base-3", …) exceed the 63-character DNS-1123 label
+// limit. The base shard ID passes normal validation, so this is the only layer
+// that catches the expansion overflow.
+func TestLoad_PoolExpansionExceedsLabelLength(t *testing.T) {
+	t.Parallel()
+
+	// 62-char base + "-2" (2 chars) = 64 — over the limit.
+	overBase := strings.Repeat("a", 62)
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "%s"
+	pool_size = 2
+	`
+	_, err := toml.Load(strings.NewReader(fmt.Sprintf(sample, overBase)))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "exceeds the 63-character DNS-1123 label limit")
+	require.Contains(t, err.Error(), overBase+"-2")
+}
+
+// TestLoad_PoolExpansionAtLabelLengthAccepted locks the boundary: a 61-char base
+// + "-2" = 63 chars, which is exactly at the limit and must be accepted.
+func TestLoad_PoolExpansionAtLabelLengthAccepted(t *testing.T) {
+	t.Parallel()
+
+	// 61-char base + "-2" (2 chars) = 63 — exactly at the limit.
+	base := strings.Repeat("a", 61)
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "%s"
+	pool_size = 2
+	`
+	cfg, err := toml.Load(strings.NewReader(fmt.Sprintf(sample, base)))
+	require.NoError(t, err)
+	require.Len(t, cfg.Shards, 2)
+	require.Equal(t, base+"-2", cfg.Shards[1].InstanceID)
+	require.Equal(t, 63, len(cfg.Shards[1].InstanceID))
+}
