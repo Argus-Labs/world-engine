@@ -189,22 +189,44 @@ func (r *Runtime) UndeployShard(ctx context.Context, shardID string) error {
 	return r.RefreshRoutes(ctx)
 }
 
+// shardPruneClient is the subset of docker.Client used by pruneOrphanedShards, defined as an
+// interface so the prune path can be unit-tested with a fake daemon instead of a running one;
+// *docker.Client satisfies it.
+type shardPruneClient interface {
+	ListProjectContainers(ctx context.Context, project string) ([]docker.ContainerSummary, error)
+	RemoveContainers(ctx context.Context, names []string, keepVolumes bool, progress func(docker.Progress)) error
+}
+
 // PruneOrphanedShards removes shard containers whose instance no longer exists in world.toml.
 func (r *Runtime) PruneOrphanedShards(ctx context.Context) error {
+	return pruneOrphanedShards(ctx, r.docker, r.project(), r.cfg.WorldToml.Shards)
+}
+
+// pruneOrphanedShards is the testable core of PruneOrphanedShards: it lists the project's
+// containers, keeps shard-role ones whose instance label is absent from shards, and removes
+// them. keepVolumes is true so a later start can resume rather than wipe state.
+func pruneOrphanedShards(
+	ctx context.Context, dc shardPruneClient, project string, shards []worldtoml.Shard,
+) error {
 	known := map[string]bool{}
-	for _, sh := range r.cfg.WorldToml.Shards {
+	for _, sh := range shards {
 		known[sh.InstanceID] = true
 	}
-	names, err := r.containerNames(ctx, func(c docker.ContainerSummary) bool {
-		return c.Labels[service.RoleLabel] == service.RoleShard && !known[c.Labels[service.InstanceLabel]]
-	})
+	cs, err := dc.ListProjectContainers(ctx, project)
 	if err != nil {
 		return err
+	}
+	var names []string
+	for _, c := range cs {
+		if c.Labels[service.RoleLabel] != service.RoleShard || known[c.Labels[service.InstanceLabel]] {
+			continue
+		}
+		names = append(names, c.Name)
 	}
 	if len(names) == 0 {
 		return nil
 	}
-	return r.docker.RemoveContainers(ctx, names, true, nil)
+	return dc.RemoveContainers(ctx, names, true, nil)
 }
 
 // PurgeShardState wipes one instance's JetStream snapshot bucket. The instance must be undeployed.
