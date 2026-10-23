@@ -530,6 +530,13 @@ func (r *Runtime) ServeEdgeOn(ctx context.Context, ln net.Listener) error {
 	return r.edge.ServeListener(ctx, ln)
 }
 
+// ReleaseEdge records that this runtime no longer serves the edge, so CheckLayout
+// resumes guarding reloads against the process that does. It pairs with ListenEdge:
+// when the MCP process stops a world's edge (stop/purge) it gives up the ownership it
+// recorded, so a later reload — possibly run against an edge another process (e.g.
+// `world start`) now owns — is refused rather than silently misrouted.
+func (r *Runtime) ReleaseEdge() { r.servesEdge = false }
+
 // CheckLayout refuses a reload whose world.toml no longer matches the running world. An
 // instance's host port is its position in world.toml, and the edge in `world start`
 // built its routes from that once; a reload from another process that moves an instance

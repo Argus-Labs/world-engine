@@ -3,6 +3,7 @@ package local
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -256,5 +257,70 @@ func TestIsPlatformRunning(t *testing.T) {
 	running, err = isPlatformRunning(ctx, fakeLister{err: listErr}, "demo")
 	if err == nil || running {
 		t.Fatalf("daemon error: running=%v err=%v, want false/non-nil", running, err)
+	}
+}
+
+// deadSocketDockerClient builds a Docker client aimed at a nonexistent socket, so any
+// daemon call fails with an error instead of needing a running Docker. Mirrors the
+// pattern in mcp_internal_test.go's TestResolveInstanceName_UnknownReturnsError.
+func deadSocketDockerClient(t *testing.T) *docker.Client {
+	t.Helper()
+	t.Setenv("DOCKER_HOST", "unix://"+filepath.Join(t.TempDir(), "nonexistent.sock"))
+	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{Project: "demo"}}
+	dc, err := docker.NewClient(cfg, nil)
+	if err != nil {
+		t.Fatalf("docker client: %v", err)
+	}
+	t.Cleanup(func() { _ = dc.Close() })
+	return dc
+}
+
+// ReleaseEdge clears the ownership ListenEdge recorded.
+func TestReleaseEdge_ClearsServesEdge(t *testing.T) {
+	r := New(nil, &service.Config{Project: "g", WorldToml: worldtoml.Config{Project: "g"}})
+	r.servesEdge = true
+	r.ReleaseEdge()
+	if r.servesEdge {
+		t.Fatal("ReleaseEdge must set servesEdge back to false")
+	}
+}
+
+// A second ReleaseEdge is a harmless no-op: ownership is already released, and the
+// reload guard must not be re-armed by a redundant stop.
+func TestReleaseEdge_Idempotent(t *testing.T) {
+	r := New(nil, &service.Config{Project: "g", WorldToml: worldtoml.Config{Project: "g"}})
+	r.ReleaseEdge()
+	r.ReleaseEdge()
+	if r.servesEdge {
+		t.Fatal("ReleaseEdge must keep servesEdge false")
+	}
+}
+
+// While this runtime owns the edge, CheckLayout short-circuits and never touches
+// Docker — the edge owner refreshes its own routes, so there is nothing to guard.
+func TestCheckLayout_ShortCircuitsWhileServingEdge(t *testing.T) {
+	// A nil docker client is safe here precisely because the short-circuit returns
+	// before it is dereferenced; if the guard ever stopped short-circuiting this
+	// test would panic on nil, which is the point.
+	r := New(nil, &service.Config{Project: "g", WorldToml: worldtoml.Config{Project: "g"}})
+	r.servesEdge = true
+	if err := r.CheckLayout(context.Background()); err != nil {
+		t.Fatalf("serving edge: CheckLayout = %v, want nil (short-circuit)", err)
+	}
+}
+
+// After ReleaseEdge a runtime that once owned the edge no longer claims to, so
+// CheckLayout resumes its Docker-level layout check: it lists project containers,
+// which fails against the dead socket — proving the guard is no longer skipped.
+// Without the fix servesEdge stays true and CheckLayout keeps returning nil here.
+func TestCheckLayout_ResumesGuardAfterReleaseEdge(t *testing.T) {
+	r := New(deadSocketDockerClient(t), &service.Config{Project: "demo", WorldToml: worldtoml.Config{Project: "demo"}})
+	r.servesEdge = true
+	if err := r.CheckLayout(context.Background()); err != nil {
+		t.Fatalf("serving edge: CheckLayout = %v, want nil (short-circuit)", err)
+	}
+	r.ReleaseEdge()
+	if err := r.CheckLayout(context.Background()); err == nil {
+		t.Fatal("after ReleaseEdge: CheckLayout = nil, want a Docker error (guard resumed)")
 	}
 }
