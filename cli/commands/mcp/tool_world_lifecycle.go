@@ -190,6 +190,12 @@ func startWorld(
 	if err := rt.StartPlatform(ctx, nil); err != nil {
 		return WorldLifecycleOutput{}, eris.Wrap(err, "failed to start platform"+startFailureAdvice)
 	}
+	// Prune is skipped naturally when Purge ran: a purge already removed every container.
+	// Like reload (which prunes before Deploy), a start must reconcile the instance set so a
+	// shard removed from world.toml does not survive as a zombie or hold a port the new set needs.
+	if err := rt.PruneOrphanedShards(ctx); err != nil {
+		return WorldLifecycleOutput{}, eris.Wrap(err, "failed to prune orphaned shards")
+	}
 	if err := rt.Deploy(ctx, deployOpts); err != nil {
 		return WorldLifecycleOutput{}, eris.Wrap(err, "failed to deploy shards"+startFailureAdvice)
 	}
