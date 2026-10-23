@@ -42,9 +42,21 @@ func normalizeAndValidateString(s *string, fieldName string) error {
 }
 
 // normalizeAndValidateCanonicalName also requires a DNS-1123 label, for names that become k8s objects.
+// A DNS-1123 label is at most dnslabel.MaxLength characters, so over-length values are rejected
+// with a dedicated message rather than the misleading "invalid characters".
 func normalizeAndValidateCanonicalName(s *string, fieldName string) error {
 	if s != nil {
-		if v := strings.ReplaceAll(*s, " ", ""); v != "" && !dnslabel.IsCanonical(v) {
+		v := strings.ReplaceAll(*s, " ", "")
+		// Report over-length separately so the message is actionable; the charset
+		// is otherwise canonical for a long name, and "invalid characters" would
+		// mislead the user.
+		if v != "" && len(v) > dnslabel.MaxLength {
+			return eris.New(fmt.Sprintf(
+				"%s is too long (max %d characters)",
+				fieldName, dnslabel.MaxLength,
+			))
+		}
+		if v != "" && !dnslabel.IsCanonical(v) {
 			return eris.New(fmt.Sprintf(
 				"%s contains invalid characters. Only lowercase alphanumeric characters and hyphens are allowed (e.g. my-game)",
 				fieldName,

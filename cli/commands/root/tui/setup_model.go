@@ -18,8 +18,9 @@ import (
 
 // projectNameErrMsg is shown when a project name isn't dnslabel-canonical (the
 // form the shard chart's ingress path expects). Shared by the interactive
-// input and the directory-argument path.
-const projectNameErrMsg = "Name must use lowercase letters, numbers, and single hyphens (e.g. my-game)"
+// input and the directory-argument path. The 63-character limit matches the
+// DNS-1123 label constraint enforced by dnslabel.IsCanonical.
+const projectNameErrMsg = "Name must use lowercase letters, numbers, and single hyphens (max 63 characters, e.g. my-game)"
 
 /////////////////////////
 // Bubble Tea Messages //
