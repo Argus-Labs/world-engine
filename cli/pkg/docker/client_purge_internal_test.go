@@ -141,9 +141,32 @@ func cardinalImage(id string, tags ...string) image.Summary {
 	}
 }
 
-// prune runs the purge for project "rampage" against fake.
+// legacyImage models an image built by a released CLI that predates the project
+// label: only world-cli=cardinal and world-cli-image-name are stamped. Such
+// images must still be reclaimed by purge when their ID is no longer in
+// world.toml — the leak the in-tree fix (792fac1d) was written to stop.
+func legacyImage(id, name string, tags ...string) image.Summary {
+	return image.Summary{
+		ID:       id,
+		RepoTags: tags,
+		Labels: map[string]string{
+			service.CardinalImageLabel:     service.CardinalImageValue,
+			service.CardinalImageNameLabel: name,
+		},
+	}
+}
+
+// prune runs the purge for project "rampage" against fake with no concrete build
+// set (every image must qualify via labels or the legacy name fallback).
 func prune(fake *fakeImageClient) error {
 	return pruneCardinalImages(context.Background(), fake, discardLogger(), "rampage", nil)
+}
+
+// pruneWithOwned runs the purge for project "rampage" against fake, restricting
+// the current world.toml build set to owned. It models the real call site,
+// which passes the names world.toml still builds.
+func pruneWithOwned(fake *fakeImageClient, owned map[string]struct{}) error {
+	return pruneCardinalImages(context.Background(), fake, discardLogger(), "rampage", owned)
 }
 
 func discardLogger() *slog.Logger { return slog.New(slog.DiscardHandler) }
@@ -365,4 +388,94 @@ func TestPruneCardinalImages_LeavesOtherProjectsImages(t *testing.T) {
 	require.NoError(t, prune(fake))
 	require.Len(t, fake.removed, 1, "only this project's image may be removed")
 	assert.Equal(t, "sha256:mine", fake.removed[0].imageRef)
+}
+
+// TestPruneCardinalImages_RemovesLegacyStaleIDImage is the regression test for the
+// purge leak: a legacy image (built by a released CLI, no project label) whose
+// shard ID was removed or renamed from world.toml must still be reclaimed. The
+// buggy ownership check only matched names the current world.toml still builds,
+// so this image survived every purge forever. Here the image is multi-tagged so
+// the fake daemon would reject it without Force, confirming the forced path.
+func TestPruneCardinalImages_RemovesLegacyStaleIDImage(t *testing.T) {
+	t.Parallel()
+
+	const id = "sha256:legacystale"
+	legacy := legacyImage(
+		id,
+		"rampage-stale-shard",
+		"rampage-stale-shard:latest",
+		"k3d-testreg.localhost:5000/rampage/stale:local-1780199123",
+	)
+	// Current world.toml builds "gameplay" only; "stale" is gone, so its name is
+	// absent from owned — exactly the case the old fallback skipped.
+	owned := map[string]struct{}{"rampage-gameplay-shard": {}}
+	fake := &fakeImageClient{images: []image.Summary{legacy}}
+
+	require.NoError(t, pruneWithOwned(fake, owned))
+	require.Len(t, fake.removed, 1, "legacy stale-ID image must be reclaimed, not leaked")
+	assert.Equal(t, id, fake.removed[0].imageRef)
+	assert.True(t, fake.removed[0].force, "legacy multi-tagged image must be force-removed")
+	assert.NoError(t, fake.removed[0].err, "legacy image must actually be removed")
+}
+
+// TestPruneCardinalImages_RemovesLegacyStaleIDService covers the path-kind
+// [[services]] variant of the same leak: a legacy service image whose ID is no
+// longer in world.toml is reclaimed via the "-service" suffix.
+func TestPruneCardinalImages_RemovesLegacyStaleIDService(t *testing.T) {
+	t.Parallel()
+
+	const id = "sha256:legacyservice"
+	legacy := legacyImage(id, "rampage-stale-service", "rampage-stale-service:latest")
+	owned := map[string]struct{}{"rampage-gameplay-shard": {}}
+	fake := &fakeImageClient{images: []image.Summary{legacy}}
+
+	require.NoError(t, pruneWithOwned(fake, owned))
+	require.Len(t, fake.removed, 1, "legacy stale-ID service image must be reclaimed")
+	assert.Equal(t, id, fake.removed[0].imageRef)
+	assert.NoError(t, fake.removed[0].err)
+}
+
+// TestPruneCardinalImages_RemovesLegacyImagesAlongsideCurrent confirms a purge
+// reclaims both current and stale legacy images in one pass: a labelled current
+// image and a legacy stale-ID image are both removed.
+func TestPruneCardinalImages_RemovesLegacyImagesAlongsideCurrent(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakeImageClient{images: []image.Summary{
+		cardinalImage("sha256:current", "rampage-gameplay-shard:latest"),
+		legacyImage("sha256:legacystale", "rampage-removed-shard", "rampage-removed-shard:latest"),
+	}}
+	owned := map[string]struct{}{"rampage-gameplay-shard": {}}
+
+	require.NoError(t, pruneWithOwned(fake, owned))
+	require.Len(t, fake.removed, 2, "both current and legacy stale-ID images must be removed")
+}
+
+// TestPruneCardinalImages_LeavesLegacyOtherProjectImage pins the project scope on
+// the legacy path: an image built by an older CLI for a different project carries
+// that project's prefix and must survive this project's purge.
+func TestPruneCardinalImages_LeavesLegacyOtherProjectImage(t *testing.T) {
+	t.Parallel()
+
+	other := legacyImage("sha256:otherlegacy", "demo-game-shard", "demo-game-shard:latest")
+	owned := map[string]struct{}{"rampage-gameplay-shard": {}}
+	fake := &fakeImageClient{images: []image.Summary{other}}
+
+	require.NoError(t, pruneWithOwned(fake, owned))
+	assert.Empty(t, fake.removed, "legacy image of another project must not be removed")
+}
+
+// TestPruneCardinalImages_SkipsLegacyNameWithoutRoleSuffix asserts the suffix
+// gate: a cardinal-labelled image whose name shares the project prefix but is
+// neither a shard nor a service (does not occur in practice) is left alone rather
+// than speculatively deleted by the legacy fallback.
+func TestPruneCardinalImages_SkipsLegacyNameWithoutRoleSuffix(t *testing.T) {
+	t.Parallel()
+
+	odd := legacyImage("sha256:odd", "rampage-notagame", "rampage-notagame:latest")
+	owned := map[string]struct{}{"rampage-gameplay-shard": {}}
+	fake := &fakeImageClient{images: []image.Summary{odd}}
+
+	require.NoError(t, pruneWithOwned(fake, owned))
+	assert.Empty(t, fake.removed, "image without a role suffix must not be reclaimed")
 }
