@@ -2188,6 +2188,14 @@ func processNotifySessionEndCommands(w *cardinal.World, lobbyIndex *lookupIndex)
 	for cmd := range w.Commands[NotifySessionEndCommand]() {
 		payload := cmd.Payload
 
+		if _, isPlayer := cmd.Player(); isPlayer {
+			w.Logger().Warn().
+				Str("lobby_id", payload.LobbyID).
+				Str("sender", cmd.Sender()).
+				Msg("NotifySessionEndCommand sent by a player; dropping")
+			continue
+		}
+
 		lobbyEntityID, exists := lobbyIndex.GetEntityID(payload.LobbyID)
 		if !exists {
 			continue
