@@ -13,6 +13,18 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Reserved local host ports the CLI publishes for its own components, mirrored
+// from cli/pkg/edge (DefaultAddr) and cli/pkg/docker/service (ShardHostPortBase,
+// DefaultNatsClientPort, DefaultNatsMonitorPort, defaultConfigDBPort). The toml
+// package cannot import those without an import cycle, so keep the values in step.
+const (
+	reservedEdgePort        = 8080
+	reservedShardPortBase   = 8081
+	reservedNATSClientPort  = 4222
+	reservedNATSMonitorPort = 8222
+	reservedPostgresPort    = 5432
+)
+
 func LoadFile(path string) (Config, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -185,6 +197,8 @@ func validate(cfg *Config) error {
 func validateServices(cfg *Config) error {
 	seen := make(map[string]bool)
 	configDBSeen := false
+	reserved := reservedPorts(cfg)
+	usedPorts := make(map[int]string) // port -> service ID that first declared it
 	for i := range cfg.Services {
 		svc := &cfg.Services[i]
 		if svc.ID == "" {
@@ -282,8 +296,8 @@ func validateServices(cfg *Config) error {
 		}
 
 		for _, port := range svc.Ports {
-			if port < 1 || port > 65535 {
-				return eris.New(fmt.Sprintf("services[%d] (%s) port %d must be between 1 and 65535", i, svc.ID, port))
+			if err := validateServicePort(svc, i, port, reserved, usedPorts); err != nil {
+				return err
 			}
 		}
 
@@ -291,6 +305,50 @@ func validateServices(cfg *Config) error {
 			return eris.New(fmt.Sprintf("services[%d] (%s) volume must be an absolute container path", i, svc.ID))
 		}
 	}
+	return nil
+}
+
+// reservedPorts returns the local host ports the CLI itself publishes, keyed by a
+// human-readable owner so the validation error can name what owns the port. The
+// shard range depends on the pool-expanded shard count, which is set before
+// validateServices runs.
+func reservedPorts(cfg *Config) map[int]string {
+	r := map[int]string{
+		reservedEdgePort:        "the edge proxy",
+		reservedNATSClientPort:  "NATS (client connections)",
+		reservedNATSMonitorPort: "NATS (monitoring)",
+		reservedPostgresPort:    "the project database (Postgres)",
+	}
+	for i := range cfg.Shards {
+		port := reservedShardPortBase + i
+		r[port] = fmt.Sprintf("shard instance %q", cfg.Shards[i].InstanceID)
+	}
+	return r
+}
+
+// validateServicePort rejects a single declared port that is out of range,
+// reserved for a CLI-owned host port (edge/shard/NATS/Postgres), or already
+// declared by an earlier [[services]] entry. usedPorts is updated in place.
+func validateServicePort(svc *GameService, index, port int, reserved map[int]string, usedPorts map[int]string) error {
+	if port < 1 || port > 65535 {
+		return eris.New(fmt.Sprintf("services[%d] (%s) port %d must be between 1 and 65535", index, svc.ID, port))
+	}
+	// A config_db service publishing 5432 IS the project Postgres, so its own
+	// port is not a collision with the Postgres reservation; the earlier
+	// config_db validation already pins it to exactly 5432.
+	if owner, ok := reserved[port]; ok && (!svc.ConfigDB || port != reservedPostgresPort) {
+		return eris.New(fmt.Sprintf(
+			"services[%d] (%s) port %d is reserved for %s; pick another port",
+			index, svc.ID, port, owner,
+		))
+	}
+	if prev, ok := usedPorts[port]; ok {
+		return eris.New(fmt.Sprintf(
+			"services[%d] (%s) port %d is already used by service %q; pick another port",
+			index, svc.ID, port, prev,
+		))
+	}
+	usedPorts[port] = svc.ID
 	return nil
 }
 

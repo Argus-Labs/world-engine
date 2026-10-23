@@ -643,7 +643,7 @@ func TestLoad_ServiceImageKind_Parses(t *testing.T) {
 	id = "postgres"
 	image = "postgres:16"
 	env = { POSTGRES_USER = "meta", POSTGRES_PASSWORD = "meta", POSTGRES_DB = "meta" }
-	ports = [5432]
+	ports = [5433]
 	volume = "/var/lib/postgresql/data"
 	healthcheck = ["CMD-SHELL", "pg_isready -U meta -d meta"]
 	`
@@ -661,7 +661,7 @@ func TestLoad_ServiceImageKind_Parses(t *testing.T) {
 		"POSTGRES_PASSWORD": "meta",
 		"POSTGRES_DB":       "meta",
 	}, svc.Env)
-	require.Equal(t, []int{5432}, svc.Ports)
+	require.Equal(t, []int{5433}, svc.Ports)
 	require.Equal(t, "/var/lib/postgresql/data", svc.Volume)
 	require.Equal(t, []string{"CMD-SHELL", "pg_isready -U meta -d meta"}, svc.Healthcheck)
 }
@@ -1148,4 +1148,237 @@ func TestLoad_AuthURLShape(t *testing.T) {
 	if cfg.Auth.URL != "https://api.argus.dev" {
 		t.Errorf("url = %q, want every trailing slash dropped", cfg.Auth.URL)
 	}
+}
+
+func TestLoad_ServicePortReserved_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		tomlDoc  string
+		contains string
+	}{
+		{
+			name: "edge port 8080",
+			tomlDoc: `
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "gameplay"
+[[services]]
+id = "web"
+image = "nginx:alpine"
+ports = [8080]
+`,
+			contains: "8080 is reserved for the edge proxy",
+		},
+		{
+			name: "first shard port 8081",
+			tomlDoc: `
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "gameplay"
+[[services]]
+id = "web"
+image = "nginx:alpine"
+ports = [8081]
+`,
+			contains: `8081 is reserved for shard instance "gameplay"`,
+		},
+		{
+			name: "NATS client port 4222",
+			tomlDoc: `
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "gameplay"
+[[services]]
+id = "web"
+image = "nginx:alpine"
+ports = [4222]
+`,
+			contains: "4222 is reserved for NATS (client connections)",
+		},
+		{
+			name: "NATS monitor port 8222",
+			tomlDoc: `
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "gameplay"
+[[services]]
+id = "web"
+image = "nginx:alpine"
+ports = [8222]
+`,
+			contains: "8222 is reserved for NATS (monitoring)",
+		},
+		{
+			name: "Postgres port 5432 on non-config_db service",
+			tomlDoc: `
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "gameplay"
+[[services]]
+id = "pg"
+image = "postgres:16"
+ports = [5432]
+`,
+			contains: "5432 is reserved for the project database (Postgres)",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := toml.Load(strings.NewReader(c.tomlDoc))
+			require.Error(t, err)
+			require.Contains(t, err.Error(), c.contains)
+		})
+	}
+}
+
+func TestLoad_ServicePortReservedBySecondShard_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "game"
+[[shards]]
+id = "chat"
+[[services]]
+id = "web"
+image = "nginx:alpine"
+ports = [8082]
+`
+	_, err := toml.Load(strings.NewReader(sample))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `8082 is reserved for shard instance "chat"`)
+}
+
+func TestLoad_ServicePortReservedByPooledShardInstance_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "game"
+pool_size = 3
+[[services]]
+id = "web"
+image = "nginx:alpine"
+ports = [8083]
+`
+	_, err := toml.Load(strings.NewReader(sample))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `8083 is reserved for shard instance "game-3"`)
+}
+
+func TestLoad_ServicePortAdjacentToShardRange_Allowed(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "gameplay"
+[[services]]
+id = "web"
+image = "nginx:alpine"
+ports = [8082]
+`
+	cfg, err := toml.Load(strings.NewReader(sample))
+	require.NoError(t, err)
+	require.Equal(t, []int{8082}, cfg.Services[0].Ports)
+}
+
+func TestLoad_ServiceConfigDBPort5432_Allowed(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "gameplay"
+[[services]]
+id = "pg"
+image = "postgres:16"
+config_db = true
+ports = [5432]
+`
+	cfg, err := toml.Load(strings.NewReader(sample))
+	require.NoError(t, err)
+	require.Equal(t, []int{5432}, cfg.Services[0].Ports)
+	require.True(t, cfg.Services[0].ConfigDB)
+}
+
+func TestLoad_ServiceDuplicatePortAcrossServices_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "gameplay"
+[[services]]
+id = "web"
+image = "nginx:alpine"
+ports = [3000]
+[[services]]
+id = "api"
+image = "nginx:alpine"
+ports = [3000]
+`
+	_, err := toml.Load(strings.NewReader(sample))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `3000 is already used by service "web"`)
+}
+
+func TestLoad_ServiceDuplicatePortWithinSameService_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "gameplay"
+[[services]]
+id = "web"
+image = "nginx:alpine"
+ports = [3000, 3000]
+`
+	_, err := toml.Load(strings.NewReader(sample))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `3000 is already used by service "web"`)
+}
+
+func TestLoad_BugReportCollidingPorts_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+organization = "argus"
+project = "rampage"
+
+[[shards]]
+id = "gameplay"
+
+[[services]]
+id = "web"
+image = "nginx:alpine"
+ports = [8080]
+
+[[services]]
+id = "api"
+image = "nginx:alpine"
+ports = [8081]
+`
+	_, err := toml.Load(strings.NewReader(sample))
+	require.Error(t, err)
+	// The first service (web) declares port 8080 (the edge port) and must be
+	// caught first; the error is early and actionable.
+	require.Contains(t, err.Error(), "8080 is reserved for the edge proxy")
 }
