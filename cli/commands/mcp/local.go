@@ -129,6 +129,9 @@ func (w *worlds) stopEdge(project string) {
 	if cancel, ok := w.edges[project]; ok {
 		cancel()
 		delete(w.edges, project)
+		if rt, ok := w.runtimes[project]; ok {
+			rt.ReleaseEdge()
+		}
 	}
 }
 
