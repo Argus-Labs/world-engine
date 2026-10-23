@@ -76,26 +76,64 @@ func (c *Client) StartContainers(ctx context.Context, services []service.Service
 }
 
 // waitForReady blocks until the container's Docker health is "healthy", or its
-// ReadyURL answers, or it is running and declares neither.
+// ReadyURL answers, or it is running and declares neither. It delegates to
+// waitContainerReady, polling the Docker state once per second.
 func (c *Client) waitForReady(ctx context.Context, svc service.Service) error {
+	return waitContainerReady(ctx, c.client, c.logContainerDebugInfo, time.Second, svc)
+}
+
+// waitContainerReady is the testable core of waitForReady: poll cli every poll
+// until the container is ready, ctx is cancelled, or the container crashes.
+// logDebug dumps state and tail logs after a readiness failure; it is a callback
+// so the loop can be unit-tested against a fake daemon with no real containers.
+//
+// Every platform container waitForReady serves — NATS, the project DB, and each
+// [[services]] game service — runs the unless-stopped restart policy, so a
+// crash-looping container reports "restarting" (never "exited") and can stay
+// Running=true through the restart window, making a bare "exited" check dead
+// code. A nonzero exit during that window is treated as fatal so a bad image or
+// env fails fast with the real exit code instead of spinning for readyTimeout,
+// or (for a probe-less service) being declared ready while crash-looping. Shard
+// containers are unaffected: they use the "no" policy and a separate bounded
+// timeout, so a crash stays visible.
+func waitContainerReady(
+	ctx context.Context,
+	cli dockerContainerClient,
+	logDebug func(name string),
+	poll time.Duration,
+	svc service.Service,
+) error {
 	ctx, cancel := context.WithTimeout(ctx, readyTimeout)
 	defer cancel()
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(poll)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			c.logContainerDebugInfo(svc.Name)
+			logDebug(svc.Name)
 			return eris.Wrapf(ctx.Err(), "timeout waiting for %s to become ready", svc.Name)
 		case <-ticker.C:
-			res, err := c.client.ContainerInspect(ctx, svc.Name, client.ContainerInspectOptions{})
+			res, err := cli.ContainerInspect(ctx, svc.Name, client.ContainerInspectOptions{})
 			if err != nil {
 				return eris.Wrapf(err, "inspect %s", svc.Name)
 			}
 			st := res.Container.State
-			if st == nil || !st.Running {
+			// Enter when the container isn't fully serving: a stopped/exited
+			// container (no restart policy) or a restart-policy container
+			// mid-crash-loop, which can report Running=true while Restarting=true.
+			if st == nil || !st.Running || st.Restarting {
+				// No restart policy: the container is gone ("exited"). Fail fast.
 				if st != nil && st.Status == container.StateExited {
-					c.logContainerDebugInfo(svc.Name)
+					logDebug(svc.Name)
+					return eris.Errorf("%s exited with code %d", svc.Name, st.ExitCode)
+				}
+				// Restart-policy crash loop: reports "restarting" (never "exited")
+				// carrying the last exit code. A nonzero exit is a boot crash — fail
+				// fast instead of spinning until readyTimeout, or declaring a dead,
+				// probe-less service ready. Exit code 0 is left to the timeout so a
+				// legitimate clean restart is not mistaken for a crash.
+				if st != nil && st.Restarting && st.ExitCode != 0 {
+					logDebug(svc.Name)
 					return eris.Errorf("%s exited with code %d", svc.Name, st.ExitCode)
 				}
 				continue
