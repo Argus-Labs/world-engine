@@ -183,12 +183,41 @@ func (c *Client) builtImageNames() map[string]struct{} {
 // ownsBuiltImage reports whether an image world built belongs to this project.
 // The project label is authoritative when present. Images from a CLI older than
 // that label fall back to the image name, which has always been project-scoped
-// ("<project>-<id>-shard" / "-service"), so purge still reclaims them without
-// ever matching another project's.
+// ("<project>-<id>-shard" / "<project>-<id>-service"). Matching on that prefix,
+// not on membership in the current world.toml's build set, is what reclaims
+// legacy images for shard/service IDs that were later removed or renamed from
+// world.toml — the leak commit 792fac1d was written to stop — while still never
+// matching another project's images: those carry that project's prefix.
+//
+// Project renames are a known limitation of the legacy fallback: a legacy image
+// carries the old project's name, which the current world.toml no longer knows,
+// so it cannot be matched safely. Images built by the current CLI carry the
+// project label and are reclaimed across a rename via the label branch above.
 func ownsBuiltImage(labels map[string]string, project string, owned map[string]struct{}) bool {
 	if p, ok := labels[service.ProjectLabel]; ok {
 		return p == project
 	}
-	_, ok := owned[labels[service.CardinalImageNameLabel]]
-	return ok
+	name := labels[service.CardinalImageNameLabel]
+	if _, ok := owned[name]; ok {
+		return true
+	}
+	return legacyImageNameBelongsToProject(name, project)
+}
+
+// legacyImageNameBelongsToProject reports whether name is a world-built image
+// name ("<project>-<id>-shard" / "<project>-<id>-service") scoped to project. It
+// reclaims legacy images whose shard/service ID is no longer in world.toml
+// without consulting the current build set. It does not match another project's
+// images, which carry that project's prefix — modulo the inherent ambiguity of
+// project names containing "-", which the project label exists to resolve and
+// which legacy images lack.
+func legacyImageNameBelongsToProject(name, project string) bool {
+	if project == "" || name == "" {
+		return false
+	}
+	if !strings.HasPrefix(name, project+"-") {
+		return false
+	}
+	return strings.HasSuffix(name, "-"+service.RoleShard) ||
+		strings.HasSuffix(name, "-"+service.RoleService)
 }

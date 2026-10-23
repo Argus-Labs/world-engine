@@ -287,7 +287,23 @@ func TestOwnsBuiltImage(t *testing.T) {
 		"legacy image of another project": {
 			map[string]string{service.CardinalImageNameLabel: "other-game-shard"}, false,
 		},
-		"no labels at all": {map[string]string{}, false},
+		// Stale-ID legacy image: built by an older CLI for this project, but the
+		// shard/service ID is no longer in world.toml so the name is absent from
+		// owned. Must still be reclaimed (the leak 792fac1d fixed) via the
+		// project-scoped name prefix.
+		"legacy stale-id shard of this project absent from owned": {
+			map[string]string{service.CardinalImageNameLabel: "demo-removed-shard"}, true,
+		},
+		"legacy stale-id service of this project absent from owned": {
+			map[string]string{service.CardinalImageNameLabel: "demo-removed-service"}, true,
+		},
+		// A cardinal-labelled legacy name with the project prefix but no role
+		// suffix does not match the naming convention, so it is left alone.
+		"legacy name with project prefix but no role suffix": {
+			map[string]string{service.CardinalImageNameLabel: "demo-notagame"}, false,
+		},
+		"empty legacy image name": {map[string]string{service.CardinalImageNameLabel: ""}, false},
+		"no labels at all":        {map[string]string{}, false},
 		// A labelled image wins on the label even when the name happens to collide.
 		"another project whose image name we also build": {
 			map[string]string{service.ProjectLabel: "other", service.CardinalImageNameLabel: "demo-game-shard"}, false,
@@ -298,6 +314,47 @@ func TestOwnsBuiltImage(t *testing.T) {
 			t.Parallel()
 			if got := ownsBuiltImage(tc.labels, "demo", owned); got != tc.want {
 				t.Fatalf("ownsBuiltImage(%v) = %v, want %v", tc.labels, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestLegacyImageNameBelongsToProject pins the project-scoped legacy fallback
+// directly: it reclaims stale-ID images of this project (shard and service) and
+// rejects another project's images and names that don't follow the convention.
+func TestLegacyImageNameBelongsToProject(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		name    string
+		project string
+		want    bool
+	}{
+		"current shard id":               {"demo-game-shard", "demo", true},
+		"stale shard id absent from set": {"demo-removed-shard", "demo", true},
+		"current service id":             {"demo-meta-service", "demo", true},
+		"stale service id":               {"demo-removed-service", "demo", true},
+		"another project shard":          {"other-game-shard", "demo", false},
+		"project prefix with no suffix":  {"demo-notagame", "demo", false},
+		"empty name":                     {"", "demo", false},
+		"empty project":                  {"demo-game-shard", "", false},
+		// A project name that is a prefix of another project cannot be told apart
+		// from it by name alone: "demo-x-game-shard" matches project "demo" too.
+		// This is the inherent ambiguity the project label was added to resolve
+		// and which legacy (unlabelled) images cannot escape; the helper accepts
+		// the overlap rather than risk failing to reclaim a same-project image.
+		"prefix-overlapping project is a known ambiguity": {
+			"demo-x-game-shard", "demo", true,
+		},
+		// A shard id ending in "service" still resolves by its -shard suffix.
+		"shard id containing service word": {"demo-my-service-shard", "demo", true},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if got := legacyImageNameBelongsToProject(tc.name, tc.project); got != tc.want {
+				t.Fatalf("legacyImageNameBelongsToProject(%q, %q) = %v, want %v",
+					tc.name, tc.project, got, tc.want)
 			}
 		})
 	}
