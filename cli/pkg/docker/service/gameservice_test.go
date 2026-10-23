@@ -6,6 +6,7 @@ import (
 	"time"
 
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
+	"github.com/argus-labs/world-engine/cli/pkg/version"
 )
 
 func TestGameServiceFromConfigImageKind(t *testing.T) {
@@ -294,5 +295,112 @@ func TestBuildGameServicesPreservesDeclarationOrder(t *testing.T) {
 	}
 	if name := builders[1](cfg).Name; name != "rampage-meta-service" {
 		t.Fatalf("expected second service %q, got %q", "rampage-meta-service", name)
+	}
+}
+
+// PlatformImageRefs is the shared list both `world start` and the MCP
+// `world_lifecycle` start pull before StartPlatform: NATS, the auto project DB
+// when no config_db service brings its own, and every image-kind [[services]] entry.
+// The tests pin exactly that set so the two paths cannot drift on which images a
+// fresh machine needs.
+
+func TestPlatformImageRefs_AutoProjectDBAndImageKindServices(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		Project: "rampage",
+		WorldToml: worldtoml.Config{
+			Project: "rampage",
+			Services: []worldtoml.GameService{
+				{ID: "redis", Image: "redis:7"},         // image-kind: pulled
+				{ID: "meta", Path: "services/meta/cmd"}, // source-built: skipped
+			},
+		},
+	}
+	// No config_db service, so the shared auto project DB applies (postgres:16).
+	refs := PlatformImageRefs(cfg)
+	want := []string{
+		"nats:" + version.Nats, // NATS, always pulled
+		"postgres:16",          // auto project DB (NeedsAutoProjectDB)
+		"redis:7",              // image-kind [[services]] entry
+	}
+	if !slices.Equal(refs, want) {
+		t.Fatalf("PlatformImageRefs = %v, want %v", refs, want)
+	}
+}
+
+// A config_db [[services]] entry brings its own database, so NeedsAutoProjectDB is
+// false: the auto "postgres:16" must NOT appear, while the config_db service's own
+// image is listed (it is image-kind). A purge can't fix a missing image, so the MCP
+// start surfaces the pull error plainly, but this list is what keeps it from happening.
+func TestPlatformImageRefs_ConfigDBSuppressesAutoProjectDB(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		Project: "rampage",
+		WorldToml: worldtoml.Config{
+			Project: "rampage",
+			Services: []worldtoml.GameService{
+				{ID: "postgres", Image: "postgres:14", ConfigDB: true}, // brings its own DB
+				{ID: "meta", Path: "services/meta/cmd"},                // source-built: skipped
+			},
+		},
+	}
+	refs := PlatformImageRefs(cfg)
+	// No auto project DB (postgres:16); the config_db service's own image is listed.
+	want := []string{
+		"nats:" + version.Nats,
+		"postgres:14",
+	}
+	if !slices.Equal(refs, want) {
+		t.Fatalf("PlatformImageRefs = %v, want %v", refs, want)
+	}
+	if slices.Contains(refs, "postgres:16") {
+		t.Fatalf("auto project DB image must be absent when a config_db service exists, got %v", refs)
+	}
+}
+
+// With no [[services]] at all and no config_db service, only NATS and the auto
+// project DB need pulling — the minimal platform. This is the fresh-machine case
+// the original bug hit: the pinned NATS image and postgres:16 are not dependencies
+// of the shard build, so the build-deps pull does not fetch them.
+func TestPlatformImageRefs_NATSAndAutoProjectDBOnly(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		Project:   "rampage",
+		WorldToml: worldtoml.Config{Project: "rampage"},
+	}
+	refs := PlatformImageRefs(cfg)
+	want := []string{"nats:" + version.Nats, "postgres:16"}
+	if !slices.Equal(refs, want) {
+		t.Fatalf("PlatformImageRefs = %v, want %v", refs, want)
+	}
+}
+
+// A source-built (path-kind) service is excluded from every case: it is built, and
+// its build dependencies (golang + distroless base) are pulled by the build path, not
+// here. Including it would try to pull a "<project>-<id>-service" name that has no tag.
+func TestPlatformImageRefs_ExcludesSourceBuiltServices(t *testing.T) {
+	t.Parallel()
+
+	// A config_db service suppresses the auto DB, leaving only NATS plus any
+	// image-kind services; with just a source-built service, that is NATS alone.
+	cfg := &Config{
+		Project: "rampage",
+		WorldToml: worldtoml.Config{
+			Project: "rampage",
+			Services: []worldtoml.GameService{
+				{ID: "db", Image: "postgres:16", ConfigDB: true}, // image-kind: included
+				{ID: "meta", Path: "services/meta/cmd"},          // source-built: excluded
+			},
+		},
+	}
+	refs := PlatformImageRefs(cfg)
+	if slices.Contains(refs, "rampage-meta-service") {
+		t.Fatalf("source-built service image must not be pulled, got %v", refs)
+	}
+	if !slices.Equal(refs, []string{"nats:" + version.Nats, "postgres:16"}) {
+		t.Fatalf("PlatformImageRefs = %v, want only NATS + the image-kind config_db service", refs)
 	}
 }

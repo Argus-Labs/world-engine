@@ -74,7 +74,9 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 			dash := phasebox.Start(ctx, progressForTerminal())
 			defer dash.Complete()
 
-			if err := pullBuildDeps(ctx, dash, dockerClient, dockerServices, platformImageRefs(cfg)); err != nil {
+			if err := pullBuildDeps(
+				ctx, dash, dockerClient, dockerServices, service.PlatformImageRefs(cfg),
+			); err != nil {
 				return err
 			}
 
@@ -182,20 +184,6 @@ func startPlatform(dash *phasebox.Dashboard, rt *local.Runtime, cfg *service.Con
 		return eris.Wrap(err, "start platform")
 	}
 	return nil
-}
-
-// platformImageRefs lists the pulled images the platform needs, so Image Pull shows them.
-func platformImageRefs(cfg *service.Config) []string {
-	refs := []string{service.NATS(cfg).Image}
-	if service.NeedsAutoProjectDB(cfg.WorldToml) {
-		refs = append(refs, service.ProjectDBService(cfg).Image)
-	}
-	for _, gs := range cfg.WorldToml.Services {
-		if !gs.IsBuiltFromSource() {
-			refs = append(refs, gs.Image)
-		}
-	}
-	return refs
 }
 
 // deployServices builds and (re)creates path-kind [[services]] in a "Services" box; no-op without any.
