@@ -35,6 +35,23 @@ const (
 	AuthModeArgus = "argus"
 )
 
+// Pool size limits. pool_size expands a shard 1:N into N instances and
+// expandPools pre-allocates a slice and map sized by the sum of pool sizes, so
+// an unbounded value (e.g. a typo like 100000000000) fatals the process with a
+// runtime out-of-memory inside make() before validate can return a normal
+// config error. These caps keep the pre-allocation modest and turn an
+// oversized value into a field-naming error. They are deliberate over-estimates
+// for a local dev CLI (world start, the MCP server, the debugger).
+const (
+	// maxShardPoolSize is the largest pool_size accepted for a single shard.
+	maxShardPoolSize = 100
+	// maxExpandedInstances is the largest total expanded instance count across
+	// all shards; it bounds the expandPools pre-allocation so a sum of many
+	// individually-valid pool sizes, or a future caller that skips validate,
+	// cannot reintroduce the fatal allocation.
+	maxExpandedInstances = 1024
+)
+
 type Shard struct {
 	ID         string `toml:"id"                    json:"id"`
 	LogLevel   string `toml:"log_level,omitempty"   json:"logLevel,omitempty"`
