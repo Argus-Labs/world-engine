@@ -187,6 +187,9 @@ func startWorld(
 		}
 	}
 
+	if err := rt.PullPlatformImages(ctx, nil); err != nil {
+		return WorldLifecycleOutput{}, eris.Wrap(err, "failed to pull platform images")
+	}
 	if err := rt.StartPlatform(ctx, nil); err != nil {
 		return WorldLifecycleOutput{}, eris.Wrap(err, "failed to start platform"+startFailureAdvice)
 	}

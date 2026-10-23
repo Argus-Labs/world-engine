@@ -61,6 +61,18 @@ func ShardAPIURL(project, instance string) string {
 	return APIEndpoint + "/" + edge.RouteKey(project, instance)
 }
 
+// PullPlatformImages pulls the platform container images (NATS, the auto project
+// Postgres when enabled, and image-kind [[services]] images) so a start on a machine
+// where they are not already in the local Docker store does not fail at
+// ContainerCreate with "No such image". The Docker API does not auto-pull on
+// container create, so a missing image must be pulled before StartPlatform. progress
+// reports per-image pull progress (nil for the non-interactive MCP path); see
+// PullImageRefs for the cache and ":latest" re-pull policy. The refs come from
+// service.PlatformImageRefs, shared with `world start`, so the two paths cannot drift.
+func (r *Runtime) PullPlatformImages(ctx context.Context, progress func(docker.Progress)) error {
+	return r.docker.PullImageRefs(ctx, service.PlatformImageRefs(r.cfg), progress)
+}
+
 // StartPlatform creates the network and starts NATS, the project DB and image-kind
 // [[services]], waiting for each to be ready. step reports progress labels.
 func (r *Runtime) StartPlatform(ctx context.Context, step func(string)) error {
