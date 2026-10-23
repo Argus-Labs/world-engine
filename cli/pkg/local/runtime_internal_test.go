@@ -165,3 +165,96 @@ func TestLayoutMismatch(t *testing.T) {
 		t.Fatalf("err = %v, want a moved instance refused", err)
 	}
 }
+
+// fakeLister is a stand-in containerLister for IsRunning, mirroring the
+// dockerImageClient fake in pkg/docker: it serves a fixed container population
+// so the running-world detection can be exercised without a live daemon.
+type fakeLister struct {
+	containers []docker.ContainerSummary
+	err        error
+}
+
+func (f fakeLister) ListProjectContainers(_ context.Context, _ string) ([]docker.ContainerSummary, error) {
+	return f.containers, f.err
+}
+
+func cs(state, role string) docker.ContainerSummary {
+	return docker.ContainerSummary{
+		Name:   role + "-" + state,
+		State:  state,
+		Labels: map[string]string{service.RoleLabel: role},
+	}
+}
+
+// natsRunning is what IsRunning uses to tell a reload target from a stopped
+// world: the platform (NATS), not the shards, is what a `world start` left
+// behind. Pin every case the reload guard depends on.
+func TestNatsRunning(t *testing.T) {
+	cases := map[string]struct {
+		containers []docker.ContainerSummary
+		want       bool
+	}{
+		"empty (purged or never started)": {nil, false},
+		"only shards, no NATS":            {[]docker.ContainerSummary{cs("running", service.RoleShard)}, false},
+		"stopped NATS after world stop":   {[]docker.ContainerSummary{cs("exited", service.RoleNATS)}, false},
+		"running NATS":                    {[]docker.ContainerSummary{cs("running", service.RoleNATS)}, true},
+		"running shards but stopped NATS (platform down, the bug scenario)": {
+			[]docker.ContainerSummary{cs("running", service.RoleShard), cs("exited", service.RoleNATS)}, false,
+		},
+		"stopped shards but running NATS (platform up, shards crashed — reload should proceed)": {
+			[]docker.ContainerSummary{cs("exited", service.RoleShard), cs("running", service.RoleNATS)}, true,
+		},
+		"DB and service present, NATS down": {
+			[]docker.ContainerSummary{
+				cs("running", service.RoleDB),
+				cs("running", service.RoleService),
+				cs("exited", service.RoleNATS),
+			},
+			false,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			if got := natsRunning(tc.containers); got != tc.want {
+				t.Fatalf("natsRunning = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// isPlatformRunning ties the lister call to natsRunning: a stopped world's
+// container list yields not-running, a running NATS yields running, and a
+// daemon failure surfaces (the error the MCP guard wraps).
+func TestIsPlatformRunning(t *testing.T) {
+	ctx := context.Background()
+	// A stopped world: containers present but NATS exited -> not running, no error.
+	running, err := isPlatformRunning(
+		ctx,
+		fakeLister{containers: []docker.ContainerSummary{cs("exited", service.RoleNATS)}},
+		"demo",
+	)
+	if err != nil || running {
+		t.Fatalf("stopped world: running=%v err=%v, want false/nil", running, err)
+	}
+	// A running world: NATS up -> running.
+	running, err = isPlatformRunning(
+		ctx,
+		fakeLister{containers: []docker.ContainerSummary{cs("running", service.RoleNATS)}},
+		"demo",
+	)
+	if err != nil || !running {
+		t.Fatalf("running world: running=%v err=%v, want true/nil", running, err)
+	}
+	// A purged world: no containers at all -> not running, no error.
+	running, err = isPlatformRunning(ctx, fakeLister{containers: nil}, "demo")
+	if err != nil || running {
+		t.Fatalf("purged world: running=%v err=%v, want false/nil", running, err)
+	}
+	// A daemon failure surfaces as an error so the guard can wrap it rather
+	// than silently treating the world as stopped.
+	listErr := errors.New("cannot connect to docker endpoint")
+	running, err = isPlatformRunning(ctx, fakeLister{err: listErr}, "demo")
+	if err == nil || running {
+		t.Fatalf("daemon error: running=%v err=%v, want false/non-nil", running, err)
+	}
+}

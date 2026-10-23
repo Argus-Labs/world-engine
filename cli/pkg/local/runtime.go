@@ -239,19 +239,42 @@ func (r *Runtime) Purge(ctx context.Context, images bool, progress func(docker.P
 	return nil
 }
 
+// containerLister is the subset of the Docker client that lists a project's
+// containers. *docker.Client satisfies it; tests substitute a fake to exercise
+// IsRunning without a running daemon (mirroring the dockerImageClient seam in
+// pkg/docker).
+type containerLister interface {
+	ListProjectContainers(ctx context.Context, project string) ([]docker.ContainerSummary, error)
+}
+
 // IsRunning reports whether the project's NATS is running: the platform is what
 // a world start left behind, so reload and logs still work after every shard crashed.
 func (r *Runtime) IsRunning(ctx context.Context) (bool, error) {
-	cs, err := r.docker.ListProjectContainers(ctx, r.project())
+	return isPlatformRunning(ctx, r.docker, r.project())
+}
+
+// isPlatformRunning reports whether the project's NATS container is running.
+// Extracted from IsRunning so the detection can be unit-tested against a fake
+// container list instead of a live daemon.
+func isPlatformRunning(ctx context.Context, lister containerLister, project string) (bool, error) {
+	cs, err := lister.ListProjectContainers(ctx, project)
 	if err != nil {
 		return false, err
 	}
-	for _, c := range cs {
+	return natsRunning(cs), nil
+}
+
+// natsRunning reports whether any of the project's containers is a running NATS.
+// A stopped world's NATS is present but not "running", so this is what tells a
+// reload target from a stopped one — the platform is what a `world start` left
+// behind, not the shards (which may have crashed while NATS stayed up).
+func natsRunning(containers []docker.ContainerSummary) bool {
+	for _, c := range containers {
 		if c.Labels[service.RoleLabel] == service.RoleNATS && c.State == docker.ContainerRunning {
-			return true, nil
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
 
 func (r *Runtime) containerNames(ctx context.Context, keep func(docker.ContainerSummary) bool) ([]string, error) {
