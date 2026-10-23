@@ -2,6 +2,8 @@ package docker
 
 import (
 	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
 	_ "embed"
 	"errors"
@@ -172,7 +174,7 @@ func (c *Client) buildSingleCardinalWithDocker(
 	c.logger.InfoContext(ctx, "building Cardinal shard with docker",
 		"image", sb.image, "containers", sb.containers, "import", sb.shardPath)
 
-	buildContext, err := tarWithEmbeddedDockerfile(
+	buildContext, err := bufferedBuildContext(
 		c.cfg.RootDir,
 		ignorePatterns,
 		cardinalDockerfile,
@@ -181,7 +183,6 @@ func (c *Client) buildSingleCardinalWithDocker(
 	if err != nil {
 		return eris.Wrap(err, "failed to build context tarball")
 	}
-	defer closeAndLog(ctx, c.logger, "build context", buildContext)
 
 	target := sb.target
 	if target == "" {
@@ -248,6 +249,32 @@ func (c *Client) readDockerignore(ctx context.Context, rootDir string) ([]string
 	}
 	defer closeAndLog(ctx, c.logger, ".dockerignore", f)
 	return ignorefile.ReadAll(f)
+}
+
+// bufferedBuildContext returns the build context gzipped in memory. A known-length body
+// makes the Docker client send Content-Length rather than a chunked upload, which some
+// daemons (Namespace CI runners) reject with "invalid tar header". dockerd detects gzip.
+func bufferedBuildContext(
+	rootDir string,
+	ignorePatterns []string,
+	dfContent []byte,
+	dfName string,
+) (*bytes.Reader, error) {
+	src, err := tarWithEmbeddedDockerfile(rootDir, ignorePatterns, dfContent, dfName)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = src.Close() }()
+
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if _, err := io.Copy(gz, src); err != nil {
+		return nil, err
+	}
+	if err := gz.Close(); err != nil {
+		return nil, err
+	}
+	return bytes.NewReader(buf.Bytes()), nil
 }
 
 // tarWithEmbeddedDockerfile streams a tar archive of rootDir filtered by
