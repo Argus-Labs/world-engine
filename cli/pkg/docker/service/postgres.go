@@ -37,7 +37,9 @@ func ProjectDBService(cfg *Config) Service {
 			tcp: loopbackBinding(defaultConfigDBPort),
 		},
 		NetworkMode: container.NetworkMode(NetworkName(project)),
-		Binds:       []string{ProjectDBVolumeName(project) + ":/var/lib/postgresql/data"},
+		// 18+ keeps PGDATA under /var/lib/postgresql/18/docker and refuses a mount at the old
+		// .../data path. A volume from 16 fails to start; `world purge` once clears it.
+		Binds: []string{ProjectDBVolumeName(project) + ":/var/lib/postgresql"},
 		// Platform pieces come back from a crash; an explicit stop still sticks.
 		RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
 	}

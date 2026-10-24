@@ -74,6 +74,13 @@ func (c *BuildCmd) Run(ctx context.Context) error {
 			dash := phasebox.Start(ctx, c.Progress)
 			defer dash.Complete()
 
+			// Only what this command builds: the full list also holds NATS and image-kind services.
+			buildServices := slices.DeleteFunc(slices.Clone(dockerServices), func(s service.Service) bool {
+				return !docker.IsCardinalService(s)
+			})
+			if err := pullBuildDeps(ctx, dash, dockerClient, buildServices, nil); err != nil {
+				return err
+			}
 			if err := buildShardImages(dash.Open("Build"), dockerClient, dockerServices); err != nil {
 				return eris.Wrap(err, "Failed to build Cardinal images")
 			}

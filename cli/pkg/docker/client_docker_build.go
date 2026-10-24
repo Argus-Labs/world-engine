@@ -2,6 +2,8 @@ package docker
 
 import (
 	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
 	_ "embed"
 	"errors"
@@ -139,13 +141,31 @@ func (c *Client) BuildCardinalImages(
 	}
 	ignorePatterns := slices.Concat(defaultBuildIgnores, userIgnores)
 
+	// Every image builds from the project root with the same Dockerfile; SHARD_PATH picks
+	// the shard. Build the context once and share it.
+	buildContext, err := bufferedBuildContext(
+		ctx,
+		c.cfg.RootDir,
+		ignorePatterns,
+		cardinalDockerfile,
+		cardinalDockerfileName,
+	)
+	if err != nil {
+		err = eris.Wrap(err, "failed to build context tarball")
+		// Every image shares this context, so every image row failed.
+		for _, image := range order {
+			notify(progress, Progress{Name: image, State: StateBuilding, Err: itemErr(ctx, err)})
+		}
+		return err
+	}
+
 	g, gctx := errgroup.WithContext(ctx)
 	for _, image := range order {
 		build := builds[image]
 		g.Go(func() error {
 			notify(progress, Progress{Name: build.image, State: StateBuilding})
 
-			err := c.buildSingleCardinalWithDocker(gctx, build, platform, ignorePatterns)
+			err := c.buildSingleCardinalWithDocker(gctx, build, platform, buildContext)
 			if err != nil {
 				notify(progress, Progress{Name: build.image, State: StateBuilding, Err: itemErr(gctx, err)})
 				return err
@@ -163,7 +183,7 @@ func (c *Client) buildSingleCardinalWithDocker(
 	ctx context.Context,
 	sb *shardBuild,
 	platform ocispec.Platform,
-	ignorePatterns []string,
+	buildContext []byte,
 ) error {
 	// Containers on this image are deliberately left alone: the deploy that follows a
 	// successful build recreates them (local.Runtime.recreate), and removing them here
@@ -171,17 +191,6 @@ func (c *Client) buildSingleCardinalWithDocker(
 	// `world reload` promises to leave it untouched.
 	c.logger.InfoContext(ctx, "building Cardinal shard with docker",
 		"image", sb.image, "containers", sb.containers, "import", sb.shardPath)
-
-	buildContext, err := tarWithEmbeddedDockerfile(
-		c.cfg.RootDir,
-		ignorePatterns,
-		cardinalDockerfile,
-		cardinalDockerfileName,
-	)
-	if err != nil {
-		return eris.Wrap(err, "failed to build context tarball")
-	}
-	defer closeAndLog(ctx, c.logger, "build context", buildContext)
 
 	target := sb.target
 	if target == "" {
@@ -215,7 +224,7 @@ func (c *Client) buildSingleCardinalWithDocker(
 		},
 	}
 
-	resp, err := c.client.ImageBuild(ctx, buildContext, opts)
+	resp, err := c.client.ImageBuild(ctx, bytes.NewReader(buildContext), opts)
 	if err != nil {
 		return eris.Wrapf(err, "failed to start docker build for %s", sb.image)
 	}
@@ -248,6 +257,51 @@ func (c *Client) readDockerignore(ctx context.Context, rootDir string) ([]string
 	}
 	defer closeAndLog(ctx, c.logger, ".dockerignore", f)
 	return ignorefile.ReadAll(f)
+}
+
+// bufferedBuildContext returns the build context gzipped in memory. Sent as a [bytes.Reader],
+// a known-length body makes the Docker client send Content-Length rather than a chunked
+// upload, which some daemons (Namespace CI runners) reject with "invalid tar header".
+// dockerd detects gzip. BestSpeed: the body only crosses a local socket or a CI hop.
+func bufferedBuildContext(
+	ctx context.Context,
+	rootDir string,
+	ignorePatterns []string,
+	dfContent []byte,
+	dfName string,
+) ([]byte, error) {
+	src, err := tarWithEmbeddedDockerfile(rootDir, ignorePatterns, dfContent, dfName)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = src.Close() }()
+
+	var buf bytes.Buffer
+	gz, err := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := io.Copy(gz, ctxReader{ctx, src}); err != nil {
+		return nil, err
+	}
+	if err := gz.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// ctxReader stops a long read once ctx is cancelled, so Ctrl+C does not wait for a large
+// context to finish packing.
+type ctxReader struct {
+	ctx context.Context //nolint:containedctx // scoped to one io.Copy
+	r   io.Reader
+}
+
+func (c ctxReader) Read(p []byte) (int, error) {
+	if err := c.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return c.r.Read(p)
 }
 
 // tarWithEmbeddedDockerfile streams a tar archive of rootDir filtered by
