@@ -715,38 +715,6 @@ func getShapeCentroid(s *shape) Vec2 {
 	}
 }
 
-// getShapePerimeter returns the perimeter of a shape, used by the explosion
-// feature (upstream b2GetShapePerimeter).
-func getShapePerimeter(s *shape) float64 {
-	//nolint:exhaustive // ShapeTypeCount is a sentinel, not a shape type; the default case mirrors upstream.
-	switch s.shapeType {
-	case CapsuleShape:
-		return dot2(2.0, Length(Sub(s.capsule.Center1, s.capsule.Center2)), 2.0*Pi, s.capsule.Radius)
-	case CircleShape:
-		return 2.0 * Pi * s.circle.Radius
-	case PolygonShape:
-		points := s.polygon.Vertices
-		count := s.polygon.Count
-		perimeter := 2.0 * Pi * s.polygon.Radius
-		assert(count > 0)
-		//nolint:gosec // G602: shape creation and SetShapePolygon validate the stored polygon count.
-		prev := points[count-1]
-		for i := range count {
-			next := points[i]
-			perimeter += Length(Sub(next, prev))
-			prev = next
-		}
-
-		return perimeter
-	case SegmentShape:
-		return 2.0 * Length(Sub(s.segment.Point1, s.segment.Point2))
-	case ChainSegmentShape:
-		return 2.0 * Length(Sub(s.chainSegment.Segment.Point1, s.chainSegment.Segment.Point2))
-	default:
-		return 0.0
-	}
-}
-
 // getShapeProjectedPerimeter projects the shape perimeter onto an infinite
 // line (upstream b2GetShapeProjectedPerimeter).
 func getShapeProjectedPerimeter(s *shape, line Vec2) float64 {
