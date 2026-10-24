@@ -21,7 +21,7 @@ const (
 	// DBDSNEnvVar carries the project Postgres DSN into shards and services.
 	DBDSNEnvVar = "DB_DSN"
 
-	projectDBImage = "postgres:16"
+	projectDBImage = "postgres:18"
 
 	defaultConfigDBPort = 5432
 
