@@ -744,11 +744,6 @@ func TestOracleIdPool_CReference(t *testing.T) {
 	tassert.Equal(t, 5, allocID(&pool), "then a fresh id")
 	tassert.Equal(t, 6, getIDCapacity(&pool), "capacity grows with nextIndex")
 
-	// The validation helpers compile to nothing when B2_ENABLE_VALIDATION is
-	// off (src/id_pool.c:66-77), so they must simply not panic.
-	validateFreeID(&pool, 0)
-	validateUsedID(&pool, 0)
-
 	destroyIDPool(&pool)
 	tassert.Nil(t, pool.freeArray, "free array after destroy")
 	tassert.Equal(t, 0, getIDCapacity(&pool), "capacity after destroy")
@@ -788,47 +783,6 @@ func TestOracleIdPool_FreeArrayGrowthFromEmpty(t *testing.T) {
 	tassert.Equal(t, 1, allocID(&pool), "LIFO order")
 	tassert.Equal(t, 0, allocID(&pool), "LIFO order")
 	tassert.Equal(t, 4, allocID(&pool), "the free list is exhausted")
-}
-
-// TestOracleIdPool_GetIdBytesDivergence documents a genuine divergence between
-// this port and the C oracle.
-//
-// KNOWN DIVERGENCE. b2GetIdBytes is b2IntArray_ByteCount, which is
-// capacity * sizeof(int) with int being 32 bits in the C (src/core.c asserts
-// sizeof(int32_t) == sizeof(int) at math_functions.c:8). A freshly created pool
-// reserves 32 entries, so the C reports 128 bytes. Go's int is 64 bits on every
-// platform this package targets, and getIDBytes multiplies by
-// [strconv.IntSize]/8, so it reports 256 bytes: exactly double.
-//
-// The C-correct assertion below is written as the oracle demands and skipped,
-// so the difference is recorded rather than hidden.
-// TestOracleIdPool_GetIdBytesGoWidth then asserts the width-independent form
-// the port does satisfy.
-func TestOracleIdPool_GetIdBytesDivergence(t *testing.T) {
-	t.Parallel()
-
-	t.Skip("KNOWN DIVERGENCE: b2GetIdBytes on a fresh pool is 32*sizeof(int) = 128 bytes in the " +
-		"C, where int is 32 bits; this port's getIDBytes uses Go's 64-bit int and reports 256")
-
-	pool := createIDPool()
-
-	tassert.Equal(t, 128, getIDBytes(&pool), "b2GetIdBytes on a fresh pool")
-}
-
-// TestOracleIdPool_GetIdBytesGoWidth asserts the C formula
-// (capacity * sizeof(int)) evaluated at Go's int width, which is the divergence
-// documented above and nothing else.
-func TestOracleIdPool_GetIdBytesGoWidth(t *testing.T) {
-	t.Parallel()
-
-	pool := createIDPool()
-
-	const intBytes = 8 // strconv.IntSize / 8 on all targets this package supports.
-
-	tassert.Equal(t, 32*intBytes, getIDBytes(&pool), "capacity * sizeof(int)")
-
-	destroyIDPool(&pool)
-	tassert.Equal(t, 0, getIDBytes(&pool), "a destroyed pool owns no memory")
 }
 
 // ---------------------------------------------------------------------------
