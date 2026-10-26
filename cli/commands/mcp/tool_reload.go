@@ -88,6 +88,15 @@ func reloadHandler(
 		return ReloadOutput{}, eris.Wrap(err, "open world")
 	}
 	defer release()
+	// A stopped world has no running platform (NATS), so a reload would mutate
+	// containers against a down NATS/Postgres — with purge it undeploys shards
+	// it cannot bring back; without purge it recreates shards that crash on
+	// boot and dead-end at a 2-minute readiness timeout. Refuse up front, the
+	// same as `world reload`, instead of corrupting container state.
+	running, err := rt.IsRunning(ctx)
+	if err := requireRunning(running, err); err != nil {
+		return ReloadOutput{}, err
+	}
 	if err := reloadShards(ctx, rt, cfg, deployOpts, args.Purge); err != nil {
 		return ReloadOutput{}, err
 	}
@@ -174,4 +183,19 @@ func shardInstances(cfg worldtoml.Config, poolID string) []string {
 		instances = append(instances, instance)
 	}
 	return instances
+}
+
+// requireRunning refuses a reload on a world whose platform is down, mirroring
+// `world reload`'s guard. It is the (running, err) pair IsRunning returns, taken
+// as arguments so the decision is unit-testable without a Docker daemon. A
+// daemon failure is wrapped ("check world state") so it stays distinguishable
+// from the clean "not running" refusal that asks the caller to start the world.
+func requireRunning(running bool, err error) error {
+	if err != nil {
+		return eris.Wrap(err, "check world state")
+	}
+	if !running {
+		return eris.New("world is not running — start it with `world start`")
+	}
+	return nil
 }
