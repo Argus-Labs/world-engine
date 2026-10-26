@@ -230,6 +230,10 @@ func (r *Runtime) Purge(ctx context.Context, images bool, progress func(docker.P
 	if err := r.docker.RemoveContainers(ctx, names, false, progress); err != nil {
 		return err
 	}
+	// Sweep by name too: RemoveContainers only reaches volumes of containers that still exist.
+	if err := r.docker.RemoveVolumes(ctx, service.VolumeNames(r.cfg)); err != nil {
+		return err
+	}
 	if err := r.docker.RemoveNetwork(ctx, service.NetworkName(r.project())); err != nil {
 		return err
 	}
