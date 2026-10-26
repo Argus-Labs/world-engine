@@ -1141,7 +1141,7 @@ func TestWorldsLockSerializesPerProject(t *testing.T) {
 // the nil a stale servesEdge=true would keep returning. The cached runtime stays,
 // so a later MCP start re-binds the edge quickly.
 func TestStopEdge_ReleasesEdgeOwnershipOfCachedRuntime(t *testing.T) {
-	t.Setenv("DOCKER_HOST", "unix://"+filepath.Join(t.TempDir(), "nonexistent.sock"))
+	t.Setenv("DOCKER_HOST", "unix:///nonexistent/docker.sock")
 	cfg := &service.Config{Project: "demo-edge", WorldToml: worldtoml.Config{Project: "demo-edge"}}
 	dc, err := docker.NewClient(cfg, &docker.ClientOptions{Logger: slog.Default()})
 	require.NoError(t, err)
@@ -1154,13 +1154,11 @@ func TestStopEdge_ReleasesEdgeOwnershipOfCachedRuntime(t *testing.T) {
 		locks:    map[string]*sync.Mutex{},
 	}
 
-	// serveEdge binds localhost:8080 synchronously; if something already holds it
-	// (a running world, or a noisy neighbour) the bind is this call's error, so skip
-	// rather than fail — the local-package tests cover this path without a bind.
+	// Bind a free port instead of the real EdgeAddr: a developer's running world
+	// may already hold 8080, and skipping there would silently drop the only
+	// end-to-end coverage of stopEdge. SetEdgeAddr keeps the full serveEdge path.
+	rt.SetEdgeAddr("127.0.0.1:0")
 	if err := w.serveEdge(rt); err != nil {
-		if strings.Contains(err.Error(), "address already in use") {
-			t.Skipf("localhost:8080 busy, cannot bind edge: %v", err)
-		}
 		t.Fatalf("serveEdge: %v", err)
 	}
 	t.Cleanup(func() { w.stopEdge("demo-edge") })

@@ -117,7 +117,13 @@ func (w *worlds) serveEdge(rt *local.Runtime) error {
 		cancel()
 		return err
 	}
-	go func() { _ = rt.ServeEdgeOn(ctx, ln) }()
+	go func() {
+		_ = rt.ServeEdgeOn(ctx, ln)
+		// If ServeEdgeOn returns on its own (listener closed, accept error) rather
+		// than via stopEdge's cancel, ownership is stale: release it so CheckLayout
+		// resumes guarding. Idempotent with stopEdge's ReleaseEdge.
+		rt.ReleaseEdge()
+	}()
 	w.edges[project] = cancel
 	return nil
 }

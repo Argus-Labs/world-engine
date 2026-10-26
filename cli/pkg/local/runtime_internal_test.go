@@ -3,7 +3,6 @@ package local
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -265,7 +264,7 @@ func TestIsPlatformRunning(t *testing.T) {
 // pattern in mcp_internal_test.go's TestResolveInstanceName_UnknownReturnsError.
 func deadSocketDockerClient(t *testing.T) *docker.Client {
 	t.Helper()
-	t.Setenv("DOCKER_HOST", "unix://"+filepath.Join(t.TempDir(), "nonexistent.sock"))
+	t.Setenv("DOCKER_HOST", "unix:///nonexistent/docker.sock")
 	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{Project: "demo"}}
 	dc, err := docker.NewClient(cfg, nil)
 	if err != nil {
