@@ -225,8 +225,8 @@ func TestProjectDBService(t *testing.T) {
 	if svc.Name != "rampage-db" {
 		t.Fatalf("expected container name %q, got %q", "rampage-db", svc.Name)
 	}
-	if svc.Image != "postgres:16" {
-		t.Fatalf("expected image %q, got %q", "postgres:16", svc.Image)
+	if svc.Image != "postgres:18" {
+		t.Fatalf("expected image %q, got %q", "postgres:18", svc.Image)
 	}
 	wantEnv := []string{
 		"POSTGRES_USER=postgres",
@@ -242,7 +242,7 @@ func TestProjectDBService(t *testing.T) {
 	if svc.BuildTarget != "" {
 		t.Fatalf("project db must be pull-only, got build target %q", svc.BuildTarget)
 	}
-	if !slices.Equal(svc.Binds, []string{"rampage-db-data:/var/lib/postgresql/data"}) {
+	if !slices.Equal(svc.Binds, []string{"rampage-db-data:/var/lib/postgresql"}) {
 		t.Fatalf("expected named volume bind, got %#v", svc.Binds)
 	}
 	hc := svc.Healthcheck
