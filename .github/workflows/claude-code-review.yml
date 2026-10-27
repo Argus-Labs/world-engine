@@ -9,7 +9,9 @@ on:
     types: [created]
 
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number || github.event.issue.number }}
+  # Other comments (bots, Claude's own progress note) get their own group, so their
+  # skipped runs can't cancel a review in progress.
+  group: claude-review-${{ github.event.pull_request.number || github.event.issue.number }}${{ github.event_name == 'issue_comment' && !contains(github.event.comment.body, '@claude review') && format('-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 env:
