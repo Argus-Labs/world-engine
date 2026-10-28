@@ -323,3 +323,53 @@ func TestCheckLayout_ResumesGuardAfterReleaseEdge(t *testing.T) {
 		t.Fatal("after ReleaseEdge: CheckLayout = nil, want a Docker error (guard resumed)")
 	}
 }
+
+func TestOrphanedShard(t *testing.T) {
+	t.Parallel()
+
+	shards := []worldtoml.Shard{
+		{ID: "game", InstanceID: "game"},
+		{ID: "game", InstanceID: "game-2"},
+	}
+	shard := func(instance string) docker.ContainerSummary {
+		return docker.ContainerSummary{
+			Name:   "p-" + instance,
+			Labels: service.Labels("p", service.RoleShard, "game", instance),
+		}
+	}
+	cases := []struct {
+		name string
+		c    docker.ContainerSummary
+		want bool
+	}{
+		{"known instance", shard("game"), false},
+		{"known pool instance", shard("game-2"), false},
+		{"removed instance", shard("old"), true},
+		{"pool shrunk", shard("game-3"), true},
+		{"stopped orphan", docker.ContainerSummary{
+			Name: "p-old", State: "exited", Labels: service.Labels("p", service.RoleShard, "game", "old"),
+		}, true},
+		{"service is never a shard", docker.ContainerSummary{
+			Name: "p-meta-service", Labels: service.Labels("p", service.RoleService, "", "meta"),
+		}, false},
+		{"nats is never a shard", docker.ContainerSummary{
+			Name: "p-nats", Labels: service.Labels("p", service.RoleNATS, "", ""),
+		}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := orphanedShard(shards)(tc.c); got != tc.want {
+				t.Fatalf("orphanedShard = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestOrphanedShard_EmptyWorldTomlMatchesEveryShard(t *testing.T) {
+	t.Parallel()
+	c := docker.ContainerSummary{Labels: service.Labels("p", service.RoleShard, "game", "game")}
+	if !orphanedShard(nil)(c) {
+		t.Fatal("with no shards declared every shard container is an orphan")
+	}
+}
