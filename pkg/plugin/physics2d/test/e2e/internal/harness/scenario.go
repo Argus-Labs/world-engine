@@ -633,12 +633,4 @@ func (c *Ctx) Note(format string, args ...any) {
 	c.report.Note(c.scenario, c.tick, format, args...)
 }
 
-// Skip records that a check could not run.
-func (c *Ctx) Skip(check, format string, args ...any) {
-	if c.tb != nil {
-		c.tb.Helper()
-	}
-	c.report.Skip(c.scenario, check, c.tick, format, args...)
-}
-
 func finite(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) }
