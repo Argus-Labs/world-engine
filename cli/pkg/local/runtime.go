@@ -187,15 +187,10 @@ func (r *Runtime) UndeployShard(ctx context.Context, shardID string) error {
 	return r.RefreshRoutes(ctx)
 }
 
-// PruneOrphanedShards removes shard containers whose instance no longer exists in world.toml.
+// PruneOrphanedShards removes shard containers whose instance no longer exists in
+// world.toml; volumes stay. Every deploy path calls it before Deploy.
 func (r *Runtime) PruneOrphanedShards(ctx context.Context) error {
-	known := map[string]bool{}
-	for _, sh := range r.cfg.WorldToml.Shards {
-		known[sh.InstanceID] = true
-	}
-	names, err := r.containerNames(ctx, func(c docker.ContainerSummary) bool {
-		return c.Labels[service.RoleLabel] == service.RoleShard && !known[c.Labels[service.InstanceLabel]]
-	})
+	names, err := r.containerNames(ctx, orphanedShard(r.cfg.WorldToml.Shards))
 	if err != nil {
 		return err
 	}
@@ -203,6 +198,17 @@ func (r *Runtime) PruneOrphanedShards(ctx context.Context) error {
 		return nil
 	}
 	return r.docker.RemoveContainers(ctx, names, true, nil)
+}
+
+// orphanedShard matches shard containers whose instance label is not in shards.
+func orphanedShard(shards []worldtoml.Shard) func(docker.ContainerSummary) bool {
+	known := map[string]bool{}
+	for _, sh := range shards {
+		known[sh.InstanceID] = true
+	}
+	return func(c docker.ContainerSummary) bool {
+		return c.Labels[service.RoleLabel] == service.RoleShard && !known[c.Labels[service.InstanceLabel]]
+	}
 }
 
 // PurgeShardState wipes one instance's JetStream snapshot bucket. The instance must be undeployed.

@@ -188,6 +188,13 @@ func startWorld(
 		}
 	}
 
+	// Before the platform restarts NATS, so a shard removed from world.toml cannot
+	// reconnect and snapshot first, nor hold a port the new instance set needs.
+	if !args.Purge {
+		if err := rt.PruneOrphanedShards(ctx); err != nil {
+			return WorldLifecycleOutput{}, eris.Wrap(err, "failed to prune orphaned shards"+startFailureAdvice)
+		}
+	}
 	if err := rt.StartPlatform(ctx, nil); err != nil {
 		return WorldLifecycleOutput{}, eris.Wrap(err, "failed to start platform"+startFailureAdvice)
 	}
