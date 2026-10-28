@@ -94,6 +94,7 @@ func (cm *componentManager) register[T Component](name string) (ComponentID, err
 		return 0, eris.New("max number of components exceeded")
 	}
 
+	schema.Register[T]()
 	cm.catalog[name] = cm.nextID
 	cm.factories = append(cm.factories, newColumnFactory[T]())
 	cm.names = append(cm.names, name)

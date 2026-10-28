@@ -4,7 +4,10 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
+	"github.com/argus-labs/world-engine/pkg/immutable"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type payload struct {
@@ -48,6 +51,64 @@ func TestDeserializeRejectsMalformedInput(t *testing.T) {
 	for _, target := range []any{nil, payload{}, (*payload)(nil)} {
 		require.ErrorContains(t, schema.Deserialize([]byte{0x80}, target), "non-nil pointer")
 	}
+}
+
+type meters float32
+
+type floatPayload struct {
+	Plain  float32
+	Named  meters
+	Ptr    *float32
+	List   []float32
+	Arr    [2]meters
+	ByKey  map[string]meters
+	Frozen immutable.Slice[meters]
+}
+
+func (floatPayload) Name() string { return "float_payload" }
+
+func TestDeserializeWidensFloat32(t *testing.T) {
+	t.Parallel()
+	schema.Register[floatPayload]()
+
+	// 64-bit floats, as sent by JSON-fed tools and C# double fields.
+	data, err := msgpack.Marshal(map[string]any{
+		"Plain":  2.25,
+		"Named":  2.5,
+		"Ptr":    2.75,
+		"List":   []float64{3.25},
+		"Arr":    []float64{3.5, 3.75},
+		"ByKey":  map[string]float64{"x": 4.25},
+		"Frozen": []float64{4.5},
+	})
+	require.NoError(t, err)
+	var got floatPayload
+	require.NoError(t, schema.Deserialize(data, &got))
+	ptr := float32(2.75)
+	require.Equal(t, floatPayload{
+		Plain:  2.25,
+		Named:  2.5,
+		Ptr:    &ptr,
+		List:   []float32{3.25},
+		Arr:    [2]meters{3.5, 3.75},
+		ByKey:  map[string]meters{"x": 4.25},
+		Frozen: immutable.SliceOf[meters](4.5),
+	}, got)
+
+	data, err = msgpack.Marshal(map[string]any{"Plain": 1e39})
+	require.NoError(t, err)
+	require.ErrorContains(t, schema.Deserialize(data, &got), "overflows float32")
+}
+
+func TestSerializeKeepsFloat32Width(t *testing.T) {
+	t.Parallel()
+	schema.Register[floatPayload]()
+	data, err := schema.Serialize(floatPayload{Plain: 1.5, Named: 2.5})
+	require.NoError(t, err)
+	var raw map[string]any
+	require.NoError(t, msgpack.Unmarshal(data, &raw))
+	assert.IsType(t, float32(0), raw["Plain"])
+	assert.IsType(t, float32(0), raw["Named"])
 }
 
 type unsupportedPayload struct{ Channel chan int }

@@ -32,6 +32,7 @@ type sliceQueue[T Payload] struct {
 
 // NewQueue creates a new command queue with an initial buffer capacity.
 func NewQueue[T Payload]() Queue {
+	schema.Register[T]()
 	return &sliceQueue[T]{
 		commands: make([]Command, 0, initialQueueCapacity),
 	}
