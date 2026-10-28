@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -139,25 +140,43 @@ func commandNumber(v json.Number, schema map[string]any) (any, error) {
 		n, err := strconv.ParseFloat(v.String(), 64)
 		return n, eris.Wrap(err, "invalid floating point number")
 	}
+	text, err := integerText(v.String())
+	if err != nil {
+		return nil, err
+	}
 	if format, ok := schema["format"].(string); ok {
 		if bits, unsigned := integerFormat(format); bits != 0 {
 			if unsigned {
-				n, err := strconv.ParseUint(v.String(), 10, bits)
+				n, err := strconv.ParseUint(text, 10, bits)
 				return n, eris.Wrapf(err, "invalid %s integer", format)
 			}
-			n, err := strconv.ParseInt(v.String(), 10, bits)
+			n, err := strconv.ParseInt(text, 10, bits)
 			return n, eris.Wrapf(err, "invalid %s integer", format)
 		}
 	}
-	if strings.HasPrefix(v.String(), "-") {
-		n, err := strconv.ParseInt(v.String(), 10, 64)
+	if strings.HasPrefix(text, "-") {
+		n, err := strconv.ParseInt(text, 10, 64)
 		return n, eris.Wrap(err, "integer outside signed 64-bit range")
 	}
-	if n, err := strconv.ParseInt(v.String(), 10, 64); err == nil {
+	if n, err := strconv.ParseInt(text, 10, 64); err == nil {
 		return n, nil
 	}
-	n, err := strconv.ParseUint(v.String(), 10, 64)
+	n, err := strconv.ParseUint(text, 10, 64)
 	return n, eris.Wrap(err, "integer outside unsigned 64-bit range")
+}
+
+// integerText rewrites a whole number written with a fraction or exponent, such as 1.0 or 1e3, as
+// plain digits. JSON Schema counts these as integers, so they pass validation and must encode. The
+// parse is exact: anything that would round, such as 1.0000000000000000001, is rejected.
+func integerText(s string) (string, error) {
+	if !strings.ContainsAny(s, ".eE") {
+		return s, nil
+	}
+	f, _, err := big.ParseFloat(s, 10, 256, big.ToZero)
+	if err != nil || f.Acc() != big.Exact || !f.IsInt() {
+		return "", eris.Errorf("%s is not an integer", s)
+	}
+	return f.Text('f', 0), nil
 }
 
 // integerFormat enforces native ranges without rounded JSON Schema bounds.

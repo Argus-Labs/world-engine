@@ -1,6 +1,7 @@
 package schema_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
@@ -109,6 +110,34 @@ func TestSerializeKeepsFloat32Width(t *testing.T) {
 	require.NoError(t, msgpack.Unmarshal(data, &raw))
 	assert.IsType(t, float32(0), raw["Plain"])
 	assert.IsType(t, float32(0), raw["Named"])
+}
+
+// percent decodes itself and rejects negative values.
+type percent float32
+
+func (p *percent) DecodeMsgpack(d *msgpack.Decoder) error {
+	f, err := d.DecodeFloat32()
+	if err != nil {
+		return err
+	}
+	if f < 0 {
+		return errors.New("negative percent")
+	}
+	*p = percent(f)
+	return nil
+}
+
+type percentPayload struct{ Share percent }
+
+func (percentPayload) Name() string { return "percent_payload" }
+
+func TestRegisterKeepsCustomFloat32Decoder(t *testing.T) {
+	t.Parallel()
+	schema.Register[percentPayload]()
+	data, err := msgpack.Marshal(map[string]any{"Share": float32(-1)})
+	require.NoError(t, err)
+	var got percentPayload
+	require.ErrorContains(t, schema.Deserialize(data, &got), "negative percent")
 }
 
 type unsupportedPayload struct{ Channel chan int }

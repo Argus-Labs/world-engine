@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"encoding"
 	"fmt"
 	"math"
 	"reflect"
@@ -63,7 +64,8 @@ func Register[T any]() {
 // registerFloat32Types gives every float32 type in t, including named ones such as
 // `type Meters float32`, the decoder below. msgpack matches registered decoders by exact type, so
 // each named type needs its own registration. It walks unexported fields too, to reach the element
-// type of an immutable.Slice.
+// type of an immutable.Slice. A type that decodes itself keeps its own decoder, since a registered
+// one would take precedence over it.
 func registerFloat32Types(t reflect.Type, seen map[reflect.Type]bool) {
 	if seen[t] {
 		return
@@ -71,7 +73,9 @@ func registerFloat32Types(t reflect.Type, seen map[reflect.Type]bool) {
 	seen[t] = true
 	switch t.Kind() { //nolint:exhaustive // Other kinds cannot contain a float32.
 	case reflect.Float32:
-		msgpack.Register(reflect.Zero(t).Interface(), nil, decodeFloat32)
+		if !decodesItself(t) {
+			msgpack.Register(reflect.Zero(t).Interface(), nil, decodeFloat32)
+		}
 	case reflect.Pointer, reflect.Slice, reflect.Array:
 		registerFloat32Types(t.Elem(), seen)
 	case reflect.Map:
@@ -82,6 +86,15 @@ func registerFloat32Types(t reflect.Type, seen map[reflect.Type]bool) {
 			registerFloat32Types(f.Type, seen)
 		}
 	}
+}
+
+// decodesItself reports whether msgpack would decode t through one of its own methods.
+func decodesItself(t reflect.Type) bool {
+	p := reflect.PointerTo(t)
+	return p.Implements(reflect.TypeFor[msgpack.CustomDecoder]()) ||
+		p.Implements(reflect.TypeFor[msgpack.Unmarshaler]()) ||
+		p.Implements(reflect.TypeFor[encoding.BinaryUnmarshaler]()) ||
+		p.Implements(reflect.TypeFor[encoding.TextUnmarshaler]())
 }
 
 // decodeFloat32 accepts any MessagePack number into a float32. Clients without a 32-bit float, such
