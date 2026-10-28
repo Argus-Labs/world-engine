@@ -44,6 +44,33 @@ func BuildGameServices(cfg *Config) []Builder {
 	return services
 }
 
+// PlatformServices lists the pulled-image containers StartPlatform runs: NATS, the
+// auto project DB unless a config_db service replaces it, and image-kind
+// [[services]]. Source-built services are built and deployed separately.
+func PlatformServices(cfg *Config) []Service {
+	svcs := []Service{NATS(cfg)}
+	if NeedsAutoProjectDB(cfg.WorldToml) {
+		svcs = append(svcs, ProjectDBService(cfg))
+	}
+	for _, gs := range cfg.WorldToml.Services {
+		if !gs.IsBuiltFromSource() {
+			svcs = append(svcs, GameServiceFromConfig(cfg, gs))
+		}
+	}
+	return svcs
+}
+
+// PlatformImageRefs is PlatformServices' images, for callers that pull by ref.
+// Docker does not pull on ContainerCreate, so these are pulled before StartPlatform.
+func PlatformImageRefs(cfg *Config) []string {
+	svcs := PlatformServices(cfg)
+	refs := make([]string, 0, len(svcs))
+	for _, s := range svcs {
+		refs = append(refs, s.Image)
+	}
+	return refs
+}
+
 // GameServiceFromConfig builds the docker service for one [[services]] entry.
 // Image-kind entries run a pulled image; path-kind entries ride the Cardinal shard
 // build pipeline, which selects them by their build target (see IsCardinalService).

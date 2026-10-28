@@ -296,3 +296,53 @@ func TestBuildGameServicesPreservesDeclarationOrder(t *testing.T) {
 		t.Fatalf("expected second service %q, got %q", "rampage-meta-service", name)
 	}
 }
+
+func TestPlatformServices(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		services []worldtoml.GameService
+		want     []string // container names
+	}{
+		{
+			name: "shards only: NATS and the auto project DB",
+			want: []string{"rampage-nats", "rampage-db"},
+		},
+		{
+			name: "image-kind service included, source-built excluded",
+			services: []worldtoml.GameService{
+				{ID: "redis", Image: "redis:7"},
+				{ID: "meta", Path: "services/meta/cmd"},
+			},
+			want: []string{"rampage-nats", "rampage-db", "rampage-redis-service"},
+		},
+		{
+			name: "config_db service replaces the auto project DB",
+			services: []worldtoml.GameService{
+				{ID: "postgres", Image: "postgres:14", ConfigDB: true},
+				{ID: "meta", Path: "services/meta/cmd"},
+			},
+			want: []string{"rampage-nats", "rampage-postgres-service"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := &Config{Project: "rampage", WorldToml: worldtoml.Config{Project: "rampage", Services: tc.services}}
+			svcs := PlatformServices(cfg)
+			names := make([]string, 0, len(svcs))
+			images := make([]string, 0, len(svcs))
+			for _, s := range svcs {
+				names = append(names, s.Name)
+				images = append(images, s.Image)
+			}
+			if !slices.Equal(names, tc.want) {
+				t.Fatalf("PlatformServices = %v, want %v", names, tc.want)
+			}
+			if got := PlatformImageRefs(cfg); !slices.Equal(got, images) {
+				t.Fatalf("PlatformImageRefs = %v, want the service images %v", got, images)
+			}
+		})
+	}
+}

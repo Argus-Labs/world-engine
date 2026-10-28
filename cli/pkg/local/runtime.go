@@ -78,16 +78,7 @@ func (r *Runtime) StartPlatform(ctx context.Context, step func(string)) error {
 	if err := r.docker.EnsureNetwork(ctx, service.NetworkName(r.project())); err != nil {
 		return err
 	}
-	var svcs []service.Service
-	svcs = append(svcs, service.NATS(r.cfg))
-	if service.NeedsAutoProjectDB(r.cfg.WorldToml) {
-		svcs = append(svcs, service.ProjectDBService(r.cfg))
-	}
-	for _, gs := range r.cfg.WorldToml.Services {
-		if !gs.IsBuiltFromSource() {
-			svcs = append(svcs, service.GameServiceFromConfig(r.cfg, gs))
-		}
-	}
+	svcs := service.PlatformServices(r.cfg)
 	// Recreate so a changed world.toml (image, env, ports) takes effect; volumes stay.
 	names := make([]string, 0, len(svcs))
 	for _, s := range svcs {
