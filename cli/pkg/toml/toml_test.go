@@ -422,6 +422,100 @@ func TestLoad_NegativePoolSize_DefaultsToOne(t *testing.T) {
 	require.Equal(t, 1, cfg.Shards[0].PoolSize)
 }
 
+// TestLoad_HugePoolSize_ReturnsError reproduces the reported OOM: a mistyped
+// pool_size (e.g. an extra-zero typo like 100000000000) used to reach expandPools
+// and fatal-crash the process with "runtime: out of memory" inside
+// make([]Shard, 0, total). The upper bound in validate now rejects it with a
+// normal config error naming the field before any allocation happens.
+func TestLoad_HugePoolSize_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "game"
+	pool_size = 100000000000
+	`
+
+	_, err := toml.Load(strings.NewReader(sample))
+	require.Error(t, err)
+	// The error must name the offending field and shard so the user can fix it,
+	// mirroring the tick_rate / resources validation messages.
+	require.Contains(t, err.Error(), "shards[0]")
+	require.Contains(t, err.Error(), "game")
+	require.Contains(t, err.Error(), "pool_size")
+	require.Contains(t, err.Error(), "100000000000")
+	require.Contains(t, err.Error(), "exceeds maximum")
+}
+
+// TestLoad_PoolSizeAboveMax_ReturnsError checks one above the per-shard cap, so
+// it exercises the exact boundary the > comparison turns on (an accidental >=
+// would also wrongly reject pool_size == maxShardPoolSize, covered below).
+func TestLoad_PoolSizeAboveMax_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "game"
+	pool_size = 101
+	`
+
+	_, err := toml.Load(strings.NewReader(sample))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "shards[0] (game) pool_size 101 exceeds maximum of 100")
+}
+
+// TestLoad_PoolSizeAtMax_Allowed is the boundary test for the upper bound: a
+// pool_size exactly at the cap (100) is valid and must expand normally. An
+// accidental >= in the comparison would wrongly reject this. Mirrors the
+// TestLoad_LimitsEqualRequests_Allowed boundary style.
+func TestLoad_PoolSizeAtMax_Allowed(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "game"
+	pool_size = 100
+	`
+
+	cfg, err := toml.Load(strings.NewReader(sample))
+	require.NoError(t, err)
+	require.Len(t, cfg.Shards, 100)
+	require.Equal(t, "game", cfg.Shards[0].InstanceID)
+	require.Equal(t, "game-2", cfg.Shards[1].InstanceID)
+	require.Equal(t, "game-100", cfg.Shards[99].InstanceID)
+	for i := range cfg.Shards {
+		require.Equal(t, 1, cfg.Shards[i].PoolSize, "shard %d", i)
+	}
+}
+
+// TestLoad_TotalPoolSizeAboveMax_ReturnsError exercises expandPools' total
+// guard: each shard's pool_size is at or below the per-shard cap, so the
+// per-shard check passes, but their sum exceeds the total instance cap and
+// expandPools rejects it before pre-allocating. 11 shards at the per-shard max
+// (100) -> total 1100 > 1024.
+func TestLoad_TotalPoolSizeAboveMax_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	var b strings.Builder
+	b.WriteString("organization = \"argus\"\nproject = \"rampage\"\n")
+	for i := range 11 {
+		fmt.Fprintf(&b, "[[shards]]\nid = \"s%d\"\npool_size = 100\n", i)
+	}
+
+	_, err := toml.Load(strings.NewReader(b.String()))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "total expanded shard instances 1100 exceeds maximum of 1024")
+	require.Contains(t, err.Error(), "reduce pool_size across shards")
+	// It must be the total error, not a per-shard error.
+	require.NotContains(t, err.Error(), "pool_size 100 exceeds maximum")
+}
+
 func TestLoad_ShardIDWithSpecialCharacters_ReturnsError(t *testing.T) {
 	t.Parallel()
 
