@@ -17,16 +17,14 @@ import (
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
 )
 
-// fakeContainerClient is a stand-in dockerContainerClient for unit-testing the
-// readiness loop without a running daemon. ContainerInspect returns each state
-// in states in order, repeating the last on subsequent calls; inspectFn, when
-// set, overrides states entirely. It is safe for concurrent use, though
-// waitContainerReady polls from a single goroutine.
+// fakeContainerClient returns states[i] (and restartCounts[i]) on the i-th inspect,
+// repeating the last entry; inspectFn overrides both.
 type fakeContainerClient struct {
-	mu        sync.Mutex
-	states    []*container.State
-	inspectFn func() (client.ContainerInspectResult, error)
-	calls     int
+	mu            sync.Mutex
+	states        []*container.State
+	restartCounts []int
+	inspectFn     func() (client.ContainerInspectResult, error)
+	calls         int
 }
 
 func (f *fakeContainerClient) ContainerInspect(
@@ -40,20 +38,20 @@ func (f *fakeContainerClient) ContainerInspect(
 	if f.inspectFn != nil {
 		return f.inspectFn()
 	}
+	idx := f.calls - 1
 	var st *container.State
 	if len(f.states) > 0 {
-		idx := f.calls - 1
-		if idx >= len(f.states) {
-			idx = len(f.states) - 1
-		}
-		st = f.states[idx]
+		st = f.states[min(idx, len(f.states)-1)]
 	}
-	return client.ContainerInspectResult{Container: container.InspectResponse{State: st}}, nil
+	restarts := 0
+	if len(f.restartCounts) > 0 {
+		restarts = f.restartCounts[min(idx, len(f.restartCounts)-1)]
+	}
+	return client.ContainerInspectResult{
+		Container: container.InspectResponse{State: st, RestartCount: restarts},
+	}, nil
 }
 
-// state builders modeling the Docker states waitContainerReady branches on.
-// A restart-policy crash loop reports "restarting" (never "exited"); on some
-// daemons Running stays true throughout that window, so both variants exist.
 func restartingState(exitCode int) *container.State {
 	return &container.State{Status: container.StateRestarting, Running: true, Restarting: true, ExitCode: exitCode}
 }
@@ -100,26 +98,22 @@ func createdState() *container.State {
 	return &container.State{Status: container.StateCreated, Running: false}
 }
 
-// TestWaitForReady pins the crash-loop fast-fail fix and its non-regressions.
-// Before the fix, a crash-looping unless-stopped container (every platform
-// container) reported "restarting" — never "exited" — and stayed Running=true on
-// some daemons, so the exited fast-fail was dead code: probe-based services
-// (NATS/ReadyURL, Postgres/healthcheck) hung for the full readyTimeout, and a
-// probe-less service hit the switch's default and was declared ready instantly.
 func TestWaitForReady(t *testing.T) {
 	t.Parallel()
 
 	const (
-		poll      = 10 * time.Millisecond // fast, deterministic ticks
+		poll      = 10 * time.Millisecond
 		svcName   = "demo-svc"
 		waitCtx   = 500 * time.Millisecond // bounds the "keep waiting" cases
-		fastMax   = 1 * time.Second        // fast-fail/ready must return well under this
+		fastMax   = 1 * time.Second
 		waitMax   = 3 * time.Second
-		callerCtx = 10 * time.Second // upper bound for the fast-fail/ready cases
+		callerCtx = 10 * time.Second
 	)
+	looping := []int{crashLoopRestarts}
 
 	cases := map[string]struct {
 		states         []*container.State
+		restartCounts  []int
 		inspectFn      func() (client.ContainerInspectResult, error)
 		readyURLStatus int // 0 = no ReadyURL; >0 = spin an httptest server returning it
 		ctxWithin      time.Duration
@@ -127,155 +121,136 @@ func TestWaitForReady(t *testing.T) {
 		wantErrSub     string
 		wantNoErrSub   string
 		wantLogCount   int
-		wantCalls      int // 0 = don't assert; >0 = assert exactly that many inspect calls
+		wantCalls      int // 0 = don't assert
 		maxElapsed     time.Duration
 	}{
-		// --- THE FIX: crash-looping restart-policy containers fail fast ---
+		// crash loops (restart policy) fail fast once crashLoopRestarts is reached
 		"CrashLoopFailsFast_ProbeLessService": {
-			// A probe-less service crash-looping must NOT be declared ready.
-			states:       []*container.State{restartingState(2)},
-			ctxWithin:    callerCtx,
-			wantErrSub:   "exited with code 2",
-			wantNoErrSub: "timeout waiting",
-			wantLogCount: 1,
-			wantCalls:    1,
-			maxElapsed:   fastMax,
+			states:        []*container.State{restartingState(2)},
+			restartCounts: looping,
+			ctxWithin:     callerCtx,
+			wantErrSub:    "crash-looping: 3 restarts, last exit code 2",
+			wantNoErrSub:  "timeout waiting",
+			wantLogCount:  1,
+			wantCalls:     1,
+			maxElapsed:    fastMax,
 		},
 		"CrashLoopFailsFast_ReadyURLService": {
-			// NATS-style: while dead the ReadyURL never answers, so it used to hang.
 			states:         []*container.State{restartingState(127)},
+			restartCounts:  looping,
 			readyURLStatus: http.StatusServiceUnavailable,
 			ctxWithin:      callerCtx,
-			wantErrSub:     "exited with code 127",
+			wantErrSub:     "crash-looping: 3 restarts, last exit code 127",
 			wantNoErrSub:   "timeout waiting",
 			wantLogCount:   1,
 			wantCalls:      1,
 			maxElapsed:     fastMax,
 		},
 		"CrashLoopFailsFast_HealthcheckService": {
-			// Postgres-style: a healthcheck can never succeed while dead.
-			states:       []*container.State{restartingWithHealth(137, container.Starting)},
-			ctxWithin:    callerCtx,
-			wantErrSub:   "exited with code 137",
-			wantNoErrSub: "timeout waiting",
-			wantLogCount: 1,
-			wantCalls:    1,
-			maxElapsed:   fastMax,
+			states:        []*container.State{restartingWithHealth(137, container.Starting)},
+			restartCounts: looping,
+			ctxWithin:     callerCtx,
+			wantErrSub:    "crash-looping: 3 restarts, last exit code 137",
+			wantNoErrSub:  "timeout waiting",
+			wantLogCount:  1,
+			wantCalls:     1,
+			maxElapsed:    fastMax,
 		},
 		"CrashLoopRunningFalseAlsoFailsFast": {
-			// Daemons that set Running=false during the restart window.
-			states:       []*container.State{restartingNotRunningState(5)},
-			ctxWithin:    callerCtx,
-			wantErrSub:   "exited with code 5",
-			wantLogCount: 1,
-			wantCalls:    1,
-			maxElapsed:   fastMax,
+			states: []*container.State{restartingNotRunningState(5)}, restartCounts: looping,
+			ctxWithin: callerCtx, wantErrSub: "crash-looping: 3 restarts, last exit code 5",
+			wantLogCount: 1, wantCalls: 1, maxElapsed: fastMax,
+		},
+		"ExitZeroLoopAlsoFailsFast": {
+			states:        []*container.State{restartingState(0)},
+			restartCounts: looping,
+			ctxWithin:     callerCtx,
+			wantErrSub:    "crash-looping: 3 restarts, last exit code 0",
+			wantNoErrSub:  "timeout waiting",
+			wantLogCount:  1,
+			wantCalls:     1,
+			maxElapsed:    fastMax,
+		},
+		"ProbeLessSlowCrashIsCaught": {
+			// Runs ~2 polls, dies, restarts: never stable for stablePolls, fails at the threshold.
+			states: []*container.State{
+				runningNoProbeState(), runningNoProbeState(), restartingState(1),
+				runningNoProbeState(), runningNoProbeState(), restartingState(1),
+				runningNoProbeState(), runningNoProbeState(), restartingState(1),
+			},
+			restartCounts: []int{0, 0, 1, 1, 1, 2, 2, 2, 3},
+			ctxWithin:     callerCtx,
+			wantErrSub:    "crash-looping: 3 restarts, last exit code 1",
+			wantNoErrSub:  "timeout waiting",
+			wantLogCount:  1,
+			wantCalls:     9,
+			maxElapsed:    fastMax,
 		},
 
-		// --- no regression: the original exited fast-fail (no restart policy) ---
+		// restarts below the threshold keep waiting, and may still become ready
+		"RestartingBelowThresholdKeepsWaiting": {
+			states: []*container.State{restartingState(1)}, restartCounts: []int{crashLoopRestarts - 1},
+			ctxWithin: waitCtx, wantErrSub: "timeout waiting", wantNoErrSub: "crash-looping",
+			wantLogCount: 1, maxElapsed: waitMax,
+		},
+		"TransientRestartThenHealthyIsReady": {
+			states: []*container.State{restartingState(1), healthyState()}, restartCounts: []int{1, 1},
+			ctxWithin: callerCtx, wantReady: true, wantLogCount: 0, wantCalls: 2, maxElapsed: fastMax,
+		},
+
+		// no restart policy: exited fails fast with any code
 		"ExitedNonzeroFailsFast": {
-			states:       []*container.State{exitedState(1)},
-			ctxWithin:    callerCtx,
-			wantErrSub:   "exited with code 1",
-			wantLogCount: 1,
-			wantCalls:    1,
-			maxElapsed:   fastMax,
+			states:    []*container.State{exitedState(1)},
+			ctxWithin: callerCtx, wantErrSub: "exited with code 1", wantLogCount: 1, wantCalls: 1, maxElapsed: fastMax,
 		},
 		"ExitedZeroFailsFastToo": {
-			// The exited branch is unchanged: any exit code fails fast (the
-			// ExitCode != 0 gate applies only to the restarting branch).
-			states:       []*container.State{exitedState(0)},
-			ctxWithin:    callerCtx,
-			wantErrSub:   "exited with code 0",
-			wantLogCount: 1,
-			wantCalls:    1,
-			maxElapsed:   fastMax,
+			states:    []*container.State{exitedState(0)},
+			ctxWithin: callerCtx, wantErrSub: "exited with code 0", wantLogCount: 1, wantCalls: 1, maxElapsed: fastMax,
 		},
 
-		// --- gate: a clean (exit 0) restart loop is not mistaken for a crash ---
-		"RestartingZeroExitDoesNotFailFast": {
-			states:       []*container.State{restartingState(0)},
-			ctxWithin:    waitCtx,
-			wantErrSub:   "timeout waiting",
-			wantNoErrSub: "exited with code",
-			wantLogCount: 1,
-			maxElapsed:   waitMax,
-		},
-
-		// --- no regression: happy paths stay ready ---
+		// happy paths
 		"HealthyHealthcheckIsReady": {
-			states:       []*container.State{healthyState()},
-			ctxWithin:    callerCtx,
-			wantReady:    true,
-			wantLogCount: 0,
-			wantCalls:    1,
-			maxElapsed:   fastMax,
+			states:    []*container.State{healthyState()},
+			ctxWithin: callerCtx, wantReady: true, wantLogCount: 0, wantCalls: 1, maxElapsed: fastMax,
 		},
-		"ProbeLessRunningIsReady": {
-			states:       []*container.State{runningNoProbeState()},
-			ctxWithin:    callerCtx,
-			wantReady:    true,
-			wantLogCount: 0,
-			wantCalls:    1,
-			maxElapsed:   fastMax,
+		"ProbeLessRunningIsReadyAfterStablePolls": {
+			states:    []*container.State{runningNoProbeState()},
+			ctxWithin: callerCtx, wantReady: true, wantLogCount: 0, wantCalls: stablePolls, maxElapsed: fastMax,
 		},
 		"ReadyURLReadyIsReady": {
-			states:         []*container.State{runningNoProbeState()},
-			readyURLStatus: http.StatusOK,
-			ctxWithin:      callerCtx,
-			wantReady:      true,
-			wantLogCount:   0,
-			wantCalls:      1,
-			maxElapsed:     fastMax,
+			states: []*container.State{runningNoProbeState()}, readyURLStatus: http.StatusOK,
+			ctxWithin: callerCtx, wantReady: true, wantLogCount: 0, wantCalls: 1, maxElapsed: fastMax,
 		},
 
-		// --- no false-ready while still starting / probe unhealthy ---
+		// still starting or probe unhealthy: keep waiting
 		"StartingHealthcheckWaitsThenTimesOut": {
-			states:       []*container.State{startingHealthState()},
-			ctxWithin:    waitCtx,
-			wantErrSub:   "timeout waiting",
-			wantNoErrSub: "exited with code",
-			wantLogCount: 1,
-			maxElapsed:   waitMax,
+			states:    []*container.State{startingHealthState()},
+			ctxWithin: waitCtx, wantErrSub: "timeout waiting", wantNoErrSub: "exited with code",
+			wantLogCount: 1, maxElapsed: waitMax,
 		},
 		"ReadyURLNotReadyWaitsThenTimesOut": {
-			states:         []*container.State{runningNoProbeState()},
-			readyURLStatus: http.StatusServiceUnavailable,
-			ctxWithin:      waitCtx,
-			wantErrSub:     "timeout waiting",
-			wantNoErrSub:   "exited with code",
-			wantLogCount:   1,
-			maxElapsed:     waitMax,
+			states: []*container.State{runningNoProbeState()}, readyURLStatus: http.StatusServiceUnavailable,
+			ctxWithin: waitCtx, wantErrSub: "timeout waiting", wantNoErrSub: "exited with code",
+			wantLogCount: 1, maxElapsed: waitMax,
 		},
 		"NilStateWaitsThenTimesOut": {
-			states:       []*container.State{nil},
-			ctxWithin:    waitCtx,
-			wantErrSub:   "timeout waiting",
-			wantNoErrSub: "exited with code",
-			wantLogCount: 1,
-			maxElapsed:   waitMax,
+			states:    []*container.State{nil},
+			ctxWithin: waitCtx, wantErrSub: "timeout waiting", wantNoErrSub: "exited with code",
+			wantLogCount: 1, maxElapsed: waitMax,
 		},
 		"CreatedStateWaitsThenTimesOut": {
-			// A freshly-created container must not be mistaken for an exited crash.
-			states:       []*container.State{createdState()},
-			ctxWithin:    waitCtx,
-			wantErrSub:   "timeout waiting",
-			wantNoErrSub: "exited with code",
-			wantLogCount: 1,
-			maxElapsed:   waitMax,
+			states:    []*container.State{createdState()},
+			ctxWithin: waitCtx, wantErrSub: "timeout waiting", wantNoErrSub: "exited with code",
+			wantLogCount: 1, maxElapsed: waitMax,
 		},
 
-		// --- inspect errors propagate immediately (no logging) ---
+		// inspect errors propagate immediately, without the debug dump
 		"InspectErrorPropagates": {
 			inspectFn: func() (client.ContainerInspectResult, error) {
 				return client.ContainerInspectResult{}, errors.New("daemon unreachable")
 			},
-			ctxWithin:    callerCtx,
-			wantErrSub:   "daemon unreachable",
-			wantNoErrSub: "timeout waiting",
-			wantLogCount: 0,
-			wantCalls:    1,
-			maxElapsed:   fastMax,
+			ctxWithin: callerCtx, wantErrSub: "daemon unreachable", wantNoErrSub: "timeout waiting",
+			wantLogCount: 0, wantCalls: 1, maxElapsed: fastMax,
 		},
 	}
 
@@ -283,7 +258,9 @@ func TestWaitForReady(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			fake := &fakeContainerClient{states: tc.states, inspectFn: tc.inspectFn}
+			fake := &fakeContainerClient{
+				states: tc.states, restartCounts: tc.restartCounts, inspectFn: tc.inspectFn,
+			}
 			svc := service.Service{Name: svcName}
 			if tc.readyURLStatus > 0 {
 				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -311,21 +288,20 @@ func TestWaitForReady(t *testing.T) {
 			if tc.wantReady {
 				require.NoError(t, err, "expected %s to become ready", svcName)
 			} else {
-				require.Error(t, err, "expected an error; nil would silently declare a dead container ready")
-				require.Contains(t, err.Error(), tc.wantErrSub, "error content")
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.wantErrSub)
 				if tc.wantNoErrSub != "" {
-					assert.NotContains(t, err.Error(), tc.wantNoErrSub, "must not contain")
+					assert.NotContains(t, err.Error(), tc.wantNoErrSub)
 				}
 			}
 			require.Len(t, logged, tc.wantLogCount, "logDebug call count")
 			if len(logged) > 0 {
-				assert.Equal(t, svcName, logged[0], "logDebug received the container name")
+				assert.Equal(t, svcName, logged[0])
 			}
 			if tc.wantCalls > 0 {
-				assert.Equal(t, tc.wantCalls, fake.calls, "inspect call count (one poll then a decision)")
+				assert.Equal(t, tc.wantCalls, fake.calls, "inspect call count")
 			}
-			assert.True(t, elapsed < tc.maxElapsed,
-				"returned in %s, expected < %s (fast-fail vs %s hang)", elapsed, tc.maxElapsed, readyTimeout)
+			assert.Less(t, elapsed, tc.maxElapsed)
 		})
 	}
 }
