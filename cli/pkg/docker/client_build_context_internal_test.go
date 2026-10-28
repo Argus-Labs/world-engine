@@ -5,12 +5,14 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	crand "crypto/rand"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -167,5 +169,116 @@ func TestBufferedBuildContextStopsOnCancel(t *testing.T) {
 	_, err := bufferedBuildContext(ctx, writeTestContext(t), nil, df, testDockerfileName)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+}
+
+// TestBufferedBuildContextDoesNotBufferGzipInMemory guards the OOM that
+// killed `world build` / `world reload` on asset-heavy projects: the gzipped
+// context must NOT accumulate in an unbounded, doubling [bytes.Buffer]. The
+// regression reserved ~3x the compressed context in process memory; a 400 MB
+// incompressible working tree was measured at ~1.2 GB reserved.
+//
+// We pack a single cryptographically-random file (gzip cannot compress it,
+// matching real game-asset data) and assert the bytes allocated during the
+// pack stay within 1.5x the input. The old in-memory sink grew the
+// [bytes.Buffer] holding the gzip output through repeated doublings, whose
+// cumulative allocations ran ~2.3x the input; the temp-file sink writes to
+// disk and reads the result back in a single pre-sized allocation. TotalAlloc
+// is monotonic and GC-independent, so the assertion is deterministic. This test
+// does not run in parallel: it measures process-wide allocations.
+func TestBufferedBuildContextDoesNotBufferGzipInMemory(t *testing.T) {
+	const blobSize = 16 << 20 // 16 MiB of incompressible project content
+
+	root := t.TempDir()
+	blob := make([]byte, blobSize)
+	if _, err := crand.Read(blob); err != nil {
+		t.Fatalf("read random bytes: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "assets.bin"), blob, 0o600); err != nil {
+		t.Fatalf("write assets.bin: %v", err)
+	}
+
+	// Everything above is allocated before the snapshot, so it is excluded
+	// from the TotalAlloc delta below. The pack reads assets.bin from disk,
+	// not from the in-memory blob, so holding the slice does not perturb the
+	// measurement.
+	df := []byte("FROM scratch\n")
+
+	var before runtime.MemStats
+	runtime.ReadMemStats(&before)
+
+	buildContext, err := bufferedBuildContext(context.Background(), root, nil, df, testDockerfileName)
+	if err != nil {
+		t.Fatalf("pack: %v", err)
+	}
+
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
+
+	// gzip cannot compress random data, so the gzipped context carries
+	// essentially the whole blob; otherwise this test isn't exercising the
+	// OOM path it guards.
+	if lowerBound := blobSize * 9 / 10; len(buildContext) < lowerBound {
+		t.Fatalf(
+			"gzipped context = %d bytes, want >= %d; the incompressible blob was "+
+				"compressed, so the memory bound isn't being exercised",
+			len(buildContext), lowerBound,
+		)
+	}
+
+	alloc := int64(after.TotalAlloc - before.TotalAlloc)
+	// Temp-file sink: ~1x blob (single read-back) plus a few hundred KiB of
+	// tar/gzip overhead. Doubling [bytes.Buffer] sink: ~2.3x blob. 1.5x
+	// separates the two with margin on both sides.
+	if alloc > int64(blobSize)*3/2 {
+		t.Fatalf(
+			"allocated %d bytes during pack, want <= %d (1.5x blob): the gzipped "+
+				"context was buffered in a doubling in-memory buffer",
+			alloc, int64(blobSize)*3/2,
+		)
+	}
+}
+
+// TestBufferedBuildContextLeavesNoTempFile asserts the temp file that backs the
+// gzipped context is removed on both the success and the cancellation paths,
+// so `world build` does not leak disk proportional to project size.
+func TestBufferedBuildContextLeavesNoTempFile(t *testing.T) {
+	// Isolate the temp dir so we can assert the build-context file is removed
+	// without racing other tests or stale /tmp entries. t.Setenv requires the
+	// test (and its subtests) not to run in parallel.
+	isolated := t.TempDir()
+	t.Setenv("TMPDIR", isolated)
+
+	root := writeTestContext(t)
+	df := []byte("FROM scratch\n")
+
+	t.Run("success", func(t *testing.T) {
+		if _, err := bufferedBuildContext(context.Background(), root, nil, df, testDockerfileName); err != nil {
+			t.Fatal(err)
+		}
+		requireNoBuildContextTemp(t, isolated)
+	})
+
+	t.Run("cancelled", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		_, err := bufferedBuildContext(ctx, root, nil, df, testDockerfileName)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("err = %v, want context.Canceled", err)
+		}
+		requireNoBuildContextTemp(t, isolated)
+	})
+}
+
+func requireNoBuildContextTemp(t *testing.T, dir string) {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read isolated temp dir: %v", err)
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "cardinal-build-context-") {
+			t.Errorf("temp build-context file not removed: %s", e.Name())
+		}
 	}
 }

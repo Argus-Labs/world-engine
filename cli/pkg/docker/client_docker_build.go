@@ -259,10 +259,26 @@ func (c *Client) readDockerignore(ctx context.Context, rootDir string) ([]string
 	return ignorefile.ReadAll(f)
 }
 
-// bufferedBuildContext returns the build context gzipped in memory. Sent as a [bytes.Reader],
-// a known-length body makes the Docker client send Content-Length rather than a chunked
-// upload, which some daemons (Namespace CI runners) reject with "invalid tar header".
-// dockerd detects gzip. BestSpeed: the body only crosses a local socket or a CI hop.
+// bufferedBuildContext returns the project's build context gzipped into memory.
+//
+// The context is gzipped to a temp file, then read back into the returned
+// []byte. The temp file bounds the *packing* peak: the tar stream comes out
+// of an [io.Pipe], and gzip now writes to disk, so the process only holds pipe
+// buffers' worth of RAM regardless of project size. An earlier version
+// gzipped straight into a [bytes.Buffer] whose doubling made an
+// incompressible, asset-heavy working tree reserve ~3x the compressed
+// context and OOM-kill `world build` / `world reload`.
+//
+// The body is read back into memory because the moby client only sets
+// Content-Length -- which some daemons (Namespace CI runners) require, since
+// they reject chunked /build uploads with "invalid tar header" -- for
+// [bytes.Reader], [bytes.Buffer], or [strings.Reader]. Passing the temp file
+// ([os.File]) or an [io.SectionReader] silently switches to chunked upload
+// and re-breaks those runners, so a file-backed reader cannot replace the
+// in-memory body. The temp file nonetheless keeps the packing peak bounded;
+// the read-back is pre-sized (no doubling), so upload-time RAM is ~1x the
+// compressed context. dockerd detects gzip. BestSpeed: the body only crosses
+// a local socket or a CI hop.
 func bufferedBuildContext(
 	ctx context.Context,
 	rootDir string,
@@ -276,18 +292,41 @@ func bufferedBuildContext(
 	}
 	defer func() { _ = src.Close() }()
 
-	var buf bytes.Buffer
-	gz, err := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
+	tmp, err := os.CreateTemp("", "cardinal-build-context-*.tar.gz")
+	if err != nil {
+		return nil, eris.Wrap(err, "create build context temp file")
+	}
+	tmpPath := tmp.Name()
+	defer func() { _ = os.Remove(tmpPath) }()
+	defer func() { _ = tmp.Close() }()
+
+	gz, err := gzip.NewWriterLevel(tmp, gzip.BestSpeed)
 	if err != nil {
 		return nil, err
 	}
 	if _, err := io.Copy(gz, ctxReader{ctx, src}); err != nil {
+		_ = gz.Close()
 		return nil, err
 	}
 	if err := gz.Close(); err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+
+	// Measure the gzipped length (Seek to end), rewind, and read the context
+	// back in a single pre-sized allocation so it can be sent as a
+	// [bytes.Reader] to preserve Content-Length (see the doc comment).
+	size, err := tmp.Seek(0, io.SeekEnd)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
+		return nil, err
+	}
+	buf := make([]byte, size)
+	if _, err := io.ReadFull(tmp, buf); err != nil {
+		return nil, err
+	}
+	return buf, nil
 }
 
 // ctxReader stops a long read once ctx is cancelled, so Ctrl+C does not wait for a large
