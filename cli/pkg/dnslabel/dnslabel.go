@@ -7,6 +7,10 @@ package dnslabel
 
 import "strings"
 
+// MaxLength is the maximum length of a DNS-1123 label (RFC 1035 / Kubernetes label
+// rule): names that become k8s objects must be 1–63 characters.
+const MaxLength = 63
+
 // Sanitize lowercases value and collapses every run of non-alphanumeric
 // characters into a single hyphen, trimming leading and trailing hyphens. Empty
 // or all-invalid input yields "unknown" so a path segment is never empty.
@@ -31,7 +35,8 @@ func Sanitize(value string) string {
 	return "unknown"
 }
 
-// IsCanonical reports whether value is already in Sanitize's normal form.
+// IsCanonical reports whether value is already in Sanitize's normal form and does
+// not exceed MaxLength, i.e. it is a valid DNS-1123 label.
 func IsCanonical(value string) bool {
-	return Sanitize(value) == value
+	return len(value) <= MaxLength && Sanitize(value) == value
 }
