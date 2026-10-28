@@ -8,6 +8,8 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/rotisserie/eris"
+
+	"github.com/argus-labs/world-engine/cli/pkg/local"
 )
 
 const (
@@ -90,6 +92,12 @@ func getShardLogsHandler(
 	for _, name := range containers {
 		logs, err := collectContainerLogs(ctx, args.Project, name, tail)
 		if err != nil {
+			// The project lock is not held across the status call and these fetches, so a
+			// concurrent reload can remove one instance; the others' logs are still useful.
+			if len(containers) > 1 && eris.Is(err, local.ErrContainerNotFound) {
+				fmt.Fprintf(&b, "=== %s ===\n(container not found; removed since the status check)\n", name)
+				continue
+			}
 			return GetShardLogsOutput{}, err
 		}
 		if len(containers) > 1 {

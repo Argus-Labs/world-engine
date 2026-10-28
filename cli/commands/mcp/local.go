@@ -305,12 +305,8 @@ func resolveInstanceName(ctx context.Context, project, shardID, instanceName str
 	return "", errInstanceNotFound(status, shardID, instanceName)
 }
 
-// containerLogReader is the slice of *local.Runtime the one-shot MCP log path
-// uses: it streams one container's logs and reports whether the container
-// exists. Defined as an interface so the one-shot path — which must error on a
-// missing container rather than silently return empty logs — can be unit-tested
-// with a fake runtime, independent of the streaming TUI's swallow of the same
-// case (pumpLogs treats "no such container" as an empty stream for `world logs`).
+// containerLogReader is the slice of *local.Runtime the one-shot log path uses, so it
+// can be unit-tested with a fake.
 type containerLogReader interface {
 	StreamContainerLogs(
 		ctx context.Context,
@@ -318,7 +314,6 @@ type containerLogReader interface {
 		opts worldstatus.LogsOpts,
 		out chan<- worldstatus.LogLine,
 	) error
-	ContainerExists(ctx context.Context, name string) (bool, error)
 }
 
 // collectContainerLogs returns up to tail lines of one container, following it for logWindow.
@@ -331,41 +326,36 @@ func collectContainerLogs(ctx context.Context, project, container string, tail i
 	return collectContainerLogsFrom(ctx, rt, container, tail)
 }
 
-// collectContainerLogsFrom is the testable core of collectContainerLogs: it
-// fetches a container's logs from rt. A container that does not exist is an
-// error ("container %q not found; is the world running?"), not an empty stream
-// — the one-shot MCP consumer must be able to tell a missing container from
-// one that simply produced no logs. The existence check and the stream both run
-// under the per-project lock held by started.reader, so a same-project MCP
-// lifecycle call cannot remove the container between them; only an external
-// `docker rm` in the narrow stream window can still race.
+// collectContainerLogsFrom fetches one container's logs. Unlike the TUI stream, a
+// missing container is an error (local.ErrContainerNotFound), not empty output: a
+// one-shot caller cannot otherwise tell it from a container that logged nothing.
 func collectContainerLogsFrom(
 	ctx context.Context,
 	rt containerLogReader,
 	container string,
 	tail int32,
 ) (string, error) {
-	exists, err := rt.ContainerExists(ctx, container)
-	if err != nil {
-		return "", eris.Wrapf(err, "check container %s", container)
-	}
-	if !exists {
-		return "", eris.Errorf("container %q not found; is the world running?", container)
-	}
 	out := make(chan worldstatus.LogLine, 256)
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- rt.StreamContainerLogs(ctx, container, worldstatus.LogsOpts{TailLines: tail, FollowWindow: logWindow}, out)
+		errCh <- rt.StreamContainerLogs(ctx, container, worldstatus.LogsOpts{
+			TailLines: tail, FollowWindow: logWindow, MissingIsError: true,
+		}, out)
 	}()
 	var b strings.Builder
 	for line := range out {
 		b.WriteString(line.Line)
 		b.WriteByte('\n')
 	}
-	if err := <-errCh; err != nil && !eris.Is(err, context.Canceled) && !eris.Is(err, context.DeadlineExceeded) {
+	err := <-errCh
+	switch {
+	case err == nil, eris.Is(err, context.Canceled), eris.Is(err, context.DeadlineExceeded):
+		return b.String(), nil
+	case eris.Is(err, local.ErrContainerNotFound):
+		return "", eris.Wrap(err, container)
+	default:
 		return "", eris.Wrapf(err, "logs for %s", container)
 	}
-	return b.String(), nil
 }
 
 // deployedShard is one shard container's world identity, read from its labels.

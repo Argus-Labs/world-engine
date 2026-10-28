@@ -41,4 +41,7 @@ type LogsOpts struct {
 	TailLines     int32
 	Previous      bool          // remote only
 	FollowWindow  time.Duration // stop following after this long; 0 follows until ctx ends
+	// MissingIsError ends a local single-container stream with local.ErrContainerNotFound
+	// instead of treating a missing container as an empty stream.
+	MissingIsError bool
 }
