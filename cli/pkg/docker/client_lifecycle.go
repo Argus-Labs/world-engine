@@ -91,8 +91,9 @@ func (c *Client) waitForReady(ctx context.Context, svc service.Service) error {
 // waitContainerReady polls cli every poll until the container is ready, ctx ends,
 // or it crashed. Platform containers run unless-stopped, so a boot crash shows as
 // "restarting" with a growing RestartCount rather than "exited"; crashLoopRestarts
-// restarts fail the wait with the last exit code. logDebug dumps state and tail
-// logs on failure; it is a callback so the loop can run against a fake daemon.
+// restarts since this start fail the wait, with the exit code when a poll saw it.
+// Shards (policy "no") are started without this wait. logDebug dumps state and
+// tail logs on failure; it is a callback so the loop can run against a fake daemon.
 func waitContainerReady(
 	ctx context.Context,
 	cli dockerContainerClient,
@@ -102,6 +103,12 @@ func waitContainerReady(
 ) error {
 	ctx, cancel := context.WithTimeout(ctx, readyTimeout)
 	defer cancel()
+	// RestartCount is lifetime and survives a start of an existing container, so count from here.
+	res, err := cli.ContainerInspect(ctx, svc.Name, client.ContainerInspectOptions{})
+	if err != nil {
+		return eris.Wrapf(err, "inspect %s", svc.Name)
+	}
+	base := res.Container.RestartCount
 	ticker := time.NewTicker(poll)
 	defer ticker.Stop()
 	stable, lastRestarts := 0, 0
@@ -120,8 +127,8 @@ func waitContainerReady(
 			if st == nil {
 				continue
 			}
-			restarts := res.Container.RestartCount
-			if !st.Running || st.Restarting || st.ExitCode != 0 {
+			restarts := res.Container.RestartCount - base
+			if st.Restarting {
 				lastExit, sawExit = st.ExitCode, true
 			}
 			if restarts >= crashLoopRestarts {

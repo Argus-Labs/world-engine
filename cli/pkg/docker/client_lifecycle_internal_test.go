@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -18,7 +19,8 @@ import (
 )
 
 // fakeContainerClient returns states[i] (and restartCounts[i]) on the i-th inspect,
-// repeating the last entry; inspectFn overrides both.
+// repeating the last entry; inspectFn overrides both. The first inspect is the
+// restart-count baseline.
 type fakeContainerClient struct {
 	mu            sync.Mutex
 	states        []*container.State
@@ -54,10 +56,6 @@ func (f *fakeContainerClient) ContainerInspect(
 
 func restartingState(exitCode int) *container.State {
 	return &container.State{Status: container.StateRestarting, Running: true, Restarting: true, ExitCode: exitCode}
-}
-
-func restartingNotRunningState(exitCode int) *container.State {
-	return &container.State{Status: container.StateRestarting, Running: false, Restarting: true, ExitCode: exitCode}
 }
 
 func restartingWithHealth(exitCode int, health container.HealthStatus) *container.State {
@@ -109,7 +107,8 @@ func TestWaitForReady(t *testing.T) {
 		waitMax   = 3 * time.Second
 		callerCtx = 10 * time.Second
 	)
-	looping := []int{crashLoopRestarts}
+	looping := []int{0, crashLoopRestarts} // baseline, then the threshold on the first poll
+	crash := func(code int) string { return fmt.Sprintf("crash-looping: 3 restarts, last exit code %d", code) }
 
 	cases := map[string]struct {
 		states         []*container.State
@@ -121,7 +120,7 @@ func TestWaitForReady(t *testing.T) {
 		wantErrSub     string
 		wantNoErrSub   string
 		wantLogCount   int
-		wantCalls      int // 0 = don't assert
+		wantCalls      int // 0 = don't assert; includes the baseline inspect
 		maxElapsed     time.Duration
 	}{
 		// crash loops (restart policy) fail fast once crashLoopRestarts is reached
@@ -129,10 +128,10 @@ func TestWaitForReady(t *testing.T) {
 			states:        []*container.State{restartingState(2)},
 			restartCounts: looping,
 			ctxWithin:     callerCtx,
-			wantErrSub:    "crash-looping: 3 restarts, last exit code 2",
+			wantErrSub:    crash(2),
 			wantNoErrSub:  "timeout waiting",
 			wantLogCount:  1,
-			wantCalls:     1,
+			wantCalls:     2,
 			maxElapsed:    fastMax,
 		},
 		"CrashLoopFailsFast_ReadyURLService": {
@@ -140,108 +139,168 @@ func TestWaitForReady(t *testing.T) {
 			restartCounts:  looping,
 			readyURLStatus: http.StatusServiceUnavailable,
 			ctxWithin:      callerCtx,
-			wantErrSub:     "crash-looping: 3 restarts, last exit code 127",
+			wantErrSub:     crash(127),
 			wantNoErrSub:   "timeout waiting",
 			wantLogCount:   1,
-			wantCalls:      1,
+			wantCalls:      2,
 			maxElapsed:     fastMax,
 		},
 		"CrashLoopFailsFast_HealthcheckService": {
 			states:        []*container.State{restartingWithHealth(137, container.Starting)},
 			restartCounts: looping,
 			ctxWithin:     callerCtx,
-			wantErrSub:    "crash-looping: 3 restarts, last exit code 137",
+			wantErrSub:    crash(137),
 			wantNoErrSub:  "timeout waiting",
 			wantLogCount:  1,
-			wantCalls:     1,
+			wantCalls:     2,
 			maxElapsed:    fastMax,
-		},
-		"CrashLoopRunningFalseAlsoFailsFast": {
-			states: []*container.State{restartingNotRunningState(5)}, restartCounts: looping,
-			ctxWithin: callerCtx, wantErrSub: "crash-looping: 3 restarts, last exit code 5",
-			wantLogCount: 1, wantCalls: 1, maxElapsed: fastMax,
 		},
 		"ExitZeroLoopAlsoFailsFast": {
 			states:        []*container.State{restartingState(0)},
 			restartCounts: looping,
 			ctxWithin:     callerCtx,
-			wantErrSub:    "crash-looping: 3 restarts, last exit code 0",
+			wantErrSub:    crash(0),
 			wantNoErrSub:  "timeout waiting",
 			wantLogCount:  1,
-			wantCalls:     1,
+			wantCalls:     2,
+			maxElapsed:    fastMax,
+		},
+		"CrashLoopSeenRunningReportsNoExitCode": {
+			// Docker reset ExitCode to 0 on the relaunch; the message must not invent one.
+			states:        []*container.State{runningNoProbeState()},
+			restartCounts: looping,
+			ctxWithin:     callerCtx,
+			wantErrSub:    "crash-looping: 3 restarts",
+			wantNoErrSub:  "last exit code",
+			wantLogCount:  1,
+			wantCalls:     2,
 			maxElapsed:    fastMax,
 		},
 		"ProbeLessSlowCrashIsCaught": {
 			// Runs ~2 polls, dies, restarts: never stable for stablePolls, fails at the threshold.
 			states: []*container.State{
+				runningNoProbeState(),
 				runningNoProbeState(), runningNoProbeState(), restartingState(1),
 				runningNoProbeState(), runningNoProbeState(), restartingState(1),
 				runningNoProbeState(), runningNoProbeState(), restartingState(1),
 			},
-			restartCounts: []int{0, 0, 1, 1, 1, 2, 2, 2, 3},
+			restartCounts: []int{0, 0, 0, 1, 1, 1, 2, 2, 2, 3},
 			ctxWithin:     callerCtx,
-			wantErrSub:    "crash-looping: 3 restarts, last exit code 1",
+			wantErrSub:    crash(1),
 			wantNoErrSub:  "timeout waiting",
 			wantLogCount:  1,
-			wantCalls:     9,
+			wantCalls:     10,
 			maxElapsed:    fastMax,
 		},
 
 		// restarts below the threshold keep waiting, and may still become ready
 		"RestartingBelowThresholdKeepsWaiting": {
-			states: []*container.State{restartingState(1)}, restartCounts: []int{crashLoopRestarts - 1},
-			ctxWithin: waitCtx, wantErrSub: "timeout waiting", wantNoErrSub: "crash-looping",
-			wantLogCount: 1, maxElapsed: waitMax,
+			states:        []*container.State{restartingState(1)},
+			restartCounts: []int{0, crashLoopRestarts - 1},
+			ctxWithin:     waitCtx,
+			wantErrSub:    "timeout waiting",
+			wantNoErrSub:  "crash-looping",
+			wantLogCount:  1,
+			maxElapsed:    waitMax,
 		},
 		"TransientRestartThenHealthyIsReady": {
-			states: []*container.State{restartingState(1), healthyState()}, restartCounts: []int{1, 1},
-			ctxWithin: callerCtx, wantReady: true, wantLogCount: 0, wantCalls: 2, maxElapsed: fastMax,
+			states:        []*container.State{restartingState(1), restartingState(1), healthyState()},
+			restartCounts: []int{0, 1, 1},
+			ctxWithin:     callerCtx,
+			wantReady:     true,
+			wantLogCount:  0,
+			wantCalls:     3,
+			maxElapsed:    fastMax,
+		},
+		"StaleRestartCountFromEarlierRunIsIgnored": {
+			// A started-not-recreated container keeps its lifetime count; only new restarts count.
+			states:        []*container.State{healthyState()},
+			restartCounts: []int{5},
+			ctxWithin:     callerCtx,
+			wantReady:     true,
+			wantLogCount:  0,
+			wantCalls:     2,
+			maxElapsed:    fastMax,
 		},
 
 		// no restart policy: exited fails fast with any code
 		"ExitedNonzeroFailsFast": {
-			states:    []*container.State{exitedState(1)},
-			ctxWithin: callerCtx, wantErrSub: "exited with code 1", wantLogCount: 1, wantCalls: 1, maxElapsed: fastMax,
+			states:       []*container.State{exitedState(1)},
+			ctxWithin:    callerCtx,
+			wantErrSub:   "exited with code 1",
+			wantLogCount: 1,
+			wantCalls:    2,
+			maxElapsed:   fastMax,
 		},
 		"ExitedZeroFailsFastToo": {
-			states:    []*container.State{exitedState(0)},
-			ctxWithin: callerCtx, wantErrSub: "exited with code 0", wantLogCount: 1, wantCalls: 1, maxElapsed: fastMax,
+			states:       []*container.State{exitedState(0)},
+			ctxWithin:    callerCtx,
+			wantErrSub:   "exited with code 0",
+			wantLogCount: 1,
+			wantCalls:    2,
+			maxElapsed:   fastMax,
 		},
 
 		// happy paths
 		"HealthyHealthcheckIsReady": {
-			states:    []*container.State{healthyState()},
-			ctxWithin: callerCtx, wantReady: true, wantLogCount: 0, wantCalls: 1, maxElapsed: fastMax,
+			states:       []*container.State{healthyState()},
+			ctxWithin:    callerCtx,
+			wantReady:    true,
+			wantLogCount: 0,
+			wantCalls:    2,
+			maxElapsed:   fastMax,
 		},
 		"ProbeLessRunningIsReadyAfterStablePolls": {
-			states:    []*container.State{runningNoProbeState()},
-			ctxWithin: callerCtx, wantReady: true, wantLogCount: 0, wantCalls: stablePolls, maxElapsed: fastMax,
+			states:       []*container.State{runningNoProbeState()},
+			ctxWithin:    callerCtx,
+			wantReady:    true,
+			wantLogCount: 0,
+			wantCalls:    1 + stablePolls,
+			maxElapsed:   fastMax,
 		},
 		"ReadyURLReadyIsReady": {
-			states: []*container.State{runningNoProbeState()}, readyURLStatus: http.StatusOK,
-			ctxWithin: callerCtx, wantReady: true, wantLogCount: 0, wantCalls: 1, maxElapsed: fastMax,
+			states:         []*container.State{runningNoProbeState()},
+			readyURLStatus: http.StatusOK,
+			ctxWithin:      callerCtx,
+			wantReady:      true,
+			wantLogCount:   0,
+			wantCalls:      2,
+			maxElapsed:     fastMax,
 		},
 
 		// still starting or probe unhealthy: keep waiting
 		"StartingHealthcheckWaitsThenTimesOut": {
-			states:    []*container.State{startingHealthState()},
-			ctxWithin: waitCtx, wantErrSub: "timeout waiting", wantNoErrSub: "exited with code",
-			wantLogCount: 1, maxElapsed: waitMax,
+			states:       []*container.State{startingHealthState()},
+			ctxWithin:    waitCtx,
+			wantErrSub:   "timeout waiting",
+			wantNoErrSub: "exited with code",
+			wantLogCount: 1,
+			maxElapsed:   waitMax,
 		},
 		"ReadyURLNotReadyWaitsThenTimesOut": {
-			states: []*container.State{runningNoProbeState()}, readyURLStatus: http.StatusServiceUnavailable,
-			ctxWithin: waitCtx, wantErrSub: "timeout waiting", wantNoErrSub: "exited with code",
-			wantLogCount: 1, maxElapsed: waitMax,
+			states:         []*container.State{runningNoProbeState()},
+			readyURLStatus: http.StatusServiceUnavailable,
+			ctxWithin:      waitCtx,
+			wantErrSub:     "timeout waiting",
+			wantNoErrSub:   "exited with code",
+			wantLogCount:   1,
+			maxElapsed:     waitMax,
 		},
 		"NilStateWaitsThenTimesOut": {
-			states:    []*container.State{nil},
-			ctxWithin: waitCtx, wantErrSub: "timeout waiting", wantNoErrSub: "exited with code",
-			wantLogCount: 1, maxElapsed: waitMax,
+			states:       []*container.State{nil},
+			ctxWithin:    waitCtx,
+			wantErrSub:   "timeout waiting",
+			wantNoErrSub: "exited with code",
+			wantLogCount: 1,
+			maxElapsed:   waitMax,
 		},
 		"CreatedStateWaitsThenTimesOut": {
-			states:    []*container.State{createdState()},
-			ctxWithin: waitCtx, wantErrSub: "timeout waiting", wantNoErrSub: "exited with code",
-			wantLogCount: 1, maxElapsed: waitMax,
+			states:       []*container.State{createdState()},
+			ctxWithin:    waitCtx,
+			wantErrSub:   "timeout waiting",
+			wantNoErrSub: "exited with code",
+			wantLogCount: 1,
+			maxElapsed:   waitMax,
 		},
 
 		// inspect errors propagate immediately, without the debug dump
@@ -249,8 +308,12 @@ func TestWaitForReady(t *testing.T) {
 			inspectFn: func() (client.ContainerInspectResult, error) {
 				return client.ContainerInspectResult{}, errors.New("daemon unreachable")
 			},
-			ctxWithin: callerCtx, wantErrSub: "daemon unreachable", wantNoErrSub: "timeout waiting",
-			wantLogCount: 0, wantCalls: 1, maxElapsed: fastMax,
+			ctxWithin:    callerCtx,
+			wantErrSub:   "daemon unreachable",
+			wantNoErrSub: "timeout waiting",
+			wantLogCount: 0,
+			wantCalls:    1,
+			maxElapsed:   fastMax,
 		},
 	}
 

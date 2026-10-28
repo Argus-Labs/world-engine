@@ -5,6 +5,7 @@ package docker
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -37,6 +38,7 @@ func TestWaitForReady_CrashLoopRealDaemon(t *testing.T) {
 	require.NoError(t, dc.PullImages(pullCtx, []service.Service{{Image: "alpine:3"}}, nil))
 
 	unlessStopped := container.RestartPolicy{Name: "unless-stopped"}
+	run := strconv.FormatInt(time.Now().UnixNano()%1_000_000, 36) // concurrent runs must not share names
 	cases := map[string]struct {
 		cmd        []string
 		policy     container.RestartPolicy
@@ -70,7 +72,7 @@ func TestWaitForReady_CrashLoopRealDaemon(t *testing.T) {
 			// Dies after the first poll saw it running; must not be declared ready.
 			cmd:        []string{"sh", "-c", "sleep 1.5; exit 5"},
 			policy:     unlessStopped,
-			wantErrSub: "crash-looping: 3 restarts, last exit code 5",
+			wantErrSub: "crash-looping", // the exit code is only seen when a poll lands mid-restart
 			maxWait:    60 * time.Second,
 		},
 		"NoPolicy_ExitedNonzero_FailsFast": {
@@ -101,7 +103,7 @@ func TestWaitForReady_CrashLoopRealDaemon(t *testing.T) {
 			t.Parallel()
 
 			svc := service.Service{
-				Name:          "wc-int-" + strings.ToLower(strings.ReplaceAll(name, "_", "-")),
+				Name:          "wc-int-" + run + "-" + strings.ToLower(strings.ReplaceAll(name, "_", "-")),
 				Image:         "alpine:3",
 				Cmd:           tc.cmd,
 				RestartPolicy: tc.policy,
