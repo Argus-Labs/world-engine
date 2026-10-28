@@ -44,12 +44,19 @@ type Runtime struct {
 	// servesEdge is set once ListenEdge bound the proxy: this process owns the routes
 	// and refreshes them itself, so CheckLayout has nothing to guard.
 	servesEdge bool
+	// edgeAddr is the address ListenEdge binds. Defaults to EdgeAddr; tests override it
+	// via SetEdgeAddr to bind a free port instead of contending for the real edge port.
+	edgeAddr string
 }
 
 // New wraps a Docker client opened on the project (docker.WithClient).
 func New(dc *docker.Client, cfg *service.Config) *Runtime {
-	return &Runtime{docker: dc, cfg: cfg, edge: edge.New()}
+	return &Runtime{docker: dc, cfg: cfg, edge: edge.New(), edgeAddr: EdgeAddr}
 }
+
+// SetEdgeAddr overrides the address ListenEdge binds, for tests that need a free port
+// instead of the real EdgeAddr (which a developer's running world may already hold).
+func (r *Runtime) SetEdgeAddr(addr string) { r.edgeAddr = addr }
 
 // Config returns the project config the runtime was opened on.
 func (r *Runtime) Config() *service.Config { return r.cfg }
@@ -521,7 +528,7 @@ func (r *Runtime) ServeEdge(ctx context.Context) error {
 // ListenEdge binds EdgeAddr, so a taken port is an error here rather than in a goroutine
 // later. The runtime then owns the routes (see CheckLayout).
 func (r *Runtime) ListenEdge(ctx context.Context) (net.Listener, error) {
-	ln, err := r.edge.Listen(ctx, EdgeAddr)
+	ln, err := r.edge.Listen(ctx, r.edgeAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -533,6 +540,9 @@ func (r *Runtime) ListenEdge(ctx context.Context) (net.Listener, error) {
 func (r *Runtime) ServeEdgeOn(ctx context.Context, ln net.Listener) error {
 	return r.edge.ServeListener(ctx, ln)
 }
+
+// ReleaseEdge undoes ListenEdge so CheckLayout guards reloads again.
+func (r *Runtime) ReleaseEdge() { r.servesEdge = false }
 
 // CheckLayout refuses a reload whose world.toml no longer matches the running world. An
 // instance's host port is its position in world.toml, and the edge in `world start`

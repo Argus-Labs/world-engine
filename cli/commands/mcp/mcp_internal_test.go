@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -23,7 +24,9 @@ import (
 	"github.com/argus-labs/world-engine/pkg/micro"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 
+	"github.com/argus-labs/world-engine/cli/pkg/docker"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
+	"github.com/argus-labs/world-engine/cli/pkg/local"
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 	"github.com/argus-labs/world-engine/cli/pkg/worldstatus"
 )
@@ -1129,4 +1132,67 @@ func TestWorldsLockSerializesPerProject(t *testing.T) {
 	if overlaps != 0 {
 		t.Fatalf("%d tool calls overlapped on one project", overlaps)
 	}
+}
+
+// stopEdge must release the cached runtime's recorded edge ownership, restoring
+// CheckLayout's reload guard. While the MCP process serves the edge, CheckLayout
+// short-circuits (this process owns the routes); after stopEdge it must resume
+// guarding — which, against a dead Docker socket, surfaces as an error rather than
+// the nil a stale servesEdge=true would keep returning. The cached runtime stays,
+// so a later MCP start re-binds the edge quickly.
+func TestStopEdge_ReleasesEdgeOwnershipOfCachedRuntime(t *testing.T) {
+	t.Setenv("DOCKER_HOST", "unix:///nonexistent/docker.sock")
+	cfg := &service.Config{Project: "demo-edge", WorldToml: worldtoml.Config{Project: "demo-edge"}}
+	dc, err := docker.NewClient(cfg, &docker.ClientOptions{Logger: slog.Default()})
+	require.NoError(t, err)
+	defer dc.Close()
+	rt := local.New(dc, cfg)
+
+	w := &worlds{
+		runtimes: map[string]*local.Runtime{"demo-edge": rt},
+		edges:    map[string]*edgeRun{},
+		locks:    map[string]*sync.Mutex{},
+	}
+
+	// Bind a free port instead of the real EdgeAddr: a developer's running world
+	// may already hold 8080, and skipping there would silently drop the only
+	// end-to-end coverage of stopEdge. SetEdgeAddr keeps the full serveEdge path.
+	rt.SetEdgeAddr("127.0.0.1:0")
+	if err := w.serveEdge(rt); err != nil {
+		t.Fatalf("serveEdge: %v", err)
+	}
+	t.Cleanup(func() { w.stopEdge("demo-edge") })
+
+	// While this process owns the edge, CheckLayout is a no-op (it refreshes its own
+	// routes), even though the Docker socket is dead.
+	require.NoError(t, rt.CheckLayout(context.Background()),
+		"serving edge: CheckLayout must short-circuit")
+	assert.Contains(t, w.edges, "demo-edge", "edge registered while serving")
+
+	// stopEdge tears the edge down and must release ownership on the cached runtime.
+	w.stopEdge("demo-edge")
+
+	assert.NotContains(t, w.edges, "demo-edge", "edge entry removed by stopEdge")
+	_, stillCached := w.runtimes["demo-edge"]
+	assert.True(t, stillCached, "cached runtime must survive stopEdge for a fast restart")
+
+	// The released runtime must now guard: CheckLayout lists containers, which fails
+	// against the dead socket — the regression. With the bug, servesEdge stays true
+	// and this returns nil, letting a later reload misroute silently.
+	assert.Error(t, rt.CheckLayout(context.Background()),
+		"after stopEdge: CheckLayout must resume guarding (no longer short-circuits)")
+}
+
+// A second stopEdge on a project whose edge was already torn down is a harmless
+// no-op: it neither panics nor re-arms the guard, so concurrent or repeated stops
+// (stop then purge, for example) are safe.
+func TestStopEdge_IdempotentWhenNoEdgeServed(t *testing.T) {
+	w := &worlds{
+		runtimes: map[string]*local.Runtime{},
+		edges:    map[string]*edgeRun{},
+		locks:    map[string]*sync.Mutex{},
+	}
+	w.stopEdge("never-started") // no edge entry → no-op
+	w.stopEdge("never-started") // still nothing → no-op
+	assert.NotContains(t, w.edges, "never-started")
 }
