@@ -74,17 +74,32 @@ func (c *BuildCmd) Run(ctx context.Context) error {
 			dash := phasebox.Start(ctx, c.Progress)
 			defer dash.Complete()
 
-			// Only what this command builds: the full list also holds NATS and image-kind services.
-			buildServices := slices.DeleteFunc(slices.Clone(dockerServices), func(s service.Service) bool {
-				return !docker.IsCardinalService(s)
-			})
-			if err := pullBuildDeps(ctx, dash, dockerClient, buildServices, nil); err != nil {
-				return err
-			}
-			if err := buildShardImages(dash.Open("Build"), dockerClient, dockerServices); err != nil {
-				return eris.Wrap(err, "Failed to build Cardinal images")
-			}
-			return nil
+			return buildShards(ctx, dash, dockerClient, dockerServices)
 		},
 	)
+}
+
+// buildShards pulls build dependencies then builds every shard image. BuildKit
+// needs the FROM images already cached, so the pull must precede the build —
+// on a cold Docker cache the build otherwise fails with "no active sessions".
+// Mirrors [world start] and [world reload]; the build path has no platform
+// images, so extraImageRefs is nil. Only Cardinal services get pulled, since
+// the full list also holds NATS and image-kind services that have no FROM
+// image to pre-cache.
+func buildShards(
+	ctx context.Context,
+	dash *phasebox.Dashboard,
+	b shardBuilder,
+	dockerServices []service.Service,
+) error {
+	buildServices := slices.DeleteFunc(slices.Clone(dockerServices), func(s service.Service) bool {
+		return !docker.IsCardinalService(s)
+	})
+	if err := pullBuildDeps(ctx, dash, b, buildServices, nil); err != nil {
+		return err
+	}
+	if err := buildShardImages(dash.Open("Build"), b, dockerServices); err != nil {
+		return eris.Wrap(err, "Failed to build Cardinal images")
+	}
+	return nil
 }
