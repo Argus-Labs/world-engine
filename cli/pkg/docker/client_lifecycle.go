@@ -17,6 +17,12 @@ import (
 const (
 	readyTimeout = 5 * time.Minute
 	probeTimeout = 2 * time.Second
+	// crashLoopRestarts is how many policy restarts during a readiness wait mean a
+	// crash loop. Earlier restarts may be a dependency that was not up yet.
+	crashLoopRestarts = 3
+	// stablePolls is how many consecutive running polls a probe-less container needs
+	// before it counts as ready, so a process that dies after a second is caught.
+	stablePolls = 3
 
 	// ContainerRunning is Docker's running container state.
 	ContainerRunning = "running"
@@ -76,28 +82,68 @@ func (c *Client) StartContainers(ctx context.Context, services []service.Service
 }
 
 // waitForReady blocks until the container's Docker health is "healthy", or its
-// ReadyURL answers, or it is running and declares neither.
+// ReadyURL answers, or it is running and declares neither. It delegates to
+// waitContainerReady, polling the Docker state once per second.
 func (c *Client) waitForReady(ctx context.Context, svc service.Service) error {
+	return waitContainerReady(ctx, c.client, c.logContainerDebugInfo, time.Second, svc)
+}
+
+// waitContainerReady polls cli every poll until the container is ready, ctx ends,
+// or it crashed. Platform containers run unless-stopped, so a boot crash shows as
+// "restarting" with a growing RestartCount rather than "exited"; crashLoopRestarts
+// restarts since this start fail the wait, with the exit code when a poll saw it.
+// Shards (policy "no") are started without this wait. logDebug dumps state and
+// tail logs on failure; it is a callback so the loop can run against a fake daemon.
+func waitContainerReady(
+	ctx context.Context,
+	cli dockerContainerClient,
+	logDebug func(name string),
+	poll time.Duration,
+	svc service.Service,
+) error {
 	ctx, cancel := context.WithTimeout(ctx, readyTimeout)
 	defer cancel()
-	ticker := time.NewTicker(time.Second)
+	// RestartCount is lifetime and survives a start of an existing container, so count from here.
+	res, err := cli.ContainerInspect(ctx, svc.Name, client.ContainerInspectOptions{})
+	if err != nil {
+		return eris.Wrapf(err, "inspect %s", svc.Name)
+	}
+	base := res.Container.RestartCount
+	ticker := time.NewTicker(poll)
 	defer ticker.Stop()
+	stable, lastRestarts := 0, 0
+	lastExit, sawExit := 0, false // Docker resets ExitCode to 0 on each policy restart
 	for {
 		select {
 		case <-ctx.Done():
-			c.logContainerDebugInfo(svc.Name)
+			logDebug(svc.Name)
 			return eris.Wrapf(ctx.Err(), "timeout waiting for %s to become ready", svc.Name)
 		case <-ticker.C:
-			res, err := c.client.ContainerInspect(ctx, svc.Name, client.ContainerInspectOptions{})
+			res, err := cli.ContainerInspect(ctx, svc.Name, client.ContainerInspectOptions{})
 			if err != nil {
 				return eris.Wrapf(err, "inspect %s", svc.Name)
 			}
 			st := res.Container.State
-			if st == nil || !st.Running {
-				if st != nil && st.Status == container.StateExited {
-					c.logContainerDebugInfo(svc.Name)
-					return eris.Errorf("%s exited with code %d", svc.Name, st.ExitCode)
+			if st == nil {
+				continue
+			}
+			restarts := res.Container.RestartCount - base
+			if st.Restarting {
+				lastExit, sawExit = st.ExitCode, true
+			}
+			if restarts >= crashLoopRestarts {
+				logDebug(svc.Name)
+				if sawExit {
+					return eris.Errorf("%s crash-looping: %d restarts, last exit code %d", svc.Name, restarts, lastExit)
 				}
+				return eris.Errorf("%s crash-looping: %d restarts", svc.Name, restarts)
+			}
+			if st.Status == container.StateExited {
+				logDebug(svc.Name)
+				return eris.Errorf("%s exited with code %d", svc.Name, st.ExitCode)
+			}
+			if restarts != lastRestarts || !st.Running || st.Restarting {
+				lastRestarts, stable = restarts, 0
 				continue
 			}
 			switch {
@@ -110,7 +156,9 @@ func (c *Client) waitForReady(ctx context.Context, svc service.Service) error {
 					return nil
 				}
 			default:
-				return nil
+				if stable++; stable >= stablePolls {
+					return nil
+				}
 			}
 		}
 	}
