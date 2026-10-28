@@ -139,12 +139,6 @@ func (w *World) RegisterComponent[T Component]() (ComponentID, error) {
 	return w.state.components.register[T](zero.Name())
 }
 
-// ComponentID returns the ID of a component type registered with RegisterComponent.
-func (w *World) ComponentID[T Component]() (ComponentID, error) {
-	var zero T
-	return w.state.components.lookup(zero.Name(), reflect.TypeFor[T]())
-}
-
 // ComponentIDOf returns the ID of the registered component with c's name and dynamic type.
 // It serves callers that hold a component value rather than a type parameter.
 func (w *World) ComponentIDOf(c Component) (ComponentID, error) {
