@@ -15,7 +15,6 @@ type Outcome uint8
 const (
 	OutcomePass Outcome = iota
 	OutcomeFail
-	OutcomeSkip
 )
 
 // Result is one recorded assertion.
@@ -114,23 +113,6 @@ func (r *Report) Fail(scenario, check string, tick uint64, format string, args .
 	}
 	fmt.Printf("%s %-14s t=%-4d %s\n       -> %s\n",
 		r.paint("31;1", "FAIL"), scenario, tick, check, detail)
-}
-
-// Skip records an assertion that could not run (a precondition was missing).
-// Skips never fail the suite but are always reported, because a silently skipped
-// check is indistinguishable from a passing one otherwise.
-func (r *Report) Skip(scenario, check string, tick uint64, format string, args ...any) {
-	detail := fmt.Sprintf(format, args...)
-	r.tally(scenario).skip++
-	r.results = append(r.results, Result{
-		Scenario: scenario, Check: check, Detail: detail, Tick: tick, Outcome: OutcomeSkip,
-	})
-	if r.tb != nil {
-		r.tb.Helper()
-		r.tb.Logf("SKIP t=%-4d %s (%s)", tick, check, detail)
-		return
-	}
-	fmt.Printf("%s %-14s t=%-4d %s (%s)\n", r.paint("33", "SKIP"), scenario, tick, check, detail)
 }
 
 // Note records a diagnostic observation that is neither pass nor fail. Use it for
