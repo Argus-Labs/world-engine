@@ -11,9 +11,9 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/rotisserie/eris"
 
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
@@ -645,7 +645,7 @@ func (r *Runtime) StreamShardLogs(
 	for _, sh := range instances {
 		byContainer[service.CardinalShardContainerName(r.project(), sh.InstanceID)] = sh
 	}
-	return pumpLogs(ctx, entries, errCh, active, func(e docker.LogEntry) {
+	return pumpLogs(ctx, entries, errCh, active, false, func(e docker.LogEntry) {
 		sh := byContainer[e.Container]
 		line := worldstatus.LogLine{ShardID: sh.ID, InstanceName: sh.InstanceID, Source: e.Container, Line: e.Line}
 		emitLogLine(ctx, out, line, e)
@@ -657,12 +657,14 @@ func (r *Runtime) StreamShardLogs(
 // and returns at once, so errCh and entries are often ready together and a select alone
 // would drop the end of the log — where the panic is. Once every producer has returned
 // nothing writes to entries, so the drain is complete. A producer's error ends the pump
-// early unless the context is already over or the container simply does not exist.
+// early unless the context is already over. A missing container is an empty stream,
+// or ErrContainerNotFound when missingIsError.
 func pumpLogs(
 	ctx context.Context,
 	entries <-chan docker.LogEntry,
 	errCh <-chan error,
 	active int,
+	missingIsError bool,
 	emit func(docker.LogEntry),
 ) error {
 	for active > 0 {
@@ -671,9 +673,19 @@ func pumpLogs(
 			emit(e)
 		case err := <-errCh:
 			active--
-			if err != nil && ctx.Err() == nil && !isNotFound(err) {
-				return err
+			if err == nil {
+				continue
 			}
+			if cerrdefs.IsNotFound(err) {
+				if missingIsError {
+					return ErrContainerNotFound
+				}
+				continue
+			}
+			if ctx.Err() != nil {
+				continue
+			}
+			return err
 		}
 	}
 	for {
@@ -713,16 +725,15 @@ func (r *Runtime) StreamContainerLogs(
 	entries := make(chan docker.LogEntry, 256)
 	errCh := make(chan error, 1)
 	go func() { errCh <- r.docker.StreamContainerLogs(ctx, name, int(opts.TailLines), true, entries) }()
-	// A platform container that was never created (a [[service]] added since start) is an
-	// empty stream, as a missing shard container is above, not an error over the TUI.
-	return pumpLogs(ctx, entries, errCh, 1, func(e docker.LogEntry) {
+	// Over the TUI a platform container that was never created (a [[service]] added since
+	// start) is an empty stream; a one-shot fetch asks for the error instead.
+	return pumpLogs(ctx, entries, errCh, 1, opts.MissingIsError, func(e docker.LogEntry) {
 		emitLogLine(ctx, out, worldstatus.LogLine{InstanceName: name, Source: name, Line: e.Line}, e)
 	})
 }
 
-func isNotFound(err error) bool {
-	return strings.Contains(strings.ToLower(err.Error()), "no such container")
-}
+// ErrContainerNotFound is what a log stream ends with when LogsOpts.MissingIsError is set.
+var ErrContainerNotFound = eris.New("container not found; is the world running?")
 
 // PlatformContainers lists the non-shard containers of the project (nats, db, services), for log pickers.
 func (r *Runtime) PlatformContainers() []string {

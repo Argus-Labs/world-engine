@@ -326,6 +326,17 @@ func resolveInstanceName(ctx context.Context, project, shardID, instanceName str
 	return "", errInstanceNotFound(status, shardID, instanceName)
 }
 
+// containerLogReader is the slice of *local.Runtime the one-shot log path uses, so it
+// can be unit-tested with a fake.
+type containerLogReader interface {
+	StreamContainerLogs(
+		ctx context.Context,
+		name string,
+		opts worldstatus.LogsOpts,
+		out chan<- worldstatus.LogLine,
+	) error
+}
+
 // collectContainerLogs returns up to tail lines of one container, following it for logWindow.
 func collectContainerLogs(ctx context.Context, project, container string, tail int32) (string, error) {
 	rt, done, err := started.reader(project)
@@ -333,18 +344,39 @@ func collectContainerLogs(ctx context.Context, project, container string, tail i
 		return "", err
 	}
 	defer done()
+	return collectContainerLogsFrom(ctx, rt, container, tail)
+}
+
+// collectContainerLogsFrom fetches one container's logs. Unlike the TUI stream, a
+// missing container is an error (local.ErrContainerNotFound), not empty output: a
+// one-shot caller cannot otherwise tell it from a container that logged nothing.
+func collectContainerLogsFrom(
+	ctx context.Context,
+	rt containerLogReader,
+	container string,
+	tail int32,
+) (string, error) {
 	out := make(chan worldstatus.LogLine, 256)
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- rt.StreamContainerLogs(ctx, container, worldstatus.LogsOpts{TailLines: tail, FollowWindow: logWindow}, out)
+		errCh <- rt.StreamContainerLogs(ctx, container, worldstatus.LogsOpts{
+			TailLines: tail, FollowWindow: logWindow, MissingIsError: true,
+		}, out)
 	}()
 	var b strings.Builder
 	for line := range out {
 		b.WriteString(line.Line)
 		b.WriteByte('\n')
 	}
-	if err := <-errCh; err != nil && !eris.Is(err, context.Canceled) && !eris.Is(err, context.DeadlineExceeded) {
+	err := <-errCh
+	switch {
+	case eris.Is(err, local.ErrContainerNotFound):
+		return "", eris.Wrap(err, container)
+	case err != nil:
 		return "", eris.Wrapf(err, "logs for %s", container)
+	case b.Len() == 0 && ctx.Err() != nil:
+		// The stream swallows ctx errors; nothing arrived, so the budget was already spent.
+		return "", eris.Wrapf(ctx.Err(), "logs for %s", container)
 	}
 	return b.String(), nil
 }
