@@ -65,7 +65,7 @@ func (c *Client) PullImages(ctx context.Context, services []service.Service, pro
 			err := c.pullSingleImage(gctx, imageName, platform, func(percent int64) {
 				notify(progress, Progress{Name: imageName, State: StatePulling, Current: percent, Total: 100})
 			})
-			if err != nil {
+			if err = c.cachedOrErr(gctx, imageName, err); err != nil {
 				notify(progress, Progress{Name: imageName, State: StatePulling, Err: itemErr(gctx, err)})
 				return eris.Wrapf(err, "error pulling image %s", imageName)
 			}
@@ -105,7 +105,7 @@ func (c *Client) PullImageRefs(ctx context.Context, refs []string, progress func
 			err := c.pullSingleImage(gctx, ref, ocispec.Platform{}, func(percent int64) {
 				notify(progress, Progress{Name: ref, State: StatePulling, Current: percent, Total: 100})
 			})
-			if err != nil {
+			if err = c.cachedOrErr(gctx, ref, err); err != nil {
 				notify(progress, Progress{Name: ref, State: StatePulling, Err: itemErr(gctx, err)})
 				return eris.Wrapf(err, "error pulling image %s", ref)
 			}
@@ -115,6 +115,19 @@ func (c *Client) PullImageRefs(ctx context.Context, refs []string, progress func
 		})
 	}
 	return g.Wait()
+}
+
+// cachedOrErr downgrades a failed pull to a warning when ref is in the local store:
+// offline, or a local-only ":latest" that needsPull always re-checks.
+func (c *Client) cachedOrErr(ctx context.Context, ref string, pullErr error) error {
+	if pullErr == nil {
+		return nil
+	}
+	if _, err := c.client.ImageInspect(ctx, ref); err != nil {
+		return pullErr
+	}
+	c.logger.WarnContext(ctx, "pull failed, using cached image", "image", ref, "err", pullErr)
+	return nil
 }
 
 // RefsToPull is PullImageRefs' dry run: returns the refs it would actually

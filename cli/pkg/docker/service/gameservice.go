@@ -44,27 +44,29 @@ func BuildGameServices(cfg *Config) []Builder {
 	return services
 }
 
-// PlatformImageRefs lists the image references the platform must pull before its
-// containers can be created: NATS, the auto-provisioned project Postgres (when no
-// config_db [[services]] entry brings its own database), and every image-kind
-// [[services]] entry. Source-built (path-kind) services are excluded — they are
-// built, not pulled, and their build dependencies are pulled separately by the build
-// path.
-//
-// Both the CLI `world start` and the MCP `world_lifecycle` start pull these before
-// StartPlatform, because the Docker API does not auto-pull on container create: a
-// machine whose local store lacks them fails at ContainerCreate with "No such
-// image". Centralizing the list keeps the two paths from drifting on which images a
-// fresh machine needs; PullImageRefs dedupes, so a duplicate is pulled once.
-func PlatformImageRefs(cfg *Config) []string {
-	refs := []string{NATS(cfg).Image}
+// PlatformServices lists the pulled-image containers StartPlatform runs: NATS, the
+// auto project DB unless a config_db service replaces it, and image-kind
+// [[services]]. Source-built services are built and deployed separately.
+func PlatformServices(cfg *Config) []Service {
+	svcs := []Service{NATS(cfg)}
 	if NeedsAutoProjectDB(cfg.WorldToml) {
-		refs = append(refs, ProjectDBService(cfg).Image)
+		svcs = append(svcs, ProjectDBService(cfg))
 	}
 	for _, gs := range cfg.WorldToml.Services {
 		if !gs.IsBuiltFromSource() {
-			refs = append(refs, gs.Image)
+			svcs = append(svcs, GameServiceFromConfig(cfg, gs))
 		}
+	}
+	return svcs
+}
+
+// PlatformImageRefs is PlatformServices' images, for callers that pull by ref.
+// Docker does not pull on ContainerCreate, so these are pulled before StartPlatform.
+func PlatformImageRefs(cfg *Config) []string {
+	svcs := PlatformServices(cfg)
+	refs := make([]string, 0, len(svcs))
+	for _, s := range svcs {
+		refs = append(refs, s.Image)
 	}
 	return refs
 }

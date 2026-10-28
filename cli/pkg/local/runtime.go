@@ -61,18 +61,6 @@ func ShardAPIURL(project, instance string) string {
 	return APIEndpoint + "/" + edge.RouteKey(project, instance)
 }
 
-// PullPlatformImages pulls the platform container images (NATS, the auto project
-// Postgres when enabled, and image-kind [[services]] images) so a start on a machine
-// where they are not already in the local Docker store does not fail at
-// ContainerCreate with "No such image". The Docker API does not auto-pull on
-// container create, so a missing image must be pulled before StartPlatform. progress
-// reports per-image pull progress (nil for the non-interactive MCP path); see
-// PullImageRefs for the cache and ":latest" re-pull policy. The refs come from
-// service.PlatformImageRefs, shared with `world start`, so the two paths cannot drift.
-func (r *Runtime) PullPlatformImages(ctx context.Context, progress func(docker.Progress)) error {
-	return r.docker.PullImageRefs(ctx, service.PlatformImageRefs(r.cfg), progress)
-}
-
 // StartPlatform creates the network and starts NATS, the project DB and image-kind
 // [[services]], waiting for each to be ready. step reports progress labels.
 func (r *Runtime) StartPlatform(ctx context.Context, step func(string)) error {
@@ -83,16 +71,7 @@ func (r *Runtime) StartPlatform(ctx context.Context, step func(string)) error {
 	if err := r.docker.EnsureNetwork(ctx, service.NetworkName(r.project())); err != nil {
 		return err
 	}
-	var svcs []service.Service
-	svcs = append(svcs, service.NATS(r.cfg))
-	if service.NeedsAutoProjectDB(r.cfg.WorldToml) {
-		svcs = append(svcs, service.ProjectDBService(r.cfg))
-	}
-	for _, gs := range r.cfg.WorldToml.Services {
-		if !gs.IsBuiltFromSource() {
-			svcs = append(svcs, service.GameServiceFromConfig(r.cfg, gs))
-		}
-	}
+	svcs := service.PlatformServices(r.cfg)
 	// Recreate so a changed world.toml (image, env, ports) takes effect; volumes stay.
 	names := make([]string, 0, len(svcs))
 	for _, s := range svcs {
