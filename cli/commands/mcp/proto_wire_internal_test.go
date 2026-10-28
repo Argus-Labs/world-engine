@@ -140,6 +140,31 @@ func TestEncodeCommandPayloadNativeIntegerRanges(t *testing.T) {
 	}
 }
 
+func TestEncodeCommandPayloadIntegralNumberForms(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		format, number string
+		want           any
+	}{
+		{"int8", "1.0", int64(1)},
+		{"int8", "1e2", int64(100)},
+		{"int8", "-2.0E1", int64(-20)},
+		{"uint64", "1.8446744073709551615e19", uint64(18446744073709551615)},
+	} {
+		schema := testObjectSchema("N", map[string]any{"type": "integer", "format": tc.format})
+		blob, err := encodeCommandPayload(schema, `{"N":`+tc.number+`}`)
+		require.NoError(t, err, tc.number)
+		var target struct{ N any }
+		require.NoError(t, msgpack.Unmarshal(blob, &target))
+		assert.EqualValues(t, tc.want, target.N, tc.number)
+	}
+	for _, number := range []string{"1.28e2", "1e400", "1.0000000000000000000000000000000000000000000000000000000000000000000000000000001"} {
+		schema := testObjectSchema("N", map[string]any{"type": "integer", "format": "int8"})
+		_, err := encodeCommandPayload(schema, `{"N":`+number+`}`)
+		require.Error(t, err, number)
+	}
+}
+
 func TestCommandAndStateImmutableSlice(t *testing.T) {
 	t.Parallel()
 	schema := testObjectSchema(
@@ -182,11 +207,14 @@ func TestEncodeCommandPayloadScalarTypes(t *testing.T) {
 			Ratio   *float64
 		}
 		require.NoError(t, msgpack.Unmarshal(blob, &target))
-		if target.Ratio != nil {
-			assert.Equal(t, 1.5, *target.Ratio)
-			assert.Equal(t, "hi", target.Name)
-			assert.True(t, target.Enabled)
+		if payload == `{"Ratio":null}` {
+			require.Nil(t, target.Ratio)
+			continue
 		}
+		require.NotNil(t, target.Ratio)
+		assert.Equal(t, 1.5, *target.Ratio)
+		assert.Equal(t, "hi", target.Name)
+		assert.True(t, target.Enabled)
 	}
 }
 
