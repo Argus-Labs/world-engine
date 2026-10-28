@@ -3,11 +3,14 @@ package local
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/moby/moby/api/types/network"
+
+	cerrdefs "github.com/containerd/errdefs"
 
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
@@ -133,15 +136,28 @@ func TestPumpLogsSurfacesAProducerError(t *testing.T) {
 	if err == nil || err.Error() != "boom" {
 		t.Fatalf("err = %v, want the producer's error", err)
 	}
-	errCh <- errors.New("Error: No such container: x")
+	notFound := fmt.Errorf("logs for x: %w", cerrdefs.ErrNotFound)
+	errCh <- notFound
 	errCh <- nil
 	if err := pumpLogs(context.Background(), entries, errCh, 2, false, func(docker.LogEntry) {}); err != nil {
 		t.Fatalf("a missing container is an empty stream, got %v", err)
 	}
-	errCh <- errors.New("Error: No such container: x")
+	errCh <- notFound
 	err = pumpLogs(context.Background(), entries, errCh, 1, true, func(docker.LogEntry) {})
 	if !errors.Is(err, ErrContainerNotFound) {
 		t.Fatalf("with missingIsError a missing container is ErrContainerNotFound, got %v", err)
+	}
+	// Still reported once the context is over, unlike other producer errors.
+	done, cancel := context.WithCancel(context.Background())
+	cancel()
+	errCh <- notFound
+	err = pumpLogs(done, entries, errCh, 1, true, func(docker.LogEntry) {})
+	if !errors.Is(err, ErrContainerNotFound) {
+		t.Fatalf("missing container with ctx over = %v, want ErrContainerNotFound", err)
+	}
+	errCh <- errors.New("boom")
+	if err := pumpLogs(done, entries, errCh, 1, true, func(docker.LogEntry) {}); err != nil {
+		t.Fatalf("other errors are swallowed once ctx is over, got %v", err)
 	}
 }
 

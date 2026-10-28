@@ -11,9 +11,9 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/rotisserie/eris"
 
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
@@ -639,15 +639,19 @@ func pumpLogs(
 			emit(e)
 		case err := <-errCh:
 			active--
-			if err == nil || ctx.Err() != nil {
+			if err == nil {
 				continue
 			}
-			if !isNotFound(err) {
-				return err
+			if cerrdefs.IsNotFound(err) {
+				if missingIsError {
+					return ErrContainerNotFound
+				}
+				continue
 			}
-			if missingIsError {
-				return ErrContainerNotFound
+			if ctx.Err() != nil {
+				continue
 			}
+			return err
 		}
 	}
 	for {
@@ -696,10 +700,6 @@ func (r *Runtime) StreamContainerLogs(
 
 // ErrContainerNotFound is what a log stream ends with when LogsOpts.MissingIsError is set.
 var ErrContainerNotFound = eris.New("container not found; is the world running?")
-
-func isNotFound(err error) bool {
-	return strings.Contains(strings.ToLower(err.Error()), "no such container")
-}
 
 // PlatformContainers lists the non-shard containers of the project (nats, db, services), for log pickers.
 func (r *Runtime) PlatformContainers() []string {

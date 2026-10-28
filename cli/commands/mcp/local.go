@@ -349,13 +349,15 @@ func collectContainerLogsFrom(
 	}
 	err := <-errCh
 	switch {
-	case err == nil, eris.Is(err, context.Canceled), eris.Is(err, context.DeadlineExceeded):
-		return b.String(), nil
 	case eris.Is(err, local.ErrContainerNotFound):
 		return "", eris.Wrap(err, container)
-	default:
+	case err != nil:
 		return "", eris.Wrapf(err, "logs for %s", container)
+	case b.Len() == 0 && ctx.Err() != nil:
+		// The stream swallows ctx errors; nothing arrived, so the budget was already spent.
+		return "", eris.Wrapf(ctx.Err(), "logs for %s", container)
 	}
+	return b.String(), nil
 }
 
 // deployedShard is one shard container's world identity, read from its labels.

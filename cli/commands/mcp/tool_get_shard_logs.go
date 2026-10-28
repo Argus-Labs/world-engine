@@ -19,6 +19,47 @@ const (
 	maxLogTailLines int32 = 2000
 )
 
+// collectShardLogs fetches each container in order. The project lock is not held
+// across the status call and these fetches, so an instance a concurrent reload removed
+// is noted and the rest still returned; if none was fetched the call fails. Once ctx is
+// over the remaining instances are listed as skipped rather than fetched as empty.
+func collectShardLogs(
+	ctx context.Context,
+	containers []string,
+	fetch func(name string) (string, error),
+) (string, error) {
+	var b strings.Builder
+	fetched := 0
+	var lastErr error
+	for i, name := range containers {
+		if ctx.Err() != nil {
+			fmt.Fprintf(&b, "(skipped, time budget spent: %s)\n", strings.Join(containers[i:], ", "))
+			break
+		}
+		logs, err := fetch(name)
+		switch {
+		case err == nil:
+			fetched++
+			if len(containers) > 1 {
+				fmt.Fprintf(&b, "=== %s ===\n", name)
+			}
+			b.WriteString(logs)
+		case eris.Is(err, local.ErrContainerNotFound):
+			lastErr = err
+			fmt.Fprintf(&b, "=== %s ===\n(container not found; removed since the status check)\n", name)
+		default:
+			return "", err
+		}
+	}
+	if fetched == 0 {
+		if lastErr != nil {
+			return "", lastErr
+		}
+		return "", eris.Wrap(ctx.Err(), "fetching shard logs")
+	}
+	return b.String(), nil
+}
+
 // clampTail normalizes a requested tail-line count to the package defaults/cap.
 func clampTail(n int) int32 {
 	tail := int32(n)
@@ -88,27 +129,16 @@ func getShardLogsHandler(
 		return GetShardLogsOutput{}, eris.Errorf("no container found for shard %q", shardID)
 	}
 
-	var b strings.Builder
-	for _, name := range containers {
-		logs, err := collectContainerLogs(ctx, args.Project, name, tail)
-		if err != nil {
-			// The project lock is not held across the status call and these fetches, so a
-			// concurrent reload can remove one instance; the others' logs are still useful.
-			if len(containers) > 1 && eris.Is(err, local.ErrContainerNotFound) {
-				fmt.Fprintf(&b, "=== %s ===\n(container not found; removed since the status check)\n", name)
-				continue
-			}
-			return GetShardLogsOutput{}, err
-		}
-		if len(containers) > 1 {
-			fmt.Fprintf(&b, "=== %s ===\n", name)
-		}
-		b.WriteString(logs)
+	logs, err := collectShardLogs(ctx, containers, func(name string) (string, error) {
+		return collectContainerLogs(ctx, args.Project, name, tail)
+	})
+	if err != nil {
+		return GetShardLogsOutput{}, err
 	}
 
 	return GetShardLogsOutput{
 		ShardID:    shardID,
 		Containers: containers,
-		Logs:       b.String(),
+		Logs:       logs,
 	}, nil
 }
