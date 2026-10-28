@@ -1150,7 +1150,7 @@ func TestStopEdge_ReleasesEdgeOwnershipOfCachedRuntime(t *testing.T) {
 
 	w := &worlds{
 		runtimes: map[string]*local.Runtime{"demo-edge": rt},
-		edges:    map[string]context.CancelFunc{},
+		edges:    map[string]*edgeRun{},
 		locks:    map[string]*sync.Mutex{},
 	}
 
@@ -1189,7 +1189,7 @@ func TestStopEdge_ReleasesEdgeOwnershipOfCachedRuntime(t *testing.T) {
 func TestStopEdge_IdempotentWhenNoEdgeServed(t *testing.T) {
 	w := &worlds{
 		runtimes: map[string]*local.Runtime{},
-		edges:    map[string]context.CancelFunc{},
+		edges:    map[string]*edgeRun{},
 		locks:    map[string]*sync.Mutex{},
 	}
 	w.stopEdge("never-started") // no edge entry → no-op
