@@ -336,7 +336,7 @@ func TestNATSAndProjectDBArePerProject(t *testing.T) {
 	if db.Name != "g-db" || db.Healthcheck == nil || db.NetworkMode != "world-g" || db.Labels[RoleLabel] != RoleDB {
 		t.Fatalf("db = %#v", db)
 	}
-	if !slices.Equal(db.Binds, []string{"g-db-data:/var/lib/postgresql/data"}) {
+	if !slices.Equal(db.Binds, []string{"g-db-data:/var/lib/postgresql"}) {
 		t.Fatalf("db binds = %#v", db.Binds)
 	}
 }

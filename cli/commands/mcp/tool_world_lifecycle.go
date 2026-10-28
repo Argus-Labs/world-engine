@@ -77,7 +77,8 @@ func registerWorldLifecycleTool(srv *server.MCPServer) {
 				"If a start fails on the Docker side, the fix is usually a purge — recommend it to the user "+
 				"and wait for them to agree before running it, since it destroys all state; never purge "+
 				"automatically off a failure. A start that fails to BUILD is a code problem: report the "+
-				"compiler error, do not suggest a purge. "+
+				"compiler error, do not suggest a purge. A start that fails to PULL images is a network "+
+				"or registry problem: report it, do not suggest a purge. "+
 				"Prefer other tools when they fit: for fresh GAME state (tick back to 0), reload with purge "+
 				"takes seconds; to run new shard code in an already-running world, plain reload beats a "+
 				"stop/start cycle.",

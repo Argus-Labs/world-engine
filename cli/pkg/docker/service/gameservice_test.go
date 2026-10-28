@@ -225,8 +225,8 @@ func TestProjectDBService(t *testing.T) {
 	if svc.Name != "rampage-db" {
 		t.Fatalf("expected container name %q, got %q", "rampage-db", svc.Name)
 	}
-	if svc.Image != "postgres:16" {
-		t.Fatalf("expected image %q, got %q", "postgres:16", svc.Image)
+	if svc.Image != "postgres:18" {
+		t.Fatalf("expected image %q, got %q", "postgres:18", svc.Image)
 	}
 	wantEnv := []string{
 		"POSTGRES_USER=postgres",
@@ -242,7 +242,7 @@ func TestProjectDBService(t *testing.T) {
 	if svc.BuildTarget != "" {
 		t.Fatalf("project db must be pull-only, got build target %q", svc.BuildTarget)
 	}
-	if !slices.Equal(svc.Binds, []string{"rampage-db-data:/var/lib/postgresql/data"}) {
+	if !slices.Equal(svc.Binds, []string{"rampage-db-data:/var/lib/postgresql"}) {
 		t.Fatalf("expected named volume bind, got %#v", svc.Binds)
 	}
 	hc := svc.Healthcheck
@@ -294,5 +294,55 @@ func TestBuildGameServicesPreservesDeclarationOrder(t *testing.T) {
 	}
 	if name := builders[1](cfg).Name; name != "rampage-meta-service" {
 		t.Fatalf("expected second service %q, got %q", "rampage-meta-service", name)
+	}
+}
+
+func TestPlatformServices(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		services []worldtoml.GameService
+		want     []string // container names
+	}{
+		{
+			name: "shards only: NATS and the auto project DB",
+			want: []string{"rampage-nats", "rampage-db"},
+		},
+		{
+			name: "image-kind service included, source-built excluded",
+			services: []worldtoml.GameService{
+				{ID: "redis", Image: "redis:7"},
+				{ID: "meta", Path: "services/meta/cmd"},
+			},
+			want: []string{"rampage-nats", "rampage-db", "rampage-redis-service"},
+		},
+		{
+			name: "config_db service replaces the auto project DB",
+			services: []worldtoml.GameService{
+				{ID: "postgres", Image: "postgres:14", ConfigDB: true},
+				{ID: "meta", Path: "services/meta/cmd"},
+			},
+			want: []string{"rampage-nats", "rampage-postgres-service"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := &Config{Project: "rampage", WorldToml: worldtoml.Config{Project: "rampage", Services: tc.services}}
+			svcs := PlatformServices(cfg)
+			names := make([]string, 0, len(svcs))
+			images := make([]string, 0, len(svcs))
+			for _, s := range svcs {
+				names = append(names, s.Name)
+				images = append(images, s.Image)
+			}
+			if !slices.Equal(names, tc.want) {
+				t.Fatalf("PlatformServices = %v, want %v", names, tc.want)
+			}
+			if got := PlatformImageRefs(cfg); !slices.Equal(got, images) {
+				t.Fatalf("PlatformImageRefs = %v, want the service images %v", got, images)
+			}
+		})
 	}
 }

@@ -43,14 +43,18 @@ func resolveProject(project string) (string, error) {
 type worlds struct {
 	mu       sync.Mutex
 	runtimes map[string]*local.Runtime
-	edges    map[string]context.CancelFunc
+	edges    map[string]*edgeRun
 	locks    map[string]*sync.Mutex
 }
+
+// edgeRun identifies one serveEdge call, so a goroutine that outlives its edge
+// cannot release ownership a newer edge now holds.
+type edgeRun struct{ cancel context.CancelFunc }
 
 //nolint:gochecknoglobals // process-wide registry of started worlds
 var started = &worlds{
 	runtimes: map[string]*local.Runtime{},
-	edges:    map[string]context.CancelFunc{},
+	edges:    map[string]*edgeRun{},
 	locks:    map[string]*sync.Mutex{},
 }
 
@@ -117,8 +121,22 @@ func (w *worlds) serveEdge(rt *local.Runtime) error {
 		cancel()
 		return err
 	}
-	go func() { _ = rt.ServeEdgeOn(ctx, ln) }()
-	w.edges[project] = cancel
+	run := &edgeRun{cancel: cancel}
+	go func() {
+		_ = rt.ServeEdgeOn(ctx, ln)
+		// Exited on its own (listener closed, accept error): release ownership, unless
+		// stopEdge already did or a newer serveEdge owns the edge now. Same locks as
+		// stopEdge, since ServeEdgeOn can return seconds after cancel.
+		done := w.lock(project)
+		defer done()
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		if w.edges[project] == run {
+			delete(w.edges, project)
+			rt.ReleaseEdge()
+		}
+	}()
+	w.edges[project] = run
 	return nil
 }
 
@@ -126,9 +144,12 @@ func (w *worlds) serveEdge(rt *local.Runtime) error {
 func (w *worlds) stopEdge(project string) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if cancel, ok := w.edges[project]; ok {
-		cancel()
+	if run, ok := w.edges[project]; ok {
+		run.cancel()
 		delete(w.edges, project)
+		if rt, ok := w.runtimes[project]; ok {
+			rt.ReleaseEdge()
+		}
 	}
 }
 

@@ -319,8 +319,14 @@ func buildWorldShards(
 
 			// Pull build dependencies (golang + runtime base) before building, or the
 			// first build on a fresh machine fails with BuildKit "no active sessions".
-			if err := dockerClient.PullImages(ctx, buildServices, nil); err != nil {
-				return eris.Wrap(err, "failed to pull build dependencies")
+			// A start also pulls the platform images here: Docker does not pull on
+			// ContainerCreate, so StartPlatform would fail with "No such image".
+			pullServices := buildServices
+			if withServices {
+				pullServices = append(slices.Clone(buildServices), service.PlatformServices(sc)...)
+			}
+			if err := dockerClient.PullImages(ctx, pullServices, nil); err != nil {
+				return eris.Wrap(err, "failed to pull images")
 			}
 			if err := dockerClient.BuildCardinalImages(ctx, buildServices, nil); err != nil {
 				return eris.Wrap(err, "failed to build Cardinal images")
