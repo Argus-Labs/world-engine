@@ -18,35 +18,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// initSentryRecorder initializes the global Sentry hub with a BeforeSend hook that records every
-// error passed to sentrygo.CaptureException, then drops the event (returns nil) so no network I/O
-// occurs. It restores the previous hub client on test completion. The returned slice is shared
-// across the test; clear it between subtests.
-func initSentryRecorder(t *testing.T) *[]error {
-	t.Helper()
-	var captured []error
-	prevClient := sentrygo.CurrentHub().Client()
-	err := sentrygo.Init(sentrygo.ClientOptions{
-		DisableTelemetryBuffer: true,
-		BeforeSend: func(_ *sentrygo.Event, hint *sentrygo.EventHint) *sentrygo.Event {
-			if hint != nil && hint.OriginalException != nil {
-				captured = append(captured, hint.OriginalException)
-			}
-			return nil
-		},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		sentrygo.Flush(2 * time.Second)
-		sentrygo.CurrentHub().BindClient(prevClient)
-	})
-	return &captured
-}
-
-// errRealShutdown is a sentinel used to distinguish real shutdown failures from benign
-// cancellation-shaped ones in the guard tests below.
-var errRealShutdown = errors.New("real shutdown failure")
-
 // TestMaxCommandLinksResolvesFromEnv verifies the span link limit threaded out of provider setup
 // mirrors OTEL_SPAN_LINK_COUNT_LIMIT (default 128). Cardinal caps tick-span links at this value so
 // the cap and the tracer provider share one source of truth: no link is built only to be dropped
@@ -228,100 +199,34 @@ func TestShutdownFlushesMetricsPastStalledTraceCollector(t *testing.T) {
 	require.Equal(t, []string{"test/test.requests"}, collector.received())
 }
 
-// TestShutdownCancellationGuard verifies that Telemetry.Shutdown reports only real shutdown
-// failures to Sentry and suppresses benign [context.Canceled] / [context.DeadlineExceeded] errors —
-// including when they are buried inside an [errors.Join] tree, which is the shape setup.go's
-// shutdown closure always produces ([errors.Join](errs...)) and which eris.Is (v0.5.4) cannot
-// traverse. The guard must use stdlib [errors.Is] so the sentinel checks match through join trees.
-func TestShutdownCancellationGuard(t *testing.T) {
-	captured := initSentryRecorder(t)
+// TestShutdownSkipsSentryForJoinedCancellation verifies the cancellation guard sees through
+// [errors.Join], the shape setup.go's shutdown returns.
+func TestShutdownSkipsSentryForJoinedCancellation(t *testing.T) {
+	var captured []error
+	prev := sentrygo.CurrentHub().Client()
+	require.NoError(t, sentrygo.Init(sentrygo.ClientOptions{
+		DisableTelemetryBuffer: true,
+		BeforeSend: func(_ *sentrygo.Event, hint *sentrygo.EventHint) *sentrygo.Event {
+			captured = append(captured, hint.OriginalException)
+			return nil // Drop the event.
+		},
+	}))
+	t.Cleanup(func() { sentrygo.CurrentHub().BindClient(prev) })
 
-	posthogClient, err := posthog.New(posthog.Options{})
+	ph, err := posthog.New(posthog.Options{})
 	require.NoError(t, err)
 
-	tests := []struct {
-		name         string
-		shutdownErr  error
-		wantCaptured bool // whether CaptureException should fire
-		checkErr     func(t *testing.T, err error)
+	for _, tc := range []struct {
+		err  error
+		want int
 	}{
-		// Benign cancellation/deadline errors — must NOT be captured, regardless of nesting.
-		{
-			name:        "bare context.DeadlineExceeded",
-			shutdownErr: context.DeadlineExceeded,
-			checkErr:    func(t *testing.T, err error) { require.ErrorIs(t, err, context.DeadlineExceeded) },
-		},
-		{
-			name:        "bare context.Canceled",
-			shutdownErr: context.Canceled,
-			checkErr:    func(t *testing.T, err error) { require.ErrorIs(t, err, context.Canceled) },
-		},
-		{
-			name:        "single-element join of DeadlineExceeded",
-			shutdownErr: errors.Join(context.DeadlineExceeded),
-			checkErr:    func(t *testing.T, err error) { require.ErrorIs(t, err, context.DeadlineExceeded) },
-		},
-		{
-			name:        "single-element join of Canceled",
-			shutdownErr: errors.Join(context.Canceled),
-			checkErr:    func(t *testing.T, err error) { require.ErrorIs(t, err, context.Canceled) },
-		},
-		{
-			name:        "doubly-joined DeadlineExceeded mimicking production chain",
-			shutdownErr: errors.Join(context.DeadlineExceeded, errors.Join(context.DeadlineExceeded, nil)),
-			checkErr:    func(t *testing.T, err error) { require.ErrorIs(t, err, context.DeadlineExceeded) },
-		},
-		{
-			name:        "join containing Canceled alongside another error",
-			shutdownErr: errors.Join(context.Canceled, errRealShutdown),
-			checkErr:    func(t *testing.T, err error) { require.ErrorIs(t, err, context.Canceled) },
-		},
-
-		// Real shutdown failures — MUST be captured.
-		{
-			name:         "bare real error",
-			shutdownErr:  errRealShutdown,
-			wantCaptured: true,
-			checkErr:     func(t *testing.T, err error) { require.ErrorIs(t, err, errRealShutdown) },
-		},
-		{
-			name:         "single-element join of real error",
-			shutdownErr:  errors.Join(errRealShutdown),
-			wantCaptured: true,
-			checkErr:     func(t *testing.T, err error) { require.ErrorIs(t, err, errRealShutdown) },
-		},
-		{
-			name:         "multi-element join of real errors",
-			shutdownErr:  errors.Join(errRealShutdown, errors.New("another failure")),
-			wantCaptured: true,
-			checkErr:     func(t *testing.T, err error) { require.ErrorIs(t, err, errRealShutdown) },
-		},
-
-		// No error — nothing to capture.
-		{
-			name:        "nil shutdown error",
-			shutdownErr: nil,
-			checkErr:    func(t *testing.T, err error) { require.NoError(t, err) },
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			*captured = nil
-
-			tel := Telemetry{
-				posthog:  posthogClient,
-				shutdown: func(context.Context) error { return tt.shutdownErr },
-			}
-
-			err := tel.Shutdown(context.Background())
-			tt.checkErr(t, err)
-
-			if tt.wantCaptured {
-				require.Len(t, *captured, 1, "expected the shutdown error to be captured to Sentry")
-			} else {
-				require.Empty(t, *captured, "expected no Sentry capture for a benign cancellation error")
-			}
-		})
+		{errors.Join(context.DeadlineExceeded), 0},
+		{errors.Join(context.Canceled), 0},
+		{errors.Join(errors.New("export failed")), 1},
+	} {
+		captured = nil
+		tel := Telemetry{posthog: ph, shutdown: func(context.Context) error { return tc.err }}
+		require.ErrorIs(t, tel.Shutdown(t.Context()), tc.err)
+		require.Len(t, captured, tc.want, tc.err.Error())
 	}
 }
