@@ -12,6 +12,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type point struct {
@@ -23,6 +24,59 @@ type point struct {
 // other caller would.
 func collect[T any](s immutable.Slice[T]) []T {
 	return slices.Collect(s.Values())
+}
+
+func TestSlice_MessagePack(t *testing.T) {
+	t.Parallel()
+	type holder struct {
+		Items immutable.Slice[immutable.Slice[uint64]] `msgpack:"items,omitempty"`
+	}
+	want := holder{Items: immutable.SliceOf(immutable.SliceOf(uint64(9007199254740993), ^uint64(0)))}
+	data, err := msgpack.Marshal(want)
+	require.NoError(t, err)
+	var got holder
+	require.NoError(t, msgpack.Unmarshal(data, &got))
+	require.Equal(t, want, got)
+	var wire struct {
+		Items [][]uint64 `msgpack:"items"`
+	}
+	require.NoError(t, msgpack.Unmarshal(data, &wire))
+	require.Equal(t, [][]uint64{{9007199254740993, ^uint64(0)}}, wire.Items)
+	data, err = msgpack.Marshal(holder{})
+	require.NoError(t, err)
+	require.Equal(t, []byte{0x80}, data, "empty Slice is omitted")
+
+	type octet uint8
+	for _, value := range []any{immutable.SliceOf(byte(7), byte(255)), immutable.SliceOf(octet(7), octet(255))} {
+		data, err = msgpack.Marshal(value)
+		require.NoError(t, err)
+		require.Equal(t, byte(0x92), data[0], "byte-valued Slices are arrays, not binary")
+		var back immutable.Slice[byte]
+		require.NoError(t, msgpack.Unmarshal(data, &back))
+		require.Equal(t, immutable.SliceOf(byte(7), byte(255)), back)
+		var named immutable.Slice[octet]
+		require.NoError(t, msgpack.Unmarshal(data, &named))
+		require.Equal(t, immutable.SliceOf(octet(7), octet(255)), named)
+	}
+}
+
+func TestSlice_MessagePackEmptyAndFailedDecode(t *testing.T) {
+	t.Parallel()
+	for _, empty := range []immutable.Slice[int]{{}, immutable.SliceOf(1).Without(0)} {
+		data, err := msgpack.Marshal(empty)
+		require.NoError(t, err)
+		require.Equal(t, []byte{0x90}, data)
+	}
+	for _, data := range [][]byte{{0x90}, {0xc0}} {
+		value := immutable.SliceOf(8, 9)
+		require.NoError(t, msgpack.Unmarshal(data, &value))
+		require.Equal(t, immutable.Slice[int]{}, value)
+	}
+	value := immutable.SliceOf(8, 9)
+	alias := value
+	require.Error(t, msgpack.Unmarshal([]byte{0x92, 0x01}, &value))
+	require.Equal(t, []int{8, 9}, collect(value))
+	require.Equal(t, []int{8, 9}, collect(alias))
 }
 
 func TestSlice_ZeroValueIsEmpty(t *testing.T) {

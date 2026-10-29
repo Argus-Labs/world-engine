@@ -13,18 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// assertCodecRoundTripType marshals value with its registered codec, enqueues it onto a queue typed for
-// T, drains it, and asserts the stored payload is exactly T with the same value.
-//
-// The queue only guards the command name; it stores whatever the codec's Unmarshal returns without
-// re-checking its concrete type. The Payload-is-T check lives downstream in World.Commands as an
-// assert.That, which is a no-op in release builds — so a codec that returned the wrong type would, in
-// production, silently hand a zero-value T to systems. This test asserts type identity with testify, so
-// a mismatched/buggy codec fails the test regardless of build flags.
+// assertCodecRoundTripType sends MessagePack through a typed queue and checks its concrete payload.
 func assertCodecRoundTripType[T command.Payload](t *testing.T, value T) {
 	t.Helper()
 
-	payload := schema.Marshal(value)
+	payload, err := schema.Serialize(value)
+	require.NoError(t, err)
 
 	q := command.NewQueue[T]()
 	require.NoError(t, q.Enqueue(context.Background(), &iscv1.Command{
@@ -51,4 +45,24 @@ func TestQueue_CodecRoundTripPreservesType(t *testing.T) {
 	assertCodecRoundTripType(t, testutils.CommandA{X: 1.5, Y: -2.25, Z: 3.75})
 	assertCodecRoundTripType(t, testutils.CommandB{ID: 7, Label: "hello world", Enabled: true})
 	assertCodecRoundTripType(t, testutils.CommandC{Values: [8]int32{1, 2, 3, 4, 5, 6, 7, 8}, Counter: 9})
+	assertCodecRoundTripType(t, plainCommand{ID: 9007199254740993, Values: []int{-7, 31}})
+}
+
+type plainCommand struct {
+	ID     uint64
+	Values []int
+}
+
+func (plainCommand) Name() string { return "plain" }
+
+func TestQueueRejectsMalformedPayload(t *testing.T) {
+	t.Parallel()
+	q := command.NewQueue[plainCommand]()
+	// BIN8 instead of an array: the decoder must return an error rather than panic or enqueue.
+	err := q.Enqueue(context.Background(), &iscv1.Command{
+		Name:    "plain",
+		Payload: []byte{0x81, 0xa6, 'V', 'a', 'l', 'u', 'e', 's', 0xc4, 0x01, 'x'},
+	}, command.PlayerSender("player"))
+	require.ErrorContains(t, err, "failed to decode command payload")
+	require.Zero(t, q.Len())
 }

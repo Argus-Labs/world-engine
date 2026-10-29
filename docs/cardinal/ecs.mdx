@@ -93,13 +93,12 @@ component may hold values only:
 - Fixed-size arrays such as `[8]Vec2`, at any depth
 - `immutable.Slice[T]` for a list with no fixed bound (see below)
 - `time.Time`, the one sanctioned exception. It carries a location pointer, but it travels as a
-  protobuf Timestamp, so a restored value comes back in UTC with no monotonic reading. Compare
-  times with `Equal`, never `==`.
+  MessagePack timestamp, so a restored value comes back in the shard's local time zone with no
+  monotonic reading. Compare times with `Equal`, never `==`.
 
 A component may **not** hold pointers, maps, plain slices (`[]T`), interfaces, channels, or funcs.
 A plain slice inside a copy still shares its backing array with the stored component, so writing
-through it changes the world without a `Set`. `world sdk generate` refuses such fields and prints
-the fix for each one. The same rule applies to commands and events, which cross the same generator.
+through it changes the world without a `Set`.
 
 A list with a known upper bound is a fixed array plus a count:
 
@@ -115,7 +114,7 @@ type Inventory struct {
 ### Lists Without a Bound: `immutable.Slice`
 
 When the length has no bound you can defend, hold the list in `immutable.Slice[T]` from
-`github.com/argus-labs/world-engine/pkg/immutable`. On the wire it is the same repeated field a
+`github.com/argus-labs/world-engine/pkg/immutable`. On the wire it is the same MessagePack array a
 `[]T` would be. The difference is that the backing array is hidden: no other package can index into
 it, reslice it, or hold on to it, and every reader hands back a copy of the element.
 
@@ -190,14 +189,8 @@ derivations write through it regardless.
 </Warning>
 
 <Note>
-  `immutable.Slice` needs a World CLI new enough to generate it. An older one reports the field as an
-  unsupported type when you run `world sdk generate`.
-</Note>
-
-<Note>
-  The element type follows the same rule as any field: values only. A Slice directly inside another
-  Slice has no protobuf form, so wrap the inner one in a named struct, for example
-  `immutable.Slice[Row]` where `Row` holds `immutable.Slice[Cell]`.
+  The element type follows the same rule as any field: values only. That includes another Slice, so
+  `immutable.Slice[immutable.Slice[Cell]]` works directly.
 </Note>
 
 ### Tag Components

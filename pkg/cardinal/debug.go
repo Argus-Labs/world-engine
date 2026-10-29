@@ -55,7 +55,10 @@ func (d *debugModule) register(kind introspect.Kind, value schema.Serializable) 
 	if d == nil {
 		return nil
 	}
-	return d.catalog.Register(kind, value)
+	if err := d.catalog.Register(kind, value); err != nil {
+		return eris.Wrap(err, "failed to register introspection type")
+	}
+	return nil
 }
 
 // finalizeCatalog freezes registration and builds the metadata returned by Introspect.
@@ -63,7 +66,10 @@ func (d *debugModule) finalizeCatalog() error {
 	if d == nil {
 		return nil
 	}
-	return d.catalog.Finalize()
+	if err := d.catalog.Finalize(); err != nil {
+		return eris.Wrap(err, "failed to finalize introspection catalog")
+	}
+	return nil
 }
 
 // Introspect returns metadata about the registered types in the world.
@@ -72,12 +78,11 @@ func (d *debugModule) Introspect(
 	_ *connect.Request[cardinalv1.IntrospectRequest],
 ) (*connect.Response[cardinalv1.IntrospectResponse], error) {
 	return connect.NewResponse(&cardinalv1.IntrospectResponse{
-		Commands:           d.catalog.Commands(),
-		Components:         d.catalog.Components(),
-		Events:             d.catalog.Events(),
-		TickRateHz:         d.world.options.TickRate,
-		Schedules:          d.buildSchedules(),
-		ProtoDescriptorSet: d.catalog.DescriptorSet(),
+		Commands:   d.catalog.Commands(),
+		Components: d.catalog.Components(),
+		Events:     d.catalog.Events(),
+		TickRateHz: d.world.options.TickRate,
+		Schedules:  d.buildSchedules(),
 	}), nil
 }
 

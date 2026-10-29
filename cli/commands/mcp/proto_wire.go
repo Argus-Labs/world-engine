@@ -1,139 +1,234 @@
 package mcp
 
 import (
+	"bytes"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"io"
+	"math/big"
+	"strconv"
+	"strings"
+
+	"github.com/goccy/go-json"
 	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protodesc"
-	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/reflect/protoregistry"
-	"google.golang.org/protobuf/types/descriptorpb"
-	"google.golang.org/protobuf/types/dynamicpb"
+	"github.com/santhosh-tekuri/jsonschema/v6"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
-// Commands are decoded by the shard as protobuf wire, but the MCP has no compiled descriptor for an
-// arbitrary shard's commands. The shard's introspect response carries a serialized FileDescriptorSet
-// (proto_descriptor_set) and each type's proto_message_name; this file resolves message descriptors
-// from that set and encodes a JSON command payload against them via protojson — so the MCP never
-// needs generated command code.
-
-// resolveDescriptorFiles parses an introspect response's proto_descriptor_set into a resolvable
-// descriptor registry.
-func resolveDescriptorFiles(raw []byte) (*protoregistry.Files, error) {
-	if len(raw) == 0 {
-		return nil, eris.New(
-			"shard returned no proto descriptor set — regenerate the shard SDK with 'world sdk generate' and reload",
-		)
+// encodeCommandPayload keeps JSON numbers as text until conversion to native integers.
+// In particular, neither command integers nor their range checks pass through float64.
+func encodeCommandPayload(schema map[string]any, payload string) ([]byte, error) {
+	decoder := json.NewDecoder(strings.NewReader(payload))
+	decoder.UseNumber()
+	var object map[string]any
+	if err := decoder.Decode(&object); err != nil {
+		return nil, eris.Wrap(err, "failed to parse command object")
 	}
-	var set descriptorpb.FileDescriptorSet
-	if err := proto.Unmarshal(raw, &set); err != nil {
-		return nil, eris.Wrap(err, "failed to parse shard proto descriptor set")
+	if object == nil {
+		return nil, eris.New("command payload must be a JSON object")
 	}
-	files, err := protodesc.NewFiles(&set)
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		return nil, eris.New("command payload must contain exactly one JSON object")
+	}
+	compiler := jsonschema.NewCompiler()
+	if err := compiler.AddResource("https://cardinal.local/command.json", schema); err != nil {
+		return nil, eris.Wrap(err, "failed to load command schema")
+	}
+	compiled, err := compiler.Compile("https://cardinal.local/command.json")
 	if err != nil {
-		return nil, eris.Wrap(err, "failed to build descriptors from shard proto descriptor set")
+		return nil, eris.Wrap(err, "failed to compile command schema")
 	}
-	return files, nil
-}
-
-// findMessageDescriptor resolves a TypeSchema's proto_message_name inside the shard's descriptor set.
-func findMessageDescriptor(files *protoregistry.Files, fullName string) (protoreflect.MessageDescriptor, error) {
-	if fullName == "" {
-		return nil, eris.New("type has no proto_message_name — regenerate the shard SDK with 'world sdk generate'")
+	if err := compiled.Validate(object); err != nil {
+		return nil, eris.Wrap(err, "invalid command payload")
 	}
-	desc, err := files.FindDescriptorByName(protoreflect.FullName(fullName))
+	value, err := commandValue(object, schema, schema)
 	if err != nil {
-		return nil, eris.Wrapf(err, "message %q not found in shard descriptor set", fullName)
+		return nil, eris.Wrap(err, "failed to build command payload")
 	}
-	md, ok := desc.(protoreflect.MessageDescriptor)
-	if !ok {
-		return nil, eris.Errorf("descriptor %q is not a message", fullName)
-	}
-	return md, nil
+	blob, err := msgpack.Marshal(value)
+	return blob, eris.Wrap(err, "failed to encode command MessagePack")
 }
 
-// encodeCommandPayload encodes a JSON command payload as protobuf wire bytes against the command's
-// message descriptor. It populates a dynamic message from the payload via protojson (which rejects
-// unknown fields, surfacing name mismatches) and marshals it.
-//
-// payload contains a JSON object as text. The MCP transport converts numbers in
-// map[string]any to float64, which can round integers above 2^53.
-// A string preserves the original JSON text so protojson can decode int64 and uint64 values exactly.
-func encodeCommandPayload(md protoreflect.MessageDescriptor, payload string) ([]byte, error) {
-	msg := dynamicpb.NewMessage(md)
-	if err := protojson.Unmarshal([]byte(payload), msg); err != nil {
-		return nil, eris.Wrap(err, "failed to build command message from payload")
-	}
-	// Deterministic: a dynamicpb message holds its fields in a map, so a plain
-	// proto.Marshal emits them in random order. Decoders don't care, but stable
-	// bytes make the encoding testable and its logs diffable.
-	return proto.MarshalOptions{Deterministic: true}.Marshal(msg)
-}
-
-// decodeMessage decodes protobuf wire bytes against a message descriptor into a plain Go map.
-func decodeMessage(md protoreflect.MessageDescriptor, blob []byte) (map[string]any, error) {
-	msg := dynamicpb.NewMessage(md)
-	if err := proto.Unmarshal(blob, msg); err != nil {
-		return nil, eris.Wrapf(err, "failed to decode %q", md.FullName())
-	}
-	return messageToMap(msg), nil
-}
-
-// messageToMap renders a decoded message as a map keyed by field name. Every field is present,
-// zero values included, so a where clause never trips over a missing key. Values keep their native
-// Go types — protojson would render 64-bit ints as strings, breaking numeric comparisons.
-func messageToMap(msg protoreflect.Message) map[string]any {
-	fields := msg.Descriptor().Fields()
-	out := make(map[string]any, fields.Len())
-	for i := range fields.Len() {
-		fd := fields.Get(i)
-		// An absent singular message field has nothing to report, and recursing into the empty
-		// message a Get would hand back never terminates for a self-referential type.
-		if fd.Message() != nil && !fd.IsList() && !fd.IsMap() && !msg.Has(fd) {
-			out[string(fd.Name())] = nil
-			continue
+// commandValue also rejects unknown struct fields if an older schema omitted
+// additionalProperties. Map schemas may explicitly advertise additional values.
+func commandValue(value any, schema, root map[string]any) (any, error) {
+	if branches, ok := schema["anyOf"].([]any); ok && value != nil {
+		// Reflection uses anyOf for nullable pointer fields.
+		for _, branch := range branches {
+			candidate, _ := branch.(map[string]any)
+			if candidate["type"] != "null" {
+				return commandValue(value, candidate, root)
+			}
 		}
-		out[string(fd.Name())] = fieldValue(fd, msg.Get(fd))
 	}
-	return out
+	if ref, ok := schema["$ref"].(string); ok {
+		var target any = root
+		if !strings.HasPrefix(ref, "#/") {
+			return nil, eris.Errorf("unsupported schema reference %q", ref)
+		}
+		for part := range strings.SplitSeq(strings.TrimPrefix(ref, "#/"), "/") {
+			object, _ := target.(map[string]any)
+			target = object[strings.ReplaceAll(strings.ReplaceAll(part, "~1", "/"), "~0", "~")]
+		}
+		resolved, ok := target.(map[string]any)
+		if !ok {
+			return nil, eris.Errorf("unknown schema reference %q", ref)
+		}
+		return commandValue(value, resolved, root)
+	}
+	switch v := value.(type) {
+	case map[string]any:
+		return commandObject(v, schema, root)
+	case []any:
+		items, _ := schema["items"].(map[string]any)
+		for i, item := range v {
+			converted, err := commandValue(item, items, root)
+			if err != nil {
+				return nil, eris.Wrapf(err, "array element %d", i)
+			}
+			v[i] = converted
+		}
+	case json.Number:
+		return commandNumber(v, schema)
+	case string:
+		if schema["contentEncoding"] == "base64" {
+			decoded, err := base64.StdEncoding.DecodeString(v)
+			return decoded, eris.Wrap(err, "invalid base64 bytes")
+		}
+	}
+	return value, nil
 }
 
-// fieldValue converts one field's value, spreading lists and maps over their elements.
-func fieldValue(fd protoreflect.FieldDescriptor, v protoreflect.Value) any {
-	switch {
-	case fd.IsMap():
-		entries := v.Map()
-		out := make(map[string]any, entries.Len())
-		entries.Range(func(k protoreflect.MapKey, val protoreflect.Value) bool {
-			// JSON object keys are strings, so non-string proto keys render as their literal.
-			out[k.String()] = scalarValue(fd.MapValue(), val)
-			return true
-		})
-		return out
-	case fd.IsList():
-		list := v.List()
-		out := make([]any, 0, list.Len())
-		for i := range list.Len() {
-			out = append(out, scalarValue(fd, list.Get(i)))
+func commandObject(v, schema, root map[string]any) (any, error) {
+	properties, _ := schema["properties"].(map[string]any)
+	keyFormat, _ := schema["x-msgpack-key-format"].(string)
+	keyed := make(map[any]any, len(v))
+	for name, field := range v {
+		child, ok := properties[name].(map[string]any)
+		if !ok {
+			child, ok = schema["additionalProperties"].(map[string]any)
+			if !ok && schema["additionalProperties"] != true && len(schema) != 0 {
+				return nil, eris.Errorf("unknown field %q", name)
+			}
 		}
-		return out
+		converted, err := commandValue(field, child, root)
+		if err != nil {
+			return nil, eris.Wrapf(err, "field %q", name)
+		}
+		v[name] = converted
+		if keyFormat != "" {
+			key, err := commandNumber(json.Number(name), map[string]any{"format": keyFormat})
+			if err != nil {
+				return nil, eris.Wrapf(err, "map key %q", name)
+			}
+			if _, exists := keyed[key]; exists {
+				return nil, eris.Errorf("duplicate numeric map key %q", name)
+			}
+			keyed[key] = converted
+		}
+	}
+	if keyFormat != "" {
+		return keyed, nil
+	}
+	return v, nil
+}
+
+func commandNumber(v json.Number, schema map[string]any) (any, error) {
+	if schema["type"] == "number" || (len(schema) == 0 && strings.ContainsAny(v.String(), ".eE")) {
+		n, err := strconv.ParseFloat(v.String(), 64)
+		return n, eris.Wrap(err, "invalid floating point number")
+	}
+	text, err := integerText(v.String())
+	if err != nil {
+		return nil, err
+	}
+	if format, ok := schema["format"].(string); ok {
+		if bits, unsigned := integerFormat(format); bits != 0 {
+			if unsigned {
+				n, err := strconv.ParseUint(text, 10, bits)
+				return n, eris.Wrapf(err, "invalid %s integer", format)
+			}
+			n, err := strconv.ParseInt(text, 10, bits)
+			return n, eris.Wrapf(err, "invalid %s integer", format)
+		}
+	}
+	if strings.HasPrefix(text, "-") {
+		n, err := strconv.ParseInt(text, 10, 64)
+		return n, eris.Wrap(err, "integer outside signed 64-bit range")
+	}
+	if n, err := strconv.ParseInt(text, 10, 64); err == nil {
+		return n, nil
+	}
+	n, err := strconv.ParseUint(text, 10, 64)
+	return n, eris.Wrap(err, "integer outside unsigned 64-bit range")
+}
+
+// integerText rewrites a whole number written with a fraction or exponent, such as 1.0 or 1e3, as
+// plain digits. JSON Schema counts these as integers, so they pass validation and must encode. The
+// parse is exact: anything that would round, such as 1.0000000000000000001, is rejected.
+func integerText(s string) (string, error) {
+	if !strings.ContainsAny(s, ".eE") {
+		return s, nil
+	}
+	f, _, err := big.ParseFloat(s, 10, 256, big.ToZero)
+	if err != nil || f.Acc() != big.Exact || !f.IsInt() {
+		return "", eris.Errorf("%s is not an integer", s)
+	}
+	return f.Text('f', 0), nil
+}
+
+// integerFormat enforces native ranges without rounded JSON Schema bounds.
+// structpb stores numeric schema bounds as doubles, so format is authoritative
+// for limits such as MaxInt64 and MaxUint64.
+func integerFormat(format string) (int, bool) {
+	switch format {
+	case "int8", "uint8":
+		return 8, strings.HasPrefix(format, "u")
+	case "int16", "uint16":
+		return 16, strings.HasPrefix(format, "u")
+	case "int32", "uint32":
+		return 32, strings.HasPrefix(format, "u")
+	case "int64", "uint64":
+		return 64, strings.HasPrefix(format, "u")
+	case "int", "uint":
+		return strconv.IntSize, strings.HasPrefix(format, "u")
 	default:
-		return scalarValue(fd, v)
+		return 0, false
 	}
 }
 
-// scalarValue converts a single (non-repeated) protobuf value to its Go equivalent. Enums render as
-// their name, which is what a where clause can usefully compare against.
-func scalarValue(fd protoreflect.FieldDescriptor, v protoreflect.Value) any {
-	switch fd.Kind() { //nolint:exhaustive // every scalar kind is handled by the default
-	case protoreflect.MessageKind, protoreflect.GroupKind:
-		return messageToMap(v.Message())
-	case protoreflect.EnumKind:
-		if value := fd.Enum().Values().ByNumber(v.Enum()); value != nil {
-			return string(value.Name())
+// decodeMessage preserves MessagePack integer types for state filter comparisons.
+//
+//nolint:nonamedreturns // Recovery must return an error and no partially decoded state.
+func decodeMessage(blob []byte) (result map[string]any, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			result = nil
+			err = eris.Wrap(fmt.Errorf("panic: %v", recovered), "failed to decode component MessagePack")
 		}
-		return int32(v.Enum())
-	default: // bool, the integer and float kinds, string, bytes
-		return v.Interface()
+	}()
+	reader := bytes.NewReader(blob)
+	decoder := msgpack.NewDecoder(reader)
+	// Nested MessagePack maps may have integer keys; render those as JSON object keys.
+	decoder.SetMapDecoder(func(d *msgpack.Decoder) (any, error) {
+		entries, err := d.DecodeUntypedMap()
+		if err != nil {
+			return nil, eris.Wrap(err, "failed to decode component map")
+		}
+		out := make(map[string]any, len(entries))
+		for key, value := range entries {
+			out[fmt.Sprint(key)] = value
+		}
+		return out, nil
+	})
+	var out map[string]any
+	if err := decoder.Decode(&out); err != nil {
+		return nil, eris.Wrap(err, "failed to decode component MessagePack")
 	}
+	if out == nil || reader.Len() != 0 {
+		return nil, eris.New("component payload must contain one MessagePack object")
+	}
+	return out, nil
 }

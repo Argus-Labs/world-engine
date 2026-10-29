@@ -20,9 +20,7 @@ import (
 // Benchmarks for Cardinal's snapshot path, measured through a real physics scene.
 //
 // These live in physics2d_test rather than pkg/cardinal because pkg/cardinal cannot import a plugin
-// (import cycle), and the plugin's components are the only in-repo components with generated proto
-// codecs. Cardinal's own benchmarks use gob-encoded doubles, which do not represent the production
-// serialization cost.
+// (import cycle). They exercise production-shaped components, including nested immutable slices.
 //
 // The matrix deliberately runs with Debug off. Debug on forces the full ToProto graph build on every
 // tick regardless of SnapshotRate (World.Tick), which is not how production runs and
@@ -222,13 +220,11 @@ func BenchmarkSnapshotTick(b *testing.B) {
 //	                      handed a message and serialized it exactly once.
 //	Nop                 — the default storage type, handed bytes and doing nothing with them.
 //
-// None of the three is the current engine path. Storage now takes []byte and marshals nothing at
-// all; the one serialization left is cardinal's own hand-rolled snapshot.Encode, which never builds
-// a proto graph and so is not proto.Marshal of anything. These rows measure what a BACKEND does
-// with what it is given, which is why SingleMarshal is the ceiling the byte interface removed
-// rather than a description of today. For the engine-side cost see BenchmarkSnapshotTick.
+// Storage takes []byte and marshals nothing. The engine builds a graph with MessagePack component
+// payloads and marshals its protobuf envelope once. SingleMarshal measures only that final marshal,
+// not the graph construction or component encoding. For the full cost see BenchmarkSnapshotTick.
 //
-// What the current path saves, measured 2026-08-02 on darwin/arm64, Apple M5 Max, go1.26.5:
+// Historical protobuf-payload measurements, 2026-08-02 on darwin/arm64, Apple M5 Max, go1.26.5:
 // five runs at -benchtime=200x, per-run LegacyDoubleMarshal minus SingleMarshal, median taken
 // across the five. Unlike a whole tick, each iteration here re-serializes one fixed envelope, so
 // the loop is comparable at any -benchtime; the repeats are only against machine noise.

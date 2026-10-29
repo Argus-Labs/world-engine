@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rotisserie/eris"
 	"go.opentelemetry.io/otel/trace"
@@ -22,9 +23,8 @@ type Queue interface {
 // initialQueueCapacity is the starting capacity of queue.
 const initialQueueCapacity = 1024
 
-// sliceQueue is a generic unbounded queue for a single command type T. It decodes an incoming payload
-// by calling the command type's own UnmarshalWire (a value-receiver decode factory) under the static
-// type — there is no codec registry to look up. The decoded value is stored directly as a Payload.
+// sliceQueue is a generic unbounded queue for a single command type T. It decodes MessagePack
+// directly into T and stores the value as a Payload.
 type sliceQueue[T Payload] struct {
 	commands []Command
 	mu       sync.Mutex
@@ -32,6 +32,7 @@ type sliceQueue[T Payload] struct {
 
 // NewQueue creates a new command queue with an initial buffer capacity.
 func NewQueue[T Payload]() Queue {
+	schema.Register[T]()
 	return &sliceQueue[T]{
 		commands: make([]Command, 0, initialQueueCapacity),
 	}
@@ -47,13 +48,9 @@ func (q *sliceQueue[T]) Enqueue(ctx context.Context, cmd *iscv1.Command, sender 
 		return eris.Errorf("mismatched command name, expected %s, actual %s", zero.Name(), cmd.GetName())
 	}
 
-	decoded, err := zero.UnmarshalWire(cmd.GetPayload())
-	if err != nil {
+	var payload T
+	if err := schema.Deserialize(cmd.GetPayload(), &payload); err != nil {
 		return eris.Wrapf(err, "failed to decode command payload for %q", zero.Name())
-	}
-	payload, ok := decoded.(Payload)
-	if !ok {
-		return eris.Errorf("command %q decoded to non-payload type %T", zero.Name(), decoded)
 	}
 
 	q.mu.Lock()

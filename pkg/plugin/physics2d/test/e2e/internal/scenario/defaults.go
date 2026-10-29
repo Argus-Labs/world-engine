@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/goccy/go-json"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/harness"
 
@@ -152,14 +153,12 @@ func checkJSONDefaults(c *harness.Ctx) {
 	original.AngularDamping = 0.5
 	original.GravityScale = 2.5
 
-	raw := original.MarshalWire()
-	decodedAny, err := physics.PhysicsBody2D{}.UnmarshalWire(raw)
-	if !c.NoError("wire: UnmarshalWire succeeds", err) {
+	raw, err := msgpack.Marshal(original)
+	if !c.NoError("wire: MessagePack encoding succeeds", err) {
 		return
 	}
-	got, ok := decodedAny.(physics.PhysicsBody2D)
-	if !c.True("wire: UnmarshalWire returns a PhysicsBody2D", ok,
-		"got %T instead", decodedAny) {
+	var got physics.PhysicsBody2D
+	if !c.NoError("wire: MessagePack decoding succeeds", msgpack.Unmarshal(raw, &got)) {
 		return
 	}
 

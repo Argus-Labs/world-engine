@@ -3,247 +3,247 @@ package mcp
 import (
 	"testing"
 
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/types/descriptorpb"
+	"github.com/vmihailenco/msgpack/v5"
+	"google.golang.org/protobuf/types/known/structpb"
+
+	"github.com/argus-labs/world-engine/pkg/immutable"
+	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 )
 
-// testDescriptorSet marshals a one-file FileDescriptorSet holding the given messages, mirroring
-// what a shard's introspect response carries in proto_descriptor_set.
-func testDescriptorSet(t *testing.T, messages ...*descriptorpb.DescriptorProto) []byte {
-	t.Helper()
-	raw, err := proto.Marshal(&descriptorpb.FileDescriptorSet{
-		File: []*descriptorpb.FileDescriptorProto{{
-			Name:        new("test.proto"),
-			Syntax:      new("proto3"),
-			Package:     new("test"),
-			MessageType: messages,
-		}},
-	})
-	require.NoError(t, err)
-	return raw
-}
-
-// testMessageDescriptor resolves test.<name> through the same path the tools use.
-func testMessageDescriptor(t *testing.T, raw []byte, name string) protoreflect.MessageDescriptor {
-	t.Helper()
-	files, err := resolveDescriptorFiles(raw)
-	require.NoError(t, err)
-	md, err := findMessageDescriptor(files, "test."+name)
-	require.NoError(t, err)
-	return md
-}
-
-func scalarField(
-	name string,
-	number int32,
-	typ descriptorpb.FieldDescriptorProto_Type,
-) *descriptorpb.FieldDescriptorProto {
-	return &descriptorpb.FieldDescriptorProto{
-		Name:   new(name),
-		Number: new(number),
-		Label:  descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
-		Type:   typ.Enum(),
+func testObjectSchema(field string, schema map[string]any) map[string]any {
+	return map[string]any{
+		"type": "object", "additionalProperties": false,
+		"properties": map[string]any{field: schema},
 	}
 }
 
-func TestEncodeCommandPayload(t *testing.T) {
+func TestEncodeCommandPayloadPreservesLargeIntegers(t *testing.T) {
 	t.Parallel()
-
-	tests := []struct {
-		name    string
-		field   *descriptorpb.FieldDescriptorProto
-		payload string
-		want    []byte
+	for _, tc := range []struct {
+		text string
+		want any
 	}{
-		{
-			name:    "int64 scalar",
-			field:   scalarField("Count", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
-			payload: `{"Count": 5}`,
-			want:    []byte{0x08, 0x05}, // field 1 varint = 5
-		},
-		{
-			name:    "string",
-			field:   scalarField("Nickname", 1, descriptorpb.FieldDescriptorProto_TYPE_STRING),
-			payload: `{"Nickname": "hi"}`,
-			want:    []byte{0x0a, 0x02, 0x68, 0x69},
-		},
-		{
-			name:    "field number is honored",
-			field:   scalarField("Damage", 2, descriptorpb.FieldDescriptorProto_TYPE_UINT32),
-			payload: `{"Damage": 7}`,
-			want:    []byte{0x10, 0x07},
-		},
-		{
-			name: "packed repeated scalars",
-			field: &descriptorpb.FieldDescriptorProto{
-				Name:   new("Nums"),
-				Number: new(int32(1)),
-				Label:  descriptorpb.FieldDescriptorProto_LABEL_REPEATED.Enum(),
-				Type:   descriptorpb.FieldDescriptorProto_TYPE_INT64.Enum(),
-			},
-			payload: `{"Nums": [1, 2, 3]}`,
-			want:    []byte{0x0a, 0x03, 0x01, 0x02, 0x03},
-		},
-		{
-			name:    "empty payload",
-			field:   scalarField("Count", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
-			payload: `{}`,
-			want:    []byte{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		{"9007199254740993", int64(9007199254740993)},
+		{"9223372036854775807", int64(9223372036854775807)},
+		{"-9223372036854775808", int64(-9223372036854775808)},
+		{"18446744073709551615", uint64(18446744073709551615)},
+		{"10000000000000000000", uint64(10000000000000000000)},
+	} {
+		t.Run(tc.text, func(t *testing.T) {
 			t.Parallel()
-			raw := testDescriptorSet(t, &descriptorpb.DescriptorProto{
-				Name:  new("Cmd"),
-				Field: []*descriptorpb.FieldDescriptorProto{tt.field},
-			})
-			got, err := encodeCommandPayload(testMessageDescriptor(t, raw, "Cmd"), tt.payload)
+			blob, err := encodeCommandPayload(
+				testObjectSchema("N", map[string]any{"type": "integer"}),
+				`{"N":`+tc.text+`}`,
+			)
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, got)
+			decoded, err := decodeMessage(blob)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, decoded["N"])
 		})
 	}
 }
 
-func TestEncodeCommandPayloadNested(t *testing.T) {
+func TestEncodeCommandPayloadNestedArraysAndBytes(t *testing.T) {
 	t.Parallel()
-
-	origin := &descriptorpb.FieldDescriptorProto{
-		Name:     new("Origin"),
-		Number:   new(int32(1)),
-		Label:    descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
-		Type:     descriptorpb.FieldDescriptorProto_TYPE_MESSAGE.Enum(),
-		TypeName: new(".test.Point"),
+	schema := map[string]any{
+		"$ref": "#/$defs/Cmd",
+		"$defs": map[string]any{
+			"Cmd": map[string]any{
+				"type": "object", "additionalProperties": false,
+				"properties": map[string]any{
+					"cells": map[string]any{
+						"type":  "array",
+						"items": map[string]any{"type": "array", "items": map[string]any{"$ref": "#/$defs/Point"}},
+					},
+					"bytes": map[string]any{"type": "string", "contentEncoding": "base64"},
+				},
+			},
+			"Point": testObjectSchema("X", map[string]any{"type": "integer"}),
+		},
 	}
-	raw := testDescriptorSet(t,
-		&descriptorpb.DescriptorProto{Name: new("Cmd"), Field: []*descriptorpb.FieldDescriptorProto{origin}},
-		&descriptorpb.DescriptorProto{Name: new("Point"), Field: []*descriptorpb.FieldDescriptorProto{
-			scalarField("X", 1, descriptorpb.FieldDescriptorProto_TYPE_INT32),
-			scalarField("Y", 2, descriptorpb.FieldDescriptorProto_TYPE_INT32),
-		}},
+	blob, err := encodeCommandPayload(schema, `{"cells":[[{"X":9007199254740993}],[{"X":2}]],"bytes":"AQID"}`)
+	require.NoError(t, err)
+	var target struct {
+		Cells [][]struct{ X int64 } `msgpack:"cells"`
+		Bytes []byte                `msgpack:"bytes"`
+	}
+	require.NoError(t, msgpack.Unmarshal(blob, &target))
+	require.Len(t, target.Cells, 2)
+	assert.Equal(t, int64(9007199254740993), target.Cells[0][0].X)
+	assert.Equal(t, int64(2), target.Cells[1][0].X)
+	assert.Equal(t, []byte{1, 2, 3}, target.Bytes)
+	_, err = encodeCommandPayload(schema, `{"cells":[[{"nope":1}]]}`)
+	require.Error(t, err)
+}
+
+func TestEncodeCommandPayloadRejectsInvalidInput(t *testing.T) {
+	t.Parallel()
+	schema := testObjectSchema("N", map[string]any{"type": "integer", "minimum": -128, "maximum": 127})
+	for _, payload := range []string{
+		`{"Unknown":1}`, `{"N":"1"}`, `{"N":true}`, `{"N":1.5}`, `{"N":128}`, `{"N":-129}`,
+		`null`, `[]`, `1`, `{`, `{} {}`, `{} trailing`,
+	} {
+		t.Run(payload, func(t *testing.T) {
+			t.Parallel()
+			_, err := encodeCommandPayload(schema, payload)
+			require.Error(t, err)
+		})
+	}
+	for _, number := range []string{"18446744073709551616", "-9223372036854775809"} {
+		_, err := encodeCommandPayload(testObjectSchema("N", map[string]any{"type": "integer"}), `{"N":`+number+`}`)
+		require.Error(t, err)
+	}
+	blob, err := encodeCommandPayload(schema, `{}`)
+	require.NoError(t, err)
+	decoded, err := decodeMessage(blob)
+	require.NoError(t, err)
+	assert.Empty(t, decoded)
+}
+
+func TestConvertTypeSchemasPreservesJSONSchema(t *testing.T) {
+	t.Parallel()
+	schema := map[string]any{
+		"$ref":  "#/$defs/Cmd",
+		"$defs": map[string]any{"Cmd": testObjectSchema("N", map[string]any{"type": "integer"})},
+	}
+	metadata, err := structpb.NewStruct(schema)
+	require.NoError(t, err)
+	out := convertTypeSchemas([]*cardinalv1.TypeSchema{{Name: "cmd", JsonSchema: metadata}})
+	require.Len(t, out, 1)
+	assert.Equal(t, schema, out[0].Schema)
+	// The map remains a JSON Schema rather than a rendered protobuf descriptor.
+	raw, err := json.Marshal(out)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), `"additionalProperties":false`)
+}
+
+func TestEncodeCommandPayloadNativeIntegerRanges(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ format, valid, invalid string }{
+		{"int8", "127", "128"}, {"uint8", "255", "256"},
+		{"int16", "32767", "32768"}, {"uint16", "65535", "65536"},
+		{"int32", "2147483647", "2147483648"}, {"uint32", "4294967295", "4294967296"},
+		{"int64", "9223372036854775807", "9223372036854775808"},
+		{"uint64", "18446744073709551615", "-1"},
+	} {
+		t.Run(tc.format, func(t *testing.T) {
+			t.Parallel()
+			schema := testObjectSchema("N", map[string]any{"type": "integer", "format": tc.format})
+			_, err := encodeCommandPayload(schema, `{"N":`+tc.valid+`}`)
+			require.NoError(t, err)
+			_, err = encodeCommandPayload(schema, `{"N":`+tc.invalid+`}`)
+			require.Error(t, err)
+		})
+	}
+}
+
+func TestEncodeCommandPayloadIntegralNumberForms(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		format, number string
+		want           any
+	}{
+		{"int8", "1.0", int64(1)},
+		{"int8", "1e2", int64(100)},
+		{"int8", "-2.0E1", int64(-20)},
+		{"uint64", "1.8446744073709551615e19", uint64(18446744073709551615)},
+	} {
+		schema := testObjectSchema("N", map[string]any{"type": "integer", "format": tc.format})
+		blob, err := encodeCommandPayload(schema, `{"N":`+tc.number+`}`)
+		require.NoError(t, err, tc.number)
+		var target struct{ N any }
+		require.NoError(t, msgpack.Unmarshal(blob, &target))
+		assert.EqualValues(t, tc.want, target.N, tc.number)
+	}
+	for _, number := range []string{"1.28e2", "1e400", "1.0000000000000000000000000000000000000000000000000000000000000000000000000000001"} {
+		schema := testObjectSchema("N", map[string]any{"type": "integer", "format": "int8"})
+		_, err := encodeCommandPayload(schema, `{"N":`+number+`}`)
+		require.Error(t, err, number)
+	}
+}
+
+func TestCommandAndStateImmutableSlice(t *testing.T) {
+	t.Parallel()
+	schema := testObjectSchema(
+		"Nums",
+		map[string]any{"type": "array", "items": map[string]any{"type": "integer", "format": "int64"}},
 	)
-
-	// Origin{X:1, Y:2}: field 1 (0x0a) len 4 -> [08 01 10 02]
-	got, err := encodeCommandPayload(testMessageDescriptor(t, raw, "Cmd"), `{"Origin": {"X": 1, "Y": 2}}`)
+	blob, err := encodeCommandPayload(schema, `{"Nums":[9007199254740993,9223372036854775807]}`)
 	require.NoError(t, err)
-	assert.Equal(t, []byte{0x0a, 0x04, 0x08, 0x01, 0x10, 0x02}, got)
+	var target struct{ Nums immutable.Slice[int64] }
+	require.NoError(t, msgpack.Unmarshal(blob, &target))
+	require.Equal(t, 2, target.Nums.Len())
+	assert.Equal(t, int64(9007199254740993), target.Nums.At(0))
+	assert.Equal(t, int64(9223372036854775807), target.Nums.At(1))
+	state, err := msgpack.Marshal(target)
+	require.NoError(t, err)
+	components := entityComponents([]string{"Numbers"}, [][]byte{state}, componentDescriptors{"Numbers": schema})
+	filter, err := compileStateFilter(GetStateInput{Where: "Numbers.Nums[0] == 9007199254740993"})
+	require.NoError(t, err)
+	matched, err := filter.matchesWhere(1, components)
+	require.NoError(t, err)
+	assert.True(t, matched)
 }
 
-func TestEncodeCommandPayloadRejectsUnknownField(t *testing.T) {
+func TestEncodeCommandPayloadScalarTypes(t *testing.T) {
 	t.Parallel()
-
-	raw := testDescriptorSet(t, &descriptorpb.DescriptorProto{
-		Name: new("Cmd"),
-		Field: []*descriptorpb.FieldDescriptorProto{
-			scalarField("Count", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
+	schema := map[string]any{
+		"type": "object", "additionalProperties": false,
+		"properties": map[string]any{
+			"Name":    map[string]any{"type": "string"},
+			"Enabled": map[string]any{"type": "boolean"},
+			"Ratio":   map[string]any{"anyOf": []any{map[string]any{"type": "number"}, map[string]any{"type": "null"}}},
 		},
+	}
+	for _, payload := range []string{`{"Name":"hi","Enabled":true,"Ratio":1.5}`, `{"Ratio":null}`} {
+		blob, err := encodeCommandPayload(schema, payload)
+		require.NoError(t, err)
+		var target struct {
+			Name    string
+			Enabled bool
+			Ratio   *float64
+		}
+		require.NoError(t, msgpack.Unmarshal(blob, &target))
+		if payload == `{"Ratio":null}` {
+			require.Nil(t, target.Ratio)
+			continue
+		}
+		require.NotNil(t, target.Ratio)
+		assert.Equal(t, 1.5, *target.Ratio)
+		assert.Equal(t, "hi", target.Name)
+		assert.True(t, target.Enabled)
+	}
+}
+
+func TestCommandAndStateIntegerMapKeys(t *testing.T) {
+	t.Parallel()
+	schema := testObjectSchema("Counts", map[string]any{
+		"type": "object", "x-msgpack-key-format": "uint64",
+		"additionalProperties": map[string]any{"type": "integer", "format": "int8"},
 	})
-	_, err := encodeCommandPayload(testMessageDescriptor(t, raw, "Cmd"), `{"Nope": 1}`)
-	require.Error(t, err)
-}
-
-// A JSON string lets protojson decode large int64 and uint64 values exactly.
-// The previous map payload converted numbers to float64, which rounded 9007199254740993 to 9007199254740992 without an error.
-// Values near MaxInt64 could fail with an error that showed the rounded number instead of the original value.
-func TestEncodeCommandPayload_PreservesLargeIntegers(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		name  string
-		field *descriptorpb.FieldDescriptorProto
-		json  string
-		want  any // decodeMessage returns int64, uint64, or a slice of these values.
-	}{
-		{
-			name:  "int64 just above 2^53 was silently rounded before the fix",
-			field: scalarField("N", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
-			json:  `{"N": 9007199254740993}`,
-			want:  int64(9007199254740993),
-		},
-		{
-			name:  "int64 max",
-			field: scalarField("N", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
-			json:  `{"N": 9223372036854775807}`,
-			want:  int64(9223372036854775807),
-		},
-		{
-			name:  "int64 min",
-			field: scalarField("N", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
-			json:  `{"N": -9223372036854775808}`,
-			want:  int64(-9223372036854775808),
-		},
-		{
-			name:  "uint64 max",
-			field: scalarField("N", 1, descriptorpb.FieldDescriptorProto_TYPE_UINT64),
-			json:  `{"N": 18446744073709551615}`,
-			want:  uint64(18446744073709551615),
-		},
-		{
-			name:  "uint64 above 2^63 and below max",
-			field: scalarField("N", 1, descriptorpb.FieldDescriptorProto_TYPE_UINT64),
-			json:  `{"N": 10000000000000000000}`,
-			want:  uint64(10000000000000000000),
-		},
-		{
-			name: "repeated int64 above 2^53 stays exact per element",
-			field: &descriptorpb.FieldDescriptorProto{
-				Name:   new("Nums"),
-				Number: new(int32(1)),
-				Label:  descriptorpb.FieldDescriptorProto_LABEL_REPEATED.Enum(),
-				Type:   descriptorpb.FieldDescriptorProto_TYPE_INT64.Enum(),
-			},
-			json: `{"Nums": [9007199254740993, 9223372036854775807]}`,
-			want: []any{int64(9007199254740993), int64(9223372036854775807)},
-		},
-	}
-
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			raw := testDescriptorSet(t, &descriptorpb.DescriptorProto{
-				Name:  new("Cmd"),
-				Field: []*descriptorpb.FieldDescriptorProto{tt.field},
-			})
-			md := testMessageDescriptor(t, raw, "Cmd")
-
-			wire, err := encodeCommandPayload(md, tt.json)
-			require.NoError(t, err)
-
-			decoded, err := decodeMessage(md, wire)
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, decoded[tt.field.GetName()])
-		})
-	}
-}
-
-func TestResolveDescriptorFiles_EmptySetIsAnError(t *testing.T) {
-	t.Parallel()
-
-	_, err := resolveDescriptorFiles(nil)
-	require.ErrorContains(t, err, "world sdk generate")
-}
-
-func TestResolveDescriptorFiles_GarbageIsAnError(t *testing.T) {
-	t.Parallel()
-
-	_, err := resolveDescriptorFiles([]byte{0xff, 0xff, 0xff})
-	require.Error(t, err)
-}
-
-func TestFindMessageDescriptor_UnknownName(t *testing.T) {
-	t.Parallel()
-
-	raw := testDescriptorSet(t, &descriptorpb.DescriptorProto{Name: new("Cmd")})
-	files, err := resolveDescriptorFiles(raw)
+	blob, err := encodeCommandPayload(schema, `{"Counts":{"18446744073709551615":-7}}`)
 	require.NoError(t, err)
+	var target struct{ Counts map[uint64]int8 }
+	require.NoError(t, msgpack.Unmarshal(blob, &target))
+	assert.Equal(t, map[uint64]int8{^uint64(0): -7}, target.Counts)
+	state, err := msgpack.Marshal(target)
+	require.NoError(t, err)
+	decoded, err := decodeMessage(state)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"18446744073709551615": int8(-7)}, decoded["Counts"])
+	for _, payload := range []string{`{"Counts":{"-1":0}}`, `{"Counts":{"1":128}}`, `{"Counts":{"1":0,"01":1}}`} {
+		_, err = encodeCommandPayload(schema, payload)
+		require.Error(t, err)
+	}
+}
 
-	_, err = findMessageDescriptor(files, "test.Missing")
-	require.ErrorContains(t, err, "not found in shard descriptor set")
-
-	_, err = findMessageDescriptor(files, "")
-	require.ErrorContains(t, err, "no proto_message_name")
+func TestMalformedMessagePackStateStaysRaw(t *testing.T) {
+	t.Parallel()
+	// {"M": {[]: 1}} has an array as a map key, which cannot be a Go map key.
+	blob := []byte{0x81, 0xa1, 'M', 0x81, 0x90, 0x01}
+	got := entityComponents([]string{"Bad"}, [][]byte{blob}, componentDescriptors{"Bad": {}})
+	assert.Equal(t, blob, got["Bad"])
 }

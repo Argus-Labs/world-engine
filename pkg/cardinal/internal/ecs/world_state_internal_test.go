@@ -14,9 +14,7 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // -------------------------------------------------------------------------------------------------
@@ -508,9 +506,7 @@ func TestWorldState_SerializationSmoke(t *testing.T) {
 		ws1.removeEntity(eid)
 	}
 
-	size := ws1.wireBodySize()
-	data := ws1.appendWireBody(make([]byte, 0, size))
-	require.Len(t, data, size)
+	data := encodeWorld(t, ws1)
 
 	var pb cardinalv1.WorldState
 	require.NoError(t, proto.Unmarshal(data, &pb))
@@ -524,8 +520,7 @@ func TestWorldState_SerializationSmoke(t *testing.T) {
 	// different but equivalent layout.
 	assertWorldStateEqual(t, ws1, ws2)
 
-	size2 := ws2.wireBodySize()
-	data2 := ws2.appendWireBody(make([]byte, 0, size2))
+	data2 := encodeWorld(t, ws2)
 	assert.Equal(t, data, data2, "snapshot -> restore -> snapshot must be byte-stable")
 }
 
@@ -558,67 +553,14 @@ func assertWorldStateEqual(t *testing.T, ws1, ws2 *worldState) {
 	assert.Equal(t, live(ws1), live(ws2))
 }
 
-// wirePos is a hand-written stand-in for a generated value-shaped component: it carries the
-// SizeWire/AppendWire pair the generator emits, encoding {double x = 1; double y = 2}.
+// wirePos needs only a name; MessagePack handles its payload.
 type wirePos struct {
 	X, Y float64
 }
 
 func (wirePos) Name() string { return "wire_pos" }
 
-func (c wirePos) SizeWire() int {
-	n := 0
-	if c.X != 0 {
-		n += protowire.SizeTag(1) + 8
-	}
-	if c.Y != 0 {
-		n += protowire.SizeTag(2) + 8
-	}
-	return n
-}
-
-func (c wirePos) AppendWire(b []byte) []byte {
-	if c.X != 0 {
-		b = protowire.AppendTag(b, 1, protowire.Fixed64Type)
-		b = protowire.AppendFixed64(b, math.Float64bits(c.X))
-	}
-	if c.Y != 0 {
-		b = protowire.AppendTag(b, 2, protowire.Fixed64Type)
-		b = protowire.AppendFixed64(b, math.Float64bits(c.Y))
-	}
-	return b
-}
-
-func (c wirePos) MarshalWire() []byte { return c.AppendWire(nil) }
-
-func (c wirePos) UnmarshalWire(data []byte) (any, error) {
-	var out wirePos
-	for len(data) > 0 {
-		num, typ, n := protowire.ConsumeTag(data)
-		if n < 0 {
-			return nil, protowire.ParseError(n)
-		}
-		data = data[n:]
-		if typ != protowire.Fixed64Type {
-			return nil, protowire.ParseError(-1)
-		}
-		v, n := protowire.ConsumeFixed64(data)
-		if n < 0 {
-			return nil, protowire.ParseError(n)
-		}
-		data = data[n:]
-		switch num { //nolint:exhaustive // only fields 1 and 2 exist
-		case 1:
-			out.X = math.Float64frombits(v)
-		case 2:
-			out.Y = math.Float64frombits(v)
-		}
-	}
-	return out, nil
-}
-
-// newWireTestWorld registers two components that encode in completely different ways, so the tests
-// below prove the snapshot encoder is agnostic to how any given component encodes itself.
+// newWireTestWorld registers plain value components.
 func newWireTestWorld(t *testing.T) (*worldState, ComponentID, ComponentID) {
 	t.Helper()
 	ws := newWorldState()
@@ -632,16 +574,14 @@ func newWireTestWorld(t *testing.T) (*worldState, ComponentID, ComponentID) {
 
 func encodeWorld(t *testing.T, ws *worldState) []byte {
 	t.Helper()
-	size := ws.wireBodySize()
-	buf := ws.appendWireBody(make([]byte, 0, size))
-	require.Len(t, buf, size, "append must write exactly what the size pass computed")
+	pb, err := ws.toProto()
+	require.NoError(t, err)
+	buf, err := proto.Marshal(pb)
+	require.NoError(t, err)
 	return buf
 }
 
-// TestSnapshotWireCanonical: the streamed bytes must be exactly what proto.Marshal produces for the
-// same message. Decoding and re-marshaling with the generated code is the oracle: if the bytes
-// round-trip to themselves, the hand encoder agrees with protobuf on every field, order, and varint.
-func TestSnapshotWireCanonical(t *testing.T) {
+func TestSnapshotEntityMajorLayout(t *testing.T) {
 	t.Parallel()
 	ws, posID, simpleID := newWireTestWorld(t)
 
@@ -680,11 +620,6 @@ func TestSnapshotWireCanonical(t *testing.T) {
 	assert.Equal(t, uint32(3), decoded.GetEntities()[2].GetId())
 	assert.Empty(t, decoded.GetEntities()[1].GetComponents(), "zero-component entity is present and empty")
 	assert.Equal(t, []uint32{0, 1}, decoded.GetEntities()[0].GetComponents(), "indices ascend with the table")
-
-	// Byte canonicality.
-	remarshaled, err := proto.MarshalOptions{Deterministic: true}.Marshal(&decoded)
-	require.NoError(t, err)
-	assert.Equal(t, remarshaled, data, "streamed bytes must be exactly proto.Marshal's encoding")
 }
 
 // TestSnapshotWireRoundTrip: encode -> restore into a fresh world -> encode again must be
@@ -721,6 +656,15 @@ func TestSnapshotWireRoundTrip(t *testing.T) {
 
 	assert.ElementsMatch(t, ws.free, restored.free)
 	assert.Equal(t, ws.nextID, restored.nextID)
+
+	// Runtime component IDs may change between builds; names remain the restore key.
+	reordered := newWorldState()
+	_, err = reordered.components.register[testutils.SimpleComponent](testutils.SimpleComponent{}.Name())
+	require.NoError(t, err)
+	_, err = reordered.components.register[wirePos]("wire_pos")
+	require.NoError(t, err)
+	require.NoError(t, reordered.fromProto(&pb))
+	assertWorldStateEqual(t, ws, reordered)
 }
 
 // TestSnapshotWireFreeListSurvives: ids freed out of order must still be reused in the same order
@@ -843,7 +787,7 @@ func TestSnapshotWireRejectsBadInput(t *testing.T) {
 		"unknown component": {
 			NextId:     1,
 			Components: []string{"nope"},
-			Entities:   []*cardinalv1.Entity{{Components: []uint32{0}, Payloads: [][]byte{{}}}},
+			Entities:   []*cardinalv1.Entity{{Components: []uint32{0}, Payloads: [][]byte{{0x80}}}},
 		},
 		"duplicate name in table": {
 			NextId:     1,
@@ -875,12 +819,20 @@ func TestSnapshotWireRejectsBadInput(t *testing.T) {
 		"index outside table": {
 			NextId:     1,
 			Components: []string{"wire_pos"},
-			Entities:   []*cardinalv1.Entity{{Components: []uint32{3}, Payloads: [][]byte{{}}}},
+			Entities:   []*cardinalv1.Entity{{Components: []uint32{3}, Payloads: [][]byte{{0x80}}}},
 		},
 		"payload count mismatch": {
 			NextId:     1,
 			Components: []string{"wire_pos"},
 			Entities:   []*cardinalv1.Entity{{Components: []uint32{0}, Payloads: [][]byte{}}},
+		},
+		"corrupt payload after valid entity": {
+			NextId:     2,
+			Components: []string{"wire_pos"},
+			Entities: []*cardinalv1.Entity{
+				{Id: 0, Components: []uint32{0}, Payloads: [][]byte{{0x80}}},
+				{Id: 1, Components: []uint32{0}, Payloads: [][]byte{{0xc1}}},
+			},
 		},
 	}
 
@@ -889,8 +841,11 @@ func TestSnapshotWireRejectsBadInput(t *testing.T) {
 			t.Parallel()
 			ws, _, _ := newWireTestWorld(t)
 			e := ws.newEntity()
+			require.NoError(t, ws.setComponent(e, wirePos{X: 12, Y: 34}))
+			before := encodeWorld(t, ws)
 
 			require.Error(t, ws.fromProto(pb))
+			assert.Equal(t, before, encodeWorld(t, ws), "restore must be transactional")
 
 			_, live := ws.entityArch.get(e)
 			assert.True(t, live, "a refused restore must leave the world untouched")
@@ -899,92 +854,73 @@ func TestSnapshotWireRejectsBadInput(t *testing.T) {
 	}
 }
 
-// TestSnapshotWireAllocations measures the hot path, which must not allocate at all.
-func TestSnapshotWireAllocations(t *testing.T) {
-	// Not parallel: testing.AllocsPerRun panics in parallel tests.
-	ws, posID, _ := newWireTestWorld(t)
-	var onlyPos bitmap.Bitmap
-	onlyPos.Set(posID)
-	for i := range 100 {
-		eid := ws.newEntityWithArchetype(onlyPos)
-		require.NoError(t, ws.setComponent(eid, wirePos{X: float64(i), Y: 1}))
-	}
-
-	// Learn the buffer size, so the measured runs below append into a buffer that never grows.
-	size := ws.wireBodySize()
-	buf := make([]byte, 0, size)
-
-	allocs := testing.AllocsPerRun(50, func() {
-		ws.wireBodySize()
-		buf = ws.appendWireBody(buf[:0])
-	})
-	assert.Zero(t, allocs, "the size and append passes must not allocate")
-}
-
-// TestSnapshotWireCorruptionPanics: an entity whose archetype has no row for it is a bug, so both
-// passes panic rather than encode a wrong row. Not an assert: those vanish in release builds.
+// An entity whose archetype has no row is an internal corruption, not a valid snapshot.
 func TestSnapshotWireCorruptionPanics(t *testing.T) {
 	t.Parallel()
 	ws, posID, _ := newWireTestWorld(t)
 	var onlyPos bitmap.Bitmap
 	onlyPos.Set(posID)
 	e := ws.newEntityWithArchetype(onlyPos)
-	size := ws.wireBodySize()
 
 	// Corrupt the world: the archetype forgets the entity but the index still points at it.
 	aid, ok := ws.entityArch.get(e)
 	require.True(t, ok)
 	ws.archetypes[aid].removeEntity(e)
 
-	require.Panics(t, func() { ws.appendWireBody(make([]byte, 0, size)) })
-	require.Panics(t, func() { ws.wireBodySize() })
+	require.Panics(t, func() { _, _ = ws.toProto() })
 }
 
-// TestSnapshotWireDivergencePanics: a world that changes between the two passes is a bug, so the
-// append pass panics instead of committing a body whose length disagrees with its prefix.
-func TestSnapshotWireDivergencePanics(t *testing.T) {
+func TestWorldState_ToProtoUnsupportedField(t *testing.T) {
 	t.Parallel()
 	ws, _, _ := newWireTestWorld(t)
-	_ = ws.newEntity()
-	size := ws.wireBodySize()
-	_ = ws.newEntity() // mutate between the passes
-
-	require.Panics(t, func() { ws.appendWireBody(make([]byte, 0, size)) })
+	_, err := ws.components.register[unsupportedPayload]("unsupported_payload")
+	require.NoError(t, err)
+	good := ws.newEntity()
+	require.NoError(t, ws.setComponent(good, wirePos{X: 7}))
+	bad := ws.newEntity()
+	value := unsupportedPayload{Value: make(chan int)}
+	require.NoError(t, ws.setComponent(bad, value))
+	pb, err := ws.toProto()
+	require.Error(t, err)
+	assert.Nil(t, pb, "failed encoding must not expose a partial graph")
+	got, err := ws.getComponent[unsupportedPayload](bad)
+	require.NoError(t, err)
+	assert.Equal(t, value, got)
+	pos, err := ws.getComponent[wirePos](good)
+	require.NoError(t, err)
+	assert.Equal(t, wirePos{X: 7}, pos)
+	assert.Equal(t, EntityID(2), ws.nextID)
 }
 
-// TestSnapshotWireFieldCoverage guards the one proto change the canonical test cannot see.
-//
-// The hand encoder writes field numbers as literals, so it agrees with the generated code only by
-// convention. Renumbering or retyping a field breaks TestSnapshotWireCanonical, because that test
-// decodes the streamed bytes with the generated code and checks the values. Adding a field does
-// not: the encoder simply never writes it, decode yields the zero value, and every assertion still
-// passes while the new field is silently missing from every snapshot.
-//
-// This test fails instead. When it does, teach the encoder the new field, then update the list.
-func TestSnapshotWireFieldCoverage(t *testing.T) {
+type nestedPayload struct {
+	Slices [][]int
+	Maps   map[string][]int
+}
+
+func (nestedPayload) Name() string { return "nested_payload" }
+
+func TestWorldState_ToProtoOwnsPayloads(t *testing.T) {
 	t.Parallel()
-
-	encoded := map[string][]protoreflect.FieldNumber{
-		"WorldState": {1, 2, 3}, // next_id, components, entities
-		"Entity":     {1, 2, 3}, // id, components, payloads
-	}
-	descriptors := []protoreflect.MessageDescriptor{
-		(&cardinalv1.WorldState{}).ProtoReflect().Descriptor(),
-		(&cardinalv1.Entity{}).ProtoReflect().Descriptor(),
-	}
-
-	for _, desc := range descriptors {
-		name := string(desc.Name())
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			fields := desc.Fields()
-			actual := make([]protoreflect.FieldNumber, 0, fields.Len())
-			for i := range fields.Len() {
-				actual = append(actual, fields.Get(i).Number())
-			}
-			assert.Equal(t, encoded[name], actual,
-				"%s fields changed: world_state.go writes these numbers as literals and must "+
-					"be updated to match", name)
-		})
-	}
+	ws := newWorldState()
+	_, err := ws.components.register[nestedPayload]("nested_payload")
+	require.NoError(t, err)
+	e := ws.newEntity()
+	value := nestedPayload{Slices: [][]int{{1, 2}}, Maps: map[string][]int{"a": {3, 4}}}
+	require.NoError(t, ws.setComponent(e, value))
+	pb, err := ws.toProto()
+	require.NoError(t, err)
+	frozen := proto.Clone(pb)
+	value.Slices[0][0] = 99
+	value.Maps["a"][0] = 88
+	value.Maps["b"] = []int{77}
+	_, err = ws.toProto() // subsequent encoding must not reuse earlier payload storage
+	require.NoError(t, err)
+	assert.True(t, proto.Equal(frozen, pb))
+	restored := newWorldState()
+	_, err = restored.components.register[nestedPayload]("nested_payload")
+	require.NoError(t, err)
+	require.NoError(t, restored.fromProto(pb))
+	got, err := restored.getComponent[nestedPayload](e)
+	require.NoError(t, err)
+	assert.Equal(t, nestedPayload{Slices: [][]int{{1, 2}}, Maps: map[string][]int{"a": {3, 4}}}, got)
 }
