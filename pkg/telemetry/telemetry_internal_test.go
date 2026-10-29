@@ -2,12 +2,15 @@ package telemetry
 
 import (
 	"context"
+	"errors"
 	"net"
 	"slices"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
+	sentrygo "github.com/getsentry/sentry-go"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
 	collmetricpb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
@@ -194,4 +197,36 @@ func TestShutdownFlushesMetricsPastStalledTraceCollector(t *testing.T) {
 	defer cancel()
 	require.ErrorIs(t, tel.Shutdown(ctx), context.DeadlineExceeded) // The span flush never completes.
 	require.Equal(t, []string{"test/test.requests"}, collector.received())
+}
+
+// TestShutdownSkipsSentryForJoinedCancellation verifies the cancellation guard sees through
+// [errors.Join], the shape setup.go's shutdown returns.
+func TestShutdownSkipsSentryForJoinedCancellation(t *testing.T) {
+	var captured []error
+	prev := sentrygo.CurrentHub().Client()
+	require.NoError(t, sentrygo.Init(sentrygo.ClientOptions{
+		DisableTelemetryBuffer: true,
+		BeforeSend: func(_ *sentrygo.Event, hint *sentrygo.EventHint) *sentrygo.Event {
+			captured = append(captured, hint.OriginalException)
+			return nil // Drop the event.
+		},
+	}))
+	t.Cleanup(func() { sentrygo.CurrentHub().BindClient(prev) })
+
+	ph, err := posthog.New(posthog.Options{})
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		err  error
+		want int
+	}{
+		{errors.Join(context.DeadlineExceeded), 0},
+		{errors.Join(context.Canceled), 0},
+		{errors.Join(errors.New("export failed")), 1},
+	} {
+		captured = nil
+		tel := Telemetry{posthog: ph, shutdown: func(context.Context) error { return tc.err }}
+		require.ErrorIs(t, tel.Shutdown(t.Context()), tc.err)
+		require.Len(t, captured, tc.want, tc.err.Error())
+	}
 }

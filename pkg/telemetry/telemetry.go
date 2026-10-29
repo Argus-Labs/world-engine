@@ -79,7 +79,7 @@ func (t *Telemetry) Shutdown(ctx context.Context) error {
 
 	if t.shutdown != nil {
 		err := t.shutdown(ctx)
-		if err != nil && !eris.Is(err, context.Canceled) && !eris.Is(err, context.DeadlineExceeded) {
+		if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			t.CaptureException(ctx, err)
 		}
 		outErr = errors.Join(outErr, eris.Wrap(err, "otel shutdown"))
