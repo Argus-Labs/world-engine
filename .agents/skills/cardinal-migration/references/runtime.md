@@ -35,7 +35,6 @@
 | `CARDINAL_PPROF` and the :6060 pprof server removed                              | Delete from deploy config; the variable is silently ignored (Telemetry)    |
 | Debug `StreamPerf` and its messages removed from the Go, TS and C# protos        | Drop callers; a v0.18 shard answers `Unimplemented`. Use OTel spans        |
 | Operator `Profile` and `StreamShardPerf` RPCs removed                            | Drop callers of `cli/proto/.../operator/v1`                                |
-| `data.Singleton` marker removed                                                  | Delete `var _ data.Singleton = X{}`; `SingleObject()` methods stay inert   |
 | `testutils.RandMapKey` needs `cmp.Ordered` keys                                  | Sort or convert other key types                                            |
 | `cardinal.NewTestWorld`, `cardinal.RequireDeterministic` added                   | Port system tests (bootstrap.md, Testing one system)                       |
 | DST: a logged `TEST_SEED` replays the run                                        | v0.17.x seeds do not; rerun DST on v0.18.0 for replayable seeds            |
@@ -114,8 +113,8 @@ v0.16 fields (`WithCommand[T]`, `Ref[T]`, ...). So:
    - `ORPHANS` (exit 0, but treat as a failure): a type has a `Name()` but no Register*
      call. A real generate skips it. A missing `RegisterEvent` shows up only here, not
      as `undeclared`. If the game uses the type, add the registration. Expected orphans:
-     types v0.16 never registered either (an unused template command, unused tags), data
-     plugin kinds (`data.Register[T]` types), and look-alike packages' types.
+     types v0.16 never registered either (an unused template command, unused tags), and look-alike
+     packages' types.
 6. `gen/**/*.pb.go` and client SDK output should not change. If they do, the proto schema
    changed; ship the new client SDK with the shard. Games scaffolded from a world-cli
    template may see generated files move and proto package names change on the first
