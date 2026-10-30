@@ -591,11 +591,26 @@ func (w *World) finalizeBodiesTask(startIndex, endIndex, workerIndex int, ctx *s
 		state := &states[simIndex]
 		sim := &sims[simIndex]
 
-		// The motion locks are already applied to the post-solve velocity in
-		// integratePositionsTask (upstream b2IntegratePositionsTask). Upstream
-		// b2FinalizeBodiesTask does NOT re-zero locked DOFs here, so this port
-		// no longer does either: re-zeroing would hide any impulse the relax
-		// stage re-adds to a locked axis and diverge from the reference.
+		// Re-apply the motion locks to the post-relax/post-restitution
+		// velocity. integratePositionsTask already zeroes locked DOFs
+		// before position integration, but the relax and restitution
+		// stages run after it and can re-introduce velocity on a locked
+		// axis (e.g. a revolute motor driving an AngularZ-locked body).
+		// Finalization consumes the velocity below — for the sleep metric,
+		// the continuous solve, and the published body velocity — so the
+		// locked components must be zeroed again here, matching the base
+		// behavior (upstream b2FinalizeBodiesTask zeroes locked DOFs).
+		if state.flags&lockLinearX != 0 {
+			state.linearVelocity.X = 0.0
+		}
+
+		if state.flags&lockLinearY != 0 {
+			state.linearVelocity.Y = 0.0
+		}
+
+		if state.flags&lockAngularZ != 0 {
+			state.angularVelocity = 0.0
+		}
 
 		v := state.linearVelocity
 		wAng := state.angularVelocity

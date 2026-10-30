@@ -359,3 +359,72 @@ func TestPostSolveClampBoundsSolverInducedDisplacement(t *testing.T) {
 	require.Less(t, dispLow, dispHigh,
 		"a low MaximumLinearSpeed must clamp solver-induced motion below the unclamped default")
 }
+
+// TestFinalizeReappliesMotionLocksAfterRelax guards the P1 regression where the
+// final motion-lock projection was removed from finalizeBodiesTask.
+// integratePositionsTask applies the locks before position integration, but
+// the relax and restitution stages run after it and can re-introduce velocity
+// on a locked axis — e.g. a revolute motor driving an AngularZ-locked body.
+// Without re-zeroing the locked components in finalizeBodiesTask (after
+// relax/restitution, before finalization consumes velocity), that phantom
+// velocity leaks to getters, the sleep metric and the published body velocity.
+//
+// Reproduction (zero gravity): an AngularZ-locked dynamic 1x1 box connected to
+// a static body by a revolute motor (MotorSpeed=10, MaxMotorTorque=1e9),
+// stepped at 1/60 with four substeps. With the final zeroing removed the body
+// reports angular velocity 10 rad/s, identity rotation and never sleeps; the
+// base (and this fix) reports 0 rad/s and sleeps.
+func TestFinalizeReappliesMotionLocksAfterRelax(t *testing.T) {
+	const dt = 1.0 / 60.0
+	const subSteps = 4
+
+	def := DefaultWorldDef()
+	def.Gravity = Vec2Zero
+	w := NewWorld(&def)
+	t.Cleanup(w.Destroy)
+
+	// Static anchor at the origin.
+	gd := DefaultBodyDef()
+	gd.Position = Vec2{X: 0.0, Y: 0.0}
+	ground := w.CreateBody(&gd)
+
+	// AngularZ-locked dynamic 1x1 box coincident with the anchor.
+	bd := DefaultBodyDef()
+	bd.Type = DynamicBody
+	bd.Position = Vec2{X: 0.0, Y: 0.0}
+	bd.MotionLocks.AngularZ = true
+	body := w.CreateBody(&bd)
+	box := MakeBox(0.5, 0.5)
+	sd := DefaultShapeDef()
+	sd.Density = 1.0
+	w.CreatePolygonShape(body, &sd, &box)
+
+	// Revolute motor pinning the box to the anchor and driving it at 10 rad/s.
+	jd := DefaultRevoluteJointDef()
+	jd.Base.BodyIDA = ground
+	jd.Base.BodyIDB = body
+	jd.EnableMotor = true
+	jd.MotorSpeed = 10.0
+	jd.MaxMotorTorque = 1e9
+	jointID := w.CreateRevoluteJoint(&jd)
+	t.Cleanup(func() { w.DestroyJoint(jointID, true) })
+
+	// First step: the motor imparts angular velocity, but the lock must zero
+	// it in the finalized velocity. Without the final zeroing the reported
+	// angular velocity is 10 rad/s.
+	w.Step(dt, subSteps)
+	tassert.InDelta(t, 0.0, w.BodyAngularVelocity(body), 1e-9,
+		"AngularZ lock must zero the motor-induced angular velocity after relax/restitution")
+	rot := w.BodyRotation(body)
+	tassert.InDelta(t, 1.0, rot.C, 1e-9, "locked rotation must stay at identity (cos)")
+	tassert.InDelta(t, 0.0, rot.S, 1e-9, "locked rotation must stay at identity (sin)")
+
+	// Without the final zeroing the phantom angular velocity keeps the sleep
+	// metric above threshold and the body never sleeps. With the fix it
+	// settles and sleeps well within 120 steps.
+	for range 120 {
+		w.Step(dt, subSteps)
+	}
+	tassert.False(t, w.IsBodyAwake(body),
+		"the locked motor must not keep the body awake via phantom angular velocity")
+}
