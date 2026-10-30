@@ -601,8 +601,6 @@ func (w *World) CreatePrismaticJoint(def *PrismaticJointDef) JointID {
 func (w *World) CreateRevoluteJoint(def *RevoluteJointDef) JointID {
 	requireInitialized(def.initialized, "RevoluteJointDef", "DefaultRevoluteJointDef")
 	assert(def.LowerAngle <= def.UpperAngle)
-	assert(def.LowerAngle >= -0.99*Pi)
-	assert(def.UpperAngle <= 0.99*Pi)
 
 	assert(!w.locked)
 	if w.locked {
@@ -618,8 +616,8 @@ func (w *World) CreateRevoluteJoint(def *RevoluteJointDef) JointID {
 	js.revoluteJoint.targetAngle = clampFloat(def.TargetAngle, -Pi, Pi)
 	js.revoluteJoint.hertz = def.Hertz
 	js.revoluteJoint.dampingRatio = def.DampingRatio
-	js.revoluteJoint.lowerAngle = def.LowerAngle
-	js.revoluteJoint.upperAngle = def.UpperAngle
+	js.revoluteJoint.lowerAngle = clampFloat(minFloat(def.LowerAngle, def.UpperAngle), -0.99*Pi, 0.99*Pi)
+	js.revoluteJoint.upperAngle = clampFloat(maxFloat(def.LowerAngle, def.UpperAngle), -0.99*Pi, 0.99*Pi)
 	js.revoluteJoint.maxMotorTorque = def.MaxMotorTorque
 	js.revoluteJoint.motorSpeed = def.MotorSpeed
 	js.revoluteJoint.enableSpring = def.EnableSpring
