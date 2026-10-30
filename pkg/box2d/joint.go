@@ -1391,6 +1391,31 @@ func (w *World) JointTorqueThreshold(jointID JointID) float64 {
 
 // prepareJoint prepares a joint for solving (upstream b2PrepareJoint).
 func (w *World) prepareJoint(js *jointSim, ctx *stepContext) {
+	// Mark DYNAMIC bodies constrained by this joint so the CCD time-loss
+	// gravity correction can skip them (see isJointConstrained). The joint
+	// solver runs after velocity integration and before CCD and can already
+	// cancel the integrated gravity impulse (e.g. a horizontal-axis prismatic
+	// joint holds vertical velocity at zero), so subtracting the un-simulated
+	// gravity on a later TOI hit would inject a spurious impulse. Only dynamic
+	// endpoints are flagged: graph coloring reserves only dynamic bodies per
+	// color, so a kinematic endpoint may be shared across joints in one color
+	// and writing its flags would race under the parallel dispatch; kinematic
+	// bodies get no gravity correction anyway. Race-free under the parallel
+	// color dispatch and the serial overflow loop alike.
+	awakeSims := w.solverSets[awakeSet].bodySims
+	if bodyA := &w.bodies[js.bodyIDA]; bodyA.setIndex == awakeSet {
+		idx := bodyA.localIndex
+		if awakeSims[idx].flags&dynamicFlag != 0 {
+			awakeSims[idx].flags |= isJointConstrained
+		}
+	}
+	if bodyB := &w.bodies[js.bodyIDB]; bodyB.setIndex == awakeSet {
+		idx := bodyB.localIndex
+		if awakeSims[idx].flags&dynamicFlag != 0 {
+			awakeSims[idx].flags |= isJointConstrained
+		}
+	}
+
 	// Clamp joint hertz based on the time step to reduce jitter.
 	hertz := minFloat(js.constraintHertz, 0.25*ctx.invH)
 	js.constraintSoftness = makeSoft(hertz, js.constraintDampingRatio, ctx.h)

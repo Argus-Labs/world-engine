@@ -893,3 +893,67 @@ func TestDeterminismTwoWorldsIdenticalState(t *testing.T) {
 	// Counters agree.
 	tassert.Equal(t, w1.Counters(), w2.Counters())
 }
+
+// TestPrepareContactsColorKinematicPlatformNoRace reproduces the P1 finding
+// from the slopcop review on 4ec97fe: graph coloring reserves only DYNAMIC
+// bodies per color, so many dynamic circles resting on a SINGLE shared
+// kinematic platform all land in the same color (their distinct dynamic-body
+// bits do not collide; the shared kinematic platform's bit is never set). The
+// parallel prepareContactsColor dispatch then writes isContactConstrained on
+// the same kinematic bodySim from multiple workers — a data race. The
+// dynamicFlag guard (matching the existing solver writes) skips the flag
+// write for non-dynamic endpoints; kinematic bodies receive no gravity
+// correction and need no flag.
+//
+// Run with -race to detect the race:
+//
+//	go test -race ./pkg/box2d/ -run TestPrepareContactsColorKinematicPlatformNoRace
+//
+// The scene uses 3000 circles (>= solverLightColorGrain=1024) so the contact
+// prepare for the shared color actually dispatches across the 4 workers.
+func TestPrepareContactsColorKinematicPlatformNoRace(t *testing.T) {
+	const (
+		circleCount = 3000
+		radius      = 0.1
+		spacing     = 0.3
+		dt          = 1.0 / 60.0
+		subSteps    = 4
+	)
+
+	def := DefaultWorldDef()
+	def.WorkerCount = 4
+	w := NewWorld(&def)
+	defer w.Destroy()
+
+	// One shared kinematic floor: top surface at y == 0.
+	kd := DefaultBodyDef()
+	kd.Type = KinematicBody
+	floor := w.CreateBody(&kd)
+	floorBox := MakeOffsetBox(500.0, 0.5, Vec2{X: 0.0, Y: -0.5}, RotIdentity)
+	gsd := DefaultShapeDef()
+	w.CreatePolygonShape(floor, &gsd, &floorBox)
+
+	// Many separated dynamic circles resting exactly on the floor so the
+	// contact is touching from step one: center y == radius, floor top at 0.
+	bd := DefaultBodyDef()
+	bd.Type = DynamicBody
+	sd := DefaultShapeDef()
+	sd.Density = 1.0
+	for i := range circleCount {
+		x := (float64(i) - float64(circleCount-1)/2.0) * spacing
+		bd.Position = Vec2{X: x, Y: radius}
+		bodyID := w.CreateBody(&bd)
+		circle := Circle{Center: Vec2Zero, Radius: radius}
+		w.CreateCircleShape(bodyID, &sd, &circle)
+	}
+
+	w.Step(dt, subSteps)
+
+	// The kinematic floor must NOT carry isContactConstrained: it is not
+	// dynamic, so the guard skips the flag write for it (and it receives no
+	// gravity correction anyway). This holds deterministically, not just
+	// under -race.
+	floorBody := w.getBodyFullID(floor)
+	require.Zero(t, floorBody.flags&isContactConstrained,
+		"kinematic platform must not be marked isContactConstrained (dynamicFlag guard)")
+}
