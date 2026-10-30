@@ -236,8 +236,8 @@ func TestEqual(t *testing.T) {
 // is what comparisons go through.
 //
 // The case this used to protect — a component restored from a snapshot versus one built fresh — is
-// handled on the decode side instead: the generated FromProto leaves an empty repeated field as the
-// zero value rather than building an allocated empty.
+// handled on the decode side instead: DecodeMsgpack leaves an empty array as the zero value rather
+// than building an allocated empty.
 func TestSlice_EmptyComparison(t *testing.T) {
 	t.Parallel()
 

@@ -1,11 +1,13 @@
 package ecs
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // -------------------------------------------------------------------------------------------------
@@ -152,17 +154,21 @@ func TestColumn_DecodeRejectsGarbage(t *testing.T) {
 	assert.Equal(t, testutils.SimpleComponent{Value: 42}, col.get(0))
 }
 
-type unsupportedPayload struct {
-	Value chan int
+// unencodablePayload passes component validation but always fails to encode, standing in for any
+// encoding failure at snapshot time.
+type unencodablePayload struct {
+	Value int
 }
 
-func (unsupportedPayload) Name() string { return "unsupported_payload" }
+func (unencodablePayload) Name() string { return "unencodable_payload" }
 
-func TestColumn_EncodeUnsupportedField(t *testing.T) {
+func (unencodablePayload) EncodeMsgpack(*msgpack.Encoder) error { return errors.New("cannot encode") }
+
+func TestColumn_EncodeFailure(t *testing.T) {
 	t.Parallel()
-	col := newColumn[unsupportedPayload]()
+	col := newColumn[unencodablePayload]()
 	col.extend()
-	value := unsupportedPayload{Value: make(chan int)}
+	value := unencodablePayload{Value: 1}
 	col.set(0, value)
 	payload, err := col.encode(0)
 	require.Error(t, err)
