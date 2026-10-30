@@ -308,14 +308,25 @@ func (w *World) solveContinuous(bodySimIndex int, tc *taskContext, dt float64) {
 		// un-simulated portion. MulAdd keeps the product rounded per-axis (no
 		// FMA — see math_fma.go); locked axes are then zeroed to match the
 		// upstream per-axis lock clipping.
+		//
+		// Skip the correction when the body was speed-capped this step: the
+		// cap in integrateVelocitiesTask already discarded part of the
+		// gravity impulse, so subtracting the full theoretical un-simulated
+		// contribution would remove gravity that was never retained, which
+		// can reverse the body's velocity and exceed MaximumLinearSpeed. The
+		// isSpeedCapped flag is carried on the body (transferred and cleared
+		// from the sim in finalizeBodiesTask before this runs). Upstream v3.2.0
+		// has the same edge case; this port preserves the capped velocity.
 		state := &awake.bodyStates[bodySimIndex]
-		timeLoss := (1.0 - context.fraction) * dt
-		state.linearVelocity = MulAdd(state.linearVelocity, -timeLoss*fastBodySim.gravityScale, w.gravity)
-		if state.flags&lockLinearX != 0 {
-			state.linearVelocity.X = 0.0
-		}
-		if state.flags&lockLinearY != 0 {
-			state.linearVelocity.Y = 0.0
+		if fastBody.flags&isSpeedCapped == 0 {
+			timeLoss := (1.0 - context.fraction) * dt
+			state.linearVelocity = MulAdd(state.linearVelocity, -timeLoss*fastBodySim.gravityScale, w.gravity)
+			if state.flags&lockLinearX != 0 {
+				state.linearVelocity.X = 0.0
+			}
+			if state.flags&lockLinearY != 0 {
+				state.linearVelocity.Y = 0.0
+			}
 		}
 
 		// Update body move event
