@@ -201,15 +201,21 @@ func continuousQueryCallback(proxyID int, userData uint64, context any) bool {
 
 // solveContinuous performs the continuous sweep for one fast body: it queries
 // the broad-phase trees along the swept AABB of each shape, finds the
-// earliest time of impact, advances the body to it and refreshes the shape
-// AABBs (upstream b2SolveContinuous). Sensor hits are pushed onto the
-// executing worker's task context for serial processing after the join.
+// earliest time of impact, advances the body to it, removes the gravity
+// contribution of the unsimulated fraction of the step (upstream time-loss
+// correction) and refreshes the shape AABBs (upstream b2SolveContinuous).
+// Sensor hits are pushed onto the executing worker's task context for serial
+// processing after the join.
+//
+// dt is the full step duration (upstream b2SolveContinuous's dt parameter);
+// it scales the time-loss correction so that a body that hits at fraction f
+// keeps only f*dt of the gravity impulse integrated by integrateVelocitiesTask.
 //
 // Concurrency contract: every write is owned by this body (its sim, its
 // shapes, its bodyMoveEvents slot) or by the worker (tc.sensorHits). The
 // only tree read of a non-bullet sweep is the static tree, which is frozen
 // during the finalize dispatch — see the file header.
-func (w *World) solveContinuous(bodySimIndex int, tc *taskContext) {
+func (w *World) solveContinuous(bodySimIndex int, tc *taskContext, dt float64) {
 	awake := &w.solverSets[awakeSet]
 	fastBodySim := &awake.bodySims[bodySimIndex]
 	assert(fastBodySim.flags&isFast != 0)
@@ -294,6 +300,23 @@ func (w *World) solveContinuous(bodySimIndex int, tc *taskContext) {
 		fastBodySim.center = c
 		fastBodySim.rotation0 = q
 		fastBodySim.center0 = c
+
+		// Timeloss means there is a lost gravity contribution. Other forces
+		// and torques are ignored for now (upstream b2SolveContinuous).
+		// Gravity was integrated for the full step in integrateVelocitiesTask,
+		// but the body only advances through fraction of it, so subtract the
+		// un-simulated portion. MulAdd keeps the product rounded per-axis (no
+		// FMA — see math_fma.go); locked axes are then zeroed to match the
+		// upstream per-axis lock clipping.
+		state := &awake.bodyStates[bodySimIndex]
+		timeLoss := (1.0 - context.fraction) * dt
+		state.linearVelocity = MulAdd(state.linearVelocity, -timeLoss*fastBodySim.gravityScale, w.gravity)
+		if state.flags&lockLinearX != 0 {
+			state.linearVelocity.X = 0.0
+		}
+		if state.flags&lockLinearY != 0 {
+			state.linearVelocity.Y = 0.0
+		}
 
 		// Update body move event
 		w.bodyMoveEvents[bodySimIndex].Transform = transform

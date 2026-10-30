@@ -661,7 +661,7 @@ func (w *World) finalizeBodiesTask(startIndex, endIndex, workerIndex int, ctx *s
 				if sim.flags&isBullet != 0 {
 					tc.bulletBodies = append(tc.bulletBodies, simIndex)
 				} else {
-					w.solveContinuous(simIndex, tc)
+					w.solveContinuous(simIndex, tc, timeStep)
 				}
 			} else {
 				// Body is safe to advance
@@ -1307,7 +1307,7 @@ func (w *World) solve(ctx *stepContext) {
 		// the deviation note in solver_continuous.go).
 		// Note: a bullet body may be moving slow.
 		for i := range ctx.bulletBodyCount {
-			w.solveContinuous(ctx.bulletBodies[i], &w.taskContexts[0])
+			w.solveContinuous(ctx.bulletBodies[i], &w.taskContexts[0], ctx.dt)
 		}
 		w.taskCount++
 
