@@ -796,6 +796,39 @@ func TestOracleRevoluteJointAccessors(t *testing.T) {
 		require.InDelta(t, loaded, world.JointConstraintTorque(jointID), 0)
 	})
 
+	t.Run("SetLimitsIsANoOpWhenUnchangedOutOfRange", func(t *testing.T) {
+		t.Parallel()
+
+		// revolute_joint.c:135-141 clamps the min/max-swapped limits to
+		// ±0.99*pi before storing, so the guard must compare the
+		// normalized pair — not the raw arguments — against the stored
+		// pair. A pendulum created with the out-of-band pair (-0.05, Pi)
+		// stores the effective pair (-0.05, 0.99*Pi); re-issuing that same
+		// out-of-band request must therefore be a no-op and preserve the
+		// accumulated limit impulses/torque instead of clearing them.
+		world, _, jointID := oracleRevolutePendulum(t, box2d.Vec2{X: 0.0, Y: -10.0},
+			func(def *box2d.RevoluteJointDef) {
+				def.EnableLimit = true
+				def.LowerAngle = -0.05
+				def.UpperAngle = box2d.Pi
+			})
+
+		require.InDelta(t, -0.05, world.RevoluteJointLowerLimit(jointID), 0)
+		require.InDelta(t, 0.99*box2d.Pi, world.RevoluteJointUpperLimit(jointID), 0)
+
+		oracleJointStep(world, 60)
+		loaded := world.JointConstraintTorque(jointID)
+		require.Greater(t, math.Abs(loaded), 0.0)
+
+		// Re-issuing the identical out-of-band request is a no-op: the
+		// effective pair is unchanged, so the impulses are preserved.
+		world.SetRevoluteJointLimits(jointID, -0.05, box2d.Pi)
+		require.InDelta(t, loaded, world.JointConstraintTorque(jointID), 0)
+
+		require.InDelta(t, -0.05, world.RevoluteJointLowerLimit(jointID), 0)
+		require.InDelta(t, 0.99*box2d.Pi, world.RevoluteJointUpperLimit(jointID), 0)
+	})
+
 	t.Run("EnableMotorZeroesMotorImpulseOnChangeOnly", func(t *testing.T) {
 		t.Parallel()
 

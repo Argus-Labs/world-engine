@@ -165,9 +165,16 @@ func (w *World) SetRevoluteJointLimits(jointID JointID, lower, upper float64) {
 	assert(lower <= upper)
 
 	j := w.getJointSimCheckType(jointID, RevoluteJoint)
-	if lower != j.revoluteJoint.lowerAngle || upper != j.revoluteJoint.upperAngle {
-		j.revoluteJoint.lowerAngle = clampFloat(minFloat(lower, upper), -0.99*Pi, 0.99*Pi)
-		j.revoluteJoint.upperAngle = clampFloat(maxFloat(lower, upper), -0.99*Pi, 0.99*Pi)
+	// Normalize (min/max swap then ±0.99*pi clamp) before the guard so a
+	// repeated out-of-band request — e.g. SetRevoluteJointLimits(j, -0.05,
+	// Pi), whose effective upper is 0.99*Pi — compares against the already
+	// clamped stored pair and is treated as a no-op instead of clearing the
+	// limit impulses and the reported constraint torque.
+	normalizedLower := clampFloat(minFloat(lower, upper), -0.99*Pi, 0.99*Pi)
+	normalizedUpper := clampFloat(maxFloat(lower, upper), -0.99*Pi, 0.99*Pi)
+	if normalizedLower != j.revoluteJoint.lowerAngle || normalizedUpper != j.revoluteJoint.upperAngle {
+		j.revoluteJoint.lowerAngle = normalizedLower
+		j.revoluteJoint.upperAngle = normalizedUpper
 		j.revoluteJoint.lowerImpulse = 0.0
 		j.revoluteJoint.upperImpulse = 0.0
 	}
