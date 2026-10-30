@@ -131,3 +131,151 @@ func TestBulletBodiesFillOrderIsDeterministic(t *testing.T) {
 	}
 	_ = ids
 }
+
+// timeLossTolerance is the max allowed error between the observed post-TOI
+// linear velocity and the upstream v3.2.0 analytic value vy0 + g*dt*fraction.
+// The bug under fix deviates by ~0.086 m/s at these parameters (~858x this).
+const timeLossTolerance = 1e-4
+
+// timeLossScene builds the bug-report reproduction: a small fast circle under
+// gravity above a static floor. When withGround is false the body is in free
+// fall (the control sweep); when true it hits the floor mid-step via a TOI.
+// The returned c1 is the COM at the start of the step (identical for both
+// worlds, captured before stepping).
+func timeLossScene(t *testing.T, withGround, isBullet bool, locks MotionLocks) (*World, BodyID, Vec2) {
+	t.Helper()
+
+	const (
+		dt       = 1.0 / 60.0
+		vy0      = -50.0
+		radius   = 0.1
+		yStart   = 0.5
+		subSteps = 8
+	)
+
+	// Build the world with a non-trivial gravity that has both an X and a Y
+	// component so the per-axis lock clipping in the correction is exercised
+	// when the caller requests a lock.
+	def := DefaultWorldDef()
+	def.Gravity = Vec2{X: -5.0, Y: -10.0}
+	w := NewWorld(&def)
+
+	if withGround {
+		gd := DefaultBodyDef()
+		ground := w.CreateBody(&gd)
+		// Wide thin floor with its top surface at y = 0.
+		floor := MakeOffsetBox(5.0, 0.05, Vec2{X: 0.0, Y: -0.05}, RotIdentity)
+		gsd := DefaultShapeDef()
+		w.CreatePolygonShape(ground, &gsd, &floor)
+	}
+
+	bd := DefaultBodyDef()
+	bd.Type = DynamicBody
+	bd.Position = Vec2{X: 0.0, Y: yStart}
+	bd.LinearVelocity = Vec2{X: 0.0, Y: vy0}
+	bd.IsBullet = isBullet
+	bd.MotionLocks = locks
+	bodyID := w.CreateBody(&bd)
+
+	circle := Circle{Center: Vec2Zero, Radius: radius}
+	sd := DefaultShapeDef()
+	sd.Density = 1.0
+	w.CreateCircleShape(bodyID, &sd, &circle)
+
+	c1 := w.BodyWorldCenterOfMass(bodyID)
+
+	w.Step(dt, subSteps)
+
+	return w, bodyID, c1
+}
+
+// TestSolveContinuousTimeLossGravityCorrection reproduces the upstream v3.2.0
+// time-loss gravity velocity correction in the TOI-hit branch of
+// solveContinuous. A fast body under gravity that hits a TOI mid-step must
+// keep only the gravity impulse for the simulated fraction of the step
+// (vy0 + g*dt*fraction), not the full step's worth (vy0 + g*dt) the port used
+// to retain. Mirrors the reproduction in the bug report and exercises both
+// call sites: non-bullet fast bodies (solved inline in finalizeBodiesTask) and
+// bullet bodies (the serial bullet stage).
+func TestSolveContinuousTimeLossGravityCorrection(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		isBullet bool
+	}{
+		{"non_bullet", false},
+		{"bullet", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const (
+				dt  = 1.0 / 60.0
+				vy0 = -50.0
+				gY  = -10.0
+			)
+
+			// Control: free fall, no ground → the full gravity increment for
+			// the whole step, and the full semi-implicit-Euler sweep.
+			wc, control, c1 := timeLossScene(t, false, tc.isBullet, MotionLocks{})
+			defer wc.Destroy()
+			c2 := wc.BodyWorldCenterOfMass(control)
+			vControl := wc.BodyLinearVelocity(control)
+			require.InDelta(t, vy0+gY*dt, vControl.Y, 1e-4,
+				"control (no TOI) must take the full step gravity")
+
+			// TOI: identical body above a static floor.
+			wt, hit, _ := timeLossScene(t, true, tc.isBullet, MotionLocks{})
+			defer wt.Destroy()
+
+			// hadTimeOfImpact is set on the body SIM by continuousQueryCallback
+			// during the TOI sweep and only transferred to the body flags on
+			// the next step's finalize, so check the sim flag directly.
+			hsim := wt.getBodySim(wt.getBodyFullID(hit))
+			require.NotZero(t, hsim.flags&hadTimeOfImpact,
+				"%s: fast body must record a TOI against the floor", tc.name)
+
+			cHit := wt.BodyWorldCenterOfMass(hit)
+			vHit := wt.BodyLinearVelocity(hit)
+
+			// The TOI must stop the body short of the free-fall sweep.
+			require.Less(t, cHit.Y, c1.Y, "%s: body must fall", tc.name)
+			require.Greater(t, cHit.Y, c2.Y, "%s: TOI must stop the body before the full sweep", tc.name)
+
+			// Fraction of the step the body was actually simulated (from the
+			// COM sweep, which is identical to the control's pre-CCD sweep).
+			fraction := (cHit.Y - c1.Y) / (c2.Y - c1.Y)
+			require.True(t, fraction > 0.0 && fraction < 1.0,
+				"%s: TOI fraction must be in (0,1), got %v", tc.name, fraction)
+
+			// Upstream v3.2.0 correction: only the simulated fraction's gravity
+			// is kept. The bug retained the full vy0 + g*dt. The float64()
+			// conversion rounds the product so it cannot fuse into an FMA
+			// (see math_fma.go / nofma_test.go).
+			wantY := vy0 + float64(gY*dt*fraction)
+			require.InDelta(t, wantY, vHit.Y, timeLossTolerance,
+				"%s: TOI body must keep only the simulated fraction's gravity (time-loss correction)", tc.name)
+
+			// And it must carry strictly less downward speed than free fall:
+			// the un-simulated portion's gravity was removed.
+			require.Greater(t, vHit.Y, vControl.Y,
+				"%s: TOI body must have less downward speed than free fall", tc.name)
+		})
+	}
+}
+
+// TestSolveContinuousTimeLossRespectsLinearLocks verifies the per-axis lock
+// clipping of the time-loss correction: a body locked on X must NOT acquire
+// spurious X velocity from the correction's gravity.X component when it hits a
+// TOI. Upstream v3.2.0 zeros dv on locked axes before adding it.
+func TestSolveContinuousTimeLossRespectsLinearLocks(t *testing.T) {
+	// Locked on X, free on Y, gravity has an X component. Without the lock
+	// clipping, the correction would set v.X = -timeLoss*gravityScale*gravity.X
+	// (nonzero); with it, v.X stays zero.
+	wt, hit, _ := timeLossScene(t, true, false, MotionLocks{LinearX: true})
+	defer wt.Destroy()
+
+	hsim := wt.getBodySim(wt.getBodyFullID(hit))
+	require.NotZero(t, hsim.flags&hadTimeOfImpact, "body must hit a TOI against the floor")
+
+	v := wt.BodyLinearVelocity(hit)
+	require.InDelta(t, 0.0, v.X, timeLossTolerance,
+		"locked-X body must keep zero X velocity after the TOI correction (lock clipping)")
+}
