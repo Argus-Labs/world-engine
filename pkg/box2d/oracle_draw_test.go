@@ -254,6 +254,75 @@ func TestOracleDrawColorSpeedCappedIsYellow(t *testing.T) {
 	assert.Equal(t, box2d.ColorYellow, colors[0])
 }
 
+// TestOracleDrawColorSpeedCappedNotRetainedAcrossSleepWake guards the stale
+// isSpeedCapped regression introduced by reading the speed-cap indication from
+// the body state (set post-solve in b2IntegratePositionsTask) rather than from
+// the sim. wakeSolverSet, transferBody and SetBodyType initialize state.flags
+// from the body's flags, which carry the previous step's isSpeedCapped; since
+// integratePositionsTask only ever sets the flag (never clears it), a body
+// that was capped in one step and then slept and woken at a sub-cap velocity in
+// the next would be drawn yellow for one stale step. The state must be
+// initialized with the transient flags masked so only an actual clamp in the
+// current step sets the indication.
+//
+// The sleep/wake cycle is driven through SetBodyType (static -> dynamic): a
+// static body leaves the awake set (it is "asleep" for the solver), and
+// returning it to dynamic rebuilds its awake state via the same
+// state.flags = b.flags path that a natural wake uses. With cap 10 the clamped
+// velocity (10 m/s) is far above the sleep threshold, so the body cannot fall
+// asleep naturally after the clamping step; SetBodyType is the minimal way to
+// exercise the wake path while preserving the stale flag on the body.
+func TestOracleDrawColorSpeedCappedNotRetainedAcrossSleepWake(t *testing.T) {
+	t.Parallel()
+
+	worldDef := box2d.DefaultWorldDef()
+	worldDef.Gravity = box2d.Vec2{}
+	worldDef.MaximumLinearSpeed = 10.0
+	world := box2d.NewWorld(&worldDef)
+	t.Cleanup(world.Destroy)
+
+	// Start well above the cap so the very first step clamps and draws yellow,
+	// seeding isSpeedCapped onto the body's flags via finalize.
+	bodyDef := box2d.DefaultBodyDef()
+	bodyDef.Type = box2d.DynamicBody
+	bodyDef.LinearVelocity = box2d.Vec2{X: 100.0, Y: 0.0}
+	bodyID := world.CreateBody(&bodyDef)
+
+	shapeDef := box2d.DefaultShapeDef()
+	box := box2d.MakeBox(0.5, 0.5)
+	world.CreatePolygonShape(bodyID, &shapeDef, &box)
+
+	world.Step(1.0/60.0, 4)
+	require.LessOrEqual(t, box2d.Length(world.BodyLinearVelocity(bodyID)), 10.0+1e-9,
+		"the first step must clamp the velocity to MaximumLinearSpeed")
+	colors := oracleDrawColors(oracleDrawShapes(world))
+	require.Len(t, colors, 1)
+	assert.Equal(t, box2d.ColorYellow, colors[0],
+		"the capped first step must draw yellow, seeding isSpeedCapped onto the body")
+
+	// Sleep the body by making it static: it leaves the awake set, so finalize
+	// no longer runs on it and the isSpeedCapped flag set above is preserved
+	// on the body. Wake it as dynamic, which rebuilds the awake state flags
+	// from the body's flags (the stale-flag path).
+	world.SetBodyType(bodyID, box2d.StaticBody)
+	world.SetBodyType(bodyID, box2d.DynamicBody)
+
+	// Wake at a velocity well below the cap, then step. At 1 m/s the
+	// post-solve clamp cannot fire, so the speed-cap indication must not be
+	// set this step.
+	world.SetBodyLinearVelocity(bodyID, box2d.Vec2{X: 1.0, Y: 0.0})
+	require.True(t, world.IsBodyAwake(bodyID), "setting a velocity must wake the body")
+	world.Step(1.0/60.0, 4)
+
+	// An awake, non-capped, non-fast dynamic body is drawn pink (rung 1002).
+	// Without the transient-flag mask the stale isSpeedCapped survives the
+	// sleep/wake and this asserts yellow.
+	colors = oracleDrawColors(oracleDrawShapes(world))
+	require.Len(t, colors, 1)
+	assert.Equal(t, box2d.ColorPink, colors[0],
+		"a sub-cap velocity after sleep/wake must not retain the prior step's speed-cap indication")
+}
+
 // TestOracleDrawColorFastIsSalmon drives rung 990 of the C ladder
 // (`bodySim->flags & b2_isFast`). b2FinalizeBodiesTask (src/solver.c) sets
 // b2_isFast on a dynamic body when

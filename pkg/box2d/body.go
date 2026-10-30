@@ -1444,8 +1444,10 @@ func (w *World) SetBodyType(bodyID BodyID, bodyType BodyType) {
 
 	state := w.getBodyState(b)
 	if state != nil {
-		// Ensure flags are in sync (b2_skipSolverWrite)
-		state.flags = b.flags
+		// Ensure flags are in sync (b2_skipSolverWrite). Strip the transient
+		// per-step flags so a prior step's speed-cap / TOI / fast indication
+		// does not carry into the refreshed state.
+		state.flags = b.flags &^ (isFast | isSpeedCapped | hadTimeOfImpact)
 	}
 
 	w.validateSolverSets()
