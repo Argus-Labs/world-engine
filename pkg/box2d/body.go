@@ -39,6 +39,14 @@ const (
 	// isSpeedCapped means this body was speed capped in the current time step.
 	isSpeedCapped uint32 = 0x00000020
 
+	// isLinearSpeedCapped means this body's LINEAR speed was clamped to
+	// MaximumLinearSpeed in the current time step (a port-internal refinement
+	// of isSpeedCapped, which upstream also sets for an angular-speed clamp).
+	// Used by the CCD time-loss gravity correction to skip only bodies whose
+	// linear velocity — and therefore linear gravity impulse — was actually
+	// discarded by the cap; an angular-only clamp does not justify skipping it.
+	isLinearSpeedCapped uint32 = 0x00000800
+
 	// hadTimeOfImpact means this body had a time of impact event in the
 	// current time step.
 	hadTimeOfImpact uint32 = 0x00000040
