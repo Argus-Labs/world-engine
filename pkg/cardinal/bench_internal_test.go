@@ -8,6 +8,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/testutils"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 )
 
 // Bench component fixtures satisfy schema.Serializable via gob (real components get generated proto
@@ -147,7 +148,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
 			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			entity.Set(Inventory{Items: immutable.SliceOf("sword", "potion"), Capacity: 10})
 			b.StopTimer()
 		}
 	})
@@ -162,7 +163,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			warmup.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			warmup.Set(Health2{Current: 100, Max: 100})
 			warmup.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			warmup.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			warmup.Set(Inventory{Items: immutable.SliceOf("sword", "potion"), Capacity: 10})
 
 			b.StartTimer()
 			entity := w.Create[arch5]()
@@ -170,7 +171,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
 			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			entity.Set(Inventory{Items: immutable.SliceOf("sword", "potion"), Capacity: 10})
 			b.StopTimer()
 		}
 	})
@@ -186,7 +187,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
 			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			entity.Set(Inventory{Items: immutable.SliceOf("sword", "potion"), Capacity: 10})
 			entity.Set(PlayerStats{Level: 5, Experience: 1000, Strength: 10, Agility: 8})
 			entity.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
 			entity.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
@@ -207,7 +208,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			warmup.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			warmup.Set(Health2{Current: 100, Max: 100})
 			warmup.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			warmup.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			warmup.Set(Inventory{Items: immutable.SliceOf("sword", "potion"), Capacity: 10})
 			warmup.Set(PlayerStats{Level: 5, Experience: 1000, Strength: 10, Agility: 8})
 			warmup.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
 			warmup.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
@@ -221,7 +222,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
 			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			entity.Set(Inventory{Items: immutable.SliceOf("sword", "potion"), Capacity: 10})
 			entity.Set(PlayerStats{Level: 5, Experience: 1000, Strength: 10, Agility: 8})
 			entity.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
 			entity.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
@@ -258,7 +259,7 @@ func BenchmarkCardinal_Entity_Destroy(b *testing.B) {
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
 			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			entity.Set(Inventory{Items: immutable.SliceOf("sword", "potion"), Capacity: 10})
 
 			b.StartTimer()
 			_ = entity.Destroy()
@@ -276,7 +277,7 @@ func BenchmarkCardinal_Entity_Destroy(b *testing.B) {
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
 			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10})
+			entity.Set(Inventory{Items: immutable.SliceOf("sword", "potion"), Capacity: 10})
 			entity.Set(PlayerStats{Level: 5, Experience: 1000, Strength: 10, Agility: 8})
 			entity.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
 			entity.Set(Renderer{Model: "player", Texture: "player.png", Visible: true, ZIndex: 1})
@@ -348,7 +349,7 @@ func BenchmarkCardinal_Component_Remove(b *testing.B) {
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
 			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Set(Inventory{Items: []string{"sword"}, Capacity: 10})
+			entity.Set(Inventory{Items: immutable.SliceOf("sword"), Capacity: 10})
 
 			b.StartTimer()
 			entity.Remove[Velocity3D]()
@@ -382,7 +383,7 @@ func BenchmarkCardinal_Component_Get(b *testing.B) {
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
 			entity.Set(Health2{Current: 100, Max: 100})
 			entity.Set(Transform{Scale: 1.0, Rotation: 0.0})
-			entity.Set(Inventory{Items: []string{"sword"}, Capacity: 10})
+			entity.Set(Inventory{Items: immutable.SliceOf("sword"), Capacity: 10})
 
 			b.StartTimer()
 			_ = entity.Get[Position3D]()
@@ -422,7 +423,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Health2{Current: j, Max: 100})
 				entity.Set(Transform{Scale: 1.0, Rotation: float64(j)})
-				entity.Set(Inventory{Items: []string{"item"}, Capacity: 10})
+				entity.Set(Inventory{Items: immutable.SliceOf("item"), Capacity: 10})
 			}
 
 			search := w.Exact[arch5]()
@@ -445,7 +446,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Health2{Current: j, Max: 100})
 				entity.Set(Transform{Scale: 1.0, Rotation: float64(j)})
-				entity.Set(Inventory{Items: []string{"item"}, Capacity: 10})
+				entity.Set(Inventory{Items: immutable.SliceOf("item"), Capacity: 10})
 				entity.Set(PlayerStats{Level: j, Experience: j * 10, Strength: 10, Agility: 8})
 				entity.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
 				entity.Set(Renderer{Model: "model", Texture: "texture", Visible: true, ZIndex: 1})
@@ -495,7 +496,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Health2{Current: j, Max: 100})
 				entity.Set(Transform{Scale: 1.0, Rotation: float64(j)})
-				entity.Set(Inventory{Items: []string{"item"}, Capacity: 10})
+				entity.Set(Inventory{Items: immutable.SliceOf("item"), Capacity: 10})
 			}
 
 			search := w.Contains[arch3]()
@@ -518,7 +519,7 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 				entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				entity.Set(Health2{Current: j, Max: 100})
 				entity.Set(Transform{Scale: 1.0, Rotation: float64(j)})
-				entity.Set(Inventory{Items: []string{"item"}, Capacity: 10})
+				entity.Set(Inventory{Items: immutable.SliceOf("item"), Capacity: 10})
 				entity.Set(PlayerStats{Level: j, Experience: j * 10, Strength: 10, Agility: 8})
 				entity.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
 				entity.Set(Renderer{Model: "model", Texture: "texture", Visible: true, ZIndex: 1})
@@ -586,7 +587,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 					entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
 					entity.Set(Health2{Current: j, Max: 100})
 					entity.Set(Transform{Scale: 1.0, Rotation: float64(j)})
-					entity.Set(Inventory{Items: []string{"item"}, Capacity: 10})
+					entity.Set(Inventory{Items: immutable.SliceOf("item"), Capacity: 10})
 				}
 			}}, WithHook(Init))
 
@@ -621,7 +622,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 					entity.Set(Velocity3D{X: float64(j), Y: float64(j), Z: float64(j)})
 					entity.Set(Health2{Current: j, Max: 100})
 					entity.Set(Transform{Scale: 1.0, Rotation: float64(j)})
-					entity.Set(Inventory{Items: []string{"item"}, Capacity: 10})
+					entity.Set(Inventory{Items: immutable.SliceOf("item"), Capacity: 10})
 					entity.Set(PlayerStats{Level: j, Experience: j * 10, Strength: 10, Agility: 8})
 					entity.Set(AIBehavior{State: "idle", Target: 0, Aggression: 0.5, PatrolRange: 5.0})
 					entity.Set(Renderer{Model: "model", Texture: "texture", Visible: true, ZIndex: 1})
@@ -700,7 +701,7 @@ type Transform struct {
 func (Transform) Name() string { return "Transform" }
 
 type Inventory struct {
-	Items    []string
+	Items    immutable.Slice[string]
 	Capacity int
 }
 

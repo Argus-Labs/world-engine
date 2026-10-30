@@ -623,8 +623,8 @@ func (w *World) SendToShard(to OtherWorld, cmd command.Payload) {
 		w.Logger().Error().Str("command", cmd.Name()).Msg("SendToShard: empty target shard address, dropping command")
 		return
 	}
-	// cmd is a command.Payload, so it carries its generated MarshalWire — no registry check needed; an
-	// ungenerated command wouldn't satisfy the parameter type and wouldn't compile at the call site.
+	// cmd is not checked against the registry here: it is encoded with MessagePack when events flush,
+	// so any command.Payload can be sent.
 	serviceAddress := micro.GetAddress(to.Project, to.ShardID)
 	w.events.Enqueue(event.Event{
 		Kind: event.KindInterShardCommand,
@@ -775,6 +775,11 @@ func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
 // RegisterComponent registers a component type before world startup. Every component
 // used by a system, archetype, or snapshot must be registered here; nothing registers
 // components implicitly. Register components before StartGame.
+//
+// It panics if an exported field cannot be stored: a slice, map, pointer, or interface, which
+// would share memory with the stored component; a chan, func, or struct with no exported fields,
+// which a snapshot cannot hold; or a uintptr or complex number. Hold a list in a fixed-size array
+// or a Slice instead.
 func (w *World) RegisterComponent[T ecs.Component]() {
 	if w.started {
 		panic(ErrWorldStarted)
