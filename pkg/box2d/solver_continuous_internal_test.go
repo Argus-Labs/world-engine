@@ -862,3 +862,230 @@ func TestSolveContinuousTimeLossJointConstrainedNoReversal(t *testing.T) {
 		})
 	}
 }
+
+// timeLossFilterJointScene builds the bug-report falling-circle TOI scene (a
+// fast circle under gravity that hits a static floor mid-step) and, when
+// withFilterJoint is true, attaches a FilterJoint between the falling body and
+// an EMPTY static body. A FilterJoint disables collision between its two
+// bodies, but the anchor has no shapes, so the floor TOI is unaffected. The
+// reviewer's P2 finding: prepareJoint marked FilterJoint endpoints
+// isJointConstrained even though FilterJoint performs no velocity solve, so
+// the time-loss correction was suppressed and the post-TOI velocity changed
+// from the corrected -50.0808484 to the un-corrected -50.1666667 (gravity
+// (0,-10), vy0=-50, dt=1/60).
+func timeLossFilterJointScene(t *testing.T, withFilterJoint, isBullet bool) (*World, BodyID) {
+	t.Helper()
+
+	const (
+		dt       = 1.0 / 60.0
+		vy0      = -50.0
+		radius   = 0.1
+		yStart   = 0.5
+		subSteps = 8
+	)
+
+	def := DefaultWorldDef()
+	def.Gravity = Vec2{X: 0.0, Y: -10.0}
+	w := NewWorld(&def)
+
+	gd := DefaultBodyDef()
+	ground := w.CreateBody(&gd)
+	floor := MakeOffsetBox(5.0, 0.05, Vec2{X: 0.0, Y: -0.05}, RotIdentity)
+	gsd := DefaultShapeDef()
+	w.CreatePolygonShape(ground, &gsd, &floor)
+
+	bd := DefaultBodyDef()
+	bd.Type = DynamicBody
+	bd.Position = Vec2{X: 0.0, Y: yStart}
+	bd.LinearVelocity = Vec2{X: 0.0, Y: vy0}
+	bd.IsBullet = isBullet
+	bodyID := w.CreateBody(&bd)
+
+	circle := Circle{Center: Vec2Zero, Radius: radius}
+	sd := DefaultShapeDef()
+	sd.Density = 1.0
+	w.CreateCircleShape(bodyID, &sd, &circle)
+
+	if withFilterJoint {
+		// Empty static anchor (no shapes) so the floor collision is unchanged.
+		anchor := w.CreateBody(&gd)
+		fjd := DefaultFilterJointDef()
+		fjd.Base.BodyIDA = anchor
+		fjd.Base.BodyIDB = bodyID
+		w.CreateFilterJoint(&fjd)
+	}
+
+	w.Step(dt, subSteps)
+	return w, bodyID
+}
+
+// TestSolveContinuousTimeLossFilterJointNoSuppression reproduces the P2 finding
+// from the slopcop review on efb1f9f: FilterJoint performs no velocity solve,
+// so it cannot cancel the integrated gravity impulse and must not suppress the
+// CCD time-loss gravity correction. Pre-fix, attaching a filter joint to an
+// empty static body set isJointConstrained on the falling dynamic body and
+// changed its post-TOI velocity from the corrected value to the un-corrected
+// full-step-gravity value (identical collision geometry and TOI). After the
+// fix, the with- and without-filter-joint scenes finish with identical
+// post-TOI velocity and neither body carries isJointConstrained. Exercises
+// both the non-bullet and bullet CCD paths.
+func TestSolveContinuousTimeLossFilterJointNoSuppression(t *testing.T) {
+	const (
+		dt  = 1.0 / 60.0
+		vy0 = -50.0
+		gY  = -10.0
+	)
+	for _, tc := range []struct {
+		name     string
+		isBullet bool
+	}{
+		{"non_bullet", false},
+		{"bullet", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Baseline: no filter joint. The correction must apply.
+			w0, b0 := timeLossFilterJointScene(t, false, tc.isBullet)
+			defer w0.Destroy()
+			hsim0 := w0.getBodySim(w0.getBodyFullID(b0))
+			require.NotZero(t, hsim0.flags&hadTimeOfImpact,
+				"%s: baseline body must record a TOI against the floor", tc.name)
+			require.Zero(t, w0.getBodyFullID(b0).flags&isJointConstrained,
+				"%s: baseline body must not be joint-constrained", tc.name)
+			v0 := w0.BodyLinearVelocity(b0)
+
+			// With a filter joint to an empty static body. The correction must
+			// still apply — the filter joint does no solve work.
+			w1, b1 := timeLossFilterJointScene(t, true, tc.isBullet)
+			defer w1.Destroy()
+			hsim1 := w1.getBodySim(w1.getBodyFullID(b1))
+			require.NotZero(t, hsim1.flags&hadTimeOfImpact,
+				"%s: filter-joint body must still record a TOI against the floor", tc.name)
+			require.Zero(t, w1.getBodyFullID(b1).flags&isJointConstrained,
+				"%s: filter-joint body must not be marked isJointConstrained (FilterJoint does no solve)", tc.name)
+			v1 := w1.BodyLinearVelocity(b1)
+
+			// Both scenes have identical collision geometry and TOI, so the
+			// corrected post-TOI velocity must match. Pre-fix v1 was the
+			// un-corrected vy0 + g*dt = -50.1666667.
+			require.InDelta(t, v0.Y, v1.Y, timeLossTolerance,
+				"%s: filter joint must not change post-TOI velocity (pre-fix differed by ~0.086)", tc.name)
+
+			// And the correction must actually have been applied in both: the
+			// post-TOI downward speed is strictly less than the free-fall
+			// (un-corrected) value vy0 + g*dt.
+			fullFall := vy0 + gY*dt
+			require.Greater(t, v1.Y, fullFall,
+				"%s: correction must remove the un-simulated gravity (post-TOI vy %v must exceed free-fall %v)", tc.name, v1.Y, fullFall)
+		})
+	}
+}
+
+// timeLossBalancedForceScene builds the slopcop P1 balanced-force reproduction:
+// a frictionless dynamic circle moving horizontally under a strong downward
+// gravity, with an upward center force equal to mass*|g| applied so the net
+// vertical acceleration is zero (the unobstructed control keeps vy ~= 0). When
+// withWall is true a vertical wall is placed so the body hits it mid-step,
+// firing a CCD TOI in the same step the force is applied. Pre-fix the TOI
+// branch subtracted the un-simulated gravity the force had already canceled,
+// injecting a spurious upward velocity (reviewer observed +8.5667 m/s at
+// gravity -1000, dt=1/60).
+func timeLossBalancedForceScene(t *testing.T, gravityY float64, withWall, isBullet bool) (*World, BodyID) {
+	t.Helper()
+
+	const (
+		dt       = 1.0 / 60.0
+		radius   = 0.1
+		subSteps = 8
+		vx       = 50.0
+	)
+
+	def := DefaultWorldDef()
+	def.Gravity = Vec2{X: 0.0, Y: gravityY}
+	w := NewWorld(&def)
+
+	if withWall {
+		gd := DefaultBodyDef()
+		wallBody := w.CreateBody(&gd)
+		wall := MakeOffsetBox(0.05, 5.0, Vec2{X: 0.5, Y: 0.0}, RotIdentity)
+		gsd := DefaultShapeDef()
+		w.CreatePolygonShape(wallBody, &gsd, &wall)
+	}
+
+	bd := DefaultBodyDef()
+	bd.Type = DynamicBody
+	bd.Position = Vec2{X: 0.0, Y: 0.0}
+	bd.LinearVelocity = Vec2{X: vx, Y: 0.0}
+	bd.IsBullet = isBullet
+	bodyID := w.CreateBody(&bd)
+
+	circle := Circle{Center: Vec2Zero, Radius: radius}
+	sd := DefaultShapeDef()
+	sd.Density = 1.0
+	sd.Material.Friction = 0.0
+	w.CreateCircleShape(bodyID, &sd, &circle)
+
+	// Compute the mass now that the shape is attached, then apply an upward
+	// force that exactly cancels gravity (force.Y = -mass*gravity.Y).
+	mass := w.BodyMass(bodyID)
+	w.ApplyBodyForceToCenter(bodyID, Vec2{X: 0.0, Y: -mass * gravityY}, true)
+
+	w.Step(dt, subSteps)
+	return w, bodyID
+}
+
+// TestSolveContinuousTimeLossBalancedForceNoReversal reproduces the P1 finding
+// from the slopcop review on efb1f9f: a body with an upward force balancing
+// gravity, moving horizontally into a wall, gained a spurious upward velocity
+// because the time-loss correction subtracted gravity the applied force had
+// already canceled. The isForceDriven guard (set in integrateVelocitiesTask
+// when sim.force != Vec2Zero) skips the correction for force-driven bodies, so
+// the wall case matches the no-wall control (vertical velocity stays at zero).
+// Exercises both the non-bullet and bullet CCD paths at gravity -10 and -1000.
+func TestSolveContinuousTimeLossBalancedForceNoReversal(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		isBullet bool
+	}{
+		{"non_bullet", false},
+		{"bullet", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, g := range []struct {
+				name string
+				gY   float64
+				// pre-fix spurious upward vertical velocity the guard must eliminate
+				kick float64
+			}{
+				{"gravity_-10", -10.0, 0.0856667},
+				{"gravity_-1000", -1000.0, 8.56667},
+			} {
+				t.Run(g.name, func(t *testing.T) {
+					// No-wall control: balanced force, no TOI. The vertical
+					// acceleration is zero, so vertical velocity stays at zero.
+					wCtrl, ctrl := timeLossBalancedForceScene(t, g.gY, false, tc.isBullet)
+					defer wCtrl.Destroy()
+					vCtrl := wCtrl.BodyLinearVelocity(ctrl)
+					require.InDelta(t, 0.0, vCtrl.Y, 1e-3,
+						"%s/%s: no-wall control must keep zero vertical velocity", tc.name, g.name)
+
+					// Wall case: same balanced force, hitting a wall mid-step.
+					w, bodyID := timeLossBalancedForceScene(t, g.gY, true, tc.isBullet)
+					defer w.Destroy()
+
+					hsim := w.getBodySim(w.getBodyFullID(bodyID))
+					require.NotZero(t, hsim.flags&hadTimeOfImpact,
+						"%s/%s: body must record a TOI against the wall", tc.name, g.name)
+					require.NotZero(t, w.getBodyFullID(bodyID).flags&isForceDriven,
+						"%s/%s: force-driven body must carry isForceDriven", tc.name, g.name)
+
+					v := w.BodyLinearVelocity(bodyID)
+					// The guard skips the correction for the force-driven body,
+					// so the wall hit must NOT inject a spurious vertical
+					// impulse. Pre-fix this was ~g.kick upward.
+					require.InDelta(t, 0.0, v.Y, 1e-3,
+						"%s/%s: balanced-force wall hit must not inject vertical velocity (pre-fix was ~%v)", tc.name, g.name, g.kick)
+				})
+			}
+		})
+	}
+}

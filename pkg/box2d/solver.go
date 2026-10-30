@@ -472,6 +472,19 @@ func integrateVelocitiesTask(startIndex, endIndex int, ctx *stepContext) {
 			gravityScale = sim.gravityScale
 		}
 
+		// Mark bodies driven by a user-applied force this step so the CCD
+		// time-loss gravity correction can skip them (see isForceDriven). A
+		// force can cancel part or all of the integrated gravity impulse, so
+		// subtracting the un-simulated gravity on a later TOI hit would
+		// inject a spurious impulse. Single-writer per body under the
+		// parallel dispatch (disjoint body indices per worker). Gravity
+		// itself is applied via gravityScale below and never sets this flag;
+		// pure torque (no force) is ignored since the correction only
+		// touches linear velocity.
+		if sim.force != Vec2Zero {
+			sim.flags |= isForceDriven
+		}
+
 		// lvd = h * im * f + h * g
 		linearVelocityDelta := Add(MulSV(h*sim.invMass, sim.force), MulSV(h*gravityScale, gravity))
 		angularVelocityDelta := float64(h * sim.invInertia * sim.torque)
@@ -642,9 +655,9 @@ func (w *World) finalizeBodiesTask(startIndex, endIndex, workerIndex int, ctx *s
 		// never called ApplyBodyMassFromShapes.
 		assert(b.flags&dirtyMass == 0)
 
-		b.flags &^= isFast | isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained | isJointConstrained
-		b.flags |= sim.flags & (isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained | isJointConstrained)
-		sim.flags &^= isFast | isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained | isJointConstrained
+		b.flags &^= isFast | isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained | isJointConstrained | isForceDriven
+		b.flags |= sim.flags & (isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained | isJointConstrained | isForceDriven)
+		sim.flags &^= isFast | isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained | isJointConstrained | isForceDriven
 
 		if !enableSleep || !b.enableSleep || sleepVelocity > b.sleepThreshold {
 			// Body is not sleepy
