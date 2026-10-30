@@ -250,7 +250,8 @@ func TestPreparedConstraintSoftness(t *testing.T) {
 }
 
 // TestSolveClampsToMaxLinearSpeed checks the speed cap in
-// integrateVelocitiesTask.
+// integratePositionsTask (the post-solve clamp, upstream
+// b2IntegratePositionsTask).
 func TestSolveClampsToMaxLinearSpeed(t *testing.T) {
 	def := DefaultWorldDef()
 	def.MaximumLinearSpeed = 5.0
@@ -271,4 +272,90 @@ func TestSolveClampsToMaxLinearSpeed(t *testing.T) {
 
 	v := w.BodyLinearVelocity(body)
 	tassert.LessOrEqual(t, Length(v), 5.0+1e-9, "velocity must be clamped to MaximumLinearSpeed")
+}
+
+// solverInducedDisplacement builds the deep-penetration scene used by
+// TestPostSolveClampBoundsSolverInducedDisplacement and returns the vertical
+// displacement of the dynamic box over one step. The world is zero-gravity, the
+// box starts at rest, and it overlaps the static ground by 0.3 m, so every bit
+// of motion this step is solver-induced by the contact penetration bias (no
+// force, no gravity, no initial velocity).
+func solverInducedDisplacement(t *testing.T, maxLinearSpeed float64) float64 {
+	t.Helper()
+	const dt = 1.0 / 60.0
+	const subSteps = 4
+
+	def := DefaultWorldDef()
+	def.Gravity = Vec2Zero
+	def.MaximumLinearSpeed = maxLinearSpeed
+	def.EnableSleep = false
+	w := NewWorld(&def)
+	t.Cleanup(w.Destroy)
+
+	// Static ground whose top surface sits at y = 0.
+	gd := DefaultBodyDef()
+	gd.Position = Vec2{X: 0.0, Y: -0.5}
+	ground := w.CreateBody(&gd)
+	groundBox := MakeBox(50.0, 0.5)
+	gsd := DefaultShapeDef()
+	w.CreatePolygonShape(ground, &gsd, &groundBox)
+
+	// Dynamic half-extent box centered at y = 0.2 so its bottom is at
+	// y = -0.3, i.e. 0.3 m of overlap with the ground. Zero gravity and zero
+	// initial velocity: the only motion is the contact bias the solver imparts.
+	bd := DefaultBodyDef()
+	bd.Type = DynamicBody
+	bd.Position = Vec2{X: 0.0, Y: 0.2}
+	bd.LinearVelocity = Vec2Zero
+	bd.GravityScale = 0.0
+	body := w.CreateBody(&bd)
+	box := MakeBox(0.5, 0.5)
+	sd := DefaultShapeDef()
+	sd.Density = 1.0
+	w.CreatePolygonShape(body, &sd, &box)
+
+	require.InDelta(t, 0.0, Length(w.BodyLinearVelocity(body)), 0.0,
+		"the body must start at rest so all motion is solver-induced")
+
+	start := w.BodyPosition(body)
+	w.Step(dt, subSteps)
+	end := w.BodyPosition(body)
+	return end.Y - start.Y
+}
+
+// TestPostSolveClampBoundsSolverInducedDisplacement verifies that
+// MaximumLinearSpeed bounds the velocity the constraint solve imparts and that
+// integratePositionsTask integrates — the post-solve clamp placement (upstream
+// v3.2.0 b2IntegratePositionsTask). Because the clamp runs after the solve and
+// before position integration, the per-sub-step displacement cannot exceed
+// maxLinearSpeed * h, so the whole-step displacement cannot exceed
+// maxLinearSpeed * dt.
+//
+// With the old pre-solve placement (the v3.1.0 layout the port previously
+// followed) the clamp capped only the velocity the solver RECEIVED, never the
+// solver-induced velocity the integrator consumed, so this bound was absent:
+// cap=1.0 and cap=400 produced bit-identical displacement ~2.67x over the
+// bound. This test fails on that layout and passes once the clamp is restored
+// to the post-solve position.
+func TestPostSolveClampBoundsSolverInducedDisplacement(t *testing.T) {
+	const maxSpeed = 1.0
+	const dt = 1.0 / 60.0
+
+	dispLow := solverInducedDisplacement(t, maxSpeed)
+
+	// The within-step bound the post-solve clamp restores: the solver-induced
+	// displacement over one step is bounded by maxLinearSpeed * dt.
+	bound := maxSpeed * dt
+	require.LessOrEqual(t, dispLow, bound+1e-9,
+		"post-solve clamp must bound solver-induced displacement to cap*dt (%.6g), got %.6g", bound, dispLow)
+	require.Positive(t, dispLow, "contact bias must push the penetrating body out of the ground")
+
+	// The cap is actually binding on solver-induced motion: with the default
+	// 400 m/s cap the bias velocity (~2.67 m/s) is far below it, so the body is
+	// not clamped and displaces more than under the 1 m/s cap. Under the old
+	// pre-solve clamp this was bit-identical to the capped case, so this
+	// inequality is what distinguishes the two placements.
+	dispHigh := solverInducedDisplacement(t, 400.0)
+	require.Less(t, dispLow, dispHigh,
+		"a low MaximumLinearSpeed must clamp solver-induced motion below the unclamped default")
 }

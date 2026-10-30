@@ -218,10 +218,10 @@ func TestOracleDrawColorSleepingDynamicIsGray(t *testing.T) {
 }
 
 // TestOracleDrawColorSpeedCappedIsYellow drives rung 986 of the C ladder
-// (`body->flags & b2_isSpeedCapped`). b2IntegrateVelocitiesTask
-// (src/solver.c) sets b2_isSpeedCapped when the integrated velocity exceeds
-// the world maximum linear speed, and b2FinalizeBodiesTask copies the sim flag
-// onto the body for debug draw.
+// (`body->flags & b2_isSpeedCapped`). b2IntegratePositionsTask
+// (src/solver.c) sets b2_isSpeedCapped on the body state when the post-solve
+// velocity exceeds the world maximum linear speed, and b2FinalizeBodiesTask
+// copies the state flag onto the body for debug draw.
 //
 // A tiny maximum linear speed plus a large gravity guarantees the clamp on the
 // very first step, while keeping the body slow enough that it is neither fast
