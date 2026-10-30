@@ -88,10 +88,7 @@ type ColliderShape struct {
 	MaskBits     uint64  `json:"mask_bits"`
 	GroupIndex   int32   `json:"group_index,omitempty"`
 
-	// VertexCount says how many of Vertices' slots are live. It sits at the bottom, away from the
-	// geometry it belongs to, because the generator numbers proto fields by declaration order and
-	// the schema rule is append-only: putting it next to Vertices would renumber every field after
-	// it and silently misread every ColliderShape in an existing snapshot.
+	// VertexCount says how many of Vertices' slots are live.
 	VertexCount int `json:"vertex_count,omitempty"`
 }
 
