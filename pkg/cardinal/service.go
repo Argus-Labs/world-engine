@@ -186,6 +186,11 @@ func (s *service) mountDebugService(mux *http.ServeMux, interceptors ...connect.
 
 func (s *service) shutdown(ctx context.Context) error {
 	// Before server.Shutdown: an open event stream holds it until ctx expires, and its error returns early.
+	// Defer argusAuth.Close so it runs on every return path, including when an active request
+	// stream exhausts the shutdown deadline and server.Shutdown returns early.
+	if s.argusAuth != nil {
+		defer s.argusAuth.Close()
+	}
 	if s.interShard != nil {
 		s.interShard.stop(ctx)
 	}
@@ -193,9 +198,6 @@ func (s *service) shutdown(ctx context.Context) error {
 		if err := s.server.Shutdown(ctx); err != nil {
 			return eris.Wrap(err, "failed to shutdown service server")
 		}
-	}
-	if s.argusAuth != nil {
-		s.argusAuth.Close()
 	}
 	if s.microService != nil {
 		if err := s.microService.Close(); err != nil {
@@ -925,17 +927,21 @@ func (a *ArgusAuthenticator) Close() {
 
 // Authenticate returns the *Player named by the request's bearer token. It satisfies
 // authn.AuthFunc; every rejection is a connect.CodeUnauthenticated error.
-func (a *ArgusAuthenticator) Authenticate(_ context.Context, req *http.Request) (any, error) {
+func (a *ArgusAuthenticator) Authenticate(ctx context.Context, req *http.Request) (any, error) {
 	jwtString, ok := authn.BearerToken(req)
 	if !ok {
 		return nil, authn.Errorf("Authorization header must be in format: 'Bearer <JWT>'")
 	}
 
 	claims := &jwt.RegisteredClaims{}
+	// KeyfuncCtx binds the on-demand JWKS re-fetch to the request context so a
+	// canceled/disconnected request stops waiting promptly instead of blocking for
+	// up to the limiter's default wait window. The background refresh goroutine is
+	// owned by the authenticator's lifetime context, not this request.
 	token, err := jwt.ParseWithClaims(
 		jwtString,
 		claims,
-		a.keyfunc.Keyfunc,
+		a.keyfunc.KeyfuncCtx(ctx),
 		jwt.WithValidMethods([]string{jwt.SigningMethodEdDSA.Alg()}),
 		jwt.WithAudience(a.audience),
 		jwt.WithExpirationRequired(),
@@ -987,9 +993,13 @@ func newArgusAuthenticator(argusAuthURL, gameID string, opts refreshOptions) (*A
 	// the initial key set. NewDefaultOverrideCtx still launches the refresh goroutine before the
 	// first fetch, so the context below must be cancelled on error to avoid leaking that goroutine.
 	noErrFirstReq := false
+	// RateLimitWaitMax caps how long a single token validation waits on the on-demand
+	// refresh limiter; matching the HTTP timeout keeps a canceled request from
+	// blocking up to the limiter's default minute-long wait window.
 	override := keyfunc.Override{
 		Client:                    &http.Client{Timeout: 3 * time.Second},
 		HTTPTimeout:               3 * time.Second,
+		RateLimitWaitMax:          3 * time.Second,
 		NoErrorReturnFirstHTTPReq: &noErrFirstReq,
 	}
 	if opts.refreshInterval > 0 {
