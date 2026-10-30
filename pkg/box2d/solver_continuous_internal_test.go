@@ -279,3 +279,117 @@ func TestSolveContinuousTimeLossRespectsLinearLocks(t *testing.T) {
 	require.InDelta(t, 0.0, v.X, timeLossTolerance,
 		"locked-X body must keep zero X velocity after the TOI correction (lock clipping)")
 }
+
+// TestSolveContinuousTimeLossSpeedCappedNoReversal reproduces the regression
+// reported by the slopcop review on a12efce: a speed-capped fast body under
+// gravity that hits a TOI mid-step must NOT have its velocity reversed by the
+// time-loss correction. integrateVelocitiesTask caps velocity to
+// MaximumLinearSpeed and discards part of the gravity impulse; subtracting
+// the full theoretical un-simulated gravity (as the pre-fix code did) removes
+// gravity that was never retained and can launch the body back above the cap.
+// After the fix the post-TOI velocity must stay at or below the cap and
+// must not reverse direction.
+func TestSolveContinuousTimeLossSpeedCappedNoReversal(t *testing.T) {
+	const (
+		dt       = 1.0 / 60.0
+		maxSpeed = 10.0
+		radius   = 0.1
+		yStart   = 0.15
+		vy0      = -50.0
+		subSteps = 8
+	)
+
+	def := DefaultWorldDef()
+	def.Gravity = Vec2{X: 0.0, Y: -10000.0}
+	def.MaximumLinearSpeed = maxSpeed
+	w := NewWorld(&def)
+	defer w.Destroy()
+
+	gd := DefaultBodyDef()
+	ground := w.CreateBody(&gd)
+	floor := MakeOffsetBox(5.0, 0.05, Vec2{X: 0.0, Y: -0.05}, RotIdentity)
+	gsd := DefaultShapeDef()
+	w.CreatePolygonShape(ground, &gsd, &floor)
+
+	bd := DefaultBodyDef()
+	bd.Type = DynamicBody
+	bd.Position = Vec2{X: 0.0, Y: yStart}
+	bd.LinearVelocity = Vec2{X: 0.0, Y: vy0}
+	bodyID := w.CreateBody(&bd)
+
+	circle := Circle{Center: Vec2Zero, Radius: radius}
+	sd := DefaultShapeDef()
+	sd.Density = 1.0
+	w.CreateCircleShape(bodyID, &sd, &circle)
+
+	w.Step(dt, subSteps)
+
+	hsim := w.getBodySim(w.getBodyFullID(bodyID))
+	require.NotZero(t, hsim.flags&hadTimeOfImpact,
+		"fast body must record a TOI against the floor")
+
+	bf := w.getBodyFullID(bodyID)
+	require.NotZero(t, bf.flags&isSpeedCapped,
+		"body must be speed-capped at this step")
+
+	v := w.BodyLinearVelocity(bodyID)
+	require.LessOrEqual(t, Length(v), maxSpeed+1e-6,
+		"post-TOI velocity must respect MaximumLinearSpeed (no cap reversal)")
+	require.LessOrEqual(t, v.Y, 1e-6,
+		"downward TOI must not reverse the body upward (pre-fix reversed to +101.67)")
+}
+
+// TestSolveContinuousTimeLossSpeedCappedNoReversalBullet is the bullet-path
+// twin of the above test: the serial bullet stage calls solveContinuous on
+// bullet bodies after finalizeBodiesTask clears the sim isSpeedCapped flag, so
+// the same body-flag guard must protect the bullet path.
+func TestSolveContinuousTimeLossSpeedCappedNoReversalBullet(t *testing.T) {
+	const (
+		dt       = 1.0 / 60.0
+		maxSpeed = 10.0
+		radius   = 0.1
+		yStart   = 0.15
+		vy0      = -50.0
+		subSteps = 8
+	)
+
+	def := DefaultWorldDef()
+	def.Gravity = Vec2{X: 0.0, Y: -10000.0}
+	def.MaximumLinearSpeed = maxSpeed
+	w := NewWorld(&def)
+	defer w.Destroy()
+
+	gd := DefaultBodyDef()
+	ground := w.CreateBody(&gd)
+	floor := MakeOffsetBox(5.0, 0.05, Vec2{X: 0.0, Y: -0.05}, RotIdentity)
+	gsd := DefaultShapeDef()
+	w.CreatePolygonShape(ground, &gsd, &floor)
+
+	bd := DefaultBodyDef()
+	bd.Type = DynamicBody
+	bd.Position = Vec2{X: 0.0, Y: yStart}
+	bd.LinearVelocity = Vec2{X: 0.0, Y: vy0}
+	bd.IsBullet = true
+	bodyID := w.CreateBody(&bd)
+
+	circle := Circle{Center: Vec2Zero, Radius: radius}
+	sd := DefaultShapeDef()
+	sd.Density = 1.0
+	w.CreateCircleShape(bodyID, &sd, &circle)
+
+	w.Step(dt, subSteps)
+
+	hsim := w.getBodySim(w.getBodyFullID(bodyID))
+	require.NotZero(t, hsim.flags&hadTimeOfImpact,
+		"bullet must record a TOI against the floor")
+
+	bf := w.getBodyFullID(bodyID)
+	require.NotZero(t, bf.flags&isSpeedCapped,
+		"bullet must be speed-capped at this step")
+
+	v := w.BodyLinearVelocity(bodyID)
+	require.LessOrEqual(t, Length(v), maxSpeed+1e-6,
+		"post-TOI velocity must respect MaximumLinearSpeed (no cap reversal)")
+	require.LessOrEqual(t, v.Y, 1e-6,
+		"downward TOI must not reverse the bullet upward (pre-fix reversed to +101.67)")
+}
