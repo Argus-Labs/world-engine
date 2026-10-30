@@ -331,11 +331,22 @@ func (w *World) solveContinuous(bodySimIndex int, tc *taskContext, dt float64) {
 		//     isSpeedCapped (which upstream also sets for an angular clamp) is
 		//     not used here — the port-internal isLinearSpeedCapped is. The
 		//     flags are carried on the body (transferred and cleared from the
-		//     sim in finalizeBodiesTask before this runs). Upstream v3.2.0
-		//     applies the correction unconditionally and shares these edge
+		//     sim in finalizeBodiesTask before this runs).
+		//   - isContactConstrained: the contact solver runs AFTER velocity
+		//     integration and BEFORE CCD, and can already cancel part or all of
+		//     the integrated gravity impulse (e.g. a body resting on a floor has
+		//     its vertical velocity held at zero by the normal constraint).
+		//     Subtracting the un-simulated gravity on a later TOI hit then
+		//     injects an artificial impulse unrelated to that hit — a
+		//     floor-supported body sliding into a wall gains spurious upward
+		//     velocity. The per-step isContactConstrained flag (set in
+		//     prepareContactsColor for every body in a touching contact) is
+		//     transferred/cleared alongside the other flags, so the correction
+		//     is conservatively skipped for any constrained body. Upstream
+		//     v3.2.0 applies the correction unconditionally and shares these edge
 		//     cases; this port skips to avoid the demonstrated reversals.
 		state := &awake.bodyStates[bodySimIndex]
-		if fastBodySim.invMass > 0.0 && fastBodySim.linearDamping == 0.0 && fastBody.flags&isLinearSpeedCapped == 0 {
+		if fastBodySim.invMass > 0.0 && fastBodySim.linearDamping == 0.0 && fastBody.flags&isLinearSpeedCapped == 0 && fastBody.flags&isContactConstrained == 0 {
 			timeLoss := (1.0 - context.fraction) * dt
 			state.linearVelocity = MulAdd(state.linearVelocity, -timeLoss*fastBodySim.gravityScale, w.gravity)
 			if state.flags&lockLinearX != 0 {

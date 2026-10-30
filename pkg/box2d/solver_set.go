@@ -564,7 +564,7 @@ func (w *World) transferBody(targetSet, sourceSet *solverSet, b *body) {
 	targetSim := &targetSet.bodySims[targetIndex]
 
 	// Clear transient body flags
-	targetSim.flags &^= isFast | isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact
+	targetSim.flags &^= isFast | isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained
 
 	// Remove body sim from solver set that owns it
 	removeBodySim(&sourceSet.bodySims, w.bodies, sourceIndex)
