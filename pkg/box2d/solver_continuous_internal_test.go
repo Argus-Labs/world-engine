@@ -731,3 +731,134 @@ func TestSolveContinuousTimeLossContactConstrainedNoReversal(t *testing.T) {
 		})
 	}
 }
+
+// timeLossPrismaticWallScene builds the slopcop P1 joint reproduction: a
+// frictionless dynamic circle constrained to a HORIZONTAL-axis prismatic joint
+// (so the joint's point-to-line constraint holds vertical velocity at zero,
+// canceling gravity each substep) that slides horizontally into a vertical
+// wall, so a CCD TOI fires in the same step. When withWall is false the wall
+// is omitted (the no-TOI control). The joint anchor is a static body; the
+// joint axis is the world x-axis (LocalFrameA.Q = RotIdentity), so the body is
+// free along x and locked along y — exactly the geometry that lets gravity be
+// canceled while the body still hits the wall.
+func timeLossPrismaticWallScene(t *testing.T, gravity Vec2, withWall, isBullet bool) (*World, BodyID) {
+	t.Helper()
+
+	const (
+		dt       = 1.0 / 60.0
+		radius   = 0.1
+		subSteps = 8
+		vx       = 50.0
+	)
+
+	def := DefaultWorldDef()
+	def.Gravity = gravity
+	w := NewWorld(&def)
+
+	// Static anchor for the joint (no shape needed).
+	gd := DefaultBodyDef()
+	anchor := w.CreateBody(&gd)
+
+	if withWall {
+		// Vertical wall just ahead of the body so it is hit mid-step. The
+		// wall lives on its OWN static body (not the joint anchor), because
+		// shouldBodiesCollide returns false for bodies joined together, so a
+		// wall on the anchor would be skipped by the CCD query.
+		wgd := DefaultBodyDef()
+		wallBody := w.CreateBody(&wgd)
+		wall := MakeOffsetBox(0.05, 5.0, Vec2{X: 0.5, Y: 0.0}, RotIdentity)
+		gsd := DefaultShapeDef()
+		w.CreatePolygonShape(wallBody, &gsd, &wall)
+	}
+
+	// Dynamic circle on the joint axis (y == 0), sliding along x.
+	bd := DefaultBodyDef()
+	bd.Type = DynamicBody
+	bd.Position = Vec2{X: 0.0, Y: 0.0}
+	bd.LinearVelocity = Vec2{X: vx, Y: 0.0}
+	bd.IsBullet = isBullet
+	bodyID := w.CreateBody(&bd)
+
+	circle := Circle{Center: Vec2Zero, Radius: radius}
+	sd := DefaultShapeDef()
+	sd.Density = 1.0
+	sd.Material.Friction = 0.0
+	w.CreateCircleShape(bodyID, &sd, &circle)
+
+	// Horizontal-axis prismatic joint: free along x, locked along y, so the
+	// joint solver cancels gravity (which is vertical here).
+	jd := DefaultPrismaticJointDef()
+	jd.Base.BodyIDA = anchor
+	jd.Base.BodyIDB = bodyID
+	jd.Base.LocalFrameA.P = Vec2Zero
+	jd.Base.LocalFrameB.P = Vec2Zero
+	w.CreatePrismaticJoint(&jd)
+
+	w.Step(dt, subSteps)
+	return w, bodyID
+}
+
+// TestSolveContinuousTimeLossJointConstrainedNoReversal reproduces the P1
+// finding from the slopcop review on 4ec97fe: a body on a horizontal-axis
+// prismatic joint (its vertical velocity held at zero by the joint's
+// point-to-line constraint) that slides horizontally into a wall receives an
+// artificial vertical impulse from the time-loss correction, because the
+// correction subtracts gravity that the joint solver already canceled.
+// Pre-fix the wall hit finished with a spurious upward velocity of ~0.095667
+// m/s (gravity -10) / ~9.56667 m/s (gravity -1000) in this scene; the no-wall
+// control stayed at zero. The isJointConstrained guard skips the correction
+// for the joint-constrained body, so the wall case now matches the control:
+// vertical velocity stays at zero. Exercises both the non-bullet and bullet
+// CCD paths.
+func TestSolveContinuousTimeLossJointConstrainedNoReversal(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		isBullet bool
+	}{
+		{"non_bullet", false},
+		{"bullet", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, g := range []struct {
+				name string
+				gY   float64
+				// pre-fix spurious upward vertical velocity the guard must eliminate
+				kick float64
+			}{
+				{"gravity_-10", -10.0, 0.0956667},
+				{"gravity_-1000", -1000.0, 9.56667},
+			} {
+				t.Run(g.name, func(t *testing.T) {
+					// No-wall control: joint-constrained body, no TOI. The
+					// joint solver holds vertical velocity at zero.
+					wCtrl, ctrl := timeLossPrismaticWallScene(t,
+						Vec2{X: 0.0, Y: g.gY}, false, tc.isBullet)
+					defer wCtrl.Destroy()
+					vCtrl := wCtrl.BodyLinearVelocity(ctrl)
+					require.InDelta(t, 0.0, vCtrl.Y, 1e-3,
+						"%s/%s: no-wall control must keep zero vertical velocity", tc.name, g.name)
+
+					// Wall case: same body slides into a wall, firing a CCD TOI
+					// in the same step it is joint-constrained.
+					w, bodyID := timeLossPrismaticWallScene(t,
+						Vec2{X: 0.0, Y: g.gY}, true, tc.isBullet)
+					defer w.Destroy()
+
+					hsim := w.getBodySim(w.getBodyFullID(bodyID))
+					require.NotZero(t, hsim.flags&hadTimeOfImpact,
+						"%s/%s: body must record a TOI against the wall", tc.name, g.name)
+					bf := w.getBodyFullID(bodyID)
+					require.NotZero(t, bf.flags&isJointConstrained,
+						"%s/%s: joint-constrained body must carry isJointConstrained", tc.name, g.name)
+
+					v := w.BodyLinearVelocity(bodyID)
+					// The guard skips the correction for the joint-constrained
+					// body, so the wall hit must NOT inject a spurious vertical
+					// impulse. Pre-fix this was ~g.kick upward.
+					require.InDelta(t, 0.0, v.Y, 1e-3,
+						"%s/%s: joint-constrained wall hit must not inject vertical velocity (pre-fix was ~%v)", tc.name, g.name, g.kick)
+				})
+			}
+		})
+	}
+}

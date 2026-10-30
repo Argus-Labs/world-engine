@@ -340,13 +340,19 @@ func (w *World) solveContinuous(bodySimIndex int, tc *taskContext, dt float64) {
 		//     injects an artificial impulse unrelated to that hit — a
 		//     floor-supported body sliding into a wall gains spurious upward
 		//     velocity. The per-step isContactConstrained flag (set in
-		//     prepareContactsColor for every body in a touching contact) is
-		//     transferred/cleared alongside the other flags, so the correction
-		//     is conservatively skipped for any constrained body. Upstream
-		//     v3.2.0 applies the correction unconditionally and shares these edge
-		//     cases; this port skips to avoid the demonstrated reversals.
+		//     prepareContactsColor for every DYNAMIC body in a touching contact)
+		//     is transferred/cleared alongside the other flags, so the
+		//     correction is conservatively skipped for any constrained body.
+		//   - isJointConstrained: the joint solver also runs AFTER velocity
+		//     integration and BEFORE CCD and can cancel the integrated gravity
+		//     (e.g. a horizontal-axis prismatic joint holds vertical velocity at
+		//     zero). The per-step isJointConstrained flag (set in prepareJoint
+		//     for every DYNAMIC endpoint) mirrors isContactConstrained and
+		//     skips the correction for joint-constrained bodies. Upstream
+		//     v3.2.0 applies the correction unconditionally and shares these
+		//     edge cases; this port skips to avoid the demonstrated reversals.
 		state := &awake.bodyStates[bodySimIndex]
-		if fastBodySim.invMass > 0.0 && fastBodySim.linearDamping == 0.0 && fastBody.flags&isLinearSpeedCapped == 0 && fastBody.flags&isContactConstrained == 0 {
+		if fastBodySim.invMass > 0.0 && fastBodySim.linearDamping == 0.0 && fastBody.flags&isLinearSpeedCapped == 0 && fastBody.flags&isContactConstrained == 0 && fastBody.flags&isJointConstrained == 0 {
 			timeLoss := (1.0 - context.fraction) * dt
 			state.linearVelocity = MulAdd(state.linearVelocity, -timeLoss*fastBodySim.gravityScale, w.gravity)
 			if state.flags&lockLinearX != 0 {

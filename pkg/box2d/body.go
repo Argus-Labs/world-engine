@@ -64,6 +64,27 @@ const (
 	// port skips to avoid the demonstrated reversal.
 	isContactConstrained uint32 = 0x00001000
 
+	// isJointConstrained means this body had at least one joint solved this
+	// step (a port-internal flag). The CCD time-loss gravity correction assumes
+	// the body retained the FULL theoretical gravity impulse
+	// integrateVelocitiesTask added, but the joint solver (which runs after
+	// integration and before CCD) can already cancel part or all of that
+	// impulse — e.g. a body on a horizontal-axis prismatic joint has its
+	// vertical velocity held at zero by the joint's point-to-line constraint,
+	// so subtracting the un-simulated gravity on a later TOI hit injects an
+	// artificial upward impulse. The correction is therefore conservatively
+	// skipped for any body that participated in a joint this step. Set in
+	// prepareJoint (which runs once per joint before the substep solve) for
+	// DYNAMIC endpoints only — kinematic endpoints are not reserved by graph
+	// coloring and may be shared across joints in one color, so writing their
+	// flags would race under the parallel dispatch; kinematic bodies receive
+	// no gravity correction anyway. Transferred from the sim to the body and
+	// cleared from the sim in finalizeBodiesTask before solveContinuous runs,
+	// and cleared in transferBody. Upstream v3.2.0 applies the correction
+	// unconditionally and shares this edge case; this port skips to avoid the
+	// demonstrated reversal.
+	isJointConstrained uint32 = 0x00002000
+
 	// hadTimeOfImpact means this body had a time of impact event in the
 	// current time step.
 	hadTimeOfImpact uint32 = 0x00000040
