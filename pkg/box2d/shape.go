@@ -432,6 +432,12 @@ func (w *World) DestroyShape(shapeID ShapeID, updateBodyMass bool) {
 
 	s := w.getShape(shapeID)
 
+	// Cannot destroy a chain segment that has a parent chain shape.
+	if s.shapeType == ChainSegmentShape && s.chainSegment.ChainID != NullIndex {
+		assert(false)
+		return
+	}
+
 	// need to wake bodies because this might be a static body
 	wakeBodies := true
 	b := &w.bodies[s.bodyID]
