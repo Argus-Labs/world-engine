@@ -351,8 +351,17 @@ func (w *World) solveContinuous(bodySimIndex int, tc *taskContext, dt float64) {
 		//     skips the correction for joint-constrained bodies. Upstream
 		//     v3.2.0 applies the correction unconditionally and shares these
 		//     edge cases; this port skips to avoid the demonstrated reversals.
+		//   - isForceDriven: a user-applied force integrated this step can
+		//     cancel part or all of the integrated gravity impulse (e.g. an
+		//     upward force balancing gravity leaves the net vertical velocity
+		//     change at zero), so subtracting the un-simulated gravity on a
+		//     later TOI hit injects a spurious upward impulse unrelated to that
+		//     hit. The combined acceleration is not modeled, so force-driven
+		//     bodies are conservatively skipped. The per-step isForceDriven
+		//     flag (set in integrateVelocitiesTask when sim.force != Vec2Zero)
+		//     is transferred/cleared alongside the other flags.
 		state := &awake.bodyStates[bodySimIndex]
-		if fastBodySim.invMass > 0.0 && fastBodySim.linearDamping == 0.0 && fastBody.flags&isLinearSpeedCapped == 0 && fastBody.flags&isContactConstrained == 0 && fastBody.flags&isJointConstrained == 0 {
+		if fastBodySim.invMass > 0.0 && fastBodySim.linearDamping == 0.0 && fastBody.flags&isLinearSpeedCapped == 0 && fastBody.flags&isContactConstrained == 0 && fastBody.flags&isJointConstrained == 0 && fastBody.flags&isForceDriven == 0 {
 			timeLoss := (1.0 - context.fraction) * dt
 			state.linearVelocity = MulAdd(state.linearVelocity, -timeLoss*fastBodySim.gravityScale, w.gravity)
 			if state.flags&lockLinearX != 0 {

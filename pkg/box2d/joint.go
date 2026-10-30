@@ -1403,16 +1403,24 @@ func (w *World) prepareJoint(js *jointSim, ctx *stepContext) {
 	// bodies get no gravity correction anyway. Race-free under the parallel
 	// color dispatch and the serial overflow loop alike.
 	awakeSims := w.solverSets[awakeSet].bodySims
-	if bodyA := &w.bodies[js.bodyIDA]; bodyA.setIndex == awakeSet {
-		idx := bodyA.localIndex
-		if awakeSims[idx].flags&dynamicFlag != 0 {
-			awakeSims[idx].flags |= isJointConstrained
+	// FilterJoint performs no velocity solve (its prepare/warm-start/solve
+	// cases are all no-ops), so it cannot cancel the integrated gravity
+	// impulse and must NOT mark its endpoints isJointConstrained — otherwise
+	// attaching a filter joint to an unrelated static body would suppress the
+	// time-loss correction for a dynamic endpoint and change its post-TOI
+	// velocity without any constraint work being done.
+	if js.jointType != FilterJoint {
+		if bodyA := &w.bodies[js.bodyIDA]; bodyA.setIndex == awakeSet {
+			idx := bodyA.localIndex
+			if awakeSims[idx].flags&dynamicFlag != 0 {
+				awakeSims[idx].flags |= isJointConstrained
+			}
 		}
-	}
-	if bodyB := &w.bodies[js.bodyIDB]; bodyB.setIndex == awakeSet {
-		idx := bodyB.localIndex
-		if awakeSims[idx].flags&dynamicFlag != 0 {
-			awakeSims[idx].flags |= isJointConstrained
+		if bodyB := &w.bodies[js.bodyIDB]; bodyB.setIndex == awakeSet {
+			idx := bodyB.localIndex
+			if awakeSims[idx].flags&dynamicFlag != 0 {
+				awakeSims[idx].flags |= isJointConstrained
+			}
 		}
 	}
 
