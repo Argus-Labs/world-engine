@@ -309,16 +309,33 @@ func (w *World) solveContinuous(bodySimIndex int, tc *taskContext, dt float64) {
 		// FMA — see math_fma.go); locked axes are then zeroed to match the
 		// upstream per-axis lock clipping.
 		//
-		// Skip the correction when the body was speed-capped this step: the
-		// cap in integrateVelocitiesTask already discarded part of the
-		// gravity impulse, so subtracting the full theoretical un-simulated
-		// contribution would remove gravity that was never retained, which
-		// can reverse the body's velocity and exceed MaximumLinearSpeed. The
-		// isSpeedCapped flag is carried on the body (transferred and cleared
-		// from the sim in finalizeBodiesTask before this runs). Upstream v3.2.0
-		// has the same edge case; this port preserves the capped velocity.
+		// The correction assumes the body retained the FULL theoretical
+		// gravity impulse integrateVelocitiesTask added, so it is skipped
+		// whenever that assumption is violated (each guard mirrors the
+		// integrator's own eligibility/discard logic):
+		//   - invMass == 0: the integrator zeroes the gravity scale for such
+		//     bodies, so no gravity was integrated — subtracting any would
+		//     reverse the body opposite gravity.
+		//   - linearDamping != 0: damping attenuates the accumulated velocity
+		//     (including the gravity impulse) on every substep, so the body
+		//     retained less than the full theoretical gravity — subtracting the
+		//     full un-simulated amount can reverse a falling body upward. The
+		//     damped-retention math across substeps is not modeled, so damped
+		//     bodies are conservatively skipped until that is supported.
+		//   - isLinearSpeedCapped: the linear speed clamp in
+		//     integrateVelocitiesTask already discarded part of the gravity
+		//     impulse, so subtracting the full theoretical un-simulated
+		//     contribution would remove gravity that was never retained, which
+		//     can reverse the body and exceed MaximumLinearSpeed. Only a LINEAR
+		//     clamp discards linear gravity; an angular-only clamp does not, so
+		//     isSpeedCapped (which upstream also sets for an angular clamp) is
+		//     not used here — the port-internal isLinearSpeedCapped is. The
+		//     flags are carried on the body (transferred and cleared from the
+		//     sim in finalizeBodiesTask before this runs). Upstream v3.2.0
+		//     applies the correction unconditionally and shares these edge
+		//     cases; this port skips to avoid the demonstrated reversals.
 		state := &awake.bodyStates[bodySimIndex]
-		if fastBody.flags&isSpeedCapped == 0 {
+		if fastBodySim.invMass > 0.0 && fastBodySim.linearDamping == 0.0 && fastBody.flags&isLinearSpeedCapped == 0 {
 			timeLoss := (1.0 - context.fraction) * dt
 			state.linearVelocity = MulAdd(state.linearVelocity, -timeLoss*fastBodySim.gravityScale, w.gravity)
 			if state.flags&lockLinearX != 0 {
