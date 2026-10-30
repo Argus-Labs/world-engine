@@ -615,3 +615,119 @@ func TestSolveContinuousTimeLossAngularCapDoesNotSkipCorrection(t *testing.T) {
 	require.InDelta(t, vPlain.Y, vSpin.Y, 1e-4,
 		"angular-only cap must not skip the time-loss correction: spinning and plain bodies must finish with equal Y velocity")
 }
+
+// timeLossSupportedWallScene builds the slopcop P1 reproduction: a frictionless
+// circle RESTING on a static floor (so the contact solver cancels gravity each
+// substep, holding vertical velocity at zero) that is also sliding horizontally
+// into a vertical wall, so a CCD TOI fires in the same step. When withWall is
+// false the wall is omitted (the no-TOI control). The body starts exactly
+// touching the floor (center y == radius, floor top at y == 0) so the floor
+// contact is touching from step one and isContactConstrained is set.
+func timeLossSupportedWallScene(t *testing.T, gravity Vec2, withWall, isBullet bool) (*World, BodyID) {
+	t.Helper()
+
+	const (
+		dt       = 1.0 / 60.0
+		radius   = 0.1
+		subSteps = 8
+		vx       = 50.0
+	)
+
+	def := DefaultWorldDef()
+	def.Gravity = gravity
+	w := NewWorld(&def)
+
+	// Floor: top surface at y == 0.
+	gd := DefaultBodyDef()
+	ground := w.CreateBody(&gd)
+	floor := MakeOffsetBox(5.0, 0.05, Vec2{X: 0.0, Y: -0.05}, RotIdentity)
+	gsd := DefaultShapeDef()
+	w.CreatePolygonShape(ground, &gsd, &floor)
+
+	if withWall {
+		// Vertical wall just ahead of the body so it is hit mid-step.
+		wall := MakeOffsetBox(0.05, 5.0, Vec2{X: 0.5, Y: 0.0}, RotIdentity)
+		w.CreatePolygonShape(ground, &gsd, &wall)
+	}
+
+	// Resting on the floor: center y == radius, bottom == floor top.
+	bd := DefaultBodyDef()
+	bd.Type = DynamicBody
+	bd.Position = Vec2{X: 0.0, Y: radius}
+	bd.LinearVelocity = Vec2{X: vx, Y: 0.0}
+	bd.IsBullet = isBullet
+	bodyID := w.CreateBody(&bd)
+
+	circle := Circle{Center: Vec2Zero, Radius: radius}
+	sd := DefaultShapeDef()
+	sd.Density = 1.0
+	sd.Material.Friction = 0.0
+	w.CreateCircleShape(bodyID, &sd, &circle)
+
+	w.Step(dt, subSteps)
+	return w, bodyID
+}
+
+// TestSolveContinuousTimeLossContactConstrainedNoReversal reproduces the P1
+// finding from the slopcop review on 13c5462: a body RESTING on a floor (its
+// vertical velocity held at zero by the floor's normal contact constraint) that
+// slides horizontally into a wall receives an artificial vertical impulse from
+// the time-loss correction, because the correction subtracts gravity that the
+// contact solver already canceled. Pre-fix the wall hit finished with a spurious
+// vertical velocity of ~0.096 m/s (gravity -10) / ~9.57 m/s (gravity -1000) in
+// this scene; the no-wall control stayed at zero. The isContactConstrained
+// guard skips the correction for the touching body, so the wall case now matches
+// the control: vertical velocity stays at zero. Exercises both the non-bullet
+// and bullet CCD paths.
+func TestSolveContinuousTimeLossContactConstrainedNoReversal(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		isBullet bool
+	}{
+		{"non_bullet", false},
+		{"bullet", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, g := range []struct {
+				name string
+				gY   float64
+				// pre-fix spurious vertical velocity the guard must eliminate
+				kick float64
+			}{
+				{"gravity_-10", -10.0, 0.0956667},
+				{"gravity_-1000", -1000.0, 9.56667},
+			} {
+				t.Run(g.name, func(t *testing.T) {
+					// No-wall control: floor-supported body, no TOI. The
+					// contact solver holds vertical velocity at zero.
+					wCtrl, ctrl := timeLossSupportedWallScene(t,
+						Vec2{X: 0.0, Y: g.gY}, false, tc.isBullet)
+					defer wCtrl.Destroy()
+					vCtrl := wCtrl.BodyLinearVelocity(ctrl)
+					require.InDelta(t, 0.0, vCtrl.Y, 1e-3,
+						"%s/%s: no-wall control must keep zero vertical velocity", tc.name, g.name)
+
+					// Wall case: same body slides into a wall, firing a CCD TOI
+					// in the same step it is floor-supported.
+					w, bodyID := timeLossSupportedWallScene(t,
+						Vec2{X: 0.0, Y: g.gY}, true, tc.isBullet)
+					defer w.Destroy()
+
+					hsim := w.getBodySim(w.getBodyFullID(bodyID))
+					require.NotZero(t, hsim.flags&hadTimeOfImpact,
+						"%s/%s: body must record a TOI against the wall", tc.name, g.name)
+					bf := w.getBodyFullID(bodyID)
+					require.NotZero(t, bf.flags&isContactConstrained,
+						"%s/%s: floor-supported body must be contact-constrained", tc.name, g.name)
+
+					v := w.BodyLinearVelocity(bodyID)
+					// The guard skips the correction for the constrained body,
+					// so the wall hit must NOT inject a spurious vertical impulse.
+					// Pre-fix this was ~g.kick in magnitude.
+					require.InDelta(t, 0.0, v.Y, 1e-3,
+						"%s/%s: floor-supported wall hit must not inject vertical velocity (pre-fix was ~%v)", tc.name, g.name, g.kick)
+				})
+			}
+		})
+	}
+}

@@ -642,9 +642,9 @@ func (w *World) finalizeBodiesTask(startIndex, endIndex, workerIndex int, ctx *s
 		// never called ApplyBodyMassFromShapes.
 		assert(b.flags&dirtyMass == 0)
 
-		b.flags &^= isFast | isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact
-		b.flags |= sim.flags & (isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact)
-		sim.flags &^= isFast | isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact
+		b.flags &^= isFast | isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained
+		b.flags |= sim.flags & (isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained)
+		sim.flags &^= isFast | isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained
 
 		if !enableSleep || !b.enableSleep || sleepVelocity > b.sleepThreshold {
 			// Body is not sleepy

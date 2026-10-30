@@ -47,6 +47,23 @@ const (
 	// discarded by the cap; an angular-only clamp does not justify skipping it.
 	isLinearSpeedCapped uint32 = 0x00000800
 
+	// isContactConstrained means this body had at least one touching contact
+	// solved this step (a port-internal flag). The CCD time-loss gravity
+	// correction assumes the body retained the FULL theoretical gravity impulse
+	// integrateVelocitiesTask added, but the contact solver (which runs after
+	// integration and before CCD) can already cancel part or all of that
+	// impulse — e.g. a body resting on a floor has its vertical velocity held
+	// at zero by the normal constraint, so subtracting the un-simulated gravity
+	// on a later TOI hit injects an artificial upward impulse. The correction
+	// is therefore conservatively skipped for any body that participated in a
+	// touching contact this step. Set in prepareContactsColor (which runs once
+	// per touching contact before the substep solve), transferred from the
+	// sim to the body and cleared from the sim in finalizeBodiesTask before
+	// solveContinuous runs, and cleared in transferBody. Upstream v3.2.0
+	// applies the correction unconditionally and shares this edge case; this
+	// port skips to avoid the demonstrated reversal.
+	isContactConstrained uint32 = 0x00001000
+
 	// hadTimeOfImpact means this body had a time of impact event in the
 	// current time step.
 	hadTimeOfImpact uint32 = 0x00000040
