@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
 type SetupCloneTestSuite struct {
@@ -343,4 +345,69 @@ func TestWriteAgentSkillsWritesBothLocationsAndKeepsExisting(t *testing.T) {
 	if !strings.Contains(string(agents), "name: world-local-dev") || !strings.Contains(string(agents), "world start") {
 		t.Fatal("skill content missing")
 	}
+}
+
+// setupLocalRepoWithWorldToml creates a local git repo whose "tmpl" subdir
+// contains a valid world.toml (with organization, project, and a shard) plus
+// main.go. The repo is tagged "v0.0.1" so InstantiateTemplate can clone it
+// without network access.
+func setupLocalRepoWithWorldToml(t *testing.T) string {
+	t.Helper()
+	repoDir := t.TempDir()
+	repo, err := gogit.PlainInit(repoDir, false)
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Join(repoDir, "tmpl"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "tmpl", "main.go"), []byte("package main\n"), 0o600))
+	worldTomlContent := []byte(`organization = "organization"
+project = "project"
+
+[[shards]]
+id = "game"
+`)
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "tmpl", "world.toml"), worldTomlContent, 0o600))
+	wt, err := repo.Worktree()
+	require.NoError(t, err)
+	_, err = wt.Add(".")
+	require.NoError(t, err)
+	head, err := wt.Commit("init", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "t", Email: "t@example.com", When: time.Now()},
+	})
+	require.NoError(t, err)
+	_, err = repo.CreateTag("v0.0.1", head, nil)
+	require.NoError(t, err)
+	return repoDir
+}
+
+// InstantiateTemplate with a canonical directory base name succeeds and writes
+// the correct project into world.toml. This is the control case for the
+// non-canonical failure test below.
+func (s *SetupCloneTestSuite) TestInstantiateTemplate_CanonicalDirSucceeds() {
+	t := s.T()
+	repoDir := setupLocalRepoWithWorldToml(t)
+
+	target := filepath.Join(t.TempDir(), "my-game")
+	err := InstantiateTemplate(context.Background(), repoDir, "v0.0.1", target, "tmpl")
+	require.NoError(t, err)
+
+	cfg, err := worldtoml.LoadFile(filepath.Join(target, worldtoml.FileName))
+	require.NoError(t, err)
+	assert.Equal(t, "my-game", cfg.Project)
+}
+
+// InstantiateTemplate with a non-canonical directory base name fails because
+// world.toml's project field (derived from filepath.Base(targetDir)) is rejected
+// by canonical-name validation. The partially-created directory is cleaned up
+// so the name stays retryable. This is the failure mode the TUI fix prevents:
+// after the fix, the TUI passes the corrected canonical directory, so this path
+// is never hit through the wizard.
+func (s *SetupCloneTestSuite) TestInstantiateTemplate_NonCanonicalDirFails() {
+	t := s.T()
+	repoDir := setupLocalRepoWithWorldToml(t)
+
+	target := filepath.Join(t.TempDir(), "My_Game")
+	err := InstantiateTemplate(context.Background(), repoDir, "v0.0.1", target, "tmpl")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid characters")
+	assert.Contains(t, err.Error(), "world.toml is invalid after setting project")
+	assert.NoDirExists(t, target) // partial output cleaned up
 }

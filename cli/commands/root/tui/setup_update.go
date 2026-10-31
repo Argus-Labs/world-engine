@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -73,6 +74,12 @@ func (m WorldSetupModel) handleNameInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		}
 		m.nameErr = ""
 		m.projectNameInput.Blur()
+		// If the directory argument had a non-canonical base, the user just
+		// corrected it in the name step — sync targetDir so clone/tidy and
+		// world.toml's project use the corrected canonical name.
+		if m.targetDir != "" && !dnslabel.IsCanonical(filepath.Base(m.targetDir)) {
+			m.targetDir = filepath.Join(filepath.Dir(m.targetDir), name)
+		}
 		return m, m.steps.CompleteStepCmd(nil)
 	}
 
