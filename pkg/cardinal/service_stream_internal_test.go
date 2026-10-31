@@ -540,7 +540,10 @@ func (h *streamHarness) open(t *testing.T, player string, events ...string) *cli
 
 func (h *streamHarness) tryOpen(player string, events ...string) (*clientStream, error) {
 	ctx, cancel := context.WithCancel(h.ctx)
-	req := connect.NewRequest(&cardinalv1.StartEventStreamRequest{Subscriptions: h.subscriptions(events...)})
+	req := connect.NewRequest(&cardinalv1.StartEventStreamRequest{})
+	if len(events) > 0 {
+		req.Msg.Subscriptions = h.subscriptions(events...)
+	}
 	req.Header().Set(devPlayerIDHeader, player)
 	id := strconv.FormatInt(h.nextID.Add(1), 10)
 	req.Header().Set(testStreamIDHeader, id)
