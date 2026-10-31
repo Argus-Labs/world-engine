@@ -294,6 +294,10 @@ func NewWorld(def *WorldDef) *World {
 	requireInitialized(def.initialized, "WorldDef", "DefaultWorldDef")
 	requireValidDefField(def.WorkerCount >= 0 && def.WorkerCount <= MaxWorkers,
 		"WorldDef", "WorkerCount", "must be in [0, MaxWorkers]; 0 means 1 (serial)")
+	requireValidDefField(IsValidVec2(def.Gravity), "WorldDef", "Gravity",
+		"must be a finite vector (not NaN or infinity)")
+	requireValidDefField(IsValidFloat(def.MaximumLinearSpeed) && def.MaximumLinearSpeed > 0.0,
+		"WorldDef", "MaximumLinearSpeed", "must be a finite, positive number")
 
 	initializeContactRegisters()
 
