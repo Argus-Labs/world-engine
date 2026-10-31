@@ -18,7 +18,7 @@ concurrency:
 jobs:
   lint:
     name: Lint
-    runs-on: namespace-profile-linux-ci-large
+    runs-on: namespace-profile-linux-ci-small
     steps:
       - uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
 
