@@ -122,7 +122,14 @@ func (w *World) wakeSolverSet(setIndex int) {
 		awake.bodySims = append(awake.bodySims, *simSrc)
 
 		state := identityBodyState
-		state.flags = b.flags
+		// Mask the transient per-step flags (isFast | isSpeedCapped |
+		// hadTimeOfImpact) so a previous step's speed-cap / TOI / fast
+		// indication does not survive a sleep/wake cycle into the new
+		// state. The post-solve clamp in integratePositionsTask sets
+		// isSpeedCapped on the state via |=, so it must start each step
+		// clear; otherwise a body that was capped last step and then woken
+		// at a sub-cap velocity would be drawn yellow for one stale step.
+		state.flags = b.flags &^ (isFast | isSpeedCapped | hadTimeOfImpact)
 		awake.bodyStates = append(awake.bodyStates, state)
 
 		// move non-touching contacts from disabled set to awake set
@@ -573,7 +580,10 @@ func (w *World) transferBody(targetSet, sourceSet *solverSet, b *body) {
 		_ = removeSwap(&sourceSet.bodyStates, sourceIndex)
 	} else if targetSet.setIndex == awakeSet {
 		state := identityBodyState
-		state.flags = b.flags
+		// See wakeSolverSet: strip the transient per-step flags so a prior
+		// step's speed-cap / TOI / fast indication does not carry into the
+		// transferred body's new state.
+		state.flags = b.flags &^ (isFast | isSpeedCapped | hadTimeOfImpact)
 		targetSet.bodyStates = append(targetSet.bodyStates, state)
 	}
 
