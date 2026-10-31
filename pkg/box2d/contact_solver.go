@@ -96,6 +96,12 @@ func (w *World) prepareContactsColor(ctx *stepContext, colorIndex, startIndex, e
 	// drop the per-iteration bounds checks below.
 	constraints := color.constraints[:contactCount]
 	awakeStates := ctx.states
+	// Mark every body that participates in a touching contact this step so the
+	// CCD time-loss gravity correction can skip it (see isContactConstrained).
+	// The graph coloring guarantees contacts within one color touch disjoint
+	// bodies, so the per-body OR is race-free under the parallel forRange
+	// dispatch; colors themselves run sequentially.
+	awakeSims := w.solverSets[awakeSet].bodySims
 
 	assert(0 <= startIndex && startIndex <= endIndex && endIndex <= contactCount)
 
@@ -119,6 +125,24 @@ func (w *World) prepareContactsColor(ctx *stepContext, colorIndex, startIndex, e
 
 		indexA := contactSim.bodySimIndexA
 		indexB := contactSim.bodySimIndexB
+
+		// Mark every DYNAMIC body that participates in a touching contact this
+		// step so the CCD time-loss gravity correction can skip it (see
+		// isContactConstrained). The graph coloring reserves only dynamic
+		// bodies per color, so a kinematic platform can be shared by many
+		// contacts in one color and touched by parallel workers — writing a
+		// non-dynamic endpoint's flags would race (kinematic bodies get no
+		// gravity correction and need no flag). The dynamicFlag guard matches
+		// the existing solver writes; the per-body OR is then race-free under
+		// the parallel forRange dispatch because graph coloring guarantees
+		// disjoint dynamic bodies per color; colors themselves run
+		// sequentially.
+		if indexA != NullIndex && awakeSims[indexA].flags&dynamicFlag != 0 {
+			awakeSims[indexA].flags |= isContactConstrained
+		}
+		if indexB != NullIndex && awakeSims[indexB].flags&dynamicFlag != 0 {
+			awakeSims[indexB].flags |= isContactConstrained
+		}
 
 		constraint := &constraints[i]
 

@@ -39,6 +39,73 @@ const (
 	// isSpeedCapped means this body was speed capped in the current time step.
 	isSpeedCapped uint32 = 0x00000020
 
+	// isLinearSpeedCapped means this body's LINEAR speed was clamped to
+	// MaximumLinearSpeed in the current time step (a port-internal refinement
+	// of isSpeedCapped, which upstream also sets for an angular-speed clamp).
+	// Used by the CCD time-loss gravity correction to skip only bodies whose
+	// linear velocity — and therefore linear gravity impulse — was actually
+	// discarded by the cap; an angular-only clamp does not justify skipping it.
+	isLinearSpeedCapped uint32 = 0x00000800
+
+	// isContactConstrained means this body had at least one touching contact
+	// solved this step (a port-internal flag). The CCD time-loss gravity
+	// correction assumes the body retained the FULL theoretical gravity impulse
+	// integrateVelocitiesTask added, but the contact solver (which runs after
+	// integration and before CCD) can already cancel part or all of that
+	// impulse — e.g. a body resting on a floor has its vertical velocity held
+	// at zero by the normal constraint, so subtracting the un-simulated gravity
+	// on a later TOI hit injects an artificial upward impulse. The correction
+	// is therefore conservatively skipped for any body that participated in a
+	// touching contact this step. Set in prepareContactsColor (which runs once
+	// per touching contact before the substep solve), transferred from the
+	// sim to the body and cleared from the sim in finalizeBodiesTask before
+	// solveContinuous runs, and cleared in transferBody. Upstream v3.2.0
+	// applies the correction unconditionally and shares this edge case; this
+	// port skips to avoid the demonstrated reversal.
+	isContactConstrained uint32 = 0x00001000
+
+	// isJointConstrained means this body had at least one joint solved this
+	// step (a port-internal flag). The CCD time-loss gravity correction assumes
+	// the body retained the FULL theoretical gravity impulse
+	// integrateVelocitiesTask added, but the joint solver (which runs after
+	// integration and before CCD) can already cancel part or all of that
+	// impulse — e.g. a body on a horizontal-axis prismatic joint has its
+	// vertical velocity held at zero by the joint's point-to-line constraint,
+	// so subtracting the un-simulated gravity on a later TOI hit injects an
+	// artificial upward impulse. The correction is therefore conservatively
+	// skipped for any body that participated in a joint this step. Set in
+	// prepareJoint (which runs once per joint before the substep solve) for
+	// DYNAMIC endpoints only — kinematic endpoints are not reserved by graph
+	// coloring and may be shared across joints in one color, so writing their
+	// flags would race under the parallel dispatch; kinematic bodies receive
+	// no gravity correction anyway. FilterJoint is excluded: it performs no
+	// velocity solve, so it cannot cancel gravity and must not suppress the
+	// correction. Transferred from the sim to the body and cleared from the
+	// sim in finalizeBodiesTask before solveContinuous runs, and cleared in
+	// transferBody. Upstream v3.2.0 applies the correction unconditionally and
+	// shares this edge case; this port skips to avoid the demonstrated
+	// reversal.
+	isJointConstrained uint32 = 0x00002000
+
+	// isForceDriven means this body had a non-zero applied force integrated
+	// this step (a port-internal flag). The CCD time-loss gravity correction
+	// assumes the body retained the FULL theoretical gravity impulse
+	// integrateVelocitiesTask added, but a user-applied force can cancel part
+	// or all of that impulse (e.g. an upward force balancing gravity leaves the
+	// net vertical velocity change at zero), so subtracting the un-simulated
+	// gravity on a later TOI hit injects an artificial upward impulse. The
+	// combined acceleration is not modeled, so force-driven bodies are
+	// conservatively skipped. Set in integrateVelocitiesTask (which runs once
+	// per body per step, single-writer per body under the parallel dispatch)
+	// when sim.force != Vec2Zero — gravity itself is applied via gravityScale
+	// and never sets this flag; pure torque (which does not affect linear
+	// velocity) is also ignored. Transferred from the sim to the body and
+	// cleared from the sim in finalizeBodiesTask before solveContinuous runs,
+	// and cleared in transferBody. Upstream v3.2.0 applies the correction
+	// unconditionally and shares this edge case; this port skips to avoid the
+	// demonstrated reversal.
+	isForceDriven uint32 = 0x00004000
+
 	// hadTimeOfImpact means this body had a time of impact event in the
 	// current time step.
 	hadTimeOfImpact uint32 = 0x00000040
@@ -1300,6 +1367,15 @@ func (w *World) SetBodyType(bodyID BodyID, bodyType BodyType) {
 			b.flags &^= dynamicFlag
 		}
 
+		// Keep the bodySim's dynamicFlag synchronized with the body's type
+		// (see the active branch below for rationale).
+		sim := &w.solverSets[b.setIndex].bodySims[b.localIndex]
+		if bodyType == DynamicBody {
+			sim.flags |= dynamicFlag
+		} else {
+			sim.flags &^= dynamicFlag
+		}
+
 		// Body type affects the mass properties
 		w.updateBodyMassData(b)
 		return
@@ -1355,6 +1431,25 @@ func (w *World) SetBodyType(bodyID BodyID, bodyType BodyType) {
 		b.flags |= dynamicFlag
 	} else {
 		b.flags &^= dynamicFlag
+	}
+
+	// Keep the bodySim's dynamicFlag synchronized with the body's type.
+	// transferBody is a no-op when the body stays in the same set (e.g.
+	// dynamic<->kinematic, both awake), and across sets it only copies the
+	// sim as-is, so without this update the sim's dynamicFlag would stay
+	// stale. The CCD constraint-marking guards (prepareContactsColor,
+	// prepareJoint) read the sim's dynamicFlag to decide whether to write
+	// isContactConstrained / isJointConstrained: a stale dynamic bit on a
+	// body converted dynamic->kinematic lets parallel contacts race on the
+	// now-shared kinematic platform's sim flags, and a stale non-dynamic bit
+	// on a kinematic->dynamic body suppresses the gravity-correction guard.
+	// Update the source sim in place before transferBody so the copy (and
+	// the same-set live sim) carry the correct bit.
+	sourceSim := &w.solverSets[b.setIndex].bodySims[b.localIndex]
+	if bodyType == DynamicBody {
+		sourceSim.flags |= dynamicFlag
+	} else {
+		sourceSim.flags &^= dynamicFlag
 	}
 
 	awakeSolverSet := &w.solverSets[awakeSet]

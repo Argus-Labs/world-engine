@@ -201,15 +201,21 @@ func continuousQueryCallback(proxyID int, userData uint64, context any) bool {
 
 // solveContinuous performs the continuous sweep for one fast body: it queries
 // the broad-phase trees along the swept AABB of each shape, finds the
-// earliest time of impact, advances the body to it and refreshes the shape
-// AABBs (upstream b2SolveContinuous). Sensor hits are pushed onto the
-// executing worker's task context for serial processing after the join.
+// earliest time of impact, advances the body to it, removes the gravity
+// contribution of the unsimulated fraction of the step (upstream time-loss
+// correction) and refreshes the shape AABBs (upstream b2SolveContinuous).
+// Sensor hits are pushed onto the executing worker's task context for serial
+// processing after the join.
+//
+// dt is the full step duration (upstream b2SolveContinuous's dt parameter);
+// it scales the time-loss correction so that a body that hits at fraction f
+// keeps only f*dt of the gravity impulse integrated by integrateVelocitiesTask.
 //
 // Concurrency contract: every write is owned by this body (its sim, its
 // shapes, its bodyMoveEvents slot) or by the worker (tc.sensorHits). The
 // only tree read of a non-bullet sweep is the static tree, which is frozen
 // during the finalize dispatch — see the file header.
-func (w *World) solveContinuous(bodySimIndex int, tc *taskContext) {
+func (w *World) solveContinuous(bodySimIndex int, tc *taskContext, dt float64) {
 	awake := &w.solverSets[awakeSet]
 	fastBodySim := &awake.bodySims[bodySimIndex]
 	assert(fastBodySim.flags&isFast != 0)
@@ -294,6 +300,77 @@ func (w *World) solveContinuous(bodySimIndex int, tc *taskContext) {
 		fastBodySim.center = c
 		fastBodySim.rotation0 = q
 		fastBodySim.center0 = c
+
+		// Timeloss means there is a lost gravity contribution. Other forces
+		// and torques are ignored for now (upstream b2SolveContinuous).
+		// Gravity was integrated for the full step in integrateVelocitiesTask,
+		// but the body only advances through fraction of it, so subtract the
+		// un-simulated portion. MulAdd keeps the product rounded per-axis (no
+		// FMA — see math_fma.go); locked axes are then zeroed to match the
+		// upstream per-axis lock clipping.
+		//
+		// The correction assumes the body retained the FULL theoretical
+		// gravity impulse integrateVelocitiesTask added, so it is skipped
+		// whenever that assumption is violated (each guard mirrors the
+		// integrator's own eligibility/discard logic):
+		//   - invMass == 0: the integrator zeroes the gravity scale for such
+		//     bodies, so no gravity was integrated — subtracting any would
+		//     reverse the body opposite gravity.
+		//   - linearDamping != 0: damping attenuates the accumulated velocity
+		//     (including the gravity impulse) on every substep, so the body
+		//     retained less than the full theoretical gravity — subtracting the
+		//     full un-simulated amount can reverse a falling body upward. The
+		//     damped-retention math across substeps is not modeled, so damped
+		//     bodies are conservatively skipped until that is supported.
+		//   - isLinearSpeedCapped: the linear speed clamp in
+		//     integrateVelocitiesTask already discarded part of the gravity
+		//     impulse, so subtracting the full theoretical un-simulated
+		//     contribution would remove gravity that was never retained, which
+		//     can reverse the body and exceed MaximumLinearSpeed. Only a LINEAR
+		//     clamp discards linear gravity; an angular-only clamp does not, so
+		//     isSpeedCapped (which upstream also sets for an angular clamp) is
+		//     not used here — the port-internal isLinearSpeedCapped is. The
+		//     flags are carried on the body (transferred and cleared from the
+		//     sim in finalizeBodiesTask before this runs).
+		//   - isContactConstrained: the contact solver runs AFTER velocity
+		//     integration and BEFORE CCD, and can already cancel part or all of
+		//     the integrated gravity impulse (e.g. a body resting on a floor has
+		//     its vertical velocity held at zero by the normal constraint).
+		//     Subtracting the un-simulated gravity on a later TOI hit then
+		//     injects an artificial impulse unrelated to that hit — a
+		//     floor-supported body sliding into a wall gains spurious upward
+		//     velocity. The per-step isContactConstrained flag (set in
+		//     prepareContactsColor for every DYNAMIC body in a touching contact)
+		//     is transferred/cleared alongside the other flags, so the
+		//     correction is conservatively skipped for any constrained body.
+		//   - isJointConstrained: the joint solver also runs AFTER velocity
+		//     integration and BEFORE CCD and can cancel the integrated gravity
+		//     (e.g. a horizontal-axis prismatic joint holds vertical velocity at
+		//     zero). The per-step isJointConstrained flag (set in prepareJoint
+		//     for every DYNAMIC endpoint) mirrors isContactConstrained and
+		//     skips the correction for joint-constrained bodies. Upstream
+		//     v3.2.0 applies the correction unconditionally and shares these
+		//     edge cases; this port skips to avoid the demonstrated reversals.
+		//   - isForceDriven: a user-applied force integrated this step can
+		//     cancel part or all of the integrated gravity impulse (e.g. an
+		//     upward force balancing gravity leaves the net vertical velocity
+		//     change at zero), so subtracting the un-simulated gravity on a
+		//     later TOI hit injects a spurious upward impulse unrelated to that
+		//     hit. The combined acceleration is not modeled, so force-driven
+		//     bodies are conservatively skipped. The per-step isForceDriven
+		//     flag (set in integrateVelocitiesTask when sim.force != Vec2Zero)
+		//     is transferred/cleared alongside the other flags.
+		state := &awake.bodyStates[bodySimIndex]
+		if fastBodySim.invMass > 0.0 && fastBodySim.linearDamping == 0.0 && fastBody.flags&isLinearSpeedCapped == 0 && fastBody.flags&isContactConstrained == 0 && fastBody.flags&isJointConstrained == 0 && fastBody.flags&isForceDriven == 0 {
+			timeLoss := (1.0 - context.fraction) * dt
+			state.linearVelocity = MulAdd(state.linearVelocity, -timeLoss*fastBodySim.gravityScale, w.gravity)
+			if state.flags&lockLinearX != 0 {
+				state.linearVelocity.X = 0.0
+			}
+			if state.flags&lockLinearY != 0 {
+				state.linearVelocity.Y = 0.0
+			}
+		}
 
 		// Update body move event
 		w.bodyMoveEvents[bodySimIndex].Transform = transform

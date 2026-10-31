@@ -893,3 +893,157 @@ func TestDeterminismTwoWorldsIdenticalState(t *testing.T) {
 	// Counters agree.
 	tassert.Equal(t, w1.Counters(), w2.Counters())
 }
+
+// TestPrepareContactsColorKinematicPlatformNoRace reproduces the P1 finding
+// from the slopcop review on 4ec97fe: graph coloring reserves only DYNAMIC
+// bodies per color, so many dynamic circles resting on a SINGLE shared
+// kinematic platform all land in the same color (their distinct dynamic-body
+// bits do not collide; the shared kinematic platform's bit is never set). The
+// parallel prepareContactsColor dispatch then writes isContactConstrained on
+// the same kinematic bodySim from multiple workers — a data race. The
+// dynamicFlag guard (matching the existing solver writes) skips the flag
+// write for non-dynamic endpoints; kinematic bodies receive no gravity
+// correction and need no flag.
+//
+// Run with -race to detect the race:
+//
+//	go test -race ./pkg/box2d/ -run TestPrepareContactsColorKinematicPlatformNoRace
+//
+// The scene uses 3000 circles (>= solverLightColorGrain=1024) so the contact
+// prepare for the shared color actually dispatches across the 4 workers.
+func TestPrepareContactsColorKinematicPlatformNoRace(t *testing.T) {
+	const (
+		circleCount = 3000
+		radius      = 0.1
+		spacing     = 0.3
+		dt          = 1.0 / 60.0
+		subSteps    = 4
+	)
+
+	def := DefaultWorldDef()
+	def.WorkerCount = 4
+	w := NewWorld(&def)
+	defer w.Destroy()
+
+	// One shared kinematic floor: top surface at y == 0.
+	kd := DefaultBodyDef()
+	kd.Type = KinematicBody
+	floor := w.CreateBody(&kd)
+	floorBox := MakeOffsetBox(500.0, 0.5, Vec2{X: 0.0, Y: -0.5}, RotIdentity)
+	gsd := DefaultShapeDef()
+	w.CreatePolygonShape(floor, &gsd, &floorBox)
+
+	// Many separated dynamic circles resting exactly on the floor so the
+	// contact is touching from step one: center y == radius, floor top at 0.
+	bd := DefaultBodyDef()
+	bd.Type = DynamicBody
+	sd := DefaultShapeDef()
+	sd.Density = 1.0
+	for i := range circleCount {
+		x := (float64(i) - float64(circleCount-1)/2.0) * spacing
+		bd.Position = Vec2{X: x, Y: radius}
+		bodyID := w.CreateBody(&bd)
+		circle := Circle{Center: Vec2Zero, Radius: radius}
+		w.CreateCircleShape(bodyID, &sd, &circle)
+	}
+
+	w.Step(dt, subSteps)
+
+	// The kinematic floor must NOT carry isContactConstrained: it is not
+	// dynamic, so the guard skips the flag write for it (and it receives no
+	// gravity correction anyway). This holds deterministically, not just
+	// under -race.
+	floorBody := w.getBodyFullID(floor)
+	require.Zero(t, floorBody.flags&isContactConstrained,
+		"kinematic platform must not be marked isContactConstrained (dynamicFlag guard)")
+}
+
+// TestSetBodyTypeSynchronizesSimDynamicFlag reproduces the P1 finding from the
+// slopcop review on efb1f9f: SetBodyType updated body.flags (and, via
+// transferBody, bodyState.flags) but left bodySim.flags' dynamicFlag stale.
+// Converting a dynamic platform to kinematic left the sim marked dynamic, so
+// the prepareContactsColor dynamicFlag guard still wrote the now-shared
+// kinematic platform's sim flags from parallel workers — a data race under
+// -race. The reverse conversion left a newly-dynamic body unmarked, suppressing
+// the isContactConstrained guard and allowing the unwanted CCD gravity
+// correction. The fix synchronizes the sim's dynamicFlag on every type change.
+//
+// Run with -race to detect the forward-direction race:
+//
+//	go test -race ./pkg/box2d/ -run TestSetBodyTypeSynchronizesSimDynamicFlag
+func TestSetBodyTypeSynchronizesSimDynamicFlag(t *testing.T) {
+	const (
+		circleCount = 3000
+		radius      = 0.1
+		spacing     = 0.3
+		dt          = 1.0 / 60.0
+		subSteps    = 4
+	)
+
+	build := func(t *testing.T, initialType, convertedType BodyType) (*World, BodyID) {
+		t.Helper()
+		def := DefaultWorldDef()
+		def.WorkerCount = 4
+		w := NewWorld(&def)
+
+		// Platform: top surface at y == 0.
+		pd := DefaultBodyDef()
+		pd.Type = initialType
+		platform := w.CreateBody(&pd)
+		pBox := MakeOffsetBox(500.0, 0.5, Vec2{X: 0.0, Y: -0.5}, RotIdentity)
+		gsd := DefaultShapeDef()
+		w.CreatePolygonShape(platform, &gsd, &pBox)
+
+		// Convert the platform's type before adding the circles (so the sim
+		// bit would be stale pre-fix).
+		w.SetBodyType(platform, convertedType)
+
+		// Many separated dynamic circles resting exactly on the platform so
+		// the contact is touching from step one: center y == radius.
+		bd := DefaultBodyDef()
+		bd.Type = DynamicBody
+		sd := DefaultShapeDef()
+		sd.Density = 1.0
+		for i := range circleCount {
+			x := (float64(i) - float64(circleCount-1)/2.0) * spacing
+			bd.Position = Vec2{X: x, Y: radius}
+			bodyID := w.CreateBody(&bd)
+			circle := Circle{Center: Vec2Zero, Radius: radius}
+			w.CreateCircleShape(bodyID, &sd, &circle)
+		}
+		return w, platform
+	}
+
+	t.Run("dynamic_to_kinematic", func(t *testing.T) {
+		// Platform converted dynamic->kinematic must have its sim dynamicFlag
+		// CLEARED, so the prepareContactsColor guard skips writing the shared
+		// platform's flags (no race) and the platform is not marked
+		// isContactConstrained (it receives no gravity correction anyway).
+		w, platform := build(t, DynamicBody, KinematicBody)
+		defer w.Destroy()
+		w.Step(dt, subSteps)
+
+		psim := w.getBodySim(w.getBodyFullID(platform))
+		require.Zero(t, psim.flags&dynamicFlag,
+			"dynamic->kinematic platform sim must not carry dynamicFlag (synchronized on type change)")
+		require.Zero(t, w.getBodyFullID(platform).flags&isContactConstrained,
+			"kinematic platform must not be marked isContactConstrained (guard skips non-dynamic)")
+	})
+
+	t.Run("kinematic_to_dynamic", func(t *testing.T) {
+		// Platform converted kinematic->dynamic must have its sim dynamicFlag
+		// SET, so the prepareContactsColor guard writes isContactConstrained
+		// for the now-dynamic platform (preventing the unwanted CCD gravity
+		// correction). Pre-fix the stale non-dynamic bit suppressed the guard.
+		w, platform := build(t, KinematicBody, DynamicBody)
+		defer w.Destroy()
+
+		psim := w.getBodySim(w.getBodyFullID(platform))
+		require.NotZero(t, psim.flags&dynamicFlag,
+			"kinematic->dynamic platform sim must carry dynamicFlag (synchronized on type change)")
+
+		w.Step(dt, subSteps)
+		require.NotZero(t, w.getBodyFullID(platform).flags&isContactConstrained,
+			"dynamic platform touching circles must be marked isContactConstrained (guard now sees dynamic sim)")
+	})
+}
