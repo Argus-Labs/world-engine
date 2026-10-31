@@ -8,3 +8,12 @@ projects:
 
 vcs:
   defaultBranch: 'main'
+
+# CI sets MOON_REMOTE_HOST and NSC_REMOTE_CACHE_TOKEN to share task results
+# through Namespace's remote cache. Without MOON_REMOTE_HOST, as in local runs,
+# moon uses only its local cache. The token stays out of this file because the
+# file is an input to every task hash.
+remote:
+  auth:
+    headers:
+      x-nsc-ingress-auth: 'Bearer ${NSC_REMOTE_CACHE_TOKEN}'

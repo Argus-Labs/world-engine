@@ -15,6 +15,13 @@ on:
       - '!**.md'
       - '!docs/**'
 
+# A newer push to the same branch supersedes the running checks. Each main run
+# gets its own group, because GitHub drops a queued run when another joins its
+# group, even without cancel-in-progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
+  cancel-in-progress: true
+
 env:
   GO_VERSION: 1.27.1
 
@@ -23,7 +30,7 @@ jobs:
     name: Lint
     runs-on: namespace-profile-linux-ci-large
     steps:
-      - uses: actions/checkout@v4
+      - uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
         with:
           fetch-depth: 0 # moon resolves the base revision in CI
 
@@ -32,6 +39,8 @@ jobs:
 
       - name: Install moon
         uses: moonrepo/setup-toolchain@261c62cb5b0f580c7be7c8cd0f023a2e96756095 # v0
+        with:
+          cache: false # Skip GitHub's remote cache; it would only hold ~/.proto
 
       - uses: actions/setup-go@v5
         with:
@@ -41,10 +50,32 @@ jobs:
       - uses: namespacelabs/nscloud-cache-action@v1
         with:
           cache: go
+          # .moon/cache keeps moon's task results, so unchanged lint inputs
+          # replay without rerunning the linter.
           path: |
             ~/go/pkg
             ~/.cache/go-build
             ~/.cache/golangci-lint
+            ${{ github.workspace }}/.moon/cache
+
+      # Share moon's task results across runners through Namespace's remote
+      # cache (Bazel API). moon reads the host and token from these variables;
+      # .moon/workspace.yml holds only the header template because that file is
+      # an input to every task hash. Keep this CI-only: task hashes omit the OS
+      # and Go version. Any failure leaves moon on the cache volume alone.
+      - name: Connect moon to the Namespace remote cache
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          creds="$RUNNER_TEMP/nsc-bazel.json"
+          nsc cache bazel setup -o json --static --static_token_duration 1h > "$creds"
+          token=$(jq -er .static_token "$creds")
+          echo "::add-mask::$token"
+          host=$(jq -er .endpoint "$creds")
+          {
+            echo "MOON_REMOTE_HOST=$host"
+            echo "NSC_REMOTE_CACHE_TOKEN=$token"
+          } >> "$GITHUB_ENV"
 
       - name: Run Go linter
         run: moon run world-engine:lint
@@ -53,12 +84,14 @@ jobs:
     name: Test
     runs-on: namespace-profile-linux-ci-large
     steps:
-      - uses: actions/checkout@v4
+      - uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
         with:
           fetch-depth: 0 # moon resolves the base revision in CI
 
       - name: Install moon
         uses: moonrepo/setup-toolchain@261c62cb5b0f580c7be7c8cd0f023a2e96756095 # v0
+        with:
+          cache: false # Skip GitHub's remote cache; it would only hold ~/.proto
 
       - uses: actions/setup-go@v5
         with:

@@ -12,11 +12,15 @@ tasks:
       internal: true
       runInCI: true
   lint:
-    inputs: ['pkg/**/*', 'go.mod', 'go.sum', '.golangci.yaml', '.prototools', 'moon.yml']
+    # Lint is deterministic for these inputs, so CI replays a passing result
+    # from moon's cache (Namespace remote cache in CI). pkg/ imports the
+    # generated Go protos, and moon.yml pins the linter version.
+    inputs: ['pkg/**/*', 'proto/gen/go/**/*', 'go.mod', 'go.sum', '.golangci.yaml', '.prototools', 'moon.yml']
     description: 'Lint Go packages'
     command: 'bin/tools/golangci-lint run --timeout 10m ./pkg/...'
     deps: ['setup-lint']
     options:
+      cache: true
       runInCI: true
   lint-fix:
     options:

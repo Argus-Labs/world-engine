@@ -8,12 +8,19 @@ on:
       - 'buf.gen.yaml'
       - '.github/workflows/proto-ci.yaml'
 
+# A newer push to the same branch supersedes the running checks. Each main run
+# gets its own group, because GitHub drops a queued run when another joins its
+# group, even without cancel-in-progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Lint
     runs-on: namespace-profile-linux-ci-large
     steps:
-      - uses: actions/checkout@v4
+      - uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
 
       - uses: bufbuild/buf-action@v1
         with:
