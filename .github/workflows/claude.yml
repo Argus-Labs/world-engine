@@ -45,6 +45,8 @@ jobs:
 
       - name: Install moon
         uses: moonrepo/setup-toolchain@261c62cb5b0f580c7be7c8cd0f023a2e96756095 # v0
+        with:
+          cache: false # Skip GitHub's remote cache; it would only hold ~/.proto
 
       - uses: actions/setup-go@v5
         with:

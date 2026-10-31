@@ -8,12 +8,18 @@ on:
       - 'buf.gen.yaml'
       - '.github/workflows/proto-ci.yaml'
 
+# A newer push to the same branch supersedes the running checks; main keeps
+# every run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   lint:
     name: Lint
     runs-on: namespace-profile-linux-ci-large
     steps:
-      - uses: actions/checkout@v4
+      - uses: namespacelabs/nscloud-checkout-action@v9
 
       - uses: bufbuild/buf-action@v1
         with:
