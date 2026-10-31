@@ -29,7 +29,7 @@ jobs:
   lint:
     name: Lint
     # Four vCPUs: lint finishes well before Test even with empty caches (74 s vs 160 s).
-    runs-on: namespace-profile-linux-ci-standard
+    runs-on: namespace-profile-linux-ci-standard;overrides.cache-tag=github-namespace-profile-linux-ci-large-Argus-Labs-world-engine
     steps:
       - uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
         with:
