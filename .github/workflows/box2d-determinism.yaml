@@ -36,12 +36,13 @@ on:
       - '.prototools'
       - '.github/workflows/box2d-determinism.yaml'
 
-# A newer push or PR update supersedes the running matrix; main keeps every
-# run. Push and pull_request runs have different refs, so neither cancels the
-# other.
+# A newer push or PR update supersedes the running matrix. Each main run gets
+# its own group, because GitHub drops a queued run when another joins its
+# group, even without cancel-in-progress. Push and pull_request runs have
+# different refs, so neither cancels the other.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
+  cancel-in-progress: true
 
 env:
   GO_VERSION: 1.27.1
