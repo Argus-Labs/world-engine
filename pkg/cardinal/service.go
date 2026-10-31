@@ -2,7 +2,6 @@ package cardinal
 
 import (
 	"context"
-	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -24,13 +23,13 @@ import (
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
-	"github.com/goccy/go-json"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	otelcodes "go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"golang.org/x/time/rate"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -41,6 +40,7 @@ type service struct {
 	log          zerolog.Logger
 	authMode     AuthMode
 	argusAuthURL string
+	argusAuth    *ArgusAuthenticator
 	client       *micro.Client
 	microService *micro.Service
 	interShard   *interShard
@@ -108,6 +108,7 @@ func (s *service) init(address string) error {
 		if err != nil {
 			return eris.Wrap(err, "failed to create argus authenticator")
 		}
+		s.argusAuth = authenticator
 		authenticate = authenticator.Authenticate
 	case AuthModeDev:
 		authenticate = authenticatorDev{}.authenticate
@@ -185,6 +186,11 @@ func (s *service) mountDebugService(mux *http.ServeMux, interceptors ...connect.
 
 func (s *service) shutdown(ctx context.Context) error {
 	// Before server.Shutdown: an open event stream holds it until ctx expires, and its error returns early.
+	// Defer argusAuth.Close so it runs on every return path, including when an active request
+	// stream exhausts the shutdown deadline and server.Shutdown returns early.
+	if s.argusAuth != nil {
+		defer s.argusAuth.Close()
+	}
 	if s.interShard != nil {
 		s.interShard.stop(ctx)
 	}
@@ -894,75 +900,48 @@ func PlayerFromContext(ctx context.Context) *Player {
 // Argus Auth
 // -------------------------------------------------------------------------------------------------
 
-// ArgusAuthenticator authenticates game tokens issued by Argus Auth for one game.
+// ArgusAuthenticator authenticates game tokens issued by Argus Auth for one game. It re-fetches
+// Argus Auth's JWKS in the background so keys added or rotated after startup are trusted, and
+// keys retired from the JWKS stop being trusted. Close stops the background refresh goroutine.
 type ArgusAuthenticator struct {
 	audience string
 	keyfunc  keyfunc.Keyfunc
+	cancel   context.CancelFunc
 }
 
 // NewArgusAuthenticator fetches Argus Auth's signing keys and returns an authenticator that
 // accepts only EdDSA game tokens with aud equal to gameID, an unexpired exp, and a non-empty sub.
-// Pass its Authenticate method to authn.NewMiddleware.
+// The JWKS is re-fetched in the background so key rotations by Argus Auth take effect without
+// restarting the shard. Pass Authenticate to authn.NewMiddleware; call Close on shutdown.
 func NewArgusAuthenticator(argusAuthURL, gameID string) (*ArgusAuthenticator, error) {
-	if argusAuthURL == "" {
-		return nil, eris.New("argus auth URL cannot be empty")
-	}
-	// Argus Auth only issues tokens for game IDs of the form "a/b", so any other ID would reject
-	// every token. Fail at startup instead.
-	if owner, name, ok := strings.Cut(gameID, "/"); !ok || owner == "" || name == "" ||
-		strings.Contains(name, "/") || strings.ContainsFunc(gameID, unicode.IsSpace) {
-		return nil, eris.Errorf("argus auth game ID %q must have the form <owner>/<name>", gameID)
-	}
+	return newArgusAuthenticator(argusAuthURL, gameID, refreshOptions{})
+}
 
-	jwksURL := argusAuthURL + "/auth/jwks"
-	client := &http.Client{
-		Timeout: 3 * time.Second,
+// Close stops the background JWKS refresh goroutine. It is safe to call multiple times and must
+// be called when the authenticator is no longer in use, such as during shard shutdown.
+func (a *ArgusAuthenticator) Close() {
+	if a.cancel != nil {
+		a.cancel()
 	}
-
-	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, jwksURL, nil)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to create JWKS request")
-	}
-
-	response, err := client.Do(request)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to fetch JWKS")
-	}
-	defer func() { _ = response.Body.Close() }()
-
-	if response.StatusCode != http.StatusOK {
-		return nil, eris.Errorf("HTTP error: %d - %s", response.StatusCode, response.Status)
-	}
-
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to read response body")
-	}
-
-	keyfn, err := keyfunc.NewJWKSetJSON(json.RawMessage(body))
-	if err != nil {
-		return nil, eris.Wrap(err, "failed to create keyfunc")
-	}
-
-	return &ArgusAuthenticator{
-		audience: gameID,
-		keyfunc:  keyfn,
-	}, nil
 }
 
 // Authenticate returns the *Player named by the request's bearer token. It satisfies
 // authn.AuthFunc; every rejection is a connect.CodeUnauthenticated error.
-func (a *ArgusAuthenticator) Authenticate(_ context.Context, req *http.Request) (any, error) {
+func (a *ArgusAuthenticator) Authenticate(ctx context.Context, req *http.Request) (any, error) {
 	jwtString, ok := authn.BearerToken(req)
 	if !ok {
 		return nil, authn.Errorf("Authorization header must be in format: 'Bearer <JWT>'")
 	}
 
 	claims := &jwt.RegisteredClaims{}
+	// KeyfuncCtx binds the on-demand JWKS re-fetch to the request context so a
+	// canceled/disconnected request stops waiting promptly instead of blocking for
+	// up to the limiter's default wait window. The background refresh goroutine is
+	// owned by the authenticator's lifetime context, not this request.
 	token, err := jwt.ParseWithClaims(
 		jwtString,
 		claims,
-		a.keyfunc.Keyfunc,
+		a.keyfunc.KeyfuncCtx(ctx),
 		jwt.WithValidMethods([]string{jwt.SigningMethodEdDSA.Alg()}),
 		jwt.WithAudience(a.audience),
 		jwt.WithExpirationRequired(),
@@ -978,6 +957,70 @@ func (a *ArgusAuthenticator) Authenticate(_ context.Context, req *http.Request) 
 	}
 
 	return &Player{ID: claims.Subject}, nil
+}
+
+// refreshOptions tunes the JWKS refresh behavior of an ArgusAuthenticator. The zero value uses the
+// keyfunc library defaults: an hourly background refresh and a rate-limited on-demand re-fetch when
+// a token with an unknown key ID arrives. Tests pass short durations to exercise refresh promptly.
+type refreshOptions struct {
+	// refreshInterval is the period between background JWKS refreshes. Zero means the library
+	// default of one hour.
+	refreshInterval time.Duration
+	// refreshUnknownKIDEvery is the minimum interval between on-demand re-fetches triggered by a
+	// token whose key ID is not in the local key set. Zero means the library default of five
+	// minutes.
+	refreshUnknownKIDEvery time.Duration
+}
+
+// newArgusAuthenticator is the constructor behind NewArgusAuthenticator (called with the default
+// options) and is also used by tests with short refresh intervals. It preserves fail-fast startup:
+// if the first JWKS fetch fails, it returns an error instead of starting with an empty key set.
+// NewDefaultOverrideCtx launches the refresh goroutine before the first fetch, so the context is
+// cancelled on error to avoid leaking that goroutine.
+func newArgusAuthenticator(argusAuthURL, gameID string, opts refreshOptions) (*ArgusAuthenticator, error) {
+	if argusAuthURL == "" {
+		return nil, eris.New("argus auth URL cannot be empty")
+	}
+	// Argus Auth only issues tokens for game IDs of the form "a/b", so any other ID would reject
+	// every token. Fail at startup instead.
+	if owner, name, ok := strings.Cut(gameID, "/"); !ok || owner == "" || name == "" ||
+		strings.Contains(name, "/") || strings.ContainsFunc(gameID, unicode.IsSpace) {
+		return nil, eris.Errorf("argus auth game ID %q must have the form <owner>/<name>", gameID)
+	}
+
+	jwksURL := argusAuthURL + "/auth/jwks"
+	// NoErrorReturnFirstHTTPReq=false keeps fail-fast startup: the JWKS must be reachable to build
+	// the initial key set. NewDefaultOverrideCtx still launches the refresh goroutine before the
+	// first fetch, so the context below must be cancelled on error to avoid leaking that goroutine.
+	noErrFirstReq := false
+	// RateLimitWaitMax caps how long a single token validation waits on the on-demand
+	// refresh limiter; matching the HTTP timeout keeps a canceled request from
+	// blocking up to the limiter's default minute-long wait window.
+	override := keyfunc.Override{
+		Client:                    &http.Client{Timeout: 3 * time.Second},
+		HTTPTimeout:               3 * time.Second,
+		RateLimitWaitMax:          3 * time.Second,
+		NoErrorReturnFirstHTTPReq: &noErrFirstReq,
+	}
+	if opts.refreshInterval > 0 {
+		override.RefreshInterval = opts.refreshInterval
+	}
+	if opts.refreshUnknownKIDEvery > 0 {
+		override.RefreshUnknownKID = rate.NewLimiter(rate.Every(opts.refreshUnknownKIDEvery), 1)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	keyfn, err := keyfunc.NewDefaultOverrideCtx(ctx, []string{jwksURL}, override)
+	if err != nil {
+		cancel()
+		return nil, eris.Wrap(err, "failed to create keyfunc")
+	}
+
+	return &ArgusAuthenticator{
+		audience: gameID,
+		keyfunc:  keyfn,
+		cancel:   cancel,
+	}, nil
 }
 
 // -------------------------------------------------------------------------------------------------
