@@ -693,6 +693,54 @@ func TestOracleRevoluteJointAccessors(t *testing.T) {
 		require.False(t, world.IsRevoluteJointLimitEnabled(jointID))
 	})
 
+	t.Run("LimitsClampOutOfRangeToSolverBand", func(t *testing.T) {
+		t.Parallel()
+
+		// revolute_joint.c:128-142 (b2RevoluteJoint_SetLimits) and
+		// b2CreateRevoluteJoint in joint.c both clamp the min/max-swapped
+		// limits to ±0.99*pi. solveRevoluteJoint compares them against the
+		// joint angle from RotGetAngle, whose range is [-pi, pi]
+		// (math.go:368), so a limit stored outside the band can never
+		// engage. The port previously matched upstream's asserts only —
+		// which are compiled out in the default build (core_asserts_off.go)
+		// — and stored raw values; it now clamps like upstream, so the
+		// documented "Minimum of -0.99*pi / Maximum of 0.99*pi" contract
+		// in types.go holds in every build.
+		const band = 0.99 * box2d.Pi
+
+		// CreateRevoluteJoint clamps the definition's out-of-range limits.
+		world, _, jointID := oracleRevolutePendulum(t, box2d.Vec2Zero,
+			func(def *box2d.RevoluteJointDef) {
+				def.EnableLimit = true
+				def.LowerAngle = -2 * box2d.Pi
+				def.UpperAngle = 2 * box2d.Pi
+			})
+		require.InDelta(t, -band, world.RevoluteJointLowerLimit(jointID), 0)
+		require.InDelta(t, band, world.RevoluteJointUpperLimit(jointID), 0)
+
+		// SetRevoluteJointLimits clamps too: the ±pi boundary and the
+		// multi-turn case both collapse to the band.
+		world.SetRevoluteJointLimits(jointID, -box2d.Pi, box2d.Pi)
+		require.InDelta(t, -band, world.RevoluteJointLowerLimit(jointID), 0)
+		require.InDelta(t, band, world.RevoluteJointUpperLimit(jointID), 0)
+
+		world.SetRevoluteJointLimits(jointID, -2*box2d.Pi, 2*box2d.Pi)
+		require.InDelta(t, -band, world.RevoluteJointLowerLimit(jointID), 0)
+		require.InDelta(t, band, world.RevoluteJointUpperLimit(jointID), 0)
+
+		// A "locked" joint whose single limit sits beyond the band clamps
+		// both sides to the edge of the band.
+		world.SetRevoluteJointLimits(jointID, 1.5*box2d.Pi, 1.5*box2d.Pi)
+		require.InDelta(t, band, world.RevoluteJointLowerLimit(jointID), 0)
+		require.InDelta(t, band, world.RevoluteJointUpperLimit(jointID), 0)
+
+		// In-range limits pass through unchanged (min/max swap only, no
+		// clamping), preserving the round-trip contract above.
+		world.SetRevoluteJointLimits(jointID, -0.4, 0.9)
+		require.InDelta(t, -0.4, world.RevoluteJointLowerLimit(jointID), 0)
+		require.InDelta(t, 0.9, world.RevoluteJointUpperLimit(jointID), 0)
+	})
+
 	t.Run("EnableLimitAndSetLimitsZeroTheLimitImpulses", func(t *testing.T) {
 		t.Parallel()
 
@@ -746,6 +794,39 @@ func TestOracleRevoluteJointAccessors(t *testing.T) {
 
 		world.SetRevoluteJointLimits(jointID, -0.05, 0.05)
 		require.InDelta(t, loaded, world.JointConstraintTorque(jointID), 0)
+	})
+
+	t.Run("SetLimitsIsANoOpWhenUnchangedOutOfRange", func(t *testing.T) {
+		t.Parallel()
+
+		// revolute_joint.c:135-141 clamps the min/max-swapped limits to
+		// ±0.99*pi before storing, so the guard must compare the
+		// normalized pair — not the raw arguments — against the stored
+		// pair. A pendulum created with the out-of-band pair (-0.05, Pi)
+		// stores the effective pair (-0.05, 0.99*Pi); re-issuing that same
+		// out-of-band request must therefore be a no-op and preserve the
+		// accumulated limit impulses/torque instead of clearing them.
+		world, _, jointID := oracleRevolutePendulum(t, box2d.Vec2{X: 0.0, Y: -10.0},
+			func(def *box2d.RevoluteJointDef) {
+				def.EnableLimit = true
+				def.LowerAngle = -0.05
+				def.UpperAngle = box2d.Pi
+			})
+
+		require.InDelta(t, -0.05, world.RevoluteJointLowerLimit(jointID), 0)
+		require.InDelta(t, 0.99*box2d.Pi, world.RevoluteJointUpperLimit(jointID), 0)
+
+		oracleJointStep(world, 60)
+		loaded := world.JointConstraintTorque(jointID)
+		require.Greater(t, math.Abs(loaded), 0.0)
+
+		// Re-issuing the identical out-of-band request is a no-op: the
+		// effective pair is unchanged, so the impulses are preserved.
+		world.SetRevoluteJointLimits(jointID, -0.05, box2d.Pi)
+		require.InDelta(t, loaded, world.JointConstraintTorque(jointID), 0)
+
+		require.InDelta(t, -0.05, world.RevoluteJointLowerLimit(jointID), 0)
+		require.InDelta(t, 0.99*box2d.Pi, world.RevoluteJointUpperLimit(jointID), 0)
 	})
 
 	t.Run("EnableMotorZeroesMotorImpulseOnChangeOnly", func(t *testing.T) {
@@ -926,6 +1007,95 @@ func TestOracleRevoluteJointBehavior(t *testing.T) {
 		angle = world.RevoluteJointAngle(jointID)
 		require.GreaterOrEqual(t, angle, -upperAngle-0.05)
 		require.Less(t, angle, -upperAngle+0.05)
+	})
+
+	t.Run("ClampedOutOfRangeLimitsEngageAtSolverBand", func(t *testing.T) {
+		t.Parallel()
+
+		// docs/simulation.md "Revolute Joint" — "A joint limit forces the
+		// joint angle to remain between a lower and upper angle. The limit
+		// will apply as much torque as needed to make this happen."
+		// revolute_joint.c:128-142 clamps the limits to ±0.99*pi, so a
+		// multi-turn request such as ±2*pi collapses to ±0.99*pi and the
+		// upper limit stops the motor at the band. Before the clamp the
+		// stored ±2*pi sat outside RotGetAngle's [-pi, pi] range
+		// (math.go:368), so the limit impulses could never engage and the
+		// motor spun the joint through the wrap point indefinitely.
+		const band = 0.99 * box2d.Pi
+
+		world, arm, jointID := oracleRevolutePendulum(t, box2d.Vec2Zero,
+			func(def *box2d.RevoluteJointDef) {
+				def.EnableLimit = true
+				def.LowerAngle = -2 * box2d.Pi
+				def.UpperAngle = 2 * box2d.Pi
+				def.EnableMotor = true
+				def.MotorSpeed = 2.0
+				def.MaxMotorTorque = 5.0
+			})
+
+		// The stored upper limit is clamped to the band.
+		require.InDelta(t, band, world.RevoluteJointUpperLimit(jointID), 0)
+
+		// Unconstrained, three seconds at 2 rad/s would pass 0.99*pi
+		// (~3.11 rad) and keep going; the clamped upper limit must halt it
+		// at the band and park it there. (A modest max torque keeps the
+		// approach below the ±pi wrap edge so the limit holds cleanly —
+		// the band sits only ~0.03 rad below pi, a margin a strong motor
+		// can overshoot, which is a wrap-edge fragility independent of the
+		// clamp fix.)
+		oracleJointStep(world, 180)
+
+		angle := world.RevoluteJointAngle(jointID)
+		require.LessOrEqual(t, angle, band+0.05)
+		require.Greater(t, angle, band-0.1)
+
+		// The arm is parked at the limit, not still spinning through the
+		// wrap point as the unclamped ±2*pi limits (which never engage)
+		// would let it.
+		require.InDelta(t, 0.0, world.BodyAngularVelocity(arm), 0.1)
+	})
+
+	t.Run("ClampedLockedLimitHoldsAgainstGravity", func(t *testing.T) {
+		t.Parallel()
+
+		// A "locked" revolute joint (lower == upper) must pin the joint
+		// rigidly at its limit. revolute_joint.c:128-142 clamps the single
+		// limit to ±0.99*pi, so a lock requested beyond the band (here
+		// 1.5*pi) collapses to 0.99*pi and the lower and upper impulses
+		// together hold the joint there. Before the clamp the stored 1.5*pi
+		// lay outside RotGetAngle's [-pi, pi] range, so neither limit could
+		// engage and gravity swung the arm past the ±pi wrap point instead
+		// of holding it.
+		const band = 0.99 * box2d.Pi
+
+		world := oracleJointWorld(t, box2d.Vec2{X: 0.0, Y: -10.0})
+		anchor := oracleJointBody(t, world, box2d.StaticBody, box2d.Vec2Zero, box2d.RotIdentity)
+		// Start the arm already at the locked angle so the limit only has
+		// to hold it, not haul it in. With frame B at the arm's local
+		// (-1, 0), the hinge stays at the origin when the arm centre sits
+		// at (cos(band), sin(band)) and the arm is rotated by band.
+		armPos := box2d.Vec2{X: math.Cos(band), Y: math.Sin(band)}
+		arm := oracleJointBody(t, world, box2d.DynamicBody, armPos, oracleExactRot(band))
+		jointID := oracleRevoluteJoint(world, anchor, arm, func(def *box2d.RevoluteJointDef) {
+			def.Base.LocalFrameB.P = box2d.Vec2{X: -1.0, Y: 0.0}
+			def.EnableLimit = true
+			def.LowerAngle = 1.5 * box2d.Pi
+			def.UpperAngle = 1.5 * box2d.Pi
+		})
+
+		// The locked limit clamps to the band on both sides, and the joint
+		// starts at the band.
+		require.InDelta(t, band, world.RevoluteJointLowerLimit(jointID), 0)
+		require.InDelta(t, band, world.RevoluteJointUpperLimit(jointID), 0)
+		require.InDelta(t, band, world.RevoluteJointAngle(jointID), oracleAtan2Tolerance)
+
+		// Gravity swings the arm counterclockwise (its centre sits just
+		// above the -x axis) past the band toward the ±pi wrap point. The
+		// clamped lock must hold the joint at the band for the whole run.
+		for range 180 {
+			world.Step(oracleJointDT, oracleJointSubSteps)
+			require.InDelta(t, band, world.RevoluteJointAngle(jointID), 0.05)
+		}
 	})
 }
 
