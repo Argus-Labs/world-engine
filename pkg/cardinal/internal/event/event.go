@@ -26,6 +26,7 @@ type Payload interface {
 type Kind uint8
 
 const (
+	KindSync              Kind = 2 // Internal ordered sync publication
 	KindDefault           Kind = 0 // The default event type
 	KindInterShardCommand Kind = 1 // Inter-shard commands
 )
