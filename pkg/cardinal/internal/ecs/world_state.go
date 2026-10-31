@@ -26,12 +26,16 @@ const voidArchetypeID = 0
 
 // worldState holds the state of the world.
 type worldState struct {
-	components componentManager // Component type manager
-	nextID     EntityID         // Entity ID counter
-	free       []EntityID       // Free entity IDs to reuse
-	entityArch sparseSet
-	archetypes []*archetype // Array of archetypes
-	mu         sync.Mutex
+	components      componentManager // Component type manager
+	nextID          EntityID         // Entity ID counter
+	free            []EntityID       // Free entity IDs to reuse
+	entityArch      sparseSet
+	archetypes      []*archetype // Array of archetypes
+	mu              sync.Mutex
+	observer        func(Mutation)
+	session         string
+	incarnations    map[EntityID]uint64
+	nextIncarnation uint64
 }
 
 // newWorldState creates a new world state.
@@ -57,6 +61,8 @@ func (ws *worldState) reset() {
 
 	ws.invalidateArchetypes()
 
+	ws.notify(Mutation{Kind: Reset})
+	clear(ws.incarnations)
 	ws.nextID = 0
 	ws.free = ws.free[:0]
 	ws.entityArch.clear()
@@ -100,6 +106,7 @@ func (ws *worldState) newEntity() EntityID {
 
 	// Update the entity archetype mapping.
 	ws.entityArch.set(eid, voidArchetypeID)
+	ws.born(eid)
 
 	return eid
 }
@@ -124,6 +131,9 @@ func (ws *worldState) removeEntity(eid EntityID) bool {
 	if !exists {
 		return false
 	}
+
+	ws.notify(Mutation{Entity: eid, Kind: Destroyed})
+	delete(ws.incarnations, eid)
 
 	// Remove the entity from the archetype.
 	archetype := ws.archetypes[aid]
@@ -199,6 +209,18 @@ func (ws *worldState) moveEntity(eid EntityID, newComponents bitmap.Bitmap) {
 
 	// Update the archetype mapping.
 	ws.entityArch.set(eid, newAid)
+	if ws.observer != nil {
+		oldArchetype.components.Range(func(cid uint32) {
+			if !newComponents.Contains(cid) {
+				ws.notify(Mutation{Entity: eid, Component: cid, Kind: ComponentRemoved})
+			}
+		})
+		newComponents.Range(func(cid uint32) {
+			if !oldArchetype.components.Contains(cid) {
+				ws.notify(Mutation{Entity: eid, Component: cid, Kind: ComponentAdded})
+			}
+		})
+	}
 }
 
 // findOrCreateArchetype finds an existing archetype that matches the given components or creates a
@@ -267,6 +289,7 @@ func (ws *worldState) setComponent[T Component](eid EntityID, component T) error
 	row, exists := archetype.rows.get(eid)
 	assert.That(exists, "entity should have a row in its archetype")
 	column.set(row, component)
+	ws.notify(Mutation{Entity: eid, Component: cid, Kind: ComponentSet})
 
 	return nil
 }
@@ -478,7 +501,13 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 	// Commit the new state. The component registry and mutex do not change.
 	ws.invalidateArchetypes()
 	ws.nextID, ws.free, ws.entityArch, ws.archetypes = next.nextID, next.free, next.entityArch, next.archetypes
-
+	if ws.observer != nil {
+		ws.notify(Mutation{Kind: Reset})
+		clear(ws.incarnations)
+		for _, ent := range pb.GetEntities() {
+			ws.born(EntityID(ent.GetId()))
+		}
+	}
 	return nil
 }
 

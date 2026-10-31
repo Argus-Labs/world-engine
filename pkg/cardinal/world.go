@@ -60,6 +60,7 @@ type World struct {
 	eventTypes map[reflect.Type][]metric.AddOption // Registered events, with the attributes they are counted under
 	started    bool                                // Set by init; Register* methods panic afterwards
 
+	sync           *syncWorld
 	systemEventTap func(ecs.SystemEvent) // Sees each emitted system event; set only by TestWorld
 }
 
@@ -340,6 +341,8 @@ func (w *World) step(timestamp time.Time, run func()) {
 	// Advance the ECS world.
 	run()
 
+	w.captureSync(true)
+	w.service.prepareSync()
 	w.dispatchEvents(ctx)
 
 	// Serialize the world for snapshots and the debug service. Encoding cannot fail (a value that
@@ -491,6 +494,16 @@ func (w *World) reset() {
 
 	// Run initialization systems again.
 	w.init()
+
+	// Reset replaces every entity lifetime the connected views still hold. Force a quiet
+	// baseline; it already represents the commits init just captured, so those are skipped.
+	if w.sync != nil {
+		w.service.mu.Lock()
+		for _, sub := range w.service.subscribers {
+			sub.syncNeedsBaseline = true
+		}
+		w.service.mu.Unlock()
+	}
 
 	// Publish the reset state when the debug service is enabled.
 	if w.debug != nil {
@@ -734,7 +747,9 @@ func (w *World) registeredEvent[T Event]() []metric.AddOption {
 // Broadcast enqueues an event delivered to every open event stream at the end of the tick. It
 // panics if T was not registered with RegisterEvent.
 func (w *World) Broadcast[T Event](evt T) {
+	w.stampSync(&evt)
 	attrs := w.registeredEvent[T]()
+	w.captureSync(false)
 	w.events.Enqueue(event.Event{
 		Kind:    event.KindDefault,
 		Payload: evt,
@@ -753,9 +768,11 @@ func (w *World) Broadcast[T Event](evt T) {
 //		w.SendTo(player, Result{OK: true})
 //	}
 func (w *World) SendTo[T Event](recipient string, evt T) {
+	w.stampSync(&evt)
 	assert.That(recipient != "", "recipient must not be empty (use Broadcast for fan-out)")
 
 	attrs := w.registeredEvent[T]()
+	w.captureSync(false)
 	w.events.Enqueue(event.Event{
 		Kind:      event.KindDefault,
 		Payload:   evt,
@@ -824,6 +841,8 @@ func (w *World) SystemEvents[T ecs.SystemEvent]() iter.Seq[T] {
 // registered with RegisterSystemEvent, in release builds too: an unregistered emit dropped
 // silently would leave every later SystemEvents reader empty.
 func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
+	w.stampSync(&systemEvent)
+	w.captureSync(false)
 	if err := w.world.EmitSystemEvent(systemEvent); err != nil {
 		panic(eris.Wrapf(err, "system event %T is not registered; call RegisterSystemEvent before StartGame",
 			systemEvent))
@@ -861,10 +880,12 @@ func (w *World) RegisterComponent[T ecs.Component]() {
 	if w.started {
 		panic(ErrWorldStarted)
 	}
-
-	if _, err := w.world.RegisterComponent[T](); err != nil {
+	cid, err := w.world.RegisterComponent[T]()
+	if err != nil {
 		panic(eris.Wrapf(err, "failed to register component %T", *new(T)))
 	}
+	var zero T
+	w.registerSync(reflect.TypeFor[T](), zero.Name(), cid)
 }
 
 // archetype resolves the registered component IDs declared by T's fields and caches the
