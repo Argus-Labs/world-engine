@@ -7,7 +7,7 @@ jobs:
   lint-pr-title:
     name: Lint (PR Title)
     # Reads the PR title through the GitHub API; two vCPUs are plenty.
-    runs-on: namespace-profile-linux-ci-small
+    runs-on: namespace-profile-linux-2vcpu-4gb-cached
     permissions:
       pull-requests: read # for amannn/action-semantic-pull-request to analyze PRs
       statuses: write # for amannn/action-semantic-pull-request to mark status of analyzed PR

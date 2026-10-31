@@ -29,7 +29,8 @@ jobs:
   lint:
     name: Lint
     # Four vCPUs: lint finishes well before Test even with empty caches (74 s vs 160 s).
-    runs-on: namespace-profile-linux-ci-standard;overrides.cache-tag=github-namespace-profile-linux-ci-large-Argus-Labs-world-engine
+    # Lint and Test share the world-engine-go cache volume across their two runner sizes.
+    runs-on: namespace-profile-linux-4vcpu-8gb-cached;overrides.cache-tag=world-engine-go
     steps:
       - uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
         with:
@@ -85,7 +86,7 @@ jobs:
     name: Test
     # Test sets the workflow's duration. With empty caches it takes 248 s on four vCPUs,
     # 160 s on eight and 138 s on sixteen; past eight, more vCPUs stop paying off.
-    runs-on: namespace-profile-linux-ci-large
+    runs-on: namespace-profile-linux-8vcpu-16gb-cached;overrides.cache-tag=world-engine-go
     steps:
       - uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
         with:

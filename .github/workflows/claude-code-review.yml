@@ -30,7 +30,7 @@ jobs:
        github.event.issue.pull_request &&
        contains(github.event.comment.body, '@claude review'))
     # Waits on the model most of the run; the other repositories' reviews also use four vCPUs.
-    runs-on: namespace-profile-linux-ci-standard
+    runs-on: namespace-profile-linux-4vcpu-8gb-cached
     permissions:
       contents: read
       pull-requests: write
