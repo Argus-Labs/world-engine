@@ -406,7 +406,6 @@ func TestComponent_ValidateTypeAllowsStorableShapes(t *testing.T) {
 		{"type with its own codec", reflect.TypeFor[struct{ F fixedPoint }]()},
 		{"array of codec types", reflect.TypeFor[struct{ A [2]fixedPoint }]()},
 		{"immutable.Slice of codec types", reflect.TypeFor[struct{ S immutable.Slice[fixedPoint] }]()},
-		{"embedded codec type alone", reflect.TypeFor[struct{ fixedPoint }]()},
 		{"netip types", reflect.TypeFor[struct {
 			A  netip.Addr
 			AP netip.AddrPort
@@ -436,7 +435,7 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 		unsupported = "cannot be encoded in a snapshot"
 		pointerOnly = "has its encoding method only on a pointer"
 		oneSided    = "encodes or decodes itself but not both"
-		embedded    = "encodes as only its embedded"
+		embedded    = "is embedded, so its own codec stores the whole struct"
 		codecShares = "encodes itself but holds a reference"
 	)
 	cases := []struct {
@@ -482,21 +481,27 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 		{"codec type holding a slice", reflect.TypeFor[struct{ C codecWithSlice }](),
 			[]string{".C (ecs.codecWithSlice) " + codecShares}},
 		{"embedded codec type beside another field", reflect.TypeFor[embeddedFixedPoint](),
-			[]string{"embeddedFixedPoint (ecs.embeddedFixedPoint) " + embedded + " fixedPoint"}},
+			[]string{"embeddedFixedPoint.fixedPoint (ecs.fixedPoint) " + embedded}},
 		{"embedded time.Time beside another field", reflect.TypeFor[struct {
 			time.Time
 
 			Score int
-		}](), []string{" " + embedded + " Time"}},
+		}](), []string{".Time (time.Time) " + embedded}},
 		{"embedded codec type skipped by its tag beside another field", reflect.TypeFor[struct {
 			time.Time `msgpack:"-"`
 
 			Score int
-		}](), []string{" " + embedded + " Time"}},
+		}](), []string{".Time (time.Time) " + embedded}},
 		{"codec promoted through two embedded structs", reflect.TypeFor[struct{ wrapperWithTime }](),
-			[]string{" " + embedded + " wrapperWithTime.Time"}},
+			[]string{".wrapperWithTime (ecs.wrapperWithTime) " + embedded}},
 		{"unexported field beside a tag-skipped one", reflect.TypeFor[struct{ H hiddenBesideTagged }](),
 			[]string{".H (ecs.hiddenBesideTagged) " + notData}},
+		{"embedded codec type alone", reflect.TypeFor[struct{ fixedPoint }](),
+			[]string{".fixedPoint (ecs.fixedPoint) " + embedded}},
+		{"embedded immutable.Slice alone", reflect.TypeFor[struct{ immutable.Slice[int] }](),
+			[]string{".Slice (immutable.Slice[int]) " + embedded}},
+		{"embedded time.Time alone", reflect.TypeFor[struct{ time.Time }](),
+			[]string{".Time (time.Time) " + embedded}},
 		{"slice of codec types", reflect.TypeFor[struct{ S []fixedPoint }](),
 			[]string{".S ([]ecs.fixedPoint) " + shared}},
 		{"tag-skipped field is still not stored", reflect.TypeFor[struct {

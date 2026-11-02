@@ -2,7 +2,6 @@ package ecs
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"net/netip"
 	"reflect"
@@ -120,7 +119,15 @@ func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]
 		return
 	}
 	if hasCodec(t) {
-		if reason, fix := codecProblem(t); reason != "" {
+		if f, ok := embeddedCodec(t); ok {
+			embedded := fieldProblem{
+				path:   path + "." + f.Name,
+				typ:    f.Type,
+				reason: reasonEmbeddedCodec,
+				fix:    fixEmbeddedCodec,
+			}
+			*problems = append(*problems, embedded)
+		} else if reason, fix := codecProblem(t); reason != "" {
 			report(reason, fix)
 		}
 		return
@@ -185,41 +192,30 @@ func codecProblem(t reflect.Type) (string, string) {
 	case schema.EncodesItself(t) != schema.DecodesItself(t):
 		return reasonOneSidedCodec, fixOneSidedCodec
 	}
-	if name, ok := embeddedCodec(t); ok {
-		return fmt.Sprintf(reasonEmbeddedCodec, name), fixEmbeddedCodec
-	}
 	if !plainValue(t) {
 		return reasonCodecShares, fixCodecShares
 	}
 	return "", ""
 }
 
-// embeddedCodec returns the path of an embedded field whose codec t takes over, when that codec
-// would drop a stored field of t or of a struct embedded on the way down. A msgpack:"-" tag hides
-// the embedded field from MessagePack but does not stop Go from promoting its methods, so tagged
-// fields count. Reflection cannot tell a promoted method from one t declares, so a struct that
-// embeds a codec type and declares its own codec is refused as well.
-func embeddedCodec(t reflect.Type) (string, bool) {
+// embeddedCodec returns an embedded field whose type has its own codec. Go promotes that codec to t,
+// so a snapshot stores t as the embedded value alone and drops any field beside it. A struct with
+// nothing beside it loses nothing yet, but only until a field is added, so the shape is refused
+// whatever sits beside it. A msgpack:"-" tag does not stop the promotion, so tagged fields count.
+func embeddedCodec(t reflect.Type) (reflect.StructField, bool) {
 	if t.Kind() != reflect.Struct {
-		return "", false
+		return reflect.StructField{}, false
 	}
-	stored := storedFields(t)
 	for f := range t.Fields() {
 		ft := f.Type
 		if ft.Kind() == reflect.Pointer {
 			ft = ft.Elem()
 		}
-		if !f.Anonymous || !hasCodec(ft) {
-			continue
-		}
-		if slices.ContainsFunc(stored, func(s reflect.StructField) bool { return s.Name != f.Name }) {
-			return f.Name, true
-		}
-		if inner, ok := embeddedCodec(ft); ok {
-			return f.Name + "." + inner, true
+		if f.Anonymous && hasCodec(ft) {
+			return f, true
 		}
 	}
-	return "", false
+	return reflect.StructField{}, false
 }
 
 // plainValue reports whether t holds only values, so a copy of it shares nothing with the original.
@@ -276,8 +272,9 @@ const (
 	reasonUnsupported    = "cannot be encoded in a snapshot"
 	reasonPointerEncoder = "has its encoding method only on a pointer, so a snapshot cannot call it on a stored copy"
 	reasonOneSidedCodec  = "encodes or decodes itself but not both, so a restore cannot read back what a snapshot wrote"
-	reasonEmbeddedCodec  = "encodes as only its embedded %s, so a snapshot drops every other field"
-	reasonCodecShares    = "encodes itself but holds a reference, so a copy from Get shares it with the stored component"
+	reasonEmbeddedCodec  = "is embedded, so its own codec stores the whole struct as that one value and drops any " +
+		"field beside it"
+	reasonCodecShares = "encodes itself but holds a reference, so a copy from Get shares it with the stored component"
 
 	fixSlice = "use a fixed-size array [N]T with the live length in its own field, or immutable.Slice[T] " +
 		"if the length is genuinely unbounded"
@@ -291,7 +288,7 @@ const (
 		"fields, and an address means nothing after a restore"
 	fixPointerEncoder = "give the encoding method a value receiver; the decoding method keeps its pointer receiver"
 	fixOneSidedCodec  = "implement the matching method too, such as DecodeMsgpack beside EncodeMsgpack"
-	fixEmbeddedCodec  = "give the embedded field a name"
+	fixEmbeddedCodec  = "give it a field name"
 	fixCodecShares    = "keep its state in numbers, strings, fixed-size arrays, or structs of those"
 )
 

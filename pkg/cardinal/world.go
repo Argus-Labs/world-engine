@@ -782,8 +782,9 @@ func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
 //     exported fields, which a snapshot cannot hold;
 //   - a uintptr or complex number;
 //   - a type with its own MessagePack codec whose encoding method has a pointer receiver, that
-//     encodes but does not decode itself or the reverse, that holds a reference, or that takes over
-//     an embedding struct's other fields.
+//     encodes but does not decode itself or the reverse, or that holds a reference;
+//   - a type with its own codec embedded without a field name, since Go promotes its codec and the
+//     whole struct is then stored as that one value.
 //
 // Hold a list in a fixed-size array or an immutable.Slice instead. Fields tagged msgpack:"-" are
 // not stored, so they are not checked.
