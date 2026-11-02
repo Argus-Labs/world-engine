@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/rotisserie/eris"
 
-	"github.com/argus-labs/world-engine/cli/internal/dependency"
 	"github.com/argus-labs/world-engine/cli/internal/tui/kit/steps"
 	"github.com/argus-labs/world-engine/cli/internal/tui/style"
 	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
@@ -83,7 +82,6 @@ type WorldSetupModel struct {
 	selectedTemplate *worldscaffold.GameTemplate
 	templateFlag     string // Template name from --template flag (validated when step starts)
 	showTemplateList bool
-	depResult        dependency.CheckResult
 	templateErr      error
 	nameErr          string // Inline validation error for the project name input
 	env              string

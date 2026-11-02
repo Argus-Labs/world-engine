@@ -8,7 +8,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/argus-labs/world-engine/cli/internal/dependency"
 	"github.com/argus-labs/world-engine/cli/internal/tui/kit/steps"
 	"github.com/argus-labs/world-engine/cli/internal/tui/style"
 	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
@@ -23,8 +22,6 @@ func (m WorldSetupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKey(msg)
 	case NewLogMsg:
 		return m.handleLog(msg)
-	case dependency.CheckResult:
-		return m.handleDepResult(msg)
 	case steps.SignalStepStartedMsg:
 		return m.handleStepStarted(msg)
 	case steps.SignalStepCompletedMsg:
@@ -102,14 +99,6 @@ func (m WorldSetupModel) handleTemplateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 
 func (m WorldSetupModel) handleLog(msg NewLogMsg) (tea.Model, tea.Cmd) {
 	m.logs = append(m.logs, msg.Log)
-	return m, nil
-}
-
-func (m WorldSetupModel) handleDepResult(msg dependency.CheckResult) (tea.Model, tea.Cmd) {
-	m.depResult = msg
-	if msg.Err != nil {
-		return m, tea.Quit
-	}
 	return m, nil
 }
 
