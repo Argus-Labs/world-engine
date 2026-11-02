@@ -255,7 +255,7 @@ func TestSlice_EmptyComparison(t *testing.T) {
 
 // Every fresh-allocation producer — one that builds a new backing array and leaves the receiver
 // alone — must return the zero value for an empty result, not an empty-but-allocated Slice. That is
-// the rule the generated FromProto and UnmarshalJSON both enforce so a component built fresh compares
+// the rule DecodeMsgpack and UnmarshalJSON both enforce so a component built fresh compares
 // equal to one restored from a snapshot under [reflect.DeepEqual]. Repeat used to be the lone
 // outlier: it forwarded to [slices.Repeat], which is never-nil. This table pins every producer at
 // once so a future regression to any one of them — Repeat most of all — fails here.
@@ -647,7 +647,7 @@ func TestSlice_JSONRoundTrips(t *testing.T) {
 }
 
 // A decoded empty array or null must be the zero value, not an empty allocation, so a restored
-// component compares equal to a fresh one — the same rule the generated FromProto follows.
+// component compares equal to a fresh one — the same rule DecodeMsgpack follows.
 func TestSlice_JSONEmptyDecodesToZeroValue(t *testing.T) {
 	t.Parallel()
 

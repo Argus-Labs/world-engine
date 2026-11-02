@@ -776,10 +776,17 @@ func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
 // used by a system, archetype, or snapshot must be registered here; nothing registers
 // components implicitly. Register components before StartGame.
 //
-// It panics if an exported field cannot be stored: a slice, map, pointer, or interface, which
-// would share memory with the stored component; a chan, func, or struct with no exported fields,
-// which a snapshot cannot hold; or a uintptr or complex number. Hold a list in a fixed-size array
-// or a Slice instead.
+// It panics if the component, or any field a snapshot stores, cannot be stored:
+//   - a slice, map, pointer, or interface, which would share memory with the stored component;
+//   - a chan, func, [unsafe.Pointer], method interface such as error, or non-empty struct with no
+//     exported fields, which a snapshot cannot hold;
+//   - a uintptr or complex number;
+//   - a type with its own MessagePack codec whose encoding method has a pointer receiver, that
+//     encodes but does not decode itself or the reverse, that holds a reference, or that takes over
+//     an embedding struct's other fields.
+//
+// Hold a list in a fixed-size array or an immutable.Slice instead. Fields tagged msgpack:"-" are
+// not stored, so they are not checked.
 func (w *World) RegisterComponent[T ecs.Component]() {
 	if w.started {
 		panic(ErrWorldStarted)

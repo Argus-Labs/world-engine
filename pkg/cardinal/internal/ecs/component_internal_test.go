@@ -3,6 +3,7 @@ package ecs
 import (
 	"fmt"
 	"math/rand/v2"
+	"net/netip"
 	"reflect"
 	"sync"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // -------------------------------------------------------------------------------------------------
@@ -311,6 +313,51 @@ type mapComponent struct{ Scores map[string]int }
 
 func (mapComponent) Name() string { return "map_component" }
 
+// fixedPoint keeps its state in an unexported field and encodes itself, the usual shape of a
+// deterministic number type.
+type fixedPoint struct{ raw int64 } //nolint:recvcheck // msgpack encodes a copy, decodes a pointer.
+
+func (f fixedPoint) EncodeMsgpack(e *msgpack.Encoder) error { return e.EncodeInt(f.raw) }
+
+func (f *fixedPoint) DecodeMsgpack(d *msgpack.Decoder) error {
+	raw, err := d.DecodeInt64()
+	f.raw = raw
+	return err
+}
+
+type pointerEncoder struct{ raw int64 }
+
+func (p *pointerEncoder) EncodeMsgpack(e *msgpack.Encoder) error { return e.EncodeInt(p.raw) }
+
+func (p *pointerEncoder) DecodeMsgpack(d *msgpack.Decoder) error {
+	raw, err := d.DecodeInt64()
+	p.raw = raw
+	return err
+}
+
+type encodeOnly struct{ raw int64 }
+
+func (e encodeOnly) EncodeMsgpack(enc *msgpack.Encoder) error { return enc.EncodeInt(e.raw) }
+
+type codecWithSlice struct{ items []int } //nolint:recvcheck // msgpack encodes a copy, decodes a pointer.
+
+func (c codecWithSlice) EncodeMsgpack(e *msgpack.Encoder) error { return e.Encode(c.items) }
+
+func (c *codecWithSlice) DecodeMsgpack(d *msgpack.Decoder) error { return d.Decode(&c.items) }
+
+type embeddedFixedPoint struct {
+	fixedPoint
+
+	Score int
+}
+
+type codecComponent struct {
+	Speed fixedPoint
+	Peer  netip.Addr
+}
+
+func (codecComponent) Name() string { return "codec_component" }
+
 func TestComponent_ValidateTypeAllowsStorableShapes(t *testing.T) {
 	t.Parallel()
 
@@ -341,6 +388,19 @@ func TestComponent_ValidateTypeAllowsStorableShapes(t *testing.T) {
 		{"unexported field beside exported ones", reflect.TypeFor[hiddenBesideExported]()},
 		{"empty struct", reflect.TypeFor[struct{ E struct{} }]()},
 		{"scalar component", reflect.TypeFor[testutils.SimpleComponent]()},
+		{"type with its own codec", reflect.TypeFor[struct{ F fixedPoint }]()},
+		{"array of codec types", reflect.TypeFor[struct{ A [2]fixedPoint }]()},
+		{"immutable.Slice of codec types", reflect.TypeFor[struct{ S immutable.Slice[fixedPoint] }]()},
+		{"embedded codec type alone", reflect.TypeFor[struct{ fixedPoint }]()},
+		{"netip types", reflect.TypeFor[struct {
+			A  netip.Addr
+			AP netip.AddrPort
+			P  netip.Prefix
+		}]()},
+		{"field skipped by its tag", reflect.TypeFor[struct {
+			X     int
+			OnHit func() `msgpack:"-"`
+		}]()},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -357,6 +417,10 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 		shared      = "shares memory with the stored component"
 		notData     = "is not data"
 		unsupported = "cannot be encoded in a snapshot"
+		pointerOnly = "has its encoding method only on a pointer"
+		oneSided    = "encodes or decodes itself but not both"
+		embedded    = "encodes as only its embedded"
+		codecShares = "encodes itself but holds a reference"
 	)
 	cases := []struct {
 		name string
@@ -392,6 +456,27 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 		{"uintptr", reflect.TypeFor[struct{ U uintptr }](), []string{".U (uintptr) " + unsupported}},
 		{"complex64", reflect.TypeFor[struct{ C complex64 }](), []string{".C (complex64) " + unsupported}},
 		{"complex128", reflect.TypeFor[struct{ C complex128 }](), []string{".C (complex128) " + unsupported}},
+
+		// Types with their own codec.
+		{"encoder with a pointer receiver", reflect.TypeFor[struct{ P pointerEncoder }](),
+			[]string{".P (ecs.pointerEncoder) " + pointerOnly}},
+		{"encoder without a decoder", reflect.TypeFor[struct{ E encodeOnly }](),
+			[]string{".E (ecs.encodeOnly) " + oneSided}},
+		{"codec type holding a slice", reflect.TypeFor[struct{ C codecWithSlice }](),
+			[]string{".C (ecs.codecWithSlice) " + codecShares}},
+		{"embedded codec type beside another field", reflect.TypeFor[embeddedFixedPoint](),
+			[]string{"embeddedFixedPoint (ecs.embeddedFixedPoint) " + embedded + " fixedPoint"}},
+		{"embedded time.Time beside another field", reflect.TypeFor[struct {
+			time.Time
+
+			Score int
+		}](), []string{" " + embedded + " Time"}},
+		{"slice of codec types", reflect.TypeFor[struct{ S []fixedPoint }](),
+			[]string{".S ([]ecs.fixedPoint) " + shared}},
+		{"tag-skipped field is still not stored", reflect.TypeFor[struct {
+			S  []int
+			Fn func() `msgpack:"-"`
+		}](), []string{".S ([]int) " + shared}},
 
 		// Where the walk reaches.
 		{"slice inside a fixed array", reflect.TypeFor[struct{ A [4][]int }](), []string{".A[] ([]int) " + shared}},
@@ -465,4 +550,24 @@ func TestWorld_RegisterComponentRejectsUnstorableFields(t *testing.T) {
 	id, err := w.RegisterComponent[testutils.SimpleComponent]()
 	require.NoError(t, err)
 	assert.Equal(t, ComponentID(0), id)
+}
+
+func TestWorldState_CodecTypesRoundTripThroughSnapshot(t *testing.T) {
+	t.Parallel()
+	ws := newWorldState()
+	_, err := ws.components.register[codecComponent]("codec_component")
+	require.NoError(t, err)
+	e := ws.newEntity()
+	value := codecComponent{Speed: fixedPoint{raw: -1234}, Peer: netip.MustParseAddr("2001:db8::1")}
+	require.NoError(t, ws.setComponent(e, value))
+
+	pb, err := ws.toProto()
+	require.NoError(t, err)
+	restored := newWorldState()
+	_, err = restored.components.register[codecComponent]("codec_component")
+	require.NoError(t, err)
+	require.NoError(t, restored.fromProto(pb))
+	got, err := restored.getComponent[codecComponent](e)
+	require.NoError(t, err)
+	assert.Equal(t, value, got)
 }

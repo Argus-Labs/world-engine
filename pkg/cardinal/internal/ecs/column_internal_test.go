@@ -156,13 +156,15 @@ func TestColumn_DecodeRejectsGarbage(t *testing.T) {
 
 // unencodablePayload passes component validation but always fails to encode, standing in for any
 // encoding failure at snapshot time.
-type unencodablePayload struct {
+type unencodablePayload struct { //nolint:recvcheck // msgpack encodes a copy, decodes a pointer.
 	Value int
 }
 
 func (unencodablePayload) Name() string { return "unencodable_payload" }
 
 func (unencodablePayload) EncodeMsgpack(*msgpack.Encoder) error { return errors.New("cannot encode") }
+
+func (*unencodablePayload) DecodeMsgpack(*msgpack.Decoder) error { return errors.New("cannot decode") }
 
 func TestColumn_EncodeFailure(t *testing.T) {
 	t.Parallel()

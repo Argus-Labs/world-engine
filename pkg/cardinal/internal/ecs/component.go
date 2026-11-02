@@ -2,10 +2,13 @@ package ecs
 
 import (
 	"errors"
+	"fmt"
 	"math"
+	"net/netip"
 	"reflect"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -80,72 +83,190 @@ func validateComponentName(name string) error {
 }
 
 // validateComponentType reports every exported field of a component that cannot be stored. These are
-// the rules the SDK generator enforced on wire types, minus the ones that only protobuf needed.
+// the rules the SDK generator enforced on wire types, minus the ones that only protobuf needed, plus
+// the ones a type with its own MessagePack codec needs.
 func validateComponentType(t reflect.Type) error {
-	var errs []error
-	checkComponentField(t, t.Name(), map[reflect.Type]bool{}, &errs)
+	var problems []fieldProblem
+	checkComponentField(t, t.Name(), map[reflect.Type]bool{}, &problems)
+	errs := make([]error, len(problems))
+	for i, p := range problems {
+		errs[i] = eris.Errorf("%s (%s) %s; %s", p.path, p.typ, p.reason, p.fix)
+	}
 	return errors.Join(errs...)
 }
 
-// checkComponentField walks t and appends one error per field that cannot be stored. visiting holds the
-// types on the current path, so a type that reaches itself through an immutable.Slice does not loop.
-func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]bool, errs *[]error) {
-	if visiting[t] || t == reflect.TypeFor[time.Time]() { // time.Time encodes itself
+// fieldProblem is a field that cannot be stored, why, and how to fix it.
+type fieldProblem struct {
+	path        string
+	typ         reflect.Type
+	reason, fix string
+}
+
+// checkComponentField walks t and appends one problem per field that cannot be stored. visiting holds
+// the types on the current path, so a type that reaches itself does not loop.
+func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]bool, problems *[]fieldProblem) {
+	if visiting[t] || knownValueType(t) {
 		return
 	}
 	visiting[t] = true
 	defer delete(visiting, t)
+	report := func(reason, fix string) {
+		*problems = append(*problems, fieldProblem{path: path, typ: t, reason: reason, fix: fix})
+	}
 
 	if elem, ok := immutable.SliceElem(t); ok {
 		// The Slice itself is safe; its element might not be.
-		checkComponentField(elem, path+"[]", visiting, errs)
+		checkComponentField(elem, path+"[]", visiting, problems)
 		return
 	}
-	switch t.Kind() { //nolint:exhaustive // Every other kind is checked by fieldProblem.
+	if hasCodec(t) {
+		if reason, fix := codecProblem(t); reason != "" {
+			report(reason, fix)
+		}
+		return
+	}
+	switch t.Kind() { //nolint:exhaustive // Scalars and strings are stored as they are.
 	case reflect.Array:
-		checkComponentField(t.Elem(), path+"[]", visiting, errs)
+		checkComponentField(t.Elem(), path+"[]", visiting, problems)
 	case reflect.Struct:
 		fields := storedFields(t)
 		if t.NumField() > 0 && len(fields) == 0 {
-			*errs = append(*errs, eris.Errorf("%s (%s) %s; %s", path, t, reasonNotData, fixNotData))
+			report(reasonNotData, fixNotData)
 			return
 		}
 		for _, f := range fields {
-			checkComponentField(f.Type, path+"."+f.Name, visiting, errs)
+			checkComponentField(f.Type, path+"."+f.Name, visiting, problems)
 		}
-	default:
-		if reason, fix := fieldProblem(t); reason != "" {
-			*errs = append(*errs, eris.Errorf("%s (%s) %s; %s", path, t, reason, fix))
+	case reflect.Slice, reflect.Map, reflect.Pointer, reflect.Interface:
+		// A collection of something that is not data needs that fixed first, so name it instead.
+		if holdsNotData(t, visiting) {
+			report(reasonNotData, fixNotData)
+			return
 		}
+		report(reasonSharedMemory, sharedMemoryFix(t.Kind()))
+	case reflect.Chan, reflect.Func, reflect.UnsafePointer:
+		report(reasonNotData, fixNotData)
+	case reflect.Uintptr, reflect.Complex64, reflect.Complex128:
+		report(reasonUnsupported, fixUnsupported)
 	}
 }
 
-// fieldProblem returns why a field of type t cannot be stored and how to fix it, or empty strings if
-// it can. Arrays and structs are walked by the caller instead.
-func fieldProblem(t reflect.Type) (string, string) {
-	// A collection of something that is not data needs that fixed first, so name it instead.
-	if notData(t, map[reflect.Type]bool{}) {
-		return reasonNotData, fixNotData
-	}
-	switch t.Kind() { //nolint:exhaustive // Scalars and strings are stored as they are.
-	case reflect.Slice:
-		return reasonSharedMemory, fixSlice
-	case reflect.Map:
-		return reasonSharedMemory, fixMap
-	case reflect.Pointer:
-		return reasonSharedMemory, fixPointer
+// holdsNotData reports whether a slice, map, pointer or interface type holds something that is not
+// data: a method interface, or anything the walk would report as not data.
+func holdsNotData(t reflect.Type, visiting map[reflect.Type]bool) bool {
+	var inner []fieldProblem
+	switch t.Kind() { //nolint:exhaustive // Called only for the kinds below.
 	case reflect.Interface:
-		return reasonSharedMemory, fixInterface
-	case reflect.Uintptr, reflect.Complex64, reflect.Complex128:
-		return reasonUnsupported, fixUnsupported
+		return t.NumMethod() > 0
+	case reflect.Map:
+		checkComponentField(t.Key(), "", visiting, &inner)
+		checkComponentField(t.Elem(), "", visiting, &inner)
+	default:
+		checkComponentField(t.Elem(), "", visiting, &inner)
+	}
+	return slices.ContainsFunc(inner, func(p fieldProblem) bool { return p.reason == reasonNotData })
+}
+
+// hasCodec reports whether t encodes or decodes itself rather than field by field. A pointer or
+// interface only forwards to what it holds, so the walk judges those by their kind.
+func hasCodec(t reflect.Type) bool {
+	if t.Kind() == reflect.Pointer || t.Kind() == reflect.Interface {
+		return false
+	}
+	return schema.EncodesItself(t) || schema.EncodesOnlyByPointer(t) || schema.DecodesItself(t)
+}
+
+// codecProblem returns why a type with its own codec cannot be stored and how to fix it, or empty
+// strings if it can. Its codec decides what a snapshot holds, so its fields are not walked; it only
+// has to be callable on a copy, read back what it wrote, and own its state.
+func codecProblem(t reflect.Type) (string, string) {
+	switch {
+	case schema.EncodesOnlyByPointer(t):
+		return reasonPointerEncoder, fixPointerEncoder
+	case schema.EncodesItself(t) != schema.DecodesItself(t):
+		return reasonOneSidedCodec, fixOneSidedCodec
+	}
+	if name, ok := embeddedCodec(t); ok {
+		return fmt.Sprintf(reasonEmbeddedCodec, name), fixEmbeddedCodec
+	}
+	if !plainValue(t) {
+		return reasonCodecShares, fixCodecShares
 	}
 	return "", ""
 }
 
+// embeddedCodec returns the name of an embedded field whose codec t takes over, when t stores other
+// fields that the codec would drop. Reflection cannot tell a promoted method from one t declares, so
+// a struct that embeds a codec type and declares its own codec is refused as well.
+func embeddedCodec(t reflect.Type) (string, bool) {
+	if t.Kind() != reflect.Struct {
+		return "", false
+	}
+	fields := storedFields(t)
+	for _, f := range fields {
+		if f.Anonymous && hasCodec(f.Type) && len(fields) > 1 {
+			return f.Name, true
+		}
+	}
+	return "", false
+}
+
+// plainValue reports whether t holds only values, so a copy of it shares nothing with the original.
+// Unexported fields count too: a codec type keeps its state in them.
+func plainValue(t reflect.Type) bool {
+	if knownValueType(t) {
+		return true
+	}
+	switch t.Kind() { //nolint:exhaustive // Every other kind holds a reference or an address.
+	case reflect.Bool, reflect.String,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
+		return true
+	case reflect.Array:
+		return plainValue(t.Elem())
+	case reflect.Struct:
+		for f := range t.Fields() {
+			if !plainValue(f.Type) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// knownValueType reports whether t is a standard library value type that encodes itself and is safe
+// to copy. Each holds a pointer, but only to data that never changes, which plainValue cannot see.
+func knownValueType(t reflect.Type) bool {
+	switch t {
+	case reflect.TypeFor[time.Time](), reflect.TypeFor[netip.Addr](),
+		reflect.TypeFor[netip.AddrPort](), reflect.TypeFor[netip.Prefix]():
+		return true
+	}
+	return false
+}
+
+func sharedMemoryFix(k reflect.Kind) string {
+	switch k { //nolint:exhaustive // Called only for the shared-memory kinds.
+	case reflect.Slice:
+		return fixSlice
+	case reflect.Map:
+		return fixMap
+	case reflect.Pointer:
+		return fixPointer
+	}
+	return fixInterface
+}
+
 const (
-	reasonSharedMemory = "shares memory with the stored component, so writing into it changes the world without Set"
-	reasonNotData      = "is not data, so a snapshot cannot store it"
-	reasonUnsupported  = "cannot be encoded in a snapshot"
+	reasonSharedMemory   = "shares memory with the stored component, so writing into it changes the world without Set"
+	reasonNotData        = "is not data, so a snapshot cannot store it"
+	reasonUnsupported    = "cannot be encoded in a snapshot"
+	reasonPointerEncoder = "has its encoding method only on a pointer, so a snapshot cannot call it on a stored copy"
+	reasonOneSidedCodec  = "encodes or decodes itself but not both, so a restore cannot read back what a snapshot wrote"
+	reasonEmbeddedCodec  = "encodes as only its embedded %s, so a snapshot drops every other field"
+	reasonCodecShares    = "encodes itself but holds a reference, so a copy from Get shares it with the stored component"
 
 	fixSlice = "use a fixed-size array [N]T with the live length in its own field, or immutable.Slice[T] " +
 		"if the length is genuinely unbounded"
@@ -157,41 +278,20 @@ const (
 	fixNotData     = "store an ID or enum that the code can rebuild the behavior from"
 	fixUnsupported = "store a scalar, string, or struct of those; a complex number becomes two float64 " +
 		"fields, and an address means nothing after a restore"
+	fixPointerEncoder = "give the encoding method a value receiver; the decoding method keeps its pointer receiver"
+	fixOneSidedCodec  = "implement the matching method too, such as DecodeMsgpack beside EncodeMsgpack"
+	fixEmbeddedCodec  = "give the embedded field a name"
+	fixCodecShares    = "keep its state in numbers, strings, fixed-size arrays, or structs of those"
 )
 
-// notData reports whether t holds a chan, func, [unsafe.Pointer], method interface, or struct with no
-// exported fields anywhere inside it.
-func notData(t reflect.Type, visiting map[reflect.Type]bool) bool {
-	if visiting[t] || t == reflect.TypeFor[time.Time]() {
-		return false
-	}
-	visiting[t] = true
-	if elem, ok := immutable.SliceElem(t); ok {
-		return notData(elem, visiting)
-	}
-	switch t.Kind() { //nolint:exhaustive // Other kinds are data.
-	case reflect.Chan, reflect.Func, reflect.UnsafePointer:
-		return true
-	case reflect.Interface:
-		return t.NumMethod() > 0
-	case reflect.Pointer, reflect.Slice, reflect.Array:
-		return notData(t.Elem(), visiting)
-	case reflect.Map:
-		return notData(t.Key(), visiting) || notData(t.Elem(), visiting)
-	case reflect.Struct:
-		fields := storedFields(t)
-		return (t.NumField() > 0 && len(fields) == 0) ||
-			slices.ContainsFunc(fields, func(f reflect.StructField) bool { return notData(f.Type, visiting) })
-	}
-	return false
-}
-
-// storedFields returns the fields of t that a snapshot stores. MessagePack skips unexported fields,
-// except that an embedded struct's exported fields are promoted and stored.
+// storedFields returns the fields of t that a snapshot stores. MessagePack skips fields tagged
+// `msgpack:"-"` and unexported fields, except that an embedded struct's exported fields are promoted
+// and stored.
 func storedFields(t reflect.Type) []reflect.StructField {
 	var fields []reflect.StructField
 	for f := range t.Fields() {
-		if f.IsExported() || f.Anonymous {
+		skipped := strings.Split(f.Tag.Get("msgpack"), ",")[0] == "-"
+		if (f.IsExported() || f.Anonymous) && !skipped {
 			fields = append(fields, f)
 		}
 	}

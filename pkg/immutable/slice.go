@@ -52,9 +52,9 @@ import (
 // [slices.Equal] that nil and empty are the same list. DecodeMsgpack leaves an empty array as the
 // zero value, so a component restored from a snapshot does match one built fresh.
 //
-// The element type must be value-safe too: scalars, strings, fixed arrays, another Slice, or structs
-// of those. Slice does not check this — Slice[*T] compiles, and hands the pointer straight back out
-// of At — but registering a component that holds such a Slice fails.
+// The element type must be value-safe too: scalars, strings, fixed arrays, another Slice, [time.Time],
+// or structs of those. Slice does not check this — Slice[*T] compiles, and hands the pointer straight
+// back out of At — but registering a component that holds such a Slice fails.
 type Slice[T any] struct {
 	items []T
 }
@@ -413,11 +413,13 @@ func Collect[T any](seq iter.Seq[T]) Slice[T] {
 // Serialization and Reflection
 // -------------------------------------------------------------------------------------------------
 // A Slice is a list, so it encodes as an array, in JSON and MessagePack alike — the same as a []T
-// would. Without the JSON methods the encoder sees a struct with one unexported field and writes
-// `{}`, and the decoder refuses an array outright, so a component holding a Slice could neither be
-// logged nor read back from a hand-written payload. Both encoding/json and goccy/go-json dispatch on these
-// method signatures, so one implementation serves whichever the caller uses. (goccy is imported
-// here only because the repo's lint policy prefers it; the methods are library-neutral.)
+// would, except that MessagePack writes a []byte as binary and a Slice[byte] still as an array, so
+// the two cannot read each other's bytes. Without the JSON methods the encoder sees a struct with
+// one unexported field and writes `{}`, and the decoder refuses an array outright, so a component
+// holding a Slice could neither be logged nor read back from a hand-written payload. Both
+// encoding/json and goccy/go-json dispatch on these method signatures, so one implementation serves
+// whichever the caller uses. (goccy is imported here only because the repo's lint policy prefers it;
+// the methods are library-neutral.)
 
 // MarshalJSON encodes the Slice as a JSON array of its items. The zero value encodes as `[]`, not
 // `null`: a Slice is never "absent", only empty.

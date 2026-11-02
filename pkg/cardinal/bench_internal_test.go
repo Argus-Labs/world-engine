@@ -11,8 +11,8 @@ import (
 	"github.com/argus-labs/world-engine/pkg/immutable"
 )
 
-// Bench component fixtures satisfy schema.Serializable via gob (real components get generated proto
-// codecs; these doubles only need to round-trip). The ENCODE side is testutils.GobMarshal and
+// Bench component fixtures carry gob wire methods; these doubles only need to round-trip. The ENCODE
+// side is testutils.GobMarshal and
 // friends, shared so a fixture's SizeWire, AppendWire and MarshalWire cannot disagree. Only the
 // decode side is local, because it returns any — a decode factory — rather than T.
 func benchGobUnmarshal[T any](b []byte) (any, error) {
