@@ -129,12 +129,11 @@ func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]
 	case reflect.Array:
 		checkComponentField(t.Elem(), path+"[]", visiting, problems)
 	case reflect.Struct:
-		fields := storedFields(t)
-		if t.NumField() > 0 && len(fields) == 0 {
+		if hidesState(t) {
 			report(reasonNotData, fixNotData)
 			return
 		}
-		for _, f := range fields {
+		for _, f := range storedFields(t) {
 			checkComponentField(f.Type, path+"."+f.Name, visiting, problems)
 		}
 	case reflect.Slice, reflect.Map, reflect.Pointer, reflect.Interface:
@@ -195,17 +194,29 @@ func codecProblem(t reflect.Type) (string, string) {
 	return "", ""
 }
 
-// embeddedCodec returns the name of an embedded field whose codec t takes over, when t stores other
-// fields that the codec would drop. Reflection cannot tell a promoted method from one t declares, so
-// a struct that embeds a codec type and declares its own codec is refused as well.
+// embeddedCodec returns the path of an embedded field whose codec t takes over, when that codec
+// would drop a stored field of t or of a struct embedded on the way down. A msgpack:"-" tag hides
+// the embedded field from MessagePack but does not stop Go from promoting its methods, so tagged
+// fields count. Reflection cannot tell a promoted method from one t declares, so a struct that
+// embeds a codec type and declares its own codec is refused as well.
 func embeddedCodec(t reflect.Type) (string, bool) {
 	if t.Kind() != reflect.Struct {
 		return "", false
 	}
-	fields := storedFields(t)
-	for _, f := range fields {
-		if f.Anonymous && hasCodec(f.Type) && len(fields) > 1 {
+	stored := storedFields(t)
+	for f := range t.Fields() {
+		ft := f.Type
+		if ft.Kind() == reflect.Pointer {
+			ft = ft.Elem()
+		}
+		if !f.Anonymous || !hasCodec(ft) {
+			continue
+		}
+		if slices.ContainsFunc(stored, func(s reflect.StructField) bool { return s.Name != f.Name }) {
 			return f.Name, true
+		}
+		if inner, ok := embeddedCodec(ft); ok {
+			return f.Name + "." + inner, true
 		}
 	}
 	return "", false
@@ -283,6 +294,20 @@ const (
 	fixEmbeddedCodec  = "give the embedded field a name"
 	fixCodecShares    = "keep its state in numbers, strings, fixed-size arrays, or structs of those"
 )
+
+// hidesState reports whether t keeps state in unexported fields and stores none of it. A struct
+// whose fields are only tagged msgpack:"-" stores as an empty map, which loses nothing it meant to keep.
+func hidesState(t reflect.Type) bool {
+	if len(storedFields(t)) > 0 {
+		return false
+	}
+	for f := range t.Fields() {
+		if !f.IsExported() && !f.Anonymous {
+			return true
+		}
+	}
+	return false
+}
 
 // storedFields returns the fields of t that a snapshot stores. MessagePack skips fields tagged
 // `msgpack:"-"` and unexported fields, except that an embedded struct's exported fields are promoted

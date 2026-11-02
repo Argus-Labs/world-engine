@@ -351,6 +351,21 @@ type embeddedFixedPoint struct {
 	Score int
 }
 
+type wrapperWithTime struct {
+	time.Time
+
+	Y int
+}
+
+type hiddenBesideTagged struct {
+	n int    //nolint:unused // Only its type is inspected.
+	D string `msgpack:"-"`
+}
+
+type taggedOnly struct {
+	Debug string `msgpack:"-"`
+}
+
 type codecComponent struct {
 	Speed fixedPoint
 	Peer  netip.Addr
@@ -397,6 +412,8 @@ func TestComponent_ValidateTypeAllowsStorableShapes(t *testing.T) {
 			AP netip.AddrPort
 			P  netip.Prefix
 		}]()},
+		{"struct whose fields are all skipped by their tag", reflect.TypeFor[taggedOnly]()},
+		{"nested struct whose fields are all skipped by their tag", reflect.TypeFor[struct{ M taggedOnly }]()},
 		{"field skipped by its tag", reflect.TypeFor[struct {
 			X     int
 			OnHit func() `msgpack:"-"`
@@ -471,6 +488,15 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 
 			Score int
 		}](), []string{" " + embedded + " Time"}},
+		{"embedded codec type skipped by its tag beside another field", reflect.TypeFor[struct {
+			time.Time `msgpack:"-"`
+
+			Score int
+		}](), []string{" " + embedded + " Time"}},
+		{"codec promoted through two embedded structs", reflect.TypeFor[struct{ wrapperWithTime }](),
+			[]string{" " + embedded + " wrapperWithTime.Time"}},
+		{"unexported field beside a tag-skipped one", reflect.TypeFor[struct{ H hiddenBesideTagged }](),
+			[]string{".H (ecs.hiddenBesideTagged) " + notData}},
 		{"slice of codec types", reflect.TypeFor[struct{ S []fixedPoint }](),
 			[]string{".S ([]ecs.fixedPoint) " + shared}},
 		{"tag-skipped field is still not stored", reflect.TypeFor[struct {
