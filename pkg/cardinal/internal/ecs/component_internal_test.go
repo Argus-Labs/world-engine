@@ -345,6 +345,16 @@ func (c codecWithSlice) EncodeMsgpack(e *msgpack.Encoder) error { return e.Encod
 
 func (c *codecWithSlice) DecodeMsgpack(d *msgpack.Decoder) error { return d.Decode(&c.items) }
 
+// counter and pair are unexported non-struct types; embedded, a restore cannot write them back.
+type counter int
+
+type pair [2]int
+
+type unexportedInts []int
+
+// Counter is exported, so embedding it is fine.
+type Counter int
+
 type embeddedFixedPoint struct {
 	fixedPoint
 
@@ -476,6 +486,16 @@ func TestComponent_ValidateTypeAllowsStorableShapes(t *testing.T) {
 		}]()},
 		{"embedded codec type under the struct's own codec", reflect.TypeFor[buff]()},
 		{"struct whose fields are all skipped by their tag", reflect.TypeFor[taggedOnly]()},
+		{"embedded unexported struct", reflect.TypeFor[struct {
+			valuePoint
+
+			Z int
+		}]()},
+		{"embedded exported number", reflect.TypeFor[struct {
+			Counter
+
+			Z int
+		}]()},
 		{"nested struct whose fields are all skipped by their tag", reflect.TypeFor[struct{ M taggedOnly }]()},
 		{"field skipped by its tag", reflect.TypeFor[struct {
 			X     int
@@ -501,6 +521,7 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 		oneSided    = "encodes or decodes itself but not both"
 		embedded    = "is embedded, so its own codec stores the whole struct"
 		codecShares = "encodes itself but holds a reference"
+		unexported  = "is embedded with an unexported type"
 	)
 	cases := []struct {
 		name string
@@ -570,6 +591,21 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 			[]string{"buffByPointer.Time (time.Time) " + embedded}},
 		{"embedded codec type with the same method the struct declares", reflect.TypeFor[sliceWithOwnCodec](),
 			[]string{"sliceWithOwnCodec.Slice (immutable.Slice[int]) " + embedded}},
+		{"embedded unexported number", reflect.TypeFor[struct {
+			counter
+
+			Z int
+		}](), []string{".counter (ecs.counter) " + unexported}},
+		{"embedded unexported array", reflect.TypeFor[struct {
+			pair
+
+			Z int
+		}](), []string{".pair (ecs.pair) " + unexported}},
+		{"embedded unexported slice reports the slice", reflect.TypeFor[struct {
+			unexportedInts
+
+			Z int
+		}](), []string{".unexportedInts (ecs.unexportedInts) " + shared}},
 		{"slice of codec types", reflect.TypeFor[struct{ S []fixedPoint }](),
 			[]string{".S ([]ecs.fixedPoint) " + shared}},
 		{"tag-skipped field is still not stored", reflect.TypeFor[struct {

@@ -140,9 +140,7 @@ func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]
 			report(reasonNotData, fixNotData)
 			return
 		}
-		for _, f := range storedFields(t) {
-			checkComponentField(f.Type, path+"."+f.Name, visiting, problems)
-		}
+		checkStoredFields(t, path, visiting, problems)
 	case reflect.Slice, reflect.Map, reflect.Pointer, reflect.Interface:
 		// A collection of something that is not data needs that fixed first, so name it instead.
 		if holdsNotData(t, visiting) {
@@ -154,6 +152,25 @@ func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]
 		report(reasonNotData, fixNotData)
 	case reflect.Uintptr, reflect.Complex64, reflect.Complex128:
 		report(reasonUnsupported, fixUnsupported)
+	}
+}
+
+// checkStoredFields checks each field of struct t that a snapshot stores.
+func checkStoredFields(t reflect.Type, path string, visiting map[reflect.Type]bool, problems *[]fieldProblem) {
+	for _, f := range storedFields(t) {
+		before := len(*problems)
+		checkComponentField(f.Type, path+"."+f.Name, visiting, problems)
+		// MessagePack stores an unexported embedded non-struct under its type name, but a restore
+		// cannot write to it. An embedded struct is fine: its exported fields are written directly.
+		if len(*problems) == before && f.Anonymous && !f.IsExported() && f.Type.Kind() != reflect.Struct {
+			unexported := fieldProblem{
+				path:   path + "." + f.Name,
+				typ:    f.Type,
+				reason: reasonUnexportedEmbedded,
+				fix:    fixUnexportedEmbedded,
+			}
+			*problems = append(*problems, unexported)
+		}
 	}
 }
 
@@ -287,7 +304,10 @@ const (
 	reasonOneSidedCodec  = "encodes or decodes itself but not both, so a restore cannot read back what a snapshot wrote"
 	reasonEmbeddedCodec  = "is embedded, so its own codec stores the whole struct as that one value and drops any " +
 		"field beside it"
-	reasonCodecShares = "encodes itself but holds a reference, so a copy from Get shares it with the stored component"
+	reasonCodecShares = "encodes itself but holds a reference, so a copy from Get shares it with the " +
+		"stored component"
+	reasonUnexportedEmbedded = "is embedded with an unexported type, so a snapshot stores it but a restore " +
+		"cannot write it back"
 
 	fixSlice = "use a fixed-size array [N]T with the live length in its own field, or immutable.Slice[T] " +
 		"if the length is genuinely unbounded"
@@ -299,10 +319,11 @@ const (
 	fixNotData     = "store an ID or enum that the code can rebuild the behavior from"
 	fixUnsupported = "store a scalar, string, or struct of those; a complex number becomes two float64 " +
 		"fields, and an address means nothing after a restore"
-	fixPointerEncoder = "give the encoding method a value receiver; the decoding method keeps its pointer receiver"
-	fixOneSidedCodec  = "implement the matching method too, such as DecodeMsgpack beside EncodeMsgpack"
-	fixEmbeddedCodec  = "give it a field name"
-	fixCodecShares    = "keep its state in numbers, strings, fixed-size arrays, or structs of those"
+	fixPointerEncoder     = "give the encoding method a value receiver; the decoding method keeps its pointer receiver"
+	fixOneSidedCodec      = "implement the matching method too, such as DecodeMsgpack beside EncodeMsgpack"
+	fixEmbeddedCodec      = "give it a field name"
+	fixCodecShares        = "keep its state in numbers, strings, fixed-size arrays, or structs of those"
+	fixUnexportedEmbedded = "give it an exported field name, or export its type"
 )
 
 // hidesState reports whether t keeps state in unexported fields and stores none of it. A struct

@@ -784,7 +784,9 @@ func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
 //   - a type with its own MessagePack codec whose encoding method has a pointer receiver, that
 //     encodes but does not decode itself or the reverse, or that holds a reference;
 //   - an embedded field that supplies the struct's codec, since Go promotes it and the whole struct
-//     is then stored as that one value. Declare the struct's own codec, or give the field a name.
+//     is then stored as that one value. Declare the struct's own codec, or give the field a name;
+//   - an embedded field of an unexported type that is not a struct, such as a named int, which a
+//     snapshot stores but a restore cannot write back.
 //
 // Hold a list in a fixed-size array or an immutable.Slice instead. Fields tagged msgpack:"-" are
 // not stored, so they are not checked.
