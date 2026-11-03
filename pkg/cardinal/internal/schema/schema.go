@@ -156,7 +156,8 @@ func registerTypes(t reflect.Type, seen map[reflect.Type]bool) {
 	case reflect.Pointer, reflect.Slice, reflect.Array:
 		registerTypes(t.Elem(), seen)
 	case reflect.Map:
-		if !encodesItself(t) {
+		// A map type with its own encoder keeps it, even one with a pointer receiver.
+		if !encodesItself(t) && !encodesItself(reflect.PointerTo(t)) {
 			msgpack.Register(reflect.Zero(t).Interface(), encodeSortedMap, nil)
 		}
 		registerTypes(t.Key(), seen)

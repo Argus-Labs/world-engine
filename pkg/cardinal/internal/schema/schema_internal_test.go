@@ -112,6 +112,47 @@ func TestSerializeEncodesMapsInStableOrder(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+// inventory has only a helper method, so it still gets the sorted map encoder.
+type inventory map[string]int
+
+func (i inventory) Total() int {
+	total := 0
+	for _, n := range i {
+		total += n
+	}
+	return total
+}
+
+// ownCodecMap encodes itself through a pointer receiver, which the sorted map encoder must not
+// replace.
+type ownCodecMap map[string]int
+
+func (*ownCodecMap) EncodeMsgpack(e *msgpack.Encoder) error { return e.EncodeString("own codec") }
+
+type namedMapPayload struct {
+	Items inventory
+	Own   ownCodecMap
+}
+
+func (namedMapPayload) Name() string { return "named_map_payload" }
+
+func TestSerializeKeepsOwnMapCodec(t *testing.T) {
+	t.Parallel()
+	p := &namedMapPayload{Items: inventory{}, Own: ownCodecMap{"a": 1}}
+	for i := range 32 {
+		p.Items[strconv.Itoa(i)] = i
+	}
+
+	first, err := schema.Serialize(p) // through a pointer, so Own is addressable
+	require.NoError(t, err)
+	assert.Contains(t, string(first), "own codec")
+	for range 20 {
+		again, err := schema.Serialize(p)
+		require.NoError(t, err)
+		require.Equal(t, first, again, "a map type with only helper methods must encode in a stable order")
+	}
+}
+
 type meters float32
 
 type floatPayload struct {
