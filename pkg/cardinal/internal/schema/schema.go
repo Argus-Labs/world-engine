@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
+	"sync"
 
 	"github.com/rotisserie/eris"
 	// vmihailenco/msgpack rather than shamaton/msgpack or ugorji/go/codec:
@@ -33,8 +35,9 @@ type Serializable interface {
 	Name() string
 }
 
-// Serialize encodes a payload as MessagePack.
+// Serialize encodes a payload as MessagePack. Equal payloads encode to equal bytes, maps included.
 func Serialize(s Serializable) ([]byte, error) {
+	prepare(reflect.TypeOf(s))
 	data, err := msgpack.Marshal(s)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to serialize")
@@ -112,34 +115,101 @@ func checkNesting(data []byte) error {
 // Register prepares T for Deserialize. Call it when T is registered, before T is first encoded or
 // decoded: msgpack caches a struct's field decoders on first use.
 func Register[T any]() {
-	registerFloat32Types(reflect.TypeFor[T](), make(map[reflect.Type]bool))
+	prepare(reflect.TypeFor[T]())
 }
 
-// registerFloat32Types gives every float32 type in t, including named ones such as
-// `type Meters float32`, the decoder below. msgpack matches registered decoders by exact type, so
-// each named type needs its own registration. It walks unexported fields too, to reach the element
-// type of an immutable.Slice. A type that decodes itself keeps its own decoder, since a registered
-// one would take precedence over it.
-func registerFloat32Types(t reflect.Type, seen map[reflect.Type]bool) {
-	if seen[t] {
+//nolint:gochecknoglobals // msgpack's codec registry is global too, so what is registered must be.
+var (
+	preparedMu sync.Mutex
+	prepared   sync.Map // reflect.Type to struct{}, stored once its codecs are registered
+)
+
+// prepare registers t's codecs once. A type counts as prepared only after registration finishes, so
+// a concurrent first Serialize cannot encode t, and cache its field encoders, before then.
+func prepare(t reflect.Type) {
+	if _, ok := prepared.Load(t); ok {
+		return
+	}
+	preparedMu.Lock()
+	defer preparedMu.Unlock()
+	if _, ok := prepared.Load(t); !ok {
+		registerTypes(t, make(map[reflect.Type]bool))
+		prepared.Store(t, struct{}{})
+	}
+}
+
+// registerTypes gives every float32 type in t, including named ones such as `type Meters float32`,
+// the decoder decodeFloat32, and every map type the encoder encodeSortedMap. msgpack matches
+// registered codecs by exact type, so each named type needs its own registration. It walks
+// unexported fields too, to reach the element type of an immutable.Slice. A type with its own codec
+// keeps it, since a registered one would take precedence over it.
+func registerTypes(t reflect.Type, seen map[reflect.Type]bool) {
+	if t == nil || seen[t] {
 		return
 	}
 	seen[t] = true
-	switch t.Kind() { //nolint:exhaustive // Other kinds cannot contain a float32.
+	switch t.Kind() { //nolint:exhaustive // Other kinds hold no float32 or map.
 	case reflect.Float32:
 		if !decodesItself(t) {
 			msgpack.Register(reflect.Zero(t).Interface(), nil, decodeFloat32)
 		}
 	case reflect.Pointer, reflect.Slice, reflect.Array:
-		registerFloat32Types(t.Elem(), seen)
+		registerTypes(t.Elem(), seen)
 	case reflect.Map:
-		registerFloat32Types(t.Key(), seen)
-		registerFloat32Types(t.Elem(), seen)
+		if !encodesItself(t) {
+			msgpack.Register(reflect.Zero(t).Interface(), encodeSortedMap, nil)
+		}
+		registerTypes(t.Key(), seen)
+		registerTypes(t.Elem(), seen)
 	case reflect.Struct:
 		for f := range t.Fields() {
-			registerFloat32Types(f.Type, seen)
+			registerTypes(f.Type, seen)
 		}
 	}
+}
+
+// encodesItself reports whether msgpack would encode a t value through one of its own methods.
+func encodesItself(t reflect.Type) bool {
+	return t.Implements(reflect.TypeFor[msgpack.CustomEncoder]()) ||
+		t.Implements(reflect.TypeFor[msgpack.Marshaler]()) ||
+		t.Implements(reflect.TypeFor[encoding.BinaryMarshaler]()) ||
+		t.Implements(reflect.TypeFor[encoding.TextMarshaler]())
+}
+
+// encodeSortedMap encodes a map with its entries ordered by their encoded keys, so equal maps encode
+// to equal bytes. msgpack otherwise writes entries in Go's random map order, and its own
+// SetSortMapKeys covers only map[string]string, map[string]bool and map[string]any.
+func encodeSortedMap(e *msgpack.Encoder, v reflect.Value) error {
+	if v.IsNil() {
+		return e.EncodeNil()
+	}
+	type entry struct {
+		key   msgpack.RawMessage
+		value reflect.Value
+	}
+	entries := make([]entry, 0, v.Len())
+	var buf bytes.Buffer
+	keys := msgpack.NewEncoder(&buf)
+	for iter := v.MapRange(); iter.Next(); {
+		buf.Reset()
+		if err := keys.EncodeValue(iter.Key()); err != nil {
+			return err
+		}
+		entries = append(entries, entry{key: bytes.Clone(buf.Bytes()), value: iter.Value()})
+	}
+	slices.SortFunc(entries, func(a, b entry) int { return bytes.Compare(a.key, b.key) })
+	if err := e.EncodeMapLen(len(entries)); err != nil {
+		return err
+	}
+	for _, en := range entries {
+		if err := e.Encode(en.key); err != nil {
+			return err
+		}
+		if err := e.EncodeValue(en.value); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // decodesItself reports whether msgpack would decode t through one of its own methods.

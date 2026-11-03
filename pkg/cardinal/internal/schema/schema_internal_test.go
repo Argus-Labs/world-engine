@@ -3,6 +3,7 @@ package schema_test
 import (
 	"bytes"
 	"errors"
+	"strconv"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
@@ -74,6 +75,41 @@ func TestDeserializeRejectsDeepNesting(t *testing.T) {
 		require.ErrorContains(t, schema.Deserialize(nested(depth), &kept), "nesting exceeds 10000 levels")
 		assert.Equal(t, payload{ID: 93}, kept)
 	}
+}
+
+type mapPayload struct {
+	Scores map[string]int
+	Nested map[int32]map[string]bool
+	Inner  *payload
+}
+
+func (mapPayload) Name() string { return "map_payload" }
+
+func TestSerializeEncodesMapsInStableOrder(t *testing.T) {
+	t.Parallel()
+	want := mapPayload{
+		Scores: map[string]int{},
+		Nested: map[int32]map[string]bool{},
+		Inner:  &payload{ID: 1, Metadata: map[string]int{}},
+	}
+	for i := range 32 {
+		key := strconv.Itoa(i)
+		want.Scores[key] = i
+		want.Nested[int32(i-16)] = map[string]bool{key: true, "x" + key: false}
+		want.Inner.Metadata[key] = -i
+	}
+
+	first, err := schema.Serialize(want)
+	require.NoError(t, err)
+	for range 20 {
+		again, err := schema.Serialize(want)
+		require.NoError(t, err)
+		require.Equal(t, first, again, "equal maps must encode to equal bytes")
+	}
+
+	var got mapPayload
+	require.NoError(t, schema.Deserialize(first, &got))
+	assert.Equal(t, want, got)
 }
 
 type meters float32
