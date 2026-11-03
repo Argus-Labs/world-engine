@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/rotisserie/eris"
@@ -96,6 +97,11 @@ func commandValue(value any, schema, root map[string]any) (any, error) {
 		if schema["contentEncoding"] == "base64" {
 			decoded, err := base64.StdEncoding.DecodeString(v)
 			return decoded, eris.Wrap(err, "invalid base64 bytes")
+		}
+		if schema["format"] == "date-time" {
+			// msgpack encodes a time.Time as the timestamp extension the shard decodes.
+			parsed, err := time.Parse(time.RFC3339Nano, v)
+			return parsed, eris.Wrap(err, "invalid RFC 3339 timestamp")
 		}
 	}
 	return value, nil

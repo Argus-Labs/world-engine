@@ -3,6 +3,7 @@ package introspect
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -114,6 +115,22 @@ func TestCatalogMatchesMessagePack(t *testing.T) {
 	children := wire["Objects"].([]any)[0].(map[string]any)
 	assert.Nil(t, children["absent"])
 	assert.Equal(t, int8(10), children["child"].(map[string]any)["wire"])
+}
+
+type timestamped struct {
+	At time.Time
+}
+
+func (timestamped) Name() string { return "timestamped" }
+
+func TestCatalogDescribesTimestampAsString(t *testing.T) {
+	t.Parallel()
+	c := NewCatalog()
+	require.NoError(t, c.Register(Command, timestamped{}))
+	require.NoError(t, c.Finalize())
+	root := c.Commands()[0].GetJsonSchema().AsMap()
+	properties := resolve(t, root, root)["properties"].(map[string]any)
+	assert.Equal(t, map[string]any{"type": "string", "format": "date-time"}, properties["At"])
 }
 
 type Embedded struct {

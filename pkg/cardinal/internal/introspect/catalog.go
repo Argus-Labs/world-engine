@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/invopop/jsonschema"
@@ -137,8 +138,8 @@ func (b *schemaBuilder) reflectType(t reflect.Type) *jsonschema.Schema {
 	if t.Kind() == reflect.Pointer {
 		return nullable(b.reflectType(t.Elem()))
 	}
-	if elem, ok := immutable.SliceElem(t); ok {
-		return &jsonschema.Schema{Type: arrayType, Items: b.reflectType(elem)}
+	if s, ok := b.codecSchema(t); ok {
+		return s
 	}
 	switch t.Kind() { //nolint:exhaustive // Unsupported payload kinds produce an error below.
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -194,6 +195,19 @@ func (b *schemaBuilder) reflectType(t reflect.Type) *jsonschema.Schema {
 		b.err = eris.Errorf("unsupported MessagePack schema type %s", t)
 		return &jsonschema.Schema{}
 	}
+}
+
+// codecSchema describes the supported types that encode themselves, whose fields say nothing about
+// their wire form.
+func (b *schemaBuilder) codecSchema(t reflect.Type) (*jsonschema.Schema, bool) {
+	if elem, ok := immutable.SliceElem(t); ok {
+		return &jsonschema.Schema{Type: arrayType, Items: b.reflectType(elem)}, true
+	}
+	if t == reflect.TypeFor[time.Time]() {
+		// It encodes as a MessagePack timestamp, which JSON carries as RFC 3339.
+		return &jsonschema.Schema{Type: stringType, Format: "date-time"}, true
+	}
+	return nil, false
 }
 
 func nullable(s *jsonschema.Schema) *jsonschema.Schema {

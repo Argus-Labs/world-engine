@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"testing"
+	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
@@ -238,6 +239,26 @@ func TestCommandAndStateIntegerMapKeys(t *testing.T) {
 		_, err = encodeCommandPayload(schema, payload)
 		require.Error(t, err)
 	}
+}
+
+func TestCommandAndStateTimestamp(t *testing.T) {
+	t.Parallel()
+	schema := testObjectSchema("At", map[string]any{"type": "string", "format": "date-time"})
+	blob, err := encodeCommandPayload(schema, `{"At":"2026-11-03T04:05:06.789+07:00"}`)
+	require.NoError(t, err)
+	var target struct{ At time.Time }
+	require.NoError(t, msgpack.Unmarshal(blob, &target))
+	want := time.Date(2026, 11, 2, 21, 5, 6, 789_000_000, time.UTC)
+	assert.True(t, want.Equal(target.At), "got %v", target.At)
+	state, err := msgpack.Marshal(target)
+	require.NoError(t, err)
+	decoded, err := decodeMessage(state)
+	require.NoError(t, err)
+	at, ok := decoded["At"].(time.Time)
+	require.True(t, ok, "got %T", decoded["At"])
+	assert.True(t, want.Equal(at), "got %v", at)
+	_, err = encodeCommandPayload(schema, `{"At":"yesterday"}`)
+	require.ErrorContains(t, err, "invalid RFC 3339 timestamp")
 }
 
 func TestMalformedMessagePackStateStaysRaw(t *testing.T) {
