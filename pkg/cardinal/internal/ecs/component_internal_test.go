@@ -366,6 +366,69 @@ type taggedOnly struct {
 	Debug string `msgpack:"-"`
 }
 
+// buff embeds a timestamp and declares its own codec, which hides the one [time.Time] promotes.
+type buff struct { //nolint:recvcheck // msgpack encodes a copy, decodes a pointer.
+	time.Time
+
+	Stacks int
+}
+
+func (buff) Name() string { return "buff" }
+
+func (b buff) EncodeMsgpack(e *msgpack.Encoder) error {
+	if err := e.EncodeArrayLen(2); err != nil {
+		return err
+	}
+	if err := e.EncodeInt(b.UnixNano()); err != nil {
+		return err
+	}
+	return e.EncodeInt(int64(b.Stacks))
+}
+
+func (b *buff) DecodeMsgpack(d *msgpack.Decoder) error {
+	if _, err := d.DecodeArrayLen(); err != nil {
+		return err
+	}
+	nanos, err := d.DecodeInt64()
+	if err != nil {
+		return err
+	}
+	b.Time = time.Unix(0, nanos).UTC()
+	b.Stacks, err = d.DecodeInt()
+	return err
+}
+
+// buffByPointer is buff with a pointer-receiver encoder, which a value does not have, so msgpack
+// takes the MarshalBinary that [time.Time] promotes instead.
+type buffByPointer struct {
+	time.Time
+
+	Stacks int
+}
+
+func (b *buffByPointer) EncodeMsgpack(e *msgpack.Encoder) error { return e.EncodeInt(int64(b.Stacks)) }
+
+func (b *buffByPointer) DecodeMsgpack(d *msgpack.Decoder) error {
+	stacks, err := d.DecodeInt()
+	b.Stacks = stacks
+	return err
+}
+
+// sliceWithOwnCodec declares the same methods its embedded Slice has.
+type sliceWithOwnCodec struct { //nolint:recvcheck // msgpack encodes a copy, decodes a pointer.
+	immutable.Slice[int]
+
+	N int
+}
+
+func (s sliceWithOwnCodec) EncodeMsgpack(e *msgpack.Encoder) error { return e.EncodeInt(int64(s.N)) }
+
+func (s *sliceWithOwnCodec) DecodeMsgpack(d *msgpack.Decoder) error {
+	n, err := d.DecodeInt()
+	s.N = n
+	return err
+}
+
 type codecComponent struct {
 	Speed fixedPoint
 	Peer  netip.Addr
@@ -411,6 +474,7 @@ func TestComponent_ValidateTypeAllowsStorableShapes(t *testing.T) {
 			AP netip.AddrPort
 			P  netip.Prefix
 		}]()},
+		{"embedded codec type under the struct's own codec", reflect.TypeFor[buff]()},
 		{"struct whose fields are all skipped by their tag", reflect.TypeFor[taggedOnly]()},
 		{"nested struct whose fields are all skipped by their tag", reflect.TypeFor[struct{ M taggedOnly }]()},
 		{"field skipped by its tag", reflect.TypeFor[struct {
@@ -502,6 +566,10 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 			[]string{".Slice (immutable.Slice[int]) " + embedded}},
 		{"embedded time.Time alone", reflect.TypeFor[struct{ time.Time }](),
 			[]string{".Time (time.Time) " + embedded}},
+		{"embedded codec type when the struct's own encoder has a pointer receiver", reflect.TypeFor[buffByPointer](),
+			[]string{"buffByPointer.Time (time.Time) " + embedded}},
+		{"embedded codec type with the same method the struct declares", reflect.TypeFor[sliceWithOwnCodec](),
+			[]string{"sliceWithOwnCodec.Slice (immutable.Slice[int]) " + embedded}},
 		{"slice of codec types", reflect.TypeFor[struct{ S []fixedPoint }](),
 			[]string{".S ([]ecs.fixedPoint) " + shared}},
 		{"tag-skipped field is still not stored", reflect.TypeFor[struct {
@@ -601,4 +669,24 @@ func TestWorldState_CodecTypesRoundTripThroughSnapshot(t *testing.T) {
 	got, err := restored.getComponent[codecComponent](e)
 	require.NoError(t, err)
 	assert.Equal(t, value, got)
+}
+
+func TestWorldState_OwnCodecOverEmbeddedCodecRoundTripsThroughSnapshot(t *testing.T) {
+	t.Parallel()
+	ws := newWorldState()
+	_, err := ws.components.register[buff]("buff")
+	require.NoError(t, err)
+	e := ws.newEntity()
+	value := buff{Time: time.Unix(1_700_000_000, 0).UTC(), Stacks: 7}
+	require.NoError(t, ws.setComponent(e, value))
+
+	pb, err := ws.toProto()
+	require.NoError(t, err)
+	restored := newWorldState()
+	_, err = restored.components.register[buff]("buff")
+	require.NoError(t, err)
+	require.NoError(t, restored.fromProto(pb))
+	got, err := restored.getComponent[buff](e)
+	require.NoError(t, err)
+	assert.Equal(t, value, got, "the struct's own codec stores Stacks beside the timestamp")
 }

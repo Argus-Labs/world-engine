@@ -207,19 +207,48 @@ func encodeSortedMap(e *msgpack.Encoder, v reflect.Value) error {
 
 // DecodesItself reports whether msgpack would decode t through one of its own methods.
 func DecodesItself(t reflect.Type) bool {
-	p := reflect.PointerTo(t)
-	return p.Implements(reflect.TypeFor[msgpack.CustomDecoder]()) ||
-		p.Implements(reflect.TypeFor[msgpack.Unmarshaler]()) ||
-		p.Implements(reflect.TypeFor[encoding.BinaryUnmarshaler]()) ||
-		p.Implements(reflect.TypeFor[encoding.TextUnmarshaler]())
+	_, ok := DecoderMethod(t)
+	return ok
 }
 
 // EncodesItself reports whether msgpack would encode a t value through one of t's own methods.
 func EncodesItself(t reflect.Type) bool {
-	return t.Implements(reflect.TypeFor[msgpack.CustomEncoder]()) ||
-		t.Implements(reflect.TypeFor[msgpack.Marshaler]()) ||
-		t.Implements(reflect.TypeFor[encoding.BinaryMarshaler]()) ||
-		t.Implements(reflect.TypeFor[encoding.TextMarshaler]())
+	_, ok := EncoderMethod(t)
+	return ok
+}
+
+// EncoderMethod returns the name of the method msgpack calls to encode a t value. msgpack takes the
+// first interface t implements, in this order.
+func EncoderMethod(t reflect.Type) (string, bool) {
+	switch {
+	case t.Implements(reflect.TypeFor[msgpack.CustomEncoder]()):
+		return "EncodeMsgpack", true
+	case t.Implements(reflect.TypeFor[msgpack.Marshaler]()):
+		return "MarshalMsgpack", true
+	case t.Implements(reflect.TypeFor[encoding.BinaryMarshaler]()):
+		return "MarshalBinary", true
+	case t.Implements(reflect.TypeFor[encoding.TextMarshaler]()):
+		return "MarshalText", true
+	}
+	return "", false
+}
+
+// DecoderMethod returns the name of the method msgpack calls to decode into a t. msgpack looks on t
+// first and then on *t, taking the first interface each implements, in this order.
+func DecoderMethod(t reflect.Type) (string, bool) {
+	for _, r := range []reflect.Type{t, reflect.PointerTo(t)} {
+		switch {
+		case r.Implements(reflect.TypeFor[msgpack.CustomDecoder]()):
+			return "DecodeMsgpack", true
+		case r.Implements(reflect.TypeFor[msgpack.Unmarshaler]()):
+			return "UnmarshalMsgpack", true
+		case r.Implements(reflect.TypeFor[encoding.BinaryUnmarshaler]()):
+			return "UnmarshalBinary", true
+		case r.Implements(reflect.TypeFor[encoding.TextUnmarshaler]()):
+			return "UnmarshalText", true
+		}
+	}
+	return "", false
 }
 
 // EncodesOnlyByPointer reports whether t's encoding method has a pointer receiver. msgpack can call

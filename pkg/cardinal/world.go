@@ -783,8 +783,8 @@ func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
 //   - a uintptr or complex number;
 //   - a type with its own MessagePack codec whose encoding method has a pointer receiver, that
 //     encodes but does not decode itself or the reverse, or that holds a reference;
-//   - a type with its own codec embedded without a field name, since Go promotes its codec and the
-//     whole struct is then stored as that one value.
+//   - an embedded field that supplies the struct's codec, since Go promotes it and the whole struct
+//     is then stored as that one value. Declare the struct's own codec, or give the field a name.
 //
 // Hold a list in a fixed-size array or an immutable.Slice instead. Fields tagged msgpack:"-" are
 // not stored, so they are not checked.

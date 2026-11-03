@@ -198,24 +198,37 @@ func codecProblem(t reflect.Type) (string, string) {
 	return "", ""
 }
 
-// embeddedCodec returns an embedded field whose type has its own codec. Go promotes that codec to t,
-// so a snapshot stores t as the embedded value alone and drops any field beside it. A struct with
-// nothing beside it loses nothing yet, but only until a field is added, so the shape is refused
-// whatever sits beside it. A msgpack:"-" tag does not stop the promotion, so tagged fields count.
+// embeddedCodec returns an embedded field that supplies a method msgpack calls to encode or decode t.
+// Go promotes the embedded type's methods, so the struct is then stored as that embedded value alone
+// and drops any field beside it; that holds with nothing beside it too, until a field is added. A
+// struct that declares its own codec hides the promoted methods and is judged like any codec type.
+// When it declares the same method the embedded type has, reflection cannot tell the two apart, so
+// that is refused as well.
 func embeddedCodec(t reflect.Type) (reflect.StructField, bool) {
 	if t.Kind() != reflect.Struct {
 		return reflect.StructField{}, false
 	}
+	enc, encodes := schema.EncoderMethod(t)
+	dec, decodes := schema.DecoderMethod(t)
 	for f := range t.Fields() {
-		ft := f.Type
-		if ft.Kind() == reflect.Pointer {
-			ft = ft.Elem()
+		if !f.Anonymous {
+			continue
 		}
-		if f.Anonymous && hasCodec(ft) {
+		if (encodes && hasMethod(f.Type, enc)) || (decodes && hasMethod(reflect.PointerTo(f.Type), dec)) {
 			return f, true
 		}
 	}
 	return reflect.StructField{}, false
+}
+
+// hasMethod reports whether t has the named method. A pointer to a pointer has no methods, so it
+// looks one level down: an embedded *S supplies the methods of *S.
+func hasMethod(t reflect.Type, name string) bool {
+	if t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	_, ok := t.MethodByName(name)
+	return ok
 }
 
 // plainValue reports whether t holds only values, so a copy of it shares nothing with the original.
