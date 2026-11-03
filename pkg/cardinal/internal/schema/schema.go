@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"bytes"
 	"encoding"
 	"fmt"
 	"math"
@@ -17,7 +18,15 @@ import (
 	//   - No release since 2023 is acceptable: the MessagePack spec has not changed since 2017, and
 	//     at ~4.5k lines the library is small enough to fork if it ever needs a fix.
 	"github.com/vmihailenco/msgpack/v5"
+	"github.com/vmihailenco/msgpack/v5/msgpcode"
 )
+
+// maxNestingDepth bounds how deeply arrays and maps may nest in decoded input. msgpack recurses once
+// per level, including when it skips an unknown field, so a small payload of nested arrays can
+// overflow the stack, a fatal error that recover cannot catch. 10,000 matches the limit in
+// protobuf-go (protowire.DefaultRecursionLimit) and Go's encoding/json, encoding/xml and
+// encoding/gob, the last two added after stack exhaustion CVEs (CVE-2022-30633, CVE-2022-30635).
+const maxNestingDepth = 10000
 
 // Serializable is the interface all user-defined payload types must implement.
 type Serializable interface {
@@ -47,11 +56,56 @@ func Deserialize(data []byte, v any) (err error) {
 	if target.Kind() != reflect.Pointer || target.IsNil() {
 		return eris.New("failed to deserialize: target must be a non-nil pointer")
 	}
+	if err := checkNesting(data); err != nil {
+		return eris.Wrap(err, "failed to deserialize")
+	}
 	fresh := reflect.New(target.Elem().Type())
 	if err := msgpack.Unmarshal(data, fresh.Interface()); err != nil {
 		return eris.Wrap(err, "failed to deserialize")
 	}
 	target.Elem().Set(fresh.Elem())
+	return nil
+}
+
+// checkNesting returns an error if data nests arrays and maps deeper than maxNestingDepth. It keeps
+// its own stack instead of recursing, so the check itself cannot overflow.
+func checkNesting(data []byte) error {
+	d := msgpack.NewDecoder(bytes.NewReader(data))
+	left := []int{1} // values still to read in each open array or map, outermost first
+	for len(left) > 0 {
+		top := len(left) - 1
+		if left[top] == 0 {
+			left = left[:top]
+			continue
+		}
+		left[top]--
+
+		c, err := d.PeekCode()
+		if err != nil {
+			return err
+		}
+		var n int
+		switch {
+		case msgpcode.IsFixedArray(c) || c == msgpcode.Array16 || c == msgpcode.Array32:
+			n, err = d.DecodeArrayLen()
+		case msgpcode.IsFixedMap(c) || c == msgpcode.Map16 || c == msgpcode.Map32:
+			n, err = d.DecodeMapLen()
+			n *= 2 // a key and a value per entry
+		default:
+			// Anything else holds no nested values, so skipping it does not recurse.
+			if err := d.Skip(); err != nil {
+				return err
+			}
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if len(left) > maxNestingDepth {
+			return eris.Errorf("nesting exceeds %d levels", maxNestingDepth)
+		}
+		left = append(left, n)
+	}
 	return nil
 }
 

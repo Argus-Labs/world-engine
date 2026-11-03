@@ -1,6 +1,7 @@
 package schema_test
 
 import (
+	"bytes"
 	"errors"
 	"testing"
 
@@ -51,6 +52,27 @@ func TestDeserializeRejectsMalformedInput(t *testing.T) {
 	}
 	for _, target := range []any{nil, payload{}, (*payload)(nil)} {
 		require.ErrorContains(t, schema.Deserialize([]byte{0x80}, target), "non-nil pointer")
+	}
+}
+
+func TestDeserializeRejectsDeepNesting(t *testing.T) {
+	t.Parallel()
+	// nested returns a payload nested depth levels deep: the payload map, then an unknown field of
+	// one-element arrays, which msgpack would skip by recursing once per level.
+	nested := func(depth int) []byte {
+		data := []byte{0x82, 0xa2, 'i', 'd', 0x07, 0xa4, 'j', 'u', 'n', 'k'}
+		data = append(data, bytes.Repeat([]byte{0x91}, depth-2)...) // fixarray of one item
+		return append(data, 0x90)                                   // empty fixarray
+	}
+
+	var got payload
+	require.NoError(t, schema.Deserialize(nested(10000), &got))
+	assert.Equal(t, payload{ID: 7}, got)
+
+	for _, depth := range []int{10001, 10_000_000} {
+		kept := payload{ID: 93}
+		require.ErrorContains(t, schema.Deserialize(nested(depth), &kept), "nesting exceeds 10000 levels")
+		assert.Equal(t, payload{ID: 93}, kept)
 	}
 }
 
