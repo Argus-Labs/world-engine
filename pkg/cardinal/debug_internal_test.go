@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
@@ -22,17 +20,7 @@ import (
 
 type introspectionSample struct{}
 
-func (introspectionSample) Name() string                 { return "introspection-sample" }
-func (c introspectionSample) SizeWire() int              { return len(c.MarshalWire()) }
-func (c introspectionSample) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
-
-func (introspectionSample) MarshalWire() []byte { return nil }
-func (introspectionSample) ProtoDescriptor() protoreflect.MessageDescriptor {
-	return (&cardinalv1.TypeSchema{}).ProtoReflect().Descriptor()
-}
-func (introspectionSample) UnmarshalWire([]byte) (any, error) {
-	return introspectionSample{}, nil
-}
+func (introspectionSample) Name() string { return "introspection-sample" }
 
 func newIntrospectionTestModule() *debugModule {
 	return &debugModule{
@@ -41,7 +29,7 @@ func newIntrospectionTestModule() *debugModule {
 	}
 }
 
-func TestIntrospectAdvertisesSharedProtobufMetadata(t *testing.T) {
+func TestIntrospectAdvertisesReflectionMetadata(t *testing.T) {
 	t.Parallel()
 
 	d := newIntrospectionTestModule()
@@ -60,16 +48,12 @@ func TestIntrospectAdvertisesSharedProtobufMetadata(t *testing.T) {
 	} {
 		require.Len(t, schemas, 1)
 		schema := schemas[0]
-		assert.Equal(
-			t,
-			introspectionSample{}.ProtoDescriptor().FullName(),
-			protoreflect.FullName(schema.GetProtoMessageName()),
-		)
+		assert.Equal(t, "introspection-sample", schema.GetName())
+		require.NotNil(t, schema.GetJsonSchema())
+		assert.Empty(t, schema.GetProtoMessageName())
+		assert.Empty(t, schema.GetArrayFields())
 	}
-
-	var set descriptorpb.FileDescriptorSet
-	require.NoError(t, proto.Unmarshal(response.Msg.GetProtoDescriptorSet(), &set))
-	require.NotNil(t, findMessageDescriptor(&set, "TypeSchema"))
+	assert.Empty(t, response.Msg.GetProtoDescriptorSet())
 }
 
 func TestDebugRegistrationIsNilSafe(t *testing.T) {
@@ -77,17 +61,6 @@ func TestDebugRegistrationIsNilSafe(t *testing.T) {
 
 	var d *debugModule
 	require.NoError(t, d.register(introspect.Command, introspectionSample{}))
-}
-
-func findMessageDescriptor(set *descriptorpb.FileDescriptorSet, name string) *descriptorpb.DescriptorProto {
-	for _, file := range set.GetFile() {
-		for _, message := range file.GetMessageType() {
-			if message.GetName() == name {
-				return message
-			}
-		}
-	}
-	return nil
 }
 
 type snapshotArchetype struct {

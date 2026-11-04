@@ -626,13 +626,16 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 		return eris.Errorf("invalid event payload type: %T", evt.Payload)
 	}
 
-	// Ended by a direct defer so an encoding panic below is recorded on this span, which is the
-	// one that names the event. Nothing after this point returns an error.
 	_, span := trace.New(ctx, spanEventPublish, oteltrace.WithAttributes(
 		attrEventName.String(payload.Name()), attrEventRecipient.String(evt.Recipient)))
 	defer span.End()
 
-	payloadPb := schema.Marshal(payload)
+	payloadPb, err := schema.Serialize(payload)
+	if err != nil {
+		err = eris.Wrapf(err, "failed to encode event %q", payload.Name())
+		span.SetError(err)
+		return err
+	}
 
 	eventPb := &iscv1.Event{
 		Name:    payload.Name(),
@@ -822,7 +825,11 @@ func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event)
 	assert.That(isc.Address != nil, "inter shard command has nil address")
 	assert.That(s.interShard != nil, "inter shard command published before the service started")
 
-	s.interShard.enqueue(ctx, isc.Address, isc.Payload.Name(), schema.Marshal(isc.Payload))
+	payload, err := schema.Serialize(isc.Payload)
+	if err != nil {
+		return eris.Wrapf(err, "failed to encode inter shard command %q", isc.Payload.Name())
+	}
+	s.interShard.enqueue(ctx, isc.Address, isc.Payload.Name(), payload)
 	return nil
 }
 

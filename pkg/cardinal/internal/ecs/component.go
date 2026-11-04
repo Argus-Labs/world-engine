@@ -12,7 +12,7 @@ import (
 
 // Component is the interface that all components must implement.
 // Components are pure data containers that can be attached to entities.
-type Component interface { //nolint:iface // the wire contract lives on schema.Serializable; this names the ECS role
+type Component interface {
 	// Name returns a unique string identifier for the component type.
 	// This should be consistent across program executions.
 	//
@@ -94,6 +94,7 @@ func (cm *componentManager) register[T Component](name string) (ComponentID, err
 		return 0, eris.New("max number of components exceeded")
 	}
 
+	schema.Register[T]()
 	cm.catalog[name] = cm.nextID
 	cm.factories = append(cm.factories, newColumnFactory[T]())
 	cm.names = append(cm.names, name)

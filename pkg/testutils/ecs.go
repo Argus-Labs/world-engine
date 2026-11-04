@@ -2,10 +2,9 @@ package testutils
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/gob"
-	"errors"
-	"io"
+
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // Test components use gob for their wire codec — real components get generated proto codecs, but test
@@ -154,9 +153,7 @@ func (SystemEventC) Name() string {
 // -------------------------------------------------------------------------------------------------
 // Commands
 // -------------------------------------------------------------------------------------------------
-// Command fixtures are plain value structs (just Name); their wire codec lives in the commandtest
-// package, which registers it with the command package the same way the generator does for real
-// commands. testutils can't import the internal command package, so the codec can't live here.
+// Command fixtures use the same MessagePack payload format as the runtime.
 
 type SimpleCommand struct {
 	Value int
@@ -193,89 +190,67 @@ func (CommandC) Name() string {
 	return "command_c"
 }
 
-// Wire methods for the command fixtures. Real commands get generated proto codecs; these test doubles
-// hand-roll encoding/binary and implement schema.Serializable directly (Name + MarshalWire +
-// UnmarshalWire). UnmarshalWire returns any — a decode factory that ignores its receiver — so testutils
-// needs no import of the engine (which already imports testutils).
+// Legacy-named helpers remain for tests that construct wire requests directly. Runtime encoding
+// does not call these methods.
 
 func (c SimpleCommand) SizeWire() int              { return len(c.MarshalWire()) }
 func (c SimpleCommand) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
 
 func (c SimpleCommand) MarshalWire() []byte {
-	var b bytes.Buffer
-	mustWrite(binary.Write(&b, binary.LittleEndian, int64(c.Value)))
-	return b.Bytes()
+	b, err := msgpack.Marshal(c)
+	mustWrite(err)
+	return b
 }
 
 func (SimpleCommand) UnmarshalWire(data []byte) (any, error) {
-	var v int64
-	if err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &v); err != nil {
-		return nil, err
-	}
-	return SimpleCommand{Value: int(v)}, nil
+	var c SimpleCommand
+	err := msgpack.Unmarshal(data, &c)
+	return c, err
 }
 
 func (c CommandA) SizeWire() int              { return len(c.MarshalWire()) }
 func (c CommandA) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
 
 func (c CommandA) MarshalWire() []byte {
-	var b bytes.Buffer
-	mustWrite(binary.Write(&b, binary.LittleEndian, c))
-	return b.Bytes()
+	b, err := msgpack.Marshal(c)
+	mustWrite(err)
+	return b
 }
 
 func (CommandA) UnmarshalWire(data []byte) (any, error) {
 	var c CommandA
-	if err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &c); err != nil {
-		return nil, err
-	}
-	return c, nil
+	err := msgpack.Unmarshal(data, &c)
+	return c, err
 }
 
 func (c CommandB) SizeWire() int              { return len(c.MarshalWire()) }
 func (c CommandB) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
 
 func (c CommandB) MarshalWire() []byte {
-	var b bytes.Buffer
-	mustWrite(binary.Write(&b, binary.LittleEndian, c.ID))
-	mustWrite(binary.Write(&b, binary.LittleEndian, c.Enabled))
-	// Label is variable-length, so it goes last and consumes the rest on decode.
-	mustWrite(binary.Write(&b, binary.LittleEndian, []byte(c.Label)))
-	return b.Bytes()
+	b, err := msgpack.Marshal(c)
+	mustWrite(err)
+	return b
 }
 
 func (CommandB) UnmarshalWire(data []byte) (any, error) {
-	b := bytes.NewReader(data)
 	var c CommandB
-	if err := binary.Read(b, binary.LittleEndian, &c.ID); err != nil {
-		return nil, err
-	}
-	if err := binary.Read(b, binary.LittleEndian, &c.Enabled); err != nil {
-		return nil, err
-	}
-	label := make([]byte, b.Len())
-	if _, err := io.ReadFull(b, label); err != nil {
-		return nil, err
-	}
-	c.Label = string(label)
-	return c, nil
+	err := msgpack.Unmarshal(data, &c)
+	return c, err
 }
 
 func (c CommandC) SizeWire() int              { return len(c.MarshalWire()) }
 func (c CommandC) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()...) }
 
 func (c CommandC) MarshalWire() []byte {
-	var b bytes.Buffer
-	mustWrite(binary.Write(&b, binary.LittleEndian, c))
-	return b.Bytes()
+	b, err := msgpack.Marshal(c)
+	mustWrite(err)
+	return b
 }
 
 func (CommandC) UnmarshalWire(data []byte) (any, error) {
 	var c CommandC
-	if err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &c); err != nil {
-		return nil, err
-	}
-	return c, nil
+	err := msgpack.Unmarshal(data, &c)
+	return c, err
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -290,22 +265,20 @@ func (SimpleEvent) Name() string {
 	return "simple_event"
 }
 
-// MarshalWire / UnmarshalWire are a test double for generated event wire code — the engine requires the
-// wire codec. Deliberately an explicit encoding, not a serialization library, so
-// testutils stays free of any wire-format dependency.
+// These helpers encode and decode MessagePack for tests acting as event clients.
 func (s SimpleEvent) SizeWire() int              { return len(s.MarshalWire()) }
 func (s SimpleEvent) AppendWire(b []byte) []byte { return append(b, s.MarshalWire()...) }
 
 func (s SimpleEvent) MarshalWire() []byte {
-	return binary.AppendVarint(nil, int64(s.Value))
+	b, err := msgpack.Marshal(s)
+	mustWrite(err)
+	return b
 }
 
 func (SimpleEvent) UnmarshalWire(b []byte) (any, error) {
-	v, n := binary.Varint(b)
-	if n <= 0 {
-		return SimpleEvent{}, errors.New("SimpleEvent: malformed wire bytes")
-	}
-	return SimpleEvent{Value: int(v)}, nil
+	var s SimpleEvent
+	err := msgpack.Unmarshal(b, &s)
+	return s, err
 }
 
 type AnotherEvent struct {
@@ -316,14 +289,18 @@ func (AnotherEvent) Name() string {
 	return "another_event"
 }
 
-// MarshalWire is a test double for generated event wire code (explicit encoding, no serialization lib).
+// These helpers encode and decode MessagePack for tests acting as event clients.
 func (e AnotherEvent) SizeWire() int              { return len(e.MarshalWire()) }
 func (e AnotherEvent) AppendWire(b []byte) []byte { return append(b, e.MarshalWire()...) }
 
 func (e AnotherEvent) MarshalWire() []byte {
-	return []byte(e.Data)
+	b, err := msgpack.Marshal(e)
+	mustWrite(err)
+	return b
 }
 
 func (AnotherEvent) UnmarshalWire(b []byte) (any, error) {
-	return AnotherEvent{Data: string(b)}, nil
+	var e AnotherEvent
+	err := msgpack.Unmarshal(b, &e)
+	return e, err
 }
