@@ -23,16 +23,25 @@ type Client struct {
 }
 
 // NATSConfig holds the configuration for the NATS client.
+// A dead connection is detected after roughly PingInterval * MaxPingsOut. Defaults match nats.go.
 type NATSConfig struct {
-	Name            string `env:"NATS_NAME"             envDefault:"isc"`
-	URL             string `env:"NATS_URL"              envDefault:"nats://nats:4222"`
-	CredentialsFile string `env:"NATS_CREDENTIALS_FILE"`
+	Name            string        `env:"NATS_NAME"             envDefault:"isc"`
+	URL             string        `env:"NATS_URL"              envDefault:"nats://nats:4222"`
+	CredentialsFile string        `env:"NATS_CREDENTIALS_FILE"`
+	PingInterval    time.Duration `env:"NATS_PING_INTERVAL"    envDefault:"2m"`
+	MaxPingsOut     int           `env:"NATS_MAX_PINGS_OUT"    envDefault:"2"`
 }
 
 // Validate validates the NATS configuration and returns an error if invalid.
 func (cfg NATSConfig) Validate() error {
 	if cfg.URL == "" {
 		return eris.New("NATS URL is required")
+	}
+	if cfg.PingInterval <= 0 {
+		return eris.Errorf("NATS ping interval must be positive, got %s", cfg.PingInterval)
+	}
+	if cfg.MaxPingsOut <= 0 {
+		return eris.Errorf("NATS max pings outstanding must be positive, got %d", cfg.MaxPingsOut)
 	}
 	// CredentialsFile, NKey fields are all optional.
 	// If none are provided, will connect without authentication (for testing).
@@ -69,6 +78,8 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 		nats.Name(c.natsConfig.Name),
 		nats.MaxReconnects(-1),
 		nats.IgnoreAuthErrorAbort(),
+		nats.PingInterval(c.natsConfig.PingInterval),
+		nats.MaxPingsOutstanding(c.natsConfig.MaxPingsOut),
 		nats.CustomReconnectDelay(reconnectDelay),
 		nats.DisconnectErrHandler(c.handleDisconnect),
 		nats.ReconnectHandler(c.handleReconnect),
@@ -92,6 +103,8 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	c.log.Info().
 		Str("url", c.ConnectedUrl()).
 		Str("name", c.natsConfig.Name).
+		Stringer("ping_interval", c.natsConfig.PingInterval).
+		Int("max_pings_out", c.natsConfig.MaxPingsOut).
 		Msg("Connected to NATS server")
 
 	return c, nil
@@ -286,8 +299,15 @@ func WithLogger(log zerolog.Logger) ClientOption {
 }
 
 // WithNATSConfig returns a ClientOption that sets the NATS configuration.
+// Zero ping fields fall back to the nats.go defaults.
 func WithNATSConfig(cfg NATSConfig) ClientOption {
 	return func(c *Client) {
+		if cfg.PingInterval == 0 {
+			cfg.PingInterval = nats.DefaultPingInterval
+		}
+		if cfg.MaxPingsOut == 0 {
+			cfg.MaxPingsOut = nats.DefaultMaxPingOut
+		}
 		c.natsConfig = cfg
 	}
 }
