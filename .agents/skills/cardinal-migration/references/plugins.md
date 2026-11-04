@@ -29,7 +29,8 @@ func (s *AbilitySystem) Run(w *cardinal.World) {
 }
 ```
 
-- Find every `data.Get[` call (the audit lists them) and give its system a
+- Find every `data.Get[` call; the audit reports counts and up to three example
+  locations, one per file. Search the source for the full list. Give each calling system a
   `Data *data.Plugin` field. Helpers that call `data.Get` take the plugin as a parameter.
 - Threading reaches every function between a system's `Run` and the call, including
   interface methods and package-level function variables. Build the call graph first. In
