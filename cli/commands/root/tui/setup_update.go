@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -73,6 +74,13 @@ func (m WorldSetupModel) handleNameInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		}
 		m.nameErr = ""
 		m.projectNameInput.Blur()
+		// When --directory was supplied with an invalid basename, the user is
+		// shown this input to fix the name. Apply the validated name by rebasing
+		// the target directory onto it, so cloning and world.toml generation use
+		// a valid DNS-1123 label instead of the original invalid directory.
+		if m.targetDir != "" {
+			m.targetDir = filepath.Join(filepath.Dir(filepath.Clean(m.targetDir)), name)
+		}
 		return m, m.steps.CompleteStepCmd(nil)
 	}
 
