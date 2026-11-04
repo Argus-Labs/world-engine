@@ -6,7 +6,7 @@ on:
       - 'proto/**'
       - 'buf.yaml'
       - 'buf.gen.yaml'
-      - '.github/workflows/proto-ci.yaml'
+      - '.github/workflows/common-proto-ci.yaml'
 
 # A newer push to the same branch supersedes the running checks. Each main run
 # gets its own group, because GitHub drops a queued run when another joins its
