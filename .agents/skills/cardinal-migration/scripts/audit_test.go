@@ -239,6 +239,39 @@ func register(w *cardinal.World) {
 	assert.Equal(t, 0, code)
 }
 
+func TestDataGetShadowedByEntityParamNotReported(t *testing.T) {
+	t.Parallel()
+	root := writeTree(t, map[string]string{
+		"go.mod": goMod,
+		"main.go": `package main
+
+import (
+	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/plugin/data"
+)
+
+type Health struct{}
+
+func register(w *cardinal.World) {
+	dataPlugin := data.NewPlugin()
+	w.RegisterPlugin(dataPlugin)
+	w.RegisterComponent[Health]()
+}
+
+// read shadows the data package import with a cardinal.Entity parameter, so
+// data.Get[Health]() is the Entity method (new API), not the package function.
+func read(data cardinal.Entity) {
+	_ = data.Get[Health]()
+}
+`,
+	})
+
+	out, code := runAudit(root)
+
+	assert.Equal(t, "- none", section(t, out, "Old API and hazards"))
+	assert.Equal(t, 0, code)
+}
+
 func TestUnresolvedPluginVariableReported(t *testing.T) {
 	t.Parallel()
 	root := writeTree(t, map[string]string{
