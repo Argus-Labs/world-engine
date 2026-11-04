@@ -13,6 +13,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type Telemetry struct {
@@ -74,13 +76,22 @@ func (t *Telemetry) MaxCommandLinks() int {
 }
 
 // onlyContextSentinels reports whether err is nil or every branch of its error tree
-// is [context.Canceled] or [context.DeadlineExceeded]. The shutdown-capture guard uses
-// this instead of [errors.Is] because [errors.Is] short-circuits on any sentinel
-// branch: a real export failure joined with a context sentinel — the shape
-// setup.go's concurrent shutdown produces when one provider stalls on a canceled
-// ctx while another fails with a real error — would be silently suppressed. By
-// walking every branch and checking only leaf nodes (where [errors.Is] cannot
-// traverse further), mixed [errors.Join](sentinel, real) trees are still reported.
+// is a context cancellation ([context.Canceled] or [context.DeadlineExceeded]) or the
+// matching gRPC status ([codes.Canceled] or [codes.DeadlineExceeded]). The
+// shutdown-capture guard uses this instead of [errors.Is] because [errors.Is]
+// short-circuits on any sentinel branch: a real export failure joined with a context
+// sentinel — the shape setup.go's concurrent shutdown produces when one provider
+// stalls on a canceled ctx while another fails with a real error — would be silently
+// suppressed. By walking every branch and checking only leaf nodes (where [errors.Is]
+// cannot traverse further), mixed [errors.Join](sentinel, real) trees are still
+// reported.
+//
+// A terminal [Unwrap] that returns nil (e.g. a bare [eris.New] error with no cause) is
+// treated as a leaf rather than recursing into nil, so a real causeless error is not
+// mistaken for an all-sentinel tree. The OTLP gRPC exporter surfaces a stalled-collector
+// timeout as a [codes.DeadlineExceeded] status that does not unwrap to
+// [context.DeadlineExceeded], so gRPC cancellation/deadline statuses are recognized as
+// sentinel leaves to keep pure-timeout shutdowns out of Sentry.
 func onlyContextSentinels(err error) bool {
 	if err == nil {
 		return true
@@ -94,11 +105,25 @@ func onlyContextSentinels(err error) bool {
 		return true
 	}
 	if inner, ok := err.(interface{ Unwrap() error }); ok {
-		return onlyContextSentinels(inner.Unwrap())
+		if u := inner.Unwrap(); u != nil {
+			return onlyContextSentinels(u)
+		}
 	}
-	// Leaf node: errors.Is is safe here — no Unwrap method to traverse, so it
+	// Leaf node: errors.Is is safe here — no further Unwrap to traverse, so it
 	// checks only this node's identity or Is method against the sentinels.
-	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) ||
+		isGRPCContextCancellation(err)
+}
+
+// isGRPCContextCancellation reports whether err is a gRPC status whose code is a context
+// cancellation ([codes.Canceled] or [codes.DeadlineExceeded]). [status.FromError] follows
+// [errors.As] through wrappers, so an eris-wrapped gRPC status is still recognized.
+func isGRPCContextCancellation(err error) bool {
+	s, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+	return s.Code() == codes.Canceled || s.Code() == codes.DeadlineExceeded
 }
 
 // Shutdown gracefully shuts down the telemetry system.
@@ -107,7 +132,7 @@ func (t *Telemetry) Shutdown(ctx context.Context) error {
 
 	if t.shutdown != nil {
 		err := t.shutdown(ctx)
-		if err != nil && !onlyContextSentinels(err) {
+		if !onlyContextSentinels(err) {
 			t.CaptureException(ctx, err)
 		}
 		outErr = errors.Join(outErr, eris.Wrap(err, "otel shutdown"))
