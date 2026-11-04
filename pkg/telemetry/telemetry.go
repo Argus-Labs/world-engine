@@ -73,13 +73,41 @@ func (t *Telemetry) MaxCommandLinks() int {
 	return t.maxCommandLinks
 }
 
+// onlyContextSentinels reports whether err is nil or every branch of its error tree
+// is [context.Canceled] or [context.DeadlineExceeded]. The shutdown-capture guard uses
+// this instead of [errors.Is] because [errors.Is] short-circuits on any sentinel
+// branch: a real export failure joined with a context sentinel — the shape
+// setup.go's concurrent shutdown produces when one provider stalls on a canceled
+// ctx while another fails with a real error — would be silently suppressed. By
+// walking every branch and checking only leaf nodes (where [errors.Is] cannot
+// traverse further), mixed [errors.Join](sentinel, real) trees are still reported.
+func onlyContextSentinels(err error) bool {
+	if err == nil {
+		return true
+	}
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		for _, e := range joined.Unwrap() {
+			if !onlyContextSentinels(e) {
+				return false
+			}
+		}
+		return true
+	}
+	if inner, ok := err.(interface{ Unwrap() error }); ok {
+		return onlyContextSentinels(inner.Unwrap())
+	}
+	// Leaf node: errors.Is is safe here — no Unwrap method to traverse, so it
+	// checks only this node's identity or Is method against the sentinels.
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+}
+
 // Shutdown gracefully shuts down the telemetry system.
 func (t *Telemetry) Shutdown(ctx context.Context) error {
 	var outErr error
 
 	if t.shutdown != nil {
 		err := t.shutdown(ctx)
-		if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+		if err != nil && !onlyContextSentinels(err) {
 			t.CaptureException(ctx, err)
 		}
 		outErr = errors.Join(outErr, eris.Wrap(err, "otel shutdown"))

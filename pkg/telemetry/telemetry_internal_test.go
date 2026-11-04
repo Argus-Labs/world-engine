@@ -3,6 +3,7 @@ package telemetry
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"slices"
 	"sync"
@@ -199,8 +200,12 @@ func TestShutdownFlushesMetricsPastStalledTraceCollector(t *testing.T) {
 	require.Equal(t, []string{"test/test.requests"}, collector.received())
 }
 
-// TestShutdownSkipsSentryForJoinedCancellation verifies the cancellation guard sees through
-// [errors.Join], the shape setup.go's shutdown returns.
+// TestShutdownSkipsSentryForJoinedCancellation verifies the cancellation guard in Shutdown
+// sees through [errors.Join], the shape setup.go's shutdown returns. Pure context-sentinel
+// trees (bare, joined, or wrapped) are skipped, while any tree containing a real error —
+// including mixed joins of sentinel and real, which setup.go's concurrent shutdown
+// naturally produces when one provider stalls on a canceled ctx while another fails with a
+// real export error — is still captured by Sentry.
 func TestShutdownSkipsSentryForJoinedCancellation(t *testing.T) {
 	var captured []error
 	prev := sentrygo.CurrentHub().Client()
@@ -216,17 +221,117 @@ func TestShutdownSkipsSentryForJoinedCancellation(t *testing.T) {
 	ph, err := posthog.New(posthog.Options{})
 	require.NoError(t, err)
 
+	realErr := errors.New("export failed: connection refused")
 	for _, tc := range []struct {
+		name string
 		err  error
 		want int
 	}{
-		{errors.Join(context.DeadlineExceeded), 0},
-		{errors.Join(context.Canceled), 0},
-		{errors.Join(errors.New("export failed")), 1},
+		// Pure context sentinels: nothing report-worthy, Sentry is skipped.
+		{name: "bare Canceled", err: context.Canceled, want: 0},
+		{name: "bare DeadlineExceeded", err: context.DeadlineExceeded, want: 0},
+		{name: "join(Canceled)", err: errors.Join(context.Canceled), want: 0},
+		{name: "join(DeadlineExceeded)", err: errors.Join(context.DeadlineExceeded), want: 0},
+		{name: "join(Canceled, DeadlineExceeded)", err: errors.Join(context.Canceled, context.DeadlineExceeded), want: 0},
+		{name: "wrapped Canceled", err: fmt.Errorf("ctx: %w", context.Canceled), want: 0},
+		{
+			name: "wrapped join(Canceled, DeadlineExceeded)",
+			err:  fmt.Errorf("ctx: %w", errors.Join(context.Canceled, context.DeadlineExceeded)),
+			want: 0,
+		},
+
+		// Pure real errors: always captured.
+		{name: "bare real", err: realErr, want: 1},
+		{name: "join(real)", err: errors.Join(realErr), want: 1},
+
+		// Mixed joins: the real error must still be captured even though a context
+		// sentinel is joined in — the shape setup.go's concurrent shutdown naturally
+		// produces when one provider stalls on a canceled ctx while another fails
+		// with a real export error.
+		{name: "join(Canceled, real)", err: errors.Join(context.Canceled, realErr), want: 1},
+		{name: "join(real, Canceled)", err: errors.Join(realErr, context.Canceled), want: 1},
+		{name: "join(DeadlineExceeded, real)", err: errors.Join(context.DeadlineExceeded, realErr), want: 1},
+		{name: "join(real, DeadlineExceeded)", err: errors.Join(realErr, context.DeadlineExceeded), want: 1},
+		{
+			name: "join(Canceled, DeadlineExceeded, real)",
+			err:  errors.Join(context.Canceled, context.DeadlineExceeded, realErr),
+			want: 1,
+		},
+		{
+			name: "fmt.Errorf wraps join(Canceled, real)",
+			err:  fmt.Errorf("otel flush: %w", errors.Join(context.Canceled, realErr)),
+			want: 1,
+		},
+		{
+			name: "fmt.Errorf wraps join(real, Canceled)",
+			err:  fmt.Errorf("otel flush: %w", errors.Join(realErr, context.Canceled)),
+			want: 1,
+		},
 	} {
-		captured = nil
-		tel := Telemetry{posthog: ph, shutdown: func(context.Context) error { return tc.err }}
-		require.ErrorIs(t, tel.Shutdown(t.Context()), tc.err)
-		require.Len(t, captured, tc.want, tc.err.Error())
+		t.Run(tc.name, func(t *testing.T) {
+			captured = nil
+			tel := Telemetry{posthog: ph, shutdown: func(context.Context) error { return tc.err }}
+			require.ErrorIs(t, tel.Shutdown(t.Context()), tc.err)
+			require.Len(t, captured, tc.want, tc.err.Error())
+		})
+	}
+}
+
+// TestOnlyContextSentinels pins the behavior of the shutdown-capture guard's purity check
+// directly, independent of the Sentry integration. It verifies that the helper returns true
+// only when every branch of the error tree is a context sentinel, and false as soon as any
+// branch is a real error — including mixed joins and wrapped variants that setup.go's
+// concurrent shutdown produces.
+func TestOnlyContextSentinels(t *testing.T) {
+	realErr := errors.New("export failed: connection refused")
+	for _, tc := range []struct {
+		name string
+		err  error
+		want bool
+	}{
+		// nil and pure sentinels: true (nothing report-worthy).
+		{name: "nil", err: nil, want: true},
+		{name: "bare Canceled", err: context.Canceled, want: true},
+		{name: "bare DeadlineExceeded", err: context.DeadlineExceeded, want: true},
+		{name: "join(Canceled)", err: errors.Join(context.Canceled), want: true},
+		{name: "join(DeadlineExceeded)", err: errors.Join(context.DeadlineExceeded), want: true},
+		{name: "join(Canceled, DeadlineExceeded)", err: errors.Join(context.Canceled, context.DeadlineExceeded), want: true},
+		{name: "wrapped Canceled", err: fmt.Errorf("ctx: %w", context.Canceled), want: true},
+		{
+			name: "wrapped join(Canceled, DeadlineExceeded)",
+			err:  fmt.Errorf("ctx: %w", errors.Join(context.Canceled, context.DeadlineExceeded)),
+			want: true,
+		},
+
+		// Real errors: false (report-worthy).
+		{name: "bare real", err: realErr, want: false},
+		{name: "join(real)", err: errors.Join(realErr), want: false},
+
+		// Mixed joins: false (real error present).
+		{name: "join(Canceled, real)", err: errors.Join(context.Canceled, realErr), want: false},
+		{name: "join(real, Canceled)", err: errors.Join(realErr, context.Canceled), want: false},
+		{name: "join(DeadlineExceeded, real)", err: errors.Join(context.DeadlineExceeded, realErr), want: false},
+		{name: "join(real, DeadlineExceeded)", err: errors.Join(realErr, context.DeadlineExceeded), want: false},
+		{
+			name: "join(Canceled, DeadlineExceeded, real)",
+			err:  errors.Join(context.Canceled, context.DeadlineExceeded, realErr),
+			want: false,
+		},
+		{
+			name: "fmt.Errorf wraps join(Canceled, real)",
+			err:  fmt.Errorf("otel flush: %w", errors.Join(context.Canceled, realErr)),
+			want: false,
+		},
+		{
+			name: "fmt.Errorf wraps join(real, Canceled)",
+			err:  fmt.Errorf("otel flush: %w", errors.Join(realErr, context.Canceled)),
+			want: false,
+		},
+		{name: "join with nil and real", err: errors.Join(nil, realErr), want: false},
+		{name: "join with nil and Canceled", err: errors.Join(nil, context.Canceled), want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, onlyContextSentinels(tc.err))
+		})
 	}
 }
