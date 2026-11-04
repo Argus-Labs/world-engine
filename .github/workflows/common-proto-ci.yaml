@@ -6,14 +6,16 @@ on:
       - 'proto/**'
       - 'buf.yaml'
       - 'buf.gen.yaml'
-      - '.github/workflows/proto-ci.yaml'
+      - '.github/workflows/common-proto-ci.yaml'
 
-# A newer push to the same branch supersedes the running checks. Each main run
-# gets its own group, because GitHub drops a queued run when another joins its
-# group, even without cancel-in-progress.
+# Runs for one ref take turns, so an older commit cannot push after a newer
+# one and move the BSR label back to older protos. A newer push to a branch
+# cancels the running check. On main the running push finishes first. If a
+# third push arrives meanwhile, GitHub drops the waiting run, and the newest
+# run pushes the dropped commit's changes too.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   lint:
@@ -22,7 +24,29 @@ jobs:
     steps:
       - uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
 
-      - uses: bufbuild/buf-action@v1
+      # The action installs buf, logs in to the BSR, and builds the module.
+      # Its push step always passes --git-metadata, which labels the push with
+      # the branches and tags that point at this commit on GitHub when the push
+      # runs. Once another commit lands on the branch first, nothing points at
+      # this commit and the push fails, so the step below pushes instead.
+      - id: buf
+        uses: bufbuild/buf-action@v1
         with:
           token: ${{ secrets.BUF_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          push: false
+
+      # Label the push with the branch or tag that triggered this run.
+      - name: Push to the Buf Schema Registry
+        if: ${{ !github.event.repository.fork }}
+        env:
+          BUF: ${{ steps.buf.outputs.buf_path }}
+          LABEL: ${{ github.ref_name }}
+          SOURCE_CONTROL_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+        run: |
+          "$BUF" push \
+            --error-format github-actions \
+            --exclude-unnamed \
+            --label "$LABEL" \
+            --source-control-url "$SOURCE_CONTROL_URL" \
+            --create
