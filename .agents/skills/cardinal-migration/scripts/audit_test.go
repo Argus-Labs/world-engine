@@ -111,12 +111,15 @@ var phys = physics2d.NewPlugin()
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/plugin/data"
 	"github.com/argus-labs/world-engine/pkg/plugin/lobby"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 )
 
 func register(w *cardinal.World) {
 	w.RegisterComponent[Health]()
+	dataPlugin := data.NewPlugin()
+	w.RegisterPlugin(dataPlugin)
 	w.RegisterPlugin(phys)
 	var r runner
 	r.lobby = lobby.NewPlugin(lobby.Config{})
@@ -127,6 +130,7 @@ func register(w *cardinal.World) {
 func spawn(e cardinal.Entity) {
 	e.Set(Health{})
 	e.Set(physics2d.Transform{})
+	e.Set(data.Manifest{})
 	e.Set(lobby.Player{})
 }
 `,
@@ -149,20 +153,20 @@ func TestPluginVariableCreditsOnlyItsPackage(t *testing.T) {
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/lobby"
+	"github.com/argus-labs/world-engine/pkg/plugin/data"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 )
 
 func register(w *cardinal.World) {
 	w.RegisterComponent[Health]()
-	lobbyPlugin := lobby.NewPlugin(lobby.Config{})
-	w.RegisterPlugin(lobbyPlugin)
+	dataPlugin := data.NewPlugin()
+	w.RegisterPlugin(dataPlugin)
 }
 
 func spawn(e cardinal.Entity) {
 	e.Set(Health{})
 	e.Set(physics2d.Transform{})
-	e.Set(lobby.Player{})
+	e.Set(data.Manifest{})
 }
 `,
 	})
@@ -172,6 +176,67 @@ func spawn(e cardinal.Entity) {
 	assert.Equal(t, "- component github.com/argus-labs/world-engine/pkg/plugin/physics2d.Transform (first use main.go:17)",
 		section(t, out, "Used but never registered"))
 	assert.Equal(t, 1, code)
+}
+
+func TestDataGetWithoutPluginArgumentReported(t *testing.T) {
+	t.Parallel()
+	root := writeTree(t, map[string]string{
+		"go.mod": goMod,
+		"main.go": `package main
+
+import (
+	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/plugin/data"
+)
+
+type Abilities struct{}
+
+func (s *AbilitySystem) Run(w *cardinal.World) {
+	abilities := data.Get[Abilities]()
+	_ = abilities
+}
+`,
+	})
+
+	out, code := runAudit(root)
+
+	assert.Equal(t, `-    1  data.Get[T]() without the plugin argument
+        main.go:11`, section(t, out, "Old API and hazards"))
+	assert.Equal(t, 1, code)
+}
+
+func TestDataGetWithPluginArgumentNotReported(t *testing.T) {
+	t.Parallel()
+	root := writeTree(t, map[string]string{
+		"go.mod": goMod,
+		"main.go": `package main
+
+import (
+	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/plugin/data"
+)
+
+type Abilities struct{}
+
+type AbilitySystem struct{ Data *data.Plugin }
+
+func (s *AbilitySystem) Run(w *cardinal.World) {
+	abilities := data.Get[Abilities](s.Data)
+	_ = abilities
+}
+
+func register(w *cardinal.World) {
+	dataPlugin := data.NewPlugin()
+	w.RegisterPlugin(dataPlugin)
+	w.RegisterSystem(&AbilitySystem{Data: dataPlugin})
+}
+`,
+	})
+
+	out, code := runAudit(root)
+
+	assert.Equal(t, "- none", section(t, out, "Old API and hazards"))
+	assert.Equal(t, 0, code)
 }
 
 func TestUnresolvedPluginVariableReported(t *testing.T) {
