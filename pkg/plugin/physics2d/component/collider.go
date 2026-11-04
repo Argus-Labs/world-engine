@@ -59,8 +59,8 @@ const (
 //
 // A polygon has a bound Box2D fixes at MaxPolygonVertices, so Vertices is a fixed array stored
 // inline and VertexCount says how many of its slots are live — the same shape box2d.Polygon uses.
-// A chain has no such bound, so ChainPoints is an immutable.Slice: it travels as the same repeated
-// field a []Vec2 would, and its backing array cannot be indexed or resliced. Its derivations (With,
+// A chain has no such bound, so ChainPoints is an immutable.Slice: it encodes as an array, as a
+// []Vec2 would, and its backing array cannot be indexed or resliced. Its derivations (With,
 // Filter, ...) still write through to the world's column, so always Set the component after one.
 //
 // ChainPoints encodes as a plain JSON array ("chain_points": [{"x":0,"y":0}, ...]), so a
@@ -88,10 +88,7 @@ type ColliderShape struct {
 	MaskBits     uint64  `json:"mask_bits"`
 	GroupIndex   int32   `json:"group_index,omitempty"`
 
-	// VertexCount says how many of Vertices' slots are live. It sits at the bottom, away from the
-	// geometry it belongs to, because the generator numbers proto fields by declaration order and
-	// the schema rule is append-only: putting it next to Vertices would renumber every field after
-	// it and silently misread every ColliderShape in an existing snapshot.
+	// VertexCount says how many of Vertices' slots are live.
 	VertexCount int `json:"vertex_count,omitempty"`
 }
 

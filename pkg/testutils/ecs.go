@@ -7,8 +7,8 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-// Test components use gob for their wire codec — real components get generated proto codecs, but test
-// doubles only need something that round-trips. gob (not json) so no struct tags are needed: json tags
+// Test components use gob for their wire codec: test doubles only need something that round-trips.
+// gob (not json) so no struct tags are needed: json tags
 // would rename the fields the search engine resolves by (it keys on the Go field name).
 
 // -------------------------------------------------------------------------------------------------

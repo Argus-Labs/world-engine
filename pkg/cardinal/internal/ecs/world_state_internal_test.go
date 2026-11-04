@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/kelindar/bitmap"
@@ -870,20 +871,20 @@ func TestSnapshotWireCorruptionPanics(t *testing.T) {
 	require.Panics(t, func() { _, _ = ws.toProto() })
 }
 
-func TestWorldState_ToProtoUnsupportedField(t *testing.T) {
+func TestWorldState_ToProtoEncodeFailure(t *testing.T) {
 	t.Parallel()
 	ws, _, _ := newWireTestWorld(t)
-	_, err := ws.components.register[unsupportedPayload]("unsupported_payload")
+	_, err := ws.components.register[unencodablePayload]("unencodable_payload")
 	require.NoError(t, err)
 	good := ws.newEntity()
 	require.NoError(t, ws.setComponent(good, wirePos{X: 7}))
 	bad := ws.newEntity()
-	value := unsupportedPayload{Value: make(chan int)}
+	value := unencodablePayload{Value: 1}
 	require.NoError(t, ws.setComponent(bad, value))
 	pb, err := ws.toProto()
 	require.Error(t, err)
 	assert.Nil(t, pb, "failed encoding must not expose a partial graph")
-	got, err := ws.getComponent[unsupportedPayload](bad)
+	got, err := ws.getComponent[unencodablePayload](bad)
 	require.NoError(t, err)
 	assert.Equal(t, value, got)
 	pos, err := ws.getComponent[wirePos](good)
@@ -893,8 +894,8 @@ func TestWorldState_ToProtoUnsupportedField(t *testing.T) {
 }
 
 type nestedPayload struct {
-	Slices [][]int
-	Maps   map[string][]int
+	Items  immutable.Slice[int]
+	Groups immutable.Slice[immutable.Slice[int]]
 }
 
 func (nestedPayload) Name() string { return "nested_payload" }
@@ -905,14 +906,24 @@ func TestWorldState_ToProtoOwnsPayloads(t *testing.T) {
 	_, err := ws.components.register[nestedPayload]("nested_payload")
 	require.NoError(t, err)
 	e := ws.newEntity()
-	value := nestedPayload{Slices: [][]int{{1, 2}}, Maps: map[string][]int{"a": {3, 4}}}
+	value := nestedPayload{
+		Items:  immutable.SliceOf(1, 2),
+		Groups: immutable.SliceOf(immutable.SliceOf(3, 4)),
+	}
 	require.NoError(t, ws.setComponent(e, value))
 	pb, err := ws.toProto()
 	require.NoError(t, err)
 	frozen := proto.Clone(pb)
-	value.Slices[0][0] = 99
-	value.Maps["a"][0] = 88
-	value.Maps["b"] = []int{77}
+
+	// With edits the backing array in place, so these writes reach the stored component too.
+	_ = value.Items.With(0, 99)
+	_ = value.Groups.At(0).With(0, 88)
+	live, err := ws.getComponent[nestedPayload](e)
+	require.NoError(t, err)
+	const reached = "the write must reach the stored component for this test to mean anything"
+	require.Equal(t, 99, live.Items.At(0), reached)
+	require.Equal(t, 88, live.Groups.At(0).At(0), reached)
+
 	_, err = ws.toProto() // subsequent encoding must not reuse earlier payload storage
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(frozen, pb))
@@ -922,5 +933,7 @@ func TestWorldState_ToProtoOwnsPayloads(t *testing.T) {
 	require.NoError(t, restored.fromProto(pb))
 	got, err := restored.getComponent[nestedPayload](e)
 	require.NoError(t, err)
-	assert.Equal(t, nestedPayload{Slices: [][]int{{1, 2}}, Maps: map[string][]int{"a": {3, 4}}}, got)
+	assert.Equal(t, []int{1, 2}, slices.Collect(got.Items.Values()))
+	require.Equal(t, 1, got.Groups.Len())
+	assert.Equal(t, []int{3, 4}, slices.Collect(got.Groups.At(0).Values()))
 }

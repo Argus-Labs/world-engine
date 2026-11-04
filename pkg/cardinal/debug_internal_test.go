@@ -14,6 +14,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 )
@@ -76,7 +77,7 @@ func seedSnapshotWorld(t *testing.T, w *World) {
 		e := w.Create[snapshotArchetype]()
 		e.Set(Position3D{X: float64(i), Y: float64(i) * 2, Z: -1})
 		e.Set(Health2{Current: 100 - i, Max: 100})
-		e.Set(Inventory{Items: []string{"sword", "potion"}, Capacity: 10 + i})
+		e.Set(Inventory{Items: immutable.SliceOf("sword", "potion"), Capacity: 10 + i})
 	}
 	e := w.Create[snapshotArchetype]()
 	e.Set(Position3D{X: 42})

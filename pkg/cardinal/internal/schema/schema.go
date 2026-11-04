@@ -150,14 +150,14 @@ func registerTypes(t reflect.Type, seen map[reflect.Type]bool) {
 	seen[t] = true
 	switch t.Kind() { //nolint:exhaustive // Other kinds hold no float32 or map.
 	case reflect.Float32:
-		if !decodesItself(t) {
+		if !DecodesItself(t) {
 			msgpack.Register(reflect.Zero(t).Interface(), nil, decodeFloat32)
 		}
 	case reflect.Pointer, reflect.Slice, reflect.Array:
 		registerTypes(t.Elem(), seen)
 	case reflect.Map:
 		// A map type with its own encoder keeps it, even one with a pointer receiver.
-		if !encodesItself(t) && !encodesItself(reflect.PointerTo(t)) {
+		if !EncodesItself(t) && !EncodesItself(reflect.PointerTo(t)) {
 			msgpack.Register(reflect.Zero(t).Interface(), encodeSortedMap, nil)
 		}
 		registerTypes(t.Key(), seen)
@@ -167,14 +167,6 @@ func registerTypes(t reflect.Type, seen map[reflect.Type]bool) {
 			registerTypes(f.Type, seen)
 		}
 	}
-}
-
-// encodesItself reports whether msgpack would encode a t value through one of its own methods.
-func encodesItself(t reflect.Type) bool {
-	return t.Implements(reflect.TypeFor[msgpack.CustomEncoder]()) ||
-		t.Implements(reflect.TypeFor[msgpack.Marshaler]()) ||
-		t.Implements(reflect.TypeFor[encoding.BinaryMarshaler]()) ||
-		t.Implements(reflect.TypeFor[encoding.TextMarshaler]())
 }
 
 // encodeSortedMap encodes a map with its entries ordered by their encoded keys, so equal maps encode
@@ -213,13 +205,56 @@ func encodeSortedMap(e *msgpack.Encoder, v reflect.Value) error {
 	return nil
 }
 
-// decodesItself reports whether msgpack would decode t through one of its own methods.
-func decodesItself(t reflect.Type) bool {
-	p := reflect.PointerTo(t)
-	return p.Implements(reflect.TypeFor[msgpack.CustomDecoder]()) ||
-		p.Implements(reflect.TypeFor[msgpack.Unmarshaler]()) ||
-		p.Implements(reflect.TypeFor[encoding.BinaryUnmarshaler]()) ||
-		p.Implements(reflect.TypeFor[encoding.TextUnmarshaler]())
+// DecodesItself reports whether msgpack would decode t through one of its own methods.
+func DecodesItself(t reflect.Type) bool {
+	_, ok := DecoderMethod(t)
+	return ok
+}
+
+// EncodesItself reports whether msgpack would encode a t value through one of t's own methods.
+func EncodesItself(t reflect.Type) bool {
+	_, ok := EncoderMethod(t)
+	return ok
+}
+
+// EncoderMethod returns the name of the method msgpack calls to encode a t value. msgpack takes the
+// first interface t implements, in this order.
+func EncoderMethod(t reflect.Type) (string, bool) {
+	switch {
+	case t.Implements(reflect.TypeFor[msgpack.CustomEncoder]()):
+		return "EncodeMsgpack", true
+	case t.Implements(reflect.TypeFor[msgpack.Marshaler]()):
+		return "MarshalMsgpack", true
+	case t.Implements(reflect.TypeFor[encoding.BinaryMarshaler]()):
+		return "MarshalBinary", true
+	case t.Implements(reflect.TypeFor[encoding.TextMarshaler]()):
+		return "MarshalText", true
+	}
+	return "", false
+}
+
+// DecoderMethod returns the name of the method msgpack calls to decode into a t. msgpack looks on t
+// first and then on *t, taking the first interface each implements, in this order.
+func DecoderMethod(t reflect.Type) (string, bool) {
+	for _, r := range []reflect.Type{t, reflect.PointerTo(t)} {
+		switch {
+		case r.Implements(reflect.TypeFor[msgpack.CustomDecoder]()):
+			return "DecodeMsgpack", true
+		case r.Implements(reflect.TypeFor[msgpack.Unmarshaler]()):
+			return "UnmarshalMsgpack", true
+		case r.Implements(reflect.TypeFor[encoding.BinaryUnmarshaler]()):
+			return "UnmarshalBinary", true
+		case r.Implements(reflect.TypeFor[encoding.TextUnmarshaler]()):
+			return "UnmarshalText", true
+		}
+	}
+	return "", false
+}
+
+// EncodesOnlyByPointer reports whether t's encoding method has a pointer receiver. msgpack can call
+// it only on an addressable value, so encoding a copy of t fails.
+func EncodesOnlyByPointer(t reflect.Type) bool {
+	return t.Kind() != reflect.Pointer && !EncodesItself(t) && EncodesItself(reflect.PointerTo(t))
 }
 
 // decodeFloat32 accepts any MessagePack number into a float32. Clients without a 32-bit float, such
