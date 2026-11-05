@@ -65,7 +65,7 @@ require (
 	github.com/posthog/posthog-go v1.5.14 // indirect
 	github.com/rotisserie/eris v0.5.4 // indirect
 	github.com/rs/zerolog v1.34.0 // indirect
-	github.com/shamaton/msgpack/v3 v3.0.0 // indirect
+	github.com/shamaton/msgpack/v3 v3.1.1 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
