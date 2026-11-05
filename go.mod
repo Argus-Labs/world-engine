@@ -36,7 +36,7 @@ require (
 	github.com/invopop/jsonschema v0.13.0
 	github.com/kelindar/bitmap v1.5.7
 	github.com/mark3labs/mcp-go v1.1.1
-	github.com/moby/go-archive v0.1.0
+	github.com/moby/go-archive v0.3.0
 	github.com/moby/moby/api v1.56.0
 	github.com/moby/moby/client v0.6.0
 	github.com/moby/patternmatcher v0.6.1
@@ -97,7 +97,7 @@ require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/bitfield/gotestdox v0.2.2 // indirect
-	github.com/buger/jsonparser v1.1.1 // indirect
+	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
