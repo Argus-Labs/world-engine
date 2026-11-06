@@ -245,10 +245,8 @@ func TestCorruptedBodyRotationPanics(t *testing.T) {
 		func() { w.CreateBody(&bd) })
 }
 
-// TestNegativeOrNonFiniteDampingPanics verifies that the always-on precondition on
-// BodyDef damping fields catches both negative values (which amplify velocity and
-// corrupt the simulation) and non-finite values, regardless of the box2d_asserts
-// build tag. A negative damping is a caller error, not a port invariant.
+// TestNegativeOrNonFiniteDampingPanics verifies that these public API preconditions must
+// hold with and without box2d_asserts.
 func TestNegativeOrNonFiniteDampingPanics(t *testing.T) {
 	t.Parallel()
 

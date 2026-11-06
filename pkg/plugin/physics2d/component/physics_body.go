@@ -11,10 +11,9 @@ import (
 // PhysicsBody2D holds simulation parameters for a rigid body and its collider shapes.
 //
 // BodyType selects static vs dynamic vs kinematic behavior. LinearDamping and AngularDamping
-// are simulation damping coefficients and must be non-negative; a negative value amplifies
-// velocity each sub-step and corrupts the simulation. GravityScale multiplies the world's
-// gravity vector
-// for this body; world gravity itself is runtime configuration, not a component field.
+// are finite, non-negative simulation damping coefficients. GravityScale multiplies the
+// world's gravity vector for this body; world gravity itself is runtime configuration,
+// not a component field.
 //
 // # Body flags
 //
@@ -145,8 +144,7 @@ func (p *PhysicsBody2D) UnmarshalJSON(data []byte) error {
 // Name returns the ECS component name.
 func (PhysicsBody2D) Name() string { return "physics_body_2d" }
 
-// Validate guards against NaN/Inf in float fields, a negative damping (which would amplify
-// velocity and corrupt the Box2D simulation), an invalid body type tag, and invalid shapes.
+// Validate checks finite float fields, non-negative damping, a valid body type, and valid shapes.
 func (p PhysicsBody2D) Validate() error {
 	switch p.BodyType {
 	case BodyTypeStatic, BodyTypeDynamic, BodyTypeKinematic, BodyTypeManual:

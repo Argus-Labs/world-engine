@@ -218,11 +218,11 @@ func checkValidation(c *harness.Ctx) {
 	infDamping.LinearDamping = math.Inf(1)
 	c.HasError("Validate rejects infinite LinearDamping", infDamping.Validate())
 
-	negDamping := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, circle(1))
+	negDamping := valid
 	negDamping.LinearDamping = -0.1
 	c.HasError("Validate rejects negative LinearDamping", negDamping.Validate())
 
-	negAngDamping := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, circle(1))
+	negAngDamping := valid
 	negAngDamping.AngularDamping = -60.0
 	c.HasError("Validate rejects negative AngularDamping", negAngDamping.Validate())
 
