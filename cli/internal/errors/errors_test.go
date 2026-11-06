@@ -50,7 +50,7 @@ func TestShouldPrint_CancelSuppressed(t *testing.T) {
 	}
 }
 
-// A SilentError inside kong's errors.Join stays non-printable: kong wraps every
+// A SilentError inside kong's [errors.Join] stays non-printable: kong wraps every
 // command error this way, which eris.As can't see into.
 func TestShouldPrint_SilentInsideKongJoin(t *testing.T) {
 	t.Parallel()

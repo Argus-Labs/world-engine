@@ -417,6 +417,12 @@ var twoShardContainers = []docker.ContainerSummary{
 	{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat-0")},
 }
 
+// twoShardConfig is the shared shard config for the CheckLayout tests.
+var twoShardConfig = []worldtoml.Shard{
+	{ID: "game", InstanceID: "game-0"},
+	{ID: "chat", InstanceID: "chat-0"},
+}
+
 func twoShardInspector(secondErr error) fakeInspector {
 	return fakeInspector{
 		ports: map[string]int{"p-game": service.ShardHostPort(0)},
@@ -464,25 +470,18 @@ func TestCollectShardPorts(t *testing.T) {
 func TestCheckLayout_CancelMidInspect(t *testing.T) {
 	t.Parallel()
 
-	shards := []worldtoml.Shard{
-		{ID: "game", InstanceID: "game-0"},
-		{ID: "chat", InstanceID: "chat-0"},
-	}
 	inspector := twoShardInspector(context.Canceled)
-	err := checkLayout(context.Background(), fakeLister{containers: twoShardContainers}, inspector, "p", shards)
+	err := checkLayout(context.Background(), fakeLister{containers: twoShardContainers}, inspector, "p", twoShardConfig)
 	require.ErrorIs(t, err, context.Canceled)
 }
 
-// TestCheckLayout_LayoutComparison drives checkLayout end-to-end so a matching
-// layout returns nil and a real mismatch returns the comparator's error; this
-// verifies checkLayout still calls layoutMismatch after the cancel early return.
+// TestCheckLayout_LayoutComparison drives checkLayout through the fake lister
+// and inspector so a matching layout returns nil and a real mismatch returns
+// the comparator's error; this verifies checkLayout still calls layoutMismatch
+// after the cancel early return.
 func TestCheckLayout_LayoutComparison(t *testing.T) {
 	t.Parallel()
 
-	shards := []worldtoml.Shard{
-		{ID: "game", InstanceID: "game-0"},
-		{ID: "chat", InstanceID: "chat-0"},
-	}
 	cases := []struct {
 		name    string
 		ports   map[string]int
@@ -503,7 +502,13 @@ func TestCheckLayout_LayoutComparison(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			inspector := fakeInspector{ports: tc.ports}
-			err := checkLayout(context.Background(), fakeLister{containers: twoShardContainers}, inspector, "p", shards)
+			err := checkLayout(
+				context.Background(),
+				fakeLister{containers: twoShardContainers},
+				inspector,
+				"p",
+				twoShardConfig,
+			)
 			if tc.wantErr == "" {
 				require.NoError(t, err)
 			} else {

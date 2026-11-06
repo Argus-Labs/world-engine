@@ -71,7 +71,7 @@ const (
 
 ## Notes
 
-- `ShouldPrint(err)` checks the whole chain: if any link is silent, nothing is printed by main. A `context.Canceled` in the chain is also never printed by main — cancellation (Ctrl+C or SIGTERM) is an expected user action, not a failure. `--verbose` still logs the full chain before this gate.
+- `ShouldPrint(err)` checks the whole chain: if any link is silent, nothing is printed by main and Sentry does not capture it. A `context.Canceled` in the chain (including inside an `errors.Join`) is also never printed or captured by main — cancellation (Ctrl+C or SIGTERM) is an expected user action, not a failure. `--verbose` still logs the full chain before this gate.
 - `FormatError(err)` walks the chain, picks the highest priority short message, and appends any must-show short messages in order (no duplicates). If no priority exists, it falls back to `err.Error()` (full chain top-level string).
 
 
