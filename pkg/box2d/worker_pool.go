@@ -119,10 +119,8 @@ func newWorkerPool(workerCount int) *workerPool {
 
 // close terminates the worker goroutines and joins them: when it returns, no
 // worker is running or will run again, so the caller may invalidate anything
-// they could reference. Must be called with no dispatch in flight. World.Destroy
-// rejects callback reentry from inside Step before reaching here (a release
-// no-op, a box2d_asserts panic); the guard does NOT synchronize arbitrary
-// concurrent World access, which is unsupported.
+// they could reference. Must be called with no dispatch in flight; World.Destroy
+// guards callback reentry during Step.
 func (p *workerPool) close() {
 	p.closed.Store(true)
 	close(p.jobs)

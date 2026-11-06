@@ -324,9 +324,9 @@ func TestOracleLockedWorldIgnoresCalls(t *testing.T) {
 			return 0.0
 		})
 
-		// Destroy is ignored while Step is running (same guard shape as the
-		// mutators above): this oracle world is serial and has no worker
-		// pool to self-join.
+		// Destroy is ignored while locked (the guard has the poisoned-world
+		// exception); this oracle world is serial and has no worker pool to
+		// self-join.
 		w.Destroy()
 
 		// Body mutators are ignored while locked (body.c locked guards).
