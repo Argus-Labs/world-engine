@@ -51,7 +51,10 @@ func IsSilent(err error) bool {
 //
 // The cancel check uses [errors.Is], which walks every branch of an [errors.Join],
 // so a join that carries a cancel anywhere is suppressed wholesale — unlike
-// [JoinFailures], which strips cancels and preserves any real failure.
+// [JoinFailures], which filters separately supplied cancellation errors and
+// preserves separately supplied real failures. It classifies whole arguments, so
+// a single [errors.Join] of a real error and a cancel is treated as cancellation
+// there too.
 func ShouldPrint(err error) bool {
 	return !isSilentOrCancel(err)
 }

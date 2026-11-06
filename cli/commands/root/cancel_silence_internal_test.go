@@ -78,5 +78,5 @@ func TestIsRunning_CancelSilencedByGate(t *testing.T) {
 	require.True(t, errors.Is(err, context.Canceled),
 		"IsRunning must return a wrapped context.Canceled, got %v", err)
 	assert.False(t, errorspkg.ShouldPrint(err),
-		"a raw cancel from IsRunning must not be printed or Sentry-captured")
+		"a wrapped cancel from IsRunning must not be printed or Sentry-captured")
 }

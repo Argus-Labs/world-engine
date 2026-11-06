@@ -437,7 +437,12 @@ func TestCollectShardPorts(t *testing.T) {
 	}{
 		{"bare cancel", context.Canceled, true, nil},
 		{"eris-wrapped cancel", eris.Wrap(context.Canceled, "inspect p-chat"), true, nil},
-		{"non-cancel inspect error", errors.New("container removed between list and inspect"), false, map[string]int{"game-0": 8081}},
+		{
+			"non-cancel inspect error",
+			errors.New("container removed between list and inspect"),
+			false,
+			map[string]int{"game-0": 8081},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -471,11 +476,15 @@ func TestCheckLayout_CancelMidInspect(t *testing.T) {
 		{Name: "p-game", Labels: service.Labels("p", service.RoleShard, "game", "game-0")},
 		{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat-0")},
 	}
+	shards := []worldtoml.Shard{
+		{ID: "game", InstanceID: "game-0"},
+		{ID: "chat", InstanceID: "chat-0"},
+	}
 	inspector := fakeInspector{
-		ports: map[string]int{"p-game": 8081},
+		ports: map[string]int{"p-game": service.ShardHostPort(0)},
 		errs:  map[string]error{"p-chat": context.Canceled},
 	}
-	err := checkLayout(context.Background(), fakeLister{containers: cs}, inspector, "p", nil)
+	err := checkLayout(context.Background(), fakeLister{containers: cs}, inspector, "p", shards)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want the canceled inspect surfaced, not a layout mismatch", err)
 	}

@@ -66,8 +66,10 @@ func TestShouldPrint_SilentInsideKongJoin(t *testing.T) {
 
 // ShouldPrint uses [errors.Is], which walks every branch of an [errors.Join], so a
 // join carrying both a real failure and a cancel is suppressed wholesale. This
-// differs from JoinFailures, which strips cancels and preserves the real failure;
-// no production route produces such a raw mixed join at this gate, so this pins
+// differs from JoinFailures, which classifies whole arguments: a cancel passed as
+// its own argument is dropped while a real failure passed separately is kept, but
+// a single [errors.Join] of the two is treated as cancellation there too. No
+// production route produces such a raw mixed join at this gate, so this pins
 // the gate's contract rather than a verified runtime path.
 func TestShouldPrint_MixedJoinSuppressesWholeJoin(t *testing.T) {
 	t.Parallel()

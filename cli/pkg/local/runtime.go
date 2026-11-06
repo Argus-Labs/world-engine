@@ -564,7 +564,13 @@ func (r *Runtime) CheckLayout(ctx context.Context) error {
 
 // checkLayout lists the project's containers and maps each shard to its host port,
 // surfacing a canceled inspect before layoutMismatch compares a partial ports map.
-func checkLayout(ctx context.Context, lister containerLister, inspector shardPortInspector, project string, shards []worldtoml.Shard) error {
+func checkLayout(
+	ctx context.Context,
+	lister containerLister,
+	inspector shardPortInspector,
+	project string,
+	shards []worldtoml.Shard,
+) error {
 	cs, err := lister.ListProjectContainers(ctx, project)
 	if err != nil {
 		return err
@@ -586,8 +592,7 @@ func collectShardPorts(
 	inspector shardPortInspector,
 ) (map[string]int, error) {
 	ports := make(map[string]int, len(cs))
-	for i := range cs {
-		c := cs[i]
+	for _, c := range cs {
 		if c.Labels[service.RoleLabel] != service.RoleShard {
 			continue
 		}
