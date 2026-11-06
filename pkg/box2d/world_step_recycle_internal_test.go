@@ -40,9 +40,10 @@ func dynamicCachedRotation(sim *contactSim, w *World, dynamicBodyID BodyID) Rot 
 
 // recycleTestWorld builds a world with a static ground (top surface at y=0,
 // centered at y=-0.5) and a single dynamic box of the given half-extents placed
-// at pos. Gravity is disabled and sleep is off, so the body only moves where
-// the test drives it. Contact events are enabled on both shapes when
-// enableEvents is true. The recycle distance is left at the default
+// at pos. Gravity is disabled and sleep is off; the tests reset the body
+// transform before each collision step, so any solver movement during a step is
+// discarded before the next collision. Contact events are enabled on both
+// shapes when enableEvents is true. The recycle distance is left at the default
 // (ContactRecycleDistance) so callers can override it for an isolated cosine
 // gate (SetContactRecycleDistance) or keep the default to exercise the
 // distance/sine gate. Density is left at the ShapeDef default (1.0).
@@ -94,13 +95,13 @@ func recycleGuardTestWorld(t *testing.T) (*World, BodyID) {
 // overlaps the ground by 0.01 — the contact starts touching. Contact events are
 // enabled on both shapes. The recycle distance is set very large (200× the
 // default) so the sin metric alone never blocks recycling — the cos guard is
-// the only gate that can force a full update. Gravity is disabled and the test
-// resets the plank transform before each collision step, so the body only
-// moves where the test drives it via SetBodyTransform. Rotating the plank about
-// its center swings its base corner up off the ground: at 30° the lowest corner
-// rises to about 0.032, beyond SpeculativeDistance (0.02), so the manifold loses
-// its contact points and the contact transitions touching -> non-touching,
-// reporting an end event.
+// the only gate that can force a full update. Gravity is disabled; the test
+// resets the plank transform before each collision step, so any solver
+// movement during a step is discarded before the next collision. Rotating the
+// plank about its center swings its base corner up off the ground: at 30° the
+// lowest corner rises to about 0.032, beyond SpeculativeDistance (0.02), so the
+// manifold loses its contact points and the contact transitions touching ->
+// non-touching, reporting an end event.
 func recycleEventTestWorld(t *testing.T) (*World, BodyID, ShapeID, ShapeID) {
 	t.Helper()
 	w, body, groundShape, bodyShape := recycleTestWorld(t, Vec2{X: 0.05, Y: 0.5}, Vec2{X: 0.0, Y: 0.49}, true)
@@ -244,9 +245,10 @@ func TestContactRecycleAccumulatedRotation(t *testing.T) {
 
 // TestContactRecycleCoRotatingDynamicBodies covers the case the old relative
 // metric misses but the per-body guard catches: two dynamic bodies rotated
-// together. Their relative transform is unchanged, so the old recycle metric
-// (distance + maxExtent*|sin(qr)|) is trivially satisfied at the default
-// recycle distance (distance = 0, qr = identity). But each body has rotated
+// together. Only their relative orientation is unchanged (qr = identity);
+// rotating both bodies in place shifts the relative translation by about 0.031,
+// still below the default 0.05 recycle distance, so the old recycle metric
+// (distance + maxExtent*|sin(qr)|) is satisfied. But each body has rotated
 // away from its own cached transform, so minCos drops below the guard and the
 // full update refreshes both caches. All existing rotation fixtures use one
 // dynamic body against static ground; this exercises two dynamic bodies.
@@ -278,10 +280,12 @@ func TestContactRecycleCoRotatingDynamicBodies(t *testing.T) {
 	// Step once to establish the contact and cache both transforms at 0°.
 	stepAndFindContact(t, w, bodyA)
 
-	// Rotate both bodies by 30° together and step. The relative transform is
-	// unchanged (qr = identity, distance = 0), so the old recycle metric would
-	// recycle the stale manifold. The per-body guard sees cos(30°) = 0.866 <
-	// 0.98 for each body and forces a full update that refreshes both caches.
+	// Rotate both bodies by 30° together and step. Only the relative
+	// orientation is unchanged (qr = identity); the relative translation shifts
+	// by about 0.031, still below the default 0.05 recycle distance, so the old
+	// recycle metric would recycle the stale manifold. The per-body guard sees
+	// cos(30°) = 0.866 < 0.98 for each body and forces a full update that
+	// refreshes both caches.
 	rot := MakeRot(30.0 * math.Pi / 180.0)
 	w.SetBodyTransform(bodyA, Vec2{X: -0.03, Y: 0.0}, rot)
 	w.SetBodyTransform(bodyB, Vec2{X: 0.03, Y: 0.0}, rot)
@@ -290,6 +294,7 @@ func TestContactRecycleCoRotatingDynamicBodies(t *testing.T) {
 	sim := findContactSimForBody(w, bodyA)
 	require.NotNil(t, sim, "contact must still exist after co-rotation")
 	requireCachedRot(t, sim, w, bodyA, rot, "body A cache must be refreshed to 30 degrees after full update")
+	requireCachedRot(t, sim, w, bodyB, rot, "body B cache must be refreshed to 30 degrees after full update")
 }
 
 // TestContactRecycleNear180Rotation covers a near-180° flip at the default
@@ -297,9 +302,9 @@ func TestContactRecycleCoRotatingDynamicBodies(t *testing.T) {
 // sin(5°) ≈ 0.087, maxExtent*|sin| ≈ 0.006 < 0.05), so the old distance/sine
 // gate would recycle the stale manifold at the default setting. The per-body
 // guard sees cos(175°) ≈ -0.996 < 0.98 and forces a full update that refreshes
-// the cache. All other large-rotation fixtures use the enlarged recycle
-// distance; this one keeps the default to exercise the default-setting
-// failure mode.
+// the cache. The enlarged-distance fixtures isolate the cosine gate; this one
+// keeps the default to exercise the near-180° failure mode at the default
+// setting.
 func TestContactRecycleNear180Rotation(t *testing.T) {
 	t.Parallel()
 
@@ -311,8 +316,9 @@ func TestContactRecycleNear180Rotation(t *testing.T) {
 
 	// Rotate to 175° and step. The old gate passes (small sine term at default
 	// distance); the guard blocks recycling and refreshes the cache to 175°.
-	rot := MakeRot(175.0 * math.Pi / 180.0)
-	sim := stepAndRotate(t, w, body, 175.0*math.Pi/180.0)
+	angle175 := 175.0 * math.Pi / 180.0
+	rot := MakeRot(angle175)
+	sim := stepAndRotate(t, w, body, angle175)
 	requireCachedRot(t, sim, w, body, rot, "cache must be refreshed to 175 degrees after full update")
 }
 
@@ -373,9 +379,10 @@ func TestContactRecycleRotationGuardEndEvent(t *testing.T) {
 // distance would not let through; near 180° the sine term is small again while
 // cos(175°) ≈ -0.996 still trips the per-body guard. The plank is positioned
 // (center y = 0.519) so it starts touching within SpeculativeDistance (0.02)
-// and the 175° flip lifts its lowest corner to about 0.021, just beyond
-// SpeculativeDistance, so the manifold loses its contact points and the
-// contact transitions touching -> non-touching, reporting an end event.
+// and the 175° flip lifts its lowest corner to about 0.020031
+// (0.519 - 0.5*cos(5°) - 0.01*sin(5°)), just beyond SpeculativeDistance by
+// about 0.000031, so the manifold loses its contact points and the contact
+// transitions touching -> non-touching, reporting an end event.
 func TestContactRecycleRotationGuardEndEventDefaultDistance(t *testing.T) {
 	t.Parallel()
 
