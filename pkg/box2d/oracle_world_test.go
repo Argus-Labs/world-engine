@@ -87,6 +87,14 @@ func wboRestingPreSolveScene(t *testing.T) (*box2d.World, box2d.BodyID) {
 	return w, body
 }
 
+// wboStep runs n steps at the oracle world sample rate (wboDT, wboSubSteps).
+// It is the neutral analogue of oracleJointStep for non-joint oracle tests.
+func wboStep(w *box2d.World, n int) {
+	for range n {
+		w.Step(wboDT, wboSubSteps)
+	}
+}
+
 // TestOracleEmptyWorld ports EmptyWorld (test_world.c:101-121): stepping an
 // empty world 60 times must be a no-op and destroying the world must
 // invalidate its id.
@@ -473,45 +481,14 @@ func TestOraclePreSolveDisablesContact(t *testing.T) {
 		"pre-solve false must disable the contact; the box must fall through")
 }
 
-// TestOraclePreSolveReConsultedEveryStepWhileResting pins the stationary-pair
-// invariant: a pre-solve-disabled contact on a resting pair must be
-// re-consulted every step, not frozen by the recycling fast path
-// (world_step.go collideTask). See the vendored-vs-upstream drift note at the
-// top of this file for the upstream contact.c:621-625 provenance.
-//
-// Scene: zero gravity, sleeping disabled, a static ground box and a dynamic
-// box overlapping it by 0.1 m. pre-solve events enabled on the dynamic shape,
-// callback always returns false. The callback must fire every step, not just
-// the first.
-func TestOraclePreSolveReConsultedEveryStepWhileResting(t *testing.T) {
-	t.Parallel()
-
-	w, body := wboRestingPreSolveScene(t)
-
-	calls := 0
-	w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
-		calls++
-		return false
-	}, nil)
-
-	const steps = 60
-	for range steps {
-		w.Step(wboDT, wboSubSteps)
-	}
-
-	// Stationary pair: the recycling fast path is bypassed, so the
-	// callback fires every step.
-	require.Equal(t, steps, calls,
-		"pre-solve must be re-consulted every step for a resting pair")
-
-	// Zero gravity + disabled contact => no forces; final height stays at 0.4.
-	require.InDelta(t, 0.4, w.BodyPosition(body).Y, box2d.LinearSlop)
-}
-
 // TestOraclePreSolveToggleReEnablesContactWhileResting pins the disabled→enabled
 // direction of conditional collision filtering for resting pairs (e.g. one-way
-// platforms, per-step pre-solve logic). The enabled→disabled resting-platform
-// case is explicitly outside this fix.
+// platforms, per-step pre-solve logic). Its disabled phase also covers the
+// stationary-pair invariant: a pre-solve-disabled contact must be re-consulted
+// every step, not frozen by the recycling fast path (world_step.go collideTask).
+// The enabled→disabled resting-platform case is explicitly outside PreSolveFcn's
+// re-consult guarantee (see its godoc). Provenance: see the vendored-vs-upstream
+// drift note at the top of this file for the upstream contact.c:621-625 source.
 //
 // Scene: shared resting pre-solve scene. The callback switches from false
 // (disabled) to true (enabled) mid-run; the re-enabled contact must push the
@@ -529,25 +506,17 @@ func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
 		return !disable
 	}, nil)
 
-	for range halfSteps {
-		w.Step(wboDT, wboSubSteps)
-	}
-
-	// Disabled phase: callback fired every step, contact stayed disabled,
-	// box did not move.
+	wboStep(w, halfSteps)
 	require.Equal(t, halfSteps, calls,
 		"pre-solve must fire every step during the disabled phase")
-	require.InDelta(t, 0.4, w.BodyPosition(body).Y, box2d.LinearSlop,
+	require.Equal(t, 0.4, w.BodyPosition(body).Y,
 		"box must not move while the contact is disabled")
 
-	// Enable the contact.
 	disable = false
 	w.Step(wboDT, wboSubSteps)
 	require.Equal(t, halfSteps+1, calls,
 		"pre-solve must be re-consulted on the first step after the toggle to re-enable the contact")
-	for range halfSteps - 1 {
-		w.Step(wboDT, wboSubSteps)
-	}
+	wboStep(w, halfSteps-1)
 
 	// With zero gravity there is no force holding the box at the fully
 	// separated center (y=0.5); the solver can push it beyond that. Read
