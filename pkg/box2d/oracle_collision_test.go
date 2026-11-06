@@ -1489,10 +1489,12 @@ func TestOracleHullEdgeCases(t *testing.T) {
 
 	t.Run("welding collapses close points", func(t *testing.T) {
 		t.Parallel()
-		// hull.c:87 welds points within 4*linearSlop = 0.02. Three of the
-		// four points weld into one, leaving fewer than 3.
+		// Box2D v3.2.0 hull.c welds points within 0.5*linearSlop = 0.0025
+		// (tolSqr = 0.25*linearSlop^2, upstream commit ac7c751). Three of
+		// the four points are 0.001 apart and weld into one, leaving fewer
+		// than 3 retained points.
 		h := box2d.ComputeHull([]box2d.Vec2{
-			{X: 0, Y: 0}, {X: 0.01, Y: 0}, {X: 0, Y: 0.01}, {X: 1, Y: 1},
+			{X: 0, Y: 0}, {X: 0.001, Y: 0}, {X: 0, Y: 0.001}, {X: 1, Y: 1},
 		})
 		require.Equal(t, 0, h.Count)
 	})

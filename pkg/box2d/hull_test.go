@@ -65,8 +65,9 @@ func TestHullDropsInteriorPoints(t *testing.T) {
 func TestHullWeldsDuplicatePoints(t *testing.T) {
 	t.Parallel()
 
-	// The weld tolerance is 16 * linearSlop^2 in squared distance, i.e. points
-	// closer than 4 * linearSlop = 0.02 are merged.
+	// The weld tolerance is 0.25 * linearSlop^2 in squared distance, i.e.
+	// points closer than 0.5 * linearSlop = 0.0025 are merged (Box2D v3.2.0
+	// hull.c, upstream commit ac7c751).
 	points := []box2d.Vec2{
 		{X: -1, Y: -1},
 		{X: -1, Y: -1},        // exact duplicate
