@@ -1580,7 +1580,7 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		require.Contains(t, h.Points[:h.Count], box2d.Vec2{X: 0, Y: 1})
 	})
 
-	t.Run("upstream welding can empty a hull that was valid at base", func(t *testing.T) {
+	t.Run("upstream welding can empty a hull accepted under the old weld tolerance", func(t *testing.T) {
 		t.Parallel()
 		// Under the vendored-C tolerance (tolSqr = 16*linearSlop^2) these
 		// four points weld into three retained points and ComputeHull
