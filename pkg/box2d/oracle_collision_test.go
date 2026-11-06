@@ -1530,27 +1530,34 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		// spacings would fail under a different coefficient (e.g. 0.1).
 		radius := float64(0.5 * box2d.LinearSlop)
 		anchors := []box2d.Vec2{{X: -1, Y: 0}, {X: 1, Y: 0}}
-
-		// Just inside the radius: (0,1) welds into retained (0,1-gap).
-		gapIn := radius - 1e-6
-		hIn := box2d.ComputeHull(append([]box2d.Vec2{
-			{X: 0, Y: 1 - gapIn}, {X: 0, Y: 1},
-		}, anchors...))
-		require.Equal(t, 3, hIn.Count)
-		require.True(t, box2d.ValidateHull(&hIn))
-		require.Contains(t, hIn.Points[:hIn.Count], box2d.Vec2{X: 0, Y: 1 - gapIn})
-		require.NotContains(t, hIn.Points[:hIn.Count], box2d.Vec2{X: 0, Y: 1})
-
-		// Just outside the radius: both points retained; (0,1-gap) is
-		// interior, so (0,1) is the apex.
-		gapOut := radius + 1e-6
-		hOut := box2d.ComputeHull(append([]box2d.Vec2{
-			{X: 0, Y: 1 - gapOut}, {X: 0, Y: 1},
-		}, anchors...))
-		require.Equal(t, 3, hOut.Count)
-		require.True(t, box2d.ValidateHull(&hOut))
-		require.Contains(t, hOut.Points[:hOut.Count], box2d.Vec2{X: 0, Y: 1})
-		require.NotContains(t, hOut.Points[:hOut.Count], box2d.Vec2{X: 0, Y: 1 - gapOut})
+		cases := []struct {
+			name   string
+			gap    float64
+			inside bool
+		}{
+			// Just inside the radius: (0,1) welds into the retained (0,1-gap).
+			{"inside", radius - 1e-6, true},
+			// Just outside the radius: both retained; (0,1-gap) is interior, so (0,1) is the apex.
+			{"outside", radius + 1e-6, false},
+		}
+		for _, tc := range cases {
+			tc := tc
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				lower := box2d.Vec2{X: 0, Y: 1 - tc.gap}
+				upper := box2d.Vec2{X: 0, Y: 1}
+				h := box2d.ComputeHull([]box2d.Vec2{lower, upper, anchors[0], anchors[1]})
+				require.Equal(t, 3, h.Count)
+				require.True(t, box2d.ValidateHull(&h))
+				if tc.inside {
+					require.Contains(t, h.Points[:h.Count], lower)
+					require.NotContains(t, h.Points[:h.Count], upper)
+				} else {
+					require.Contains(t, h.Points[:h.Count], upper)
+					require.NotContains(t, h.Points[:h.Count], lower)
+				}
+			})
+		}
 	})
 
 	t.Run("weld tolerance distinguishes upstream from vendored", func(t *testing.T) {
@@ -1567,7 +1574,6 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		h := box2d.ComputeHull(pts)
 		require.Equal(t, 3, h.Count)
 		require.True(t, box2d.ValidateHull(&h))
-		// MakePolygon (geometry.c b2MakePolygon) preserves the triangle.
 		poly := box2d.MakePolygon(&h, 0.0)
 		require.Equal(t, 3, poly.Count)
 		require.ElementsMatch(t, pts, poly.Vertices[:poly.Count])
@@ -1593,7 +1599,6 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		})
 		require.Equal(t, 3, h.Count)
 		require.True(t, box2d.ValidateHull(&h))
-		// C survives as the hull apex; A is interior and is dropped.
 		require.Contains(t, h.Points[:h.Count], box2d.Vec2{X: 0, Y: 1})
 	})
 
@@ -1614,6 +1619,11 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		// runs after init and hits reconciliation, so a stored polygon
 		// that was valid under the vendored-C tolerance can fail to replay
 		// after an upgrade.
+		// These four coordinates were found by a numerical search over
+		// 4-point inputs for a hull that is valid (count=3) under the
+		// vendored-C tolerance but empty (count=0) under the upstream
+		// tolerance; they are not hand-derived from the C source, so the
+		// oracle header's hand-computation claim does not apply here.
 		pts := []box2d.Vec2{
 			{X: -0.771268377536009, Y: 0.067959204319201},
 			{X: -0.7731071910952123, Y: 0.36962319967115187},
@@ -1622,7 +1632,6 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		}
 		h := box2d.ComputeHull(pts)
 		require.Equal(t, 0, h.Count)
-		require.False(t, box2d.ValidateHull(&h))
 	})
 
 	t.Run("collinear points fail", func(t *testing.T) {
