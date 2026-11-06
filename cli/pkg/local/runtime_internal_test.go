@@ -445,14 +445,14 @@ func TestCollectShardPorts(t *testing.T) {
 			"non-cancel inspect error",
 			errors.New("container removed between list and inspect"),
 			false,
-			map[string]int{"game-0": 8081},
+			map[string]int{"game-0": service.ShardHostPort(0)},
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			inspector := fakeInspector{
-				ports: map[string]int{"p-game": 8081},
+				ports: map[string]int{"p-game": service.ShardHostPort(0)},
 				errs:  map[string]error{"p-chat": tc.secondErr},
 			}
 			ports, err := collectShardPorts(context.Background(), cs, inspector)
@@ -469,7 +469,7 @@ func TestCollectShardPorts(t *testing.T) {
 
 // TestCheckLayout_CancelMidInspect drives checkLayout with a fake lister that
 // returns two shards, then a fake inspector whose first inspect returns a port
-// and whose second returns context.Canceled. The cancel must escape before
+// and whose second returns [context.Canceled]. The cancel must escape before
 // layoutMismatch compares a partial ports map and reports a fake "instance was
 // added" mismatch; this covers the CheckLayout wiring the collectShardPorts
 // helper tests do not.

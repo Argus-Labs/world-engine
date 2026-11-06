@@ -2,7 +2,6 @@ package root
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,8 +39,8 @@ func TestReloadShards_CancelSilencedByGate(t *testing.T) {
 
 	err := reloadShards(ctx, rt, dc, cfg, nil, false)
 	require.Error(t, err)
-	require.True(t, errors.Is(err, context.Canceled),
-		"reloadShards must surface the wrapped context.Canceled from CheckLayout, got %v", err)
+	require.ErrorIs(t, err, context.Canceled,
+		"reloadShards must surface the wrapped context.Canceled from CheckLayout")
 	assert.False(t, errorspkg.ShouldPrint(err), "a canceled reload must not be printed or Sentry-captured")
 }
 
@@ -53,7 +52,7 @@ func TestReloadShards_NonCancelErrorPrinted(t *testing.T) {
 
 	err := reloadShards(context.Background(), rt, dc, cfg, nil, false)
 	require.Error(t, err)
-	assert.False(t, errors.Is(err, context.Canceled), "dead socket must not produce context.Canceled")
+	assert.NotErrorIs(t, err, context.Canceled, "dead socket must not produce context.Canceled")
 	assert.True(t, errorspkg.ShouldPrint(err), "a real Docker error must still be printed and Sentry-captured")
 }
 
@@ -69,8 +68,8 @@ func TestIsRunning_CancelSilencedByGate(t *testing.T) {
 
 	_, err := rt.IsRunning(ctx)
 	require.Error(t, err)
-	require.True(t, errors.Is(err, context.Canceled),
-		"IsRunning must return a wrapped context.Canceled, got %v", err)
+	require.ErrorIs(t, err, context.Canceled,
+		"IsRunning must return a wrapped context.Canceled")
 	assert.False(t, errorspkg.ShouldPrint(err),
 		"a wrapped cancel from IsRunning must not be printed or Sentry-captured")
 }
