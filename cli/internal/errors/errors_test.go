@@ -69,20 +69,6 @@ func TestShouldPrint_SilentWrappingCancel(t *testing.T) {
 	assert.False(t, pkgerrors.ShouldPrint(s))
 }
 
-// JoinFailures drops a cancel when there are real failures, so its result
-// contains only the real failures and ShouldPrint must return true — a cancel
-// must never hide a real failure.
-func TestShouldPrint_RealFailureJoinedWithCancelViaJoinFailures(t *testing.T) {
-	t.Parallel()
-
-	realErr := eris.New("cluster failed")
-	canceled := fmt.Errorf("redeploy shard b: %w", context.Canceled)
-	got := pkgerrors.JoinFailures(realErr, canceled)
-	require.ErrorIs(t, got, realErr)
-	assert.NotErrorIs(t, got, context.Canceled, "JoinFailures must drop the cancel")
-	assert.True(t, pkgerrors.ShouldPrint(got), "a real failure must still print")
-}
-
 // Regression: kong returns errors.Join(runErr, hookErr), which eris.As can't
 // see into, so every Ctrl+C was printed and sent to Sentry.
 func TestShouldPrint_SilentInsideKongJoin(t *testing.T) {
@@ -116,5 +102,6 @@ func TestJoinFailures(t *testing.T) {
 	got = pkgerrors.JoinFailures(real1, canceled)
 	require.ErrorIs(t, got, real1)
 	require.NotErrorIs(t, got, context.Canceled)
+	assert.True(t, pkgerrors.ShouldPrint(got), "a real failure must still print")
 	assert.Same(t, canceled, pkgerrors.JoinFailures(nil, canceled), "only a cancel: stay a cancel")
 }

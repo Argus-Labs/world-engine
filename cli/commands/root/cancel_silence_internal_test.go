@@ -15,74 +15,71 @@ import (
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
-// TestReloadCmdCancel_IsRunning_Silenced verifies that a Ctrl+C during the
-// pre-dashboard rt.IsRunning call in world reload is silenced: the cancel
-// is converted to a SilentError so ShouldPrint returns false and main.go
-// neither prints it nor captures it to Sentry.
-func TestReloadCmdCancel_IsRunning_Silenced(t *testing.T) {
+// deadSocketSetup builds a Runtime aimed at a nonexistent Docker socket, so any
+// daemon call fails with an error instead of needing a running Docker. It returns
+// the runtime and the docker client that reloadShards drives.
+func deadSocketSetup(t *testing.T) (*local.Runtime, *docker.Client, *service.Config) {
+	t.Helper()
 	t.Setenv("DOCKER_HOST", "unix:///nonexistent/docker.sock")
 	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{Project: "demo"}}
 	dc, err := docker.NewClient(cfg, nil)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = dc.Close() })
+	return local.New(dc, cfg), dc, cfg
+}
 
-	rt := local.New(dc, cfg)
+// TestReloadCmdCancel_ReloadShardsSilenced drives the reload command's actual
+// guard-bearing function (reloadShards, shared by `world reload` and the log
+// picker's reload hotkey) instead of replicating its logic. A Ctrl+C during the
+// pre-dashboard rt.CheckLayout call is surfaced as a wrapped context.Canceled
+// (ListProjectContainers eris-wraps the returned error), and reload.go's guard
+// wraps it in NewSilent so ShouldPrint returns false and main.go neither prints
+// it nor captures it to Sentry.
+func TestReloadCmdCancel_ReloadShardsSilenced(t *testing.T) {
+	rt, dc, cfg := deadSocketSetup(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err = rt.IsRunning(ctx)
+	err := reloadShards(ctx, rt, dc, cfg, nil, false)
 	require.Error(t, err)
-	require.True(t, errors.Is(err, context.Canceled), "IsRunning must return context.Canceled, got %v", err)
-
-	// This is the silencing the fix in reload.go applies:
-	silenced := errorspkg.NewSilent(err)
-	assert.True(t, errorspkg.IsSilent(silenced), "NewSilent must mark the cancel as silent")
-	assert.False(t, errorspkg.ShouldPrint(silenced), "silenced cancel must not be printed or Sentry-captured")
-	// And the central gate catches it even without NewSilent:
-	assert.False(t, errorspkg.ShouldPrint(err), "ShouldPrint must return false for a raw context.Canceled")
+	require.True(t, errors.Is(err, context.Canceled),
+		"reloadShards must surface the wrapped context.Canceled from CheckLayout, got %v", err)
+	assert.True(t, errorspkg.IsSilent(err), "the reload.go CheckLayout guard must wrap the cancel in NewSilent")
+	assert.False(t, errorspkg.ShouldPrint(err), "a canceled reload must not be printed or Sentry-captured")
 }
 
-// TestReloadCmdCancel_CheckLayout_Silenced verifies the same for the
-// pre-dashboard rt.CheckLayout call in reloadShards.
-func TestReloadCmdCancel_CheckLayout_Silenced(t *testing.T) {
-	t.Setenv("DOCKER_HOST", "unix:///nonexistent/docker.sock")
-	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{Project: "demo"}}
-	dc, err := docker.NewClient(cfg, nil)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = dc.Close() })
-
-	rt := local.New(dc, cfg)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	err = rt.CheckLayout(ctx)
-	require.Error(t, err)
-	require.True(t, errors.Is(err, context.Canceled), "CheckLayout must return context.Canceled, got %v", err)
-
-	silenced := errorspkg.NewSilent(err)
-	assert.True(t, errorspkg.IsSilent(silenced), "NewSilent must mark the cancel as silent")
-	assert.False(t, errorspkg.ShouldPrint(silenced), "silenced cancel must not be printed or Sentry-captured")
-	assert.False(t, errorspkg.ShouldPrint(err), "ShouldPrint must return false for a raw context.Canceled")
-}
-
-// TestReloadCmd_NonCancelError_StillPrinted verifies that a real (non-cancel)
-// Docker error from the pre-dashboard calls is still surfaced — the cancel
-// check only catches [context.Canceled], not real failures.
+// TestReloadCmd_NonCancelError_StillPrinted verifies the guard only catches
+// context.Canceled: a real (non-cancel) Docker error from CheckLayout against a
+// dead socket passes through reloadShards unchanged, so ShouldPrint returns true
+// and it is still printed and Sentry-captured.
 func TestReloadCmd_NonCancelError_StillPrinted(t *testing.T) {
-	t.Setenv("DOCKER_HOST", "unix:///nonexistent/docker.sock")
-	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{Project: "demo"}}
-	dc, err := docker.NewClient(cfg, nil)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = dc.Close() })
+	rt, dc, cfg := deadSocketSetup(t)
 
-	rt := local.New(dc, cfg)
-
-	// A non-canceled context against a dead socket yields a real Docker error,
-	// not a context.Canceled. ShouldPrint must return true so it's printed.
-	_, err = rt.IsRunning(context.Background())
+	err := reloadShards(context.Background(), rt, dc, cfg, nil, false)
 	require.Error(t, err)
 	assert.False(t, errors.Is(err, context.Canceled), "dead socket must not produce context.Canceled")
+	assert.False(t, errorspkg.IsSilent(err), "a real Docker error must not be marked silent")
 	assert.True(t, errorspkg.ShouldPrint(err), "a real Docker error must still be printed and Sentry-captured")
+}
+
+// TestReloadCmdCancel_IsRunningSilencedByGate verifies the silencing of a Ctrl+C
+// during the pre-dashboard rt.IsRunning call in `world reload` and `world logs`.
+// IsRunning returns a wrapped context.Canceled (ListProjectContainers wraps the
+// returned error); the command-level guards wrap it in NewSilent, and the
+// central ShouldPrint gate silences it even without that wrap — this is the
+// actual main.go path. Asserted against IsRunning directly so the test reports
+// the runtime's real cancel form rather than reconstructing NewSilent itself.
+func TestReloadCmdCancel_IsRunningSilencedByGate(t *testing.T) {
+	rt, _, _ := deadSocketSetup(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := rt.IsRunning(ctx)
+	require.Error(t, err)
+	require.True(t, errors.Is(err, context.Canceled),
+		"IsRunning must return a wrapped context.Canceled, got %v", err)
+	assert.False(t, errorspkg.ShouldPrint(err),
+		"a raw cancel from IsRunning must not be printed or Sentry-captured")
 }

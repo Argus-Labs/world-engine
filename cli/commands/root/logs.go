@@ -51,7 +51,7 @@ func (c *LogsCmd) Run(ctx context.Context) error {
 			running, err := rt.IsRunning(ctx)
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
-					return errorspkg.NewSilent(err)
+					return errorspkg.NewSilent(eris.Wrap(err, "check world status"))
 				}
 				return eris.Wrap(err, "check world status")
 			}

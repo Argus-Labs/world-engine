@@ -5,6 +5,7 @@ package local
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -560,9 +561,18 @@ func (r *Runtime) CheckLayout(ctx context.Context) error {
 		if c.Labels[service.RoleLabel] != service.RoleShard {
 			continue
 		}
-		if port, err := r.docker.CardinalHostPort(ctx, c.Name); err == nil {
-			ports[c.Labels[service.InstanceLabel]] = port
+		port, err := r.docker.CardinalHostPort(ctx, c.Name)
+		if err != nil {
+			// A canceled inspect must surface before layoutMismatch compares a
+			// partial ports map and reports a fake "instance was added" mismatch
+			// that still prints and reaches Sentry. Other inspect errors (e.g. a
+			// stopped container with no live binding) keep the prior skip behavior.
+			if errors.Is(err, context.Canceled) {
+				return err
+			}
+			continue
 		}
+		ports[c.Labels[service.InstanceLabel]] = port
 	}
 	return layoutMismatch(r.cfg.WorldToml.Shards, ports)
 }

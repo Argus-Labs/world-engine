@@ -42,11 +42,13 @@ func IsSilent(err error) bool {
 	return errors.As(err, &silentErr)
 }
 
-// ShouldPrint returns true if the error should be printed to the user.
-// A cancel (Ctrl+C) is an expected user action, not a failure — JoinFailures
-// treats it the same way — so it is never printed or captured by Sentry,
-// regardless of where it originated. This is the safety net for call sites
-// that return a cancel without first wrapping it in NewSilent.
+// ShouldPrint returns true if the error should be printed to the user as normal
+// error output (and captured by Sentry). A cancel (Ctrl+C) is an expected user
+// action, not a failure — JoinFailures treats it the same way — so it is never
+// printed or captured by Sentry, regardless of where it originated. This is the
+// safety net for call sites that return a cancel without first wrapping it in
+// NewSilent. --verbose still logs the full chain via logger.Errors before this
+// gate is reached, so a silenced cancel is only hidden from the normal output.
 func ShouldPrint(err error) bool {
 	return !IsSilent(err) && !errors.Is(err, context.Canceled)
 }
