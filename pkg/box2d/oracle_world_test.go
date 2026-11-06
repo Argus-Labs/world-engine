@@ -5,16 +5,10 @@
 // docs/simulation.md — never from running the Go port. C citations are given
 // as file:line next to each nontrivial assertion.
 //
-// Vendored-vs-upstream drift observed while porting (upstream restored):
-//   - The vendored v3.2.0-era contact.c omitted upstream Box2D v3.2.0's
-//     "Mark recycling dirty" line in b2UpdateContact (upstream Box2D v3.2.0
-//     src/contact.c:621-625: `contactSim->simFlags &=
-//     ~b2_simRelativeTransformValid;`), which forces updateContact (and the
-//     pre-solve callback) to re-run every step when a pre-solve callback
-//     disables a contact. The Go port inherited the omission; this fix
-//     restores the upstream line. TestOraclePreSolveReConsultedEveryStepWhileResting
-//     and TestOraclePreSolveToggleReEnablesContactWhileResting pin the restored
-//     behavior.
+// Vendored-vs-upstream drift (upstream restored): upstream Box2D v3.2.0
+// src/contact.c:621-625 clears simRelativeTransformValid when a pre-solve
+// callback disables a contact, forcing updateContact (and the pre-solve
+// callback) to re-run the next step. The vendored copy omitted that line.
 
 package box2d_test
 
@@ -75,11 +69,12 @@ func wboDynamicBox(t *testing.T, w *box2d.World, pos box2d.Vec2) (box2d.BodyID, 
 }
 
 // wboRestingPreSolveScene builds the shared resting-pair pre-solve scene:
-// zero gravity, sleeping disabled (so a resting body keeps receiving
-// pre-solve callbacks every step instead of sleeping and skipping them),
-// the standard static ground, and a dynamic unit box centered at y=0.4
-// (overlapping the ground by 0.1 m) with pre-solve events enabled on the
-// dynamic shape. Returns the world and the dynamic body.
+// zero gravity, sleeping disabled to keep the dynamic body awake (a sleeping
+// body would skip pre-solve callbacks; this does not by itself guarantee a
+// callback every step, since an enabled stationary contact can still be
+// recycled), the standard static ground, and a dynamic unit box centered at
+// y=0.4 (overlapping the ground by 0.1 m) with pre-solve events enabled on
+// the dynamic shape. Returns the world and the dynamic body.
 func wboRestingPreSolveScene(t *testing.T) (*box2d.World, box2d.BodyID) {
 	t.Helper()
 
@@ -504,14 +499,12 @@ func TestOraclePreSolveReConsultedEveryStepWhileResting(t *testing.T) {
 		w.Step(wboDT, wboSubSteps)
 	}
 
-	// Stationary pair: clearing simRelativeTransformValid forces the
-	// narrow phase to re-run the callback every step.
+	// Stationary pair: the recycling fast path is bypassed, so the
+	// callback fires every step.
 	require.Equal(t, steps, calls,
 		"pre-solve must be re-consulted every step for a resting pair")
 
-	// The box's final height remains within LinearSlop of its initial height
-	// (0.4): zero gravity + disabled contact => no forces. (The assertion
-	// samples final Y only, not the whole trajectory.)
+	// Zero gravity + disabled contact => no forces; final height stays at 0.4.
 	require.InDelta(t, 0.4, w.BodyPosition(body).Y, box2d.LinearSlop)
 }
 
@@ -547,12 +540,9 @@ func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
 	require.InDelta(t, 0.4, w.BodyPosition(body).Y, box2d.LinearSlop,
 		"box must not move while the contact is disabled")
 
-	// Enable the contact. The callback must be re-consulted so it can
-	// return true and the contact can generate constraints.
+	// Enable the contact.
 	disable = false
 	w.Step(wboDT, wboSubSteps)
-	// The toggle took effect on the very next step: the callback was
-	// re-consulted (calls == halfSteps+1) before any further stepping.
 	require.Equal(t, halfSteps+1, calls,
 		"pre-solve must be re-consulted on the first step after the toggle to re-enable the contact")
 	for range halfSteps - 1 {

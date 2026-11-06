@@ -1071,13 +1071,16 @@ type CustomFilterFcn func(shapeIDA, shapeIDB ShapeID, ctx any) bool
 // When a pre-solve callback disables a contact (returns false), the narrow
 // phase re-checks it every step the bodies are awake, so the callback is
 // consulted again even while the bodies stay stationary. An already-enabled
-// resting contact may instead be recycled by the narrow-phase fast path and
-// skip later pre-solve calls, so the enabled→disabled direction (e.g. a
-// resting-platform drop-through) is not re-consulted while the bodies remain
-// stationary. Callers that need every step's pre-solve decision for an
-// enabled resting pair can disable the fast path world-wide with
-// World.SetContactRecycleDistance(0) (callbacks still fire only while the
-// bodies are awake).
+// contact may instead be recycled by the narrow-phase fast path: when the
+// pair's relative translation and rotation stay within the recycle distance
+// (see ContactRecycleDistance and World.SetContactRecycleDistance), the
+// contact reuses its cached manifold and skips the pre-solve callback, so
+// the enabled→disabled direction (e.g. a resting-platform drop-through) is
+// not re-consulted while the pair stays within that tolerance. This applies
+// to moving pairs too, not only stationary ones. Callers that need every
+// step's pre-solve decision for an enabled pair can disable the fast path
+// world-wide with World.SetContactRecycleDistance(0) (callbacks still fire
+// only while the bodies are awake).
 //
 // Warning: do not attempt to modify the world inside this callback.
 type PreSolveFcn func(shapeIDA, shapeIDB ShapeID, point, normal Vec2, ctx any) bool
