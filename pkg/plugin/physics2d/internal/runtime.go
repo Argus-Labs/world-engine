@@ -75,10 +75,11 @@ type Runtime struct {
 	// Shadow holds per-entity reconciler snapshots (diff against ECS each tick).
 	Shadow map[cardinal.EntityID]ShadowState
 
-	// reconcileFailed tracks entity IDs whose reconcile failed this tick, so
-	// WritebackFromStepResults can skip them and leave their pending ECS edits
-	// intact for the next reconcile attempt. Cleared at the start of each
-	// ReconcileFromECS and by FullRebuildFromECS/Reset.
+	// reconcileFailed tracks entity IDs whose reconcile failed in the most recent per-entity
+	// reconcile pass, so WritebackFromStepResults can skip them and leave their pending ECS
+	// edits intact for the next reconcile attempt. It is cleared once a ReconcileFromECS pass
+	// starts its entry loop, and by FullRebuildFromECS/Reset; the nil-world and duplicate-ID
+	// early returns leave it untouched.
 	reconcileFailed map[cardinal.EntityID]struct{}
 
 	// BufferedContacts collects contact events from the physics step for post-step flush.

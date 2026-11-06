@@ -24,6 +24,9 @@ type WritebackEntry struct {
 // position. Since both BodyTypeKinematic and BodyTypeManual map to Box2D kinematic bodies,
 // the ECS body type is checked rather than the Box2D body type.
 //
+// Entities whose reconcile failed in the most recent pass are also skipped, so their pending
+// ECS edits survive for the next reconcile attempt.
+//
 // Awake is mirrored back on change so the component tracks solver sleep state instead of
 // freezing at its creation value. Disabled bodies are skipped: IsBodyAwake reads false for
 // them, which is disablement, not sleep.
@@ -34,16 +37,14 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 
 	for i := range entries {
 		e := &entries[i]
-		bodyID, ok := rt.Bodies[e.Entity.ID()]
+		id := e.Entity.ID()
+		bodyID, ok := rt.Bodies[id]
 		if !ok {
 			continue
 		}
 
-		// Skip entities whose reconcile failed this tick: their pending ECS edits
-		// were not applied to Box2D, so writing post-step state back would erase
-		// them and sync the shadow onto the stomped value, making the loss
-		// permanent. Leave the edit pending for the next reconcile attempt.
-		if _, failed := rt.reconcileFailed[e.Entity.ID()]; failed {
+		// Skip entities whose reconcile failed in the most recent pass; see Runtime.reconcileFailed.
+		if _, failed := rt.reconcileFailed[id]; failed {
 			continue
 		}
 
@@ -75,13 +76,13 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 		}
 
 		// Update shadow so ReconcileFromECS sees no diff for these fields next tick.
-		if shadow, exists := rt.Shadow[e.Entity.ID()]; exists {
+		if shadow, exists := rt.Shadow[id]; exists {
 			shadow.Transform = t
 			shadow.Velocity = v
 			if pb.Active {
 				shadow.PhysicsBody.Awake = awake
 			}
-			rt.Shadow[e.Entity.ID()] = shadow
+			rt.Shadow[id] = shadow
 		}
 	}
 }

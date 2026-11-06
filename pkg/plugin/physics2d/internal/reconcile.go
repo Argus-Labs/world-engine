@@ -30,13 +30,9 @@ import (
 //
 // ReconcileFromECS does not touch SuppressContactsStep or Emitter; it does not step the world.
 //
-// A per-entity reconcile error (for example a zero-extent collider that Box2D rejects) does not
-// abort the loop: every entry gets its reconcile attempt each tick, matching the documented
-// "rejected shape retries forever" contract. Failed entity IDs are recorded in
-// reconcileFailed so WritebackFromStepResults can skip them — writing post-step state back for
-// an entity whose pending edit never reached Box2D would erase that edit and sync the shadow
-// onto the stomped value, making the loss permanent. All errors are joined and returned so the
-// pipeline can log them; the return is non-nil iff at least one entry failed.
+// After world and duplicate-ID validation, all entries are attempted. Per-entity errors are
+// joined and returned for the pipeline to log, and failed entities are excluded from writeback
+// so their pending ECS edits can be retried.
 func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 	if rt.World == nil {
 		return errors.New("physics2d: reconcile requires a live world (run FullRebuildFromECS first)")
@@ -127,7 +123,10 @@ func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
 	prev, hadPrev := rt.Shadow[e.EntityID]
 	_, hadBody := rt.KnownEntities[e.EntityID]
 	if !hadBody {
-		return rt.createBodyForEntry(e)
+		if err := rt.createBodyForEntry(e); err != nil {
+			return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
+		}
+		return nil
 	}
 	if hadPrev && !prev.PhysicsDiffers(e.Transform, e.Velocity, e.PhysicsBody) {
 		return nil
