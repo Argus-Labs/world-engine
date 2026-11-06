@@ -43,9 +43,12 @@ func IsSilent(err error) bool {
 }
 
 // ShouldPrint returns true if the error should be printed to the user.
-// This is the inverse of IsSilent for more readable code.
+// A cancel (Ctrl+C) is an expected user action, not a failure — JoinFailures
+// treats it the same way — so it is never printed or captured by Sentry,
+// regardless of where it originated. This is the safety net for call sites
+// that return a cancel without first wrapping it in NewSilent.
 func ShouldPrint(err error) bool {
-	return !IsSilent(err)
+	return !IsSilent(err) && !errors.Is(err, context.Canceled)
 }
 
 // JoinFailures joins errs' real failures. A cancel (Ctrl+C) or silent error

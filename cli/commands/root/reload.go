@@ -2,6 +2,7 @@ package root
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -49,6 +50,9 @@ func (c *ReloadCmd) Run(ctx context.Context) error {
 			rt := local.New(dockerClient, cfg)
 			running, err := rt.IsRunning(ctx)
 			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					return errorspkg.NewSilent(err)
+				}
 				return err
 			}
 			if !running {
@@ -78,6 +82,9 @@ func reloadShards(
 	// This process does not serve the edge; the one that does built its routes from the
 	// world.toml it started with, so refuse a layout it would misroute.
 	if err := rt.CheckLayout(ctx); err != nil {
+		if errors.Is(err, context.Canceled) {
+			return errorspkg.NewSilent(err)
+		}
 		return err
 	}
 

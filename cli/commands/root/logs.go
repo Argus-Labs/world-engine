@@ -2,6 +2,7 @@ package root
 
 import (
 	"context"
+	"errors"
 	"os"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -49,6 +50,9 @@ func (c *LogsCmd) Run(ctx context.Context) error {
 			rt := local.New(dockerClient, cfg)
 			running, err := rt.IsRunning(ctx)
 			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					return errorspkg.NewSilent(err)
+				}
 				return eris.Wrap(err, "check world status")
 			}
 			if !running {
