@@ -323,6 +323,11 @@ func TestOracleLockedWorldIgnoresCalls(t *testing.T) {
 			return 0.0
 		})
 
+		// Destroy is also ignored while locked (same guard shape as the
+		// mutators above): a mid-Step pool.close() would self-join the
+		// calling worker.
+		w.Destroy()
+
 		// Body mutators are ignored while locked (body.c locked guards).
 		w.DisableBody(body)
 		w.EnableBody(disabledBody)
@@ -335,13 +340,6 @@ func TestOracleLockedWorldIgnoresCalls(t *testing.T) {
 		w.EnableBodySleep(body, false)
 		w.SetBodyMassData(body, box2d.MassData{Mass: 9.0, RotationalInertia: 9.0})
 		w.SetBodyMotionLocks(body, box2d.MotionLocks{LinearX: true})
-
-		// World destruction is ignored while locked: Destroy lacks the guard
-		// in upstream C, but this port's worker pool makes a mid-Step
-		// pool.close() self-join deadlock, so the locked guard (added with
-		// the pool) must cover it too — same assert-then-ignore shape as
-		// every sibling mutator.
-		w.Destroy()
 
 		// Body getters return zero values while locked
 		// (body.c b2Body_GetContactCapacity / GetContactData / ComputeAABB).

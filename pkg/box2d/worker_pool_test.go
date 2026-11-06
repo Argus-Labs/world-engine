@@ -239,17 +239,27 @@ func TestGoroutineLeakOnWorldDestroy(t *testing.T) {
 // reach pool.close() mid-dispatch, which self-joins on the calling worker's
 // done token and deadlocks the process permanently (worker_pool.go close), or
 // wipes *w = World{} under a continuing Step and crashes on emptied state.
-// Every sibling mutator carries assert(!w.locked); if w.locked { return };
-// Destroy was the lone exception. The guard exempts poisoned worlds so
-// Destroy stays valid after a panic-unwound Step.
+// Destroy carries the same assert-then-ignore shape as the other locked
+// mutators. The guard exempts poisoned worlds so Destroy stays valid after a
+// panic-unwound Step.
 //
 // Release build: the callback's Destroy is a silent no-op; Step completes; the
 // world is still valid and steppable. Asserts build: the guard's assert fires,
-// Step panics with the assertion failure (not a deadlock, not a raw crash), and
-// Destroy still works on the poisoned world. Both worker counts run so the
+// Step panics with "box2d: assertion failed" (not a deadlock, not a raw crash),
+// and Destroy still works on the poisoned world. Both worker counts run so the
 // pool-worker and inline-share callback paths are covered.
+//
+// The "self_join_background_worker" sub-case forces the callback onto a
+// background pool worker (not worker 0, which is the Step goroutine) so the
+// self-join path is exercised deterministically: worker 0 is not in the pool's
+// done WaitGroup, so a CAS it wins does NOT reproduce the deadlock.
 func TestDestroyFromCallbackGuarded(t *testing.T) {
 	t.Parallel()
+
+	// Worker 0 is the Step goroutine; background pool workers (1..n-1) are
+	// separate goroutines, so the CAS winner is deterministically a
+	// background worker when the callback skips worker 0.
+	stepG := goroutineID()
 
 	for _, workers := range []int{1, 4} {
 		t.Run(fmt.Sprintf("workers_%d", workers), func(t *testing.T) {
@@ -258,6 +268,7 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			def := box2d.DefaultWorldDef()
 			def.WorkerCount = workers
 			w := box2d.NewWorld(&def)
+			id := w.ID()
 
 			buildWorkerStressScene(w)
 
@@ -271,51 +282,121 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 
 			if buildWithAsserts {
 				// In the asserts build the guard's assert fires, Step
-				// panics with the assertion failure — not a deadlock, not
-				// a raw index-out-of-range from wiped state.
-				require.Panics(t, func() { w.Step(1.0/60.0, 4) },
-					"the locked-guard assert must panic in the asserts build, not deadlock")
+				// panics with "box2d: assertion failed" — not a deadlock,
+				// not a raw index-out-of-range from wiped state.
+				panicVal := runBounded(t, func() { w.Step(1.0/60.0, 4) },
+					"the locked-guard assert must fire in the asserts build, not deadlock")
+				require.Equal(t, "box2d: assertion failed", panicVal,
+					"Step must panic with the guard's assertion, not a raw wiped-state crash")
 				require.True(t, fired.Load(), "preSolve callback never ran — scene lost its touching pre-solve contacts")
 
 				// Destroy stays valid on the poisoned world: the guard
 				// exempts stepPanicked so the pool goroutines are joined.
-				destroyed := make(chan struct{})
-				go func() {
-					w.Destroy()
-					close(destroyed)
-				}()
-				select {
-				case <-destroyed:
-				case <-time.After(30 * time.Second):
-					t.Fatal("Destroy deadlocked on a poisoned world — guard must exempt stepPanicked")
-				}
+				runBounded(t, w.Destroy,
+					"Destroy did not return on a poisoned world — guard must exempt stepPanicked so pool.close() joins the workers")
+				require.False(t, w.IsWorldValid(id), "poisoned-world Destroy must invalidate the saved id")
 			} else {
 				// Release build: Destroy is a silent no-op; Step must
 				// complete without deadlocking or panicking.
-				var stepPanic any
-				stepDone := make(chan struct{})
-				go func() {
-					defer func() { stepPanic = recover(); close(stepDone) }()
-					w.Step(1.0/60.0, 4)
-				}()
-				select {
-				case <-stepDone:
-				case <-time.After(30 * time.Second):
-					t.Fatal("Step deadlocked — Destroy from callback reached pool.close() mid-dispatch")
-				}
-				require.Nil(t, stepPanic, "Step must not panic when Destroy is guarded out")
+				panicVal := runBounded(t, func() { w.Step(1.0/60.0, 4) },
+					"Step did not return — Destroy from callback reached pool.close() mid-dispatch and self-joined")
+				require.Nil(t, panicVal, "Step must not panic when Destroy is guarded out")
 				require.True(t, fired.Load(), "preSolve callback never ran — scene lost its touching pre-solve contacts")
 
 				// The world is still valid: Destroy was ignored, not torn
 				// down.
-				require.True(t, w.IsWorldValid(w.ID()),
+				require.True(t, w.IsWorldValid(id),
 					"locked Destroy must be ignored, not wipe the world mid-Step")
 
 				// The world is healthy: a second Step completes.
 				w.Step(1.0/60.0, 4)
 
 				w.Destroy()
+				require.False(t, w.IsWorldValid(id), "Destroy must invalidate the saved id")
 			}
 		})
 	}
+
+	// Deterministic self-join case: force the callback's Destroy onto a
+	// background pool worker so the self-join path in pool.close() is
+	// actually exercised. CAS luck could let worker 0 (the Step goroutine,
+	// not in the pool's done WaitGroup) win the general case above, which
+	// does not reproduce the deadlock.
+	t.Run("self_join_background_worker", func(t *testing.T) {
+		t.Parallel()
+
+		def := box2d.DefaultWorldDef()
+		def.WorkerCount = 4
+		w := box2d.NewWorld(&def)
+		id := w.ID()
+
+		buildWorkerStressScene(w)
+
+		var fired atomic.Bool
+		w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
+			// Skip worker 0 (the Step goroutine); only a background
+			// pool worker may fire, so the self-join path is reached.
+			if goroutineID() != stepG {
+				if fired.CompareAndSwap(false, true) {
+					w.Destroy()
+				}
+			}
+			return true
+		}, nil)
+
+		panicVal := runBounded(t, func() { w.Step(1.0/60.0, 4) },
+			"Step did not return — a background worker's Destroy reached pool.close() and self-joined")
+		if buildWithAsserts {
+			require.Equal(t, "box2d: assertion failed", panicVal,
+				"the guard must panic in the asserts build when a background worker calls Destroy")
+		} else {
+			require.Nil(t, panicVal, "Step must not panic when the background worker's Destroy is guarded out")
+		}
+		require.True(t, fired.Load(), "no background worker hit a touching pre-solve contact — self-join path not exercised")
+
+		if !buildWithAsserts {
+			require.True(t, w.IsWorldValid(id), "locked Destroy must be ignored, not wipe the world mid-Step")
+			w.Step(1.0/60.0, 4)
+		}
+		runBounded(t, w.Destroy,
+			"Destroy did not return on the (poisoned) world — pool.close() must join the workers")
+		require.False(t, w.IsWorldValid(id), "Destroy must invalidate the saved id")
+	})
+}
+
+// goroutineID returns the numeric goroutine id from [runtime.Stack]'s header
+// ("goroutine N [...]"). It is used only to distinguish the Step goroutine
+// (worker 0, which runs inline) from background pool workers (1..n-1), so the
+// self-join regression is exercised deterministically rather than by CAS luck.
+func goroutineID() uint64 {
+	var buf [32]byte
+	n := runtime.Stack(buf[:], false)
+	const prefix = "goroutine "
+	id := uint64(0)
+	i := len(prefix)
+	for i < n && buf[i] >= '0' && buf[i] <= '9' {
+		id = id*10 + uint64(buf[i]-'0')
+		i++
+	}
+	return id
+}
+
+// runBounded runs fn on a goroutine and fails the test (with msg) if it does
+// not return within 30s, recovering any panic value for the caller to assert.
+// A mid-Step pool.close() self-join or a hung Destroy surfaces here as a
+// timeout instead of stalling the suite.
+func runBounded(t *testing.T, fn func(), msg string) any {
+	t.Helper()
+	var panicVal any
+	done := make(chan struct{})
+	go func() {
+		defer func() { panicVal = recover(); close(done) }()
+		fn()
+	}()
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		t.Fatalf("%s", msg)
+	}
+	return panicVal
 }

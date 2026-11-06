@@ -420,18 +420,20 @@ func NewWorld(def *WorldDef) *World {
 
 // Destroy destroys the world and all its contents
 // (upstream b2DestroyWorld). Ids created from this world become invalid.
+//
+// Calling Destroy from inside a Step callback is rejected: in release it is a
+// silent no-op (the world stays valid and Step continues), and in the
+// box2d_asserts build it panics with "box2d: assertion failed". Actual
+// destruction — and the id invalidation above — only happens when Destroy runs
+// outside Step, or on a world whose Step was unwound by a panic (which leaves
+// it locked but poisoned); Destroy that world to reclaim its worker pool.
 func (w *World) Destroy() {
-	// Same locked-world guard as every sibling mutator (DestroyBody,
-	// DestroyShape, DestroyJoint, all setters): a callback that calls
-	// Destroy from inside Step must be ignored, not reach pool.close()
-	// mid-dispatch — which self-joins on the calling worker's done token
-	// and deadlocks the process permanently (worker_pool.go close()).
-	//
-	// A Step unwound by a panic latches w.locked = true but is a poisoned
-	// world, on which Destroy must stay valid: the deferred stepCompleted
-	// latch in world_step.go sets w.stepPanicked and skips the
-	// w.locked = false reset, so the guard must exempt stepPanicked worlds
-	// or it would leak the worker pool goroutines.
+	// Reject destruction during Step to avoid joining the calling worker
+	// from pool.close() (worker_pool.go) or clearing active world state
+	// under a continuing Step. A Step unwound by a panic is a poisoned
+	// world: the deferred completion latch in world_step.go sets
+	// stepPanicked and skips the final unlock, so allow Destroy then to
+	// reclaim the worker pool.
 	assert(!w.locked || w.stepPanicked)
 	if w.locked && !w.stepPanicked {
 		return
