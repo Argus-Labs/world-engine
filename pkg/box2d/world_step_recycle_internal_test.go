@@ -38,16 +38,10 @@ func dynamicCachedRotation(sim *contactSim, w *World, dynamicBodyID BodyID) Rot 
 	return sim.cachedTransformB.Q
 }
 
-// recycleTestWorld builds a world with a static ground (top surface at y=0,
-// centered at y=-0.5) and a single dynamic box of the given half-extents placed
-// at pos. Gravity is disabled and sleep is off; the tests reset the body
-// transform before each collision step, so any solver movement during a step is
-// discarded before the next collision. Contact events are enabled on both
-// shapes when enableEvents is true. The recycle distance is left at the default
-// (ContactRecycleDistance) so callers can override it for an isolated cosine
-// gate (SetContactRecycleDistance) or keep the default to exercise the
-// distance/sine gate. Density is left at the ShapeDef default (1.0).
-func recycleTestWorld(t *testing.T, halfExtent Vec2, pos Vec2, enableEvents bool) (*World, BodyID, ShapeID, ShapeID) {
+// recycleWorld creates a world with gravity disabled and sleep off, the
+// shared initialization for the recycling fixtures. The world is registered
+// for test cleanup.
+func recycleWorld(t *testing.T) *World {
 	t.Helper()
 
 	def := DefaultWorldDef()
@@ -55,15 +49,14 @@ func recycleTestWorld(t *testing.T, halfExtent Vec2, pos Vec2, enableEvents bool
 	def.EnableSleep = false
 	w := NewWorld(&def)
 	t.Cleanup(w.Destroy)
+	return w
+}
 
-	// Static ground.
-	gbd := DefaultBodyDef()
-	gbd.Position = Vec2{X: 0.0, Y: -0.5}
-	ground := w.CreateBody(&gbd)
-	groundBox := MakeBox(50.0, 0.5)
-	gsd := DefaultShapeDef()
-	gsd.EnableContactEvents = enableEvents
-	groundShape := w.CreatePolygonShape(ground, &gsd, &groundBox)
+// createBoxBody creates a dynamic body with a box shape of the given
+// half-extents at pos, with contact events enabled per enableEvents. It
+// returns the body and shape.
+func createBoxBody(t *testing.T, w *World, halfExtent Vec2, pos Vec2, enableEvents bool) (BodyID, ShapeID) {
+	t.Helper()
 
 	bd := DefaultBodyDef()
 	bd.Type = DynamicBody
@@ -72,7 +65,34 @@ func recycleTestWorld(t *testing.T, halfExtent Vec2, pos Vec2, enableEvents bool
 	box := MakeBox(halfExtent.X, halfExtent.Y)
 	sd := DefaultShapeDef()
 	sd.EnableContactEvents = enableEvents
-	bodyShape := w.CreatePolygonShape(body, &sd, &box)
+	shape := w.CreatePolygonShape(body, &sd, &box)
+	return body, shape
+}
+
+// recycleTestWorld builds a world with a static ground (top surface at y=0,
+// centered at y=-0.5) and a single dynamic box of the given half-extents placed
+// at pos. Gravity is disabled and sleep is off; callers that rotate the body
+// reset its transform before each collision step, so any solver movement
+// during a step is discarded before the next collision. Contact events are
+// enabled on both
+// shapes when enableEvents is true. The recycle distance is left at the default
+// (ContactRecycleDistance) so callers can override it for an isolated cosine
+// gate (SetContactRecycleDistance) or keep the default to exercise the
+// distance/sine gate. Density is left at the ShapeDef default (1.0).
+func recycleTestWorld(t *testing.T, halfExtent Vec2, pos Vec2, enableEvents bool) (*World, BodyID, ShapeID, ShapeID) {
+	t.Helper()
+
+	w := recycleWorld(t)
+
+	gbd := DefaultBodyDef()
+	gbd.Position = Vec2{X: 0.0, Y: -0.5}
+	ground := w.CreateBody(&gbd)
+	groundBox := MakeBox(50.0, 0.5)
+	gsd := DefaultShapeDef()
+	gsd.EnableContactEvents = enableEvents
+	groundShape := w.CreatePolygonShape(ground, &gsd, &groundBox)
+
+	body, bodyShape := createBoxBody(t, w, halfExtent, pos, enableEvents)
 
 	return w, body, groundShape, bodyShape
 }
@@ -91,9 +111,9 @@ func recycleGuardTestWorld(t *testing.T) (*World, BodyID) {
 }
 
 // rotateAndStep teleports the body to its rest position (0, 0.04) and the
-// given angle, then steps the world once. Every rotation-guard fixture rests
-// at this position, so the helper shares the transform-and-step operation.
-// It returns the contact sim re-fetched after the step.
+// given angle, then steps the world once. This is the rest position of the
+// recycleGuardTestWorld box, so the helper shares the transform-and-step
+// operation. It returns the contact sim re-fetched after the step.
 func rotateAndStep(t *testing.T, w *World, body BodyID, angle float64) *contactSim {
 	t.Helper()
 	w.SetBodyTransform(body, Vec2{X: 0.0, Y: 0.04}, MakeRot(angle))
@@ -178,7 +198,7 @@ func requireOldRecyclePredicatePasses(t *testing.T, w *World, sim *contactSim, m
 // B2_CONTACT_RECYCLE_COS_ANGLE (0.98f ~= 11.5 degrees).
 func TestContactRecycleCosAngleConstant(t *testing.T) {
 	t.Parallel()
-	tassert.InDelta(t, 0.98, ContactRecycleCosAngle, 0.0)
+	tassert.Equal(t, 0.98, ContactRecycleCosAngle)
 }
 
 // TestContactRecycleRotationGuardBlocksLargeRotation verifies that the
@@ -281,30 +301,15 @@ func TestContactRecycleAccumulatedRotation(t *testing.T) {
 // twoOverlappingBoxes builds a world with two overlapping 0.1×0.1 dynamic
 // boxes (half-extents 0.05) centered at x = ∓0.03, the configuration the
 // co-rotation and asymmetric-rotation regressions share. Gravity and sleep are
-// off. The caller sets the recycle distance for its scenario.
+// off. The asymmetric-rotation test sets an enlarged recycle distance; the
+// co-rotation test keeps the default.
 func twoOverlappingBoxes(t *testing.T) (*World, BodyID, BodyID) {
 	t.Helper()
 
-	def := DefaultWorldDef()
-	def.Gravity = Vec2Zero
-	def.EnableSleep = false
-	w := NewWorld(&def)
-	t.Cleanup(w.Destroy)
-
-	box := MakeBox(0.05, 0.05)
-	bdA := DefaultBodyDef()
-	bdA.Type = DynamicBody
-	bdA.Position = Vec2{X: -0.03, Y: 0.0}
-	bodyA := w.CreateBody(&bdA)
-	sdA := DefaultShapeDef()
-	w.CreatePolygonShape(bodyA, &sdA, &box)
-
-	bdB := DefaultBodyDef()
-	bdB.Type = DynamicBody
-	bdB.Position = Vec2{X: 0.03, Y: 0.0}
-	bodyB := w.CreateBody(&bdB)
-	sdB := DefaultShapeDef()
-	w.CreatePolygonShape(bodyB, &sdB, &box)
+	w := recycleWorld(t)
+	boxHalf := Vec2{X: 0.05, Y: 0.05}
+	bodyA, _ := createBoxBody(t, w, boxHalf, Vec2{X: -0.03, Y: 0.0}, false)
+	bodyB, _ := createBoxBody(t, w, boxHalf, Vec2{X: 0.03, Y: 0.0}, false)
 
 	return w, bodyA, bodyB
 }
@@ -351,6 +356,8 @@ func TestContactRecycleAsymmetricRotation(t *testing.T) {
 	w.SetContactRecycleDistance(200 * ContactRecycleDistance)
 
 	sim := stepAndFindContact(t, w, bodyA)
+	require.Equal(t, w.getBodyFullID(bodyA).id, w.shapes[sim.shapeIDA].bodyID,
+		"body A must be shapeA so cosA gates this regression")
 
 	// Rotate only body A by 30°; body B stays fixed (cosB = 1.0). The old
 	// predicate passes at the enlarged distance; only cosA trips the guard.
