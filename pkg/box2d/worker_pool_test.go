@@ -19,12 +19,18 @@ import (
 	"github.com/argus-labs/world-engine/pkg/box2d"
 )
 
-// boundedTimeout limits how long runBounded waits for completion.
 const boundedTimeout = 30 * time.Second
 
-// assertFailedMsg is the shared panic string every box2d assert emits in the
+// assertFailedMsg is the panic string every box2d assert emits in the
 // box2d_asserts build; the Destroy guard regression asserts this exact value.
 const assertFailedMsg = "box2d: assertion failed"
+
+// defaultStepTimeoutMsg and defaultFiredMsg are the shared Step-timeout and
+// callback-fired diagnostics used by the workers_1 and workers_4 cases (the
+// background case carries its own).
+var defaultStepTimeoutMsg = fmt.Sprintf("Step did not return within %s", boundedTimeout)
+
+const defaultFiredMsg = "preSolve callback did not run"
 
 // workerBoom is a distinct panic payload type: the type assertion below fails
 // if the pool ever wraps, stringifies or otherwise replaces the value a
@@ -271,15 +277,15 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 		{
 			name:           "workers_1",
 			workers:        1,
-			stepTimeoutMsg: fmt.Sprintf("Step did not return within %s", boundedTimeout),
-			firedMsg:       "preSolve callback did not run",
+			stepTimeoutMsg: defaultStepTimeoutMsg,
+			firedMsg:       defaultFiredMsg,
 			destroyMsg:     "Destroy did not return",
 		},
 		{
 			name:           "workers_4",
 			workers:        4,
-			stepTimeoutMsg: fmt.Sprintf("Step did not return within %s", boundedTimeout),
-			firedMsg:       "preSolve callback did not run",
+			stepTimeoutMsg: defaultStepTimeoutMsg,
+			firedMsg:       defaultFiredMsg,
 			destroyMsg:     "Destroy did not return — pool.close() must join the workers",
 		},
 		{
@@ -288,7 +294,7 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			backgroundOnly: true,
 			stepTimeoutMsg: "Step timed out while testing Destroy from a background worker",
 			firedMsg:       "no background worker hit a touching pre-solve contact — self-join path not exercised",
-			destroyMsg:     "Destroy did not return on the world — pool.close() must join the workers",
+			destroyMsg:     "World.Destroy timed out while joining workers",
 		},
 	}
 
@@ -374,14 +380,47 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 					"second Step must not panic when the guard rejected the callback's Destroy")
 			}
 
-			// Destroy reclaims the worker pool. On the asserts-build
-			// poisoned world the guard's stepPanicked exemption lets it
-			// run.
 			require.Nil(t, runBounded(t, &opsInFlight, w.Destroy, tc.destroyMsg),
 				"Destroy must not panic on the world")
 			require.False(t, w.IsWorldValid(id), "Destroy must invalidate the saved id")
 		})
 	}
+}
+
+// TestDestroyGuardRecoveredInCallbackStepsAgain covers the Destroy godoc
+// promise that a callback which recovers the guard's assertion panic locally
+// lets Step complete without poisoning the world, so the same world can step
+// again. TestDestroyFromCallbackGuarded lets the assertion escape Step (and
+// skips reuse in the asserts build); this exercises the recover-in-callback
+// path in both builds.
+func TestDestroyGuardRecoveredInCallbackStepsAgain(t *testing.T) {
+	t.Parallel()
+
+	def := box2d.DefaultWorldDef()
+	def.WorkerCount = 1
+	w := box2d.NewWorld(&def)
+	defer w.Destroy()
+	buildWorkerStressScene(w)
+
+	var fired atomic.Bool
+	w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
+		if fired.CompareAndSwap(false, true) {
+			func() {
+				defer func() { _ = recover() }()
+				w.Destroy()
+			}()
+		}
+		return true
+	}, nil)
+
+	// The callback's Destroy trips the guard; recovering it locally lets
+	// Step complete without poisoning the world.
+	require.NotPanics(t, func() { w.Step(1.0/60.0, 4) })
+	require.True(t, fired.Load(), "preSolve callback never ran")
+
+	// The world is not poisoned, so a second Step on the same world succeeds.
+	require.NotPanics(t, func() { w.Step(1.0/60.0, 4) },
+		"Step must succeed after the callback recovered the guard's assertion")
 }
 
 // goroutineID returns the numeric goroutine id from [runtime.Stack]'s header

@@ -50,7 +50,10 @@
 // during the parallel stages, possibly simultaneously from several
 // goroutines. They must be safe to call concurrently and must not mutate
 // shared state — a callback that gives scheduling-dependent answers also
-// voids the byte-identical-for-every-worker-count guarantee.
+// voids the byte-identical-for-every-worker-count guarantee. A callback must
+// not call World.Destroy: Destroy from inside a Step callback is rejected (a
+// silent no-op in release, an assertion panic in the box2d_asserts build) to
+// avoid a pool.close() self-join — see World.Destroy.
 //
 // # Determinism
 //

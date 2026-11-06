@@ -428,18 +428,17 @@ func NewWorld(def *WorldDef) *World {
 // destruction — and the id invalidation above — only happens when Destroy runs
 // outside Step, or after a Step unwound by a panic (which leaves the world
 // locked); Destroy then reclaims the worker pool.
-//
-// This callback-reentry guard is a Go-port contract: the internal goroutine
-// pool (see worker_pool.go) has no upstream equivalent, so the pool.close()
-// self-join hazard it prevents does not arise in upstream b2DestroyWorld.
-// Preserve the guard on any upstream resync.
 func (w *World) Destroy() {
 	// Reject destruction during Step to avoid joining the calling worker
 	// from pool.close() or clearing active world state under a continuing
 	// Step. A Step unwound by a panic leaves locked set with stepPanicked
-	// true; allow Destroy then to reclaim the worker pool.
-	assert(!w.locked || w.stepPanicked)
+	// true; allow Destroy then to reclaim the worker pool. This callback-
+	// reentry guard is a Go-port contract: the internal goroutine pool
+	// (see worker_pool.go) has no upstream equivalent, so the pool.close()
+	// self-join hazard it prevents does not arise in upstream b2DestroyWorld
+	// — preserve the guard on any upstream resync.
 	if w.locked && !w.stepPanicked {
+		assert(false)
 		return
 	}
 
