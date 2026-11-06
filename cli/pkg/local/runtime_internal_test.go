@@ -397,9 +397,6 @@ func TestOrphanedShard_EmptyWorldTomlMatchesEveryShard(t *testing.T) {
 	}
 }
 
-// fakeInspector is a stand-in shardPortInspector for CheckLayout's inspect loop,
-// mirroring fakeLister: it serves fixed ports/errors per container name so the
-// cancel-during-inspect window can be exercised without a live daemon.
 type fakeInspector struct {
 	ports map[string]int
 	errs  map[string]error
@@ -420,9 +417,6 @@ var twoShardContainers = []docker.ContainerSummary{
 	{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat-0")},
 }
 
-// twoShardInspector returns the shared two-shard inspector setup for the
-// collectShardPorts and CheckLayout cancel tests: p-game resolves to its host
-// port and p-chat returns secondErr.
 func twoShardInspector(secondErr error) fakeInspector {
 	return fakeInspector{
 		ports: map[string]int{"p-game": service.ShardHostPort(0)},
@@ -430,13 +424,8 @@ func twoShardInspector(secondErr error) fakeInspector {
 	}
 }
 
-// TestCollectShardPorts drives the inspect loop with two shard containers: the
-// first inspect returns a port, the second returns the case's error. Cancellation
-// must escape before layoutMismatch consumes a partial port map — both the bare
-// [context.Canceled] and the eris-wrapped form that InspectContainer returns
-// through CardinalHostPort (which CardinalHostPort returns unchanged); a
-// non-cancel inspect error keeps the prior skip behavior, so the partial map is
-// returned for comparison.
+// Cancellation must escape before layoutMismatch compares a partial port map; other
+// inspect failures retain the existing skip behavior.
 func TestCollectShardPorts(t *testing.T) {
 	t.Parallel()
 
@@ -471,10 +460,7 @@ func TestCollectShardPorts(t *testing.T) {
 	}
 }
 
-// TestCheckLayout_CancelMidInspect drives checkLayout with a fake lister that
-// returns two shards, then a fake inspector whose first inspect returns a port
-// and whose second returns [context.Canceled]. A canceled inspect must not be
-// reported as an instance added to world.toml.
+// A canceled inspect must not be reported as an instance added to world.toml.
 func TestCheckLayout_CancelMidInspect(t *testing.T) {
 	t.Parallel()
 
@@ -485,4 +471,45 @@ func TestCheckLayout_CancelMidInspect(t *testing.T) {
 	inspector := twoShardInspector(context.Canceled)
 	err := checkLayout(context.Background(), fakeLister{containers: twoShardContainers}, inspector, "p", shards)
 	require.ErrorIs(t, err, context.Canceled)
+}
+
+// TestCheckLayout_LayoutComparison drives checkLayout end-to-end so a matching
+// layout returns nil and a real mismatch returns the comparator's error; this
+// verifies checkLayout still calls layoutMismatch after the cancel early return.
+func TestCheckLayout_LayoutComparison(t *testing.T) {
+	t.Parallel()
+
+	shards := []worldtoml.Shard{
+		{ID: "game", InstanceID: "game-0"},
+		{ID: "chat", InstanceID: "chat-0"},
+	}
+	cases := []struct {
+		name    string
+		ports   map[string]int
+		wantErr string
+	}{
+		{
+			"matching layout",
+			map[string]int{"p-game": service.ShardHostPort(0), "p-chat": service.ShardHostPort(1)},
+			"",
+		},
+		{
+			"moved instance",
+			map[string]int{"p-game": service.ShardHostPort(0), "p-chat": service.ShardHostPort(2)},
+			"would move",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			inspector := fakeInspector{ports: tc.ports}
+			err := checkLayout(context.Background(), fakeLister{containers: twoShardContainers}, inspector, "p", shards)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.wantErr)
+			}
+		})
+	}
 }

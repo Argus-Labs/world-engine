@@ -29,8 +29,6 @@ func TestShouldPrint_NonSilent(t *testing.T) {
 	assert.True(t, pkgerrors.ShouldPrint(err))
 }
 
-// A cancel (Ctrl+C) is an expected user action, not a failure, so ShouldPrint
-// must return false for each form a cancel can take reaching this gate.
 func TestShouldPrint_CancelSuppressed(t *testing.T) {
 	t.Parallel()
 

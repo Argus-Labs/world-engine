@@ -49,8 +49,6 @@ func ShouldPrint(err error) bool {
 	return !isSilentOrCancel(err)
 }
 
-// isSilentOrCancel is the shared condition ShouldPrint and JoinFailures suppress,
-// so the two policies cannot drift.
 func isSilentOrCancel(err error) bool {
 	return IsSilent(err) || errors.Is(err, context.Canceled)
 }
