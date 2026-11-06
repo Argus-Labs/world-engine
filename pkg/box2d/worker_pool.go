@@ -124,7 +124,7 @@ func newWorkerPool(workerCount int) *workerPool {
 // has already joined dispatched workers (Step's wg.Wait barrier) before the
 // completion latch marks the poison flag, so Destroy may safely close the pool
 // on such a poisoned world. This guarantee does not cover a worker-0
-// runtime.Goexit (t.Fatal inside a callback under test): that unwinds
+// [runtime.Goexit] (t.Fatal inside a callback under test): that unwinds
 // runRange(0) without reaching the barrier, yet Step still sets stepPanicked,
 // so poison alone does not prove dispatch has drained.
 func (p *workerPool) close() {
