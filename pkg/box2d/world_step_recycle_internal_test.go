@@ -97,7 +97,8 @@ func recycleTestWorld(t *testing.T, halfExtent Vec2, pos Vec2, enableEvents bool
 }
 
 // recycleGuardTestWorld builds a small dynamic box (half-extents 0.05, i.e.
-// 0.1 x 0.1, maxExtent ≈ 0.07) resting on the ground at y = 0.04, configured so
+// 0.1 x 0.1, maxExtent ≈ 0.07) overlapping the ground by 0.01 (center y = 0.04,
+// half-height 0.05), configured so
 // the contact-recycle sin metric passes even for large rotations but the
 // per-body cos guard is the deciding factor. The recycle distance is set to
 // 200× the default so distance + maxExtent*|sin θ| never blocks recycling on
@@ -110,16 +111,11 @@ func recycleGuardTestWorld(t *testing.T) (*World, BodyID) {
 }
 
 // rotateAndStep teleports the body to its rest position (0, 0.04) and the
-// given angle, then steps the world once. This is the rest position of the
-// recycleGuardTestWorld box, so the helper shares the transform-and-step
-// operation. It returns the contact sim re-fetched after the step.
+// given angle, then steps the world once and returns the contact sim.
 func rotateAndStep(t *testing.T, w *World, body BodyID, angle float64) *contactSim {
 	t.Helper()
 	w.SetBodyTransform(body, Vec2{X: 0.0, Y: 0.04}, MakeRot(angle))
-	stepWorld(w, 1)
-	sim := findContactSimForBody(w, body)
-	require.NotNil(t, sim, "contact must still exist after rotation to %.1f deg", angle*180.0/math.Pi)
-	return sim
+	return stepFindNotNil(t, w, body, "contact must still exist after rotation to %.1f deg", angle*180.0/math.Pi)
 }
 
 // requireCachedRot asserts the cached rotation of the dynamic body equals the
@@ -141,29 +137,34 @@ func requireShapeIDPair(t *testing.T, idA, idB, ground, body ShapeID, msg string
 		"%s: event shape IDs {%v, %v} must be {%v, %v}", msg, idA, idB, ground, body)
 }
 
+// stepFindNotNil steps the world once and returns the contact sim for body,
+// requiring it to still exist. The shared step/find/assert block for the
+// recycling helpers; callers keep their own transform setup, cache-validity
+// check, and useful failure context via msgAndArgs.
+func stepFindNotNil(t *testing.T, w *World, body BodyID, msgAndArgs ...any) *contactSim {
+	t.Helper()
+	stepWorld(w, 1)
+	sim := findContactSimForBody(w, body)
+	require.NotNil(t, sim, msgAndArgs...)
+	return sim
+}
+
 // stepAndFindContact performs the shared initial-step setup for the recycling
 // fixtures, returning the contact sim for the given body with its cached
 // relative transform established for later guard assertions.
 func stepAndFindContact(t *testing.T, w *World, body BodyID) *contactSim {
 	t.Helper()
-	stepWorld(w, 1)
-	sim := findContactSimForBody(w, body)
-	require.NotNil(t, sim, "contact must exist after first step")
+	sim := stepFindNotNil(t, w, body, "contact must exist after first step")
 	require.NotEqual(t, uint32(0), sim.simFlags&simRelativeTransformValid,
 		"cached relative transform must be valid after first step")
 	return sim
 }
 
-// stepFindContact steps the world once after a transform change and returns the
-// contact sim for body, requiring it to still exist. Each caller keeps its own
-// transform changes and regression preconditions (e.g.
-// requireOldRecyclePredicatePasses) before stepping.
+// stepFindContact steps the world once and returns the contact sim for body,
+// requiring it to still exist.
 func stepFindContact(t *testing.T, w *World, body BodyID, msg string) *contactSim {
 	t.Helper()
-	stepWorld(w, 1)
-	sim := findContactSimForBody(w, body)
-	require.NotNil(t, sim, "contact must still exist %s", msg)
-	return sim
+	return stepFindNotNil(t, w, body, "contact must still exist %s", msg)
 }
 
 // requireOldRecyclePredicatePasses asserts the legacy distance/sine recycle
@@ -278,8 +279,9 @@ func testContactRecycleRotationGuard(t *testing.T, angle float64, expectRefresh 
 // TestContactRecycleAccumulatedRotation verifies the guard tracks accumulated
 // rotation since the cache, not just single-step rotation. A body rotated 5°
 // per step recycles for the first two steps (accumulated 5° and 10°, cos > 0.98)
-// but gets a full update on the third step when the accumulated rotation
-// crosses 11.5 degrees (cos(15°) = 0.966 < 0.98), refreshing the cache.
+// but gets a full update on the third rotation step (step 4, counting the
+// initial setup step) when the accumulated rotation crosses 11.5 degrees
+// (cos(15°) = 0.966 < 0.98), refreshing the cache.
 func TestContactRecycleAccumulatedRotation(t *testing.T) {
 	t.Parallel()
 
@@ -466,4 +468,30 @@ func TestContactRecycleRotationGuardEndEventDefaultDistance(t *testing.T) {
 	)
 	plankY := plankHalfHeight + SpeculativeDistance - initialMargin
 	runRecycleEndEvent(t, Vec2{X: 0.01, Y: plankHalfHeight}, Vec2{X: 0.0, Y: plankY}, 175.0*math.Pi/180.0, ContactRecycleDistance)
+}
+
+// TestContactRecycleSpinningBody covers the guard through normal angular
+// integration at the default recycle distance. Unlike the transform-setting
+// fixtures above, the body spins via SetBodyAngularVelocity and the world
+// integrates its rotation each step (the contact solver settles to a terminal
+// angular velocity, so the rotation accumulates gradually). Once the
+// accumulated rotation crosses the ~11.5° guard threshold, the per-body cos
+// gate blocks recycling and a full update refreshes the cached rotation away
+// from the initial 0° value.
+func TestContactRecycleSpinningBody(t *testing.T) {
+	t.Parallel()
+
+	w, body, _, _ := recycleTestWorld(t, Vec2{X: 0.05, Y: 0.05}, Vec2{X: 0.0, Y: 0.04}, false)
+
+	stepAndFindContact(t, w, body)
+
+	// Spin through normal integration; the contact survives the small overlap.
+	w.SetBodyAngularVelocity(body, 10.0)
+	var sim *contactSim
+	for range 8 {
+		sim = stepFindNotNil(t, w, body, "contact must survive the spin")
+	}
+
+	require.NotEqual(t, RotIdentity, dynamicCachedRotation(sim, w, body),
+		"cache must be refreshed away from 0 degrees after the guard blocks recycling through integration")
 }
