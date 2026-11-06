@@ -449,6 +449,150 @@ func TestOraclePreSolveDisablesContact(t *testing.T) {
 		"pre-solve false must disable the contact; the box must fall through")
 }
 
+// TestOraclePreSolveReConsultedEveryStepWhileResting: upstream v3.2.0
+// b2UpdateContact marks the contact "recycling dirty" when the pre-solve
+// callback disables it (contact.c: `contactSim->simFlags &=
+// ~b2_simRelativeTransformValid;` — "Mark recycling dirty."), guaranteeing the
+// narrow phase re-runs updateContact — and thus re-invokes pre-solve — every
+// step even when the bodies stay within ContactRecycleDistance of the cached
+// pose. The Go port omitted that line (inherited from the vendored CGO
+// source), so a pre-solve-disabled contact on a resting pair was consulted
+// once and then frozen by the recycling fast path (world_step.go collideTask)
+// until the bodies moved apart.
+//
+// Scene: zero gravity, sleeping disabled, a static ground box and a dynamic
+// box overlapping it by 0.1 m (constant resting contact within the default
+// ContactRecycleDistance of 0.05 m). pre-solve events enabled, callback always
+// returns false. The callback must fire every step, not just the first.
+func TestOraclePreSolveReConsultedEveryStepWhileResting(t *testing.T) {
+	t.Parallel()
+
+	def := box2d.DefaultWorldDef()
+	def.Gravity = box2d.Vec2{X: 0.0, Y: 0.0}
+	def.EnableSleep = false
+	w := box2d.NewWorld(&def)
+	t.Cleanup(w.Destroy)
+
+	// Static ground whose top surface is the line y = 0.
+	gbd := box2d.DefaultBodyDef()
+	gbd.Position = box2d.Vec2{X: 0.0, Y: -10.0}
+	ground := w.CreateBody(&gbd)
+	groundBox := box2d.MakeBox(50.0, 10.0)
+	gsd := box2d.DefaultShapeDef()
+	gsd.EnablePreSolveEvents = true
+	w.CreatePolygonShape(ground, &gsd, &groundBox)
+
+	// Dynamic box overlapping the ground by 0.1 m. Zero gravity + disabled
+	// contact => the box never moves, so the relative transform stays within
+	// ContactRecycleDistance and the recycling fast path is the only thing
+	// that could skip pre-solve.
+	bd := box2d.DefaultBodyDef()
+	bd.Type = box2d.DynamicBody
+	bd.Position = box2d.Vec2{X: 0.0, Y: 0.4}
+	body := w.CreateBody(&bd)
+	box := box2d.MakeBox(0.5, 0.5)
+	sd := box2d.DefaultShapeDef()
+	sd.EnablePreSolveEvents = true
+	w.CreatePolygonShape(body, &sd, &box)
+
+	calls := 0
+	w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
+		calls++
+		return false
+	}, nil)
+
+	const steps = 60
+	for range steps {
+		w.Step(wboDT, wboSubSteps)
+	}
+
+	// Without the fix, pre-solve fires once (step 1) then the recycling
+	// fast path skips updateContact forever. With the fix, it fires every
+	// step because simRelativeTransformValid is cleared when the contact
+	// is disabled.
+	require.Equal(t, steps, calls,
+		"pre-solve must be re-consulted every step for a resting pair (upstream v3.2.0 contact.c: Mark recycling dirty)")
+
+	// The box must not have moved: zero gravity + disabled contact => no
+	// forces, confirming the pair stayed within the recycle tolerance the
+	// whole time.
+	require.InDelta(t, 0.4, w.BodyPosition(body).Y, box2d.LinearSlop)
+}
+
+// TestOraclePreSolveToggleReEnablesContactWhileResting: with the recycling-dirty
+// fix, a pre-solve callback that toggles between false and true must be able to
+// re-enable a previously disabled contact even when the bodies never move. This
+// pins the "conditional collision filtering" use case (one-way platforms, etc.)
+// that the bug silently broke for resting pairs.
+//
+// Without the fix, the callback fires once (step 1) and the recycling fast path
+// freezes the contact disabled forever — the toggle on step 31 is never
+// consulted, so the box never moves. With the fix, the callback fires every
+// step during the disabled phase, and the toggle on step 31 re-enables the
+// contact so the solver pushes the overlapping box up.
+func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
+	t.Parallel()
+
+	def := box2d.DefaultWorldDef()
+	def.Gravity = box2d.Vec2{X: 0.0, Y: 0.0}
+	def.EnableSleep = false
+	w := box2d.NewWorld(&def)
+	t.Cleanup(w.Destroy)
+
+	gbd := box2d.DefaultBodyDef()
+	gbd.Position = box2d.Vec2{X: 0.0, Y: -10.0}
+	ground := w.CreateBody(&gbd)
+	groundBox := box2d.MakeBox(50.0, 10.0)
+	gsd := box2d.DefaultShapeDef()
+	gsd.EnablePreSolveEvents = true
+	w.CreatePolygonShape(ground, &gsd, &groundBox)
+
+	bd := box2d.DefaultBodyDef()
+	bd.Type = box2d.DynamicBody
+	bd.Position = box2d.Vec2{X: 0.0, Y: 0.4}
+	body := w.CreateBody(&bd)
+	box := box2d.MakeBox(0.5, 0.5)
+	sd := box2d.DefaultShapeDef()
+	sd.EnablePreSolveEvents = true
+	w.CreatePolygonShape(body, &sd, &box)
+
+	const halfSteps = 30
+	disable := true
+	calls := 0
+	w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
+		calls++
+		return !disable
+	}, nil)
+
+	for range halfSteps {
+		w.Step(wboDT, wboSubSteps)
+	}
+
+	// Disabled phase: callback fired every step (the fix clears
+	// simRelativeTransformValid each step), contact stayed disabled, box
+	// did not move. Without the fix, calls would be 1 here.
+	require.Equal(t, halfSteps, calls,
+		"pre-solve must fire every step during the disabled phase")
+	require.InDelta(t, 0.4, w.BodyPosition(body).Y, box2d.LinearSlop,
+		"box must not move while the contact is disabled")
+
+	// Enable the contact. The callback must be re-consulted so it can
+	// return true and the contact can generate constraints.
+	disable = false
+	for range halfSteps {
+		w.Step(wboDT, wboSubSteps)
+	}
+
+	// The toggle took effect: the callback was called at least once more
+	// (proving the recycling fast path did not freeze the contact), and
+	// the solver pushed the overlapping box up. Without the fix, calls
+	// would still be halfSteps and the box would still be at 0.4.
+	require.Greater(t, calls, halfSteps,
+		"pre-solve must be re-consulted after the toggle to re-enable the contact")
+	require.Greater(t, w.BodyPosition(body).Y, 0.45,
+		"the re-enabled contact must push the overlapping box up")
+}
+
 // TestOracleFrictionCallbackOverride: b2UpdateContact recomputes the mixed
 // friction through world->frictionCallback each update (contact.c). A
 // callback returning zero removes all tangential resistance, so a sliding box

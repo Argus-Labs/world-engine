@@ -678,6 +678,10 @@ func (w *World) updateContact(contactSim *contactSim, shapeA *shape, transformA 
 			// disable contact
 			pointCount = 0
 			manifold.PointCount = 0
+			// Mark recycling dirty (upstream v3.2.0 contact.c): ensure
+			// updateContact (and thus the pre-solve callback) runs again
+			// next step even if the bodies stay within ContactRecycleDistance.
+			contactSim.simFlags &^= simRelativeTransformValid
 		}
 	}
 
