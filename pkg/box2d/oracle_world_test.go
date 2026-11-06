@@ -79,8 +79,8 @@ func wboDynamicBox(t *testing.T, w *box2d.World, pos box2d.Vec2) (box2d.BodyID, 
 // TestOraclePreSolveToggleReEnablesContactWhileResting: zero gravity, sleeping
 // disabled, the standard static ground, and a dynamic unit box centered at
 // y=0.4 (overlapping the ground by 0.1 m) with pre-solve events enabled on the
-// dynamic shape. Returns the world, the dynamic body and its shape id.
-func wboRestingPreSolveScene(t *testing.T) (*box2d.World, box2d.BodyID, box2d.ShapeID) {
+// dynamic shape. Returns the world and the dynamic body.
+func wboRestingPreSolveScene(t *testing.T) (*box2d.World, box2d.BodyID) {
 	t.Helper()
 
 	w := wboNewWorld(t)
@@ -89,7 +89,7 @@ func wboRestingPreSolveScene(t *testing.T) (*box2d.World, box2d.BodyID, box2d.Sh
 	wboGround(t, w)
 	body, boxShape := wboDynamicBox(t, w, box2d.Vec2{X: 0.0, Y: 0.4})
 	w.EnableShapePreSolveEvents(boxShape, true)
-	return w, body, boxShape
+	return w, body
 }
 
 // TestOracleEmptyWorld ports EmptyWorld (test_world.c:101-121): stepping an
@@ -501,7 +501,7 @@ func TestOraclePreSolveDisablesContact(t *testing.T) {
 func TestOraclePreSolveReConsultedEveryStepWhileResting(t *testing.T) {
 	t.Parallel()
 
-	w, body, _ := wboRestingPreSolveScene(t)
+	w, body := wboRestingPreSolveScene(t)
 
 	calls := 0
 	w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
@@ -542,7 +542,7 @@ func TestOraclePreSolveReConsultedEveryStepWhileResting(t *testing.T) {
 func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
 	t.Parallel()
 
-	w, body, _ := wboRestingPreSolveScene(t)
+	w, body := wboRestingPreSolveScene(t)
 
 	const halfSteps = 30
 	disable := true
