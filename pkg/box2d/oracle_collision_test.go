@@ -1510,22 +1510,28 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		// spacings would fail under a different coefficient (e.g. 0.1).
 		radius := float64(0.5 * box2d.LinearSlop)
 		anchors := []box2d.Vec2{{X: -1, Y: 0}, {X: 1, Y: 0}}
-		// Each case supplies the vertex the weld should retain and the
-		// vertex it should discard; the shared assertions below check
-		// membership directly, with no inside/outside branch.
+		// The outside case supplies the lower point first so an
+		// excessively large weld radius removes the upper apex and fails
+		// the retention check; with retained-first order the upper apex
+		// would survive any coefficient.
 		cases := []struct {
-			name      string
-			retained  box2d.Vec2
-			discarded box2d.Vec2
+			name         string
+			retained     box2d.Vec2
+			discarded    box2d.Vec2
+			discardFirst bool
 		}{
-			{"0.001 inside", box2d.Vec2{X: 0, Y: 1 - 0.001}, box2d.Vec2{X: 0, Y: 1}},
-			{"inside", box2d.Vec2{X: 0, Y: 1 - (radius - 1e-6)}, box2d.Vec2{X: 0, Y: 1}},
-			{"outside", box2d.Vec2{X: 0, Y: 1}, box2d.Vec2{X: 0, Y: 1 - (radius + 1e-6)}},
+			{"0.001 inside", box2d.Vec2{X: 0, Y: 1 - 0.001}, box2d.Vec2{X: 0, Y: 1}, false},
+			{"inside", box2d.Vec2{X: 0, Y: 1 - (radius - 1e-6)}, box2d.Vec2{X: 0, Y: 1}, false},
+			{"outside", box2d.Vec2{X: 0, Y: 1}, box2d.Vec2{X: 0, Y: 1 - (radius + 1e-6)}, true},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
-				h := box2d.ComputeHull([]box2d.Vec2{tc.retained, tc.discarded, anchors[0], anchors[1]})
+				first, second := tc.retained, tc.discarded
+				if tc.discardFirst {
+					first, second = tc.discarded, tc.retained
+				}
+				h := box2d.ComputeHull([]box2d.Vec2{first, second, anchors[0], anchors[1]})
 				require.Equal(t, 3, h.Count)
 				require.True(t, box2d.ValidateHull(&h))
 				require.Contains(t, h.Points[:h.Count], tc.retained)
