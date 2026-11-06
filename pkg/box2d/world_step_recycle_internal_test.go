@@ -79,13 +79,11 @@ func createBoxBody(t *testing.T, w *World, halfExtent Vec2, pos Vec2, enableEven
 
 // recycleTestWorld builds a world with a static ground (top surface at y=0,
 // centered at y=-0.5) and a single dynamic box of the given half-extents placed
-// at pos. Gravity is disabled and sleep is off; callers that rotate the body
-// reset its transform before each collision step, so any solver movement
-// during a step is discarded before the next collision. Contact events are
-// enabled on both
-// shapes when enableEvents is true. The recycle distance is left at the default
-// (ContactRecycleDistance) so callers can override it for an isolated cosine
-// gate (SetContactRecycleDistance) or keep the default to exercise the
+// at pos. Gravity is disabled and sleep is off, so any solver movement during a
+// step is discarded before the next collision. Contact events are enabled on
+// both shapes when enableEvents is true. The recycle distance is left at the
+// default (ContactRecycleDistance) so callers can override it for an isolated
+// cosine gate (SetContactRecycleDistance) or keep the default to exercise the
 // distance/sine gate. Density is left at the ShapeDef default (1.0).
 func recycleTestWorld(t *testing.T, halfExtent Vec2, pos Vec2, enableEvents bool) (*World, BodyID, ShapeID, ShapeID) {
 	t.Helper()
@@ -142,8 +140,7 @@ func requireCachedRot(t *testing.T, sim *contactSim, w *World, body BodyID, expe
 // body in either order.
 func requireShapeIDPair(t *testing.T, idA, idB, ground, body ShapeID, msg string) {
 	t.Helper()
-	require.True(t, (idA == ground && idB == body) || (idA == body && idB == ground),
-		"%s: event shape IDs {%v, %v} must be {%v, %v}", msg, idA, idB, ground, body)
+	require.ElementsMatch(t, []ShapeID{ground, body}, []ShapeID{idA, idB}, msg)
 }
 
 // stepFindNotNil steps the world once and returns the contact sim for body,
