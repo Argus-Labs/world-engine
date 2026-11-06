@@ -368,7 +368,6 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 		soft := constraint.softness
 
 		pointCount := constraint.pointCount
-		totalNormalImpulse := 0.0
 
 		// One bounds check instead of one per iteration in the two loops below.
 		cps := constraint.points[:pointCount]
@@ -417,8 +416,6 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 			cp.normalImpulse = newImpulse
 			cp.totalNormalImpulse += impulse
 
-			totalNormalImpulse += newImpulse
-
 			// apply normal impulse
 			p := MulSV(impulse, normal)
 			vA = MulSub(vA, mA, p)
@@ -433,6 +430,11 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 		if !useBias {
 			tangent := RightPerp(normal)
 			friction := constraint.friction
+
+			totalNormalImpulse := 0.0
+			for j := range cps {
+				totalNormalImpulse += cps[j].normalImpulse
+			}
 
 			// Friction
 			for j := range cps {
