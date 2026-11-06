@@ -8,7 +8,9 @@
 // test_shape.c). No expectation was produced by executing the Go code: values
 // are hand-computed by following the C algorithm in exact arithmetic, and each
 // nontrivial expectation cites the C function (file:line) or upstream test it
-// comes from.
+// comes from. The hull-welding tolerance and retained-set comparison are a
+// deliberate exception that follows released upstream commit ac7c751 instead
+// of the vendored C; see the drift list below.
 //
 // Tolerances: the C code runs in float32 while this port runs in float64.
 // Upstream ENSURE_SMALL(x, FLT_EPSILON) assertions are ported with 1e-6
@@ -16,7 +18,8 @@
 // hand-derived exact-arithmetic expectations use 1e-9..1e-12 because the
 // float64 port evaluates the same expressions with at most a few ULP of noise.
 //
-// Vendored-vs-upstream drift observed while porting (vendored C wins):
+// Vendored-vs-upstream drift observed while porting (vendored C wins, except
+// the hull-welding backport noted below):
 //   - test_collision.c LargeWorldManifoldTest / LargeWorldAABBTest use the
 //     upstream-main b2WorldTransform / b2LocalManifold / b2ComputeFatShapeAABB
 //     API and a BOX2D_DOUBLE_PRECISION build flag; none of these exist in the
@@ -1495,16 +1498,25 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		require.Equal(t, 0, h.Count)
 	})
 
-	t.Run("welding collapses close points", func(t *testing.T) {
+	t.Run("welding collapses a near point onto the retained apex", func(t *testing.T) {
 		t.Parallel()
 		// Box2D v3.2.0 hull.c welds points within 0.5*linearSlop = 0.0025
-		// (tolSqr = 0.25*linearSlop^2, upstream commit ac7c751). The first
-		// three points each lie within 0.001 of (0,0) and weld into one,
-		// leaving fewer than 3 retained points.
+		// (tolSqr = 0.25*linearSlop^2, upstream commit ac7c751). (0,1) is
+		// 0.001 from the retained (0,0.999), so it welds in and is dropped;
+		// the hull apex stays (0,0.999). With welding disabled the higher
+		// (0,1) would instead be the apex, so asserting the apex observes
+		// welding directly (the close points here are not collinear-pruned:
+		// their distance from the base diagonal is ~0.999, far above the
+		// unchanged 0.01 split tolerance).
 		h := box2d.ComputeHull([]box2d.Vec2{
-			{X: 0, Y: 0}, {X: 0.001, Y: 0}, {X: 0, Y: 0.001}, {X: 1, Y: 1},
+			{X: 0, Y: 0.999},
+			{X: 0, Y: 1},
+			{X: -1, Y: 0},
+			{X: 1, Y: 0},
 		})
-		require.Equal(t, 0, h.Count)
+		require.Equal(t, 3, h.Count)
+		require.True(t, box2d.ValidateHull(&h))
+		require.Contains(t, h.Points[:h.Count], box2d.Vec2{X: 0, Y: 0.999})
 	})
 
 	t.Run("weld tolerance distinguishes upstream from vendored", func(t *testing.T) {
@@ -1523,12 +1535,9 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		// MakePolygon (geometry.c b2MakePolygon) preserves the triangle.
 		poly := box2d.MakePolygon(&h, 0.0)
 		require.Equal(t, 3, poly.Count)
-		want := map[box2d.Vec2]bool{
-			{X: 0, Y: 0}: true, {X: 0.015, Y: 0}: true, {X: 0, Y: 1}: true,
-		}
-		for i := range poly.Count {
-			require.True(t, want[poly.Vertices[i]], "unexpected vertex %v", poly.Vertices[i])
-		}
+		require.ElementsMatch(t,
+			[]box2d.Vec2{{X: 0, Y: 0}, {X: 0.015, Y: 0}, {X: 0, Y: 1}},
+			poly.Vertices[:poly.Count])
 	})
 
 	t.Run("retained-set welding keeps point near a discarded weld", func(t *testing.T) {
@@ -1537,9 +1546,11 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		// < 0.0025) and is discarded; C=(0,1) is within 0.002 of the
 		// discarded B but 0.003 from the retained A, so only the
 		// retained-set comparison (for j < n over ps) keeps C. With the
-		// vendored-C comparison against every earlier input point, C
-		// would weld to discarded B and the hull apex would be A=(0,0.997)
-		// instead. D and E anchor the base.
+		// vendored-C comparison against every earlier input point at the
+		// same 0.0025 tolerance, C would weld to discarded B and the hull
+		// apex would be A=(0,0.997) instead. (Under the actual old vendored
+		// tolerance of 0.02, C would weld directly to A.) D and E anchor
+		// the base.
 		h := box2d.ComputeHull([]box2d.Vec2{
 			{X: 0, Y: 0.997}, // A
 			{X: 0, Y: 0.998}, // B welds to A
@@ -1550,15 +1561,31 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		require.Equal(t, 3, h.Count)
 		require.True(t, box2d.ValidateHull(&h))
 		// C survives as the hull apex; A is dropped as collinear/interior.
-		var cSurvives bool
-		c := box2d.Vec2{X: 0, Y: 1.0}
-		for i := range h.Count {
-			if h.Points[i] == c {
-				cSurvives = true
-				break
-			}
+		require.Contains(t, h.Points[:h.Count], box2d.Vec2{X: 0, Y: 1})
+	})
+
+	t.Run("upstream welding can empty a hull that was valid at base", func(t *testing.T) {
+		t.Parallel()
+		// Regression record for the valid->empty direction of this fix.
+		// Under the vendored-C tolerance (tolSqr = 16*linearSlop^2) these
+		// four points weld into three retained points and ComputeHull
+		// returns a valid count=3 triangle. Under the released upstream
+		// tolerance (tolSqr = 0.25*linearSlop^2, commit ac7c751) the points
+		// weld more aggressively, leaving fewer than 3 retained points, so
+		// the hull is empty. physics2d rejects an empty hull before
+		// MakePolygon (internal/create.go:207-208) and panics on the
+		// rebuild during init (internal/system/init.go:61-62), so a stored
+		// polygon that was valid before this change can fail to replay
+		// after an upgrade. This case documents that tradeoff.
+		pts := []box2d.Vec2{
+			{X: -0.771268377536009, Y: 0.067959204319201},
+			{X: -0.7731071910952123, Y: 0.36962319967115187},
+			{X: -0.7788215535418903, Y: 0.38195388559303917},
+			{X: -0.7856872647284967, Y: 0.28340503400606254},
 		}
-		require.True(t, cSurvives, "C must survive in the resulting hull")
+		h := box2d.ComputeHull(pts)
+		require.Equal(t, 0, h.Count)
+		require.False(t, box2d.ValidateHull(&h))
 	})
 
 	t.Run("collinear points fail", func(t *testing.T) {
