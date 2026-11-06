@@ -49,6 +49,12 @@ func IsSilent(err error) bool {
 // safety net for call sites that return a cancel without first wrapping it in
 // NewSilent. --verbose still logs the full chain via logger.Errors before this
 // gate is reached, so a silenced cancel is only hidden from the normal output.
+//
+// The cancel check uses errors.Is, which walks every branch of an errors.Join,
+// so a join that carries a cancel anywhere is suppressed wholesale — unlike
+// JoinFailures, which strips cancels and preserves any real failure. No
+// production route produces such a raw mixed join at this gate (kong pairs
+// runErr with a nil hookErr; phasebox wraps canceled joins in NewSilent).
 func ShouldPrint(err error) bool {
 	return !IsSilent(err) && !errors.Is(err, context.Canceled)
 }

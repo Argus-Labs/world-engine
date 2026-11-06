@@ -394,3 +394,66 @@ func TestOrphanedShard_EmptyWorldTomlMatchesEveryShard(t *testing.T) {
 		t.Fatal("with no shards declared every shard container is an orphan")
 	}
 }
+
+// fakeInspector is a stand-in shardPortInspector for CheckLayout's inspect loop,
+// mirroring fakeLister: it serves fixed ports/errors per container name so the
+// cancel-during-inspect window can be exercised without a live daemon.
+type fakeInspector struct {
+	ports map[string]int
+	errs  map[string]error
+}
+
+func (f fakeInspector) ListProjectContainers(_ context.Context, _ string) ([]docker.ContainerSummary, error) {
+	return nil, nil
+}
+
+func (f fakeInspector) CardinalHostPort(_ context.Context, name string) (int, error) {
+	if err, ok := f.errs[name]; ok {
+		return 0, err
+	}
+	return f.ports[name], nil
+}
+
+// TestCollectShardPorts_CancelMidInspect reaches the inspect loop: ListProjectContainers
+// returned two shards, the first inspect returns a port, and Ctrl+C cancels the second.
+// collectShardPorts must surface the cancel before layoutMismatch compares a partial
+// ports map and reports a fake "instance was added" mismatch; reverting the inspect fix
+// would skip the canceled inspect and return the partial map, hiding the cancel.
+func TestCollectShardPorts_CancelMidInspect(t *testing.T) {
+	cs := []docker.ContainerSummary{
+		{Name: "p-game", Labels: service.Labels("p", service.RoleShard, "game", "game")},
+		{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat")},
+	}
+	inspector := fakeInspector{
+		ports: map[string]int{"p-game": 8081},
+		errs:  map[string]error{"p-chat": context.Canceled},
+	}
+	ports, err := collectShardPorts(context.Background(), cs, inspector)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want the canceled inspect surfaced, not a layout mismatch", err)
+	}
+	if ports != nil {
+		t.Fatalf("ports = %v, want nil (a canceled inspect must not return a partial map)", ports)
+	}
+}
+
+// TestCollectShardPorts_NonCancelInspectErrorSkipped verifies a non-cancel inspect
+// error keeps the prior skip behavior: the shard is dropped and the partial map is
+// returned for layoutMismatch to compare.
+func TestCollectShardPorts_NonCancelInspectErrorSkipped(t *testing.T) {
+	cs := []docker.ContainerSummary{
+		{Name: "p-game", Labels: service.Labels("p", service.RoleShard, "game", "game")},
+		{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat")},
+	}
+	inspector := fakeInspector{
+		ports: map[string]int{"p-game": 8081},
+		errs:  map[string]error{"p-chat": errors.New("container removed between list and inspect")},
+	}
+	ports, err := collectShardPorts(context.Background(), cs, inspector)
+	if err != nil {
+		t.Fatalf("err = %v, want nil (non-cancel inspect errors are skipped)", err)
+	}
+	if len(ports) != 1 || ports["game"] != 8081 {
+		t.Fatalf("ports = %v, want {game:8081} (chat dropped)", ports)
+	}
+}

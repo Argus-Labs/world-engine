@@ -542,6 +542,15 @@ func (r *Runtime) ServeEdgeOn(ctx context.Context, ln net.Listener) error {
 // ReleaseEdge undoes ListenEdge so CheckLayout guards reloads again.
 func (r *Runtime) ReleaseEdge() { r.servesEdge = false }
 
+// shardPortInspector lists a project's containers and reads each shard's host
+// port. *docker.Client satisfies it; tests substitute a fake to exercise
+// CheckLayout's inspect loop without a running daemon (mirroring the
+// containerLister seam used by IsRunning).
+type shardPortInspector interface {
+	ListProjectContainers(ctx context.Context, project string) ([]docker.ContainerSummary, error)
+	CardinalHostPort(ctx context.Context, containerName string) (int, error)
+}
+
 // CheckLayout refuses a reload whose world.toml no longer matches the running world. An
 // instance's host port is its position in world.toml, and the edge in `world start`
 // built its routes from that once; a reload from another process that moves an instance
@@ -556,25 +565,38 @@ func (r *Runtime) CheckLayout(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	ports, err := collectShardPorts(ctx, cs, r.docker)
+	if err != nil {
+		return err
+	}
+	return layoutMismatch(r.cfg.WorldToml.Shards, ports)
+}
+
+// collectShardPorts maps each shard container to its host port. A canceled inspect
+// surfaces before layoutMismatch compares a partial ports map and reports a fake
+// "instance was added" mismatch; other inspect errors (e.g. a container removed
+// between list and inspect) keep the prior skip behavior. Extracted from CheckLayout
+// so the cancel-during-inspect window is unit-testable against a fake inspector.
+func collectShardPorts(
+	ctx context.Context,
+	cs []docker.ContainerSummary,
+	inspector shardPortInspector,
+) (map[string]int, error) {
 	ports := map[string]int{}
 	for _, c := range cs {
 		if c.Labels[service.RoleLabel] != service.RoleShard {
 			continue
 		}
-		port, err := r.docker.CardinalHostPort(ctx, c.Name)
+		port, err := inspector.CardinalHostPort(ctx, c.Name)
 		if err != nil {
-			// A canceled inspect must surface before layoutMismatch compares a
-			// partial ports map and reports a fake "instance was added" mismatch
-			// that still prints and reaches Sentry. Other inspect errors (e.g. a
-			// stopped container with no live binding) keep the prior skip behavior.
 			if errors.Is(err, context.Canceled) {
-				return err
+				return nil, err
 			}
 			continue
 		}
 		ports[c.Labels[service.InstanceLabel]] = port
 	}
-	return layoutMismatch(r.cfg.WorldToml.Shards, ports)
+	return ports, nil
 }
 
 // layoutMismatch compares world.toml's instances with the ports the existing shard

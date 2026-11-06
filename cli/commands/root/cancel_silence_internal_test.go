@@ -28,14 +28,12 @@ func deadSocketSetup(t *testing.T) (*local.Runtime, *docker.Client, *service.Con
 	return local.New(dc, cfg), dc, cfg
 }
 
-// TestReloadCmdCancel_ReloadShardsSilenced drives the reload command's actual
-// guard-bearing function (reloadShards, shared by `world reload` and the log
-// picker's reload hotkey) instead of replicating its logic. A Ctrl+C during the
-// pre-dashboard rt.CheckLayout call is surfaced as a wrapped context.Canceled
-// (ListProjectContainers eris-wraps the returned error), and reload.go's guard
-// wraps it in NewSilent so ShouldPrint returns false and main.go neither prints
-// it nor captures it to Sentry.
-func TestReloadCmdCancel_ReloadShardsSilenced(t *testing.T) {
+// TestReloadCmdCancel_ReloadShardsCancelSilencedByGate drives reloadShards (shared
+// by `world reload` and the log picker's reload hotkey) with a canceled ctx. The
+// cancel surfaces from CheckLayout as a wrapped context.Canceled
+// (ListProjectContainers eris-wraps the returned error); no call-site guard wraps
+// it, so the central ShouldPrint gate is what silences it — the actual main.go path.
+func TestReloadCmdCancel_ReloadShardsCancelSilencedByGate(t *testing.T) {
 	rt, dc, cfg := deadSocketSetup(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -45,14 +43,13 @@ func TestReloadCmdCancel_ReloadShardsSilenced(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, errors.Is(err, context.Canceled),
 		"reloadShards must surface the wrapped context.Canceled from CheckLayout, got %v", err)
-	assert.True(t, errorspkg.IsSilent(err), "the reload.go CheckLayout guard must wrap the cancel in NewSilent")
+	assert.False(t, errorspkg.IsSilent(err), "no call-site guard wraps the cancel; silencing is the gate's job")
 	assert.False(t, errorspkg.ShouldPrint(err), "a canceled reload must not be printed or Sentry-captured")
 }
 
-// TestReloadCmd_NonCancelError_StillPrinted verifies the guard only catches
-// context.Canceled: a real (non-cancel) Docker error from CheckLayout against a
-// dead socket passes through reloadShards unchanged, so ShouldPrint returns true
-// and it is still printed and Sentry-captured.
+// TestReloadCmd_NonCancelError_StillPrinted verifies a real (non-cancel) Docker
+// error from CheckLayout against a dead socket passes through reloadShards
+// unchanged, so ShouldPrint returns true and it is still printed and Sentry-captured.
 func TestReloadCmd_NonCancelError_StillPrinted(t *testing.T) {
 	rt, dc, cfg := deadSocketSetup(t)
 
@@ -63,13 +60,10 @@ func TestReloadCmd_NonCancelError_StillPrinted(t *testing.T) {
 	assert.True(t, errorspkg.ShouldPrint(err), "a real Docker error must still be printed and Sentry-captured")
 }
 
-// TestReloadCmdCancel_IsRunningSilencedByGate verifies the silencing of a Ctrl+C
-// during the pre-dashboard rt.IsRunning call in `world reload` and `world logs`.
-// IsRunning returns a wrapped context.Canceled (ListProjectContainers wraps the
-// returned error); the command-level guards wrap it in NewSilent, and the
-// central ShouldPrint gate silences it even without that wrap — this is the
-// actual main.go path. Asserted against IsRunning directly so the test reports
-// the runtime's real cancel form rather than reconstructing NewSilent itself.
+// TestReloadCmdCancel_IsRunningSilencedByGate calls rt.IsRunning and ShouldPrint
+// directly; it does not exercise main.go/Sentry. IsRunning returns a wrapped
+// context.Canceled (ListProjectContainers wraps the returned error), and the
+// central ShouldPrint gate silences it even without a call-site wrap.
 func TestReloadCmdCancel_IsRunningSilencedByGate(t *testing.T) {
 	rt, _, _ := deadSocketSetup(t)
 
