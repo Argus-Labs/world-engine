@@ -542,12 +542,12 @@ func (r *Runtime) ServeEdgeOn(ctx context.Context, ln net.Listener) error {
 // ReleaseEdge undoes ListenEdge so CheckLayout guards reloads again.
 func (r *Runtime) ReleaseEdge() { r.servesEdge = false }
 
-// shardPortInspector lists a project's containers and reads each shard's host
-// port. *docker.Client satisfies it; tests substitute a fake to exercise
-// CheckLayout's inspect loop without a running daemon (mirroring the
-// containerLister seam used by IsRunning).
+// shardPortInspector reads a shard container's host port. *docker.Client
+// satisfies it; tests substitute a fake to exercise the inspect loop without
+// a running daemon (mirroring the containerLister seam used by IsRunning).
+// CheckLayout lists the project's containers itself and passes them to
+// collectShardPorts, so the inspector only needs CardinalHostPort.
 type shardPortInspector interface {
-	ListProjectContainers(ctx context.Context, project string) ([]docker.ContainerSummary, error)
 	CardinalHostPort(ctx context.Context, containerName string) (int, error)
 }
 

@@ -10,6 +10,8 @@ import (
 
 	"github.com/moby/moby/api/types/network"
 
+	"github.com/rotisserie/eris"
+
 	cerrdefs "github.com/containerd/errdefs"
 
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
@@ -403,10 +405,6 @@ type fakeInspector struct {
 	errs  map[string]error
 }
 
-func (f fakeInspector) ListProjectContainers(_ context.Context, _ string) ([]docker.ContainerSummary, error) {
-	return nil, nil
-}
-
 func (f fakeInspector) CardinalHostPort(_ context.Context, name string) (int, error) {
 	if err, ok := f.errs[name]; ok {
 		return 0, err
@@ -431,6 +429,29 @@ func TestCollectShardPorts_CancelMidInspect(t *testing.T) {
 	ports, err := collectShardPorts(context.Background(), cs, inspector)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want the canceled inspect surfaced, not a layout mismatch", err)
+	}
+	if ports != nil {
+		t.Fatalf("ports = %v, want nil (a canceled inspect must not return a partial map)", ports)
+	}
+}
+
+// TestCollectShardPorts_ErisWrappedCancelSurfaced mirrors CancelMidInspect but
+// with the eris-wrapped [context.Canceled] that CardinalHostPort actually
+// returns (it wraps the InspectContainer error). The guard must see through it
+// via errors.Is; a direct equality check would pass the bare-sentinel fixture
+// above but miss this form and let a partial ports map reach layoutMismatch.
+func TestCollectShardPorts_ErisWrappedCancelSurfaced(t *testing.T) {
+	cs := []docker.ContainerSummary{
+		{Name: "p-game", Labels: service.Labels("p", service.RoleShard, "game", "game")},
+		{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat")},
+	}
+	inspector := fakeInspector{
+		ports: map[string]int{"p-game": 8081},
+		errs:  map[string]error{"p-chat": eris.Wrap(context.Canceled, "inspect p-chat")},
+	}
+	ports, err := collectShardPorts(context.Background(), cs, inspector)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want the eris-wrapped cancel surfaced, not a layout mismatch", err)
 	}
 	if ports != nil {
 		t.Fatalf("ports = %v, want nil (a canceled inspect must not return a partial map)", ports)

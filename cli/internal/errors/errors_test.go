@@ -39,7 +39,7 @@ func TestShouldPrint_ContextCanceled(t *testing.T) {
 }
 
 // The cancel that leaks from the pre-dashboard Docker calls is eris-wrapped
-// (e.g. eris.Wrap(context.Canceled, "list containers for project ...")), not a
+// (e.g. eris.Wrap([context.Canceled], "list containers for project ...")), not a
 // bare [context.Canceled]. ShouldPrint must see through eris and treat it as
 // non-printable.
 func TestShouldPrint_ErisWrappedCancel(t *testing.T) {
@@ -77,7 +77,7 @@ func TestShouldPrint_SilentInsideKongJoin(t *testing.T) {
 	assert.False(t, pkgerrors.ShouldPrint(errors.Join(s, nil)))
 }
 
-// ShouldPrint uses errors.Is, which walks every branch of an errors.Join, so a
+// ShouldPrint uses [errors.Is], which walks every branch of an [errors.Join], so a
 // join carrying both a real failure and a cancel is suppressed wholesale. This
 // differs from JoinFailures, which strips cancels and preserves the real failure;
 // no production route produces such a raw mixed join at this gate, so this pins
@@ -85,8 +85,8 @@ func TestShouldPrint_SilentInsideKongJoin(t *testing.T) {
 func TestShouldPrint_MixedJoinSuppressesWholeJoin(t *testing.T) {
 	t.Parallel()
 
-	real := eris.New("cluster failed")
-	joined := errors.Join(real, context.Canceled)
+	realErr := eris.New("cluster failed")
+	joined := errors.Join(realErr, context.Canceled)
 	assert.True(t, errors.Is(joined, context.Canceled), "sanity: the join carries the cancel")
 	assert.False(t, pkgerrors.ShouldPrint(joined),
 		"a join carrying a cancel is suppressed even with a real failure")

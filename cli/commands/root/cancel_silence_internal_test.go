@@ -29,10 +29,12 @@ func deadSocketSetup(t *testing.T) (*local.Runtime, *docker.Client, *service.Con
 }
 
 // TestReloadCmdCancel_ReloadShardsCancelSilencedByGate drives reloadShards (shared
-// by `world reload` and the log picker's reload hotkey) with a canceled ctx. The
-// cancel surfaces from CheckLayout as a wrapped context.Canceled
-// (ListProjectContainers eris-wraps the returned error); no call-site guard wraps
-// it, so the central ShouldPrint gate is what silences it — the actual main.go path.
+// by `world reload` and the log picker's reload hotkey, which prints its errors
+// directly in logs.go) with a canceled ctx, then asserts on the returned error
+// via ShouldPrint. It does not invoke main or observe output/Sentry: the cancel
+// surfaces from CheckLayout as a wrapped [context.Canceled]
+// (ListProjectContainers eris-wraps the returned error), no call-site guard
+// wraps it, and the central ShouldPrint gate returns false for it.
 func TestReloadCmdCancel_ReloadShardsCancelSilencedByGate(t *testing.T) {
 	rt, dc, cfg := deadSocketSetup(t)
 
@@ -49,7 +51,8 @@ func TestReloadCmdCancel_ReloadShardsCancelSilencedByGate(t *testing.T) {
 
 // TestReloadCmd_NonCancelError_StillPrinted verifies a real (non-cancel) Docker
 // error from CheckLayout against a dead socket passes through reloadShards
-// unchanged, so ShouldPrint returns true and it is still printed and Sentry-captured.
+// unchanged, so ShouldPrint returns true. It does not invoke main or observe
+// output/Sentry.
 func TestReloadCmd_NonCancelError_StillPrinted(t *testing.T) {
 	rt, dc, cfg := deadSocketSetup(t)
 
@@ -62,7 +65,7 @@ func TestReloadCmd_NonCancelError_StillPrinted(t *testing.T) {
 
 // TestReloadCmdCancel_IsRunningSilencedByGate calls rt.IsRunning and ShouldPrint
 // directly; it does not exercise main.go/Sentry. IsRunning returns a wrapped
-// context.Canceled (ListProjectContainers wraps the returned error), and the
+// [context.Canceled] (ListProjectContainers wraps the returned error), and the
 // central ShouldPrint gate silences it even without a call-site wrap.
 func TestReloadCmdCancel_IsRunningSilencedByGate(t *testing.T) {
 	rt, _, _ := deadSocketSetup(t)
