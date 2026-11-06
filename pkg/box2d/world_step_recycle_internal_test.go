@@ -127,7 +127,7 @@ func rotateAndStep(t *testing.T, w *World, body BodyID, angle float64) *contactS
 // pre-solve transform during collideTask (and SetBodyTransform writes that
 // transform directly), so the cached rotation is bit-identical to the rotation
 // set by the test.
-func requireCachedRot(t *testing.T, sim *contactSim, w *World, body BodyID, expected Rot, msgAndArgs ...interface{}) {
+func requireCachedRot(t *testing.T, sim *contactSim, w *World, body BodyID, expected Rot, msgAndArgs ...any) {
 	t.Helper()
 	cached := dynamicCachedRotation(sim, w, body)
 	require.Equal(t, expected, cached, msgAndArgs...)
