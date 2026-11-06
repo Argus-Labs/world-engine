@@ -113,11 +113,9 @@ func ComputeHull(points []Vec2) Hull {
 	// Perform aggressive point welding. First point always remains.
 	// Also compute the bounding box for later.
 	var ps [MaxPolygonVertices]Vec2
-
 	n := 0
 	linearSlop := LinearSlop
-	tolSqr := 16.0 * linearSlop * linearSlop
-
+	tolSqr := 0.25 * linearSlop * linearSlop
 	for i := range count {
 		aabb.LowerBound = Min(aabb.LowerBound, points[i])
 		aabb.UpperBound = Max(aabb.UpperBound, points[i])
@@ -125,9 +123,8 @@ func ComputeHull(points []Vec2) Hull {
 		vi := points[i]
 
 		unique := true
-
-		for j := range i {
-			vj := points[j]
+		for j := range n {
+			vj := ps[j]
 
 			distSqr := DistanceSquared(vi, vj)
 			if distSqr < tolSqr {
