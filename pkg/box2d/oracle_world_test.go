@@ -509,7 +509,7 @@ func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
 	wboStep(w, halfSteps)
 	require.Equal(t, halfSteps, calls,
 		"pre-solve must fire every step during the disabled phase")
-	require.Equal(t, 0.4, w.BodyPosition(body).Y,
+	require.InDelta(t, 0.4, w.BodyPosition(body).Y, 0.0,
 		"box must not move while the contact is disabled")
 
 	disable = false
