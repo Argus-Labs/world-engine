@@ -365,8 +365,6 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 		dp := Sub(stateB.deltaPosition, stateA.deltaPosition)
 
 		normal := constraint.normal
-		tangent := RightPerp(normal)
-		friction := constraint.friction
 		soft := constraint.softness
 
 		pointCount := constraint.pointCount
@@ -430,12 +428,12 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 			wB += float64(iB * Cross(rB, p))
 		}
 
-		// Friction and rolling resistance run only in the relax stage
-		// (useBias == false), matching upstream v3.2.0's stage split: the
-		// push stage (b2PushContacts_Overflow) is normal-only — "No friction
-		// and no restitution" — while the relax stage (b2SolveContacts_Overflow)
-		// solves normal, rolling resistance and friction.
+		// Relax stage only: friction and rolling resistance
+		// (see solveContactsColor doc for the upstream stage split).
 		if !useBias {
+			tangent := RightPerp(normal)
+			friction := constraint.friction
+
 			// Friction
 			for j := range cps {
 				cp := &cps[j]
