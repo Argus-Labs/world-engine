@@ -5,12 +5,13 @@
 // Every expected value is derived ONLY from the vendored C source of truth
 // (scratchpad vendored-c/box2d/src/{aabb,geometry,hull,distance,manifold}.c)
 // or ported from the upstream unit tests (test_collision.c, test_distance.c,
-// test_shape.c). No expectation was produced by executing the Go code: values
-// are hand-computed by following the C algorithm in exact arithmetic, and each
-// nontrivial expectation cites the C function (file:line) or upstream test it
-// comes from. The hull-welding tolerance and retained-set comparison are a
-// deliberate exception that follows released upstream commit ac7c751 instead
-// of the vendored C; see the drift list below.
+// test_shape.c). No expectation was produced by executing the Go code: unless
+// a test documents another source, values are hand-computed by following the
+// C algorithm in exact arithmetic, and each nontrivial expectation cites the C
+// function (file:line) or upstream test it comes from. The hull-welding
+// tolerance and retained-set comparison are a deliberate exception that
+// follows released upstream commit ac7c751 instead of the vendored C; see the
+// drift list below.
 //
 // Tolerances: the C code runs in float32 while this port runs in float64.
 // Upstream ENSURE_SMALL(x, FLT_EPSILON) assertions are ported with 1e-6
@@ -1498,33 +1499,12 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		require.Equal(t, 0, h.Count)
 	})
 
-	t.Run("welding collapses a near point onto the retained apex", func(t *testing.T) {
-		t.Parallel()
-		// Box2D v3.2.0 hull.c welds points within 0.5*linearSlop = 0.0025
-		// (tolSqr = 0.25*linearSlop^2, upstream commit ac7c751). (0,1) is
-		// 0.001 from the retained (0,0.999), so it welds in and is dropped;
-		// the hull apex stays (0,0.999). With welding disabled the higher
-		// (0,1) would instead be the apex, so asserting the apex observes
-		// welding directly (the close points here are not collinear-pruned:
-		// their distance from the horizontal base (endpoints (-1,0) and
-		// (1,0)) is ~0.999, far above the unchanged 0.01 split tolerance).
-		h := box2d.ComputeHull([]box2d.Vec2{
-			{X: 0, Y: 0.999},
-			{X: 0, Y: 1},
-			{X: -1, Y: 0},
-			{X: 1, Y: 0},
-		})
-		require.Equal(t, 3, h.Count)
-		require.True(t, box2d.ValidateHull(&h))
-		require.Contains(t, h.Points[:h.Count], box2d.Vec2{X: 0, Y: 0.999})
-	})
-
 	t.Run("weld boundary at 0.5*linearSlop", func(t *testing.T) {
 		t.Parallel()
 		// The weld radius is 0.5*linearSlop (tolSqr = 0.25*linearSlop^2,
-		// upstream commit ac7c751). A point just inside the radius welds
-		// onto the retained apex; a point just outside is retained, and the
-		// lower point drops as interior to the triangle (-1,0),(1,0),(0,1).
+		// upstream commit ac7c751). A point inside the radius welds onto
+		// the retained apex; a point outside is retained, and the lower
+		// point drops as interior to the triangle (-1,0),(1,0),(0,1).
 		// This pins the coefficient behaviorally: the expression-only
 		// length-units test does not exercise ComputeHull, and these
 		// spacings would fail under a different coefficient (e.g. 0.1).
@@ -1535,9 +1515,8 @@ func TestOracleHullEdgeCases(t *testing.T) {
 			gap    float64
 			inside bool
 		}{
-			// Just inside the radius: (0,1) welds into the retained (0,1-gap).
+			{"0.001 inside", 0.001, true},
 			{"inside", radius - 1e-6, true},
-			// Just outside the radius: both retained; (0,1-gap) is interior, so (0,1) is the apex.
 			{"outside", radius + 1e-6, false},
 		}
 		for _, tc := range cases {
@@ -1611,13 +1590,7 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		// so all four points survive welding. Keeping the third point
 		// changes the extreme edge; both remaining points then fall
 		// within the unchanged 0.01 collinearity tolerance, so ComputeHull
-		// returns an empty hull. physics2d rejects an empty hull before
-		// MakePolygon (attachShape in pkg/plugin/physics2d/internal/create.go)
-		// and InitPhysicsSystem.Run (pkg/plugin/physics2d/internal/system/init.go)
-		// panics on the rebuild during init, while normal snapshot restore
-		// runs after init and hits reconciliation, so a stored polygon
-		// that was valid under the vendored-C tolerance can fail to replay
-		// after an upgrade.
+		// returns an empty hull.
 		// These four coordinates were found by a numerical search over
 		// 4-point inputs for a hull that is valid (count=3) under the
 		// vendored-C tolerance but empty (count=0) under the upstream
