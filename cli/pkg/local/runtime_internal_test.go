@@ -432,7 +432,6 @@ var twoShardContainers = []docker.ContainerSummary{
 func TestCollectShardPorts(t *testing.T) {
 	t.Parallel()
 
-	cs := twoShardContainers
 	cases := []struct {
 		name         string
 		secondErr    error
@@ -455,7 +454,7 @@ func TestCollectShardPorts(t *testing.T) {
 				ports: map[string]int{"p-game": service.ShardHostPort(0)},
 				errs:  map[string]error{"p-chat": tc.secondErr},
 			}
-			ports, err := collectShardPorts(context.Background(), cs, inspector)
+			ports, err := collectShardPorts(context.Background(), twoShardContainers, inspector)
 			if tc.wantCanceled {
 				require.ErrorIs(t, err, context.Canceled)
 				assert.Nil(t, ports, "a canceled inspect must not return a partial map")
