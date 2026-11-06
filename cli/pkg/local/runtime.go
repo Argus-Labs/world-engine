@@ -543,10 +543,8 @@ func (r *Runtime) ServeEdgeOn(ctx context.Context, ln net.Listener) error {
 func (r *Runtime) ReleaseEdge() { r.servesEdge = false }
 
 // shardPortInspector reads a shard container's host port. *docker.Client
-// satisfies it; tests substitute a fake to exercise the inspect loop without
-// a running daemon (mirroring the containerLister seam used by IsRunning).
-// CheckLayout lists the project's containers itself and passes them to
-// collectShardPorts, so the inspector only needs CardinalHostPort.
+// satisfies it; tests substitute a fake so the inspect loop runs without a
+// running daemon.
 type shardPortInspector interface {
 	CardinalHostPort(ctx context.Context, containerName string) (int, error)
 }
@@ -561,29 +559,35 @@ func (r *Runtime) CheckLayout(ctx context.Context) error {
 	if r.servesEdge {
 		return nil
 	}
-	cs, err := r.docker.ListProjectContainers(ctx, r.project())
+	return checkLayout(ctx, r.docker, r.docker, r.project(), r.cfg.WorldToml.Shards)
+}
+
+// checkLayout lists the project's containers and maps each shard to its host port,
+// surfacing a canceled inspect before layoutMismatch compares a partial ports map.
+func checkLayout(ctx context.Context, lister containerLister, inspector shardPortInspector, project string, shards []worldtoml.Shard) error {
+	cs, err := lister.ListProjectContainers(ctx, project)
 	if err != nil {
 		return err
 	}
-	ports, err := collectShardPorts(ctx, cs, r.docker)
+	ports, err := collectShardPorts(ctx, cs, inspector)
 	if err != nil {
 		return err
 	}
-	return layoutMismatch(r.cfg.WorldToml.Shards, ports)
+	return layoutMismatch(shards, ports)
 }
 
 // collectShardPorts maps each shard container to its host port. A canceled inspect
 // surfaces before layoutMismatch compares a partial ports map and reports a fake
 // "instance was added" mismatch; other inspect errors (e.g. a container removed
-// between list and inspect) keep the prior skip behavior. Extracted from CheckLayout
-// so the cancel-during-inspect window is unit-testable against a fake inspector.
+// between list and inspect) keep the prior skip behavior.
 func collectShardPorts(
 	ctx context.Context,
 	cs []docker.ContainerSummary,
 	inspector shardPortInspector,
 ) (map[string]int, error) {
-	ports := map[string]int{}
-	for _, c := range cs {
+	ports := make(map[string]int, len(cs))
+	for i := range cs {
+		c := cs[i]
 		if c.Labels[service.RoleLabel] != service.RoleShard {
 			continue
 		}

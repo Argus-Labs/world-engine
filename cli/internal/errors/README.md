@@ -71,7 +71,7 @@ const (
 
 ## Notes
 
-- `ShouldPrint(err)` checks the whole chain: if any link is silent, nothing is printed. A `context.Canceled` in the chain is also never printed — Ctrl+C is an expected user action, not a failure (`JoinFailures` treats it the same way). `--verbose` still logs the full chain before this gate.
+- `ShouldPrint(err)` checks the whole chain: if any link is silent, nothing is printed. A `context.Canceled` in the chain is also never printed — Ctrl+C is an expected user action, not a failure. `ShouldPrint` suppresses a whole join containing `context.Canceled`; `JoinFailures` preserves separately supplied real failures. `--verbose` still logs the full chain before this gate.
 - `FormatError(err)` walks the chain, picks the highest priority short message, and appends any must-show short messages in order (no duplicates). If no priority exists, it falls back to `err.Error()` (full chain top-level string).
 
 

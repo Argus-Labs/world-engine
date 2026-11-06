@@ -11,6 +11,8 @@ import (
 	"github.com/moby/moby/api/types/network"
 
 	"github.com/rotisserie/eris"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	cerrdefs "github.com/containerd/errdefs"
 
@@ -412,69 +414,69 @@ func (f fakeInspector) CardinalHostPort(_ context.Context, name string) (int, er
 	return f.ports[name], nil
 }
 
-// TestCollectShardPorts_CancelMidInspect reaches the inspect loop: ListProjectContainers
-// returned two shards, the first inspect returns a port, and Ctrl+C cancels the second.
-// collectShardPorts must surface the cancel before layoutMismatch compares a partial
-// ports map and reports a fake "instance was added" mismatch; reverting the inspect fix
-// would skip the canceled inspect and return the partial map, hiding the cancel.
-func TestCollectShardPorts_CancelMidInspect(t *testing.T) {
+// TestCollectShardPorts drives the inspect loop with two shard containers: the
+// first inspect returns a port, the second returns the case's error. Cancellation
+// must escape before layoutMismatch consumes a partial port map — both the bare
+// [context.Canceled] and the eris-wrapped form that InspectContainer returns
+// through CardinalHostPort (which CardinalHostPort returns unchanged); a
+// non-cancel inspect error keeps the prior skip behavior, so the partial map is
+// returned for comparison. Shard and instance IDs differ so an accidental key on
+// ShardIDLabel would miss.
+func TestCollectShardPorts(t *testing.T) {
+	t.Parallel()
+
 	cs := []docker.ContainerSummary{
-		{Name: "p-game", Labels: service.Labels("p", service.RoleShard, "game", "game")},
-		{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat")},
+		{Name: "p-game", Labels: service.Labels("p", service.RoleShard, "game", "game-0")},
+		{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat-0")},
+	}
+	cases := []struct {
+		name         string
+		secondErr    error
+		wantCanceled bool
+		wantPorts    map[string]int
+	}{
+		{"bare cancel", context.Canceled, true, nil},
+		{"eris-wrapped cancel", eris.Wrap(context.Canceled, "inspect p-chat"), true, nil},
+		{"non-cancel inspect error", errors.New("container removed between list and inspect"), false, map[string]int{"game-0": 8081}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			inspector := fakeInspector{
+				ports: map[string]int{"p-game": 8081},
+				errs:  map[string]error{"p-chat": tc.secondErr},
+			}
+			ports, err := collectShardPorts(context.Background(), cs, inspector)
+			if tc.wantCanceled {
+				require.ErrorIs(t, err, context.Canceled)
+				assert.Nil(t, ports, "a canceled inspect must not return a partial map")
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.wantPorts, ports)
+			}
+		})
+	}
+}
+
+// TestCheckLayout_CancelMidInspect drives checkLayout with a fake lister that
+// returns two shards, then a fake inspector whose first inspect returns a port
+// and whose second returns context.Canceled. The cancel must escape before
+// layoutMismatch compares a partial ports map and reports a fake "instance was
+// added" mismatch; this covers the CheckLayout wiring the collectShardPorts
+// helper tests do not.
+func TestCheckLayout_CancelMidInspect(t *testing.T) {
+	t.Parallel()
+
+	cs := []docker.ContainerSummary{
+		{Name: "p-game", Labels: service.Labels("p", service.RoleShard, "game", "game-0")},
+		{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat-0")},
 	}
 	inspector := fakeInspector{
 		ports: map[string]int{"p-game": 8081},
 		errs:  map[string]error{"p-chat": context.Canceled},
 	}
-	ports, err := collectShardPorts(context.Background(), cs, inspector)
+	err := checkLayout(context.Background(), fakeLister{containers: cs}, inspector, "p", nil)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want the canceled inspect surfaced, not a layout mismatch", err)
-	}
-	if ports != nil {
-		t.Fatalf("ports = %v, want nil (a canceled inspect must not return a partial map)", ports)
-	}
-}
-
-// TestCollectShardPorts_ErisWrappedCancelSurfaced mirrors CancelMidInspect but
-// with the eris-wrapped [context.Canceled] that CardinalHostPort actually
-// returns (it wraps the InspectContainer error). The guard must see through it
-// via errors.Is; a direct equality check would pass the bare-sentinel fixture
-// above but miss this form and let a partial ports map reach layoutMismatch.
-func TestCollectShardPorts_ErisWrappedCancelSurfaced(t *testing.T) {
-	cs := []docker.ContainerSummary{
-		{Name: "p-game", Labels: service.Labels("p", service.RoleShard, "game", "game")},
-		{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat")},
-	}
-	inspector := fakeInspector{
-		ports: map[string]int{"p-game": 8081},
-		errs:  map[string]error{"p-chat": eris.Wrap(context.Canceled, "inspect p-chat")},
-	}
-	ports, err := collectShardPorts(context.Background(), cs, inspector)
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("err = %v, want the eris-wrapped cancel surfaced, not a layout mismatch", err)
-	}
-	if ports != nil {
-		t.Fatalf("ports = %v, want nil (a canceled inspect must not return a partial map)", ports)
-	}
-}
-
-// TestCollectShardPorts_NonCancelInspectErrorSkipped verifies a non-cancel inspect
-// error keeps the prior skip behavior: the shard is dropped and the partial map is
-// returned for layoutMismatch to compare.
-func TestCollectShardPorts_NonCancelInspectErrorSkipped(t *testing.T) {
-	cs := []docker.ContainerSummary{
-		{Name: "p-game", Labels: service.Labels("p", service.RoleShard, "game", "game")},
-		{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat")},
-	}
-	inspector := fakeInspector{
-		ports: map[string]int{"p-game": 8081},
-		errs:  map[string]error{"p-chat": errors.New("container removed between list and inspect")},
-	}
-	ports, err := collectShardPorts(context.Background(), cs, inspector)
-	if err != nil {
-		t.Fatalf("err = %v, want nil (non-cancel inspect errors are skipped)", err)
-	}
-	if len(ports) != 1 || ports["game"] != 8081 {
-		t.Fatalf("ports = %v, want {game:8081} (chat dropped)", ports)
 	}
 }

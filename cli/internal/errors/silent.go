@@ -43,20 +43,24 @@ func IsSilent(err error) bool {
 }
 
 // ShouldPrint returns true if the error should be printed to the user as normal
-// error output (and captured by Sentry). A cancel (Ctrl+C) is an expected user
-// action, not a failure — JoinFailures treats it the same way — so it is never
-// printed or captured by Sentry, regardless of where it originated. This is the
-// safety net for call sites that return a cancel without first wrapping it in
-// NewSilent. --verbose still logs the full chain via logger.Errors before this
-// gate is reached, so a silenced cancel is only hidden from the normal output.
+// error output (and captured by Sentry). main uses this gate for both. A cancel
+// (Ctrl+C) is an expected user action, not a failure, so a silent error or an
+// error matching [context.Canceled] is never printed or captured; --verbose
+// still logs the full chain via logger.Errors before this gate is reached, so a
+// silenced cancel is only hidden from the normal output.
 //
 // The cancel check uses [errors.Is], which walks every branch of an [errors.Join],
 // so a join that carries a cancel anywhere is suppressed wholesale — unlike
-// JoinFailures, which strips cancels and preserves any real failure. No
-// production route produces such a raw mixed join at this gate (kong pairs
-// runErr with a nil hookErr; phasebox wraps canceled joins in NewSilent).
+// [JoinFailures], which strips cancels and preserves any real failure.
 func ShouldPrint(err error) bool {
-	return !IsSilent(err) && !errors.Is(err, context.Canceled)
+	return !isSilentOrCancel(err)
+}
+
+// isSilentOrCancel reports whether err is a silent error or a cancellation — the
+// common condition ShouldPrint and JoinFailures both suppress, shared so the two
+// policies cannot drift.
+func isSilentOrCancel(err error) bool {
+	return IsSilent(err) || errors.Is(err, context.Canceled)
 }
 
 // JoinFailures joins errs' real failures. A cancel (Ctrl+C) or silent error
@@ -67,7 +71,7 @@ func JoinFailures(errs ...error) error {
 	for _, err := range errs {
 		switch {
 		case err == nil:
-		case IsSilent(err) || errors.Is(err, context.Canceled):
+		case isSilentOrCancel(err):
 			if canceled == nil {
 				canceled = err
 			}
