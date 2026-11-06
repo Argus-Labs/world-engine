@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -90,6 +91,7 @@ func TestClient_Request(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, response)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		assert.Contains(t, err.Error(), "insufficient funds")
 	})
 
@@ -114,6 +116,131 @@ func TestClient_Request(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, response)
 		assert.Contains(t, err.Error(), "unmarshal")
+	})
+
+	t.Run("preserves gRPC status code", func(t *testing.T) {
+		t.Parallel()
+		cases := []struct {
+			code    codes.Code
+			message string
+		}{
+			{codes.NotFound, "thing not found"},
+			{codes.AlreadyExists, "already exists"},
+			{codes.Unavailable, "temporarily unavailable"},
+			{codes.ResourceExhausted, "quota exceeded"},
+			{codes.PermissionDenied, "access denied"},
+			{codes.Unimplemented, "not supported"},
+		}
+		for _, tc := range cases {
+			t.Run(tc.code.String(), func(t *testing.T) {
+				t.Parallel()
+				rng := testutils.NewRand(t)
+				address := micro.RandServiceAddress(t, rng)
+				endpoint := "code-" + tc.code.String()
+
+				sub := newTestHandler(t, client, micro.Endpoint(address, endpoint), func(msg *nats.Msg) {
+					req, err := micro.NewRequestFromNATSMsg(msg, address)
+					require.NoError(t, err)
+
+					resp := micro.NewErrorResponse(req, errors.New(tc.message), tc.code)
+					responseBytes, err := resp.Bytes()
+					require.NoError(t, err)
+
+					msg.Respond(responseBytes)
+				})
+				defer sub.Unsubscribe()
+
+				require.NoError(t, client.Flush())
+
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer cancel()
+
+				response, err := client.Request(ctx, address, endpoint, testPayload)
+
+				require.Error(t, err)
+				assert.Nil(t, response)
+				assert.Equal(t, tc.code, status.Code(err))
+				assert.Equal(t, tc.message, status.Convert(err).Message())
+			})
+		}
+	})
+
+	t.Run("non-OK code with empty message", func(t *testing.T) {
+		t.Parallel()
+		rng := testutils.NewRand(t)
+		address := micro.RandServiceAddress(t, rng)
+		endpoint := "empty-msg"
+
+		sub := newTestHandler(t, client, micro.Endpoint(address, endpoint), func(msg *nats.Msg) {
+			req, err := micro.NewRequestFromNATSMsg(msg, address)
+			require.NoError(t, err)
+
+			resp := &micro.Response{
+				RequestID:      req.RequestID,
+				ServiceAddress: req.ServiceAddress,
+				Status:         status.New(codes.NotFound, "").Proto(),
+			}
+			responseBytes, err := resp.Bytes()
+			require.NoError(t, err)
+
+			msg.Respond(responseBytes)
+		})
+		defer sub.Unsubscribe()
+
+		require.NoError(t, client.Flush())
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		response, err := client.Request(ctx, address, endpoint, testPayload)
+
+		require.Error(t, err)
+		assert.Nil(t, response)
+		assert.Equal(t, codes.NotFound, status.Code(err))
+	})
+
+	t.Run("preserves status details", func(t *testing.T) {
+		t.Parallel()
+		rng := testutils.NewRand(t)
+		address := micro.RandServiceAddress(t, rng)
+		endpoint := "details"
+		detail := micro.RandServiceAddress(t, rng)
+
+		sub := newTestHandler(t, client, micro.Endpoint(address, endpoint), func(msg *nats.Msg) {
+			req, err := micro.NewRequestFromNATSMsg(msg, address)
+			require.NoError(t, err)
+
+			st, err := status.New(codes.FailedPrecondition, "state conflict").WithDetails(detail)
+			require.NoError(t, err)
+
+			resp := &micro.Response{
+				RequestID:      req.RequestID,
+				ServiceAddress: req.ServiceAddress,
+				Status:         st.Proto(),
+			}
+			responseBytes, err := resp.Bytes()
+			require.NoError(t, err)
+
+			msg.Respond(responseBytes)
+		})
+		defer sub.Unsubscribe()
+
+		require.NoError(t, client.Flush())
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		response, err := client.Request(ctx, address, endpoint, testPayload)
+
+		require.Error(t, err)
+		assert.Nil(t, response)
+		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
+
+		st := status.Convert(err)
+		require.Len(t, st.Details(), 1)
+		sa, ok := st.Details()[0].(*microv1.ServiceAddress)
+		require.True(t, ok, "expected *microv1.ServiceAddress detail, got %T", st.Details()[0])
+		assert.True(t, proto.Equal(sa, detail))
 	})
 }
 

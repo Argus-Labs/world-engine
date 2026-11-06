@@ -10,6 +10,7 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -140,11 +141,11 @@ func (c *Client) Request(
 	}
 
 	// Check for application-level errors in the response status.
-	status := res.GetStatus()
-	if status.GetCode() != 0 {
-		return nil, eris.New(status.GetMessage())
+	if st := res.GetStatus(); st.GetCode() != 0 {
+		return nil, status.ErrorProto(st)
 	}
 
+	// We return the response only if it's successful.
 	return &res, nil
 }
 
