@@ -11,7 +11,9 @@ import (
 // PhysicsBody2D holds simulation parameters for a rigid body and its collider shapes.
 //
 // BodyType selects static vs dynamic vs kinematic behavior. LinearDamping and AngularDamping
-// are simulation damping coefficients. GravityScale multiplies the world's gravity vector
+// are simulation damping coefficients and must be non-negative; a negative value amplifies
+// velocity each sub-step and corrupts the simulation. GravityScale multiplies the world's
+// gravity vector
 // for this body; world gravity itself is runtime configuration, not a component field.
 //
 // # Body flags
@@ -143,18 +145,19 @@ func (p *PhysicsBody2D) UnmarshalJSON(data []byte) error {
 // Name returns the ECS component name.
 func (PhysicsBody2D) Name() string { return "physics_body_2d" }
 
-// Validate guards against NaN/Inf in float fields, an invalid body type tag, and invalid shapes.
+// Validate guards against NaN/Inf in float fields, a negative damping (which would amplify
+// velocity and corrupt the Box2D simulation), an invalid body type tag, and invalid shapes.
 func (p PhysicsBody2D) Validate() error {
 	switch p.BodyType {
 	case BodyTypeStatic, BodyTypeDynamic, BodyTypeKinematic, BodyTypeManual:
 	default:
 		return fmt.Errorf("physics_body_2d.body_type: invalid value %d", p.BodyType)
 	}
-	if !isFinite(p.LinearDamping) {
-		return fmt.Errorf("physics_body_2d.linear_damping: must be finite, got %v", p.LinearDamping)
+	if !isFinite(p.LinearDamping) || p.LinearDamping < 0 {
+		return fmt.Errorf("physics_body_2d.linear_damping: must be finite and non-negative, got %v", p.LinearDamping)
 	}
-	if !isFinite(p.AngularDamping) {
-		return fmt.Errorf("physics_body_2d.angular_damping: must be finite, got %v", p.AngularDamping)
+	if !isFinite(p.AngularDamping) || p.AngularDamping < 0 {
+		return fmt.Errorf("physics_body_2d.angular_damping: must be finite and non-negative, got %v", p.AngularDamping)
 	}
 	if !isFinite(p.GravityScale) {
 		return fmt.Errorf("physics_body_2d.gravity_scale: must be finite, got %v", p.GravityScale)

@@ -407,6 +407,51 @@ func TestValidate_PhysicsBody2D_InfAngularDamping(t *testing.T) {
 	require.Contains(t, err.Error(), "angular_damping")
 }
 
+func TestValidate_PhysicsBody2D_NegativeLinearDamping(t *testing.T) {
+	t.Parallel()
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.ColliderShape{
+		ShapeType:    phycomp.ShapeTypeCircle,
+		Radius:       0.5,
+		CategoryBits: 0xFFFF,
+		MaskBits:     0xFFFF,
+	})
+	pb.LinearDamping = -0.1
+	err := pb.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "linear_damping")
+	require.Contains(t, err.Error(), "non-negative")
+}
+
+func TestValidate_PhysicsBody2D_NegativeAngularDamping(t *testing.T) {
+	t.Parallel()
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.ColliderShape{
+		ShapeType:    phycomp.ShapeTypeCircle,
+		Radius:       0.5,
+		CategoryBits: 0xFFFF,
+		MaskBits:     0xFFFF,
+	})
+	pb.AngularDamping = -1e-9
+	err := pb.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "angular_damping")
+	require.Contains(t, err.Error(), "non-negative")
+}
+
+// TestValidate_PhysicsBody2D_ZeroDampingIsValid confirms the boundary: zero is the smallest
+// valid damping, so the fix does not over-reject the Box2D default.
+func TestValidate_PhysicsBody2D_ZeroDampingIsValid(t *testing.T) {
+	t.Parallel()
+	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.ColliderShape{
+		ShapeType:    phycomp.ShapeTypeCircle,
+		Radius:       0.5,
+		CategoryBits: 0xFFFF,
+		MaskBits:     0xFFFF,
+	})
+	pb.LinearDamping = 0
+	pb.AngularDamping = 0
+	require.NoError(t, pb.Validate())
+}
+
 func TestValidate_PhysicsBody2D_InfGravityScale(t *testing.T) {
 	t.Parallel()
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.ColliderShape{

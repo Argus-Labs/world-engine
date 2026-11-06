@@ -245,6 +245,59 @@ func TestCorruptedBodyRotationPanics(t *testing.T) {
 		func() { w.CreateBody(&bd) })
 }
 
+// TestNegativeOrNonFiniteDampingPanics verifies that the always-on precondition on
+// BodyDef damping fields catches both negative values (which amplify velocity and
+// corrupt the simulation) and non-finite values, regardless of the box2d_asserts
+// build tag. A negative damping is a caller error, not a port invariant.
+func TestNegativeOrNonFiniteDampingPanics(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		field string
+		want  string
+		mut   func(bd *box2d.BodyDef)
+	}{
+		{
+			name:  "NegativeLinearDamping",
+			field: "LinearDamping",
+			want:  "box2d: BodyDef.LinearDamping is invalid: must be a finite non-negative number",
+			mut:   func(bd *box2d.BodyDef) { bd.LinearDamping = -0.1 },
+		},
+		{
+			name:  "NegativeAngularDamping",
+			field: "AngularDamping",
+			want:  "box2d: BodyDef.AngularDamping is invalid: must be a finite non-negative number",
+			mut:   func(bd *box2d.BodyDef) { bd.AngularDamping = -60.0 },
+		},
+		{
+			name:  "NaNLinearDamping",
+			field: "LinearDamping",
+			want:  "box2d: BodyDef.LinearDamping is invalid: must be a finite non-negative number",
+			mut:   func(bd *box2d.BodyDef) { bd.LinearDamping = math.NaN() },
+		},
+		{
+			name:  "InfAngularDamping",
+			field: "AngularDamping",
+			want:  "box2d: BodyDef.AngularDamping is invalid: must be a finite non-negative number",
+			mut:   func(bd *box2d.BodyDef) { bd.AngularDamping = math.Inf(1) },
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			w := preconditionWorld(t)
+			bd := box2d.DefaultBodyDef()
+			bd.Type = box2d.DynamicBody
+			tc.mut(&bd)
+
+			requirePanicMessage(t, tc.want, tc.field, func() { w.CreateBody(&bd) })
+		})
+	}
+}
+
 func TestNonFiniteShapeFieldsPanic(t *testing.T) {
 	t.Parallel()
 
