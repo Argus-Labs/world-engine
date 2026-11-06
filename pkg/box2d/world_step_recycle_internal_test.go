@@ -198,7 +198,7 @@ func requireOldRecyclePredicatePasses(t *testing.T, w *World, sim *contactSim, m
 // B2_CONTACT_RECYCLE_COS_ANGLE (0.98f ~= 11.5 degrees).
 func TestContactRecycleCosAngleConstant(t *testing.T) {
 	t.Parallel()
-	tassert.Equal(t, 0.98, ContactRecycleCosAngle)
+	tassert.Equal(t, 0.98, ContactRecycleCosAngle) //nolint:testifylint // exact constant equality is intended, not a tolerance comparison
 }
 
 // TestContactRecycleRotationGuardBlocksLargeRotation verifies that the
