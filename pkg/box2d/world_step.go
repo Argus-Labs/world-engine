@@ -122,7 +122,6 @@ func (w *World) collideTask(startIndex, endIndex, workerIndex int, ctx *stepCont
 				if wasTouching {
 					tolerance = recycleDistance
 				}
-				// minCos > ContactRecycleCosAngle && distance + maxExtent * abs(qr.s) < tolerance
 				if minCos > ContactRecycleCosAngle && distance+float64(maxExtent*absFloat(qr.S)) < tolerance {
 					dqA := MulRot(transformA.Q, InvertRot(contactSim.cachedTransformA.Q))
 					dqB := MulRot(transformB.Q, InvertRot(contactSim.cachedTransformB.Q))
