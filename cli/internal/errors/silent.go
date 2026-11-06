@@ -53,8 +53,12 @@ func isSilentOrCancel(err error) bool {
 	return IsSilent(err) || errors.Is(err, context.Canceled)
 }
 
-// JoinFailures joins errs' real failures. A cancel (Ctrl+C) or silent error
-// isn't one, so it can't hide one; it's returned only if nothing failed.
+// JoinFailures joins separately supplied real failures. A cancel (Ctrl+C) or
+// silent error supplied as its own argument isn't a real failure, so it can't
+// hide one; it's returned only if nothing failed. A single [errors.Join] of a
+// real error and a cancel is classified wholesale by isSilentOrCancel, so the
+// real error is discarded in that form — pass failures as separate arguments
+// to preserve them.
 func JoinFailures(errs ...error) error {
 	var failures []error
 	var canceled error
