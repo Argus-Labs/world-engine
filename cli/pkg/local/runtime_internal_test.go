@@ -422,6 +422,16 @@ var twoShardContainers = []docker.ContainerSummary{
 	{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat-0")},
 }
 
+// cancelInspector returns the shared two-shard inspector setup for the
+// collectShardPorts and CheckLayout cancel tests: p-game resolves to its host
+// port and p-chat returns secondErr.
+func cancelInspector(secondErr error) fakeInspector {
+	return fakeInspector{
+		ports: map[string]int{"p-game": service.ShardHostPort(0)},
+		errs:  map[string]error{"p-chat": secondErr},
+	}
+}
+
 // TestCollectShardPorts drives the inspect loop with two shard containers: the
 // first inspect returns a port, the second returns the case's error. Cancellation
 // must escape before layoutMismatch consumes a partial port map — both the bare
@@ -450,10 +460,7 @@ func TestCollectShardPorts(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			inspector := fakeInspector{
-				ports: map[string]int{"p-game": service.ShardHostPort(0)},
-				errs:  map[string]error{"p-chat": tc.secondErr},
-			}
+			inspector := cancelInspector(tc.secondErr)
 			ports, err := collectShardPorts(context.Background(), twoShardContainers, inspector)
 			if tc.wantCanceled {
 				require.ErrorIs(t, err, context.Canceled)
@@ -479,10 +486,7 @@ func TestCheckLayout_CancelMidInspect(t *testing.T) {
 		{ID: "game", InstanceID: "game-0"},
 		{ID: "chat", InstanceID: "chat-0"},
 	}
-	inspector := fakeInspector{
-		ports: map[string]int{"p-game": service.ShardHostPort(0)},
-		errs:  map[string]error{"p-chat": context.Canceled},
-	}
+	inspector := cancelInspector(context.Canceled)
 	err := checkLayout(context.Background(), fakeLister{containers: twoShardContainers}, inspector, "p", shards)
 	require.ErrorIs(t, err, context.Canceled)
 }

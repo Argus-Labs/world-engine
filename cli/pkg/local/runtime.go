@@ -562,8 +562,7 @@ func (r *Runtime) CheckLayout(ctx context.Context) error {
 	return checkLayout(ctx, r.docker, r.docker, r.project(), r.cfg.WorldToml.Shards)
 }
 
-// checkLayout lists the project's containers and maps each shard to its host port,
-// surfacing a canceled inspect before layoutMismatch compares a partial ports map.
+// checkLayout lists the project's containers and maps each shard to its host port.
 func checkLayout(
 	ctx context.Context,
 	lister containerLister,
