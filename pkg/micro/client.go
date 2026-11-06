@@ -145,7 +145,6 @@ func (c *Client) Request(
 		return nil, status.ErrorProto(st)
 	}
 
-	// We return the response only if it's successful.
 	return &res, nil
 }
 
