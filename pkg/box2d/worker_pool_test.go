@@ -38,6 +38,7 @@ func TestPanicInCallbackPropagatesOriginalValue(t *testing.T) {
 	def := box2d.DefaultWorldDef()
 	def.WorkerCount = 4
 	w := box2d.NewWorld(&def)
+	id := w.ID()
 
 	buildWorkerStressScene(w)
 
@@ -82,6 +83,11 @@ func TestPanicInCallbackPropagatesOriginalValue(t *testing.T) {
 	case <-time.After(30 * time.Second):
 		t.Fatal("World.Destroy deadlocked after a worker panic")
 	}
+	// Destroy must actually tear the poisoned world down, not silently skip
+	// cleanup: the saved id is now stale. Returning alone (the channel check
+	// above) would be satisfied by a locked-world early return that leaves the
+	// worker pool alive.
+	require.False(t, w.IsWorldValid(id), "Destroy must invalidate the saved id after a panicked Step")
 
 	// Fresh world: the process (and the package state) is healthy.
 	def2 := box2d.DefaultWorldDef()
@@ -256,11 +262,6 @@ func TestGoroutineLeakOnWorldDestroy(t *testing.T) {
 func TestDestroyFromCallbackGuarded(t *testing.T) {
 	t.Parallel()
 
-	// Worker 0 is the Step goroutine; background pool workers (1..n-1) are
-	// separate goroutines, so the CAS winner is deterministically a
-	// background worker when the callback skips worker 0.
-	stepG := goroutineID()
-
 	for _, workers := range []int{1, 4} {
 		t.Run(fmt.Sprintf("workers_%d", workers), func(t *testing.T) {
 			t.Parallel()
@@ -290,10 +291,20 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 					"Step must panic with the guard's assertion, not a raw wiped-state crash")
 				require.True(t, fired.Load(), "preSolve callback never ran — scene lost its touching pre-solve contacts")
 
+				// The guard rejected the callback's Destroy, so the world is
+				// still live (not wiped): the saved id is still valid. The
+				// shared "box2d: assertion failed" string alone cannot identify
+				// this guard — a wiped world would trip a different assert and
+				// satisfy the panic check above — so the validity check
+				// distinguishes a real guard from that false positive.
+				require.True(t, w.IsWorldValid(id),
+					"the guard must reject the callback's Destroy, not wipe the world mid-Step")
+
 				// Destroy stays valid on the poisoned world: the guard
 				// exempts stepPanicked so the pool goroutines are joined.
-				runBounded(t, w.Destroy,
-					"Destroy did not return on a poisoned world — guard must exempt stepPanicked so pool.close() joins the workers")
+				require.Nil(t, runBounded(t, w.Destroy,
+					"Destroy did not return on a poisoned world — guard must exempt stepPanicked so pool.close() joins the workers"),
+					"Destroy must not panic on the poisoned world")
 				require.False(t, w.IsWorldValid(id), "poisoned-world Destroy must invalidate the saved id")
 			} else {
 				// Release build: Destroy is a silent no-op; Step must
@@ -332,11 +343,18 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 
 		buildWorkerStressScene(w)
 
+		// Capture the Step goroutine's id INSIDE the Step closure (below) so
+		// worker 0 — the runBounded goroutine that runs Step inline — is
+		// skipped and only a background pool worker may fire Destroy. An
+		// atomic avoids the callback's cross-goroutine read racing the
+		// store that happens just before Step; capturing the parent test
+		// goroutine here would let worker 0 satisfy the filter too.
+		var stepG atomic.Uint64
 		var fired atomic.Bool
 		w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
 			// Skip worker 0 (the Step goroutine); only a background
 			// pool worker may fire, so the self-join path is reached.
-			if goroutineID() != stepG {
+			if goroutineID() != stepG.Load() {
 				if fired.CompareAndSwap(false, true) {
 					w.Destroy()
 				}
@@ -344,7 +362,10 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			return true
 		}, nil)
 
-		panicVal := runBounded(t, func() { w.Step(1.0/60.0, 4) },
+		panicVal := runBounded(t, func() {
+			stepG.Store(goroutineID())
+			w.Step(1.0/60.0, 4)
+		},
 			"Step did not return — a background worker's Destroy reached pool.close() and self-joined")
 		if buildWithAsserts {
 			require.Equal(t, "box2d: assertion failed", panicVal,
@@ -354,12 +375,20 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 		}
 		require.True(t, fired.Load(), "no background worker hit a touching pre-solve contact — self-join path not exercised")
 
+		// The guard rejected the callback's Destroy, so the world is still
+		// live (not wiped): the saved id is still valid in both builds. The
+		// shared panic string alone cannot identify this guard, so the
+		// validity check distinguishes a real guard from a wiped-world
+		// false positive.
+		require.True(t, w.IsWorldValid(id),
+			"the guard must reject the callback's Destroy, not wipe the world mid-Step")
+
 		if !buildWithAsserts {
-			require.True(t, w.IsWorldValid(id), "locked Destroy must be ignored, not wipe the world mid-Step")
 			w.Step(1.0/60.0, 4)
 		}
-		runBounded(t, w.Destroy,
-			"Destroy did not return on the (poisoned) world — pool.close() must join the workers")
+		require.Nil(t, runBounded(t, w.Destroy,
+			"Destroy did not return on the (poisoned) world — pool.close() must join the workers"),
+			"Destroy must not panic on the (poisoned) world")
 		require.False(t, w.IsWorldValid(id), "Destroy must invalidate the saved id")
 	})
 }
