@@ -39,6 +39,14 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 			continue
 		}
 
+		// Skip entities whose reconcile failed this tick: their pending ECS edits
+		// were not applied to Box2D, so writing post-step state back would erase
+		// them and sync the shadow onto the stomped value, making the loss
+		// permanent. Leave the edit pending for the next reconcile attempt.
+		if _, failed := rt.reconcileFailed[e.Entity.ID()]; failed {
+			continue
+		}
+
 		pb := e.Entity.Get[component.PhysicsBody2D]()
 		if pb.BodyType == component.BodyTypeStatic || pb.BodyType == component.BodyTypeManual {
 			continue

@@ -75,6 +75,12 @@ type Runtime struct {
 	// Shadow holds per-entity reconciler snapshots (diff against ECS each tick).
 	Shadow map[cardinal.EntityID]ShadowState
 
+	// reconcileFailed tracks entity IDs whose reconcile failed this tick, so
+	// WritebackFromStepResults can skip them and leave their pending ECS edits
+	// intact for the next reconcile attempt. Cleared at the start of each
+	// ReconcileFromECS and by FullRebuildFromECS/Reset.
+	reconcileFailed map[cardinal.EntityID]struct{}
+
 	// BufferedContacts collects contact events from the physics step for post-step flush.
 	BufferedContacts []BufferedContactEvent
 
@@ -208,6 +214,7 @@ func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps, workers int) 
 		Chains:               make(map[cardinal.EntityID][]box2d.ChainID),
 		KnownEntities:        make(map[cardinal.EntityID]struct{}),
 		Shadow:               make(map[cardinal.EntityID]ShadowState),
+		reconcileFailed:      make(map[cardinal.EntityID]struct{}),
 		BufferedContacts:     make([]BufferedContactEvent, 0),
 		SuppressContactsStep: true,
 		ActiveContacts:       nil,
@@ -227,6 +234,7 @@ func (rt *Runtime) Reset() {
 	rt.Chains = make(map[cardinal.EntityID][]box2d.ChainID)
 	rt.KnownEntities = make(map[cardinal.EntityID]struct{})
 	rt.Shadow = make(map[cardinal.EntityID]ShadowState)
+	rt.reconcileFailed = make(map[cardinal.EntityID]struct{})
 	rt.BufferedContacts = make([]BufferedContactEvent, 0)
 	rt.pendingEndEvents = nil
 	rt.Emitter = nil

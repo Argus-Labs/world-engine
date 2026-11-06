@@ -29,6 +29,14 @@ import (
 // absent from entries are removed from the runtime (body destroyed, shadow dropped).
 //
 // ReconcileFromECS does not touch SuppressContactsStep or Emitter; it does not step the world.
+//
+// A per-entity reconcile error (for example a zero-extent collider that Box2D rejects) does not
+// abort the loop: every entry gets its reconcile attempt each tick, matching the documented
+// "rejected shape retries forever" contract. Failed entity IDs are recorded in
+// reconcileFailed so WritebackFromStepResults can skip them — writing post-step state back for
+// an entity whose pending edit never reached Box2D would erase that edit and sync the shadow
+// onto the stomped value, making the loss permanent. All errors are joined and returned so the
+// pipeline can log them; the return is non-nil iff at least one entry failed.
 func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 	if rt.World == nil {
 		return errors.New("physics2d: reconcile requires a live world (run FullRebuildFromECS first)")
@@ -39,12 +47,15 @@ func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 		return err
 	}
 	rt.destroyOrphanBodies(sorted)
+	clear(rt.reconcileFailed)
+	var errs []error
 	for _, e := range sorted {
 		if err := rt.reconcileOneEntry(e); err != nil {
-			return err
+			rt.reconcileFailed[e.EntityID] = struct{}{}
+			errs = append(errs, err)
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // cloneSortAndCheckDuplicateReconcileEntries returns entries sorted by EntityID or an error if
