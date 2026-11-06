@@ -1541,7 +1541,6 @@ func TestOracleHullEdgeCases(t *testing.T) {
 			{"outside", radius + 1e-6, false},
 		}
 		for _, tc := range cases {
-			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				lower := box2d.Vec2{X: 0, Y: 1 - tc.gap}
