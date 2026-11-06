@@ -32,6 +32,11 @@ const AABBMarginFraction = 0.125
 // length unit.
 const TimeToSleep = 0.5
 
+// ContactRecycleCosAngle is B2_CONTACT_RECYCLE_COS_ANGLE. The default contact
+// recycling world angle threshold: a cosine, so it does not scale with the
+// length unit. 0.98 ~= 11.5 degrees.
+const ContactRecycleCosAngle = 0.98
+
 // The per-meter magnitudes of the length-scaled tolerances below. These are the
 // literal factors upstream writes in each macro, evaluated as untyped constants
 // so the compiler folds them exactly.
