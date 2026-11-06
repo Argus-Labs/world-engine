@@ -248,12 +248,14 @@ func TestGoroutineLeakOnWorldDestroy(t *testing.T) {
 // exempts poisoned worlds so Destroy still reclaims the worker pool after a
 // panic-unwound Step.
 //
-// workers_1 (serial, no pool) and workers_4 cover the inline and pool-worker
-// callback paths. The "self_join_background_worker" case forces the callback
-// onto a background pool worker by excluding worker 0 (the Step goroutine,
-// which is not in the pool's done WaitGroup, so a CAS it wins does not
-// reproduce the deadlock); the saved-id validity check rejects a wiped-world
-// false positive that would share the assertion string.
+// workers_1 (serial, no pool) and workers_4 (pool-enabled) cover the inline
+// and pool-worker callback paths; workers_4 does not by itself guarantee the
+// callback runs on a background worker (worker 0 can win the CAS). The
+// "self_join_background_worker" case forces the callback onto a background
+// pool worker by excluding worker 0 (the Step goroutine, which is not in the
+// pool's done WaitGroup, so a CAS it wins does not reproduce the deadlock);
+// the saved-id validity check rejects a wiped-world false positive that would
+// share the assertion string.
 func TestDestroyFromCallbackGuarded(t *testing.T) {
 	t.Parallel()
 
@@ -261,24 +263,21 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 		name           string
 		workers        int
 		backgroundOnly bool
-		stepPanicMsg   string
-		stepReleaseMsg string
+		stepTimeoutMsg string
 		firedMsg       string
 		destroyMsg     string
 	}{
 		{
 			name:           "workers_1",
 			workers:        1,
-			stepPanicMsg:   "the locked-guard assert must fire in the asserts build, not deadlock",
-			stepReleaseMsg: fmt.Sprintf("Step did not return within %s", boundedTimeout),
+			stepTimeoutMsg: fmt.Sprintf("Step did not return within %s", boundedTimeout),
 			firedMsg:       "preSolve callback did not run",
 			destroyMsg:     "Destroy did not return",
 		},
 		{
 			name:           "workers_4",
 			workers:        4,
-			stepPanicMsg:   "the locked-guard assert must fire in the asserts build, not deadlock",
-			stepReleaseMsg: fmt.Sprintf("Step did not return within %s", boundedTimeout),
+			stepTimeoutMsg: fmt.Sprintf("Step did not return within %s", boundedTimeout),
 			firedMsg:       "preSolve callback did not run",
 			destroyMsg:     "Destroy did not return — pool.close() must join the workers",
 		},
@@ -286,8 +285,7 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			name:           "self_join_background_worker",
 			workers:        4,
 			backgroundOnly: true,
-			stepPanicMsg:   "Step timed out while testing Destroy from a background worker",
-			stepReleaseMsg: "Step timed out while testing Destroy from a background worker",
+			stepTimeoutMsg: "Step timed out while testing Destroy from a background worker",
 			firedMsg:       "no background worker hit a touching pre-solve contact — self-join path not exercised",
 			destroyMsg:     "Destroy did not return on the world — pool.close() must join the workers",
 		},
@@ -300,10 +298,19 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			def := box2d.DefaultWorldDef()
 			def.WorkerCount = tc.workers
 			w := box2d.NewWorld(&def)
-			// Register cleanup after NewWorld so an early failed require
-			// still joins the pool goroutines; the explicit Destroy below
-			// remains to verify teardown and id invalidation.
-			t.Cleanup(w.Destroy)
+			var stepDone atomic.Bool
+			// Register cleanup after NewWorld so an early failed require still
+			// joins the pool goroutines; the explicit Destroy below remains to
+			// verify teardown and id invalidation. Skip cleanup while a bounded
+			// Step is still in flight (a timeout leaves it running): the guard
+			// no-ops Destroy while the world is locked, and a Destroy racing a
+			// still-running Step could double-close the pool's jobs channel.
+			t.Cleanup(func() {
+				if !stepDone.Load() {
+					return
+				}
+				w.Destroy()
+			})
 			id := w.ID()
 
 			buildWorkerStressScene(w)
@@ -329,16 +336,13 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 				return true
 			}, nil)
 
-			stepMsg := tc.stepReleaseMsg
-			if buildWithAsserts {
-				stepMsg = tc.stepPanicMsg
-			}
 			panicVal := runBounded(t, func() {
 				if tc.backgroundOnly {
 					stepG = goroutineID()
 				}
+				defer stepDone.Store(true)
 				w.Step(1.0/60.0, 4)
-			}, stepMsg)
+			}, tc.stepTimeoutMsg)
 			// Check the callback fired before the panic value: if the background
 			// case never reaches a pool worker, the Equal/Nil failure below would
 			// otherwise hide the diagnostic that the self-join path was missed.
@@ -361,9 +365,12 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 
 			// A second Step confirms the world is healthy when the guard
 			// rejected the callback's Destroy (release only; the asserts
-			// build leaves the world poisoned).
+			// build leaves the world poisoned). Bound it so a reuse-only hang
+			// fails this test instead of waiting for the package timeout.
 			if !buildWithAsserts {
-				w.Step(1.0/60.0, 4)
+				require.Nil(t, runBounded(t, func() { w.Step(1.0/60.0, 4) },
+					fmt.Sprintf("second Step did not return within %s", boundedTimeout)),
+					"second Step must not panic when the guard rejected the callback's Destroy")
 			}
 
 			// Destroy reclaims the worker pool. On the asserts-build
@@ -396,8 +403,8 @@ func goroutineID() uint64 {
 // runBounded runs fn on a goroutine and fails the test (with msg) if it does
 // not return within boundedTimeout, recovering any panic value for the caller
 // to assert. A mid-Step pool.close() self-join or a hung Destroy surfaces here
-// as a timeout instead of blocking this test past the deadline; the timeout
-// does not stop fn, which may still be running when runBounded returns.
+// as a timeout instead of blocking this test past the deadline. On timeout the
+// calling test fails; fn is not stopped and may keep running.
 func runBounded(t *testing.T, fn func(), msg string) any {
 	t.Helper()
 	var panicVal any
