@@ -257,19 +257,11 @@ func TestGoroutineLeakOnWorldDestroy(t *testing.T) {
 func TestDestroyFromCallbackGuarded(t *testing.T) {
 	t.Parallel()
 
-	// Shared setup, validity checks and teardown: workers_1 (serial) and
-	// workers_4 exercise the general callback path (the CAS winner may be
-	// worker 0 or a pool worker); the background case forces a pool worker
-	// via goroutine-id filtering so the self-join path is reached
-	// deterministically.
 	cases := []struct {
 		name           string
 		workers        int
 		backgroundOnly bool
-		// stepPanicMsg is the asserts-build Step timeout/assert message.
-		stepPanicMsg string
-		// stepReleaseMsg is the release-build Step timeout message; the
-		// background case reuses it for both builds.
+		stepPanicMsg   string
 		stepReleaseMsg string
 		firedMsg       string
 		destroyMsg     string
@@ -280,7 +272,7 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			stepPanicMsg:   "the locked-guard assert must fire in the asserts build, not deadlock",
 			stepReleaseMsg: fmt.Sprintf("Step did not return within %s", boundedTimeout),
 			firedMsg:       "preSolve callback did not run",
-			destroyMsg:     "Destroy did not return — pool.close() must join the workers",
+			destroyMsg:     "Destroy did not return",
 		},
 		{
 			name:           "workers_4",
@@ -324,17 +316,11 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			var stepG uint64
 			var fired atomic.Bool
 			w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
-				if tc.backgroundOnly {
-					// Skip worker 0 (the Step goroutine); only a
-					// background pool worker may fire, so the self-join
-					// path is reached. Check fired first so later contacts
-					// skip the runtime.Stack parse; the CAS still
-					// arbitrates the winning background worker.
-					if !fired.Load() && goroutineID() != stepG {
-						if fired.CompareAndSwap(false, true) {
-							w.Destroy()
-						}
-					}
+				// backgroundOnly: skip worker 0 (the Step goroutine) so only a
+				// background pool worker may fire and the self-join path is
+				// reached. Check fired first so later contacts skip the
+				// runtime.Stack parse; the CAS still arbitrates the winner.
+				if tc.backgroundOnly && (fired.Load() || goroutineID() == stepG) {
 					return true
 				}
 				if fired.CompareAndSwap(false, true) {
@@ -353,13 +339,16 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 				}
 				w.Step(1.0/60.0, 4)
 			}, stepMsg)
+			// Check the callback fired before the panic value: if the background
+			// case never reaches a pool worker, the Equal/Nil failure below would
+			// otherwise hide the diagnostic that the self-join path was missed.
+			require.True(t, fired.Load(), tc.firedMsg)
 			if buildWithAsserts {
 				require.Equal(t, assertFailedMsg, panicVal,
 					"Step must panic with the guard's assertion, not a raw wiped-state crash")
 			} else {
 				require.Nil(t, panicVal, "Step must not panic when Destroy is guarded out")
 			}
-			require.True(t, fired.Load(), tc.firedMsg)
 
 			// The guard rejected the callback's Destroy, so the world is
 			// still live (not wiped): the saved id is still valid. The
@@ -407,7 +396,8 @@ func goroutineID() uint64 {
 // runBounded runs fn on a goroutine and fails the test (with msg) if it does
 // not return within boundedTimeout, recovering any panic value for the caller
 // to assert. A mid-Step pool.close() self-join or a hung Destroy surfaces here
-// as a timeout instead of stalling the suite.
+// as a timeout instead of blocking this test past the deadline; the timeout
+// does not stop fn, which may still be running when runBounded returns.
 func runBounded(t *testing.T, fn func(), msg string) any {
 	t.Helper()
 	var panicVal any

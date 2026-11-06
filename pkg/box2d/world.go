@@ -423,10 +423,11 @@ func NewWorld(def *WorldDef) *World {
 //
 // Calling Destroy from inside a Step callback is rejected: in release it is a
 // silent no-op (the world stays valid and Step continues), and in the
-// box2d_asserts build it panics and poisons the world. Actual destruction —
-// and the id invalidation above — only happens when Destroy runs outside
-// Step, or on a poisoned world (locked but stepPanicked); Destroy that world
-// to reclaim its worker pool.
+// box2d_asserts build the guard's assertion panics. (A callback that recovers
+// that panic locally lets Step complete without poisoning the world.) Actual
+// destruction — and the id invalidation above — only happens when Destroy runs
+// outside Step, or after a Step unwound by a panic (which leaves the world
+// locked); Destroy then reclaims the worker pool.
 func (w *World) Destroy() {
 	// Reject destruction during Step to avoid joining the calling worker
 	// from pool.close() or clearing active world state under a continuing
