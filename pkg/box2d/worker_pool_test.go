@@ -1,7 +1,9 @@
 // External robustness tests for the internal worker pool (worker_pool.go):
 // panic propagation with the ORIGINAL panic value through a parallel Step,
-// deadlock-free Destroy after a worker panic, and the goroutine close-join
-// (no leak across NewWorld/Destroy cycles).
+// deadlock-free Destroy after a worker panic, the goroutine close-join
+// (no leak across NewWorld/Destroy cycles), and the locked-world guard on
+// World.Destroy that prevents a callback-driven pool.close() self-join
+// deadlock.
 
 package box2d_test
 
@@ -230,4 +232,90 @@ func TestGoroutineLeakOnWorldDestroy(t *testing.T) {
 	require.LessOrEqualf(t, after-before, 2,
 		"goroutines leaked across 50 NewWorld(WorkerCount=8)/Destroy cycles: before=%d after=%d — pool close-join broken",
 		before, after)
+}
+
+// TestDestroyFromCallbackGuarded locks in the locked-world guard on
+// World.Destroy: a user callback that calls Destroy from inside Step must not
+// reach pool.close() mid-dispatch, which self-joins on the calling worker's
+// done token and deadlocks the process permanently (worker_pool.go close), or
+// wipes *w = World{} under a continuing Step and crashes on emptied state.
+// Every sibling mutator carries assert(!w.locked); if w.locked { return };
+// Destroy was the lone exception. The guard exempts poisoned worlds so
+// Destroy stays valid after a panic-unwound Step.
+//
+// Release build: the callback's Destroy is a silent no-op; Step completes; the
+// world is still valid and steppable. Asserts build: the guard's assert fires,
+// Step panics with the assertion failure (not a deadlock, not a raw crash), and
+// Destroy still works on the poisoned world. Both worker counts run so the
+// pool-worker and inline-share callback paths are covered.
+func TestDestroyFromCallbackGuarded(t *testing.T) {
+	t.Parallel()
+
+	for _, workers := range []int{1, 4} {
+		t.Run(fmt.Sprintf("workers_%d", workers), func(t *testing.T) {
+			t.Parallel()
+
+			def := box2d.DefaultWorldDef()
+			def.WorkerCount = workers
+			w := box2d.NewWorld(&def)
+
+			buildWorkerStressScene(w)
+
+			var fired atomic.Bool
+			w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
+				if fired.CompareAndSwap(false, true) {
+					w.Destroy()
+				}
+				return true
+			}, nil)
+
+			if buildWithAsserts {
+				// In the asserts build the guard's assert fires, Step
+				// panics with the assertion failure — not a deadlock, not
+				// a raw index-out-of-range from wiped state.
+				require.Panics(t, func() { w.Step(1.0/60.0, 4) },
+					"the locked-guard assert must panic in the asserts build, not deadlock")
+				require.True(t, fired.Load(), "preSolve callback never ran — scene lost its touching pre-solve contacts")
+
+				// Destroy stays valid on the poisoned world: the guard
+				// exempts stepPanicked so the pool goroutines are joined.
+				destroyed := make(chan struct{})
+				go func() {
+					w.Destroy()
+					close(destroyed)
+				}()
+				select {
+				case <-destroyed:
+				case <-time.After(30 * time.Second):
+					t.Fatal("Destroy deadlocked on a poisoned world — guard must exempt stepPanicked")
+				}
+			} else {
+				// Release build: Destroy is a silent no-op; Step must
+				// complete without deadlocking or panicking.
+				var stepPanic any
+				stepDone := make(chan struct{})
+				go func() {
+					defer func() { stepPanic = recover(); close(stepDone) }()
+					w.Step(1.0/60.0, 4)
+				}()
+				select {
+				case <-stepDone:
+				case <-time.After(30 * time.Second):
+					t.Fatal("Step deadlocked — Destroy from callback reached pool.close() mid-dispatch")
+				}
+				require.Nil(t, stepPanic, "Step must not panic when Destroy is guarded out")
+				require.True(t, fired.Load(), "preSolve callback never ran — scene lost its touching pre-solve contacts")
+
+				// The world is still valid: Destroy was ignored, not torn
+				// down.
+				require.True(t, w.IsWorldValid(w.ID()),
+					"locked Destroy must be ignored, not wipe the world mid-Step")
+
+				// The world is healthy: a second Step completes.
+				w.Step(1.0/60.0, 4)
+
+				w.Destroy()
+			}
+		})
+	}
 }

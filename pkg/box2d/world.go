@@ -421,6 +421,22 @@ func NewWorld(def *WorldDef) *World {
 // Destroy destroys the world and all its contents
 // (upstream b2DestroyWorld). Ids created from this world become invalid.
 func (w *World) Destroy() {
+	// Same locked-world guard as every sibling mutator (DestroyBody,
+	// DestroyShape, DestroyJoint, all setters): a callback that calls
+	// Destroy from inside Step must be ignored, not reach pool.close()
+	// mid-dispatch — which self-joins on the calling worker's done token
+	// and deadlocks the process permanently (worker_pool.go close()).
+	//
+	// A Step unwound by a panic latches w.locked = true but is a poisoned
+	// world, on which Destroy must stay valid: the deferred stepCompleted
+	// latch in world_step.go sets w.stepPanicked and skips the
+	// w.locked = false reset, so the guard must exempt stepPanicked worlds
+	// or it would leak the worker pool goroutines.
+	assert(!w.locked || w.stepPanicked)
+	if w.locked && !w.stepPanicked {
+		return
+	}
+
 	// Tear the worker pool down first — the goroutines must be gone before
 	// the *w = World{} wipe below invalidates the state they reference.
 	if w.pool != nil {
