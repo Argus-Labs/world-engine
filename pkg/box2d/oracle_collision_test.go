@@ -1504,7 +1504,8 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		// The weld radius is 0.5*linearSlop (tolSqr = 0.25*linearSlop^2,
 		// upstream commit ac7c751). A point inside the radius welds onto
 		// the retained apex; a point outside is retained, and the lower
-		// point drops as interior to the triangle (-1,0),(1,0),(0,1).
+		// point drops as interior to the triangle formed with the two
+		// anchors.
 		// This pins the coefficient behaviorally: the expression-only
 		// length-units test does not exercise ComputeHull, and these
 		// spacings would fail under a different coefficient (e.g. 0.1).
