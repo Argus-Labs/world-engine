@@ -37,6 +37,15 @@
 //     upstream only implements it in the SIMD prepare path
 //     (b2PrepareContactsTask); the scalar overflow prepare path ported here
 //     never had it.
+//   - solveContactsColor gates friction and rolling resistance to the relax
+//     stage only (useBias=false), matching the upstream v3.2.0
+//     b2PushContacts_Overflow (push: normal only) / b2SolveContacts_Overflow
+//     (relax: normal + friction + rolling) split. The previously-vendored C
+//     snapshot reported 3.2.0 but used a combined b2SolveOverflowContacts that
+//     applied friction/rolling in both stages; this port intentionally departs
+//     from that stale anchor. The relax stage is not yet a full transliteration
+//     of b2SolveContacts_Overflow (ordering/coupling parity deferred); the push
+//     stage is the upstream normal-only solve.
 //
 // contact separation for sub-stepping (upstream comment):
 //	s = s0 + dot(cB + rB - cA - rA, normal)
@@ -431,12 +440,10 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 			tangent := RightPerp(normal)
 			friction := constraint.friction
 
+			// Friction. Accumulate totalNormalImpulse here (friction leaves
+			// normalImpulse unchanged, so the sum has the same addition order)
+			// for the rolling-resistance clamp below.
 			totalNormalImpulse := 0.0
-			for j := range cps {
-				totalNormalImpulse += cps[j].normalImpulse
-			}
-
-			// Friction
 			for j := range cps {
 				cp := &cps[j]
 
@@ -460,6 +467,8 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 				newImpulse := clampFloat(cp.tangentImpulse+impulse, -maxFriction, maxFriction)
 				impulse = newImpulse - cp.tangentImpulse
 				cp.tangentImpulse = newImpulse
+
+				totalNormalImpulse += cp.normalImpulse
 
 				// apply tangent impulse
 				p := MulSV(impulse, tangent)
