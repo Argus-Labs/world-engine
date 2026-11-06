@@ -835,7 +835,10 @@ func (w *World) SetContactTuning(hertz, dampingRatio, pushSpeed float64) {
 }
 
 // SetContactRecycleDistance sets the contact recycle distance
-// (upstream b2World_SetContactRecycleDistance).
+// (upstream b2World_SetContactRecycleDistance). The narrow-phase fast path
+// skips re-updating a contact when the pair's combined relative motion stays
+// below this distance: world_step.go adds the relative translation to an
+// extent-scaled rotation before comparing that one tolerance.
 func (w *World) SetContactRecycleDistance(recycleDistance float64) {
 	assert(!w.locked)
 	if w.locked {

@@ -90,15 +90,6 @@ func wboRestingPreSolveScene(t *testing.T) (*box2d.World, box2d.BodyID) {
 	return w, body
 }
 
-// wboStep steps the world steps times using this file's wboDT/wboSubSteps
-// constants (kept separate from oracle_joint_test.go's oracleJointStep, which
-// is tied to the joint tests' own constants).
-func wboStep(w *box2d.World, steps int) {
-	for range steps {
-		w.Step(wboDT, wboSubSteps)
-	}
-}
-
 // TestOracleEmptyWorld ports EmptyWorld (test_world.c:101-121): stepping an
 // empty world 60 times must be a no-op and destroying the world must
 // invalidate its id.
@@ -509,17 +500,17 @@ func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
 		return !disable
 	}, nil)
 
-	wboStep(w, halfSteps)
+	oracleJointStep(w, halfSteps)
 	require.Equal(t, halfSteps, calls,
 		"pre-solve must fire every step during the disabled phase")
 	require.InDelta(t, wboRestingBoxY, w.BodyPosition(body).Y, 0.0,
 		"box must not move while the contact is disabled")
 
 	disable = false
-	wboStep(w, 1)
+	oracleJointStep(w, 1)
 	require.Equal(t, halfSteps+1, calls,
 		"pre-solve must be re-consulted on the first step after the toggle to re-enable the contact")
-	wboStep(w, halfSteps-1)
+	oracleJointStep(w, halfSteps-1)
 
 	// With zero gravity there is no force holding the box at the fully
 	// separated center (y=0.5); the solver can push it beyond that. Read
@@ -543,7 +534,7 @@ func TestOraclePreSolveRecycleZeroDisablesContactWhileResting(t *testing.T) {
 	// Reuse the resting pre-solve scene, then restore default gravity so a
 	// disabled contact lets the box fall, and disable the recycling fast path.
 	w, body := wboRestingPreSolveScene(t)
-	w.SetGravity(box2d.Vec2{X: 0.0, Y: -10.0})
+	w.SetGravity(box2d.DefaultWorldDef().Gravity)
 	w.SetContactRecycleDistance(0.0)
 
 	const enabledSteps = 30
@@ -554,20 +545,24 @@ func TestOraclePreSolveRecycleZeroDisablesContactWhileResting(t *testing.T) {
 		return enabled
 	}, nil)
 
-	wboStep(w, enabledSteps)
+	oracleJointStep(w, enabledSteps)
 	require.Equal(t, enabledSteps, calls,
 		"with recycle distance 0 the callback fires every step even for the resting enabled pair")
-	require.InDelta(t, 0.5, w.BodyPosition(body).Y, 0.05,
+	require.InDelta(t, 0.5, w.BodyPosition(body).Y, 4.0*box2d.LinearSlop,
 		"the enabled contact must hold the box near its resting height")
 
 	enabled = false
 	// The pair still overlaps for several steps after the toggle; the callback
-	// must keep firing across those overlapping steps, then the box falls.
+	// must keep firing across those consecutive overlapping steps, then the
+	// box falls.
 	mid := calls
-	wboStep(w, 10)
-	require.Greater(t, calls, mid,
-		"the callback must keep firing after the toggle to disabled while the pair still overlaps")
-	wboStep(w, 110)
+	for range 4 {
+		oracleJointStep(w, 1)
+		require.Greater(t, calls, mid,
+			"the callback must keep firing each overlapping step after the toggle to disabled")
+		mid = calls
+	}
+	oracleJointStep(w, 116)
 	require.Less(t, w.BodyPosition(body).Y, -5.0,
 		"the disabled contact must let the box fall through the ground")
 }
