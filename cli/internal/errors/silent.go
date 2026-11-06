@@ -42,26 +42,15 @@ func IsSilent(err error) bool {
 	return errors.As(err, &silentErr)
 }
 
-// ShouldPrint returns true if the error should be printed to the user as normal
-// error output (and captured by Sentry). main uses this gate for both. A cancel
-// (Ctrl+C) is an expected user action, not a failure, so a silent error or an
-// error matching [context.Canceled] is never printed or captured; --verbose
-// still logs the full chain via logger.Errors before this gate is reached, so a
-// silenced cancel is only hidden from the normal output.
-//
-// The cancel check uses [errors.Is], which walks every branch of an [errors.Join],
-// so a join that carries a cancel anywhere is suppressed wholesale — unlike
-// [JoinFailures], which filters separately supplied cancellation errors and
-// preserves separately supplied real failures. It classifies whole arguments, so
-// a single [errors.Join] of a real error and a cancel is treated as cancellation
-// there too.
+// ShouldPrint reports whether main should print and capture err. Silent errors
+// and errors matching [context.Canceled] suppress the whole error, including
+// mixed joins. Verbose logging happens separately.
 func ShouldPrint(err error) bool {
 	return !isSilentOrCancel(err)
 }
 
-// isSilentOrCancel reports whether err is a silent error or a cancellation — the
-// common condition ShouldPrint and JoinFailures both suppress, shared so the two
-// policies cannot drift.
+// isSilentOrCancel is the shared condition ShouldPrint and JoinFailures suppress,
+// so the two policies cannot drift.
 func isSilentOrCancel(err error) bool {
 	return IsSilent(err) || errors.Is(err, context.Canceled)
 }

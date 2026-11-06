@@ -49,7 +49,6 @@ func TestShouldPrint_CancelSuppressed(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.True(t, errors.Is(tc.err, context.Canceled), "sanity: %s carries context.Canceled", tc.name)
 			assert.False(t, pkgerrors.ShouldPrint(tc.err))
 		})
 	}
@@ -68,15 +67,12 @@ func TestShouldPrint_SilentInsideKongJoin(t *testing.T) {
 // join carrying both a real failure and a cancel is suppressed wholesale. This
 // differs from JoinFailures, which classifies whole arguments: a cancel passed as
 // its own argument is dropped while a real failure passed separately is kept, but
-// a single [errors.Join] of the two is treated as cancellation there too. No
-// production route produces such a raw mixed join at this gate, so this pins
-// the gate's contract rather than a verified runtime path.
+// a single [errors.Join] of the two is treated as cancellation there too.
 func TestShouldPrint_MixedJoinSuppressesWholeJoin(t *testing.T) {
 	t.Parallel()
 
 	realErr := eris.New("cluster failed")
 	joined := errors.Join(realErr, context.Canceled)
-	assert.True(t, errors.Is(joined, context.Canceled), "sanity: the join carries the cancel")
 	assert.False(t, pkgerrors.ShouldPrint(joined),
 		"a join carrying a cancel is suppressed even with a real failure")
 }

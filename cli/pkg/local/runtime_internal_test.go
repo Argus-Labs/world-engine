@@ -414,21 +414,25 @@ func (f fakeInspector) CardinalHostPort(_ context.Context, name string) (int, er
 	return f.ports[name], nil
 }
 
+// twoShardContainers is the shared two-shard container list for the collectShardPorts
+// and CheckLayout cancel tests: shard and instance IDs differ so an accidental key
+// on ShardIDLabel would miss.
+var twoShardContainers = []docker.ContainerSummary{
+	{Name: "p-game", Labels: service.Labels("p", service.RoleShard, "game", "game-0")},
+	{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat-0")},
+}
+
 // TestCollectShardPorts drives the inspect loop with two shard containers: the
 // first inspect returns a port, the second returns the case's error. Cancellation
 // must escape before layoutMismatch consumes a partial port map — both the bare
 // [context.Canceled] and the eris-wrapped form that InspectContainer returns
 // through CardinalHostPort (which CardinalHostPort returns unchanged); a
 // non-cancel inspect error keeps the prior skip behavior, so the partial map is
-// returned for comparison. Shard and instance IDs differ so an accidental key on
-// ShardIDLabel would miss.
+// returned for comparison.
 func TestCollectShardPorts(t *testing.T) {
 	t.Parallel()
 
-	cs := []docker.ContainerSummary{
-		{Name: "p-game", Labels: service.Labels("p", service.RoleShard, "game", "game-0")},
-		{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat-0")},
-	}
+	cs := twoShardContainers
 	cases := []struct {
 		name         string
 		secondErr    error
@@ -472,10 +476,6 @@ func TestCollectShardPorts(t *testing.T) {
 func TestCheckLayout_CancelMidInspect(t *testing.T) {
 	t.Parallel()
 
-	cs := []docker.ContainerSummary{
-		{Name: "p-game", Labels: service.Labels("p", service.RoleShard, "game", "game-0")},
-		{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat-0")},
-	}
 	shards := []worldtoml.Shard{
 		{ID: "game", InstanceID: "game-0"},
 		{ID: "chat", InstanceID: "chat-0"},
@@ -484,8 +484,6 @@ func TestCheckLayout_CancelMidInspect(t *testing.T) {
 		ports: map[string]int{"p-game": service.ShardHostPort(0)},
 		errs:  map[string]error{"p-chat": context.Canceled},
 	}
-	err := checkLayout(context.Background(), fakeLister{containers: cs}, inspector, "p", shards)
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("err = %v, want the canceled inspect surfaced, not a layout mismatch", err)
-	}
+	err := checkLayout(context.Background(), fakeLister{containers: twoShardContainers}, inspector, "p", shards)
+	require.ErrorIs(t, err, context.Canceled)
 }

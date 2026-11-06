@@ -543,8 +543,8 @@ func (r *Runtime) ServeEdgeOn(ctx context.Context, ln net.Listener) error {
 func (r *Runtime) ReleaseEdge() { r.servesEdge = false }
 
 // shardPortInspector reads a shard container's host port. *docker.Client
-// satisfies it; tests substitute a fake so the inspect loop runs without a
-// running daemon.
+// satisfies it; tests substitute a fake to run the inspect loop without a
+// daemon.
 type shardPortInspector interface {
 	CardinalHostPort(ctx context.Context, containerName string) (int, error)
 }
@@ -582,16 +582,14 @@ func checkLayout(
 	return layoutMismatch(shards, ports)
 }
 
-// collectShardPorts maps each shard container to its host port. A canceled inspect
-// surfaces before layoutMismatch compares a partial ports map and reports a fake
-// "instance was added" mismatch; other inspect errors (e.g. a container removed
-// between list and inspect) keep the prior skip behavior.
+// collectShardPorts returns cancellation instead of a partial map, which could
+// produce a false layout mismatch. Other inspect errors are skipped.
 func collectShardPorts(
 	ctx context.Context,
 	cs []docker.ContainerSummary,
 	inspector shardPortInspector,
 ) (map[string]int, error) {
-	ports := make(map[string]int, len(cs))
+	ports := make(map[string]int)
 	for _, c := range cs {
 		if c.Labels[service.RoleLabel] != service.RoleShard {
 			continue
