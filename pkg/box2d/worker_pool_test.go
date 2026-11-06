@@ -80,7 +80,8 @@ func TestPanicInCallbackPropagatesOriginalValue(t *testing.T) {
 
 	// Destroy must join the pool workers and return even though the panic
 	// aborted Step mid-stage.
-	require.Nil(t, runBounded(t, w.Destroy, "World.Destroy deadlocked after a worker panic"),
+	var opsInFlight atomic.Int32
+	require.Nil(t, runBounded(t, &opsInFlight, w.Destroy, "World.Destroy deadlocked after a worker panic"),
 		"Destroy must not panic on the poisoned world")
 	// Destroy must actually tear the poisoned world down, not silently skip
 	// cleanup: the saved id is now stale. Returning alone (the runBounded
@@ -298,15 +299,16 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			def := box2d.DefaultWorldDef()
 			def.WorkerCount = tc.workers
 			w := box2d.NewWorld(&def)
-			var stepDone atomic.Bool
+			var opsInFlight atomic.Int32
 			// Register cleanup after NewWorld so an early failed require still
 			// joins the pool goroutines; the explicit Destroy below remains to
-			// verify teardown and id invalidation. Skip cleanup while a bounded
-			// Step is still in flight (a timeout leaves it running): the guard
-			// no-ops Destroy while the world is locked, and a Destroy racing a
-			// still-running Step could double-close the pool's jobs channel.
+			// verify teardown and id invalidation. Skip cleanup while any
+			// bounded operation is still in flight (a timeout leaves it
+			// running): the guard no-ops Destroy while the world is locked, and
+			// a Destroy racing a still-running Step or a stuck pool.close could
+			// double-close the pool's jobs channel.
 			t.Cleanup(func() {
-				if !stepDone.Load() {
+				if opsInFlight.Load() > 0 {
 					return
 				}
 				w.Destroy()
@@ -336,11 +338,10 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 				return true
 			}, nil)
 
-			panicVal := runBounded(t, func() {
+			panicVal := runBounded(t, &opsInFlight, func() {
 				if tc.backgroundOnly {
 					stepG = goroutineID()
 				}
-				defer stepDone.Store(true)
 				w.Step(1.0/60.0, 4)
 			}, tc.stepTimeoutMsg)
 			// Check the callback fired before the panic value: if the background
@@ -368,7 +369,7 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			// build leaves the world poisoned). Bound it so a reuse-only hang
 			// fails this test instead of waiting for the package timeout.
 			if !buildWithAsserts {
-				require.Nil(t, runBounded(t, func() { w.Step(1.0/60.0, 4) },
+				require.Nil(t, runBounded(t, &opsInFlight, func() { w.Step(1.0/60.0, 4) },
 					fmt.Sprintf("second Step did not return within %s", boundedTimeout)),
 					"second Step must not panic when the guard rejected the callback's Destroy")
 			}
@@ -376,7 +377,7 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			// Destroy reclaims the worker pool. On the asserts-build
 			// poisoned world the guard's stepPanicked exemption lets it
 			// run.
-			require.Nil(t, runBounded(t, w.Destroy, tc.destroyMsg),
+			require.Nil(t, runBounded(t, &opsInFlight, w.Destroy, tc.destroyMsg),
 				"Destroy must not panic on the world")
 			require.False(t, w.IsWorldValid(id), "Destroy must invalidate the saved id")
 		})
@@ -404,12 +405,18 @@ func goroutineID() uint64 {
 // not return within boundedTimeout, recovering any panic value for the caller
 // to assert. A mid-Step pool.close() self-join or a hung Destroy surfaces here
 // as a timeout instead of blocking this test past the deadline. On timeout the
-// calling test fails; fn is not stopped and may keep running.
-func runBounded(t *testing.T, fn func(), msg string) any {
+// calling test fails; fn is not stopped and may keep running. inFlight is held
+// positive while fn's goroutine is running, so cleanup can skip Destroy when a
+// timed-out operation is still in flight (a Destroy stuck in done.Wait has
+// already closed jobs but not cleared w.pool, so a concurrent cleanup Destroy
+// would double-close the channel).
+func runBounded(t *testing.T, inFlight *atomic.Int32, fn func(), msg string) any {
 	t.Helper()
 	var panicVal any
 	done := make(chan struct{})
+	inFlight.Add(1)
 	go func() {
+		defer inFlight.Add(-1)
 		defer func() { panicVal = recover(); close(done) }()
 		fn()
 	}()
