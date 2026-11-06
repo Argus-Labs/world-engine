@@ -1540,6 +1540,31 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		}
 	})
 
+	t.Run("weld comparison is strict at the exact radius", func(t *testing.T) {
+		t.Parallel()
+		// The weld test is `distSqr < tolSqr` (strict): a point exactly at
+		// the radius is retained by welding, and would weld away only if
+		// `<` became `<=`. The inside/outside rows above pass under either
+		// comparison, so this row pins the strict boundary. The pair sits
+		// near zero so the squared distance is exactly tolSqr (no
+		// `1 - radius` subtraction perturbing the equality): distSqr ==
+		// 0.25*linearSlop*linearSlop == tolSqr. Under the current strict
+		// comparison the second point survives welding and becomes the
+		// hull apex; the first point is interior to the triangle and is
+		// dropped. Under `<=` the second point would weld into the first,
+		// leaving the first as the apex — so asserting which apex
+		// survives pins the strict comparison.
+		radius := float64(0.5 * box2d.LinearSlop)
+		anchors := []box2d.Vec2{{X: -1, Y: -1}, {X: 1, Y: -1}}
+		first := box2d.Vec2{X: 0, Y: 0}
+		second := box2d.Vec2{X: 0, Y: radius} // exactly radius from first
+		h := box2d.ComputeHull([]box2d.Vec2{first, second, anchors[0], anchors[1]})
+		require.Equal(t, 3, h.Count)
+		require.True(t, box2d.ValidateHull(&h))
+		require.Contains(t, h.Points[:h.Count], second)
+		require.NotContains(t, h.Points[:h.Count], first)
+	})
+
 	t.Run("weld tolerance distinguishes upstream from vendored", func(t *testing.T) {
 		t.Parallel()
 		// (0.015,0) is 0.015 from (0,0): farther than the upstream weld
