@@ -310,10 +310,13 @@ func (w *World) warmStartContactsColor(ctx *stepContext, colorIndex, startIndex,
 }
 
 // solveContactsColor solves the contact constraints [startIndex, endIndex)
-// of one graph color with TGS soft constraints (upstream
-// b2SolveOverflowContacts, generalized to any color and any range per the
-// file header). useBias selects the solve stage (true) versus the relax
-// stage (false).
+// of one graph color with TGS soft constraints, generalized to any color and
+// any range per the file header. useBias selects the push/solve stage (true)
+// versus the relax stage (false). The push stage (upstream
+// b2PushContacts_Overflow) solves the normal constraint only — no friction and
+// no rolling resistance — with the soft-constraint bias; the relax stage
+// (upstream b2SolveContacts_Overflow) solves the normal constraint, friction
+// and rolling resistance.
 func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias bool, startIndex, endIndex int) {
 	graph := ctx.graph
 	color := &graph.colors[colorIndex]
@@ -427,49 +430,56 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 			wB += float64(iB * Cross(rB, p))
 		}
 
-		// Friction
-		for j := range cps {
-			cp := &cps[j]
+		// Friction and rolling resistance run only in the relax stage
+		// (useBias == false), matching upstream v3.2.0's stage split: the
+		// push stage (b2PushContacts_Overflow) is normal-only — "No friction
+		// and no restitution" — while the relax stage (b2SolveContacts_Overflow)
+		// solves normal, rolling resistance and friction.
+		if !useBias {
+			// Friction
+			for j := range cps {
+				cp := &cps[j]
 
-			// fixed anchor points
-			rA := cp.anchorA
-			rB := cp.anchorB
+				// fixed anchor points
+				rA := cp.anchorA
+				rB := cp.anchorB
 
-			// relative tangent velocity at contact
-			vrB := Add(vB, CrossSV(wB, rB))
-			vrA := Add(vA, CrossSV(wA, rA))
+				// relative tangent velocity at contact
+				vrB := Add(vB, CrossSV(wB, rB))
+				vrA := Add(vA, CrossSV(wA, rA))
 
-			// vt = dot(vrB - sB * tangent - (vrA + sA * tangent), tangent)
-			//    = dot(vrB - vrA, tangent) - (sA + sB)
-			vt := Dot(Sub(vrB, vrA), tangent) - constraint.tangentSpeed
+				// vt = dot(vrB - sB * tangent - (vrA + sA * tangent), tangent)
+				//    = dot(vrB - vrA, tangent) - (sA + sB)
+				vt := Dot(Sub(vrB, vrA), tangent) - constraint.tangentSpeed
 
-			// incremental tangent impulse
-			impulse := float64(cp.tangentMass * -vt)
+				// incremental tangent impulse
+				impulse := float64(cp.tangentMass * -vt)
 
-			// clamp the accumulated force
-			maxFriction := friction * cp.normalImpulse
-			newImpulse := clampFloat(cp.tangentImpulse+impulse, -maxFriction, maxFriction)
-			impulse = newImpulse - cp.tangentImpulse
-			cp.tangentImpulse = newImpulse
+				// clamp the accumulated force
+				maxFriction := friction * cp.normalImpulse
+				newImpulse := clampFloat(cp.tangentImpulse+impulse, -maxFriction, maxFriction)
+				impulse = newImpulse - cp.tangentImpulse
+				cp.tangentImpulse = newImpulse
 
-			// apply tangent impulse
-			p := MulSV(impulse, tangent)
-			vA = MulSub(vA, mA, p)
-			wA -= float64(iA * Cross(rA, p))
-			vB = MulAdd(vB, mB, p)
-			wB += float64(iB * Cross(rB, p))
-		}
+				// apply tangent impulse
+				p := MulSV(impulse, tangent)
+				vA = MulSub(vA, mA, p)
+				wA -= float64(iA * Cross(rA, p))
+				vB = MulAdd(vB, mB, p)
+				wB += float64(iB * Cross(rB, p))
+			}
 
-		// Rolling resistance
-		{
-			deltaLambda := float64(-constraint.rollingMass * (wB - wA))
-			lambda := constraint.rollingImpulse
-			maxLambda := constraint.rollingResistance * totalNormalImpulse
-			constraint.rollingImpulse = clampFloat(lambda+deltaLambda, -maxLambda, maxLambda)
-			deltaLambda = constraint.rollingImpulse - lambda
+			// Rolling resistance
+			{
+				deltaLambda := float64(-constraint.rollingMass * (wB - wA))
+				lambda := constraint.rollingImpulse
+				maxLambda := constraint.rollingResistance * totalNormalImpulse
+				constraint.rollingImpulse = clampFloat(lambda+deltaLambda, -maxLambda, maxLambda)
+				deltaLambda = constraint.rollingImpulse - lambda
 
-			wA -= float64(iA * deltaLambda)
-			wB += float64(iB * deltaLambda)
+				wA -= float64(iA * deltaLambda)
+				wB += float64(iB * deltaLambda)
+			}
 		}
 
 		if stateA.flags&dynamicFlag != 0 {
