@@ -1076,7 +1076,8 @@ type CustomFilterFcn func(shapeIDA, shapeIDB ShapeID, ctx any) bool
 // narrow-phase fast path: when the pair's combined relative motion stays
 // below the recycle distance (world_step.go adds the relative translation to
 // an extent-scaled rotation before comparing that one tolerance; see
-// ContactRecycleDistance and World.SetContactRecycleDistance), the contact
+// World.ContactRecycleDistance and World.SetContactRecycleDistance), the
+// contact
 // reuses its cached manifold and skips the pre-solve callback, so the
 // enabled→disabled direction (e.g. a resting-platform drop-through) is not
 // re-consulted while the pair stays within that tolerance. This applies to
