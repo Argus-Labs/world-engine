@@ -104,7 +104,9 @@ func (w *World) collideTask(startIndex, endIndex, workerIndex int, ctx *stepCont
 				qr := InvMulRot(xf.Q, xfc.Q)
 
 				// Check each body's rotation since the cache; relative rotation
-				// alone misses bodies that rotate together.
+				// alone misses bodies that rotate together. Mirrors upstream
+				// b2CollideTask in src/physics_world.c (Box2D v3.2.0), which
+				// gates recycling on B2_CONTACT_RECYCLE_COS_ANGLE.
 				cosA := dot2(transformA.Q.C, contactSim.cachedTransformA.Q.C, transformA.Q.S, contactSim.cachedTransformA.Q.S)
 				cosB := dot2(transformB.Q.C, contactSim.cachedTransformB.Q.C, transformB.Q.S, contactSim.cachedTransformB.Q.S)
 				minCos := minFloat(cosA, cosB)

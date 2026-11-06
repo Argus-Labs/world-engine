@@ -32,9 +32,10 @@ const AABBMarginFraction = 0.125
 // length unit.
 const TimeToSleep = 0.5
 
-// ContactRecycleCosAngle is B2_CONTACT_RECYCLE_COS_ANGLE. The contact recycling
-// rotation guard: a dimensionless cosine threshold of 0.98, corresponding to
-// about 11.5 degrees. It does not scale with the length unit.
+// ContactRecycleCosAngle is B2_CONTACT_RECYCLE_COS_ANGLE, defined upstream in
+// src/physics_world.c (Box2D v3.2.0). The contact recycling rotation guard: a
+// dimensionless cosine threshold of 0.98, corresponding to about 11.5
+// degrees. It does not scale with the length unit.
 const ContactRecycleCosAngle = 0.98
 
 // The per-meter magnitudes of the length-scaled tolerances below. These are the
