@@ -75,9 +75,11 @@ func wboDynamicBox(t *testing.T, w *box2d.World, pos box2d.Vec2) (box2d.BodyID, 
 }
 
 // wboRestingPreSolveScene builds the shared resting-pair pre-solve scene:
-// zero gravity, sleeping disabled, the standard static ground, and a dynamic
-// unit box centered at y=0.4 (overlapping the ground by 0.1 m) with pre-solve
-// events enabled on the dynamic shape. Returns the world and the dynamic body.
+// zero gravity, sleeping disabled (so a resting body keeps receiving
+// pre-solve callbacks every step instead of sleeping and skipping them),
+// the standard static ground, and a dynamic unit box centered at y=0.4
+// (overlapping the ground by 0.1 m) with pre-solve events enabled on the
+// dynamic shape. Returns the world and the dynamic body.
 func wboRestingPreSolveScene(t *testing.T) (*box2d.World, box2d.BodyID) {
 	t.Helper()
 
@@ -518,7 +520,7 @@ func TestOraclePreSolveReConsultedEveryStepWhileResting(t *testing.T) {
 // platforms, per-step pre-solve logic). The enabled→disabled resting-platform
 // case is explicitly outside this fix.
 //
-// Scene: shared resting pre-solve scene. The callback toggles from false
+// Scene: shared resting pre-solve scene. The callback switches from false
 // (disabled) to true (enabled) mid-run; the re-enabled contact must push the
 // overlapping box up.
 func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
@@ -548,18 +550,19 @@ func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
 	// Enable the contact. The callback must be re-consulted so it can
 	// return true and the contact can generate constraints.
 	disable = false
-	for range halfSteps {
+	w.Step(wboDT, wboSubSteps)
+	// The toggle took effect on the very next step: the callback was
+	// re-consulted (calls == halfSteps+1) before any further stepping.
+	require.Equal(t, halfSteps+1, calls,
+		"pre-solve must be re-consulted on the first step after the toggle to re-enable the contact")
+	for range halfSteps - 1 {
 		w.Step(wboDT, wboSubSteps)
 	}
 
-	// The toggle took effect: the callback was called at least once more
-	// and the solver pushed the overlapping box up.
-	require.Greater(t, calls, halfSteps,
-		"pre-solve must be re-consulted after the toggle to re-enable the contact")
-	// With zero gravity there is no eventual resting pose, so read 0.45
-	// as a threshold proving upward separation (the re-enabled contact
-	// pushed the overlapping box up from y=0.4) rather than halfway to a
-	// resting pose.
+	// With zero gravity there is no force holding the box at the fully
+	// separated center (y=0.5); the solver can push it beyond that. Read
+	// 0.45 as a threshold proving upward separation: the re-enabled contact
+	// pushed the overlapping box up from y=0.4.
 	require.Greater(t, w.BodyPosition(body).Y, 0.45,
 		"the re-enabled contact must push the overlapping box up")
 }

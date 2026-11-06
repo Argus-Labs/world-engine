@@ -1076,7 +1076,8 @@ type CustomFilterFcn func(shapeIDA, shapeIDB ShapeID, ctx any) bool
 // resting-platform drop-through) is not re-consulted while the bodies remain
 // stationary. Callers that need every step's pre-solve decision for an
 // enabled resting pair can disable the fast path world-wide with
-// World.SetContactRecycleDistance(0).
+// World.SetContactRecycleDistance(0) (callbacks still fire only while the
+// bodies are awake).
 //
 // Warning: do not attempt to modify the world inside this callback.
 type PreSolveFcn func(shapeIDA, shapeIDB ShapeID, point, normal Vec2, ctx any) bool
