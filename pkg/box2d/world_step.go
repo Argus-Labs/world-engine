@@ -103,13 +103,8 @@ func (w *World) collideTask(startIndex, endIndex, workerIndex int, ctx *stepCont
 				distance := Distance(xf.P, xfc.P)
 				qr := InvMulRot(xf.Q, xfc.Q)
 
-				// Per-body accumulated rotation since the cached manifold.
-				// b2RelativeCos is the dot product of the current and cached
-				// rotations; it drops below 1.0 as a body rotates away from
-				// its cached orientation. The recycle shortcut re-projects
-				// separation onto the cached manifold normal using the cached
-				// anchors, which is only valid while both bodies have rotated
-				// less than ~11.5 degrees (cos > 0.98) since the cache.
+				// Check each body's rotation since the cache; relative rotation
+				// alone misses bodies that rotate together.
 				cosA := dot2(transformA.Q.C, contactSim.cachedTransformA.Q.C, transformA.Q.S, contactSim.cachedTransformA.Q.S)
 				cosB := dot2(transformB.Q.C, contactSim.cachedTransformB.Q.C, transformB.Q.S, contactSim.cachedTransformB.Q.S)
 				minCos := minFloat(cosA, cosB)
