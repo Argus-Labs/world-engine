@@ -24,6 +24,13 @@
 //     rounded-box AABB extents are ported against the vendored b2Transform
 //     API; the double-precision-only blocks are ported as far-from-origin
 //     consistency checks, which the float64 port satisfies by construction.
+//   - hull.c ComputeHull point welding: the vendored C uses
+//     tolSqr = 16*linearSlop^2 and compares each point against every earlier
+//     input point (for j < i over points), but the released upstream source
+//     (commit ac7c751) uses tolSqr = 0.25*linearSlop^2 and compares against
+//     the retained set only (for j < n over ps). hull.go deliberately follows
+//     the released upstream welding policy; the oracle assertions below pin
+//     that choice so future vendored-C resyncs do not silently revert it.
 package box2d_test
 
 import (
@@ -1467,7 +1474,8 @@ func TestOracleTimeOfImpact(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// hull.go (vendored hull.c:87/273)
+// hull.go (vendored hull.c:87/273; welding follows released upstream
+// commit ac7c751, not the vendored C — see the drift list at the top)
 // ---------------------------------------------------------------------------
 
 func TestOracleHullEdgeCases(t *testing.T) {
@@ -1490,13 +1498,67 @@ func TestOracleHullEdgeCases(t *testing.T) {
 	t.Run("welding collapses close points", func(t *testing.T) {
 		t.Parallel()
 		// Box2D v3.2.0 hull.c welds points within 0.5*linearSlop = 0.0025
-		// (tolSqr = 0.25*linearSlop^2, upstream commit ac7c751). Three of
-		// the four points are 0.001 apart and weld into one, leaving fewer
-		// than 3 retained points.
+		// (tolSqr = 0.25*linearSlop^2, upstream commit ac7c751). The first
+		// three points each lie within 0.001 of (0,0) and weld into one,
+		// leaving fewer than 3 retained points.
 		h := box2d.ComputeHull([]box2d.Vec2{
 			{X: 0, Y: 0}, {X: 0.001, Y: 0}, {X: 0, Y: 0.001}, {X: 1, Y: 1},
 		})
 		require.Equal(t, 0, h.Count)
+	})
+
+	t.Run("weld tolerance distinguishes upstream from vendored", func(t *testing.T) {
+		t.Parallel()
+		// (0.015,0) is 0.015 from (0,0): farther than the upstream weld
+		// radius 0.5*linearSlop = 0.0025, but closer than the vendored-C
+		// weld radius 4*linearSlop = 0.02. Under the upstream tolerance
+		// (this port) all three points are retained as a triangle; under
+		// the vendored tolerance (0.015,0) would weld into (0,0) and the
+		// hull would collapse to fewer than 3 points.
+		h := box2d.ComputeHull([]box2d.Vec2{
+			{X: 0, Y: 0}, {X: 0.015, Y: 0}, {X: 0, Y: 1},
+		})
+		require.Equal(t, 3, h.Count)
+		require.True(t, box2d.ValidateHull(&h))
+		// MakePolygon (geometry.c b2MakePolygon) preserves the triangle.
+		poly := box2d.MakePolygon(&h, 0.0)
+		require.Equal(t, 3, poly.Count)
+		want := map[box2d.Vec2]bool{
+			{X: 0, Y: 0}: true, {X: 0.015, Y: 0}: true, {X: 0, Y: 1}: true,
+		}
+		for i := range poly.Count {
+			require.True(t, want[poly.Vertices[i]], "unexpected vertex %v", poly.Vertices[i])
+		}
+	})
+
+	t.Run("retained-set welding keeps point near a discarded weld", func(t *testing.T) {
+		t.Parallel()
+		// A=(0,0.997) is retained; B=(0,0.998) welds to A (distance 0.001
+		// < 0.0025) and is discarded; C=(0,1) is within 0.002 of the
+		// discarded B but 0.003 from the retained A, so only the
+		// retained-set comparison (for j < n over ps) keeps C. With the
+		// vendored-C comparison against every earlier input point, C
+		// would weld to discarded B and the hull apex would be A=(0,0.997)
+		// instead. D and E anchor the base.
+		h := box2d.ComputeHull([]box2d.Vec2{
+			{X: 0, Y: 0.997}, // A
+			{X: 0, Y: 0.998}, // B welds to A
+			{X: 0, Y: 1.0},   // C near B, far from A
+			{X: -1, Y: 0},    // D
+			{X: 1, Y: 0},     // E
+		})
+		require.Equal(t, 3, h.Count)
+		require.True(t, box2d.ValidateHull(&h))
+		// C survives as the hull apex; A is dropped as collinear/interior.
+		var cSurvives bool
+		c := box2d.Vec2{X: 0, Y: 1.0}
+		for i := range h.Count {
+			if h.Points[i] == c {
+				cSurvives = true
+				break
+			}
+		}
+		require.True(t, cSurvives, "C must survive in the resulting hull")
 	})
 
 	t.Run("collinear points fail", func(t *testing.T) {
