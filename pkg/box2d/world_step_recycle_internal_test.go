@@ -6,7 +6,6 @@
 package box2d
 
 import (
-	"fmt"
 	"math"
 	"testing"
 
@@ -128,10 +127,10 @@ func rotateAndStep(t *testing.T, w *World, body BodyID, angle float64) *contactS
 // pre-solve transform during collideTask (and SetBodyTransform writes that
 // transform directly), so the cached rotation is bit-identical to the rotation
 // set by the test.
-func requireCachedRot(t *testing.T, sim *contactSim, w *World, body BodyID, expected Rot, msg string) {
+func requireCachedRot(t *testing.T, sim *contactSim, w *World, body BodyID, expected Rot, msgAndArgs ...interface{}) {
 	t.Helper()
 	cached := dynamicCachedRotation(sim, w, body)
-	require.Equal(t, expected, cached, "%s: cached rotation mismatch", msg)
+	require.Equal(t, expected, cached, msgAndArgs...)
 }
 
 // requireShapeIDPair asserts the two event shape IDs are exactly ground and
@@ -142,9 +141,9 @@ func requireShapeIDPair(t *testing.T, idA, idB, ground, body ShapeID, msg string
 		"%s: event shape IDs {%v, %v} must be {%v, %v}", msg, idA, idB, ground, body)
 }
 
-// stepAndFindContact performs the shared initial-step setup: step the world
-// once, then find and validate the contact sim for the given body. It returns
-// the contact sim with its cached relative transform confirmed valid.
+// stepAndFindContact performs the shared initial-step setup for the recycling
+// fixtures, returning the contact sim for the given body with its cached
+// relative transform established for later guard assertions.
 func stepAndFindContact(t *testing.T, w *World, body BodyID) *contactSim {
 	t.Helper()
 	stepWorld(w, 1)
@@ -152,6 +151,18 @@ func stepAndFindContact(t *testing.T, w *World, body BodyID) *contactSim {
 	require.NotNil(t, sim, "contact must exist after first step")
 	require.NotEqual(t, uint32(0), sim.simFlags&simRelativeTransformValid,
 		"cached relative transform must be valid after first step")
+	return sim
+}
+
+// stepFindContact steps the world once after a transform change and returns the
+// contact sim for body, requiring it to still exist. Each caller keeps its own
+// transform changes and regression preconditions (e.g.
+// requireOldRecyclePredicatePasses) before stepping.
+func stepFindContact(t *testing.T, w *World, body BodyID, msg string) *contactSim {
+	t.Helper()
+	stepWorld(w, 1)
+	sim := findContactSimForBody(w, body)
+	require.NotNil(t, sim, "contact must still exist %s", msg)
 	return sim
 }
 
@@ -170,17 +181,19 @@ func requireOldRecyclePredicatePasses(t *testing.T, w *World, sim *contactSim, m
 	shapeB := &w.shapes[sim.shapeIDB]
 	bodyA := &w.bodies[shapeA.bodyID]
 	bodyB := &w.bodies[shapeB.bodyID]
-	transformA := w.getBodySim(bodyA).transform
-	transformB := w.getBodySim(bodyB).transform
+	bodySimA := w.getBodySim(bodyA)
+	bodySimB := w.getBodySim(bodyB)
+	transformA := bodySimA.transform
+	transformB := bodySimB.transform
 	xf := InvMulTransforms(transformA, transformB)
 	xfc := InvMulTransforms(sim.cachedTransformA, sim.cachedTransformB)
 	maxExtentA := 0.0
 	if bodyA.bodyType != StaticBody {
-		maxExtentA = w.getBodySim(bodyA).maxExtent
+		maxExtentA = bodySimA.maxExtent
 	}
 	maxExtentB := 0.0
 	if bodyB.bodyType != StaticBody {
-		maxExtentB = w.getBodySim(bodyB).maxExtent
+		maxExtentB = bodySimB.maxExtent
 	}
 	maxExtent := maxFloat(maxExtentA, maxExtentB)
 	distance := Distance(xf.P, xfc.P)
@@ -280,7 +293,7 @@ func TestContactRecycleAccumulatedRotation(t *testing.T) {
 		angle := float64(step) * 5.0 * math.Pi / 180.0
 		sim := rotateAndStep(t, w, body, angle)
 		requireCachedRot(t, sim, w, body, RotIdentity,
-			fmt.Sprintf("step %d: cache must stay at 0 degrees (recycled, not refreshed)", step+1))
+			"step %d: cache must stay at 0 degrees (recycled, not refreshed)", step+1)
 	}
 
 	// 15° accumulated from the 0° cache: cos(15°) < 0.98, so the guard blocks
@@ -335,10 +348,7 @@ func TestContactRecycleCoRotatingDynamicBodies(t *testing.T) {
 	w.SetBodyTransform(bodyA, Vec2{X: -0.03, Y: 0.0}, rot)
 	w.SetBodyTransform(bodyB, Vec2{X: 0.03, Y: 0.0}, rot)
 	requireOldRecyclePredicatePasses(t, w, sim, "co-rotation default distance")
-	stepWorld(w, 1)
-
-	sim = findContactSimForBody(w, bodyA)
-	require.NotNil(t, sim, "contact must still exist after co-rotation")
+	sim = stepFindContact(t, w, bodyA, "after co-rotation")
 	requireCachedRot(t, sim, w, bodyA, rot, "body A cache must be refreshed to 30 degrees after full update")
 	requireCachedRot(t, sim, w, bodyB, rot, "body B cache must be refreshed to 30 degrees after full update")
 }
@@ -364,10 +374,7 @@ func TestContactRecycleAsymmetricRotation(t *testing.T) {
 	rot := MakeRot(30.0 * math.Pi / 180.0)
 	w.SetBodyTransform(bodyA, Vec2{X: -0.03, Y: 0.0}, rot)
 	requireOldRecyclePredicatePasses(t, w, sim, "asymmetric enlarged distance")
-	stepWorld(w, 1)
-
-	sim = findContactSimForBody(w, bodyA)
-	require.NotNil(t, sim, "contact must still exist after asymmetric rotation")
+	sim = stepFindContact(t, w, bodyA, "after asymmetric rotation")
 	requireCachedRot(t, sim, w, bodyA, rot, "body A cache must be refreshed to 30 degrees after full update")
 }
 
@@ -389,10 +396,7 @@ func TestContactRecycleNear180Rotation(t *testing.T) {
 	rot := MakeRot(angle175)
 	w.SetBodyTransform(body, Vec2{X: 0.0, Y: 0.04}, rot)
 	requireOldRecyclePredicatePasses(t, w, sim, "near-180 default distance")
-	stepWorld(w, 1)
-
-	sim = findContactSimForBody(w, body)
-	require.NotNil(t, sim, "contact must still exist after 175 degree rotation")
+	sim = stepFindContact(t, w, body, "after 175 degree rotation")
 	requireCachedRot(t, sim, w, body, rot, "cache must be refreshed to 175 degrees after full update")
 }
 
@@ -449,8 +453,8 @@ func TestContactRecycleRotationGuardEndEvent(t *testing.T) {
 // the old gate would recycle. A near-180° flip is used because separating a
 // centered box by rotation alone needs a large |sin θ|, which the small
 // default distance would not let through; near 180° the sine term is small
-// again while cos(175°) ≈ -0.996 still trips the per-body guard. The plank
-// height is derived from its half-height, SpeculativeDistance, and an initial
+// again while cos(175°) ≈ -0.996 still trips the per-body guard. The plank's
+// center y is derived from its half-height, SpeculativeDistance, and an initial
 // margin so it starts touching and the 175° flip lifts its lowest corner just
 // beyond SpeculativeDistance.
 func TestContactRecycleRotationGuardEndEventDefaultDistance(t *testing.T) {
