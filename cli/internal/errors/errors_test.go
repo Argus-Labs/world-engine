@@ -30,9 +30,7 @@ func TestShouldPrint_NonSilent(t *testing.T) {
 }
 
 // A cancel (Ctrl+C) is an expected user action, not a failure, so ShouldPrint
-// must return false for each form a cancel can take reaching this gate: a bare
-// [context.Canceled], an eris-wrapped cancel (the Docker leak form), a cancel
-// inside kong's [errors.Join], and a [SilentError] wrapping a cancel.
+// must return false for each form a cancel can take reaching this gate.
 func TestShouldPrint_CancelSuppressed(t *testing.T) {
 	t.Parallel()
 

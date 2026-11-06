@@ -8,13 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/network"
-
 	"github.com/rotisserie/eris"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	cerrdefs "github.com/containerd/errdefs"
 
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
@@ -415,17 +413,17 @@ func (f fakeInspector) CardinalHostPort(_ context.Context, name string) (int, er
 }
 
 // twoShardContainers is the shared two-shard container list for the collectShardPorts
-// and CheckLayout cancel tests: shard and instance IDs differ so an accidental key
-// on ShardIDLabel would miss.
+// and CheckLayout cancel tests: shard and instance IDs differ so using ShardIDLabel
+// would fail the test.
 var twoShardContainers = []docker.ContainerSummary{
 	{Name: "p-game", Labels: service.Labels("p", service.RoleShard, "game", "game-0")},
 	{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat-0")},
 }
 
-// cancelInspector returns the shared two-shard inspector setup for the
+// twoShardInspector returns the shared two-shard inspector setup for the
 // collectShardPorts and CheckLayout cancel tests: p-game resolves to its host
 // port and p-chat returns secondErr.
-func cancelInspector(secondErr error) fakeInspector {
+func twoShardInspector(secondErr error) fakeInspector {
 	return fakeInspector{
 		ports: map[string]int{"p-game": service.ShardHostPort(0)},
 		errs:  map[string]error{"p-chat": secondErr},
@@ -460,7 +458,7 @@ func TestCollectShardPorts(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			inspector := cancelInspector(tc.secondErr)
+			inspector := twoShardInspector(tc.secondErr)
 			ports, err := collectShardPorts(context.Background(), twoShardContainers, inspector)
 			if tc.wantCanceled {
 				require.ErrorIs(t, err, context.Canceled)
@@ -475,10 +473,8 @@ func TestCollectShardPorts(t *testing.T) {
 
 // TestCheckLayout_CancelMidInspect drives checkLayout with a fake lister that
 // returns two shards, then a fake inspector whose first inspect returns a port
-// and whose second returns [context.Canceled]. The cancel must escape before
-// layoutMismatch compares a partial ports map and reports a fake "instance was
-// added" mismatch; this covers the CheckLayout wiring the collectShardPorts
-// helper tests do not.
+// and whose second returns [context.Canceled]. A canceled inspect must not be
+// reported as an instance added to world.toml.
 func TestCheckLayout_CancelMidInspect(t *testing.T) {
 	t.Parallel()
 
@@ -486,7 +482,7 @@ func TestCheckLayout_CancelMidInspect(t *testing.T) {
 		{ID: "game", InstanceID: "game-0"},
 		{ID: "chat", InstanceID: "chat-0"},
 	}
-	inspector := cancelInspector(context.Canceled)
+	inspector := twoShardInspector(context.Canceled)
 	err := checkLayout(context.Background(), fakeLister{containers: twoShardContainers}, inspector, "p", shards)
 	require.ErrorIs(t, err, context.Canceled)
 }

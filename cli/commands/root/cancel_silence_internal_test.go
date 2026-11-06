@@ -27,21 +27,45 @@ func deadSocketSetup(t *testing.T) (*local.Runtime, *docker.Client, *service.Con
 	return local.New(dc, cfg), dc, cfg
 }
 
-// TestReloadShards_CancelSilencedByGate drives reloadShards (shared by `world
-// reload` and the log picker's reload hotkey, which prints its errors directly
-// in logs.go) with a canceled ctx, then asserts on the returned error via
-// ShouldPrint. These tests do not invoke main or observe output/Sentry.
-func TestReloadShards_CancelSilencedByGate(t *testing.T) {
+// TestCancelSilencedByGate drives the two pre-dashboard call sites (reloadShards,
+// shared by `world reload` and the log picker's reload hotkey — which prints its
+// errors directly in logs.go — and rt.IsRunning) with a canceled ctx, then
+// asserts on the returned error via the central ShouldPrint gate. These tests do
+// not invoke main or observe output/Sentry.
+func TestCancelSilencedByGate(t *testing.T) {
 	rt, dc, cfg := deadSocketSetup(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	cases := []struct {
+		name string
+		err  func(ctx context.Context) error
+	}{
+		{
+			"reloadShards",
+			func(ctx context.Context) error {
+				return reloadShards(ctx, rt, dc, cfg, nil, false)
+			},
+		},
+		{
+			"IsRunning",
+			func(ctx context.Context) error {
+				_, err := rt.IsRunning(ctx)
+				return err
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
 
-	err := reloadShards(ctx, rt, dc, cfg, nil, false)
-	require.Error(t, err)
-	require.ErrorIs(t, err, context.Canceled,
-		"reloadShards must surface the wrapped context.Canceled from CheckLayout")
-	assert.False(t, errorspkg.ShouldPrint(err), "a canceled reload must not be printed or Sentry-captured")
+			err := tc.err(ctx)
+			require.Error(t, err)
+			require.ErrorIs(t, err, context.Canceled,
+				"the call must surface the wrapped context.Canceled")
+			assert.False(t, errorspkg.ShouldPrint(err),
+				"a canceled call must not be printed or Sentry-captured")
+		})
+	}
 }
 
 // TestReloadShards_NonCancelErrorPrinted verifies a real (non-cancel) Docker
@@ -54,22 +78,4 @@ func TestReloadShards_NonCancelErrorPrinted(t *testing.T) {
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, context.Canceled, "dead socket must not produce context.Canceled")
 	assert.True(t, errorspkg.ShouldPrint(err), "a real Docker error must still be printed and Sentry-captured")
-}
-
-// TestIsRunning_CancelSilencedByGate calls rt.IsRunning and ShouldPrint
-// directly. IsRunning returns a wrapped [context.Canceled]
-// (ListProjectContainers wraps the returned error), and the central ShouldPrint
-// gate silences it even without a call-site wrap.
-func TestIsRunning_CancelSilencedByGate(t *testing.T) {
-	rt, _, _ := deadSocketSetup(t)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	_, err := rt.IsRunning(ctx)
-	require.Error(t, err)
-	require.ErrorIs(t, err, context.Canceled,
-		"IsRunning must return a wrapped context.Canceled")
-	assert.False(t, errorspkg.ShouldPrint(err),
-		"a wrapped cancel from IsRunning must not be printed or Sentry-captured")
 }
