@@ -19,6 +19,15 @@ import (
 	"github.com/argus-labs/world-engine/pkg/box2d"
 )
 
+// boundedTimeout is the shared deadline for runBounded: long enough to never
+// flake on a slow CI runner, short enough to fail a self-join or hung Destroy
+// within the suite's timeout.
+const boundedTimeout = 30 * time.Second
+
+// assertFailedMsg is the shared panic string every box2d assert emits in the
+// box2d_asserts build; the Destroy guard regression asserts this exact value.
+const assertFailedMsg = "box2d: assertion failed"
+
 // workerBoom is a distinct panic payload type: the type assertion below fails
 // if the pool ever wraps, stringifies or otherwise replaces the value a
 // callback panicked with.
@@ -73,20 +82,12 @@ func TestPanicInCallbackPropagatesOriginalValue(t *testing.T) {
 
 	// Destroy must join the pool workers and return even though the panic
 	// aborted Step mid-stage.
-	destroyed := make(chan struct{})
-	go func() {
-		w.Destroy()
-		close(destroyed)
-	}()
-	select {
-	case <-destroyed:
-	case <-time.After(30 * time.Second):
-		t.Fatal("World.Destroy deadlocked after a worker panic")
-	}
+	require.Nil(t, runBounded(t, w.Destroy, "World.Destroy deadlocked after a worker panic"),
+		"Destroy must not panic on the poisoned world")
 	// Destroy must actually tear the poisoned world down, not silently skip
-	// cleanup: the saved id is now stale. Returning alone (the channel check
-	// above) would be satisfied by a locked-world early return that leaves the
-	// worker pool alive.
+	// cleanup: the saved id is now stale. Returning alone (the runBounded
+	// check above) would be satisfied by a locked-world early return that
+	// leaves the worker pool alive.
 	require.False(t, w.IsWorldValid(id), "Destroy must invalidate the saved id after a panicked Step")
 
 	// Fresh world: the process (and the package state) is healthy.
@@ -287,7 +288,7 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 				// not a raw index-out-of-range from wiped state.
 				panicVal := runBounded(t, func() { w.Step(1.0/60.0, 4) },
 					"the locked-guard assert must fire in the asserts build, not deadlock")
-				require.Equal(t, "box2d: assertion failed", panicVal,
+				require.Equal(t, assertFailedMsg, panicVal,
 					"Step must panic with the guard's assertion, not a raw wiped-state crash")
 				require.True(t, fired.Load(), "preSolve callback never ran — scene lost its touching pre-solve contacts")
 
@@ -310,7 +311,7 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 				// Release build: Destroy is a silent no-op; Step must
 				// complete without deadlocking or panicking.
 				panicVal := runBounded(t, func() { w.Step(1.0/60.0, 4) },
-					"Step did not return — Destroy from callback reached pool.close() mid-dispatch and self-joined")
+					"Step did not return within 30 seconds")
 				require.Nil(t, panicVal, "Step must not panic when Destroy is guarded out")
 				require.True(t, fired.Load(), "preSolve callback never ran — scene lost its touching pre-solve contacts")
 
@@ -354,7 +355,9 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 		w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
 			// Skip worker 0 (the Step goroutine); only a background
 			// pool worker may fire, so the self-join path is reached.
-			if goroutineID() != stepG.Load() {
+			// Check fired first so later contacts skip the runtime.Stack
+			// parse; the CAS still arbitrates the winning background worker.
+			if !fired.Load() && goroutineID() != stepG.Load() {
 				if fired.CompareAndSwap(false, true) {
 					w.Destroy()
 				}
@@ -368,7 +371,7 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 		},
 			"Step did not return — a background worker's Destroy reached pool.close() and self-joined")
 		if buildWithAsserts {
-			require.Equal(t, "box2d: assertion failed", panicVal,
+			require.Equal(t, assertFailedMsg, panicVal,
 				"the guard must panic in the asserts build when a background worker calls Destroy")
 		} else {
 			require.Nil(t, panicVal, "Step must not panic when the background worker's Destroy is guarded out")
@@ -387,8 +390,8 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			w.Step(1.0/60.0, 4)
 		}
 		require.Nil(t, runBounded(t, w.Destroy,
-			"Destroy did not return on the (poisoned) world — pool.close() must join the workers"),
-			"Destroy must not panic on the (poisoned) world")
+			"Destroy did not return on the world — pool.close() must join the workers"),
+			"Destroy must not panic on the world")
 		require.False(t, w.IsWorldValid(id), "Destroy must invalidate the saved id")
 	})
 }
@@ -424,8 +427,8 @@ func runBounded(t *testing.T, fn func(), msg string) any {
 	}()
 	select {
 	case <-done:
-	case <-time.After(30 * time.Second):
-		t.Fatalf("%s", msg)
+	case <-time.After(boundedTimeout):
+		t.Fatal(msg)
 	}
 	return panicVal
 }

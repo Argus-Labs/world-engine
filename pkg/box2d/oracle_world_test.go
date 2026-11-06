@@ -268,6 +268,7 @@ func TestOracleLockedWorldIgnoresCalls(t *testing.T) {
 
 	w := wboNewWorld(t)
 	wboGround(t, w)
+	id := w.ID()
 
 	// Resting box with pre-solve events so the callback fires on step one.
 	bd := box2d.DefaultBodyDef()
@@ -323,9 +324,9 @@ func TestOracleLockedWorldIgnoresCalls(t *testing.T) {
 			return 0.0
 		})
 
-		// Destroy is also ignored while locked (same guard shape as the
-		// mutators above): a mid-Step pool.close() would self-join the
-		// calling worker.
+		// Destroy is ignored while Step is running (same guard shape as the
+		// mutators above): this oracle world is serial and has no worker
+		// pool to self-join.
 		w.Destroy()
 
 		// Body mutators are ignored while locked (body.c locked guards).
@@ -356,7 +357,7 @@ func TestOracleLockedWorldIgnoresCalls(t *testing.T) {
 	require.True(t, fired, "pre-solve callback must fire for the resting contact")
 
 	// All locked mutations must have been dropped.
-	require.True(t, w.IsWorldValid(w.ID()), "locked Destroy must be ignored")
+	require.True(t, w.IsWorldValid(id), "locked Destroy must be ignored")
 	require.True(t, w.IsSleepingEnabled())
 	require.True(t, w.IsWarmStartingEnabled())
 	require.True(t, w.IsContinuousEnabled())
