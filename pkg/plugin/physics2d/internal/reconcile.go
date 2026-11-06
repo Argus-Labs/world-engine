@@ -124,7 +124,7 @@ func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
 	_, hadBody := rt.KnownEntities[e.EntityID]
 	if !hadBody {
 		if err := rt.createBodyForEntry(e); err != nil {
-			return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
+			return fmt.Errorf("entity %d: %w", e.EntityID, err)
 		}
 		return nil
 	}
