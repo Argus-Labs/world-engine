@@ -2,16 +2,16 @@
 // distance.go, manifold.go, collision.go and the chain-segment contact
 // registers in contact.go).
 //
-// Every expected value is derived ONLY from the vendored C source of truth
+// Unless a test documents another source, every expected value is derived
+// from the vendored C source of truth
 // (scratchpad vendored-c/box2d/src/{aabb,geometry,hull,distance,manifold}.c)
 // or ported from the upstream unit tests (test_collision.c, test_distance.c,
-// test_shape.c). No expectation was produced by executing the Go code: unless
-// a test documents another source, values are hand-computed by following the
-// C algorithm in exact arithmetic, and each nontrivial expectation cites the C
-// function (file:line) or upstream test it comes from. The hull-welding
-// tolerance and retained-set comparison are a deliberate exception that
-// follows released upstream commit ac7c751 instead of the vendored C; see the
-// drift list below.
+// test_shape.c). No expectation was produced by executing the Go code: values
+// are hand-computed by following the C algorithm in exact arithmetic, and each
+// nontrivial expectation cites the C function (file:line) or upstream test it
+// comes from. The hull-welding tolerance and retained-set comparison are a
+// deliberate exception that follows released upstream commit ac7c751 instead
+// of the vendored C; see the drift list below.
 //
 // Tolerances: the C code runs in float32 while this port runs in float64.
 // Upstream ENSURE_SMALL(x, FLT_EPSILON) assertions are ported with 1e-6
@@ -1510,30 +1510,26 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		// spacings would fail under a different coefficient (e.g. 0.1).
 		radius := float64(0.5 * box2d.LinearSlop)
 		anchors := []box2d.Vec2{{X: -1, Y: 0}, {X: 1, Y: 0}}
+		// Each case supplies the vertex the weld should retain and the
+		// vertex it should discard; the shared assertions below check
+		// membership directly, with no inside/outside branch.
 		cases := []struct {
-			name   string
-			gap    float64
-			inside bool
+			name      string
+			retained  box2d.Vec2
+			discarded box2d.Vec2
 		}{
-			{"0.001 inside", 0.001, true},
-			{"inside", radius - 1e-6, true},
-			{"outside", radius + 1e-6, false},
+			{"0.001 inside", box2d.Vec2{X: 0, Y: 1 - 0.001}, box2d.Vec2{X: 0, Y: 1}},
+			{"inside", box2d.Vec2{X: 0, Y: 1 - (radius - 1e-6)}, box2d.Vec2{X: 0, Y: 1}},
+			{"outside", box2d.Vec2{X: 0, Y: 1}, box2d.Vec2{X: 0, Y: 1 - (radius + 1e-6)}},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
-				lower := box2d.Vec2{X: 0, Y: 1 - tc.gap}
-				upper := box2d.Vec2{X: 0, Y: 1}
-				h := box2d.ComputeHull([]box2d.Vec2{lower, upper, anchors[0], anchors[1]})
+				h := box2d.ComputeHull([]box2d.Vec2{tc.retained, tc.discarded, anchors[0], anchors[1]})
 				require.Equal(t, 3, h.Count)
 				require.True(t, box2d.ValidateHull(&h))
-				if tc.inside {
-					require.Contains(t, h.Points[:h.Count], lower)
-					require.NotContains(t, h.Points[:h.Count], upper)
-				} else {
-					require.Contains(t, h.Points[:h.Count], upper)
-					require.NotContains(t, h.Points[:h.Count], lower)
-				}
+				require.Contains(t, h.Points[:h.Count], tc.retained)
+				require.NotContains(t, h.Points[:h.Count], tc.discarded)
 			})
 		}
 	})
