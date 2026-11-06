@@ -18,6 +18,7 @@ import (
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
 	"github.com/argus-labs/world-engine/cli/pkg/local"
+	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
 // ReloadCmd rebuilds one or more Cardinal shards and recreates their containers
@@ -284,11 +285,15 @@ func rollShards(
 	}
 
 	if waitReady {
-		// Scoped to this reload's instances: another instance the developer left down is
-		// not this reload's problem, and waiting for it would burn the whole timeout.
+		// The wait covers every instance of the deployed pools, not just the ones the
+		// user named: Deploy recreates a pool's whole instance set (including stopped
+		// siblings), so a sibling that crashes on boot must be caught here. There is
+		// no "instance the developer left down" within a reloaded pool — Deploy
+		// recreates it too, so the only way a sibling is down after a reload is a crash
+		// this reload caused.
 		var ready, expected int
 		waitForShardsReadyRow(sess, func(onProgress func(ready, expected int)) {
-			ready, expected = rt.WaitForShardsReady(ctx, targets.instanceIDs, onProgress)
+			ready, expected = rt.WaitForShardsReady(ctx, targets.waitInstanceIDs, onProgress)
 		})
 		if ready < expected {
 			// Returned, not just shown: the row is already Failed, but the summary and the
@@ -340,6 +345,7 @@ func (e *shardsNotReadyError) Error() string {
 type reloadTargets struct {
 	shardIDs            []string
 	instanceIDs         []string
+	waitInstanceIDs     []string
 	shardIDByInstanceID map[string]string
 }
 
@@ -363,7 +369,34 @@ func resolveReloadTargets(cfg *service.Config, instanceIDs []string) (reloadTarg
 		targets.instanceIDs = append(targets.instanceIDs, instance.InstanceID)
 		targets.shardIDByInstanceID[instance.InstanceID] = instance.ID
 	}
+	// The deploy recreates every instance of a pool, so the readiness wait must cover
+	// every sibling — not just the ones the user named — or a freshly recreated sibling
+	// that crashes on boot goes unnoticed (exit 0 on a partially dead pool).
+	targets.waitInstanceIDs = shardPoolInstances(cfg.WorldToml, targets.shardIDs)
 	return targets, nil
+}
+
+// shardPoolInstances expands shard pool IDs to every instance ID declared in
+// world.toml, mirroring the MCP reload's shardInstances expansion. The deploy
+// recreates a pool's whole instance set, so the readiness wait must probe every
+// sibling — not just the ones the user named.
+func shardPoolInstances(cfg worldtoml.Config, shardIDs []string) []string {
+	want := make(map[string]bool, len(shardIDs))
+	for _, id := range shardIDs {
+		want[id] = true
+	}
+	var out []string
+	for _, s := range cfg.Shards {
+		if !want[s.ID] {
+			continue
+		}
+		instance := s.InstanceID
+		if instance == "" {
+			instance = s.ID
+		}
+		out = append(out, instance)
+	}
+	return out
 }
 
 // filterCardinalServicesByID returns the subset of services whose image name
