@@ -678,9 +678,17 @@ func (w *World) updateContact(contactSim *contactSim, shapeA *shape, transformA 
 			// disable contact
 			pointCount = 0
 			manifold.PointCount = 0
-			// Mark recycling dirty (upstream v3.2.0 contact.c): ensure
-			// updateContact (and thus the pre-solve callback) runs again
-			// next step even if the bodies stay within ContactRecycleDistance.
+			// Mark recycling dirty (upstream v3.2.0 contact.c:621-625):
+			// clear simRelativeTransformValid so the narrow phase re-runs
+			// updateContact — and thus re-invokes the pre-solve callback —
+			// next step even when the bodies stay stationary. Without this,
+			// the collideTask recycling fast path (world_step.go) skips
+			// updateContact for resting pairs and the contact stays disabled
+			// indefinitely.
+			//
+			// Limitation: this only restores disabled→enabled. An already-
+			// enabled resting pair can still be recycled without consulting
+			// pre-solve again (true→false while resting is a separate case).
 			contactSim.simFlags &^= simRelativeTransformValid
 		}
 	}
