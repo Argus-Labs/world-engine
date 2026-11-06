@@ -1508,21 +1508,26 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		// This pins the coefficient behaviorally: the expression-only
 		// length-units test does not exercise ComputeHull, and these
 		// spacings would fail under a different coefficient (e.g. 0.1).
+		// The "exact radius" row places the pair at zero and radius so
+		// the squared distance equals tolSqr without subtraction
+		// rounding; strict < keeps the upper apex, <= would weld it to
+		// the lower point.
 		radius := float64(0.5 * box2d.LinearSlop)
-		anchors := []box2d.Vec2{{X: -1, Y: 0}, {X: 1, Y: 0}}
-		// The outside case supplies the lower point first so an
-		// excessively large weld radius removes the upper apex and fails
-		// the retention check; with retained-first order the upper apex
-		// would survive any coefficient.
+		// The outside and exact-radius cases supply the lower point
+		// first so an excessively large weld radius removes the upper
+		// apex and fails the retention check; with retained-first order
+		// the upper apex would survive any coefficient.
 		cases := []struct {
 			name         string
 			retained     box2d.Vec2
 			discarded    box2d.Vec2
 			discardFirst bool
+			anchors      [2]box2d.Vec2
 		}{
-			{"0.001 inside", box2d.Vec2{X: 0, Y: 1 - 0.001}, box2d.Vec2{X: 0, Y: 1}, false},
-			{"inside", box2d.Vec2{X: 0, Y: 1 - (radius - 1e-6)}, box2d.Vec2{X: 0, Y: 1}, false},
-			{"outside", box2d.Vec2{X: 0, Y: 1}, box2d.Vec2{X: 0, Y: 1 - (radius + 1e-6)}, true},
+			{"0.001 inside", box2d.Vec2{X: 0, Y: 1 - 0.001}, box2d.Vec2{X: 0, Y: 1}, false, [2]box2d.Vec2{{X: -1, Y: 0}, {X: 1, Y: 0}}},
+			{"inside", box2d.Vec2{X: 0, Y: 1 - (radius - 1e-6)}, box2d.Vec2{X: 0, Y: 1}, false, [2]box2d.Vec2{{X: -1, Y: 0}, {X: 1, Y: 0}}},
+			{"outside", box2d.Vec2{X: 0, Y: 1}, box2d.Vec2{X: 0, Y: 1 - (radius + 1e-6)}, true, [2]box2d.Vec2{{X: -1, Y: 0}, {X: 1, Y: 0}}},
+			{"exact radius", box2d.Vec2{X: 0, Y: radius}, box2d.Vec2{X: 0, Y: 0}, true, [2]box2d.Vec2{{X: -1, Y: -1}, {X: 1, Y: -1}}},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
@@ -1531,38 +1536,13 @@ func TestOracleHullEdgeCases(t *testing.T) {
 				if tc.discardFirst {
 					first, second = tc.discarded, tc.retained
 				}
-				h := box2d.ComputeHull([]box2d.Vec2{first, second, anchors[0], anchors[1]})
+				h := box2d.ComputeHull([]box2d.Vec2{first, second, tc.anchors[0], tc.anchors[1]})
 				require.Equal(t, 3, h.Count)
 				require.True(t, box2d.ValidateHull(&h))
 				require.Contains(t, h.Points[:h.Count], tc.retained)
 				require.NotContains(t, h.Points[:h.Count], tc.discarded)
 			})
 		}
-	})
-
-	t.Run("weld comparison is strict at the exact radius", func(t *testing.T) {
-		t.Parallel()
-		// The weld test is `distSqr < tolSqr` (strict): a point exactly at
-		// the radius is retained by welding, and would weld away only if
-		// `<` became `<=`. The inside/outside rows above pass under either
-		// comparison, so this row pins the strict boundary. The pair sits
-		// near zero so the squared distance is exactly tolSqr (no
-		// `1 - radius` subtraction perturbing the equality): distSqr ==
-		// 0.25*linearSlop*linearSlop == tolSqr. Under the current strict
-		// comparison the second point survives welding and becomes the
-		// hull apex; the first point is interior to the triangle and is
-		// dropped. Under `<=` the second point would weld into the first,
-		// leaving the first as the apex — so asserting which apex
-		// survives pins the strict comparison.
-		radius := float64(0.5 * box2d.LinearSlop)
-		anchors := []box2d.Vec2{{X: -1, Y: -1}, {X: 1, Y: -1}}
-		first := box2d.Vec2{X: 0, Y: 0}
-		second := box2d.Vec2{X: 0, Y: radius} // exactly radius from first
-		h := box2d.ComputeHull([]box2d.Vec2{first, second, anchors[0], anchors[1]})
-		require.Equal(t, 3, h.Count)
-		require.True(t, box2d.ValidateHull(&h))
-		require.Contains(t, h.Points[:h.Count], second)
-		require.NotContains(t, h.Points[:h.Count], first)
 	})
 
 	t.Run("weld tolerance distinguishes upstream from vendored", func(t *testing.T) {
@@ -1584,7 +1564,7 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		require.ElementsMatch(t, pts, poly.Vertices[:poly.Count])
 	})
 
-	t.Run("retained-set welding keeps point near a discarded weld", func(t *testing.T) {
+	t.Run("welding ignores previously discarded points", func(t *testing.T) {
 		t.Parallel()
 		// A=(0,0.997) is retained; B=(0,0.998) welds to A (distance 0.001
 		// < 0.0025) and is discarded; C=(0,1) is within 0.002 of the
