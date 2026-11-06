@@ -74,12 +74,10 @@ func wboDynamicBox(t *testing.T, w *box2d.World, pos box2d.Vec2) (box2d.BodyID, 
 	return body, shapeID
 }
 
-// wboRestingPreSolveScene builds the shared resting-pair pre-solve scene used
-// by TestOraclePreSolveReConsultedEveryStepWhileResting and
-// TestOraclePreSolveToggleReEnablesContactWhileResting: zero gravity, sleeping
-// disabled, the standard static ground, and a dynamic unit box centered at
-// y=0.4 (overlapping the ground by 0.1 m) with pre-solve events enabled on the
-// dynamic shape. Returns the world and the dynamic body.
+// wboRestingPreSolveScene builds the shared resting-pair pre-solve scene:
+// zero gravity, sleeping disabled, the standard static ground, and a dynamic
+// unit box centered at y=0.4 (overlapping the ground by 0.1 m) with pre-solve
+// events enabled on the dynamic shape. Returns the world and the dynamic body.
 func wboRestingPreSolveScene(t *testing.T) (*box2d.World, box2d.BodyID) {
 	t.Helper()
 
@@ -478,26 +476,16 @@ func TestOraclePreSolveDisablesContact(t *testing.T) {
 		"pre-solve false must disable the contact; the box must fall through")
 }
 
-// TestOraclePreSolveReConsultedEveryStepWhileResting: upstream v3.2.0
-// b2UpdateContact marks the contact "recycling dirty" when the pre-solve
-// callback disables it (contact.c:621-625: `contactSim->simFlags &=
-// ~b2_simRelativeTransformValid;` — "Mark recycling dirty."), guaranteeing the
-// narrow phase re-runs updateContact — and thus re-invokes pre-solve — every
-// step even when the bodies stay stationary. The vendored v3.2.0-era source the
-// Go port transliterates omitted that line (see the vendored-vs-upstream drift
-// note at the top of this file), so a pre-solve-disabled contact on a resting
-// pair was consulted once and then frozen by the recycling fast path
-// (world_step.go collideTask) until relative motion exceeded the recycling
-// tolerance.
+// TestOraclePreSolveReConsultedEveryStepWhileResting pins the stationary-pair
+// invariant: a pre-solve-disabled contact on a resting pair must be
+// re-consulted every step, not frozen by the recycling fast path
+// (world_step.go collideTask). See the vendored-vs-upstream drift note at the
+// top of this file for the upstream contact.c:621-625 provenance.
 //
 // Scene: zero gravity, sleeping disabled, a static ground box and a dynamic
 // box overlapping it by 0.1 m. pre-solve events enabled on the dynamic shape,
-// callback always returns false. With the contact disabled the box never
-// moves, so the relative transform stays put and the recycling fast path
-// (which for non-touching pairs uses collideTask's recycleDistanceNonTouching
-// = min(per-world contactRecycleDistance, SpeculativeDistance),
-// world_step.go:42,110-113) is the only thing that could skip pre-solve. The
-// callback must fire every step, not just the first.
+// callback always returns false. The callback must fire every step, not just
+// the first.
 func TestOraclePreSolveReConsultedEveryStepWhileResting(t *testing.T) {
 	t.Parallel()
 
@@ -514,12 +502,10 @@ func TestOraclePreSolveReConsultedEveryStepWhileResting(t *testing.T) {
 		w.Step(wboDT, wboSubSteps)
 	}
 
-	// Without the fix, pre-solve fires once (step 1) then the recycling
-	// fast path skips updateContact forever. With the fix, it fires every
-	// step because simRelativeTransformValid is cleared when the contact
-	// is disabled.
+	// Stationary pair: clearing simRelativeTransformValid forces the
+	// narrow phase to re-run the callback every step.
 	require.Equal(t, steps, calls,
-		"pre-solve must be re-consulted every step for a resting pair (upstream v3.2.0 contact.c:621-625: Mark recycling dirty)")
+		"pre-solve must be re-consulted every step for a resting pair")
 
 	// The box's final height remains within LinearSlop of its initial height
 	// (0.4): zero gravity + disabled contact => no forces. (The assertion
@@ -527,18 +513,14 @@ func TestOraclePreSolveReConsultedEveryStepWhileResting(t *testing.T) {
 	require.InDelta(t, 0.4, w.BodyPosition(body).Y, box2d.LinearSlop)
 }
 
-// TestOraclePreSolveToggleReEnablesContactWhileResting: with the recycling-dirty
-// fix, a pre-solve callback that toggles between false and true must be able to
-// re-enable a previously disabled contact even when the bodies never move. This
-// pins the disabled→enabled direction of conditional collision filtering for
-// resting pairs (e.g. one-way platforms, per-step pre-solve logic). The
-// enabled→disabled resting-platform case is explicitly outside this fix.
+// TestOraclePreSolveToggleReEnablesContactWhileResting pins the disabled→enabled
+// direction of conditional collision filtering for resting pairs (e.g. one-way
+// platforms, per-step pre-solve logic). The enabled→disabled resting-platform
+// case is explicitly outside this fix.
 //
-// Without the fix, the callback fires once (step 1) and the recycling fast path
-// freezes the contact disabled forever — the toggle on step 31 is never
-// consulted, so the box never moves. With the fix, the callback fires every
-// step during the disabled phase, and the toggle on step 31 re-enables the
-// contact so the solver pushes the overlapping box up.
+// Scene: shared resting pre-solve scene. The callback toggles from false
+// (disabled) to true (enabled) mid-run; the re-enabled contact must push the
+// overlapping box up.
 func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
 	t.Parallel()
 
@@ -556,9 +538,8 @@ func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
 		w.Step(wboDT, wboSubSteps)
 	}
 
-	// Disabled phase: callback fired every step (the fix clears
-	// simRelativeTransformValid each step), contact stayed disabled, box
-	// did not move. Without the fix, calls would be 1 here.
+	// Disabled phase: callback fired every step, contact stayed disabled,
+	// box did not move.
 	require.Equal(t, halfSteps, calls,
 		"pre-solve must fire every step during the disabled phase")
 	require.InDelta(t, 0.4, w.BodyPosition(body).Y, box2d.LinearSlop,
@@ -572,14 +553,13 @@ func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
 	}
 
 	// The toggle took effect: the callback was called at least once more
-	// (proving the recycling fast path did not freeze the contact), and
-	// the solver pushed the overlapping box up.
+	// and the solver pushed the overlapping box up.
 	require.Greater(t, calls, halfSteps,
 		"pre-solve must be re-consulted after the toggle to re-enable the contact")
-	// Initial center y=0.4, box half-height 0.5 => the resting (separated)
-	// center is y=0.5 (ground top at y=0). Assert the box rose past the
-	// midpoint 0.45, i.e. at least halfway to its resting pose, proving the
-	// re-enabled contact pushed it up rather than jittering in place.
+	// With zero gravity there is no eventual resting pose, so read 0.45
+	// as a threshold proving upward separation (the re-enabled contact
+	// pushed the overlapping box up from y=0.4) rather than halfway to a
+	// resting pose.
 	require.Greater(t, w.BodyPosition(body).Y, 0.45,
 		"the re-enabled contact must push the overlapping box up")
 }
