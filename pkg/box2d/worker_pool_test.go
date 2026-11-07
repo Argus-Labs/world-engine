@@ -388,7 +388,7 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			// fails this test instead of waiting for the package timeout.
 			if !buildWithAsserts {
 				require.Nil(t, runBounded(t, &opsInFlight, func() { w.Step(stepDT, stepSubSteps) },
-					fmt.Sprintf("second Step did not return within %s", boundedTimeout)),
+					defaultStepTimeoutMsg),
 					"second Step must not panic when the guard rejected the callback's Destroy")
 			}
 
