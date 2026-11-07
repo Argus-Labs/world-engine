@@ -3,16 +3,11 @@ package tui
 import (
 	"strings"
 
-	"github.com/argus-labs/world-engine/cli/internal/dependency"
 	"github.com/argus-labs/world-engine/cli/internal/tui/style"
 )
 
 // View renders the UI based on the data in the WorldSetupModel.
 func (m WorldSetupModel) View() string {
-	if m.depResult.Err != nil {
-		return dependency.FormatMissing(m.depResult.Statuses)
-	}
-
 	if m.templateErr != nil {
 		return style.CrossIcon.Render() + " Error: " + m.templateErr.Error() + "\n"
 	}

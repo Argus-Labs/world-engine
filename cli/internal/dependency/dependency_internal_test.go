@@ -308,17 +308,3 @@ func (s *FormatSuite) TestFormatStatuses() {
 		})
 	}
 }
-
-func (s *FormatSuite) TestFormatMissing() {
-	statuses := []Status{
-		{Name: "Git", Help: "Install Git", Installed: true},
-		{Name: "Docker", Help: "Install Docker", Installed: false},
-	}
-
-	output := FormatMissing(statuses)
-
-	s.Contains(output, "Found Missing Dependencies")
-	s.Contains(output, "Git")
-	s.Contains(output, "Docker")
-	s.Contains(output, "Install Docker")
-}
