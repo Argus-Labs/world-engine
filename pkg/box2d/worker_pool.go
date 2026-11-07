@@ -121,7 +121,7 @@ func newWorkerPool(workerCount int) *workerPool {
 // worker is running or will run again, so the caller may invalidate anything
 // they could reference. Must be called with no dispatch in flight; World.Destroy
 // guards callback reentry during Step. A Step unwound by an ordinary panic
-// has already joined dispatched workers (Step's wg.Wait barrier) before the
+// has already joined dispatched workers (forRange's wg.Wait barrier) before the
 // completion latch marks the poison flag, so Destroy may safely close the pool
 // on such a poisoned world. This guarantee does not cover a worker-0
 // [runtime.Goexit] (t.Fatal inside a callback under test): that unwinds

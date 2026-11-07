@@ -435,14 +435,10 @@ func NewWorld(def *WorldDef) *World {
 // the world poisoned, so a background callback calling Destroy after such a
 // Goexit can pass the guard. See worker_pool.go for the close() guarantee.
 func (w *World) Destroy() {
-	// Reject destruction during Step to avoid joining the calling worker
-	// from pool.close() or clearing active world state under a continuing
-	// Step. A Step unwound by a panic leaves locked set with stepPanicked
-	// true; allow Destroy then to reclaim the worker pool. This callback-
-	// reentry guard is a Go-port contract: the internal goroutine pool
-	// (see worker_pool.go) has no upstream equivalent, so the pool.close()
-	// self-join hazard it prevents does not arise in upstream b2DestroyWorld
-	// — preserve the guard on any upstream resync.
+	// Allow Destroy on a Step unwound by a panic (locked set with
+	// stepPanicked true) so it can reclaim the worker pool. This
+	// callback-reentry guard is a Go-port contract with no upstream
+	// equivalent — preserve it on any upstream resync.
 	if w.locked && !w.stepPanicked {
 		assert(false)
 		return

@@ -413,8 +413,6 @@ func TestDestroyGuardRecoveredInCallbackStepsAgain(t *testing.T) {
 		return true
 	}, nil)
 
-	// The callback's Destroy trips the guard; recovering it locally lets
-	// Step complete without poisoning the world.
 	require.NotPanics(t, func() { w.Step(stepDT, stepSubSteps) })
 	require.True(t, fired.Load(), "preSolve callback never ran")
 	// Retain the guard's panic value rather than discarding it: a swallowed
@@ -428,7 +426,6 @@ func TestDestroyGuardRecoveredInCallbackStepsAgain(t *testing.T) {
 		require.Nil(t, destroyPanic, "Destroy must not panic in release when the callback calls it")
 	}
 
-	// The world is not poisoned, so a second Step on the same world succeeds.
 	require.NotPanics(t, func() { w.Step(stepDT, stepSubSteps) },
 		"Step must succeed after the callback recovered the guard's assertion")
 }
@@ -441,11 +438,17 @@ func goroutineID() uint64 {
 	var buf [32]byte
 	n := runtime.Stack(buf[:], false)
 	const prefix = "goroutine "
+	if n < len(prefix) || string(buf[:len(prefix)]) != prefix {
+		panic("goroutineID: unexpected runtime.Stack header: " + string(buf[:n]))
+	}
 	id := uint64(0)
 	i := len(prefix)
 	for i < n && buf[i] >= '0' && buf[i] <= '9' {
 		id = id*10 + uint64(buf[i]-'0')
 		i++
+	}
+	if i == len(prefix) {
+		panic("goroutineID: no goroutine id parsed from runtime.Stack header: " + string(buf[:n]))
 	}
 	return id
 }
