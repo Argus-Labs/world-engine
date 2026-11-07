@@ -101,7 +101,7 @@ func reloadHandler(
 		return ReloadOutput{}, err
 	}
 
-	shardIDs := deployedShardIDs(deployOpts)
+	shardIDs := deployOpts.ShardIDs()
 	status := fmt.Sprintf("rebuilt and reloaded %d shard(s) for %s/%s",
 		len(shardIDs), cfg.Organization, cfg.Project)
 	if args.Purge {
@@ -116,13 +116,26 @@ func reloadHandler(
 	}, nil
 }
 
+// reloadRuntime is the subset of *local.Runtime that reloadShards drives: the
+// layout guard, per-instance purge, orphan pruning, deploy, and readiness wait.
+// Defined as an interface so reloadShards is unit-testable without a Docker
+// daemon — a fake can record which instances were waited on and wiped.
+type reloadRuntime interface {
+	CheckLayout(ctx context.Context) error
+	UndeployShard(ctx context.Context, shardID string) error
+	PurgeShardState(ctx context.Context, instanceID string) error
+	PruneOrphanedShards(ctx context.Context) error
+	Deploy(ctx context.Context, opts local.DeployOpts) error
+	WaitForShardsReady(ctx context.Context, instanceIDs []string, onProgress func(ready, expected int)) (int, int)
+}
+
 // reloadShards recreates containers on already-built images. Without purge that
 // is a plain redeploy onto existing state. With purge each targeted pool is
 // removed first — so no shard is alive to re-snapshot over the wipe — then its
 // replicas' JetStream state is wiped; the deploy below brings it back on the new image.
 func reloadShards(
 	ctx context.Context,
-	rt *local.Runtime,
+	rt reloadRuntime,
 	cfg worldtoml.Config,
 	deployOpts local.DeployOpts,
 	purge bool,
@@ -139,7 +152,7 @@ func reloadShards(
 			// Replicas each keep their own state, so wipe per instance. A wipe
 			// failure IS fatal: redeploying over stale snapshots would resume the
 			// old tick — the opposite of the fresh start asked for.
-			for _, instance := range shardInstances(cfg, shard.ID) {
+			for _, instance := range cfg.PoolInstances([]string{shard.ID}) {
 				if err := rt.PurgeShardState(ctx, instance); err != nil {
 					return eris.Wrapf(err, "failed to wipe state for %q", instance)
 				}
@@ -158,31 +171,11 @@ func reloadShards(
 	// returns, so a shard that never comes back is an error rather than a silent pass.
 	// Only the reloaded pools were touched; waiting on an instance the caller left down
 	// would burn the whole timeout and then report a shortfall that is not this reload's.
-	var reloaded []string
-	for _, shard := range deployOpts.Shards {
-		reloaded = append(reloaded, shardInstances(cfg, shard.ID)...)
-	}
+	reloaded := cfg.PoolInstances(deployOpts.ShardIDs())
 	if ready, expected := rt.WaitForShardsReady(ctx, reloaded, nil); ready < expected {
 		return eris.Errorf("only %d/%d shard instances came back up; check the shard logs", ready, expected)
 	}
 	return nil
-}
-
-// shardInstances lists a pool's replica instance IDs — the granularity
-// PurgeShardState wipes at, since each replica keeps its own state.
-func shardInstances(cfg worldtoml.Config, poolID string) []string {
-	instances := make([]string, 0, 1)
-	for _, s := range cfg.Shards {
-		if s.ID != poolID {
-			continue
-		}
-		instance := s.InstanceID
-		if instance == "" {
-			instance = s.ID
-		}
-		instances = append(instances, instance)
-	}
-	return instances
 }
 
 // requireRunning refuses a reload on a world whose platform is down, mirroring

@@ -253,11 +253,22 @@ func purgeAndRedeploy(
 	return nil
 }
 
+// shardRoller is the subset of *local.Runtime that rollShards drives: pruning
+// orphaned shards, (re)deploying, and waiting for readiness. Defined as an
+// interface so rollShards is unit-testable without a Docker daemon — a fake can
+// record the instance IDs handed to WaitForShardsReady and return canned
+// ready/expected counts.
+type shardRoller interface {
+	PruneOrphanedShards(ctx context.Context) error
+	Deploy(ctx context.Context, opts local.DeployOpts) error
+	WaitForShardsReady(ctx context.Context, instanceIDs []string, onProgress func(ready, expected int)) (int, int)
+}
+
 // rollShards recreates the targeted shards' containers, one dashboard row per shard.
 func rollShards(
 	ctx context.Context,
 	sess phasebox.Session,
-	rt *local.Runtime,
+	rt shardRoller,
 	targets reloadTargets,
 	deployShards []local.DeployShard,
 	waitReady bool,
@@ -270,7 +281,7 @@ func rollShards(
 	for _, s := range deployShards {
 		sess.UpsertRow(s.ID, s.ID, "recreating containers", phasebox.Active)
 	}
-	if err := rt.Deploy(ctx, local.DeployOpts{
+	opts := local.DeployOpts{
 		Shards: deployShards,
 		OnResult: func(shardID string, err error) {
 			if err != nil {
@@ -279,16 +290,17 @@ func rollShards(
 			}
 			sess.UpsertRow(shardID, shardID, "", phasebox.Done)
 		},
-	}); err != nil {
+	}
+	if err := rt.Deploy(ctx, opts); err != nil {
 		return eris.Wrap(err, "deploy shards")
 	}
 
 	if waitReady {
-		// Scoped to this reload's instances: another instance the developer left down is
-		// not this reload's problem, and waiting for it would burn the whole timeout.
+		// Deploy recreates every instance in each targeted pool, so wait for the whole pool.
+		waitInstanceIDs := targets.poolInstances(opts.ShardIDs())
 		var ready, expected int
 		waitForShardsReadyRow(sess, func(onProgress func(ready, expected int)) {
-			ready, expected = rt.WaitForShardsReady(ctx, targets.instanceIDs, onProgress)
+			ready, expected = rt.WaitForShardsReady(ctx, waitInstanceIDs, onProgress)
 		})
 		if ready < expected {
 			// Returned, not just shown: the row is already Failed, but the summary and the
@@ -340,6 +352,7 @@ func (e *shardsNotReadyError) Error() string {
 type reloadTargets struct {
 	shardIDs            []string
 	instanceIDs         []string
+	poolInstances       func(poolIDs []string) []string
 	shardIDByInstanceID map[string]string
 }
 
@@ -363,6 +376,7 @@ func resolveReloadTargets(cfg *service.Config, instanceIDs []string) (reloadTarg
 		targets.instanceIDs = append(targets.instanceIDs, instance.InstanceID)
 		targets.shardIDByInstanceID[instance.InstanceID] = instance.ID
 	}
+	targets.poolInstances = cfg.WorldToml.PoolInstances
 	return targets, nil
 }
 

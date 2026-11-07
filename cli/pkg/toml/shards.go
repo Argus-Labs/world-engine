@@ -22,6 +22,26 @@ func (c Config) ShardIDs() []string {
 	return out
 }
 
+// PoolInstances returns instance IDs from selected pools in configuration order.
+// Empty poolIDs selects nothing. Config must have been expanded by config loading.
+func (c Config) PoolInstances(poolIDs []string) []string {
+	if len(poolIDs) == 0 {
+		return nil
+	}
+	want := make(map[string]bool, len(poolIDs))
+	for _, id := range poolIDs {
+		want[id] = true
+	}
+	var out []string
+	for i := range c.Shards {
+		if !want[c.Shards[i].ID] {
+			continue
+		}
+		out = append(out, c.Shards[i].InstanceID)
+	}
+	return out
+}
+
 // ResolveInstanceIDs returns the shard instances named by ids. Empty input
 // selects every instance. Blank and duplicate IDs are ignored, request order is
 // preserved, and any unknown ID fails the whole selection.

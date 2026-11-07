@@ -41,6 +41,26 @@ func TestConfigShardIDsDedupesInstances(t *testing.T) {
 	assert.Equal(t, []string{"game", "chat"}, pooled(t).ShardIDs())
 }
 
+func TestPoolInstancesExpandsToAllPoolInstances(t *testing.T) {
+	cfg := pooled(t)
+	assert.Equal(t, []string{"game", "game-2"}, cfg.PoolInstances([]string{"game"}))
+	assert.Equal(t, []string{"chat"}, cfg.PoolInstances([]string{"chat"}))
+}
+
+func TestPoolInstancesMultiplePoolsPreserveWorldTomlOrder(t *testing.T) {
+	cfg := pooled(t)
+	// A single scan returns world.toml declaration order across all selected
+	// pools — game's replicas, then chat — independent of request order, so
+	// pass the pools reversed to catch an implementation that just echoes input.
+	assert.Equal(t, []string{"game", "game-2", "chat"},
+		cfg.PoolInstances([]string{"chat", "game"}))
+}
+
+func TestPoolInstancesEmptySelectsNothing(t *testing.T) {
+	assert.Empty(t, pooled(t).PoolInstances(nil))
+	assert.Empty(t, pooled(t).PoolInstances([]string{"nope"}))
+}
+
 func TestResolveInstanceIDsNamesOneInstanceEach(t *testing.T) {
 	cfg := pooled(t)
 

@@ -48,11 +48,17 @@ type Runtime struct {
 	// edgeAddr is the address ListenEdge binds. Defaults to EdgeAddr; tests override it
 	// via SetEdgeAddr to bind a free port instead of contending for the real edge port.
 	edgeAddr string
+	// probeHostPort maps a shard instance index to the host port that readiness
+	// probes dial. Defaults to service.ShardHostPort; in-package tests assign it
+	// directly to point probes at free ports instead of the production 8081+i a
+	// developer's running world may hold. Only WaitForShardsReady reads it — deploy,
+	// routes, and layout checks still use service.ShardHostPort.
+	probeHostPort func(int) int
 }
 
 // New wraps a Docker client opened on the project (docker.WithClient).
 func New(dc *docker.Client, cfg *service.Config) *Runtime {
-	return &Runtime{docker: dc, cfg: cfg, edge: edge.New(), edgeAddr: EdgeAddr}
+	return &Runtime{docker: dc, cfg: cfg, edge: edge.New(), edgeAddr: EdgeAddr, probeHostPort: service.ShardHostPort}
 }
 
 // SetEdgeAddr overrides the address ListenEdge binds, for tests that need a free port
@@ -104,6 +110,15 @@ type DeployShard struct {
 type DeployOpts struct {
 	Shards   []DeployShard
 	OnResult func(shardID string, err error)
+}
+
+// ShardIDs returns the shard IDs in the deploy payload, in order.
+func (o DeployOpts) ShardIDs() []string {
+	ids := make([]string, len(o.Shards))
+	for i, s := range o.Shards {
+		ids[i] = s.ID
+	}
+	return ids
 }
 
 // Deploy recreates every instance container of the given pools on the current
@@ -432,7 +447,7 @@ func (r *Runtime) WaitForShardsReady(
 	ports := make([]int, 0, len(r.cfg.WorldToml.Shards))
 	for i, sh := range r.cfg.WorldToml.Shards {
 		if len(want) == 0 || want[sh.InstanceID] {
-			ports = append(ports, service.ShardHostPort(i))
+			ports = append(ports, r.probeHostPort(i))
 		}
 	}
 	expected := len(ports)

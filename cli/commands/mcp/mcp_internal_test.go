@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -705,26 +706,91 @@ func TestDeployShardsFromConfig_FiltersByShardID(t *testing.T) {
 	assert.Empty(t, deployShardsFromConfig(cfg, "nope"))
 }
 
-// Replicas each keep their own state, so a purge wipes per instance. The first
-// replica keeps the pool's base ID; later ones are suffixed.
-func TestShardInstances_ListsPoolReplicas(t *testing.T) {
-	t.Parallel()
-	cfg := worldtoml.Config{Shards: []worldtoml.Shard{
-		{ID: "game", InstanceID: "game"},
-		{ID: "game", InstanceID: "game-2"},
-		{ID: "lobby", InstanceID: "lobby"},
-	}}
-
-	assert.Equal(t, []string{"game", "game-2"}, shardInstances(cfg, "game"))
-	assert.Equal(t, []string{"lobby"}, shardInstances(cfg, "lobby"))
-	assert.Empty(t, shardInstances(cfg, "missing"))
+// fakeReloadRuntime is a reloadRuntime stand-in for unit-testing reloadShards
+// without a Docker daemon. It records the ordered sequence of calls (undeploy,
+// per-instance purge, deploy, readiness wait) so a test can assert both the
+// wait scope and that purge wipes both replicas before the redeploy.
+type fakeReloadRuntime struct {
+	events       []string
+	waitReady    int
+	waitExpected int
 }
 
-// An unexpanded shard (no InstanceID) falls back to its pool ID.
-func TestShardInstances_FallsBackToShardID(t *testing.T) {
+func (*fakeReloadRuntime) CheckLayout(context.Context) error { return nil }
+func (f *fakeReloadRuntime) UndeployShard(_ context.Context, shardID string) error {
+	f.events = append(f.events, "undeploy:"+shardID)
+	return nil
+}
+func (f *fakeReloadRuntime) PurgeShardState(_ context.Context, instanceID string) error {
+	f.events = append(f.events, "purge:"+instanceID)
+	return nil
+}
+func (*fakeReloadRuntime) PruneOrphanedShards(context.Context) error { return nil }
+func (f *fakeReloadRuntime) Deploy(_ context.Context, opts local.DeployOpts) error {
+	for _, s := range opts.Shards {
+		f.events = append(f.events, "deploy:"+s.ID)
+	}
+	return nil
+}
+func (f *fakeReloadRuntime) WaitForShardsReady(_ context.Context, instanceIDs []string, _ func(int, int)) (int, int) {
+	f.events = append(f.events, "wait:"+strings.Join(instanceIDs, ","))
+	return f.waitReady, f.waitExpected
+}
+
+// TestReloadShards_WaitScopeMatchesDeployScopeAndPurgeWipesAllReplicas is the
+// MCP reload regression guard. reloadShards must wait on every instance of the
+// deployed pools (both game replicas, not just one), exclude unrelated pools
+// (lobby), and — with purge — wipe both replicas' state before redeploying.
+func TestReloadShards_WaitScopeMatchesDeployScopeAndPurgeWipesAllReplicas(t *testing.T) {
 	t.Parallel()
-	cfg := worldtoml.Config{Shards: []worldtoml.Shard{{ID: "game"}}}
-	assert.Equal(t, []string{"game"}, shardInstances(cfg, "game"))
+	cfg := worldtoml.Config{
+		Project: "demo",
+		Shards: []worldtoml.Shard{
+			{ID: "game", InstanceID: "game"},
+			{ID: "game", InstanceID: "game-2"},
+			{ID: "lobby", InstanceID: "lobby"},
+		},
+	}
+	deployOpts := local.DeployOpts{Shards: []local.DeployShard{{ID: "game"}}}
+	wantWait := cfg.PoolInstances(deployOpts.ShardIDs())
+	require.Equal(t, []string{"game", "game-2"}, wantWait, "sanity: deployed pool expands to both replicas")
+
+	t.Run("Purge", func(t *testing.T) {
+		t.Parallel()
+		fake := &fakeReloadRuntime{waitReady: 2, waitExpected: 2}
+		require.NoError(t, reloadShards(context.Background(), fake, cfg, deployOpts, true))
+		// The full ordered event sequence: undeploy the live shard, wipe both
+		// replicas' state, deploy, then wait on both replicas. Asserting the whole
+		// sequence pins undeploy-before-wipe and excludes an unrelated pool
+		// (lobby) — an extra event or a reordered step fails the regression.
+		assert.Equal(t, []string{
+			"undeploy:game",
+			"purge:game",
+			"purge:game-2",
+			"deploy:game",
+			"wait:" + strings.Join(wantWait, ","),
+		}, fake.events)
+	})
+
+	t.Run("NoPurge", func(t *testing.T) {
+		t.Parallel()
+		fake := &fakeReloadRuntime{waitReady: 2, waitExpected: 2}
+		require.NoError(t, reloadShards(context.Background(), fake, cfg, deployOpts, false))
+		// Without purge, no undeploy or state wipe is recorded, and the wait
+		// still covers both replicas.
+		assert.Equal(t, []string{
+			"deploy:game",
+			"wait:" + strings.Join(wantWait, ","),
+		}, fake.events)
+	})
+
+	t.Run("Shortfall", func(t *testing.T) {
+		t.Parallel()
+		fake := &fakeReloadRuntime{waitReady: 1, waitExpected: 2}
+		err := reloadShards(context.Background(), fake, cfg, deployOpts, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "only 1/2 shard instances came back up")
+	})
 }
 
 // -------------------------------------------------------------------------------------------------
