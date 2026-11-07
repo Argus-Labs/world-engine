@@ -7,10 +7,20 @@ package physics2d_test
 // EXACTLY; numeric results must match within goldenDelta. Do not loosen the tolerance for
 // unrelated changes.
 //
-// Fixture provenance: the committed fixtures were RECORDED FROM THE CGO Box2D v3.2.0 BACKEND
+// Fixture provenance: most committed fixtures were RECORDED FROM THE CGO Box2D v3.2.0 BACKEND
 // before that backend was deleted. They are therefore a cross-backend regression anchor — the
 // pure-Go port in pkg/box2d is held against behavior produced by independent (C) code, which is
 // exactly what makes this test valuable.
+//
+// Exceptions — Go-regenerated fixtures: golden_box_stack.json and golden_capsule_chain_ground.json
+// were regenerated from the pure-Go backend as part of an intentional, declared behavior change
+// (friction and rolling resistance are now applied only in the relax stage; see the "Other
+// deviations from upstream" note in pkg/box2d/contact_solver.go). Their event sequence changed
+// (capsule_chain_ground grew from 18 to 21 contact events), so the stale C recording could no
+// longer satisfy the exact-sequence contract. These two fixtures PIN the new Go behavior — they
+// guard against future regressions of the relax-stage split, but they do NOT independently verify
+// C-backend parity. All other fixtures (falling_circles_floor, filter_matrix, queries_over_time,
+// sensor_trigger) retain their original CGO v3.2.0 recordings.
 //
 // Regenerate fixtures with:
 //
@@ -55,13 +65,16 @@ const (
 	// goldenSampleEvery is the body-state sampling cadence in ticks. The final tick is always
 	// sampled in addition, whether or not it lands on the cadence.
 	goldenSampleEvery = 10
-	// goldenDelta is the numeric tolerance used in verify mode. The fixtures were recorded on
-	// the float32 CGO backend; the pure-Go backend computes in float64, so trajectories drift
-	// slightly. Observed max deltas against the committed CGO fixtures: ~3e-5 for most
+	// goldenDelta is the numeric tolerance used in verify mode. The C-recorded fixtures were
+	// recorded on the float32 CGO backend; the pure-Go backend computes in float64, so trajectories
+	// drift slightly. Observed max deltas against the committed CGO fixtures: ~3e-5 for most
 	// scenarios, ~2e-4 for filter_matrix, ~2.4e-3 for capsule_chain_ground (chain contact
 	// stacking is the most rounding-sensitive scene). 1e-2 gives ~4x headroom over the worst
 	// case while still catching real behavioral regressions. Structural assertions (entity
 	// sets, event sequences incl. ticks, query hit identity) remain exact.
+	// NOTE: golden_box_stack and golden_capsule_chain_ground were regenerated from the pure-Go
+	// backend (see the file-header provenance note), so their numeric deltas are zero by
+	// construction — they pin Go behavior, not C parity.
 	goldenDelta = 1e-2
 	// goldenUpdateEnv, when set to "1", switches the test into generator mode.
 	goldenUpdateEnv = "PHYSICS2D_UPDATE_GOLDEN"
@@ -715,8 +728,10 @@ func goldenQueriesOverTime() goldenScenario {
 
 // TestGoldenTrace verifies (default) or re-records (generator mode) the reference behavior. The
 // committed fixtures were captured from the now-removed CGO Box2D backend; see the file header
-// before using generator mode. Verify mode runs in parallel — the pure-Go backend is
-// per-plugin-instance state. Generator mode stays serial while rewriting fixtures.
+// before using generator mode. Two scenarios (box_stack, capsule_chain_ground) were regenerated
+// from the pure-Go backend for an intentional relax-stage behavior change and pin Go behavior
+// rather than independently verifying C parity. Verify mode runs in parallel — the pure-Go
+// backend is per-plugin-instance state. Generator mode stays serial while rewriting fixtures.
 func TestGoldenTrace(t *testing.T) {
 	update := os.Getenv(goldenUpdateEnv) == "1"
 	if !update {
