@@ -281,7 +281,7 @@ func rollShards(
 	for _, s := range deployShards {
 		sess.UpsertRow(s.ID, s.ID, "recreating containers", phasebox.Active)
 	}
-	if err := rt.Deploy(ctx, local.DeployOpts{
+	opts := local.DeployOpts{
 		Shards: deployShards,
 		OnResult: func(shardID string, err error) {
 			if err != nil {
@@ -290,13 +290,14 @@ func rollShards(
 			}
 			sess.UpsertRow(shardID, shardID, "", phasebox.Done)
 		},
-	}); err != nil {
+	}
+	if err := rt.Deploy(ctx, opts); err != nil {
 		return eris.Wrap(err, "deploy shards")
 	}
 
 	if waitReady {
 		// Deploy recreates every instance in each targeted pool, so wait for the whole pool.
-		waitInstanceIDs := targets.poolInstances(local.DeployOpts{Shards: deployShards}.ShardIDs())
+		waitInstanceIDs := targets.poolInstances(opts.ShardIDs())
 		var ready, expected int
 		waitForShardsReadyRow(sess, func(onProgress func(ready, expected int)) {
 			ready, expected = rt.WaitForShardsReady(ctx, waitInstanceIDs, onProgress)

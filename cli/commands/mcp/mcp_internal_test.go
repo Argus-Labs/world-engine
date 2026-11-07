@@ -776,8 +776,8 @@ func TestReloadShards_WaitScopeMatchesDeployScopeAndPurgeWipesAllReplicas(t *tes
 		t.Parallel()
 		fake := &fakeReloadRuntime{waitReady: 2, waitExpected: 2}
 		require.NoError(t, reloadShards(context.Background(), fake, cfg, deployOpts, false))
-		// Without purge, only deploy then wait run — no undeploy or wipe, and the
-		// wait still covers both replicas.
+		// Without purge, no undeploy or state wipe is recorded, and the wait
+		// still covers both replicas.
 		assert.Equal(t, []string{
 			"deploy:game",
 			"wait:" + strings.Join(wantWait, ","),

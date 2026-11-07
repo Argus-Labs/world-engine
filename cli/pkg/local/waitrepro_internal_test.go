@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -40,15 +41,10 @@ func startDeadListener(t *testing.T) (net.Listener, int) {
 // startServingListener binds a real HTTP server on a free local port, so
 // shardReady counts it as ready (it replies to an HTTP request, even with 404).
 // Returns the server (close to stop) and the bound port.
-func startServingListener(t *testing.T) (*http.Server, int) {
+func startServingListener(t *testing.T) (*httptest.Server, int) {
 	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
-	srv := &http.Server{ReadHeaderTimeout: time.Second, Handler: http.NotFoundHandler()}
-	go func() { _ = srv.Serve(ln) }()
-	return srv, ln.Addr().(*net.TCPAddr).Port
+	srv := httptest.NewServer(http.NotFoundHandler())
+	return srv, srv.Listener.Addr().(*net.TCPAddr).Port
 }
 
 // poolShardConfig builds a 2-instance "game" pool for the reproduction tests.

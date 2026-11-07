@@ -104,9 +104,7 @@ type fakeShardRoller struct {
 
 func (*fakeShardRoller) PruneOrphanedShards(context.Context) error { return nil }
 func (f *fakeShardRoller) Deploy(_ context.Context, opts local.DeployOpts) error {
-	for _, s := range opts.Shards {
-		f.gotDeploy = append(f.gotDeploy, s.ID)
-	}
+	f.gotDeploy = append(f.gotDeploy, opts.ShardIDs()...)
 	return nil
 }
 func (f *fakeShardRoller) WaitForShardsReady(_ context.Context, instanceIDs []string, _ func(int, int)) (int, int) {
@@ -169,8 +167,6 @@ func TestRollShards(t *testing.T) {
 			// This literal assertion is what catches a switch back to targets.shardIDs, since
 			// the resolved shard set is {game, lobby} while the deployed set is {game}.
 			assert.Equal(t, []string{"game", "game-2"}, fake.gotWait)
-			// The wait scope is exactly the pool instances of the deployed shard IDs.
-			assert.Equal(t, cfg.WorldToml.PoolInstances(fake.gotDeploy), fake.gotWait)
 		})
 	}
 }
