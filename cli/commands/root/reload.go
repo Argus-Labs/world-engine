@@ -296,9 +296,14 @@ func rollShards(
 
 	if waitReady {
 		// Deploy recreates every instance in each targeted pool, so wait for the whole pool.
+		deployedIDs := make([]string, len(deployShards))
+		for i, s := range deployShards {
+			deployedIDs[i] = s.ID
+		}
+		waitInstanceIDs := targets.poolInstances(deployedIDs)
 		var ready, expected int
 		waitForShardsReadyRow(sess, func(onProgress func(ready, expected int)) {
-			ready, expected = rt.WaitForShardsReady(ctx, targets.waitInstanceIDs, onProgress)
+			ready, expected = rt.WaitForShardsReady(ctx, waitInstanceIDs, onProgress)
 		})
 		if ready < expected {
 			// Returned, not just shown: the row is already Failed, but the summary and the
@@ -350,7 +355,7 @@ func (e *shardsNotReadyError) Error() string {
 type reloadTargets struct {
 	shardIDs            []string
 	instanceIDs         []string
-	waitInstanceIDs     []string
+	poolInstances       func(poolIDs []string) []string
 	shardIDByInstanceID map[string]string
 }
 
@@ -374,7 +379,7 @@ func resolveReloadTargets(cfg *service.Config, instanceIDs []string) (reloadTarg
 		targets.instanceIDs = append(targets.instanceIDs, instance.InstanceID)
 		targets.shardIDByInstanceID[instance.InstanceID] = instance.ID
 	}
-	targets.waitInstanceIDs = cfg.WorldToml.PoolInstances(targets.shardIDs)
+	targets.poolInstances = cfg.WorldToml.PoolInstances
 	return targets, nil
 }
 

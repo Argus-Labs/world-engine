@@ -45,7 +45,7 @@ func TestResolveReloadTargets_WaitInstanceIDsCoversAllPoolInstances(t *testing.T
 	assert.Equal(t, []string{"game"}, targets.shardIDs, "shardIDs should be the pool ID")
 	assert.Equal(t, []string{"game-2"}, targets.instanceIDs,
 		"instanceIDs should be the user-named instance only")
-	assert.Equal(t, []string{"game", "game-2"}, targets.waitInstanceIDs,
+	assert.Equal(t, []string{"game", "game-2"}, targets.poolInstances(targets.shardIDs),
 		"waitInstanceIDs must cover every sibling of the deployed pool, not just the named instance")
 }
 
@@ -56,7 +56,7 @@ func TestResolveReloadTargets_EmptyInstanceIDsWaitsAll(t *testing.T) {
 	cfg := threeInstanceConfig()
 	targets, err := resolveReloadTargets(cfg, nil)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"game", "game-2", "lobby"}, targets.waitInstanceIDs,
+	assert.Equal(t, []string{"game", "game-2", "lobby"}, targets.poolInstances(targets.shardIDs),
 		"empty instanceIDs (default reload) should wait on every instance")
 }
 
@@ -77,7 +77,7 @@ func TestResolveReloadTargets_MultiplePoolsWaitAll(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"game", "lobby"}, targets.shardIDs)
 	assert.Equal(t, []string{"game-2", "lobby"}, targets.instanceIDs)
-	assert.Equal(t, []string{"game", "game-2", "lobby", "lobby-2"}, targets.waitInstanceIDs,
+	assert.Equal(t, []string{"game", "game-2", "lobby", "lobby-2"}, targets.poolInstances(targets.shardIDs),
 		"waitInstanceIDs must cover every instance of both deployed pools")
 }
 
@@ -90,7 +90,7 @@ func TestResolveReloadTargets_NamingAllInstancesMatchesNamingOne(t *testing.T) {
 	require.NoError(t, err)
 	all, err := resolveReloadTargets(cfg, []string{"game", "game-2"})
 	require.NoError(t, err)
-	assert.Equal(t, one.waitInstanceIDs, all.waitInstanceIDs,
+	assert.Equal(t, one.poolInstances(one.shardIDs), all.poolInstances(all.shardIDs),
 		"naming one instance or all must produce the same wait scope (the whole pool)")
 }
 
@@ -159,15 +159,15 @@ func TestRollShards(t *testing.T) {
 				},
 				func(time.Duration) string { return "reloaded" },
 			)
-			if tt.wantNotReady {
-				require.Error(t, err)
-				var notReady *shardsNotReadyError
-				require.ErrorAs(t, err, &notReady)
-				assert.Equal(t, 1, notReady.ready)
-				assert.Equal(t, 2, notReady.expected)
-			} else {
-				require.NoError(t, err)
-			}
+		if tt.wantNotReady {
+			require.Error(t, err)
+			var notReady *shardsNotReadyError
+			require.ErrorAs(t, err, &notReady)
+			assert.Equal(t, tt.waitReady, notReady.ready)
+			assert.Equal(t, tt.waitExpected, notReady.expected)
+		} else {
+			require.NoError(t, err)
+		}
 			// The wait covered the whole game pool; the unrelated lobby pool stayed out.
 			assert.Equal(t, []string{"game", "game-2"}, fake.gotWait)
 			// The wait scope is exactly the pool instances of the deployed shard IDs, so a

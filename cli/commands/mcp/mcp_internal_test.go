@@ -759,36 +759,29 @@ func TestReloadShards_WaitScopeMatchesDeployScopeAndPurgeWipesAllReplicas(t *tes
 		t.Parallel()
 		fake := &fakeReloadRuntime{waitReady: 2, waitExpected: 2}
 		require.NoError(t, reloadShards(context.Background(), fake, cfg, deployOpts, true))
-		// Wait covered both game replicas; the unrelated lobby pool stayed out.
-		assert.Contains(t, fake.events, "wait:"+strings.Join(wantWait, ","))
-		assert.NotContains(t, fake.events, "lobby")
-		// Both replicas were wiped, and all purge steps ran before the deploy.
-		assert.Contains(t, fake.events, "purge:game")
-		assert.Contains(t, fake.events, "purge:game-2")
-		deployIdx := -1
-		for i, e := range fake.events {
-			if strings.HasPrefix(e, "deploy:") {
-				deployIdx = i
-				break
-			}
-		}
-		require.NotEqual(t, -1, deployIdx, "deploy must run")
-		for _, e := range fake.events[:deployIdx] {
-			assert.True(t, strings.HasPrefix(e, "undeploy:") || strings.HasPrefix(e, "purge:"),
-				"step %q ran before deploy but is not a purge step", e)
-		}
+		// The full ordered event sequence: undeploy the live shard, wipe both
+		// replicas' state, deploy, then wait on both replicas. Asserting the whole
+		// sequence pins undeploy-before-wipe and excludes an unrelated pool
+		// (lobby) — an extra event or a reordered step fails the regression.
+		assert.Equal(t, []string{
+			"undeploy:game",
+			"purge:game",
+			"purge:game-2",
+			"deploy:game",
+			"wait:" + strings.Join(wantWait, ","),
+		}, fake.events)
 	})
 
 	t.Run("NoPurge", func(t *testing.T) {
 		t.Parallel()
 		fake := &fakeReloadRuntime{waitReady: 2, waitExpected: 2}
 		require.NoError(t, reloadShards(context.Background(), fake, cfg, deployOpts, false))
-		// Without purge, neither undeploy nor wipe runs; the wait still covers both replicas.
-		for _, e := range fake.events {
-			assert.False(t, strings.HasPrefix(e, "undeploy:") || strings.HasPrefix(e, "purge:"),
-				"purge step %q should not run without purge", e)
-		}
-		assert.Contains(t, fake.events, "wait:"+strings.Join(wantWait, ","))
+		// Without purge, only deploy then wait run — no undeploy or wipe, and the
+		// wait still covers both replicas.
+		assert.Equal(t, []string{
+			"deploy:game",
+			"wait:" + strings.Join(wantWait, ","),
+		}, fake.events)
 	})
 }
 
