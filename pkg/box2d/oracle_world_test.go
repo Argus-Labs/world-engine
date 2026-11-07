@@ -86,6 +86,15 @@ func wboRestingPreSolveScene(t *testing.T) (*box2d.World, box2d.BodyID) {
 	return w, body
 }
 
+// wboStep advances the world by steps using this file's wboDT/wboSubSteps, so
+// the pre-solve regressions stay decoupled from oracle_joint_test.go's
+// oracleJointDT/oracleJointSubSteps constants.
+func wboStep(world *box2d.World, steps int) {
+	for range steps {
+		world.Step(wboDT, wboSubSteps)
+	}
+}
+
 // TestOracleEmptyWorld ports EmptyWorld (test_world.c:101-121): stepping an
 // empty world 60 times must be a no-op and destroying the world must
 // invalidate its id.
@@ -492,17 +501,17 @@ func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
 		return !disable
 	}, nil)
 
-	oracleJointStep(w, disabledSteps)
+	wboStep(w, disabledSteps)
 	require.Equal(t, disabledSteps, calls,
 		"pre-solve must fire every step during the disabled phase")
 	require.InDelta(t, wboRestingBoxY, w.BodyPosition(body).Y, 0.0,
 		"box must not move while the contact is disabled")
 
 	disable = false
-	oracleJointStep(w, 1)
+	wboStep(w, 1)
 	require.Equal(t, disabledSteps+1, calls,
 		"pre-solve must be re-consulted on the first step after the toggle to re-enable the contact")
-	oracleJointStep(w, disabledSteps-1)
+	wboStep(w, disabledSteps-1)
 
 	// With zero gravity there is no force holding the box at the fully
 	// separated center (y=0.5); the solver can push it beyond that. The
@@ -535,7 +544,7 @@ func TestOraclePreSolveRecycleZeroDisablesContactWhileResting(t *testing.T) {
 		return enabled
 	}, nil)
 
-	oracleJointStep(w, enabledSteps)
+	wboStep(w, enabledSteps)
 	require.Equal(t, enabledSteps, calls,
 		"with recycle distance 0 the callback fires every step even for the resting enabled pair")
 	require.InDelta(t, 0.5, w.BodyPosition(body).Y, 4.0*box2d.LinearSlop,
@@ -549,12 +558,12 @@ func TestOraclePreSolveRecycleZeroDisablesContactWhileResting(t *testing.T) {
 	const postToggleSteps = 120
 	mid := calls
 	for range checkedSteps {
-		oracleJointStep(w, 1)
+		wboStep(w, 1)
 		require.Greater(t, calls, mid,
 			"the callback must keep firing each overlapping step after the toggle to disabled")
 		mid = calls
 	}
-	oracleJointStep(w, postToggleSteps-checkedSteps)
+	wboStep(w, postToggleSteps-checkedSteps)
 	require.Less(t, w.BodyPosition(body).Y, -5.0,
 		"the disabled contact must let the box fall through the ground")
 }
@@ -588,7 +597,7 @@ func TestOraclePreSolveDisabledContactRefreshesMaterialCallbacks(t *testing.T) {
 	const steps = 10
 	for range steps {
 		prevFriction, prevRestitution := frictionCalls, restitutionCalls
-		oracleJointStep(w, 1)
+		wboStep(w, 1)
 		require.Greater(t, frictionCalls, prevFriction,
 			"the friction callback must advance every step while the contact is disabled, not freeze after the first")
 		require.Greater(t, restitutionCalls, prevRestitution,

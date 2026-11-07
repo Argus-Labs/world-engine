@@ -841,9 +841,12 @@ func (w *World) SetContactTuning(hertz, dampingRatio, pushSpeed float64) {
 // keeps the cached manifold and still updates point separations. Non-touching
 // contacts use the smaller of this distance and SpeculativeDistance. Zero
 // disables recycling world-wide, forcing every awake contact to re-run
-// updateContact each step. This does not by itself guarantee a pre-solve
-// callback: disjoint proxies skip the update, and pre-solve is still only
-// invoked when the shapes produce contact points and the events are enabled.
+// updateContact each step. This does not by itself guarantee a discrete
+// pre-solve callback: disjoint proxies skip the update, and discrete
+// pre-solve is still only invoked when the shapes produce contact points for
+// a discrete contact update and the events are enabled. Continuous collision
+// detection also invokes the callback on a time-of-impact hit without a
+// manifold; see PreSolveFcn.
 func (w *World) SetContactRecycleDistance(recycleDistance float64) {
 	assert(!w.locked)
 	if w.locked {
