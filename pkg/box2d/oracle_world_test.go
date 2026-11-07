@@ -75,8 +75,9 @@ func wboDynamicBox(t *testing.T, w *box2d.World, pos box2d.Vec2) (box2d.BodyID, 
 // gravity and sleeping disabled so the dynamic body stays awake (a sleeping
 // body would skip pre-solve callbacks; this does not by itself guarantee a
 // callback every step, since an enabled stationary contact can still be
-// recycled). Callers override gravity/recycle distance for scenes that need
-// the box to move.
+// recycled). The overlapping box is left for the solver to push out of
+// penetration; callers may re-enable gravity or change the recycle distance
+// to vary the motion.
 func wboRestingPreSolveScene(t *testing.T) (*box2d.World, box2d.BodyID) {
 	t.Helper()
 
