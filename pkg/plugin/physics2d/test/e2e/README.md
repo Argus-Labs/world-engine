@@ -151,9 +151,8 @@ notes never fail the run.
 
 This is a different path from the `reset` scenario. `reset` calls `Plugin.Reset`
 on a live world and rebuilds from ECS still in memory. A restore round-trips every
-component through `MarshalWire`/`UnmarshalWire` first, which for `PhysicsBody2D`
-means its custom decoder, the code that decides whether an absent field means
-`false` or Box2D's default of `true`.
+component through MessagePack first, preserving explicit zero values without
+applying the defaults used for hand-written JSON.
 
 It reproduces Cardinal's real ordering: the game's Init systems spawn a whole
 scene and the plugin builds a Box2D world from it, and only then does the restore

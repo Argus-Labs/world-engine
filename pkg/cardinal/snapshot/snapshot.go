@@ -4,17 +4,19 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"buf.build/go/protovalidate"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // CurrentVersion is the snapshot format this build writes and the only one it reads. Bump it
 // whenever the envelope or the world state inside it stops being readable by the previous layout,
 // and see ValidateVersion for what a bump obliges you to write first.
-const CurrentVersion uint32 = 1
+const CurrentVersion uint32 = 2
 
 var (
 	ErrSnapshotNotFound = errors.New("snapshot not found")
@@ -34,9 +36,7 @@ func ValidateVersion(version uint32) error {
 
 // Storage persists shard snapshots as opaque bytes.
 //
-// The bytes are a fully encoded Snapshot envelope, produced by the engine's streaming encoder.
-// Storage never decodes them: writing and reading are pure byte transport, so the encoder's
-// zero-allocation work isn't undone at the boundary.
+// The bytes are a fully encoded Snapshot envelope. Storage never decodes them.
 type Storage interface {
 	// Store saves the snapshot bytes, atomically replacing any existing snapshot. The tick is
 	// metadata for logging and keys; the bytes are the record.
@@ -51,6 +51,21 @@ type Storage interface {
 	// Load retrieves the current snapshot bytes, or an error wrapping ErrSnapshotNotFound if no
 	// snapshot exists. The caller owns the returned slice.
 	Load(ctx context.Context) ([]byte, error)
+}
+
+// Encode marshals the snapshot container once, after all component payloads have been encoded.
+// The returned bytes are owned by the caller and can be handed to storage without copying.
+func Encode(tick uint64, timestamp time.Time, state *cardinalv1.WorldState) ([]byte, error) {
+	data, err := proto.Marshal(&cardinalv1.Snapshot{
+		TickHeight: tick,
+		Timestamp:  timestamppb.New(timestamp),
+		WorldState: state,
+		Version:    CurrentVersion,
+	})
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to encode snapshot")
+	}
+	return data, nil
 }
 
 // Decode parses and validates snapshot bytes into the envelope message.

@@ -351,16 +351,23 @@ func (w *World) dispatchEvents(ctx context.Context) {
 	w.service.drainInterShardCommands()
 }
 
-// encodeSnapshot produces the complete snapshot bytes for the current tick: the ECS sizes and
-// streams its world state directly into one exactly-sized buffer, and the envelope is hand-encoded
-// around it. No intermediate proto graph exists; the buffer is the freeze-frame.
+// encodeSnapshot encodes component payloads, then marshals the complete protobuf container once.
+// Encoding completes on the tick before owned bytes are handed to the writer. Unencodable state
+// fails fast, before any partial snapshot can be published or stored.
 //
 // tick is the label stamped into the envelope's tick_height, supplied by the caller so the same
 // world state can be labeled with the pre-increment height (persistState, the final shutdown
 // snapshot) rather than always reading w.currentTick.height.
 func (w *World) encodeSnapshot(tick uint64, timestamp time.Time) []byte {
-	bodySize := w.world.StateWireSize()
-	return snapshot.Encode(tick, timestamp, bodySize, w.world.AppendStateWire)
+	state, err := w.world.ToProto()
+	if err != nil {
+		panic(err)
+	}
+	data, err := snapshot.Encode(tick, timestamp, state)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
 
 func (w *World) restore(ctx context.Context) (err error) {
@@ -563,9 +570,6 @@ func (w *World) RegisterCommand[T Command]() {
 	if w.started {
 		panic(ErrWorldStarted)
 	}
-	// No codec check: T is constrained to Command (schema.Serializable), so an ungenerated command —
-	// one missing its generated wire methods — does not satisfy the constraint and fails to compile
-	// here. There is no codec registry to consult.
 	var zero T
 	name := zero.Name()
 
@@ -619,8 +623,8 @@ func (w *World) SendToShard(to OtherWorld, cmd command.Payload) {
 		w.Logger().Error().Str("command", cmd.Name()).Msg("SendToShard: empty target shard address, dropping command")
 		return
 	}
-	// cmd is a command.Payload, so it carries its generated MarshalWire — no registry check needed; an
-	// ungenerated command wouldn't satisfy the parameter type and wouldn't compile at the call site.
+	// cmd is not checked against the registry here: it is encoded with MessagePack when events flush,
+	// so any command.Payload can be sent.
 	serviceAddress := micro.GetAddress(to.Project, to.ShardID)
 	w.events.Enqueue(event.Event{
 		Kind: event.KindInterShardCommand,
@@ -771,6 +775,21 @@ func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
 // RegisterComponent registers a component type before world startup. Every component
 // used by a system, archetype, or snapshot must be registered here; nothing registers
 // components implicitly. Register components before StartGame.
+//
+// It panics if the component, or any field a snapshot stores, cannot be stored:
+//   - a slice, map, pointer, or interface, which would share memory with the stored component;
+//   - a chan, func, [unsafe.Pointer], method interface such as error, or non-empty struct with no
+//     exported fields, which a snapshot cannot hold;
+//   - a uintptr or complex number;
+//   - a type with its own MessagePack codec whose encoding method has a pointer receiver, that
+//     encodes but does not decode itself or the reverse, or that holds a reference;
+//   - an embedded field that supplies the struct's codec, since Go promotes it and the whole struct
+//     is then stored as that one value. Declare the struct's own codec, or give the field a name;
+//   - an embedded field of an unexported type that is not a struct, such as a named int, which a
+//     snapshot stores but a restore cannot write back.
+//
+// Hold a list in a fixed-size array or an immutable.Slice instead. Fields tagged msgpack:"-" are
+// not stored, so they are not checked.
 func (w *World) RegisterComponent[T ecs.Component]() {
 	if w.started {
 		panic(ErrWorldStarted)

@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/rotisserie/eris"
@@ -19,17 +18,18 @@ func testWorldState() *cardinalv1.WorldState {
 		NextId:     7,
 		Components: []string{"health", "position"},
 		Entities: []*cardinalv1.Entity{
-			{Id: 0, Components: []uint32{0, 1}, Payloads: [][]byte{{0x2a}, {0x01, 0x02}}},
+			// MessagePack maps: {"Value": 42} and {"X": 1, "Y": 2}.
+			{Id: 0, Components: []uint32{0, 1}, Payloads: [][]byte{
+				{0x81, 0xa5, 'V', 'a', 'l', 'u', 'e', 0x2a},
+				{0x82, 0xa1, 'X', 0x01, 0xa1, 'Y', 0x02},
+			}},
 			{Id: 2}, // zero components
-			{Id: 4, Components: []uint32{1}, Payloads: [][]byte{{}}}, // empty payload is legal
+			{Id: 4, Components: []uint32{1}, Payloads: [][]byte{{0x80}}}, // empty MessagePack map
 		},
 	}
 }
 
-// TestEnvelopeCanonical: the hand-encoded envelope must be byte-identical to proto.Marshal of the
-// same Snapshot message. The body is opaque to the envelope, so any valid WorldState bytes work as
-// the fixture.
-func TestEnvelopeCanonical(t *testing.T) {
+func TestEncodeMetadata(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]struct {
@@ -49,23 +49,15 @@ func TestEnvelopeCanonical(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			body, err := proto.Marshal(testWorldState())
+			got, err := Encode(tc.tick, tc.ts, testWorldState())
 			require.NoError(t, err)
-
-			got := Encode(tc.tick, tc.ts, len(body), func(b []byte) []byte {
-				return append(b, body...)
-			})
-
-			want, err := proto.MarshalOptions{Deterministic: true}.Marshal(&cardinalv1.Snapshot{
-				TickHeight: tc.tick,
-				Timestamp:  timestamppb.New(tc.ts),
-				WorldState: testWorldState(),
-				Version:    CurrentVersion,
-			})
+			snap, err := Decode(got)
 			require.NoError(t, err)
-
-			assert.Equal(t, want, got, "hand-encoded envelope must match proto.Marshal exactly")
-			assert.Len(t, got, EnvelopeSize(tc.tick, tc.ts, len(body)), "EnvelopeSize must be exact")
+			assert.Equal(t, tc.tick, snap.GetTickHeight())
+			require.NotNil(t, snap.GetTimestamp())
+			assert.True(t, tc.ts.Equal(snap.GetTimestamp().AsTime()))
+			assert.Equal(t, uint32(2), snap.GetVersion())
+			assert.True(t, proto.Equal(testWorldState(), snap.GetWorldState()))
 		})
 	}
 }
@@ -74,11 +66,10 @@ func TestEnvelopeCanonical(t *testing.T) {
 func TestEncodeDecodeRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	body, err := proto.Marshal(testWorldState())
-	require.NoError(t, err)
 	ts := time.Unix(1_700_000_000, 42).UTC()
 
-	data := Encode(11, ts, len(body), func(b []byte) []byte { return append(b, body...) })
+	data, err := Encode(11, ts, testWorldState())
+	require.NoError(t, err)
 
 	snap, err := Decode(data)
 	require.NoError(t, err)
@@ -131,9 +122,9 @@ func TestDecodeRejects(t *testing.T) {
 	})
 
 	for name, version := range map[string]uint32{
-		"older version": CurrentVersion - 1,
-		"newer version": CurrentVersion + 1,
-		"unset version": 0,
+		"old protobuf payload version": 1,
+		"newer version":                CurrentVersion + 1,
+		"unset version":                0,
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -160,28 +151,14 @@ func TestDecodeRejects(t *testing.T) {
 	})
 }
 
-// TestEncodeRefusesBodySizeMismatch pins that the integrity check survives the release tag. It used
-// to be an assert.That, which compiles to nothing there, so a divergence returned an undecodable
-// snapshot instead of failing.
-func TestEncodeRefusesBodySizeMismatch(t *testing.T) {
-	t.Parallel()
-
-	assert.Panics(t, func() {
-		Encode(7, time.Unix(1, 0), 10, func(b []byte) []byte { return append(b, 1, 2, 3) })
-	}, "a body shorter than the size pass promised must fail before reaching storage")
-
-	assert.Panics(t, func() {
-		Encode(7, time.Unix(1, 0), 1, func(b []byte) []byte { return append(b, 1, 2, 3) })
-	}, "a body longer than the size pass promised must fail too")
-}
-
 // TestValidateVersion pins the acceptance policy: exactly the version this build writes is
 // readable; everything else is refused instead of mis-read.
 func TestValidateVersion(t *testing.T) {
 	t.Parallel()
 
 	require.NoError(t, ValidateVersion(CurrentVersion))
-	for _, v := range []uint32{0, CurrentVersion - 1, CurrentVersion + 1, 99} {
+	assert.Equal(t, uint32(2), CurrentVersion)
+	for _, v := range []uint32{0, 1, CurrentVersion + 1, 99} {
 		err := ValidateVersion(v)
 		require.Error(t, err)
 		assert.True(t, eris.Is(err, ErrUnsupportedVersion))

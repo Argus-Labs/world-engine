@@ -89,51 +89,58 @@ func (w *World) collideTask(startIndex, endIndex, workerIndex int, ctx *stepCont
 			// this allows larger relative motion and has fewer tuning
 			// parameters (just one).
 			if recycleDistance > 0.0 && contactSim.simFlags&simRelativeTransformValid != 0 {
-				xf := InvMulTransforms(transformA, transformB)
-				xfc := InvMulTransforms(contactSim.cachedTransformA, contactSim.cachedTransformB)
-				maxExtentA := 0.0
-				if bodyA.bodyType != StaticBody {
-					maxExtentA = bodySimA.maxExtent
-				}
-				maxExtentB := 0.0
-				if bodyB.bodyType != StaticBody {
-					maxExtentB = bodySimB.maxExtent
-				}
-				maxExtent := maxFloat(maxExtentA, maxExtentB)
-				distance := Distance(xf.P, xfc.P)
-				qr := InvMulRot(xf.Q, xfc.Q)
+				// Check each body's rotation since the cache; relative
+				// rotation alone misses bodies that rotate together.
+				cosA := dot2(transformA.Q.C, contactSim.cachedTransformA.Q.C, transformA.Q.S, contactSim.cachedTransformA.Q.S)
+				cosB := dot2(transformB.Q.C, contactSim.cachedTransformB.Q.C, transformB.Q.S, contactSim.cachedTransformB.Q.S)
+				minCos := minFloat(cosA, cosB)
 
-				// This metric is used for fast bodies and sleeping. It comes
-				// from conservative advancement. Note that qr.s == sin(theta)
-				// ~= theta for small angles. Need a tighter tolerance for
-				// non-touching shapes so that contacts are not missed.
-				tolerance := recycleDistanceNonTouching
-				if wasTouching {
-					tolerance = recycleDistance
-				}
-				// distance + maxExtent * abs(qr.s) < tolerance
-				if distance+float64(maxExtent*absFloat(qr.S)) < tolerance {
-					dqA := MulRot(transformA.Q, InvertRot(contactSim.cachedTransformA.Q))
-					dqB := MulRot(transformB.Q, InvertRot(contactSim.cachedTransformB.Q))
-					normal := contactSim.manifold.Normal
-
-					// Minimize round-off
-					dc := Sub(bodySimB.center, bodySimA.center)
-
-					for i := range contactSim.manifold.PointCount {
-						// Keep anchors but update separation, same as
-						// sub-stepping. This eliminates jitter.
-						mp := &contactSim.manifold.Points[i]
-						rA := RotateVector(dqA, mp.AnchorA)
-						rB := RotateVector(dqB, mp.AnchorB)
-						dp := Add(dc, Sub(rB, rA))
-						mp.Separation = mp.BaseSeparation + Dot(dp, normal)
-						mp.Persisted = true
+				if minCos > ContactRecycleCosAngle {
+					xf := InvMulTransforms(transformA, transformB)
+					xfc := InvMulTransforms(contactSim.cachedTransformA, contactSim.cachedTransformB)
+					maxExtentA := 0.0
+					if bodyA.bodyType != StaticBody {
+						maxExtentA = bodySimA.maxExtent
 					}
+					maxExtentB := 0.0
+					if bodyB.bodyType != StaticBody {
+						maxExtentB = bodySimB.maxExtent
+					}
+					maxExtent := maxFloat(maxExtentA, maxExtentB)
+					distance := Distance(xf.P, xfc.P)
+					qr := InvMulRot(xf.Q, xfc.Q)
 
-					// Contact is recycled. This also skips updating other
-					// aspects of the contact such as material parameters.
-					continue
+					// This metric is used for fast bodies and sleeping. It comes
+					// from conservative advancement. Note that qr.s == sin(theta)
+					// ~= theta for small angles. Need a tighter tolerance for
+					// non-touching shapes so that contacts are not missed.
+					tolerance := recycleDistanceNonTouching
+					if wasTouching {
+						tolerance = recycleDistance
+					}
+					if distance+float64(maxExtent*absFloat(qr.S)) < tolerance {
+						dqA := MulRot(transformA.Q, InvertRot(contactSim.cachedTransformA.Q))
+						dqB := MulRot(transformB.Q, InvertRot(contactSim.cachedTransformB.Q))
+						normal := contactSim.manifold.Normal
+
+						// Minimize round-off
+						dc := Sub(bodySimB.center, bodySimA.center)
+
+						for i := range contactSim.manifold.PointCount {
+							// Keep anchors but update separation, same as
+							// sub-stepping. This eliminates jitter.
+							mp := &contactSim.manifold.Points[i]
+							rA := RotateVector(dqA, mp.AnchorA)
+							rB := RotateVector(dqB, mp.AnchorB)
+							dp := Add(dc, Sub(rB, rA))
+							mp.Separation = mp.BaseSeparation + Dot(dp, normal)
+							mp.Persisted = true
+						}
+
+						// Contact is recycled. This also skips updating other
+						// aspects of the contact such as material parameters.
+						continue
+					}
 				}
 			}
 

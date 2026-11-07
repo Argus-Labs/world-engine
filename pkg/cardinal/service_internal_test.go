@@ -23,10 +23,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protodesc"
-	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 // -------------------------------------------------------------------------------------------------
@@ -134,6 +130,19 @@ func TestService_PublishDefaultEvent(t *testing.T) {
 func TestService_PublishInterShardCommand(t *testing.T) {
 	t.Parallel()
 
+	t.Run("unencodable payload", func(t *testing.T) {
+		t.Parallel()
+		fixture := newServiceFixture(t, testutils.NewRand(t), true)
+		err := fixture.svc.publishInterShardCommand(context.Background(), event.Event{
+			Kind: event.KindInterShardCommand,
+			Payload: command.Command{
+				Address: fixture.world.address,
+				Payload: unencodableEvent{},
+			},
+		})
+		require.ErrorContains(t, err, "failed to encode inter shard command")
+	})
+
 	t.Run("happy path", func(t *testing.T) {
 		t.Parallel()
 		prng := testutils.NewRand(t)
@@ -181,16 +190,11 @@ func TestService_MountDebugServiceFinalizesIntrospection(t *testing.T) {
 		connect.NewRequest(&cardinalv1.IntrospectRequest{}),
 	)
 	require.NoError(t, err)
-	require.NotEmpty(t, response.Msg.GetProtoDescriptorSet())
+	require.Empty(t, response.Msg.GetProtoDescriptorSet())
 	require.NotEmpty(t, response.Msg.GetCommands())
-
-	var set descriptorpb.FileDescriptorSet
-	require.NoError(t, proto.Unmarshal(response.Msg.GetProtoDescriptorSet(), &set))
-	files, err := protodesc.NewFiles(&set)
-	require.NoError(t, err)
 	for _, command := range response.Msg.GetCommands() {
-		_, err := files.FindDescriptorByName(protoreflect.FullName(command.GetProtoMessageName()))
-		require.NoError(t, err)
+		require.NotNil(t, command.GetJsonSchema())
+		assert.Empty(t, command.GetProtoMessageName())
 	}
 }
 

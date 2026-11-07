@@ -10,7 +10,6 @@ import (
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/kelindar/bitmap"
 	"github.com/rotisserie/eris"
-	"google.golang.org/protobuf/encoding/protowire"
 )
 
 // EntityID is a unique identifier for an entity.
@@ -32,7 +31,6 @@ type worldState struct {
 	free       []EntityID       // Free entity IDs to reuse
 	entityArch sparseSet
 	archetypes []*archetype // Array of archetypes
-	wire       stateWire    // Encoder state between the two passes. Only the tick goroutine uses it.
 	mu         sync.Mutex
 }
 
@@ -44,7 +42,6 @@ func newWorldState() *worldState {
 		free:       make([]EntityID, 0),
 		entityArch: newSparseSet(),
 		archetypes: make([]*archetype, 1),
-		wire:       stateWire{pendingSize: -1}, // No size pass is pending.
 	}
 
 	// Insert the void archetype.
@@ -325,149 +322,37 @@ func (ws *worldState) removeComponent[T Component](eid EntityID) error {
 // Serialization
 // -------------------------------------------------------------------------------------------------
 
-// The encoder writes a snapshot in two passes. wireBodySize measures the message. appendWireBody
-// writes the message. The size pass comes first because protobuf puts the length of a message
-// before its content. The encoder does not sort. Entity IDs, the component name table, and
-// archetype columns are already in file order. A restore matches components by name, not by ID.
-
-// stateWire is the encoder state between the size pass and the write pass.
-type stateWire struct {
-	pendingSize int // The size from wireBodySize. -1 means that no size pass is pending.
-}
-
-// wireBodySize returns the encoded size of the WorldState message. It stores the size for
-// appendWireBody to check.
-func (ws *worldState) wireBodySize() int {
-	n := 0
-	if ws.nextID != 0 {
-		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(ws.nextID))
+// toProto captures an entity-major snapshot with independently encoded MessagePack payloads.
+// The tick owns the world throughout capture. No live component data is retained by the result.
+func (ws *worldState) toProto() (*cardinalv1.WorldState, error) {
+	state := &cardinalv1.WorldState{
+		NextId:     uint32(ws.nextID),
+		Components: append([]string(nil), ws.components.names...),
 	}
-
-	// The name table is in registration order. Thus the table index of a component is its ID.
-	for _, name := range ws.components.names {
-		n += protowire.SizeTag(2) + protowire.SizeBytes(len(name))
-	}
-
-	for eid := EntityID(0); eid < ws.nextID; eid++ {
-		aid, ok := ws.entityArch.get(eid)
-		if !ok {
-			continue // The ID is free.
-		}
-		size := ws.entityWireSize(ws.archetypes[aid], eid)
-		n += protowire.SizeTag(3) + protowire.SizeBytes(size)
-	}
-
-	ws.wire.pendingSize = n
-	return n
-}
-
-// entityWireSize returns the encoded size of one Entity message body.
-func (ws *worldState) entityWireSize(arch *archetype, eid EntityID) int {
-	row, ok := arch.rows.get(eid)
-	if !ok {
-		panic(fmt.Sprintf("snapshot: entity %d has an archetype but no row", eid))
-	}
-
-	n := 0
-	if eid != 0 {
-		n += protowire.SizeTag(1) + protowire.SizeVarint(uint64(eid))
-	}
-	if len(arch.columns) == 0 {
-		return n
-	}
-
-	// Field 2 is a packed list of table indices. Each index is a component ID.
-	packed := 0
-	arch.components.Range(func(cid uint32) {
-		packed += protowire.SizeVarint(uint64(cid))
-	})
-	n += protowire.SizeTag(2) + protowire.SizeBytes(packed)
-
-	// Field 3 is one payload for each component, in the same order.
-	for _, col := range arch.columns {
-		n += protowire.SizeTag(3) + protowire.SizeBytes(col.rowWireSize(row))
-	}
-	return n
-}
-
-// appendWireBody writes the WorldState message. It checks the written length against the size
-// pass. The world must not change between the two passes.
-func (ws *worldState) appendWireBody(buf []byte) []byte {
-	assert.That(ws.wire.pendingSize >= 0, "appendWireBody called without a preceding wireBodySize call")
-	start := len(buf)
-
-	if ws.nextID != 0 {
-		buf = protowire.AppendTag(buf, 1, protowire.VarintType)
-		buf = protowire.AppendVarint(buf, uint64(ws.nextID))
-	}
-
-	for _, name := range ws.components.names {
-		buf = protowire.AppendTag(buf, 2, protowire.BytesType)
-		buf = protowire.AppendString(buf, name)
-	}
-
 	for eid := EntityID(0); eid < ws.nextID; eid++ {
 		aid, ok := ws.entityArch.get(eid)
 		if !ok {
 			continue
 		}
-		buf = ws.appendEntityWire(buf, ws.archetypes[aid], eid)
-	}
-
-	// This is not an assert. Release builds remove asserts.
-	if len(buf)-start != ws.wire.pendingSize {
-		panic("snapshot body length diverged from the size pass: the world changed size between the two passes")
-	}
-	ws.wire.pendingSize = -1
-	return buf
-}
-
-// appendEntityWire writes one Entity message with its tag and length.
-func (ws *worldState) appendEntityWire(buf []byte, arch *archetype, eid EntityID) []byte {
-	row, ok := arch.rows.get(eid)
-	if !ok {
-		panic(fmt.Sprintf("snapshot: entity %d has an archetype but no row", eid))
-	}
-
-	// This function computes the sizes again. A cache is not necessary because rowWireSize is fast.
-	inner := 0
-	if eid != 0 {
-		inner += protowire.SizeTag(1) + protowire.SizeVarint(uint64(eid))
-	}
-	packed := 0
-	if len(arch.columns) > 0 {
-		arch.components.Range(func(cid uint32) {
-			packed += protowire.SizeVarint(uint64(cid))
-		})
-		inner += protowire.SizeTag(2) + protowire.SizeBytes(packed)
-		for _, col := range arch.columns {
-			inner += protowire.SizeTag(3) + protowire.SizeBytes(col.rowWireSize(row))
+		arch := ws.archetypes[aid]
+		row, ok := arch.rows.get(eid)
+		if !ok {
+			panic(fmt.Sprintf("snapshot: entity %d has an archetype but no row", eid))
 		}
+		entity := &cardinalv1.Entity{Id: uint32(eid)}
+		arch.components.Range(func(cid uint32) {
+			entity.Components = append(entity.Components, cid)
+		})
+		for _, col := range arch.columns {
+			payload, err := col.encode(row)
+			if err != nil {
+				return nil, eris.Wrapf(err, "failed to snapshot entity %d", eid)
+			}
+			entity.Payloads = append(entity.Payloads, payload)
+		}
+		state.Entities = append(state.Entities, entity)
 	}
-
-	buf = protowire.AppendTag(buf, 3, protowire.BytesType)
-	buf = protowire.AppendVarint(buf, uint64(inner))
-
-	if eid != 0 {
-		buf = protowire.AppendTag(buf, 1, protowire.VarintType)
-		buf = protowire.AppendVarint(buf, uint64(eid))
-	}
-	if len(arch.columns) == 0 {
-		return buf
-	}
-
-	buf = protowire.AppendTag(buf, 2, protowire.BytesType)
-	buf = protowire.AppendVarint(buf, uint64(packed))
-	arch.components.Range(func(cid uint32) {
-		buf = protowire.AppendVarint(buf, uint64(cid))
-	})
-
-	for _, col := range arch.columns {
-		buf = protowire.AppendTag(buf, 3, protowire.BytesType)
-		buf = protowire.AppendVarint(buf, uint64(col.rowWireSize(row))) //nolint:gosec // sizes are non-negative
-		buf = col.appendRowWire(buf, row)
-	}
-	return buf
+	return state, nil
 }
 
 // maxRestoreFreeIDs is the maximum number of free IDs that a restore accepts. Without this limit,
@@ -546,7 +431,7 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 		next.free = append(next.free, EntityID(gap))
 	}
 
-	// Commit the new state. wire and mu do not change.
+	// Commit the new state. The component registry and mutex do not change.
 	ws.nextID, ws.free, ws.entityArch, ws.archetypes = next.nextID, next.free, next.entityArch, next.archetypes
 	return nil
 }
@@ -590,7 +475,7 @@ func (ws *worldState) restoreEntity(
 	for k, idx := range idxs {
 		cid := tableCIDs[idx]
 		col := arch.columns[arch.components.CountTo(cid)]
-		if err := col.decodeRow(row, payloads[k]); err != nil {
+		if err := col.decode(row, payloads[k]); err != nil {
 			return eris.Wrapf(err, "failed to restore entity %d", eid)
 		}
 	}

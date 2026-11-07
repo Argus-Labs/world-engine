@@ -2,7 +2,6 @@ package cardinal
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"math/rand/v2"
 	"strconv"
@@ -66,23 +65,6 @@ type replyCommand struct {
 
 func (replyCommand) Name() string { return scwrCommandName }
 
-func (c replyCommand) SizeWire() int { return 16 }
-
-func (c replyCommand) AppendWire(b []byte) []byte {
-	b = binary.LittleEndian.AppendUint64(b, c.ReplyID)
-	return binary.LittleEndian.AppendUint64(b, uint64(c.Value))
-}
-
-func (replyCommand) UnmarshalWire(b []byte) (any, error) {
-	if len(b) < 16 {
-		return nil, eris.New("replyCommand: malformed wire bytes")
-	}
-	return replyCommand{
-		ReplyID: binary.LittleEndian.Uint64(b[:8]),
-		Value:   int64(binary.LittleEndian.Uint64(b[8:16])),
-	}, nil
-}
-
 // replyEvent echoes the command's ReplyID. Its Name() is per-instance (encodes ReplyID), so each
 // caller waits on a distinct event — a dropped reply cannot be masked by another caller's reply
 // reaching the waiter.
@@ -95,21 +77,10 @@ func (e replyEvent) Name() string {
 	return scwrEventNamePrefix + strconv.FormatUint(e.ReplyID, 10)
 }
 
-func (e replyEvent) SizeWire() int { return 16 }
-
-func (e replyEvent) AppendWire(b []byte) []byte {
-	b = binary.LittleEndian.AppendUint64(b, e.ReplyID)
-	return binary.LittleEndian.AppendUint64(b, uint64(e.Value))
-}
-
 func (replyEvent) UnmarshalWire(b []byte) (any, error) {
-	if len(b) < 16 {
-		return nil, eris.New("replyEvent: malformed wire bytes")
-	}
-	return replyEvent{
-		ReplyID: binary.LittleEndian.Uint64(b[:8]),
-		Value:   int64(binary.LittleEndian.Uint64(b[8:16])),
-	}, nil
+	var e replyEvent
+	err := schema.Deserialize(b, &e)
+	return e, err
 }
 
 // replySystem drains replyCommand inputs every tick and broadcasts a replyEvent echoing each
@@ -314,10 +285,15 @@ func TestService_SendCommandWithReply_ReplyDeliveredUnderHotTickLoop(t *testing.
 				replyID := uint64(worker)*uint64(scwrStressCallsPerWorker) + uint64(i)
 				value := int64(replyID)
 				eventName := scwrEventNamePrefix + strconv.FormatUint(replyID, 10)
+				payload, err := schema.Serialize(replyCommand{ReplyID: replyID, Value: value})
+				if err != nil {
+					t.Errorf("serialize command: %v", err)
+					return
+				}
 				cmdPb := &iscv1.Command{
 					Name:    scwrCommandName,
 					Address: w.address,
-					Payload: schema.Marshal(replyCommand{ReplyID: replyID, Value: value}),
+					Payload: payload,
 				}
 				callCtx, callCancel := context.WithTimeout(context.Background(), scwrStressPerCallTimeout)
 				resp, callErr := w.service.SendCommandWithReply(

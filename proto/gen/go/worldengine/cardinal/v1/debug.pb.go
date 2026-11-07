@@ -9,6 +9,7 @@ package cardinalv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -127,9 +128,7 @@ type IntrospectResponse struct {
 	TickRateHz float64 `protobuf:"fixed64,4,opt,name=tick_rate_hz,json=tickRateHz,proto3" json:"tick_rate_hz,omitempty"`
 	// System dependency graphs, one per execution phase (PreUpdate, Update, PostUpdate).
 	Schedules []*SystemSchedule `protobuf:"bytes,5,rep,name=schedules,proto3" json:"schedules,omitempty"`
-	// Protobuf type definitions for the commands, components, and events in this response,
-	// including any types they depend on. Clients use them to encode and decode protobuf data.
-	// Empty when the world has no registered types.
+	// Legacy protobuf payload metadata. Not populated by MessagePack shards.
 	ProtoDescriptorSet []byte `protobuf:"bytes,6,opt,name=proto_descriptor_set,json=protoDescriptorSet,proto3" json:"proto_descriptor_set,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
@@ -320,15 +319,17 @@ type TypeSchema struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Name of the type.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Name of this command, component, or event in proto_descriptor_set.
-	// Clients use it to find the correct protobuf type definition.
+	// Legacy protobuf message name. Not populated by MessagePack shards.
 	ProtoMessageName string `protobuf:"bytes,2,opt,name=proto_message_name,json=protoMessageName,proto3" json:"proto_message_name,omitempty"`
-	// Shape of any multi-dimensional fixed-size array fields this type has.
+	// Legacy protobuf array shape metadata. Not populated by MessagePack shards.
 	// A fixed array is carried as one flat repeated field, which is unambiguous in one dimension but
 	// not beyond it: 32 elements could be 4x8 or 8x4. Clients that decode types they do not know ahead
 	// of time (the debug tooling) use this to rebuild the indices; clients written against a known
 	// schema can ignore it and index the flat field directly.
-	ArrayFields   []*ArrayField `protobuf:"bytes,3,rep,name=array_fields,json=arrayFields,proto3" json:"array_fields,omitempty"`
+	ArrayFields []*ArrayField `protobuf:"bytes,3,rep,name=array_fields,json=arrayFields,proto3" json:"array_fields,omitempty"`
+	// JSON Schema describing the MessagePack payload. Property names are wire keys, not JSON tags.
+	// Arrays retain their nesting; no flattening or array_fields reconstruction is needed.
+	JsonSchema    *structpb.Struct `protobuf:"bytes,4,opt,name=json_schema,json=jsonSchema,proto3" json:"json_schema,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -380,6 +381,13 @@ func (x *TypeSchema) GetProtoMessageName() string {
 func (x *TypeSchema) GetArrayFields() []*ArrayField {
 	if x != nil {
 		return x.ArrayFields
+	}
+	return nil
+}
+
+func (x *TypeSchema) GetJsonSchema() *structpb.Struct {
+	if x != nil {
+		return x.JsonSchema
 	}
 	return nil
 }
@@ -850,7 +858,7 @@ var File_worldengine_cardinal_v1_debug_proto protoreflect.FileDescriptor
 
 const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\n" +
-	"#worldengine/cardinal/v1/debug.proto\x12\x17worldengine.cardinal.v1\x1a&worldengine/cardinal/v1/snapshot.proto\"\x13\n" +
+	"#worldengine/cardinal/v1/debug.proto\x12\x17worldengine.cardinal.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a&worldengine/cardinal/v1/snapshot.proto\"\x13\n" +
 	"\x11IntrospectRequest\"\xf2\x02\n" +
 	"\x12IntrospectResponse\x12?\n" +
 	"\bcommands\x18\x01 \x03(\v2#.worldengine.cardinal.v1.TypeSchemaR\bcommands\x12C\n" +
@@ -868,12 +876,14 @@ const file_worldengine_cardinal_v1_debug_proto_rawDesc = "" +
 	"\n" +
 	"SystemNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"\x9e\x01\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"\xd8\x01\n" +
 	"\n" +
 	"TypeSchema\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12,\n" +
 	"\x12proto_message_name\x18\x02 \x01(\tR\x10protoMessageName\x12F\n" +
-	"\farray_fields\x18\x03 \x03(\v2#.worldengine.cardinal.v1.ArrayFieldR\varrayFieldsR\x06schema\"6\n" +
+	"\farray_fields\x18\x03 \x03(\v2#.worldengine.cardinal.v1.ArrayFieldR\varrayFields\x128\n" +
+	"\vjson_schema\x18\x04 \x01(\v2\x17.google.protobuf.StructR\n" +
+	"jsonSchemaR\x06schema\"6\n" +
 	"\n" +
 	"ArrayField\x12\x14\n" +
 	"\x05field\x18\x01 \x01(\tR\x05field\x12\x12\n" +
@@ -942,7 +952,8 @@ var file_worldengine_cardinal_v1_debug_proto_goTypes = []any{
 	(*ResetResponse)(nil),      // 14: worldengine.cardinal.v1.ResetResponse
 	(*GetStateRequest)(nil),    // 15: worldengine.cardinal.v1.GetStateRequest
 	(*GetStateResponse)(nil),   // 16: worldengine.cardinal.v1.GetStateResponse
-	(*Snapshot)(nil),           // 17: worldengine.cardinal.v1.Snapshot
+	(*structpb.Struct)(nil),    // 17: google.protobuf.Struct
+	(*Snapshot)(nil),           // 18: worldengine.cardinal.v1.Snapshot
 }
 var file_worldengine_cardinal_v1_debug_proto_depIdxs = []int32{
 	5,  // 0: worldengine.cardinal.v1.IntrospectResponse.commands:type_name -> worldengine.cardinal.v1.TypeSchema
@@ -952,24 +963,25 @@ var file_worldengine_cardinal_v1_debug_proto_depIdxs = []int32{
 	0,  // 4: worldengine.cardinal.v1.SystemSchedule.hook:type_name -> worldengine.cardinal.v1.SystemHook
 	4,  // 5: worldengine.cardinal.v1.SystemSchedule.systems:type_name -> worldengine.cardinal.v1.SystemNode
 	6,  // 6: worldengine.cardinal.v1.TypeSchema.array_fields:type_name -> worldengine.cardinal.v1.ArrayField
-	17, // 7: worldengine.cardinal.v1.GetStateResponse.snapshot:type_name -> worldengine.cardinal.v1.Snapshot
-	1,  // 8: worldengine.cardinal.v1.DebugService.Introspect:input_type -> worldengine.cardinal.v1.IntrospectRequest
-	7,  // 9: worldengine.cardinal.v1.DebugService.Pause:input_type -> worldengine.cardinal.v1.PauseRequest
-	9,  // 10: worldengine.cardinal.v1.DebugService.Resume:input_type -> worldengine.cardinal.v1.ResumeRequest
-	11, // 11: worldengine.cardinal.v1.DebugService.Step:input_type -> worldengine.cardinal.v1.StepRequest
-	13, // 12: worldengine.cardinal.v1.DebugService.Reset:input_type -> worldengine.cardinal.v1.ResetRequest
-	15, // 13: worldengine.cardinal.v1.DebugService.GetState:input_type -> worldengine.cardinal.v1.GetStateRequest
-	2,  // 14: worldengine.cardinal.v1.DebugService.Introspect:output_type -> worldengine.cardinal.v1.IntrospectResponse
-	8,  // 15: worldengine.cardinal.v1.DebugService.Pause:output_type -> worldengine.cardinal.v1.PauseResponse
-	10, // 16: worldengine.cardinal.v1.DebugService.Resume:output_type -> worldengine.cardinal.v1.ResumeResponse
-	12, // 17: worldengine.cardinal.v1.DebugService.Step:output_type -> worldengine.cardinal.v1.StepResponse
-	14, // 18: worldengine.cardinal.v1.DebugService.Reset:output_type -> worldengine.cardinal.v1.ResetResponse
-	16, // 19: worldengine.cardinal.v1.DebugService.GetState:output_type -> worldengine.cardinal.v1.GetStateResponse
-	14, // [14:20] is the sub-list for method output_type
-	8,  // [8:14] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	17, // 7: worldengine.cardinal.v1.TypeSchema.json_schema:type_name -> google.protobuf.Struct
+	18, // 8: worldengine.cardinal.v1.GetStateResponse.snapshot:type_name -> worldengine.cardinal.v1.Snapshot
+	1,  // 9: worldengine.cardinal.v1.DebugService.Introspect:input_type -> worldengine.cardinal.v1.IntrospectRequest
+	7,  // 10: worldengine.cardinal.v1.DebugService.Pause:input_type -> worldengine.cardinal.v1.PauseRequest
+	9,  // 11: worldengine.cardinal.v1.DebugService.Resume:input_type -> worldengine.cardinal.v1.ResumeRequest
+	11, // 12: worldengine.cardinal.v1.DebugService.Step:input_type -> worldengine.cardinal.v1.StepRequest
+	13, // 13: worldengine.cardinal.v1.DebugService.Reset:input_type -> worldengine.cardinal.v1.ResetRequest
+	15, // 14: worldengine.cardinal.v1.DebugService.GetState:input_type -> worldengine.cardinal.v1.GetStateRequest
+	2,  // 15: worldengine.cardinal.v1.DebugService.Introspect:output_type -> worldengine.cardinal.v1.IntrospectResponse
+	8,  // 16: worldengine.cardinal.v1.DebugService.Pause:output_type -> worldengine.cardinal.v1.PauseResponse
+	10, // 17: worldengine.cardinal.v1.DebugService.Resume:output_type -> worldengine.cardinal.v1.ResumeResponse
+	12, // 18: worldengine.cardinal.v1.DebugService.Step:output_type -> worldengine.cardinal.v1.StepResponse
+	14, // 19: worldengine.cardinal.v1.DebugService.Reset:output_type -> worldengine.cardinal.v1.ResetResponse
+	16, // 20: worldengine.cardinal.v1.DebugService.GetState:output_type -> worldengine.cardinal.v1.GetStateResponse
+	15, // [15:21] is the sub-list for method output_type
+	9,  // [9:15] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_worldengine_cardinal_v1_debug_proto_init() }

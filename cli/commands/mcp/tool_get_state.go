@@ -35,7 +35,7 @@ type GetStateInput struct {
 	InstanceName string   `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance; accepts variants like 'game-5', 'game 5', 'game5', or '5'. Defaults to the shard's first instance."`
 	Find         []string `json:"find,omitempty"          jsonschema_description:"Component names to filter on (e.g. ['Health','Position']). Names are the component's registered Name(), not the Go type. Omit to return every entity."`
 	Match        string   `json:"match,omitempty"         jsonschema_description:"How find is applied: 'contains' (entity has at least these components — the default) or 'exact' (entity has exactly these and nothing else)."`
-	Where        string   `json:"where,omitempty"         jsonschema_description:"expr-lang boolean expression filtering entities, e.g. 'Health.HP > 50'. Component names are the variables and '_id' is the entity ID. Fields are the component's protobuf field names, which match its Go struct field names; every field is readable, unset ones included. An entity missing a component the expression reads fields from doesn't match; a bare comparison like 'Gravestone == nil' still evaluates for every entity."`
+	Where        string   `json:"where,omitempty"         jsonschema_description:"expr-lang boolean expression filtering entities, e.g. 'Health.HP > 50'. Component names are the variables and '_id' is the entity ID. Fields use the MessagePack field names advertised by introspect. An entity missing a component the expression reads fields from doesn't match; a bare comparison like 'Gravestone == nil' still evaluates for every entity."`
 	MaxEntities  int      `json:"max_entities,omitempty"  jsonschema_description:"Maximum entities to return (default 100). Use a negative value to return every match."`
 	Organization string   `json:"organization,omitempty"  jsonschema_description:"Ignored: since the organization left a shard's address, project alone identifies the world"`
 	Project      string   `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the running containers when omitted)"`
@@ -89,7 +89,7 @@ func getStateHandler(
 ) (GetStateOutput, error) {
 	filter, err := compileStateFilter(args)
 	if err != nil {
-		return GetStateOutput{}, err
+		return GetStateOutput{}, eris.Wrap(err, "failed to compile state filter")
 	}
 
 	ctx, cancel := ensureDeadline(ctx, defaultCommandTimeout)
@@ -102,13 +102,13 @@ func getStateHandler(
 		shardURL:     args.ShardURL,
 	})
 	if err != nil {
-		return GetStateOutput{}, err
+		return GetStateOutput{}, eris.Wrap(err, "failed to resolve state target")
 	}
 
-	// Component columns are protobuf wire bytes, so the shard's descriptors are needed to read them.
+	// Introspection identifies known components; unknown payloads remain raw.
 	descriptors, err := fetchComponentDescriptors(ctx, client)
 	if err != nil {
-		return GetStateOutput{}, err
+		return GetStateOutput{}, eris.Wrap(err, "failed to fetch component schemas")
 	}
 
 	res, err := client.GetState(ctx, connect.NewRequest(&cardinalv1.GetStateRequest{}))
@@ -124,7 +124,7 @@ func getStateHandler(
 	snapshot := res.Msg.GetSnapshot()
 	result, err := flattenWorldState(snapshot.GetWorldState(), limit, filter, descriptors)
 	if err != nil {
-		return GetStateOutput{}, err
+		return GetStateOutput{}, eris.Wrap(err, "failed to flatten world state")
 	}
 
 	out := GetStateOutput{
@@ -339,9 +339,8 @@ func componentNames(table []string, indices []uint32) ([]string, error) {
 	return names, nil
 }
 
-// entityComponents pairs an entity's component names with its payloads. Payloads are protobuf wire
-// bytes, decoded against the component's registered descriptor. A component with no descriptor, or a
-// payload that won't decode, is passed through as raw bytes rather than failing the whole read.
+// entityComponents decodes known components from MessagePack. Unknown components
+// and malformed payloads pass through as raw bytes rather than failing the read.
 func entityComponents(names []string, payloads [][]byte, descriptors componentDescriptors) map[string]any {
 	components := make(map[string]any, len(names))
 	for i, name := range names {
@@ -349,8 +348,8 @@ func entityComponents(names []string, payloads [][]byte, descriptors componentDe
 			break // fewer payloads than components; nothing stored for the rest
 		}
 		var value any = payloads[i]
-		if md, ok := descriptors[name]; ok {
-			if decoded, err := decodeMessage(md, payloads[i]); err == nil {
+		if _, ok := descriptors[name]; ok {
+			if decoded, err := decodeMessage(payloads[i]); err == nil {
 				value = decoded
 			}
 		}

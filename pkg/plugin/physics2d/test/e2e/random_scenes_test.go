@@ -15,6 +15,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/scenario"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // Seeded random scenes: the physics analogue of pkg/box2d's op-sequence fuzz. Each seed
@@ -144,10 +145,13 @@ func randomScene(name string, specs []bodySpec) harness.Scenario {
 
 			for i, s := range specs {
 				// The wire format must carry every field of every generated body.
-				decoded, err := physics.PhysicsBody2D{}.UnmarshalWire(s.pb.MarshalWire())
-				if c.NoError("wire decodes: "+s.label, err) {
-					c.True("wire round-trip is lossless: "+s.label, reflect.DeepEqual(decoded, s.pb),
-						"got %+v\nwant %+v", decoded, s.pb)
+				raw, err := msgpack.Marshal(s.pb)
+				if c.NoError("wire encodes: "+s.label, err) {
+					var decoded physics.PhysicsBody2D
+					if c.NoError("wire decodes: "+s.label, msgpack.Unmarshal(raw, &decoded)) {
+						c.True("wire round-trip is lossless: "+s.label, reflect.DeepEqual(decoded, s.pb),
+							"got %+v\nwant %+v", decoded, s.pb)
+					}
 				}
 				ids[i] = c.SpawnFull(s.label,
 					physics.Transform2D{Position: physics.Vec2{X: s.x, Y: s.y}},

@@ -15,6 +15,8 @@ import (
 	"strings"
 
 	"github.com/goccy/go-json"
+	"github.com/rotisserie/eris"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
 )
@@ -47,13 +49,12 @@ import (
 // Two empty Slices are not always [reflect.DeepEqual]. A derivation that empties one leaves its backing
 // array allocated, while the zero value and SliceOf have none, and DeepEqual looks at the field rather
 // than the elements. Compare with Equal or EqualFunc, which compare elements and agree with
-// [slices.Equal] that nil and empty are the same list. The generated decoder leaves an empty repeated
-// field as the zero value, so a component restored from a snapshot does match one built fresh.
+// [slices.Equal] that nil and empty are the same list. DecodeMsgpack leaves an empty array as the
+// zero value, so a component restored from a snapshot does match one built fresh.
 //
-// The element type must be value-safe too: scalars, strings, fixed arrays, or structs of those.
-// Slice does not check this — Slice[*T] compiles, and hands the pointer straight back out of At —
-// but the wire generator refuses such an element, and refuses a Slice directly inside a Slice, which
-// protobuf cannot carry (wrap the inner one in a named struct).
+// The element type must be value-safe too: scalars, strings, fixed arrays, another Slice, [time.Time],
+// or structs of those. Slice does not check this — Slice[*T] compiles, and hands the pointer straight
+// back out of At — but registering a component that holds such a Slice fails.
 type Slice[T any] struct {
 	items []T
 }
@@ -409,14 +410,16 @@ func Collect[T any](seq iter.Seq[T]) Slice[T] {
 }
 
 // -------------------------------------------------------------------------------------------------
-// JSON and Reflection
+// Serialization and Reflection
 // -------------------------------------------------------------------------------------------------
-// A Slice is a list, so on the wire it is a JSON array — the same text a []T would produce. Without
-// these two methods the encoder sees a struct with one unexported field and writes `{}`, and the
-// decoder refuses an array outright, so a component holding a Slice could neither be logged nor
-// read back from a hand-written payload. Both encoding/json and goccy/go-json dispatch on these
-// method signatures, so one implementation serves whichever the caller uses. (goccy is imported
-// here only because the repo's lint policy prefers it; the methods are library-neutral.)
+// A Slice is a list, so it encodes as an array, in JSON and MessagePack alike — the same as a []T
+// would, except that MessagePack writes a []byte as binary and a Slice[byte] still as an array, so
+// the two cannot read each other's bytes. Without the JSON methods the encoder sees a struct with
+// one unexported field and writes `{}`, and the decoder refuses an array outright, so a component
+// holding a Slice could neither be logged nor read back from a hand-written payload. Both
+// encoding/json and goccy/go-json dispatch on these method signatures, so one implementation serves
+// whichever the caller uses. (goccy is imported here only because the repo's lint policy prefers it;
+// the methods are library-neutral.)
 
 // MarshalJSON encodes the Slice as a JSON array of its items. The zero value encodes as `[]`, not
 // `null`: a Slice is never "absent", only empty.
@@ -429,7 +432,7 @@ func (s Slice[T]) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON replaces the Slice with the array in data. An empty array and `null` both yield the
 // zero value — nil items, not an empty allocation — so a decoded empty Slice compares equal to a
-// fresh one under [reflect.DeepEqual], the same rule the generated FromProto follows.
+// fresh one under [reflect.DeepEqual], the same rule DecodeMsgpack follows.
 func (s *Slice[T]) UnmarshalJSON(data []byte) error {
 	var items []T
 	if err := json.Unmarshal(data, &items); err != nil {
@@ -441,6 +444,41 @@ func (s *Slice[T]) UnmarshalJSON(data []byte) error {
 	s.items = items
 	return nil
 }
+
+// EncodeMsgpack encodes a Slice as an array, including empty and byte-valued Slices.
+func (s Slice[T]) EncodeMsgpack(enc *msgpack.Encoder) error {
+	if err := enc.EncodeArrayLen(len(s.items)); err != nil {
+		return eris.Wrap(err, "failed to encode immutable slice length")
+	}
+	for _, item := range s.items {
+		if err := enc.Encode(item); err != nil {
+			return eris.Wrap(err, "failed to encode immutable slice element")
+		}
+	}
+	return nil
+}
+
+// DecodeMsgpack replaces the Slice only after every element has decoded successfully.
+// Empty arrays and nil normalize to the zero value, as with JSON.
+func (s *Slice[T]) DecodeMsgpack(dec *msgpack.Decoder) error {
+	n, err := dec.DecodeArrayLen()
+	if err != nil {
+		return eris.Wrap(err, "failed to decode immutable slice length")
+	}
+	var items []T
+	for range n {
+		var item T
+		if err := dec.Decode(&item); err != nil {
+			return eris.Wrap(err, "failed to decode immutable slice element")
+		}
+		items = append(items, item)
+	}
+	s.items = items
+	return nil
+}
+
+// IsZero lets MessagePack's omitempty distinguish populated Slices from empty ones.
+func (s Slice[T]) IsZero() bool { return len(s.items) == 0 }
 
 // SliceElem reports whether t is an instantiation of Slice and, if so, returns its element type.
 // It exists so tooling that works through reflection, such as the DST random filler, can recognise
