@@ -228,7 +228,7 @@ func (f *fakeSession) lastRow(t *testing.T) fakeRow {
 // if set, fires after onProgress so a test can cancel from the callback.
 type fakeReadinessWaiter struct {
 	ready, expected int
-	onProgressHook   func()
+	onProgressHook  func()
 }
 
 func (f *fakeReadinessWaiter) WaitForShardsReady(
@@ -324,7 +324,7 @@ func TestWaitForShardsReadyRow_NoProgressNoTerminalRow(t *testing.T) {
 	cancel()
 
 	sess := &fakeSession{}
-	waitForShardsReadyRow(ctx, sess, func(func(ready, expected int) {
+	waitForShardsReadyRow(ctx, sess, func(func(ready, expected int)) {
 		// Cancel before first tick: onProgress is never called.
 	})
 
