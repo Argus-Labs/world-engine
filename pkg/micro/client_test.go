@@ -104,19 +104,6 @@ func TestClient_Request(t *testing.T) {
 		checkStatus(t, status.Convert(err))
 	}
 
-	t.Run("handler returns error", func(t *testing.T) {
-		t.Parallel()
-		requestStatusError(t,
-			func(req *micro.Request) *micro.Response {
-				return micro.NewErrorResponse(req, errors.New("insufficient funds"), codes.InvalidArgument)
-			},
-			codes.InvalidArgument,
-			func(t *testing.T, st *status.Status) {
-				assert.Equal(t, "insufficient funds", st.Message())
-			},
-		)
-	})
-
 	t.Run("handler returns malformed response", func(t *testing.T) {
 		t.Parallel()
 		rng := testutils.NewRand(t)
@@ -153,6 +140,7 @@ func TestClient_Request(t *testing.T) {
 			{"ResourceExhausted", codes.ResourceExhausted, "quota exceeded"},
 			{"PermissionDenied", codes.PermissionDenied, "access denied"},
 			{"Unimplemented", codes.Unimplemented, "not supported"},
+			{"InvalidArgument", codes.InvalidArgument, "insufficient funds"},
 			{"NotFoundEmptyMessage", codes.NotFound, ""},
 		}
 		for _, tc := range cases {
@@ -174,10 +162,10 @@ func TestClient_Request(t *testing.T) {
 	t.Run("preserves status details", func(t *testing.T) {
 		t.Parallel()
 		detail := &micro.ServiceAddress{Project: "detail-proj", ServiceId: "detail-svc"}
+		st, err := status.New(codes.FailedPrecondition, "state conflict").WithDetails(detail)
+		require.NoError(t, err)
 		requestStatusError(t,
 			func(req *micro.Request) *micro.Response {
-				st, err := status.New(codes.FailedPrecondition, "state conflict").WithDetails(detail)
-				require.NoError(t, err)
 				return &micro.Response{
 					RequestID:      req.RequestID,
 					ServiceAddress: req.ServiceAddress,
