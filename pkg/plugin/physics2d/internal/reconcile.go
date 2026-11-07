@@ -29,6 +29,10 @@ import (
 // absent from entries are removed from the runtime (body destroyed, shadow dropped).
 //
 // ReconcileFromECS does not touch SuppressContactsStep or Emitter; it does not step the world.
+//
+// After world and duplicate-ID validation, all entries are attempted. Per-entity errors are
+// joined and returned for the pipeline to log, and failed entities are excluded from writeback
+// so their pending ECS edits can be retried.
 func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 	if rt.World == nil {
 		return errors.New("physics2d: reconcile requires a live world (run FullRebuildFromECS first)")
@@ -39,12 +43,20 @@ func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 		return err
 	}
 	rt.destroyOrphanBodies(sorted)
+	clear(rt.reconcileFailed)
+	errs := rt.reconcileErrsScratch[:0]
 	for _, e := range sorted {
 		if err := rt.reconcileOneEntry(e); err != nil {
-			return err
+			rt.reconcileFailed[e.EntityID] = struct{}{}
+			errs = append(errs, err)
 		}
 	}
-	return nil
+	joined := errors.Join(errs...)
+	// Drop references to the per-entity errors so the scratch backing array does not pin
+	// their messages past this tick (see Runtime scratch RULE).
+	clear(errs)
+	rt.reconcileErrsScratch = clearScratchTail(errs)
+	return joined
 }
 
 // cloneSortAndCheckDuplicateReconcileEntries returns entries sorted by EntityID or an error if
@@ -116,7 +128,10 @@ func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
 	prev, hadPrev := rt.Shadow[e.EntityID]
 	_, hadBody := rt.KnownEntities[e.EntityID]
 	if !hadBody {
-		return rt.createBodyForEntry(e)
+		if err := rt.createBodyForEntry(e); err != nil {
+			return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
+		}
+		return nil
 	}
 	if hadPrev && !prev.PhysicsDiffers(e.Transform, e.Velocity, e.PhysicsBody) {
 		return nil

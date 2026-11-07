@@ -75,6 +75,13 @@ type Runtime struct {
 	// Shadow holds per-entity reconciler snapshots (diff against ECS each tick).
 	Shadow map[cardinal.EntityID]ShadowState
 
+	// reconcileFailed tracks entity IDs whose reconcile failed in the most recent per-entity
+	// reconcile pass, so WritebackFromStepResults can skip them and leave their pending ECS
+	// edits intact for the next reconcile attempt. It is cleared once a ReconcileFromECS pass
+	// starts its entry loop, and by FullRebuildFromECS/Reset; the nil-world and duplicate-ID
+	// early returns leave it untouched.
+	reconcileFailed map[cardinal.EntityID]struct{}
+
 	// BufferedContacts collects contact events from the physics step for post-step flush.
 	BufferedContacts []BufferedContactEvent
 
@@ -136,6 +143,12 @@ type Runtime struct {
 	// reconcileSortScratch backs the sorted entries clone in ReconcileFromECS, reused
 	// across ticks so the per-tick clone does not allocate. Only valid within one call.
 	reconcileSortScratch []PhysicsRebuildEntry
+
+	// reconcileErrsScratch backs the per-entity error slice joined in ReconcileFromECS,
+	// reused across ticks so a failing tick does not allocate. Cleared back to zero
+	// after the errors are joined so the backing array pins no error messages past the
+	// tick (see Runtime scratch RULE).
+	reconcileErrsScratch []error
 
 	// rebuildEntriesScratch and writebackScratch back the pipeline system's two
 	// per-tick archetype gathers (see RebuildEntriesScratch / WritebackScratch).
@@ -208,6 +221,7 @@ func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps, workers int) 
 		Chains:               make(map[cardinal.EntityID][]box2d.ChainID),
 		KnownEntities:        make(map[cardinal.EntityID]struct{}),
 		Shadow:               make(map[cardinal.EntityID]ShadowState),
+		reconcileFailed:      make(map[cardinal.EntityID]struct{}),
 		BufferedContacts:     make([]BufferedContactEvent, 0),
 		SuppressContactsStep: true,
 		ActiveContacts:       nil,
@@ -227,6 +241,7 @@ func (rt *Runtime) Reset() {
 	rt.Chains = make(map[cardinal.EntityID][]box2d.ChainID)
 	rt.KnownEntities = make(map[cardinal.EntityID]struct{})
 	rt.Shadow = make(map[cardinal.EntityID]ShadowState)
+	rt.reconcileFailed = make(map[cardinal.EntityID]struct{})
 	rt.BufferedContacts = make([]BufferedContactEvent, 0)
 	rt.pendingEndEvents = nil
 	rt.Emitter = nil
@@ -235,6 +250,7 @@ func (rt *Runtime) Reset() {
 	rt.ActiveContactsDirty = false
 	rt.NoPersistedActiveContactsBaseline = false
 	rt.reconcileSortScratch = nil
+	rt.reconcileErrsScratch = nil
 	rt.rebuildEntriesScratch = nil
 	rt.writebackScratch = nil
 	rt.liveContactsScratch = nil
