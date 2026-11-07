@@ -250,8 +250,6 @@ func TestResetPreservesInitEmittedClientEvents(t *testing.T) {
 
 	debug := true
 	w, err := NewWorld(WorldOptions{
-		Region:              "reset-client-events",
-		Organization:        "reset-client-events",
 		Project:             "reset-client-events",
 		ShardID:             "0",
 		TickRate:            60,
