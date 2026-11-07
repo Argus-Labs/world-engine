@@ -658,6 +658,196 @@ func TestChainCreateDestroy(t *testing.T) {
 	}
 }
 
+// TestDestroyShapeRejectsChainSegment pins the upstream b2DestroyShape guard
+// (src/shape.c) that rejects destroying a chain segment which still has a
+// parent chain shape. Without the guard the segment is freed out from under
+// the chain and a later DestroyChain re-destroys the freed slot, double-
+// decrementing the body's shape count and pushing NullIndex into the shape
+// free list.
+//
+// In the release build the call is a silent no-op (mirrors upstream
+// B2_ASSERT(false); return); in the box2d_asserts build the assert fires and
+// the call panics before mutating any state.
+func TestDestroyShapeRejectsChainSegment(t *testing.T) {
+	t.Parallel()
+
+	def := DefaultWorldDef()
+	w := NewWorld(&def)
+	defer w.Destroy()
+
+	bodyDef := DefaultBodyDef()
+	bodyID := w.CreateBody(&bodyDef)
+
+	// Open chain of 6 points -> 3 segments (CreateChain, IsLoop == false).
+	chainDef := DefaultChainDef()
+	chainDef.Points = []Vec2{
+		{X: -2.0, Y: 0.0},
+		{X: -1.0, Y: 0.5},
+		{X: 0.0, Y: 0.5},
+		{X: 1.0, Y: 0.5},
+		{X: 2.0, Y: 0.0},
+		{X: 0.0, Y: -1.0},
+	}
+
+	chainID := w.CreateChain(bodyID, &chainDef)
+	require.True(t, w.IsChainValid(chainID))
+
+	const segCount = 3
+	require.Equal(t, segCount, w.ChainSegmentCount(chainID))
+	require.Equal(t, segCount, w.BodyShapeCount(bodyID))
+	require.Equal(t, segCount, w.Counters().ShapeCount)
+
+	segments := make([]ShapeID, segCount)
+	require.Equal(t, segCount, w.ChainSegments(chainID, segments))
+	for i := range segCount {
+		require.True(t, w.IsShapeValid(segments[i]))
+		require.Equal(t, ChainSegmentShape, w.ShapeType(segments[i]))
+		require.Equal(t, chainID, w.ShapeParentChain(segments[i]))
+	}
+
+	// Snapshot the internal slot and the free list so the no-op can be
+	// observed directly, not just through getters. The free list starts
+	// empty: every shape so far is live.
+	seg0 := w.getShape(segments[0])
+	require.Equal(t, int(segments[0].index1)-1, seg0.id)
+	require.Equal(t, int(chainID.index1)-1, seg0.chainSegment.ChainID)
+	require.Empty(t, w.shapeIDPool.freeArray)
+
+	// The illegal call: destroy a chain-owned segment via the public
+	// DestroyShape API.
+	if debugAsserts {
+		// Upstream debug build: B2_ASSERT(false) fires before any mutation.
+		tassert.PanicsWithValue(t, "box2d: assertion failed", func() {
+			w.DestroyShape(segments[0], false)
+		})
+	} else {
+		// Upstream release build: the guard returns early and the world is
+		// untouched.
+		tassert.NotPanics(t, func() { w.DestroyShape(segments[0], false) })
+
+		// The segment is still live and still chain-owned.
+		tassert.True(t, w.IsShapeValid(segments[0]))
+		tassert.Equal(t, ChainSegmentShape, w.ShapeType(segments[0]))
+		tassert.Equal(t, chainID, w.ShapeParentChain(segments[0]))
+
+		// The internal slot was not freed: the id is unchanged, the chain
+		// back-pointer is intact, and the free list did not grow (the buggy
+		// build frees the slot and pushes its id, leaving a dangling back-
+		// pointer for the later DestroyChain double-destroy).
+		tassert.Equal(t, int(segments[0].index1)-1, seg0.id, "segment slot id must not clear to NullIndex")
+		tassert.Equal(t, int(chainID.index1)-1, seg0.chainSegment.ChainID, "chain back-pointer must survive")
+		tassert.Empty(t, w.shapeIDPool.freeArray, "no id may be returned to the free list")
+
+		// Counts are unchanged — the segment was not destroyed.
+		tassert.Equal(t, segCount, w.BodyShapeCount(bodyID))
+		tassert.Equal(t, segCount, w.Counters().ShapeCount)
+	}
+
+	// Either way the chain still destroys cleanly and frees exactly its own
+	// segments; the chain body is drained to zero shapes.
+	w.DestroyChain(chainID)
+	tassert.False(t, w.IsChainValid(chainID))
+	tassert.Equal(t, 0, w.BodyShapeCount(bodyID))
+	tassert.Equal(t, 0, w.Counters().ShapeCount)
+	for i := range segCount {
+		tassert.False(t, w.IsShapeValid(segments[i]), "chain segment %d must be destroyed", i)
+	}
+
+	// The shape free list must hold only valid, in-range ids. The buggy
+	// build pushed NullIndex during the double-destroy and the third
+	// subsequent CreateCircleShape panicked with index out of range [-1].
+	otherBody := w.CreateBody(&bodyDef)
+	shapeDef := DefaultShapeDef()
+	circle := Circle{Center: Vec2Zero, Radius: 0.5}
+	for range segCount + 2 {
+		sid := w.CreateCircleShape(otherBody, &shapeDef, &circle)
+		tassert.True(t, w.IsShapeValid(sid))
+	}
+	for _, id := range w.shapeIDPool.freeArray {
+		tassert.NotEqual(t, NullIndex, id, "free list must never contain NullIndex")
+	}
+	tassert.Equal(t, segCount+2, w.BodyShapeCount(otherBody))
+}
+
+// TestDestroyShapeGuardPreventsRecycledSlotCorruption pins the second half of
+// the chain-segment corruption: in the buggy build, after a chain segment is
+// illegally freed, the freed slot is recycled by an unrelated shape (allocs
+// are LIFO) and a later DestroyChain follows the chain's stale shapeIndices
+// into that slot and destroys the unrelated shape (silent data loss). With
+// the guard the segment is never freed, so a new shape never recycles its
+// slot and DestroyChain destroys only the chain's own segments.
+func TestDestroyShapeGuardPreventsRecycledSlotCorruption(t *testing.T) {
+	t.Parallel()
+
+	def := DefaultWorldDef()
+	w := NewWorld(&def)
+	defer w.Destroy()
+
+	groundDef := DefaultBodyDef()
+	groundID := w.CreateBody(&groundDef)
+
+	chainDef := DefaultChainDef()
+	chainDef.Points = []Vec2{
+		{X: -2.0, Y: 0.0},
+		{X: -1.0, Y: 0.5},
+		{X: 0.0, Y: 0.5},
+		{X: 1.0, Y: 0.5},
+		{X: 2.0, Y: 0.0},
+		{X: 0.0, Y: -1.0},
+	}
+	chainID := w.CreateChain(groundID, &chainDef)
+	require.True(t, w.IsChainValid(chainID))
+
+	segments := make([]ShapeID, 3)
+	require.Equal(t, 3, w.ChainSegments(chainID, segments))
+	seg0Internal := int(segments[0].index1) - 1
+
+	otherDef := DefaultBodyDef()
+	otherDef.Type = DynamicBody
+	otherDef.Position = Vec2{X: 0.0, Y: 5.0}
+	otherBody := w.CreateBody(&otherDef)
+	shapeDef := DefaultShapeDef()
+	circle := Circle{Center: Vec2Zero, Radius: 0.5}
+
+	// Attempt the illegal destroy. In the box2d_asserts build the guard
+	// panics before any mutation; in the release build it is a silent no-op.
+	if debugAsserts {
+		tassert.PanicsWithValue(t, "box2d: assertion failed", func() {
+			w.DestroyShape(segments[0], false)
+		})
+	} else {
+		tassert.NotPanics(t, func() { w.DestroyShape(segments[0], false) })
+	}
+
+	// Create an unrelated circle AFTER the illegal destroy. In the buggy
+	// release build the freed segment slot is the LIFO head of the free list,
+	// so the circle reuses it and DestroyChain then destroys the circle.
+	// With the guard the segment is never freed, so the circle gets a fresh
+	// slot.
+	otherShape := w.CreateCircleShape(otherBody, &shapeDef, &circle)
+	require.True(t, w.IsShapeValid(otherShape))
+	otherShapeInternal := int(otherShape.index1) - 1
+	tassert.NotEqual(t, seg0Internal, otherShapeInternal,
+		"the circle must not recycle the still-live chain segment's slot")
+
+	// DestroyChain must destroy only the chain's segments and leave the
+	// unrelated circle untouched.
+	tassert.NotPanics(t, func() { w.DestroyChain(chainID) })
+	tassert.False(t, w.IsChainValid(chainID))
+	for i := range segments {
+		tassert.False(t, w.IsShapeValid(segments[i]), "chain segment %d must be destroyed", i)
+	}
+	tassert.True(t, w.IsShapeValid(otherShape), "the unrelated circle must survive DestroyChain")
+	tassert.Equal(t, CircleShape, w.ShapeType(otherShape))
+	tassert.Equal(t, otherBody, w.ShapeBody(otherShape))
+	tassert.Equal(t, 1, w.BodyShapeCount(otherBody), "the circle's body keeps its one shape")
+	tassert.Equal(t, 0, w.BodyShapeCount(groundID), "the chain body loses all its segments")
+	tassert.Equal(t, 1, w.Counters().ShapeCount, "only the circle remains")
+	for _, id := range w.shapeIDPool.freeArray {
+		tassert.NotEqual(t, NullIndex, id, "free list must never contain NullIndex")
+	}
+}
+
 func TestApplyForcesAndImpulses(t *testing.T) {
 	def := DefaultWorldDef()
 	w := NewWorld(&def)
