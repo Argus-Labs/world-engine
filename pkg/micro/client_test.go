@@ -78,11 +78,13 @@ func TestClient_Request(t *testing.T) {
 
 		sub := newTestHandler(t, client, micro.Endpoint(address, endpoint), func(msg *nats.Msg) {
 			req, err := micro.NewRequestFromNATSMsg(msg, address)
+			//nolint:testifylint // require would FailNow in this NATS callback goroutine, leaving the request to time out.
 			if !assert.NoError(t, err) {
 				return
 			}
 			resp := buildResponse(req)
 			b, err := resp.Bytes()
+			//nolint:testifylint // require would FailNow in this NATS callback goroutine, leaving the request to time out.
 			if !assert.NoError(t, err) {
 				return
 			}
