@@ -2,13 +2,16 @@
 // distance.go, manifold.go, collision.go and the chain-segment contact
 // registers in contact.go).
 //
-// Every expected value is derived ONLY from the vendored C source of truth
+// Unless a test documents another source, every expected value is derived
+// from the vendored C source of truth
 // (scratchpad vendored-c/box2d/src/{aabb,geometry,hull,distance,manifold}.c)
 // or ported from the upstream unit tests (test_collision.c, test_distance.c,
 // test_shape.c). No expectation was produced by executing the Go code: values
 // are hand-computed by following the C algorithm in exact arithmetic, and each
 // nontrivial expectation cites the C function (file:line) or upstream test it
-// comes from.
+// comes from. The hull-welding tolerance and retained-set comparison are a
+// deliberate exception that follows released upstream commit ac7c751 instead
+// of the vendored C; see the drift list below.
 //
 // Tolerances: the C code runs in float32 while this port runs in float64.
 // Upstream ENSURE_SMALL(x, FLT_EPSILON) assertions are ported with 1e-6
@@ -16,7 +19,8 @@
 // hand-derived exact-arithmetic expectations use 1e-9..1e-12 because the
 // float64 port evaluates the same expressions with at most a few ULP of noise.
 //
-// Vendored-vs-upstream drift observed while porting (vendored C wins):
+// Vendored-vs-upstream drift observed while porting (vendored C wins, except
+// the hull-welding backport noted below):
 //   - test_collision.c LargeWorldManifoldTest / LargeWorldAABBTest use the
 //     upstream-main b2WorldTransform / b2LocalManifold / b2ComputeFatShapeAABB
 //     API and a BOX2D_DOUBLE_PRECISION build flag; none of these exist in the
@@ -24,6 +28,13 @@
 //     rounded-box AABB extents are ported against the vendored b2Transform
 //     API; the double-precision-only blocks are ported as far-from-origin
 //     consistency checks, which the float64 port satisfies by construction.
+//   - hull.c ComputeHull point welding: the vendored C uses
+//     tolSqr = 16*linearSlop^2 and compares each point against every earlier
+//     input point (for j < i over points), but the released upstream source
+//     (commit ac7c751) uses tolSqr = 0.25*linearSlop^2 and compares against
+//     the retained set only (for j < n over ps). hull.go deliberately follows
+//     the released upstream welding policy; the oracle assertions below pin
+//     that choice so future vendored-C resyncs do not silently revert it.
 package box2d_test
 
 import (
@@ -1467,7 +1478,8 @@ func TestOracleTimeOfImpact(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// hull.go (vendored hull.c:87/273)
+// hull.go (vendored hull.c:87/273; welding follows released upstream
+// commit ac7c751, not the vendored C — see the drift list at the top)
 // ---------------------------------------------------------------------------
 
 func TestOracleHullEdgeCases(t *testing.T) {
@@ -1487,13 +1499,115 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		require.Equal(t, 0, h.Count)
 	})
 
-	t.Run("welding collapses close points", func(t *testing.T) {
+	t.Run("weld boundary at 0.5*linearSlop", func(t *testing.T) {
 		t.Parallel()
-		// hull.c:87 welds points within 4*linearSlop = 0.02. Three of the
-		// four points weld into one, leaving fewer than 3.
+		// The weld radius is 0.5*linearSlop (tolSqr = 0.25*linearSlop^2,
+		// upstream commit ac7c751). A point inside the radius welds onto
+		// the retained apex; a point outside is retained, and the lower
+		// point drops as interior to the triangle formed with the two
+		// anchors.
+		// The "exact radius" row places the pair at zero and radius so
+		// the squared distance equals tolSqr without subtraction
+		// rounding; strict < keeps the upper apex, <= would weld it to
+		// the lower point.
+		radius := float64(0.5 * box2d.LinearSlop)
+		// The outside and exact-radius cases put the lower point first
+		// so increasing the weld radius past the pair's separation
+		// removes the expected upper apex and fails the retention check.
+		cases := []struct {
+			name         string
+			retained     box2d.Vec2
+			discarded    box2d.Vec2
+			discardFirst bool
+			anchors      [2]box2d.Vec2
+		}{
+			{"0.001 inside", box2d.Vec2{X: 0, Y: 1 - 0.001}, box2d.Vec2{X: 0, Y: 1}, false, [2]box2d.Vec2{{X: -1, Y: 0}, {X: 1, Y: 0}}},
+			{"inside", box2d.Vec2{X: 0, Y: 1 - (radius - 1e-6)}, box2d.Vec2{X: 0, Y: 1}, false, [2]box2d.Vec2{{X: -1, Y: 0}, {X: 1, Y: 0}}},
+			{"outside", box2d.Vec2{X: 0, Y: 1}, box2d.Vec2{X: 0, Y: 1 - (radius + 1e-6)}, true, [2]box2d.Vec2{{X: -1, Y: 0}, {X: 1, Y: 0}}},
+			{"exact radius", box2d.Vec2{X: 0, Y: radius}, box2d.Vec2{X: 0, Y: 0}, true, [2]box2d.Vec2{{X: -1, Y: -1}, {X: 1, Y: -1}}},
+		}
+		for i := range cases {
+			tc := &cases[i]
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				first, second := tc.retained, tc.discarded
+				if tc.discardFirst {
+					first, second = tc.discarded, tc.retained
+				}
+				h := box2d.ComputeHull([]box2d.Vec2{first, second, tc.anchors[0], tc.anchors[1]})
+				require.Equal(t, 3, h.Count)
+				require.True(t, box2d.ValidateHull(&h))
+				require.Contains(t, h.Points[:h.Count], tc.retained)
+				require.NotContains(t, h.Points[:h.Count], tc.discarded)
+			})
+		}
+	})
+
+	t.Run("weld tolerance distinguishes upstream from vendored", func(t *testing.T) {
+		t.Parallel()
+		// (0.015,0) is 0.015 from (0,0): farther than the upstream weld
+		// radius 0.5*linearSlop = 0.0025, but closer than the vendored-C
+		// weld radius 4*linearSlop = 0.02. Under the upstream tolerance
+		// (this port) all three points are retained as a triangle; under
+		// the vendored tolerance (0.015,0) would weld into (0,0) and the
+		// hull would collapse to fewer than 3 points.
+		pts := []box2d.Vec2{
+			{X: 0, Y: 0}, {X: 0.015, Y: 0}, {X: 0, Y: 1},
+		}
+		h := box2d.ComputeHull(pts)
+		require.Equal(t, 3, h.Count)
+		require.True(t, box2d.ValidateHull(&h))
+		poly := box2d.MakePolygon(&h, 0.0)
+		require.Equal(t, 3, poly.Count)
+		require.ElementsMatch(t, pts, poly.Vertices[:poly.Count])
+	})
+
+	t.Run("welding ignores previously discarded points", func(t *testing.T) {
+		t.Parallel()
+		// A=(0,0.997) is retained; B=(0,0.998) welds to A (distance 0.001
+		// < 0.0025) and is discarded; C=(0,1) is within 0.002 of the
+		// discarded B but 0.003 from the retained A, so only the
+		// retained-set comparison (for j < n over ps) keeps C. With the
+		// vendored-C comparison against every earlier input point at the
+		// same 0.0025 tolerance, C would weld to discarded B and the hull
+		// apex would be A=(0,0.997) instead. (Under the actual old vendored
+		// tolerance of 0.02, C would weld directly to A.) D and E anchor
+		// the base.
 		h := box2d.ComputeHull([]box2d.Vec2{
-			{X: 0, Y: 0}, {X: 0.01, Y: 0}, {X: 0, Y: 0.01}, {X: 1, Y: 1},
+			{X: 0, Y: 0.997}, // A
+			{X: 0, Y: 0.998}, // B welds to A
+			{X: 0, Y: 1.0},   // C near B, far from A
+			{X: -1, Y: 0},    // D
+			{X: 1, Y: 0},     // E
 		})
+		require.Equal(t, 3, h.Count)
+		require.True(t, box2d.ValidateHull(&h))
+		require.Contains(t, h.Points[:h.Count], box2d.Vec2{X: 0, Y: 1})
+	})
+
+	t.Run("upstream welding can empty a hull accepted under the old weld tolerance", func(t *testing.T) {
+		t.Parallel()
+		// Under the vendored-C tolerance (tolSqr = 16*linearSlop^2) these
+		// four points weld into three retained points and ComputeHull
+		// returns a valid count=3 triangle. Under the released upstream
+		// tolerance (tolSqr = 0.25*linearSlop^2, commit ac7c751) the
+		// smaller radius welds less: the closest pair is ~0.0136 apart,
+		// so all four points survive welding. Keeping the third point
+		// changes the extreme edge; both remaining points then fall
+		// within the unchanged 0.01 collinearity tolerance, so ComputeHull
+		// returns an empty hull.
+		// These four coordinates were found by a numerical search over
+		// 4-point inputs for a hull that is valid (count=3) under the
+		// vendored-C tolerance but empty (count=0) under the upstream
+		// tolerance; they are not hand-derived from the C source, so the
+		// oracle header's hand-computation claim does not apply here.
+		pts := []box2d.Vec2{
+			{X: -0.771268377536009, Y: 0.067959204319201},
+			{X: -0.7731071910952123, Y: 0.36962319967115187},
+			{X: -0.7788215535418903, Y: 0.38195388559303917},
+			{X: -0.7856872647284967, Y: 0.28340503400606254},
+		}
+		h := box2d.ComputeHull(pts)
 		require.Equal(t, 0, h.Count)
 	})
 
