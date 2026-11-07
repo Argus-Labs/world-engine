@@ -111,35 +111,50 @@ func (f *fakeShardRoller) Deploy(_ context.Context, opts local.DeployOpts) error
 	f.gotDeploy = append(f.gotDeploy, opts.ShardIDs()...)
 	return nil
 }
-func (f *fakeShardRoller) WaitForShardsReady(_ context.Context, instanceIDs []string, _ func(int, int)) (int, int) {
+func (f *fakeShardRoller) WaitForShardsReady(ctx context.Context, instanceIDs []string, _ func(int, int)) (int, int) {
 	f.gotWait = instanceIDs
+	if ctx.Err() != nil {
+		return 0, f.waitExpected
+	}
 	return f.waitReady, f.waitExpected
 }
 
 // TestRollShards is the rollShards-level regression guard: the wait scope must
 // match the deploy scope — Deploy recreates every instance of each targeted
 // pool, so rollShards must wait on every sibling or a crashed one is missed.
-// Both cases share the fixture, dashboard, invocation, and wait-scope
-// assertions; only the readiness counts and the expected error differ. The
-// WaitScopeCoversWholePool case has game down + game-2 healthy, surfacing as
-// shardsNotReadyError (1/2 ready) with the unrelated lobby pool out of scope.
-// The AllReadyReturnsNil case is the happy path: every waited instance comes
-// back, so rollShards returns nil.
+// The cases share the fixture, dashboard, invocation, and wait-scope
+// assertions; only the readiness counts, the context, and the expected error
+// differ. The WaitScopeCoversWholePool case has game down + game-2 healthy,
+// surfacing as shardsNotReadyError (1/2 ready) with the unrelated lobby pool
+// out of scope. The AllReadyReturnsNil case is the happy path: every waited
+// instance comes back, so rollShards returns nil. The CanceledReturnsCanceled
+// case drives the production caller with a pre-canceled context so a future
+// revert of the ctx.Err() classification in rollShards (the bug this PR fixes)
+// is caught here, not just in the helper-level tests.
 func TestRollShards(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name         string
 		waitReady    int
 		waitExpected int
+		preCanceled  bool
 		wantNotReady bool
+		wantCanceled bool
 	}{
 		{name: "WaitScopeCoversWholePool", waitReady: 1, waitExpected: 2, wantNotReady: true},
 		{name: "AllReadyReturnsNil", waitReady: 2, waitExpected: 2},
+		{name: "CanceledReturnsCanceled", waitExpected: 2, preCanceled: true, wantCanceled: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
+			if tt.preCanceled {
+				cctx, cancel := context.WithCancel(ctx)
+				cancel()
+				defer cancel()
+				ctx = cctx
+			}
 			dash := phasebox.Start(ctx, phasebox.Plain)
 			defer dash.Complete()
 
@@ -158,13 +173,19 @@ func TestRollShards(t *testing.T) {
 				},
 				func(time.Duration) string { return "reloaded" },
 			)
-			if tt.wantNotReady {
+			switch {
+			case tt.wantCanceled:
+				require.Error(t, err)
+				assert.ErrorIs(t, err, context.Canceled, "cancel must pass context.Canceled through the section")
+				var notReady *shardsNotReadyError
+				assert.False(t, errors.As(err, &notReady), "cancel must not be a shardsNotReadyError")
+			case tt.wantNotReady:
 				require.Error(t, err)
 				var notReady *shardsNotReadyError
 				require.ErrorAs(t, err, &notReady)
 				assert.Equal(t, tt.waitReady, notReady.ready)
 				assert.Equal(t, tt.waitExpected, notReady.expected)
-			} else {
+			default:
 				require.NoError(t, err)
 			}
 			// The wait covered the whole game pool; the unrelated resolved lobby pool stayed out.

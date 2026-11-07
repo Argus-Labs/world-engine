@@ -260,9 +260,9 @@ func purgeAndRedeploy(
 // record the instance IDs handed to WaitForShardsReady and return canned
 // ready/expected counts.
 type shardRoller interface {
+	shardReadinessWaiter
 	PruneOrphanedShards(ctx context.Context) error
 	Deploy(ctx context.Context, opts local.DeployOpts) error
-	WaitForShardsReady(ctx context.Context, instanceIDs []string, onProgress func(ready, expected int)) (int, int)
 }
 
 // rollShards recreates the targeted shards' containers, one dashboard row per shard.
@@ -330,8 +330,9 @@ func waitForShardsReadyResult(
 		return ctx.Err()
 	}
 	if ready < expected {
-		// Returned, not just shown: the row is already Failed, but the summary and the
-		// exit code are what a script or an agent reads, and plain progress has no rows.
+		// Returned, not just shown: the row, if any, is already Failed, but the
+		// summary and the exit code are what a script or an agent reads, and plain
+		// progress has no rows.
 		return &shardsNotReadyError{ready: ready, expected: expected}
 	}
 	return nil
@@ -356,20 +357,20 @@ func waitForShardsReadyRow(
 	waitForReady(func(ready, exp int) {
 		lastReady, expected = ready, exp
 		progressed = true
-		sess.UpsertRow("ready", "Waiting for shards ready", fmt.Sprintf("%d/%d", ready, exp), phasebox.Active)
+		sess.UpsertRow("ready", "Waiting for shards to be ready", fmt.Sprintf("%d/%d", ready, exp), phasebox.Active)
 	})
 	if !progressed {
 		return
 	}
 	if errors.Is(ctx.Err(), context.Canceled) {
-		sess.Fail("ready", "Waiting for shards ready", ctx.Err())
+		sess.Fail("ready", "Waiting for shards to be ready", ctx.Err())
 		return
 	}
 	state, detail := phasebox.Done, fmt.Sprintf("%d/%d", lastReady, expected)
 	if lastReady < expected {
 		state, detail = phasebox.Failed, fmt.Sprintf("timed out (%d/%d ready)", lastReady, expected)
 	}
-	sess.UpsertRow("ready", "Waiting for shards ready", detail, state)
+	sess.UpsertRow("ready", "Waiting for shards to be ready", detail, state)
 }
 
 // shardsNotReadyError reports instances that were deployed but never answered. It is its
