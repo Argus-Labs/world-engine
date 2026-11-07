@@ -24,11 +24,14 @@ func (c Config) ShardIDs() []string {
 
 // PoolInstances returns the instance IDs of every replica in the named pools,
 // in world.toml declaration order across all selected pools. The CLI and MCP
-// reload paths share this so they cannot drift on which instances a deploy
-// recreates or a purge wipes — each replica keeps its own state.
+// reload paths share this single pool-to-instance expansion so they agree on
+// which instances a deploy recreated and therefore which to wait for.
 //
 // Config loading (expandPools) sets InstanceID on every replica, so callers
-// receive the configured InstanceID. A blank poolIDs selects nothing.
+// receive the configured InstanceID. A blank poolIDs selects nothing. This
+// helper only covers instance expansion; deploy still selects containers
+// independently through shardServices, so sharing it does not guarantee those
+// paths cannot drift on anything else.
 func (c Config) PoolInstances(poolIDs []string) []string {
 	want := make(map[string]bool, len(poolIDs))
 	for _, id := range poolIDs {

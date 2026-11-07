@@ -50,9 +50,10 @@ func TestPoolInstancesExpandsToAllPoolInstances(t *testing.T) {
 func TestPoolInstancesMultiplePoolsPreserveWorldTomlOrder(t *testing.T) {
 	cfg := pooled(t)
 	// A single scan returns world.toml declaration order across all selected
-	// pools — game's replicas, then chat.
+	// pools — game's replicas, then chat — independent of request order, so
+	// pass the pools reversed to catch an implementation that just echoes input.
 	assert.Equal(t, []string{"game", "game-2", "chat"},
-		cfg.PoolInstances([]string{"game", "chat"}))
+		cfg.PoolInstances([]string{"chat", "game"}))
 }
 
 func TestPoolInstancesEmptySelectsNothing(t *testing.T) {

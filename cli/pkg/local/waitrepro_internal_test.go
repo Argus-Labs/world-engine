@@ -18,7 +18,7 @@ import (
 // but an HTTP request must not. This is what a crashed sibling looks like to
 // WaitForShardsReady's probes. Returns the listener (close to stop) and the
 // bound port (useful when addr is "127.0.0.1:0"). Shared with the probe tests so
-// the two packages of readiness tests cannot drift on the listener contract.
+// the readiness test files cannot drift on the listener contract.
 func startDeadListener(t *testing.T, addr string) (net.Listener, int) {
 	t.Helper()
 	ln, err := net.Listen("tcp", addr)
@@ -52,8 +52,9 @@ func startServingListener(t *testing.T, addr string) (*http.Server, int) {
 }
 
 // poolShardConfig builds a 2-instance "game" pool for the reproduction tests.
-// Ports are not in the config — the waiter derives them via shardHostPort, which
-// the tests override to free ports so a running local world cannot collide.
+// Ports are not in the config — the waiter derives them via the Runtime's
+// shardHostPort seam, which the tests override to free ports so a running local
+// world cannot collide.
 func poolShardConfig() *service.Config {
 	return &service.Config{Project: "demo", WorldToml: worldtoml.Config{
 		Project: "demo",
@@ -64,22 +65,20 @@ func poolShardConfig() *service.Config {
 	}}
 }
 
-// withFreePorts overrides shardHostPort to return the given free ports (one per
-// shard instance, in world.toml order) for the duration of fn, then restores it.
-// The listeners are bound up front on "127.0.0.1:0" and their actual ports feed
-// shardHostPort, so the waiter probes real listeners without touching the
-// production 8081+i ports a developer's running world may already hold.
-func withFreePorts(t *testing.T, fn func(p0, p1 int)) {
+// withFreePorts binds a dead listener and a serving listener on free ports, then
+// points the Runtime's shardHostPort seam at them (one port per shard instance, in
+// world.toml order) for the duration of fn, so the waiter probes real listeners
+// without touching the production 8081+i ports a developer's running world may
+// already hold.
+func withFreePorts(t *testing.T, r *Runtime, fn func()) {
 	t.Helper()
 	deadLn, p0 := startDeadListener(t, "127.0.0.1:0")
 	defer deadLn.Close()
 	srv, p1 := startServingListener(t, "127.0.0.1:0")
 	defer srv.Close()
 
-	prev := shardHostPort
-	shardHostPort = func(i int) int { return []int{p0, p1}[i] }
-	defer func() { shardHostPort = prev }()
-	fn(p0, p1)
+	r.SetShardHostPort(func(i int) int { return []int{p0, p1}[i] })
+	fn()
 }
 
 // TestWaitForShardsReadyWaitScope reproduces the bug mechanism and its fix in one
@@ -96,9 +95,8 @@ func withFreePorts(t *testing.T, fn func(p0, p1 int)) {
 // instance of the deployed pool returns ready<expected, the path that surfaces
 // shardsNotReadyError.
 func TestWaitForShardsReadyWaitScope(t *testing.T) {
-	withFreePorts(t, func(p0, p1 int) {
-		r := New(nil, poolShardConfig())
-
+	r := New(nil, poolShardConfig())
+	withFreePorts(t, r, func() {
 		tests := []struct {
 			name          string
 			instanceIDs   []string
@@ -150,11 +148,8 @@ func TestWaitForShardsReadyAllReadyReturnsImmediately(t *testing.T) {
 	srv2, p1 := startServingListener(t, "127.0.0.1:0")
 	defer srv2.Close()
 
-	prev := shardHostPort
-	shardHostPort = func(i int) int { return []int{p0, p1}[i] }
-	defer func() { shardHostPort = prev }()
-
 	r := New(nil, poolShardConfig())
+	r.SetShardHostPort(func(i int) int { return []int{p0, p1}[i] })
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	start := time.Now()

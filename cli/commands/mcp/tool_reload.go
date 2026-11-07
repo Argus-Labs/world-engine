@@ -158,10 +158,7 @@ func reloadShards(
 	// returns, so a shard that never comes back is an error rather than a silent pass.
 	// Only the reloaded pools were touched; waiting on an instance the caller left down
 	// would burn the whole timeout and then report a shortfall that is not this reload's.
-	var reloaded []string
-	for _, shard := range deployOpts.Shards {
-		reloaded = append(reloaded, cfg.PoolInstances([]string{shard.ID})...)
-	}
+	reloaded := cfg.PoolInstances(deployedShardIDs(deployOpts))
 	if ready, expected := rt.WaitForShardsReady(ctx, reloaded, nil); ready < expected {
 		return eris.Errorf("only %d/%d shard instances came back up; check the shard logs", ready, expected)
 	}

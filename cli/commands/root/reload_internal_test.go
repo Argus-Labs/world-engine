@@ -151,19 +151,16 @@ func TestResolveReloadTargets_NamingAllInstancesMatchesNamingOne(t *testing.T) {
 // fakeShardRoller is a shardRoller stand-in for unit-testing rollShards without
 // a Docker daemon. It records the instance IDs handed to WaitForShardsReady and
 // returns caller-configured ready/expected counts, so a test can assert the wait
-// scope directly: reverting the production argument to targets.instanceIDs
-// would make gotWait the named instance only, failing these tests.
+// scope directly.
 type fakeShardRoller struct {
-	pruneErr     error
-	deployErr    error
 	gotWait      []string
 	waitReady    int
 	waitExpected int
 }
 
-func (f *fakeShardRoller) PruneOrphanedShards(context.Context) error { return f.pruneErr }
+func (f *fakeShardRoller) PruneOrphanedShards(context.Context) error { return nil }
 func (f *fakeShardRoller) Deploy(context.Context, local.DeployOpts) error {
-	return f.deployErr
+	return nil
 }
 func (f *fakeShardRoller) WaitForShardsReady(_ context.Context, instanceIDs []string, _ func(int, int)) (int, int) {
 	f.gotWait = instanceIDs
@@ -171,11 +168,10 @@ func (f *fakeShardRoller) WaitForShardsReady(_ context.Context, instanceIDs []st
 }
 
 // TestRollShards_WaitScopeCoversWholePool is the rollShards-level regression
-// guard: naming one instance of a pool_size > 1 shard must make rollShards wait
-// on every sibling the deploy recreated, not just the named instance. game down
-// + game-2 healthy surfaces as shardsNotReadyError (1/2 ready) — the false-success
-// path the fix closes. The unrelated lobby pool the caller did not name stays out
-// of the wait scope.
+// guard: the wait scope must match the deploy scope — Deploy recreates every
+// instance of each targeted pool, so rollShards must wait on every sibling or a
+// crashed one is missed. Here game down + game-2 healthy surfaces as
+// shardsNotReadyError (1/2 ready); the unrelated lobby pool stays out of scope.
 func TestRollShards_WaitScopeCoversWholePool(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -206,8 +202,7 @@ func TestRollShards_WaitScopeCoversWholePool(t *testing.T) {
 }
 
 // TestRollShards_AllReadyExitsZero covers the happy path: when every waited
-// instance comes back, rollShards returns nil. The wait scope is still the whole
-// pool, so gotWait is [game, game-2] (not the single named instance).
+// instance comes back, rollShards returns nil.
 func TestRollShards_AllReadyExitsZero(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
