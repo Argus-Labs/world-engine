@@ -120,11 +120,8 @@ func newWorkerPool(workerCount int) *workerPool {
 // close terminates the worker goroutines and joins them: when it returns, no
 // worker is running or will run again, so the caller may invalidate anything
 // they could reference. Must be called with no dispatch in flight; World.Destroy
-// guards callback reentry during Step. A Step unwound by an ordinary panic
-// has already joined dispatched workers (forRange's wg.Wait barrier) before the
-// completion latch marks the poison flag, so Destroy may safely close the pool
-// on such a poisoned world. The worker-0 [runtime.Goexit] exclusion and the
-// remaining self-join hole are documented on World.Destroy.
+// guards callback reentry during Step. See World.Destroy for the poisoned-world
+// teardown guarantee and the worker-0 [runtime.Goexit] exclusion.
 func (p *workerPool) close() {
 	p.closed.Store(true)
 	close(p.jobs)

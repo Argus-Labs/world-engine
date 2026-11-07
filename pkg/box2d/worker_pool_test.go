@@ -27,12 +27,8 @@ const boundedTimeout = 30 * time.Second
 // box2d_asserts build; the Destroy guard regression asserts this exact value.
 const assertFailedMsg = "box2d: assertion failed"
 
-// requireGuardPanicValue asserts the Destroy guard's build-specific panic
-// expectation on a captured value: the box2d_asserts build must surface
-// assertFailedMsg; release must surface nil. TestDestroyFromCallbackGuarded
-// (the panic escapes Step) and TestDestroyGuardRecoveredInCallbackStepsAgain
-// (the callback recovers the panic locally) exercise recovery at different
-// boundaries but assert the same expectation on the captured value.
+// requireGuardPanicValue checks the build-specific Destroy guard panic
+// (assertFailedMsg in the box2d_asserts build, nil in release).
 func requireGuardPanicValue(t *testing.T, got any, msg string) {
 	t.Helper()
 	if buildWithAsserts {
@@ -42,9 +38,6 @@ func requireGuardPanicValue(t *testing.T, got any, msg string) {
 	}
 }
 
-// defaultStepTimeoutMsg and defaultFiredMsg are the shared Step-timeout and
-// callback-fired diagnostics used by the workers_1 and workers_4 cases (the
-// background case carries its own).
 var defaultStepTimeoutMsg = fmt.Sprintf("Step did not return within %s", boundedTimeout)
 
 const defaultFiredMsg = "preSolve callback did not run"
@@ -337,7 +330,7 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			})
 			id := w.ID()
 
-			buildWorkerStressScene(w)
+			bodies := buildWorkerStressScene(w)
 
 			// stepG holds the Step goroutine's id for the background case.
 			// The store precedes Step, whose job-channel sends publish it
@@ -385,11 +378,17 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			// A second Step confirms the world is healthy when the guard
 			// rejected the callback's Destroy (release only; the asserts
 			// build leaves the world poisoned). Bound it so a reuse-only hang
-			// fails this test instead of waiting for the package timeout.
+			// fails this test instead of waiting for the package timeout, and
+			// assert a known moving body advances so a silently-locked Step
+			// can't pass on the reuse path.
 			if !buildWithAsserts {
+				mover := bodies[len(bodies)-1]
+				before := w.BodyPosition(mover)
 				require.Nil(t, runBounded(t, &opsInFlight, func() { w.Step(stepDT, stepSubSteps) },
 					defaultStepTimeoutMsg),
 					"second Step must not panic when the guard rejected the callback's Destroy")
+				require.NotEqual(t, before, w.BodyPosition(mover),
+					"the second Step must advance a known moving body, not silently no-op while locked")
 			}
 
 			require.Nil(t, runBounded(t, &opsInFlight, w.Destroy, tc.destroyMsg),
@@ -469,7 +468,7 @@ func goroutineID() uint64 {
 	}
 	id, err := strconv.ParseUint(rest[:end], 10, 64)
 	if err != nil {
-		panic("goroutineID: no goroutine id parsed from runtime.Stack header: " + s)
+		panic(fmt.Sprintf("goroutineID: parsing goroutine id from runtime.Stack header: %v (header: %s)", err, s))
 	}
 	return id
 }

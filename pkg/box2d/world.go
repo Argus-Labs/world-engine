@@ -38,6 +38,11 @@
 //     uses slot 0 only), and the separate b2SensorTaskContext array is folded
 //     into taskContext.sensorEventBits (see sensor.go and solver.go). Unlike
 //     upstream, simulation results are byte-identical for every worker count.
+//   - World.Destroy rejects a callback's mid-Step reentry (a silent no-op in
+//     release, an assertion panic in the box2d_asserts build): upstream's
+//     user-supplied task system has no internal worker goroutines to
+//     self-join on a pool.close(), so this guard is a Go-port contract. See
+//     World.Destroy and worker_pool.go.
 //   - b2InitializeContactRegisters is a call-parity no-op: the register
 //     table is a package-level immutable literal (contact.go).
 //   - Counters.ByteCount is 0: upstream b2GetByteCount tracks global heap
@@ -436,7 +441,7 @@ func NewWorld(def *WorldDef) *World {
 // the pool's done.Wait before wiping the world, so external teardown after a
 // Goexit is safe; the remaining self-join hole is a background callback calling
 // Destroy after such a Goexit, which can pass the guard while background
-// workers are still active. See worker_pool.go for the close() guarantee.
+// workers are still active.
 func (w *World) Destroy() {
 	// Allow Destroy on a Step unwound by a panic (locked set with
 	// stepPanicked true) so it can reclaim the worker pool. This
