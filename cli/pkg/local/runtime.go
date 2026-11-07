@@ -5,6 +5,7 @@ package local
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -541,6 +542,10 @@ func (r *Runtime) ServeEdgeOn(ctx context.Context, ln net.Listener) error {
 // ReleaseEdge undoes ListenEdge so CheckLayout guards reloads again.
 func (r *Runtime) ReleaseEdge() { r.servesEdge = false }
 
+type shardPortInspector interface {
+	CardinalHostPort(ctx context.Context, containerName string) (int, error)
+}
+
 // CheckLayout refuses a reload whose world.toml no longer matches the running world. An
 // instance's host port is its position in world.toml, and the edge in `world start`
 // built its routes from that once; a reload from another process that moves an instance
@@ -551,20 +556,49 @@ func (r *Runtime) CheckLayout(ctx context.Context) error {
 	if r.servesEdge {
 		return nil
 	}
-	cs, err := r.docker.ListProjectContainers(ctx, r.project())
+	return checkLayout(ctx, r.docker, r.docker, r.project(), r.cfg.WorldToml.Shards)
+}
+
+func checkLayout(
+	ctx context.Context,
+	lister containerLister,
+	inspector shardPortInspector,
+	project string,
+	shards []worldtoml.Shard,
+) error {
+	cs, err := lister.ListProjectContainers(ctx, project)
 	if err != nil {
 		return err
 	}
-	ports := map[string]int{}
+	ports, err := collectShardPorts(ctx, cs, inspector)
+	if err != nil {
+		return err
+	}
+	return layoutMismatch(shards, ports)
+}
+
+// collectShardPorts returns cancellation instead of a partial map, which could
+// produce a false layout mismatch. Other inspect errors are skipped.
+func collectShardPorts(
+	ctx context.Context,
+	cs []docker.ContainerSummary,
+	inspector shardPortInspector,
+) (map[string]int, error) {
+	ports := make(map[string]int)
 	for _, c := range cs {
 		if c.Labels[service.RoleLabel] != service.RoleShard {
 			continue
 		}
-		if port, err := r.docker.CardinalHostPort(ctx, c.Name); err == nil {
-			ports[c.Labels[service.InstanceLabel]] = port
+		port, err := inspector.CardinalHostPort(ctx, c.Name)
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return nil, err
+			}
+			continue
 		}
+		ports[c.Labels[service.InstanceLabel]] = port
 	}
-	return layoutMismatch(r.cfg.WorldToml.Shards, ports)
+	return ports, nil
 }
 
 // layoutMismatch compares world.toml's instances with the ports the existing shard

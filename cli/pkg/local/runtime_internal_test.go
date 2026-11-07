@@ -8,9 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/moby/moby/api/types/network"
-
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/moby/api/types/network"
+	"github.com/rotisserie/eris"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
@@ -392,5 +394,127 @@ func TestOrphanedShard_EmptyWorldTomlMatchesEveryShard(t *testing.T) {
 	c := docker.ContainerSummary{Labels: service.Labels("p", service.RoleShard, "game", "game")}
 	if !orphanedShard(nil)(c) {
 		t.Fatal("with no shards declared every shard container is an orphan")
+	}
+}
+
+type fakeInspector struct {
+	ports map[string]int
+	errs  map[string]error
+}
+
+func (f fakeInspector) CardinalHostPort(_ context.Context, name string) (int, error) {
+	if err, ok := f.errs[name]; ok {
+		return 0, err
+	}
+	return f.ports[name], nil
+}
+
+// twoShardContainers is the shared two-shard container list for the collectShardPorts
+// and CheckLayout cancel tests: shard and instance IDs differ so using ShardIDLabel
+// would fail the test.
+var twoShardContainers = []docker.ContainerSummary{
+	{Name: "p-game", Labels: service.Labels("p", service.RoleShard, "game", "game-0")},
+	{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat-0")},
+}
+
+// twoShardConfig is the shared shard config for the CheckLayout tests.
+var twoShardConfig = []worldtoml.Shard{
+	{ID: "game", InstanceID: "game-0"},
+	{ID: "chat", InstanceID: "chat-0"},
+}
+
+func twoShardInspector(secondErr error) fakeInspector {
+	return fakeInspector{
+		ports: map[string]int{"p-game": service.ShardHostPort(0)},
+		errs:  map[string]error{"p-chat": secondErr},
+	}
+}
+
+// Cancellation must escape before layoutMismatch compares a partial port map; other
+// inspect failures retain the existing skip behavior.
+func TestCollectShardPorts(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name         string
+		secondErr    error
+		wantCanceled bool
+		wantPorts    map[string]int
+	}{
+		{"bare cancel", context.Canceled, true, nil},
+		{"eris-wrapped cancel", eris.Wrap(context.Canceled, "inspect p-chat"), true, nil},
+		{
+			"non-cancel inspect error",
+			errors.New("container removed between list and inspect"),
+			false,
+			map[string]int{"game-0": service.ShardHostPort(0)},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			inspector := twoShardInspector(tc.secondErr)
+			ports, err := collectShardPorts(context.Background(), twoShardContainers, inspector)
+			if tc.wantCanceled {
+				require.ErrorIs(t, err, context.Canceled)
+				assert.Nil(t, ports, "a canceled inspect must not return a partial map")
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.wantPorts, ports)
+			}
+		})
+	}
+}
+
+// A canceled inspect must not be reported as an instance added to world.toml.
+func TestCheckLayout_CancelMidInspect(t *testing.T) {
+	t.Parallel()
+
+	inspector := twoShardInspector(context.Canceled)
+	err := checkLayout(context.Background(), fakeLister{containers: twoShardContainers}, inspector, "p", twoShardConfig)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+// TestCheckLayout_LayoutComparison drives checkLayout through the fake lister
+// and inspector so a matching layout returns nil and a real mismatch returns
+// the comparator's error; this verifies checkLayout still calls layoutMismatch
+// after the cancel early return.
+func TestCheckLayout_LayoutComparison(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		ports   map[string]int
+		wantErr string
+	}{
+		{
+			"matching layout",
+			map[string]int{"p-game": service.ShardHostPort(0), "p-chat": service.ShardHostPort(1)},
+			"",
+		},
+		{
+			"moved instance",
+			map[string]int{"p-game": service.ShardHostPort(0), "p-chat": service.ShardHostPort(2)},
+			"would move",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			inspector := fakeInspector{ports: tc.ports}
+			err := checkLayout(
+				context.Background(),
+				fakeLister{containers: twoShardContainers},
+				inspector,
+				"p",
+				twoShardConfig,
+			)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.wantErr)
+			}
+		})
 	}
 }

@@ -29,13 +29,48 @@ func TestShouldPrint_NonSilent(t *testing.T) {
 	assert.True(t, pkgerrors.ShouldPrint(err))
 }
 
-// Regression: kong returns errors.Join(runErr, hookErr), which eris.As can't
-// see into, so every Ctrl+C was printed and sent to Sentry.
+func TestShouldPrint_CancelSuppressed(t *testing.T) {
+	t.Parallel()
+
+	canceled := eris.Wrap(context.Canceled, `list containers for project "demo"`)
+	cases := []struct {
+		name string
+		err  error
+	}{
+		{"bare", context.Canceled},
+		{"eris-wrapped", canceled},
+		{"inside kong join", errors.Join(canceled, nil)},
+		{"silent wrapping cancel", pkgerrors.NewSilent(context.Canceled)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.False(t, pkgerrors.ShouldPrint(tc.err))
+		})
+	}
+}
+
+// A SilentError inside kong's [errors.Join] stays non-printable: kong wraps every
+// command error this way, which eris.As can't see into.
 func TestShouldPrint_SilentInsideKongJoin(t *testing.T) {
 	t.Parallel()
 
 	s := eris.Wrap(pkgerrors.NewSilent(errors.New("user cancelled")), "cluster start")
 	assert.False(t, pkgerrors.ShouldPrint(errors.Join(s, nil)))
+}
+
+// ShouldPrint uses [errors.Is], which walks every branch of an [errors.Join], so a
+// join carrying both a real failure and a cancel is suppressed wholesale. This
+// differs from JoinFailures, which classifies whole arguments: a cancel passed as
+// its own argument is dropped while a real failure passed separately is kept, but
+// a single [errors.Join] of the two is treated as cancellation there too.
+func TestShouldPrint_MixedJoinSuppressesWholeJoin(t *testing.T) {
+	t.Parallel()
+
+	realErr := eris.New("cluster failed")
+	joined := errors.Join(realErr, context.Canceled)
+	assert.False(t, pkgerrors.ShouldPrint(joined),
+		"a join carrying a cancel is suppressed even with a real failure")
 }
 
 func TestJoinFailures(t *testing.T) {
@@ -62,5 +97,6 @@ func TestJoinFailures(t *testing.T) {
 	got = pkgerrors.JoinFailures(real1, canceled)
 	require.ErrorIs(t, got, real1)
 	require.NotErrorIs(t, got, context.Canceled)
+	assert.True(t, pkgerrors.ShouldPrint(got), "a real failure must still print")
 	assert.Same(t, canceled, pkgerrors.JoinFailures(nil, canceled), "only a cancel: stay a cancel")
 }
