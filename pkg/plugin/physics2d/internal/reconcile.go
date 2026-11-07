@@ -44,14 +44,19 @@ func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 	}
 	rt.destroyOrphanBodies(sorted)
 	clear(rt.reconcileFailed)
-	var errs []error
+	errs := rt.reconcileErrsScratch[:0]
 	for _, e := range sorted {
 		if err := rt.reconcileOneEntry(e); err != nil {
 			rt.reconcileFailed[e.EntityID] = struct{}{}
 			errs = append(errs, err)
 		}
 	}
-	return errors.Join(errs...)
+	joined := errors.Join(errs...)
+	// Drop references to the per-entity errors so the scratch backing array does not pin
+	// their messages past this tick (see Runtime scratch RULE).
+	clear(errs)
+	rt.reconcileErrsScratch = clearScratchTail(errs)
+	return joined
 }
 
 // cloneSortAndCheckDuplicateReconcileEntries returns entries sorted by EntityID or an error if
@@ -124,7 +129,7 @@ func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
 	_, hadBody := rt.KnownEntities[e.EntityID]
 	if !hadBody {
 		if err := rt.createBodyForEntry(e); err != nil {
-			return fmt.Errorf("entity %d: %w", e.EntityID, err)
+			return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
 		}
 		return nil
 	}

@@ -73,6 +73,31 @@ func requireXY(t *testing.T, phase string, x, y, wantX, wantY float64) {
 	require.InDelta(t, wantY, y, 1e-6, "%s: Y = %.6f, want %.6f", phase, y, wantY)
 }
 
+// registerPhysicsWorld registers the three physics components on a test world. Shared by the
+// reconcile-error tests so each does not repeat the same registration block.
+func registerPhysicsWorld(w *cardinal.World) {
+	w.RegisterComponent[component.Transform2D]()
+	w.RegisterComponent[component.Velocity2D]()
+	w.RegisterComponent[component.PhysicsBody2D]()
+}
+
+// spawnBoxAt creates a dynamic box entity at pos (via boxBody) and returns it. Must be called
+// from within a system on the world's system goroutine; explicit call order preserves EntityID
+// assignment order.
+func spawnBoxAt(w *cardinal.World, pos component.Vec2) cardinal.Entity {
+	e := w.Create[physicsArchetype]()
+	e.Set(component.Transform2D{Position: pos})
+	e.Set(component.Velocity2D{})
+	e.Set(boxBody())
+	return e
+}
+
+// seedSingleBox spawns one dynamic box entity at the origin and returns it. Shared one-body
+// seed for the lifecycle and policy tests.
+func seedSingleBox(w *cardinal.World) cardinal.Entity {
+	return spawnBoxAt(w, component.Vec2{})
+}
+
 // TestReconcileErrorDoesNotSkipLaterEntities exercises the full reconcile -> step -> writeback
 // pipeline with real ECS handles. A failing entity must not abort the loop, and writeback must
 // skip it so its pending ECS edit survives for the next reconcile attempt.
@@ -90,31 +115,20 @@ func TestReconcileErrorDoesNotSkipLaterEntities(t *testing.T) {
 	pendingVelocityA := component.Velocity2D{Linear: component.Vec2{X: 3, Y: 0}}
 
 	w := cardinal.NewTestWorld(t, func(w *cardinal.World) {
-		w.RegisterComponent[component.Transform2D]()
-		w.RegisterComponent[component.Velocity2D]()
-		w.RegisterComponent[component.PhysicsBody2D]()
+		registerPhysicsWorld(w)
 	})
 
 	var entA, entB cardinal.Entity
 	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
-		// Spawn A (lower ID) and B (higher ID) at {50, 0} with valid box bodies, in
-		// explicit creation order so A gets the lower EntityID.
-		spawnBox := func() cardinal.Entity {
-			e := w.Create[physicsArchetype]()
-			e.Set(component.Transform2D{Position: component.Vec2{X: 50, Y: 0}})
-			e.Set(component.Velocity2D{})
-			e.Set(boxBody())
-			return e
-		}
-		entA = spawnBox()
-		entB = spawnBox()
+		// Spawn A (lower ID) and B (higher ID) at {50, 0}, in explicit creation order.
+		entA = spawnBoxAt(w, component.Vec2{X: 50, Y: 0})
+		entB = spawnBoxAt(w, component.Vec2{X: 50, Y: 0})
 	}})
 
 	idA, idB := entA.ID(), entB.ID()
 	require.Less(t, idA, idB, "entity A must sort before entity B so A is reconciled first")
 
 	w.RunSystem(&runOnceSystem{func(*cardinal.World) {
-		// Initial rebuild from ECS.
 		require.NoError(t, rt.FullRebuildFromECS(gravity, rebuildEntriesFromECS(entA, entB)))
 
 		// A: invalid collider (no shapes) plus a pending transform/velocity edit.
@@ -124,7 +138,6 @@ func TestReconcileErrorDoesNotSkipLaterEntities(t *testing.T) {
 		// B: teleport.
 		entB.Set(component.Transform2D{Position: component.Vec2{X: 100, Y: 100}})
 
-		// reconcile -> step -> writeback
 		require.Error(t, rt.ReconcileFromECS(rebuildEntriesFromECS(entA, entB)),
 			"reconcile should fail for A's empty shapes")
 
@@ -141,9 +154,12 @@ func TestReconcileErrorDoesNotSkipLaterEntities(t *testing.T) {
 		require.Equal(t, pendingVelocityA, entA.Get[component.Velocity2D](),
 			"A's pending velocity must survive (writeback skipped A)")
 		// A's shadow must be the OLD shadow (not synced onto the stomped value).
-		shadowA := rt.Shadow[idA]
-		require.Equal(t, component.Vec2{X: 50, Y: 0}, shadowA.Transform.Position,
-			"A's shadow must stay at the old position")
+		wantShadowA := NewShadowState(
+			component.Transform2D{Position: component.Vec2{X: 50, Y: 0}},
+			component.Velocity2D{},
+			boxBody(),
+		)
+		require.Equal(t, wantShadowA, rt.Shadow[idA], "A's shadow must stay at the old state")
 
 		// B's teleport must stick through writeback.
 		transformB := entB.Get[component.Transform2D]()
@@ -165,10 +181,8 @@ func TestReconcileErrorDoesNotSkipLaterEntities(t *testing.T) {
 			50+pendingVelocityA.Linear.X*defaultFixedDT, 7)
 		require.Equal(t, pendingVelocityA, entA.Get[component.Velocity2D](),
 			"A's velocity after writeback resumed")
-		// B stays put.
 		transformB = entB.Get[component.Transform2D]()
 		requireXY(t, "B transform after repair", transformB.Position.X, transformB.Position.Y, 100, 100)
-		// reconcileFailed is now empty (both reconciled successfully).
 		require.Empty(t, rt.reconcileFailed, "reconcileFailed should be empty after successful reconcile")
 	}})
 }
@@ -217,9 +231,10 @@ func TestReconcileContinuesPastMultipleErrors(t *testing.T) {
 	_, failed2 := rt.reconcileFailed[cardinal.EntityID(2)]
 	require.False(t, failed2, "entity 2 should not be in reconcileFailed")
 
-	// The aggregate error must mention both failed entities.
-	require.Contains(t, err.Error(), "entity 1", "error should mention entity 1: %v", err)
-	require.Contains(t, err.Error(), "entity 3", "error should mention entity 3: %v", err)
+	// The aggregate error must mention both failed entities (colon-delimited so the
+	// assertion cannot also pass for entity 10 / 30).
+	require.Contains(t, err.Error(), "entity 1:", "error should mention entity 1: %v", err)
+	require.Contains(t, err.Error(), "entity 3:", "error should mention entity 3: %v", err)
 }
 
 // TestReconcileCreatePathErrorIncludesEntityID verifies that a create-path failure (a new entity
@@ -251,7 +266,10 @@ func TestReconcileCreatePathErrorIncludesEntityID(t *testing.T) {
 		"create-path error should include the entity id: %v", err)
 	require.Contains(t, err.Error(), "velocity", "create-path error should name the failing field: %v", err)
 
-	// The failed entity must be in reconcileFailed so writeback skips it.
+	// The failed entity must be in reconcileFailed. A failed create leaves no body so
+	// writeback already skips it via the Bodies lookup this tick, but the membership
+	// keeps writeback skipping it on a later tick once a body exists, until a successful
+	// reconcile clears the set.
 	_, failed := rt.reconcileFailed[newID]
 	require.True(t, failed, "entity %d should be in reconcileFailed", newID)
 }
@@ -264,7 +282,7 @@ func TestReconcileCreatePathErrorIncludesEntityID(t *testing.T) {
 // It also drives reconcile -> step -> writeback in the same phase order as PhysicsPipelineSystem.Run
 // across several ticks. PhysicsPipelineSystem.Run itself lives in the internal/system subpackage,
 // which imports this package, so it cannot be reached from here without an import cycle; a full
-// plugin-level pipeline test belongs in the external test/ package, outside this PR's diff.
+// plugin-level pipeline test belongs in the external test/ package.
 func TestReconcileFailureFreezesECSWhileBodyFalls(t *testing.T) {
 	t.Parallel()
 
@@ -272,17 +290,12 @@ func TestReconcileFailureFreezesECSWhileBodyFalls(t *testing.T) {
 	rt := NewRuntime(gravity, defaultFixedDT, defaultSubStepCount, 0)
 
 	w := cardinal.NewTestWorld(t, func(w *cardinal.World) {
-		w.RegisterComponent[component.Transform2D]()
-		w.RegisterComponent[component.Velocity2D]()
-		w.RegisterComponent[component.PhysicsBody2D]()
+		registerPhysicsWorld(w)
 	})
 
 	var entA cardinal.Entity
 	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
-		entA = w.Create[physicsArchetype]()
-		entA.Set(component.Transform2D{Position: component.Vec2{X: 0, Y: 0}})
-		entA.Set(component.Velocity2D{})
-		entA.Set(boxBody())
+		entA = seedSingleBox(w)
 	}})
 
 	idA := entA.ID()
@@ -302,9 +315,10 @@ func TestReconcileFailureFreezesECSWhileBodyFalls(t *testing.T) {
 				"reconcile should fail each tick while damping is NaN")
 			rt.Step()
 			rt.WritebackFromStepResults(writebackEntries(entA))
-			// ECS Transform stays frozen at the spawn position; writeback skipped A.
 			require.InDelta(t, 0, entA.Get[component.Transform2D]().Position.Y, 1e-9,
 				"A's ECS transform must stay frozen while reconcile fails")
+			require.Equal(t, component.Velocity2D{}, entA.Get[component.Velocity2D](),
+				"A's ECS velocity must stay frozen while reconcile fails")
 		}
 		// The Box2D body kept falling under gravity; A is still flagged failed.
 		bodyY := rt.World.BodyPosition(rt.Bodies[idA]).Y
@@ -320,8 +334,66 @@ func TestReconcileFailureFreezesECSWhileBodyFalls(t *testing.T) {
 		rt.Step()
 		rt.WritebackFromStepResults(writebackEntries(entA))
 
-		require.Less(t, entA.Get[component.Transform2D]().Position.Y, 0.0,
-			"A's ECS transform should jump to the fallen position after repair")
+		// ECS jumps to the fallen position (allowing this next step's further fall), rather
+		// than only Y < 0 which one step from spawn would satisfy.
+		ecsY := entA.Get[component.Transform2D]().Position.Y
+		require.InDelta(t, bodyY, ecsY, 0.5,
+			"A's ECS transform should jump to the fallen Box2D position after repair")
+		require.Empty(t, rt.reconcileFailed, "reconcileFailed should be empty after a successful reconcile")
+	}})
+}
+
+// TestReconcileFailureRetainsInvalidMotion covers the existing-body case where the pending edit
+// itself is invalid: a NaN Transform fails reconcile validation, so the body keeps its old Box2D
+// state and keeps simulating while ECS retains the NaN (writeback skips the entity). The NaN is
+// not replaced with finite solver state until the input is repaired, pinning that the protection
+// applies to invalid pending motion edits too.
+func TestReconcileFailureRetainsInvalidMotion(t *testing.T) {
+	t.Parallel()
+
+	gravity := component.Vec2{X: 0, Y: -10}
+	rt := NewRuntime(gravity, defaultFixedDT, defaultSubStepCount, 0)
+
+	w := cardinal.NewTestWorld(t, func(w *cardinal.World) {
+		registerPhysicsWorld(w)
+	})
+
+	var entA cardinal.Entity
+	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
+		entA = seedSingleBox(w)
+	}})
+
+	w.RunSystem(&runOnceSystem{func(*cardinal.World) {
+		require.NoError(t, rt.FullRebuildFromECS(gravity, rebuildEntriesFromECS(entA)))
+
+		// A: invalid transform (NaN position) fails reconcile validation. The existing
+		// body keeps its old transform and keeps falling while ECS retains the NaN.
+		entA.Set(component.Transform2D{Position: component.Vec2{X: math.NaN(), Y: 0}})
+
+		require.Error(t, rt.ReconcileFromECS(rebuildEntriesFromECS(entA)),
+			"reconcile should fail while transform is NaN")
+		rt.Step()
+		rt.WritebackFromStepResults(writebackEntries(entA))
+
+		// ECS retains the NaN edit; writeback skipped A.
+		require.True(t, math.IsNaN(entA.Get[component.Transform2D]().Position.X),
+			"A's NaN transform must stay in ECS while reconcile fails")
+		_, failed := rt.reconcileFailed[entA.ID()]
+		require.True(t, failed, "A should be in reconcileFailed while transform is invalid")
+
+		// The Box2D body kept its old transform and fell under gravity.
+		require.Less(t, rt.World.BodyPosition(rt.Bodies[entA.ID()]).Y, 0.0,
+			"A's Box2D body should keep falling under gravity")
+
+		// Repair A: valid transform. Reconcile succeeds and writeback resumes.
+		entA.Set(component.Transform2D{Position: component.Vec2{}})
+		require.NoError(t, rt.ReconcileFromECS(rebuildEntriesFromECS(entA)),
+			"reconcile should succeed once transform is repaired")
+		rt.Step()
+		rt.WritebackFromStepResults(writebackEntries(entA))
+
+		require.False(t, math.IsNaN(entA.Get[component.Transform2D]().Position.X),
+			"A's ECS transform should be finite after repair")
 		require.Empty(t, rt.reconcileFailed, "reconcileFailed should be empty after a successful reconcile")
 	}})
 }
@@ -336,17 +408,12 @@ func TestReconcileFailedClearedByRebuildAndReset(t *testing.T) {
 	rt := NewRuntime(gravity, defaultFixedDT, defaultSubStepCount, 0)
 
 	w := cardinal.NewTestWorld(t, func(w *cardinal.World) {
-		w.RegisterComponent[component.Transform2D]()
-		w.RegisterComponent[component.Velocity2D]()
-		w.RegisterComponent[component.PhysicsBody2D]()
+		registerPhysicsWorld(w)
 	})
 
 	var entA cardinal.Entity
 	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
-		entA = w.Create[physicsArchetype]()
-		entA.Set(component.Transform2D{Position: component.Vec2{X: 0, Y: 0}})
-		entA.Set(component.Velocity2D{})
-		entA.Set(boxBody())
+		entA = seedSingleBox(w)
 	}})
 
 	w.RunSystem(&runOnceSystem{func(*cardinal.World) {

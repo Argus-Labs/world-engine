@@ -43,7 +43,6 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 			continue
 		}
 
-		// Skip entities whose reconcile failed in the most recent pass; see Runtime.reconcileFailed.
 		if _, failed := rt.reconcileFailed[id]; failed {
 			continue
 		}

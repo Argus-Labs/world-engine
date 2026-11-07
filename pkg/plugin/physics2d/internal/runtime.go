@@ -144,6 +144,12 @@ type Runtime struct {
 	// across ticks so the per-tick clone does not allocate. Only valid within one call.
 	reconcileSortScratch []PhysicsRebuildEntry
 
+	// reconcileErrsScratch backs the per-entity error slice joined in ReconcileFromECS,
+	// reused across ticks so a failing tick does not allocate. Cleared back to zero
+	// after the errors are joined so the backing array pins no error messages past the
+	// tick (see Runtime scratch RULE).
+	reconcileErrsScratch []error
+
 	// rebuildEntriesScratch and writebackScratch back the pipeline system's two
 	// per-tick archetype gathers (see RebuildEntriesScratch / WritebackScratch).
 	// They hold component values and entity handles, so their tails pin ECS
@@ -244,6 +250,7 @@ func (rt *Runtime) Reset() {
 	rt.ActiveContactsDirty = false
 	rt.NoPersistedActiveContactsBaseline = false
 	rt.reconcileSortScratch = nil
+	rt.reconcileErrsScratch = nil
 	rt.rebuildEntriesScratch = nil
 	rt.writebackScratch = nil
 	rt.liveContactsScratch = nil
