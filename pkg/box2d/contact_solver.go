@@ -96,12 +96,9 @@ func (w *World) prepareContactsColor(ctx *stepContext, colorIndex, startIndex, e
 	// drop the per-iteration bounds checks below.
 	constraints := color.constraints[:contactCount]
 	awakeStates := ctx.states
-	// Mark every body that participates in a touching contact this step so the
-	// CCD time-loss gravity correction can skip it (see isContactConstrained).
-	// The graph coloring guarantees contacts within one color touch disjoint
-	// bodies, so the per-body OR is race-free under the parallel forRange
-	// dispatch; colors themselves run sequentially.
-	awakeSims := w.solverSets[awakeSet].bodySims
+	// awakeSims is the awake set's body sims (ctx.sims); reused for the
+	// isContactConstrained flag writes below.
+	awakeSims := ctx.sims
 
 	assert(0 <= startIndex && startIndex <= endIndex && endIndex <= contactCount)
 

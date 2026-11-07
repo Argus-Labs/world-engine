@@ -563,8 +563,8 @@ func (w *World) transferBody(targetSet, sourceSet *solverSet, b *body) {
 	targetSet.bodySims = append(targetSet.bodySims, *sourceSim)
 	targetSim := &targetSet.bodySims[targetIndex]
 
-	// Clear transient body flags
-	targetSim.flags &^= isFast | isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained | isJointConstrained | isForceDriven
+	// Clear transient body flags (see transientSimFlags in body.go).
+	targetSim.flags &^= transientSimFlags
 
 	// Remove body sim from solver set that owns it
 	removeBodySim(&sourceSet.bodySims, w.bodies, sourceIndex)

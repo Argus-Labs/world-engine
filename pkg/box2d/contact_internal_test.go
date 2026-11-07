@@ -894,16 +894,16 @@ func TestDeterminismTwoWorldsIdenticalState(t *testing.T) {
 	tassert.Equal(t, w1.Counters(), w2.Counters())
 }
 
-// TestPrepareContactsColorKinematicPlatformNoRace reproduces the P1 finding
-// from the slopcop review on 4ec97fe: graph coloring reserves only DYNAMIC
-// bodies per color, so many dynamic circles resting on a SINGLE shared
-// kinematic platform all land in the same color (their distinct dynamic-body
-// bits do not collide; the shared kinematic platform's bit is never set). The
-// parallel prepareContactsColor dispatch then writes isContactConstrained on
-// the same kinematic bodySim from multiple workers — a data race. The
-// dynamicFlag guard (matching the existing solver writes) skips the flag
-// write for non-dynamic endpoints; kinematic bodies receive no gravity
-// correction and need no flag.
+// TestPrepareContactsColorKinematicPlatformNoRace guards the dynamic-only
+// isContactConstrained write: graph coloring reserves only DYNAMIC bodies per
+// color, so many dynamic circles resting on a SINGLE shared kinematic platform
+// all land in the same color (their distinct dynamic-body bits do not collide;
+// the shared kinematic platform's bit is never set). The parallel
+// prepareContactsColor dispatch must not write isContactConstrained on the
+// same kinematic bodySim from multiple workers — a data race. The dynamicFlag
+// guard (matching the existing solver writes) skips the flag write for
+// non-dynamic endpoints; kinematic bodies receive no gravity correction and
+// need no flag.
 //
 // Run with -race to detect the race:
 //
@@ -958,15 +958,15 @@ func TestPrepareContactsColorKinematicPlatformNoRace(t *testing.T) {
 		"kinematic platform must not be marked isContactConstrained (dynamicFlag guard)")
 }
 
-// TestSetBodyTypeSynchronizesSimDynamicFlag reproduces the P1 finding from the
-// slopcop review on efb1f9f: SetBodyType updated body.flags (and, via
-// transferBody, bodyState.flags) but left bodySim.flags' dynamicFlag stale.
-// Converting a dynamic platform to kinematic left the sim marked dynamic, so
-// the prepareContactsColor dynamicFlag guard still wrote the now-shared
-// kinematic platform's sim flags from parallel workers — a data race under
-// -race. The reverse conversion left a newly-dynamic body unmarked, suppressing
-// the isContactConstrained guard and allowing the unwanted CCD gravity
-// correction. The fix synchronizes the sim's dynamicFlag on every type change.
+// TestSetBodyTypeSynchronizesSimDynamicFlag guards the bodySim dynamicFlag
+// synchronization on type change: SetBodyType updates body.flags (and, via
+// transferBody, bodyState.flags) but must also keep bodySim.flags' dynamicFlag
+// in sync. A stale dynamic bit after a dynamic->kinematic conversion lets the
+// prepareContactsColor dynamicFlag guard write the now-shared kinematic
+// platform's sim flags from parallel workers — a data race under -race. A
+// stale non-dynamic bit after a kinematic->dynamic conversion suppresses the
+// isContactConstrained guard and allows the unwanted CCD gravity correction.
+// The sim's dynamicFlag is synchronized on every type change.
 //
 // Run with -race to detect the forward-direction race:
 //

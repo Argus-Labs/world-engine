@@ -42,69 +42,54 @@ const (
 	// isLinearSpeedCapped means this body's LINEAR speed was clamped to
 	// MaximumLinearSpeed in the current time step (a port-internal refinement
 	// of isSpeedCapped, which upstream also sets for an angular-speed clamp).
-	// Used by the CCD time-loss gravity correction to skip only bodies whose
-	// linear velocity — and therefore linear gravity impulse — was actually
-	// discarded by the cap; an angular-only clamp does not justify skipping it.
+	// The CCD time-loss gravity correction skips only linearly-capped bodies
+	// (an angular-only clamp discards no linear gravity impulse). See
+	// solver_continuous.go for the full eligibility rationale.
 	isLinearSpeedCapped uint32 = 0x00000800
 
 	// isContactConstrained means this body had at least one touching contact
 	// solved this step (a port-internal flag). The CCD time-loss gravity
-	// correction assumes the body retained the FULL theoretical gravity impulse
-	// integrateVelocitiesTask added, but the contact solver (which runs after
-	// integration and before CCD) can already cancel part or all of that
-	// impulse — e.g. a body resting on a floor has its vertical velocity held
-	// at zero by the normal constraint, so subtracting the un-simulated gravity
-	// on a later TOI hit injects an artificial upward impulse. The correction
-	// is therefore conservatively skipped for any body that participated in a
-	// touching contact this step. Set in prepareContactsColor (which runs once
-	// per touching contact before the substep solve), transferred from the
-	// sim to the body and cleared from the sim in finalizeBodiesTask before
-	// solveContinuous runs, and cleared in transferBody. Upstream v3.2.0
-	// applies the correction unconditionally and shares this edge case; this
-	// port skips to avoid the demonstrated reversal.
+	// correction is skipped for such bodies (the contact solver can cancel
+	// the integrated gravity before CCD runs). Set in prepareContactsColor
+	// for DYNAMIC endpoints only, transferred sim→body and cleared in
+	// finalizeBodiesTask before solveContinuous runs, and cleared in
+	// transferBody. See solver_continuous.go for the full rationale.
 	isContactConstrained uint32 = 0x00001000
 
 	// isJointConstrained means this body had at least one joint solved this
-	// step (a port-internal flag). The CCD time-loss gravity correction assumes
-	// the body retained the FULL theoretical gravity impulse
-	// integrateVelocitiesTask added, but the joint solver (which runs after
-	// integration and before CCD) can already cancel part or all of that
-	// impulse — e.g. a body on a horizontal-axis prismatic joint has its
-	// vertical velocity held at zero by the joint's point-to-line constraint,
-	// so subtracting the un-simulated gravity on a later TOI hit injects an
-	// artificial upward impulse. The correction is therefore conservatively
-	// skipped for any body that participated in a joint this step. Set in
-	// prepareJoint (which runs once per joint before the substep solve) for
-	// DYNAMIC endpoints only — kinematic endpoints are not reserved by graph
-	// coloring and may be shared across joints in one color, so writing their
-	// flags would race under the parallel dispatch; kinematic bodies receive
-	// no gravity correction anyway. FilterJoint is excluded: it performs no
-	// velocity solve, so it cannot cancel gravity and must not suppress the
-	// correction. Transferred from the sim to the body and cleared from the
-	// sim in finalizeBodiesTask before solveContinuous runs, and cleared in
-	// transferBody. Upstream v3.2.0 applies the correction unconditionally and
-	// shares this edge case; this port skips to avoid the demonstrated
-	// reversal.
+	// step (a port-internal flag). The CCD time-loss gravity correction is
+	// skipped for such bodies (the joint solver can cancel the integrated
+	// gravity before CCD runs). Set in prepareJoint for DYNAMIC endpoints
+	// only (kinematic endpoints may be shared across joints in one color and
+	// would race under the parallel dispatch; they get no gravity correction
+	// anyway); FilterJoint is excluded (it does no velocity solve).
+	// Transferred sim→body and cleared in finalizeBodiesTask before
+	// solveContinuous runs, and cleared in transferBody. See
+	// solver_continuous.go for the full rationale.
 	isJointConstrained uint32 = 0x00002000
 
 	// isForceDriven means this body had a non-zero applied force integrated
 	// this step (a port-internal flag). The CCD time-loss gravity correction
-	// assumes the body retained the FULL theoretical gravity impulse
-	// integrateVelocitiesTask added, but a user-applied force can cancel part
-	// or all of that impulse (e.g. an upward force balancing gravity leaves the
-	// net vertical velocity change at zero), so subtracting the un-simulated
-	// gravity on a later TOI hit injects an artificial upward impulse. The
-	// combined acceleration is not modeled, so force-driven bodies are
-	// conservatively skipped. Set in integrateVelocitiesTask (which runs once
-	// per body per step, single-writer per body under the parallel dispatch)
-	// when sim.force != Vec2Zero — gravity itself is applied via gravityScale
-	// and never sets this flag; pure torque (which does not affect linear
-	// velocity) is also ignored. Transferred from the sim to the body and
-	// cleared from the sim in finalizeBodiesTask before solveContinuous runs,
-	// and cleared in transferBody. Upstream v3.2.0 applies the correction
-	// unconditionally and shares this edge case; this port skips to avoid the
-	// demonstrated reversal.
+	// is skipped for such bodies (a user-applied force can cancel the
+	// integrated gravity). Set in integrateVelocitiesTask (which runs once
+	// per body per substep, single-writer per body under the parallel
+	// dispatch) when sim.force != Vec2Zero — gravity itself is applied via
+	// gravityScale and never sets this flag; pure torque is also ignored.
+	// Transferred sim→body and cleared in finalizeBodiesTask before
+	// solveContinuous runs, and cleared in transferBody. See
+	// solver_continuous.go for the full rationale.
 	isForceDriven uint32 = 0x00004000
+
+	// transientSimFlags are the per-step flags cleared from both the body and
+	// the sim at the end of finalizeBodiesTask and in transferBody. isFast is
+	// included because it is recomputed each step in finalizeBodiesTask.
+	transientSimFlags = isFast | isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained | isJointConstrained | isForceDriven
+
+	// copiedSimFlags is the subset of transientSimFlags transferred from the
+	// sim to the body in finalizeBodiesTask. It deliberately EXCLUDES isFast,
+	// which is recomputed each step (see finalizeBodiesTask) rather than
+	// copied from the sim.
+	copiedSimFlags = isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained | isJointConstrained | isForceDriven
 
 	// hadTimeOfImpact means this body had a time of impact event in the
 	// current time step.

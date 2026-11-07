@@ -1401,8 +1401,9 @@ func (w *World) prepareJoint(js *jointSim, ctx *stepContext) {
 	// color, so a kinematic endpoint may be shared across joints in one color
 	// and writing its flags would race under the parallel dispatch; kinematic
 	// bodies get no gravity correction anyway. Race-free under the parallel
-	// color dispatch and the serial overflow loop alike.
-	awakeSims := w.solverSets[awakeSet].bodySims
+	// color dispatch and the serial overflow loop alike. Full rationale in
+	// solver_continuous.go.
+	awakeSims := ctx.sims
 	// FilterJoint performs no velocity solve (its prepare/warm-start/solve
 	// cases are all no-ops), so it cannot cancel the integrated gravity
 	// impulse and must NOT mark its endpoints isJointConstrained — otherwise

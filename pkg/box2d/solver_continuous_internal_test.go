@@ -218,7 +218,7 @@ func TestSolveContinuousTimeLossGravityCorrection(t *testing.T) {
 			defer wc.Destroy()
 			c2 := wc.BodyWorldCenterOfMass(control)
 			vControl := wc.BodyLinearVelocity(control)
-			require.InDelta(t, vy0+gY*dt, vControl.Y, 1e-4,
+			require.InDelta(t, vy0+gY*dt, vControl.Y, timeLossTolerance,
 				"control (no TOI) must take the full step gravity")
 
 			// TOI: identical body above a static floor.
@@ -280,125 +280,84 @@ func TestSolveContinuousTimeLossRespectsLinearLocks(t *testing.T) {
 		"locked-X body must keep zero X velocity after the TOI correction (lock clipping)")
 }
 
-// TestSolveContinuousTimeLossSpeedCappedNoReversal reproduces the regression
-// reported by the slopcop review on a12efce: a speed-capped fast body under
-// gravity that hits a TOI mid-step must NOT have its velocity reversed by the
-// time-loss correction. integrateVelocitiesTask caps velocity to
-// MaximumLinearSpeed and discards part of the gravity impulse; subtracting
-// the full theoretical un-simulated gravity (as the pre-fix code did) removes
-// gravity that was never retained and can launch the body back above the cap.
-// After the fix the post-TOI velocity must stay at or below the cap and
-// must not reverse direction.
+// TestSolveContinuousTimeLossSpeedCappedNoReversal covers the speed-cap guard
+// for both CCD call sites: a speed-capped fast body under gravity that hits a
+// TOI mid-step must NOT have its velocity reversed by the time-loss
+// correction. integrateVelocitiesTask caps velocity to MaximumLinearSpeed and
+// discards part of the gravity impulse; subtracting the full theoretical
+// un-simulated gravity (as the pre-fix code did) removes gravity that was
+// never retained and can launch the body back above the cap. After the fix the
+// post-TOI velocity must stay at or below the cap and must not reverse
+// direction. The non-bullet path runs solveContinuous inline in
+// finalizeBodiesTask; the bullet path runs it in the serial bullet stage
+// after finalize clears the sim isSpeedCapped flag, so the body-flag guard
+// must protect both.
 func TestSolveContinuousTimeLossSpeedCappedNoReversal(t *testing.T) {
-	const (
-		dt       = 1.0 / 60.0
-		maxSpeed = 10.0
-		radius   = 0.1
-		yStart   = 0.15
-		vy0      = -50.0
-		subSteps = 8
-	)
+	for _, tc := range []struct {
+		name     string
+		isBullet bool
+	}{
+		{"non_bullet", false},
+		{"bullet", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const (
+				dt       = 1.0 / 60.0
+				maxSpeed = 10.0
+				radius   = 0.1
+				yStart   = 0.15
+				vy0      = -50.0
+				subSteps = 8
+			)
 
-	def := DefaultWorldDef()
-	def.Gravity = Vec2{X: 0.0, Y: -10000.0}
-	def.MaximumLinearSpeed = maxSpeed
-	w := NewWorld(&def)
-	defer w.Destroy()
+			def := DefaultWorldDef()
+			def.Gravity = Vec2{X: 0.0, Y: -10000.0}
+			def.MaximumLinearSpeed = maxSpeed
+			w := NewWorld(&def)
+			defer w.Destroy()
 
-	gd := DefaultBodyDef()
-	ground := w.CreateBody(&gd)
-	floor := MakeOffsetBox(5.0, 0.05, Vec2{X: 0.0, Y: -0.05}, RotIdentity)
-	gsd := DefaultShapeDef()
-	w.CreatePolygonShape(ground, &gsd, &floor)
+			gd := DefaultBodyDef()
+			ground := w.CreateBody(&gd)
+			floor := MakeOffsetBox(5.0, 0.05, Vec2{X: 0.0, Y: -0.05}, RotIdentity)
+			gsd := DefaultShapeDef()
+			w.CreatePolygonShape(ground, &gsd, &floor)
 
-	bd := DefaultBodyDef()
-	bd.Type = DynamicBody
-	bd.Position = Vec2{X: 0.0, Y: yStart}
-	bd.LinearVelocity = Vec2{X: 0.0, Y: vy0}
-	bodyID := w.CreateBody(&bd)
+			bd := DefaultBodyDef()
+			bd.Type = DynamicBody
+			bd.Position = Vec2{X: 0.0, Y: yStart}
+			bd.LinearVelocity = Vec2{X: 0.0, Y: vy0}
+			bd.IsBullet = tc.isBullet
+			bodyID := w.CreateBody(&bd)
 
-	circle := Circle{Center: Vec2Zero, Radius: radius}
-	sd := DefaultShapeDef()
-	sd.Density = 1.0
-	w.CreateCircleShape(bodyID, &sd, &circle)
+			circle := Circle{Center: Vec2Zero, Radius: radius}
+			sd := DefaultShapeDef()
+			sd.Density = 1.0
+			w.CreateCircleShape(bodyID, &sd, &circle)
 
-	w.Step(dt, subSteps)
+			w.Step(dt, subSteps)
 
-	hsim := w.getBodySim(w.getBodyFullID(bodyID))
-	require.NotZero(t, hsim.flags&hadTimeOfImpact,
-		"fast body must record a TOI against the floor")
+			hsim := w.getBodySim(w.getBodyFullID(bodyID))
+			require.NotZero(t, hsim.flags&hadTimeOfImpact,
+				"%s: fast body must record a TOI against the floor", tc.name)
 
-	bf := w.getBodyFullID(bodyID)
-	require.NotZero(t, bf.flags&isSpeedCapped,
-		"body must be speed-capped at this step")
+			bf := w.getBodyFullID(bodyID)
+			require.NotZero(t, bf.flags&isSpeedCapped,
+				"%s: body must be speed-capped at this step", tc.name)
 
-	v := w.BodyLinearVelocity(bodyID)
-	require.LessOrEqual(t, Length(v), maxSpeed+1e-6,
-		"post-TOI velocity must respect MaximumLinearSpeed (no cap reversal)")
-	require.LessOrEqual(t, v.Y, 1e-6,
-		"downward TOI must not reverse the body upward (pre-fix reversed to +101.67)")
+			v := w.BodyLinearVelocity(bodyID)
+			require.LessOrEqual(t, Length(v), maxSpeed+1e-6,
+				"%s: post-TOI velocity must respect MaximumLinearSpeed (no cap reversal)", tc.name)
+			require.LessOrEqual(t, v.Y, 1e-6,
+				"%s: downward TOI must not reverse the body upward (pre-fix reversed to +101.67)", tc.name)
+		})
+	}
 }
 
-// TestSolveContinuousTimeLossSpeedCappedNoReversalBullet is the bullet-path
-// twin of the above test: the serial bullet stage calls solveContinuous on
-// bullet bodies after finalizeBodiesTask clears the sim isSpeedCapped flag, so
-// the same body-flag guard must protect the bullet path.
-func TestSolveContinuousTimeLossSpeedCappedNoReversalBullet(t *testing.T) {
-	const (
-		dt       = 1.0 / 60.0
-		maxSpeed = 10.0
-		radius   = 0.1
-		yStart   = 0.15
-		vy0      = -50.0
-		subSteps = 8
-	)
-
-	def := DefaultWorldDef()
-	def.Gravity = Vec2{X: 0.0, Y: -10000.0}
-	def.MaximumLinearSpeed = maxSpeed
-	w := NewWorld(&def)
-	defer w.Destroy()
-
-	gd := DefaultBodyDef()
-	ground := w.CreateBody(&gd)
-	floor := MakeOffsetBox(5.0, 0.05, Vec2{X: 0.0, Y: -0.05}, RotIdentity)
-	gsd := DefaultShapeDef()
-	w.CreatePolygonShape(ground, &gsd, &floor)
-
-	bd := DefaultBodyDef()
-	bd.Type = DynamicBody
-	bd.Position = Vec2{X: 0.0, Y: yStart}
-	bd.LinearVelocity = Vec2{X: 0.0, Y: vy0}
-	bd.IsBullet = true
-	bodyID := w.CreateBody(&bd)
-
-	circle := Circle{Center: Vec2Zero, Radius: radius}
-	sd := DefaultShapeDef()
-	sd.Density = 1.0
-	w.CreateCircleShape(bodyID, &sd, &circle)
-
-	w.Step(dt, subSteps)
-
-	hsim := w.getBodySim(w.getBodyFullID(bodyID))
-	require.NotZero(t, hsim.flags&hadTimeOfImpact,
-		"bullet must record a TOI against the floor")
-
-	bf := w.getBodyFullID(bodyID)
-	require.NotZero(t, bf.flags&isSpeedCapped,
-		"bullet must be speed-capped at this step")
-
-	v := w.BodyLinearVelocity(bodyID)
-	require.LessOrEqual(t, Length(v), maxSpeed+1e-6,
-		"post-TOI velocity must respect MaximumLinearSpeed (no cap reversal)")
-	require.LessOrEqual(t, v.Y, 1e-6,
-		"downward TOI must not reverse the bullet upward (pre-fix reversed to +101.67)")
-}
-
-// timeLossReproScene builds the common slopcop reproduction used by the three
-// follow-up regression tests: a small fast circle above a static floor, under
-// the given gravity and linear damping, stepping once. maxLinearSpeed,
-// linearDamping and the initial angular velocity are configurable so each
-// finding exercises its own guard.
+// timeLossReproScene builds the common reproduction used by the damping,
+// zero-mass and angular-cap regression tests: a small fast circle above a
+// static floor, under the given gravity and linear damping, stepping once.
+// maxLinearSpeed, linearDamping and the initial angular velocity are
+// configurable so each test exercises its own guard.
 func timeLossReproScene(t *testing.T, gravity Vec2, maxLinearSpeed, linearDamping, angularVelocity float64, isBullet bool) (*World, BodyID) {
 	t.Helper()
 
@@ -440,15 +399,15 @@ func timeLossReproScene(t *testing.T, gravity Vec2, maxLinearSpeed, linearDampin
 	return w, bodyID
 }
 
-// TestSolveContinuousTimeLossDampingNoReversal reproduces the damping finding
-// from the slopcop review on 526a4f5: a heavily damped fast body under strong
-// gravity that hits a TOI mid-step must NOT be reversed upward by the time-loss
-// correction. integrateVelocitiesTask attenuates the accumulated velocity
-// (including the gravity impulse) every substep, so the body retained less
-// than the full theoretical gravity; subtracting the full un-simulated amount
-// (as the pre-fix code did) reverses a falling body upward to +118.63. The
-// correction is conservatively skipped for damped bodies, preserving the
-// downward velocity. Exercises both the non-bullet and bullet CCD paths.
+// TestSolveContinuousTimeLossDampingNoReversal guards the damping exclusion:
+// a heavily damped fast body under strong gravity that hits a TOI mid-step
+// must NOT be reversed upward by the time-loss correction.
+// integrateVelocitiesTask attenuates the accumulated velocity (including the
+// gravity impulse) every substep, so the body retained less than the full
+// theoretical gravity; subtracting the full un-simulated amount reverses a
+// falling body upward (observed +118.63 pre-fix). The correction is
+// conservatively skipped for damped bodies, preserving the downward
+// velocity. Exercises both the non-bullet and bullet CCD paths.
 func TestSolveContinuousTimeLossDampingNoReversal(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
@@ -459,10 +418,10 @@ func TestSolveContinuousTimeLossDampingNoReversal(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			w, bodyID := timeLossReproScene(t,
-				Vec2{X: 0.0, Y: -10000.0}, // gravity
-				400.0,                     // maxLinearSpeed (never reached here)
-				1000.0,                    // linearDamping
-				0.0,                       // angularVelocity
+				Vec2{X: 0.0, Y: -10000.0},            // gravity
+				DefaultWorldDef().MaximumLinearSpeed, // maxLinearSpeed (default; never reached here)
+				1000.0,                               // linearDamping
+				0.0,                                  // angularVelocity
 				tc.isBullet)
 			defer w.Destroy()
 
@@ -477,14 +436,13 @@ func TestSolveContinuousTimeLossDampingNoReversal(t *testing.T) {
 	}
 }
 
-// TestSolveContinuousTimeLossZeroMassNoGravityImpulse reproduces the zero-mass
-// finding from the slopcop review on 526a4f5: a zero-density (zero-mass) dynamic
-// body receives NO gravity from integrateVelocitiesTask (the integrator zeroes
-// the gravity scale when invMass == 0), so the time-loss correction must NOT
-// subtract a gravity contribution that was never integrated. The pre-fix code
-// used fastBodySim.gravityScale unconditionally and reversed the body to
-// +105.67; the invMass > 0 guard skips the correction, leaving the downward
-// velocity intact. Exercises both CCD paths.
+// TestSolveContinuousTimeLossZeroMassNoGravityImpulse guards the zero-mass
+// exclusion: a zero-density (zero-mass) dynamic body receives NO gravity from
+// integrateVelocitiesTask (the integrator zeroes the gravity scale when
+// invMass == 0), so the time-loss correction must NOT subtract a gravity
+// contribution that was never integrated. Without the invMass > 0 guard the
+// correction reverses the body upward (observed +105.67 pre-fix); the guard
+// skips it, leaving the downward velocity intact. Exercises both CCD paths.
 func TestSolveContinuousTimeLossZeroMassNoGravityImpulse(t *testing.T) {
 	const (
 		dt       = 1.0 / 60.0
@@ -504,7 +462,6 @@ func TestSolveContinuousTimeLossZeroMassNoGravityImpulse(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			def := DefaultWorldDef()
 			def.Gravity = Vec2{X: 0.0, Y: -10000.0}
-			def.MaximumLinearSpeed = 400.0
 			w := NewWorld(&def)
 			defer w.Destroy()
 
@@ -540,16 +497,16 @@ func TestSolveContinuousTimeLossZeroMassNoGravityImpulse(t *testing.T) {
 	}
 }
 
-// TestSolveContinuousTimeLossAngularCapDoesNotSkipCorrection reproduces the
-// angular-cap finding from the slopcop review on 526a4f5: an angular-only speed
-// clamp (isSpeedCapped set by the angular cap, not the linear one) discards no
-// linear gravity impulse, so the time-loss correction must still apply. Two
-// identical falling circles differ only in initial spin; the spinning one's
-// rotation is capped but its linear motion is not. The pre-fix guard on
-// isSpeedCapped skipped the correction for the spinning body, so it retained
-// the full step's gravity (-50.166667) while the non-spinning one was
-// corrected (-50.080848). The linear-only isLinearSpeedCapped guard applies
-// the correction to both, so they finish with equal velocity.
+// TestSolveContinuousTimeLossAngularCapDoesNotSkipCorrection guards the
+// linear-only speed-cap distinction: an angular-only speed clamp (isSpeedCapped
+// set by the angular cap, not the linear one) discards no linear gravity
+// impulse, so the time-loss correction must still apply. Two identical falling
+// circles differ only in initial spin; the spinning one's rotation is capped
+// but its linear motion is not. A guard on isSpeedCapped would wrongly skip
+// the correction for the spinning body, leaving it with the full step's
+// gravity (-50.166667) while the non-spinning one was corrected (-50.080848).
+// The linear-only isLinearSpeedCapped guard applies the correction to both,
+// so they finish with equal velocity.
 func TestSolveContinuousTimeLossAngularCapDoesNotSkipCorrection(t *testing.T) {
 	const (
 		dt       = 1.0 / 60.0
@@ -612,17 +569,18 @@ func TestSolveContinuousTimeLossAngularCapDoesNotSkipCorrection(t *testing.T) {
 	// Both bodies hit the same floor at the same fraction, so the correction
 	// (now applied to both) must leave them with equal velocity. Pre-fix the
 	// spinning one was skipped and retained the full step's gravity.
-	require.InDelta(t, vPlain.Y, vSpin.Y, 1e-4,
+	require.InDelta(t, vPlain.Y, vSpin.Y, timeLossTolerance,
 		"angular-only cap must not skip the time-loss correction: spinning and plain bodies must finish with equal Y velocity")
 }
 
-// timeLossSupportedWallScene builds the slopcop P1 reproduction: a frictionless
-// circle RESTING on a static floor (so the contact solver cancels gravity each
-// substep, holding vertical velocity at zero) that is also sliding horizontally
-// into a vertical wall, so a CCD TOI fires in the same step. When withWall is
-// false the wall is omitted (the no-TOI control). The body starts exactly
-// touching the floor (center y == radius, floor top at y == 0) so the floor
-// contact is touching from step one and isContactConstrained is set.
+// timeLossSupportedWallScene builds the contact-constrained reproduction: a
+// frictionless circle RESTING on a static floor (so the contact solver cancels
+// gravity each substep, holding vertical velocity at zero) that is also
+// sliding horizontally into a vertical wall, so a CCD TOI fires in the same
+// step. When withWall is false the wall is omitted (the no-TOI control). The
+// body starts exactly touching the floor (center y == radius, floor top at
+// y == 0) so the floor contact is touching from step one and
+// isContactConstrained is set.
 func timeLossSupportedWallScene(t *testing.T, gravity Vec2, withWall, isBullet bool) (*World, BodyID) {
 	t.Helper()
 
@@ -668,17 +626,17 @@ func timeLossSupportedWallScene(t *testing.T, gravity Vec2, withWall, isBullet b
 	return w, bodyID
 }
 
-// TestSolveContinuousTimeLossContactConstrainedNoReversal reproduces the P1
-// finding from the slopcop review on 13c5462: a body RESTING on a floor (its
-// vertical velocity held at zero by the floor's normal contact constraint) that
-// slides horizontally into a wall receives an artificial vertical impulse from
-// the time-loss correction, because the correction subtracts gravity that the
-// contact solver already canceled. Pre-fix the wall hit finished with a spurious
-// vertical velocity of ~0.096 m/s (gravity -10) / ~9.57 m/s (gravity -1000) in
-// this scene; the no-wall control stayed at zero. The isContactConstrained
-// guard skips the correction for the touching body, so the wall case now matches
-// the control: vertical velocity stays at zero. Exercises both the non-bullet
-// and bullet CCD paths.
+// TestSolveContinuousTimeLossContactConstrainedNoReversal guards the
+// contact-constrained exclusion: a body RESTING on a floor (its vertical
+// velocity held at zero by the floor's normal contact constraint) that slides
+// horizontally into a wall must NOT receive an artificial vertical impulse
+// from the time-loss correction, because the correction would subtract
+// gravity the contact solver already canceled. Without the guard the wall
+// hit finishes with a spurious vertical velocity of ~0.096 m/s (gravity -10)
+// / ~9.57 m/s (gravity -1000) while the no-wall control stays at zero. The
+// isContactConstrained guard skips the correction for the touching body, so
+// the wall case matches the control: vertical velocity stays at zero.
+// Exercises both the non-bullet and bullet CCD paths.
 func TestSolveContinuousTimeLossContactConstrainedNoReversal(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
@@ -732,7 +690,7 @@ func TestSolveContinuousTimeLossContactConstrainedNoReversal(t *testing.T) {
 	}
 }
 
-// timeLossPrismaticWallScene builds the slopcop P1 joint reproduction: a
+// timeLossPrismaticWallScene builds the joint-constrained reproduction: a
 // frictionless dynamic circle constrained to a HORIZONTAL-axis prismatic joint
 // (so the joint's point-to-line constraint holds vertical velocity at zero,
 // canceling gravity each substep) that slides horizontally into a vertical
@@ -798,16 +756,16 @@ func timeLossPrismaticWallScene(t *testing.T, gravity Vec2, withWall, isBullet b
 	return w, bodyID
 }
 
-// TestSolveContinuousTimeLossJointConstrainedNoReversal reproduces the P1
-// finding from the slopcop review on 4ec97fe: a body on a horizontal-axis
-// prismatic joint (its vertical velocity held at zero by the joint's
-// point-to-line constraint) that slides horizontally into a wall receives an
+// TestSolveContinuousTimeLossJointConstrainedNoReversal guards the
+// joint-constrained exclusion: a body on a horizontal-axis prismatic joint
+// (its vertical velocity held at zero by the joint's point-to-line
+// constraint) that slides horizontally into a wall must NOT receive an
 // artificial vertical impulse from the time-loss correction, because the
-// correction subtracts gravity that the joint solver already canceled.
-// Pre-fix the wall hit finished with a spurious upward velocity of ~0.095667
-// m/s (gravity -10) / ~9.56667 m/s (gravity -1000) in this scene; the no-wall
-// control stayed at zero. The isJointConstrained guard skips the correction
-// for the joint-constrained body, so the wall case now matches the control:
+// correction would subtract gravity the joint solver already canceled.
+// Without the guard the wall hit finishes with a spurious upward velocity of
+// ~0.095667 m/s (gravity -10) / ~9.56667 m/s (gravity -1000) while the no-wall
+// control stays at zero. The isJointConstrained guard skips the correction
+// for the joint-constrained body, so the wall case matches the control:
 // vertical velocity stays at zero. Exercises both the non-bullet and bullet
 // CCD paths.
 func TestSolveContinuousTimeLossJointConstrainedNoReversal(t *testing.T) {
@@ -919,16 +877,17 @@ func timeLossFilterJointScene(t *testing.T, withFilterJoint, isBullet bool) (*Wo
 	return w, bodyID
 }
 
-// TestSolveContinuousTimeLossFilterJointNoSuppression reproduces the P2 finding
-// from the slopcop review on efb1f9f: FilterJoint performs no velocity solve,
-// so it cannot cancel the integrated gravity impulse and must not suppress the
-// CCD time-loss gravity correction. Pre-fix, attaching a filter joint to an
-// empty static body set isJointConstrained on the falling dynamic body and
-// changed its post-TOI velocity from the corrected value to the un-corrected
-// full-step-gravity value (identical collision geometry and TOI). After the
-// fix, the with- and without-filter-joint scenes finish with identical
-// post-TOI velocity and neither body carries isJointConstrained. Exercises
-// both the non-bullet and bullet CCD paths.
+// TestSolveContinuousTimeLossFilterJointNoSuppression guards the FilterJoint
+// exclusion from joint-constrained marking: FilterJoint performs no velocity
+// solve, so it cannot cancel the integrated gravity impulse and must not
+// suppress the CCD time-loss gravity correction. Marking FilterJoint
+// endpoints isJointConstrained would set the flag on a falling dynamic body
+// (via a filter joint to an empty static body) and change its post-TOI
+// velocity from the corrected value to the un-corrected full-step-gravity
+// value (identical collision geometry and TOI). The with- and
+// without-filter-joint scenes must finish with identical post-TOI velocity
+// and neither body carries isJointConstrained. Exercises both the non-bullet
+// and bullet CCD paths.
 func TestSolveContinuousTimeLossFilterJointNoSuppression(t *testing.T) {
 	const (
 		dt  = 1.0 / 60.0
@@ -980,15 +939,15 @@ func TestSolveContinuousTimeLossFilterJointNoSuppression(t *testing.T) {
 	}
 }
 
-// timeLossBalancedForceScene builds the slopcop P1 balanced-force reproduction:
-// a frictionless dynamic circle moving horizontally under a strong downward
+// timeLossBalancedForceScene builds the balanced-force reproduction: a
+// frictionless dynamic circle moving horizontally under a strong downward
 // gravity, with an upward center force equal to mass*|g| applied so the net
-// vertical acceleration is zero (the unobstructed control keeps vy ~= 0). When
-// withWall is true a vertical wall is placed so the body hits it mid-step,
-// firing a CCD TOI in the same step the force is applied. Pre-fix the TOI
-// branch subtracted the un-simulated gravity the force had already canceled,
-// injecting a spurious upward velocity (reviewer observed +8.5667 m/s at
-// gravity -1000, dt=1/60).
+// vertical acceleration is zero (the unobstructed control keeps vy ~= 0).
+// When withWall is true a vertical wall is placed so the body hits it
+// mid-step, firing a CCD TOI in the same step the force is applied. Without
+// the force-driven guard the TOI branch subtracts the un-simulated gravity
+// the force had already canceled, injecting a spurious upward velocity
+// (+8.5667 m/s at gravity -1000, dt=1/60).
 func timeLossBalancedForceScene(t *testing.T, gravityY float64, withWall, isBullet bool) (*World, BodyID) {
 	t.Helper()
 
@@ -1033,14 +992,15 @@ func timeLossBalancedForceScene(t *testing.T, gravityY float64, withWall, isBull
 	return w, bodyID
 }
 
-// TestSolveContinuousTimeLossBalancedForceNoReversal reproduces the P1 finding
-// from the slopcop review on efb1f9f: a body with an upward force balancing
-// gravity, moving horizontally into a wall, gained a spurious upward velocity
-// because the time-loss correction subtracted gravity the applied force had
-// already canceled. The isForceDriven guard (set in integrateVelocitiesTask
-// when sim.force != Vec2Zero) skips the correction for force-driven bodies, so
-// the wall case matches the no-wall control (vertical velocity stays at zero).
-// Exercises both the non-bullet and bullet CCD paths at gravity -10 and -1000.
+// TestSolveContinuousTimeLossBalancedForceNoReversal guards the force-driven
+// exclusion: a body with an upward force balancing gravity, moving
+// horizontally into a wall, must NOT gain a spurious upward velocity from the
+// time-loss correction, which would subtract gravity the applied force had
+// already canceled (observed +8.5667 m/s at gravity -1000 pre-fix). The
+// isForceDriven guard (set in integrateVelocitiesTask when sim.force !=
+// Vec2Zero) skips the correction for force-driven bodies, so the wall case
+// matches the no-wall control (vertical velocity stays at zero). Exercises
+// both the non-bullet and bullet CCD paths at gravity -10 and -1000.
 func TestSolveContinuousTimeLossBalancedForceNoReversal(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
@@ -1088,4 +1048,340 @@ func TestSolveContinuousTimeLossBalancedForceNoReversal(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestSolveContinuousTimeLossCeilingReAppliesSpeedCap guards the re-application
+// of MaximumLinearSpeed after the time-loss correction: a body moving against
+// gravity that integration clamps BELOW the cap (so the correction is not
+// skipped via isLinearSpeedCapped) can be pushed back ABOVE the cap by the
+// correction, because the correction restores the gravity removed during the
+// un-simulated fraction. The post-correction clamp must keep the post-TOI
+// velocity at or below MaximumLinearSpeed. The body uses a small radius and a
+// thin ceiling so it tunnels past the ceiling in one step (no broadphase
+// contact to stop it before CCD), letting the CCD TOI fire at a small fraction
+// (large correction). Exercises both the non-bullet and bullet CCD paths.
+func TestSolveContinuousTimeLossCeilingReAppliesSpeedCap(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		isBullet bool
+	}{
+		{"non_bullet", false},
+		{"bullet", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const (
+				dt       = 1.0 / 60.0
+				maxSpeed = 10.0
+				radius   = 0.01 // small enough to tunnel past the thin ceiling
+				vy0      = 10.5 // upward, just above the cap
+				subSteps = 1
+			)
+
+			def := DefaultWorldDef()
+			def.Gravity = Vec2{X: 0.0, Y: -60.0}
+			def.MaximumLinearSpeed = maxSpeed
+			def.EnableSleep = false
+			w := NewWorld(&def)
+			defer w.Destroy()
+
+			// Thin ceiling: bottom surface a small gap above the body's top so
+			// the body is NOT touching at step start, but the body (small
+			// radius) tunnels past it in one step — no broadphase contact stops
+			// the body before CCD, so the CCD TOI fires at a small fraction
+			// (large correction → would exceed the cap without the re-clamp).
+			gd := DefaultBodyDef()
+			ceiling := w.CreateBody(&gd)
+			ceilingBox := MakeOffsetBox(5.0, 0.005, Vec2{X: 0.0, Y: 0.05}, RotIdentity) // bottom at y=0.045
+			gsd := DefaultShapeDef()
+			w.CreatePolygonShape(ceiling, &gsd, &ceilingBox)
+
+			bd := DefaultBodyDef()
+			bd.Type = DynamicBody
+			bd.Position = Vec2{X: 0.0, Y: 0.0}
+			bd.LinearVelocity = Vec2{X: 0.0, Y: vy0}
+			bd.IsBullet = tc.isBullet
+			bd.EnableSleep = false
+			bodyID := w.CreateBody(&bd)
+
+			circle := Circle{Center: Vec2Zero, Radius: radius}
+			sd := DefaultShapeDef()
+			sd.Density = 1.0
+			w.CreateCircleShape(bodyID, &sd, &circle)
+
+			w.Step(dt, subSteps)
+
+			hsim := w.getBodySim(w.getBodyFullID(bodyID))
+			require.NotZero(t, hsim.flags&hadTimeOfImpact,
+				"%s: body must record a TOI against the ceiling", tc.name)
+
+			// The body must NOT be linear-speed-capped during integration (its
+			// post-integration speed 9.5 is below the 10 cap), so the guard
+			// does not skip the correction — the re-clamp is what keeps it in
+			// range.
+			bf := w.getBodyFullID(bodyID)
+			require.Zero(t, bf.flags&isLinearSpeedCapped,
+				"%s: body must not be linear-speed-capped during integration (else the re-clamp is not exercised)", tc.name)
+
+			v := w.BodyLinearVelocity(bodyID)
+			require.LessOrEqual(t, Length(v), maxSpeed+1e-6,
+				"%s: post-TOI velocity must respect MaximumLinearSpeed after the correction re-clamp", tc.name)
+			require.Greater(t, v.Y, 0.0,
+				"%s: upward ceiling TOI must keep upward (not reversed) velocity after re-clamp", tc.name)
+		})
+	}
+}
+
+// TestSolveContinuousTimeLossUnlockedXWithLinearYLocked is the complementary
+// lock test: a body locked on Y, free on X, with a non-unit gravity scale and a
+// gravity X component, moving horizontally into a wall. The correction's Y
+// component is clipped by lockLinearY (v.Y stays zero); the X component is
+// applied to the unlocked X axis, so the post-TOI v.X matches the upstream
+// analytic value vx + gravityScale*gravity.X*dt*fraction. The existing lock
+// test only locks X and only asserts Y; this covers the unlocked-X path and a
+// non-unit gravity scale, which can regress independently.
+func TestSolveContinuousTimeLossUnlockedXWithLinearYLocked(t *testing.T) {
+	const (
+		dt           = 1.0 / 60.0
+		vx           = 50.0
+		radius       = 0.1
+		gravityScale = 2.0
+		subSteps     = 8
+	)
+
+	gravity := Vec2{X: -5.0, Y: -10.0}
+
+	build := func(t *testing.T, withWall bool) (*World, BodyID, Vec2) {
+		t.Helper()
+		def := DefaultWorldDef()
+		def.Gravity = gravity
+		w := NewWorld(&def)
+
+		if withWall {
+			gd := DefaultBodyDef()
+			wallBody := w.CreateBody(&gd)
+			wall := MakeOffsetBox(0.05, 5.0, Vec2{X: 0.5, Y: 0.0}, RotIdentity)
+			gsd := DefaultShapeDef()
+			w.CreatePolygonShape(wallBody, &gsd, &wall)
+		}
+
+		bd := DefaultBodyDef()
+		bd.Type = DynamicBody
+		bd.Position = Vec2{X: 0.0, Y: 0.0}
+		bd.LinearVelocity = Vec2{X: vx, Y: 0.0}
+		bd.GravityScale = gravityScale
+		bd.MotionLocks = MotionLocks{LinearY: true}
+		bodyID := w.CreateBody(&bd)
+
+		circle := Circle{Center: Vec2Zero, Radius: radius}
+		sd := DefaultShapeDef()
+		sd.Density = 1.0
+		w.CreateCircleShape(bodyID, &sd, &circle)
+
+		c1 := w.BodyWorldCenterOfMass(bodyID)
+		w.Step(dt, subSteps)
+		return w, bodyID, c1
+	}
+
+	// Control: no wall → full step gravity on X (Y is locked, stays zero).
+	wc, control, c1 := build(t, false)
+	defer wc.Destroy()
+	c2 := wc.BodyWorldCenterOfMass(control)
+	vControl := wc.BodyLinearVelocity(control)
+	require.InDelta(t, 0.0, vControl.Y, timeLossTolerance,
+		"locked-Y control must keep zero Y velocity")
+	wantControlX := vx + float64(gravityScale*gravity.X*dt)
+	require.InDelta(t, wantControlX, vControl.X, timeLossTolerance,
+		"control (no TOI) must take the full step gravity on X")
+
+	// Wall hit: TOI fires mid-step on the unlocked X axis.
+	wt, hit, _ := build(t, true)
+	defer wt.Destroy()
+
+	hsim := wt.getBodySim(wt.getBodyFullID(hit))
+	require.NotZero(t, hsim.flags&hadTimeOfImpact, "body must hit a TOI against the wall")
+
+	cHit := wt.BodyWorldCenterOfMass(hit)
+	vHit := wt.BodyLinearVelocity(hit)
+
+	// Fraction of the step actually simulated (from the COM X sweep, which
+	// matches the control's pre-CCD sweep).
+	fraction := (cHit.X - c1.X) / (c2.X - c1.X)
+	require.True(t, fraction > 0.0 && fraction < 1.0,
+		"TOI fraction must be in (0,1), got %v", fraction)
+
+	// Y stays zero (locked + lock clipping in the correction).
+	require.InDelta(t, 0.0, vHit.Y, timeLossTolerance,
+		"locked-Y body must keep zero Y velocity after the TOI correction")
+
+	// X gets the correction on the unlocked axis: only the simulated
+	// fraction's gravity is kept.
+	wantX := vx + float64(gravityScale*gravity.X*dt*fraction)
+	require.InDelta(t, wantX, vHit.X, timeLossTolerance,
+		"TOI body must keep only the simulated fraction's X gravity (unlocked-X correction)")
+
+	// And it must carry strictly less X speed than the control (the un-simulated
+	// gravity on X was removed).
+	require.Greater(t, vHit.X, vControl.X,
+		"TOI body must have less X speed than the full-step control (gravity.X is negative)")
+}
+
+// TestSolveContinuousTimeLossFlagsClearBetweenSteps guards that the per-step
+// eligibility flags (isForceDriven, isContactConstrained, isJointConstrained)
+// are CLEARED between steps and across a solver-set transfer, so the
+// correction resumes for later eligible hits rather than being suppressed
+// forever by a stale flag. The per-step regression tests above verify the
+// correction is skipped when a flag is set; this test verifies the flag does
+// not stick once the condition no longer holds.
+func TestSolveContinuousTimeLossFlagsClearBetweenSteps(t *testing.T) {
+	const (
+		dt       = 1.0 / 60.0
+		radius   = 0.1
+		subSteps = 8
+	)
+
+	t.Run("isForceDriven_clears_when_force_removed", func(t *testing.T) {
+		def := DefaultWorldDef()
+		def.Gravity = Vec2{X: 0.0, Y: -10.0}
+		def.EnableSleep = false
+		w := NewWorld(&def)
+		defer w.Destroy()
+
+		bd := DefaultBodyDef()
+		bd.Type = DynamicBody
+		bd.Position = Vec2{X: 0.0, Y: 1.0}
+		bd.EnableSleep = false
+		bodyID := w.CreateBody(&bd)
+		circle := Circle{Center: Vec2Zero, Radius: radius}
+		sd := DefaultShapeDef()
+		sd.Density = 1.0
+		w.CreateCircleShape(bodyID, &sd, &circle)
+
+		// Step 1 with an applied force → isForceDriven is set on the body.
+		mass := w.BodyMass(bodyID)
+		w.ApplyBodyForceToCenter(bodyID, Vec2{X: 0.0, Y: -mass * 10.0}, true)
+		w.Step(dt, subSteps)
+		require.NotZero(t, w.getBodyFullID(bodyID).flags&isForceDriven,
+			"step 1 with a force must set isForceDriven on the body")
+
+		// Step 2 with no force → the flag must be cleared (finalize clears the
+		// transient flag and the sim does not re-set it without a force).
+		w.Step(dt, subSteps)
+		require.Zero(t, w.getBodyFullID(bodyID).flags&isForceDriven,
+			"step 2 with no force must clear isForceDriven (no sticky suppression)")
+	})
+
+	t.Run("isContactConstrained_clears_when_contact_removed", func(t *testing.T) {
+		def := DefaultWorldDef()
+		def.Gravity = Vec2{X: 0.0, Y: -10.0}
+		def.EnableSleep = false
+		w := NewWorld(&def)
+		defer w.Destroy()
+
+		// Floor: top surface at y == 0.
+		gd := DefaultBodyDef()
+		ground := w.CreateBody(&gd)
+		floor := MakeOffsetBox(5.0, 0.05, Vec2{X: 0.0, Y: -0.05}, RotIdentity)
+		gsd := DefaultShapeDef()
+		floorShape := w.CreatePolygonShape(ground, &gsd, &floor)
+
+		bd := DefaultBodyDef()
+		bd.Type = DynamicBody
+		bd.Position = Vec2{X: 0.0, Y: radius} // resting on the floor
+		bd.EnableSleep = false
+		bodyID := w.CreateBody(&bd)
+		circle := Circle{Center: Vec2Zero, Radius: radius}
+		sd := DefaultShapeDef()
+		sd.Density = 1.0
+		w.CreateCircleShape(bodyID, &sd, &circle)
+
+		// Step 1: touching the floor → isContactConstrained set.
+		w.Step(dt, subSteps)
+		require.NotZero(t, w.getBodyFullID(bodyID).flags&isContactConstrained,
+			"step 1 touching the floor must set isContactConstrained")
+
+		// Remove the floor; the body is no longer touching anything.
+		w.DestroyShape(floorShape, true)
+
+		// Step 2: no contact → isContactConstrained must be cleared.
+		w.Step(dt, subSteps)
+		require.Zero(t, w.getBodyFullID(bodyID).flags&isContactConstrained,
+			"step 2 with no contact must clear isContactConstrained (no sticky suppression)")
+	})
+
+	t.Run("isJointConstrained_clears_when_joint_destroyed", func(t *testing.T) {
+		def := DefaultWorldDef()
+		def.Gravity = Vec2{X: 0.0, Y: -10.0}
+		def.EnableSleep = false
+		w := NewWorld(&def)
+		defer w.Destroy()
+
+		gd := DefaultBodyDef()
+		anchor := w.CreateBody(&gd)
+
+		bd := DefaultBodyDef()
+		bd.Type = DynamicBody
+		bd.Position = Vec2{X: 0.0, Y: 0.0}
+		bd.EnableSleep = false
+		bodyID := w.CreateBody(&bd)
+		circle := Circle{Center: Vec2Zero, Radius: radius}
+		sd := DefaultShapeDef()
+		sd.Density = 1.0
+		w.CreateCircleShape(bodyID, &sd, &circle)
+
+		// Horizontal-axis prismatic joint: cancels vertical gravity.
+		jd := DefaultPrismaticJointDef()
+		jd.Base.BodyIDA = anchor
+		jd.Base.BodyIDB = bodyID
+		jd.Base.LocalFrameA.P = Vec2Zero
+		jd.Base.LocalFrameB.P = Vec2Zero
+		jointID := w.CreatePrismaticJoint(&jd)
+
+		// Step 1: jointed → isJointConstrained set.
+		w.Step(dt, subSteps)
+		require.NotZero(t, w.getBodyFullID(bodyID).flags&isJointConstrained,
+			"step 1 with a joint must set isJointConstrained")
+
+		// Destroy the joint; the body is no longer jointed.
+		w.DestroyJoint(jointID, false)
+
+		// Step 2: no joint → isJointConstrained must be cleared.
+		w.Step(dt, subSteps)
+		require.Zero(t, w.getBodyFullID(bodyID).flags&isJointConstrained,
+			"step 2 with no joint must clear isJointConstrained (no sticky suppression)")
+	})
+
+	t.Run("transferBody_clears_transient_flags", func(t *testing.T) {
+		def := DefaultWorldDef()
+		def.Gravity = Vec2{X: 0.0, Y: -10.0}
+		def.EnableSleep = false
+		w := NewWorld(&def)
+		defer w.Destroy()
+
+		bd := DefaultBodyDef()
+		bd.Type = DynamicBody
+		bd.Position = Vec2{X: 0.0, Y: 1.0}
+		bd.EnableSleep = false
+		bodyID := w.CreateBody(&bd)
+		circle := Circle{Center: Vec2Zero, Radius: radius}
+		sd := DefaultShapeDef()
+		sd.Density = 1.0
+		w.CreateCircleShape(bodyID, &sd, &circle)
+
+		// Step with a force so isForceDriven is set on the body this step.
+		mass := w.BodyMass(bodyID)
+		w.ApplyBodyForceToCenter(bodyID, Vec2{X: 0.0, Y: -mass * 10.0}, true)
+		w.Step(dt, subSteps)
+
+		// Convert dynamic -> static (transfers awake -> static set). The target
+		// sim must not carry any transient flag.
+		w.SetBodyType(bodyID, StaticBody)
+		require.Zero(t, w.getBodySim(w.getBodyFullID(bodyID)).flags&transientSimFlags,
+			"transfer to the static set must clear transient sim flags")
+
+		// Convert static -> dynamic (transfers static -> awake set). The new
+		// awake sim must not carry any transient flag.
+		w.SetBodyType(bodyID, DynamicBody)
+		require.Zero(t, w.getBodySim(w.getBodyFullID(bodyID)).flags&transientSimFlags,
+			"transfer back to the awake set must clear transient sim flags")
+	})
 }

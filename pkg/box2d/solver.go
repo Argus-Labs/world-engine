@@ -497,8 +497,7 @@ func integrateVelocitiesTask(startIndex, endIndex int, ctx *stepContext) {
 		if Dot(v, v) > maxLinearSpeedSquared {
 			ratio := maxLinearSpeed / Length(v)
 			v = MulSV(ratio, v)
-			sim.flags |= isSpeedCapped
-			sim.flags |= isLinearSpeedCapped
+			sim.flags |= isSpeedCapped | isLinearSpeedCapped
 		}
 
 		// Clamp to max angular speed
@@ -655,9 +654,9 @@ func (w *World) finalizeBodiesTask(startIndex, endIndex, workerIndex int, ctx *s
 		// never called ApplyBodyMassFromShapes.
 		assert(b.flags&dirtyMass == 0)
 
-		b.flags &^= isFast | isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained | isJointConstrained | isForceDriven
-		b.flags |= sim.flags & (isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained | isJointConstrained | isForceDriven)
-		sim.flags &^= isFast | isSpeedCapped | isLinearSpeedCapped | hadTimeOfImpact | isContactConstrained | isJointConstrained | isForceDriven
+		b.flags &^= transientSimFlags
+		b.flags |= sim.flags & copiedSimFlags
+		sim.flags &^= transientSimFlags
 
 		if !enableSleep || !b.enableSleep || sleepVelocity > b.sleepThreshold {
 			// Body is not sleepy
