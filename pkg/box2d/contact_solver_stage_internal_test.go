@@ -58,10 +58,10 @@ func TestSolverStageContractFrictionRelaxOnly(t *testing.T) {
 	w.solveContactsColor(ctx, colorIndex, true, 0, len(constraints))
 	for i := range constraints {
 		c := &constraints[i]
-		require.Equal(t, 0.0, c.rollingImpulse,
+		require.Equal(t, 0.0, c.rollingImpulse, //nolint:testifylint // push must leave rolling impulse at the prepared (zero) value exactly
 			"push must not apply rolling resistance")
 		for j := range c.points[:c.pointCount] {
-			require.Equal(t, 0.0, c.points[j].tangentImpulse,
+			require.Equal(t, 0.0, c.points[j].tangentImpulse, //nolint:testifylint // push must leave tangent impulse at the prepared (zero) value exactly
 				"push stage must not apply friction (point %d)", j)
 		}
 	}
@@ -123,7 +123,7 @@ func TestSolverStageContractRollingResistanceRelaxOnly(t *testing.T) {
 	// Push stage: rolling resistance must not be applied.
 	w.solveContactsColor(ctx, colorIndex, true, 0, len(constraints))
 	for i := range constraints {
-		require.Equal(t, 0.0, constraints[i].rollingImpulse,
+		require.Equal(t, 0.0, constraints[i].rollingImpulse, //nolint:testifylint // push must leave rolling impulse at the prepared (zero) value exactly
 			"push stage must not apply rolling resistance (constraint %d)", i)
 	}
 
