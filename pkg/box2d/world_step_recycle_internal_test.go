@@ -76,16 +76,13 @@ func createBoxBody(t *testing.T, w *World, halfExtent Vec2, pos Vec2, enableEven
 }
 
 // recycleTestWorld builds a world with a static ground (top surface at y=0,
-// centered at y=-0.5) and a single dynamic box of the given half-extents placed
-// at pos. Gravity is disabled and sleep is off. The transform-setting callers
-// reset the body to its rest position before each step, overwriting any solver
-// movement from the previous step; the spinning-body test does not reset and
-// relies on the persistent small overlap to keep the contact alive through
-// integration. Contact events are enabled on both shapes when enableEvents is
-// true. The recycle distance is left at the default (ContactRecycleDistance) so
-// callers can override it for an isolated cosine gate
-// (SetContactRecycleDistance) or keep the default to exercise the distance/sine
-// gate. Density is left at the ShapeDef default (1.0).
+// centered at y=-0.5) and a single dynamic box of the given half-extents at
+// pos. Gravity and sleep are off; contact events are enabled on both shapes
+// when enableEvents is true. The recycle distance is left at the default
+// (ContactRecycleDistance) so callers can override it for an isolated cosine
+// gate (SetContactRecycleDistance) or keep the default to exercise the
+// distance/sine gate. Transform-setting tests reset solver motion before each
+// step; the spinning test preserves integrated motion.
 func recycleTestWorld(t *testing.T, halfExtent Vec2, pos Vec2, enableEvents bool) (*World, BodyID, ShapeID, ShapeID) {
 	t.Helper()
 
@@ -205,8 +202,10 @@ func requireDistanceMetricPasses(t *testing.T, w *World, sim *contactSim, msg st
 	require.True(t, wouldRecycle, "%s: distance/sine predicate must pass so recycling would happen without the guard", msg)
 }
 
-// TestContactRecycleCosAngleConstant verifies the port mirrors upstream's
-// B2_CONTACT_RECYCLE_COS_ANGLE (0.98f ~= 11.5 degrees).
+// TestContactRecycleCosAngleConstant pins the local ContactRecycleCosAngle
+// constant to 0.98 (~11.5 degrees). It is a local value pin, not an
+// independent upstream-parity check; B2_CONTACT_RECYCLE_COS_ANGLE parity is
+// covered by the TestOracleConstants_CReference table.
 func TestContactRecycleCosAngleConstant(t *testing.T) {
 	t.Parallel()
 	tassert.Equal(t, 0.98, ContactRecycleCosAngle) //nolint:testifylint // exact constant equality is intended, not a tolerance comparison
@@ -264,12 +263,14 @@ func TestContactRecycleRotationGuardExactCutoff(t *testing.T) {
 	sim := stepAndFindContact(t, w, body)
 	requireCachedRot(t, sim, w, body, RotIdentity, "initial cache must be 0 degrees")
 
-	// The ground is shape A and the rotating body is shape B, so the guard's
-	// cosB = body.Q.C*1 + body.Q.S*0 = body.Q.C (the cached rotation is
-	// identity, C = 1, S = 0). Setting C to exactly the threshold gives
-	// minCos == ContactRecycleCosAngle, which is not > the threshold, so the
-	// guard blocks recycling and the full update refreshes the cache. This
-	// distinguishes the strict > from >=.
+	// The ground is static, so its rotation is identity and its cosine
+	// against the cache is 1.0; the rotating body's cosine against the
+	// identity cache is its own C. Setting the body's C to exactly the
+	// threshold gives min(cosBody, cosGround) == min(ContactRecycleCosAngle,
+	// 1.0) == ContactRecycleCosAngle regardless of which shape is A or B.
+	// That is not > the threshold, so the guard blocks recycling and the
+	// full update refreshes the cache. This distinguishes the strict > from
+	// >=.
 	exactRot := Rot{C: ContactRecycleCosAngle, S: math.Sqrt(1.0 - ContactRecycleCosAngle*ContactRecycleCosAngle)}
 	w.SetBodyTransform(body, guardRestPos, exactRot)
 	sim = stepFindNotNil(t, w, body, "contact must still exist after exact-cutoff rotation")
@@ -525,13 +526,13 @@ func runRecycleBeginEvent(t *testing.T, halfExtent Vec2, pos Vec2, angle float64
 	requireShapeIDPair(t, beginEvents[0].ShapeIDA, beginEvents[0].ShapeIDB, groundShape, bodyShape, "begin event")
 }
 
-// TestContactRecycleRotationGuardBeginEvent is the non-touching → rotate →
-// begin-event regression at the default recycle distance. A wide, flat box
+// TestContactRecycleBeginEvent is the non-touching → rotate → begin-event
+// regression at the default recycle distance. A wide, flat box
 // (half-extents 0.3 x 0.1) rests above the ground (center y = 0.13, gap 0.03)
 // so the contact is created non-touching (gap > SpeculativeDistance) but the
 // fat AABBs overlap. Rotating 30° swings the long edge down into a clear
 // overlap, and the begin-touch event must fire.
-func TestContactRecycleRotationGuardBeginEvent(t *testing.T) {
+func TestContactRecycleBeginEvent(t *testing.T) {
 	t.Parallel()
 	runRecycleBeginEvent(t, Vec2{X: 0.3, Y: 0.1}, Vec2{X: 0.0, Y: 0.13}, 30.0*Pi/180.0, ContactRecycleDistance)
 }
@@ -554,18 +555,45 @@ func TestContactRecycleSpinningBody(t *testing.T) {
 	requireCachedRot(t, sim, w, body, RotIdentity, "initial cache must be 0 degrees")
 
 	// Spin through normal integration; the contact survives the small overlap.
-	w.SetBodyAngularVelocity(body, 10.0)
-	for step := 1; step <= 16; step++ {
+	// spinAngularVelocity rotates the body ~9.55°/step at 1/60 s per step
+	// (10 rad/s * 1/60 s). The guard threshold is
+	// acos(ContactRecycleCosAngle) ≈ 11.48°, so the cache refreshes by step 3;
+	// spinSteps is sized with a generous margin over that.
+	const (
+		spinAngularVelocity = 10.0
+		spinSteps           = 16
+	)
+	w.SetBodyAngularVelocity(body, spinAngularVelocity)
+
+	// minCos for this fixture is the dynamic body's cosine against its cached
+	// rotation (the static ground contributes 1.0); the guard trips when that
+	// cosine drops to ContactRecycleCosAngle.
+	prevMinCos := 1.0
+	for step := 1; step <= spinSteps; step++ {
 		// Before stepping, the cache still holds the pre-rotation value;
 		// the distance/sine gate must pass so a refresh can only come from
 		// the rotation guard, not the distance gate.
 		requireDistanceMetricPasses(t, w, sim, "spinning body distance gate before refresh")
+
+		// Pre-step cosine of the dynamic body vs its cached rotation, the
+		// same value the guard compares against ContactRecycleCosAngle.
+		bodySim := w.getBodySim(w.getBodyFullID(body))
+		cachedRot := dynamicCachedRotation(sim, w, body)
+		minCos := dot2(bodySim.transform.Q.C, cachedRot.C, bodySim.transform.Q.S, cachedRot.S)
+
 		sim = stepFindNotNil(t, w, body, "contact must survive the spin")
-		if cached := dynamicCachedRotation(sim, w, body); cached != RotIdentity {
-			require.NotEqual(t, RotIdentity, cached,
-				"first cache refresh must come from the rotation guard crossing its threshold, not the distance gate (step %d)", step)
+		if cached := dynamicCachedRotation(sim, w, body); cached != cachedRot {
+			// The guard tripped at this step: the pre-step cosine reached
+			// the threshold and the previous step's cosine was still above
+			// it, so this is the first threshold crossing — a refresh the
+			// distance gate (asserted passing above) could not have caused.
+			require.LessOrEqual(t, minCos, ContactRecycleCosAngle,
+				"pre-step cosine must reach the threshold at the refresh step (step %d)", step)
+			require.Greater(t, prevMinCos, ContactRecycleCosAngle,
+				"previous step must still be above the threshold (first crossing, step %d)", step)
 			return
 		}
+		prevMinCos = minCos
 	}
-	t.Fatal("cache was never refreshed away from 0 degrees within 16 spin steps")
+	t.Fatal("cache was never refreshed away from 0 degrees within the spin step budget")
 }
