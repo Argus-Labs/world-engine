@@ -23,15 +23,15 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Command represents the data payload of a command to trigger systems in a shard.
+// Command represents the data payload of a command to trigger systems in a shard. It names no
+// sender: Cardinal takes a client's player ID from its auth token, and a shard's address from the
+// NATS subject the command arrived on (see pkg/micro/command.go).
 type Command struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The name of the command.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// The address of the cardinal shard to send the command to.
 	Address *v1.ServiceAddress `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
-	// The persona sending the command.
-	Persona *Persona `protobuf:"bytes,3,opt,name=persona,proto3" json:"persona,omitempty"`
 	// The serialized command payload. May be empty: a command whose proto message
 	// has no set fields serializes to zero bytes, so this is not marked required.
 	Payload       []byte `protobuf:"bytes,4,opt,name=payload,proto3" json:"payload,omitempty"`
@@ -83,13 +83,6 @@ func (x *Command) GetAddress() *v1.ServiceAddress {
 	return nil
 }
 
-func (x *Command) GetPersona() *Persona {
-	if x != nil {
-		return x.Persona
-	}
-	return nil
-}
-
 func (x *Command) GetPayload() []byte {
 	if x != nil {
 		return x.Payload
@@ -101,12 +94,11 @@ var File_worldengine_isc_v1_command_proto protoreflect.FileDescriptor
 
 const file_worldengine_isc_v1_command_proto_rawDesc = "" +
 	"\n" +
-	" worldengine/isc/v1/command.proto\x12\x12worldengine.isc.v1\x1a\x1bbuf/validate/validate.proto\x1a worldengine/isc/v1/persona.proto\x1a\"worldengine/micro/v1/service.proto\"\xdf\x01\n" +
+	" worldengine/isc/v1/command.proto\x12\x12worldengine.isc.v1\x1a\x1bbuf/validate/validate.proto\x1a\"worldengine/micro/v1/service.proto\"\xaf\x01\n" +
 	"\aCommand\x123\n" +
 	"\x04name\x18\x01 \x01(\tB\x1f\xbaH\x1c\xc8\x01\x01r\x17\x10\x01\x18\x80\x012\x10^[a-zA-Z0-9_-]+$R\x04name\x12F\n" +
-	"\aaddress\x18\x02 \x01(\v2$.worldengine.micro.v1.ServiceAddressB\x06\xbaH\x03\xc8\x01\x01R\aaddress\x12=\n" +
-	"\apersona\x18\x03 \x01(\v2\x1b.worldengine.isc.v1.PersonaB\x06\xbaH\x03\xc8\x01\x01R\apersona\x12\x18\n" +
-	"\apayload\x18\x04 \x01(\fR\apayloadBeZHgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1\xaa\x02\x18WorldEngine.Proto.Isc.V1b\x06proto3"
+	"\aaddress\x18\x02 \x01(\v2$.worldengine.micro.v1.ServiceAddressB\x06\xbaH\x03\xc8\x01\x01R\aaddress\x12\x18\n" +
+	"\apayload\x18\x04 \x01(\fR\apayloadJ\x04\b\x03\x10\x04R\apersonaBeZHgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1\xaa\x02\x18WorldEngine.Proto.Isc.V1b\x06proto3"
 
 var (
 	file_worldengine_isc_v1_command_proto_rawDescOnce sync.Once
@@ -124,16 +116,14 @@ var file_worldengine_isc_v1_command_proto_msgTypes = make([]protoimpl.MessageInf
 var file_worldengine_isc_v1_command_proto_goTypes = []any{
 	(*Command)(nil),           // 0: worldengine.isc.v1.Command
 	(*v1.ServiceAddress)(nil), // 1: worldengine.micro.v1.ServiceAddress
-	(*Persona)(nil),           // 2: worldengine.isc.v1.Persona
 }
 var file_worldengine_isc_v1_command_proto_depIdxs = []int32{
 	1, // 0: worldengine.isc.v1.Command.address:type_name -> worldengine.micro.v1.ServiceAddress
-	2, // 1: worldengine.isc.v1.Command.persona:type_name -> worldengine.isc.v1.Persona
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_worldengine_isc_v1_command_proto_init() }
@@ -141,7 +131,6 @@ func file_worldengine_isc_v1_command_proto_init() {
 	if File_worldengine_isc_v1_command_proto != nil {
 		return
 	}
-	file_worldengine_isc_v1_persona_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

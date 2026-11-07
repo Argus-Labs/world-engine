@@ -38,6 +38,11 @@
 //     uses slot 0 only), and the separate b2SensorTaskContext array is folded
 //     into taskContext.sensorEventBits (see sensor.go and solver.go). Unlike
 //     upstream, simulation results are byte-identical for every worker count.
+//   - World.Destroy rejects a callback's mid-Step reentry (a silent no-op in
+//     release, an assertion panic in the box2d_asserts build): upstream's
+//     user-supplied task system has no internal worker goroutines to
+//     self-join on a pool.close(), so this guard is a Go-port contract. See
+//     World.Destroy and worker_pool.go.
 //   - b2InitializeContactRegisters is a call-parity no-op: the register
 //     table is a package-level immutable literal (contact.go).
 //   - Counters.ByteCount is 0: upstream b2GetByteCount tracks global heap
@@ -294,6 +299,10 @@ func NewWorld(def *WorldDef) *World {
 	requireInitialized(def.initialized, "WorldDef", "DefaultWorldDef")
 	requireValidDefField(def.WorkerCount >= 0 && def.WorkerCount <= MaxWorkers,
 		"WorldDef", "WorkerCount", "must be in [0, MaxWorkers]; 0 means 1 (serial)")
+	requireValidDefField(IsValidVec2(def.Gravity), "WorldDef", "Gravity",
+		"must be a finite vector (not NaN or infinity)")
+	requireValidDefField(IsValidFloat(def.MaximumLinearSpeed) && def.MaximumLinearSpeed > 0.0,
+		"WorldDef", "MaximumLinearSpeed", "must be a finite, positive number")
 
 	initializeContactRegisters()
 
@@ -420,7 +429,33 @@ func NewWorld(def *WorldDef) *World {
 
 // Destroy destroys the world and all its contents
 // (upstream b2DestroyWorld). Ids created from this world become invalid.
+//
+// Calling Destroy from inside a Step callback is rejected: in release it is a
+// silent no-op (the world stays valid and Step continues), and in the
+// box2d_asserts build the guard's assertion panics. (A callback that recovers
+// that panic locally lets Step complete without poisoning the world.) Actual
+// destruction — and the id invalidation above — only happens when Destroy runs
+// outside Step, or after a Step unwound by a panic (which leaves the world
+// locked); Destroy then reclaims the worker pool.
+//
+// The rejection covers ordinary Step callbacks. It does not cover a worker-0
+// [runtime.Goexit] (e.g. t.Fatal inside a test callback): that unwinds the
+// inline dispatch without reaching Step's join barrier, yet Step still marks
+// the world poisoned. Destroy called from outside the dispatch still waits in
+// the pool's done.Wait before wiping the world, so external teardown after a
+// Goexit is safe; the remaining self-join hole is a background callback calling
+// Destroy after such a Goexit, which can pass the guard while background
+// workers are still active.
 func (w *World) Destroy() {
+	// Allow Destroy on a Step unwound by a panic (locked set with
+	// stepPanicked true) so it can reclaim the worker pool. This
+	// callback-reentry guard is a Go-port contract with no upstream
+	// equivalent — preserve it on any upstream resync.
+	if w.locked && !w.stepPanicked {
+		assert(false)
+		return
+	}
+
 	// Tear the worker pool down first — the goroutines must be gone before
 	// the *w = World{} wipe below invalidates the state they reference.
 	if w.pool != nil {
@@ -835,7 +870,18 @@ func (w *World) SetContactTuning(hertz, dampingRatio, pushSpeed float64) {
 }
 
 // SetContactRecycleDistance sets the contact recycle distance
-// (upstream b2World_SetContactRecycleDistance).
+// (upstream b2World_SetContactRecycleDistance). Below this relative-motion
+// threshold, contacts with a valid cached transform skip manifold
+// regeneration and skip material and pre-solve updates; the recycled path
+// keeps the cached manifold and still updates point separations. Non-touching
+// contacts use the smaller of this distance and SpeculativeDistance. Zero
+// disables recycling world-wide, forcing every awake contact to re-run
+// updateContact each step. This does not by itself guarantee a discrete
+// pre-solve callback: disjoint proxies skip the update, and discrete
+// pre-solve is still only invoked when the shapes produce contact points for
+// a discrete contact update and the events are enabled. Continuous collision
+// detection also invokes the callback on a time-of-impact hit without a
+// manifold; see PreSolveFcn.
 func (w *World) SetContactRecycleDistance(recycleDistance float64) {
 	assert(!w.locked)
 	if w.locked {

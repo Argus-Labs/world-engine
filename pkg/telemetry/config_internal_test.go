@@ -78,6 +78,52 @@ func TestTracesExporterTarget(t *testing.T) {
 	}
 }
 
+// metricsExporterTarget shares the transport rules but never falls back to the generic endpoint,
+// which the cardinal operator points at a traces-only collector.
+func TestMetricsExporterTarget(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  Config
+		want exporterTarget
+	}{
+		{
+			name: "generic endpoint does not enable metrics",
+			cfg:  Config{Endpoint: "operator:4317", TracesEndpoint: "traces:4317"},
+			want: exporterTarget{Endpoint: "", Insecure: true},
+		},
+		{
+			name: "bare metrics endpoint is plaintext",
+			cfg:  Config{Endpoint: "operator:4317", MetricsEndpoint: "collector:4317"},
+			want: exporterTarget{Endpoint: "collector:4317", Insecure: true},
+		},
+		{
+			name: "https metrics URL is secure",
+			cfg:  Config{MetricsEndpoint: "https://otel.example.com:4317", MetricsInsecure: new(true)},
+			want: exporterTarget{Endpoint: "https://otel.example.com:4317", Insecure: false},
+		},
+		{
+			name: "generic insecure=false selects TLS",
+			cfg:  Config{MetricsEndpoint: "otel.example.com:4317", Insecure: new(false)},
+			want: exporterTarget{Endpoint: "otel.example.com:4317", Insecure: false},
+		},
+		{
+			name: "metrics insecure wins over generic insecure",
+			cfg:  Config{MetricsEndpoint: "otel.example.com:4317", Insecure: new(false), MetricsInsecure: new(true)},
+			want: exporterTarget{Endpoint: "otel.example.com:4317", Insecure: true},
+		},
+		{
+			name: "traces insecure does not apply to metrics",
+			cfg:  Config{MetricsEndpoint: "otel.example.com:4317", TracesInsecure: new(false)},
+			want: exporterTarget{Endpoint: "otel.example.com:4317", Insecure: true},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, tt.cfg.metricsExporterTarget())
+		})
+	}
+}
+
 // The same rules hold end to end through the environment variables and into Options.
 func TestLoadConfig_ResolvesExporterTargetFromEnv(t *testing.T) {
 	tests := []struct {
@@ -174,6 +220,13 @@ func TestLoadConfig_ResolvesExporterTargetFromEnv(t *testing.T) {
 // A URL endpoint that the exporter would silently replace with its built-in default is rejected up front.
 func TestLoadConfig_RejectsURLEndpointWithoutHost(t *testing.T) {
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "https://")
+
+	_, err := loadConfig()
+	require.ErrorContains(t, err, `invalid OTLP endpoint URL "https://": missing host`)
+}
+
+func TestLoadConfig_RejectsURLMetricsEndpointWithoutHost(t *testing.T) {
+	t.Setenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "https://")
 
 	_, err := loadConfig()
 	require.ErrorContains(t, err, `invalid OTLP endpoint URL "https://": missing host`)

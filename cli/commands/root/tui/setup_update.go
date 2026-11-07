@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/argus-labs/world-engine/cli/internal/dependency"
 	"github.com/argus-labs/world-engine/cli/internal/tui/kit/steps"
 	"github.com/argus-labs/world-engine/cli/internal/tui/style"
 	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
@@ -23,8 +23,6 @@ func (m WorldSetupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKey(msg)
 	case NewLogMsg:
 		return m.handleLog(msg)
-	case dependency.CheckResult:
-		return m.handleDepResult(msg)
 	case steps.SignalStepStartedMsg:
 		return m.handleStepStarted(msg)
 	case steps.SignalStepCompletedMsg:
@@ -65,7 +63,7 @@ func (m WorldSetupModel) handleNameInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		}
 		name := m.projectNameInput.Value()
 		// Match the cardinal-editor: the name must already be dnslabel-canonical so
-		// world.toml's project (and the shard paths the operator derives from it)
+		// world.toml's project (and the shard paths derived from it)
 		// address cleanly with no surprising normalization.
 		if !dnslabel.IsCanonical(name) {
 			m.nameErr = projectNameErrMsg
@@ -73,6 +71,13 @@ func (m WorldSetupModel) handleNameInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		}
 		m.nameErr = ""
 		m.projectNameInput.Blur()
+		// When --directory was supplied with an invalid basename, the user is
+		// shown this input to fix the name. Apply the validated name by rebasing
+		// the target directory onto it, so cloning and world.toml generation use
+		// a valid DNS-1123 label instead of the original invalid directory.
+		if m.targetDir != "" {
+			m.targetDir = filepath.Join(filepath.Dir(filepath.Clean(m.targetDir)), name)
+		}
 		return m, m.steps.CompleteStepCmd(nil)
 	}
 
@@ -102,14 +107,6 @@ func (m WorldSetupModel) handleTemplateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 
 func (m WorldSetupModel) handleLog(msg NewLogMsg) (tea.Model, tea.Cmd) {
 	m.logs = append(m.logs, msg.Log)
-	return m, nil
-}
-
-func (m WorldSetupModel) handleDepResult(msg dependency.CheckResult) (tea.Model, tea.Cmd) {
-	m.depResult = msg
-	if msg.Err != nil {
-		return m, tea.Quit
-	}
 	return m, nil
 }
 
@@ -167,7 +164,7 @@ func (m WorldSetupModel) handleStepCompleted(msg steps.SignalStepCompletedMsg) (
 		}
 	case stepClone:
 		return m, NewLogCmd(style.ChevronIcon.Render() +
-			"Successfully created a starter game shard in ./" + m.projectNameInput.Value())
+			"Successfully created a starter game shard in " + m.displayDir())
 	}
 	return m, nil
 }
@@ -192,7 +189,7 @@ func (m WorldSetupModel) handleTidyFinished(msg TidyFinishedMsg) (tea.Model, tea
 		m.logs = append(m.logs, style.CrossIcon.Render()+msg.Err.Error())
 		if msg.Removed {
 			m.logs = append(m.logs, style.ChevronIcon.Render()+
-				"Removed ./"+m.projectNameInput.Value()+" — fix the issue above and run setup again with the same name.")
+				"Removed "+m.displayDir()+" — fix the issue above and run setup again with the same name.")
 		}
 		return m, m.steps.CompleteStepCmd(msg.Err)
 	}
@@ -225,6 +222,20 @@ func (m WorldSetupModel) updateSteps(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m WorldSetupModel) targetDirectory() string {
+	if m.targetDir != "" {
+		return m.targetDir
+	}
+	return m.projectNameInput.Value()
+}
+
+func (m WorldSetupModel) displayDir() string {
+	if m.targetDir != "" {
+		return m.targetDir
+	}
+	return "./" + m.projectNameInput.Value()
+}
+
 // cloneTemplateCmd returns a tea.Cmd that performs the clone operation.
 func (m WorldSetupModel) cloneTemplateCmd() tea.Cmd {
 	return func() tea.Msg {
@@ -232,7 +243,7 @@ func (m WorldSetupModel) cloneTemplateCmd() tea.Cmd {
 			context.Background(),
 			m.selectedTemplate.URL,
 			version.WorldEngine(),
-			m.projectNameInput.Value(),
+			m.targetDirectory(),
 			m.selectedTemplate.Subdir,
 		)
 		return CloneFinishedMsg{Err: err}
@@ -242,7 +253,7 @@ func (m WorldSetupModel) cloneTemplateCmd() tea.Cmd {
 // tidyCmd returns a tea.Cmd that performs the go mod tidy operation.
 func (m WorldSetupModel) tidyCmd() tea.Cmd {
 	return func() tea.Msg {
-		projectDir := m.projectNameInput.Value()
+		projectDir := m.targetDirectory()
 		err := worldscaffold.Tidy(context.Background(), projectDir)
 		removed := false
 		if err != nil {

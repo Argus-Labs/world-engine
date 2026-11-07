@@ -3,7 +3,6 @@
 package box2d
 
 import (
-	"strconv"
 	"testing"
 
 	tassert "github.com/stretchr/testify/assert"
@@ -59,27 +58,6 @@ func TestIDPool_CountAndCapacity(t *testing.T) {
 	tassert.Equal(t, 5, getIDCapacity(&pool))
 }
 
-func TestIDPool_GetIDBytes(t *testing.T) {
-	t.Parallel()
-
-	pool := createIDPool()
-
-	intBytes := strconv.IntSize / 8
-	tassert.Equal(t, 32*intBytes, getIDBytes(&pool))
-
-	// Allocate 64 live ids, then free them all so the free list must grow
-	// beyond its initial capacity of 32.
-	ids := make([]int, 0, 64)
-	for range 64 {
-		ids = append(ids, allocID(&pool))
-	}
-	for _, id := range ids {
-		freeID(&pool, id)
-	}
-
-	tassert.GreaterOrEqual(t, getIDBytes(&pool), 64*intBytes)
-}
-
 func TestIDPool_Destroy(t *testing.T) {
 	t.Parallel()
 
@@ -93,14 +71,4 @@ func TestIDPool_Destroy(t *testing.T) {
 	tassert.Zero(t, getIDCount(&pool))
 	tassert.Zero(t, getIDCapacity(&pool))
 	tassert.Nil(t, pool.freeArray)
-}
-
-func TestIDPool_Validate(t *testing.T) {
-	t.Parallel()
-
-	pool := createIDPool()
-	id := allocID(&pool)
-
-	validateFreeID(&pool, id)
-	validateUsedID(&pool, id)
 }

@@ -5,9 +5,52 @@ const FileName = "world.toml"
 type Config struct {
 	Organization string        `toml:"organization" json:"organization"`
 	Project      string        `toml:"project"      json:"project"`
+	Auth         Auth          `toml:"auth"         json:"auth"`
 	Shards       []Shard       `toml:"shards"       json:"shards"`
 	Services     []GameService `toml:"services"     json:"services"`
 }
+
+// Auth configures how the shards `world start` runs authenticate players. Deployed shards
+// don't read world.toml; their deployment sets CARDINAL_AUTH_MODE and
+// CARDINAL_ARGUS_AUTH_URL instead.
+type Auth struct {
+	// Mode is AuthModeArgus (validate Argus Auth game tokens) or AuthModeDev (trust the
+	// dev header). validate sets it to AuthModeDev when world.toml leaves it out.
+	Mode string `toml:"mode,omitempty" json:"mode,omitempty"`
+
+	// URL is the Argus Auth service as the shards reach it. Required for AuthModeArgus;
+	// ignored for AuthModeDev, so switching modes doesn't mean deleting it.
+	URL string `toml:"url,omitempty" json:"url,omitempty"`
+}
+
+// Shard modes accepted in world.toml, matching the chart's values.schema.json enum.
+const (
+	ShardModeLeader   = "LEADER"
+	ShardModeFollower = "FOLLOWER"
+)
+
+// Shard auth modes for the [auth] section.
+const (
+	AuthModeDev   = "dev"
+	AuthModeArgus = "argus"
+)
+
+// Pool size limits. pool_size expands a shard 1:N into N instances and
+// expandPools pre-allocates a slice and map sized by the sum of pool sizes, so
+// an unbounded value (e.g. a typo like 100000000000) fatals the process with a
+// runtime out-of-memory inside make() before validate can return a normal
+// config error. These caps keep the pre-allocation modest and turn an
+// oversized value into a field-naming error. They are deliberate over-estimates
+// for a local dev CLI (world start, the MCP server, the debugger).
+const (
+	// maxShardPoolSize is the largest pool_size accepted for a single shard.
+	maxShardPoolSize = 100
+	// maxExpandedInstances is the largest total expanded instance count across
+	// all shards; it bounds the expandPools pre-allocation so a sum of many
+	// individually-valid pool sizes, or a future caller that skips validate,
+	// cannot reintroduce the fatal allocation.
+	maxExpandedInstances = 1024
+)
 
 type Shard struct {
 	ID         string `toml:"id"                    json:"id"`
@@ -16,14 +59,15 @@ type Shard struct {
 	Path       string `toml:"path,omitempty"        json:"path,omitempty"`
 	PoolSize   int    `toml:"pool_size,omitempty"   json:"poolSize,omitempty"`
 
-	// TickRate is the game-loop frequency in Hz. Optional; k8s backend only.
+	// TickRate is the game-loop frequency in Hz. Optional.
 	TickRate int32 `toml:"tick_rate,omitempty" json:"tickRate,omitempty"`
 
-	// Mode is the shard mode (e.g. "LEADER"). Optional; k8s backend only.
+	// Mode is the shard mode, LEADER (the default) or FOLLOWER, matching the
+	// chart's values.schema.json enum. Case-insensitive; normalized on load.
 	Mode string `toml:"mode,omitempty" json:"mode,omitempty"`
 
 	// Resources is the per-instance CPU + memory request/limit pair.
-	// Optional; k8s backend only. Nil means "use translator default."
+	// Optional. Nil means "use translator default."
 	Resources *ShardResources `toml:"resources,omitempty" json:"resources,omitempty"`
 
 	// InstanceID is the runtime shard instance ID after pool expansion. Pooled
@@ -32,7 +76,7 @@ type Shard struct {
 	InstanceID string `toml:"-" json:"-"`
 }
 
-// ShardResources is the requests + limits pair, mirroring the ShardPool CRD.
+// ShardResources is the requests + limits pair, mirroring the shard chart's resources.
 type ShardResources struct {
 	Requests ShardResourceValues `toml:"requests" json:"requests"`
 	Limits   ShardResourceValues `toml:"limits"   json:"limits"`

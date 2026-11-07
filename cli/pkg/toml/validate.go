@@ -2,12 +2,15 @@ package toml
 
 import (
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
+
+	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
 )
 
 // normalizeAndValidate normalizes a string by removing spaces and validates it contains only standard characters.
@@ -38,19 +41,42 @@ func normalizeAndValidateString(s *string, fieldName string) error {
 	return nil
 }
 
+// normalizeAndValidateCanonicalName also requires a DNS-1123 label, for names that become k8s objects.
+// A DNS-1123 label is at most dnslabel.MaxLength characters, so over-length values are rejected
+// with a dedicated message rather than the misleading "invalid characters".
+func normalizeAndValidateCanonicalName(s *string, fieldName string) error {
+	if s != nil {
+		v := strings.ReplaceAll(*s, " ", "")
+		// Report over-length separately so the message is actionable; the charset
+		// is otherwise canonical for a long name, and "invalid characters" would
+		// mislead the user.
+		if v != "" && len(v) > dnslabel.MaxLength {
+			return eris.New(fmt.Sprintf(
+				"%s is too long (max %d characters)",
+				fieldName, dnslabel.MaxLength,
+			))
+		}
+		if v != "" && !dnslabel.IsCanonical(v) {
+			return eris.New(fmt.Sprintf(
+				"%s contains invalid characters. Only lowercase alphanumeric characters and hyphens are allowed (e.g. my-game)",
+				fieldName,
+			))
+		}
+	}
+	return normalizeAndValidateString(s, fieldName)
+}
+
 func validateLogLevel(logLevel, fieldName string) error {
-	switch logLevel {
-	case zerolog.DebugLevel.String():
-		return nil
-	case zerolog.InfoLevel.String():
-		return nil
-	case zerolog.WarnLevel.String():
-		return nil
-	case zerolog.ErrorLevel.String():
+	switch strings.ToLower(logLevel) {
+	case zerolog.TraceLevel.String(),
+		zerolog.DebugLevel.String(),
+		zerolog.InfoLevel.String(),
+		zerolog.WarnLevel.String(),
+		zerolog.ErrorLevel.String():
 		return nil
 	}
 
-	return eris.New(fmt.Sprintf("log level must be one of: debug, info, warn, error for %s", fieldName))
+	return eris.New(fmt.Sprintf("log level must be one of: trace, debug, info, warn, error for %s", fieldName))
 }
 
 func validatePath(path string) error {
@@ -72,5 +98,33 @@ func validatePath(path string) error {
 		return eris.New("path contains invalid characters; allowed: letters, numbers, '/', '.', '_', '-'")
 	}
 
+	return nil
+}
+
+// validateAuth validates the [auth] section, defaulting a missing mode to dev auth.
+func validateAuth(auth *Auth) error {
+	switch auth.Mode {
+	case "":
+		auth.Mode = AuthModeDev
+		return nil
+	case AuthModeDev:
+		return nil
+	case AuthModeArgus:
+	default:
+		return eris.Errorf("world.toml: [auth].mode must be %q or %q (got %q)", AuthModeArgus, AuthModeDev, auth.Mode)
+	}
+
+	if auth.URL == "" {
+		return eris.Errorf("world.toml: [auth].url is required when mode = %q", AuthModeArgus)
+	}
+	u, err := url.Parse(auth.URL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return eris.Errorf("world.toml: [auth].url must be an http or https URL (got %q)", auth.URL)
+	}
+	// Cardinal appends /auth/jwks to the string, so a query or fragment would land inside the path.
+	if u.RawQuery != "" || u.ForceQuery || u.Fragment != "" {
+		return eris.Errorf("world.toml: [auth].url must not carry a query or fragment (got %q)", auth.URL)
+	}
+	auth.URL = strings.TrimRight(auth.URL, "/")
 	return nil
 }

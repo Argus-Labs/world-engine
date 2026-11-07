@@ -111,15 +111,12 @@ var phys = physics2d.NewPlugin()
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/data"
 	"github.com/argus-labs/world-engine/pkg/plugin/lobby"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 )
 
 func register(w *cardinal.World) {
 	w.RegisterComponent[Health]()
-	dataPlugin := data.NewPlugin()
-	w.RegisterPlugin(dataPlugin)
 	w.RegisterPlugin(phys)
 	var r runner
 	r.lobby = lobby.NewPlugin(lobby.Config{})
@@ -130,7 +127,6 @@ func register(w *cardinal.World) {
 func spawn(e cardinal.Entity) {
 	e.Set(Health{})
 	e.Set(physics2d.Transform{})
-	e.Set(data.Manifest{})
 	e.Set(lobby.Player{})
 }
 `,
@@ -153,20 +149,20 @@ func TestPluginVariableCreditsOnlyItsPackage(t *testing.T) {
 
 import (
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/plugin/data"
+	"github.com/argus-labs/world-engine/pkg/plugin/lobby"
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 )
 
 func register(w *cardinal.World) {
 	w.RegisterComponent[Health]()
-	dataPlugin := data.NewPlugin()
-	w.RegisterPlugin(dataPlugin)
+	lobbyPlugin := lobby.NewPlugin(lobby.Config{})
+	w.RegisterPlugin(lobbyPlugin)
 }
 
 func spawn(e cardinal.Entity) {
 	e.Set(Health{})
 	e.Set(physics2d.Transform{})
-	e.Set(data.Manifest{})
+	e.Set(lobby.Player{})
 }
 `,
 	})

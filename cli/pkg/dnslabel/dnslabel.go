@@ -1,12 +1,15 @@
-// Package dnslabel normalizes arbitrary strings into DNS-label-safe path
-// segments. Shard ingress paths are assembled from these segments in two
-// independent places — the cardinal-operator (the Ingress path it programs) and
-// pkg/cluster (the URL used to address a shard through Traefik) — and the two
-// MUST produce identical segments or shard requests 404. This package is the
-// single source of that normalization so those callers can't drift apart.
+// Package dnslabel normalizes arbitrary strings into DNS-label-safe segments.
+// world.toml validation normalizes project and shard IDs to canonical form (spaces
+// dropped, anything else must already be a DNS label), so the names the cardinal-shard
+// chart turns into Kubernetes objects and route paths are used as-is on both the
+// cluster and the local edge.
 package dnslabel
 
 import "strings"
+
+// MaxLength is the maximum length of a DNS-1123 label (RFC 1035 / Kubernetes label
+// rule): names that become k8s objects must be 1–63 characters.
+const MaxLength = 63
 
 // Sanitize lowercases value and collapses every run of non-alphanumeric
 // characters into a single hyphen, trimming leading and trailing hyphens. Empty
@@ -32,7 +35,8 @@ func Sanitize(value string) string {
 	return "unknown"
 }
 
-// IsCanonical reports whether value is already in Sanitize's normal form.
+// IsCanonical reports whether value is already in Sanitize's normal form and does
+// not exceed MaxLength, i.e. it is a valid DNS-1123 label.
 func IsCanonical(value string) bool {
-	return Sanitize(value) == value
+	return len(value) <= MaxLength && Sanitize(value) == value
 }

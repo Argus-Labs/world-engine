@@ -2,6 +2,8 @@ package docker
 
 import (
 	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
 	_ "embed"
 	"errors"
@@ -34,13 +36,6 @@ var cardinalDockerfile []byte
 // is injected into every Cardinal build context. The leading underscore avoids
 // collisions with anything a user might check in.
 const cardinalDockerfileName = "__cardinal.Dockerfile"
-
-// cardinalCacheMountPrefix matches the BuildKit cache-mount IDs used by the
-// embedded Dockerfile (cardinal-gomod, cardinal-gobuild). Shared across all
-// Cardinal projects on the host so common dependencies stay deduplicated;
-// PruneCardinalBuildCache uses this as a description-substring filter to
-// remove every Cardinal-related cache mount on the daemon.
-const cardinalCacheMountPrefix = "cardinal-"
 
 // defaultBuildIgnores are always excluded from the build context, regardless
 // of the project's .dockerignore. Keeps the context small when a consumer
@@ -146,15 +141,33 @@ func (c *Client) BuildCardinalImages(
 	}
 	ignorePatterns := slices.Concat(defaultBuildIgnores, userIgnores)
 
+	// Every image builds from the project root with the same Dockerfile; SHARD_PATH picks
+	// the shard. Build the context once and share it.
+	buildContext, err := bufferedBuildContext(
+		ctx,
+		c.cfg.RootDir,
+		ignorePatterns,
+		cardinalDockerfile,
+		cardinalDockerfileName,
+	)
+	if err != nil {
+		err = eris.Wrap(err, "failed to build context tarball")
+		// Every image shares this context, so every image row failed.
+		for _, image := range order {
+			notify(progress, Progress{Name: image, State: StateBuilding, Err: itemErr(ctx, err)})
+		}
+		return err
+	}
+
 	g, gctx := errgroup.WithContext(ctx)
 	for _, image := range order {
 		build := builds[image]
 		g.Go(func() error {
 			notify(progress, Progress{Name: build.image, State: StateBuilding})
 
-			err := c.buildSingleCardinalWithDocker(gctx, build, platform, ignorePatterns)
+			err := c.buildSingleCardinalWithDocker(gctx, build, platform, buildContext)
 			if err != nil {
-				notify(progress, Progress{Name: build.image, State: StateBuilding, Err: err})
+				notify(progress, Progress{Name: build.image, State: StateBuilding, Err: itemErr(gctx, err)})
 				return err
 			}
 
@@ -170,30 +183,14 @@ func (c *Client) buildSingleCardinalWithDocker(
 	ctx context.Context,
 	sb *shardBuild,
 	platform ocispec.Platform,
-	ignorePatterns []string,
+	buildContext []byte,
 ) error {
-	// Remove all containers on this image so they are recreated from the rebuild.
-	for _, name := range sb.containers {
-		if err := c.removeContainerKeepVolume(ctx, name); err != nil {
-			c.logger.WarnContext(ctx,
-				"failed to remove existing container before rebuild",
-				"container", name, "error", err)
-		}
-	}
-
+	// Containers on this image are deliberately left alone: the deploy that follows a
+	// successful build recreates them (local.Runtime.recreate), and removing them here
+	// would take the running world down when the build fails — which is exactly when
+	// `world reload` promises to leave it untouched.
 	c.logger.InfoContext(ctx, "building Cardinal shard with docker",
 		"image", sb.image, "containers", sb.containers, "import", sb.shardPath)
-
-	buildContext, err := tarWithEmbeddedDockerfile(
-		c.cfg.RootDir,
-		ignorePatterns,
-		cardinalDockerfile,
-		cardinalDockerfileName,
-	)
-	if err != nil {
-		return eris.Wrap(err, "failed to build context tarball")
-	}
-	defer closeAndLog(ctx, c.logger, "build context", buildContext)
 
 	target := sb.target
 	if target == "" {
@@ -218,13 +215,16 @@ func (c *Client) buildSingleCardinalWithDocker(
 			"GO_IMAGE":   &goImage,
 		},
 		Labels: map[string]string{
-			"world-cli":              "cardinal",
-			"world-cli-service-name": sb.serviceName,
-			"world-cli-image-name":   sb.image,
+			service.CardinalImageLabel: service.CardinalImageValue,
+			// Scopes `purge --image` to this world; without it the prune filter matches
+			// every project's images on the machine.
+			service.ProjectLabel:             c.cfg.WorldToml.Project,
+			service.CardinalServiceNameLabel: sb.serviceName,
+			service.CardinalImageNameLabel:   sb.image,
 		},
 	}
 
-	resp, err := c.client.ImageBuild(ctx, buildContext, opts)
+	resp, err := c.client.ImageBuild(ctx, bytes.NewReader(buildContext), opts)
 	if err != nil {
 		return eris.Wrapf(err, "failed to start docker build for %s", sb.image)
 	}
@@ -257,6 +257,51 @@ func (c *Client) readDockerignore(ctx context.Context, rootDir string) ([]string
 	}
 	defer closeAndLog(ctx, c.logger, ".dockerignore", f)
 	return ignorefile.ReadAll(f)
+}
+
+// bufferedBuildContext returns the build context gzipped in memory. Sent as a [bytes.Reader],
+// a known-length body makes the Docker client send Content-Length rather than a chunked
+// upload, which some daemons (Namespace CI runners) reject with "invalid tar header".
+// dockerd detects gzip. BestSpeed: the body only crosses a local socket or a CI hop.
+func bufferedBuildContext(
+	ctx context.Context,
+	rootDir string,
+	ignorePatterns []string,
+	dfContent []byte,
+	dfName string,
+) ([]byte, error) {
+	src, err := tarWithEmbeddedDockerfile(rootDir, ignorePatterns, dfContent, dfName)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = src.Close() }()
+
+	var buf bytes.Buffer
+	gz, err := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := io.Copy(gz, ctxReader{ctx, src}); err != nil {
+		return nil, err
+	}
+	if err := gz.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// ctxReader stops a long read once ctx is cancelled, so Ctrl+C does not wait for a large
+// context to finish packing.
+type ctxReader struct {
+	ctx context.Context //nolint:containedctx // scoped to one io.Copy
+	r   io.Reader
+}
+
+func (c ctxReader) Read(p []byte) (int, error) {
+	if err := c.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return c.r.Read(p)
 }
 
 // tarWithEmbeddedDockerfile streams a tar archive of rootDir filtered by
@@ -336,10 +381,13 @@ func writeBuildContextTar(tw *tar.Writer, src io.Reader, dfContent []byte, dfNam
 	}
 }
 
-// buildEvent captures only the error fields from /build's JSON event stream
-// (covering both the legacy builder and BuildKit shapes). Stream/aux progress
-// is intentionally ignored — progress is reported via the Progress callback.
+// buildEvent captures the error fields from /build's JSON event stream
+// (covering both the legacy builder and BuildKit shapes), plus BuildKit's
+// trace, whose step output a build error quotes. Other progress is ignored —
+// it's reported via the Progress callback.
 type buildEvent struct {
+	ID          string            `json:"id,omitempty"`
+	Aux         json.RawMessage   `json:"aux,omitempty"`
 	ErrorDetail *buildErrorDetail `json:"errorDetail,omitempty"`
 	Error       string            `json:"error,omitempty"`
 }
@@ -349,6 +397,7 @@ type buildErrorDetail struct {
 }
 
 func drainBuildResponse(ctx context.Context, body io.Reader, imageName string) error {
+	var output buildOutput
 	decoder := json.NewDecoder(body)
 	for decoder.More() {
 		select {
@@ -365,11 +414,18 @@ func drainBuildResponse(ctx context.Context, body io.Reader, imageName string) e
 			return eris.Wrapf(err, "decode build event for %s", imageName)
 		}
 
+		if event.ID == buildKitTraceID {
+			var payload []byte
+			if json.Unmarshal(event.Aux, &payload) == nil {
+				output.add(payload)
+			}
+			continue
+		}
 		if event.ErrorDetail != nil && event.ErrorDetail.Message != "" {
-			return eris.Errorf("build error for %s: %s", imageName, event.ErrorDetail.Message)
+			return eris.Errorf("build error for %s: %s%s", imageName, event.ErrorDetail.Message, output.tail())
 		}
 		if event.Error != "" {
-			return eris.Errorf("build error for %s: %s", imageName, event.Error)
+			return eris.Errorf("build error for %s: %s%s", imageName, event.Error, output.tail())
 		}
 	}
 	return nil
@@ -388,12 +444,9 @@ func closeAndLog(ctx context.Context, logger *slog.Logger, label string, c io.Cl
 	}
 }
 
-// IsCardinalService returns true if the given service represents a Cardinal
-// shard (identified by the Cardinal namespace label).
+// IsCardinalService reports whether the service's image is built from project source.
+// Shards always are; so are path-kind [[services]]. Keying off the build rather than the
+// role is what keeps a service's image building — a role check silently skipped them.
 func IsCardinalService(s service.Service) bool {
-	if len(s.Labels) == 0 {
-		return false
-	}
-	_, ok := s.Labels[service.CardinalNamespaceLabel]
-	return ok
+	return s.BuildTarget != ""
 }

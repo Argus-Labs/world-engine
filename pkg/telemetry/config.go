@@ -33,6 +33,15 @@ type Config struct {
 	// TracesInsecure is the signal-specific form of Insecure; when set it takes precedence.
 	TracesInsecure *bool `env:"OTEL_EXPORTER_OTLP_TRACES_INSECURE"`
 
+	// MetricsEndpoint is the OTLP gRPC endpoint for metrics, in the same forms as Endpoint. Metrics
+	// are exported only when it is set. Unlike traces they never fall back to Endpoint: the cardinal
+	// operator points Endpoint at a collector that accepts traces only, so falling back would fail
+	// every export from operator-managed shards.
+	MetricsEndpoint string `env:"OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"`
+
+	// MetricsInsecure is the metrics form of TracesInsecure; when set it takes precedence over Insecure.
+	MetricsInsecure *bool `env:"OTEL_EXPORTER_OTLP_METRICS_INSECURE"`
+
 	// TraceSampleRate is the sampling rate for traces (0.0 to 1.0).
 	TraceSampleRate float64 `env:"OTEL_TRACE_SAMPLE_RATE" envDefault:"1.0"`
 
@@ -95,11 +104,14 @@ func (cfg *Config) validate() error {
 			return err
 		}
 	}
+	if err := cfg.metricsExporterTarget().validate(); err != nil {
+		return err
+	}
 
 	return nil
 }
 
-// exporterTarget is the resolved OTLP trace exporter destination.
+// exporterTarget is the resolved destination of one OTLP exporter.
 type exporterTarget struct {
 	// Endpoint is either a bare host:port or a URL with a scheme.
 	Endpoint string
@@ -135,19 +147,33 @@ func (t exporterTarget) validate() error {
 //   - A URL endpoint is secure iff its scheme is https; the insecure flags are ignored.
 //   - A bare host:port honors OTEL_EXPORTER_OTLP_TRACES_INSECURE, then OTEL_EXPORTER_OTLP_INSECURE.
 func (cfg *Config) tracesExporterTarget() exporterTarget {
-	target := exporterTarget{Endpoint: cfg.Endpoint, Insecure: true}
+	endpoint := cfg.Endpoint
 	if cfg.TracesEndpoint != "" {
-		target.Endpoint = cfg.TracesEndpoint
+		endpoint = cfg.TracesEndpoint
 	}
+	return resolveExporterTarget(endpoint, cfg.Insecure, cfg.TracesInsecure)
+}
+
+// metricsExporterTarget resolves the metric exporter's destination like tracesExporterTarget, except
+// that the endpoint is OTEL_EXPORTER_OTLP_METRICS_ENDPOINT alone (see MetricsEndpoint). An empty
+// endpoint disables metrics.
+func (cfg *Config) metricsExporterTarget() exporterTarget {
+	return resolveExporterTarget(cfg.MetricsEndpoint, cfg.Insecure, cfg.MetricsInsecure)
+}
+
+// resolveExporterTarget applies the transport security rules shared by every signal: a URL's scheme
+// decides, otherwise the signal's insecure flag wins over the generic one, defaulting to plaintext.
+func resolveExporterTarget(endpoint string, insecure, signalInsecure *bool) exporterTarget {
+	target := exporterTarget{Endpoint: endpoint, Insecure: true}
 	if target.isURL() {
 		target.Insecure = !strings.HasPrefix(strings.ToLower(target.Endpoint), "https://")
 		return target
 	}
-	if cfg.Insecure != nil {
-		target.Insecure = *cfg.Insecure
+	if insecure != nil {
+		target.Insecure = *insecure
 	}
-	if cfg.TracesInsecure != nil {
-		target.Insecure = *cfg.TracesInsecure
+	if signalInsecure != nil {
+		target.Insecure = *signalInsecure
 	}
 	return target
 }
@@ -156,6 +182,9 @@ func (cfg *Config) applyToOptions(opt *Options) {
 	target := cfg.tracesExporterTarget()
 	opt.Endpoint = target.Endpoint
 	opt.Insecure = target.Insecure
+	metrics := cfg.metricsExporterTarget()
+	opt.MetricsEndpoint = metrics.Endpoint
+	opt.MetricsInsecure = metrics.Insecure
 	opt.LogLevel = cfg.LogLevel
 	opt.LogFormat = ParseLogFormat(cfg.LogFormat)
 	opt.TraceSampleRate = cfg.TraceSampleRate
@@ -170,8 +199,10 @@ func (cfg *Config) applyToOptions(opt *Options) {
 
 type Options struct {
 	ServiceName     string // Name of the service for telemetry
-	Endpoint        string // OTLP endpoint, a bare host:port or a URL with a scheme
+	Endpoint        string // OTLP trace endpoint, a bare host:port or a URL with a scheme
 	Insecure        bool   // Plaintext gRPC for a bare host:port endpoint; ignored for URLs
+	MetricsEndpoint string // OTLP metric endpoint in the same forms; empty disables metrics
+	MetricsInsecure bool   // Insecure for MetricsEndpoint
 	LogLevel        string
 	LogFormat       LogFormat // Log output format
 	TraceSampleRate float64

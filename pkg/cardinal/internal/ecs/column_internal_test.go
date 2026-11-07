@@ -1,11 +1,13 @@
 package ecs
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // -------------------------------------------------------------------------------------------------
@@ -104,10 +106,10 @@ func TestColumn_ModelFuzz(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------------------------------
-// Wire codec smoke test
+// MessagePack codec smoke test
 // -------------------------------------------------------------------------------------------------
 // We don't extensively test the row codecs because:
-// 1. They are thin wrappers around each component's generated encoders.
+// 1. They are thin wrappers around MessagePack.
 // 2. The loop logic is trivial with no complex branching.
 // 3. Heavy property-based testing would mostly exercise the component codec, not our code.
 // -------------------------------------------------------------------------------------------------
@@ -125,17 +127,14 @@ func TestColumn_WireRoundTrip(t *testing.T) {
 		col1.set(i, testutils.SimpleComponent{Value: i})
 	}
 
-	// Encode every row (rowWireSize measures, appendRowWire emits), decode into a fresh column.
+	// Encode every row, decode into a fresh column.
 	col2 := newColumn[testutils.SimpleComponent]()
 	for i := range length {
-		size := col1.rowWireSize(i)
-		require.Equal(t, size, col1.rowWireSize(i), "rowWireSize must be repeatable, not one-shot")
-
-		payload := col1.appendRowWire(nil, i)
-		require.Len(t, payload, size, "appendRowWire must write exactly rowWireSize bytes")
+		payload, err := col1.encode(i)
+		require.NoError(t, err)
 
 		col2.extend()
-		require.NoError(t, col2.decodeRow(i, payload))
+		require.NoError(t, col2.decode(i, payload))
 	}
 
 	// Property: decode(encode(x)) == x, row by row.
@@ -144,11 +143,37 @@ func TestColumn_WireRoundTrip(t *testing.T) {
 	}
 }
 
-func TestColumn_DecodeRowRejectsGarbage(t *testing.T) {
+func TestColumn_DecodeRejectsGarbage(t *testing.T) {
 	t.Parallel()
 
 	col := newColumn[testutils.SimpleComponent]()
 	col.extend()
-	err := col.decodeRow(0, []byte{0xFF, 0xFE, 0xFD})
-	assert.Error(t, err)
+	col.set(0, testutils.SimpleComponent{Value: 42})
+	err := col.decode(0, []byte{0xc1}) // reserved MessagePack marker
+	require.Error(t, err)
+	assert.Equal(t, testutils.SimpleComponent{Value: 42}, col.get(0))
+}
+
+// unencodablePayload passes component validation but always fails to encode, standing in for any
+// encoding failure at snapshot time.
+type unencodablePayload struct { //nolint:recvcheck // msgpack encodes a copy, decodes a pointer.
+	Value int
+}
+
+func (unencodablePayload) Name() string { return "unencodable_payload" }
+
+func (unencodablePayload) EncodeMsgpack(*msgpack.Encoder) error { return errors.New("cannot encode") }
+
+func (*unencodablePayload) DecodeMsgpack(*msgpack.Decoder) error { return errors.New("cannot decode") }
+
+func TestColumn_EncodeFailure(t *testing.T) {
+	t.Parallel()
+	col := newColumn[unencodablePayload]()
+	col.extend()
+	value := unencodablePayload{Value: 1}
+	col.set(0, value)
+	payload, err := col.encode(0)
+	require.Error(t, err)
+	assert.Nil(t, payload)
+	assert.Equal(t, value, col.get(0))
 }

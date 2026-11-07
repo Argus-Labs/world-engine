@@ -10,6 +10,8 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -98,7 +100,8 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 }
 
 // Request sends a request to a subject and waits for a response (request-reply pattern).
-// The timeout should be set in ctx.
+// The timeout should be set in ctx. A non-OK response status is returned as a gRPC status
+// error carrying the response's code, message, and details.
 func (c *Client) Request(
 	ctx context.Context,
 	address *ServiceAddress,
@@ -140,9 +143,8 @@ func (c *Client) Request(
 	}
 
 	// Check for application-level errors in the response status.
-	status := res.GetStatus()
-	if status.GetCode() != 0 {
-		return nil, eris.New(status.GetMessage())
+	if st := res.GetStatus(); st.GetCode() != int32(codes.OK) {
+		return nil, status.ErrorProto(st)
 	}
 
 	return &res, nil
@@ -205,7 +207,7 @@ func (c *Client) Close() {
 func (c *Client) handleDisconnect(nc *nats.Conn, err error) {
 	log := c.log.With().
 		Str("nats_url", c.natsConfig.URL).
-		Uint64("reconnect_attempts", nc.Reconnects).
+		Uint64("reconnect_attempts", nc.Stats().Reconnects).
 		Logger()
 
 	if err != nil {
@@ -219,14 +221,14 @@ func (c *Client) handleDisconnect(nc *nats.Conn, err error) {
 func (c *Client) handleReconnect(nc *nats.Conn) {
 	c.log.Info().
 		Str("nats_url", nc.ConnectedUrl()).
-		Uint64("reconnect_attempts", nc.Reconnects).
+		Uint64("reconnect_attempts", nc.Stats().Reconnects).
 		Msg("Reconnected to NATS")
 }
 
 // handleClosed handles NATS connection closure events.
 func (c *Client) handleClosed(nc *nats.Conn) {
 	log := c.log.With().
-		Uint64("reconnect_attempts", nc.Reconnects).
+		Uint64("reconnect_attempts", nc.Stats().Reconnects).
 		Logger()
 
 	if err := nc.LastError(); err != nil {

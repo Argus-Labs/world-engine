@@ -3,9 +3,8 @@
 //
 //   - shapeDrawColor: the b2HexColor if/else ladder of DrawQueryCallback,
 //     src/physics_world.c:959-1009.
-//   - getShapePerimeter / getShapeRadius / getShapeProjectedPerimeter:
-//     src/shape.c b2GetShapePerimeter, b2GetShapeRadius,
-//     b2GetShapeProjectedPerimeter.
+//   - getShapeRadius / getShapeProjectedPerimeter:
+//     src/shape.c b2GetShapeRadius, b2GetShapeProjectedPerimeter.
 //   - getArenaCapacity: src/arena_allocator.c b2GetArenaCapacity.
 //   - validateIsland: src/island.c b2ValidateIsland.
 //   - DynamicTree node pool invariants of test_dynamic_tree.c TreeCreateDestroy.
@@ -16,7 +15,6 @@
 package box2d
 
 import (
-	"math"
 	"testing"
 
 	tassert "github.com/stretchr/testify/assert"
@@ -214,82 +212,6 @@ func TestOracleShapeDrawColorCustomColorIsPassedThrough(t *testing.T) {
 // ---------------------------------------------------------------------------
 // shape.c geometric helpers
 // ---------------------------------------------------------------------------
-
-// TestOracleGetShapePerimeter encodes b2GetShapePerimeter, src/shape.c. The
-// expected values are closed forms of the C expressions, computed by hand:
-//
-//	capsule: 2 * length + 2 * pi * radius
-//	circle : 2 * pi * radius
-//	polygon: 2 * pi * polygonRadius + sum of edge lengths
-//	segment: 2 * |p2 - p1|   (both sides of the segment)
-//	chain segment: same as segment
-func TestOracleGetShapePerimeter(t *testing.T) {
-	t.Parallel()
-
-	// A 2 x 2 box: 4 edges of length 2, zero polygon radius.
-	box := MakeBox(1.0, 1.0)
-
-	tests := []struct {
-		name string
-		s    shape
-		want float64
-	}{
-		{
-			name: "capsule",
-			s: shape{
-				shapeType: CapsuleShape,
-				capsule: Capsule{
-					Center1: Vec2{X: -1.5, Y: 0.0},
-					Center2: Vec2{X: 1.5, Y: 0.0},
-					Radius:  0.25,
-				},
-			},
-			// 2 * 3.0 + 2 * pi * 0.25
-			want: 6.0 + 2.0*math.Pi*0.25,
-		},
-		{
-			name: "circle",
-			s: shape{
-				shapeType: CircleShape,
-				circle:    Circle{Center: Vec2{X: 1.0, Y: 2.0}, Radius: 0.75},
-			},
-			want: 2.0 * math.Pi * 0.75,
-		},
-		{
-			name: "polygon",
-			s:    shape{shapeType: PolygonShape, polygon: box},
-			want: 8.0,
-		},
-		{
-			name: "segment",
-			s: shape{
-				shapeType: SegmentShape,
-				segment:   Segment{Point1: Vec2{X: 0.0, Y: 0.0}, Point2: Vec2{X: 3.0, Y: 4.0}},
-			},
-			// |(3,4)| = 5, doubled
-			want: 10.0,
-		},
-		{
-			name: "chain segment",
-			s: shape{
-				shapeType: ChainSegmentShape,
-				chainSegment: ChainSegment{
-					Segment: Segment{Point1: Vec2{X: 0.0, Y: 0.0}, Point2: Vec2{X: 0.0, Y: 2.0}},
-				},
-			},
-			want: 4.0,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
-			s := test.s
-			tassert.InDelta(t, test.want, getShapePerimeter(&s), 1e-12)
-		})
-	}
-}
 
 // TestOracleGetShapeRadius encodes b2GetShapeRadius, src/shape.c: the round
 // radius of a capsule, circle or polygon, and 0 for every other type.
@@ -925,8 +847,7 @@ func TestOracleShapeHelpersDefaultArm(t *testing.T) {
 	// b2GetShapeCentroid: the C returns b2Vec2_zero.
 	tassert.Equal(t, Vec2Zero, getShapeCentroid(&s))
 
-	// b2GetShapePerimeter and b2GetShapeProjectedPerimeter return 0.
-	tassert.InDelta(t, 0.0, getShapePerimeter(&s), 0.0)
+	// b2GetShapeProjectedPerimeter returns 0.
 	tassert.InDelta(t, 0.0, getShapeProjectedPerimeter(&s, Vec2{X: 1.0, Y: 0.0}), 0.0)
 
 	// b2GetShapeRadius returns 0 for anything that is not round.

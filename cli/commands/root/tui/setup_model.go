@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/rotisserie/eris"
 
-	"github.com/argus-labs/world-engine/cli/internal/dependency"
 	"github.com/argus-labs/world-engine/cli/internal/tui/kit/steps"
 	"github.com/argus-labs/world-engine/cli/internal/tui/style"
 	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
@@ -17,9 +16,10 @@ import (
 )
 
 // projectNameErrMsg is shown when a project name isn't dnslabel-canonical (the
-// form the cardinal-operator expects for shard paths). Shared by the interactive
-// input and the directory-argument path.
-const projectNameErrMsg = "Name must use lowercase letters, numbers, and single hyphens (e.g. my-game)"
+// form the shard chart's ingress path expects). Shared by the interactive
+// input and the directory-argument path. The 63-character limit matches the
+// DNS-1123 label constraint enforced by dnslabel.IsCanonical.
+const projectNameErrMsg = "Name must use lowercase letters, numbers, and single hyphens (max 63 characters, e.g. my-game)"
 
 /////////////////////////
 // Bubble Tea Messages //
@@ -75,11 +75,13 @@ type WorldSetupModel struct {
 	logs             []string
 	steps            steps.Model
 	projectNameInput textinput.Model
+	// targetDir stores the full destination path. projectNameInput stores only the project name.
+	// An empty targetDir selects the interactive input.
+	targetDir        string
 	templateList     list.Model
 	selectedTemplate *worldscaffold.GameTemplate
 	templateFlag     string // Template name from --template flag (validated when step starts)
 	showTemplateList bool
-	depResult        dependency.CheckResult
 	templateErr      error
 	nameErr          string // Inline validation error for the project name input
 	env              string
@@ -90,7 +92,6 @@ func NewWorldSetupModel(directory, env, templateFlag string) WorldSetupModel {
 	pnInput := textinput.New()
 	pnInput.Prompt = style.DoubleRightIcon.Render()
 	pnInput.Placeholder = "starter-game"
-	pnInput.Focus()
 	pnInput.Width = 50
 
 	setupSteps := newSetupSteps()
@@ -125,18 +126,24 @@ func NewWorldSetupModel(directory, env, templateFlag string) WorldSetupModel {
 	}
 
 	nameErr := ""
+	targetDir := ""
 	if directory != "" {
-		// Extract just the directory name from the path
+		targetDir = directory
 		dirName := filepath.Base(directory)
 		pnInput.SetValue(dirName)
 		if !dnslabel.IsCanonical(dirName) {
 			nameErr = projectNameErrMsg
 		}
 	}
+	// Only ask for a name when no valid one was passed; Init skips the name step otherwise.
+	if targetDir == "" || nameErr != "" {
+		pnInput.Focus()
+	}
 
 	return WorldSetupModel{
 		steps:            setupSteps,
 		projectNameInput: pnInput,
+		targetDir:        targetDir,
 		templateList:     templateList,
 		templateFlag:     templateFlag,
 		templateErr:      templateErr,

@@ -1,6 +1,9 @@
 package errors
 
-import "github.com/rotisserie/eris"
+import (
+	"context"
+	"errors"
+)
 
 // SilentError wraps an error to indicate it should not be printed to the user.
 // This is useful for expected user cancellations, validation failures that
@@ -28,17 +31,50 @@ func NewSilent(err error) error {
 }
 
 // IsSilent checks if an error is marked as silent and shouldn't be printed.
+// errors.As, not eris.As: kong wraps every command error in errors.Join,
+// which eris can't see into.
 func IsSilent(err error) bool {
 	if err == nil {
 		return false
 	}
 
 	var silentErr *SilentError
-	return eris.As(err, &silentErr)
+	return errors.As(err, &silentErr)
 }
 
-// ShouldPrint returns true if the error should be printed to the user.
-// This is the inverse of IsSilent for more readable code.
+// ShouldPrint reports whether main should print and capture err. Silent errors
+// and errors matching [context.Canceled] suppress the whole error, including
+// mixed joins. Verbose logging happens separately.
 func ShouldPrint(err error) bool {
-	return !IsSilent(err)
+	return !isSilentOrCancel(err)
+}
+
+func isSilentOrCancel(err error) bool {
+	return IsSilent(err) || errors.Is(err, context.Canceled)
+}
+
+// JoinFailures joins separately supplied real failures. A cancel (Ctrl+C) or
+// silent error supplied as its own argument isn't a real failure, so it can't
+// hide one; it's returned only if nothing failed. A single [errors.Join] of a
+// real error and a cancel is classified wholesale by isSilentOrCancel, so the
+// real error is discarded in that form — pass failures as separate arguments
+// to preserve them.
+func JoinFailures(errs ...error) error {
+	var failures []error
+	var canceled error
+	for _, err := range errs {
+		switch {
+		case err == nil:
+		case isSilentOrCancel(err):
+			if canceled == nil {
+				canceled = err
+			}
+		default:
+			failures = append(failures, err)
+		}
+	}
+	if len(failures) > 0 {
+		return errors.Join(failures...)
+	}
+	return canceled
 }

@@ -91,13 +91,16 @@ func TestDebugger(t *testing.T) {
 	}
 
 	t.Log("Waiting for NATS to be reachable...")
-	if !testutil.WaitForNATS(5 * time.Minute) {
+	if !testutil.WaitForNATS(5*time.Minute, testProjectDir) {
 		captureStartOutput()
 		t.Fatal("NATS did not become reachable")
 	}
 
 	t.Log("Waiting for Cardinal debug service to be ready (RPC-level check)...")
-	containerName := testutil.CardinalShardContainerName(testProjectDir, "game")
+	containerName, err := testutil.CardinalShardContainerName(testProjectDir, "game")
+	if err != nil {
+		t.Fatalf("resolve shard container name: %v", err)
+	}
 	if !testutil.WaitForCardinalDebugReady(t, 5*time.Minute, containerName) {
 		captureStartOutput()
 		t.Fatal("Cardinal debug service did not become ready")

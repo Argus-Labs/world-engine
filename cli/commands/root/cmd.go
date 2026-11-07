@@ -8,7 +8,6 @@ import (
 
 	"github.com/argus-labs/world-engine/cli/commands/debugger"
 	"github.com/argus-labs/world-engine/cli/commands/mcp"
-	"github.com/argus-labs/world-engine/cli/commands/sdk"
 )
 
 // These variables are overridden by ldflags during build.
@@ -29,13 +28,12 @@ type Cmd struct {
 	Start   *StartCmd        `cmd:"" group:"Cardinal Commands:" help:"Launch your Cardinal game environment"`
 	Stop    *StopCmd         `cmd:"" group:"Cardinal Commands:" help:"Gracefully shut down your Cardinal game environment"`
 	Purge   *PurgeCmd        `cmd:"" group:"Cardinal Commands:" help:"Reset your Cardinal game shard to a clean state by removing all data and containers"`
-	Reload  *ReloadCmd       `cmd:"" group:"Cardinal Commands:" help:"Rebuild and roll Cardinal shards in the running cluster"`
+	Reload  *ReloadCmd       `cmd:"" group:"Cardinal Commands:" help:"Rebuild and roll Cardinal shards in the running world"`
 	Logs    *LogsCmd         `cmd:"" group:"Cardinal Commands:" help:"View and tail logs for shards + platform components"`
 	Debug   *debugger.Cmd    `cmd:"" group:"Debugger Commands:" help:"Debug commands for Cardinal shards"                                                  aliases:"db"`
-	SDK     *sdk.Cmd         `cmd:"" group:"SDK Commands:"      help:"Generate the typed SDK (Go + C#) from backend wire types"                                         name:"sdk"`
-	Build   *BuildCmd        `cmd:""                            help:"Build Cardinal shard images without starting containers (CI use)"                                                hidden:""`
-	MCP     *mcp.Cmd         `cmd:""                            help:"MCP server for AI tools (internal)"                                                                              hidden:""`
-	Version kong.VersionFlag `                                  help:"Show the version of the CLI"                                                                      name:"version"`
+	Build   *BuildCmd        `cmd:""                            help:"Build Cardinal shard images without starting containers (CI use)"                                 hidden:""`
+	MCP     *mcp.Cmd         `cmd:""                            help:"MCP server for AI tools (internal)"                                                               hidden:""`
+	Version kong.VersionFlag `                                  help:"Show the version of the CLI"                                                                                name:"version"`
 	Verbose bool             `                                  help:"Enable World CLI Debug logs"                                                                                               short:"v"`
 }
 

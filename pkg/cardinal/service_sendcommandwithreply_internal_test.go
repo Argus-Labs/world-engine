@@ -2,7 +2,6 @@ package cardinal
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"math/rand/v2"
 	"strconv"
@@ -66,23 +65,6 @@ type replyCommand struct {
 
 func (replyCommand) Name() string { return scwrCommandName }
 
-func (c replyCommand) SizeWire() int { return 16 }
-
-func (c replyCommand) AppendWire(b []byte) []byte {
-	b = binary.LittleEndian.AppendUint64(b, c.ReplyID)
-	return binary.LittleEndian.AppendUint64(b, uint64(c.Value))
-}
-
-func (replyCommand) UnmarshalWire(b []byte) (any, error) {
-	if len(b) < 16 {
-		return nil, eris.New("replyCommand: malformed wire bytes")
-	}
-	return replyCommand{
-		ReplyID: binary.LittleEndian.Uint64(b[:8]),
-		Value:   int64(binary.LittleEndian.Uint64(b[8:16])),
-	}, nil
-}
-
 // replyEvent echoes the command's ReplyID. Its Name() is per-instance (encodes ReplyID), so each
 // caller waits on a distinct event — a dropped reply cannot be masked by another caller's reply
 // reaching the waiter.
@@ -95,21 +77,10 @@ func (e replyEvent) Name() string {
 	return scwrEventNamePrefix + strconv.FormatUint(e.ReplyID, 10)
 }
 
-func (e replyEvent) SizeWire() int { return 16 }
-
-func (e replyEvent) AppendWire(b []byte) []byte {
-	b = binary.LittleEndian.AppendUint64(b, e.ReplyID)
-	return binary.LittleEndian.AppendUint64(b, uint64(e.Value))
-}
-
 func (replyEvent) UnmarshalWire(b []byte) (any, error) {
-	if len(b) < 16 {
-		return nil, eris.New("replyEvent: malformed wire bytes")
-	}
-	return replyEvent{
-		ReplyID: binary.LittleEndian.Uint64(b[:8]),
-		Value:   int64(binary.LittleEndian.Uint64(b[8:16])),
-	}, nil
+	var e replyEvent
+	err := schema.Deserialize(b, &e)
+	return e, err
 }
 
 // replySystem drains replyCommand inputs every tick and broadcasts a replyEvent echoing each
@@ -134,8 +105,8 @@ type tickingReplyQueue struct {
 	tick func()
 }
 
-func (q *tickingReplyQueue) Enqueue(ctx context.Context, cmd *iscv1.Command) error {
-	if err := q.Queue.Enqueue(ctx, cmd); err != nil {
+func (q *tickingReplyQueue) Enqueue(ctx context.Context, cmd *iscv1.Command, sender command.Sender) error {
+	if err := q.Queue.Enqueue(ctx, cmd, sender); err != nil {
 		return err
 	}
 	q.tick()
@@ -149,15 +120,15 @@ type failingQueue struct {
 	command.Queue
 }
 
-func (q *failingQueue) Enqueue(context.Context, *iscv1.Command) error {
+func (q *failingQueue) Enqueue(context.Context, *iscv1.Command, command.Sender) error {
 	return eris.New("simulated enqueue failure")
 }
 
-// scwrAuthCtx returns parent bound to the given user, the way authn.SetInfo does for a real
-// authenticated request. SendCommandWithReply reads the user via UserFromContext and uses the
+// scwrAuthCtx returns parent bound to the given player, the way authn.SetInfo does for a real
+// authenticated request. SendCommandWithReply reads the player via PlayerFromContext and uses the
 // context's Done channel as its reply-deadline, so the parent must carry the timeout.
-func scwrAuthCtx(parent context.Context, userID string) context.Context {
-	return authn.SetInfo(parent, &User{ID: userID})
+func scwrAuthCtx(parent context.Context, playerID string) context.Context {
+	return authn.SetInfo(parent, &Player{ID: playerID})
 }
 
 // newSCWRFixture builds a bare World whose KindDefault event handler is publishDefaultEvent, with
@@ -215,7 +186,6 @@ func TestService_SendCommandWithReply_WaiterRegisteredBeforeEnqueue(t *testing.T
 		cmdPb := &iscv1.Command{
 			Name:    testutils.SimpleCommand{}.Name(),
 			Address: w.address,
-			Persona: &iscv1.Persona{Id: "client-provided-persona"},
 			Payload: testutils.SimpleCommand{Value: prng.IntN(1_000_000)}.MarshalWire(),
 		}
 
@@ -251,7 +221,6 @@ func TestService_SendCommandWithReply_WaiterRegisteredBeforeEnqueue(t *testing.T
 		cmdPb := &iscv1.Command{
 			Name:    testutils.SimpleCommand{}.Name(),
 			Address: w.address,
-			Persona: &iscv1.Persona{Id: "client-provided-persona"},
 			Payload: testutils.SimpleCommand{Value: 42}.MarshalWire(),
 		}
 
@@ -270,9 +239,8 @@ func TestService_SendCommandWithReply_WaiterRegisteredBeforeEnqueue(t *testing.T
 		// The deferred removeReplyWaiter must have cleaned up the waiter registered before the
 		// failed Enqueue; otherwise waiters accumulate on every failing call (a leak).
 		svc.mu.RLock()
-		_, leak := svc.replyWaiters[eventName]
-		svc.mu.RUnlock()
-		assert.False(t, leak, "reply waiter leaked after enqueue failure")
+		defer svc.mu.RUnlock()
+		assert.Empty(t, svc.replyWaiters, "reply waiter leaked after enqueue failure")
 	})
 }
 
@@ -317,11 +285,15 @@ func TestService_SendCommandWithReply_ReplyDeliveredUnderHotTickLoop(t *testing.
 				replyID := uint64(worker)*uint64(scwrStressCallsPerWorker) + uint64(i)
 				value := int64(replyID)
 				eventName := scwrEventNamePrefix + strconv.FormatUint(replyID, 10)
+				payload, err := schema.Serialize(replyCommand{ReplyID: replyID, Value: value})
+				if err != nil {
+					t.Errorf("serialize command: %v", err)
+					return
+				}
 				cmdPb := &iscv1.Command{
 					Name:    scwrCommandName,
 					Address: w.address,
-					Persona: &iscv1.Persona{Id: "stress-user"},
-					Payload: schema.Marshal(replyCommand{ReplyID: replyID, Value: value}),
+					Payload: payload,
 				}
 				callCtx, callCancel := context.WithTimeout(context.Background(), scwrStressPerCallTimeout)
 				resp, callErr := w.service.SendCommandWithReply(
@@ -382,4 +354,118 @@ func newSCWRWorld(t *testing.T, prng *rand.Rand) *World {
 	w.RegisterEvent[replyEvent]()
 	require.NotPanics(t, func() { w.RegisterSystem(&replySystem{}) })
 	return w
+}
+
+// -------------------------------------------------------------------------------------------------
+// SendCommandWithReply reply routing tests
+// -------------------------------------------------------------------------------------------------
+// Reply waiters are keyed by player and event name. A targeted reply (w.SendTo) must resolve only
+// the recipient's pending request, so one player never receives another player's private reply. A
+// broadcast is visible to every player, so it resolves every pending request for the event name.
+// -------------------------------------------------------------------------------------------------
+
+type scwrResult struct {
+	reply any
+	err   error
+}
+
+// newSCWRRoutingFixture returns a fixture whose command queue signals each successful Enqueue.
+// SendCommandWithReply registers its waiter before enqueueing, so a signal means the request is
+// waiting for its reply.
+func newSCWRRoutingFixture(t *testing.T) (*service, *World, <-chan struct{}) {
+	t.Helper()
+	waiting := make(chan struct{})
+	svc, w := newSCWRFixture(t, testutils.NewRand(t), func(*World) command.Queue {
+		return &tickingReplyQueue{
+			Queue: command.NewQueue[testutils.SimpleCommand](),
+			tick:  func() { waiting <- struct{}{} },
+		}
+	})
+	w.RegisterEvent[testutils.SimpleEvent]()
+	return svc, w, waiting
+}
+
+// scwrStartRequest sends a SimpleCommand with reply as playerID in the background and returns once
+// the request is waiting for its reply. The channel yields the decoded reply or the call's error.
+func scwrStartRequest(
+	t *testing.T, svc *service, w *World, waiting <-chan struct{}, playerID string,
+) <-chan scwrResult {
+	t.Helper()
+	results := make(chan scwrResult, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), scwrReplyTimeout)
+		defer cancel()
+		resp, err := svc.SendCommandWithReply(
+			scwrAuthCtx(ctx, playerID),
+			connect.NewRequest(&cardinalv1.SendCommandWithReplyRequest{
+				Command: &iscv1.Command{
+					Name:    testutils.SimpleCommand{}.Name(),
+					Address: w.address,
+					Payload: testutils.SimpleCommand{}.MarshalWire(),
+				},
+				EventName: testutils.SimpleEvent{}.Name(),
+			}),
+		)
+		if err != nil {
+			results <- scwrResult{err: err}
+			return
+		}
+		reply, err := testutils.SimpleEvent{}.UnmarshalWire(resp.Msg.GetEvent().GetPayload())
+		results <- scwrResult{reply: reply, err: err}
+	}()
+	select {
+	case <-waiting:
+	case res := <-results:
+		require.FailNow(t, "request returned before it was enqueued", "error: %v", res.err)
+	}
+	return results
+}
+
+func TestService_SendCommandWithReply_RoutesReplyByRecipient(t *testing.T) {
+	t.Parallel()
+
+	t.Run("targeted reply resolves only the recipient's request", func(t *testing.T) {
+		t.Parallel()
+		svc, w, waiting := newSCWRRoutingFixture(t)
+		alice := scwrStartRequest(t, svc, w, waiting, "alice")
+		bob := scwrStartRequest(t, svc, w, waiting, "bob")
+
+		w.SendTo("bob", testutils.SimpleEvent{Value: 2})
+		require.NoError(t, w.events.Dispatch(t.Context()))
+		bobResult := <-bob
+		require.NoError(t, bobResult.err)
+		assert.Equal(t, testutils.SimpleEvent{Value: 2}, bobResult.reply)
+
+		select {
+		case res := <-alice:
+			require.FailNow(t, "Bob's reply resolved Alice's request", "result: %+v", res)
+		default:
+		}
+
+		w.SendTo("alice", testutils.SimpleEvent{Value: 1})
+		require.NoError(t, w.events.Dispatch(t.Context()))
+		aliceResult := <-alice
+		require.NoError(t, aliceResult.err)
+		assert.Equal(t, testutils.SimpleEvent{Value: 1}, aliceResult.reply)
+
+		// Each request removed its own waiter before returning, leaving no empty map entries behind.
+		svc.mu.RLock()
+		defer svc.mu.RUnlock()
+		assert.Empty(t, svc.replyWaiters)
+	})
+
+	t.Run("broadcast resolves every pending request", func(t *testing.T) {
+		t.Parallel()
+		svc, w, waiting := newSCWRRoutingFixture(t)
+		alice := scwrStartRequest(t, svc, w, waiting, "alice")
+		bob := scwrStartRequest(t, svc, w, waiting, "bob")
+
+		w.Broadcast(testutils.SimpleEvent{Value: 3})
+		require.NoError(t, w.events.Dispatch(t.Context()))
+		for _, results := range []<-chan scwrResult{alice, bob} {
+			res := <-results
+			require.NoError(t, res.err)
+			assert.Equal(t, testutils.SimpleEvent{Value: 3}, res.reply)
+		}
+	})
 }

@@ -1,5 +1,12 @@
 # World Engine
 
+## Pull requests
+
+Before drafting, filing, or updating a pull request, read and follow
+[file-pr](.agents/skills/file-pr/SKILL.md). Use the repository PR template,
+include reviewed screenshots or recordings when feasible (otherwise explain why),
+and record verification, caveats, AI authorship, and human contributions.
+
 ## Go skills
 
 - Before designing, editing, or reviewing Go code, read and follow [go-development](.agents/skills/go-development/SKILL.md).

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argus-labs/world-engine/cli/pkg/cluster"
+	"github.com/argus-labs/world-engine/cli/pkg/worldstatus"
 )
 
 // mustQuit invokes cmd (which must be non-nil) and asserts it resolves to a
@@ -101,7 +101,7 @@ func TestTailModel_LogLine_ReturnsNonNilCmd(t *testing.T) {
 	t.Parallel()
 
 	m := New(context.Background(), true, nil)
-	_, cmd := m.Update(LogLineMsg(cluster.LogLine{InstanceName: "gameplay-2", Line: "hello"}))
+	_, cmd := m.Update(LogLineMsg(worldstatus.LogLine{InstanceName: "gameplay-2", Line: "hello"}))
 	require.NotNil(t, cmd, "a log line must schedule a print")
 }
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Demo"
+  short_description: "Record a polished browser demo"
+  default_prompt: "Use $demo to record a polished browser walkthrough of the completed change."

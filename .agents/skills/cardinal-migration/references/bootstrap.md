@@ -99,7 +99,7 @@ closes and Init sees a zero `time.Time{}`. The audit lists every such test.
 | `cardinal.NewWorld` with `StorageTypeNop` and `t.Setenv`        | `cardinal.NewTestWorld(t, setup)`. It reads no env and connects to nothing.                                     |
 | `w.RegisterSystem(...)` after `NewWorld`, before the first tick | Move it into setup. Register* after `NewTestWorld` returns panics: the world has started.                       |
 | Reflection on the unexported `world` field to call `Init`       | Delete it. `NewTestWorld` runs the Init systems setup registers. Calling it again panics.                       |
-| Reflection on the unexported `commands` field to call `Enqueue` | `w.Command(persona, cmd)`.                                                                                      |
+| Reflection on the unexported `commands` field to call `Enqueue` | `w.Command(player, cmd)`.                                                                                       |
 | Init-hook seed system that creates entities                     | `w.Create[A]()` and `e.Set(c)` in the test body.                                                                |
 | Driver system that emits system events from a package variable  | `w.EmitSystemEvent(ev)` before the step. A driver that runs after the system under test stays a system (Rules). |
 | Observer system writing to a package-level variable             | Read state after the step: `e.Get[C]()`, `w.Exact[A]().Iter()`.                                                 |
@@ -143,9 +143,9 @@ Rules:
 - `w.Tick(ts)` does not compile on a `*TestWorld`: `too many arguments in call to w.Tick`.
   Helpers typed `*cardinal.World` take `w.World`.
 - `w.StartGame()` fails the test.
-- Plugins work: physics2d steps under `w.Tick()`, and the data plugin serves its catalog.
-  A plugin instance registers on one world only. Construct it inside setup, and keep
-  handles such as `*data.Plugin` in a variable that setup assigns.
+- Plugins work: physics2d steps under `w.Tick()`. A plugin instance registers on one world
+  only. Construct it inside setup, and keep handles such as `*physics2d.Plugin` in a
+  variable that setup assigns.
 - A `TestWorld` reads no env, so tests that only use it can call `t.Parallel()`, unless
   they share package-level game state. `RunDST` calls `t.Setenv` and cannot.
 
@@ -181,8 +181,7 @@ Re-registering the same type is a no-op, so duplicates are harmless.
 - Two Go types with the same component or system-event `Name()` now panic at registration
   (`component X already registered with a different type`). v0.16 silently shared one
   column. Plugin names are reserved too: lobby `player`, `lobby`; physics2d `transform_2d`,
-  `velocity_2d`, `physics_body_2d`, `physics_singleton_tag`, `active_contacts`; data
-  `data_config_manifest`. A struct that embeds a component inherits its `Name()` and collides.
+  `velocity_2d`, `physics_body_2d`, `physics_singleton_tag`, `active_contacts`. A struct that embeds a component inherits its `Name()` and collides.
 - Commands with the same `Name()` are not checked: the first type wins silently. Keep command
   names unique.
 - Hooks are unchanged: Init once (and on debug reset), then PreUpdate, Update, PostUpdate

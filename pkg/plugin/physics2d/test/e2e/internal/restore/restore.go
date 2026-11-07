@@ -3,10 +3,8 @@
 //
 // This is the path a shard takes after a crash, and it is not the same path as
 // physics2d.ResetRuntime on a live world. A restore round-trips every component
-// through MarshalWire and UnmarshalWire, which for PhysicsBody2D means going
-// through its custom UnmarshalJSON — the code that decides whether an absent
-// field means "false" or "Box2D's default of true". Only a real snapshot
-// exercises that.
+// through MessagePack, preserving explicit zero values without applying the
+// defaults used for hand-written JSON. Only a real snapshot exercises that.
 //
 // Cardinal's own ordering is reproduced exactly: World.run calls world.Init()
 // first, so the game's Init systems spawn a whole scene and the physics plugin
@@ -202,7 +200,7 @@ func checkAwakeIsNotStale(report *harness.Report, check string, at harness.Captu
 
 // checkDeserialized compares ECS as the restored world found it against ECS as
 // the snapshot left it. Nothing has simulated yet, so this is purely a test of
-// MarshalWire, UnmarshalWire and PhysicsBody2D.UnmarshalJSON.
+// MessagePack snapshot serialization, without JSON defaulting.
 func checkDeserialized(report *harness.Report, check string, want, got harness.Capture) {
 	if !expectSameBodies(report, check+" (deserialize)", want, got, 0) {
 		return
@@ -211,7 +209,7 @@ func checkDeserialized(report *harness.Report, check string, want, got harness.C
 	diffs := harness.CompareCaptures(want, got, exactTol)
 	if len(diffs) == 0 {
 		report.Pass(check, "every component survives the snapshot round trip byte for byte", 0)
-		report.Note(check, 0, "%d bodies round-tripped through MarshalWire/UnmarshalWire "+
+		report.Note(check, 0, "%d bodies round-tripped through MessagePack "+
 			"with no field changed", len(want.Rows))
 		return
 	}

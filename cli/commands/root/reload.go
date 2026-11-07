@@ -2,7 +2,6 @@ package root
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -16,18 +15,17 @@ import (
 	"github.com/argus-labs/world-engine/cli/internal/logger"
 	"github.com/argus-labs/world-engine/cli/internal/telemetry"
 	"github.com/argus-labs/world-engine/cli/internal/tui/component/phasebox"
-	"github.com/argus-labs/world-engine/cli/pkg/cluster"
 	"github.com/argus-labs/world-engine/cli/pkg/docker"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
+	"github.com/argus-labs/world-engine/cli/pkg/local"
 )
 
-// ReloadCmd rebuilds one or more Cardinal shards and rolls them in the
-// already-running local cluster. Inner-loop iteration alternative to
-// `world stop` + `world start`.
+// ReloadCmd rebuilds one or more Cardinal shards and recreates their containers
+// in the running world. Inner-loop alternative to `world stop` + `world start`.
 type ReloadCmd struct {
-	Instances []string `arg:"" optional:"" help:"Instance IDs to reload; defaults to every instance"`
-	Debug     bool     `                   help:"Enable debug mode"                                  default:"true"  negatable:""`
-	Purge     bool     `                   help:"Wipe instance state (NATS JetStream) before reload" default:"false" negatable:""`
+	Instances []string `arg:"" optional:"" help:"Instance IDs to reload; a pool reloads as a whole, so naming one instance restarts its siblings too. Defaults to every instance"`
+	Debug     bool     `                   help:"Enable debug mode"                                                                                                               default:"true"  negatable:""`
+	Purge     bool     `                   help:"Wipe instance state (NATS JetStream) before reload"                                                                              default:"false" negatable:""`
 }
 
 func (c *ReloadCmd) Run(ctx context.Context) error {
@@ -35,7 +33,8 @@ func (c *ReloadCmd) Run(ctx context.Context) error {
 		"instances": c.Instances,
 	})
 
-	if err := dependency.Check(dependency.Git, dependency.Docker, dependency.DockerDaemon); err != nil {
+	deps := []dependency.Dependency{dependency.Git, dependency.Docker, dependency.DockerDaemon}
+	if err := dependency.Check(deps...); err != nil {
 		return err
 	}
 
@@ -46,20 +45,26 @@ func (c *ReloadCmd) Run(ctx context.Context) error {
 
 	return docker.WithClient(cwd, c.Debug, &docker.ClientOptions{Logger: logger.Slog()},
 		func(cfg *service.Config, dockerClient *docker.Client) error {
-			// Reload covers shards only: path-kind [[services]] aren't rebuilt and
-			// services dropped from world.toml aren't GC'd here — both happen on a
-			// full `world start`. TODO: wire deployK8sServices + gcOrphanedServices
-			// in for parity once the inner-loop UX settles.
-			return reloadK8sShards(ctx, dockerClient, cfg, c.Instances, c.Purge)
+			// Reload covers shards only; path-kind [[services]] rebuild on `world start`.
+			rt := local.New(dockerClient, cfg)
+			running, err := rt.IsRunning(ctx)
+			if err != nil {
+				return err
+			}
+			if !running {
+				return eris.New("world is not running — start it with `world start`")
+			}
+			return reloadShards(ctx, rt, dockerClient, cfg, c.Instances, c.Purge)
 		},
 	)
 }
 
-// reloadK8sShards builds, imports, and rolls the targeted shards through the
-// operator. Shared by `world reload` and `world start`. instanceIDs empty means
-// every instance; purge wipes the targeted instances' JetStream state first.
-func reloadK8sShards(
+// reloadShards builds the targeted shards and recreates their containers. Shared
+// by `world reload` and the log picker's hotkeys. instanceIDs empty means every
+// instance; purge wipes the targeted instances' JetStream state first.
+func reloadShards(
 	ctx context.Context,
+	rt *local.Runtime,
 	dockerClient *docker.Client,
 	cfg *service.Config,
 	instanceIDs []string,
@@ -70,6 +75,11 @@ func reloadK8sShards(
 		return err
 	}
 	targetIDs := targets.shardIDs
+	// This process does not serve the edge; the one that does built its routes from the
+	// world.toml it started with, so refuse a layout it would misroute.
+	if err := rt.CheckLayout(ctx); err != nil {
+		return err
+	}
 
 	services := dockerClient.ResolveServices(service.GetServices(cfg, service.CardinalShardsFirst)...)
 	dockerServices := filterCardinalServicesByID(services, cfg, targetIDs)
@@ -77,7 +87,7 @@ func reloadK8sShards(
 	// One dashboard spans every box this reload opens (Image Pull, Build,
 	// optionally Purge, Shards) through a single bubbletea program, so
 	// adjacent boxes can't visually merge across a program hand-off.
-	dash := phasebox.Start(ctx)
+	dash := phasebox.Start(ctx, progressForTerminal())
 	defer dash.Complete()
 
 	if err := pullBuildDeps(ctx, dash, dockerClient, dockerServices, nil); err != nil {
@@ -87,18 +97,25 @@ func reloadK8sShards(
 		return err
 	}
 
-	// OnK3DLog stays nil here: reload only calls UndeployShard/PurgeShardState/
-	// DeployShard/Deploy/WaitForShardsReady — pure pkg/cluster kube calls that
-	// never touch k3d's bootstrap logger (only cli.Start does, in start.go).
-	cli := cluster.NewClient(cluster.Config{LogLevel: os.Getenv("WORLD_K3D_LOG_LEVEL")})
-	return deployShardImages(dash, cli, cfg, targets, purge)
+	return deployShardImages(dash, rt, targets, purge)
+}
+
+// shardBuilder is the subset of docker.Client's pull + build API the build
+// path uses. Defined as an interface so the build path can be unit-tested
+// without a running daemon; *docker.Client satisfies it.
+type shardBuilder interface {
+	ImagesToPull(ctx context.Context, services []service.Service) []string
+	RefsToPull(ctx context.Context, refs []string) []string
+	PullImages(ctx context.Context, services []service.Service, progress func(docker.Progress)) error
+	PullImageRefs(ctx context.Context, refs []string, progress func(docker.Progress)) error
+	BuildCardinalImages(ctx context.Context, services []service.Service, progress func(docker.Progress)) error
 }
 
 // pullBuildDeps pulls shard base images and extraImageRefs in one "Image Pull" box.
 func pullBuildDeps(
 	ctx context.Context,
 	dash *phasebox.Dashboard,
-	dockerClient *docker.Client,
+	dockerClient shardBuilder,
 	dockerServices []service.Service,
 	extraImageRefs []string,
 ) error {
@@ -124,12 +141,9 @@ func pullBuildDeps(
 				}
 				return g.Wait()
 			},
-			func(err error, elapsed time.Duration) (string, bool) {
-				if err != nil {
-					return err.Error(), true
-				}
+			func(elapsed time.Duration) string {
 				total := len(toPull) + len(toPullRefs)
-				return fmt.Sprintf("%d image(s) pulled (%s)", total, elapsed.Round(time.Second)), false
+				return fmt.Sprintf("%d image(s) pulled (%s)", total, elapsed.Round(time.Second))
 			},
 		); err != nil {
 			return eris.Wrap(err, "pull build dependencies")
@@ -139,37 +153,31 @@ func pullBuildDeps(
 }
 
 // buildShardImages builds every shard image in box; run pullBuildDeps first.
-func buildShardImages(box *phasebox.Box, dockerClient *docker.Client, dockerServices []service.Service) error {
+func buildShardImages(box *phasebox.Box, dockerClient shardBuilder, dockerServices []service.Service) error {
+	imageNames := docker.CardinalBuildImageNames(dockerServices)
 	return box.Run(
 		func(ctx context.Context, sess phasebox.Session) error {
-			imageNames := docker.CardinalBuildImageNames(dockerServices)
 			return dockerClient.BuildCardinalImages(ctx, dockerServices, phasebox.BuildProgress(sess, imageNames))
 		},
-		func(err error, elapsed time.Duration) (string, bool) {
-			if err != nil {
-				return err.Error(), true
-			}
-			return fmt.Sprintf("%d image(s) built (%s)", len(dockerServices), elapsed.Round(time.Second)), false
+		func(elapsed time.Duration) string {
+			// Pooled instances share an image, so count images, not services.
+			return fmt.Sprintf("%d image(s) built (%s)", len(imageNames), elapsed.Round(time.Second))
 		},
 	)
 }
 
-// deployShardImages rolls targets' already-built images into the running
-// cluster: an optional "Purge" box, then the operator "Shards" deploy.
+// deployShardImages recreates targets' containers on their already-built images:
+// an optional "Purge" box, then the "Shards" deploy.
 func deployShardImages(
 	dash *phasebox.Dashboard,
-	cli *cluster.Client,
-	cfg *service.Config,
+	rt *local.Runtime,
 	targets reloadTargets,
 	purge bool,
 ) error {
 	targetIDs := targets.shardIDs
-	deployShards := make([]cluster.DeployShard, 0, len(targetIDs))
+	deployShards := make([]local.DeployShard, 0, len(targetIDs))
 	for _, id := range targetIDs {
-		deployShards = append(deployShards, cluster.DeployShard{
-			ID:          id,
-			SourceImage: service.CardinalShardImageName(cfg.Namespace, id) + ":latest",
-		})
+		deployShards = append(deployShards, local.DeployShard{ID: id})
 	}
 
 	// Purge each shard independently. Redeploy still runs after purge errors so
@@ -187,133 +195,146 @@ func deployShardImages(
 			func(ctx context.Context, sess phasebox.Session) error {
 				var errs []error
 				for _, shardID := range targetIDs {
-					if err := purgeAndRedeploy(ctx, sess, cli, cfg, shardID, instancesByShard[shardID]); err != nil {
+					if err := purgeAndRedeploy(ctx, sess, rt, shardID, instancesByShard[shardID]); err != nil {
 						errs = append(errs, err)
 					}
 				}
-				return errors.Join(errs...)
+				return errorspkg.JoinFailures(errs...)
 			},
-			func(err error, elapsed time.Duration) (string, bool) {
-				if err != nil {
-					return err.Error(), true
-				}
-				return fmt.Sprintf("purged %d shard(s) (%s)", len(targetIDs), elapsed.Round(time.Second)), false
+			func(elapsed time.Duration) string {
+				return fmt.Sprintf("purged %d shard(s) (%s)", len(targetIDs), elapsed.Round(time.Second))
 			},
 		)
 	}
 
-	// Always runs, even after a purge error, so the re-applied ShardPool CRs
-	// get their images and leave ImagePullBackOff.
-	if err := dash.Run("Shards",
+	// Always runs, even after a purge error, so a failed wipe never leaves a shard undeployed.
+	// Readiness is checked on every reload, not just after a purge: a shard that compiles
+	// but dies on startup would otherwise exit 0 with "reloaded 1 shard(s)". Skipped after a
+	// failed purge, where the shard is expected to be in a bad state and the purge error is
+	// the one worth reporting.
+	shardsErr := dash.Run("Shards",
 		func(ctx context.Context, sess phasebox.Session) error {
-			return rollShards(ctx, sess, cli, cfg, deployShards, purge && purgeErr == nil)
+			return rollShards(ctx, sess, rt, targets, deployShards, purgeErr == nil)
 		},
-		func(err error, elapsed time.Duration) (string, bool) {
-			if err != nil {
-				return err.Error(), true
-			}
-			return fmt.Sprintf("reloaded %d shard(s) (%s)", len(targetIDs), elapsed.Round(time.Second)), false
+		func(elapsed time.Duration) string {
+			return fmt.Sprintf("reloaded %d shard(s) (%s)", len(targetIDs), elapsed.Round(time.Second))
 		},
-	); err != nil {
-		if errorspkg.IsSilent(err) {
-			return err
-		}
-		if errorspkg.IsSilent(purgeErr) {
-			return purgeErr
-		}
-		// Both halves genuinely failed — surface them together so the deploy
-		// error doesn't mask an incomplete wipe.
-		if purgeErr != nil {
-			return errors.Join(eris.Wrap(purgeErr, "purge and redeploy shard(s)"), err)
-		}
-		return err
-	}
-
-	// Deploy succeeded, so the re-applied ShardPool CRs have their images and
-	// the pods are rolling; only now is it safe to fail on a purge error.
-	if purgeErr != nil {
-		return eris.Wrap(purgeErr, "purge and redeploy shard(s)")
-	}
-
-	return nil
+	)
+	// Both halves' failures; a Ctrl+C'd half can't hide the other's.
+	return errorspkg.JoinFailures(eris.Wrap(purgeErr, "purge shard state"), shardsErr)
 }
 
-// purgeAndRedeploy wipes the selected instances, then restores the shard.
+// purgeAndRedeploy removes the shard's containers and wipes the selected instances'
+// state; the following rollShards brings it back on the new image.
 func purgeAndRedeploy(
-	ctx context.Context, sess phasebox.Session, cli *cluster.Client, cfg *service.Config,
+	ctx context.Context, sess phasebox.Session, rt *local.Runtime,
 	shardID string, instanceIDs []string,
 ) error {
 	sess.UpsertRow(shardID, shardID, "undeploying", phasebox.Active)
-	if err := cli.UndeployShard(ctx, shardID); err != nil {
-		sess.UpsertRow(shardID, shardID, err.Error(), phasebox.Failed)
+	if err := rt.UndeployShard(ctx, shardID); err != nil {
+		sess.Fail(shardID, shardID, err)
 		return eris.Wrapf(err, "undeploy shard %s for purge", shardID)
 	}
 
 	var errs []error
 	for _, instanceID := range instanceIDs {
 		sess.UpsertRow(shardID, shardID, fmt.Sprintf("wiping state for %s", instanceID), phasebox.Active)
-		if err := cli.PurgeShardState(ctx, cfg.WorldToml.Organization, cfg.WorldToml.Project, instanceID); err != nil {
+		if err := rt.PurgeShardState(ctx, instanceID); err != nil {
 			errs = append(errs, eris.Wrapf(err, "wipe state for shard %s", instanceID))
 		}
 	}
 
-	sess.UpsertRow(shardID, shardID, "redeploying", phasebox.Active)
-	if err := cli.DeployShard(ctx, cfg.WorldToml, shardID); err != nil {
-		errs = append(errs, eris.Wrapf(err, "redeploy shard %s", shardID))
-	}
-
-	if err := errors.Join(errs...); err != nil {
-		sess.UpsertRow(shardID, shardID, err.Error(), phasebox.Failed)
+	// rollShards recreates the containers right after, so nothing redeploys here.
+	if err := errorspkg.JoinFailures(errs...); err != nil {
+		sess.Fail(shardID, shardID, err)
 		return err
 	}
 	sess.UpsertRow(shardID, shardID, "", phasebox.Done)
 	return nil
 }
 
-// rollShards rolls the targeted shards' images via the operator, one dashboard
-// row per shard.
+// rollShards recreates the targeted shards' containers, one dashboard row per shard.
 func rollShards(
 	ctx context.Context,
 	sess phasebox.Session,
-	cli *cluster.Client,
-	cfg *service.Config,
-	deployShards []cluster.DeployShard,
+	rt *local.Runtime,
+	targets reloadTargets,
+	deployShards []local.DeployShard,
 	waitReady bool,
 ) error {
-	// Reload only rolls its targets, so nothing else reconciles the pool set.
-	if err := cli.PruneOrphanedShards(ctx, cfg.WorldToml); err != nil {
+	// Reload only rolls its targets, so nothing else reconciles the instance set.
+	if err := rt.PruneOrphanedShards(ctx); err != nil {
 		return eris.Wrap(err, "prune orphaned shards")
 	}
 
-	// All shards share one import; each row then shows its own shard's result.
 	for _, s := range deployShards {
-		sess.UpsertRow(s.ID, s.ID, "importing into cluster", phasebox.Active)
+		sess.UpsertRow(s.ID, s.ID, "recreating containers", phasebox.Active)
 	}
-	if err := cli.Deploy(ctx, cluster.DeployOpts{
-		Project: cfg.WorldToml.Project,
-		Shards:  deployShards,
+	if err := rt.Deploy(ctx, local.DeployOpts{
+		Shards: deployShards,
 		OnResult: func(shardID string, err error) {
 			if err != nil {
-				sess.UpsertRow(shardID, shardID, err.Error(), phasebox.Failed)
+				sess.Fail(shardID, shardID, err)
 				return
 			}
 			sess.UpsertRow(shardID, shardID, "", phasebox.Done)
 		},
 	}); err != nil {
-		return eris.Wrap(err, "reload via operator")
+		return eris.Wrap(err, "deploy shards")
 	}
 
 	if waitReady {
-		cli.WaitForShardsReady(ctx, cfg.WorldToml, func(ready, expected int) {
-			sess.UpsertRow(
-				"ready",
-				"Waiting for pods ready",
-				fmt.Sprintf("%d/%d", ready, expected),
-				phasebox.Active,
-			)
+		// Scoped to this reload's instances: another instance the developer left down is
+		// not this reload's problem, and waiting for it would burn the whole timeout.
+		var ready, expected int
+		waitForShardsReadyRow(sess, func(onProgress func(ready, expected int)) {
+			ready, expected = rt.WaitForShardsReady(ctx, targets.instanceIDs, onProgress)
 		})
+		if ready < expected {
+			// Returned, not just shown: the row is already Failed, but the summary and the
+			// exit code are what a script or an agent reads, and plain progress has no rows.
+			return &shardsNotReadyError{ready: ready, expected: expected}
+		}
 	}
 	return nil
+}
+
+// waitForShardsReadyRow drives the "ready" progress row through WaitForShardsReady
+// to a terminal state. waitForReady performs the actual wait and invokes
+// onProgress for every poll tick (local.Runtime.WaitForShardsReady). The row is
+// set Active on every tick, then closed to Done when ready >= expected or Failed
+// ("timed out …") otherwise. The progressed guard is defensive: WaitForShardsReady
+// always ticks at least once because its counter starts below zero, so it only
+// protects a future waitForReady that could return without reporting anything.
+//
+// Must run before the enclosing section finishes: phasebox drops upserts to a
+// finished section (see Model.upsert), so a terminal update after dash.Run
+// returns would be silently lost and the row would keep rendering its spinner.
+func waitForShardsReadyRow(sess phasebox.Session, waitForReady func(onProgress func(ready, expected int))) {
+	var lastReady, expected int
+	progressed := false
+	waitForReady(func(ready, exp int) {
+		lastReady, expected = ready, exp
+		progressed = true
+		sess.UpsertRow("ready", "Waiting for shards ready", fmt.Sprintf("%d/%d", ready, exp), phasebox.Active)
+	})
+	if !progressed {
+		return
+	}
+	state, detail := phasebox.Done, fmt.Sprintf("%d/%d", lastReady, expected)
+	if lastReady < expected {
+		state, detail = phasebox.Failed, fmt.Sprintf("timed out (%d/%d ready)", lastReady, expected)
+	}
+	sess.UpsertRow("ready", "Waiting for shards ready", detail, state)
+}
+
+// shardsNotReadyError reports instances that were deployed but never answered. It is its
+// own type so `world start` can stay attached on it: the shards are up for the picker to
+// read, which a stop would take away.
+type shardsNotReadyError struct{ ready, expected int }
+
+func (e *shardsNotReadyError) Error() string {
+	return fmt.Sprintf("%d/%d instances are serving; check `world logs`", e.ready, e.expected)
 }
 
 type reloadTargets struct {
@@ -350,7 +371,7 @@ func resolveReloadTargets(cfg *service.Config, instanceIDs []string) (reloadTarg
 func filterCardinalServicesByID(services []service.Service, cfg *service.Config, targetIDs []string) []service.Service {
 	want := make(map[string]struct{}, len(targetIDs))
 	for _, id := range targetIDs {
-		want[service.CardinalShardImageName(cfg.Namespace, id)] = struct{}{}
+		want[service.CardinalShardImageName(cfg.Project, id)] = struct{}{}
 	}
 	filtered := make([]service.Service, 0, len(targetIDs))
 	for _, s := range services {

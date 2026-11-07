@@ -768,8 +768,6 @@ func TestPhysics2D_CardinalIntegration(t *testing.T) {
 	// Debug on: cardinal.Tick touches debug perf hooks (nil debug would panic).
 	debug := true
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
-		Region:              "local",
-		Organization:        "physics2d-e2e",
 		Project:             "physics2d-e2e",
 		ShardID:             "0",
 		TickRate:            60,

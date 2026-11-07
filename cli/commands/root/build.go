@@ -2,10 +2,8 @@ package root
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"slices"
-	"time"
 
 	"github.com/rotisserie/eris"
 
@@ -22,8 +20,9 @@ import (
 // Hidden from `world -h` because it exists for deployment CI, not interactive
 // use — `world start` is the supported user flow.
 type BuildCmd struct {
-	Debug bool   `default:"true" help:"Enable debug mode"                                                        negatable:""`
-	Shard string `               help:"Build only the specified shard ID (defaults to all shards in world.toml)"`
+	Debug    bool              `default:"true" help:"Enable debug mode"                                                                          negatable:""`
+	Shard    string            `               help:"Build only the specified shard ID (defaults to all shards in world.toml)"`
+	Progress phasebox.Progress `default:"tty"  help:"How to show progress: tty (live box) or plain (one line per finished section, for CI logs)"              enum:"tty,plain"`
 }
 
 func (c *BuildCmd) Run(ctx context.Context) error {
@@ -58,7 +57,7 @@ func (c *BuildCmd) Run(ctx context.Context) error {
 					return eris.Errorf("shard %q not found in world.toml", c.Shard)
 				}
 
-				wantImage := service.CardinalShardImageName(cfg.Namespace, c.Shard)
+				wantImage := service.CardinalShardImageName(cfg.Project, c.Shard)
 				filtered := make([]service.Service, 0, 1)
 				for _, s := range dockerServices {
 					if s.Image == wantImage {
@@ -72,28 +71,35 @@ func (c *BuildCmd) Run(ctx context.Context) error {
 				return eris.New("no Cardinal shards found in this project")
 			}
 
-			dash := phasebox.Start(ctx)
+			dash := phasebox.Start(ctx, c.Progress)
 			defer dash.Complete()
 
-			if err := dash.Run("Build",
-				func(ctx context.Context, sess phasebox.Session) error {
-					imageNames := docker.CardinalBuildImageNames(dockerServices)
-					return dockerClient.BuildCardinalImages(
-						ctx,
-						dockerServices,
-						phasebox.BuildProgress(sess, imageNames),
-					)
-				},
-				func(err error, elapsed time.Duration) (string, bool) {
-					if err != nil {
-						return err.Error(), true
-					}
-					return fmt.Sprintf("%d image(s) built (%s)", len(dockerServices), elapsed.Round(time.Second)), false
-				},
-			); err != nil {
-				return eris.Wrap(err, "Failed to build Cardinal images")
-			}
-			return nil
+			return buildShards(ctx, dash, dockerClient, dockerServices)
 		},
 	)
+}
+
+// buildShards pulls build dependencies then builds every shard image. BuildKit
+// needs the FROM images already cached, so the pull must precede the build —
+// on a cold Docker cache the build otherwise fails with "no active sessions".
+// Mirrors [world start] and [world reload]; the build path has no platform
+// images, so extraImageRefs is nil. Only Cardinal services get pulled, since
+// the full list also holds NATS and image-kind services that have no FROM
+// image to pre-cache.
+func buildShards(
+	ctx context.Context,
+	dash *phasebox.Dashboard,
+	b shardBuilder,
+	dockerServices []service.Service,
+) error {
+	buildServices := slices.DeleteFunc(slices.Clone(dockerServices), func(s service.Service) bool {
+		return !docker.IsCardinalService(s)
+	})
+	if err := pullBuildDeps(ctx, dash, b, buildServices, nil); err != nil {
+		return err
+	}
+	if err := buildShardImages(dash.Open("Build"), b, dockerServices); err != nil {
+		return eris.Wrap(err, "Failed to build Cardinal images")
+	}
+	return nil
 }

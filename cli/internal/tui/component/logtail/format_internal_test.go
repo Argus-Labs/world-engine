@@ -103,3 +103,8 @@ func TestShortTime(t *testing.T) {
 	require.Equal(t, "weird", shortTime("weird"))                                 // non-standard → passthrough
 	require.Equal(t, "", shortTime(""))
 }
+
+func TestFormatShardLine_NullPassesThrough(t *testing.T) {
+	t.Parallel()
+	require.Equal(t, "[gameplay] null", ansi.Strip(formatShardLine("gameplay", "#00FF00", "null")))
+}

@@ -112,7 +112,7 @@ sendLoop:
 			}
 			name := testutils.RandWeightedOp(prng, cfg.CommandWeights)
 			cmd := fix.randCommand(t, prng, name)
-			fix.sendCommand(t, cmd)
+			fix.sendCommand(t, "e2e-"+testutils.RandString(prng, 8), cmd)
 		}
 	}
 
@@ -238,23 +238,23 @@ func (f *e2eFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *isc
 	fillRandom(rng, val, f.world.world.LiveEntityIDs())
 	p, ok := reflect.TypeAssert[command.Payload](val)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
-	payload := schema.Marshal(p)
+	payload, err := schema.Serialize(p)
+	require.NoError(t, err)
 	return &iscv1.Command{
 		Name:    name,
 		Address: f.world.address,
-		Persona: &iscv1.Persona{Id: testutils.RandString(rng, 8)},
 		Payload: payload,
 	}
 }
 
-// sendCommand sends a command to the world's ConnectRPC service.
-func (f *e2eFixture) sendCommand(t *testing.T, cmd *iscv1.Command) {
+// sendCommand sends a command to the world's ConnectRPC service as player.
+func (f *e2eFixture) sendCommand(t *testing.T, player string, cmd *iscv1.Command) {
 	t.Helper()
 	// 2s absorbs normal scheduling/reconnect jitter while still failing fast on deadlocks.
 	ctx, cancel := context.WithTimeout(context.Background(), e2eCommandTimeout)
 	defer cancel()
 	req := connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmd})
-	req.Header().Set("X-Email", "e2e-"+cmd.GetPersona().GetId())
+	req.Header().Set(devPlayerIDHeader, player)
 	_, err := f.client.SendCommand(ctx, req)
 	require.NoError(t, err)
 }
