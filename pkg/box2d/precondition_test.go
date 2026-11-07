@@ -292,6 +292,131 @@ func TestNonFiniteShapeFieldsPanic(t *testing.T) {
 	}
 }
 
+func TestInvalidWorldDefFieldsPanic(t *testing.T) {
+	t.Parallel()
+
+	// Gravity and MaximumLinearSpeed are the two WorldDef fields whose bad
+	// values silently corrupt the simulation rather than failing loudly (NaN
+	// gravity poisons every dynamic body from the first Step; NaN/<=0
+	// MaximumLinearSpeed disables or freezes the velocity clamp). Upstream
+	// b2CreateWorld rejects them with always-on B2_CHECK_INPUT_RETURN checks;
+	// NewWorld must do the same via requireValidDefField, independent of the
+	// box2d_asserts build tag.
+	tests := []struct {
+		name  string
+		field string
+		want  string
+		mut   func(wd *box2d.WorldDef)
+	}{
+		{
+			name:  "Gravity NaN X",
+			field: "Gravity",
+			want:  "box2d: WorldDef.Gravity is invalid: must be a finite vector (not NaN or infinity)",
+			mut:   func(wd *box2d.WorldDef) { wd.Gravity = box2d.Vec2{X: math.NaN(), Y: 0.0} },
+		},
+		{
+			name:  "Gravity NaN Y",
+			field: "Gravity",
+			want:  "box2d: WorldDef.Gravity is invalid: must be a finite vector (not NaN or infinity)",
+			mut:   func(wd *box2d.WorldDef) { wd.Gravity = box2d.Vec2{X: 0.0, Y: math.NaN()} },
+		},
+		{
+			name:  "Gravity PositiveInf",
+			field: "Gravity",
+			want:  "box2d: WorldDef.Gravity is invalid: must be a finite vector (not NaN or infinity)",
+			mut:   func(wd *box2d.WorldDef) { wd.Gravity = box2d.Vec2{X: math.Inf(1), Y: 0.0} },
+		},
+		{
+			name:  "Gravity NegativeInf",
+			field: "Gravity",
+			want:  "box2d: WorldDef.Gravity is invalid: must be a finite vector (not NaN or infinity)",
+			mut:   func(wd *box2d.WorldDef) { wd.Gravity = box2d.Vec2{X: 0.0, Y: math.Inf(-1)} },
+		},
+		{
+			name:  "MaximumLinearSpeed NaN",
+			field: "MaximumLinearSpeed",
+			want:  "box2d: WorldDef.MaximumLinearSpeed is invalid: must be a finite, positive number",
+			mut:   func(wd *box2d.WorldDef) { wd.MaximumLinearSpeed = math.NaN() },
+		},
+		{
+			name:  "MaximumLinearSpeed PositiveInf",
+			field: "MaximumLinearSpeed",
+			want:  "box2d: WorldDef.MaximumLinearSpeed is invalid: must be a finite, positive number",
+			mut:   func(wd *box2d.WorldDef) { wd.MaximumLinearSpeed = math.Inf(1) },
+		},
+		{
+			name:  "MaximumLinearSpeed Zero",
+			field: "MaximumLinearSpeed",
+			want:  "box2d: WorldDef.MaximumLinearSpeed is invalid: must be a finite, positive number",
+			mut:   func(wd *box2d.WorldDef) { wd.MaximumLinearSpeed = 0.0 },
+		},
+		{
+			name:  "MaximumLinearSpeed Negative",
+			field: "MaximumLinearSpeed",
+			want:  "box2d: WorldDef.MaximumLinearSpeed is invalid: must be a finite, positive number",
+			mut:   func(wd *box2d.WorldDef) { wd.MaximumLinearSpeed = -10.0 },
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			wd := box2d.DefaultWorldDef()
+			tc.mut(&wd)
+
+			requirePanicMessage(t, tc.want, tc.field, func() {
+				box2d.NewWorld(&wd)
+			})
+		})
+	}
+}
+
+// TestValidWorldDefFieldsDoNotPanic confirms the new always-on checks do not
+// reject legitimate programmer-supplied gravity and maximum linear speed
+// values (the regression direction: an over-strict check would break callers
+// that customize these fields). This complements
+// TestConstructorBuiltDefinitionsDoNotPanic, which only exercises the default
+// constructor values.
+func TestValidWorldDefFieldsDoNotPanic(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		mut  func(wd *box2d.WorldDef)
+	}{
+		{name: "ZeroGravity", mut: func(wd *box2d.WorldDef) { wd.Gravity = box2d.Vec2Zero }},
+		{name: "CustomGravity", mut: func(wd *box2d.WorldDef) {
+			wd.Gravity = box2d.Vec2{X: 0.0, Y: -9.81}
+		}},
+		{name: "PositiveGravity", mut: func(wd *box2d.WorldDef) {
+			wd.Gravity = box2d.Vec2{X: 3.0, Y: 2.0}
+		}},
+		{name: "SmallMaximumLinearSpeed", mut: func(wd *box2d.WorldDef) { wd.MaximumLinearSpeed = 1.0 }},
+		{name: "LargeMaximumLinearSpeed", mut: func(wd *box2d.WorldDef) {
+			wd.MaximumLinearSpeed = 1e6
+		}},
+		{name: "CustomGravityAndSpeed", mut: func(wd *box2d.WorldDef) {
+			wd.Gravity = box2d.Vec2{X: 0.0, Y: -20.0}
+			wd.MaximumLinearSpeed = 50.0
+		}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			wd := box2d.DefaultWorldDef()
+			tc.mut(&wd)
+
+			require.NotPanics(t, func() {
+				w := box2d.NewWorld(&wd)
+				w.Destroy()
+			})
+		})
+	}
+}
+
 func TestConstructorBuiltDefinitionsDoNotPanic(t *testing.T) {
 	t.Parallel()
 
