@@ -696,14 +696,17 @@ func TestOracleRevoluteJointAccessors(t *testing.T) {
 	t.Run("LimitsClampOutOfRangeToSolverBand", func(t *testing.T) {
 		t.Parallel()
 
-		// revolute_joint.c:128-142 (b2RevoluteJoint_SetLimits) and
-		// b2CreateRevoluteJoint in joint.c both clamp the min/max-swapped
-		// limits to ±0.99*pi. solveRevoluteJoint compares them against the
+		// The ported snapshot only asserts the band
+		// (revolute_joint.c:130-132, joint.c:514-515). Box2D v3.2.0 clamps
+		// the min/max-swapped limits to ±0.99*pi in both
+		// b2RevoluteJoint_SetLimits (revolute_joint.c:143-146) and
+		// b2CreateRevoluteJoint (joint.c:686-689), and the port follows
+		// v3.2.0 here. solveRevoluteJoint compares them against the
 		// joint angle from RotGetAngle, whose range is [-pi, pi]
 		// (math.go:368), so a limit stored outside the band can never
-		// engage. The port previously matched upstream's asserts only —
+		// engage. The port previously matched the snapshot's asserts only —
 		// which are compiled out in the default build (core_asserts_off.go)
-		// — and stored raw values; it now clamps like upstream, so the
+		// — and stored raw values; it now clamps like v3.2.0, so the
 		// documented "Minimum of -0.99*pi / Maximum of 0.99*pi" contract
 		// in types.go holds in every build.
 		const band = 0.99 * box2d.Pi
@@ -799,8 +802,9 @@ func TestOracleRevoluteJointAccessors(t *testing.T) {
 	t.Run("SetLimitsIsANoOpWhenUnchangedOutOfRange", func(t *testing.T) {
 		t.Parallel()
 
-		// revolute_joint.c:135-141 clamps the min/max-swapped limits to
-		// ±0.99*pi before storing, so the guard must compare the
+		// The port keeps the snapshot's change guard (revolute_joint.c:135)
+		// and adds the v3.2.0 ±0.99*pi clamp (v3.2.0 revolute_joint.c:143-146)
+		// before storing, so the guard must compare the
 		// normalized pair — not the raw arguments — against the stored
 		// pair. A pendulum created with the out-of-band pair (-0.05, Pi)
 		// stores the effective pair (-0.05, 0.99*Pi); re-issuing that same
@@ -1015,7 +1019,8 @@ func TestOracleRevoluteJointBehavior(t *testing.T) {
 		// docs/simulation.md "Revolute Joint" — "A joint limit forces the
 		// joint angle to remain between a lower and upper angle. The limit
 		// will apply as much torque as needed to make this happen."
-		// revolute_joint.c:128-142 clamps the limits to ±0.99*pi, so a
+		// Box2D v3.2.0 (revolute_joint.c:143-146, joint.c:686-689) clamps
+		// the limits to ±0.99*pi, and so does the port, so a
 		// multi-turn request such as ±2*pi collapses to ±0.99*pi and the
 		// upper limit stops the motor at the band. Before the clamp the
 		// stored ±2*pi sat outside RotGetAngle's [-pi, pi] range
@@ -1059,8 +1064,9 @@ func TestOracleRevoluteJointBehavior(t *testing.T) {
 		t.Parallel()
 
 		// A "locked" revolute joint (lower == upper) must pin the joint
-		// rigidly at its limit. revolute_joint.c:128-142 clamps the single
-		// limit to ±0.99*pi, so a lock requested beyond the band (here
+		// rigidly at its limit. The port clamps the single limit to
+		// ±0.99*pi like Box2D v3.2.0 (joint.c:686-689), so a lock requested
+		// beyond the band (here
 		// 1.5*pi) collapses to 0.99*pi and the lower and upper impulses
 		// together hold the joint there. Before the clamp the stored 1.5*pi
 		// lay outside RotGetAngle's [-pi, pi] range, so neither limit could
