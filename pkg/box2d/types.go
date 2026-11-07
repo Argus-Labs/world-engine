@@ -1069,7 +1069,7 @@ type CustomFilterFcn func(shapeIDA, shapeIDB ShapeID, ctx any) bool
 // Return false if you want to disable the contact this step.
 //
 // When a pre-solve callback disables a contact (returns false), the narrow
-// phase re-checks it every step the bodies are awake, so the callback is
+// phase re-checks it every step while either body is awake, so the callback is
 // consulted again even while the bodies stay stationary, provided the shapes
 // still produce contact points for a discrete contact update. (Continuous
 // collision detection also invokes this callback on a time-of-impact hit
