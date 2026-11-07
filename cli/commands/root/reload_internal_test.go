@@ -272,7 +272,7 @@ func (f *fakeReadinessWaiter) WaitForShardsReady(
 // --- waitForShardsReadyRow ---------------------------------------------------
 
 // Ctrl+C during the wait routes through sess.Fail (not the timed-out
-// UpsertRow): the timeout never elapsed, the user did. The canceled label
+// UpsertRow): the user canceled before the timeout elapsed. The canceled label
 // rendering is phasebox's job and is covered there, not duplicated here.
 func TestWaitForShardsReadyRow_CanceledRoutesThroughFail(t *testing.T) {
 	t.Parallel()
@@ -300,10 +300,10 @@ func TestWaitForShardsReadyRow_TimeoutShowsTimedOut(t *testing.T) {
 
 	cases := []struct {
 		name string
-		ctx  func() context.Context
+		ctx  func(t *testing.T) context.Context
 	}{
-		{"liveContext", context.Background},
-		{"expiredDeadline", func() context.Context {
+		{"liveContext", func(*testing.T) context.Context { return context.Background() }},
+		{"expiredDeadline", func(t *testing.T) context.Context {
 			ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
 			t.Cleanup(cancel)
 			return ctx
@@ -313,7 +313,7 @@ func TestWaitForShardsReadyRow_TimeoutShowsTimedOut(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			sess := &fakeSession{}
-			waitForShardsReadyRow(c.ctx(), sess, func(onProgress func(ready, expected int)) {
+			waitForShardsReadyRow(c.ctx(t), sess, func(onProgress func(ready, expected int)) {
 				onProgress(0, 2)
 			})
 
@@ -370,10 +370,7 @@ func TestWaitForShardsReadyResult_CanceledBeforeProgressReturnsCanceled(t *testi
 	waiter := &fakeReadinessWaiter{expected: 2}
 	err := waitForShardsReadyResult(ctx, &fakeSession{}, waiter, nil)
 
-	require.Error(t, err)
 	assert.Equal(t, context.Canceled, err, "cancel must pass context.Canceled through")
-	var notReady *shardsNotReadyError
-	assert.False(t, errors.As(err, &notReady), "must not be a shardsNotReadyError")
 }
 
 // Ctrl+C arriving during the wait — after a partial or complete count was
@@ -412,19 +409,70 @@ func TestWaitForShardsReadyResult_CanceledAfterProgressReturnsCanceled(t *testin
 	}
 }
 
-// A genuine timeout (ctx alive, ready < expected) returns shardsNotReadyError
-// — no regression in the real-failure path.
-func TestWaitForShardsReadyResult_TimeoutReturnsShardsNotReadyError(t *testing.T) {
+// A genuine timeout (ctx alive, ready < expected) and a caller deadline that
+// already expired with unready shards both return shardsNotReadyError so the
+// failure is reported, not hidden — only [context.Canceled] is silent. The
+// counts survive the classification in both cases, and the error is printable.
+func TestWaitForShardsReadyResult_NotReadyCountsArePrintable(t *testing.T) {
 	t.Parallel()
 
-	waiter := &fakeReadinessWaiter{expected: 2}
-	err := waitForShardsReadyResult(context.Background(), &fakeSession{}, waiter, nil)
+	cases := []struct {
+		name string
+		ctx  func(t *testing.T) context.Context
+	}{
+		{"liveContext", func(*testing.T) context.Context { return context.Background() }},
+		{"expiredDeadline", func(t *testing.T) context.Context {
+			ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
+			t.Cleanup(cancel)
+			return ctx
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 
-	require.Error(t, err)
-	var notReady *shardsNotReadyError
-	require.ErrorAs(t, err, &notReady)
-	assert.Equal(t, 0, notReady.ready)
-	assert.Equal(t, 2, notReady.expected)
+			waiter := &fakeReadinessWaiter{expected: 2}
+			err := waitForShardsReadyResult(c.ctx(t), &fakeSession{}, waiter, nil)
+
+			require.Error(t, err)
+			var notReady *shardsNotReadyError
+			require.ErrorAs(t, err, &notReady, "unready shards are a real failure")
+			assert.Equal(t, 0, notReady.ready)
+			assert.Equal(t, 2, notReady.expected)
+			assert.True(t, errorspkg.ShouldPrint(err), "unready shards must be printable, not silent")
+		})
+	}
+}
+
+// Complete counts still succeed with an expired caller deadline: the helper
+// checks ctx.Err() only for [context.Canceled], so a deadline that lands after
+// the last probe round is not a failure. Guards against a future blanket
+// ctx.Err() check that would change this distinction.
+func TestWaitForShardsReadyResult_CompleteCountsSucceedWithExpiredDeadline(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
+	defer cancel()
+
+	// completeCountsWaiter reports ready==expected without inspecting ctx,
+	// modeling a real wait whose last probe round completed before the caller
+	// deadline expired (the fakeReadinessWaiter short-circuits on ctx.Err()).
+	waiter := completeCountsWaiter{expected: 2}
+	err := waitForShardsReadyResult(ctx, &fakeSession{}, waiter, nil)
+
+	assert.NoError(t, err)
+}
+
+// completeCountsWaiter reports ready==expected regardless of ctx, the post-
+// completion shape a real WaitForShardsReady returns when its last probe round
+// landed before the caller deadline expired.
+type completeCountsWaiter struct{ expected int }
+
+func (w completeCountsWaiter) WaitForShardsReady(
+	_ context.Context, _ []string, onProgress func(ready, expected int),
+) (int, int) {
+	onProgress(w.expected, w.expected)
+	return w.expected, w.expected
 }
 
 // All shards ready returns nil — no regression in the success path.
@@ -472,10 +520,10 @@ func TestWaitForShardsReadyResult_CancelThroughPlainSectionIsCanceled(t *testing
 	os.Stdout = orig //nolint:reassign // restore stdout
 	defer dash.Complete()
 	var out bytes.Buffer
-	copyDone := make(chan struct{})
+	copyErr := make(chan error, 1)
 	go func() {
-		_, _ = io.Copy(&out, r)
-		close(copyDone)
+		_, err := io.Copy(&out, r)
+		copyErr <- err
 	}()
 
 	runErr := dash.Run("Shards",
@@ -485,7 +533,7 @@ func TestWaitForShardsReadyResult_CancelThroughPlainSectionIsCanceled(t *testing
 		func(time.Duration) string { return "done" },
 	)
 	require.NoError(t, w.Close())
-	<-copyDone
+	require.NoError(t, <-copyErr)
 
 	require.Error(t, runErr)
 	assert.True(t, errorspkg.IsSilent(runErr), "cancel through section must be silent, not a shard failure")
@@ -493,23 +541,4 @@ func TestWaitForShardsReadyResult_CancelThroughPlainSectionIsCanceled(t *testing
 	var notReady *shardsNotReadyError
 	assert.False(t, errors.As(runErr, &notReady), "must not be a shardsNotReadyError")
 	assert.Contains(t, out.String(), "canceled", "plain summary must say canceled")
-}
-
-// A caller deadline ([context.DeadlineExceeded], not Ctrl+C) is a real
-// failure, not a cancel: waitForShardsReadyResult classifies it as a
-// shardsNotReadyError so the failure is reported, not hidden — only
-// [context.Canceled] is silent.
-func TestWaitForShardsReadyResult_DeadlineExceededIsNotSilent(t *testing.T) {
-	t.Parallel()
-
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
-	defer cancel()
-
-	waiter := &fakeReadinessWaiter{expected: 2}
-	err := waitForShardsReadyResult(ctx, &fakeSession{}, waiter, nil)
-
-	require.Error(t, err)
-	var notReady *shardsNotReadyError
-	require.ErrorAs(t, err, &notReady, "deadline with unready shards is a real failure")
-	assert.True(t, errorspkg.ShouldPrint(err), "deadline with unready shards must be printable, not silent")
 }
