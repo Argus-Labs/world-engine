@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/network"
@@ -417,7 +420,8 @@ var twoShardContainers = []docker.ContainerSummary{
 	{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat-0")},
 }
 
-// twoShardConfig is the shared shard config for the CheckLayout tests.
+// twoShardConfig is the shared two-shard config for the CheckLayout and
+// readiness wait tests.
 var twoShardConfig = []worldtoml.Shard{
 	{ID: "game", InstanceID: "game-0"},
 	{ID: "chat", InstanceID: "chat-0"},
@@ -516,5 +520,115 @@ func TestCheckLayout_LayoutComparison(t *testing.T) {
 				assert.Contains(t, err.Error(), tc.wantErr)
 			}
 		})
+	}
+}
+
+// WaitForShardsReady returns counts only (no error). A cancellation that lands
+// before the first completed probe round collapses into a plain (0, expected)
+// return without ever invoking onProgress; a mid-wait cancellation returns the
+// last completed count.
+func TestWaitForShardsReady_CanceledContextReturnsZeroWithoutProgress(t *testing.T) {
+	t.Parallel()
+
+	cfg := &service.Config{Project: "test", WorldToml: worldtoml.Config{
+		Project: "test",
+		Shards:  twoShardConfig,
+	}}
+	r := New(nil, cfg) // WaitForShardsReady only reads cfg.WorldToml.Shards — no Docker.
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	var progressCalls int
+	ready, expected := r.WaitForShardsReady(ctx, nil, func(_, _ int) { progressCalls++ })
+
+	if ready != 0 {
+		t.Fatalf("canceled context: ready = %d, want 0", ready)
+	}
+	if expected != 2 {
+		t.Fatalf("expected = %d, want 2", expected)
+	}
+	if progressCalls != 0 {
+		t.Fatalf("onProgress called %d times, want 0 (cancel before first tick)", progressCalls)
+	}
+}
+
+// WaitForShardsReady preserves the last completed count when the caller
+// context ends mid-wait (not the internal 2-minute readiness timeout): with
+// one of two shards serving and the other down, ending the caller context
+// after partial progress is observed returns the partial count rather than
+// zero. This is caller-context coverage — the caller's context is what ends;
+// it does not stay live after. It also does not exercise the genuine internal
+// 2-minute readiness deadline with a live caller.
+func TestWaitForShardsReady_CallerDeadlineReturnsLastCount(t *testing.T) {
+	t.Parallel()
+
+	cfg := &service.Config{Project: "test", WorldToml: worldtoml.Config{
+		Project: "test",
+		Shards:  twoShardConfig,
+	}}
+	r := New(nil, cfg)
+
+	// Control both probe endpoints so the assertion does not depend on
+	// whatever happens to be (not) listening on the shard ports in the
+	// environment. The first shard (port ShardHostPort(0)) stays down: bind
+	// and close every accepted connection so shardReady reports false without
+	// relying on a real server's absence. The second (port ShardHostPort(1))
+	// serves a real HTTP 200 so shardReady reports true. Skip if either port
+	// is already held.
+	downLn, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(service.ShardHostPort(0)))
+	if err != nil {
+		t.Skipf("cannot control probe port %d: %v", service.ShardHostPort(0), err)
+	}
+	defer downLn.Close()
+	go func() {
+		for {
+			c, acceptErr := downLn.Accept()
+			if acceptErr != nil {
+				return
+			}
+			_ = c.Close()
+		}
+	}()
+	readyLn, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(service.ShardHostPort(1)))
+	if err != nil {
+		t.Skipf("cannot control probe port %d: %v", service.ShardHostPort(1), err)
+	}
+	readySrv := &http.Server{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	go readySrv.Serve(readyLn)
+	defer readySrv.Close() // closes the listener too.
+
+	// End the caller context from the progress callback once partial progress
+	// (1/2) is observed, so the retained-count assertion does not depend on
+	// the first probe round beating a fixed deadline.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var lastReady, lastExpected int
+	ready, expected := r.WaitForShardsReady(ctx, nil, func(r, e int) {
+		lastReady, lastExpected = r, e
+		if r == 1 && e == 2 {
+			cancel()
+		}
+	})
+
+	if ready != 1 {
+		t.Fatalf("partial count must survive the caller context ending: ready = %d, want 1", ready)
+	}
+	if expected != 2 {
+		t.Fatalf("expected = %d, want 2", expected)
+	}
+	if lastReady != 1 || lastExpected != 2 {
+		t.Fatalf("onProgress did not observe partial progress: last = %d/%d, want 1/2", lastReady, lastExpected)
+	}
+	// The waiter must have waited past the first probe round (not returned
+	// immediately): the caller context is now done.
+	if !errors.Is(ctx.Err(), context.Canceled) {
+		t.Fatalf("ctx.Err() = %v, want context.Canceled", ctx.Err())
 	}
 }
