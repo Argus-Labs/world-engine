@@ -1,13 +1,17 @@
 // External robustness tests for the internal worker pool (worker_pool.go):
 // panic propagation with the ORIGINAL panic value through a parallel Step,
-// deadlock-free Destroy after a worker panic, and the goroutine close-join
-// (no leak across NewWorld/Destroy cycles).
+// deadlock-free Destroy after a worker panic, the goroutine close-join
+// (no leak across NewWorld/Destroy cycles), and the locked-world guard on
+// World.Destroy that prevents a callback-driven pool.close() self-join
+// deadlock.
 
 package box2d_test
 
 import (
 	"fmt"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -16,6 +20,27 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/box2d"
 )
+
+const boundedTimeout = 30 * time.Second
+
+// assertFailedMsg is the panic string every box2d assert emits in the
+// box2d_asserts build; the Destroy guard regression asserts this exact value.
+const assertFailedMsg = "box2d: assertion failed"
+
+// requireGuardPanicValue checks the build-specific Destroy guard panic
+// (assertFailedMsg in the box2d_asserts build, nil in release).
+func requireGuardPanicValue(t *testing.T, got any, msg string) {
+	t.Helper()
+	if buildWithAsserts {
+		require.Equal(t, assertFailedMsg, got, msg)
+	} else {
+		require.Nil(t, got, msg)
+	}
+}
+
+var defaultStepTimeoutMsg = fmt.Sprintf("Step did not return within %s", boundedTimeout)
+
+const defaultFiredMsg = "preSolve callback did not run"
 
 // workerBoom is a distinct panic payload type: the type assertion below fails
 // if the pool ever wraps, stringifies or otherwise replaces the value a
@@ -36,6 +61,7 @@ func TestPanicInCallbackPropagatesOriginalValue(t *testing.T) {
 	def := box2d.DefaultWorldDef()
 	def.WorkerCount = 4
 	w := box2d.NewWorld(&def)
+	id := w.ID()
 
 	buildWorkerStressScene(w)
 
@@ -58,7 +84,7 @@ func TestPanicInCallbackPropagatesOriginalValue(t *testing.T) {
 	var recovered any
 	func() {
 		defer func() { recovered = recover() }()
-		w.Step(1.0/60.0, 4)
+		w.Step(stepDT, stepSubSteps)
 	}()
 
 	require.True(t, fired.Load(), "preSolve callback never ran — scene lost its touching pre-solve contacts")
@@ -70,16 +96,13 @@ func TestPanicInCallbackPropagatesOriginalValue(t *testing.T) {
 
 	// Destroy must join the pool workers and return even though the panic
 	// aborted Step mid-stage.
-	destroyed := make(chan struct{})
-	go func() {
-		w.Destroy()
-		close(destroyed)
-	}()
-	select {
-	case <-destroyed:
-	case <-time.After(30 * time.Second):
-		t.Fatal("World.Destroy deadlocked after a worker panic")
-	}
+	require.Nil(t, runBounded(t, nil, w.Destroy, "World.Destroy deadlocked after a worker panic"),
+		"Destroy must not panic on the poisoned world")
+	// Destroy must actually tear the poisoned world down, not silently skip
+	// cleanup: the saved id is now stale. Returning alone (the runBounded
+	// check above) would be satisfied by a locked-world early return that
+	// leaves the worker pool alive.
+	require.False(t, w.IsWorldValid(id), "Destroy must invalidate the saved id after a panicked Step")
 
 	// Fresh world: the process (and the package state) is healthy.
 	def2 := box2d.DefaultWorldDef()
@@ -88,7 +111,7 @@ func TestPanicInCallbackPropagatesOriginalValue(t *testing.T) {
 	defer w2.Destroy()
 	buildWorkerScene(w2, 6, 4, 4, 1)
 	for range 5 {
-		w2.Step(1.0/60.0, 4)
+		w2.Step(stepDT, stepSubSteps)
 	}
 }
 
@@ -131,7 +154,7 @@ func TestStepAfterCallbackPanicFailsLoudly(t *testing.T) {
 				return true
 			}, nil)
 
-			require.Panics(t, func() { w.Step(1.0/60.0, 4) }, "the callback panic must propagate out of Step")
+			require.Panics(t, func() { w.Step(stepDT, stepSubSteps) }, "the callback panic must propagate out of Step")
 			require.True(t, fired.Load(), "preSolve callback never ran — scene lost its touching pre-solve contacts")
 
 			// Re-stepping the same world must panic with the explicit poison
@@ -140,7 +163,7 @@ func TestStepAfterCallbackPanicFailsLoudly(t *testing.T) {
 			var second any
 			func() {
 				defer func() { second = recover() }()
-				w.Step(1.0/60.0, 4)
+				w.Step(stepDT, stepSubSteps)
 			}()
 			require.NotNil(t, second, "re-stepping a panicked world must panic, not silently no-op")
 			msg, ok := second.(string)
@@ -214,8 +237,8 @@ func TestGoroutineLeakOnWorldDestroy(t *testing.T) {
 		sd.Density = 1.0
 		w.CreateCircleShape(body, &sd, &circle)
 
-		w.Step(1.0/60.0, 4)
-		w.Step(1.0/60.0, 4)
+		w.Step(stepDT, stepSubSteps)
+		w.Step(stepDT, stepSubSteps)
 
 		w.Destroy()
 	}
@@ -230,4 +253,306 @@ func TestGoroutineLeakOnWorldDestroy(t *testing.T) {
 	require.LessOrEqualf(t, after-before, 2,
 		"goroutines leaked across 50 NewWorld(WorkerCount=8)/Destroy cycles: before=%d after=%d — pool close-join broken",
 		before, after)
+}
+
+// TestDestroyFromCallbackGuarded locks in the locked-world guard on
+// World.Destroy: a user callback that calls Destroy from inside Step must not
+// reach pool.close() mid-dispatch (which self-joins on the calling worker's
+// done token and deadlocks) or wipe *w under a continuing Step. In release the
+// callback's Destroy is a silent no-op; in the box2d_asserts build the guard's
+// assert fires and Step panics with "box2d: assertion failed". The guard
+// exempts poisoned worlds so Destroy still reclaims the worker pool after a
+// panic-unwound Step.
+//
+// workers_1 (serial, no pool) and workers_4 (pool-enabled) cover the inline
+// and pool-worker callback paths; workers_4 does not by itself guarantee the
+// callback runs on a background worker (worker 0 can win the CAS). The
+// "self_join_background_worker" case forces the callback onto a background
+// pool worker by excluding worker 0 (the Step goroutine, which is not in the
+// pool's done WaitGroup, so a CAS it wins does not reproduce the deadlock);
+// the saved-id validity check rejects a wiped-world false positive that would
+// share the assertion string.
+func TestDestroyFromCallbackGuarded(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name           string
+		workers        int
+		backgroundOnly bool
+		stepTimeoutMsg string
+		firedMsg       string
+		destroyMsg     string
+	}{
+		{
+			name:           "workers_1",
+			workers:        1,
+			stepTimeoutMsg: defaultStepTimeoutMsg,
+			firedMsg:       defaultFiredMsg,
+			destroyMsg:     "Destroy did not return",
+		},
+		{
+			name:           "workers_4",
+			workers:        4,
+			stepTimeoutMsg: defaultStepTimeoutMsg,
+			firedMsg:       defaultFiredMsg,
+			destroyMsg:     "Destroy did not return — pool.close() must join the workers",
+		},
+		{
+			name:           "self_join_background_worker",
+			workers:        4,
+			backgroundOnly: true,
+			stepTimeoutMsg: "Step timed out while testing Destroy from a background worker",
+			firedMsg:       "no background worker hit a touching pre-solve contact — self-join path not exercised",
+			destroyMsg:     "World.Destroy timed out while joining workers",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			def := box2d.DefaultWorldDef()
+			def.WorkerCount = tc.workers
+			w := box2d.NewWorld(&def)
+			var opsInFlight atomic.Int32
+			// Register cleanup after NewWorld so an early failed require still
+			// joins the pool goroutines; the explicit Destroy below remains to
+			// verify teardown and id invalidation. Skip cleanup while any
+			// bounded operation is still in flight (a timeout leaves it
+			// running): a Destroy racing a still-running Step or a stuck
+			// pool.close could double-close the pool's jobs channel.
+			t.Cleanup(func() {
+				if opsInFlight.Load() > 0 {
+					return
+				}
+				w.Destroy()
+			})
+			id := w.ID()
+
+			bodies := buildWorkerStressScene(w)
+
+			// stepG holds the Step goroutine's id for the background case.
+			// The store precedes Step, whose job-channel sends publish it
+			// to the workers, so the callback's read is race-free without
+			// an atomic; capturing the parent test goroutine here would let
+			// worker 0 satisfy the filter too.
+			var stepG uint64
+			var fired atomic.Bool
+			w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
+				// backgroundOnly: skip worker 0 (the Step goroutine) so only a
+				// background pool worker may fire and the self-join path is
+				// reached. Check fired first so later contacts skip the
+				// runtime.Stack parse; the CAS still arbitrates the winner.
+				if tc.backgroundOnly && (fired.Load() || goroutineID() == stepG) {
+					return true
+				}
+				if fired.CompareAndSwap(false, true) {
+					w.Destroy()
+				}
+				return true
+			}, nil)
+
+			panicVal := runBounded(t, &opsInFlight, func() {
+				if tc.backgroundOnly {
+					stepG = goroutineID()
+				}
+				w.Step(stepDT, stepSubSteps)
+			}, tc.stepTimeoutMsg)
+			// Check the callback fired before the panic value: if the background
+			// case never reaches a pool worker, the Equal/Nil failure below would
+			// otherwise hide the diagnostic that the self-join path was missed.
+			require.True(t, fired.Load(), tc.firedMsg)
+			requireGuardPanicValue(t, panicVal,
+				"the guard must surface its assertion (asserts) or no panic (release) when the callback's Destroy is rejected")
+
+			// The guard rejected the callback's Destroy, so the world is
+			// still live (not wiped): the saved id is still valid. The
+			// shared "box2d: assertion failed" string alone cannot identify
+			// this guard — a wiped world would trip a different assert and
+			// satisfy the panic check above — so the validity check
+			// distinguishes a real guard from that false positive.
+			require.True(t, w.IsWorldValid(id),
+				"the guard must reject the callback's Destroy, not wipe the world mid-Step")
+
+			// A second Step confirms the world is healthy when the guard
+			// rejected the callback's Destroy (release only; the asserts
+			// build leaves the world poisoned). Bound it so a reuse-only hang
+			// fails this test instead of waiting for the package timeout, and
+			// assert a known moving body advances so a silently-locked Step
+			// can't pass on the reuse path.
+			if !buildWithAsserts {
+				mover := sceneMover(bodies)
+				before := w.BodyPosition(mover)
+				require.Nil(t, runBounded(t, &opsInFlight, func() { w.Step(stepDT, stepSubSteps) },
+					defaultStepTimeoutMsg),
+					"second Step must not panic when the guard rejected the callback's Destroy")
+				require.NotEqual(t, before, w.BodyPosition(mover),
+					"the second Step must advance a known moving body, not silently no-op while locked")
+			}
+
+			require.Nil(t, runBounded(t, &opsInFlight, w.Destroy, tc.destroyMsg),
+				"Destroy must not panic on the world")
+			require.False(t, w.IsWorldValid(id), "Destroy must invalidate the saved id")
+		})
+	}
+}
+
+// sceneMover returns the moving probe body from a buildWorkerStressScene scene:
+// the last body, a bullet with explicit linear velocity, used as a known moving
+// body for the second-Step advancement check shared by the guarded-Destroy
+// tests.
+func sceneMover(bodies []box2d.BodyID) box2d.BodyID {
+	return bodies[len(bodies)-1]
+}
+
+// requireStepAdvancesBody steps w via step (which must not panic) and asserts
+// that mover's position changes, so a silently-locked Step (release) cannot
+// pass a reuse check. notPanicMsg describes the Step for the NotPanics check.
+func requireStepAdvancesBody(t *testing.T, w *box2d.World, mover box2d.BodyID, step func(), notPanicMsg string) {
+	t.Helper()
+	before := w.BodyPosition(mover)
+	require.NotPanics(t, step, notPanicMsg)
+	require.NotEqual(t, before, w.BodyPosition(mover),
+		"the second Step must advance a known moving body")
+}
+
+// TestDestroyGuardRecoveredInCallbackStepsAgain covers the Destroy godoc
+// promise that a callback which recovers the guard's assertion panic locally
+// lets Step complete without poisoning the world, so the same world can step
+// again. TestDestroyFromCallbackGuarded lets the assertion escape Step (and
+// skips reuse in the asserts build); this exercises the recover-in-callback
+// path in both builds. The workers_1 case is serial; the background_worker case
+// forces the callback onto a background pool worker (excluding worker 0) so the
+// documented local-recovery contract is covered on the self-join path too.
+func TestDestroyGuardRecoveredInCallbackStepsAgain(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name           string
+		workers        int
+		backgroundOnly bool
+		firedMsg       string
+	}{
+		{name: "workers_1", workers: 1, firedMsg: "preSolve callback never ran"},
+		{
+			name:           "background_worker",
+			workers:        4,
+			backgroundOnly: true,
+			firedMsg:       "no background worker hit a touching pre-solve contact — local-recovery path not exercised",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			def := box2d.DefaultWorldDef()
+			def.WorkerCount = tc.workers
+			w := box2d.NewWorld(&def)
+			t.Cleanup(w.Destroy)
+			bodies := buildWorkerStressScene(w)
+			mover := sceneMover(bodies)
+
+			var fired atomic.Bool
+			var destroyPanic any
+			var stepG uint64
+			w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
+				// backgroundOnly: skip worker 0 (the Step goroutine) so only a
+				// background pool worker may fire. Check fired first so later
+				// contacts skip the runtime.Stack parse; the CAS arbitrates the
+				// winner.
+				if tc.backgroundOnly && (fired.Load() || goroutineID() == stepG) {
+					return true
+				}
+				if fired.CompareAndSwap(false, true) {
+					func() {
+						defer func() { destroyPanic = recover() }()
+						w.Destroy()
+					}()
+				}
+				return true
+			}, nil)
+
+			require.NotPanics(t, func() {
+				if tc.backgroundOnly {
+					stepG = goroutineID()
+				}
+				w.Step(stepDT, stepSubSteps)
+			}, "Step must not panic when the callback recovers the guard's assertion")
+			require.True(t, fired.Load(), tc.firedMsg)
+			// Retain the guard's panic value rather than discarding it: a
+			// swallowed unexpected Destroy panic would slip past the NotPanics
+			// and reuse checks below. In the asserts build the guard trips its
+			// assertion; in release it is a silent no-op.
+			requireGuardPanicValue(t, destroyPanic,
+				"the guard must surface its assertion (asserts) or no panic (release) when the callback calls Destroy")
+
+			// Assert the second Step actually advances a known moving body: in
+			// release Step silently returns while locked, so NotPanics alone
+			// does not prove the local-recovery path leaves the world usable.
+			requireStepAdvancesBody(t, w, mover, func() { w.Step(stepDT, stepSubSteps) },
+				"Step must succeed after the callback recovered the guard's assertion")
+		})
+	}
+}
+
+// goroutineID returns the numeric goroutine id from [runtime.Stack]'s header
+// ("goroutine N [...]"). It is used only to distinguish the Step goroutine
+// (worker 0, which runs inline) from background pool workers (1..n-1), so the
+// self-join regression is exercised deterministically rather than by CAS luck.
+func goroutineID() uint64 {
+	var buf [64]byte
+	n := runtime.Stack(buf[:], false)
+	s := string(buf[:n])
+	const prefix = "goroutine "
+	if !strings.HasPrefix(s, prefix) {
+		panic("goroutineID: unexpected runtime.Stack header: " + s)
+	}
+	rest := s[len(prefix):]
+	end := strings.IndexByte(rest, ' ')
+	if end < 0 {
+		panic("goroutineID: no goroutine id parsed from runtime.Stack header: " + s)
+	}
+	id, err := strconv.ParseUint(rest[:end], 10, 64)
+	if err != nil {
+		panic(fmt.Sprintf("goroutineID: parsing goroutine id from runtime.Stack header: %v (header: %s)", err, s))
+	}
+	return id
+}
+
+// runBounded runs fn on a goroutine and fails the test (with msg) if it does
+// not return within boundedTimeout, recovering any panic value for the caller
+// to assert. A mid-Step pool.close() self-join or a hung Destroy surfaces here
+// as a timeout instead of blocking this test past the deadline. On timeout the
+// calling test fails; fn is not stopped and may keep running. inFlight, when
+// non-nil, is held positive while fn's goroutine is running, so cleanup can
+// skip Destroy when a timed-out operation is still in flight (a Destroy stuck
+// in done.Wait has already closed jobs but not cleared w.pool, so a concurrent
+// cleanup Destroy would double-close the channel). It is decremented before
+// closing done so the waiting test resumes with the counter already cleared;
+// otherwise cleanup would see it positive and skip Destroy, leaving pool
+// workers alive.
+func runBounded(t *testing.T, inFlight *atomic.Int32, fn func(), msg string) any {
+	t.Helper()
+	var panicVal any
+	done := make(chan struct{})
+	if inFlight != nil {
+		inFlight.Add(1)
+	}
+	go func() {
+		defer func() {
+			panicVal = recover()
+			if inFlight != nil {
+				inFlight.Add(-1)
+			}
+			close(done)
+		}()
+		fn()
+	}()
+	select {
+	case <-done:
+	case <-time.After(boundedTimeout):
+		t.Fatal(msg)
+	}
+	return panicVal
 }

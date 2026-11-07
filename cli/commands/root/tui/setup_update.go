@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/argus-labs/world-engine/cli/internal/dependency"
 	"github.com/argus-labs/world-engine/cli/internal/tui/kit/steps"
 	"github.com/argus-labs/world-engine/cli/internal/tui/style"
 	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
@@ -23,8 +23,6 @@ func (m WorldSetupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKey(msg)
 	case NewLogMsg:
 		return m.handleLog(msg)
-	case dependency.CheckResult:
-		return m.handleDepResult(msg)
 	case steps.SignalStepStartedMsg:
 		return m.handleStepStarted(msg)
 	case steps.SignalStepCompletedMsg:
@@ -73,6 +71,13 @@ func (m WorldSetupModel) handleNameInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		}
 		m.nameErr = ""
 		m.projectNameInput.Blur()
+		// When --directory was supplied with an invalid basename, the user is
+		// shown this input to fix the name. Apply the validated name by rebasing
+		// the target directory onto it, so cloning and world.toml generation use
+		// a valid DNS-1123 label instead of the original invalid directory.
+		if m.targetDir != "" {
+			m.targetDir = filepath.Join(filepath.Dir(filepath.Clean(m.targetDir)), name)
+		}
 		return m, m.steps.CompleteStepCmd(nil)
 	}
 
@@ -102,14 +107,6 @@ func (m WorldSetupModel) handleTemplateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 
 func (m WorldSetupModel) handleLog(msg NewLogMsg) (tea.Model, tea.Cmd) {
 	m.logs = append(m.logs, msg.Log)
-	return m, nil
-}
-
-func (m WorldSetupModel) handleDepResult(msg dependency.CheckResult) (tea.Model, tea.Cmd) {
-	m.depResult = msg
-	if msg.Err != nil {
-		return m, tea.Quit
-	}
 	return m, nil
 }
 

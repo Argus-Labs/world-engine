@@ -1,11 +1,14 @@
 package tui
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/require"
+
+	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
 )
 
 // projectNameErrMsg must mention the 63-character limit so a user who hits the
@@ -87,4 +90,124 @@ func TestHandleNameInputKey_AcceptsMaxLengthName(t *testing.T) {
 	require.Empty(t, mm.nameErr)
 	require.False(t, mm.projectNameInput.Focused(),
 		"input should be blurred after accepting the name")
+}
+
+// When --directory is supplied with an over-length basename (the c108684e
+// regression), the name the user types into the fix-up input must be applied:
+// targetDir is rebased onto the validated name so cloning and world.toml
+// generation use a valid DNS-1123 label. Before the fix the typed name was
+// silently discarded and setup failed at the very end with "project is too
+// long (max 63 characters)".
+func TestHandleNameInputKey_OverLengthDirRebasesOntoTypedName(t *testing.T) {
+	t.Parallel()
+
+	longName := strings.Repeat("a", 64)
+	m := NewWorldSetupModel("/tmp/"+longName, "DEV", "")
+	require.Equal(t, projectNameErrMsg, m.nameErr)
+	require.True(t, m.projectNameInput.Focused())
+
+	m.projectNameInput.SetValue("my-game")
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mm, ok := next.(WorldSetupModel)
+	require.True(t, ok, "Update should return a WorldSetupModel")
+
+	require.Empty(t, mm.nameErr, "name error should be cleared after valid name")
+	require.False(t, mm.projectNameInput.Focused(), "input should be blurred")
+
+	// The typed name must be applied to targetDir, not discarded.
+	require.Equal(t, "/tmp/my-game", mm.targetDir,
+		"targetDir should be rebased onto the validated name")
+	require.Equal(t, "/tmp/my-game", mm.targetDirectory(),
+		"targetDirectory() should return the rebased path")
+	require.Equal(t, "/tmp/my-game", mm.displayDir(),
+		"displayDir() should return the rebased path")
+
+	// The project name that InstantiateTemplate would derive from the target
+	// directory must be a canonical DNS-1123 label (the root cause of the
+	// end-of-flow WriteProject failure).
+	require.True(t, dnslabel.IsCanonical(filepath.Base(mm.targetDirectory())),
+		"filepath.Base(targetDirectory()) must be canonical so world.toml validation passes")
+}
+
+// When --directory is supplied with a charset-invalid basename (e.g.
+// underscore), the fix-up input's typed name must also be applied. This case
+// has failed deterministically since c13cd880 routed the scaffold through the
+// user-supplied directory; the fix makes the input live up to its promise.
+func TestHandleNameInputKey_InvalidCharsetDirRebasesOntoTypedName(t *testing.T) {
+	t.Parallel()
+
+	m := NewWorldSetupModel("/tmp/my_game", "DEV", "")
+	require.Equal(t, projectNameErrMsg, m.nameErr)
+	require.True(t, m.projectNameInput.Focused())
+
+	m.projectNameInput.SetValue("my-game")
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mm, ok := next.(WorldSetupModel)
+	require.True(t, ok, "Update should return a WorldSetupModel")
+
+	require.Empty(t, mm.nameErr)
+	require.Equal(t, "/tmp/my-game", mm.targetDir,
+		"targetDir should be rebased onto the validated name")
+	require.True(t, dnslabel.IsCanonical(filepath.Base(mm.targetDirectory())),
+		"derived project name must be canonical")
+}
+
+// A trailing slash on the --directory argument must not confuse the rebase:
+// the path is cleaned before extracting the parent, so
+// "/tmp/my_game/" rebases to "/tmp/my-game", not "/tmp/my_game/my-game".
+func TestHandleNameInputKey_TrailingSlashDirRebasesCorrectly(t *testing.T) {
+	t.Parallel()
+
+	m := NewWorldSetupModel("/tmp/my_game/", "DEV", "")
+	require.Equal(t, projectNameErrMsg, m.nameErr)
+
+	m.projectNameInput.SetValue("my-game")
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mm, ok := next.(WorldSetupModel)
+	require.True(t, ok)
+
+	require.Equal(t, "/tmp/my-game", mm.targetDir,
+		"trailing slash should be normalized before rebasing")
+	require.True(t, dnslabel.IsCanonical(filepath.Base(mm.targetDirectory())))
+}
+
+// A relative --directory argument (no path separator) is rebased relative to
+// the current directory: "my_game" becomes "my-game", not "./my-game".
+func TestHandleNameInputKey_RelativeDirRebasesOntoTypedName(t *testing.T) {
+	t.Parallel()
+
+	m := NewWorldSetupModel("my_game", "DEV", "")
+	require.Equal(t, projectNameErrMsg, m.nameErr)
+
+	m.projectNameInput.SetValue("my-game")
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mm, ok := next.(WorldSetupModel)
+	require.True(t, ok)
+
+	require.Equal(t, "my-game", mm.targetDir,
+		"relative dir should rebase to a relative path with the validated name")
+	require.True(t, dnslabel.IsCanonical(filepath.Base(mm.targetDirectory())))
+}
+
+// When no --directory is supplied, the fix-up input must NOT set targetDir:
+// targetDirectory() falls back to the input value, and the fix must not
+// change that behavior. This is the no-regression guard for the common path.
+func TestHandleNameInputKey_NoDirDoesNotSetTargetDir(t *testing.T) {
+	t.Parallel()
+
+	m := NewWorldSetupModel("", "DEV", "")
+	require.True(t, m.projectNameInput.Focused())
+	require.Empty(t, m.targetDir)
+
+	m.projectNameInput.SetValue("my-game")
+	next, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	mm, ok := next.(WorldSetupModel)
+	require.True(t, ok)
+
+	require.Empty(t, mm.targetDir,
+		"targetDir must stay empty when no --directory was supplied")
+	require.Equal(t, "my-game", mm.targetDirectory(),
+		"targetDirectory() should fall back to the input value")
+	require.Equal(t, "./my-game", mm.displayDir(),
+		"displayDir() should fall back to ./<input value>")
 }
