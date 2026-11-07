@@ -32,7 +32,6 @@ import (
 const (
 	cardinalPath  = "github.com/argus-labs/world-engine/pkg/cardinal"
 	pluginPrefix  = "github.com/argus-labs/world-engine/pkg/plugin/"
-	dataPath      = pluginPrefix + "data"
 	physics2dPath = pluginPrefix + "physics2d"
 	maxExamples   = 3
 )
@@ -552,10 +551,6 @@ func (a *audit) call(call *ast.CallExpr, fi *fileInfo, sc scope) {
 			return
 		}
 		if x, ok := sel.X.(*ast.Ident); ok && fi.imports[x.Name] != "" {
-			// Package-level generic function, e.g. data.Get[T]().
-			if fi.imports[x.Name] == dataPath && sel.Sel.Name == "Get" && len(call.Args) == 0 {
-				a.add("data.Get[T]() without the plugin argument", a.pos(call))
-			}
 			return
 		}
 		name := sel.Sel.Name

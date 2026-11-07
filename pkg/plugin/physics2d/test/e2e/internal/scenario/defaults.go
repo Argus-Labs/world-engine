@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/goccy/go-json"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/harness"
 
@@ -152,14 +153,12 @@ func checkJSONDefaults(c *harness.Ctx) {
 	original.AngularDamping = 0.5
 	original.GravityScale = 2.5
 
-	raw := original.MarshalWire()
-	decodedAny, err := physics.PhysicsBody2D{}.UnmarshalWire(raw)
-	if !c.NoError("wire: UnmarshalWire succeeds", err) {
+	raw, err := msgpack.Marshal(original)
+	if !c.NoError("wire: MessagePack encoding succeeds", err) {
 		return
 	}
-	got, ok := decodedAny.(physics.PhysicsBody2D)
-	if !c.True("wire: UnmarshalWire returns a PhysicsBody2D", ok,
-		"got %T instead", decodedAny) {
+	var got physics.PhysicsBody2D
+	if !c.NoError("wire: MessagePack decoding succeeds", msgpack.Unmarshal(raw, &got)) {
 		return
 	}
 
@@ -218,6 +217,14 @@ func checkValidation(c *harness.Ctx) {
 	infDamping := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, circle(1))
 	infDamping.LinearDamping = math.Inf(1)
 	c.HasError("Validate rejects infinite LinearDamping", infDamping.Validate())
+
+	negDamping := valid
+	negDamping.LinearDamping = -0.1
+	c.HasError("Validate rejects negative LinearDamping", negDamping.Validate())
+
+	negAngDamping := valid
+	negAngDamping.AngularDamping = -60.0
+	c.HasError("Validate rejects negative AngularDamping", negAngDamping.Validate())
 
 	badShape := physcomp.NewPhysicsBody2D(physics.BodyTypeDynamic, physics.ColliderShape{})
 	c.HasError("Validate rejects shape type 0", badShape.Validate())

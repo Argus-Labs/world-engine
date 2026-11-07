@@ -24,6 +24,31 @@ type Client struct {
 	logger *slog.Logger
 }
 
+// dockerImageClient is the subset of the moby docker client used to list and
+// remove images during purge. Defined as an interface so the purge path can be
+// unit-tested with a fake daemon instead of requiring a running one;
+// *client.Client satisfies it.
+type dockerImageClient interface {
+	ImageList(ctx context.Context, options client.ImageListOptions) (client.ImageListResult, error)
+	ImageRemove(
+		ctx context.Context,
+		imageID string,
+		options client.ImageRemoveOptions,
+	) (client.ImageRemoveResult, error)
+}
+
+// dockerContainerClient is the subset of the moby docker client used to inspect
+// containers during readiness checks. Defined as an interface so the readiness
+// path can be unit-tested with a fake daemon instead of requiring a running one;
+// *client.Client satisfies it.
+type dockerContainerClient interface {
+	ContainerInspect(
+		ctx context.Context,
+		containerID string,
+		options client.ContainerInspectOptions,
+	) (client.ContainerInspectResult, error)
+}
+
 func NewClient(cfg *service.Config, opts *ClientOptions) (*Client, error) {
 	cli, err := client.New(client.FromEnv)
 	if err != nil {
@@ -55,15 +80,33 @@ func (c *Client) ResolveServices(builders ...service.Builder) []service.Service 
 	return services
 }
 
-// PruneCardinalImages removes Docker images that were built by world-cli for
-// Cardinal (identified via the world-cli=cardinal image label), as well as old
-// NATS images used by world start. This is intended to be called after
-// containers have been purged.
+// PruneCardinalImages removes the Docker images world built for THIS project, as
+// well as old NATS images used by world start. This is intended to be called
+// after containers have been purged.
 func (c *Client) PruneCardinalImages(ctx context.Context) error {
-	// First, remove any images that were built by world-cli for Cardinal.
-	filters := make(client.Filters).Add("label", "world-cli=cardinal")
+	return pruneCardinalImages(ctx, c.client, c.logger, c.cfg.WorldToml.Project, c.builtImageNames())
+}
 
-	images, err := c.client.ImageList(ctx, client.ImageListOptions{
+// pruneCardinalImages implements PruneCardinalImages against the injectable
+// dockerImageClient seam so the purge path can be unit-tested without a real
+// daemon. owned is the set of image names this project's world.toml builds (see
+// ownsBuiltImage). It is best-effort: a single image failing to remove is logged
+// and skipped rather than aborting the whole purge.
+func pruneCardinalImages(
+	ctx context.Context,
+	cli dockerImageClient,
+	logger *slog.Logger,
+	project string,
+	owned map[string]struct{},
+) error {
+	// Every image world builds carries world-cli=cardinal. Listing on that alone and
+	// filtering in Go, rather than ANDing a second label filter, is deliberate: the
+	// project label was added later, so an image an older CLI built carries only the
+	// first one and a two-label filter would silently stop reclaiming it.
+	filters := make(client.Filters).
+		Add("label", service.CardinalImageLabel+"="+service.CardinalImageValue)
+
+	images, err := cli.ImageList(ctx, client.ImageListOptions{
 		All:     true,
 		Filters: filters,
 	})
@@ -72,12 +115,20 @@ func (c *Client) PruneCardinalImages(ctx context.Context) error {
 	}
 
 	for _, img := range images.Items {
-		_, removeErr := c.client.ImageRemove(ctx, img.ID, client.ImageRemoveOptions{
+		if !ownsBuiltImage(img.Labels, project, owned) {
+			continue
+		}
+		// Force: a rebuild keeps the tag, so the previous build is left untagged yet may
+		// still be referenced, and the daemon then refuses an unforced delete and the image
+		// leaks. The label cannot appear on an image world did not build, so forcing the
+		// removal of one this project owns is safe and reclaims every tag in one call.
+		_, removeErr := cli.ImageRemove(ctx, img.ID, client.ImageRemoveOptions{
 			PruneChildren: true,
+			Force:         true,
 		})
 		if removeErr != nil {
 			// Best-effort cleanup: log and continue.
-			c.logger.WarnContext(ctx, "failed to remove Cardinal image", "image", img.ID, "error", removeErr)
+			logger.WarnContext(ctx, "failed to remove Cardinal image", "image", img.ID, "error", removeErr)
 		}
 	}
 
@@ -91,7 +142,7 @@ func (c *Client) PruneCardinalImages(ctx context.Context) error {
 		service.DefaultNatsImage,
 	}
 
-	allImages, err := c.client.ImageList(ctx, client.ImageListOptions{All: true})
+	allImages, err := cli.ImageList(ctx, client.ImageListOptions{All: true})
 	if err != nil {
 		return err
 	}
@@ -107,11 +158,11 @@ func (c *Client) PruneCardinalImages(ctx context.Context) error {
 				continue
 			}
 
-			_, removeErr := c.client.ImageRemove(ctx, tag, client.ImageRemoveOptions{
+			_, removeErr := cli.ImageRemove(ctx, tag, client.ImageRemoveOptions{
 				PruneChildren: true,
 			})
 			if removeErr != nil {
-				c.logger.WarnContext(ctx, "failed to remove old world image", "tag", tag, "error", removeErr)
+				logger.WarnContext(ctx, "failed to remove old world image", "tag", tag, "error", removeErr)
 			}
 		}
 	}
@@ -129,28 +180,27 @@ func hasWorldImagePrefix(tag string, prefixes []string) bool {
 	return false
 }
 
-// ListCardinalContainersByNamespace returns the names of Cardinal containers for a given namespace.
-func (c *Client) ListCardinalContainersByNamespace(ctx context.Context, namespace string, all bool) ([]string, error) {
-	containers, err := c.client.ContainerList(ctx, client.ContainerListOptions{
-		All:     all,
-		Filters: make(client.Filters).Add("label", service.CardinalNamespaceLabel+"="+namespace),
-	})
-	if err != nil {
-		return nil, eris.Wrapf(err, "failed to list containers for namespace %q", namespace)
+// builtImageNames is the set of image names this project's world.toml would build.
+func (c *Client) builtImageNames() map[string]struct{} {
+	names := CardinalBuildImageNames(
+		c.ResolveServices(service.GetServices(c.cfg, service.CardinalShardsFirst)...),
+	)
+	owned := make(map[string]struct{}, len(names))
+	for _, n := range names {
+		owned[n] = struct{}{}
 	}
+	return owned
+}
 
-	results := make([]string, 0, len(containers.Items))
-	for _, cont := range containers.Items {
-		name := ""
-		if len(cont.Names) > 0 {
-			name = cont.Names[0]
-			if len(name) > 0 && name[0] == '/' {
-				name = name[1:]
-			}
-		}
-		if name != "" {
-			results = append(results, name)
-		}
+// ownsBuiltImage reports whether an image world built belongs to this project.
+// The project label is authoritative when present. Images from a CLI older than
+// that label fall back to the image name, which has always been project-scoped
+// ("<project>-<id>-shard" / "-service"), so purge still reclaims them without
+// ever matching another project's.
+func ownsBuiltImage(labels map[string]string, project string, owned map[string]struct{}) bool {
+	if p, ok := labels[service.ProjectLabel]; ok {
+		return p == project
 	}
-	return results, nil
+	_, ok := owned[labels[service.CardinalImageNameLabel]]
+	return ok
 }

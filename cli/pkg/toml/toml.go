@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
+	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
 )
 
 func LoadFile(path string) (Config, error) {
@@ -19,6 +22,11 @@ func LoadFile(path string) (Config, error) {
 	}
 	defer func() { _ = f.Close() }()
 	return Load(f)
+}
+
+// LoadDir loads the world.toml in dir.
+func LoadDir(dir string) (Config, error) {
+	return LoadFile(filepath.Join(dir, FileName))
 }
 
 func Load(r io.Reader) (Config, error) {
@@ -46,7 +54,7 @@ func Load(r io.Reader) (Config, error) {
 	return cfg, nil
 }
 
-//nolint:gocognit // This function is complex but it's ok for this use case.
+//nolint:gocognit,funlen // This function is complex but it's ok for this use case.
 func validate(cfg *Config) error {
 	if cfg.Organization == "" {
 		return eris.New("world.toml is missing an Organization")
@@ -62,7 +70,7 @@ func validate(cfg *Config) error {
 	}
 
 	// Validate project
-	if err := normalizeAndValidateString(&cfg.Project, "project"); err != nil {
+	if err := normalizeAndValidateCanonicalName(&cfg.Project, "project"); err != nil {
 		return err
 	}
 
@@ -78,7 +86,7 @@ func validate(cfg *Config) error {
 		}
 
 		// Normalize and validate in-place so changes persist
-		if err := normalizeAndValidateString(&cfg.Shards[i].ID, "shardID"); err != nil {
+		if err := normalizeAndValidateCanonicalName(&cfg.Shards[i].ID, "shardID"); err != nil {
 			return err
 		}
 
@@ -100,10 +108,33 @@ func validate(cfg *Config) error {
 			cfg.Shards[i].PoolSize = 1
 		}
 
-		// Validate shard log level
-		if err := validateLogLevel(cfg.Shards[i].LogLevel, "shard: "+cfg.Shards[i].ID); err != nil ||
-			cfg.Shards[i].LogLevel == "" {
+		// Upper-bound pool_size. A huge value (e.g. an extra-zero typo) would
+		// otherwise reach expandPools and fatal the process with a runtime
+		// out-of-memory in make([]Shard, 0, total), which is not recoverable.
+		// Reject it up front with a config error naming the field, mirroring
+		// tick_rate and resources below.
+		if cfg.Shards[i].PoolSize > maxShardPoolSize {
+			return eris.Errorf("shards[%d] (%s) pool_size %d exceeds maximum of %d",
+				i, cfg.Shards[i].ID, cfg.Shards[i].PoolSize, maxShardPoolSize)
+		}
+
+		// Validate shard log level. An empty value defaults to info; a
+		// non-empty value the runtime cannot accept is a config error and
+		// is returned here, mirroring validatePath/tick_rate/resources below.
+		if cfg.Shards[i].LogLevel == "" {
 			cfg.Shards[i].LogLevel = zerolog.InfoLevel.String()
+		} else if err := validateLogLevel(cfg.Shards[i].LogLevel, "shard: "+cfg.Shards[i].ID); err != nil {
+			return err
+		}
+
+		// Normalize shard mode against the chart's enum, so a value world.toml accepts
+		// cannot be one the chart would reject on a cluster.
+		cfg.Shards[i].Mode = strings.ToUpper(strings.TrimSpace(cfg.Shards[i].Mode))
+		switch cfg.Shards[i].Mode {
+		case "", ShardModeLeader, ShardModeFollower:
+		default:
+			return eris.Errorf("shards[%d] (%s) mode %q must be %s or %s",
+				i, cfg.Shards[i].ID, cfg.Shards[i].Mode, ShardModeLeader, ShardModeFollower)
 		}
 
 		// Validate shard path
@@ -111,20 +142,16 @@ func validate(cfg *Config) error {
 			return err
 		}
 
-		// Validate tick_rate. Zero is allowed: it's omitted from the ShardPool
-		// CR, so the operator skips CARDINAL_TICK_RATE and the shard binary
-		// falls back to its own default tick rate.
+		// Validate tick_rate. Zero is allowed: the chart then omits CARDINAL_TICK_RATE
+		// and the shard binary falls back to its own default tick rate.
 		if cfg.Shards[i].TickRate < 0 {
 			return eris.New(fmt.Sprintf("shards[%d].tick_rate must be non-negative", i))
 		}
 
-		// Validate resources if present. The ShardPool CRD marks
-		// requests.{cpu,memory} and limits.{cpu,memory} all required with a
-		// minimum of 1, and kubelet rejects a limit below its request. The CR
-		// encoder emits every value (no omitempty), so a zero/omitted field
-		// reaches the API server as 0 and is rejected at apply time. Enforce the
-		// full constraint here so the error names the world.toml field instead of
-		// surfacing later at operator reconcile.
+		// Validate resources if present. requests.{cpu,memory} and limits.{cpu,memory}
+		// are all rendered, a zero reaches the API server as 0 and is rejected, and
+		// kubelet rejects a limit below its request. Enforce the full constraint here
+		// so the error names the world.toml field.
 		if r := cfg.Shards[i].Resources; r != nil {
 			if r.Requests.CPU < 1 || r.Requests.Memory < 1 {
 				return eris.New(fmt.Sprintf(
@@ -150,7 +177,7 @@ func validate(cfg *Config) error {
 	}
 
 	// Expand pool_size > 1 into multiple shard entries. Naming mirrors
-	// cardinal-operator: the first instance keeps the base ID, subsequent
+	// the cardinal-shard chart: the first instance keeps the base ID, subsequent
 	// instances are numbered from 2 (e.g. "game", "game-2", "game-3").
 	expanded, err := expandPools(cfg.Shards)
 	if err != nil {
@@ -162,7 +189,7 @@ func validate(cfg *Config) error {
 		return err
 	}
 
-	return nil
+	return validateAuth(&cfg.Auth)
 }
 
 // validateServices validates the [[services]] section. Unlike shards there is no
@@ -176,7 +203,7 @@ func validateServices(cfg *Config) error {
 			return eris.New(fmt.Sprintf("services[%d].id is required", i))
 		}
 
-		if err := normalizeAndValidateString(&svc.ID, "serviceID"); err != nil {
+		if err := normalizeAndValidateCanonicalName(&svc.ID, "serviceID"); err != nil {
 			return err
 		}
 
@@ -284,6 +311,13 @@ func expandPools(shards []Shard) ([]Shard, error) {
 	for _, s := range shards {
 		total += s.PoolSize
 	}
+	// Guard the pre-allocation: reject an oversized total before make(), so a
+	// sum of many individually-valid pool sizes (or a future caller that skips
+	// validate) cannot reintroduce the fatal runtime out-of-memory below.
+	if total > maxExpandedInstances {
+		return nil, eris.Errorf("total expanded shard instances %d exceeds maximum of %d; "+
+			"reduce pool_size across shards", total, maxExpandedInstances)
+	}
 	expanded := make([]Shard, 0, total)
 	// final instance ID -> shard ID that produced it. Lets us name both
 	// sides when a pool_size expansion collides with another shard's instance ID.
@@ -295,6 +329,17 @@ func expandPools(shards []Shard) ([]Shard, error) {
 			instanceID := baseID
 			if r > 1 {
 				instanceID = fmt.Sprintf("%s-%d", baseID, r)
+			}
+			// The base shard ID was already validated as a DNS-1123 label, but
+			// the "-2", "-3" suffix appended above can push the instance ID past
+			// dnslabel.MaxLength. Reject it here so the expanded ID the chart and
+			// Docker consume is always label-safe.
+			if len(instanceID) > dnslabel.MaxLength {
+				return nil, eris.New(fmt.Sprintf(
+					"shard instance id %q exceeds the %d-character DNS-1123 label limit"+
+						" (from shard %q with pool_size %d); shorten the shard id or reduce pool_size",
+					instanceID, dnslabel.MaxLength, baseID, s.PoolSize,
+				))
 			}
 			entry.PoolSize = 1
 			entry.InstanceID = instanceID

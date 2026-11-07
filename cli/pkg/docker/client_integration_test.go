@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"testing"
 	"time"
 
@@ -38,7 +37,7 @@ func TestBuildCardinalImagesWithKo_BareBoneTemplate(t *testing.T) {
 	}
 
 	// Load the template world.toml.
-	worldCfg, err := worldtoml.LoadFile(filepath.Join(templateDir, worldtoml.FileName))
+	worldCfg, err := worldtoml.LoadDir(templateDir)
 	if err != nil {
 		t.Fatalf("failed to load template world.toml: %v", err)
 	}
@@ -84,9 +83,8 @@ func TestBuildCardinalImagesWithKo_BareBoneTemplate(t *testing.T) {
 	cfg := &service.Config{
 		RootDir:   moduleRoot,
 		Debug:     true,
-		Namespace: "integration-bare-bone",
-		NATSURL: "nats://" + service.DefaultNatsContainerName + ":" +
-			strconv.Itoa(service.DefaultNatsClientPort),
+		Project:   worldCfg.Project,
+		NATSURL:   service.NatsURL(worldCfg.Project),
 		WorldToml: worldCfg,
 	}
 

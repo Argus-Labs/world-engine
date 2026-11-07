@@ -332,8 +332,6 @@ func (r *Runner) watchWorld(tick uint64) {
 func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 	debug := false
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
-		Region:              "local",
-		Organization:        "physics-test",
 		Project:             "physics-test",
 		ShardID:             "0",
 		TickRate:            TickRate,

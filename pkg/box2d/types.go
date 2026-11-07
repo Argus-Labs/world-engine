@@ -1068,6 +1068,22 @@ type CustomFilterFcn func(shapeIDA, shapeIDB ShapeID, ctx any) bool
 //
 // Return false if you want to disable the contact this step.
 //
+// When a pre-solve callback disables a contact (returns false), the narrow
+// phase re-checks it every step while either body is awake, so the callback is
+// consulted again even while the bodies stay stationary, provided the shapes
+// still produce contact points for a discrete contact update. (Continuous
+// collision detection also invokes this callback on a time-of-impact hit
+// without a manifold; see solver_continuous.go.) An already-enabled contact
+// may instead be recycled by the narrow-phase fast path: when the pair's
+// combined relative motion stays below the recycle distance (see
+// World.ContactRecycleDistance and World.SetContactRecycleDistance), the
+// contact reuses its cached manifold and skips the pre-solve callback, so the
+// enabled→disabled direction (e.g. a resting-platform drop-through) is not
+// re-consulted while the pair stays within that tolerance. This applies to
+// moving pairs too, not only stationary ones. Callers that need every step's
+// pre-solve decision for an enabled pair can disable the fast path world-wide
+// with World.SetContactRecycleDistance(0).
+//
 // Warning: do not attempt to modify the world inside this callback.
 type PreSolveFcn func(shapeIDA, shapeIDB ShapeID, point, normal Vec2, ctx any) bool
 

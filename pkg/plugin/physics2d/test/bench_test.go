@@ -23,8 +23,6 @@ func benchWorld(b *testing.B, gravity physics.Vec2, workers int) (*cardinal.Worl
 	b.Helper()
 	debug := true
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
-		Region:              "local",
-		Organization:        "bench",
 		Project:             "bench",
 		ShardID:             "0",
 		TickRate:            60,

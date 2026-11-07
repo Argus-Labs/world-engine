@@ -17,7 +17,6 @@ export async function spawnPlayer() {
   const { error } = await shard.sendCommand({
     name: 'player-spawn',
     payload: {
-      // TODO: when persona is implemented, we might not need to send auth id and name
       argus_auth_id: 'abc123',
       argus_auth_name: 'John Doe',
       x: 100,

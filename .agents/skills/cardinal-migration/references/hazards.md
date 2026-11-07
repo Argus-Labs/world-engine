@@ -54,31 +54,30 @@ why none apply. Items marked (audit) are also reported by `scripts/audit.go`.
 
 ## Data and serialization
 
-16. Data plugin pointer kinds now run `Resolve`/`Validate` at boot.
-17. `immutable.Slice` encodes to JSON as an array (was `{}`). Affects logs and anything that
+16. `immutable.Slice` encodes to JSON as an array (was `{}`). Affects logs and anything that
     `json.Marshal`s components.
-18. `immutable.Slice` derivations other than `Append` and `Repeat` edit the stored
+17. `immutable.Slice` derivations other than `Append` and `Repeat` edit the stored
     component's array in place, before any `Set`. A discarded `c.Items.Filter(keep)` or a
     read-only `c.Items.SortedFunc(cmp).At(0)` still changes the world. Assign the result
     and `e.Set(c)`. For a read-only result, copy first with
     `immutable.Collect(c.Items.Values())`. See older-versions.md, Wire shapes.
-19. Snapshots: see runtime.md. Snapshots from v0.16.8 or earlier must be deleted.
+18. Snapshots: see runtime.md. Snapshots from v0.16.8 or earlier must be deleted.
 
 ## Operations
 
-20. Tracing samples every tick by default. Set `OTEL_TRACE_SAMPLE_RATE` in production.
-21. From v0.18.0, `CARDINAL_PPROF` is silently ignored and nothing listens on :6060. Run
+19. Tracing samples every tick by default. Set `OTEL_TRACE_SAMPLE_RATE` in production.
+20. From v0.18.0, `CARDINAL_PPROF` is silently ignored and nothing listens on :6060. Run
     `rg CARDINAL_PPROF` in the game repo and the deploy repo, delete it, and drop any
     container port or scrape on 6060.
 
 ## Tests
 
-22. (audit) A test that reflects into `cardinal.World`'s unexported `world` or `commands`
+21. (audit) A test that reflects into `cardinal.World`'s unexported `world` or `commands`
     field still compiles and passes. It calls the ECS `Init` directly, so registration
     never closes: a late Register* passes in the test and panics in production. Any
     internal rename breaks it at run time. Port it to `cardinal.NewTestWorld`
     (bootstrap.md, Testing one system).
-23. (audit) `go build` skips test files, and CI often runs without the repo's build tags.
+22. (audit) `go build` skips test files, and CI often runs without the repo's build tags.
     For every build constraint the audit lists, run `go vet -tags <tags> ./...` and
     `go test -tags <tags> ./...` with tags that satisfy it (`integration && release` needs
     `-tags integration,release`). In one game, every `integration` test package of a shard

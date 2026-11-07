@@ -19,9 +19,3 @@ func FormatStatuses(statuses []Status) (string, string) {
 	}
 	return listBuilder.String(), helpBuilder.String()
 }
-
-// FormatMissing returns a formatted block for displaying missing dependencies.
-func FormatMissing(statuses []Status) string {
-	list, help := FormatStatuses(statuses)
-	return style.Container.Render("--- Found Missing Dependencies ---") + "\n\n" + list + "\n" + help + "\n"
-}

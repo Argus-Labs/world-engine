@@ -363,8 +363,10 @@ func (w *World) CreateBody(def *BodyDef) BodyID {
 		assert(IsValidVec2(def.LinearVelocity))
 	}
 	assert(IsValidFloat(def.AngularVelocity))
-	assert(IsValidFloat(def.LinearDamping) && def.LinearDamping >= 0.0)
-	assert(IsValidFloat(def.AngularDamping) && def.AngularDamping >= 0.0)
+	requireValidDefField(IsValidFloat(def.LinearDamping) && def.LinearDamping >= 0.0, "BodyDef", "LinearDamping",
+		"must be a finite non-negative number")
+	requireValidDefField(IsValidFloat(def.AngularDamping) && def.AngularDamping >= 0.0, "BodyDef", "AngularDamping",
+		"must be a finite non-negative number")
 	assert(IsValidFloat(def.SleepThreshold) && def.SleepThreshold >= 0.0)
 	assert(IsValidFloat(def.GravityScale))
 

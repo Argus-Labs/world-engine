@@ -6,7 +6,7 @@ import (
 
 type Config struct {
 	RootDir   string
-	Namespace string
+	Project   string
 	NATSURL   string
 	Debug     bool
 	Timeout   int

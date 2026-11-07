@@ -1,6 +1,7 @@
 package toml_test
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -419,6 +420,100 @@ func TestLoad_NegativePoolSize_DefaultsToOne(t *testing.T) {
 	require.Len(t, cfg.Shards, 1)
 	require.Equal(t, "game", cfg.Shards[0].ID)
 	require.Equal(t, 1, cfg.Shards[0].PoolSize)
+}
+
+// TestLoad_HugePoolSize_ReturnsError reproduces the reported OOM: a mistyped
+// pool_size (e.g. an extra-zero typo like 100000000000) used to reach expandPools
+// and fatal-crash the process with "runtime: out of memory" inside
+// make([]Shard, 0, total). The upper bound in validate now rejects it with a
+// normal config error naming the field before any allocation happens.
+func TestLoad_HugePoolSize_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "game"
+	pool_size = 100000000000
+	`
+
+	_, err := toml.Load(strings.NewReader(sample))
+	require.Error(t, err)
+	// The error must name the offending field and shard so the user can fix it,
+	// mirroring the tick_rate / resources validation messages.
+	require.Contains(t, err.Error(), "shards[0]")
+	require.Contains(t, err.Error(), "game")
+	require.Contains(t, err.Error(), "pool_size")
+	require.Contains(t, err.Error(), "100000000000")
+	require.Contains(t, err.Error(), "exceeds maximum")
+}
+
+// TestLoad_PoolSizeAboveMax_ReturnsError checks one above the per-shard cap, so
+// it exercises the exact boundary the > comparison turns on (an accidental >=
+// would also wrongly reject pool_size == maxShardPoolSize, covered below).
+func TestLoad_PoolSizeAboveMax_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "game"
+	pool_size = 101
+	`
+
+	_, err := toml.Load(strings.NewReader(sample))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "shards[0] (game) pool_size 101 exceeds maximum of 100")
+}
+
+// TestLoad_PoolSizeAtMax_Allowed is the boundary test for the upper bound: a
+// pool_size exactly at the cap (100) is valid and must expand normally. An
+// accidental >= in the comparison would wrongly reject this. Mirrors the
+// TestLoad_LimitsEqualRequests_Allowed boundary style.
+func TestLoad_PoolSizeAtMax_Allowed(t *testing.T) {
+	t.Parallel()
+
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "game"
+	pool_size = 100
+	`
+
+	cfg, err := toml.Load(strings.NewReader(sample))
+	require.NoError(t, err)
+	require.Len(t, cfg.Shards, 100)
+	require.Equal(t, "game", cfg.Shards[0].InstanceID)
+	require.Equal(t, "game-2", cfg.Shards[1].InstanceID)
+	require.Equal(t, "game-100", cfg.Shards[99].InstanceID)
+	for i := range cfg.Shards {
+		require.Equal(t, 1, cfg.Shards[i].PoolSize, "shard %d", i)
+	}
+}
+
+// TestLoad_TotalPoolSizeAboveMax_ReturnsError exercises expandPools' total
+// guard: each shard's pool_size is at or below the per-shard cap, so the
+// per-shard check passes, but their sum exceeds the total instance cap and
+// expandPools rejects it before pre-allocating. 11 shards at the per-shard max
+// (100) -> total 1100 > 1024.
+func TestLoad_TotalPoolSizeAboveMax_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	var b strings.Builder
+	b.WriteString("organization = \"argus\"\nproject = \"rampage\"\n")
+	for i := range 11 {
+		fmt.Fprintf(&b, "[[shards]]\nid = \"s%d\"\npool_size = 100\n", i)
+	}
+
+	_, err := toml.Load(strings.NewReader(b.String()))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "total expanded shard instances 1100 exceeds maximum of 1024")
+	require.Contains(t, err.Error(), "reduce pool_size across shards")
+	// It must be the total error, not a per-shard error.
+	require.NotContains(t, err.Error(), "pool_size 100 exceeds maximum")
 }
 
 func TestLoad_ShardIDWithSpecialCharacters_ReturnsError(t *testing.T) {
@@ -983,4 +1078,262 @@ func TestGameService_IsBuiltFromSource(t *testing.T) {
 
 	require.True(t, toml.GameService{Path: "services/meta/cmd"}.IsBuiltFromSource())
 	require.False(t, toml.GameService{Image: "postgres:16"}.IsBuiltFromSource())
+}
+
+// worldTomlFor builds a minimal valid world.toml with one field set to value.
+func worldTomlFor(field, value string) string {
+	org, project, shardID, serviceID := "argus", "rampage", "gameplay", "meta"
+	switch field {
+	case "organization":
+		org = value
+	case "project":
+		project = value
+	case "shardID":
+		shardID = value
+	case "serviceID":
+		serviceID = value
+	}
+	return fmt.Sprintf(`
+	organization = %q
+	project = %q
+	[[shards]]
+	id = %q
+	[[services]]
+	id = %q
+	image = "postgres:16"
+	`, org, project, shardID, serviceID)
+}
+
+func TestLoad_CanonicalNames(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		field, value string
+		ok           bool
+	}{
+		{"project", "Rampage", false},
+		{"project", "my_proj", false},
+		{"project", "-game", false},
+		{"shardID", "Game", false},
+		{"serviceID", "meta_svc", false},
+		{"organization", "My_Org", true},
+	}
+	for _, c := range cases {
+		t.Run(c.field+"="+c.value, func(t *testing.T) {
+			t.Parallel()
+			_, err := toml.Load(strings.NewReader(worldTomlFor(c.field, c.value)))
+			if c.ok {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, c.field+" contains invalid characters")
+		})
+	}
+}
+func TestLoad_AuthDefaultsToDev(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := toml.Load(strings.NewReader(`
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "game"
+`))
+	require.NoError(t, err)
+	require.Equal(t, toml.AuthModeDev, cfg.Auth.Mode)
+	require.Empty(t, cfg.Auth.URL)
+}
+
+func TestLoad_AuthArgus(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := toml.Load(strings.NewReader(`
+organization = "argus"
+project = "rampage"
+[auth]
+mode = "argus"
+url = "https://api.argus.dev/"
+[[shards]]
+id = "game"
+`))
+	require.NoError(t, err)
+	require.Equal(t, toml.AuthModeArgus, cfg.Auth.Mode)
+	require.Equal(t, "https://api.argus.dev", cfg.Auth.URL) // trailing slash trimmed
+}
+
+func TestLoad_AuthRejectsBadSections(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct{ section, want string }{
+		"unknown mode":      {"mode = \"none\"", `must be "argus" or "dev"`},
+		"uppercase mode":    {"mode = \"ARGUS\"", `must be "argus" or "dev"`},
+		"argus without url": {"mode = \"argus\"", "url is required"},
+		"argus bad url":     {"mode = \"argus\"\nurl = \"api.argus.dev\"", "must be an http or https URL"},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, err := toml.Load(strings.NewReader(`
+organization = "argus"
+project = "rampage"
+[auth]
+` + tt.section + `
+[[shards]]
+id = "game"
+`))
+			require.ErrorContains(t, err, tt.want)
+		})
+	}
+}
+
+func TestLoad_AuthDevIgnoresURL(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := toml.Load(strings.NewReader(`
+organization = "argus"
+project = "rampage"
+[auth]
+mode = "dev"
+url = "https://api.argus.dev"
+[[shards]]
+id = "game"
+`))
+	require.NoError(t, err)
+	require.Equal(t, toml.AuthModeDev, cfg.Auth.Mode)
+}
+
+func TestLoad_ShardModeNormalizedAndChecked(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := toml.Load(strings.NewReader(`
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "game"
+mode = " follower "
+`))
+	require.NoError(t, err)
+	require.Equal(t, toml.ShardModeFollower, cfg.Shards[0].Mode)
+
+	_, err = toml.Load(strings.NewReader(`
+organization = "argus"
+project = "rampage"
+[[shards]]
+id = "game"
+mode = "PRIMARY"
+`))
+	require.ErrorContains(t, err, "must be LEADER or FOLLOWER")
+}
+
+// Cardinal appends /auth/jwks to the URL string, so anything after the path is rejected
+// and every trailing slash is dropped.
+func TestLoad_AuthURLShape(t *testing.T) {
+	const world = "organization = \"o\"\nproject = \"g\"\n[[shards]]\nid = \"a\"\npath = \"a\"\n[auth]\nmode = \"argus\"\n"
+	for _, bad := range []string{"https://api.argus.dev?x=1", "https://api.argus.dev/#frag", "https://api.argus.dev/?"} {
+		_, err := toml.Load(strings.NewReader(world + "url = \"" + bad + "\"\n"))
+		if err == nil || !strings.Contains(err.Error(), "query or fragment") {
+			t.Errorf("%s: err = %v, want a query/fragment rejection", bad, err)
+		}
+	}
+	cfg, err := toml.Load(strings.NewReader(world + "url = \"https://api.argus.dev//\"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Auth.URL != "https://api.argus.dev" {
+		t.Errorf("url = %q, want every trailing slash dropped", cfg.Auth.URL)
+	}
+}
+
+// TestLoad_CanonicalNameTooLong rejects project, shard, and service IDs that exceed
+// the 63-character DNS-1123 label limit. Each gets a dedicated "too long" error
+// rather than the misleading "invalid characters" message, because the character
+// set is otherwise canonical.
+func TestLoad_CanonicalNameTooLong(t *testing.T) {
+	t.Parallel()
+
+	overLen := strings.Repeat("a", 64)
+	cases := []struct {
+		field, value, wantErr string
+	}{
+		{"project", overLen, "project is too long (max 63 characters)"},
+		{"shardID", overLen, "shardID is too long (max 63 characters)"},
+		{"serviceID", overLen, "serviceID is too long (max 63 characters)"},
+	}
+	for _, c := range cases {
+		t.Run(c.field, func(t *testing.T) {
+			t.Parallel()
+			_, err := toml.Load(strings.NewReader(worldTomlFor(c.field, c.value)))
+			require.Error(t, err)
+			require.Contains(t, err.Error(), c.wantErr)
+			// Must NOT say "invalid characters" — the charset is fine, only length is wrong.
+			require.NotContains(t, err.Error(), "contains invalid characters")
+		})
+	}
+}
+
+// TestLoad_CanonicalNameMaxLengthAccepted locks the boundary: a 63-character
+// canonical name (project, shard, service) is accepted — the limit is <= 63,
+// not < 63.
+func TestLoad_CanonicalNameMaxLengthAccepted(t *testing.T) {
+	t.Parallel()
+
+	maxLen := strings.Repeat("a", 63)
+	for _, field := range []string{"project", "shardID", "serviceID"} {
+		t.Run(field, func(t *testing.T) {
+			t.Parallel()
+			cfg, err := toml.Load(strings.NewReader(worldTomlFor(field, maxLen)))
+			require.NoError(t, err)
+			switch field {
+			case "project":
+				require.Equal(t, maxLen, cfg.Project)
+			case "shardID":
+				require.Equal(t, maxLen, cfg.Shards[0].ID)
+			case "serviceID":
+				require.Equal(t, maxLen, cfg.Services[0].ID)
+			}
+		})
+	}
+}
+
+// TestLoad_PoolExpansionExceedsLabelLength rejects a shard whose pool-expanded
+// instance IDs ("base-2", "base-3", …) exceed the 63-character DNS-1123 label
+// limit. The base shard ID passes normal validation, so this is the only layer
+// that catches the expansion overflow.
+func TestLoad_PoolExpansionExceedsLabelLength(t *testing.T) {
+	t.Parallel()
+
+	// 62-char base + "-2" (2 chars) = 64 — over the limit.
+	overBase := strings.Repeat("a", 62)
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "%s"
+	pool_size = 2
+	`
+	_, err := toml.Load(strings.NewReader(fmt.Sprintf(sample, overBase)))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "exceeds the 63-character DNS-1123 label limit")
+	require.Contains(t, err.Error(), overBase+"-2")
+}
+
+// TestLoad_PoolExpansionAtLabelLengthAccepted locks the boundary: a 61-char base
+// + "-2" = 63 chars, which is exactly at the limit and must be accepted.
+func TestLoad_PoolExpansionAtLabelLengthAccepted(t *testing.T) {
+	t.Parallel()
+
+	// 61-char base + "-2" (2 chars) = 63 — exactly at the limit.
+	base := strings.Repeat("a", 61)
+	const sample = `
+	organization = "argus"
+	project = "rampage"
+	[[shards]]
+	id = "%s"
+	pool_size = 2
+	`
+	cfg, err := toml.Load(strings.NewReader(fmt.Sprintf(sample, base)))
+	require.NoError(t, err)
+	require.Len(t, cfg.Shards, 2)
+	require.Equal(t, base+"-2", cfg.Shards[1].InstanceID)
+	require.Equal(t, 63, len(cfg.Shards[1].InstanceID))
 }

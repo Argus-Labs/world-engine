@@ -25,22 +25,18 @@ namespace WorldEngine.Proto.Micro.V1 {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "CiJ3b3JsZGVuZ2luZS9taWNyby92MS9zZXJ2aWNlLnByb3RvEhR3b3JsZGVu",
-            "Z2luZS5taWNyby52MRobYnVmL3ZhbGlkYXRlL3ZhbGlkYXRlLnByb3RvIvcC",
-            "Cg5TZXJ2aWNlQWRkcmVzcxItCgZyZWdpb24YASABKAlCFbpIEnIQEAEyDF5b",
-            "YS16MC05LV0rJFIGcmVnaW9uEkwKBXJlYWxtGAIgASgOMioud29ybGRlbmdp",
-            "bmUubWljcm8udjEuU2VydmljZUFkZHJlc3MuUmVhbG1CCrpIB4IBBBABIABS",
-            "BXJlYWxtEjoKDG9yZ2FuaXphdGlvbhgDIAEoCUIWukgTchEQATINXlthLXow",
-            "LTlfLV0rJFIMb3JnYW5pemF0aW9uEjAKB3Byb2plY3QYBCABKAlCFrpIE3IR",
-            "EAEyDV5bYS16MC05Xy1dKyRSB3Byb2plY3QSNQoKc2VydmljZV9pZBgFIAEo",
-            "CUIWukgTchEQATINXlthLXowLTlfLV0rJFIJc2VydmljZUlkIkMKBVJlYWxt",
-            "EhUKEVJFQUxNX1VOU1BFQ0lGSUVEEAASEgoOUkVBTE1fSU5URVJOQUwQARIP",
-            "CgtSRUFMTV9XT1JMRBACQmtaTGdpdGh1Yi5jb20vYXJndXMtbGFicy93b3Js",
-            "ZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL21pY3JvL3YxO21p",
-            "Y3JvdjGqAhpXb3JsZEVuZ2luZS5Qcm90by5NaWNyby5WMWIGcHJvdG8z"));
+            "Z2luZS5taWNyby52MRobYnVmL3ZhbGlkYXRlL3ZhbGlkYXRlLnByb3RvIqcB",
+            "Cg5TZXJ2aWNlQWRkcmVzcxIvCgdwcm9qZWN0GAQgASgJQhW6SBJyEBABMgxe",
+            "W2EtejAtOS1dKyRSB3Byb2plY3QSNQoKc2VydmljZV9pZBgFIAEoCUIWukgT",
+            "chEQATINXlthLXowLTlfLV0rJFIJc2VydmljZUlkSgQIARACSgQIAhADSgQI",
+            "AxAEUgZyZWdpb25SBXJlYWxtUgxvcmdhbml6YXRpb25Ca1pMZ2l0aHViLmNv",
+            "bS9hcmd1cy1sYWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRl",
+            "bmdpbmUvbWljcm8vdjE7bWljcm92MaoCGldvcmxkRW5naW5lLlByb3RvLk1p",
+            "Y3JvLlYxYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Micro.V1.ServiceAddress), global::WorldEngine.Proto.Micro.V1.ServiceAddress.Parser, new[]{ "Region", "Realm", "Organization", "Project", "ServiceId" }, null, new[]{ typeof(global::WorldEngine.Proto.Micro.V1.ServiceAddress.Types.Realm) }, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Micro.V1.ServiceAddress), global::WorldEngine.Proto.Micro.V1.ServiceAddress.Parser, new[]{ "Project", "ServiceId" }, null, null, null, null)
           }));
     }
     #endregion
@@ -55,26 +51,19 @@ namespace WorldEngine.Proto.Micro.V1 {
   /// The only exception being &lt;endpoint> which can contain . as a delimiter to leverage NATS routing.
   ///
   /// The ServiceAddress convention is as follows:
-  /// &lt;region>.&lt;realm>.&lt;organization>.&lt;project>.&lt;service_id>.&lt;endpoint>
+  /// &lt;project>.&lt;service_id>.&lt;endpoint>
   ///
-  /// &lt;region> identifies the deployment region (e.g., "us-west1").
-  ///
-  /// &lt;realm> is one of the following:
-  /// - internal: Reserved for internal services
-  /// - world: Publicly accessible services that is a part of Worldbase network
-  ///
-  /// &lt;organization> represents the entity that owns the project (e.g., "argus").
-  ///
-  /// &lt;project> is an arbitrary token to related services together (e.g., "platform", "game-rampage").
+  /// &lt;project> groups related services (e.g., "rampage").
   ///
   /// &lt;service_id> is a unique identifier for the service instance. It must be unique within the project.
+  /// A deployment that runs a service in several places puts the place in the ID (e.g., "gameplay-usw1-3").
   ///
   /// &lt;endpoint> is an arbitrary token that identifies specific functionality within a service.
   /// An endpoint can contain . as a delimiter to leverage NATS routing.
   ///
   /// Examples:
-  /// - us-west1.internal.argus.platform.gateway-us-west1.micro.ping
-  /// - us-west1.world.argus.rampage.lobby-1.shard.message.player.connect
+  /// - rampage.gameplay-usw1-3.ping
+  /// - rampage.gameplay-usw1-3.isc.plat_result.rampage.platform
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class ServiceAddress : pb::IMessage<ServiceAddress>
@@ -111,9 +100,6 @@ namespace WorldEngine.Proto.Micro.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public ServiceAddress(ServiceAddress other) : this() {
-      region_ = other.region_;
-      realm_ = other.realm_;
-      organization_ = other.organization_;
       project_ = other.project_;
       serviceId_ = other.serviceId_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
@@ -125,55 +111,13 @@ namespace WorldEngine.Proto.Micro.V1 {
       return new ServiceAddress(this);
     }
 
-    /// <summary>Field number for the "region" field.</summary>
-    public const int RegionFieldNumber = 1;
-    private string region_ = "";
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string Region {
-      get { return region_; }
-      set {
-        region_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-
-    /// <summary>Field number for the "realm" field.</summary>
-    public const int RealmFieldNumber = 2;
-    private global::WorldEngine.Proto.Micro.V1.ServiceAddress.Types.Realm realm_ = global::WorldEngine.Proto.Micro.V1.ServiceAddress.Types.Realm.Unspecified;
-    /// <summary>
-    /// The realm of the service.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::WorldEngine.Proto.Micro.V1.ServiceAddress.Types.Realm Realm {
-      get { return realm_; }
-      set {
-        realm_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "organization" field.</summary>
-    public const int OrganizationFieldNumber = 3;
-    private string organization_ = "";
-    /// <summary>
-    /// The organization that owns the project (e.g., "argus").
-    /// Must contain only lowercase alphanumeric characters, hyphens, or underscores.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string Organization {
-      get { return organization_; }
-      set {
-        organization_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-
     /// <summary>Field number for the "project" field.</summary>
     public const int ProjectFieldNumber = 4;
     private string project_ = "";
     /// <summary>
     /// The project name that groups related services (e.g., "platform", "rampage").
-    /// Must contain only lowercase alphanumeric characters, hyphens, or underscores.
+    /// Must contain only lowercase alphanumeric characters or hyphens. It has no underscore, so names
+    /// that join it to the service ID with one (e.g. snapshot buckets) stay unambiguous.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -216,9 +160,6 @@ namespace WorldEngine.Proto.Micro.V1 {
       if (ReferenceEquals(other, this)) {
         return true;
       }
-      if (Region != other.Region) return false;
-      if (Realm != other.Realm) return false;
-      if (Organization != other.Organization) return false;
       if (Project != other.Project) return false;
       if (ServiceId != other.ServiceId) return false;
       return Equals(_unknownFields, other._unknownFields);
@@ -228,9 +169,6 @@ namespace WorldEngine.Proto.Micro.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override int GetHashCode() {
       int hash = 1;
-      if (Region.Length != 0) hash ^= Region.GetHashCode();
-      if (Realm != global::WorldEngine.Proto.Micro.V1.ServiceAddress.Types.Realm.Unspecified) hash ^= Realm.GetHashCode();
-      if (Organization.Length != 0) hash ^= Organization.GetHashCode();
       if (Project.Length != 0) hash ^= Project.GetHashCode();
       if (ServiceId.Length != 0) hash ^= ServiceId.GetHashCode();
       if (_unknownFields != null) {
@@ -251,18 +189,6 @@ namespace WorldEngine.Proto.Micro.V1 {
     #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       output.WriteRawMessage(this);
     #else
-      if (Region.Length != 0) {
-        output.WriteRawTag(10);
-        output.WriteString(Region);
-      }
-      if (Realm != global::WorldEngine.Proto.Micro.V1.ServiceAddress.Types.Realm.Unspecified) {
-        output.WriteRawTag(16);
-        output.WriteEnum((int) Realm);
-      }
-      if (Organization.Length != 0) {
-        output.WriteRawTag(26);
-        output.WriteString(Organization);
-      }
       if (Project.Length != 0) {
         output.WriteRawTag(34);
         output.WriteString(Project);
@@ -281,18 +207,6 @@ namespace WorldEngine.Proto.Micro.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (Region.Length != 0) {
-        output.WriteRawTag(10);
-        output.WriteString(Region);
-      }
-      if (Realm != global::WorldEngine.Proto.Micro.V1.ServiceAddress.Types.Realm.Unspecified) {
-        output.WriteRawTag(16);
-        output.WriteEnum((int) Realm);
-      }
-      if (Organization.Length != 0) {
-        output.WriteRawTag(26);
-        output.WriteString(Organization);
-      }
       if (Project.Length != 0) {
         output.WriteRawTag(34);
         output.WriteString(Project);
@@ -311,15 +225,6 @@ namespace WorldEngine.Proto.Micro.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int CalculateSize() {
       int size = 0;
-      if (Region.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(Region);
-      }
-      if (Realm != global::WorldEngine.Proto.Micro.V1.ServiceAddress.Types.Realm.Unspecified) {
-        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Realm);
-      }
-      if (Organization.Length != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(Organization);
-      }
       if (Project.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(Project);
       }
@@ -337,15 +242,6 @@ namespace WorldEngine.Proto.Micro.V1 {
     public void MergeFrom(ServiceAddress other) {
       if (other == null) {
         return;
-      }
-      if (other.Region.Length != 0) {
-        Region = other.Region;
-      }
-      if (other.Realm != global::WorldEngine.Proto.Micro.V1.ServiceAddress.Types.Realm.Unspecified) {
-        Realm = other.Realm;
-      }
-      if (other.Organization.Length != 0) {
-        Organization = other.Organization;
       }
       if (other.Project.Length != 0) {
         Project = other.Project;
@@ -372,18 +268,6 @@ namespace WorldEngine.Proto.Micro.V1 {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
             break;
-          case 10: {
-            Region = input.ReadString();
-            break;
-          }
-          case 16: {
-            Realm = (global::WorldEngine.Proto.Micro.V1.ServiceAddress.Types.Realm) input.ReadEnum();
-            break;
-          }
-          case 26: {
-            Organization = input.ReadString();
-            break;
-          }
           case 34: {
             Project = input.ReadString();
             break;
@@ -411,18 +295,6 @@ namespace WorldEngine.Proto.Micro.V1 {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
             break;
-          case 10: {
-            Region = input.ReadString();
-            break;
-          }
-          case 16: {
-            Realm = (global::WorldEngine.Proto.Micro.V1.ServiceAddress.Types.Realm) input.ReadEnum();
-            break;
-          }
-          case 26: {
-            Organization = input.ReadString();
-            break;
-          }
           case 34: {
             Project = input.ReadString();
             break;
@@ -435,32 +307,6 @@ namespace WorldEngine.Proto.Micro.V1 {
       }
     }
     #endif
-
-    #region Nested types
-    /// <summary>Container for nested types declared in the ServiceAddress message type.</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static partial class Types {
-      /// <summary>
-      /// Realm represents the access scope of the service.
-      /// </summary>
-      public enum Realm {
-        /// <summary>
-        /// Unspecified realm, should not be used.
-        /// </summary>
-        [pbr::OriginalName("REALM_UNSPECIFIED")] Unspecified = 0,
-        /// <summary>
-        /// Reserved for internal services
-        /// </summary>
-        [pbr::OriginalName("REALM_INTERNAL")] Internal = 1,
-        /// <summary>
-        /// Publicly accessible services that are part of Worldbase network.
-        /// </summary>
-        [pbr::OriginalName("REALM_WORLD")] World = 2,
-      }
-
-    }
-    #endregion
 
   }
 

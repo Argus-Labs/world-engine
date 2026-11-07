@@ -48,11 +48,15 @@ type AttackPlayerSystem struct{}
 func (s *AttackPlayerSystem) Run(w *cardinal.World) {
 	players := w.Exact[Player]()
 	for cmd := range w.Commands[AttackPlayerCommand]() {
+		attacker, ok := cmd.Player()
+		if !ok {
+			continue // Sent by another shard: no player to reply to.
+		}
 		for player := range players.Iter() {
 			tag := player.Get[component.PlayerTag]()
 			// ...
 			player.Destroy()
-			w.SendTo(cmd.Persona, event.PlayerDeath{Nickname: tag.Nickname})
+			w.SendTo(attacker, event.PlayerDeath{Nickname: tag.Nickname})
 			w.EmitSystemEvent(systemevent.PlayerDeath{Nickname: tag.Nickname})
 		}
 	}
@@ -68,7 +72,7 @@ func (s *AttackPlayerSystem) Run(w *cardinal.World) {
 | `state.Tick()`                                      | `w.TickHeight()`. Never `w.Tick(ts)`: that advances the world |
 | `state.Timestamp()`                                 | `w.Timestamp()`                                               |
 | `state.SendToShard(to, cmd)`                        | `w.SendToShard(to, cmd)`                                      |
-| `F cardinal.WithCommand[T]` + `state.F.Iter()`      | `w.Commands[T]()` (same `CommandContext{Payload, Persona}`)   |
+| `F cardinal.WithCommand[T]` + `state.F.Iter()`      | `w.Commands[T]()` (`cmd.Payload`, `cmd.Player()`, `cmd.Shard()`) |
 | `F cardinal.WithEvent[T]` + `.Broadcast(e)`         | `w.Broadcast(e)`                                              |
 | `F cardinal.WithEvent[T]` + `.SendTo(p, e)`         | `w.SendTo(p, e)`                                              |
 | `F cardinal.WithSystemEventEmitter[T]` + `.Emit(e)` | `w.EmitSystemEvent(e)`                                        |

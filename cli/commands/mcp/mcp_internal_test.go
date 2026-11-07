@@ -3,23 +3,29 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log/slog"
+	"net/http"
 	"path/filepath"
-	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/guumaster/logsymbols"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/rotisserie/eris"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/descriptorpb"
 
+	"github.com/argus-labs/world-engine/pkg/micro"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 
+	"github.com/argus-labs/world-engine/cli/pkg/docker"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
+	"github.com/argus-labs/world-engine/cli/pkg/local"
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
-	operatorv1 "github.com/argus-labs/world-engine/cli/proto/gen/go/cardinal/operator/v1"
+	"github.com/argus-labs/world-engine/cli/pkg/worldstatus"
 )
 
 func TestBuildMCPServer_RegistersAllTools(t *testing.T) {
@@ -28,8 +34,8 @@ func TestBuildMCPServer_RegistersAllTools(t *testing.T) {
 	require.NotNil(t, srv)
 }
 
-// An empty instance_name resolves to the shard's first instance without an
-// operator round-trip, so send_command keeps working exactly as before for
+// An empty instance_name resolves to the shard's first instance without a
+// container lookup, so send_command keeps working exactly as before for
 // callers that don't target a specific pod.
 func TestResolveInstanceName_EmptyDefaultsToShardID(t *testing.T) {
 	t.Parallel()
@@ -59,16 +65,15 @@ func TestSendCommandInput_Validate_Valid(t *testing.T) {
 	input := SendCommandInput{
 		ShardID:     "game",
 		CommandName: "create-player",
-		Payload:     map[string]any{"name": "test"},
+		Payload:     `{"name": "test"}`,
 	}
 
 	err := input.validate()
 	require.NoError(t, err)
 
-	assert.Empty(t, input.ShardURL) // resolved from the cluster in the handler, not validate()
-	assert.Equal(t, defaultDevEmail, input.Email)
-	assert.Equal(t, defaultRegion, input.Region)
-	assert.NotNil(t, input.Payload)
+	assert.Empty(t, input.ShardURL) // resolved from the running containers in the handler, not validate()
+	assert.Equal(t, defaultDevPlayerID, input.PlayerID)
+	assert.JSONEq(t, `{"name": "test"}`, input.Payload) // The payload keeps the same JSON value.
 }
 
 func TestSendCommandInput_Validate_MissingShardID(t *testing.T) {
@@ -94,12 +99,12 @@ func TestSendCommandInput_Validate_NilPayload(t *testing.T) {
 	input := SendCommandInput{
 		ShardID:     "game",
 		CommandName: "create-player",
-		Payload:     nil,
+		Payload:     "",
 	}
 
 	err := input.validate()
 	require.NoError(t, err)
-	assert.NotNil(t, input.Payload)
+	assert.Equal(t, "{}", input.Payload) // An empty payload defaults to an empty JSON object.
 }
 
 func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
@@ -108,16 +113,14 @@ func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
 		ShardID:     "game",
 		CommandName: "create-player",
 		ShardURL:    "http://custom:9999",
-		Email:       "custom@example.com",
-		Region:      "ap-southeast-1",
+		PlayerID:    "custom-player",
 	}
 
 	err := input.validate()
 	require.NoError(t, err)
 
 	assert.Equal(t, "http://custom:9999", input.ShardURL)
-	assert.Equal(t, "custom@example.com", input.Email)
-	assert.Equal(t, "ap-southeast-1", input.Region)
+	assert.Equal(t, "custom-player", input.PlayerID)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -167,7 +170,7 @@ func TestEnsureDeadline_ReturnedCancelIsNoOpWhenDeadlineExists(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------------------------------
-// k8s helper tests (operator status → MCP shape)
+// container helper tests (world status → MCP shape)
 // -------------------------------------------------------------------------------------------------
 
 func TestClampTail(t *testing.T) {
@@ -180,121 +183,112 @@ func TestClampTail(t *testing.T) {
 
 func TestToShardPools(t *testing.T) {
 	t.Parallel()
-	status := &operatorv1.StatusResponse{
-		Pools: []*operatorv1.ShardPoolStatus{{
-			ShardId:   "gameplay",
-			Namespace: "cardinal-operator-system",
-			PoolSize:  2,
-			ImageTag:  "dev",
-			Phase:     "Running",
-			Instances: []*operatorv1.ShardInstanceStatus{
-				{
-					Name:         "gameplay",
-					PodName:      "cardinal-gameplay-pool-0",
-					Phase:        "Running",
-					Ready:        true,
-					RestartCount: 1,
-					Age:          "5m",
-				},
-				{Name: "gameplay-2", PodName: "cardinal-gameplay-pool-1", Phase: "Pending", Ready: false},
+	status := []worldstatus.PoolStatus{{
+		ShardID:  "gameplay",
+		PoolSize: 2,
+		Image:    "rampage-gameplay-shard",
+		Phase:    "Running",
+		Instances: []worldstatus.InstanceStatus{
+			{
+				Name:         "gameplay",
+				Runtime:      "cardinal-gameplay-pool-0",
+				Phase:        "Running",
+				Ready:        true,
+				RestartCount: 1,
+				Age:          "5m",
 			},
-		}},
-	}
+			{Name: "gameplay-2", Runtime: "cardinal-gameplay-pool-1", Phase: "Pending", Ready: false},
+		},
+	}}
 
 	pools := toShardPools(status)
 	require.Len(t, pools, 1)
 	assert.Equal(t, "gameplay", pools[0].ShardID)
 	assert.Equal(t, int32(2), pools[0].PoolSize)
 	require.Len(t, pools[0].Instances, 2)
-	assert.Equal(t, "cardinal-gameplay-pool-0", pools[0].Instances[0].PodName)
+	assert.Equal(t, "cardinal-gameplay-pool-0", pools[0].Instances[0].Container)
 	assert.True(t, pools[0].Instances[0].Ready)
 	assert.Equal(t, int32(1), pools[0].Instances[0].RestartCount)
 	assert.False(t, pools[0].Instances[1].Ready)
 }
 
-func TestShardPods(t *testing.T) {
+func TestShardContainers(t *testing.T) {
 	t.Parallel()
-	status := &operatorv1.StatusResponse{
-		Pools: []*operatorv1.ShardPoolStatus{
-			{ShardId: "gameplay", Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "gameplay", PodName: "pod-a"},
-				{Name: "gameplay-2", PodName: "pod-b"},
-			}},
-			{ShardId: "lobby", Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "lobby", PodName: "pod-c"},
-			}},
-		},
-	}
-
-	assert.ElementsMatch(t, []string{"pod-a", "pod-b"}, shardPods(status, "gameplay", ""))
-	assert.Equal(t, []string{"pod-b"}, shardPods(status, "gameplay", "gameplay-2"))
-	assert.Equal(t, []string{"pod-c"}, shardPods(status, "lobby", ""))
-	assert.Empty(t, shardPods(status, "nope", ""))
-}
-
-func TestShardPods_InstanceVariants(t *testing.T) {
-	t.Parallel()
-	status := &operatorv1.StatusResponse{
-		Pools: []*operatorv1.ShardPoolStatus{{
-			ShardId: "game",
-			Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "game", PodName: "pod-1"},
-				{Name: "game-5", PodName: "pod-5"},
-			},
+	status := []worldstatus.PoolStatus{
+		{ShardID: "gameplay", Instances: []worldstatus.InstanceStatus{
+			{Name: "gameplay", Runtime: "pod-a"},
+			{Name: "gameplay-2", Runtime: "pod-b"},
+		}},
+		{ShardID: "lobby", Instances: []worldstatus.InstanceStatus{
+			{Name: "lobby", Runtime: "pod-c"},
 		}},
 	}
 
+	assert.ElementsMatch(t, []string{"pod-a", "pod-b"}, shardContainers(status, "gameplay", ""))
+	assert.Equal(t, []string{"pod-b"}, shardContainers(status, "gameplay", "gameplay-2"))
+	assert.Equal(t, []string{"pod-c"}, shardContainers(status, "lobby", ""))
+	assert.Empty(t, shardContainers(status, "nope", ""))
+}
+
+func TestShardContainers_InstanceVariants(t *testing.T) {
+	t.Parallel()
+	status := []worldstatus.PoolStatus{{
+		ShardID: "game",
+		Instances: []worldstatus.InstanceStatus{
+			{Name: "game", Runtime: "pod-1"},
+			{Name: "game-5", Runtime: "pod-5"},
+		},
+	}}
+
 	// All of these resolve to instance "game-5".
 	for _, in := range []string{"game-5", "game 5", "game5", "GAME-5", "5"} {
-		assert.Equal(t, []string{"pod-5"}, shardPods(status, "game", in), "input %q", in)
+		assert.Equal(t, []string{"pod-5"}, shardContainers(status, "game", in), "input %q", in)
 	}
 	// Index-1 references resolve to the bare first instance "game".
 	for _, in := range []string{"game", "game 1", "game1", "1"} {
-		assert.Equal(t, []string{"pod-1"}, shardPods(status, "game", in), "input %q", in)
+		assert.Equal(t, []string{"pod-1"}, shardContainers(status, "game", in), "input %q", in)
 	}
 	// No instance → every pod of the shard; unknown instance → none.
-	assert.ElementsMatch(t, []string{"pod-1", "pod-5"}, shardPods(status, "game", ""))
-	assert.Empty(t, shardPods(status, "game", "game-9"))
+	assert.ElementsMatch(t, []string{"pod-1", "pod-5"}, shardContainers(status, "game", ""))
+	assert.Empty(t, shardContainers(status, "game", "game-9"))
 }
 
-// TestShardPods_ScopedToShardPool guards against an instance reference resolving
+// TestShardContainers_ScopedToShardPool guards against an instance reference resolving
 // into a different shard's pool: matching must be scoped to pool.ShardId, so a
 // reference naming (or index-colliding with) another shard's instance yields no
 // pod for the requested shard rather than silently routing to the wrong one.
-func TestShardPods_ScopedToShardPool(t *testing.T) {
+func TestShardContainers_ScopedToShardPool(t *testing.T) {
 	t.Parallel()
-	status := &operatorv1.StatusResponse{
-		Pools: []*operatorv1.ShardPoolStatus{
-			{ShardId: "game", Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "game", PodName: "pod-game"},
-			}},
-			{ShardId: "lobby", Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "lobby", PodName: "pod-lobby"},
-			}},
-			{ShardId: "game2", Instances: []*operatorv1.ShardInstanceStatus{
-				{Name: "game2", PodName: "pod-game2"},
-			}},
-		},
+	status := []worldstatus.PoolStatus{
+		{ShardID: "game", Instances: []worldstatus.InstanceStatus{
+			{Name: "game", Runtime: "pod-game"},
+		}},
+		{ShardID: "lobby", Instances: []worldstatus.InstanceStatus{
+			{Name: "lobby", Runtime: "pod-lobby"},
+		}},
+		{ShardID: "game2", Instances: []worldstatus.InstanceStatus{
+			{Name: "game2", Runtime: "pod-game2"},
+		}},
 	}
 
 	// A sibling shard's exact name must not match through the requested shard.
-	assert.Empty(t, shardPods(status, "game", "lobby"))
+	assert.Empty(t, shardContainers(status, "game", "lobby"))
 	// An index that collides with another shard's name ("2" ~ "game2") must not
 	// leak: shard "game" is pool size 1, so it has no instance "2".
-	assert.Empty(t, shardPods(status, "game", "2"))
+	assert.Empty(t, shardContainers(status, "game", "2"))
 	// The requested shard still resolves its own instances.
-	assert.Equal(t, []string{"pod-game"}, shardPods(status, "game", "game"))
+	assert.Equal(t, []string{"pod-game"}, shardContainers(status, "game", "game"))
 }
 
-// TestResolveInstanceName_UnknownReturnsError confirms a reference that matches
-// no instance of the requested shard fails clearly rather than resolving to
-// another shard's instance. Empty operatorURL routes to the default endpoint,
-// which is unreachable in tests, so the lookup errors — that itself proves the
-// non-empty path always consults the operator (and the empty path, covered by
-// TestResolveInstanceName_EmptyDefaultsToShardID, never does).
+// TestResolveInstanceName_UnknownReturnsError confirms a non-empty reference is
+// always resolved against the running containers, so an unknown one fails instead
+// of being passed through. (The empty-reference path, covered by
+// TestResolveInstanceName_EmptyDefaultsToShardID, never looks anything up.)
+// Docker is pointed at a dead socket so the lookup cannot accidentally succeed
+// against a world the developer happens to have running.
 func TestResolveInstanceName_UnknownReturnsError(t *testing.T) {
-	t.Parallel()
-	_, err := resolveInstanceName(context.Background(), "http://127.0.0.1:1/nope", "game", "lobby")
+	t.Setenv("DOCKER_HOST", "unix://"+filepath.Join(t.TempDir(), "nonexistent.sock"))
+	_, err := resolveInstanceName(context.Background(), "demo", "game", "lobby")
 	assert.Error(t, err)
 }
 
@@ -314,25 +308,17 @@ func noFilter(t *testing.T) stateFilter {
 // fixtures use, standing in for what a shard advertises through introspect.
 func stateDescriptors(t *testing.T) componentDescriptors {
 	t.Helper()
-	raw := testDescriptorSet(t,
-		&descriptorpb.DescriptorProto{Name: new("Health"), Field: []*descriptorpb.FieldDescriptorProto{
-			scalarField("HP", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
-		}},
-		&descriptorpb.DescriptorProto{Name: new("Position"), Field: []*descriptorpb.FieldDescriptorProto{
-			scalarField("X", 1, descriptorpb.FieldDescriptorProto_TYPE_INT64),
-		}},
-	)
 	return componentDescriptors{
-		"Health":   testMessageDescriptor(t, raw, "Health"),
-		"Position": testMessageDescriptor(t, raw, "Position"),
+		"Health":   testObjectSchema("HP", map[string]any{"type": "integer"}),
+		"Position": testObjectSchema("X", map[string]any{"type": "integer"}),
 	}
 }
 
-// componentBlob encodes a component value as the protobuf wire bytes a snapshot payload stores.
+// componentBlob encodes a component value as the MessagePack bytes a snapshot payload stores.
 func componentBlob(t *testing.T, descriptors componentDescriptors, name string, value int) []byte {
 	t.Helper()
 	field := map[string]string{"Health": "HP", "Position": "X"}[name]
-	blob, err := encodeCommandPayload(descriptors[name], map[string]any{field: value})
+	blob, err := encodeCommandPayload(descriptors[name], fmt.Sprintf("{%q: %d}", field, value))
 	require.NoError(t, err)
 	return blob
 }
@@ -574,7 +560,7 @@ func TestEntityComponents_SkipsMissingPayloadAndKeepsUndecodableRaw(t *testing.T
 	descriptors := stateDescriptors(t)
 	// "Broken" resolves to a descriptor, so it exercises a failed decode rather than a missing type.
 	descriptors["Broken"] = descriptors["Health"]
-	undecodable := []byte{0xff, 0xff, 0xff} // field 31 with wire type 7, which does not exist
+	undecodable := []byte{0xff, 0xff, 0xff} // Not a MessagePack object.
 
 	got := entityComponents(
 		// "Unknown" is registered by the world but absent from the descriptor set. "Missing" has no
@@ -629,7 +615,7 @@ func TestDebugControlHandler_InvalidOperation(t *testing.T) {
 	assert.Contains(t, err.Error(), "operation must be one of pause, resume, step, reset")
 }
 
-// An empty operation is rejected before any operator round-trip, alongside the
+// An empty operation is rejected before any shard round-trip, alongside the
 // other invalid values.
 func TestDebugControlHandler_EmptyOperation(t *testing.T) {
 	t.Parallel()
@@ -652,7 +638,7 @@ func TestDebugStatusMessage(t *testing.T) {
 // reload handler tests
 // -------------------------------------------------------------------------------------------------
 
-// An empty world_path is rejected before any Docker or cluster work, so the tool
+// An empty world_path is rejected before any Docker work, so the tool
 // can never tear a world down without a source tree to rebuild from.
 func TestReloadHandler_EmptyWorldPath(t *testing.T) {
 	t.Parallel()
@@ -661,12 +647,38 @@ func TestReloadHandler_EmptyWorldPath(t *testing.T) {
 	assert.Contains(t, err.Error(), "world_path is required")
 }
 
+// requireRunning is the running-world guard the MCP reload handler shares with
+// `world reload`. It takes the (running, err) pair IsRunning returns so the
+// decision is testable without a Docker daemon, and produces the CLI's exact
+// refusal so an MCP agent gets the same actionable message.
+
+func TestRequireRunning_RunningWorldPasses(t *testing.T) {
+	t.Parallel()
+	assert.NoError(t, requireRunning(true, nil))
+}
+
+func TestRequireRunning_StoppedWorldRefused(t *testing.T) {
+	t.Parallel()
+	err := requireRunning(false, nil)
+	require.Error(t, err)
+	assert.Equal(t, "world is not running — start it with `world start`", err.Error())
+}
+
+func TestRequireRunning_DaemonErrorIsWrapped(t *testing.T) {
+	t.Parallel()
+	cause := eris.New("cannot connect to docker endpoint")
+	err := requireRunning(false, cause)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "check world state")
+	assert.ErrorIs(t, err, cause, "the underlying daemon error must be reachable via errors.Is/eris.Is")
+}
+
 // deployShardsFromConfig emits one Deploy entry per logical shard ID, deduping the
-// pool replicas that share an ID, each pointing at that shard's built image tag.
+// pool replicas that share an ID.
 func TestDeployShardsFromConfig_DedupesByID(t *testing.T) {
 	t.Parallel()
 	cfg := &service.Config{
-		Namespace: "acme-demo",
+		Project: "acme-demo",
 		WorldToml: worldtoml.Config{
 			Shards: []worldtoml.Shard{{ID: "game"}, {ID: "game"}, {ID: "lobby"}},
 		},
@@ -674,16 +686,14 @@ func TestDeployShardsFromConfig_DedupesByID(t *testing.T) {
 	shards := deployShardsFromConfig(cfg, "")
 	require.Len(t, shards, 2)
 	assert.Equal(t, "game", shards[0].ID)
-	assert.Equal(t, "acme-demo-game-shard:latest", shards[0].SourceImage)
 	assert.Equal(t, "lobby", shards[1].ID)
-	assert.Equal(t, "acme-demo-lobby-shard:latest", shards[1].SourceImage)
 }
 
 // A shard_id narrows the Deploy payload to that pool; an empty one includes all.
 func TestDeployShardsFromConfig_FiltersByShardID(t *testing.T) {
 	t.Parallel()
 	cfg := &service.Config{
-		Namespace: "acme-demo",
+		Project: "acme-demo",
 		WorldToml: worldtoml.Config{
 			Shards: []worldtoml.Shard{{ID: "game"}, {ID: "game"}, {ID: "lobby"}},
 		},
@@ -718,30 +728,34 @@ func TestShardInstances_FallsBackToShardID(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------------------------------
-// cluster handler tests
+// world_lifecycle handler tests
 // -------------------------------------------------------------------------------------------------
 
-func TestClusterHandler_InvalidOperation(t *testing.T) {
+func TestWorldLifecycleHandler_InvalidOperation(t *testing.T) {
 	t.Parallel()
-	_, err := clusterHandler(context.Background(), mcp.CallToolRequest{}, ClusterInput{Operation: "restart"})
+	_, err := worldLifecycleHandler(
+		context.Background(),
+		mcp.CallToolRequest{},
+		WorldLifecycleInput{Operation: "restart"},
+	)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "operation must be one of start, stop, purge")
 }
 
-func TestClusterHandler_EmptyOperation(t *testing.T) {
+func TestWorldLifecycleHandler_EmptyOperation(t *testing.T) {
 	t.Parallel()
-	_, err := clusterHandler(context.Background(), mcp.CallToolRequest{}, ClusterInput{})
+	_, err := worldLifecycleHandler(context.Background(), mcp.CallToolRequest{}, WorldLifecycleInput{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "operation must be one of")
 }
 
-// purge only combines with start: the purge op already deletes the cluster and
+// purge only combines with start: the purge op already deletes the world and
 // stop deliberately preserves state, so either pairing is rejected rather than
 // silently ignored.
-func TestClusterHandler_PurgeOnlyValidWithStart(t *testing.T) {
+func TestWorldLifecycleHandler_PurgeOnlyValidWithStart(t *testing.T) {
 	t.Parallel()
-	for _, op := range []string{clusterOpStop, clusterOpPurge} {
-		_, err := clusterHandler(context.Background(), mcp.CallToolRequest{}, ClusterInput{
+	for _, op := range []string{lifecycleOpStop, lifecycleOpPurge} {
+		_, err := worldLifecycleHandler(context.Background(), mcp.CallToolRequest{}, WorldLifecycleInput{
 			Operation: op,
 			Purge:     true,
 		})
@@ -751,223 +765,20 @@ func TestClusterHandler_PurgeOnlyValidWithStart(t *testing.T) {
 }
 
 // start compiles and deploys a world, so it needs a source tree; the check runs
-// before any cluster work.
-func TestClusterHandler_StartRequiresWorldPath(t *testing.T) {
+// before any Docker work.
+func TestWorldLifecycleHandler_StartRequiresWorldPath(t *testing.T) {
 	t.Parallel()
-	_, err := clusterHandler(context.Background(), mcp.CallToolRequest{}, ClusterInput{
-		Operation: clusterOpStart,
+	_, err := worldLifecycleHandler(context.Background(), mcp.CallToolRequest{}, WorldLifecycleInput{
+		Operation: lifecycleOpStart,
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "world_path is required")
 }
 
-// -------------------------------------------------------------------------------------------------
-// sdk_generate handler tests
-// -------------------------------------------------------------------------------------------------
-
-func TestSdkGenerateHandler_MissingSource(t *testing.T) {
-	t.Parallel()
-	_, err := sdkGenerateHandler(context.Background(), mcp.CallToolRequest{}, SdkGenerateInput{})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "source is required")
-}
-
-// The spinner redraws one line with carriage returns and colours it; only the
-// final frame should survive into the tool result.
-func TestCleanTerminalOutput_StripsAnsiAndSpinnerFrames(t *testing.T) {
-	t.Parallel()
-	raw := []byte("\x1b[32m✔ ok\x1b[0m\n" +
-		"⣾ working (0s)\r⣽ working (1s)\r✔ done (2s)\n" +
-		"   \n" +
-		"Generated 6 commands\n")
-
-	got := cleanTerminalOutput(raw)
-
-	assert.Equal(t, "✔ ok\n✔ done (2s)\nGenerated 6 commands", got)
-}
-
-func TestCleanTerminalOutput_Empty(t *testing.T) {
-	t.Parallel()
-	assert.Empty(t, cleanTerminalOutput(nil))
-}
-
-// `world sdk generate` exits 0 even when it refuses to generate, so failure is
-// detected from the printed report instead of the exit status.
-func TestReportFailed(t *testing.T) {
-	t.Parallel()
-	marker := string(logsymbols.Error)
-
-	assert.True(t, reportFailed(marker+" sdk generate: backend doesn't type-check — nothing generated"))
-	assert.True(t, reportFailed("Discovered 6 commands\n"+marker+" resolve --go-out's Go module"))
-	// Indented, as printer renders it after a newline.
-	assert.True(t, reportFailed("   "+marker+" something went wrong"))
-
-	assert.False(t, reportFailed("Generated 6 commands → Go: /tmp/gen"))
-	assert.False(t, reportFailed("ORPHANS — declared with Name() but wired to no system"))
-	assert.False(t, reportFailed(""))
-}
-
-// sdkGenerateArgs' defaulting matrix is the heart of the go_out/cs_out contract
-// the schema advertises: go_out defaults to <source>/gen ONLY when no other
-// output is named, so a {source, cs_out} call stays a client-only C# run (the
-// CLI's deliberately-supported mode) and is not silently turned into a Go write
-// into the backend's module.
-func TestSdkGenerateArgs_DefaultsMatrix(t *testing.T) {
-	t.Parallel()
-	const source = "/world/shards/game"
-	genDefault := filepath.Join(source, "gen")
-	goDir := "/world/shards/game/go-gen"
-	csDir := "/world/shards/game/csharp"
-	protoDir := "/world/shards/game/proto"
-
-	// {source} — no outputs named → go_out defaulted to <source>/gen.
-	goOut, csOut, protoOut := sdkGenerateArgs(source, SdkGenerateInput{})
-	assert.Equal(t, genDefault, goOut)
-	assert.Empty(t, csOut)
-	assert.Empty(t, protoOut)
-
-	// {source, cs_out} — go_out omitted with cs_out set: client-only. The default
-	// must NOT fire (it only applies when no other output is set), so go_out stays
-	// empty and the CLI runs its C#-only branch instead of writing Go.
-	goOut, csOut, protoOut = sdkGenerateArgs(source, SdkGenerateInput{CsOut: csDir})
-	assert.Empty(t, goOut, "go_out must stay empty when cs_out is set and go_out omitted (client-only)")
-	assert.Equal(t, csDir, csOut)
-	assert.Empty(t, protoOut)
-
-	// {source, go_out, cs_out} — both named: no defaulting, both passed through.
-	goOut, csOut, protoOut = sdkGenerateArgs(source, SdkGenerateInput{GoOut: goDir, CsOut: csDir})
-	assert.Equal(t, goDir, goOut)
-	assert.Equal(t, csDir, csOut)
-	assert.Empty(t, protoOut)
-
-	// {source, go_out} — only Go named: passed through, no cs_out.
-	goOut, csOut, protoOut = sdkGenerateArgs(source, SdkGenerateInput{GoOut: goDir})
-	assert.Equal(t, goDir, goOut)
-	assert.Empty(t, csOut)
-	assert.Empty(t, protoOut)
-
-	// {source, proto_out} — proto_out requires go_out, so the go_out default fires
-	// (cs_out empty) and proto_out passes through; the CLI then accepts it.
-	goOut, csOut, protoOut = sdkGenerateArgs(source, SdkGenerateInput{ProtoOut: protoDir})
-	assert.Equal(t, genDefault, goOut)
-	assert.Empty(t, csOut)
-	assert.Equal(t, protoDir, protoOut)
-
-	// {source, cs_out, proto_out} — cs_out set withholds the go_out default, so
-	// go_out stays empty; the CLI rejects the run (proto-out requires go-out)
-	// rather than the handler silently inventing a Go output dir.
-	goOut, csOut, protoOut = sdkGenerateArgs(source, SdkGenerateInput{CsOut: csDir, ProtoOut: protoDir})
-	assert.Empty(t, goOut)
-	assert.Equal(t, csDir, csOut)
-	assert.Equal(t, protoDir, protoOut)
-}
-
-// The flag loop omits a flag whose resolved value is empty (the CLI's
-// empty==skip contract), so the presence of --go-out in cmdArgs is exactly
-// what decides wire regeneration vs client-only. This pins that mapping for the
-// full matrix.
-func TestSdkGenerateCmdArgs_FlagPresence(t *testing.T) {
-	t.Parallel()
-	const source = "/world/shards/game"
-
-	hasFlag := func(args []string, flag string) bool {
-		for _, a := range args {
-			if strings.HasPrefix(a, flag+"=") {
-				return true
-			}
-		}
-		return false
-	}
-	flagValue := func(args []string, flag string) string {
-		for _, a := range args {
-			if v, ok := strings.CutPrefix(a, flag+"="); ok {
-				return v
-			}
-		}
-		return ""
-	}
-
-	// {source} (go_out defaulted) → --go-out present, others absent.
-	args := sdkGenerateCmdArgs(source, filepath.Join(source, "gen"), "", "")
-	assert.Equal(t, []string{"sdk", "generate", source, "--go-out=" + filepath.Join(source, "gen")}, args)
-	assert.True(t, hasFlag(args, "--go-out"))
-	assert.False(t, hasFlag(args, "--cs-out"))
-	assert.False(t, hasFlag(args, "--proto-out"))
-
-	// {source, cs_out} (client-only) → --go-out ABSENT, --cs-out present.
-	args = sdkGenerateCmdArgs(source, "", "/csharp", "")
-	assert.Equal(t, []string{"sdk", "generate", source, "--cs-out=/csharp"}, args)
-	assert.False(t, hasFlag(args, "--go-out"), "--go-out must be absent on a client-only run")
-	assert.True(t, hasFlag(args, "--cs-out"))
-	assert.False(t, hasFlag(args, "--proto-out"))
-
-	// {source, go_out, cs_out} → both present, exact values preserved.
-	args = sdkGenerateCmdArgs(source, "/go", "/csharp", "")
-	assert.Equal(t, []string{"sdk", "generate", source, "--go-out=/go", "--cs-out=/csharp"}, args)
-	assert.Equal(t, "/go", flagValue(args, "--go-out"))
-	assert.Equal(t, "/csharp", flagValue(args, "--cs-out"))
-	assert.False(t, hasFlag(args, "--proto-out"))
-
-	// All three outputs present.
-	args = sdkGenerateCmdArgs(source, "/go", "/csharp", "/proto")
-	assert.Equal(t, []string{
-		"sdk", "generate", source,
-		"--go-out=/go", "--cs-out=/csharp", "--proto-out=/proto",
-	}, args)
-}
-
-// status must reflect what was actually generated, not claim wire regeneration
-// unconditionally. The bug returned "regenerated the wire layer …" even on a
-// client-only C# run; these assert the branched mapping and pin the exact
-// strings an agent parses.
-func TestSdkGenerateStatus_ReflectsOutput(t *testing.T) {
-	t.Parallel()
-	const (
-		wireOnly  = "regenerated the wire layer; rebuild or reload the shard to pick it up"
-		wireAndCS = "regenerated the wire layer and the C# client SDK; rebuild or reload the shard to pick it up"
-		csOnly    = "generated the C# client SDK"
-	)
-
-	// {source} / {source, go_out} — go_out set, no cs_out: wire regeneration.
-	assert.Equal(t, wireOnly, sdkGenerateStatus("/go", ""))
-
-	// {source, go_out, cs_out} — both: wire + client SDK.
-	assert.Equal(t, wireAndCS, sdkGenerateStatus("/go", "/csharp"))
-
-	// {source, cs_out} — client-only: NO wire claim. The regression that the
-	// status field contradicted the `go_out`-absent authoritative fields lives
-	// here: status must say C#-only.
-	assert.Equal(t, csOnly, sdkGenerateStatus("", "/csharp"))
-}
-
-// The published input schema is generated from the struct's jsonschema tags by
-// mcp.WithInputSchema (google/jsonschema-go), and is exactly what the LLM driving
-// the tool sees. The go_out description must document that the <source>/gen
-// default only applies when no other output is set — the contract the
-// implementation actually honors — and tell the caller how to get Go+CS vs
-// client-only. This pins both halves of the schema fix against a future
-// tag-only regression.
-func TestSdkGenerate_PublishedGoOutDefaultDoc(t *testing.T) {
-	t.Parallel()
-	tool := mcp.NewTool("sdk_generate", mcp.WithInputSchema[SdkGenerateInput]())
-	require.NotEmpty(t, tool.RawInputSchema, "the tool must publish a generated input schema")
-
-	var schema struct {
-		Properties map[string]struct {
-			Description string `json:"description"`
-		} `json:"properties"`
-	}
-	require.NoError(t, json.Unmarshal(tool.RawInputSchema, &schema))
-	require.Contains(t, schema.Properties, "go_out", "go_out must appear in the published schema")
-
-	desc := schema.Properties["go_out"].Description
-	assert.Contains(t, desc, "Defaults to <source>/gen when no other output is set",
-		"the conditional default must be documented, not an unconditional one")
-	assert.Contains(t, desc, "When cs_out is also passed go_out is NOT defaulted",
-		"the schema must warn that cs_out withholds the go_out default (the client-only entry)")
-}
-
-func TestDescribeWorld_PublishesAnEmptyObjectInputSchema(t *testing.T) {
+// The handler falls back to the working directory's world.toml, so an agent running
+// anywhere else has to pass project. additionalProperties is false, which makes an
+// unpublished parameter unusable rather than merely undocumented.
+func TestDescribeWorld_PublishesProjectInItsInputSchema(t *testing.T) {
 	t.Parallel()
 	srv := server.NewMCPServer("test", "0")
 	registerDescribeWorldTool(srv)
@@ -978,9 +789,189 @@ func TestDescribeWorld_PublishesAnEmptyObjectInputSchema(t *testing.T) {
 	require.NoError(t, err, "tools/list must be able to serialize the tool")
 
 	var listed struct {
-		InputSchema json.RawMessage `json:"inputSchema"`
+		InputSchema struct {
+			Type                 string                     `json:"type"`
+			AdditionalProperties bool                       `json:"additionalProperties"`
+			Properties           map[string]json.RawMessage `json:"properties"`
+		} `json:"inputSchema"`
 	}
 	require.NoError(t, json.Unmarshal(published, &listed))
-	assert.JSONEq(t, `{"type":"object","properties":{},"required":[],"additionalProperties":false}`,
-		string(listed.InputSchema))
+	assert.Equal(t, "object", listed.InputSchema.Type)
+	assert.False(t, listed.InputSchema.AdditionalProperties)
+	assert.Contains(t, listed.InputSchema.Properties, "project",
+		"project is the only way to describe a world from outside its directory")
+}
+
+// shard_url is caller-supplied, so the Argus token must never follow it off this
+// machine: a prompt-injected agent could otherwise name a host and be handed the
+// user's credential.
+func TestDevAuthInterceptor_TokenNeverLeavesLocalhost(t *testing.T) {
+	t.Setenv(argusTokenEnv, "secret-token")
+
+	local := []string{
+		"http://localhost:8080/argus/demo/game",
+		"http://127.0.0.1:8081",
+		"http://[::1]:8080",
+	}
+	for _, target := range local {
+		h := http.Header{}
+		(&devAuthInterceptor{playerID: "mcp-dev-player", target: target}).setAuthHeader(h)
+		assert.Equal(t, "Bearer secret-token", h.Get("Authorization"), target)
+	}
+
+	remote := []string{
+		"https://attacker.example/argus/demo/game",
+		"http://169.254.169.254/latest/meta-data",
+		"http://localhost.attacker.example",
+		"not a url at all",
+		"",
+	}
+	for _, target := range remote {
+		h := http.Header{}
+		(&devAuthInterceptor{playerID: "mcp-dev-player", target: target}).setAuthHeader(h)
+		assert.Empty(t, h.Get("Authorization"), "token must not be sent to %q", target)
+		assert.Equal(t, "mcp-dev-player", h.Get(devPlayerIDHeader), target)
+	}
+}
+
+func TestDevAuthInterceptor_NoTokenUsesDevHeader(t *testing.T) {
+	t.Setenv(argusTokenEnv, "")
+
+	h := http.Header{}
+	(&devAuthInterceptor{playerID: "mcp-dev-player", target: "http://localhost:8080"}).setAuthHeader(h)
+	assert.Empty(t, h.Get("Authorization"))
+	assert.Equal(t, "mcp-dev-player", h.Get(devPlayerIDHeader))
+}
+
+// TestResolveShardTarget_PinnedURL checks the address a request carries: the shard's project and
+// instance, which the shard compares against its own address. No organization, no region.
+func TestResolveShardTarget_PinnedURL(t *testing.T) {
+	t.Parallel()
+
+	target, err := resolveShardTarget(context.Background(), "game", "game-2", "http://custom:9999", "rampage")
+	require.NoError(t, err)
+	assert.Equal(t, "http://custom:9999", target.shardURL)
+	assert.Equal(t, "rampage.game-2", micro.String(target.address))
+}
+
+// The MCP transport decodes JSON numbers as float64 before BindArguments runs, which rounds
+// large integers. A string payload survives transport decoding and MessagePack encoding intact.
+func TestSendCommandInput_BindArguments_PreservesLargeInt64Payload(t *testing.T) {
+	t.Parallel()
+
+	const payloadJSON = `{"ID": 9223372036854775807}` // math.MaxInt64
+
+	frame, err := json.Marshal(map[string]any{
+		"params": map[string]any{
+			"arguments": map[string]any{
+				"shard_id":     "game",
+				"command_name": "create-player",
+				"payload":      payloadJSON,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	var req mcp.CallToolRequest
+	require.NoError(t, json.Unmarshal(frame, &req))
+	var in SendCommandInput
+	require.NoError(t, req.BindArguments(&in))
+	assert.JSONEq(t, payloadJSON, in.Payload, "payload string must survive mcp-go transport intact")
+
+	md := testObjectSchema("ID", map[string]any{"type": "integer"})
+	require.NoError(t, in.validate()) // Validation leaves this nonempty payload unchanged.
+
+	wire, err := encodeCommandPayload(md, in.Payload)
+	require.NoError(t, err)
+	decoded, err := decodeMessage(wire)
+	require.NoError(t, err)
+	assert.Equal(t, int64(9223372036854775807), decoded["ID"], "MaxInt64 must encode to the wire bit-for-bit exact")
+}
+
+// mcp-go runs tool calls in parallel; calls on one project must not overlap, or a reload
+// rewrites the runtime's config under a status read. Other projects are not held up.
+func TestWorldsLockSerializesPerProject(t *testing.T) {
+	w := &worlds{locks: map[string]*sync.Mutex{}}
+	var inside, overlaps int32
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Go(func() {
+			release := w.lock("game")
+			defer release()
+			if n := atomic.AddInt32(&inside, 1); n != 1 {
+				atomic.AddInt32(&overlaps, 1)
+			}
+			time.Sleep(time.Millisecond)
+			atomic.AddInt32(&inside, -1)
+		})
+	}
+	other := w.lock("other")
+	wg.Wait()
+	other()
+	if overlaps != 0 {
+		t.Fatalf("%d tool calls overlapped on one project", overlaps)
+	}
+}
+
+// stopEdge must release the cached runtime's recorded edge ownership, restoring
+// CheckLayout's reload guard. While the MCP process serves the edge, CheckLayout
+// short-circuits (this process owns the routes); after stopEdge it must resume
+// guarding — which, against a dead Docker socket, surfaces as an error rather than
+// the nil a stale servesEdge=true would keep returning. The cached runtime stays,
+// so a later MCP start re-binds the edge quickly.
+func TestStopEdge_ReleasesEdgeOwnershipOfCachedRuntime(t *testing.T) {
+	t.Setenv("DOCKER_HOST", "unix:///nonexistent/docker.sock")
+	cfg := &service.Config{Project: "demo-edge", WorldToml: worldtoml.Config{Project: "demo-edge"}}
+	dc, err := docker.NewClient(cfg, &docker.ClientOptions{Logger: slog.Default()})
+	require.NoError(t, err)
+	defer dc.Close()
+	rt := local.New(dc, cfg)
+
+	w := &worlds{
+		runtimes: map[string]*local.Runtime{"demo-edge": rt},
+		edges:    map[string]*edgeRun{},
+		locks:    map[string]*sync.Mutex{},
+	}
+
+	// Bind a free port instead of the real EdgeAddr: a developer's running world
+	// may already hold 8080, and skipping there would silently drop the only
+	// end-to-end coverage of stopEdge. SetEdgeAddr keeps the full serveEdge path.
+	rt.SetEdgeAddr("127.0.0.1:0")
+	if err := w.serveEdge(rt); err != nil {
+		t.Fatalf("serveEdge: %v", err)
+	}
+	t.Cleanup(func() { w.stopEdge("demo-edge") })
+
+	// While this process owns the edge, CheckLayout is a no-op (it refreshes its own
+	// routes), even though the Docker socket is dead.
+	require.NoError(t, rt.CheckLayout(context.Background()),
+		"serving edge: CheckLayout must short-circuit")
+	assert.Contains(t, w.edges, "demo-edge", "edge registered while serving")
+
+	// stopEdge tears the edge down and must release ownership on the cached runtime.
+	w.stopEdge("demo-edge")
+
+	assert.NotContains(t, w.edges, "demo-edge", "edge entry removed by stopEdge")
+	_, stillCached := w.runtimes["demo-edge"]
+	assert.True(t, stillCached, "cached runtime must survive stopEdge for a fast restart")
+
+	// The released runtime must now guard: CheckLayout lists containers, which fails
+	// against the dead socket — the regression. With the bug, servesEdge stays true
+	// and this returns nil, letting a later reload misroute silently.
+	assert.Error(t, rt.CheckLayout(context.Background()),
+		"after stopEdge: CheckLayout must resume guarding (no longer short-circuits)")
+}
+
+// A second stopEdge on a project whose edge was already torn down is a harmless
+// no-op: it neither panics nor re-arms the guard, so concurrent or repeated stops
+// (stop then purge, for example) are safe.
+func TestStopEdge_IdempotentWhenNoEdgeServed(t *testing.T) {
+	w := &worlds{
+		runtimes: map[string]*local.Runtime{},
+		edges:    map[string]*edgeRun{},
+		locks:    map[string]*sync.Mutex{},
+	}
+	w.stopEdge("never-started") // no edge entry → no-op
+	w.stopEdge("never-started") // still nothing → no-op
+	assert.NotContains(t, w.edges, "never-started")
 }

@@ -1,6 +1,9 @@
 package cardinal
 
 import (
+	"time"
+
+	"buf.build/go/protovalidate"
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -11,10 +14,8 @@ import (
 const MinEpochFrequency = 10
 
 type WorldOptions struct {
-	Region              string               // Region that contains the shard
-	Organization        string               // Organization that owns the world
-	Project             string               // Project name within the organization
-	ShardID             string               // Unique ID of the world instance
+	Project             string               // Project that groups related shards
+	ShardID             string               // Unique ID of the world instance within the project
 	TickRate            float64              // Number of ticks each second
 	SnapshotStorageType snapshot.StorageType // Snapshot storage type
 	SnapshotRate        uint32               // Number of ticks between snapshots
@@ -22,14 +23,21 @@ type WorldOptions struct {
 	NATSConfig          *micro.NATSConfig    // Optional NATS configuration; nil uses environment values or defaults
 	AuthMode            AuthMode             // Authentication mode for the client ConnectRPC service
 	ArgusAuthURL        string               // Argus Auth service URL; required when AuthMode is ARGUS
+	ArgusAuthGameID     string               // Argus Auth game ID tokens are issued for; required when AuthMode is ARGUS
+}
+
+// tickInterval is the time between ticks, or zero when no tick rate is set (as in TestWorld).
+func (opt *WorldOptions) tickInterval() time.Duration {
+	if opt.TickRate <= 0 {
+		return 0
+	}
+	return time.Duration(float64(time.Second) / opt.TickRate)
 }
 
 // newDefaultWorldOptions creates WorldOptions with default values.
 func newDefaultWorldOptions() WorldOptions {
 	// Set defaults for optional fields. Set invalid values for fields that callers must provide.
 	return WorldOptions{
-		Region:              "",
-		Organization:        "",
 		Project:             "",
 		ShardID:             "",
 		TickRate:            0,
@@ -38,17 +46,12 @@ func newDefaultWorldOptions() WorldOptions {
 		Debug:               nil,
 		AuthMode:            AuthModeDev,
 		ArgusAuthURL:        "",
+		ArgusAuthGameID:     "",
 	}
 }
 
 // apply replaces each option that has a nonzero value in newOpt.
 func (opt *WorldOptions) apply(newOpt WorldOptions) {
-	if newOpt.Region != "" {
-		opt.Region = newOpt.Region
-	}
-	if newOpt.Organization != "" {
-		opt.Organization = newOpt.Organization
-	}
 	if newOpt.Project != "" {
 		opt.Project = newOpt.Project
 	}
@@ -76,21 +79,21 @@ func (opt *WorldOptions) apply(newOpt WorldOptions) {
 	if newOpt.ArgusAuthURL != "" {
 		opt.ArgusAuthURL = newOpt.ArgusAuthURL
 	}
+	if newOpt.ArgusAuthGameID != "" {
+		opt.ArgusAuthGameID = newOpt.ArgusAuthGameID
+	}
 }
 
 // validate checks that all required options have valid values.
 func (opt *WorldOptions) validate() error {
-	if opt.Region == "" {
-		return eris.New("region cannot be empty")
-	}
-	if opt.Organization == "" {
-		return eris.New("organization cannot be empty")
-	}
 	if opt.Project == "" {
 		return eris.New("project cannot be empty")
 	}
 	if opt.ShardID == "" {
 		return eris.New("shard ID cannot be empty")
+	}
+	if err := protovalidate.Validate(micro.GetAddress(opt.Project, opt.ShardID)); err != nil {
+		return eris.Wrap(err, "invalid project or shard ID")
 	}
 	if opt.TickRate <= 0.0 {
 		return eris.New("tick rate must be greater than 0")
@@ -110,12 +113,14 @@ func (opt *WorldOptions) validate() error {
 	if opt.AuthMode == AuthModeArgus && opt.ArgusAuthURL == "" {
 		return eris.New("argus auth URL cannot be empty when auth mode is ARGUS")
 	}
+	if opt.AuthMode == AuthModeArgus && opt.ArgusAuthGameID == "" {
+		return eris.New("argus auth game ID cannot be empty when auth mode is ARGUS")
+	}
 	return nil
 }
 
 func (opt *WorldOptions) getPosthogBaseProperties() map[string]any {
 	return map[string]any{
-		"region":   opt.Region,
 		"project":  opt.Project,
 		"shard_id": opt.ShardID,
 	}
@@ -123,10 +128,8 @@ func (opt *WorldOptions) getPosthogBaseProperties() map[string]any {
 
 func (opt *WorldOptions) getSentryTags() map[string]string {
 	return map[string]string{
-		"region":       opt.Region,
-		"organization": opt.Organization,
-		"project":      opt.Project,
-		"shard_id":     opt.ShardID,
+		"project":  opt.Project,
+		"shard_id": opt.ShardID,
 	}
 }
 
@@ -137,16 +140,10 @@ func (opt *WorldOptions) getSentryTags() map[string]string {
 // TODO: Update the environment variables.
 // worldOptionsEnv contains WorldOptions values from environment variables.
 type worldOptionsEnv struct {
-	// Region that contains the shard.
-	Region string `env:"CARDINAL_REGION"`
-
-	// Organization that owns the world.
-	Organization string `env:"CARDINAL_ORG"`
-
-	// Project name within the organization.
+	// Project that groups related shards.
 	Project string `env:"CARDINAL_PROJECT"`
 
-	// Unique ID of the world instance.
+	// Unique ID of the world instance within the project.
 	ShardID string `env:"CARDINAL_SHARD_ID"`
 
 	// Snapshot storage type ("NOP", "JETSTREAM", or "S3").
@@ -164,6 +161,10 @@ type worldOptionsEnv struct {
 
 	// Argus Auth service URL. This value is required when AuthMode is ARGUS.
 	ArgusAuthURL string `env:"CARDINAL_ARGUS_AUTH_URL"`
+
+	// Argus Auth game ID that player tokens are issued for (their aud claim, e.g. "argus/rampage").
+	// This value is required when AuthMode is ARGUS.
+	ArgusAuthGameID string `env:"CARDINAL_ARGUS_AUTH_GAME_ID"`
 }
 
 // loadWorldOptionsEnv reads and validates world options from environment variables.
@@ -186,12 +187,10 @@ func (cfg *worldOptionsEnv) validate() error {
 	if _, err := snapshot.ParseStorageType(cfg.SnapshotStorageTypeStr); err != nil {
 		return err
 	}
-	authMode, err := ParseAuthMode(cfg.AuthModeStr)
-	if err != nil {
+	// ARGUS's URL and game ID may come from WorldOptions instead, so WorldOptions.validate checks
+	// them after the merge.
+	if _, err := ParseAuthMode(cfg.AuthModeStr); err != nil {
 		return eris.Wrap(err, "failed to parse auth mode")
-	}
-	if authMode == AuthModeArgus && cfg.ArgusAuthURL == "" {
-		return eris.New("CARDINAL_ARGUS_AUTH_URL cannot be empty when CARDINAL_AUTH_MODE is ARGUS")
 	}
 	return nil
 }
@@ -205,8 +204,6 @@ func (cfg *worldOptionsEnv) toOptions() WorldOptions {
 	assert.That(err == nil, "config not validated")
 
 	return WorldOptions{
-		Region:              cfg.Region,
-		Organization:        cfg.Organization,
 		Project:             cfg.Project,
 		ShardID:             cfg.ShardID,
 		SnapshotStorageType: snapshotStorageType,
@@ -214,5 +211,6 @@ func (cfg *worldOptionsEnv) toOptions() WorldOptions {
 		Debug:               &cfg.Debug,
 		AuthMode:            authMode,
 		ArgusAuthURL:        cfg.ArgusAuthURL,
+		ArgusAuthGameID:     cfg.ArgusAuthGameID,
 	}
 }

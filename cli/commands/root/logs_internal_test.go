@@ -5,19 +5,16 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/argus-labs/world-engine/cli/pkg/cluster"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
+	"github.com/argus-labs/world-engine/cli/pkg/local"
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
 // TestBuildLogTargets is the contract the unified picker depends on: each
-// pool-expanded shard instance shows as its own row, every platform component
-// (gateway, nats) is appended in PlatformPods() order, and the per-project
-// [[services]] + auto project DB are appended last via ProjectServicePods().
+// pool-expanded shard instance shows as its own row, then the platform
+// containers (NATS, project DB, [[services]]) in PlatformContainers() order.
 func TestBuildLogTargets(t *testing.T) {
 	t.Parallel()
-
-	platforms := cluster.PlatformPods()
 
 	tests := []struct {
 		name      string
@@ -25,7 +22,7 @@ func TestBuildLogTargets(t *testing.T) {
 		wantShard []logTarget
 	}{
 		{
-			name:      "no shards still surfaces platform components",
+			name:      "no shards still surfaces platform containers",
 			shards:    nil,
 			wantShard: nil,
 		},
@@ -75,34 +72,25 @@ func TestBuildLogTargets(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			cfg := &service.Config{WorldToml: worldtoml.Config{Project: "rampage", Shards: tt.shards}}
-			got := buildLogTargets(cfg)
+			cfg := &service.Config{
+				Project:   "rampage",
+				WorldToml: worldtoml.Config{Project: "rampage", Shards: tt.shards},
+			}
+			rt := local.New(nil, cfg)
+			got := buildLogTargets(rt, cfg)
 
-			// Expected = shard rows, then platform rows, then the per-project
-			// service/DB rows from ProjectServicePods. These shard-only configs
-			// have no [[services]] and no config_db service, so ProjectServicePods
-			// returns the single auto "{project}-db" row.
-			services := cluster.ProjectServicePods(cfg.WorldToml.Project, cfg.WorldToml)
-			require.Len(t, got, len(tt.wantShard)+len(platforms)+len(services), "row count")
+			platforms := rt.PlatformContainers()
+			require.Equal(t, []string{"rampage-nats", "rampage-db"}, platforms)
+			require.Len(t, got, len(tt.wantShard)+len(platforms), "row count")
 
 			for i, want := range tt.wantShard {
 				require.Equal(t, want.Instance, got[i].Instance, "shard row %d Instance", i)
-				require.Nil(t, got[i].Platform, "shard row %d should not be a platform pod", i)
+				require.False(t, got[i].IsPlatform(), "shard row %d should not be a platform container", i)
 			}
-			for i, ref := range platforms {
+			for i, name := range platforms {
 				row := got[len(tt.wantShard)+i]
-				require.Equal(t, ref.Name, row.Instance, "platform row %d Instance", i)
-				require.NotNil(t, row.Platform, "platform row %d should carry a PlatformPodRef", i)
-				require.Equal(t, ref.Name, row.Platform.Name)
-				require.Equal(t, ref.Namespace, row.Platform.Namespace)
-			}
-			for i, ref := range services {
-				row := got[len(tt.wantShard)+len(platforms)+i]
-				require.Equal(t, ref.Name, row.Instance, "service row %d Instance", i)
-				require.NotNil(t, row.Platform, "service row %d should carry a PlatformPodRef", i)
-				require.Equal(t, ref.Name, row.Platform.Name)
-				require.Equal(t, ref.Namespace, row.Platform.Namespace)
-				require.Equal(t, ref.Selector, row.Platform.Selector)
+				require.Equal(t, name, row.Instance, "platform row %d Instance", i)
+				require.Equal(t, name, row.Container)
 			}
 		})
 	}

@@ -1,6 +1,9 @@
 package docker
 
-import "sync"
+import (
+	"context"
+	"sync"
+)
 
 // State is a machine-readable phase of a long-running docker operation.
 type State string
@@ -13,7 +16,10 @@ const (
 	StateBuilt    State = "built"
 	StateStarting State = "starting" // running but not yet ready; cardinal-editor shows this for unready shards
 	StateStarted  State = "started"
+	StateStopping State = "stopping"
 	StateStopped  State = "stopped"
+	StateRemoving State = "removing"
+	StateRemoved  State = "removed"
 )
 
 // Progress reports the state of a long-running operation.
@@ -45,4 +51,15 @@ func notify(fn func(Progress), p Progress) {
 		return
 	}
 	fn(p)
+}
+
+// itemErr is the Progress.Err for an item of an errgroup fan-out. Once the
+// group is canceled (a sibling failed, or Ctrl+C), the item's own error is
+// fallout, and often misleading: net/http reports the sibling's error as the
+// cancel cause.
+func itemErr(gctx context.Context, err error) error {
+	if gctx.Err() != nil {
+		return gctx.Err()
+	}
+	return err
 }

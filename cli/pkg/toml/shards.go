@@ -56,7 +56,7 @@ func (c Config) ResolveInstanceIDs(ids []string) ([]Shard, error) {
 		return slices.Clone(c.Shards), nil
 	}
 	if len(unknown) != 0 {
-		return nil, eris.Errorf("unknown instance IDs in %s: %s", FileName, strings.Join(unknown, ", "))
+		return nil, eris.Errorf("instance IDs not found in %s: %s", FileName, strings.Join(unknown, ", "))
 	}
 	return out, nil
 }

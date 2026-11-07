@@ -46,8 +46,8 @@ TEST_SEED=123 moon run world-engine:test  # Replay a test seed
 ```
 
 golangci-lint installs into the ignored `bin/tools` directory. gotestsum runs
-through `go tool`. Failing tests log a seed for reproduction. Moon task caching
-is disabled so randomized tests run each time.
+through `go tool`. Failing tests log a seed for reproduction. Test tasks
+aren't cached so randomized tests run each time.
 Go's own compilation and test caches remain enabled.
 
 Generated clients have separate projects:

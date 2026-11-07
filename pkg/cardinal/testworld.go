@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +20,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rs/zerolog"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // TestWorld runs a game's systems inside a Go test, one step at a time. It embeds *World, so tests
@@ -83,20 +86,25 @@ func NewTestWorld(t testing.TB, setup func(w *World)) *TestWorld {
 	t.Helper()
 
 	tel := telemetry.Telemetry{Logger: zerolog.New(zerolog.NewTestWriter(t))}
+	metrics, err := newWorldMetrics(0)
+	if err != nil {
+		t.Fatal(err)
+	}
 	storage := snapshot.NewNopStorage()
 	w := &World{
 		world:    ecs.NewWorld(),
 		commands: command.NewManager(),
 		events:   event.NewManager(1024),
 		// SendToShard stamps the sender's address on every command, so the world needs one.
-		address:         micro.GetAddress("test", micro.RealmWorld, "test", "test", "test"),
+		address:         micro.GetAddress("test", "test"),
 		snapshotStorage: storage,
 		snapshotWriter:  snapshot.NewSyncWriter(storage, tel.GetLogger("snapshot")),
-		tickCtx:         context.Background(),
+		traceCtx:        context.Background(),
 		// Encode the state every step, so a component that cannot be serialized fails the step that
 		// stored it rather than a production snapshot.
 		options: WorldOptions{SnapshotRate: 1},
 		tel:     tel,
+		metrics: metrics,
 	}
 	// RegisterCommand records the command with the service. The service is never started.
 	w.service = newService(w, AuthModeDev, "")
@@ -130,24 +138,34 @@ func NewTestWorld(t testing.TB, setup func(w *World)) *TestWorld {
 
 // roundTrip encodes p and decodes the bytes into a fresh value of the same type.
 func roundTrip[T schema.Serializable](p T) T {
-	decoded, err := p.UnmarshalWire(schema.Marshal(p))
-	assert.That(err == nil, "decode %s: %v", p.Name(), err)
-	typed, ok := decoded.(T)
+	data, err := schema.Serialize(p)
+	if err != nil {
+		panic(fmt.Sprintf("encode %s: %v", p.Name(), err))
+	}
+	decoded := reflect.New(reflect.TypeOf(p))
+	err = schema.Deserialize(data, decoded.Interface())
+	if err != nil {
+		panic(fmt.Sprintf("decode %s: %v", p.Name(), err))
+	}
+	typed, ok := reflect.TypeAssert[T](decoded.Elem())
 	assert.That(ok, "decode %s returned %T, want %T", p.Name(), decoded, p)
 	return typed
 }
 
-// Command sends cmd from persona the way a client does. The command is encoded, decoded by its
+// Command sends cmd from player the way a client does. The command is encoded, decoded by its
 // queue and read by Commands[T] during the next step only. It fails the test if the command type was
 // not registered in setup.
-func (w *TestWorld) Command(persona string, cmd Command) {
+func (w *TestWorld) Command(player string, cmd Command) {
 	w.tb.Helper()
-	err := w.commands.Enqueue(context.Background(), &iscv1.Command{
+	payload, err := schema.Serialize(cmd)
+	if err != nil {
+		w.tb.Fatalf("cardinal: encode Command %s: %v", cmd.Name(), err)
+	}
+	err = w.commands.Enqueue(context.Background(), &iscv1.Command{
 		Name:    cmd.Name(),
 		Address: w.address,
-		Persona: &iscv1.Persona{Id: persona},
-		Payload: schema.Marshal(cmd),
-	})
+		Payload: payload,
+	}, command.PlayerSender(player))
 	if err != nil {
 		w.tb.Fatalf("cardinal: Command %s: %v", cmd.Name(), err)
 	}
@@ -155,10 +173,12 @@ func (w *TestWorld) Command(persona string, cmd Command) {
 
 // RunSystem runs exactly one system as a step. The system need not be registered. System events
 // emitted before the step are visible to it and are cleared when it returns, as at the end of a tick.
+// It runs under a span named after the system like a registered system, without the hook attribute.
 func (w *TestWorld) RunSystem(s System) {
 	w.runStep(func() {
 		defer w.world.ClearSystemEvents()
-		s.Run(w.World)
+		name := fmt.Sprintf("%T", s)
+		w.runSystem(s, name, oteltrace.WithAttributes(attrSystemName.String(name)))
 	})
 }
 
@@ -207,10 +227,8 @@ func (w *TestWorld) ShardCommands[T Command]() []ShardCommand[T] {
 		}
 		sent = append(sent, ShardCommand[T]{
 			To: OtherWorld{
-				Region:       cmd.Address.GetRegion(),
-				Organization: cmd.Address.GetOrganization(),
-				Project:      cmd.Address.GetProject(),
-				ShardID:      cmd.Address.GetServiceId(),
+				Project: cmd.Address.GetProject(),
+				ShardID: cmd.Address.GetServiceId(),
 			},
 			Payload: payload,
 		})
@@ -333,7 +351,11 @@ func appendString(b []byte, s string) []byte {
 }
 
 func appendPayload(b []byte, p schema.Serializable) []byte {
+	payload, err := schema.Serialize(p)
+	if err != nil {
+		panic(fmt.Sprintf("encode %s: %v", p.Name(), err))
+	}
 	b = appendString(b, p.Name())
-	b = binary.AppendUvarint(b, uint64(p.SizeWire())) //nolint:gosec // a size is non-negative
-	return p.AppendWire(b)
+	b = binary.AppendUvarint(b, uint64(len(payload)))
+	return append(b, payload...)
 }

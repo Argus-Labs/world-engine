@@ -3,16 +3,11 @@ package tui
 import (
 	"strings"
 
-	"github.com/argus-labs/world-engine/cli/internal/dependency"
 	"github.com/argus-labs/world-engine/cli/internal/tui/style"
 )
 
 // View renders the UI based on the data in the WorldSetupModel.
 func (m WorldSetupModel) View() string {
-	if m.depResult.Err != nil {
-		return dependency.FormatMissing(m.depResult.Statuses)
-	}
-
 	if m.templateErr != nil {
 		return style.CrossIcon.Render() + " Error: " + m.templateErr.Error() + "\n"
 	}
@@ -23,7 +18,7 @@ func (m WorldSetupModel) View() string {
 	if m.showTemplateList {
 		output += "  Choose a starting template for your game\n"
 		output += m.templateList.View() + "\n\n"
-	} else {
+	} else if m.projectNameInput.Focused() {
 		output += style.QuestionIcon.Render() + "What is your game shard name? "
 		output += m.projectNameInput.View() + "\n"
 		if m.nameErr != "" {
