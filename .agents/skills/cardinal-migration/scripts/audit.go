@@ -32,6 +32,7 @@ import (
 const (
 	cardinalPath  = "github.com/argus-labs/world-engine/pkg/cardinal"
 	pluginPrefix  = "github.com/argus-labs/world-engine/pkg/plugin/"
+	dataPath      = pluginPrefix + "data"
 	physics2dPath = pluginPrefix + "physics2d"
 	maxExamples   = 3
 )
@@ -138,6 +139,7 @@ type scope struct {
 	cardinal  map[string]bool            // a Cardinal World or Entity
 	reflected map[string]bool            // a reflect.Value of a Cardinal World
 	plugins   map[string]map[string]bool // plugin import paths the name was assigned from
+	names     map[string]bool            // locally declared identifiers, shadowing imports
 }
 
 const (
@@ -359,6 +361,7 @@ func scopeOf(decl ast.Decl, fi *fileInfo) scope {
 		switch n := n.(type) {
 		case *ast.Field:
 			for _, name := range n.Names {
+				sc.names[name.Name] = true
 				sc.bindType(name.Name, n.Type, fi)
 			}
 		case *ast.ValueSpec:
@@ -372,9 +375,20 @@ func scopeOf(decl ast.Decl, fi *fileInfo) scope {
 			case len(n.Rhs) == 1: // e, err := ...Single(); w, err := cardinal.NewWorld(opts)
 				sc.bindValue(n.Lhs[0], n.Rhs[0], fi)
 			}
+			for _, lhs := range n.Lhs {
+				if name := bindingName(lhs); name != "" {
+					sc.names[name] = true
+				}
+			}
 		case *ast.RangeStmt:
 			if id, ok := n.Key.(*ast.Ident); ok && isMethodCall(n.X, "Iter") && fi.cardinal {
 				sc.cardinal[id.Name] = true
+			}
+			if id, ok := n.Key.(*ast.Ident); ok && id.Name != "_" {
+				sc.names[id.Name] = true
+			}
+			if id, ok := n.Value.(*ast.Ident); ok && id.Name != "_" {
+				sc.names[id.Name] = true
 			}
 		}
 		return true
@@ -383,11 +397,12 @@ func scopeOf(decl ast.Decl, fi *fileInfo) scope {
 }
 
 func newScope() scope {
-	return scope{cardinal: map[string]bool{}, reflected: map[string]bool{}, plugins: map[string]map[string]bool{}}
+	return scope{cardinal: map[string]bool{}, reflected: map[string]bool{}, plugins: map[string]map[string]bool{}, names: map[string]bool{}}
 }
 
 func (sc scope) bindSpec(vs *ast.ValueSpec, fi *fileInfo) {
 	for i, name := range vs.Names {
+		sc.names[name.Name] = true
 		if vs.Type != nil {
 			sc.bindType(name.Name, vs.Type, fi)
 		}
@@ -550,7 +565,11 @@ func (a *audit) call(call *ast.CallExpr, fi *fileInfo, sc scope) {
 		if !ok {
 			return
 		}
-		if x, ok := sel.X.(*ast.Ident); ok && fi.imports[x.Name] != "" {
+		if x, ok := sel.X.(*ast.Ident); ok && fi.imports[x.Name] != "" && !sc.names[x.Name] {
+			// Package-level generic function, e.g. data.Get[T]().
+			if fi.imports[x.Name] == dataPath && sel.Sel.Name == "Get" && len(call.Args) == 0 {
+				a.add("data.Get[T]() without the plugin argument", a.pos(call))
+			}
 			return
 		}
 		name := sel.Sel.Name
@@ -580,7 +599,7 @@ func (a *audit) call(call *ast.CallExpr, fi *fileInfo, sc scope) {
 	if !ok {
 		return
 	}
-	if x, ok := sel.X.(*ast.Ident); ok && fi.imports[x.Name] != "" {
+	if x, ok := sel.X.(*ast.Ident); ok && fi.imports[x.Name] != "" && !sc.names[x.Name] {
 		return // package function, not a World or Entity method
 	}
 	var arg ast.Expr
