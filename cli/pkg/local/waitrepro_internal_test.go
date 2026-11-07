@@ -53,7 +53,7 @@ func startServingListener(t *testing.T) (*http.Server, int) {
 
 // poolShardConfig builds a 2-instance "game" pool for the reproduction tests.
 // Ports are not in the config — the waiter derives them via the Runtime's
-// shardHostPort seam, which the tests override to free ports so a running local
+// probeHostPort seam, which the tests override to free ports so a running local
 // world cannot collide.
 func poolShardConfig() *service.Config {
 	return &service.Config{Project: "demo", WorldToml: worldtoml.Config{
@@ -77,7 +77,8 @@ func withFreePorts(t *testing.T, r *Runtime, fn func()) {
 	srv, p1 := startServingListener(t)
 	defer srv.Close()
 
-	r.probeHostPort = func(i int) int { return []int{p0, p1}[i] }
+	ports := [2]int{p0, p1}
+	r.probeHostPort = func(i int) int { return ports[i] }
 	fn()
 }
 
@@ -149,7 +150,8 @@ func TestWaitForShardsReadyAllReadyReturnsImmediately(t *testing.T) {
 	defer srv2.Close()
 
 	r := New(nil, poolShardConfig())
-	r.probeHostPort = func(i int) int { return []int{p0, p1}[i] }
+	ports := [2]int{p0, p1}
+	r.probeHostPort = func(i int) int { return ports[i] }
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	ready, expected := r.WaitForShardsReady(ctx, []string{"game", "game-2"}, nil)

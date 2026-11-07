@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -703,6 +704,92 @@ func TestDeployShardsFromConfig_FiltersByShardID(t *testing.T) {
 	assert.Equal(t, "lobby", shards[0].ID)
 
 	assert.Empty(t, deployShardsFromConfig(cfg, "nope"))
+}
+
+// fakeReloadRuntime is a reloadRuntime stand-in for unit-testing reloadShards
+// without a Docker daemon. It records the ordered sequence of calls (undeploy,
+// per-instance purge, deploy, readiness wait) so a test can assert both the
+// wait scope and that purge wipes both replicas before the redeploy.
+type fakeReloadRuntime struct {
+	events       []string
+	waitReady    int
+	waitExpected int
+}
+
+func (*fakeReloadRuntime) CheckLayout(context.Context) error { return nil }
+func (f *fakeReloadRuntime) UndeployShard(_ context.Context, shardID string) error {
+	f.events = append(f.events, "undeploy:"+shardID)
+	return nil
+}
+func (f *fakeReloadRuntime) PurgeShardState(_ context.Context, instanceID string) error {
+	f.events = append(f.events, "purge:"+instanceID)
+	return nil
+}
+func (*fakeReloadRuntime) PruneOrphanedShards(context.Context) error { return nil }
+func (f *fakeReloadRuntime) Deploy(_ context.Context, opts local.DeployOpts) error {
+	for _, s := range opts.Shards {
+		f.events = append(f.events, "deploy:"+s.ID)
+	}
+	return nil
+}
+func (f *fakeReloadRuntime) WaitForShardsReady(_ context.Context, instanceIDs []string, _ func(int, int)) (int, int) {
+	f.events = append(f.events, "wait:"+strings.Join(instanceIDs, ","))
+	return f.waitReady, f.waitExpected
+}
+
+// TestReloadShards_WaitScopeMatchesDeployScopeAndPurgeWipesAllReplicas is the
+// MCP reload regression guard. reloadShards must wait on every instance of the
+// deployed pools (both game replicas, not just one), exclude unrelated pools
+// (lobby), and — with purge — wipe both replicas' state before redeploying.
+func TestReloadShards_WaitScopeMatchesDeployScopeAndPurgeWipesAllReplicas(t *testing.T) {
+	t.Parallel()
+	cfg := worldtoml.Config{
+		Project: "demo",
+		Shards: []worldtoml.Shard{
+			{ID: "game", InstanceID: "game"},
+			{ID: "game", InstanceID: "game-2"},
+			{ID: "lobby", InstanceID: "lobby"},
+		},
+	}
+	deployOpts := local.DeployOpts{Shards: []local.DeployShard{{ID: "game"}}}
+	wantWait := cfg.PoolInstances(deployedShardIDs(deployOpts))
+	require.Equal(t, []string{"game", "game-2"}, wantWait, "sanity: deployed pool expands to both replicas")
+
+	t.Run("Purge", func(t *testing.T) {
+		t.Parallel()
+		fake := &fakeReloadRuntime{waitReady: 2, waitExpected: 2}
+		require.NoError(t, reloadShards(context.Background(), fake, cfg, deployOpts, true))
+		// Wait covered both game replicas; the unrelated lobby pool stayed out.
+		assert.Contains(t, fake.events, "wait:"+strings.Join(wantWait, ","))
+		assert.NotContains(t, fake.events, "lobby")
+		// Both replicas were wiped, and all purge steps ran before the deploy.
+		assert.Contains(t, fake.events, "purge:game")
+		assert.Contains(t, fake.events, "purge:game-2")
+		deployIdx := -1
+		for i, e := range fake.events {
+			if strings.HasPrefix(e, "deploy:") {
+				deployIdx = i
+				break
+			}
+		}
+		require.NotEqual(t, -1, deployIdx, "deploy must run")
+		for _, e := range fake.events[:deployIdx] {
+			assert.True(t, strings.HasPrefix(e, "undeploy:") || strings.HasPrefix(e, "purge:"),
+				"step %q ran before deploy but is not a purge step", e)
+		}
+	})
+
+	t.Run("NoPurge", func(t *testing.T) {
+		t.Parallel()
+		fake := &fakeReloadRuntime{waitReady: 2, waitExpected: 2}
+		require.NoError(t, reloadShards(context.Background(), fake, cfg, deployOpts, false))
+		// Without purge, neither undeploy nor wipe runs; the wait still covers both replicas.
+		for _, e := range fake.events {
+			assert.False(t, strings.HasPrefix(e, "undeploy:") || strings.HasPrefix(e, "purge:"),
+				"purge step %q should not run without purge", e)
+		}
+		assert.Contains(t, fake.events, "wait:"+strings.Join(wantWait, ","))
+	})
 }
 
 // -------------------------------------------------------------------------------------------------

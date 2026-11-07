@@ -85,13 +85,7 @@ func TestResolveReloadTargets_MultiplePoolsWaitAll(t *testing.T) {
 // waitInstanceIDs as naming just one — the expansion is idempotent.
 func TestResolveReloadTargets_NamingAllInstancesMatchesNamingOne(t *testing.T) {
 	t.Parallel()
-	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{
-		Project: "demo",
-		Shards: []worldtoml.Shard{
-			{ID: "game", InstanceID: "game"},
-			{ID: "game", InstanceID: "game-2"},
-		},
-	}}
+	cfg := threeInstanceConfig()
 	one, err := resolveReloadTargets(cfg, []string{"game-2"})
 	require.NoError(t, err)
 	all, err := resolveReloadTargets(cfg, []string{"game", "game-2"})
@@ -127,63 +121,58 @@ func (f *fakeShardRoller) WaitForShardsReady(_ context.Context, instanceIDs []st
 	return f.waitReady, f.waitExpected
 }
 
-// TestRollShards_WaitScopeCoversWholePool is the rollShards-level regression
-// guard: the wait scope must match the deploy scope — Deploy recreates every
-// instance of each targeted pool, so rollShards must wait on every sibling or a
-// crashed one is missed. Here game down + game-2 healthy surfaces as
-// shardsNotReadyError (1/2 ready); the unrelated lobby pool stays out of scope.
-func TestRollShards_WaitScopeCoversWholePool(t *testing.T) {
+// TestRollShards is the rollShards-level regression guard: the wait scope must
+// match the deploy scope — Deploy recreates every instance of each targeted
+// pool, so rollShards must wait on every sibling or a crashed one is missed.
+// Both cases share the fixture, dashboard, invocation, and wait-scope
+// assertions; only the readiness counts and the expected error differ. The
+// WaitScopeCoversWholePool case has game down + game-2 healthy, surfacing as
+// shardsNotReadyError (1/2 ready) with the unrelated lobby pool out of scope.
+// The AllReadyReturnsNil case is the happy path: every waited instance comes
+// back, so rollShards returns nil.
+func TestRollShards(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
-	dash := phasebox.Start(ctx, phasebox.Plain)
-	defer dash.Complete()
+	tests := []struct {
+		name         string
+		waitReady    int
+		waitExpected int
+		wantNotReady bool
+	}{
+		{name: "WaitScopeCoversWholePool", waitReady: 1, waitExpected: 2, wantNotReady: true},
+		{name: "AllReadyReturnsNil", waitReady: 2, waitExpected: 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			dash := phasebox.Start(ctx, phasebox.Plain)
+			defer dash.Complete()
 
-	cfg := threeInstanceConfig()
-	targets, err := resolveReloadTargets(cfg, []string{"game-2"})
-	require.NoError(t, err)
-	require.Equal(t, []string{"game"}, targets.shardIDs)
-	require.Equal(t, []string{"game-2"}, targets.instanceIDs)
-	require.Equal(t, []string{"game", "game-2"}, targets.waitInstanceIDs)
+			cfg := threeInstanceConfig()
+			targets, err := resolveReloadTargets(cfg, []string{"game-2"})
+			require.NoError(t, err)
 
-	fake := &fakeShardRoller{waitReady: 1, waitExpected: 2} // game down, game-2 healthy
-	err = dash.Run("Shards",
-		func(ctx context.Context, sess phasebox.Session) error {
-			return rollShards(ctx, sess, fake, targets, []local.DeployShard{{ID: "game"}}, true)
-		},
-		func(time.Duration) string { return "reloaded" },
-	)
-	require.Error(t, err)
-	var notReady *shardsNotReadyError
-	require.ErrorAs(t, err, &notReady)
-	assert.Equal(t, 1, notReady.ready)
-	assert.Equal(t, 2, notReady.expected)
-	// The wait covered the whole game pool; the unrelated lobby pool stayed out.
-	assert.Equal(t, []string{"game", "game-2"}, fake.gotWait)
-	// The wait scope is exactly the pool instances of the deployed shard IDs, so a
-	// future change that drops the deploy-scope forwarding would fail here too.
-	assert.Equal(t, cfg.WorldToml.PoolInstances(fake.gotDeploy), fake.gotWait)
-}
-
-// TestRollShards_AllReadyExitsZero covers the happy path: when every waited
-// instance comes back, rollShards returns nil.
-func TestRollShards_AllReadyExitsZero(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	dash := phasebox.Start(ctx, phasebox.Plain)
-	defer dash.Complete()
-
-	cfg := threeInstanceConfig()
-	targets, err := resolveReloadTargets(cfg, []string{"game-2"})
-	require.NoError(t, err)
-
-	fake := &fakeShardRoller{waitReady: 2, waitExpected: 2} // both game instances healthy
-	err = dash.Run("Shards",
-		func(ctx context.Context, sess phasebox.Session) error {
-			return rollShards(ctx, sess, fake, targets, []local.DeployShard{{ID: "game"}}, true)
-		},
-		func(time.Duration) string { return "reloaded" },
-	)
-	require.NoError(t, err)
-	assert.Equal(t, []string{"game", "game-2"}, fake.gotWait)
-	assert.Equal(t, cfg.WorldToml.PoolInstances(fake.gotDeploy), fake.gotWait)
+			fake := &fakeShardRoller{waitReady: tt.waitReady, waitExpected: tt.waitExpected}
+			err = dash.Run("Shards",
+				func(ctx context.Context, sess phasebox.Session) error {
+					return rollShards(ctx, sess, fake, targets, []local.DeployShard{{ID: "game"}}, true)
+				},
+				func(time.Duration) string { return "reloaded" },
+			)
+			if tt.wantNotReady {
+				require.Error(t, err)
+				var notReady *shardsNotReadyError
+				require.ErrorAs(t, err, &notReady)
+				assert.Equal(t, 1, notReady.ready)
+				assert.Equal(t, 2, notReady.expected)
+			} else {
+				require.NoError(t, err)
+			}
+			// The wait covered the whole game pool; the unrelated lobby pool stayed out.
+			assert.Equal(t, []string{"game", "game-2"}, fake.gotWait)
+			// The wait scope is exactly the pool instances of the deployed shard IDs, so a
+			// future change that drops the deploy-scope forwarding would fail here too.
+			assert.Equal(t, cfg.WorldToml.PoolInstances(fake.gotDeploy), fake.gotWait)
+		})
+	}
 }

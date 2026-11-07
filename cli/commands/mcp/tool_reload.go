@@ -116,13 +116,26 @@ func reloadHandler(
 	}, nil
 }
 
+// reloadRuntime is the subset of *local.Runtime that reloadShards drives: the
+// layout guard, per-instance purge, orphan pruning, deploy, and readiness wait.
+// Defined as an interface so reloadShards is unit-testable without a Docker
+// daemon — a fake can record which instances were waited on and wiped.
+type reloadRuntime interface {
+	CheckLayout(ctx context.Context) error
+	UndeployShard(ctx context.Context, shardID string) error
+	PurgeShardState(ctx context.Context, instanceID string) error
+	PruneOrphanedShards(ctx context.Context) error
+	Deploy(ctx context.Context, opts local.DeployOpts) error
+	WaitForShardsReady(ctx context.Context, instanceIDs []string, onProgress func(ready, expected int)) (int, int)
+}
+
 // reloadShards recreates containers on already-built images. Without purge that
 // is a plain redeploy onto existing state. With purge each targeted pool is
 // removed first — so no shard is alive to re-snapshot over the wipe — then its
 // replicas' JetStream state is wiped; the deploy below brings it back on the new image.
 func reloadShards(
 	ctx context.Context,
-	rt *local.Runtime,
+	rt reloadRuntime,
 	cfg worldtoml.Config,
 	deployOpts local.DeployOpts,
 	purge bool,
