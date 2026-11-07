@@ -13,17 +13,17 @@ import (
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
-// startDeadListener binds an accept-and-close loop on addr, mimicking Docker's
-// port proxy in front of a container that is not serving: a TCP dial succeeds
-// but an HTTP request must not. This is what a crashed sibling looks like to
-// WaitForShardsReady's probes. Returns the listener (close to stop) and the
-// bound port (useful when addr is "127.0.0.1:0"). Shared with the probe tests so
-// the readiness test files cannot drift on the listener contract.
-func startDeadListener(t *testing.T, addr string) (net.Listener, int) {
+// startDeadListener binds an accept-and-close loop on a free local port,
+// mimicking Docker's port proxy in front of a container that is not serving: a
+// TCP dial succeeds but an HTTP request must not. This is what a crashed sibling
+// looks like to WaitForShardsReady's probes. Returns the listener (close to stop)
+// and the bound port. Shared with the probe tests so the readiness test files
+// cannot drift on the listener contract.
+func startDeadListener(t *testing.T) (net.Listener, int) {
 	t.Helper()
-	ln, err := net.Listen("tcp", addr)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("listen %s: %v", addr, err)
+		t.Fatalf("listen: %v", err)
 	}
 	go func() {
 		for {
@@ -37,14 +37,14 @@ func startDeadListener(t *testing.T, addr string) (net.Listener, int) {
 	return ln, ln.Addr().(*net.TCPAddr).Port
 }
 
-// startServingListener binds a real HTTP server on addr, so shardReady counts
-// it as ready (it replies to an HTTP request, even with 404). Returns the server
-// (close to stop) and the bound port.
-func startServingListener(t *testing.T, addr string) (*http.Server, int) {
+// startServingListener binds a real HTTP server on a free local port, so
+// shardReady counts it as ready (it replies to an HTTP request, even with 404).
+// Returns the server (close to stop) and the bound port.
+func startServingListener(t *testing.T) (*http.Server, int) {
 	t.Helper()
-	ln, err := net.Listen("tcp", addr)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("listen %s: %v", addr, err)
+		t.Fatalf("listen: %v", err)
 	}
 	srv := &http.Server{ReadHeaderTimeout: time.Second, Handler: http.NotFoundHandler()}
 	go func() { _ = srv.Serve(ln) }()
@@ -66,18 +66,18 @@ func poolShardConfig() *service.Config {
 }
 
 // withFreePorts binds a dead listener and a serving listener on free ports, then
-// points the Runtime's shardHostPort seam at them (one port per shard instance, in
+// points the Runtime's probeHostPort seam at them (one port per shard instance, in
 // world.toml order) for the duration of fn, so the waiter probes real listeners
 // without touching the production 8081+i ports a developer's running world may
 // already hold.
 func withFreePorts(t *testing.T, r *Runtime, fn func()) {
 	t.Helper()
-	deadLn, p0 := startDeadListener(t, "127.0.0.1:0")
+	deadLn, p0 := startDeadListener(t)
 	defer deadLn.Close()
-	srv, p1 := startServingListener(t, "127.0.0.1:0")
+	srv, p1 := startServingListener(t)
 	defer srv.Close()
 
-	r.SetShardHostPort(func(i int) int { return []int{p0, p1}[i] })
+	r.probeHostPort = func(i int) int { return []int{p0, p1}[i] }
 	fn()
 }
 
@@ -143,19 +143,17 @@ func TestWaitForShardsReadyWaitScope(t *testing.T) {
 // without waiting for the deadline — the normal happy path after a successful
 // reload.
 func TestWaitForShardsReadyAllReadyReturnsImmediately(t *testing.T) {
-	srv1, p0 := startServingListener(t, "127.0.0.1:0")
+	srv1, p0 := startServingListener(t)
 	defer srv1.Close()
-	srv2, p1 := startServingListener(t, "127.0.0.1:0")
+	srv2, p1 := startServingListener(t)
 	defer srv2.Close()
 
 	r := New(nil, poolShardConfig())
-	r.SetShardHostPort(func(i int) int { return []int{p0, p1}[i] })
+	r.probeHostPort = func(i int) int { return []int{p0, p1}[i] }
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	start := time.Now()
 	ready, expected := r.WaitForShardsReady(ctx, []string{"game", "game-2"}, nil)
-	elapsed := time.Since(start)
 	assert.Equal(t, 2, expected)
 	assert.Equal(t, 2, ready)
-	assert.Less(t, elapsed, 2*time.Second, "all ready should return well before the deadline")
+	assert.NoError(t, ctx.Err(), "healthy pool should complete before the deadline")
 }

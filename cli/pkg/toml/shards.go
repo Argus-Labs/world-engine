@@ -33,11 +33,14 @@ func (c Config) ShardIDs() []string {
 // independently through shardServices, so sharing it does not guarantee those
 // paths cannot drift on anything else.
 func (c Config) PoolInstances(poolIDs []string) []string {
+	if len(poolIDs) == 0 {
+		return nil
+	}
 	want := make(map[string]bool, len(poolIDs))
 	for _, id := range poolIDs {
 		want[id] = true
 	}
-	out := make([]string, 0, len(c.Shards))
+	var out []string
 	for i := range c.Shards {
 		if !want[c.Shards[i].ID] {
 			continue

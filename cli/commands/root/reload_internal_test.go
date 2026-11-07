@@ -81,50 +81,6 @@ func TestResolveReloadTargets_MultiplePoolsWaitAll(t *testing.T) {
 		"waitInstanceIDs must cover every instance of both deployed pools")
 }
 
-// TestResolveReloadTargets_WaitScopeMatchesDeployScope verifies the key
-// invariant the fix establishes: every instance in waitInstanceIDs belongs to a
-// shard in shardIDs, and every instance of those shards in world.toml is in
-// waitInstanceIDs. This is what prevents a crashed sibling from going
-// unnoticed — the wait scope is exactly the deploy scope.
-func TestResolveReloadTargets_WaitScopeMatchesDeployScope(t *testing.T) {
-	t.Parallel()
-	cfg := threeInstanceConfig()
-	targets, err := resolveReloadTargets(cfg, []string{"game-2"})
-	require.NoError(t, err)
-
-	shardSet := make(map[string]bool, len(targets.shardIDs))
-	for _, id := range targets.shardIDs {
-		shardSet[id] = true
-	}
-	instanceToShard := make(map[string]string, len(cfg.WorldToml.Shards))
-	for i := range cfg.WorldToml.Shards {
-		s := &cfg.WorldToml.Shards[i]
-		instanceToShard[s.InstanceID] = s.ID
-	}
-
-	// Every wait instance belongs to a targeted shard.
-	for _, instID := range targets.waitInstanceIDs {
-		shardID := instanceToShard[instID]
-		assert.True(t, shardSet[shardID],
-			"wait instance %q maps to shard %q which is not in shardIDs", instID, shardID)
-	}
-
-	// Every instance of a targeted shard is in the wait list.
-	waitSet := make(map[string]bool, len(targets.waitInstanceIDs))
-	for _, id := range targets.waitInstanceIDs {
-		waitSet[id] = true
-	}
-	for i := range cfg.WorldToml.Shards {
-		s := &cfg.WorldToml.Shards[i]
-		if !shardSet[s.ID] {
-			continue
-		}
-		assert.True(t, waitSet[s.InstanceID],
-			"shard %q instance %q is in a targeted pool but not in waitInstanceIDs",
-			s.ID, s.InstanceID)
-	}
-}
-
 // Naming every instance of a pool explicitly must produce the same
 // waitInstanceIDs as naming just one — the expansion is idempotent.
 func TestResolveReloadTargets_NamingAllInstancesMatchesNamingOne(t *testing.T) {
@@ -149,17 +105,21 @@ func TestResolveReloadTargets_NamingAllInstancesMatchesNamingOne(t *testing.T) {
 // -------------------------------------------------------------------------------------------------
 
 // fakeShardRoller is a shardRoller stand-in for unit-testing rollShards without
-// a Docker daemon. It records the instance IDs handed to WaitForShardsReady and
-// returns caller-configured ready/expected counts, so a test can assert the wait
-// scope directly.
+// a Docker daemon. It records the shard IDs handed to Deploy and the instance IDs
+// handed to WaitForShardsReady, and returns caller-configured ready/expected
+// counts, so a test can assert that the wait scope matches the deploy scope.
 type fakeShardRoller struct {
+	gotDeploy    []string
 	gotWait      []string
 	waitReady    int
 	waitExpected int
 }
 
-func (f *fakeShardRoller) PruneOrphanedShards(context.Context) error { return nil }
-func (f *fakeShardRoller) Deploy(context.Context, local.DeployOpts) error {
+func (*fakeShardRoller) PruneOrphanedShards(context.Context) error { return nil }
+func (f *fakeShardRoller) Deploy(_ context.Context, opts local.DeployOpts) error {
+	for _, s := range opts.Shards {
+		f.gotDeploy = append(f.gotDeploy, s.ID)
+	}
 	return nil
 }
 func (f *fakeShardRoller) WaitForShardsReady(_ context.Context, instanceIDs []string, _ func(int, int)) (int, int) {
@@ -199,6 +159,9 @@ func TestRollShards_WaitScopeCoversWholePool(t *testing.T) {
 	assert.Equal(t, 2, notReady.expected)
 	// The wait covered the whole game pool; the unrelated lobby pool stayed out.
 	assert.Equal(t, []string{"game", "game-2"}, fake.gotWait)
+	// The wait scope is exactly the pool instances of the deployed shard IDs, so a
+	// future change that drops the deploy-scope forwarding would fail here too.
+	assert.Equal(t, cfg.WorldToml.PoolInstances(fake.gotDeploy), fake.gotWait)
 }
 
 // TestRollShards_AllReadyExitsZero covers the happy path: when every waited
@@ -222,4 +185,5 @@ func TestRollShards_AllReadyExitsZero(t *testing.T) {
 	)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"game", "game-2"}, fake.gotWait)
+	assert.Equal(t, cfg.WorldToml.PoolInstances(fake.gotDeploy), fake.gotWait)
 }

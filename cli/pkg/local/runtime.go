@@ -47,25 +47,22 @@ type Runtime struct {
 	// edgeAddr is the address ListenEdge binds. Defaults to EdgeAddr; tests override it
 	// via SetEdgeAddr to bind a free port instead of contending for the real edge port.
 	edgeAddr string
-	// shardHostPort returns the host port of the i-th shard instance. Defaults to
-	// service.ShardHostPort; tests override it via SetShardHostPort to point probes at
-	// free ports instead of the production 8081+i a developer's running world may hold.
-	shardHostPort func(int) int
+	// probeHostPort maps a shard instance index to the host port that readiness
+	// probes dial. Defaults to service.ShardHostPort; in-package tests assign it
+	// directly to point probes at free ports instead of the production 8081+i a
+	// developer's running world may hold. Only WaitForShardsReady reads it — deploy,
+	// routes, and layout checks still use service.ShardHostPort.
+	probeHostPort func(int) int
 }
 
 // New wraps a Docker client opened on the project (docker.WithClient).
 func New(dc *docker.Client, cfg *service.Config) *Runtime {
-	return &Runtime{docker: dc, cfg: cfg, edge: edge.New(), edgeAddr: EdgeAddr, shardHostPort: service.ShardHostPort}
+	return &Runtime{docker: dc, cfg: cfg, edge: edge.New(), edgeAddr: EdgeAddr, probeHostPort: service.ShardHostPort}
 }
 
 // SetEdgeAddr overrides the address ListenEdge binds, for tests that need a free port
 // instead of the real EdgeAddr (which a developer's running world may already hold).
 func (r *Runtime) SetEdgeAddr(addr string) { r.edgeAddr = addr }
-
-// SetShardHostPort overrides the host-port mapper used by readiness probes, for tests
-// that bind free ports instead of the production 8081+i a developer's running world may
-// already hold.
-func (r *Runtime) SetShardHostPort(fn func(int) int) { r.shardHostPort = fn }
 
 // Config returns the project config the runtime was opened on.
 func (r *Runtime) Config() *service.Config { return r.cfg }
@@ -440,7 +437,7 @@ func (r *Runtime) WaitForShardsReady(
 	ports := make([]int, 0, len(r.cfg.WorldToml.Shards))
 	for i, sh := range r.cfg.WorldToml.Shards {
 		if len(want) == 0 || want[sh.InstanceID] {
-			ports = append(ports, r.shardHostPort(i))
+			ports = append(ports, r.probeHostPort(i))
 		}
 	}
 	expected := len(ports)
