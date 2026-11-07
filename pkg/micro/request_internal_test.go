@@ -29,11 +29,11 @@ import (
 // -------------------------------------------------------------------------------------------------
 
 // invalidServiceAddress returns a ServiceAddress that fails protovalidate's constraints
-// (REALM_UNSPECIFIED violates the `not_in: [0]` rule), while still being a valid wire message.
+// (the uppercase project fails its pattern and the empty service ID fails min_len), while still
+// being a valid wire message.
 func invalidServiceAddress() *microv1.ServiceAddress {
 	return &microv1.ServiceAddress{
-		Region: "us-west1",
-		Realm:  microv1.ServiceAddress_REALM_UNSPECIFIED,
+		Project: "Not_Valid",
 	}
 }
 
@@ -72,7 +72,7 @@ func TestNewRequestFromNATSMsg_RequestID(t *testing.T) {
 
 	t.Run("validation failure returns req with request_id preserved", func(t *testing.T) {
 		t.Parallel()
-		// ServiceAddress with REALM_UNSPECIFIED fails protovalidate (not_in: [0]), so the
+		// The invalid ServiceAddress fails protovalidate, so the
 		// request is rejected even though request_id parses cleanly.
 		msg := newWireRequestMsg(t, &microv1.Request{
 			RequestId:      proto.String(requestID),
