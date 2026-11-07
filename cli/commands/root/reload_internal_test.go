@@ -1,13 +1,18 @@
 package root
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"io"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	errorspkg "github.com/argus-labs/world-engine/cli/internal/errors"
 	"github.com/argus-labs/world-engine/cli/internal/tui/component/phasebox"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
 	"github.com/argus-labs/world-engine/cli/pkg/local"
@@ -106,35 +111,54 @@ func (f *fakeShardRoller) Deploy(_ context.Context, opts local.DeployOpts) error
 	f.gotDeploy = append(f.gotDeploy, opts.ShardIDs()...)
 	return nil
 }
-func (f *fakeShardRoller) WaitForShardsReady(_ context.Context, instanceIDs []string, _ func(int, int)) (int, int) {
+func (f *fakeShardRoller) WaitForShardsReady(ctx context.Context, instanceIDs []string, _ func(int, int)) (int, int) {
 	f.gotWait = instanceIDs
+	if ready, expected, ok := canceledShardCounts(ctx, f.waitExpected); ok {
+		return ready, expected
+	}
 	return f.waitReady, f.waitExpected
+}
+
+// canceledShardCounts returns the (0, expected) counts a readiness waiter
+// reports when ctx is already canceled, matching the real WaitForShardsReady
+// contract. ok is true when ctx is canceled; otherwise the caller proceeds
+// with its own ready/expected (and progress) handling.
+func canceledShardCounts(ctx context.Context, expected int) (int, int, bool) {
+	if ctx.Err() != nil {
+		return 0, expected, true
+	}
+	return 0, 0, false
 }
 
 // TestRollShards is the rollShards-level regression guard: the wait scope must
 // match the deploy scope — Deploy recreates every instance of each targeted
 // pool, so rollShards must wait on every sibling or a crashed one is missed.
-// Both cases share the fixture, dashboard, invocation, and wait-scope
-// assertions; only the readiness counts and the expected error differ. The
-// WaitScopeCoversWholePool case has game down + game-2 healthy, surfacing as
-// shardsNotReadyError (1/2 ready) with the unrelated lobby pool out of scope.
-// The AllReadyReturnsNil case is the happy path: every waited instance comes
-// back, so rollShards returns nil.
+// The cases share the fixture, dashboard, invocation, and wait-scope
+// assertions; only the readiness counts, the context, and the expected error
+// differ.
 func TestRollShards(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name         string
 		waitReady    int
 		waitExpected int
+		preCanceled  bool
 		wantNotReady bool
+		wantCanceled bool
 	}{
 		{name: "WaitScopeCoversWholePool", waitReady: 1, waitExpected: 2, wantNotReady: true},
 		{name: "AllReadyReturnsNil", waitReady: 2, waitExpected: 2},
+		{name: "CanceledReturnsCanceled", waitExpected: 2, preCanceled: true, wantCanceled: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
+			if tt.preCanceled {
+				cctx, cancel := context.WithCancel(ctx)
+				cancel()
+				ctx = cctx
+			}
 			dash := phasebox.Start(ctx, phasebox.Plain)
 			defer dash.Complete()
 
@@ -153,13 +177,19 @@ func TestRollShards(t *testing.T) {
 				},
 				func(time.Duration) string { return "reloaded" },
 			)
-			if tt.wantNotReady {
+			switch {
+			case tt.wantCanceled:
+				require.Error(t, err)
+				assert.ErrorIs(t, err, context.Canceled, "cancel must pass context.Canceled through the section")
+				var notReady *shardsNotReadyError
+				assert.False(t, errors.As(err, &notReady), "cancel must not be a shardsNotReadyError")
+			case tt.wantNotReady:
 				require.Error(t, err)
 				var notReady *shardsNotReadyError
 				require.ErrorAs(t, err, &notReady)
 				assert.Equal(t, tt.waitReady, notReady.ready)
 				assert.Equal(t, tt.waitExpected, notReady.expected)
-			} else {
+			default:
 				require.NoError(t, err)
 			}
 			// The wait covered the whole game pool; the unrelated resolved lobby pool stayed out.
@@ -171,4 +201,344 @@ func TestRollShards(t *testing.T) {
 			assert.Equal(t, []string{"game"}, fake.gotDeploy)
 		})
 	}
+}
+
+// -------------------------------------------------------------------------------------------------
+// waitForShardsReadyRow / waitForShardsReadyResult
+// -------------------------------------------------------------------------------------------------
+
+// fakeSession records the last upserted row so tests can assert the
+// readiness row's terminal state without a live bubbletea program. Fail also
+// records the error passed at that boundary so tests can assert the cancel
+// classification directly; the "canceled" label rendering is phasebox's job
+// and is covered there, not duplicated here.
+type fakeSession struct {
+	last    fakeRow
+	seen    bool
+	failID  string
+	failErr error
+}
+
+type fakeRow struct {
+	id, detail string
+	state      phasebox.RowState
+}
+
+func (f *fakeSession) UpsertRow(id, _, detail string, state phasebox.RowState) {
+	f.last = fakeRow{id: id, detail: detail, state: state}
+	f.seen = true
+}
+
+func (*fakeSession) UpsertProgress(string, string, int) {}
+
+func (f *fakeSession) Fail(id, label string, err error) {
+	f.failID = id
+	f.failErr = err
+	f.UpsertRow(id, label, "failed", phasebox.Failed)
+}
+
+// lastRow returns the last upserted row, failing the test if none was recorded.
+func (f *fakeSession) lastRow(t *testing.T) fakeRow {
+	t.Helper()
+	if !f.seen {
+		t.Fatal("no rows upserted")
+	}
+	return f.last
+}
+
+// fakeReadinessWaiter is a stand-in shardReadinessWaiter. It mimics the real
+// WaitForShardsReady: on a canceled ctx it returns (0, expected) without
+// calling onProgress (the cancel-before-first-tick case); otherwise it calls
+// onProgress once with (ready, expected) and returns them. onProgressHook,
+// if set, fires after onProgress so a test can cancel from the callback.
+type fakeReadinessWaiter struct {
+	ready, expected int
+	onProgressHook  func()
+}
+
+func (f *fakeReadinessWaiter) WaitForShardsReady(
+	ctx context.Context, _ []string, onProgress func(ready, expected int),
+) (int, int) {
+	if ready, expected, ok := canceledShardCounts(ctx, f.expected); ok {
+		return ready, expected
+	}
+	onProgress(f.ready, f.expected)
+	if f.onProgressHook != nil {
+		f.onProgressHook()
+	}
+	return f.ready, f.expected
+}
+
+// --- waitForShardsReadyRow ---------------------------------------------------
+
+// Ctrl+C during the wait routes through sess.Fail (not the timed-out
+// UpsertRow): the user canceled before the timeout elapsed. The canceled label
+// rendering is phasebox's job and is covered there, not duplicated here.
+func TestWaitForShardsReadyRow_CanceledRoutesThroughFail(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	sess := &fakeSession{}
+	waitForShardsReadyRow(ctx, sess, func(onProgress func(ready, expected int)) {
+		onProgress(0, 2)
+	})
+
+	row := sess.lastRow(t)
+	assert.Equal(t, "ready", row.id)
+	assert.Equal(t, phasebox.Failed, row.state)
+	assert.Equal(t, "ready", sess.failID, "a cancel routes through Fail, not the timed-out UpsertRow")
+	assert.ErrorIs(t, sess.failErr, context.Canceled, "a cancel must not be labeled 'timed out'")
+}
+
+// A genuine timeout — ctx alive with lastReady < expected, or a caller
+// deadline that already expired — both show "timed out"; only [context.Canceled]
+// is a cancel, DeadlineExceeded is a real timeout.
+func TestWaitForShardsReadyRow_TimeoutShowsTimedOut(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		ctx  func(t *testing.T) context.Context
+	}{
+		{"liveContext", func(*testing.T) context.Context { return context.Background() }},
+		{"expiredDeadline", func(t *testing.T) context.Context {
+			ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
+			t.Cleanup(cancel)
+			return ctx
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			sess := &fakeSession{}
+			waitForShardsReadyRow(c.ctx(t), sess, func(onProgress func(ready, expected int)) {
+				onProgress(0, 2)
+			})
+
+			row := sess.lastRow(t)
+			assert.Equal(t, phasebox.Failed, row.state)
+			assert.Contains(t, row.detail, "timed out")
+			assert.Contains(t, row.detail, "0/2 ready")
+		})
+	}
+}
+
+// All shards ready shows Done with the final count.
+func TestWaitForShardsReadyRow_ReadyShowsDone(t *testing.T) {
+	t.Parallel()
+
+	sess := &fakeSession{}
+	waitForShardsReadyRow(context.Background(), sess, func(onProgress func(ready, expected int)) {
+		onProgress(2, 2)
+	})
+
+	row := sess.lastRow(t)
+	assert.Equal(t, phasebox.Done, row.state)
+	assert.Equal(t, "2/2", row.detail)
+}
+
+// If the wait returned without ever invoking onProgress (cancel before the
+// first completed probe round), no terminal row is rendered — the row stays
+// absent rather than rendering a terminal claim with no evidence.
+func TestWaitForShardsReadyRow_NoProgressNoTerminalRow(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	sess := &fakeSession{}
+	waitForShardsReadyRow(ctx, sess, func(func(ready, expected int)) {
+		// Cancel before first tick: onProgress is never called.
+	})
+
+	assert.False(t, sess.seen, "no progress tick means no terminal row")
+}
+
+// --- waitForShardsReadyResult -----------------------------------------------
+
+// Ctrl+C before the first progress tick is a cancel, not a shards-not-ready
+// failure: the helper passes [context.Canceled] through for phasebox to
+// silence at the section boundary.
+func TestWaitForShardsReadyResult_CanceledBeforeProgressReturnsCanceled(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	waiter := &fakeReadinessWaiter{expected: 2}
+	err := waitForShardsReadyResult(ctx, &fakeSession{}, waiter, nil)
+
+	assert.Equal(t, context.Canceled, err, "cancel must pass context.Canceled through")
+}
+
+// Ctrl+C arriving during the wait — after a partial or complete count was
+// reported — is still a cancel: cancellation wins even when the counts are
+// complete. The row is marked canceled through sess.Fail before the section
+// ends, and Box.Run supplies the canceled summary and silent wrapper at the
+// boundary. The helper returns [context.Canceled] itself (not wrapped).
+func TestWaitForShardsReadyResult_CanceledAfterProgressReturnsCanceled(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		ready int
+	}{
+		{"AfterPartialProgress", 1},
+		{"AfterComplete", 2},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			sess := &fakeSession{}
+			err := waitForShardsReadyResult(ctx, sess, &fakeReadinessWaiter{
+				ready: c.ready, expected: 2,
+				onProgressHook: cancel,
+			}, nil)
+
+			require.Error(t, err)
+			assert.Equal(t, context.Canceled, err)
+			assert.Equal(t, "ready", sess.failID, "cancel routes through Fail")
+			assert.ErrorIs(t, sess.failErr, context.Canceled, "Fail must receive context.Canceled")
+		})
+	}
+}
+
+// A genuine timeout (ctx alive, ready < expected) and a caller deadline that
+// already expired with unready shards both return shardsNotReadyError so the
+// failure is reported, not hidden — only [context.Canceled] is silent. The
+// counts survive the classification in both cases, and the error is printable.
+func TestWaitForShardsReadyResult_NotReadyCountsArePrintable(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		ctx  func(t *testing.T) context.Context
+	}{
+		{"liveContext", func(*testing.T) context.Context { return context.Background() }},
+		{"expiredDeadline", func(t *testing.T) context.Context {
+			ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
+			t.Cleanup(cancel)
+			return ctx
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			waiter := &fakeReadinessWaiter{expected: 2}
+			err := waitForShardsReadyResult(c.ctx(t), &fakeSession{}, waiter, nil)
+
+			require.Error(t, err)
+			var notReady *shardsNotReadyError
+			require.ErrorAs(t, err, &notReady, "unready shards are a real failure")
+			assert.Equal(t, 0, notReady.ready)
+			assert.Equal(t, 2, notReady.expected)
+			assert.True(t, errorspkg.ShouldPrint(err), "unready shards must be printable, not silent")
+		})
+	}
+}
+
+// Complete counts still succeed with an expired caller deadline: the helper
+// checks ctx.Err() only for [context.Canceled], so a deadline that lands after
+// the last probe round is not a failure. Guards against a future blanket
+// ctx.Err() check that would change this distinction.
+func TestWaitForShardsReadyResult_CompleteCountsSucceedWithExpiredDeadline(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
+	defer cancel()
+
+	// completeCountsWaiter reports ready==expected without inspecting ctx,
+	// modeling a real wait whose last probe round completed before the caller
+	// deadline expired (the fakeReadinessWaiter short-circuits on ctx.Err()).
+	waiter := completeCountsWaiter{expected: 2}
+	err := waitForShardsReadyResult(ctx, &fakeSession{}, waiter, nil)
+
+	assert.NoError(t, err)
+}
+
+// completeCountsWaiter reports ready==expected regardless of ctx, the post-
+// completion shape a real WaitForShardsReady returns when its last probe round
+// landed before the caller deadline expired.
+type completeCountsWaiter struct{ expected int }
+
+func (w completeCountsWaiter) WaitForShardsReady(
+	_ context.Context, _ []string, onProgress func(ready, expected int),
+) (int, int) {
+	onProgress(w.expected, w.expected)
+	return w.expected, w.expected
+}
+
+// All shards ready returns nil — no regression in the success path.
+func TestWaitForShardsReadyResult_ReadyReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	waiter := &fakeReadinessWaiter{ready: 2, expected: 2}
+	err := waitForShardsReadyResult(context.Background(), &fakeSession{}, waiter, nil)
+
+	assert.NoError(t, err)
+}
+
+// The cancel survives JoinFailures packaging (deployShardImages wraps the
+// shards error through JoinFailures with the purge error): a cancel alone
+// must not print.
+func TestWaitForShardsReadyResult_CancelSurvivesJoinFailures(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	waiter := &fakeReadinessWaiter{expected: 2}
+	shardsErr := waitForShardsReadyResult(ctx, &fakeSession{}, waiter, nil)
+
+	onlyCancel := errorspkg.JoinFailures(nil, shardsErr)
+	require.Error(t, onlyCancel)
+	assert.False(t, errorspkg.ShouldPrint(onlyCancel), "only a cancel: must not print")
+}
+
+// Cancellation through a real phasebox section (Plain progress, the CI/log
+// surface) classifies as "canceled", not a shard failure: Box.Run silences
+// [context.Canceled] and the summary omits the shard-failure diagnostic.
+func TestWaitForShardsReadyResult_CancelThroughPlainSectionIsCanceled(t *testing.T) {
+	// Not parallel: phasebox.Start captures os.Stdout for Plain progress, so
+	// the redirect below mutates a global briefly.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	orig := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	defer r.Close() // closing the writer and reading EOF leaves the reader descriptor open otherwise.
+	os.Stdout = w   //nolint:reassign // capturing stdout in tests
+	dash := phasebox.Start(ctx, phasebox.Plain)
+	os.Stdout = orig //nolint:reassign // restore stdout
+	defer dash.Complete()
+	var out bytes.Buffer
+	copyErr := make(chan error, 1)
+	go func() {
+		_, err := io.Copy(&out, r)
+		copyErr <- err
+	}()
+
+	runErr := dash.Run("Shards",
+		func(ctx context.Context, sess phasebox.Session) error {
+			return waitForShardsReadyResult(ctx, sess, &fakeReadinessWaiter{expected: 2}, nil)
+		},
+		func(time.Duration) string { return "done" },
+	)
+	require.NoError(t, w.Close())
+	require.NoError(t, <-copyErr)
+
+	require.Error(t, runErr)
+	assert.True(t, errorspkg.IsSilent(runErr), "cancel through section must be silent, not a shard failure")
+	assert.ErrorIs(t, runErr, context.Canceled, "section must classify cancel as canceled")
+	var notReady *shardsNotReadyError
+	assert.False(t, errors.As(runErr, &notReady), "must not be a shardsNotReadyError")
+	assert.Contains(t, out.String(), "canceled", "plain summary must say canceled")
 }
