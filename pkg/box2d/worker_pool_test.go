@@ -10,6 +10,8 @@ package box2d_test
 import (
 	"fmt"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -24,6 +26,21 @@ const boundedTimeout = 30 * time.Second
 // assertFailedMsg is the panic string every box2d assert emits in the
 // box2d_asserts build; the Destroy guard regression asserts this exact value.
 const assertFailedMsg = "box2d: assertion failed"
+
+// requireGuardPanicValue asserts the Destroy guard's build-specific panic
+// expectation on a captured value: the box2d_asserts build must surface
+// assertFailedMsg; release must surface nil. TestDestroyFromCallbackGuarded
+// (the panic escapes Step) and TestDestroyGuardRecoveredInCallbackStepsAgain
+// (the callback recovers the panic locally) exercise recovery at different
+// boundaries but assert the same expectation on the captured value.
+func requireGuardPanicValue(t *testing.T, got any, msg string) {
+	t.Helper()
+	if buildWithAsserts {
+		require.Equal(t, assertFailedMsg, got, msg)
+	} else {
+		require.Nil(t, got, msg)
+	}
+}
 
 // defaultStepTimeoutMsg and defaultFiredMsg are the shared Step-timeout and
 // callback-fired diagnostics used by the workers_1 and workers_4 cases (the
@@ -353,12 +370,8 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			// case never reaches a pool worker, the Equal/Nil failure below would
 			// otherwise hide the diagnostic that the self-join path was missed.
 			require.True(t, fired.Load(), tc.firedMsg)
-			if buildWithAsserts {
-				require.Equal(t, assertFailedMsg, panicVal,
-					"Step must panic with the guard's assertion, not a raw wiped-state crash")
-			} else {
-				require.Nil(t, panicVal, "Step must not panic when Destroy is guarded out")
-			}
+			requireGuardPanicValue(t, panicVal,
+				"the guard must surface its assertion (asserts) or no panic (release) when the callback's Destroy is rejected")
 
 			// The guard rejected the callback's Destroy, so the world is
 			// still live (not wiped): the saved id is still valid. The
@@ -399,12 +412,17 @@ func TestDestroyGuardRecoveredInCallbackStepsAgain(t *testing.T) {
 	def.WorkerCount = 1
 	w := box2d.NewWorld(&def)
 	defer w.Destroy()
-	buildWorkerStressScene(w)
+	bodies := buildWorkerStressScene(w)
+	// A bullet with explicit linear velocity — a known moving body, so the
+	// second Step below can be shown to advance the world rather than silently
+	// no-op while locked.
+	mover := bodies[len(bodies)-1]
 
-	var fired atomic.Bool
+	var fired bool
 	var destroyPanic any
 	w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
-		if fired.CompareAndSwap(false, true) {
+		if !fired {
+			fired = true
 			func() {
 				defer func() { destroyPanic = recover() }()
 				w.Destroy()
@@ -414,20 +432,22 @@ func TestDestroyGuardRecoveredInCallbackStepsAgain(t *testing.T) {
 	}, nil)
 
 	require.NotPanics(t, func() { w.Step(stepDT, stepSubSteps) })
-	require.True(t, fired.Load(), "preSolve callback never ran")
+	require.True(t, fired, "preSolve callback never ran")
 	// Retain the guard's panic value rather than discarding it: a swallowed
 	// unexpected Destroy panic would slip past the NotPanics and reuse checks
 	// below. In the asserts build the guard trips its assertion; in release it
 	// is a silent no-op.
-	if buildWithAsserts {
-		require.Equal(t, assertFailedMsg, destroyPanic,
-			"the guard must panic in the asserts build when the callback calls Destroy")
-	} else {
-		require.Nil(t, destroyPanic, "Destroy must not panic in release when the callback calls it")
-	}
+	requireGuardPanicValue(t, destroyPanic,
+		"the guard must surface its assertion (asserts) or no panic (release) when the callback calls Destroy")
 
+	// Assert the second Step actually advances a known moving body: in release
+	// Step silently returns while locked, so NotPanics alone does not prove the
+	// local-recovery path leaves the world usable.
+	before := w.BodyPosition(mover)
 	require.NotPanics(t, func() { w.Step(stepDT, stepSubSteps) },
 		"Step must succeed after the callback recovered the guard's assertion")
+	require.NotEqual(t, before, w.BodyPosition(mover),
+		"the second Step must advance a known moving body")
 }
 
 // goroutineID returns the numeric goroutine id from [runtime.Stack]'s header
@@ -435,20 +455,21 @@ func TestDestroyGuardRecoveredInCallbackStepsAgain(t *testing.T) {
 // (worker 0, which runs inline) from background pool workers (1..n-1), so the
 // self-join regression is exercised deterministically rather than by CAS luck.
 func goroutineID() uint64 {
-	var buf [32]byte
+	var buf [64]byte
 	n := runtime.Stack(buf[:], false)
+	s := string(buf[:n])
 	const prefix = "goroutine "
-	if n < len(prefix) || string(buf[:len(prefix)]) != prefix {
-		panic("goroutineID: unexpected runtime.Stack header: " + string(buf[:n]))
+	if !strings.HasPrefix(s, prefix) {
+		panic("goroutineID: unexpected runtime.Stack header: " + s)
 	}
-	id := uint64(0)
-	i := len(prefix)
-	for i < n && buf[i] >= '0' && buf[i] <= '9' {
-		id = id*10 + uint64(buf[i]-'0')
-		i++
+	rest := s[len(prefix):]
+	end := strings.IndexByte(rest, ' ')
+	if end < 0 {
+		panic("goroutineID: no goroutine id parsed from runtime.Stack header: " + s)
 	}
-	if i == len(prefix) {
-		panic("goroutineID: no goroutine id parsed from runtime.Stack header: " + string(buf[:n]))
+	id, err := strconv.ParseUint(rest[:end], 10, 64)
+	if err != nil {
+		panic("goroutineID: no goroutine id parsed from runtime.Stack header: " + s)
 	}
 	return id
 }

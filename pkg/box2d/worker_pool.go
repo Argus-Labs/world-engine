@@ -123,13 +123,8 @@ func newWorkerPool(workerCount int) *workerPool {
 // guards callback reentry during Step. A Step unwound by an ordinary panic
 // has already joined dispatched workers (forRange's wg.Wait barrier) before the
 // completion latch marks the poison flag, so Destroy may safely close the pool
-// on such a poisoned world. This guarantee does not cover a worker-0
-// [runtime.Goexit] (t.Fatal inside a callback under test): that unwinds
-// runRange(0) without reaching the barrier, yet Step still sets stepPanicked,
-// so poison alone does not prove dispatch has drained. Destroy called from
-// outside the dispatch still waits in done.Wait before wiping the world; the
-// remaining self-join hole is a background callback calling Destroy after
-// worker 0 exits via Goexit and sets stepPanicked.
+// on such a poisoned world. The worker-0 [runtime.Goexit] exclusion and the
+// remaining self-join hole are documented on World.Destroy.
 func (p *workerPool) close() {
 	p.closed.Store(true)
 	close(p.jobs)

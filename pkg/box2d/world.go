@@ -432,8 +432,11 @@ func NewWorld(def *WorldDef) *World {
 // The rejection covers ordinary Step callbacks. It does not cover a worker-0
 // [runtime.Goexit] (e.g. t.Fatal inside a test callback): that unwinds the
 // inline dispatch without reaching Step's join barrier, yet Step still marks
-// the world poisoned, so a background callback calling Destroy after such a
-// Goexit can pass the guard. See worker_pool.go for the close() guarantee.
+// the world poisoned. Destroy called from outside the dispatch still waits in
+// the pool's done.Wait before wiping the world, so external teardown after a
+// Goexit is safe; the remaining self-join hole is a background callback calling
+// Destroy after such a Goexit, which can pass the guard while background
+// workers are still active. See worker_pool.go for the close() guarantee.
 func (w *World) Destroy() {
 	// Allow Destroy on a Step unwound by a panic (locked set with
 	// stepPanicked true) so it can reclaim the worker pool. This
