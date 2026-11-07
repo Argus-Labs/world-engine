@@ -81,7 +81,7 @@ func createBoxBody(t *testing.T, w *World, halfExtent Vec2, pos Vec2, enableEven
 // when enableEvents is true. The recycle distance is left at the default
 // (ContactRecycleDistance) so callers can override it for an isolated cosine
 // gate (SetContactRecycleDistance) or keep the default to exercise the
-// distance/sine gate. Transform-setting tests reset solver motion before each
+// distance/sine gate. Transform-setting tests reset the pose before each
 // step; the spinning test preserves integrated motion.
 func recycleTestWorld(t *testing.T, halfExtent Vec2, pos Vec2, enableEvents bool) (*World, BodyID, ShapeID, ShapeID) {
 	t.Helper()
@@ -204,8 +204,7 @@ func requireDistanceMetricPasses(t *testing.T, w *World, sim *contactSim, msg st
 
 // TestContactRecycleCosAngleConstant pins the local ContactRecycleCosAngle
 // constant to 0.98 (~11.5 degrees). It is a local value pin, not an
-// independent upstream-parity check; B2_CONTACT_RECYCLE_COS_ANGLE parity is
-// covered by the TestOracleConstants_CReference table.
+// independent upstream-parity check.
 func TestContactRecycleCosAngleConstant(t *testing.T) {
 	t.Parallel()
 	tassert.Equal(t, 0.98, ContactRecycleCosAngle) //nolint:testifylint // exact constant equality is intended, not a tolerance comparison
@@ -530,7 +529,7 @@ func runRecycleBeginEvent(t *testing.T, halfExtent Vec2, pos Vec2, angle float64
 // regression at the default recycle distance. A wide, flat box
 // (half-extents 0.3 x 0.1) rests above the ground (center y = 0.13, gap 0.03)
 // so the contact is created non-touching (gap > SpeculativeDistance) but the
-// fat AABBs overlap. Rotating 30° swings the long edge down into a clear
+// fat AABBs overlap. Rotating 30° drops a bottom corner into a clear
 // overlap, and the begin-touch event must fire.
 func TestContactRecycleBeginEvent(t *testing.T) {
 	t.Parallel()
@@ -544,8 +543,8 @@ func TestContactRecycleBeginEvent(t *testing.T) {
 // rotation remains under the ~11.5° guard threshold, then refreshes once the
 // accumulated rotation crosses it. The distance/sine gate is asserted to still
 // pass at that first refresh, so the refresh is attributable to the rotation
-// guard rather than the distance gate (which a longer loop could satisfy on
-// its own).
+// guard rather than the distance gate (which a longer loop could block
+// recycling on its own).
 func TestContactRecycleSpinningBody(t *testing.T) {
 	t.Parallel()
 
