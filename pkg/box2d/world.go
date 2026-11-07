@@ -428,6 +428,12 @@ func NewWorld(def *WorldDef) *World {
 // destruction — and the id invalidation above — only happens when Destroy runs
 // outside Step, or after a Step unwound by a panic (which leaves the world
 // locked); Destroy then reclaims the worker pool.
+//
+// The rejection covers ordinary Step callbacks. It does not cover a worker-0
+// [runtime.Goexit] (e.g. t.Fatal inside a test callback): that unwinds the
+// inline dispatch without reaching Step's join barrier, yet Step still marks
+// the world poisoned, so a background callback calling Destroy after such a
+// Goexit can pass the guard. See worker_pool.go for the close() guarantee.
 func (w *World) Destroy() {
 	// Reject destruction during Step to avoid joining the calling worker
 	// from pool.close() or clearing active world state under a continuing

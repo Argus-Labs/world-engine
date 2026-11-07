@@ -53,7 +53,10 @@
 // voids the byte-identical-for-every-worker-count guarantee. A callback must
 // not call World.Destroy: Destroy from inside a Step callback is rejected (a
 // silent no-op in release, an assertion panic in the box2d_asserts build) to
-// avoid a pool.close() self-join — see World.Destroy.
+// avoid a pool.close() self-join — see World.Destroy. The rejection covers
+// ordinary Step callbacks; a worker-0 [runtime.Goexit] can leave the world
+// poisoned while background callbacks remain active, allowing their Destroy
+// past the guard (see worker_pool.go).
 //
 // # Determinism
 //
