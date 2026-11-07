@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -76,7 +77,8 @@ func TestService_Handler(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), assert.AnError.Error())
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Equal(t, assert.AnError.Error(), status.Convert(err).Message())
 	})
 
 	t.Run("malformed request", func(t *testing.T) {
