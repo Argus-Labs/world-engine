@@ -15,16 +15,27 @@ package physics2d_test
 // Exceptions — Go-regenerated fixtures: golden_box_stack.json and golden_capsule_chain_ground.json
 // were regenerated from the pure-Go backend as part of an intentional, declared behavior change
 // (friction and rolling resistance are now applied only in the relax stage; see the "Other
-// deviations from upstream" note in pkg/box2d/contact_solver.go). Their event sequence changed
-// (capsule_chain_ground grew from 18 to 21 contact events), so the stale C recording could no
-// longer satisfy the exact-sequence contract. These two fixtures PIN the new Go behavior — they
-// guard against future regressions of the relax-stage split, but they do NOT independently verify
-// C-backend parity. All other fixtures (falling_circles_floor, filter_matrix, queries_over_time,
-// sensor_trigger) retain their original CGO v3.2.0 recordings.
+// deviations from upstream" note in pkg/box2d/contact_solver.go). They were regenerated for
+// different reasons:
+//   - golden_capsule_chain_ground: its event sequence changed (18 -> 21 contact events), so the
+//     stale C recording could no longer satisfy the exact-sequence contract.
+//   - golden_box_stack: its event sequence is unchanged (still five events), but its max numeric
+//     drift (~0.058) exceeded goldenDelta (1e-2), so the C recording could no longer satisfy the
+//     numeric tolerance.
+// These two fixtures PIN the new Go behavior — they guard against future regressions of the
+// relax-stage split, but they do NOT independently verify C-backend parity. All other fixtures
+// (falling_circles_floor, filter_matrix, queries_over_time, sensor_trigger) retain their original
+// CGO v3.2.0 recordings.
 //
 // Regenerate fixtures with:
 //
 //	PHYSICS2D_UPDATE_GOLDEN=1 go test ./pkg/plugin/physics2d/test/ -run TestGoldenTrace -count=1
+//
+// To regenerate only the two Go-regenerated fixtures (leaving the four C-recorded fixtures
+// intact), select their subtests by name:
+//
+//	PHYSICS2D_UPDATE_GOLDEN=1 go test ./pkg/plugin/physics2d/test/ \
+//		-run 'TestGoldenTrace/(box_stack|capsule_chain_ground)' -count=1
 //
 // WARNING: regeneration now records the PURE-GO backend and permanently forfeits the
 // cross-backend anchor — the fixtures would then only prove the port agrees with itself. Use the
@@ -67,14 +78,19 @@ const (
 	goldenSampleEvery = 10
 	// goldenDelta is the numeric tolerance used in verify mode. The C-recorded fixtures were
 	// recorded on the float32 CGO backend; the pure-Go backend computes in float64, so trajectories
-	// drift slightly. Observed max deltas against the committed CGO fixtures: ~3e-5 for most
-	// scenarios, ~2e-4 for filter_matrix, ~2.4e-3 for capsule_chain_ground (chain contact
-	// stacking is the most rounding-sensitive scene). 1e-2 gives ~4x headroom over the worst
+	// drift slightly. The max-delta figures below are HISTORICAL: they were measured against the
+	// original C recordings before golden_box_stack and golden_capsule_chain_ground were
+	// regenerated from the pure-Go backend (see the file-header provenance note and the NOTE
+	// below). They are the basis the tolerance was sized from, NOT measurements against the
+	// currently committed fixtures. At that time the observed max deltas were ~3e-5 for most
+	// scenarios, ~2e-4 for filter_matrix, and ~2.4e-3 for capsule_chain_ground (chain contact
+	// stacking is the most rounding-sensitive scene); 1e-2 gives ~4x headroom over the worst
 	// case while still catching real behavioral regressions. Structural assertions (entity
 	// sets, event sequences incl. ticks, query hit identity) remain exact.
-	// NOTE: golden_box_stack and golden_capsule_chain_ground were regenerated from the pure-Go
-	// backend (see the file-header provenance note), so their numeric deltas are zero by
-	// construction — they pin Go behavior, not C parity.
+	// NOTE: golden_box_stack and golden_capsule_chain_ground are now Go-regenerated, so their
+	// numeric deltas are zero by construction — they pin Go behavior, not C parity. The tolerance
+	// now governs the four retained C-recorded fixtures (falling_circles_floor, filter_matrix,
+	// queries_over_time, sensor_trigger), whose deltas are unchanged.
 	goldenDelta = 1e-2
 	// goldenUpdateEnv, when set to "1", switches the test into generator mode.
 	goldenUpdateEnv = "PHYSICS2D_UPDATE_GOLDEN"

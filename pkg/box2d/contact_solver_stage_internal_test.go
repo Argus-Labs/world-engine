@@ -45,10 +45,11 @@ func TestSolverStageContractFrictionRelaxOnly(t *testing.T) {
 
 	// One Step registers the contact in the constraint graph. A fresh
 	// contact's manifold impulses start at zero, but the step commits
-	// nonzero impulses, so zero them before re-preparing to isolate the
-	// stage calls.
-	w.Step(1.0/60.0, 4)
-	zeroContactManifoldImpulses(w)
+	// nonzero impulses; disabling warm starting makes re-preparing zero the
+	// cached impulses (prepareContactsColor scales them by warmStartScale),
+	// isolating the stage calls.
+	stepWorld(w, 1)
+	w.EnableWarmStarting(false)
 
 	ctx := newStageTestCtx(w)
 
@@ -58,10 +59,9 @@ func TestSolverStageContractFrictionRelaxOnly(t *testing.T) {
 	w.solveContactsColor(ctx, colorIndex, true, 0, len(constraints))
 	for i := range constraints {
 		c := &constraints[i]
-		require.Equal(t, 0.0, c.rollingImpulse, //nolint:testifylint // push must leave rolling impulse at the prepared (zero) value exactly
-			"push must not apply rolling resistance")
+		require.Zero(t, c.rollingImpulse, "push must not apply rolling resistance")
 		for j := range c.points[:c.pointCount] {
-			require.Equal(t, 0.0, c.points[j].tangentImpulse, //nolint:testifylint // push must leave tangent impulse at the prepared (zero) value exactly
+			require.Zero(t, c.points[j].tangentImpulse,
 				"push stage must not apply friction (point %d)", j)
 		}
 	}
@@ -74,7 +74,11 @@ func TestSolverStageContractFrictionRelaxOnly(t *testing.T) {
 		for j := range c.points[:c.pointCount] {
 			if c.points[j].tangentImpulse != 0.0 {
 				anyTangent = true
+				break
 			}
+		}
+		if anyTangent {
+			break
 		}
 	}
 	require.True(t, anyTangent, "relax stage must apply friction")
@@ -114,8 +118,8 @@ func TestSolverStageContractRollingResistanceRelaxOnly(t *testing.T) {
 	sd.Material.RollingResistance = 0.3
 	w.CreateCircleShape(ball, &sd, &circle)
 
-	w.Step(1.0/60.0, 4)
-	zeroContactManifoldImpulses(w)
+	stepWorld(w, 1)
+	w.EnableWarmStarting(false)
 
 	ctx := newStageTestCtx(w)
 	constraints, colorIndex := prepareStageConstraints(t, w, ctx)
@@ -123,7 +127,7 @@ func TestSolverStageContractRollingResistanceRelaxOnly(t *testing.T) {
 	// Push stage: rolling resistance must not be applied.
 	w.solveContactsColor(ctx, colorIndex, true, 0, len(constraints))
 	for i := range constraints {
-		require.Equal(t, 0.0, constraints[i].rollingImpulse, //nolint:testifylint // push must leave rolling impulse at the prepared (zero) value exactly
+		require.Zero(t, constraints[i].rollingImpulse,
 			"push stage must not apply rolling resistance (constraint %d)", i)
 	}
 
@@ -133,28 +137,27 @@ func TestSolverStageContractRollingResistanceRelaxOnly(t *testing.T) {
 	for i := range constraints {
 		if constraints[i].rollingImpulse != 0.0 {
 			anyRolling = true
+			break
 		}
 	}
 	require.True(t, anyRolling, "relax stage must apply rolling resistance")
 }
 
 // newStageTestCtx builds a stepContext matching the real solver's per-sub-step
-// softness and awake-set state (mirrors TestPreparedConstraintSoftness).
+// softness and awake-set state (mirrors TestPreparedConstraintSoftness). Only
+// the fields read by prepareContactsColor/solveContactsColor are populated.
 func newStageTestCtx(w *World) *stepContext {
 	ctx := &stepContext{}
-	ctx.world = w
 	ctx.dt = 1.0 / 60.0
 	ctx.subStepCount = 4
-	ctx.invDT = 60.0
+	ctx.invDT = 1.0 / ctx.dt
 	ctx.h = ctx.dt / float64(ctx.subStepCount)
 	ctx.invH = float64(ctx.subStepCount) * ctx.invDT
 	contactHertz := minFloat(w.contactHertz, 0.125*ctx.invH)
 	ctx.contactSoftness = makeSoft(contactHertz, w.contactDampingRatio, ctx.h)
 	ctx.staticSoftness = makeSoft(2.0*contactHertz, w.contactDampingRatio, ctx.h)
 	ctx.graph = &w.constraintGraph
-	awake := &w.solverSets[awakeSet]
-	ctx.states = awake.bodyStates
-	ctx.sims = awake.bodySims
+	ctx.states = (&w.solverSets[awakeSet]).bodyStates
 	return ctx
 }
 
@@ -173,27 +176,8 @@ func prepareStageConstraints(t *testing.T, w *World, ctx *stepContext) ([]contac
 		constraints := make([]contactConstraint, count)
 		color.constraints = constraints
 		w.prepareContactsColor(ctx, colorIndex, 0, count)
-		require.Len(t, constraints, count)
 		return constraints, colorIndex
 	}
 	t.Fatal("no contact constraints found in any color")
 	return nil, -1
-}
-
-// zeroContactManifoldImpulses zeroes the committed manifold impulses on every
-// contact in the constraint graph so a fresh prepare starts the push stage
-// from zero tangent/rolling impulses, isolating the stage calls under test.
-func zeroContactManifoldImpulses(w *World) {
-	for colorIndex := range GraphColorCount {
-		color := &w.constraintGraph.colors[colorIndex]
-		for i := range color.contactSims {
-			m := &color.contactSims[i].manifold
-			m.RollingImpulse = 0.0
-			for p := range m.Points {
-				m.Points[p].NormalImpulse = 0.0
-				m.Points[p].TangentImpulse = 0.0
-				m.Points[p].TotalNormalImpulse = 0.0
-			}
-		}
-	}
 }
