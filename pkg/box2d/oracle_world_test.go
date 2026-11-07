@@ -513,11 +513,8 @@ func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
 		"pre-solve must be re-consulted on the first step after the toggle to re-enable the contact")
 	wboStep(w, disabledSteps-1)
 
-	// With zero gravity there is no force holding the box at the fully
-	// separated center (y=0.5); the solver can push it beyond that. The
-	// threshold is wboRestingBoxY plus a displacement tolerance, so a fixture
-	// height change cannot make this pass without actual upward movement: the
-	// re-enabled contact pushed the overlapping box up from wboRestingBoxY.
+	// With zero gravity, the solver can push the box beyond y=0.5, so check
+	// upward movement rather than a final resting height.
 	require.Greater(t, w.BodyPosition(body).Y, wboRestingBoxY+float64(4.0*box2d.LinearSlop),
 		"the re-enabled contact must push the overlapping box up")
 }
@@ -568,13 +565,10 @@ func TestOraclePreSolveRecycleZeroDisablesContactWhileResting(t *testing.T) {
 		"the disabled contact must let the box fall through the ground")
 }
 
-// TestOraclePreSolveDisabledContactRefreshesMaterialCallbacks verifies that
-// updateContact recomputes the mixed friction and restitution each step, and
-// clearing simRelativeTransformValid when pre-solve disables a contact keeps
-// updateContact running. So while the resting pair stays disabled, the
-// material-mixing callbacks advance every step (contact creation already calls
-// them once, so the test checks per-step advancement rather than a fixed
-// total).
+// TestOraclePreSolveDisabledContactRefreshesMaterialCallbacks checks that the
+// material-mixing callbacks advance every step while the resting pair stays
+// disabled. The test checks per-step increments because contact creation
+// also invokes material mixing.
 func TestOraclePreSolveDisabledContactRefreshesMaterialCallbacks(t *testing.T) {
 	t.Parallel()
 
