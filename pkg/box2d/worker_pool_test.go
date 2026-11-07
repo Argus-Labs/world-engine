@@ -237,8 +237,8 @@ func TestGoroutineLeakOnWorldDestroy(t *testing.T) {
 		sd.Density = 1.0
 		w.CreateCircleShape(body, &sd, &circle)
 
-		w.Step(1.0/60.0, 4)
-		w.Step(1.0/60.0, 4)
+		w.Step(stepDT, stepSubSteps)
+		w.Step(stepDT, stepSubSteps)
 
 		w.Destroy()
 	}
@@ -319,9 +319,8 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			// joins the pool goroutines; the explicit Destroy below remains to
 			// verify teardown and id invalidation. Skip cleanup while any
 			// bounded operation is still in flight (a timeout leaves it
-			// running): the guard no-ops Destroy while the world is locked, and
-			// a Destroy racing a still-running Step or a stuck pool.close could
-			// double-close the pool's jobs channel.
+			// running): a Destroy racing a still-running Step or a stuck
+			// pool.close could double-close the pool's jobs channel.
 			t.Cleanup(func() {
 				if opsInFlight.Load() > 0 {
 					return
@@ -382,7 +381,7 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			// assert a known moving body advances so a silently-locked Step
 			// can't pass on the reuse path.
 			if !buildWithAsserts {
-				mover := bodies[len(bodies)-1]
+				mover := sceneMover(bodies)
 				before := w.BodyPosition(mover)
 				require.Nil(t, runBounded(t, &opsInFlight, func() { w.Step(stepDT, stepSubSteps) },
 					defaultStepTimeoutMsg),
@@ -398,55 +397,103 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 	}
 }
 
+// sceneMover returns the moving probe body from a buildWorkerStressScene scene:
+// the last body, a bullet with explicit linear velocity, used as a known moving
+// body for the second-Step advancement check shared by the guarded-Destroy
+// tests.
+func sceneMover(bodies []box2d.BodyID) box2d.BodyID {
+	return bodies[len(bodies)-1]
+}
+
+// requireStepAdvancesBody steps w via step (which must not panic) and asserts
+// that mover's position changes, so a silently-locked Step (release) cannot
+// pass a reuse check. notPanicMsg describes the Step for the NotPanics check.
+func requireStepAdvancesBody(t *testing.T, w *box2d.World, mover box2d.BodyID, step func(), notPanicMsg string) {
+	t.Helper()
+	before := w.BodyPosition(mover)
+	require.NotPanics(t, step, notPanicMsg)
+	require.NotEqual(t, before, w.BodyPosition(mover),
+		"the second Step must advance a known moving body")
+}
+
 // TestDestroyGuardRecoveredInCallbackStepsAgain covers the Destroy godoc
 // promise that a callback which recovers the guard's assertion panic locally
 // lets Step complete without poisoning the world, so the same world can step
 // again. TestDestroyFromCallbackGuarded lets the assertion escape Step (and
 // skips reuse in the asserts build); this exercises the recover-in-callback
-// path in both builds.
+// path in both builds. The workers_1 case is serial; the background_worker case
+// forces the callback onto a background pool worker (excluding worker 0) so the
+// documented local-recovery contract is covered on the self-join path too.
 func TestDestroyGuardRecoveredInCallbackStepsAgain(t *testing.T) {
 	t.Parallel()
 
-	def := box2d.DefaultWorldDef()
-	def.WorkerCount = 1
-	w := box2d.NewWorld(&def)
-	defer w.Destroy()
-	bodies := buildWorkerStressScene(w)
-	// A bullet with explicit linear velocity — a known moving body, so the
-	// second Step below can be shown to advance the world rather than silently
-	// no-op while locked.
-	mover := bodies[len(bodies)-1]
+	cases := []struct {
+		name           string
+		workers        int
+		backgroundOnly bool
+		firedMsg       string
+	}{
+		{name: "workers_1", workers: 1, firedMsg: "preSolve callback never ran"},
+		{
+			name:           "background_worker",
+			workers:        4,
+			backgroundOnly: true,
+			firedMsg:       "no background worker hit a touching pre-solve contact — local-recovery path not exercised",
+		},
+	}
 
-	var fired bool
-	var destroyPanic any
-	w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
-		if !fired {
-			fired = true
-			func() {
-				defer func() { destroyPanic = recover() }()
-				w.Destroy()
-			}()
-		}
-		return true
-	}, nil)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	require.NotPanics(t, func() { w.Step(stepDT, stepSubSteps) })
-	require.True(t, fired, "preSolve callback never ran")
-	// Retain the guard's panic value rather than discarding it: a swallowed
-	// unexpected Destroy panic would slip past the NotPanics and reuse checks
-	// below. In the asserts build the guard trips its assertion; in release it
-	// is a silent no-op.
-	requireGuardPanicValue(t, destroyPanic,
-		"the guard must surface its assertion (asserts) or no panic (release) when the callback calls Destroy")
+			def := box2d.DefaultWorldDef()
+			def.WorkerCount = tc.workers
+			w := box2d.NewWorld(&def)
+			t.Cleanup(w.Destroy)
+			bodies := buildWorkerStressScene(w)
+			mover := sceneMover(bodies)
 
-	// Assert the second Step actually advances a known moving body: in release
-	// Step silently returns while locked, so NotPanics alone does not prove the
-	// local-recovery path leaves the world usable.
-	before := w.BodyPosition(mover)
-	require.NotPanics(t, func() { w.Step(stepDT, stepSubSteps) },
-		"Step must succeed after the callback recovered the guard's assertion")
-	require.NotEqual(t, before, w.BodyPosition(mover),
-		"the second Step must advance a known moving body")
+			var fired atomic.Bool
+			var destroyPanic any
+			var stepG uint64
+			w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
+				// backgroundOnly: skip worker 0 (the Step goroutine) so only a
+				// background pool worker may fire. Check fired first so later
+				// contacts skip the runtime.Stack parse; the CAS arbitrates the
+				// winner.
+				if tc.backgroundOnly && (fired.Load() || goroutineID() == stepG) {
+					return true
+				}
+				if fired.CompareAndSwap(false, true) {
+					func() {
+						defer func() { destroyPanic = recover() }()
+						w.Destroy()
+					}()
+				}
+				return true
+			}, nil)
+
+			require.NotPanics(t, func() {
+				if tc.backgroundOnly {
+					stepG = goroutineID()
+				}
+				w.Step(stepDT, stepSubSteps)
+			}, "Step must not panic when the callback recovers the guard's assertion")
+			require.True(t, fired.Load(), tc.firedMsg)
+			// Retain the guard's panic value rather than discarding it: a
+			// swallowed unexpected Destroy panic would slip past the NotPanics
+			// and reuse checks below. In the asserts build the guard trips its
+			// assertion; in release it is a silent no-op.
+			requireGuardPanicValue(t, destroyPanic,
+				"the guard must surface its assertion (asserts) or no panic (release) when the callback calls Destroy")
+
+			// Assert the second Step actually advances a known moving body: in
+			// release Step silently returns while locked, so NotPanics alone
+			// does not prove the local-recovery path leaves the world usable.
+			requireStepAdvancesBody(t, w, mover, func() { w.Step(stepDT, stepSubSteps) },
+				"Step must succeed after the callback recovered the guard's assertion")
+		})
+	}
 }
 
 // goroutineID returns the numeric goroutine id from [runtime.Stack]'s header
