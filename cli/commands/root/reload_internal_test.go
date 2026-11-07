@@ -64,15 +64,8 @@ func TestResolveReloadTargets_EmptyInstanceIDsWaitsAll(t *testing.T) {
 // instances, not just the named ones.
 func TestResolveReloadTargets_MultiplePoolsWaitAll(t *testing.T) {
 	t.Parallel()
-	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{
-		Project: "demo",
-		Shards: []worldtoml.Shard{
-			{ID: "game", InstanceID: "game"},
-			{ID: "game", InstanceID: "game-2"},
-			{ID: "lobby", InstanceID: "lobby"},
-			{ID: "lobby", InstanceID: "lobby-2"},
-		},
-	}}
+	cfg := threeInstanceConfig()
+	cfg.WorldToml.Shards = append(cfg.WorldToml.Shards, worldtoml.Shard{ID: "lobby", InstanceID: "lobby-2"})
 	targets, err := resolveReloadTargets(cfg, []string{"game-2", "lobby"})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"game", "lobby"}, targets.shardIDs)
@@ -149,7 +142,11 @@ func TestRollShards(t *testing.T) {
 			defer dash.Complete()
 
 			cfg := threeInstanceConfig()
-			targets, err := resolveReloadTargets(cfg, []string{"game-2"})
+			// Resolve both pools but deploy only game: the resolved shard set is
+			// {game, lobby}, so a future change that derives the wait from
+			// targets.shardIDs would wait on lobby too. The literal wait-list
+			// assertion below catches that drift.
+			targets, err := resolveReloadTargets(cfg, []string{"game-2", "lobby"})
 			require.NoError(t, err)
 
 			fake := &fakeShardRoller{waitReady: tt.waitReady, waitExpected: tt.waitExpected}
@@ -159,19 +156,20 @@ func TestRollShards(t *testing.T) {
 				},
 				func(time.Duration) string { return "reloaded" },
 			)
-		if tt.wantNotReady {
-			require.Error(t, err)
-			var notReady *shardsNotReadyError
-			require.ErrorAs(t, err, &notReady)
-			assert.Equal(t, tt.waitReady, notReady.ready)
-			assert.Equal(t, tt.waitExpected, notReady.expected)
-		} else {
-			require.NoError(t, err)
-		}
-			// The wait covered the whole game pool; the unrelated lobby pool stayed out.
+			if tt.wantNotReady {
+				require.Error(t, err)
+				var notReady *shardsNotReadyError
+				require.ErrorAs(t, err, &notReady)
+				assert.Equal(t, tt.waitReady, notReady.ready)
+				assert.Equal(t, tt.waitExpected, notReady.expected)
+			} else {
+				require.NoError(t, err)
+			}
+			// The wait covered the whole game pool; the unrelated resolved lobby pool stayed out.
+			// This literal assertion is what catches a switch back to targets.shardIDs, since
+			// the resolved shard set is {game, lobby} while the deployed set is {game}.
 			assert.Equal(t, []string{"game", "game-2"}, fake.gotWait)
-			// The wait scope is exactly the pool instances of the deployed shard IDs, so a
-			// future change that drops the deploy-scope forwarding would fail here too.
+			// The wait scope is exactly the pool instances of the deployed shard IDs.
 			assert.Equal(t, cfg.WorldToml.PoolInstances(fake.gotDeploy), fake.gotWait)
 		})
 	}

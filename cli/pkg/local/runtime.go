@@ -111,6 +111,15 @@ type DeployOpts struct {
 	OnResult func(shardID string, err error)
 }
 
+// ShardIDs returns the shard IDs in the deploy payload, in order.
+func (o DeployOpts) ShardIDs() []string {
+	ids := make([]string, len(o.Shards))
+	for i, s := range o.Shards {
+		ids[i] = s.ID
+	}
+	return ids
+}
+
 // Deploy recreates every instance container of the given pools on the current
 // image and env, starts them, and refreshes the edge routes. Instances that
 // stopped keep their volumes; the containers themselves are replaced.

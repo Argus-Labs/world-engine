@@ -377,16 +377,6 @@ func filterShardServices(services []service.Service, cfg *service.Config, shardI
 	return filtered
 }
 
-// deployedShardIDs lists the shard IDs in a Deploy payload, for reporting what a
-// reload or start actually rolled out.
-func deployedShardIDs(opts local.DeployOpts) []string {
-	ids := make([]string, len(opts.Shards))
-	for i, s := range opts.Shards {
-		ids[i] = s.ID
-	}
-	return ids
-}
-
 // requireShardID trims a shard id and rejects an empty one with the uniform error
 // every shard-scoped tool shares.
 func requireShardID(raw string) (string, error) {

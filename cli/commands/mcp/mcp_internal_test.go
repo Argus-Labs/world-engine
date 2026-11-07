@@ -752,7 +752,7 @@ func TestReloadShards_WaitScopeMatchesDeployScopeAndPurgeWipesAllReplicas(t *tes
 		},
 	}
 	deployOpts := local.DeployOpts{Shards: []local.DeployShard{{ID: "game"}}}
-	wantWait := cfg.PoolInstances(deployedShardIDs(deployOpts))
+	wantWait := cfg.PoolInstances(deployOpts.ShardIDs())
 	require.Equal(t, []string{"game", "game-2"}, wantWait, "sanity: deployed pool expands to both replicas")
 
 	t.Run("Purge", func(t *testing.T) {

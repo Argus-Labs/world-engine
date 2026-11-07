@@ -209,7 +209,7 @@ func startWorld(
 	}
 	ready, expected := rt.WaitForShardsReady(ctx, nil, nil) // a start brings up every instance
 
-	shardIDs := deployedShardIDs(deployOpts)
+	shardIDs := deployOpts.ShardIDs()
 	status := fmt.Sprintf("started %d shard(s) for %s/%s on Docker; API at %s/%s/<instance>",
 		len(shardIDs), cfg.Organization, cfg.Project, local.APIEndpoint, cfg.Project)
 	if args.Purge {

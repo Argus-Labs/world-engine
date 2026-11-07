@@ -296,11 +296,7 @@ func rollShards(
 
 	if waitReady {
 		// Deploy recreates every instance in each targeted pool, so wait for the whole pool.
-		deployedIDs := make([]string, len(deployShards))
-		for i, s := range deployShards {
-			deployedIDs[i] = s.ID
-		}
-		waitInstanceIDs := targets.poolInstances(deployedIDs)
+		waitInstanceIDs := targets.poolInstances(local.DeployOpts{Shards: deployShards}.ShardIDs())
 		var ready, expected int
 		waitForShardsReadyRow(sess, func(onProgress func(ready, expected int)) {
 			ready, expected = rt.WaitForShardsReady(ctx, waitInstanceIDs, onProgress)
