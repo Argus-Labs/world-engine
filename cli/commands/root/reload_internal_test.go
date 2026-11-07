@@ -15,8 +15,7 @@ import (
 )
 
 // threeInstanceConfig is the shared two-pool fixture: a 2-instance "game" pool
-// and a 1-instance "lobby" pool. Tests that need a different layout build their
-// own Config; the expected instance lists stay explicit in each test.
+// and a 1-instance "lobby" pool.
 func threeInstanceConfig() *service.Config {
 	return &service.Config{Project: "demo", WorldToml: worldtoml.Config{
 		Project: "demo",
@@ -167,6 +166,9 @@ func TestRollShards(t *testing.T) {
 			// This literal assertion is what catches a switch back to targets.shardIDs, since
 			// the resolved shard set is {game, lobby} while the deployed set is {game}.
 			assert.Equal(t, []string{"game", "game-2"}, fake.gotWait)
+			// The deploy scope is the named game pool only; the resolved lobby
+			// pool (in targets.shardIDs) must not be deployed.
+			assert.Equal(t, []string{"game"}, fake.gotDeploy)
 		})
 	}
 }

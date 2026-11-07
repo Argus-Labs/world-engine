@@ -783,6 +783,14 @@ func TestReloadShards_WaitScopeMatchesDeployScopeAndPurgeWipesAllReplicas(t *tes
 			"wait:" + strings.Join(wantWait, ","),
 		}, fake.events)
 	})
+
+	t.Run("Shortfall", func(t *testing.T) {
+		t.Parallel()
+		fake := &fakeReloadRuntime{waitReady: 1, waitExpected: 2}
+		err := reloadShards(context.Background(), fake, cfg, deployOpts, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "only 1/2 shard instances came back up")
+	})
 }
 
 // -------------------------------------------------------------------------------------------------
