@@ -570,8 +570,9 @@ func TestOraclePreSolveRecycleZeroDisablesContactWhileResting(t *testing.T) {
 // other half of the fix: updateContact recomputes the mixed friction and
 // restitution each step, and clearing simRelativeTransformValid when pre-solve
 // disables a contact keeps updateContact running. So while the resting pair
-// stays disabled, the material-mixing callbacks fire every step (they would
-// fire once and stop if the recycling fast path skipped updateContact).
+// stays disabled, the material-mixing callbacks advance every step (contact
+// creation already calls them once, so the test checks per-step advancement
+// rather than a fixed total).
 func TestOraclePreSolveDisabledContactRefreshesMaterialCallbacks(t *testing.T) {
 	t.Parallel()
 
@@ -588,16 +589,18 @@ func TestOraclePreSolveDisabledContactRefreshesMaterialCallbacks(t *testing.T) {
 		return 0.0
 	})
 	w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
-		return false // disable the contact every step
+		return false
 	}, nil)
 
 	const steps = 10
-	wboStep(w, steps)
-
-	require.GreaterOrEqual(t, frictionCalls, steps,
-		"the friction callback must re-run each step while the contact is disabled, not freeze after the first")
-	require.GreaterOrEqual(t, restitutionCalls, steps,
-		"the restitution callback must re-run each step while the contact is disabled, not freeze after the first")
+	for range steps {
+		prevFriction, prevRestitution := frictionCalls, restitutionCalls
+		wboStep(w, 1)
+		require.Greater(t, frictionCalls, prevFriction,
+			"the friction callback must advance every step while the contact is disabled, not freeze after the first")
+		require.Greater(t, restitutionCalls, prevRestitution,
+			"the restitution callback must advance every step while the contact is disabled, not freeze after the first")
+	}
 	require.InDelta(t, wboRestingBoxY, w.BodyPosition(body).Y, 0.0,
 		"the disabled contact must not move the box")
 }

@@ -836,11 +836,14 @@ func (w *World) SetContactTuning(hertz, dampingRatio, pushSpeed float64) {
 
 // SetContactRecycleDistance sets the contact recycle distance
 // (upstream b2World_SetContactRecycleDistance). Below this relative-motion
-// threshold, contacts with a valid cached transform reuse their manifold and
-// skip manifold, material, and pre-solve updates. Non-touching contacts use
-// the smaller of this distance and SpeculativeDistance. Zero disables
-// recycling world-wide, forcing every awake contact to re-run updateContact
-// (and re-invoke pre-solve) each step.
+// threshold, contacts with a valid cached transform skip manifold
+// regeneration and skip material and pre-solve updates; the recycled path
+// keeps the cached manifold and still updates point separations. Non-touching
+// contacts use the smaller of this distance and SpeculativeDistance. Zero
+// disables recycling world-wide, forcing every awake contact to re-run
+// updateContact each step. This does not by itself guarantee a pre-solve
+// callback: disjoint proxies skip the update, and pre-solve is still only
+// invoked when the shapes produce contact points and the events are enabled.
 func (w *World) SetContactRecycleDistance(recycleDistance float64) {
 	assert(!w.locked)
 	if w.locked {
