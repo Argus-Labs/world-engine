@@ -1506,18 +1506,14 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		// the retained apex; a point outside is retained, and the lower
 		// point drops as interior to the triangle formed with the two
 		// anchors.
-		// This pins the coefficient behaviorally: the expression-only
-		// length-units test does not exercise ComputeHull, and these
-		// spacings would fail under a different coefficient (e.g. 0.1).
 		// The "exact radius" row places the pair at zero and radius so
 		// the squared distance equals tolSqr without subtraction
 		// rounding; strict < keeps the upper apex, <= would weld it to
 		// the lower point.
 		radius := float64(0.5 * box2d.LinearSlop)
-		// The outside and exact-radius cases supply the lower point
-		// first so an excessively large weld radius removes the upper
-		// apex and fails the retention check; with retained-first order
-		// the upper apex would survive any coefficient.
+		// The outside and exact-radius cases put the lower point first
+		// so increasing the weld radius past the pair's separation
+		// removes the expected upper apex and fails the retention check.
 		cases := []struct {
 			name         string
 			retained     box2d.Vec2
@@ -1530,7 +1526,8 @@ func TestOracleHullEdgeCases(t *testing.T) {
 			{"outside", box2d.Vec2{X: 0, Y: 1}, box2d.Vec2{X: 0, Y: 1 - (radius + 1e-6)}, true, [2]box2d.Vec2{{X: -1, Y: 0}, {X: 1, Y: 0}}},
 			{"exact radius", box2d.Vec2{X: 0, Y: radius}, box2d.Vec2{X: 0, Y: 0}, true, [2]box2d.Vec2{{X: -1, Y: -1}, {X: 1, Y: -1}}},
 		}
-		for _, tc := range cases {
+		for i := range cases {
+			tc := &cases[i]
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				first, second := tc.retained, tc.discarded
