@@ -4,10 +4,6 @@
 // truth (box2d/src at v3.2.0-era vendor) or from upstream test_world.c and
 // docs/simulation.md — never from running the Go port. C citations are given
 // as file:line next to each nontrivial assertion.
-//
-// Upstream Box2D v3.2.0 src/contact.c:621-625 clears
-// simRelativeTransformValid when a pre-solve callback disables a contact,
-// forcing updateContact (and the pre-solve callback) to re-run the next step.
 
 package box2d_test
 
@@ -88,6 +84,14 @@ func wboRestingPreSolveScene(t *testing.T) (*box2d.World, box2d.BodyID) {
 	body, boxShape := wboDynamicBox(t, w, box2d.Vec2{X: 0.0, Y: wboRestingBoxY})
 	w.EnableShapePreSolveEvents(boxShape, true)
 	return w, body
+}
+
+// wboStep steps the world with this suite's wboDT/wboSubSteps, decoupling the
+// pre-solve scenes from oracle_joint_test.go's constants.
+func wboStep(w *box2d.World, steps int) {
+	for range steps {
+		w.Step(wboDT, wboSubSteps)
+	}
 }
 
 // TestOracleEmptyWorld ports EmptyWorld (test_world.c:101-121): stepping an
@@ -496,17 +500,17 @@ func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
 		return !disable
 	}, nil)
 
-	oracleJointStep(w, disabledSteps)
+	wboStep(w, disabledSteps)
 	require.Equal(t, disabledSteps, calls,
 		"pre-solve must fire every step during the disabled phase")
 	require.InDelta(t, wboRestingBoxY, w.BodyPosition(body).Y, 0.0,
 		"box must not move while the contact is disabled")
 
 	disable = false
-	oracleJointStep(w, 1)
+	wboStep(w, 1)
 	require.Equal(t, disabledSteps+1, calls,
 		"pre-solve must be re-consulted on the first step after the toggle to re-enable the contact")
-	oracleJointStep(w, disabledSteps-1)
+	wboStep(w, disabledSteps-1)
 
 	// With zero gravity there is no force holding the box at the fully
 	// separated center (y=0.5); the solver can push it beyond that. Read
@@ -522,8 +526,7 @@ func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
 // disabling the recycling fast path makes the narrow phase re-run
 // updateContact every step, so the pre-solve callback is re-consulted for an
 // already-enabled resting pair and the enabled→disabled toggle takes effect
-// (the box drops through the ground). The toggle test above covers the
-// opposite (disabled→enabled) direction.
+// (the box drops through the ground).
 func TestOraclePreSolveRecycleZeroDisablesContactWhileResting(t *testing.T) {
 	t.Parallel()
 
@@ -539,7 +542,7 @@ func TestOraclePreSolveRecycleZeroDisablesContactWhileResting(t *testing.T) {
 		return enabled
 	}, nil)
 
-	oracleJointStep(w, enabledSteps)
+	wboStep(w, enabledSteps)
 	require.Equal(t, enabledSteps, calls,
 		"with recycle distance 0 the callback fires every step even for the resting enabled pair")
 	require.InDelta(t, 0.5, w.BodyPosition(body).Y, 4.0*box2d.LinearSlop,
@@ -553,14 +556,50 @@ func TestOraclePreSolveRecycleZeroDisablesContactWhileResting(t *testing.T) {
 	const postToggleSteps = 120
 	mid := calls
 	for range checkedSteps {
-		oracleJointStep(w, 1)
+		wboStep(w, 1)
 		require.Greater(t, calls, mid,
 			"the callback must keep firing each overlapping step after the toggle to disabled")
 		mid = calls
 	}
-	oracleJointStep(w, postToggleSteps-checkedSteps)
+	wboStep(w, postToggleSteps-checkedSteps)
 	require.Less(t, w.BodyPosition(body).Y, -5.0,
 		"the disabled contact must let the box fall through the ground")
+}
+
+// TestOraclePreSolveDisabledContactRefreshesMaterialCallbacks verifies the
+// other half of the fix: updateContact recomputes the mixed friction and
+// restitution each step, and clearing simRelativeTransformValid when pre-solve
+// disables a contact keeps updateContact running. So while the resting pair
+// stays disabled, the material-mixing callbacks fire every step (they would
+// fire once and stop if the recycling fast path skipped updateContact).
+func TestOraclePreSolveDisabledContactRefreshesMaterialCallbacks(t *testing.T) {
+	t.Parallel()
+
+	w, body := wboRestingPreSolveScene(t)
+
+	frictionCalls := 0
+	restitutionCalls := 0
+	w.SetFrictionCallback(func(_ float64, _ uint64, _ float64, _ uint64) float64 {
+		frictionCalls++
+		return 0.0
+	})
+	w.SetRestitutionCallback(func(_ float64, _ uint64, _ float64, _ uint64) float64 {
+		restitutionCalls++
+		return 0.0
+	})
+	w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
+		return false // disable the contact every step
+	}, nil)
+
+	const steps = 10
+	wboStep(w, steps)
+
+	require.GreaterOrEqual(t, frictionCalls, steps,
+		"the friction callback must re-run each step while the contact is disabled, not freeze after the first")
+	require.GreaterOrEqual(t, restitutionCalls, steps,
+		"the restitution callback must re-run each step while the contact is disabled, not freeze after the first")
+	require.InDelta(t, wboRestingBoxY, w.BodyPosition(body).Y, 0.0,
+		"the disabled contact must not move the box")
 }
 
 // TestOracleFrictionCallbackOverride: b2UpdateContact recomputes the mixed
