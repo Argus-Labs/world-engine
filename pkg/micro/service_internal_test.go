@@ -78,7 +78,7 @@ func TestService_Handler(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		assert.Contains(t, err.Error(), assert.AnError.Error())
+		assert.Equal(t, assert.AnError.Error(), status.Convert(err).Message())
 	})
 
 	t.Run("malformed request", func(t *testing.T) {

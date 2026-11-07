@@ -64,21 +64,29 @@ func TestClient_Request(t *testing.T) {
 		assert.Equal(t, int32(codes.OK), response.GetStatus().GetCode())
 	})
 
-	t.Run("handler returns error", func(t *testing.T) {
-		t.Parallel()
+	requestStatusError := func(
+		t *testing.T,
+		buildResponse func(req *micro.Request) *micro.Response,
+		wantCode codes.Code,
+		checkStatus func(*testing.T, *status.Status),
+	) {
+		t.Helper()
+
 		rng := testutils.NewRand(t)
 		address := micro.RandServiceAddress(t, rng)
-		endpoint := "app-error"
+		endpoint := "status-error"
 
 		sub := newTestHandler(t, client, micro.Endpoint(address, endpoint), func(msg *nats.Msg) {
 			req, err := micro.NewRequestFromNATSMsg(msg, address)
-			require.NoError(t, err)
-
-			resp := micro.NewErrorResponse(req, errors.New("insufficient funds"), codes.InvalidArgument)
-			responseBytes, err := resp.Bytes()
-			require.NoError(t, err)
-
-			msg.Respond(responseBytes)
+			if !assert.NoError(t, err) {
+				return
+			}
+			resp := buildResponse(req)
+			b, err := resp.Bytes()
+			if !assert.NoError(t, err) {
+				return
+			}
+			msg.Respond(b)
 		})
 		defer sub.Unsubscribe()
 
@@ -88,11 +96,23 @@ func TestClient_Request(t *testing.T) {
 		defer cancel()
 
 		response, err := client.Request(ctx, address, endpoint, testPayload)
-
 		require.Error(t, err)
 		assert.Nil(t, response)
-		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		assert.Contains(t, err.Error(), "insufficient funds")
+		assert.Equal(t, wantCode, status.Code(err))
+		checkStatus(t, status.Convert(err))
+	}
+
+	t.Run("handler returns error", func(t *testing.T) {
+		t.Parallel()
+		requestStatusError(t,
+			func(req *micro.Request) *micro.Response {
+				return micro.NewErrorResponse(req, errors.New("insufficient funds"), codes.InvalidArgument)
+			},
+			codes.InvalidArgument,
+			func(t *testing.T, st *status.Status) {
+				assert.Equal(t, "insufficient funds", st.Message())
+			},
+		)
 	})
 
 	t.Run("handler returns malformed response", func(t *testing.T) {
@@ -118,60 +138,23 @@ func TestClient_Request(t *testing.T) {
 		assert.Contains(t, err.Error(), "unmarshal")
 	})
 
-	// requestStatusError wires a handler that builds a Response from the request,
-	// sends a Request, and asserts the returned error carries wantCode. checkStatus,
-	// if non-nil, asserts additional status fields (message, details).
-	requestStatusError := func(
-		t *testing.T,
-		buildResponse func(req *micro.Request) *micro.Response,
-		wantCode codes.Code,
-		checkStatus func(*testing.T, *status.Status),
-	) {
-		t.Helper()
-
-		rng := testutils.NewRand(t)
-		address := micro.RandServiceAddress(t, rng)
-		endpoint := "status-error"
-
-		sub := newTestHandler(t, client, micro.Endpoint(address, endpoint), func(msg *nats.Msg) {
-			req, err := micro.NewRequestFromNATSMsg(msg, address)
-			require.NoError(t, err)
-			resp := buildResponse(req)
-			b, err := resp.Bytes()
-			require.NoError(t, err)
-			msg.Respond(b)
-		})
-		defer sub.Unsubscribe()
-
-		require.NoError(t, client.Flush())
-
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		response, err := client.Request(ctx, address, endpoint, testPayload)
-		require.Error(t, err)
-		assert.Nil(t, response)
-		assert.Equal(t, wantCode, status.Code(err))
-		if checkStatus != nil {
-			checkStatus(t, status.Convert(err))
-		}
-	}
-
 	t.Run("preserves gRPC status code", func(t *testing.T) {
 		t.Parallel()
 		cases := []struct {
+			name    string
 			code    codes.Code
 			message string
 		}{
-			{codes.NotFound, "thing not found"},
-			{codes.AlreadyExists, "already exists"},
-			{codes.Unavailable, "temporarily unavailable"},
-			{codes.ResourceExhausted, "quota exceeded"},
-			{codes.PermissionDenied, "access denied"},
-			{codes.Unimplemented, "not supported"},
+			{"NotFound", codes.NotFound, "thing not found"},
+			{"AlreadyExists", codes.AlreadyExists, "already exists"},
+			{"Unavailable", codes.Unavailable, "temporarily unavailable"},
+			{"ResourceExhausted", codes.ResourceExhausted, "quota exceeded"},
+			{"PermissionDenied", codes.PermissionDenied, "access denied"},
+			{"Unimplemented", codes.Unimplemented, "not supported"},
+			{"NotFoundEmptyMessage", codes.NotFound, ""},
 		}
 		for _, tc := range cases {
-			t.Run(tc.code.String(), func(t *testing.T) {
+			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				requestStatusError(t,
 					func(req *micro.Request) *micro.Response {
@@ -186,22 +169,9 @@ func TestClient_Request(t *testing.T) {
 		}
 	})
 
-	t.Run("non-OK code with empty message", func(t *testing.T) {
-		t.Parallel()
-		requestStatusError(t,
-			func(req *micro.Request) *micro.Response {
-				return micro.NewErrorResponse(req, errors.New(""), codes.NotFound)
-			},
-			codes.NotFound,
-			func(t *testing.T, st *status.Status) {
-				assert.Empty(t, st.Message())
-			},
-		)
-	})
-
 	t.Run("preserves status details", func(t *testing.T) {
 		t.Parallel()
-		detail := micro.RandServiceAddress(t, testutils.NewRand(t))
+		detail := &micro.ServiceAddress{Project: "detail-proj", ServiceId: "detail-svc"}
 		requestStatusError(t,
 			func(req *micro.Request) *micro.Response {
 				st, err := status.New(codes.FailedPrecondition, "state conflict").WithDetails(detail)
