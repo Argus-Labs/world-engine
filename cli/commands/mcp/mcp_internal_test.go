@@ -705,28 +705,6 @@ func TestDeployShardsFromConfig_FiltersByShardID(t *testing.T) {
 	assert.Empty(t, deployShardsFromConfig(cfg, "nope"))
 }
 
-// Replicas each keep their own state, so a purge wipes per instance. The first
-// replica keeps the pool's base ID; later ones are suffixed.
-func TestShardInstances_ListsPoolReplicas(t *testing.T) {
-	t.Parallel()
-	cfg := worldtoml.Config{Shards: []worldtoml.Shard{
-		{ID: "game", InstanceID: "game"},
-		{ID: "game", InstanceID: "game-2"},
-		{ID: "lobby", InstanceID: "lobby"},
-	}}
-
-	assert.Equal(t, []string{"game", "game-2"}, shardInstances(cfg, "game"))
-	assert.Equal(t, []string{"lobby"}, shardInstances(cfg, "lobby"))
-	assert.Empty(t, shardInstances(cfg, "missing"))
-}
-
-// An unexpanded shard (no InstanceID) falls back to its pool ID.
-func TestShardInstances_FallsBackToShardID(t *testing.T) {
-	t.Parallel()
-	cfg := worldtoml.Config{Shards: []worldtoml.Shard{{ID: "game"}}}
-	assert.Equal(t, []string{"game"}, shardInstances(cfg, "game"))
-}
-
 // -------------------------------------------------------------------------------------------------
 // world_lifecycle handler tests
 // -------------------------------------------------------------------------------------------------

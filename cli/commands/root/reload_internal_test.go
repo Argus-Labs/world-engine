@@ -1,76 +1,31 @@
 package root
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argus-labs/world-engine/cli/internal/tui/component/phasebox"
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
+	"github.com/argus-labs/world-engine/cli/pkg/local"
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
-// -------------------------------------------------------------------------------------------------
-// shardPoolInstances
-// -------------------------------------------------------------------------------------------------
-
-// Replicas each keep their own state, so the expansion must list every pool
-// instance — the same invariant the MCP reload's shardInstances enforces.
-func TestShardPoolInstances_ExpandsToAllPoolInstances(t *testing.T) {
-	t.Parallel()
-	cfg := worldtoml.Config{Shards: []worldtoml.Shard{
-		{ID: "game", InstanceID: "game"},
-		{ID: "game", InstanceID: "game-2"},
-		{ID: "lobby", InstanceID: "lobby"},
+// threeInstanceConfig is the shared two-pool fixture: a 2-instance "game" pool
+// and a 1-instance "lobby" pool. Tests that need a different layout build their
+// own Config; the expected instance lists stay explicit in each test.
+func threeInstanceConfig() *service.Config {
+	return &service.Config{Project: "demo", WorldToml: worldtoml.Config{
+		Project: "demo",
+		Shards: []worldtoml.Shard{
+			{ID: "game", InstanceID: "game"},
+			{ID: "game", InstanceID: "game-2"},
+			{ID: "lobby", InstanceID: "lobby"},
+		},
 	}}
-	assert.Equal(t, []string{"game", "game-2"}, shardPoolInstances(cfg, []string{"game"}))
-	assert.Equal(t, []string{"lobby"}, shardPoolInstances(cfg, []string{"lobby"}))
-}
-
-func TestShardPoolInstances_MultipleShards(t *testing.T) {
-	t.Parallel()
-	cfg := worldtoml.Config{Shards: []worldtoml.Shard{
-		{ID: "game", InstanceID: "game"},
-		{ID: "game", InstanceID: "game-2"},
-		{ID: "lobby", InstanceID: "lobby"},
-		{ID: "chat", InstanceID: "chat"},
-	}}
-	assert.Equal(t, []string{"game", "game-2", "lobby"},
-		shardPoolInstances(cfg, []string{"game", "lobby"}))
-	assert.Equal(t, []string{"game", "game-2", "lobby", "chat"},
-		shardPoolInstances(cfg, []string{"game", "lobby", "chat"}))
-}
-
-// An unexpanded shard (no InstanceID) falls back to its pool ID, matching the
-// MCP shardInstances fallback.
-func TestShardPoolInstances_FallsBackToShardID(t *testing.T) {
-	t.Parallel()
-	cfg := worldtoml.Config{Shards: []worldtoml.Shard{{ID: "game"}}}
-	assert.Equal(t, []string{"game"}, shardPoolInstances(cfg, []string{"game"}))
-}
-
-func TestShardPoolInstances_UnknownShardYieldsNothing(t *testing.T) {
-	t.Parallel()
-	cfg := worldtoml.Config{Shards: []worldtoml.Shard{{ID: "game", InstanceID: "game"}}}
-	assert.Empty(t, shardPoolInstances(cfg, []string{"nope"}))
-}
-
-func TestShardPoolInstances_EmptyShardIDs(t *testing.T) {
-	t.Parallel()
-	cfg := worldtoml.Config{Shards: []worldtoml.Shard{{ID: "game", InstanceID: "game"}}}
-	assert.Empty(t, shardPoolInstances(cfg, nil))
-}
-
-// Instances are collected in world.toml order, so a pool's replicas appear in
-// declaration order regardless of how many other shards are interleaved.
-func TestShardPoolInstances_PreservesWorldTomlOrder(t *testing.T) {
-	t.Parallel()
-	cfg := worldtoml.Config{Shards: []worldtoml.Shard{
-		{ID: "game", InstanceID: "game"},
-		{ID: "lobby", InstanceID: "lobby"},
-		{ID: "game", InstanceID: "game-2"},
-	}}
-	assert.Equal(t, []string{"game", "game-2"}, shardPoolInstances(cfg, []string{"game"}))
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -80,18 +35,11 @@ func TestShardPoolInstances_PreservesWorldTomlOrder(t *testing.T) {
 // TestResolveReloadTargets_WaitInstanceIDsCoversAllPoolInstances is the core
 // regression guard: naming one instance of a pool_size > 1 shard must produce a
 // waitInstanceIDs list that covers every sibling, because the deploy recreates
-// the whole pool. Before the fix, waitInstanceIDs was just the user-named
-// instance, so a crashed sibling went unnoticed and the command exited 0.
+// the whole pool. Before the fix, the wait used instanceIDs (just the named
+// instance), so a crashed sibling went unnoticed and the command exited 0.
 func TestResolveReloadTargets_WaitInstanceIDsCoversAllPoolInstances(t *testing.T) {
 	t.Parallel()
-	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{
-		Project: "demo",
-		Shards: []worldtoml.Shard{
-			{ID: "game", InstanceID: "game"},
-			{ID: "game", InstanceID: "game-2"},
-			{ID: "lobby", InstanceID: "lobby"},
-		},
-	}}
+	cfg := threeInstanceConfig()
 	targets, err := resolveReloadTargets(cfg, []string{"game-2"})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"game"}, targets.shardIDs, "shardIDs should be the pool ID")
@@ -105,14 +53,7 @@ func TestResolveReloadTargets_WaitInstanceIDsCoversAllPoolInstances(t *testing.T
 // instance — the same behavior as before the fix, since shardIDs is every pool.
 func TestResolveReloadTargets_EmptyInstanceIDsWaitsAll(t *testing.T) {
 	t.Parallel()
-	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{
-		Project: "demo",
-		Shards: []worldtoml.Shard{
-			{ID: "game", InstanceID: "game"},
-			{ID: "game", InstanceID: "game-2"},
-			{ID: "lobby", InstanceID: "lobby"},
-		},
-	}}
+	cfg := threeInstanceConfig()
 	targets, err := resolveReloadTargets(cfg, nil)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"game", "game-2", "lobby"}, targets.waitInstanceIDs,
@@ -147,14 +88,7 @@ func TestResolveReloadTargets_MultiplePoolsWaitAll(t *testing.T) {
 // unnoticed — the wait scope is exactly the deploy scope.
 func TestResolveReloadTargets_WaitScopeMatchesDeployScope(t *testing.T) {
 	t.Parallel()
-	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{
-		Project: "demo",
-		Shards: []worldtoml.Shard{
-			{ID: "game", InstanceID: "game"},
-			{ID: "game", InstanceID: "game-2"},
-			{ID: "lobby", InstanceID: "lobby"},
-		},
-	}}
+	cfg := threeInstanceConfig()
 	targets, err := resolveReloadTargets(cfg, []string{"game-2"})
 	require.NoError(t, err)
 
@@ -163,8 +97,9 @@ func TestResolveReloadTargets_WaitScopeMatchesDeployScope(t *testing.T) {
 		shardSet[id] = true
 	}
 	instanceToShard := make(map[string]string, len(cfg.WorldToml.Shards))
-	for _, sh := range cfg.WorldToml.Shards {
-		instanceToShard[sh.InstanceID] = sh.ID
+	for i := range cfg.WorldToml.Shards {
+		s := &cfg.WorldToml.Shards[i]
+		instanceToShard[s.InstanceID] = s.ID
 	}
 
 	// Every wait instance belongs to a targeted shard.
@@ -179,13 +114,14 @@ func TestResolveReloadTargets_WaitScopeMatchesDeployScope(t *testing.T) {
 	for _, id := range targets.waitInstanceIDs {
 		waitSet[id] = true
 	}
-	for _, sh := range cfg.WorldToml.Shards {
-		if !shardSet[sh.ID] {
+	for i := range cfg.WorldToml.Shards {
+		s := &cfg.WorldToml.Shards[i]
+		if !shardSet[s.ID] {
 			continue
 		}
-		assert.True(t, waitSet[sh.InstanceID],
+		assert.True(t, waitSet[s.InstanceID],
 			"shard %q instance %q is in a targeted pool but not in waitInstanceIDs",
-			sh.ID, sh.InstanceID)
+			s.ID, s.InstanceID)
 	}
 }
 
@@ -206,4 +142,89 @@ func TestResolveReloadTargets_NamingAllInstancesMatchesNamingOne(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, one.waitInstanceIDs, all.waitInstanceIDs,
 		"naming one instance or all must produce the same wait scope (the whole pool)")
+}
+
+// -------------------------------------------------------------------------------------------------
+// rollShards
+// -------------------------------------------------------------------------------------------------
+
+// fakeShardRoller is a shardRoller stand-in for unit-testing rollShards without
+// a Docker daemon. It records the instance IDs handed to WaitForShardsReady and
+// returns caller-configured ready/expected counts, so a test can assert the wait
+// scope directly: reverting the production argument to targets.instanceIDs
+// would make gotWait the named instance only, failing these tests.
+type fakeShardRoller struct {
+	pruneErr     error
+	deployErr    error
+	gotWait      []string
+	waitReady    int
+	waitExpected int
+}
+
+func (f *fakeShardRoller) PruneOrphanedShards(context.Context) error { return f.pruneErr }
+func (f *fakeShardRoller) Deploy(context.Context, local.DeployOpts) error {
+	return f.deployErr
+}
+func (f *fakeShardRoller) WaitForShardsReady(_ context.Context, instanceIDs []string, _ func(int, int)) (int, int) {
+	f.gotWait = instanceIDs
+	return f.waitReady, f.waitExpected
+}
+
+// TestRollShards_WaitScopeCoversWholePool is the rollShards-level regression
+// guard: naming one instance of a pool_size > 1 shard must make rollShards wait
+// on every sibling the deploy recreated, not just the named instance. game down
+// + game-2 healthy surfaces as shardsNotReadyError (1/2 ready) — the false-success
+// path the fix closes. The unrelated lobby pool the caller did not name stays out
+// of the wait scope.
+func TestRollShards_WaitScopeCoversWholePool(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	dash := phasebox.Start(ctx, phasebox.Plain)
+	defer dash.Complete()
+
+	cfg := threeInstanceConfig()
+	targets, err := resolveReloadTargets(cfg, []string{"game-2"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"game"}, targets.shardIDs)
+	require.Equal(t, []string{"game-2"}, targets.instanceIDs)
+	require.Equal(t, []string{"game", "game-2"}, targets.waitInstanceIDs)
+
+	fake := &fakeShardRoller{waitReady: 1, waitExpected: 2} // game down, game-2 healthy
+	err = dash.Run("Shards",
+		func(ctx context.Context, sess phasebox.Session) error {
+			return rollShards(ctx, sess, fake, targets, []local.DeployShard{{ID: "game"}}, true)
+		},
+		func(time.Duration) string { return "reloaded" },
+	)
+	require.Error(t, err)
+	var notReady *shardsNotReadyError
+	require.ErrorAs(t, err, &notReady)
+	assert.Equal(t, 1, notReady.ready)
+	assert.Equal(t, 2, notReady.expected)
+	// The wait covered the whole game pool; the unrelated lobby pool stayed out.
+	assert.Equal(t, []string{"game", "game-2"}, fake.gotWait)
+}
+
+// TestRollShards_AllReadyExitsZero covers the happy path: when every waited
+// instance comes back, rollShards returns nil. The wait scope is still the whole
+// pool, so gotWait is [game, game-2] (not the single named instance).
+func TestRollShards_AllReadyExitsZero(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	dash := phasebox.Start(ctx, phasebox.Plain)
+	defer dash.Complete()
+
+	cfg := threeInstanceConfig()
+	targets, err := resolveReloadTargets(cfg, []string{"game-2"})
+	require.NoError(t, err)
+
+	fake := &fakeShardRoller{waitReady: 2, waitExpected: 2} // both game instances healthy
+	err = dash.Run("Shards",
+		func(ctx context.Context, sess phasebox.Session) error {
+			return rollShards(ctx, sess, fake, targets, []local.DeployShard{{ID: "game"}}, true)
+		},
+		func(time.Duration) string { return "reloaded" },
+	)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"game", "game-2"}, fake.gotWait)
 }

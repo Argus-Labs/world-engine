@@ -139,7 +139,7 @@ func reloadShards(
 			// Replicas each keep their own state, so wipe per instance. A wipe
 			// failure IS fatal: redeploying over stale snapshots would resume the
 			// old tick — the opposite of the fresh start asked for.
-			for _, instance := range shardInstances(cfg, shard.ID) {
+			for _, instance := range cfg.PoolInstances([]string{shard.ID}) {
 				if err := rt.PurgeShardState(ctx, instance); err != nil {
 					return eris.Wrapf(err, "failed to wipe state for %q", instance)
 				}
@@ -160,29 +160,12 @@ func reloadShards(
 	// would burn the whole timeout and then report a shortfall that is not this reload's.
 	var reloaded []string
 	for _, shard := range deployOpts.Shards {
-		reloaded = append(reloaded, shardInstances(cfg, shard.ID)...)
+		reloaded = append(reloaded, cfg.PoolInstances([]string{shard.ID})...)
 	}
 	if ready, expected := rt.WaitForShardsReady(ctx, reloaded, nil); ready < expected {
 		return eris.Errorf("only %d/%d shard instances came back up; check the shard logs", ready, expected)
 	}
 	return nil
-}
-
-// shardInstances lists a pool's replica instance IDs — the granularity
-// PurgeShardState wipes at, since each replica keeps its own state.
-func shardInstances(cfg worldtoml.Config, poolID string) []string {
-	instances := make([]string, 0, 1)
-	for _, s := range cfg.Shards {
-		if s.ID != poolID {
-			continue
-		}
-		instance := s.InstanceID
-		if instance == "" {
-			instance = s.ID
-		}
-		instances = append(instances, instance)
-	}
-	return instances
 }
 
 // requireRunning refuses a reload on a world whose platform is down, mirroring

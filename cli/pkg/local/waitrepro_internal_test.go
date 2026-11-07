@@ -13,15 +13,17 @@ import (
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
 
-// startDeadListener holds a port with an accept-and-close loop, mimicking
-// Docker's port proxy in front of a container that is not serving: a TCP dial
-// succeeds but an HTTP request must not. This is what a crashed sibling looks
-// like to WaitForShardsReady's probes.
-func startDeadListener(t *testing.T, port string) net.Listener {
+// startDeadListener binds an accept-and-close loop on addr, mimicking Docker's
+// port proxy in front of a container that is not serving: a TCP dial succeeds
+// but an HTTP request must not. This is what a crashed sibling looks like to
+// WaitForShardsReady's probes. Returns the listener (close to stop) and the
+// bound port (useful when addr is "127.0.0.1:0"). Shared with the probe tests so
+// the two packages of readiness tests cannot drift on the listener contract.
+func startDeadListener(t *testing.T, addr string) (net.Listener, int) {
 	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:"+port)
+	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		t.Skipf("port %s unavailable: %v", port, err)
+		t.Fatalf("listen %s: %v", addr, err)
 	}
 	go func() {
 		for {
@@ -32,88 +34,110 @@ func startDeadListener(t *testing.T, port string) net.Listener {
 			_ = c.Close()
 		}
 	}()
-	return ln
+	return ln, ln.Addr().(*net.TCPAddr).Port
 }
 
-// startServingListener binds a real HTTP server on a port, so shardReady counts
-// it as ready (it replies to an HTTP request, even with 404).
-func startServingListener(t *testing.T, port string) *http.Server {
+// startServingListener binds a real HTTP server on addr, so shardReady counts
+// it as ready (it replies to an HTTP request, even with 404). Returns the server
+// (close to stop) and the bound port.
+func startServingListener(t *testing.T, addr string) (*http.Server, int) {
 	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:"+port)
+	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		t.Skipf("port %s unavailable: %v", port, err)
+		t.Fatalf("listen %s: %v", addr, err)
 	}
 	srv := &http.Server{ReadHeaderTimeout: time.Second, Handler: http.NotFoundHandler()}
 	go func() { _ = srv.Serve(ln) }()
-	return srv
+	return srv, ln.Addr().(*net.TCPAddr).Port
 }
 
-// poolShardConfig builds a 2-instance "game" pool (ports 8081–8082) for the
-// reproduction tests.
+// poolShardConfig builds a 2-instance "game" pool for the reproduction tests.
+// Ports are not in the config — the waiter derives them via shardHostPort, which
+// the tests override to free ports so a running local world cannot collide.
 func poolShardConfig() *service.Config {
 	return &service.Config{Project: "demo", WorldToml: worldtoml.Config{
 		Project: "demo",
 		Shards: []worldtoml.Shard{
-			{ID: "game", InstanceID: "game"},   // ShardHostPort(0) = 8081
-			{ID: "game", InstanceID: "game-2"}, // ShardHostPort(1) = 8082
+			{ID: "game", InstanceID: "game"},
+			{ID: "game", InstanceID: "game-2"},
 		},
 	}}
 }
 
-// TestWaitForShardsReadySingleInstanceBlindSpot reproduces the bug mechanism:
-// when only the user-named instance is probed, WaitForShardsReady returns
-// ready==expected (success) even though a sibling recreated by the deploy is
-// dead. The deploy recreates the whole pool, so the wait must cover every
-// sibling — but WaitForShardsReady itself is correct; the bug was in the caller
-// (rollShards) passing too narrow a list. This test pins the mechanism the fix
-// relies on: a single-instance scope cannot see a dead sibling.
-func TestWaitForShardsReadySingleInstanceBlindSpot(t *testing.T) {
-	r := New(nil, poolShardConfig())
-
-	// Serve real HTTP only on game-2's port (8082); game (8081) is dead.
-	srv := startServingListener(t, "8082")
-	defer srv.Close()
-	deadLn := startDeadListener(t, "8081")
+// withFreePorts overrides shardHostPort to return the given free ports (one per
+// shard instance, in world.toml order) for the duration of fn, then restores it.
+// The listeners are bound up front on "127.0.0.1:0" and their actual ports feed
+// shardHostPort, so the waiter probes real listeners without touching the
+// production 8081+i ports a developer's running world may already hold.
+func withFreePorts(t *testing.T, fn func(p0, p1 int)) {
+	t.Helper()
+	deadLn, p0 := startDeadListener(t, "127.0.0.1:0")
 	defer deadLn.Close()
+	srv, p1 := startServingListener(t, "127.0.0.1:0")
+	defer srv.Close()
 
-	// CLI scope (before fix): only the user-named instance.
-	// ready=1, expected=1 → false success while game is dead.
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	ready, expected := r.WaitForShardsReady(ctx, []string{"game-2"}, nil)
-	assert.Equal(t, 1, expected, "single-instance scope: expected should be 1")
-	assert.Equal(t, 1, ready, "single-instance scope: ready should be 1 (game-2 is serving)")
-	// The blind spot: ready == expected, so the command would exit 0
-	// even though game is dead.
+	prev := shardHostPort
+	shardHostPort = func(i int) int { return []int{p0, p1}[i] }
+	defer func() { shardHostPort = prev }()
+	fn(p0, p1)
 }
 
-// TestWaitForShardsReadyScopedWaitCountsDeadSiblings verifies that expanding the
-// wait to every pool instance (the fix) makes WaitForShardsReady detect the dead
-// sibling: ready < expected, triggering the shardsNotReadyError path.
-func TestWaitForShardsReadyScopedWaitCountsDeadSiblings(t *testing.T) {
-	r := New(nil, poolShardConfig())
+// TestWaitForShardsReadyWaitScope reproduces the bug mechanism and its fix in one
+// table: game (instance 0) is dead and game-2 (instance 1) is serving, so the
+// listener setup is shared and only the wait scope (the instance IDs handed to
+// WaitForShardsReady) and the expected counts change.
+//
+// The SingleInstanceBlindSpot case is the bug: probing only the user-named
+// instance returns ready==expected (false success) while a sibling recreated by
+// the deploy is dead. The fix lives in the caller (rollShards), which must pass
+// the whole pool; this pins the mechanism the fix relies on.
+//
+// The ScopedWaitCountsDeadSiblings case is the fixed scope: probing every
+// instance of the deployed pool returns ready<expected, the path that surfaces
+// shardsNotReadyError.
+func TestWaitForShardsReadyWaitScope(t *testing.T) {
+	withFreePorts(t, func(p0, p1 int) {
+		r := New(nil, poolShardConfig())
 
-	// Serve real HTTP only on game-2's port (8082); game (8081) is dead.
-	srv := startServingListener(t, "8082")
-	defer srv.Close()
-	deadLn := startDeadListener(t, "8081")
-	defer deadLn.Close()
-
-	// Fixed scope: every instance of the deployed pool.
-	// ready=1, expected=2 → ready < expected → shardsNotReadyError path.
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	var lastReady, lastExpected int
-	ready, expected := r.WaitForShardsReady(ctx, []string{"game", "game-2"},
-		func(ready, expected int) {
-			lastReady, lastExpected = ready, expected
-		})
-	assert.Equal(t, 2, expected, "pool-wide scope: expected should be 2 (both instances)")
-	assert.Equal(t, 1, ready, "pool-wide scope: ready should be 1 (only game-2 is serving)")
-	assert.Less(t, ready, expected, "the dead sibling must make ready < expected")
-	// onProgress should have reported the shortfall.
-	assert.Equal(t, 1, lastReady)
-	assert.Equal(t, 2, lastExpected)
+		tests := []struct {
+			name          string
+			instanceIDs   []string
+			wantReady     int
+			wantExpected  int
+			checkProgress bool
+		}{
+			{
+				name:         "SingleInstanceBlindSpot",
+				instanceIDs:  []string{"game-2"},
+				wantReady:    1,
+				wantExpected: 1, // ready == expected: false success while game is dead
+			},
+			{
+				name:          "ScopedWaitCountsDeadSiblings",
+				instanceIDs:   []string{"game", "game-2"},
+				wantReady:     1,
+				wantExpected:  2, // ready < expected → shardsNotReadyError path
+				checkProgress: true,
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				defer cancel()
+				var lastReady, lastExpected int
+				ready, expected := r.WaitForShardsReady(ctx, tt.instanceIDs,
+					func(ready, expected int) {
+						lastReady, lastExpected = ready, expected
+					})
+				assert.Equal(t, tt.wantExpected, expected, "expected")
+				assert.Equal(t, tt.wantReady, ready, "ready")
+				if tt.checkProgress {
+					assert.Equal(t, tt.wantReady, lastReady, "onProgress ready")
+					assert.Equal(t, tt.wantExpected, lastExpected, "onProgress expected")
+				}
+			})
+		}
+	})
 }
 
 // TestWaitForShardsReadyAllReadyReturnsImmediately verifies that when every
@@ -121,14 +145,16 @@ func TestWaitForShardsReadyScopedWaitCountsDeadSiblings(t *testing.T) {
 // without waiting for the deadline — the normal happy path after a successful
 // reload.
 func TestWaitForShardsReadyAllReadyReturnsImmediately(t *testing.T) {
-	r := New(nil, poolShardConfig())
-
-	// Both instances serving.
-	srv1 := startServingListener(t, "8081")
+	srv1, p0 := startServingListener(t, "127.0.0.1:0")
 	defer srv1.Close()
-	srv2 := startServingListener(t, "8082")
+	srv2, p1 := startServingListener(t, "127.0.0.1:0")
 	defer srv2.Close()
 
+	prev := shardHostPort
+	shardHostPort = func(i int) int { return []int{p0, p1}[i] }
+	defer func() { shardHostPort = prev }()
+
+	r := New(nil, poolShardConfig())
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	start := time.Now()

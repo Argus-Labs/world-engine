@@ -417,6 +417,15 @@ const (
 //nolint:gochecknoglobals // a stateless client shared by every readiness probe
 var probeClient = &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}
 
+// shardHostPort returns the host port of the i-th shard instance. A package var
+// (not a direct service.ShardHostPort call) so readiness tests can point it at
+// free ports instead of the production 8081+i, which a developer's running world
+// may already hold — letting the tests probe real listeners without contending
+// for production ports or silently skipping on a bind failure.
+//
+//nolint:gochecknoglobals // overridden only by tests in this package
+var shardHostPort = service.ShardHostPort
+
 // WaitForShardsReady polls until the named instances serve, ctx ends, or
 // shardReadyTimeout elapses. Empty instanceIDs waits for every instance in world.toml.
 // onProgress gets (ready, expected) on each change. It returns how many were ready when
@@ -431,7 +440,7 @@ func (r *Runtime) WaitForShardsReady(
 	ports := make([]int, 0, len(r.cfg.WorldToml.Shards))
 	for i, sh := range r.cfg.WorldToml.Shards {
 		if len(want) == 0 || want[sh.InstanceID] {
-			ports = append(ports, service.ShardHostPort(i))
+			ports = append(ports, shardHostPort(i))
 		}
 	}
 	expected := len(ports)
