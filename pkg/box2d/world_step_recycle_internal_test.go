@@ -140,7 +140,10 @@ func requireCachedRot(t *testing.T, sim *contactSim, w *World, body BodyID, expe
 
 func requireShapeIDPair(t *testing.T, idA, idB, ground, body ShapeID, msg string) {
 	t.Helper()
-	require.ElementsMatch(t, []ShapeID{ground, body}, []ShapeID{idA, idB}, msg)
+	if (idA == ground && idB == body) || (idA == body && idB == ground) {
+		return
+	}
+	require.Failf(t, msg, "expected shape-id pair {ground=%v, body=%v}, got {a=%v, b=%v}", ground, body, idA, idB)
 }
 
 func stepFindNotNil(t *testing.T, w *World, body BodyID, msgAndArgs ...any) *contactSim {
@@ -267,9 +270,6 @@ func TestContactRecycleRotationGuardExactCutoff(t *testing.T) {
 	// identity cache is its own C. Setting the body's C to exactly the
 	// threshold gives min(cosBody, cosGround) == min(ContactRecycleCosAngle,
 	// 1.0) == ContactRecycleCosAngle regardless of which shape is A or B.
-	// That is not > the threshold, so the guard blocks recycling and the
-	// full update refreshes the cache. This distinguishes the strict > from
-	// >=.
 	exactRot := Rot{C: ContactRecycleCosAngle, S: math.Sqrt(1.0 - ContactRecycleCosAngle*ContactRecycleCosAngle)}
 	w.SetBodyTransform(body, guardRestPos, exactRot)
 	sim = stepFindNotNil(t, w, body, "contact must still exist after exact-cutoff rotation")
@@ -423,6 +423,20 @@ func TestContactRecycleNear180Rotation(t *testing.T) {
 	requireCachedRot(t, sim, w, body, rot, "cache must be refreshed to 175 degrees after full update")
 }
 
+// setupRecycleEventWorld builds the event-enabled recycle test world, sets the
+// recycle distance, and steps once to establish the contact and cache the
+// transform at 0°. The shared setup for the end- and begin-event regressions;
+// callers assert their distinct initial state and event expectations.
+func setupRecycleEventWorld(t *testing.T, halfExtent Vec2, pos Vec2, recycleDistance float64) (*World, BodyID, ShapeID, ShapeID, *contactSim) {
+	t.Helper()
+
+	w, body, groundShape, bodyShape := recycleTestWorld(t, halfExtent, pos, true)
+	w.SetContactRecycleDistance(recycleDistance)
+
+	sim := stepAndFindContact(t, w, body)
+	return w, body, groundShape, bodyShape, sim
+}
+
 // runRecycleEndEvent is the shared behavioral regression for the reported
 // contact-event symptom. The contact starts touching; the plank is then
 // rotated so its base corner lifts off the ground and the shapes stop
@@ -437,11 +451,7 @@ func TestContactRecycleNear180Rotation(t *testing.T) {
 func runRecycleEndEvent(t *testing.T, halfExtent Vec2, pos Vec2, angle float64, recycleDistance float64) {
 	t.Helper()
 
-	w, body, groundShape, bodyShape := recycleTestWorld(t, halfExtent, pos, true)
-	w.SetContactRecycleDistance(recycleDistance)
-
-	// Step 1: establish the touching contact and cache the transform at 0°.
-	sim := stepAndFindContact(t, w, body)
+	w, body, groundShape, bodyShape, sim := setupRecycleEventWorld(t, halfExtent, pos, recycleDistance)
 	beginEvents := w.ContactEvents().BeginEvents
 	require.Len(t, beginEvents, 1, "begin event must fire when the plank first touches")
 	requireShapeIDPair(t, beginEvents[0].ShapeIDA, beginEvents[0].ShapeIDB, groundShape, bodyShape, "begin event")
@@ -505,11 +515,7 @@ func TestContactRecycleRotationGuardEndEventDefaultDistance(t *testing.T) {
 func runRecycleBeginEvent(t *testing.T, halfExtent Vec2, pos Vec2, angle float64, recycleDistance float64) {
 	t.Helper()
 
-	w, body, groundShape, bodyShape := recycleTestWorld(t, halfExtent, pos, true)
-	w.SetContactRecycleDistance(recycleDistance)
-
-	// Step 1: establish the non-touching contact and cache the transform at 0°.
-	sim := stepAndFindContact(t, w, body)
+	w, body, groundShape, bodyShape, sim := setupRecycleEventWorld(t, halfExtent, pos, recycleDistance)
 	require.Empty(t, w.ContactEvents().BeginEvents, "no begin event before the body rotates into contact")
 	require.Equal(t, uint32(0), sim.simFlags&simTouchingFlag, "contact must start non-touching")
 
@@ -564,10 +570,10 @@ func TestContactRecycleSpinningBody(t *testing.T) {
 	)
 	w.SetBodyAngularVelocity(body, spinAngularVelocity)
 
-	// minCos for this fixture is the dynamic body's cosine against its cached
+	// cosBody for this fixture is the dynamic body's cosine against its cached
 	// rotation (the static ground contributes 1.0); the guard trips when that
 	// cosine drops to ContactRecycleCosAngle.
-	prevMinCos := 1.0
+	prevCosBody := 1.0
 	for step := 1; step <= spinSteps; step++ {
 		// Before stepping, the cache still holds the pre-rotation value;
 		// the distance/sine gate must pass so a refresh can only come from
@@ -578,7 +584,7 @@ func TestContactRecycleSpinningBody(t *testing.T) {
 		// same value the guard compares against ContactRecycleCosAngle.
 		bodySim := w.getBodySim(w.getBodyFullID(body))
 		cachedRot := dynamicCachedRotation(sim, w, body)
-		minCos := dot2(bodySim.transform.Q.C, cachedRot.C, bodySim.transform.Q.S, cachedRot.S)
+		cosBody := dot2(bodySim.transform.Q.C, cachedRot.C, bodySim.transform.Q.S, cachedRot.S)
 
 		sim = stepFindNotNil(t, w, body, "contact must survive the spin")
 		if cached := dynamicCachedRotation(sim, w, body); cached != cachedRot {
@@ -586,13 +592,13 @@ func TestContactRecycleSpinningBody(t *testing.T) {
 			// the threshold and the previous step's cosine was still above
 			// it, so this is the first threshold crossing — a refresh the
 			// distance gate (asserted passing above) could not have caused.
-			require.LessOrEqual(t, minCos, ContactRecycleCosAngle,
+			require.LessOrEqual(t, cosBody, ContactRecycleCosAngle,
 				"pre-step cosine must reach the threshold at the refresh step (step %d)", step)
-			require.Greater(t, prevMinCos, ContactRecycleCosAngle,
+			require.Greater(t, prevCosBody, ContactRecycleCosAngle,
 				"previous step must still be above the threshold (first crossing, step %d)", step)
 			return
 		}
-		prevMinCos = minCos
+		prevCosBody = cosBody
 	}
 	t.Fatal("cache was never refreshed away from 0 degrees within the spin step budget")
 }
