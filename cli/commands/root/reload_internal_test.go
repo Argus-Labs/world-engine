@@ -113,10 +113,21 @@ func (f *fakeShardRoller) Deploy(_ context.Context, opts local.DeployOpts) error
 }
 func (f *fakeShardRoller) WaitForShardsReady(ctx context.Context, instanceIDs []string, _ func(int, int)) (int, int) {
 	f.gotWait = instanceIDs
-	if ctx.Err() != nil {
-		return 0, f.waitExpected
+	if ready, expected, ok := canceledShardCounts(ctx, f.waitExpected); ok {
+		return ready, expected
 	}
 	return f.waitReady, f.waitExpected
+}
+
+// canceledShardCounts returns the (0, expected) counts a readiness waiter
+// reports when ctx is already canceled, matching the real WaitForShardsReady
+// contract. ok is true when ctx is canceled; otherwise the caller proceeds
+// with its own ready/expected (and progress) handling.
+func canceledShardCounts(ctx context.Context, expected int) (int, int, bool) {
+	if ctx.Err() != nil {
+		return 0, expected, true
+	}
+	return 0, 0, false
 }
 
 // TestRollShards is the rollShards-level regression guard: the wait scope must
@@ -124,13 +135,7 @@ func (f *fakeShardRoller) WaitForShardsReady(ctx context.Context, instanceIDs []
 // pool, so rollShards must wait on every sibling or a crashed one is missed.
 // The cases share the fixture, dashboard, invocation, and wait-scope
 // assertions; only the readiness counts, the context, and the expected error
-// differ. The WaitScopeCoversWholePool case has game down + game-2 healthy,
-// surfacing as shardsNotReadyError (1/2 ready) with the unrelated lobby pool
-// out of scope. The AllReadyReturnsNil case is the happy path: every waited
-// instance comes back, so rollShards returns nil. The CanceledReturnsCanceled
-// case drives the production caller with a pre-canceled context so a future
-// revert of the ctx.Err() classification in rollShards (the bug this PR fixes)
-// is caught here, not just in the helper-level tests.
+// differ.
 func TestRollShards(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -152,7 +157,6 @@ func TestRollShards(t *testing.T) {
 			if tt.preCanceled {
 				cctx, cancel := context.WithCancel(ctx)
 				cancel()
-				defer cancel()
 				ctx = cctx
 			}
 			dash := phasebox.Start(ctx, phasebox.Plain)
@@ -255,8 +259,8 @@ type fakeReadinessWaiter struct {
 func (f *fakeReadinessWaiter) WaitForShardsReady(
 	ctx context.Context, _ []string, onProgress func(ready, expected int),
 ) (int, int) {
-	if ctx.Err() != nil {
-		return 0, f.expected
+	if ready, expected, ok := canceledShardCounts(ctx, f.expected); ok {
+		return ready, expected
 	}
 	onProgress(f.ready, f.expected)
 	if f.onProgressHook != nil {

@@ -524,14 +524,22 @@ func TestCheckLayout_LayoutComparison(t *testing.T) {
 // before the first completed probe round collapses into a plain (0, expected)
 // return without ever invoking onProgress; a mid-wait cancellation returns the
 // last completed count.
-func TestWaitForShardsReady_CanceledContextReturnsZeroWithoutProgress(t *testing.T) {
-	t.Parallel()
-
+// newTwoShardRuntime builds a Runtime over a two-shard config for the
+// readiness cancellation tests. WaitForShardsReady only reads
+// cfg.WorldToml.Shards — no Docker is involved — so both cancellation
+// scenarios share this setup while keeping their own contexts and assertions.
+func newTwoShardRuntime() *Runtime {
 	cfg := &service.Config{Project: "test", WorldToml: worldtoml.Config{
 		Project: "test",
 		Shards:  twoShardConfig,
 	}}
-	r := New(nil, cfg) // WaitForShardsReady only reads cfg.WorldToml.Shards — no Docker.
+	return New(nil, cfg)
+}
+
+func TestWaitForShardsReady_CanceledContextReturnsZeroWithoutProgress(t *testing.T) {
+	t.Parallel()
+
+	r := newTwoShardRuntime()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -560,11 +568,7 @@ func TestWaitForShardsReady_CanceledContextReturnsZeroWithoutProgress(t *testing
 func TestWaitForShardsReady_CallerCanceledReturnsLastCount(t *testing.T) {
 	t.Parallel()
 
-	cfg := &service.Config{Project: "test", WorldToml: worldtoml.Config{
-		Project: "test",
-		Shards:  twoShardConfig,
-	}}
-	r := New(nil, cfg)
+	r := newTwoShardRuntime()
 
 	// Probe free ports via the same probeHostPort seam the reproduction tests
 	// use (withFreePorts), so a running local world's shard ports cannot
