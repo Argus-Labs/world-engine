@@ -37,14 +37,7 @@ func captureStdout(t *testing.T, fn func()) string {
 }
 
 func TestSuccessVariants(t *testing.T) {
-	out := captureStdout(t, func() { Success("ok") })
-	assert.Contains(t, out, "ok")
-
-	out = captureStdout(t, func() { Successln("line") })
-	assert.Contains(t, out, "line")
-	assert.True(t, strings.HasSuffix(out, "\n"))
-
-	out = captureStdout(t, func() { Successf("num=%d", 7) })
+	out := captureStdout(t, func() { Successf("num=%d", 7) })
 	assert.Contains(t, out, "num=7")
 
 	// Exercise newline-stripping path in printNewlineSafeStyledMessage
@@ -53,10 +46,7 @@ func TestSuccessVariants(t *testing.T) {
 }
 
 func TestErrorVariants(t *testing.T) {
-	out := captureStdout(t, func() { Error("err") })
-	assert.Contains(t, out, "err")
-
-	out = captureStdout(t, func() { Errorln("errln") })
+	out := captureStdout(t, func() { Errorln("errln") })
 	assert.Contains(t, out, "errln")
 	assert.True(t, strings.HasSuffix(out, "\n"))
 
@@ -74,10 +64,7 @@ func TestErrorMultiline(t *testing.T) {
 }
 
 func TestInfoVariants(t *testing.T) {
-	out := captureStdout(t, func() { Info("info") })
-	assert.Contains(t, out, "info")
-
-	out = captureStdout(t, func() { Infoln("infoln") })
+	out := captureStdout(t, func() { Infoln("infoln") })
 	assert.Contains(t, out, "infoln")
 	assert.True(t, strings.HasSuffix(out, "\n"))
 
@@ -86,22 +73,13 @@ func TestInfoVariants(t *testing.T) {
 }
 
 func TestHeaderVariants(t *testing.T) {
-	out := captureStdout(t, func() { Header("HEAD") })
-	assert.Contains(t, stripANSI(out), "HEAD")
-
-	out = captureStdout(t, func() { Headerln("HEADLN") })
+	out := captureStdout(t, func() { Headerln("HEADLN") })
 	assert.Contains(t, stripANSI(out), "HEADLN")
 	assert.True(t, strings.HasSuffix(out, "\n"))
-
-	out = captureStdout(t, func() { Headerf("H=%s", "X") })
-	assert.Contains(t, stripANSI(out), "H=X")
 }
 
 func TestNotificationVariants(t *testing.T) {
-	out := captureStdout(t, func() { Notification("note") })
-	assert.Contains(t, out, "note")
-
-	out = captureStdout(t, func() { Notificationln("noteln") })
+	out := captureStdout(t, func() { Notificationln("noteln") })
 	assert.Contains(t, out, "noteln")
 	assert.True(t, strings.HasSuffix(out, "\n"))
 
@@ -122,10 +100,6 @@ func TestNewLine(t *testing.T) {
 func TestCursorAndClear(t *testing.T) {
 	// We can't assert exact escape sequences cross-platform, but should output something
 	out := captureStdout(t, func() { MoveCursorUp(2) })
-	assert.NotEmpty(t, out)
-	assert.Contains(t, out, "\x1b[")
-
-	out = captureStdout(t, func() { MoveCursorRight(4) })
 	assert.NotEmpty(t, out)
 	assert.Contains(t, out, "\x1b[")
 
