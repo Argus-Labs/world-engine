@@ -123,33 +123,6 @@ func (SimpleSystemEvent) UnmarshalWire(b []byte) (any, error) {
 	return gobUnmarshal[SimpleSystemEvent](b)
 }
 
-type SystemEventA struct {
-	X, Y, Z float64
-}
-
-func (SystemEventA) Name() string {
-	return "system_event_a"
-}
-
-type SystemEventB struct {
-	ID      uint64
-	Label   string
-	Enabled bool
-}
-
-func (SystemEventB) Name() string {
-	return "system_event_b"
-}
-
-type SystemEventC struct {
-	Values  [8]int32
-	Counter uint16
-}
-
-func (SystemEventC) Name() string {
-	return "system_event_c"
-}
-
 // -------------------------------------------------------------------------------------------------
 // Commands
 // -------------------------------------------------------------------------------------------------
