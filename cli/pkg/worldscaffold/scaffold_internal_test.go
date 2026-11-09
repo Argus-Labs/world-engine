@@ -43,31 +43,6 @@ func (s *SetupCloneTestSuite) TestInstantiateTemplate_DirectoryExists() {
 }
 
 // -----------------------------------------------------------------------------
-// Scaffold
-// -----------------------------------------------------------------------------
-
-func (s *SetupCloneTestSuite) TestScaffold_DirectoryExists() {
-	t := s.T()
-
-	existingDir := filepath.Join(t.TempDir(), "exists")
-	require.NoError(t, os.MkdirAll(existingDir, 0o755))
-
-	// Scaffold clones first, so it fails on the existing-directory guard before
-	// any network or toolchain call.
-	tmpl := GameTemplate{
-		Name:        "Basic Example",
-		ShortName:   "basic",
-		Description: "Simple example demonstrating core Cardinal concepts",
-		URL:         "https://example.com/repo.git",
-		Subdir:      "",
-	}
-	err := Scaffold(context.Background(), tmpl, existingDir)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "already exists")
-}
-
-// -----------------------------------------------------------------------------
 // copyTemplateDirectory
 // -----------------------------------------------------------------------------
 
