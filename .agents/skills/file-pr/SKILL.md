@@ -1,6 +1,6 @@
 ---
 name: file-pr
-description: Draft, file, or update a concise pull request using this repository's template, reviewed demo evidence, and AI attribution.
+description: Draft, file, or update a concise pull request using this repository's template, reviewed demo evidence, and AI attribution. Interviews the PR's creator on its premise first: the problem, its source, alternatives, and product sign-off.
 ---
 
 # File PR
@@ -20,6 +20,50 @@ Use the original request, the actual diff, and checks performed as evidence.
 Read the linked task when available. Use its real ID in `Closes #<task tracker id>`;
 for an external tracker, use its supported issue reference or URL. If there is no
 linked task, omit the closing line rather than inventing one.
+
+## Interrogate the premise
+
+Before drafting, make the PR's creator show the thinking behind the change. Their
+answers fill the template's `Premise` section and the `AI Usage` journal.
+
+- **If the run is autonomous, skip the interview.** A run is autonomous when no human
+  is in the conversation to answer: scheduled automations, bug hunts, threads another
+  agent dispatched, or a request that says to proceed without questions. Fill `Premise`
+  from the task record and write `**Interview:** Skipped — autonomous run.`
+- **Otherwise, ask before drafting,** in one round, using the harness's question or form
+  tool when it has one:
+  1. **Problem:** What specifically is this PR trying to address: the problem developers
+     hit, not the feature they asked for?
+  2. **Source:** Where did it come from: developer or game-team feedback (link or quote it),
+     a bug report, telemetry, a teammate's request, tech debt, or the creator's own idea?
+  3. **Alternatives:** What other approaches did they consider, and why this one?
+  4. **Product sign-off,** only for a significant product decision (defined below): was
+     Scott consulted, and where? Skip it when Scott is the creator.
+- **Judge the answers against the diff.** Read the linked feedback, report, or task.
+  Decide whether the change fixes that problem at its root, or instead masks a symptom
+  (a clamp, null guard, retry, delay, or one-caller special case), solves a different
+  problem, or rebuilds something an existing engine feature, system, or plugin provides.
+- **Separate the ask from the need.** Feedback often arrives as a solution ("add a config
+  flag"); a literal build of it gives developers faster horses. Restate the need behind
+  it: what the developer was trying to do and what got in the way. Judge the PR against that
+  need, and propose a different change when it serves the need better.
+- **Push back once, with evidence.** If the problem or source is vague ("users
+  complained"), ask for the specific feedback. If the change misses the stated problem,
+  or no alternatives were considered, name the gap with `path:line` or the feedback text
+  and propose one or two credible alternatives.
+- **Then let the creator decide.** Record their final answer, and any concern you still
+  hold, in `Premise`; the reviewer weighs it from there.
+- **Significant product decision:** a change that adds a new service, vendor, or
+  infrastructure, or a feature that adds significant server cost or operational
+  complexity. Voice chat is the example: a media relay, its bandwidth, and its moderation
+  load. Bug fixes, tuning, UI changes, and features that fit the existing services at
+  similar cost are not.
+- **If Scott was not consulted on one:** recommend consulting him before filing. If the
+  creator files anyway, open the PR as a draft and write
+  `**Product sign-off:** Needed — Scott not yet consulted.`
+
+Done when every `Premise` field holds the creator's answer, or the task record for an
+autonomous run, and your assessment of the fix is recorded.
 
 ## Gather screenshots and recordings
 

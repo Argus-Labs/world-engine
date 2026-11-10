@@ -1,6 +1,19 @@
 Closes #<task tracker id>
 <!-- Replace with the real task reference. Omit this line if no task is linked; never invent an ID. -->
 
+## Premise
+
+<!-- Fill from the PR creator's interview answers (see the file-pr skill); paraphrase them and never invent one.
+Autonomous runs fill this from the task record and mark the interview skipped. -->
+
+- **Problem:** <the need developers hit, not the feature they asked for>
+- **Ask:** <the request as it arrived, when it named a solution; omit otherwise>
+- **Source:** <developer or game-team feedback · bug report · telemetry · teammate request · tech debt · own idea · autonomous run — link or quote it>
+- **Why this fix:** <how the change addresses that problem at its root>
+- **Alternatives considered:** <options weighed and why this one won, or "None">
+- **Product sign-off:** <Scott consulted (link) · Not a product decision · Needed — Scott not yet consulted>
+- **Interview:** <Done · Skipped — autonomous run>
+
 ## Screenshot / Recordings
 
 <!-- Required when feasible: embed a reviewed screenshot or recording of the completed change.
