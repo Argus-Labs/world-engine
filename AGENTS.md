@@ -5,7 +5,7 @@
 Before drafting, filing, or updating a pull request, read and follow
 [file-pr](.agents/skills/file-pr/SKILL.md). Use the repository PR template,
 include reviewed screenshots or recordings when feasible (otherwise explain why),
-and record verification, caveats, AI authorship, and human contributions.
+and record the premise, verification, caveats, AI authorship, and human contributions.
 
 ## Go skills
 
