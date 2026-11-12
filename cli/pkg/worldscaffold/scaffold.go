@@ -233,6 +233,11 @@ func moduleNameFromGoMod(dir, fallback string) string {
 // It rewrites imports that reference github.com/argus-labs/world-engine/pkg/template/<template>/<rest>
 // to <moduleName>/<rest>. Engine imports (e.g., pkg/cardinal, pkg/ecs) are preserved.
 func rewriteImportsIn(dir, moduleName string) error {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return eris.Wrap(err, "failed to open project directory")
+	}
+	defer root.Close()
 	re := regexp.MustCompile(`"` + regexp.QuoteMeta(worldEngineExamplePrefix) + `([^/]+)/([^"]+)"`)
 
 	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -251,7 +256,11 @@ func rewriteImportsIn(dir, moduleName string) error {
 			return nil
 		}
 
-		data, err := os.ReadFile(path)
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		data, err := root.ReadFile(rel)
 		if err != nil {
 			return eris.Wrapf(err, "failed to read %s", path)
 		}
@@ -270,7 +279,7 @@ func rewriteImportsIn(dir, moduleName string) error {
 			return nil
 		}
 
-		if err := os.WriteFile(path, []byte(replaced), info.Mode()); err != nil {
+		if err := root.WriteFile(rel, []byte(replaced), info.Mode()); err != nil {
 			return eris.Wrapf(err, "failed to write %s", path)
 		}
 		return nil

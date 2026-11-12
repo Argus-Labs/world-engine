@@ -37,17 +37,19 @@ var cardinalDockerfile []byte
 // collisions with anything a user might check in.
 const cardinalDockerfileName = "__cardinal.Dockerfile"
 
-// defaultBuildIgnores are always excluded from the build context, regardless
+// defaultBuildIgnores returns paths always excluded from the build context, regardless
 // of the project's .dockerignore. Keeps the context small when a consumer
 // has no .dockerignore at the project root.
-var defaultBuildIgnores = []string{
-	".git",
-	".git/**",
-	"node_modules",
-	"**/node_modules",
-	"dist",
-	"**/dist",
-	"**/*.exe",
+func defaultBuildIgnores() []string {
+	return []string{
+		".git",
+		".git/**",
+		"node_modules",
+		"**/node_modules",
+		"dist",
+		"**/dist",
+		"**/*.exe",
+	}
 }
 
 // CardinalBuildImageNames returns the unique Cardinal image tags that would be
@@ -139,7 +141,7 @@ func (c *Client) BuildCardinalImages(
 	if err != nil {
 		return eris.Wrap(err, "failed to read .dockerignore")
 	}
-	ignorePatterns := slices.Concat(defaultBuildIgnores, userIgnores)
+	ignorePatterns := slices.Concat(defaultBuildIgnores(), userIgnores)
 
 	// Every image builds from the project root with the same Dockerfile; SHARD_PATH picks
 	// the shard. Build the context once and share it.
@@ -375,7 +377,7 @@ func writeBuildContextTar(tw *tar.Writer, src io.Reader, dfContent []byte, dfNam
 		if err := tw.WriteHeader(hdr); err != nil {
 			return err
 		}
-		if _, err := io.Copy(tw, tr); err != nil {
+		if _, err := io.CopyN(tw, tr, hdr.Size); err != nil {
 			return err
 		}
 	}

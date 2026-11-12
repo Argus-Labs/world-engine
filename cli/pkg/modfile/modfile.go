@@ -1,10 +1,12 @@
 package modfile
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/rotisserie/eris"
 	gomod "golang.org/x/mod/modfile"
@@ -17,7 +19,9 @@ func FindModuleRoot(startDir string) (string, bool) {
 		return "", false
 	}
 
-	cmd := exec.Command("go", "env", "GOMOD")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "go", "env", "GOMOD")
 	cmd.Dir = startDir
 	modPathBytes, err := cmd.Output()
 	if err != nil {
@@ -51,7 +55,7 @@ func FindModuleRoot(startDir string) (string, bool) {
 // ModuleDependencyVersion falls back to the require line for a path-only replace, which is
 // indistinguishable from a plain, un-replaced dependency — use ModuleReplace to tell them apart so a
 // path-only replace can skip a version comparison rather than compare a stale require hint.
-func ModuleReplace(moduleRoot, modulePath string) (newVersion string, found bool, err error) {
+func ModuleReplace(moduleRoot, modulePath string) (string, bool, error) {
 	data, err := os.ReadFile(filepath.Join(moduleRoot, "go.mod"))
 	if err != nil {
 		return "", false, eris.Wrap(err, "failed to read go.mod")

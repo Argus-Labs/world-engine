@@ -31,7 +31,7 @@ func NewSilent(err error) error {
 }
 
 // IsSilent checks if an error is marked as silent and shouldn't be printed.
-// errors.As, not eris.As: kong wraps every command error in errors.Join,
+// [errors.As], not eris.As: kong wraps every command error in [errors.Join],
 // which eris can't see into.
 func IsSilent(err error) bool {
 	if err == nil {

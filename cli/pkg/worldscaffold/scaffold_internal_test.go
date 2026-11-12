@@ -344,3 +344,18 @@ func TestWriteAgentSkillsWritesBothLocationsAndKeepsExisting(t *testing.T) {
 		t.Fatal("skill content missing")
 	}
 }
+
+func TestRewriteImports_RejectsSymlinkOutsideProject(t *testing.T) {
+	t.Parallel()
+
+	outside := filepath.Join(t.TempDir(), "outside.go")
+	const source = "package main\nimport _ \"github.com/argus-labs/world-engine/pkg/template/example/pkg\"\n"
+	require.NoError(t, os.WriteFile(outside, []byte(source), 0o600))
+	project := t.TempDir()
+	require.NoError(t, os.Symlink(outside, filepath.Join(project, "linked.go")))
+
+	require.Error(t, rewriteImportsIn(project, "example.com/project"))
+	data, err := os.ReadFile(outside)
+	require.NoError(t, err)
+	assert.Equal(t, source, string(data))
+}

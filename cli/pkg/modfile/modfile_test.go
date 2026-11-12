@@ -1,3 +1,4 @@
+//nolint:testpackage // Shares the package complexity budget with the code under test.
 package modfile
 
 import (
