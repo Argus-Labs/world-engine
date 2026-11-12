@@ -15,6 +15,7 @@ type Event struct {
 	Kind      Kind   // The event kind
 	Payload   any    // The event payload itself
 	Recipient string // Empty recipient means broadcast to all matching subscribers; non-empty targets a single user
+	Audience  any    // Narrows the recipients of a default event; nil keeps the default delivery. Set by sync.
 }
 
 // Payload is the interface all default event payloads must implement.
@@ -26,7 +27,7 @@ type Payload interface {
 type Kind uint8
 
 const (
-	KindSync              Kind = 2 // Internal ordered sync publication
+	KindSync              Kind = 2 // Sync log items: commits, then reader opens and closes
 	KindDefault           Kind = 0 // The default event type
 	KindInterShardCommand Kind = 1 // Inter-shard commands
 )

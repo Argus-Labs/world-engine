@@ -221,16 +221,15 @@ func (s *service) registerCommandHandler(name string) {
 // -------------------------------------------------------------------------------------------------
 
 type streamSubscriber struct {
-	syncEpoch         string
-	syncActive        bool
-	syncNeedsBaseline bool
-	syncBaselineTick  bool
-	syncSequence      uint64 // All sync fields are guarded by service.mu.
-	ctx               context.Context
-	cancel            context.CancelCauseFunc // Ends the stream's handler; the cause says why (superseded, lagged).
-	events            map[string]struct{}     // Guarded by service.mu.
-	stream            *connect.ServerStream[cardinalv1.StartEventStreamResponse]
-	lagged            *time.Timer // Armed during each write; ends the stream as lagged when it fires.
+	ctx    context.Context
+	cancel context.CancelCauseFunc // Ends the stream's handler; the cause says why (superseded, lagged).
+	events map[string]struct{}     // Guarded by service.mu.
+	stream *connect.ServerStream[cardinalv1.StartEventStreamResponse]
+	lagged *time.Timer // Armed during each write; ends the stream as lagged when it fires.
+
+	// Counts world_sync subscriptions, so the tick can tell a fresh one from the one its sync
+	// stream was opened for. Guarded by service.mu.
+	syncGeneration uint64
 
 	// Events waiting for the stream's handler, its only writer, which drains them in order.
 	queueMu     sync.Mutex
@@ -603,10 +602,8 @@ func (s *service) removeSubscriber(playerID string, subscriber *streamSubscriber
 func addSubscriptions(subscriber *streamSubscriber, subscriptions []*cardinalv1.EventSubscription) {
 	for _, subscription := range subscriptions {
 		for _, eventName := range subscription.GetEvents() {
-			if eventName == syncstate.EventName {
-				if _, exists := subscriber.events[eventName]; !exists {
-					subscriber.syncNeedsBaseline = true
-				}
+			if _, exists := subscriber.events[eventName]; !exists && eventName == syncstate.EventName {
+				subscriber.syncGeneration++
 			}
 			subscriber.events[eventName] = struct{}{}
 		}
@@ -663,7 +660,7 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 	var subscribers []*streamSubscriber
 	//nolint:nestif // It's fine
 	if evt.Recipient != "" {
-		if subscriber, exists := s.subscribers[evt.Recipient]; exists && s.syncRecipientAllowed(evt.Recipient, subscriber, evt.Payload) {
+		if subscriber, exists := s.subscribers[evt.Recipient]; exists && audienceOf(evt).admits(evt.Recipient, subscriber) {
 			for subscription := range subscriber.events {
 				if matchesEvent(subscription, eventPb.GetName()) {
 					subscribers = []*streamSubscriber{subscriber}
@@ -679,7 +676,7 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 	} else {
 		subscribers = make([]*streamSubscriber, 0, len(s.subscribers))
 		for player, subscriber := range s.subscribers {
-			if !s.syncRecipientAllowed(player, subscriber, evt.Payload) {
+			if !audienceOf(evt).admits(player, subscriber) {
 				continue
 			}
 			for subscription := range subscriber.events {
@@ -694,12 +691,12 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 	// player, so it resolves every waiter for the event name.
 	var waiters []chan *iscv1.Event
 	if evt.Recipient != "" {
-		if s.syncRecipientAllowed(evt.Recipient, s.subscribers[evt.Recipient], evt.Payload) {
+		if audienceOf(evt).admits(evt.Recipient, nil) {
 			waiters = append(waiters, s.replyWaiters[eventPb.GetName()][evt.Recipient]...)
 		}
 	} else {
 		for player, playerWaiters := range s.replyWaiters[eventPb.GetName()] {
-			if !s.syncRecipientAllowed(player, s.subscribers[player], evt.Payload) {
+			if !audienceOf(evt).admits(player, nil) {
 				continue
 			}
 			waiters = append(waiters, playerWaiters...)
@@ -1065,27 +1062,4 @@ func (a authenticatorDev) authenticate(_ context.Context, req *http.Request) (an
 	}
 
 	return &Player{ID: playerID}, nil
-}
-
-// Called during tick-owned publication. The audience predicate must only read game state.
-func (s *service) syncRecipientAllowed(player string, subscriber *streamSubscriber, payload any) bool {
-	if s.world.sync == nil || s.world.sync.admit == nil {
-		return true // Tagged metadata does not enable sync or change legacy event delivery.
-	}
-	_, occurrence := payload.(interface{ SyncOccurrence() })
-	if !occurrence {
-		return true // Existing replies and lifecycle events keep their delivery contract.
-	}
-	if !s.world.sync.admit(player) {
-		return false
-	}
-	// Stream callbacks and reply waiters share the same admission boundary. A nil
-	// subscriber (disconnected or reply-only caller) cannot observe gameplay state.
-	if subscriber == nil || !subscriber.syncActive || subscriber.syncNeedsBaseline {
-		return false
-	}
-	if _, subscribed := subscriber.events[syncstate.EventName]; !subscribed {
-		return false
-	}
-	return !subscriber.syncBaselineTick
 }

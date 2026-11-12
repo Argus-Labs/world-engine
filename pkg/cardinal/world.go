@@ -19,6 +19,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
+	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
@@ -54,8 +55,9 @@ type World struct {
 	eventTypes map[reflect.Type][]metric.AddOption // Registered events, with the attributes they are counted under
 	started    bool                                // Set by init; Register* methods panic afterwards
 
-	sync           *syncWorld
-	systemEventTap func(ecs.SystemEvent) // Sees each emitted system event; set only by TestWorld
+	sync           *syncPublisher               // Sync state the tick publishes; nil until a sync type is registered
+	commandSenders map[string]syncstate.Senders // Command name -> who may send it; absent: anyone
+	systemEventTap func(ecs.SystemEvent)        // Sees each emitted system event; set only by TestWorld
 }
 
 // NewWorld creates a game world with the specified options.
@@ -309,12 +311,16 @@ func (w *World) step(timestamp time.Time, run func()) {
 
 	w.currentTick.timestamp = timestamp
 
+	// Drop commands their sender may not send, before any system reads them.
+	w.judgeCommands()
+
 	// Advance the ECS world.
 	run()
 
 	w.captureSync(true)
-	w.service.prepareSync()
+	w.reconcileSync()
 	w.dispatchEvents(ctx)
+	w.settleSync()
 
 	// Serialize the world for snapshots and the debug service. Encoding cannot fail (a value that
 	// cannot be encoded panics inside the ECS), so there is no retry path.
@@ -446,18 +452,8 @@ func (w *World) reset() {
 	w.commands.Clear()
 	w.events.Clear()
 
-	// Run initialization systems again.
+	// Run initialization systems again. Sync publishes the replaced lifetimes on the next tick.
 	w.init()
-
-	// Reset replaces every entity lifetime the connected views still hold. Force a quiet
-	// baseline; it already represents the commits init just captured, so those are skipped.
-	if w.sync != nil {
-		w.service.mu.Lock()
-		for _, sub := range w.service.subscribers {
-			sub.syncNeedsBaseline = true
-		}
-		w.service.mu.Unlock()
-	}
 
 	// Reset the tick.
 	w.currentTick.height = 0
@@ -583,12 +579,27 @@ func (w *World) Logger() *zerolog.Logger {
 
 // RegisterCommand registers a command type before world startup. Registering it again is a no-op.
 // The service accepts a command from clients only once it is registered here.
-func (w *World) RegisterCommand[T Command]() {
+//
+// senders limits who may send it, such as sync.FromPlayers; without one, players and shards both
+// may. A command that embeds sync.Target reaches handlers only when its sender has authority over
+// the target. Cardinal replies to each player whose command it drops with sync.CommandRejected.
+func (w *World) RegisterCommand[T Command](senders ...syncstate.Senders) {
 	if w.started {
 		panic(ErrWorldStarted)
 	}
 	var zero T
 	name := zero.Name()
+	var allowed syncstate.Senders
+	for _, s := range senders {
+		allowed |= s
+	}
+	if w.commandSenders == nil {
+		w.commandSenders = map[string]syncstate.Senders{}
+	}
+	if _, declared := w.commandSenders[name]; !declared {
+		w.commandSenders[name] = allowed
+	}
+	w.RegisterEvent[syncstate.CommandRejected]()
 
 	if _, err := w.commands.Register(name, command.NewQueue[T]()); err != nil {
 		panic(eris.Wrapf(err, "failed to register command %s", name))
@@ -619,7 +630,11 @@ func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 			// semantics, no pointer: Serializable is satisfied by the value type.
 			payload, isT := cmd.Payload.(T)
 			assert.That(isT, "mismatched command type passed to command context")
-			if !yield(CommandContext[T]{Payload: payload, sender: cmd.Sender}) {
+			var target Entity
+			if t, hasTarget := any(payload).(targeted); hasTarget {
+				target = w.Entity(EntityID(t.SyncTarget().Entity))
+			}
+			if !yield(CommandContext[T]{Payload: payload, sender: cmd.Sender, target: target}) {
 				return
 			}
 		}
@@ -690,10 +705,12 @@ func (w *World) registeredEvent[T Event]() []metric.AddOption {
 func (w *World) Broadcast[T Event](evt T) {
 	w.stampSync(&evt)
 	attrs := w.registeredEvent[T]()
+	audience := w.syncAudience(&evt) // before the capture can drop a destroyed entity's last entry
 	w.captureSync(false)
 	w.events.Enqueue(event.Event{
-		Kind:    event.KindDefault,
-		Payload: evt,
+		Kind:     event.KindDefault,
+		Payload:  evt,
+		Audience: audience,
 	})
 	w.metrics.countEvent(w.traceCtx, attrs)
 }
@@ -712,11 +729,13 @@ func (w *World) SendTo[T Event](recipient string, evt T) {
 	w.stampSync(&evt)
 	assert.That(recipient != "", "recipient must not be empty (use Broadcast for fan-out)")
 	attrs := w.registeredEvent[T]()
+	audience := w.syncAudience(&evt)
 	w.captureSync(false)
 	w.events.Enqueue(event.Event{
 		Kind:      event.KindDefault,
 		Payload:   evt,
 		Recipient: recipient,
+		Audience:  audience,
 	})
 	w.metrics.countEvent(w.traceCtx, attrs)
 }

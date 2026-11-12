@@ -73,7 +73,14 @@ type Command = command.Payload
 type CommandContext[T Command] struct {
 	Payload T
 	sender  command.Sender
+	target  Entity
 }
+
+// Target returns the entity a command that embeds sync.Target acts on. Cardinal verified, when the
+// tick drained the command, that the target was the lifetime the server last published and that
+// the sender had authority over it. An earlier system in the same tick may since have destroyed
+// it. A command without sync.Target returns a handle that is not alive.
+func (c CommandContext[T]) Target() Entity { return c.target }
 
 // Sender returns the player ID or the sending shard's address. Use it when any sender will do, such
 // as in logs.
