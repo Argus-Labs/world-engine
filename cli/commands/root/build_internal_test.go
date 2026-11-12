@@ -104,7 +104,7 @@ func TestBuildShards_ColdCachePullsBeforeBuild(t *testing.T) {
 
 	fake := &fakeShardBuilder{
 		imagesToPull: []string{
-			"golang:1.27.1-bookworm",
+			"golang:1.27.4-bookworm",
 			"gcr.io/distroless/base-debian12",
 		},
 	}
@@ -156,7 +156,7 @@ func TestBuildShards_PullErrorPreventsBuild(t *testing.T) {
 
 	pullErr := errors.New("network unreachable")
 	fake := &fakeShardBuilder{
-		imagesToPull: []string{"golang:1.27.1-bookworm"},
+		imagesToPull: []string{"golang:1.27.4-bookworm"},
 		pullErr:      pullErr,
 	}
 
@@ -204,7 +204,7 @@ func TestBuildShards_NoExtraImageRefs(t *testing.T) {
 	defer dash.Complete()
 
 	fake := &fakeShardBuilder{
-		imagesToPull: []string{"golang:1.27.1-bookworm"},
+		imagesToPull: []string{"golang:1.27.4-bookworm"},
 	}
 
 	require.NoError(t, buildShards(ctx, dash, fake, testShardServices()))

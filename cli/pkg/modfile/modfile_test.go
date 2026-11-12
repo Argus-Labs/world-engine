@@ -1,10 +1,14 @@
-//nolint:testpackage // Shares the package complexity budget with the code under test.
-package modfile
+package modfile_test
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/argus-labs/world-engine/cli/pkg/modfile"
 )
 
 func TestFindModuleRoot(t *testing.T) {
@@ -14,17 +18,11 @@ func TestFindModuleRoot(t *testing.T) {
 		t.Parallel()
 
 		dir := t.TempDir()
-		if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/project"), 0o600); err != nil {
-			t.Fatalf("failed to write go.mod: %v", err)
-		}
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/project"), 0o600))
 
-		root, ok := FindModuleRoot(dir)
-		if !ok {
-			t.Fatalf("expected to find go.mod root")
-		}
-		if root != dir {
-			t.Fatalf("expected root %q, got %q", dir, root)
-		}
+		root, ok := modfile.FindModuleRoot(dir)
+		require.True(t, ok, "expected to find go.mod root")
+		assert.Equal(t, dir, root)
 	})
 
 	t.Run("finds go.mod in parent directory", func(t *testing.T) {
@@ -33,24 +31,16 @@ func TestFindModuleRoot(t *testing.T) {
 		root := t.TempDir()
 		projectDir := filepath.Join(root, "project")
 		nestedDir := filepath.Join(projectDir, "subdir", "nested")
-		if err := os.MkdirAll(nestedDir, 0o755); err != nil {
-			t.Fatalf("failed to create nested directories: %v", err)
-		}
-		if err := os.WriteFile(
+		require.NoError(t, os.MkdirAll(nestedDir, 0o755))
+		require.NoError(t, os.WriteFile(
 			filepath.Join(projectDir, "go.mod"),
 			[]byte("module example.com/project"),
 			0o600,
-		); err != nil {
-			t.Fatalf("failed to write go.mod: %v", err)
-		}
+		))
 
-		foundRoot, ok := FindModuleRoot(nestedDir)
-		if !ok {
-			t.Fatalf("expected to find go.mod root from nested directory")
-		}
-		if foundRoot != projectDir {
-			t.Fatalf("expected root %q, got %q", projectDir, foundRoot)
-		}
+		foundRoot, ok := modfile.FindModuleRoot(nestedDir)
+		require.True(t, ok, "expected to find go.mod root from nested directory")
+		assert.Equal(t, projectDir, foundRoot)
 	})
 
 	t.Run("returns false when no go.mod exists", func(t *testing.T) {
@@ -58,10 +48,9 @@ func TestFindModuleRoot(t *testing.T) {
 
 		dir := t.TempDir()
 
-		gotRoot, ok := FindModuleRoot(dir)
-		if ok || gotRoot != "" {
-			t.Fatalf("expected no go.mod root, got ok=%v root=%q", ok, gotRoot)
-		}
+		gotRoot, ok := modfile.FindModuleRoot(dir)
+		assert.False(t, ok)
+		assert.Empty(t, gotRoot)
 	})
 }
 
@@ -73,9 +62,7 @@ func TestModuleReplace(t *testing.T) {
 	// writeGoMod writes content to dir/go.mod so each case can point ModuleReplace at a fresh module root.
 	writeGoMod := func(t *testing.T, dir, content string) {
 		t.Helper()
-		if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(content), 0o600); err != nil {
-			t.Fatalf("failed to write go.mod: %v", err)
-		}
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(content), 0o600))
 	}
 
 	t.Run("returns not found when there is a require but no replace", func(t *testing.T) {
@@ -87,16 +74,10 @@ func TestModuleReplace(t *testing.T) {
 			dir,
 			"module example.com/mygame\n\ngo 1.22\n\nrequire github.com/argus-labs/world-engine v0.8.0\n",
 		)
-		ver, found, err := ModuleReplace(dir, modulePath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if found {
-			t.Fatal("expected not found when there is no replace")
-		}
-		if ver != "" {
-			t.Fatalf("expected empty version, got %q", ver)
-		}
+		ver, found, err := modfile.ModuleReplace(dir, modulePath)
+		require.NoError(t, err)
+		assert.False(t, found, "expected not found when there is no replace")
+		assert.Equal(t, "", ver)
 	})
 
 	t.Run("returns the fork version for a versioned fork replace", func(t *testing.T) {
@@ -109,16 +90,10 @@ func TestModuleReplace(t *testing.T) {
 			"module example.com/mygame\n\ngo 1.22\n\nrequire github.com/argus-labs/world-engine v0.11.2\n\n"+
 				"replace github.com/argus-labs/world-engine => github.com/myfork/world-engine v0.18.0\n",
 		)
-		ver, found, err := ModuleReplace(dir, modulePath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !found {
-			t.Fatal("expected to find the fork replace")
-		}
-		if ver != "v0.18.0" {
-			t.Fatalf("expected v0.18.0 from the fork replace, got %q", ver)
-		}
+		ver, found, err := modfile.ModuleReplace(dir, modulePath)
+		require.NoError(t, err)
+		require.True(t, found, "expected to find the fork replace")
+		assert.Equal(t, "v0.18.0", ver)
 	})
 
 	t.Run("returns empty version for a path-only local replace", func(t *testing.T) {
@@ -131,16 +106,10 @@ func TestModuleReplace(t *testing.T) {
 			"module example.com/mygame\n\ngo 1.22\n\nrequire github.com/argus-labs/world-engine v0.8.0\n\n"+
 				"replace github.com/argus-labs/world-engine => ../world-engine-local\n",
 		)
-		ver, found, err := ModuleReplace(dir, modulePath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !found {
-			t.Fatal("expected to find the local replace")
-		}
-		if ver != "" {
-			t.Fatalf("expected empty version for a path-only replace, got %q", ver)
-		}
+		ver, found, err := modfile.ModuleReplace(dir, modulePath)
+		require.NoError(t, err)
+		require.True(t, found, "expected to find the local replace")
+		assert.Equal(t, "", ver)
 	})
 
 	t.Run("matches a versioned-old replace form", func(t *testing.T) {
@@ -153,16 +122,10 @@ func TestModuleReplace(t *testing.T) {
 			"module example.com/mygame\n\ngo 1.22\n\nrequire github.com/argus-labs/world-engine v1.0.0\n\n"+
 				"replace github.com/argus-labs/world-engine v1.0.0 => github.com/argus-labs/world-engine v2.0.0\n",
 		)
-		ver, found, err := ModuleReplace(dir, modulePath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !found {
-			t.Fatal("expected to find the versioned-old replace")
-		}
-		if ver != "v2.0.0" {
-			t.Fatalf("expected v2.0.0, got %q", ver)
-		}
+		ver, found, err := modfile.ModuleReplace(dir, modulePath)
+		require.NoError(t, err)
+		require.True(t, found, "expected to find the versioned-old replace")
+		assert.Equal(t, "v2.0.0", ver)
 	})
 
 	t.Run("ignores replaces of other modules", func(t *testing.T) {
@@ -175,26 +138,18 @@ func TestModuleReplace(t *testing.T) {
 			"module example.com/mygame\n\ngo 1.22\n\nrequire github.com/argus-labs/world-engine v0.8.0\n\n"+
 				"replace github.com/some/other => github.com/some/other v3.0.0\n",
 		)
-		ver, found, err := ModuleReplace(dir, modulePath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if found {
-			t.Fatal("expected not found for an unrelated replace")
-		}
-		if ver != "" {
-			t.Fatalf("expected empty version, got %q", ver)
-		}
+		ver, found, err := modfile.ModuleReplace(dir, modulePath)
+		require.NoError(t, err)
+		assert.False(t, found, "expected not found for an unrelated replace")
+		assert.Equal(t, "", ver)
 	})
 
 	t.Run("returns error when go.mod does not exist", func(t *testing.T) {
 		t.Parallel()
 
 		dir := t.TempDir()
-		_, _, err := ModuleReplace(dir, modulePath)
-		if err == nil {
-			t.Fatal("expected error when go.mod does not exist")
-		}
+		_, _, err := modfile.ModuleReplace(dir, modulePath)
+		require.Error(t, err, "expected error when go.mod does not exist")
 	})
 
 	t.Run("returns error for malformed go.mod", func(t *testing.T) {
@@ -202,10 +157,8 @@ func TestModuleReplace(t *testing.T) {
 
 		dir := t.TempDir()
 		writeGoMod(t, dir, "not a valid go.mod {{{}}}")
-		_, _, err := ModuleReplace(dir, modulePath)
-		if err == nil {
-			t.Fatal("expected error for malformed go.mod")
-		}
+		_, _, err := modfile.ModuleReplace(dir, modulePath)
+		require.Error(t, err, "expected error for malformed go.mod")
 	})
 }
 
@@ -224,20 +177,12 @@ go 1.22
 
 require github.com/argus-labs/world-engine v0.8.0
 `
-		if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600); err != nil {
-			t.Fatalf("failed to write go.mod: %v", err)
-		}
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 
-		ver, found, err := ModuleDependencyVersion(dir, modulePath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !found {
-			t.Fatal("expected to find world-engine version")
-		}
-		if ver != "v0.8.0" {
-			t.Fatalf("expected v0.8.0, got %q", ver)
-		}
+		ver, found, err := modfile.ModuleDependencyVersion(dir, modulePath)
+		require.NoError(t, err)
+		require.True(t, found, "expected to find world-engine version")
+		assert.Equal(t, "v0.8.0", ver)
 	})
 
 	t.Run("detects version from replace directive", func(t *testing.T) {
@@ -252,20 +197,12 @@ require github.com/argus-labs/world-engine v0.8.0
 
 replace github.com/argus-labs/world-engine => github.com/argus-labs/world-engine v0.9.0
 `
-		if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600); err != nil {
-			t.Fatalf("failed to write go.mod: %v", err)
-		}
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 
-		ver, found, err := ModuleDependencyVersion(dir, modulePath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !found {
-			t.Fatal("expected to find world-engine version")
-		}
-		if ver != "v0.9.0" {
-			t.Fatalf("expected v0.9.0 from replace, got %q", ver)
-		}
+		ver, found, err := modfile.ModuleDependencyVersion(dir, modulePath)
+		require.NoError(t, err)
+		require.True(t, found, "expected to find world-engine version")
+		assert.Equal(t, "v0.9.0", ver)
 	})
 
 	t.Run("falls back to require when replace has no version", func(t *testing.T) {
@@ -280,20 +217,12 @@ require github.com/argus-labs/world-engine v0.8.0
 
 replace github.com/argus-labs/world-engine => ../world-engine-local
 `
-		if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600); err != nil {
-			t.Fatalf("failed to write go.mod: %v", err)
-		}
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 
-		ver, found, err := ModuleDependencyVersion(dir, modulePath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !found {
-			t.Fatal("expected to find world-engine version")
-		}
-		if ver != "v0.8.0" {
-			t.Fatalf("expected v0.8.0 to fallback to require, got %q", ver)
-		}
+		ver, found, err := modfile.ModuleDependencyVersion(dir, modulePath)
+		require.NoError(t, err)
+		require.True(t, found, "expected to find world-engine version")
+		assert.Equal(t, "v0.8.0", ver)
 	})
 
 	t.Run("returns not found when module not present", func(t *testing.T) {
@@ -306,41 +235,29 @@ go 1.22
 
 require github.com/some/other v1.0.0
 `
-		if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600); err != nil {
-			t.Fatalf("failed to write go.mod: %v", err)
-		}
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o600))
 
-		_, found, err := ModuleDependencyVersion(dir, modulePath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if found {
-			t.Fatal("expected not found when module is absent")
-		}
+		_, found, err := modfile.ModuleDependencyVersion(dir, modulePath)
+		require.NoError(t, err)
+		assert.False(t, found, "expected not found when module is absent")
 	})
 
 	t.Run("returns error when go.mod does not exist", func(t *testing.T) {
 		t.Parallel()
 
 		dir := t.TempDir()
-		_, _, err := ModuleDependencyVersion(dir, modulePath)
-		if err == nil {
-			t.Fatal("expected error when go.mod does not exist")
-		}
+		_, _, err := modfile.ModuleDependencyVersion(dir, modulePath)
+		require.Error(t, err, "expected error when go.mod does not exist")
 	})
 
 	t.Run("returns error for malformed go.mod", func(t *testing.T) {
 		t.Parallel()
 
 		dir := t.TempDir()
-		if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("not a valid go.mod {{{}}}"), 0o600); err != nil {
-			t.Fatalf("failed to write go.mod: %v", err)
-		}
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("not a valid go.mod {{{}}}"), 0o600))
 
-		_, _, err := ModuleDependencyVersion(dir, modulePath)
-		if err == nil {
-			t.Fatal("expected error for malformed go.mod")
-		}
+		_, _, err := modfile.ModuleDependencyVersion(dir, modulePath)
+		require.Error(t, err, "expected error for malformed go.mod")
 	})
 }
 
@@ -366,10 +283,8 @@ func TestIsOlderThan(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := IsOlderThan(tt.ver, tt.baseline)
-			if got != tt.want {
-				t.Fatalf("IsOlderThan(%q, %q) = %v, want %v", tt.ver, tt.baseline, got, tt.want)
-			}
+			got := modfile.IsOlderThan(tt.ver, tt.baseline)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

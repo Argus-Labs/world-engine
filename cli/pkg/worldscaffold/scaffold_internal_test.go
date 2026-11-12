@@ -164,7 +164,7 @@ func (s *SetupCloneTestSuite) TestCreateGoModIn_CreatesWhenMissing() {
 
 	data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 	require.NoError(t, err)
-	assert.Equal(t, "module example.com/mymod\n\ngo 1.27.1\n\n"+
+	assert.Equal(t, "module example.com/mymod\n\ngo 1.27.4\n\n"+
 		"require github.com/argus-labs/world-engine v0.18.0\n\n"+
 		"tool github.com/argus-labs/world-engine/cli/cmd/world\n", string(data))
 }

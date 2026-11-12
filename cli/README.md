@@ -35,7 +35,7 @@ World CLI is a comprehensive command-line tool for managing World Engine project
 
 ## Installation
 
-World CLI is a [Go tool](https://go.dev/doc/modules/managing-dependencies#tools). You need [Go](https://go.dev/doc/install) 1.27.1 or later.
+World CLI is a [Go tool](https://go.dev/doc/modules/managing-dependencies#tools). You need [Go](https://go.dev/doc/install) 1.27.4 or later.
 
 **Windows Users:** Windows Subsystem for Linux 2 (WSL2) is required for running World CLI on Windows.
 

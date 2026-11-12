@@ -1,10 +1,11 @@
-//nolint:testpackage // Exercises unexported helpers and state transitions.
-package service
+package service_test
 
 import (
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
 
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
@@ -12,12 +13,12 @@ import (
 func TestGameServiceFromConfigImageKind(t *testing.T) {
 	t.Parallel()
 
-	cfg := &Config{
+	cfg := &service.Config{
 		Project:   "rampage",
 		NATSURL:   "nats://world-engine-nats:4222",
 		WorldToml: worldtoml.Config{Project: "rampage"},
 	}
-	svc := GameServiceFromConfig(cfg, worldtoml.GameService{
+	svc := service.GameServiceFromConfig(cfg, worldtoml.GameService{
 		ID:          "postgres",
 		Image:       "postgres:16",
 		Env:         map[string]string{"POSTGRES_USER": "meta", "POSTGRES_DB": "meta"},
@@ -46,7 +47,7 @@ func TestGameServiceFromConfigImageKind(t *testing.T) {
 	if !slices.Equal(svc.Binds, wantBinds) {
 		t.Fatalf("expected binds %#v, got %#v", wantBinds, svc.Binds)
 	}
-	if svc.Labels[ProjectLabel] != "rampage" || svc.Labels[RoleLabel] != RoleService {
+	if svc.Labels[service.ProjectLabel] != "rampage" || svc.Labels[service.RoleLabel] != service.RoleService {
 		t.Fatalf("expected project/service labels, got %#v", svc.Labels)
 	}
 	if svc.BuildTarget != "" || svc.Dockerfile != "" {
@@ -64,12 +65,12 @@ func TestGameServiceFromConfigImageKind(t *testing.T) {
 func TestGameServiceFromConfigPathKind(t *testing.T) {
 	t.Parallel()
 
-	cfg := &Config{
+	cfg := &service.Config{
 		Project:   "rampage",
 		NATSURL:   "nats://world-engine-nats:4222",
 		WorldToml: worldtoml.Config{Project: "rampage"},
 	}
-	svc := GameServiceFromConfig(cfg, worldtoml.GameService{
+	svc := service.GameServiceFromConfig(cfg, worldtoml.GameService{
 		ID:   "meta",
 		Path: "services/meta/cmd",
 		Env: map[string]string{
@@ -90,7 +91,7 @@ func TestGameServiceFromConfigPathKind(t *testing.T) {
 	if svc.BuildArgs["SHARD_PATH"] != "services/meta/cmd" || svc.BuildArgs["SOURCE_PATH"] != "." {
 		t.Fatalf("unexpected build args: %#v", svc.BuildArgs)
 	}
-	if svc.Labels[ProjectLabel] != "rampage" || svc.Labels[RoleLabel] != RoleService {
+	if svc.Labels[service.ProjectLabel] != "rampage" || svc.Labels[service.RoleLabel] != service.RoleService {
 		t.Fatalf("expected project/service labels, got %#v", svc.Labels)
 	}
 	if !slices.Contains(
@@ -113,14 +114,14 @@ func TestGameServiceFromConfigPathKind(t *testing.T) {
 func TestGameServiceFromConfigInjectsConfigDBCreds(t *testing.T) {
 	t.Parallel()
 
-	cfg := &Config{
+	cfg := &service.Config{
 		Project:   "rampage",
 		NATSURL:   "nats://world-engine-nats:4222",
 		WorldToml: worldtoml.Config{Project: "rampage"},
 	}
 	// world.toml sets no POSTGRES_* env; world-cli must inject its defaults so
 	// the config database initializes with creds matching the derived DSN.
-	svc := GameServiceFromConfig(cfg, worldtoml.GameService{
+	svc := service.GameServiceFromConfig(cfg, worldtoml.GameService{
 		ID:       "postgres",
 		Image:    "postgres:16",
 		ConfigDB: true,
@@ -141,7 +142,7 @@ func TestGameServiceFromConfigInjectsConfigDBCreds(t *testing.T) {
 func TestGameServiceFromConfigConfigDBCredsTakePrecedence(t *testing.T) {
 	t.Parallel()
 
-	cfg := &Config{
+	cfg := &service.Config{
 		Project:   "rampage",
 		NATSURL:   "nats://world-engine-nats:4222",
 		WorldToml: worldtoml.Config{Project: "rampage"},
@@ -149,7 +150,7 @@ func TestGameServiceFromConfigConfigDBCredsTakePrecedence(t *testing.T) {
 	// Even if world.toml tried to set its own POSTGRES_*, world-cli's injected
 	// defaults replace them in the merged env, so there are no duplicate keys and
 	// the world-cli creds win.
-	svc := GameServiceFromConfig(cfg, worldtoml.GameService{
+	svc := service.GameServiceFromConfig(cfg, worldtoml.GameService{
 		ID:       "postgres",
 		Image:    "postgres:16",
 		ConfigDB: true,
@@ -170,7 +171,7 @@ func TestGameServiceFromConfigConfigDBCredsTakePrecedence(t *testing.T) {
 func TestGameServiceFromConfigInjectsDBDSN(t *testing.T) {
 	t.Parallel()
 
-	cfg := &Config{
+	cfg := &service.Config{
 		Project: "rampage",
 		NATSURL: "nats://world-engine-nats:4222",
 		WorldToml: worldtoml.Config{
@@ -180,7 +181,7 @@ func TestGameServiceFromConfigInjectsDBDSN(t *testing.T) {
 	}
 	// db = true with no explicit env: world-cli injects the shared project DB DSN
 	// as the uniform DB_DSN, so world.toml need not hand-wire it.
-	svc := GameServiceFromConfig(cfg, cfg.WorldToml.Services[0])
+	svc := service.GameServiceFromConfig(cfg, cfg.WorldToml.Services[0])
 	wantDSN := "DB_DSN=postgres://postgres:postgres@rampage-db:5432/rampage?sslmode=disable"
 	if !slices.Contains(svc.Env, wantDSN) {
 		t.Fatalf("expected injected %q, got %#v", wantDSN, svc.Env)
@@ -196,14 +197,14 @@ func TestGameServiceFromConfigDBDSNOverridable(t *testing.T) {
 		DB:   true,
 		Env:  map[string]string{"DB_DSN": "postgres://custom@host:5432/db"},
 	}
-	cfg := &Config{
+	cfg := &service.Config{
 		Project:   "rampage",
 		NATSURL:   "nats://world-engine-nats:4222",
 		WorldToml: worldtoml.Config{Project: "rampage", Services: []worldtoml.GameService{meta}},
 	}
 	// A world.toml DB_DSN wins: it's merged first and the injected default only
 	// fills the key when absent, so there's a single DB_DSN with the user value.
-	svc := GameServiceFromConfig(cfg, meta)
+	svc := service.GameServiceFromConfig(cfg, meta)
 	if !slices.Contains(svc.Env, "DB_DSN=postgres://custom@host:5432/db") {
 		t.Fatalf("expected the user override DSN to win, got %#v", svc.Env)
 	}
@@ -215,13 +216,13 @@ func TestGameServiceFromConfigDBDSNOverridable(t *testing.T) {
 func TestProjectDBService(t *testing.T) {
 	t.Parallel()
 
-	cfg := &Config{
+	cfg := &service.Config{
 		WorldToml: worldtoml.Config{
 			Project:  "rampage",
 			Services: []worldtoml.GameService{{ID: "meta", Path: "services/meta/cmd", DB: true}},
 		},
 	}
-	svc := ProjectDBService(cfg)
+	svc := service.ProjectDBService(cfg)
 
 	if svc.Name != "rampage-db" {
 		t.Fatalf("expected container name %q, got %q", "rampage-db", svc.Name)
@@ -237,7 +238,7 @@ func TestProjectDBService(t *testing.T) {
 	if !slices.Equal(svc.Env, wantEnv) {
 		t.Fatalf("expected env %#v, got %#v", wantEnv, svc.Env)
 	}
-	if svc.Labels[ProjectLabel] != "rampage" || svc.Labels[RoleLabel] != RoleDB {
+	if svc.Labels[service.ProjectLabel] != "rampage" || svc.Labels[service.RoleLabel] != service.RoleDB {
 		t.Fatalf("expected project/db labels, got %#v", svc.Labels)
 	}
 	if svc.BuildTarget != "" {
@@ -255,13 +256,13 @@ func TestProjectDBService(t *testing.T) {
 func TestBuildGameServicesPrependsAutoProjectDB(t *testing.T) {
 	t.Parallel()
 
-	cfg := &Config{
+	cfg := &service.Config{
 		WorldToml: worldtoml.Config{
 			Project:  "rampage",
 			Services: []worldtoml.GameService{{ID: "meta", Path: "services/meta/cmd", DB: true}},
 		},
 	}
-	builders := BuildGameServices(cfg)
+	builders := service.BuildGameServices(cfg)
 	if len(builders) != 2 {
 		t.Fatalf("expected auto db + meta = 2 builders, got %d", len(builders))
 	}
@@ -277,7 +278,7 @@ func TestBuildGameServicesPrependsAutoProjectDB(t *testing.T) {
 func TestBuildGameServicesPreservesDeclarationOrder(t *testing.T) {
 	t.Parallel()
 
-	cfg := &Config{
+	cfg := &service.Config{
 		WorldToml: worldtoml.Config{
 			Project: "rampage",
 			Services: []worldtoml.GameService{
@@ -286,7 +287,7 @@ func TestBuildGameServicesPreservesDeclarationOrder(t *testing.T) {
 			},
 		},
 	}
-	builders := BuildGameServices(cfg)[1:] // [0] is the auto project db
+	builders := service.BuildGameServices(cfg)[1:] // [0] is the auto project db
 	if len(builders) != 2 {
 		t.Fatalf("expected 2 builders, got %d", len(builders))
 	}
@@ -330,8 +331,11 @@ func TestPlatformServices(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			cfg := &Config{Project: "rampage", WorldToml: worldtoml.Config{Project: "rampage", Services: tc.services}}
-			svcs := PlatformServices(cfg)
+			cfg := &service.Config{
+				Project:   "rampage",
+				WorldToml: worldtoml.Config{Project: "rampage", Services: tc.services},
+			}
+			svcs := service.PlatformServices(cfg)
 			names := make([]string, 0, len(svcs))
 			images := make([]string, 0, len(svcs))
 			for _, s := range svcs {
@@ -339,10 +343,10 @@ func TestPlatformServices(t *testing.T) {
 				images = append(images, s.Image)
 			}
 			if !slices.Equal(names, tc.want) {
-				t.Fatalf("PlatformServices = %v, want %v", names, tc.want)
+				t.Fatalf("service.PlatformServices = %v, want %v", names, tc.want)
 			}
-			if got := PlatformImageRefs(cfg); !slices.Equal(got, images) {
-				t.Fatalf("PlatformImageRefs = %v, want the service images %v", got, images)
+			if got := service.PlatformImageRefs(cfg); !slices.Equal(got, images) {
+				t.Fatalf("service.PlatformImageRefs = %v, want the service images %v", got, images)
 			}
 		})
 	}
