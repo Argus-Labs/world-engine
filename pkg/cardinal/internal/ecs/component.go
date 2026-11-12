@@ -102,9 +102,13 @@ type fieldProblem struct {
 }
 
 // checkComponentField walks t and appends one problem per field that cannot be stored. visiting holds
-// the types on the current path, so a type that reaches itself does not loop.
+// the types on the current path, so a type that reaches itself is reported once instead of looping.
 func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]bool, problems *[]fieldProblem) {
-	if visiting[t] || knownValueType(t) {
+	if visiting[t] {
+		*problems = append(*problems, fieldProblem{path: path, typ: t, reason: reasonRecursive, fix: fixRecursive})
+		return
+	}
+	if knownValueType(t) {
 		return
 	}
 	visiting[t] = true
@@ -116,6 +120,12 @@ func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]
 	if elem, ok := immutable.SliceElem(t); ok {
 		// The Slice itself is safe; its element might not be.
 		checkComponentField(elem, path+"[]", visiting, problems)
+		return
+	}
+	if key, value, ok := immutable.MapTypes(t); ok {
+		// Key already limits the key to an integer or string, but a named one can still carry a codec.
+		checkComponentField(key, path+"{key}", visiting, problems)
+		checkComponentField(value, path+"{}", visiting, problems)
 		return
 	}
 	if hasCodec(t) {
@@ -308,11 +318,11 @@ const (
 		"stored component"
 	reasonUnexportedEmbedded = "is embedded with an unexported type, so a snapshot stores it but a restore " +
 		"cannot write it back"
+	reasonRecursive = "contains itself, so the component is a tree with no bound on its depth"
 
 	fixSlice = "use a fixed-size array [N]T with the live length in its own field, or immutable.Slice[T] " +
 		"if the length is genuinely unbounded"
-	fixMap = "if the key set is fixed, use a struct with one field per key; otherwise a fixed-size array " +
-		"of entry structs plus a count"
+	fixMap       = "if the key set is fixed, use a struct with one field per key; otherwise immutable.Map[K, V]"
 	fixPointer   = "drop the star and store the value; if it means absent, put a Has<Name> bool beside it"
 	fixInterface = "use the one concrete type it holds; if it varies, add a tag field and one field per " +
 		"variant"
@@ -324,6 +334,8 @@ const (
 	fixEmbeddedCodec      = "give it a field name"
 	fixCodecShares        = "keep its state in numbers, strings, fixed-size arrays, or structs of those"
 	fixUnexportedEmbedded = "give it an exported field name, or export its type"
+	fixRecursive          = "make each node its own entity with a parent component, or flatten the tree into " +
+		"one immutable.Slice of nodes that refer to each other by index"
 )
 
 // hidesState reports whether t keeps state in unexported fields and stores none of it. A struct

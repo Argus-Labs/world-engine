@@ -8,7 +8,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/plugin/physics2d/test/e2e/internal/probe"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal"
-	"github.com/argus-labs/world-engine/pkg/immutable"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 )
 
@@ -285,15 +284,13 @@ func (c *Ctx) Speed(id cardinal.EntityID) float64 {
 	return math.Hypot(v.X, v.Y)
 }
 
-// Body returns a deep copy of the entity's PhysicsBody2D. The Shapes slice is
-// cloned so a scenario can edit it without aliasing ECS storage; write it back
-// with SetBody.
+// Body returns a copy of the entity's PhysicsBody2D. Write edits back with SetBody.
 func (c *Ctx) Body(id cardinal.EntityID) physics.PhysicsBody2D {
 	row, err := c.probes.GetByID(id)
 	if err != nil {
 		return physics.PhysicsBody2D{}
 	}
-	return CloneBody(row.Get[physics.PhysicsBody2D]())
+	return row.Get[physics.PhysicsBody2D]()
 }
 
 // SetPos moves the entity to a lane-local position.
@@ -371,18 +368,6 @@ func (c *Ctx) EditShape(id cardinal.EntityID, i int, edit func(sh *physics.Colli
 func (c *Ctx) Destroy(id cardinal.EntityID) bool {
 	entity, err := c.probes.GetByID(id)
 	return err == nil && entity.Destroy()
-}
-
-// CloneBody deep-copies a PhysicsBody2D including its shapes and their chain geometry, so edits to
-// the copy cannot reach the original. immutable.Slice derivations write through the array they
-// share with the component, so a scenario that means to edit a body has to start from a copy like
-// this one; Map and Collect are the two derivations that allocate instead.
-func CloneBody(pb physics.PhysicsBody2D) physics.PhysicsBody2D {
-	pb.Shapes = immutable.Map(pb.Shapes, func(s physics.ColliderShape) physics.ColliderShape {
-		s.ChainPoints = immutable.Collect(s.ChainPoints.Values())
-		return s
-	})
-	return pb
 }
 
 // -----------------------------------------------------------------------------

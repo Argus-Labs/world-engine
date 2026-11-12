@@ -39,19 +39,13 @@ before editing (SKILL.md, Before editing). Convert each field, then fix its uses
 | `*T` shared on purpose | an ID (`EntityID`, index or key) looked up where it is used           |
 | `any` or an interface  | a kind enum plus one field per variant, or an encoded string          |
 
-`immutable.Slice` hides its array but does not copy on write. Build with
+`immutable.Slice` hides its array and never writes to it. Build with
 `immutable.SliceOf(xs...)`. Read with `Len`, `At`, `All`, `Values`, `IndexFunc`. Every
-derivation returns a Slice, but only `Append`, `Repeat`, `immutable.Map` and
-`immutable.Concat` allocate. `With`, `Without`, `Filter`, `Delete`, `Reversed`,
-`SortedFunc`, `CompactFunc`, `immutable.Sorted` and `immutable.Compact` edit the
-receiver's array in place. `Insert` and `Replace` do when it has spare capacity, and
-`Sub` and `Chunk` return windows onto it. `e.Get[C]()` returns a copy that shares the
-column's array, so a derivation rewrites stored state before any `Set`. A discarded
-`c.Items.Filter(keep)` leaves the stored slice at its old length over a shifted,
-zero-filled tail. Always assign and set: `c.Items = c.Items.Filter(keep)`, then
-`e.Set(c)`. For a read-only result, copy first:
-`immutable.Collect(c.Items.Values()).SortedFunc(cmp)`. A `for i := range c.Items` over
-the old slice becomes `for i, x := range c.Items.All()`.
+derivation (`With`, `Without`, `Filter`, `Append`, `SortedFunc`, ...) returns a new Slice
+and leaves the receiver unchanged, so assign and set: `c.Items = c.Items.Filter(keep)`,
+then `e.Set(c)`. For several edits at once, use `b := c.Items.Edit()`, edit `b`, then
+`c.Items = b.Done()`. The old `immutable.Map` function is now `immutable.Transform`. A
+`for i := range c.Items` over the old slice becomes `for i, x := range c.Items.All()`.
 
 Which of these needs a design decision is the user's call: a shared pointer or an
 interface field usually does. List them and ask before converting.

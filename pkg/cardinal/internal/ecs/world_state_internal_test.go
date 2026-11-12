@@ -915,12 +915,13 @@ func TestWorldState_ToProtoOwnsPayloads(t *testing.T) {
 	require.NoError(t, err)
 	frozen := proto.Clone(pb)
 
-	// With edits the backing array in place, so these writes reach the stored component too.
-	_ = value.Items.With(0, 99)
-	_ = value.Groups.At(0).With(0, 88)
+	// Change the stored component after encoding; the earlier payload must not follow it.
+	value.Items = value.Items.With(0, 99)
+	value.Groups = value.Groups.With(0, value.Groups.At(0).With(0, 88))
+	require.NoError(t, ws.setComponent(e, value))
 	live, err := ws.getComponent[nestedPayload](e)
 	require.NoError(t, err)
-	const reached = "the write must reach the stored component for this test to mean anything"
+	const reached = "the change must reach the stored component for this test to mean anything"
 	require.Equal(t, 99, live.Items.At(0), reached)
 	require.Equal(t, 88, live.Groups.At(0).At(0), reached)
 

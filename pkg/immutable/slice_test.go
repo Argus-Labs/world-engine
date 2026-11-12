@@ -19,9 +19,7 @@ type point struct {
 	X, Y int
 }
 
-// collect copies a Slice's elements out to a plain []T for comparison. Slice has no Clone method —
-// derivations write through, so a test that needs a stable snapshot copies via Values, same as any
-// other caller would.
+// collect copies a Slice's elements out to a plain []T for comparison.
 func collect[T any](s immutable.Slice[T]) []T {
 	return slices.Collect(s.Values())
 }
@@ -144,48 +142,37 @@ func TestSlice_WithReplacesOneElement(t *testing.T) {
 	w := s.With(1, 42)
 
 	require.Equal(t, []int{1, 42, 3}, collect(w))
-	require.Equal(t, []int{1, 42, 3}, collect(s), "With writes through to the receiver")
+	require.Equal(t, []int{1, 2, 3}, collect(s), "the receiver is unchanged")
 	require.Panics(t, func() { immutable.SliceOf(1, 2, 3).With(3, 0) })
 }
 
 func TestSlice_WithoutDropsOneElement(t *testing.T) {
 	t.Parallel()
 
-	// Each case starts from a fresh receiver: Without writes through, so reusing one would feed the
-	// next case a shrunken list.
-	fresh := func() immutable.Slice[int] { return immutable.SliceOf(1, 2, 3) }
-	require.Equal(t, []int{2, 3}, collect(fresh().Without(0)))
-	require.Equal(t, []int{1, 3}, collect(fresh().Without(1)))
-	require.Equal(t, []int{1, 2}, collect(fresh().Without(2)))
+	s := immutable.SliceOf(1, 2, 3)
+	require.Equal(t, []int{2, 3}, collect(s.Without(0)))
+	require.Equal(t, []int{1, 3}, collect(s.Without(1)))
+	require.Equal(t, []int{1, 2}, collect(s.Without(2)))
 	require.Equal(t, 0, immutable.SliceOf(1).Without(0).Len(), "dropping the last leaves it empty")
-	require.Panics(t, func() { fresh().Without(3) })
-
-	s := fresh()
-	s.Without(0)
-	require.Equal(t, []int{2, 3, 0}, collect(s),
-		"Without writes through: the receiver keeps its length over a zero-filled tail")
+	require.Panics(t, func() { s.Without(3) })
+	require.Panics(t, func() { s.Without(-1) })
+	require.Equal(t, []int{1, 2, 3}, collect(s), "the receiver is unchanged")
 }
 
 func TestSlice_FilterKeepsMatches(t *testing.T) {
 	t.Parallel()
 
-	// Each case starts from a fresh receiver: Filter writes through, so reusing one would feed the
-	// next case a shrunken list.
-	fresh := func() immutable.Slice[int] { return immutable.SliceOf(1, 2, 3, 4) }
+	s := immutable.SliceOf(1, 2, 3, 4)
 	even := func(v int) bool { return v%2 == 0 }
 
-	require.Equal(t, []int{2, 4}, collect(fresh().Filter(even)))
-	require.Equal(t, 0, fresh().Filter(func(int) bool { return false }).Len(), "dropping all leaves it empty")
-	require.Equal(t, []int{1, 2, 3, 4}, collect(fresh().Filter(func(int) bool { return true })),
+	require.Equal(t, []int{2, 4}, collect(s.Filter(even)))
+	require.Equal(t, 0, s.Filter(func(int) bool { return false }).Len(), "dropping all leaves it empty")
+	require.Equal(t, []int{1, 2, 3, 4}, collect(s.Filter(func(int) bool { return true })),
 		"keeping all keeps order")
-
-	s := fresh()
-	s.Filter(even)
-	require.Equal(t, []int{2, 4, 0, 0}, collect(s),
-		"Filter writes through: the receiver keeps its length over a zero-filled tail")
+	require.Equal(t, []int{1, 2, 3, 4}, collect(s), "the receiver is unchanged")
 
 	calls := 0
-	fresh().Filter(func(v int) bool { calls++; return v != 2 })
+	s.Filter(func(v int) bool { calls++; return v != 2 })
 	require.Equal(t, 4, calls, "keep runs once per element")
 }
 
@@ -230,41 +217,19 @@ func TestEqual(t *testing.T) {
 	require.True(t, immutable.Equal(immutable.Slice[int]{}, immutable.SliceOf[int]()), "empty equals empty")
 }
 
-// Empty Slices are not interchangeable under [reflect.DeepEqual], and that is the deliberate trade:
-// a derivation that empties one leaves its backing array allocated, while the zero value has none.
-// Equal compares elements and agrees with [slices.Equal] that nil and empty are the same list, so that
-// is what comparisons go through.
-//
-// The case this used to protect — a component restored from a snapshot versus one built fresh — is
-// handled on the decode side instead: DecodeMsgpack leaves an empty array as the zero value rather
-// than building an allocated empty.
-func TestSlice_EmptyComparison(t *testing.T) {
-	t.Parallel()
-
-	zero := immutable.Slice[int]{}
-	built := immutable.SliceOf[int]()
-	derived := immutable.SliceOf(1, 2, 3).Filter(func(int) bool { return false })
-
-	require.Equal(t, 0, derived.Len())
-	require.True(t, immutable.Equal(zero, built), "Equal compares elements")
-	require.True(t, immutable.Equal(zero, derived), "Equal compares elements")
-	require.True(t, zero.EqualFunc(derived, func(a, b int) bool { return a == b }))
-
-	require.NotEqual(t, zero, derived, "use Equal, not require.Equal, on a possibly-empty Slice")
-}
-
-// Every fresh-allocation producer — one that builds a new backing array and leaves the receiver
-// alone — must return the zero value for an empty result, not an empty-but-allocated Slice. That is
-// the rule DecodeMsgpack and UnmarshalJSON both enforce so a component built fresh compares
-// equal to one restored from a snapshot under [reflect.DeepEqual]. Repeat used to be the lone
-// outlier: it forwarded to [slices.Repeat], which is never-nil. This table pins every producer at
-// once so a future regression to any one of them — Repeat most of all — fails here.
+// Every producer and derivation must return the zero value for an empty result, not an
+// empty-but-allocated Slice. That is the rule DecodeMsgpack and UnmarshalJSON both enforce, so a
+// component built fresh compares equal to one restored from a snapshot under [reflect.DeepEqual].
+// This table pins every path at once so a regression in any one of them fails here.
 func TestSlice_ProducerEmptyIsZeroValue(t *testing.T) {
 	t.Parallel()
 
 	zero := immutable.Slice[int]{}
 	empty := immutable.SliceOf[int]()
 	id := func(int) int { return 0 }
+	one := immutable.SliceOf(1)
+	emptied := one.Edit()
+	emptied.Delete(0, 1)
 
 	producers := []struct {
 		name string
@@ -274,13 +239,27 @@ func TestSlice_ProducerEmptyIsZeroValue(t *testing.T) {
 		{"Repeat(empty,0)", empty.Repeat(0)},
 		{"Repeat(non-empty,0)", immutable.SliceOf(1, 2, 3).Repeat(0)},
 		{"Repeat(zero,3)", zero.Repeat(3)},
-		{"Map(zero,id)", immutable.Map(zero, id)},
-		{"Map(empty,id)", immutable.Map(empty, id)},
+		{"Transform(zero,id)", immutable.Transform(zero, id)},
+		{"Transform(empty,id)", immutable.Transform(empty, id)},
 		{"Concat()", immutable.Concat[int]()},
 		{"Concat(zero,empty)", immutable.Concat(zero, empty)},
 		{"Collect(zero.Values)", immutable.Collect(zero.Values())},
 		{"Append(zero)", zero.Append()},
 		{"Append(empty)", empty.Append()},
+		{"SliceOf(empty literal)", immutable.SliceOf([]int{}...)},
+		{"Without", one.Without(0)},
+		{"Filter", one.Filter(func(int) bool { return false })},
+		{"Delete", one.Delete(0, 1)},
+		{"Replace", one.Replace(0, 1)},
+		{"Insert(zero)", zero.Insert(0)},
+		{"Sub", one.Sub(1, 1)},
+		{"Reversed(zero)", zero.Reversed()},
+		{"Sorted(zero)", immutable.Sorted(zero)},
+		{"Compact(zero)", immutable.Compact(zero)},
+		{"CompactFunc(zero)", zero.CompactFunc(func(a, b int) bool { return a == b })},
+		{"Edit().Done()", zero.Edit().Done()},
+		{"Done after deleting all", emptied.Done()},
+		{"NewSliceBuilder(4).Done()", immutable.NewSliceBuilder[int](4).Done()},
 	}
 
 	for _, p := range producers {
@@ -358,15 +337,14 @@ func TestSlice_Search(t *testing.T) {
 func TestSlice_Insert(t *testing.T) {
 	t.Parallel()
 
-	// Insert writes through when the receiver has the spare capacity to hold the result and
-	// allocates otherwise, so every case starts from a fresh receiver rather than reusing one.
-	fresh := func() immutable.Slice[int] { return immutable.SliceOf(1, 3) }
-	require.Equal(t, []int{0, 1, 3}, collect(fresh().Insert(0, 0)))
-	require.Equal(t, []int{1, 2, 3}, collect(fresh().Insert(1, 2)))
-	require.Equal(t, []int{1, 3, 4, 5}, collect(fresh().Insert(2, 4, 5)), "at Len appends")
-	require.Equal(t, []int{1, 3}, collect(fresh().Insert(1)), "no items is a no-op")
-	require.Panics(t, func() { fresh().Insert(3, 9) })
-	require.Panics(t, func() { fresh().Insert(-1, 9) })
+	s := immutable.SliceOf(1, 3)
+	require.Equal(t, []int{0, 1, 3}, collect(s.Insert(0, 0)))
+	require.Equal(t, []int{1, 2, 3}, collect(s.Insert(1, 2)))
+	require.Equal(t, []int{1, 3, 4, 5}, collect(s.Insert(2, 4, 5)), "at Len appends")
+	require.Equal(t, []int{1, 3}, collect(s.Insert(1)), "no items is a no-op")
+	require.Panics(t, func() { s.Insert(3, 9) })
+	require.Panics(t, func() { s.Insert(-1, 9) })
+	require.Equal(t, []int{1, 3}, collect(s), "the receiver is unchanged")
 }
 
 func TestSlice_Sub(t *testing.T) {
@@ -376,13 +354,12 @@ func TestSlice_Sub(t *testing.T) {
 	require.Equal(t, []int{2, 3}, collect(s.Sub(1, 3)))
 	require.Equal(t, []int{1, 2, 3, 4}, collect(s.Sub(0, 4)))
 	require.Equal(t, 0, s.Sub(2, 2).Len(), "empty range")
-	require.Equal(t, []int{1, 2, 3, 4}, collect(s), "Sub is the one derivation that writes nothing")
+	require.Equal(t, []int{1, 2, 3, 4}, collect(s), "the receiver is unchanged")
 	require.Panics(t, func() { s.Sub(0, 5) })
 	require.Panics(t, func() { s.Sub(3, 2) })
 	require.Panics(t, func() { s.Sub(-1, 2) })
 
-	// A Filter result carries spare capacity; Sub must still refuse to read past Len into it. It
-	// derives from its own slice because Filter writes through.
+	// A Filter result carries spare capacity; Sub must still refuse to read past Len into it.
 	spare := immutable.SliceOf(1, 2, 3, 4).Filter(func(v int) bool { return v != 4 })
 	require.Equal(t, 3, spare.Len())
 	require.Panics(t, func() { spare.Sub(0, 4) })
@@ -391,21 +368,13 @@ func TestSlice_Sub(t *testing.T) {
 func TestSlice_ReversedAndSorted(t *testing.T) {
 	t.Parallel()
 
-	// Both reorder in place, so every case starts from a fresh receiver.
-	fresh := func() immutable.Slice[int] { return immutable.SliceOf(3, 1, 2) }
-	require.Equal(t, []int{2, 1, 3}, collect(fresh().Reversed()))
-	require.Equal(t, []int{1, 2, 3}, collect(immutable.Sorted(fresh())))
-	require.Equal(t, []int{3, 2, 1}, collect(fresh().SortedFunc(func(a, b int) int { return b - a })))
+	s := immutable.SliceOf(3, 1, 2)
+	require.Equal(t, []int{2, 1, 3}, collect(s.Reversed()))
+	require.Equal(t, []int{1, 2, 3}, collect(immutable.Sorted(s)))
+	require.Equal(t, []int{3, 2, 1}, collect(s.SortedFunc(func(a, b int) int { return b - a })))
 	require.Equal(t, 0, immutable.Slice[int]{}.Reversed().Len())
 	require.Equal(t, 0, immutable.Sorted(immutable.Slice[int]{}).Len())
-
-	s := fresh()
-	s.Reversed()
-	require.Equal(t, []int{2, 1, 3}, collect(s), "Reversed writes through to the receiver")
-
-	s = fresh()
-	immutable.Sorted(s)
-	require.Equal(t, []int{1, 2, 3}, collect(s), "Sorted writes through to the receiver")
+	require.Equal(t, []int{3, 1, 2}, collect(s), "the receiver is unchanged")
 
 	// Stable: equal keys keep their original order.
 	byLen := func(a, b string) int { return len(a) - len(b) }
@@ -413,12 +382,12 @@ func TestSlice_ReversedAndSorted(t *testing.T) {
 	require.Equal(t, []string{"a", "b", "bb", "cc"}, got)
 }
 
-func TestSlice_MapConcatCollectCompact(t *testing.T) {
+func TestSlice_TransformConcatCollectCompact(t *testing.T) {
 	t.Parallel()
 
 	s := immutable.SliceOf(1, 2, 3)
-	require.Equal(t, []string{"1", "2", "3"}, collect(immutable.Map(s, strconv.Itoa)))
-	require.Equal(t, 0, immutable.Map(immutable.Slice[int]{}, strconv.Itoa).Len())
+	require.Equal(t, []string{"1", "2", "3"}, collect(immutable.Transform(s, strconv.Itoa)))
+	require.Equal(t, 0, immutable.Transform(immutable.Slice[int]{}, strconv.Itoa).Len())
 
 	require.Equal(
 		t,
@@ -432,8 +401,7 @@ func TestSlice_MapConcatCollectCompact(t *testing.T) {
 
 	dup := immutable.SliceOf(1, 1, 2, 2, 2, 1)
 	require.Equal(t, []int{1, 2, 1}, collect(immutable.Compact(dup)))
-	require.Equal(t, []int{1, 2, 1, 0, 0, 0}, collect(dup),
-		"Compact writes through: the receiver keeps its length over a zero-filled tail")
+	require.Equal(t, []int{1, 1, 2, 2, 2, 1}, collect(dup), "the receiver is unchanged")
 	require.Equal(t, 0, immutable.Compact(immutable.Slice[int]{}).Len())
 }
 
@@ -481,105 +449,109 @@ func TestSlice_BinarySearchAndCompare(t *testing.T) {
 func TestSlice_DeleteReplaceRepeatChunkCompactFunc(t *testing.T) {
 	t.Parallel()
 
-	// Delete, Replace and CompactFunc all reach the receiver, so every case starts from a fresh one.
-	fresh := func() immutable.Slice[int] { return immutable.SliceOf(1, 2, 3, 4) }
-	require.Equal(t, []int{1, 4}, collect(fresh().Delete(1, 3)))
-	require.Equal(t, []int{1, 2, 3, 4}, collect(fresh().Delete(2, 2)), "empty range is a no-op")
-	require.Equal(t, 0, fresh().Delete(0, 4).Len(), "deleting all leaves it empty")
-	require.Panics(t, func() { fresh().Delete(3, 5) })
+	s := immutable.SliceOf(1, 2, 3, 4)
+	require.Equal(t, []int{1, 4}, collect(s.Delete(1, 3)))
+	require.Equal(t, []int{1, 2, 3, 4}, collect(s.Delete(2, 2)), "empty range is a no-op")
+	require.Equal(t, 0, s.Delete(0, 4).Len(), "deleting all leaves it empty")
+	require.Panics(t, func() { s.Delete(3, 5) })
+	require.Panics(t, func() { s.Delete(3, 2) })
 
-	s := fresh()
-	s.Delete(1, 3)
-	require.Equal(t, []int{1, 4, 0, 0}, collect(s),
-		"Delete writes through: the receiver keeps its length over a zero-filled tail")
-
-	require.Equal(t, []int{1, 9, 9, 4}, collect(fresh().Replace(1, 3, 9, 9)))
-	require.Equal(t, []int{1, 4}, collect(fresh().Replace(1, 3)), "replace with nothing deletes")
-	require.Equal(t, 0, fresh().Replace(0, 4).Len(), "replacing all with nothing leaves it empty")
+	require.Equal(t, []int{1, 9, 9, 4}, collect(s.Replace(1, 3, 9, 9)))
+	require.Equal(t, []int{1, 4}, collect(s.Replace(1, 3)), "replace with nothing deletes")
+	require.Equal(t, 0, s.Replace(0, 4).Len(), "replacing all with nothing leaves it empty")
+	require.Panics(t, func() { s.Replace(3, 2, 9) })
 
 	require.Equal(t, []int{1, 2, 1, 2}, collect(immutable.SliceOf(1, 2).Repeat(2)))
-	require.Equal(t, 0, fresh().Repeat(0).Len())
-	require.Panics(t, func() { fresh().Repeat(-1) })
+	require.Equal(t, 0, s.Repeat(0).Len())
+	require.Panics(t, func() { s.Repeat(-1) })
 
 	var chunks [][]int
-	for part := range fresh().Chunk(3) {
+	for part := range s.Chunk(3) {
 		chunks = append(chunks, collect(part))
 	}
 	require.Equal(t, [][]int{{1, 2, 3}, {4}}, chunks)
-	require.Panics(t, func() { fresh().Chunk(0) })
+	require.Panics(t, func() { s.Chunk(0) })
 
 	sameParity := func(a, b int) bool { return a%2 == b%2 }
-	require.Equal(t, []int{1, 2, 3}, collect(immutable.SliceOf(1, 1, 2, 2, 3).CompactFunc(sameParity)))
-
 	c := immutable.SliceOf(1, 1, 2, 2, 3)
-	c.CompactFunc(sameParity)
-	require.Equal(t, []int{1, 2, 3, 0, 0}, collect(c),
-		"CompactFunc writes through: the receiver keeps its length over a zero-filled tail")
+	require.Equal(t, []int{1, 2, 3}, collect(c.CompactFunc(sameParity)))
+	require.Equal(t, []int{1, 1, 2, 2, 3}, collect(c), "the receiver is unchanged")
+	require.Equal(t, []int{1, 2, 3, 4}, collect(s), "the receiver is unchanged")
 }
 
-// TestSlice_DerivationsWriteThrough pins, for every derivation at once, whether it reaches the
-// receiver's backing array. Review removed the copy from each one that can finish in place, so this
-// table is the contract callers work against rather than an implementation detail: derive, then Set,
-// and copy the elements out first (immutable.Collect) when the original has to survive.
-//
-// The base has length 4 and no spare capacity, so the ops that grow past it are forced to allocate
-// and leave the receiver alone. Give one spare room and Insert and Replace write through too, which
-// is why their docs promise nothing either way.
-func TestSlice_DerivationsWriteThrough(t *testing.T) {
+// TestSlice_DerivationsLeaveReceiverUnchanged pins, for every derivation at once, that the receiver
+// keeps its elements. It runs each one on two bases: one with no spare capacity, and one whose array
+// has room past Len, the case where an append-style implementation would write into the receiver's
+// array without anyone noticing.
+func TestSlice_DerivationsLeaveReceiverUnchanged(t *testing.T) {
 	t.Parallel()
 
-	base := func() immutable.Slice[int] { return immutable.SliceOf(1, 2, 3, 4) }
-
+	notFive := func(v int) bool { return v != 5 }
+	bases := map[string]func() immutable.Slice[int]{
+		"exact":          func() immutable.Slice[int] { return immutable.SliceOf(1, 2, 3, 4) },
+		"spare capacity": func() immutable.Slice[int] { return immutable.SliceOf(1, 2, 3, 4, 5).Filter(notFive) },
+	}
 	cases := []struct {
-		name     string
-		derive   func(immutable.Slice[int]) immutable.Slice[int]
-		want     []int
-		receiver []int // the receiver as it stands after the derivation
+		name   string
+		derive func(immutable.Slice[int]) immutable.Slice[int]
+		want   []int
 	}{
-		// Allocate a new array, so the receiver survives.
-		{"Append", func(s immutable.Slice[int]) immutable.Slice[int] { return s.Append(9) },
-			[]int{1, 2, 3, 4, 9}, []int{1, 2, 3, 4}},
-		{"Insert", func(s immutable.Slice[int]) immutable.Slice[int] { return s.Insert(1, 8) },
-			[]int{1, 8, 2, 3, 4}, []int{1, 2, 3, 4}},
-		{"Replace", func(s immutable.Slice[int]) immutable.Slice[int] { return s.Replace(0, 1, 6, 6) },
-			[]int{6, 6, 2, 3, 4}, []int{1, 2, 3, 4}},
-		{"Repeat", func(s immutable.Slice[int]) immutable.Slice[int] { return s.Repeat(2) },
-			[]int{1, 2, 3, 4, 1, 2, 3, 4}, []int{1, 2, 3, 4}},
-
-		// Read-only window: writes nothing, but shares the array it reads.
-		{"Sub", func(s immutable.Slice[int]) immutable.Slice[int] { return s.Sub(0, 1) },
-			[]int{1}, []int{1, 2, 3, 4}},
-
-		// Reorder in place.
-		{"With", func(s immutable.Slice[int]) immutable.Slice[int] { return s.With(0, 7) },
-			[]int{7, 2, 3, 4}, []int{7, 2, 3, 4}},
-		{"Reversed", immutable.Slice[int].Reversed,
-			[]int{4, 3, 2, 1}, []int{4, 3, 2, 1}},
+		{"Append", func(s immutable.Slice[int]) immutable.Slice[int] { return s.Append(9) }, []int{1, 2, 3, 4, 9}},
+		{"Insert", func(s immutable.Slice[int]) immutable.Slice[int] { return s.Insert(1, 8) }, []int{1, 8, 2, 3, 4}},
+		{
+			"Insert at Len",
+			func(s immutable.Slice[int]) immutable.Slice[int] { return s.Insert(4, 8) },
+			[]int{1, 2, 3, 4, 8},
+		},
+		{
+			"Replace",
+			func(s immutable.Slice[int]) immutable.Slice[int] { return s.Replace(0, 1, 6, 6) },
+			[]int{6, 6, 2, 3, 4},
+		},
+		{
+			"Repeat",
+			func(s immutable.Slice[int]) immutable.Slice[int] { return s.Repeat(2) },
+			[]int{1, 2, 3, 4, 1, 2, 3, 4},
+		},
+		{"Sub", func(s immutable.Slice[int]) immutable.Slice[int] { return s.Sub(0, 1) }, []int{1}},
+		{"With", func(s immutable.Slice[int]) immutable.Slice[int] { return s.With(0, 7) }, []int{7, 2, 3, 4}},
+		{"Reversed", immutable.Slice[int].Reversed, []int{4, 3, 2, 1}},
 		{"SortedFunc", func(s immutable.Slice[int]) immutable.Slice[int] {
 			return s.SortedFunc(func(a, b int) int { return b - a })
-		}, []int{4, 3, 2, 1}, []int{4, 3, 2, 1}},
-
-		// Shrink in place, leaving the receiver long over a zero-filled tail.
-		{"Without", func(s immutable.Slice[int]) immutable.Slice[int] { return s.Without(0) },
-			[]int{2, 3, 4}, []int{2, 3, 4, 0}},
+		}, []int{4, 3, 2, 1}},
+		{"Without", func(s immutable.Slice[int]) immutable.Slice[int] { return s.Without(0) }, []int{2, 3, 4}},
 		{"Filter", func(s immutable.Slice[int]) immutable.Slice[int] {
 			return s.Filter(func(v int) bool { return v == 4 })
-		}, []int{4}, []int{4, 0, 0, 0}},
-		{"Delete", func(s immutable.Slice[int]) immutable.Slice[int] { return s.Delete(0, 1) },
-			[]int{2, 3, 4}, []int{2, 3, 4, 0}},
+		}, []int{4}},
+		{"Delete", func(s immutable.Slice[int]) immutable.Slice[int] { return s.Delete(0, 1) }, []int{2, 3, 4}},
 		{"CompactFunc", func(s immutable.Slice[int]) immutable.Slice[int] {
 			return s.CompactFunc(func(int, int) bool { return true })
-		}, []int{1}, []int{1, 0, 0, 0}},
+		}, []int{1}},
+		{
+			"Compact",
+			func(s immutable.Slice[int]) immutable.Slice[int] { return immutable.Compact(s.With(1, 1)) },
+			[]int{1, 3, 4},
+		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
+	for baseName, base := range bases {
+		for _, c := range cases {
+			t.Run(baseName+"/"+c.name, func(t *testing.T) {
+				t.Parallel()
 
-			s := base()
-			require.Equal(t, c.want, collect(c.derive(s)), "result")
-			require.Equal(t, c.receiver, collect(s), "receiver after %s", c.name)
-		})
+				s := base()
+				got := c.derive(s)
+				require.Equal(t, c.want, collect(got), "result")
+				require.Equal(t, []int{1, 2, 3, 4}, collect(s), "receiver after %s", c.name)
+
+				// A later derivation from the result must not reach back into the receiver either,
+				// which is what a shared window (Sub) would allow if anything wrote in place.
+				if got.Len() > 0 {
+					got.With(0, -1)
+					require.Equal(t, []int{1, 2, 3, 4}, collect(s), "receiver after deriving from %s", c.name)
+				}
+			})
+		}
 	}
 }
 

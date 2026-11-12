@@ -9,47 +9,26 @@ import (
 // reconciler's signatures read as shapes rather than as their generic spelling.
 type ShapeSlice = immutable.Slice[component.ColliderShape]
 
-// ShadowState is a deep snapshot of the ECS physics components last applied to Box2D for one
-// entity. It must not share backing storage with live ECS data so in-place component edits do
-// not corrupt the snapshot.
-//
-// An immutable.Slice is not that protection on its own: it hides its array from indexing, but
-// its derivations write straight through it, so a system that does Shapes.With(0, sh) edits the
-// very array a shadow taken earlier would still be reading. Hence the copies below.
+// ShadowState is a snapshot of the ECS physics components last applied to Box2D for one entity.
+// It is a plain struct copy: the Shapes it holds share arrays with live component data, which is
+// safe because an immutable.Slice's array never changes once a value holds it.
 type ShadowState struct {
 	Transform   component.Transform2D
 	Velocity    component.Velocity2D
 	PhysicsBody component.PhysicsBody2D
 }
 
-// NewShadowState returns a shadow snapshot with deep-copied shapes (Shapes and per-shape
-// ChainPoints are cloned; Vertices is a fixed array and copies with the struct).
+// NewShadowState returns a shadow snapshot of the given components.
 func NewShadowState(
 	t component.Transform2D,
 	v component.Velocity2D,
 	pb component.PhysicsBody2D,
 ) ShadowState {
-	shadow := pb
-	shadow.Shapes = deepCopyShapes(pb.Shapes)
 	return ShadowState{
 		Transform:   t,
 		Velocity:    v,
-		PhysicsBody: shadow,
+		PhysicsBody: pb,
 	}
-}
-
-// deepCopyShapes clones the shape list, including each shape's chain geometry. immutable.Map
-// allocates a fresh array rather than deriving in place, which is what makes the result
-// independent of the component the caller passed in.
-func deepCopyShapes(shapes ShapeSlice) ShapeSlice {
-	return immutable.Map(shapes, deepCopyColliderShape)
-}
-
-func deepCopyColliderShape(s component.ColliderShape) component.ColliderShape {
-	// ChainPoints is the only field that still points at shared storage; everything else,
-	// Vertices included, is a value that copied with the struct.
-	s.ChainPoints = immutable.Collect(s.ChainPoints.Values())
-	return s
 }
 
 // TransformDiffers reports whether the live transform differs from the shadow.

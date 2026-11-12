@@ -92,13 +92,16 @@ component may hold values only:
 - Structs of those
 - Fixed-size arrays such as `[8]Vec2`, at any depth
 - `immutable.Slice[T]` for a list with no fixed bound (see below)
+- `immutable.Map[K, V]` for values looked up by key (see below)
 - `time.Time`, the one sanctioned exception. It carries a location pointer, but it travels as a
   MessagePack timestamp, so a restored value comes back in the shard's local time zone with no
   monotonic reading. Compare times with `Equal`, never `==`.
 
-A component may **not** hold pointers, maps, plain slices (`[]T`), interfaces, channels, or funcs.
-A plain slice inside a copy still shares its backing array with the stored component, so writing
-through it changes the world without a `Set`.
+A component may **not** hold pointers, Go maps, plain slices (`[]T`), interfaces, channels, or
+funcs. A plain slice or map inside a copy still shares its memory with the stored component, so
+writing through it changes the world without a `Set`. A type that contains itself, such as
+`type Node struct{ Kids immutable.Slice[Node] }`, is refused too: make each node its own entity, or
+flatten the tree into one Slice of nodes that refer to each other by index.
 
 A list with a known upper bound is a fixed array plus a count:
 
@@ -142,7 +145,10 @@ and `SortedFunc`.
 Reads such as `At`, `All`, `IndexFunc`, and `MinFunc` are methods, and so are derivations such as
 `Append`, `Insert`, `With`, `Without`, `Sub`, `Filter`, `Delete`, `Reversed`, and `SortedFunc`.
 Anything that needs a type constraint is a package function, for example `Equal`, `Contains`,
-`Sorted`, `Min`, `Map`, and `Concat`.
+`Sorted`, `Min`, `Transform`, and `Concat`.
+
+Every derivation returns a Slice over a new array and leaves the receiver unchanged, so the stored
+component, your copy and any snapshot keep what they held until you `Set` the result.
 
 Derive, then `Set` the component that holds it:
 
@@ -166,31 +172,97 @@ func (s *BuffSystem) Run(w *cardinal.World) {
 
 `immutable.SliceOf(items...)` builds a Slice from a plain slice and copies it, so later changes to
 that slice never reach the component. To go the other way — a plain `[]T` for an API that needs one —
-range over `Values`, or use `immutable.Collect` to build a fresh Slice from the result: there is no
-`Clone` method, since a copy taken that way could look like it protects the original while
-derivations write through it regardless.
+use `slices.Collect(s.Values())`.
 
-<Warning>
-  **Derivations do not copy, so the `Set` is not optional.** Most of them edit the hidden array in
-  place and return a Slice over that same array, which means the component has already changed by the
-  time the derivation returns. Deriving and then dropping the result does not leave the world alone —
-  it leaves the world holding an edit that no snapshot recorded.
+Each derivation costs one copy. For several edits in one go, or a list rebuilt every tick, use a
+builder: it copies once, takes any number of edits, and hands the result over with `Done`.
 
-  `Append`, `Repeat`, and `Sub` leave the receiver alone; `Insert` and `Replace` leave it alone only
-  when they have to grow. The rest — `With`, `Without`, `Filter`, `Delete`, `Reversed`, `SortedFunc`,
-  `CompactFunc`, `Sorted`, and `Compact` — always write through. Ones that shrink leave the receiver
-  at its old length over a zero-filled tail, so the receiver is not just reordered but wrong.
+```go
+// Several edits: one copy.
+b := log.Entries.Edit()
+b.Append(entry)
+if b.Len() > maxEntries {
+	b.Delete(0, b.Len()-maxEntries)
+}
+log.Entries = b.Done()
 
-  Two rules follow. Call `Set` after every derivation, even one you think is read-only:
-  `s.SortedFunc(cmp).At(0)` reorders the stored list. And when the original has to survive, derive
-  from a copy instead: `immutable.SliceOf(slices.Collect(s.Values())...)`.
+// Rebuilt from scratch: no copy of the old list at all.
+nb := immutable.NewSliceBuilder[Contact](len(found))
+for _, c := range found {
+	nb.Append(c)
+}
+contacts.List = nb.Done()
+```
 
-  Each method's Go doc says whether it writes through.
-</Warning>
+A builder panics if used after `Done`.
 
 <Note>
   The element type follows the same rule as any field: values only. That includes another Slice, so
   `immutable.Slice[immutable.Slice[Cell]]` works directly.
+</Note>
+
+### Lookup Tables: `immutable.Map`
+
+For values looked up by key, such as quest flags, cooldowns per ability, or threat per attacker, use
+`immutable.Map[K, V]`. It is the map counterpart of Slice: storage is hidden, every read returns a
+copy, and every derivation returns a new Map.
+
+```go
+type PlayerMemory struct {
+	Affinity int    `json:"affinity"`
+	LastSeen uint64 `json:"last_seen"` // tick
+}
+
+type NPCMemory struct {
+	Players immutable.Map[cardinal.EntityID, PlayerMemory] `json:"players"`
+}
+
+func (NPCMemory) Name() string {
+	return "npc_memory"
+}
+```
+
+Keys are integers, strings, or named types of them; anything else fails to compile. Values follow the
+same rule as any field, so a struct, a Slice, or another Map all work. A flat Map with a combined key
+is usually better than a Map of Maps: one lookup and one copy instead of two.
+
+Entries are kept sorted by key, never hashed. Iterating with `All`, `Keys`, or `Values` runs in key
+order, and a Map encodes in key order too, so the same entries always give the same bytes however
+they were inserted. That is what keeps snapshots and `RequireDeterministic` hashes stable. If
+insertion order matters, store it in the value.
+
+Read with `Get`, `Has`, and `Len`; derive with `With`, `Without`, and `Update`, then `Set`:
+
+```go
+mem := npc.Get[NPCMemory]()
+pm, _ := mem.Players.Get(pid) // a copy
+pm.Affinity += 5
+mem.Players = mem.Players.With(pid, pm)
+npc.Set(mem)
+```
+
+For many edits at once, `Edit` returns a builder. Its `Get` sees its own pending edits, so it can
+accumulate:
+
+```go
+threat := boss.Get[Threat]()
+b := threat.Table.Edit()
+for _, hit := range hits {
+	v, _ := b.Get(hit.Attacker)
+	b.Set(hit.Attacker, v+hit.Damage)
+}
+threat.Table = b.Done()
+boss.Set(threat)
+```
+
+`immutable.MapFrom(maps.All(goMap))` builds a Map from a Go map, and the result does not depend on the
+order the Go map yields. Compare Maps with `immutable.MapEqual`, or `EqualFunc` for values that are
+not comparable.
+
+<Note>
+  A key that is an `EntityID` keeps pointing at that ID after the entity is destroyed, the same as any
+  stored ID (see [Entity Handles and Stored IDs](#entity-handles-and-stored-ids)). Check `Alive` and
+  remove stale keys when you update the Map.
 </Note>
 
 ### Tag Components

@@ -317,7 +317,7 @@ func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 		}
 		v.SetString(string(b))
 	case reflect.Struct:
-		if fillImmutableSlice(prng, v, liveEntityIDs) {
+		if fillImmutableSlice(prng, v, liveEntityIDs) || fillImmutableMap(prng, v, liveEntityIDs) {
 			return
 		}
 		for _, field := range v.Fields() {
@@ -364,6 +364,31 @@ func fillImmutableSlice(prng *rand.Rand, v reflect.Value, liveEntityIDs []Entity
 		fillRandom(prng, items.Index(i), liveEntityIDs)
 	}
 	v.Set(v.MethodByName("Append").CallSlice([]reflect.Value{items})[0])
+	return true
+}
+
+// fillImmutableMap is fillImmutableSlice for an immutable.Map. It adds random entries one With at a
+// time; a repeated random key just overwrites, so the Map may end up with fewer entries than drawn.
+func fillImmutableMap(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) bool {
+	t := v.Type()
+	keyType, valueType, ok := immutable.MapTypes(t)
+	if !ok {
+		return false
+	}
+	if !v.CanSet() {
+		panic("dst: " + t.String() + " is not settable, so it cannot be filled")
+	}
+
+	m := reflect.Zero(t)
+	with := m.MethodByName("With")
+	for range prng.IntN(5) {
+		key, value := reflect.New(keyType).Elem(), reflect.New(valueType).Elem()
+		fillRandom(prng, key, liveEntityIDs)
+		fillRandom(prng, value, liveEntityIDs)
+		m = with.Call([]reflect.Value{key, value})[0]
+		with = m.MethodByName("With")
+	}
+	v.Set(m)
 	return true
 }
 
