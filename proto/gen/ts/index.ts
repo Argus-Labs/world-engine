@@ -1,20 +1,16 @@
-// Gateway v1 exports
-export * from './gateway/v1/query_pb.js'
-export * from './gateway/v1/send_command_pb.js'
-export * from './gateway/v1/shard_pb.js'
-export * from './gateway/v1/shared_pb.js'
-export * from './gateway/v1/start_event_stream_pb.js'
-export * from './gateway/v1/subscribe_events_pb.js'
-export * from './gateway/v1/unsubscribe_events_pb.js'
+// Cardinal v1 exports
+export * from './worldengine/cardinal/v1/cardinal_pb.js'
+export * from './worldengine/cardinal/v1/debug_pb.js'
+export * from './worldengine/cardinal/v1/snapshot_pb.js'
 
 // ISC v1 exports
-export * from './isc/v1/command_pb.js'
-export * from './isc/v1/epoch_pb.js'
-export * from './isc/v1/event_pb.js'
+export * from './worldengine/isc/v1/command_pb.js'
+export * from './worldengine/isc/v1/epoch_pb.js'
+export * from './worldengine/isc/v1/event_pb.js'
 
 // Micro v1 exports
-export * from './micro/v1/response_pb.js'
-export * from './micro/v1/service_pb.js'
+export * from './worldengine/micro/v1/response_pb.js'
+export * from './worldengine/micro/v1/service_pb.js'
 
 // Google RPC exports
 export * from './google/rpc/status_pb.js'
