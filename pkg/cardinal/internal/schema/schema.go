@@ -141,19 +141,25 @@ func prepare(t reflect.Type) {
 }
 
 // registerTypes gives every float32 type in t, including named ones such as `type Meters float32`,
-// the decoder decodeFloat32, and every map type the encoder encodeSortedMap. msgpack matches
-// registered codecs by exact type, so each named type needs its own registration. It walks
-// unexported fields too, to reach the element type of an immutable.Slice. A type with its own codec
-// keeps it, since a registered one would take precedence over it.
+// the decoder decodeFloat32, every integer type the decoder decodeInteger, and every map type the
+// encoder encodeSortedMap. msgpack matches registered codecs by exact type, so each named type needs
+// its own registration. It walks unexported fields too, to reach the element type of an
+// immutable.Slice. A type with its own codec keeps it, since a registered one would take precedence
+// over it.
 func registerTypes(t reflect.Type, seen map[reflect.Type]bool) {
 	if t == nil || seen[t] {
 		return
 	}
 	seen[t] = true
-	switch t.Kind() { //nolint:exhaustive // Other kinds hold no float32 or map.
+	switch t.Kind() { //nolint:exhaustive // Other kinds hold no number or map.
 	case reflect.Float32:
 		if !DecodesItself(t) {
 			msgpack.Register(reflect.Zero(t).Interface(), nil, decodeFloat32)
+		}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if !DecodesItself(t) {
+			msgpack.Register(reflect.Zero(t).Interface(), nil, decodeInteger)
 		}
 	case reflect.Pointer, reflect.Slice, reflect.Array:
 		registerTypes(t.Elem(), seen)
@@ -271,5 +277,42 @@ func decodeFloat32(d *msgpack.Decoder, v reflect.Value) error {
 		return eris.Errorf("%v overflows float32", f)
 	}
 	v.SetFloat(f)
+	return nil
+}
+
+// decodeInteger decodes any MessagePack integer into an integer type, rejecting values outside its
+// range. msgpack on its own truncates them, so a uint8 would take 256 as 0 and -1 as 255.
+func decodeInteger(d *msgpack.Decoder, v reflect.Value) error {
+	c, err := d.PeekCode()
+	if err != nil {
+		return err
+	}
+	if c == msgpcode.Uint64 { // the only integer encoding that can exceed math.MaxInt64
+		n, err := d.DecodeUint64()
+		if err != nil {
+			return err
+		}
+		switch {
+		case v.CanUint() && !v.OverflowUint(n):
+			v.SetUint(n)
+		case v.CanInt() && n <= math.MaxInt64 && !v.OverflowInt(int64(n)):
+			v.SetInt(int64(n))
+		default:
+			return eris.Errorf("%d is out of range for %s", n, v.Type())
+		}
+		return nil
+	}
+	n, err := d.DecodeInt64()
+	if err != nil {
+		return err
+	}
+	switch {
+	case v.CanInt() && !v.OverflowInt(n):
+		v.SetInt(n)
+	case v.CanUint() && n >= 0 && !v.OverflowUint(uint64(n)):
+		v.SetUint(uint64(n))
+	default:
+		return eris.Errorf("%d is out of range for %s", n, v.Type())
+	}
 	return nil
 }

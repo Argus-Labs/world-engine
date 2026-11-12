@@ -468,7 +468,9 @@ func (s *Slice[T]) DecodeMsgpack(dec *msgpack.Decoder) error {
 	var items []T
 	for range n {
 		var item T
-		if err := dec.Decode(&item); err != nil {
+		// DecodeValue rather than Decode, whose shortcuts for basic types such as uint8 skip any
+		// decoder registered for T.
+		if err := dec.DecodeValue(reflect.ValueOf(&item).Elem()); err != nil {
 			return eris.Wrap(err, "failed to decode immutable slice element")
 		}
 		items = append(items, item)

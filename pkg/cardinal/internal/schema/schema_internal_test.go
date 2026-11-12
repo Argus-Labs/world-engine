@@ -3,6 +3,7 @@ package schema_test
 import (
 	"bytes"
 	"errors"
+	"math"
 	"strconv"
 	"testing"
 
@@ -268,6 +269,73 @@ func TestRegisterKeepsCustomFloat32Decoder(t *testing.T) {
 	require.NoError(t, err)
 	var got percentPayload
 	require.ErrorContains(t, schema.Deserialize(data, &got), "negative percent")
+}
+
+type level uint8
+
+type intPayload struct {
+	Small  uint8
+	Tiny   int8
+	Big    uint64
+	Wide   int64
+	Level  level
+	ByKey  map[uint16]int32
+	List   []int16
+	Frozen immutable.Slice[uint32]
+}
+
+func (intPayload) Name() string { return "int_payload" }
+
+func TestDeserializeRejectsOutOfRangeIntegers(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		field string
+		value any
+	}{
+		{"Small", 256},
+		{"Small", -1},
+		{"Tiny", 128},
+		{"Tiny", -129},
+		{"Big", -1},
+		{"Wide", uint64(math.MaxInt64) + 1},
+		{"Level", 256},
+		{"ByKey", map[int]int{65536: 0}},
+		{"ByKey", map[int]int{0: math.MaxInt32 + 1}},
+		{"List", []int{math.MinInt16 - 1}},
+		{"Frozen", []int{-1}},
+	} {
+		data, err := msgpack.Marshal(map[string]any{tc.field: tc.value})
+		require.NoError(t, err)
+		kept := intPayload{Small: 7}
+		err = schema.Deserialize(data, &kept)
+		require.ErrorContains(t, err, "out of range", "%s = %v", tc.field, tc.value)
+		require.Equal(t, intPayload{Small: 7}, kept)
+	}
+
+	// Each type's own bounds still decode.
+	data, err := msgpack.Marshal(map[string]any{
+		"Small":  255,
+		"Tiny":   -128,
+		"Big":    uint64(math.MaxUint64),
+		"Wide":   math.MinInt64,
+		"Level":  255,
+		"ByKey":  map[int]int{65535: math.MinInt32},
+		"List":   []int{math.MaxInt16},
+		"Frozen": []int{math.MaxUint32},
+	})
+	require.NoError(t, err)
+	var got intPayload
+	require.NoError(t, schema.Deserialize(data, &got))
+	require.Equal(t, intPayload{
+		Small:  255,
+		Tiny:   -128,
+		Big:    math.MaxUint64,
+		Wide:   math.MinInt64,
+		Level:  255,
+		ByKey:  map[uint16]int32{65535: math.MinInt32},
+		List:   []int16{math.MaxInt16},
+		Frozen: immutable.SliceOf[uint32](math.MaxUint32),
+	}, got)
 }
 
 type unsupportedPayload struct{ Channel chan int }
