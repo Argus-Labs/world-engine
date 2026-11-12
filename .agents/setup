@@ -4,6 +4,16 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 local_bin="$HOME/.local/bin"
 go_version="$(awk '$1 == "go" { print $2; exit }' "$repo_root/go.mod")"
+moon_version="$(awk -F '"' '/^moon =/ { print $2; exit }' "$repo_root/.prototools")"
+# Keep protobuf generation reproducible without changing the checked-in clients.
+buf_version="1.75.0"
+protoc_go_version="1.36.11"
+protoc_connect_version="1.21.1"
+
+cd "$repo_root"
+setup_start=$SECONDS
+download_dir="$(mktemp -d)"
+trap 'rm -rf "$download_dir"' EXIT
 
 mkdir -p "$local_bin" "$HOME/.local/share/go"
 export PATH="$local_bin:$PATH"
@@ -20,58 +30,56 @@ esac
 EOF
 fi
 
-if ! command -v curl >/dev/null 2>&1 ||
-	! command -v tar >/dev/null 2>&1 ||
-	! command -v gcc >/dev/null 2>&1; then
-	echo "Installing system build prerequisites..."
+missing_packages=()
+for package in build-essential ca-certificates curl git tar xz-utils; do
+	if [[ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" != "install ok installed" ]]; then
+		missing_packages+=("$package")
+	fi
+done
+if ((${#missing_packages[@]})); then
+	echo "Installing system build prerequisites: ${missing_packages[*]}..."
 	sudo apt-get update
-	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential ca-certificates curl
+	time sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "${missing_packages[@]}"
 fi
 
-if [[ "$(go version 2>/dev/null || true)" != "go version go${go_version} "* ]]; then
-	case "$(uname -m)" in
-		x86_64) go_arch="amd64" ;;
-		aarch64 | arm64) go_arch="arm64" ;;
-		*) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
-	esac
+case "$(uname -m)" in
+	x86_64) go_arch="amd64"; moon_arch="x86_64"; buf_arch="x86_64" ;;
+	aarch64 | arm64) go_arch="arm64"; moon_arch="aarch64"; buf_arch="aarch64" ;;
+	*) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
 
+go_dir="$HOME/.local/share/go/$go_version"
+if [[ ! -x "$go_dir/bin/go" ]]; then
 	echo "Installing Go ${go_version}..."
-	go_dir="$HOME/.local/share/go/$go_version"
-	archive="$(mktemp)"
-	trap 'rm -f "$archive"' EXIT
-	curl -fsSL "https://go.dev/dl/go${go_version}.linux-${go_arch}.tar.gz" -o "$archive"
-	rm -rf "$go_dir"
+	time curl -fsSL "https://go.dev/dl/go${go_version}.linux-${go_arch}.tar.gz" -o "$download_dir/go.tar.gz"
 	mkdir -p "$go_dir"
-	tar -xzf "$archive" --strip-components=1 -C "$go_dir"
-	rm -f "$archive"
-	trap - EXIT
-	ln -sfn "$go_dir/bin/go" "$local_bin/go"
-	ln -sfn "$go_dir/bin/gofmt" "$local_bin/gofmt"
+	time tar -xzf "$download_dir/go.tar.gz" --strip-components=1 -C "$go_dir"
 fi
+# Reactivate a cached version even when another Go is already on PATH.
+ln -sfn "$go_dir/bin/go" "$local_bin/go"
+ln -sfn "$go_dir/bin/gofmt" "$local_bin/gofmt"
 
 go env -w GOBIN="$local_bin"
 
 echo "Installing repository tools..."
-moon_version="$(awk -F '"' '/^moon =/ { print $2; exit }' "$repo_root/.prototools")"
 if [[ "$(moon --version 2>/dev/null || true)" != "moon $moon_version" ]]; then
-	case "$(uname -m)" in
-		x86_64) moon_arch="x86_64" ;;
-		aarch64 | arm64) moon_arch="aarch64" ;;
-		*) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
-	esac
-	moon_tmp="$(mktemp -d)"
-	trap 'rm -rf "$moon_tmp"' EXIT
-	curl -fsSL "https://github.com/moonrepo/moon/releases/download/v${moon_version}/moon_cli-${moon_arch}-unknown-linux-gnu.tar.xz" -o "$moon_tmp/moon.tar.xz"
-	tar -xJf "$moon_tmp/moon.tar.xz" -C "$moon_tmp"
-	install -m 755 "$moon_tmp/moon_cli-${moon_arch}-unknown-linux-gnu/moon" "$local_bin/moon"
-	rm -rf "$moon_tmp"
-	trap - EXIT
+	time curl -fsSL "https://github.com/moonrepo/moon/releases/download/v${moon_version}/moon_cli-${moon_arch}-unknown-linux-gnu.tar.xz" -o "$download_dir/moon.tar.xz"
+	tar -xJf "$download_dir/moon.tar.xz" -C "$download_dir"
+	install -m 755 "$download_dir/moon_cli-${moon_arch}-unknown-linux-gnu/moon" "$local_bin/moon"
 fi
-command -v buf >/dev/null 2>&1 || go install github.com/bufbuild/buf/cmd/buf@latest
-command -v protoc-gen-go >/dev/null 2>&1 || go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
-command -v protoc-gen-connect-go >/dev/null 2>&1 || go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest
+if [[ "$(buf --version 2>/dev/null || true)" != "$buf_version" ]]; then
+	# Buf publishes a binary; avoid compiling its large dependency graph during setup.
+	time curl -fsSL "https://github.com/bufbuild/buf/releases/download/v${buf_version}/buf-Linux-${buf_arch}" -o "$download_dir/buf"
+	install -m 755 "$download_dir/buf" "$local_bin/buf"
+fi
+if [[ "$(protoc-gen-go --version 2>/dev/null || true)" != "protoc-gen-go v$protoc_go_version" ]]; then
+	time go install "google.golang.org/protobuf/cmd/protoc-gen-go@v$protoc_go_version"
+fi
+if [[ "$(protoc-gen-connect-go --version 2>/dev/null || true)" != "$protoc_connect_version" ]]; then
+	time go install "connectrpc.com/connect/cmd/protoc-gen-connect-go@v$protoc_connect_version"
+fi
 
 echo "Downloading Go module dependencies..."
-go mod download
+time go mod download
 
-echo "Orb setup complete."
+echo "Orb setup complete in $((SECONDS - setup_start))s: $(go version), $(moon --version)"

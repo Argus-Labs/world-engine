@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+go_version="$(awk '$1 == "go" { print $2; exit }' "$repo_root/go.mod")"
+moon_version="$(awk -F '"' '/^moon =/ { print $2; exit }' "$repo_root/.prototools")"
+
 export PATH="$HOME/.local/bin:$PATH"
+cd "$repo_root"
 
-if ! command -v go >/dev/null 2>&1; then
-	echo "Go is unavailable; rerun .agents/setup." >&2
+# Do not install or download tools when an orb wakes.
+if [[ "$(GOTOOLCHAIN=local go version 2>/dev/null || true)" != "go version go${go_version} "* ]]; then
+	echo "Go $go_version is unavailable; rerun .agents/setup." >&2
 	exit 1
 fi
 
-if ! command -v moon >/dev/null 2>&1; then
-	echo "moon is unavailable; rerun .agents/setup." >&2
+if [[ "$(moon --version 2>/dev/null || true)" != "moon $moon_version" ]]; then
+	echo "moon $moon_version is unavailable; rerun .agents/setup." >&2
 	exit 1
 fi
 
-echo "Orb ready: $(go version), $(moon --version)"
+echo "Orb ready: $(GOTOOLCHAIN=local go version), $(moon --version)"
