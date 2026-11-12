@@ -228,8 +228,11 @@ func configDBDSN(worldToml worldtoml.Config) string {
 		// 5432, so the host binding and the DSN stay consistent.
 		host := GameServiceContainerName(worldToml.Project, svc.ID)
 		return fmt.Sprintf(
-			"postgres://%s:%s@%s:%d/%s?sslmode=disable",
-			configDBUser, configDBPassword, host, defaultConfigDBPort, worldToml.Project,
+			"postgres://%s:%s@%s/%s?sslmode=disable",
+			configDBUser,
+			configDBPassword,
+			net.JoinHostPort(host, strconv.Itoa(defaultConfigDBPort)),
+			worldToml.Project,
 		)
 	}
 	return ""

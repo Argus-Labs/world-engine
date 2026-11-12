@@ -164,7 +164,7 @@ func (s *SetupCloneTestSuite) TestCreateGoModIn_CreatesWhenMissing() {
 
 	data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 	require.NoError(t, err)
-	assert.Equal(t, "module example.com/mymod\n\ngo 1.27.1\n\n"+
+	assert.Equal(t, "module example.com/mymod\n\ngo 1.27.4\n\n"+
 		"require github.com/argus-labs/world-engine v0.18.0\n\n"+
 		"tool github.com/argus-labs/world-engine/cli/cmd/world\n", string(data))
 }
@@ -343,4 +343,19 @@ func TestWriteAgentSkillsWritesBothLocationsAndKeepsExisting(t *testing.T) {
 	if !strings.Contains(string(agents), "name: world-local-dev") || !strings.Contains(string(agents), "world start") {
 		t.Fatal("skill content missing")
 	}
+}
+
+func TestRewriteImports_RejectsSymlinkOutsideProject(t *testing.T) {
+	t.Parallel()
+
+	outside := filepath.Join(t.TempDir(), "outside.go")
+	const source = "package main\nimport _ \"github.com/argus-labs/world-engine/pkg/template/example/pkg\"\n"
+	require.NoError(t, os.WriteFile(outside, []byte(source), 0o600))
+	project := t.TempDir()
+	require.NoError(t, os.Symlink(outside, filepath.Join(project, "linked.go")))
+
+	require.Error(t, rewriteImportsIn(project, "example.com/project"))
+	data, err := os.ReadFile(outside)
+	require.NoError(t, err)
+	assert.Equal(t, source, string(data))
 }

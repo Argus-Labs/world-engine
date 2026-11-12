@@ -33,7 +33,7 @@ const (
 	// GoBuilderImage is the Go toolchain build stage shared by Cardinal shards and
 	// built-from-source game services. Keep the Go version in sync with .prototools
 	// (go = "...").
-	GoBuilderImage = "golang:1.27.1-bookworm"
+	GoBuilderImage = "golang:1.27.4-bookworm"
 )
 
 // NetworkName is the per-project Docker bridge network. The prefix matters: bare

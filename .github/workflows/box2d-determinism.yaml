@@ -45,7 +45,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: 1.27.1
+  GO_VERSION: 1.27.4
 
 # Checkout and build only; no write access to the repository is needed.
 permissions:

@@ -15,7 +15,7 @@ import (
 
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/otiai10/copy"
+	copydir "github.com/otiai10/copy"
 	"github.com/rotisserie/eris"
 	"golang.org/x/mod/modfile"
 
@@ -167,7 +167,7 @@ func writeAgentSkills(dir string) error {
 
 // copyTemplateDirectory copies src to dst, skipping .git directories and .gitkeep files.
 func copyTemplateDirectory(src, dst string) error {
-	return copy.Copy(src, dst, copy.Options{
+	return copydir.Copy(src, dst, copydir.Options{
 		Skip: skipGitArtifacts,
 	})
 }
@@ -233,6 +233,11 @@ func moduleNameFromGoMod(dir, fallback string) string {
 // It rewrites imports that reference github.com/argus-labs/world-engine/pkg/template/<template>/<rest>
 // to <moduleName>/<rest>. Engine imports (e.g., pkg/cardinal, pkg/ecs) are preserved.
 func rewriteImportsIn(dir, moduleName string) error {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return eris.Wrap(err, "failed to open project directory")
+	}
+	defer root.Close()
 	re := regexp.MustCompile(`"` + regexp.QuoteMeta(worldEngineExamplePrefix) + `([^/]+)/([^"]+)"`)
 
 	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -251,7 +256,11 @@ func rewriteImportsIn(dir, moduleName string) error {
 			return nil
 		}
 
-		data, err := os.ReadFile(path)
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		data, err := root.ReadFile(rel)
 		if err != nil {
 			return eris.Wrapf(err, "failed to read %s", path)
 		}
@@ -270,7 +279,7 @@ func rewriteImportsIn(dir, moduleName string) error {
 			return nil
 		}
 
-		if err := os.WriteFile(path, []byte(replaced), info.Mode()); err != nil {
+		if err := root.WriteFile(rel, []byte(replaced), info.Mode()); err != nil {
 			return eris.Wrapf(err, "failed to write %s", path)
 		}
 		return nil

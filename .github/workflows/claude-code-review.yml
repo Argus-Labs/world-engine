@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: 1.27.1
+  GO_VERSION: 1.27.4
 
 jobs:
   claude-review:

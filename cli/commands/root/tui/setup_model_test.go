@@ -1,3 +1,4 @@
+//nolint:testpackage // Exercises unexported helpers and state transitions.
 package tui
 
 import (

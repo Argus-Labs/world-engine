@@ -1,4 +1,4 @@
-ARG GO_IMAGE=golang:1.27.1-bookworm
+ARG GO_IMAGE=golang:1.27.4-bookworm
 ARG BASE_IMAGE=gcr.io/distroless/base-debian12
 
 FROM ${GO_IMAGE} AS builder

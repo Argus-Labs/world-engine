@@ -113,3 +113,17 @@ func TestWriteProject_RejectsMissingProject(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid")
 }
+
+func TestWriteProject_RejectsSymlinkOutsideProject(t *testing.T) {
+	t.Parallel()
+
+	outside := filepath.Join(t.TempDir(), "outside.toml")
+	require.NoError(t, os.WriteFile(outside, []byte(templateWorldTOML), 0o600))
+	link := filepath.Join(t.TempDir(), toml.FileName)
+	require.NoError(t, os.Symlink(outside, link))
+
+	require.Error(t, toml.WriteProject(link, "changed"))
+	data, err := os.ReadFile(outside)
+	require.NoError(t, err)
+	assert.Equal(t, templateWorldTOML, string(data))
+}

@@ -4,7 +4,7 @@ This guide provides information for developers who want to contribute to the Wor
 
 ## Prerequisites
 
-- [Go 1.27.1](https://go.dev/doc/install) or later
+- [Go 1.27.4](https://go.dev/doc/install) or later
 - [Moonrepo](https://moonrepo.dev/docs/install) - Build system used for build, test, and lint commands
 - [Docker](https://docs.docker.com/get-docker/) - Required for running services managed by World CLI
 - [Docker Compose](https://docs.docker.com/compose/install/) - Required for multi-container Docker applications
