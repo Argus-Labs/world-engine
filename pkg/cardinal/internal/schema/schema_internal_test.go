@@ -112,6 +112,37 @@ func TestSerializeEncodesMapsInStableOrder(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+// decodedFirstScores belongs to TestSerializeAfterDeserializeEncodesMapsInStableOrder alone, so no
+// other test can prepare it first.
+type decodedFirstScores map[string]int
+
+type decodedFirstPayload struct{ Scores decodedFirstScores }
+
+func (decodedFirstPayload) Name() string { return "decoded_first_payload" }
+
+func TestSerializeAfterDeserializeEncodesMapsInStableOrder(t *testing.T) {
+	t.Parallel()
+	// map[string]any rather than map[string]int: encoding a type with msgpack directly while a
+	// parallel test registers it can overwrite the registration with msgpack's default encoder.
+	scores := map[string]any{}
+	for i := range 32 {
+		scores[strconv.Itoa(i)] = i
+	}
+	// Decode the type before anything has serialized or registered it.
+	data, err := msgpack.Marshal(map[string]any{"Scores": scores})
+	require.NoError(t, err)
+	var got decodedFirstPayload
+	require.NoError(t, schema.Deserialize(data, &got))
+
+	first, err := schema.Serialize(got)
+	require.NoError(t, err)
+	for range 20 {
+		again, err := schema.Serialize(got)
+		require.NoError(t, err)
+		require.Equal(t, first, again, "equal maps must encode to equal bytes")
+	}
+}
+
 // inventory has only a helper method, so it still gets the sorted map encoder.
 type inventory map[string]int
 

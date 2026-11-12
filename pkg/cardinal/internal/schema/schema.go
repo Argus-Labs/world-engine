@@ -62,6 +62,7 @@ func Deserialize(data []byte, v any) (err error) {
 	if err := checkNesting(data); err != nil {
 		return eris.Wrap(err, "failed to deserialize")
 	}
+	prepare(target.Elem().Type())
 	fresh := reflect.New(target.Elem().Type())
 	if err := msgpack.Unmarshal(data, fresh.Interface()); err != nil {
 		return eris.Wrap(err, "failed to deserialize")
@@ -112,8 +113,9 @@ func checkNesting(data []byte) error {
 	return nil
 }
 
-// Register prepares T for Deserialize. Call it when T is registered, before T is first encoded or
-// decoded: msgpack caches a struct's field decoders on first use.
+// Register prepares T's codecs ahead of its first Serialize or Deserialize, which would otherwise
+// prepare it then. Call it before encoding or decoding T with msgpack directly: msgpack caches a
+// struct's field codecs on first use, and later registrations do not replace them.
 func Register[T any]() {
 	prepare(reflect.TypeFor[T]())
 }
