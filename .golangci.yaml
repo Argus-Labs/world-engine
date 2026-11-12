@@ -250,7 +250,7 @@ linters:
       # Default: [ switch ]
       check:
         - switch
-        - map
+        - mapliteral
 
     exhaustruct_v5:
       # List of regular expressions to match type names that should be skipped from checking.

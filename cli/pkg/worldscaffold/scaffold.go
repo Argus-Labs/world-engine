@@ -15,7 +15,7 @@ import (
 
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/otiai10/copy"
+	copydir "github.com/otiai10/copy"
 	"github.com/rotisserie/eris"
 	"golang.org/x/mod/modfile"
 
@@ -167,7 +167,7 @@ func writeAgentSkills(dir string) error {
 
 // copyTemplateDirectory copies src to dst, skipping .git directories and .gitkeep files.
 func copyTemplateDirectory(src, dst string) error {
-	return copy.Copy(src, dst, copy.Options{
+	return copydir.Copy(src, dst, copydir.Options{
 		Skip: skipGitArtifacts,
 	})
 }
