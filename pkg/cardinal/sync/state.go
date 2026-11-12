@@ -32,5 +32,10 @@ func (e *Event) SetSyncIdentity(id ID) {
 	}
 }
 
+// SyncIdentity returns the stamped lifetime of the entity numbered entity.
+func (e *Event) SyncIdentity(entity uint32) ID {
+	return ID{Session: e.SyncSession, Entity: entity, Incarnation: e.SyncIncarnation}
+}
+
 // For captures an identity for an event that will be emitted after destruction.
 func For(id ID) Event { return Event{SyncSession: id.Session, SyncIncarnation: id.Incarnation} }
