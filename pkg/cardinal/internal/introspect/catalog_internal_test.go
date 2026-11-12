@@ -31,6 +31,32 @@ type named string
 
 func (n named) Name() string { return string(n) }
 
+type mapped struct {
+	ByName immutable.Map[string, immutable.Slice[int]]
+	ByID   immutable.Map[uint16, bool]
+}
+
+func (mapped) Name() string { return "mapped" }
+
+// An immutable.Map is described like a Go map, except that it is never null.
+func TestCatalogDescribesImmutableMap(t *testing.T) {
+	t.Parallel()
+	c := NewCatalog()
+	require.NoError(t, c.Register(Command, mapped{}))
+	require.NoError(t, c.Finalize())
+	root := c.Commands()[0].GetJsonSchema().AsMap()
+	properties := resolve(t, root, root)["properties"].(map[string]any)
+
+	byName := properties["ByName"].(map[string]any)
+	assert.Equal(t, "object", byName["type"])
+	assert.NotContains(t, byName, "x-msgpack-key-format")
+	assert.Equal(t, "array", byName["additionalProperties"].(map[string]any)["type"])
+	byID := properties["ByID"].(map[string]any)
+	assert.Equal(t, "object", byID["type"])
+	assert.Equal(t, "uint16", byID["x-msgpack-key-format"])
+	assert.Equal(t, "boolean", byID["additionalProperties"].(map[string]any)["type"])
+}
+
 func TestCatalogLifecycle(t *testing.T) {
 	t.Parallel()
 	c := NewCatalog()

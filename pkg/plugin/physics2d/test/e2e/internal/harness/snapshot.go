@@ -84,7 +84,7 @@ func capture(probes, singleton cardinal.Search, into *Capture) {
 			Entity:    eid,
 			Transform: row.Get[physics.Transform2D](),
 			Velocity:  row.Get[physics.Velocity2D](),
-			Body:      CloneBody(row.Get[physics.PhysicsBody2D]()),
+			Body:      row.Get[physics.PhysicsBody2D](),
 		}
 	}
 
