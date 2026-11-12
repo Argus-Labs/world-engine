@@ -1,0 +1,24 @@
+{
+  "$schema": "https://api.capy.ai/schemas/setup.v1.json",
+  "format_version": 1,
+  "scripts": {
+    "initialize": "bash .capy/setup.sh initialize",
+    "refresh": "bash .capy/setup.sh refresh"
+  },
+  "timeouts": {
+    "initialize": 1800,
+    "refresh": 600
+  },
+  "startup": [],
+  "commands": [
+    { "name": "build", "command": "moon run world-engine:build" },
+    { "name": "test", "command": "moon run world-engine:test" },
+    { "name": "test-ci", "command": "moon run world-engine:test-ci" },
+    { "name": "lint", "command": "moon run world-engine:lint" },
+    { "name": "lint-fix", "command": "moon run world-engine:lint-fix" },
+    { "name": "cli-build", "command": "moon run cli:build" },
+    { "name": "cli-test", "command": "moon run cli:test" },
+    { "name": "cli-lint", "command": "moon run cli:lint" },
+    { "name": "generate", "command": "buf generate" }
+  ]
+}
