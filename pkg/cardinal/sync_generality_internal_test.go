@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
+	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/stretchr/testify/require"
 	"github.com/vmihailenco/msgpack/v5"
 	"os"
@@ -43,7 +44,7 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 	}
 	contract, err := ExportSyncContract(register)
 	require.NoError(t, err)
-	require.JSONEq(t, `{"version":1,"components":[{"name":"cosmetics","fields":[{"name":"Opacity","type":"float32"},{"name":"Tint","type":"uint32"}]},{"name":"loadout","fields":[{"name":"Ammo","type":"uint16"},{"name":"Equipped","type":"bool"},{"name":"WeaponID","type":"string"}]}]}`, string(contract))
+	require.JSONEq(t, `{"version":2,"components":[{"name":"cosmetics","fields":[{"name":"Opacity","type":"float32"},{"name":"Tint","type":"uint32"}]},{"name":"loadout","fields":[{"name":"Ammo","type":"uint16"},{"name":"Equipped","type":"bool"},{"name":"WeaponID","type":"string"}]}]}`, string(contract))
 	w := NewTestWorld(t, func(w *World) { register(w); w.EnableSync(func(string) bool { return true }) })
 	ctx, cancel := context.WithCancelCause(t.Context())
 	defer cancel(nil)
@@ -95,17 +96,31 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 	restored := capture()
 	require.Len(t, restored.Components, 2)
 	require.Greater(t, restored.Components[0].Presence, first.Components[0].Presence)
-	e.Set(syncLoadout{WeaponID: "bow", Ammo: 9})
-	e.Set(syncCosmetics{Tint: 123, Opacity: 0.25})
-	sub.syncNeedsBaseline = true
-	w.Tick()
+	// Recovery: the reader unsubscribes, then subscribes again and gets a fresh baseline.
+	resubscribe := func(before func()) {
+		t.Helper()
+		subscriptions := []*cardinalv1.EventSubscription{{Events: []string{syncstate.EventName}}}
+		w.service.mu.Lock()
+		removeSubscriptions(sub, subscriptions)
+		w.service.mu.Unlock()
+		w.Tick()
+		require.Empty(t, sub.queue, "an unsubscribed reader is closed without a frame")
+		before()
+		w.service.mu.Lock()
+		addSubscriptions(sub, subscriptions)
+		w.service.mu.Unlock()
+		w.Tick()
+	}
+	resubscribe(func() {
+		e.Set(syncLoadout{WeaponID: "bow", Ammo: 9})
+		e.Set(syncCosmetics{Tint: 123, Opacity: 0.25})
+	})
 	recovered := capture()
 	require.Equal(t, syncLoadout{WeaponID: "bow", Ammo: 9}, readLoadout(recovered))
 	var appearance syncCosmetics
 	require.NoError(t, msgpack.Unmarshal(recovered.Components[0].Data, &appearance))
 	require.Equal(t, syncCosmetics{Tint: 123, Opacity: 0.25}, appearance)
-	sub.syncNeedsBaseline = true
-	w.Tick()
+	resubscribe(func() {})
 	unchanged := capture()
 	require.Equal(t, recovered.Components, unchanged.Components, "recovery also restates unchanged state")
 	e.Set(syncLoadout{WeaponID: "bow", Ammo: 9})
