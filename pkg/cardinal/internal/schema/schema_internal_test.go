@@ -281,6 +281,7 @@ type intPayload struct {
 	Level  level
 	ByKey  map[uint16]int32
 	List   []int16
+	Pair   [2]uint16
 	Frozen immutable.Slice[uint32]
 }
 
@@ -302,6 +303,7 @@ func TestDeserializeRejectsOutOfRangeIntegers(t *testing.T) {
 		{"ByKey", map[int]int{65536: 0}},
 		{"ByKey", map[int]int{0: math.MaxInt32 + 1}},
 		{"List", []int{math.MinInt16 - 1}},
+		{"Pair", []int{0, 65536}},
 		{"Frozen", []int{-1}},
 	} {
 		data, err := msgpack.Marshal(map[string]any{tc.field: tc.value})
@@ -321,6 +323,7 @@ func TestDeserializeRejectsOutOfRangeIntegers(t *testing.T) {
 		"Level":  255,
 		"ByKey":  map[int]int{65535: math.MinInt32},
 		"List":   []int{math.MaxInt16},
+		"Pair":   []int{0, math.MaxUint16},
 		"Frozen": []int{math.MaxUint32},
 	})
 	require.NoError(t, err)
@@ -334,6 +337,7 @@ func TestDeserializeRejectsOutOfRangeIntegers(t *testing.T) {
 		Level:  255,
 		ByKey:  map[uint16]int32{65535: math.MinInt32},
 		List:   []int16{math.MaxInt16},
+		Pair:   [2]uint16{0, math.MaxUint16},
 		Frozen: immutable.SliceOf[uint32](math.MaxUint32),
 	}, got)
 }
