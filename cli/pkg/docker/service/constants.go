@@ -30,9 +30,10 @@ const (
 	// BaseImage is the distroless runtime base for built-from-source images.
 	BaseImage = "gcr.io/distroless/base-debian12"
 
-	// GoBuilderImage is the Go toolchain build stage shared by Cardinal shards and
-	// built-from-source game services. Keep the Go version in sync with .prototools
-	// (go = "...").
+	// GoBuilderImage is the build stage shared by Cardinal shards and
+	// built-from-source game services. Its Go is the minimum toolchain: builds
+	// fetch a newer one when go.mod or go.work requires it. Keep in sync with
+	// .prototools so default projects skip that download.
 	GoBuilderImage = "golang:1.27.4-bookworm"
 )
 

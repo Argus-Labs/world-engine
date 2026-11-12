@@ -200,9 +200,8 @@ func (c *Client) buildSingleCardinalWithDocker(
 	}
 
 	shardPath := sb.shardPath
-	// Forward GO_IMAGE from the GoBuilderImage constant so source builds use the
-	// Go version the dependency pre-pull fetched, not cardinal.Dockerfile's older
-	// ARG default — the constant is the single source of truth.
+	// Forward GO_IMAGE so source builds start from the image the dependency
+	// pre-pull fetched, not cardinal.Dockerfile's ARG default.
 	goImage := service.GoBuilderImage
 	opts := client.ImageBuildOptions{
 		Tags:        []string{sb.image},
