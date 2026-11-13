@@ -100,8 +100,7 @@ func RunDST(t *testing.T, setup DSTSetupFunc, preTestCommands []Command) {
 			fix.world.reset()
 			require.NoError(t, fix.world.restore(context.Background()))
 
-			// Verify snapshot roundtrip fidelity: restored state re-serializes to identical bytes.
-			// fix.verifySnapshotRoundtrip(t)
+			fix.verifySnapshotRoundtrip(t)
 		}
 	}
 
@@ -125,8 +124,8 @@ const (
 // engineOps are the non-command operations that may be randomly enabled.
 var engineOps = []string{ //nolint:gochecknoglobals // DST operation table
 	opTick,
-	// opRestart,
-	// opSnapshotRestore,
+	opRestart,
+	opSnapshotRestore,
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -286,6 +285,23 @@ func (f *dstFixture) enqueueCommand(cmd Command) error {
 		Address: f.world.address,
 		Payload: payload,
 	}, command.PlayerSender("dst-pretest"))
+}
+
+// verifySnapshotRoundtrip checks that the world restore just loaded encodes back to exactly the world
+// state in the snapshot it was loaded from. A codec that drops, reorders or invents anything, or an
+// encoding that depends on more than the values, fails here for whatever components the game holds.
+func (f *dstFixture) verifySnapshotRoundtrip(t *testing.T) {
+	t.Helper()
+	if f.storage.data == nil {
+		return // Nothing stored yet, so restore loaded nothing.
+	}
+	snap, err := snapshot.Decode(f.storage.data)
+	require.NoError(t, err)
+	restored, err := f.world.world.ToProto()
+	require.NoError(t, err)
+	require.True(t, proto.Equal(snap.GetWorldState(), restored),
+		"snapshot round trip: the restored world encodes differently from the snapshot at tick %d",
+		snap.GetTickHeight())
 }
 
 // fillRandom recursively fills a [reflect.Value] with random data based on its type.
