@@ -100,7 +100,7 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 	type fixture struct {
 		*World
 
-		onlyA, both bitmap.Bitmap
+		onlyA, onlyB, both bitmap.Bitmap
 	}
 	createN := func(w fixture, components bitmap.Bitmap, n int) {
 		for range n {
@@ -157,6 +157,22 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 			want: []EntityID{0, 1, 2, 3},
 		},
 		{
+			// Entity 3 moves from {B} into {A, B}, which is scanned after {A}.
+			name:    "entity that starts matching is not yielded",
+			matches: []SearchMatch{MatchContains},
+			setup: func(w fixture) {
+				createN(w, w.onlyA, 2)
+				createN(w, w.both, 1)
+				createN(w, w.onlyB, 1)
+			},
+			mutate: func(t *testing.T, w fixture, _ EntityID, first bool) {
+				if first {
+					require.NoError(t, w.Set(3, testutils.ComponentA{}))
+				}
+			},
+			want: []EntityID{0, 1, 2},
+		},
+		{
 			name:    "destroyed entities are not yielded",
 			matches: []SearchMatch{MatchExact, MatchContains, MatchAll},
 			setup:   func(w fixture) { createN(w, w.onlyA, 4) },
@@ -184,6 +200,7 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 				b, err := w.RegisterComponent[testutils.ComponentB]()
 				require.NoError(t, err)
 				w.onlyA.Set(a)
+				w.onlyB.Set(b)
 				w.both.Set(a)
 				w.both.Set(b)
 				tc.setup(w)

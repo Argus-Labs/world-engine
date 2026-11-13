@@ -87,14 +87,14 @@ func (w *World) IterEntities(
 	// Copy the matching IDs before yielding. Moving or destroying an entity swap-removes it from its
 	// archetype's entity slice and appends it to another, so walking the live slices would skip
 	// entities or visit them twice.
-	exactID := -1
+	archetypes := w.state.archetypes
 	switch match {
 	case MatchExact:
 		aid, exists := w.state.archExact(components)
 		if !exists {
 			return nil
 		}
-		exactID = aid
+		archetypes = archetypes[aid : aid+1]
 	case MatchContains, MatchAll:
 	default:
 		return eris.Wrapf(ErrInvalidMatch, "%v", match)
@@ -105,11 +105,12 @@ func (w *World) IterEntities(
 		snapshot = new(searchSnapshot)
 	}
 	ids, segments := snapshot.ids[:0], snapshot.segments[:0]
-	for aid, arch := range w.state.archetypes {
-		if aid == exactID || match == MatchAll || (match == MatchContains && arch.contains(components)) {
-			ids = append(ids, arch.entities...)
-			segments = append(segments, searchSegment{arch: arch, version: arch.version, end: len(ids)})
+	for _, arch := range archetypes {
+		if match == MatchContains && !arch.contains(components) {
+			continue
 		}
+		ids = append(ids, arch.entities...)
+		segments = append(segments, searchSegment{arch: arch, version: arch.version, end: len(ids)})
 	}
 
 	start := 0
