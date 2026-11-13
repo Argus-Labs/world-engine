@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
@@ -149,10 +150,12 @@ func (f *accessFixture) frame(t *testing.T, player string) syncstate.Frame {
 	return frames[0]
 }
 
+// quiet asserts that each player is told nothing: it receives only the heartbeat, which every
+// TestWorld step is due.
 func (f *accessFixture) quiet(t *testing.T, players ...string) {
 	t.Helper()
 	for _, p := range players {
-		require.Empty(t, syncFrames(t, f.subs[p]), "%s should receive no sync frame", p)
+		requireHeartbeat(t, syncFrames(t, f.subs[p]), "%s should be told nothing", p)
 	}
 }
 
@@ -221,6 +224,7 @@ func TestSyncFoldTable(t *testing.T) {
 		assert.Empty(t, fr.Records, p)
 		assert.Empty(t, fr.Access, p)
 	}
+	f.quiet(t, "carol")
 
 	// Gained view in the same commit that changed the entity: the whole record and a grant, while
 	// the readers that kept view get the patch.
@@ -292,6 +296,7 @@ func TestSyncFoldTable(t *testing.T) {
 	e.Set(syncstate.Authorities{Players: players("alice")})
 	f.Tick()
 	f.frame(t, "bob")
+	f.quiet(t, "alice", "carol")
 
 	// Entity presence changed (sync removed and re-added): every holder gets the whole record,
 	// and no grant, since access did not change.
@@ -370,6 +375,7 @@ func TestSyncFoldTable(t *testing.T) {
 	revoked := f.frame(t, "bob")
 	assert.NotNil(t, revoked.Open)
 	assert.Empty(t, revoked.Records)
+	f.quiet(t, "alice", "carol")
 	f.admitted["bob"] = true
 	f.Tick()
 	readmitted := f.frame(t, "bob")
@@ -711,8 +717,9 @@ func TestSyncEventsReachOnlyViewers(t *testing.T) {
 }
 
 // The frame layout, byte for byte, against the compact wire spec: positional arrays, the smallest
-// integers, the session once per stream, component indexes, and the fingerprint only on the
-// baseline. Records and patches are encoded once and carried by every reader's frame.
+// integers, the session and heartbeat once per stream, the tick's time, component indexes, and the
+// fingerprint only on the baseline. Records and patches are encoded once and carried by every
+// reader's frame. A heartbeat is an empty delta.
 func TestSyncFrameLayoutGolden(t *testing.T) {
 	f := newAccessFixture(t, "alice", "bob")
 	e := f.Create[syncAvatar]()
@@ -725,6 +732,7 @@ func TestSyncFrameLayoutGolden(t *testing.T) {
 	f.connect(t, "dave")
 	f.admitted["dave"] = true
 	f.Tick()
+	require.Equal(t, time.Unix(2, 0), f.Timestamp(), "dave's baseline is at 2,000 ms")
 	require.Less(t, uint32(e.ID()), uint32(128))
 	require.Less(t, e.SyncID().Incarnation, uint64(128))
 	ref := []byte{0x92, byte(e.ID()), byte(e.SyncID().Incarnation)}
@@ -742,11 +750,22 @@ func TestSyncFrameLayoutGolden(t *testing.T) {
 	health, loadout := syncIndex(t, f.World, "health"), syncIndex(t, f.World, "loadout")
 	require.Equal(t, []uint16{0, 1}, []uint16{health, loadout}, "contract order: health, loadout")
 
-	// dave's baseline: [Open, Stream, Sequence, Records, Patches, Removed, Access]
+	second := []byte{0xcd, 0x03, 0xe8} // 1,000 ms: the heartbeat, and the time between TestWorld steps
+
+	// alice and bob heard nothing for a heartbeat: an empty delta, one second on.
+	for player, stream := range map[string]byte{"alice": 1, "bob": 2} {
+		heartbeat := cat([]byte{0x98, 0xc0, stream, 0x03}, second, []byte{0xc0, 0xc0, 0xc0, 0xc0})
+		require.Len(t, f.subs[player].queue, 1, player)
+		assert.Equal(t, heartbeat, f.subs[player].queue[0].response.GetEvent().GetPayload(), player)
+		syncFrames(t, f.subs[player])
+	}
+
+	// dave's baseline: [Open, Stream, Sequence, Time, Records, Patches, Removed, Access]
 	want := cat(
-		[]byte{0x97},
-		[]byte{0x93, 0x02}, str(fingerprint), str(e.SyncID().Session), // Open: version, fingerprint, session
+		[]byte{0x98},
+		[]byte{0x94, 0x02}, str(fingerprint), str(e.SyncID().Session), second, // Open, with the heartbeat
 		[]byte{0x03, 0x01},                                // stream 3 (alice 1, bob 2), sequence 1
+		[]byte{0xcd, 0x07, 0xd0},                          // time: 2,000 ms since the Unix epoch
 		[]byte{0x91, 0x94}, ref, []byte{0x01, 0x01, 0x92}, // one record: ref, revision 1, presence 1, two values
 		[]byte{0x93, 0x00, 0x01}, bin(t, syncHealth{HP: 7, MaxHP: 9}), // health: index 0, presence 1
 		[]byte{0x93, 0x01, 0x01}, bin(t, syncLoadout{WeaponID: "wand"}), // loadout: index 1, presence 1
@@ -765,11 +784,11 @@ func TestSyncFrameLayoutGolden(t *testing.T) {
 	// a patch: ref, revision 2, one changed value (loadout, presence 1), nothing dropped
 	patch := cat([]byte{0x94}, ref, []byte{0x02, 0x91, 0x93, 0x01, 0x01}, moved, []byte{0xc0})
 	for player, stream := range map[string]byte{"alice": 1, "bob": 2, "dave": 3} {
-		sequence := byte(3)
+		sequence := byte(4)
 		if player == "dave" {
 			sequence = 2
 		}
-		delta := cat([]byte{0x97, 0xc0, stream, sequence, 0xc0, 0x91}, patch, []byte{0xc0, 0xc0})
+		delta := cat([]byte{0x98, 0xc0, stream, sequence}, second, []byte{0xc0, 0x91}, patch, []byte{0xc0, 0xc0})
 		require.Len(t, f.subs[player].queue, 1, player)
 		wire := f.subs[player].queue[0].response.GetEvent().GetPayload()
 		assert.Equal(t, delta, wire, player)

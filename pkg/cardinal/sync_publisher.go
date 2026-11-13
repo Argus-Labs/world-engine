@@ -106,6 +106,7 @@ type syncReader struct {
 	generation uint64 // the world_sync subscription the stream was opened for
 	stream     uint64
 	sequence   uint64
+	clock      uint64 // the stream's server time so far: its Times added up, in Unix milliseconds
 }
 
 func (r *syncRoster) leave(player string) {

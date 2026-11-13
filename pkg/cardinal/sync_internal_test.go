@@ -65,6 +65,7 @@ type syncClient struct {
 	session     string
 	stream      uint64
 	sequence    uint64
+	time        uint64                      // the stream's server time: its frames' Times added up
 	held        map[uint32]syncstate.Record // by entity, as a whole record would carry it
 	access      map[uint32]syncstate.Access
 }
@@ -186,10 +187,11 @@ func (c *syncClient) apply(f syncstate.Frame) (bool, error) {
 	}
 
 	if f.Open != nil {
-		c.ready, c.session, c.stream = true, f.Open.Session, f.Stream
+		c.ready, c.session, c.stream, c.time = true, f.Open.Session, f.Stream, 0
 		c.clear()
 	}
 	c.sequence = f.Sequence
+	c.time += f.Time
 	for _, r := range f.Removed {
 		delete(c.held, r.Entity)
 		delete(c.access, r.Entity)
@@ -250,6 +252,19 @@ func syncIndex(t testing.TB, w *World, name string) uint16 {
 
 func refOf(e Entity) syncstate.Ref { return syncstate.RefOf(e.SyncID()) }
 
+// emptyDelta reports whether a frame is a delta that changes nothing: a heartbeat.
+func emptyDelta(f syncstate.Frame) bool {
+	return f.Open == nil && len(f.Records)+len(f.Patches)+len(f.Removed)+len(f.Access) == 0
+}
+
+// requireHeartbeat asserts that frames are one empty delta: all that a reader with nothing to
+// hear receives once its last frame is a heartbeat old, as it is at every TestWorld step.
+func requireHeartbeat(t *testing.T, frames []syncstate.Frame, msgAndArgs ...any) {
+	t.Helper()
+	require.Len(t, frames, 1, msgAndArgs...)
+	require.True(t, emptyDelta(frames[0]), msgAndArgs...)
+}
+
 func syncFrames(t *testing.T, sub *streamSubscriber) []syncstate.Frame {
 	t.Helper()
 	var frames []syncstate.Frame
@@ -287,7 +302,7 @@ func TestSyncBaselinePrivacyAndDirtyPublication(t *testing.T) {
 	entity.Set(syncHealth{HP: 80, MaxHP: 100})
 	entity.Set(syncPrivate{Secret: "changed"})
 	w.Tick()
-	require.Empty(t, syncFrames(t, sub))
+	requireHeartbeat(t, syncFrames(t, sub), "a private or equal write publishes nothing")
 	entity.Set(syncHealth{HP: 50, MaxHP: 100})
 	w.Tick()
 	frames = syncFrames(t, sub)
@@ -456,8 +471,9 @@ func TestSyncNewSubscriberCannotReceiveBeforeTickBaseline(t *testing.T) {
 	require.NotNil(t, syncFrames(t, sub)[0].Open)
 	w.Broadcast(syncHurt{Amount: 2})
 	w.Tick()
-	require.Len(t, sub.queue, 1)
+	require.Len(t, sub.queue, 2)
 	require.Equal(t, "hurt", sub.queue[0].response.GetEvent().GetName())
+	requireHeartbeat(t, syncFrames(t, sub), "the tick's events come before its heartbeat")
 }
 
 func TestSyncDisconnectedOccurrenceAndReplyOnlyCallerAreDenied(t *testing.T) {
@@ -506,7 +522,7 @@ func TestSyncRevocationClearsStateWithoutDroppingCleanupOrRefusal(t *testing.T) 
 	require.Len(t, restored[0].Records, 1)
 	require.NotEqual(t, frames[0].Stream, restored[0].Stream)
 	w.Tick()
-	require.Empty(t, sub.queue)
+	requireHeartbeat(t, syncFrames(t, sub))
 }
 
 type syncZeta struct {

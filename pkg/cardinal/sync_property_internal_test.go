@@ -31,7 +31,9 @@ import (
 // publisher. Each reader's holdings are rebuilt from the frames it received by a client that
 // applies the compact layout's client rules (stream, gap, revision, removals, records, patches,
 // grants); a patch merges into the held record. What each reader holds must also equal, field for
-// field, the record a baseline would send it now.
+// field, the record a baseline would send it now. Every frame's Times add up to the server time
+// of its tick, and a reader open across a tick is told something, an empty delta if nothing else,
+// whenever its last frame is a heartbeat old: at every step, since steps are a second apart.
 //
 // Raise the seed count with SYNC_PROPERTY_SEEDS=n. A failure names its seed and tick.
 
@@ -168,6 +170,8 @@ type propReader struct {
 	subscribed bool // to world_sync
 	admitted   bool
 	open       *streamSubscriber // the stream sync was open on at the end of the last tick
+	frames     int               // sync frames its client applied this tick
+	heartbeats int               // of which empty deltas
 }
 
 // propEvent is an emitted event and who must receive it.
@@ -398,8 +402,9 @@ func (s *propSim) receive(r *propReader, data []byte) {
 		s.failf("%s: delta on stream %d before its baseline (holding %d, ready %v)",
 			r.name, f.Stream, c.stream, c.ready)
 		return
-	case len(f.Records)+len(f.Patches)+len(f.Removed)+len(f.Access) == 0:
-		s.failf("%s: empty delta", r.name)
+	case emptyDelta(f):
+		s.stats["empty deltas (heartbeats)"]++
+		r.heartbeats++
 	}
 	// Every revision of a lifetime a reader holds reaches it, so a patch, or a record over a held
 	// lifetime, is exactly one revision on.
@@ -428,12 +433,20 @@ func (s *propSim) receive(r *propReader, data []byte) {
 			s.stats["records over a held lifetime (new entity presence)"]++
 		}
 	}
+	before := c.time
 	if _, err := c.apply(f); err != nil {
 		s.failf("%s: %v", r.name, err)
 	}
+	r.frames++
+	s.checkTime(r, f, before)
+	s.tally(c, f)
+}
+
+// tally counts what a frame the client applied exercised.
+func (s *propSim) tally(c *propClient, f syncstate.Frame) {
 	if f.Open == nil {
 		s.stats["deltas"]++
-		if len(f.Records)+len(f.Patches)+len(f.Removed) == 0 {
+		if len(f.Records)+len(f.Patches)+len(f.Removed) == 0 && len(f.Access) > 0 {
 			s.stats["access-only deltas"]++
 		}
 	}
@@ -939,8 +952,12 @@ func (s *propSim) step() {
 			ev.expect, ev.ungated = s.truths(n), false
 		}
 	}
+	now := uint64(s.w.Timestamp().UnixMilli())
 	for _, r := range s.readers {
+		wasOpen, before := r.open != nil && r.open == r.sub, r.client.time
+		r.frames, r.heartbeats = 0, 0
 		s.drain(r)
+		s.checkHeartbeat(r, wasOpen && r.sub != nil && r.subscribed && r.admitted, now >= before+heartbeatMillis)
 		// A connected sender hears about each of its rejected commands on its stream.
 		for key, sent := range s.rejects {
 			if sender, name, _ := strings.Cut(
@@ -958,6 +975,34 @@ func (s *propSim) step() {
 	}
 	s.checkEvents()
 	s.checkReplicas()
+}
+
+// checkTime checks that the Times a client added up, before was the sum before f, are f's tick
+// time: the tick's own on a baseline, else the latest tick time since the baseline, since a tick
+// whose time went back, as after a reset, adds 0.
+func (s *propSim) checkTime(r *propReader, f syncstate.Frame, before uint64) {
+	now := uint64(s.w.Timestamp().UnixMilli())
+	want := max(before, now)
+	if f.Open != nil {
+		want = now
+	}
+	if r.client.time != want {
+		s.failf("%s: frame %d's Times add up to %d, its tick is at %d", r.name, f.Sequence, r.client.time, want)
+	}
+}
+
+// checkHeartbeat checks the heartbeat rule for one reader's tick: a reader open across the tick
+// whose last frame was a heartbeat old is told something, and an empty delta is sent only to such
+// a reader, as the tick's one frame.
+func (s *propSim) checkHeartbeat(r *propReader, stayedOpen, due bool) {
+	switch {
+	case r.heartbeats > 0 && (!due || r.frames != 1):
+		s.failf("%s: %d empty deltas among %d frames, due %v", r.name, r.heartbeats, r.frames, due)
+	case stayedOpen && due && r.frames == 0:
+		s.failf("%s: no frame for a heartbeat", r.name)
+	case stayedOpen && !due:
+		s.stats["open readers not yet due a heartbeat (time went back)"]++
+	}
 }
 
 func (s *propSim) checkEvents() {

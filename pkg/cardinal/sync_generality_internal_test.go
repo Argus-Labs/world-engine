@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
@@ -37,8 +38,10 @@ type syncEquipment struct {
 	Private   syncPrivate
 }
 
-// Uses no Health registration. Its first seven frames cover every part of the compact layout,
-// in order; SYNC_INTEROP_OUTPUT writes them, with the contract, for Unity's interop test.
+// Uses no Health registration. Its first eight frames cover every part of the compact layout,
+// in order, the last an empty delta; SYNC_INTEROP_OUTPUT writes them, with the contract, for
+// Unity's interop test. It ticks at 20 Hz from a real Unix time, so each Time has the width a
+// server sends: the baseline's 8 bytes, a delta's 50 ms in one, the empty delta's 1,000 ms in two.
 //
 //nolint:maintidx // One scenario, frame by frame, as the fixture lists them.
 func TestSyncMultipleUnrelatedComponents(t *testing.T) {
@@ -76,6 +79,12 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 		require.NoError(t, err)
 		return b
 	}
+	clock := time.UnixMilli(1_762_950_000_000)
+	tick := func(after time.Duration) {
+		clock = clock.Add(after)
+		w.World.Tick(clock)
+	}
+	const step = 50 * time.Millisecond
 	held := func(e Entity) syncstate.Record {
 		t.Helper()
 		h, ok := client.held[uint32(e.ID())]
@@ -91,13 +100,15 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 	b.Remove[syncCosmetics]()
 	b.Set(syncLoadout{WeaponID: "axe", Ammo: 2})
 	b.Set(syncstate.Authorities{Players: players("observer")})
-	w.Tick()
+	tick(step)
 
 	// 1. A baseline with two entities and their grants; the private component is omitted.
 	base := next()
 	require.NotNil(t, base.Open)
 	require.Equal(t, a.SyncID().Session, base.Open.Session)
 	require.Equal(t, []uint64{1, 1}, []uint64{base.Stream, base.Sequence})
+	require.Equal(t, uint64(1000), base.Open.Heartbeat)
+	require.Equal(t, uint64(1_762_950_000_050), base.Time, "a baseline's Time is its tick's Unix ms")
 	require.Equal(t, []syncstate.Record{
 		{Ref: refOf(a), Revision: 1, Presence: 1, Components: []syncstate.Value{
 			{Component: cosmetics, Presence: 1, Data: data(syncCosmetics{Tint: ^uint32(0), Opacity: 0.5})},
@@ -113,8 +124,8 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 
 	// 2. A patch that changes one component.
 	a.Set(syncLoadout{WeaponID: "sword", Ammo: 7, Equipped: true})
-	w.Tick()
-	require.Equal(t, syncstate.Frame{Stream: 1, Sequence: 2, Patches: []syncstate.Patch{{
+	tick(step)
+	require.Equal(t, syncstate.Frame{Stream: 1, Sequence: 2, Time: 50, Patches: []syncstate.Patch{{
 		Ref: refOf(a), Revision: 2, Changed: []syncstate.Value{
 			{Component: loadout, Presence: 1, Data: data(syncLoadout{WeaponID: "sword", Ammo: 7, Equipped: true})},
 		},
@@ -123,21 +134,21 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 
 	// 3. A patch that drops a component.
 	a.Remove[syncCosmetics]()
-	w.Tick()
-	require.Equal(t, syncstate.Frame{Stream: 1, Sequence: 3, Patches: []syncstate.Patch{{
+	tick(step)
+	require.Equal(t, syncstate.Frame{Stream: 1, Sequence: 3, Time: 50, Patches: []syncstate.Patch{{
 		Ref: refOf(a), Revision: 3, Dropped: []uint16{cosmetics},
 	}}}, next())
 	require.Equal(t, []uint16{loadout}, componentsOf(held(a).Components))
 
 	// 4. A patch that adds a component, with a presence the client has not seen.
 	a.Set(syncCosmetics{Tint: 0, Opacity: 1})
-	w.Tick()
+	tick(step)
 	added := next()
 	require.Len(t, added.Patches, 1)
 	require.Len(t, added.Patches[0].Changed, 1)
 	presence := added.Patches[0].Changed[0].Presence
 	require.Greater(t, presence, uint64(1))
-	require.Equal(t, syncstate.Frame{Stream: 1, Sequence: 4, Patches: []syncstate.Patch{{
+	require.Equal(t, syncstate.Frame{Stream: 1, Sequence: 4, Time: 50, Patches: []syncstate.Patch{{
 		Ref: refOf(a), Revision: 4, Changed: []syncstate.Value{
 			{Component: cosmetics, Presence: presence, Data: data(syncCosmetics{Tint: 0, Opacity: 1})},
 		},
@@ -145,26 +156,30 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 
 	// 5. Only a grant: a is promoted, and no revision moves.
 	a.Set(syncstate.Authorities{Players: players("observer")})
-	w.Tick()
-	require.Equal(t, syncstate.Frame{Stream: 1, Sequence: 5, Access: []syncstate.Grant{
+	tick(step)
+	require.Equal(t, syncstate.Frame{Stream: 1, Sequence: 5, Time: 50, Access: []syncstate.Grant{
 		{Ref: refOf(a), Access: syncstate.Authority},
 	}}, next())
 
 	// 6. A removal: b leaves the observer's view.
 	b.Remove[syncstate.Authorities]()
 	b.Set(syncstate.Viewers{})
-	w.Tick()
-	require.Equal(t, syncstate.Frame{Stream: 1, Sequence: 6, Removed: []syncstate.Ref{refOf(b)}}, next())
+	tick(step)
+	require.Equal(t, syncstate.Frame{Stream: 1, Sequence: 6, Time: 50, Removed: []syncstate.Ref{refOf(b)}}, next())
 
 	// 7. The same lifetime re-enters view: its whole record, at the revision it never left, and a grant.
 	b.Set(syncstate.Viewers{Players: players("observer")})
-	w.Tick()
-	require.Equal(t, syncstate.Frame{Stream: 1, Sequence: 7,
+	tick(step)
+	require.Equal(t, syncstate.Frame{Stream: 1, Sequence: 7, Time: 50,
 		Records: []syncstate.Record{{Ref: refOf(b), Revision: 1, Presence: 1, Components: []syncstate.Value{
 			{Component: loadout, Presence: 1, Data: data(syncLoadout{WeaponID: "axe", Ammo: 2})},
 		}}},
 		Access: []syncstate.Grant{{Ref: refOf(b), Access: syncstate.View}},
 	}, next())
+
+	// 8. Nothing changes for a heartbeat: an empty delta, which still takes a sequence number.
+	tick(time.Second)
+	require.Equal(t, syncstate.Frame{Stream: 1, Sequence: 8, Time: 1000}, next())
 	fixture := raw
 
 	// Recovery: the reader unsubscribes, then subscribes again and gets a fresh baseline.
@@ -174,13 +189,13 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 		w.service.mu.Lock()
 		removeSubscriptions(sub, subscriptions)
 		w.service.mu.Unlock()
-		w.Tick()
+		tick(step)
 		require.Empty(t, sub.queue, "an unsubscribed reader is closed without a frame")
 		before()
 		w.service.mu.Lock()
 		addSubscriptions(sub, subscriptions)
 		w.service.mu.Unlock()
-		w.Tick()
+		tick(step)
 		return next()
 	}
 	recovered := resubscribe(func() {
@@ -197,7 +212,7 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 	require.Equal(t, recovered.Records, unchanged.Records, "recovery also restates unchanged state")
 	require.Equal(t, before, held(a))
 	a.Set(syncLoadout{WeaponID: "bow", Ammo: 9})
-	w.Tick()
+	tick(step)
 	require.Empty(t, sub.queue, "equal values do not publish")
 	if output := os.Getenv("SYNC_INTEROP_OUTPUT"); output != "" {
 		data, err := json.Marshal(struct {

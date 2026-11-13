@@ -21,6 +21,7 @@ type reflectFrame struct {
 	Open     *syncstate.Open
 	Stream   uint64
 	Sequence uint64
+	Time     uint64
 	Records  []msgpack.RawMessage
 	Patches  []msgpack.RawMessage
 	Removed  []syncstate.Ref
@@ -81,7 +82,7 @@ func TestSyncAppendFrameMatchesReflectiveEncoding(t *testing.T) {
 			}
 		}
 		want := reflectFrame{
-			Stream: num(), Sequence: num(),
+			Stream: num(), Sequence: num(), Time: num(),
 			Records: nilIfEmpty(d.records), Patches: nilIfEmpty(d.patches),
 			Removed: nilIfEmpty(d.removed), Access: nilIfEmpty(d.access),
 		}
@@ -89,10 +90,11 @@ func TestSyncAppendFrameMatchesReflectiveEncoding(t *testing.T) {
 		if rng.IntN(4) == 0 {
 			want.Open = &syncstate.Open{
 				Version: syncstate.ProtocolVersion, Fingerprint: fmt.Sprintf("%064x", i), Session: "session",
+				Heartbeat: num(),
 			}
 			open = encodeSync(*want.Open)
 		}
-		got := appendFrame(nil, open, want.Stream, want.Sequence, d)
+		got := appendFrame(nil, open, want.Stream, want.Sequence, want.Time, d)
 		require.Equal(t, encodeSync(want), got, "frame %d", i)
 	}
 }
@@ -117,12 +119,12 @@ func BenchmarkSyncFrameAssembly(b *testing.B) {
 	}
 	b.Run("reflect", func(b *testing.B) {
 		for b.Loop() {
-			_ = encodeSync(reflectFrame{Stream: 7, Sequence: 9000, Patches: d.patches})
+			_ = encodeSync(reflectFrame{Stream: 7, Sequence: 9000, Time: 50, Patches: d.patches})
 		}
 	})
 	b.Run("append", func(b *testing.B) {
 		for b.Loop() {
-			_ = appendFrame(nil, nil, 7, 9000, d)
+			_ = appendFrame(nil, nil, 7, 9000, 50, d)
 		}
 	})
 }
