@@ -37,8 +37,8 @@ import (
 //	inv.Items = inv.Items.With(0, item) // the column is unchanged
 //	ref.Set(inv)                        // this stores the new Slice
 //
-// Each derivation costs one copy. For several edits at once, use Edit or NewSliceBuilder, which copy
-// once and hand the array over with Done.
+// Each derivation other than Sub and Chunk costs one copy. For several edits at once, use Edit or
+// NewSliceBuilder, which copy once and hand the array over with Done.
 //
 // Every empty Slice is the zero value: producers, derivations, Done and both decoders return nil
 // items for an empty result, so empty Slices are [reflect.DeepEqual] however they were built.

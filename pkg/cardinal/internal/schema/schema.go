@@ -11,9 +11,9 @@ import (
 
 	"github.com/rotisserie/eris"
 	// vmihailenco/msgpack rather than shamaton/msgpack or ugorji/go/codec:
-	//   - immutable.Slice[T] and immutable.Map[K, V] hide their items, so they must encode themselves. vmihailenco calls its
-	//     EncodeMsgpack/DecodeMsgpack for every T; shamaton's hook registers one exact type, and its
-	//     decoder never learns the target type.
+	//   - immutable.Slice[T] and immutable.Map[K, V] hide their items, so they must encode themselves.
+	//     vmihailenco calls its EncodeMsgpack/DecodeMsgpack for every T; shamaton's hook registers one
+	//     exact type, and its decoder never learns the target type.
 	//   - msgpack.Register can replace the decoder of a built-in type such as float32.
 	//   - omitempty respects IsZero, so an empty Slice is left out.
 	//   - ugorji/go/codec can encode Slice[T] too, but it ships every other format (~5x binary size).

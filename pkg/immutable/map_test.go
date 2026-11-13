@@ -94,11 +94,16 @@ func TestMap_DerivationsLeaveReceiverUnchanged(t *testing.T) {
 			t.Parallel()
 
 			got := f(base)
-			again := f(got)
-			_ = again
 			keys, vals := entries(base)
 			assert.Equal(t, []string{"a", "b", "c"}, keys, "the receiver's keys are unchanged")
 			assert.Equal(t, []int{1, 2, 3}, vals, "the receiver's values are unchanged")
+
+			// A derived Map may have spare capacity; deriving from it again must not write into it.
+			wantKeys, wantVals := entries(got)
+			f(got)
+			gotKeys, gotVals := entries(got)
+			assert.Equal(t, wantKeys, gotKeys, "a derived Map's keys are unchanged by deriving from it")
+			assert.Equal(t, wantVals, gotVals, "a derived Map's values are unchanged by deriving from it")
 		})
 	}
 }

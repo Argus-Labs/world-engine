@@ -57,9 +57,9 @@ type Map[K Key, V any] struct {
 // Construction
 // -------------------------------------------------------------------------------------------------
 
-// MapFrom returns a Map holding every pair in seq. When a key repeats, its last value wins. The
-// result depends only on the pairs, not on the order seq yields them, so MapFrom(maps.All(m)) is
-// deterministic even though ranging over m is not.
+// MapFrom returns a Map holding every pair in seq. When a key repeats, the value seq yields last
+// wins, so then the result depends on the order. Without repeats it depends only on the pairs, so
+// MapFrom(maps.All(m)) is deterministic even though ranging over m is not.
 func MapFrom[K Key, V any](seq iter.Seq2[K, V]) Map[K, V] {
 	type entry struct {
 		k K
@@ -208,9 +208,10 @@ func MapEqual[K Key, V comparable](a, b Map[K, V]) bool {
 // Serialization and Reflection
 // -------------------------------------------------------------------------------------------------
 // A Map encodes as a map, in JSON and MessagePack alike, with entries in key order so equal Maps
-// encode to equal bytes. Both decoders accept entries in any order and sort them once, so a redeploy
-// that changes a key's type, say int32 to uint32, still loads the old bytes. A repeated key is an
-// error: there is no right value to keep. As with Slice, the JSON methods exist because otherwise the
+// encode to equal bytes. Both decoders accept entries in any order and sort them once. A repeated key
+// is an error: there is no right value to keep. Changing a key's type between redeploys is not safe:
+// MessagePack converts an integer key as Go converts integers, so -1 stored as int32 loads as
+// 4294967295 into uint32, with no error. As with Slice, the JSON methods exist because otherwise the
 // encoder sees a struct of unexported fields and writes `{}`.
 
 // MarshalJSON encodes the Map as a JSON object in key order. JSON keys are strings, so an integer key

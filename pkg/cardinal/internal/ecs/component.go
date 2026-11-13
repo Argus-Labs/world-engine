@@ -125,7 +125,7 @@ func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]
 	if key, value, ok := immutable.MapTypes(t); ok {
 		// Key already limits the key to an integer or string, but a named one can still carry a codec.
 		checkComponentField(key, path+"{key}", visiting, problems)
-		checkComponentField(value, path+"{}", visiting, problems)
+		checkComponentField(value, path+"{value}", visiting, problems)
 		return
 	}
 	if hasCodec(t) {
@@ -322,7 +322,8 @@ const (
 
 	fixSlice = "use a fixed-size array [N]T with the live length in its own field, or immutable.Slice[T] " +
 		"if the length is genuinely unbounded"
-	fixMap       = "if the key set is fixed, use a struct with one field per key; otherwise immutable.Map[K, V]"
+	fixMap = "if the key set is fixed, use a struct with one field per key; otherwise immutable.Map[K, V] " +
+		"with an integer or string key"
 	fixPointer   = "drop the star and store the value; if it means absent, put a Has<Name> bool beside it"
 	fixInterface = "use the one concrete type it holds; if it varies, add a tag field and one field per " +
 		"variant"

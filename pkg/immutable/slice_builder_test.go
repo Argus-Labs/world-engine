@@ -162,7 +162,8 @@ func TestSlice_Allocations(t *testing.T) {
 	require.InDelta(t, 1, testing.AllocsPerRun(100, func() { sink += s.Delete(0, 2).Len() }), 0, "Delete")
 	require.InDelta(t, 0, testing.AllocsPerRun(100, func() { sink += s.Sub(1, 3).Len() }), 0, "Sub")
 
-	// A batch of edits costs its copy plus append growth, not one copy per edit.
+	// A builder sized up front never grows: 64 appends cost the builder and its array, not one
+	// allocation per append.
 	batch := testing.AllocsPerRun(100, func() {
 		b := immutable.NewSliceBuilder[int](64)
 		for i := range 64 {
