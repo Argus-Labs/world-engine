@@ -498,7 +498,8 @@ func newStreamHarness(t *testing.T) *streamHarness {
 	require.NoError(t, err)
 
 	h := &streamHarness{fixture: fixture, exits: make(map[string]time.Time)}
-	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewUnstartedServer(nil)
+	server.Config = newHTTPServer("", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mux.ServeHTTP(w, r)
 		if id := r.Header.Get(testStreamIDHeader); id != "" {
 			h.exitsMu.Lock()
@@ -506,7 +507,6 @@ func newStreamHarness(t *testing.T) *streamHarness {
 			h.exitsMu.Unlock()
 		}
 	}))
-	server.Config.Protocols = h2cProtocols()
 	server.Start()
 	t.Cleanup(func() {
 		server.CloseClientConnections()

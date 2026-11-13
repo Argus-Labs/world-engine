@@ -123,12 +123,7 @@ func (s *service) init(address string) error {
 		return err
 	}
 
-	s.server = &http.Server{
-		Addr:              address,
-		Handler:           mux,
-		ReadHeaderTimeout: 10 * time.Second,
-		Protocols:         h2cProtocols(),
-	}
+	s.server = newHTTPServer(address, mux)
 
 	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", address)
 	if err != nil {
@@ -142,6 +137,16 @@ func (s *service) init(address string) error {
 	}()
 
 	return nil
+}
+
+// newHTTPServer returns the client-facing server for handler, before it serves.
+func newHTTPServer(address string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              address,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		Protocols:         h2cProtocols(),
+	}
 }
 
 // compressMinBytes is the smallest response the Cardinal service compresses for a client that

@@ -126,8 +126,8 @@ func newSyncStreamHarness(t *testing.T, w *TestWorld) (*streamHarness, *streamHa
 	w.World.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
 	mux, err := w.service.newMux(authenticatorDev{}.authenticate)
 	require.NoError(t, err)
-	server := httptest.NewUnstartedServer(mux)
-	server.Config.Protocols = h2cProtocols()
+	server := httptest.NewUnstartedServer(nil)
+	server.Config = newHTTPServer("", mux)
 	server.Start()
 	t.Cleanup(func() { server.CloseClientConnections(); server.Close() })
 	newClient := func() *streamHarness {
