@@ -20,6 +20,7 @@ type archetype struct {
 	entities   []EntityID       // List of entities of this archetype
 	columns    []abstractColumn // List of columns containing component data
 	compCount  int              // Number of component types in the archetype
+	version    uint64           // Incremented whenever an entity joins or leaves (see IterEntities)
 }
 
 // newArchetype creates an archetype for the given component types.
@@ -66,6 +67,7 @@ func (a *archetype) contains(components bitmap.Bitmap) bool {
 func (a *archetype) newEntity(eid EntityID) {
 	// Add to the entities slice.
 	a.entities = append(a.entities, eid)
+	a.version++
 
 	// Extend the archetype's columns to make space for the new entity's components.
 	for _, column := range a.columns {
@@ -90,6 +92,7 @@ func (a *archetype) removeEntity(eid EntityID) {
 	a.entities[row] = a.entities[lastIndex]
 	// Truncate the array to remove the last entity.
 	a.entities = a.entities[:lastIndex]
+	a.version++
 
 	// Remove the components of the entity.
 	for _, column := range a.columns {
