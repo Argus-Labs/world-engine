@@ -11,9 +11,18 @@ import (
 
 // syncSeen is one frame a reader received, by the tick that sent it.
 type syncSeen struct {
-	at   int64  // the tick, in milliseconds after the test's start
-	kind string // baseline, delta or empty
-	time uint64 // the frame's Time
+	at        int64  // the tick, in milliseconds after the test's start
+	kind      string // baseline, delta or empty
+	time      uint64 // the frame's Time
+	heartbeat uint64 // a baseline's Open.Heartbeat
+}
+
+func syncSeenOf(at int64, f syncstate.Frame) syncSeen {
+	seen := syncSeen{at: at, kind: syncKind(f), time: f.Time}
+	if f.Open != nil {
+		seen.heartbeat = f.Open.Heartbeat
+	}
+	return seen
 }
 
 func syncKind(f syncstate.Frame) string {
@@ -73,19 +82,19 @@ func TestSyncTimesAddUpToEachFrameTick(t *testing.T) {
 			}
 			sum += f.Time
 			require.Equal(t, uint64(tick.UnixMilli()), sum, "frame %d at %d ms", f.Sequence, at)
-			seen = append(seen, syncSeen{at, syncKind(f), f.Time})
+			seen = append(seen, syncSeenOf(at, f))
 		}
 	}
 	require.Equal(t, []syncSeen{
-		{0, "baseline", startMs},
-		{50, "delta", 50},
-		{100, "delta", 50},
-		{100, "delta", 0},
-		{1100, "empty", 1000},
-		{1150, "baseline", startMs + 1150},
-		{1200, "baseline", startMs + 1200},
-		{1250, "delta", 50},
-		{2250, "empty", 1000},
+		{0, "baseline", startMs, 1000},
+		{50, "delta", 50, 0},
+		{100, "delta", 50, 0},
+		{100, "delta", 0, 0},
+		{1100, "empty", 1000, 0},
+		{1150, "baseline", startMs + 1150, 0}, // clearing a revoked view promises no heartbeat
+		{1200, "baseline", startMs + 1200, 1000},
+		{1250, "delta", 50, 0},
+		{2250, "empty", 1000, 0},
 	}, seen)
 }
 
@@ -108,7 +117,7 @@ func TestSyncHeartbeatEveryHeartbeatOfServerTime(t *testing.T) {
 		e.Set(syncHealth{HP: hp})
 		w.World.Tick(start.Add(time.Duration(at) * time.Millisecond))
 		for _, f := range syncFrames(t, idle) {
-			heard = append(heard, syncSeen{at, syncKind(f), f.Time})
+			heard = append(heard, syncSeenOf(at, f))
 		}
 		if busy != nil {
 			frames := syncFrames(t, busy)
@@ -131,15 +140,15 @@ func TestSyncHeartbeatEveryHeartbeatOfServerTime(t *testing.T) {
 		tick(at)
 	}
 	require.Equal(t, []syncSeen{
-		{0, "baseline", 1_762_950_000_000},
-		{1000, "empty", 1000},
-		{2000, "empty", 1000},
-		{3000, "empty", 1000},
-		{3050, "baseline", 1_762_950_003_050},
-		{3100, "baseline", 1_762_950_003_100},
-		{4100, "empty", 1000},
-		{5600, "empty", 1500},
-		{7100, "empty", 1500},
+		{0, "baseline", 1_762_950_000_000, 1000},
+		{1000, "empty", 1000, 0},
+		{2000, "empty", 1000, 0},
+		{3000, "empty", 1000, 0},
+		{3050, "baseline", 1_762_950_003_050, 0}, // revoked: no promise, and no heartbeat follows
+		{3100, "baseline", 1_762_950_003_100, 1000},
+		{4100, "empty", 1000, 0},
+		{5600, "empty", 1500, 0},
+		{7100, "empty", 1500, 0},
 	}, heard)
 
 	idle.cancel(nil) // still subscribed and seated, but its stream is cancelled

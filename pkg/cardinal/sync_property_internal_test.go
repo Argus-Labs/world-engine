@@ -439,6 +439,7 @@ func (s *propSim) receive(r *propReader, data []byte) {
 	}
 	r.frames++
 	s.checkTime(r, f, before)
+	s.checkPromise(r, f)
 	s.tally(c, f)
 }
 
@@ -954,10 +955,11 @@ func (s *propSim) step() {
 	}
 	now := uint64(s.w.Timestamp().UnixMilli())
 	for _, r := range s.readers {
-		wasOpen, before := r.open != nil && r.open == r.sub, r.client.time
+		wasOpen, before, promise := r.open != nil && r.open == r.sub, r.client.time, r.client.heartbeat
 		r.frames, r.heartbeats = 0, 0
 		s.drain(r)
-		s.checkHeartbeat(r, wasOpen && r.sub != nil && r.subscribed && r.admitted, now >= before+heartbeatMillis)
+		// A stream whose baseline promised nothing is never due.
+		s.checkHeartbeat(r, wasOpen && r.sub != nil && r.subscribed && r.admitted, promise > 0 && now >= before+promise)
 		// A connected sender hears about each of its rejected commands on its stream.
 		for key, sent := range s.rejects {
 			if sender, name, _ := strings.Cut(
@@ -989,6 +991,22 @@ func (s *propSim) checkTime(r *propReader, f syncstate.Frame, before uint64) {
 	if r.client.time != want {
 		s.failf("%s: frame %d's Times add up to %d, its tick is at %d", r.name, f.Sequence, r.client.time, want)
 	}
+}
+
+// checkPromise checks a baseline's heartbeat: the engine's to a reader it seats, none to a reader
+// whose view it clears because its admission was revoked.
+func (s *propSim) checkPromise(r *propReader, f syncstate.Frame) {
+	if f.Open == nil {
+		return
+	}
+	want := uint64(0)
+	if r.admitted {
+		want = heartbeatMillis
+	}
+	if f.Open.Heartbeat != want {
+		s.failf("%s: baseline promises a heartbeat of %d ms, admitted %v", r.name, f.Open.Heartbeat, r.admitted)
+	}
+	s.stats[fmt.Sprintf("baselines promising %d ms", f.Open.Heartbeat)]++
 }
 
 // checkHeartbeat checks the heartbeat rule for one reader's tick: a reader open across the tick
