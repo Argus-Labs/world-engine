@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -16,6 +17,10 @@ type World struct {
 	systems             [4][]systemMetadata   // Systems for each hook (PreUpdate, Update, PostUpdate, Init)
 	systemEvents        systemEventManager    // Manages system events
 	onComponentRegister func(Component) error // Callback called when a component is registered
+
+	// searchSnapshots reuses IterEntities buffers so a search doesn't allocate once warm. A pool
+	// rather than one buffer keeps nested, interleaved, and concurrent read-only searches safe.
+	searchSnapshots sync.Pool
 }
 
 // NewWorld creates a new World instance.
