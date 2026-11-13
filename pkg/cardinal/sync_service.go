@@ -105,20 +105,20 @@ func (w *World) dispatchSync(_ context.Context, evt event.Event) error {
 		p.fold(item, deltas)
 		for slot := range deltas {
 			if !deltas[slot].empty() {
-				w.sendSync(&p.roster.readers[slot], false, deltas[slot])
+				w.sendSync(&p.roster.readers[slot], syncContinues, deltas[slot])
 			}
 		}
 	case syncOpen:
 		r := &p.roster.readers[item.slot]
 		r.subscriber, r.generation, r.stream, r.sequence = item.subscriber, item.generation, p.nextStream(), 0
 		p.roster.live.put(item.slot, true)
-		w.sendSync(r, true, p.baseline(item.slot))
+		w.sendSync(r, syncOpens, p.baseline(item.slot))
 	case syncClose:
 		r := &p.roster.readers[item.slot]
 		p.roster.live.put(item.slot, false)
 		if item.clear {
 			r.stream, r.sequence = p.nextStream(), 0
-			w.sendSync(r, true, syncDelta{})
+			w.sendSync(r, syncClears, syncDelta{})
 		}
 		r.subscriber = nil
 	}
@@ -153,7 +153,7 @@ func (w *World) heartbeatSync() {
 		for m := open; m != 0; m &= m - 1 {
 			r := &p.roster.readers[word<<6+bits.TrailingZeros64(m)]
 			if now >= r.clock+heartbeatMillis {
-				w.sendSync(r, false, syncDelta{})
+				w.sendSync(r, syncContinues, syncDelta{})
 			}
 		}
 	}
@@ -171,11 +171,22 @@ func (p *syncPublisher) nextStream() uint64 {
 	return p.streams
 }
 
+// syncStart is how a frame stands to the reader's stream.
+type syncStart uint8
+
+const (
+	syncContinues syncStart = iota // a delta on the open stream
+	syncOpens                      // a baseline for a seated reader, promised a heartbeat
+	syncClears                     // a baseline that clears a revoked reader's view: no promise
+)
+
 // sendSync numbers and times one frame on the reader's stream and queues it for the reader's
 // writer. A baseline opens the stream: it alone says the protocol, the contract, the session and
-// the heartbeat, and its Time restarts the stream's clock. A delta's Time is what the clock moved
-// since the last frame; if the tick's time went back, it is 0 until the time catches up.
-func (w *World) sendSync(r *syncReader, baseline bool, d syncDelta) {
+// the heartbeat, and its Time restarts the stream's clock. A clearing baseline promises no
+// heartbeat, since its reader is no longer seated. A delta's Time is what the clock moved since
+// the last frame; if the tick's time went back, it is 0 until the time catches up.
+func (w *World) sendSync(r *syncReader, start syncStart, d syncDelta) {
+	baseline := start != syncContinues
 	r.sequence++
 	if baseline {
 		r.clock = 0
@@ -188,6 +199,10 @@ func (w *World) sendSync(r *syncReader, baseline bool, d syncDelta) {
 	}
 	var open []byte
 	if baseline {
+		var heartbeat uint64
+		if start == syncOpens {
+			heartbeat = heartbeatMillis
+		}
 		p := w.sync
 		if p.fingerprint == "" {
 			fingerprint, err := w.SyncContract().Fingerprint()
@@ -198,7 +213,7 @@ func (w *World) sendSync(r *syncReader, baseline bool, d syncDelta) {
 		}
 		open = encodeSync(syncstate.Open{
 			Version: syncstate.ProtocolVersion, Fingerprint: p.fingerprint, Session: w.world.Session(),
-			Heartbeat: heartbeatMillis,
+			Heartbeat: heartbeat,
 		})
 	}
 	payload := appendFrame(nil, open, r.stream, r.sequence, elapsed, d)

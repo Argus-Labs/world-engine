@@ -8,7 +8,9 @@ const EventName = "world_sync"
 
 // Heartbeat is the server's promise to every open stream whose reader is seated: a frame at least
 // this often in server time. A tick that would send such a reader nothing sends an empty delta
-// once its last frame is a heartbeat old. Open.Heartbeat carries it in milliseconds.
+// once its last frame is a heartbeat old. Open.Heartbeat carries it in milliseconds, or 0 on the
+// baseline that clears a revoked reader's view: that reader is no longer seated and hears nothing
+// more until it is admitted again.
 const Heartbeat = time.Second
 
 // Frame is one reader's baseline, or the ordered change to what that reader may see. A frame and
@@ -37,7 +39,7 @@ type Open struct {
 	Version     int
 	Fingerprint string
 	Session     string
-	Heartbeat   uint64 // Milliseconds: the stream carries a frame at least this often in server time
+	Heartbeat   uint64 // Milliseconds between frames at most, in server time; 0 promises nothing
 }
 
 // Ref names one entity lifetime within the stream's session. With Open.Session it is an ID.

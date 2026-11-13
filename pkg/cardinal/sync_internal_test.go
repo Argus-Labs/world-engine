@@ -66,6 +66,7 @@ type syncClient struct {
 	stream      uint64
 	sequence    uint64
 	time        uint64                      // the stream's server time: its frames' Times added up
+	heartbeat   uint64                      // the stream's promise, in ms; 0: none
 	held        map[uint32]syncstate.Record // by entity, as a whole record would carry it
 	access      map[uint32]syncstate.Access
 }
@@ -187,7 +188,7 @@ func (c *syncClient) apply(f syncstate.Frame) (bool, error) {
 	}
 
 	if f.Open != nil {
-		c.ready, c.session, c.stream, c.time = true, f.Open.Session, f.Stream, 0
+		c.ready, c.session, c.stream, c.time, c.heartbeat = true, f.Open.Session, f.Stream, 0, f.Open.Heartbeat
 		c.clear()
 	}
 	c.sequence = f.Sequence
@@ -510,6 +511,7 @@ func TestSyncRevocationClearsStateWithoutDroppingCleanupOrRefusal(t *testing.T) 
 	frames := syncFrames(t, sub)
 	require.NotNil(t, frames[0].Open, "the cleared view is an empty baseline on a new stream")
 	require.Empty(t, frames[0].Records)
+	require.Zero(t, frames[0].Open.Heartbeat, "a revoked reader is promised no heartbeat")
 	reply := make(chan *iscv1.Event, 1)
 	w.service.replyWaiters["reply"] = map[string][]chan *iscv1.Event{"outsider": {reply}}
 	require.NoError(t, w.service.publishDefaultEvent(t.Context(), event.Event{Kind: event.KindDefault, Recipient: "outsider", Payload: syncReply{Code: "not in session"}}))
@@ -520,6 +522,7 @@ func TestSyncRevocationClearsStateWithoutDroppingCleanupOrRefusal(t *testing.T) 
 	require.Len(t, restored, 1)
 	require.NotNil(t, restored[0].Open)
 	require.Len(t, restored[0].Records, 1)
+	require.Equal(t, uint64(1000), restored[0].Open.Heartbeat, "a readmitted reader is promised one again")
 	require.NotEqual(t, frames[0].Stream, restored[0].Stream)
 	w.Tick()
 	requireHeartbeat(t, syncFrames(t, sub))
