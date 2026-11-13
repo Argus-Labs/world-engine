@@ -18,6 +18,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/kernel"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -54,10 +55,12 @@ type World struct {
 	archetypes map[reflect.Type]bitmap.Bitmap      // Component sets resolved from archetype structs
 	eventTypes map[reflect.Type][]metric.AddOption // Registered events, with the attributes they are counted under
 	started    bool                                // Set by init; Register* methods panic afterwards
+	hooks      *kernel.Runner                      // Hooks the tick runs; nil until something registers one
 
 	sync           *syncPublisher               // Sync state the tick publishes; nil until a sync type is registered
 	commandSenders map[string]syncstate.Senders // Command name -> who may send it; absent: anyone
 	judged         commandMemory                // Verdicts on players' recent command IDs; nil until the first tick
+	admitted       map[string]bool              // EnableSync's verdict on each sender judged this tick
 	systemEventTap func(ecs.SystemEvent)        // Sees each emitted system event; set only by TestWorld
 }
 
@@ -310,16 +313,16 @@ func (w *World) step(timestamp time.Time, run func()) {
 
 	w.currentTick.timestamp = timestamp
 
-	// Drop commands their sender may not send, before any system reads them.
-	w.judgeCommands()
+	// Drop the commands a hook does not admit, before any system reads them.
+	w.hooks.Begin()
+	w.admitCommands()
 
 	// Advance the ECS world.
 	run()
 
-	w.captureSync(true)
-	w.reconcileSync()
+	w.hooks.Commit()
 	w.dispatchEvents(ctx)
-	w.settleSync()
+	w.hooks.Settle()
 
 	// Serialize the world for snapshots and the debug service. Encoding cannot fail (a value that
 	// cannot be encoded panics inside the ECS), so there is no retry path.
@@ -352,11 +355,45 @@ func (w *World) step(timestamp time.Time, run func()) {
 func (w *World) dispatchEvents(ctx context.Context) {
 	ctx, span := trace.New(ctx, spanEventDispatch)
 	defer span.End()
+	// Dispatch publishes what the tick decided. Its handlers, and the audiences they ask, only read.
+	previous := w.world.ReadOnly("event dispatch")
+	defer w.world.ReadOnly(previous)
 	if err := w.events.Dispatch(ctx); err != nil {
 		span.SetError(err)
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 	}
 	w.service.drainInterShardCommands()
+}
+
+// admitCommands asks the hooks about each of the tick's commands before any system reads them. It
+// removes every command a hook does not admit, and tells each rejected player why.
+func (w *World) admitCommands() {
+	if w.hooks == nil {
+		return
+	}
+	type rejection struct {
+		cmd     command.Command
+		verdict kernel.Verdict
+	}
+	var rejected []rejection
+	w.commands.Retain(func(cmd command.Command) bool {
+		verdict := w.hooks.Admit(cmd)
+		if verdict.Outcome == kernel.Rejected {
+			rejected = append(rejected, rejection{cmd, verdict})
+		}
+		return verdict.Outcome == kernel.Admitted
+	})
+	// Reply only once every command is judged: sending publishes pending changes first.
+	for _, r := range rejected {
+		if player, ok := r.cmd.Sender.Player(); ok {
+			w.SendTo(player, syncstate.CommandRejected{
+				Command: r.cmd.Name, Reason: syncstate.Reason(r.verdict.Reason), CommandID: r.verdict.CommandID,
+			})
+			continue
+		}
+		w.tel.Logger.Warn().Str("command", r.cmd.Name).Str("sender", r.cmd.Sender.ID()).
+			Str("reason", r.verdict.Reason).Msg("rejected a command from another shard")
+	}
 }
 
 // encodeSnapshot encodes component payloads, then marshals the complete protobuf container once.
@@ -600,6 +637,7 @@ func (w *World) RegisterCommand[T Command](senders ...syncstate.Senders) {
 		w.commandSenders[name] = allowed
 	}
 	w.RegisterEvent[syncstate.CommandRejected]()
+	w.hookSync()
 
 	if _, err := w.commands.Register(name, command.NewQueue[T]()); err != nil {
 		panic(eris.Wrapf(err, "failed to register command %s", name))
@@ -703,10 +741,8 @@ func (w *World) registeredEvent[T Event]() []metric.AddOption {
 // Broadcast enqueues an event delivered to every open event stream at the end of the tick. It
 // panics if T was not registered with RegisterEvent.
 func (w *World) Broadcast[T Event](evt T) {
-	w.stampSync(&evt)
 	attrs := w.registeredEvent[T]()
-	audience := w.syncAudience(&evt) // before the capture can drop a destroyed entity's last entry
-	w.captureSync(false)
+	audience := w.hooks.Emit(kernel.Broadcast, &evt, "")
 	w.events.Enqueue(event.Event{
 		Kind:     event.KindDefault,
 		Payload:  evt,
@@ -726,11 +762,9 @@ func (w *World) Broadcast[T Event](evt T) {
 //		w.SendTo(player, Result{OK: true})
 //	}
 func (w *World) SendTo[T Event](recipient string, evt T) {
-	w.stampSync(&evt)
 	assert.That(recipient != "", "recipient must not be empty (use Broadcast for fan-out)")
 	attrs := w.registeredEvent[T]()
-	audience := w.syncAudience(&evt)
-	w.captureSync(false)
+	audience := w.hooks.Emit(kernel.Targeted, &evt, recipient)
 	w.events.Enqueue(event.Event{
 		Kind:      event.KindDefault,
 		Payload:   evt,
@@ -799,8 +833,7 @@ func (w *World) SystemEvents[T ecs.SystemEvent]() iter.Seq[T] {
 // registered with RegisterSystemEvent, in release builds too: an unregistered emit dropped
 // silently would leave every later SystemEvents reader empty.
 func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
-	w.stampSync(&systemEvent)
-	w.captureSync(false)
+	w.hooks.Emit(kernel.SystemEvent, &systemEvent, "")
 	if err := w.world.EmitSystemEvent(systemEvent); err != nil {
 		panic(eris.Wrapf(err, "system event %T is not registered; call RegisterSystemEvent before StartGame",
 			systemEvent))

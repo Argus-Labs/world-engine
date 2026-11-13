@@ -5,7 +5,8 @@ import (
 )
 
 // Mutation describes a committed ECS change. Observers run on the tick goroutine and must
-// not read or mutate the world inside the callback; lifecycle operations may hold its lock.
+// not read the world inside the callback; lifecycle operations may hold its lock. The world is
+// read-only while they run, so an observer that writes to it panics.
 type Mutation struct {
 	Entity    EntityID
 	Component ComponentID
@@ -23,16 +24,23 @@ const (
 	Reset
 )
 
-// Observe enables change tracking for one consumer. Registration precedes world initialization.
+// Observe adds an observer of every committed change. Observers are told in the order they were
+// added, and each one first sees every entity already alive as Created. The first call starts the
+// session and gives those entities their lifetimes. Registration precedes world initialization.
 func (w *World) Observe(observer func(Mutation)) {
-	if w.state.observer != nil {
-		panic("ECS already has a mutation observer")
+	ws := w.state
+	first := len(ws.observers) == 0
+	if first {
+		ws.session = uuid.NewString()
+		ws.incarnations = map[EntityID]uint64{}
 	}
-	w.state.observer = observer
-	w.state.session = uuid.NewString()
-	w.state.incarnations = map[EntityID]uint64{}
+	ws.observers = append(ws.observers, observer)
 	for _, eid := range w.LiveEntityIDs() {
-		w.state.born(eid)
+		if first {
+			ws.born(eid)
+			continue
+		}
+		ws.tell(ws.observers[len(ws.observers)-1:], Mutation{Entity: eid, Kind: Created})
 	}
 }
 
@@ -75,12 +83,24 @@ func (w *World) ReadObserved(eid EntityID, names []string) (map[string][]byte, e
 }
 
 func (ws *worldState) notify(m Mutation) {
-	if ws.observer != nil {
-		ws.observer(m)
+	if len(ws.observers) != 0 {
+		ws.tell(ws.observers, m)
 	}
 }
+
+// tell runs observers with the world read-only: a change is being committed, often under the
+// world's lock, so a write from an observer would deadlock or corrupt it.
+func (ws *worldState) tell(observers []func(Mutation), m Mutation) {
+	previous := ws.readOnly
+	ws.readOnly = "a mutation observer"
+	defer func() { ws.readOnly = previous }()
+	for _, observe := range observers {
+		observe(m)
+	}
+}
+
 func (ws *worldState) born(eid EntityID) {
-	if ws.observer == nil {
+	if len(ws.observers) == 0 {
 		return
 	}
 	ws.nextIncarnation++
