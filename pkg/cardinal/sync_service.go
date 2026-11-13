@@ -334,12 +334,6 @@ type syncAudience struct {
 	fallback   *syncPolicy // judged by this if the lifetime has no entry at dispatch; nil: nobody
 }
 
-// audienceOf returns the event's sync audience; nil admits everyone.
-func audienceOf(evt event.Event) *syncAudience {
-	audience, _ := evt.Audience.(*syncAudience)
-	return audience
-}
-
 // policy is what the event is judged by: the lifetime's entry if it has one now, else the
 // fallback captured at emit. It returns false when access does not apply.
 func (a *syncAudience) policy() (*syncPolicy, bool) {
@@ -352,13 +346,11 @@ func (a *syncAudience) policy() (*syncPolicy, bool) {
 	return a.fallback, !a.ungated
 }
 
-// admits reports whether player may receive the event on subscriber, or as a reply waiter when
-// subscriber is nil. A nil audience admits everyone. An occurrence needs the player's open sync
-// stream; any stamped event needs view access to its entity, and admission.
-func (a *syncAudience) admits(player string, subscriber *streamSubscriber) bool {
-	if a == nil {
-		return true
-	}
+// Admits reports whether player may receive the event on stream, a *streamSubscriber, or as a
+// reply waiter when stream is nil. An occurrence needs the player's open sync stream; any stamped
+// event needs view access to its entity, and admission.
+func (a *syncAudience) Admits(player string, stream any) bool {
+	subscriber, _ := stream.(*streamSubscriber)
 	p := a.publisher
 	pol, gated := a.policy()
 	if a.occurrence {
