@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
@@ -187,28 +188,110 @@ func (w *World) syncAudience(payload any) *syncAudience {
 }
 
 // targeted is a command that embeds sync.Target.
-type targeted interface{ SyncTarget() syncstate.ID }
+type targeted interface {
+	SyncTarget() syncstate.ID
+	SyncCommandID() uint64
+}
+
+// How long, in the tick's server time, and how many per player, judged command IDs are
+// remembered. A client that retries a command for longer than this may have it applied twice.
+const (
+	commandMemoryAge       = 30 * time.Second
+	commandMemoryPerPlayer = 256
+)
+
+// judgedCommand is the verdict on one command ID, "" if it was admitted.
+type judgedCommand struct {
+	id      uint64
+	at      time.Time // the timestamp of the tick that judged it
+	verdict syncstate.Reason
+}
+
+// commandMemory holds, per player, the judged command IDs oldest first. It lives on the tick and
+// is not persisted. A player with nothing remembered has no entry.
+type commandMemory map[string][]judgedCommand
+
+// recall returns the verdict a player's command ID got, if it is remembered. ID 0 never is.
+func (m commandMemory) recall(player string, id uint64) (syncstate.Reason, bool) {
+	if id == 0 {
+		return "", false
+	}
+	for _, c := range m[player] {
+		if c.id == id {
+			return c.verdict, true
+		}
+	}
+	return "", false
+}
+
+// remember records a verdict, dropping the player's oldest past commandMemoryPerPlayer.
+func (m commandMemory) remember(player string, c judgedCommand) {
+	if c.id == 0 {
+		return
+	}
+	m[player] = append(m[player], c)
+	if over := len(m[player]) - commandMemoryPerPlayer; over > 0 {
+		m[player] = slices.Delete(m[player], 0, over)
+	}
+}
+
+// forget drops every verdict commandMemoryAge old or older at now, and every player left empty.
+func (m commandMemory) forget(now time.Time) {
+	for player, judged := range m {
+		young := slices.IndexFunc(judged, func(c judgedCommand) bool { return now.Sub(c.at) < commandMemoryAge })
+		switch young {
+		case -1:
+			delete(m, player)
+		case 0:
+		default:
+			m[player] = slices.Delete(judged, 0, young)
+		}
+	}
+}
 
 // judgeCommands removes the commands a sender may not send before any handler sees them, and
-// tells each rejected player why. A target is judged by what the server last published.
+// tells each rejected player why. A target is judged by what the server last published. A
+// player's repeat of a remembered command ID is not judged again: it gets the first verdict, and
+// never reaches a handler.
 func (w *World) judgeCommands() {
 	type rejection struct {
 		cmd    command.Command
+		id     uint64
 		reason syncstate.Reason
 	}
+	now := w.Timestamp()
+	if w.judged == nil {
+		w.judged = commandMemory{}
+	}
+	w.judged.forget(now)
 	var rejected []rejection
 	admitted := map[string]bool{} // EnableSync's verdict per sender, once per tick
 	w.commands.Retain(func(cmd command.Command) bool {
-		reason := w.commandVerdict(cmd, admitted)
-		if reason != "" {
-			rejected = append(rejected, rejection{cmd, reason})
+		var id uint64
+		if t, ok := cmd.Payload.(targeted); ok {
+			id = t.SyncCommandID()
 		}
-		return reason == ""
+		var reason syncstate.Reason
+		repeat := false
+		player, isPlayer := cmd.Sender.Player() // only players' IDs are remembered
+		if isPlayer {
+			reason, repeat = w.judged.recall(player, id)
+		}
+		if !repeat {
+			reason = w.commandVerdict(cmd, admitted)
+			if isPlayer {
+				w.judged.remember(player, judgedCommand{id: id, at: now, verdict: reason})
+			}
+		}
+		if reason != "" {
+			rejected = append(rejected, rejection{cmd, id, reason})
+		}
+		return reason == "" && !repeat
 	})
 	// Reply only once every command is judged: sending publishes pending changes first.
 	for _, r := range rejected {
 		if player, ok := r.cmd.Sender.Player(); ok {
-			w.SendTo(player, syncstate.CommandRejected{Command: r.cmd.Name, Reason: r.reason})
+			w.SendTo(player, syncstate.CommandRejected{Command: r.cmd.Name, Reason: r.reason, CommandID: r.id})
 			continue
 		}
 		w.tel.Logger.Warn().Str("command", r.cmd.Name).Str("sender", r.cmd.Sender.ID()).
