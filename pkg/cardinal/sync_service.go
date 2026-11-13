@@ -52,7 +52,7 @@ func (w *World) reconcileSync() {
 	s.mu.RLock()
 	subscribed := make([]stream, 0, len(s.subscribers))
 	for player, sub := range s.subscribers {
-		if _, ok := sub.events[syncstate.EventName]; ok {
+		if sub.wantsSync() {
 			subscribed = append(subscribed, stream{player, sub, sub.syncGeneration})
 		}
 	}
@@ -93,6 +93,14 @@ func (w *World) reconcileSync() {
 		slot := p.seat(c.player)
 		w.events.Enqueue(event.Event{Kind: event.KindSync, Payload: syncOpen{slot, c.subscriber, c.generation}})
 	}
+}
+
+// wantsSync reports whether the stream asks for world_sync. A cancelled stream does not, even
+// while its handler is still blocked writing to it: nothing more reaches that client, so its reader
+// leaves its seat. Requires service.mu.
+func (s *streamSubscriber) wantsSync() bool {
+	_, ok := s.events[syncstate.EventName]
+	return ok && s.ctx.Err() == nil
 }
 
 // dispatchSync handles one sync log item, in order with the tick's other events. It reads only

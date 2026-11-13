@@ -582,8 +582,9 @@ func (s *service) updateSubscriptions(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// A cancelled stream stays registered until its handler returns, but it is no longer established.
 	subscriber, ok := s.subscribers[player.ID]
-	if !ok {
+	if !ok || subscriber.ctx.Err() != nil {
 		return connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
 	}
 	update(subscriber, subscriptions)
