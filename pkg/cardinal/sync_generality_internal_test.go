@@ -16,6 +16,7 @@ import (
 
 type syncLoadout struct {
 	syncstate.State
+
 	WeaponID string
 	Ammo     uint16
 	Equipped bool
@@ -25,6 +26,7 @@ func (syncLoadout) Name() string { return "loadout" }
 
 type syncCosmetics struct {
 	syncstate.State
+
 	Tint    uint32
 	Opacity float32
 }
@@ -33,6 +35,7 @@ func (syncCosmetics) Name() string { return "cosmetics" }
 
 type syncEquipment struct {
 	syncstate.Sync
+
 	Loadout   syncLoadout
 	Cosmetics syncCosmetics
 	Private   syncPrivate
@@ -52,11 +55,21 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 	}
 	contract, err := ExportSyncContract(register)
 	require.NoError(t, err)
-	require.JSONEq(t, `{"version":2,"components":[{"name":"cosmetics","fields":[{"name":"Opacity","type":"float32"},{"name":"Tint","type":"uint32"}]},{"name":"loadout","fields":[{"name":"Ammo","type":"uint16"},{"name":"Equipped","type":"bool"},{"name":"WeaponID","type":"string"}]}]}`, string(contract))
+	require.JSONEq(t, `{"version":2,"components":[
+		{"name":"cosmetics","fields":[{"name":"Opacity","type":"float32"},{"name":"Tint","type":"uint32"}]},
+		{"name":"loadout","fields":[
+			{"name":"Ammo","type":"uint16"},{"name":"Equipped","type":"bool"},{"name":"WeaponID","type":"string"}
+		]}
+	]}`, string(contract))
 	w := NewTestWorld(t, func(w *World) { register(w); w.EnableSync(func(string) bool { return true }) })
 	ctx, cancel := context.WithCancelCause(t.Context())
 	defer cancel(nil)
-	sub := &streamSubscriber{ctx: ctx, cancel: cancel, events: map[string]struct{}{syncstate.EventName: {}}, queueReady: make(chan struct{}, 1)}
+	sub := &streamSubscriber{
+		ctx:        ctx,
+		cancel:     cancel,
+		events:     map[string]struct{}{syncstate.EventName: {}},
+		queueReady: make(chan struct{}, 1),
+	}
 	w.service.addSubscriber("observer", sub)
 	client := newSyncClient(w.SyncContract())
 	cosmetics, loadout := syncIndex(t, w.World, "cosmetics"), syncIndex(t, w.World, "loadout")
@@ -66,7 +79,7 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 	next := func() syncstate.Frame {
 		t.Helper()
 		require.Len(t, sub.queue, 1)
-		raw = append(raw, append([]byte(nil), sub.queue[0].response.Event.Payload...))
+		raw = append(raw, append([]byte(nil), sub.queue[0].response.GetEvent().GetPayload()...))
 		frames := syncFrames(t, sub)
 		applied, err := client.apply(frames[0])
 		require.NoError(t, err)
@@ -216,8 +229,8 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 	require.Empty(t, sub.queue, "equal values do not publish")
 	if output := os.Getenv("SYNC_INTEROP_OUTPUT"); output != "" {
 		data, err := json.Marshal(struct {
-			Contract string
-			Frames   [][]byte
+			Contract string   `json:"Contract"`
+			Frames   [][]byte `json:"Frames"`
 		}{string(contract), fixture})
 		require.NoError(t, err)
 		require.NoError(t, os.WriteFile(output, data, 0600))

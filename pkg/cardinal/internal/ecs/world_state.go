@@ -456,14 +456,21 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 
 	// Commit the new state. The component registry and mutex do not change.
 	ws.nextID, ws.free, ws.entityArch, ws.archetypes = next.nextID, next.free, next.entityArch, next.archetypes
-	if ws.observer != nil {
-		ws.notify(Mutation{Kind: Reset})
-		clear(ws.incarnations)
-		for _, ent := range pb.GetEntities() {
-			ws.born(EntityID(ent.GetId()))
-		}
-	}
+	ws.observeRestore(pb.GetEntities())
 	return nil
+}
+
+// observeRestore tells the observer that the world was replaced, then gives every restored
+// entity a new lifetime.
+func (ws *worldState) observeRestore(entities []*cardinalv1.Entity) {
+	if ws.observer == nil {
+		return
+	}
+	ws.notify(Mutation{Kind: Reset})
+	clear(ws.incarnations)
+	for _, ent := range entities {
+		ws.born(EntityID(ent.GetId()))
+	}
 }
 
 // restoreEntity creates one entity in the archetype for its component set. It decodes the

@@ -34,16 +34,7 @@ type Field struct {
 // The MVP intentionally accepts only exact scalar shapes; custom codecs require a new contract.
 func Describe(t reflect.Type, name string) (Component, bool, error) {
 	result := Component{Name: name, Fields: []Field{}}
-	if t.Kind() != reflect.Struct {
-		return result, false, nil
-	}
-	marked := false
-	for f := range t.Fields() {
-		if f.Anonymous && f.Type == reflect.TypeFor[State]() {
-			marked = true
-		}
-	}
-	if !marked {
+	if !marked(t) {
 		return result, false, nil
 	}
 	if name == "" || name == "sync" {
@@ -54,22 +45,12 @@ func Describe(t reflect.Type, name string) (Component, bool, error) {
 	}
 	names := map[string]bool{}
 	for f := range t.Fields() {
-		if f.Type == reflect.TypeFor[State]() && f.Anonymous {
+		fieldName, encoded, err := wireKey(name, f)
+		if err != nil {
+			return result, true, err
+		}
+		if !encoded {
 			continue
-		}
-		if !f.IsExported() {
-			continue
-		}
-		tag := strings.Split(f.Tag.Get("msgpack"), ",")
-		if tag[0] == "-" {
-			continue
-		}
-		if f.Anonymous || len(tag) > 1 {
-			return result, true, fmt.Errorf("sync %s.%s: embedded fields and MessagePack options are not supported", name, f.Name)
-		}
-		fieldName := f.Name
-		if tag[0] != "" {
-			fieldName = tag[0]
 		}
 		if names[fieldName] {
 			return result, true, fmt.Errorf("sync %s repeats field %s", name, fieldName)
@@ -90,13 +71,13 @@ func Describe(t reflect.Type, name string) (Component, bool, error) {
 
 // CanonicalJSON is stable across registration and Go field order. MessagePack maps use field names.
 func (c Contract) CanonicalJSON() ([]byte, error) {
-	copy := Contract{Version: c.Version, Components: slices.Clone(c.Components)}
-	slices.SortFunc(copy.Components, func(a, b Component) int { return strings.Compare(a.Name, b.Name) })
-	for i := range copy.Components {
-		copy.Components[i].Fields = slices.Clone(copy.Components[i].Fields)
-		slices.SortFunc(copy.Components[i].Fields, func(a, b Field) int { return strings.Compare(a.Name, b.Name) })
+	sorted := Contract{Version: c.Version, Components: slices.Clone(c.Components)}
+	slices.SortFunc(sorted.Components, func(a, b Component) int { return strings.Compare(a.Name, b.Name) })
+	for i := range sorted.Components {
+		sorted.Components[i].Fields = slices.Clone(sorted.Components[i].Fields)
+		slices.SortFunc(sorted.Components[i].Fields, func(a, b Field) int { return strings.Compare(a.Name, b.Name) })
 	}
-	return json.Marshal(copy)
+	return json.Marshal(sorted)
 }
 
 func (c Contract) Fingerprint() (string, error) {
@@ -108,8 +89,44 @@ func (c Contract) Fingerprint() (string, error) {
 	return hex.EncodeToString(digest[:]), nil
 }
 
+// marked reports whether t is a struct that embeds the State marker.
+func marked(t reflect.Type) bool {
+	if t.Kind() != reflect.Struct {
+		return false
+	}
+	for f := range t.Fields() {
+		if f.Anonymous && f.Type == reflect.TypeFor[State]() {
+			return true
+		}
+	}
+	return false
+}
+
+// wireKey returns the MessagePack map key of one field of a sync component, or false when the
+// field is not encoded: the State marker, an unexported field, or a field tagged "-".
+func wireKey(component string, f reflect.StructField) (string, bool, error) {
+	if f.Type == reflect.TypeFor[State]() && f.Anonymous {
+		return "", false, nil
+	}
+	if !f.IsExported() {
+		return "", false, nil
+	}
+	tag := strings.Split(f.Tag.Get("msgpack"), ",")
+	if tag[0] == "-" {
+		return "", false, nil
+	}
+	if f.Anonymous || len(tag) > 1 {
+		return "", false, fmt.Errorf("sync %s.%s: embedded fields and MessagePack options are not supported",
+			component, f.Name)
+	}
+	if tag[0] != "" {
+		return tag[0], true, nil
+	}
+	return f.Name, true, nil
+}
+
 func scalar(t reflect.Type) string {
-	switch t.Kind() {
+	switch t.Kind() { //nolint:exhaustive // Every other kind has no sync wire type.
 	case reflect.Bool:
 		return "bool"
 	case reflect.String:
@@ -140,11 +157,14 @@ func scalar(t reflect.Type) string {
 }
 
 func customCodec(t reflect.Type) bool {
+	codecs := []reflect.Type{
+		reflect.TypeFor[msgpack.CustomEncoder](), reflect.TypeFor[msgpack.Marshaler](),
+		reflect.TypeFor[msgpack.CustomDecoder](), reflect.TypeFor[msgpack.Unmarshaler](),
+		reflect.TypeFor[encoding.BinaryMarshaler](), reflect.TypeFor[encoding.BinaryUnmarshaler](),
+		reflect.TypeFor[encoding.TextMarshaler](), reflect.TypeFor[encoding.TextUnmarshaler](),
+	}
 	for _, target := range []reflect.Type{t, reflect.PointerTo(t)} {
-		if target.Implements(reflect.TypeFor[msgpack.CustomEncoder]()) || target.Implements(reflect.TypeFor[msgpack.Marshaler]()) ||
-			target.Implements(reflect.TypeFor[msgpack.CustomDecoder]()) || target.Implements(reflect.TypeFor[msgpack.Unmarshaler]()) ||
-			target.Implements(reflect.TypeFor[encoding.BinaryMarshaler]()) || target.Implements(reflect.TypeFor[encoding.BinaryUnmarshaler]()) ||
-			target.Implements(reflect.TypeFor[encoding.TextMarshaler]()) || target.Implements(reflect.TypeFor[encoding.TextUnmarshaler]()) {
+		if slices.ContainsFunc(codecs, target.Implements) {
 			return true
 		}
 	}

@@ -1060,19 +1060,7 @@ func (s *propSim) checkReplicas() {
 		open := r.sub != nil && r.subscribed && r.admitted
 		want := map[uint32]propHeld{}
 		if open {
-			for _, n := range s.w.World.world.LiveEntityIDs() {
-				if a := s.truth(r.name, n, groups); a != syncstate.None {
-					e := s.w.Entity(n)
-					h := propHeld{id: e.SyncID(), access: a}
-					if e.Has[propValue]() {
-						h.value, h.hasValue = e.Get[propValue]().V, true
-					}
-					if e.Has[propTag]() {
-						h.tag, h.hasTag = e.Get[propTag]().T, true
-					}
-					want[uint32(n)] = h
-				}
-			}
+			want = s.expectedHeld(r.name, groups)
 		}
 		got := map[uint32]propHeld{}
 		for k, rec := range r.client.held {
@@ -1097,6 +1085,27 @@ func (s *propSim) checkReplicas() {
 		}
 	}
 	s.checkAuthorityOf(false)
+}
+
+// expectedHeld is what an open reader should hold: every live entity the truth grants it, with its values.
+func (s *propSim) expectedHeld(player string, groups map[string][][]string) map[uint32]propHeld {
+	want := map[uint32]propHeld{}
+	for _, n := range s.w.World.world.LiveEntityIDs() {
+		a := s.truth(player, n, groups)
+		if a == syncstate.None {
+			continue
+		}
+		e := s.w.Entity(n)
+		h := propHeld{id: e.SyncID(), access: a}
+		if e.Has[propValue]() {
+			h.value, h.hasValue = e.Get[propValue]().V, true
+		}
+		if e.Has[propTag]() {
+			h.tag, h.hasTag = e.Get[propTag]().T, true
+		}
+		want[uint32(n)] = h
+	}
+	return want
 }
 
 // checkAuthorityOf compares AuthorityOf with the truth, read from the world as it is now. Mid-tick,

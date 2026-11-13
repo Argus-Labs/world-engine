@@ -18,6 +18,7 @@ import (
 
 type syncHealth struct {
 	syncstate.State
+
 	HP    int
 	MaxHP int
 }
@@ -30,11 +31,13 @@ func (syncPrivate) Name() string { return "private" }
 
 type syncAvatar struct {
 	syncstate.Sync
+
 	Health  syncHealth
 	Private syncPrivate
 }
 type syncHurt struct {
 	syncstate.Occurrence
+
 	Amount int
 }
 
@@ -50,7 +53,12 @@ func newSyncFixture(t *testing.T, admit func(string) bool) (*TestWorld, *streamS
 	})
 	w.World.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
 	ctx, cancel := context.WithCancelCause(t.Context())
-	sub := &streamSubscriber{ctx: ctx, cancel: cancel, events: map[string]struct{}{syncstate.EventName: {}, "hurt": {}}, queueReady: make(chan struct{}, 1)}
+	sub := &streamSubscriber{
+		ctx:        ctx,
+		cancel:     cancel,
+		events:     map[string]struct{}{syncstate.EventName: {}, "hurt": {}},
+		queueReady: make(chan struct{}, 1),
+	}
 	w.service.addSubscriber("alice", sub)
 	return w, sub
 }
@@ -270,11 +278,11 @@ func syncFrames(t *testing.T, sub *streamSubscriber) []syncstate.Frame {
 	t.Helper()
 	var frames []syncstate.Frame
 	for _, e := range sub.queue {
-		if e.response.Event.Name != syncstate.EventName {
+		if e.response.GetEvent().GetName() != syncstate.EventName {
 			continue
 		}
 		var frame syncstate.Frame
-		require.NoError(t, msgpack.Unmarshal(e.response.Event.Payload, &frame))
+		require.NoError(t, msgpack.Unmarshal(e.response.GetEvent().GetPayload(), &frame))
 		frames = append(frames, frame)
 	}
 	sub.queue = nil
@@ -366,9 +374,9 @@ func TestSyncCommitPrecedesOccurrenceAndRecoveryIsQuiet(t *testing.T) {
 	entity.Set(syncHealth{HP: 20})
 	w.Tick()
 	require.Len(t, sub.queue, 3)
-	require.Equal(t, syncstate.EventName, sub.queue[0].response.Event.Name)
-	require.Equal(t, "hurt", sub.queue[1].response.Event.Name)
-	require.Equal(t, syncstate.EventName, sub.queue[2].response.Event.Name)
+	require.Equal(t, syncstate.EventName, sub.queue[0].response.GetEvent().GetName())
+	require.Equal(t, "hurt", sub.queue[1].response.GetEvent().GetName())
+	require.Equal(t, syncstate.EventName, sub.queue[2].response.GetEvent().GetName())
 	frames := syncFrames(t, sub)
 	require.Len(t, frames, 2)
 	for _, f := range frames {
@@ -393,7 +401,12 @@ func TestSyncCommitPrecedesOccurrenceAndRecoveryIsQuiet(t *testing.T) {
 func reconnectSync(t *testing.T, w *TestWorld, player string) *streamSubscriber {
 	t.Helper()
 	ctx, cancel := context.WithCancelCause(t.Context())
-	sub := &streamSubscriber{ctx: ctx, cancel: cancel, events: map[string]struct{}{"hurt": {}}, queueReady: make(chan struct{}, 1)}
+	sub := &streamSubscriber{
+		ctx:        ctx,
+		cancel:     cancel,
+		events:     map[string]struct{}{"hurt": {}},
+		queueReady: make(chan struct{}, 1),
+	}
 	addSubscriptions(sub, []*cardinalv1.EventSubscription{{Events: []string{syncstate.EventName}}})
 	w.service.addSubscriber(player, sub)
 	return sub
@@ -453,12 +466,17 @@ func TestSyncMetadataWithoutEnableKeepsLegacyEventDelivery(t *testing.T) {
 	w := NewTestWorld(t, func(w *World) { w.RegisterComponent[syncHealth](); w.RegisterEvent[syncHurt]() })
 	w.World.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
 	ctx, cancel := context.WithCancelCause(t.Context())
-	sub := &streamSubscriber{ctx: ctx, cancel: cancel, events: map[string]struct{}{"hurt": {}}, queueReady: make(chan struct{}, 1)}
+	sub := &streamSubscriber{
+		ctx:        ctx,
+		cancel:     cancel,
+		events:     map[string]struct{}{"hurt": {}},
+		queueReady: make(chan struct{}, 1),
+	}
 	w.service.addSubscriber("balance", sub)
 	w.SendTo("balance", syncHurt{Amount: 3})
 	w.Tick()
 	require.Len(t, sub.queue, 1)
-	require.Equal(t, "hurt", sub.queue[0].response.Event.Name)
+	require.Equal(t, "hurt", sub.queue[0].response.GetEvent().GetName())
 }
 
 func TestSyncNewSubscriberCannotReceiveBeforeTickBaseline(t *testing.T) {
@@ -514,7 +532,13 @@ func TestSyncRevocationClearsStateWithoutDroppingCleanupOrRefusal(t *testing.T) 
 	require.Zero(t, frames[0].Open.Heartbeat, "a revoked reader is promised no heartbeat")
 	reply := make(chan *iscv1.Event, 1)
 	w.service.replyWaiters["reply"] = map[string][]chan *iscv1.Event{"outsider": {reply}}
-	require.NoError(t, w.service.publishDefaultEvent(t.Context(), event.Event{Kind: event.KindDefault, Recipient: "outsider", Payload: syncReply{Code: "not in session"}}))
+	require.NoError(
+		t,
+		w.service.publishDefaultEvent(
+			t.Context(),
+			event.Event{Kind: event.KindDefault, Recipient: "outsider", Payload: syncReply{Code: "not in session"}},
+		),
+	)
 	require.Len(t, reply, 1)
 	admitted = true
 	w.Tick()
