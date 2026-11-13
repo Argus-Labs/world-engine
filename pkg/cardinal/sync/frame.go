@@ -1,8 +1,15 @@
 package sync
 
+import "time"
+
 // ProtocolVersion 2 adds the per-reader Access list and the compact frame layout.
 const ProtocolVersion = 2
 const EventName = "world_sync"
+
+// Heartbeat is the server's promise to every open stream whose reader is seated: a frame at least
+// this often in server time. A tick that would send such a reader nothing sends an empty delta
+// once its last frame is a heartbeat old. Open.Heartbeat carries it in milliseconds.
+const Heartbeat = time.Second
 
 // Frame is one reader's baseline, or the ordered change to what that reader may see. A frame and
 // everything in it encodes as MessagePack arrays in field order, with the smallest integer
@@ -15,6 +22,7 @@ type Frame struct {
 	Open     *Open    // Set exactly on a baseline, which starts a stream at sequence 1
 	Stream   uint64   // Numbers the stream; a delta carrying another number is stale
 	Sequence uint64   // 1 on the baseline, then +1 per frame
+	Time     uint64   // The tick's server time: Unix ms on a baseline, ms since the last frame on a delta
 	Records  []Record // Whole entities: lifetimes the reader starts to hold
 	Patches  []Patch  // Changes to lifetimes the reader already holds; never on a baseline
 	Removed  []Ref    // Lifetimes the reader no longer holds; never on a baseline
@@ -29,6 +37,7 @@ type Open struct {
 	Version     int
 	Fingerprint string
 	Session     string
+	Heartbeat   uint64 // Milliseconds: the stream carries a frame at least this often in server time
 }
 
 // Ref names one entity lifetime within the stream's session. With Open.Session it is an ID.

@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/binary"
 	"math"
+	"math/bits"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
@@ -123,17 +125,43 @@ func (w *World) dispatchSync(_ context.Context, evt event.Event) error {
 	return nil
 }
 
-// settleSync ends the tick's publication: slots freed during the tick become reusable, policies
-// no entry uses are dropped, and development builds check the derived state.
+// settleSync ends the tick's publication: open readers due a heartbeat get one, slots freed
+// during the tick become reusable, policies no entry uses are dropped, and development builds
+// check the derived state.
 func (w *World) settleSync() {
 	p := w.sync
 	if !p.enabled() {
 		return
 	}
+	w.heartbeatSync()
 	p.roster.release()
 	clear(p.retired)
 	p.sweep()
 	p.check()
+}
+
+// heartbeatMillis is sync.Heartbeat as Open.Heartbeat carries it.
+const heartbeatMillis = uint64(syncstate.Heartbeat / time.Millisecond)
+
+// heartbeatSync keeps the promise of sync.Heartbeat once the tick's log has been dispatched: an
+// open reader whose last frame is a heartbeat or more old gets an empty delta. A reader that got
+// a frame this tick is never due.
+func (w *World) heartbeatSync() {
+	p := w.sync
+	now := w.syncTime()
+	for word, open := range p.roster.live {
+		for m := open; m != 0; m &= m - 1 {
+			r := &p.roster.readers[word<<6+bits.TrailingZeros64(m)]
+			if now >= r.clock+heartbeatMillis {
+				w.sendSync(r, false, syncDelta{})
+			}
+		}
+	}
+}
+
+// syncTime is the running tick's time in Unix milliseconds: what every frame's Time counts.
+func (w *World) syncTime() uint64 {
+	return uint64(max(0, w.Timestamp().UnixMilli()))
 }
 
 // nextStream numbers a new stream. Numbers are never reused while the world runs, so a delta
@@ -143,10 +171,18 @@ func (p *syncPublisher) nextStream() uint64 {
 	return p.streams
 }
 
-// sendSync numbers one frame on the reader's stream and queues it for the reader's writer. A
-// baseline opens the stream: it alone says the protocol, the contract and the session.
+// sendSync numbers and times one frame on the reader's stream and queues it for the reader's
+// writer. A baseline opens the stream: it alone says the protocol, the contract, the session and
+// the heartbeat, and its Time restarts the stream's clock. A delta's Time is what the clock moved
+// since the last frame; if the tick's time went back, it is 0 until the time catches up.
 func (w *World) sendSync(r *syncReader, baseline bool, d syncDelta) {
 	r.sequence++
+	if baseline {
+		r.clock = 0
+	}
+	now := w.syncTime()
+	elapsed := now - min(now, r.clock)
+	r.clock += elapsed
 	if r.subscriber == nil || r.subscriber.ctx.Err() != nil {
 		return
 	}
@@ -162,9 +198,11 @@ func (w *World) sendSync(r *syncReader, baseline bool, d syncDelta) {
 		}
 		open = encodeSync(syncstate.Open{
 			Version: syncstate.ProtocolVersion, Fingerprint: p.fingerprint, Session: w.world.Session(),
+			Heartbeat: heartbeatMillis,
 		})
 	}
-	evt := &iscv1.Event{Name: syncstate.EventName, Payload: appendFrame(nil, open, r.stream, r.sequence, d)}
+	payload := appendFrame(nil, open, r.stream, r.sequence, elapsed, d)
+	evt := &iscv1.Event{Name: syncstate.EventName, Payload: payload}
 	// A full queue ends the stream as lagged; the next reconcile closes its slot.
 	_ = r.subscriber.enqueue(&cardinalv1.StartEventStreamResponse{Address: w.address, Event: evt}, proto.Size(evt))
 }
@@ -187,10 +225,11 @@ func (p *syncPublisher) emptyDeltas() []syncDelta {
 // appendFrame appends one reader's frame to b, byte for byte what encodeSync makes of the
 // sync.Frame it stands for: an array in field order and the smallest integer encodings. An empty
 // list is written as nil, as the engine always writes it. Records and patches are copied as
-// encoded once at capture. open is the encoded Open of a baseline, nil on a delta.
-func appendFrame(b []byte, open []byte, stream, sequence uint64, d syncDelta) []byte {
+// encoded once at capture. open is the encoded Open of a baseline, nil on a delta; elapsed is the
+// frame's Time.
+func appendFrame(b []byte, open []byte, stream, sequence, elapsed uint64, d syncDelta) []byte {
 	const refMax, grantMax = 1 + 5 + 9, 1 + (1 + 5 + 9) + 1 // [entity, incarnation], [ref, access]
-	size := 1 + max(1, len(open)) + 9 + 9 + 4*5 + len(d.removed)*refMax + len(d.access)*grantMax
+	size := 1 + max(1, len(open)) + 3*9 + 4*5 + len(d.removed)*refMax + len(d.access)*grantMax
 	for _, raw := range d.records {
 		size += len(raw)
 	}
@@ -199,7 +238,7 @@ func appendFrame(b []byte, open []byte, stream, sequence uint64, d syncDelta) []
 	}
 	b = slices.Grow(b, size)
 
-	b = append(b, msgpcode.FixedArrayLow|7) // the frame's seven fields
+	b = append(b, msgpcode.FixedArrayLow|8) // the frame's eight fields
 	if open == nil {
 		b = append(b, msgpcode.Nil)
 	} else {
@@ -207,6 +246,7 @@ func appendFrame(b []byte, open []byte, stream, sequence uint64, d syncDelta) []
 	}
 	b = appendUint(b, stream)
 	b = appendUint(b, sequence)
+	b = appendUint(b, elapsed)
 	b = appendRaw(b, d.records)
 	b = appendRaw(b, d.patches)
 	b = appendArrayLen(b, len(d.removed))
