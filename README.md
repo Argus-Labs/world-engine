@@ -31,22 +31,22 @@ Stay tuned!
 
 ## Development
 
-Install [proto](https://moonrepo.dev/docs/proto/install), then run `proto install`
-from the repository root to install the Go and moon versions in `.prototools`.
+Install [proto](https://moonrepo.dev/docs/proto/install), then run `proto trust && proto install`
+from the repository root to install the Go, moon and golangci-lint versions in `.prototools`
+(`trust` lets proto load the golangci-lint plugin).
 Keep proto's shims on your `PATH` so `go` and `moon` use those versions.
 
 ```sh
 moon tasks                          # List project tasks
 moon run world-engine:build          # Build Go packages
-moon run world-engine:lint           # Lint (installs the pinned linter)
+moon run world-engine:lint           # Lint with the pinned linter
 moon run world-engine:lint-fix       # Apply lint fixes
 moon run world-engine:test           # Run all Go tests
 moon run world-engine:test-ci        # Write coverage.out and junit.xml
 TEST_SEED=123 moon run world-engine:test  # Replay a test seed
 ```
 
-golangci-lint installs into the ignored `bin/tools` directory. gotestsum runs
-through `go tool`. Failing tests log a seed for reproduction. Test tasks
+gotestsum runs through `go tool`. Failing tests log a seed for reproduction. Test tasks
 aren't cached so randomized tests run each time.
 Go's own compilation and test caches remain enabled.
 

@@ -39,9 +39,10 @@ jobs:
       - name: Configure Git for private repos
         run: git config --global url."https://x-token-auth:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
-      - name: Install moon
+      - name: Install moon and golangci-lint
         uses: moonrepo/setup-toolchain@261c62cb5b0f580c7be7c8cd0f023a2e96756095 # v0
         with:
+          auto-install: true # Everything pinned in .prototools
           cache: false # Skip GitHub's remote cache; it would only hold ~/.proto
 
       - uses: actions/setup-go@v5
