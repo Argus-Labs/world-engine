@@ -71,51 +71,79 @@ func (w *World) Has[T Component](eid EntityID) bool {
 
 // IterEntities iterates all entities that match the given component bitmap and match mode.
 //
+// It visits the entities that match when it is called, each at most once, so yield may add or
+// remove components and create or destroy entities. It skips an entity that an earlier yield
+// destroyed or changed so it no longer matches. Entities that start matching during the iteration
+// are not visited, unless one reuses the ID of a matching entity destroyed before it was reached.
+//
 // We intentionally keep this as a callback-based iterator instead of returning [iter.Seq] because
 // the additional closure/layer on hot query paths adds measurable allocations in cardinal
 // benchmarks. This still resolves matching archetypes dynamically on every call.
-func (w *World) IterEntities( //nolint:gocognit // it's fine
+func (w *World) IterEntities(
 	components bitmap.Bitmap,
 	match SearchMatch,
 	yield func(EntityID) bool,
 ) error {
+	// Copy the matching IDs before yielding. Moving or destroying an entity swap-removes it from its
+	// archetype's entity slice and appends it to another, so walking the live slices would skip
+	// entities or visit them twice.
+	exactID := -1
 	switch match {
 	case MatchExact:
 		aid, exists := w.state.archExact(components)
 		if !exists {
 			return nil
 		}
-
-		arch := w.state.archetypes[aid]
-		for _, eid := range arch.entities {
-			if !yield(eid) {
-				return nil
-			}
-		}
-	case MatchContains:
-		for _, arch := range w.state.archetypes {
-			if !arch.contains(components) {
-				continue
-			}
-
-			for _, eid := range arch.entities {
-				if !yield(eid) {
-					return nil
-				}
-			}
-		}
-	case MatchAll:
-		for _, arch := range w.state.archetypes {
-			for _, eid := range arch.entities {
-				if !yield(eid) {
-					return nil
-				}
-			}
-		}
+		exactID = aid
+	case MatchContains, MatchAll:
 	default:
 		return eris.Wrapf(ErrInvalidMatch, "%v", match)
 	}
+
+	snapshot, ok := w.searchSnapshots.Get().(*searchSnapshot)
+	if !ok {
+		snapshot = new(searchSnapshot)
+	}
+	ids, segments := snapshot.ids[:0], snapshot.segments[:0]
+	for aid, arch := range w.state.archetypes {
+		if aid == exactID || match == MatchAll || (match == MatchContains && arch.contains(components)) {
+			ids = append(ids, arch.entities...)
+			segments = append(segments, searchSegment{arch: arch, version: arch.version, end: len(ids)})
+		}
+	}
+
+	start := 0
+search:
+	for _, segment := range segments {
+		for _, eid := range ids[start:segment.end] {
+			// Until an entity joins or leaves the archetype, its copied IDs are still its members.
+			if segment.arch.version != segment.version && w.MatchArchetype(eid, components, match) != nil {
+				continue
+			}
+			if !yield(eid) {
+				break search
+			}
+		}
+		start = segment.end
+	}
+
+	clear(segments) // Don't let the pool keep archetypes alive.
+	snapshot.ids, snapshot.segments = ids, segments
+	w.searchSnapshots.Put(snapshot)
 	return nil
+}
+
+// searchSnapshot is the IterEntities copy of the matching entity IDs, grouped by archetype.
+type searchSnapshot struct {
+	ids      []EntityID
+	segments []searchSegment
+}
+
+// searchSegment marks the end of one archetype's IDs in a searchSnapshot and its version when copied.
+type searchSegment struct {
+	arch    *archetype
+	version uint64
+	end     int
 }
 
 func (w *World) MatchArchetype(eid EntityID, components bitmap.Bitmap, match SearchMatch) error {
