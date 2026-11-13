@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/moby/moby/api/types/registry"
@@ -79,6 +80,127 @@ func TestNewClientConfig_MissingWorldToml(t *testing.T) {
 
 	if _, err := NewClientConfig(tmp, false); err == nil {
 		t.Fatalf("expected error when %s is missing", worldtoml.FileName)
+	}
+}
+
+// TestNewClientConfig_RelativePathAbsolutizesRootDir guards a bug where a relative
+// projectDir was stored verbatim as cfg.RootDir and later resolved against the
+// process's cwd. The MCP world_lifecycle and reload tools pass a caller-supplied
+// worldPath through only TrimSpace + [filepath.Clean] (which keeps a relative path
+// relative), so a world_path like "myworld" reached NewClientConfig relative.
+// cfg.RootDir then fed the Docker build context (readDockerignore /
+// archive.TarWithOptions) as a bare relative root, and stop/purge select
+// containers by the project name read from world.toml — so a cwd-relative
+// resolution could aim a destructive purge at the wrong world. NewClientConfig
+// now absolutizes projectDir so RootDir is anchored regardless of where the
+// long-lived MCP server process happens to be running.
+func TestNewClientConfig_RelativePathAbsolutizesRootDir(t *testing.T) {
+	// Not parallel: t.Chdir changes the process-wide cwd, which is shared state.
+	wd := t.TempDir()
+
+	// A subproject the caller references by a relative name. Its world.toml names a
+	// DIFFERENT project than the one sitting in the cwd, so a resolution against the
+	// wrong base — or a verbatim relative RootDir re-resolved later — would drift
+	// the project name / build context.
+	dir := filepath.Join(wd, "myworld")
+	if err := os.Mkdir(dir, 0o750); err != nil {
+		t.Fatalf("mkdir subdir: %v", err)
+	}
+	const subSample = `
+organization = "argus"
+project = "myworld"
+[[shards]]
+id = "game"
+`
+	if err := os.WriteFile(filepath.Join(dir, worldtoml.FileName), []byte(subSample), 0o600); err != nil {
+		t.Fatalf("write subdir %s: %v", worldtoml.FileName, err)
+	}
+	const cwdSample = `
+organization = "argus"
+project = "cwdworld"
+[[shards]]
+id = "game"
+`
+	if err := os.WriteFile(filepath.Join(wd, worldtoml.FileName), []byte(cwdSample), 0o600); err != nil {
+		t.Fatalf("write cwd %s: %v", worldtoml.FileName, err)
+	}
+
+	t.Chdir(wd)
+
+	cfg, err := NewClientConfig("myworld", false)
+	if err != nil {
+		t.Fatalf("NewClientConfig returned error: %v", err)
+	}
+
+	// RootDir must be the absolutized, cwd-resolved path — not the verbatim
+	// relative input — because that is the root the Docker build context is
+	// tarred from.
+	want := filepath.Join(wd, "myworld")
+	if cfg.RootDir != want {
+		t.Fatalf("expected RootDir absolutized to %q, got %q", want, cfg.RootDir)
+	}
+	if !filepath.IsAbs(cfg.RootDir) {
+		t.Fatalf("expected absolute RootDir, got %q", cfg.RootDir)
+	}
+	// And it must load the targeted subdir's world.toml, not the cwd's.
+	if cfg.Project != "myworld" {
+		t.Fatalf("expected Project %q (from the targeted subdir), got %q", "myworld", cfg.Project)
+	}
+}
+
+// TestNewClientConfig_DotPathAbsolutizesToCwd covers the "." case from the bug
+// report: a bare "." resolves against the process cwd. Before the fix it was
+// stored verbatim as RootDir=="." — leaving the build context root relative
+// and unstable, and only coincidentally loading the cwd's world.toml.
+func TestNewClientConfig_DotPathAbsolutizesToCwd(t *testing.T) {
+	// Not parallel: t.Chdir changes the process-wide cwd, which is shared state.
+	wd := t.TempDir()
+	const sample = `
+organization = "argus"
+project = "cwdworld"
+[[shards]]
+id = "game"
+`
+	if err := os.WriteFile(filepath.Join(wd, worldtoml.FileName), []byte(sample), 0o600); err != nil {
+		t.Fatalf("write %s: %v", worldtoml.FileName, err)
+	}
+
+	t.Chdir(wd)
+
+	cfg, err := NewClientConfig(".", false)
+	if err != nil {
+		t.Fatalf("NewClientConfig returned error: %v", err)
+	}
+	if cfg.RootDir != wd {
+		t.Fatalf("expected RootDir %q (the cwd), got %q", wd, cfg.RootDir)
+	}
+	if !filepath.IsAbs(cfg.RootDir) {
+		t.Fatalf("expected absolute RootDir, got %q", cfg.RootDir)
+	}
+}
+
+// TestNewClientConfig_RelativeMissingWorldToml_ErrorNamesAbsPath confirms the
+// "Cannot find world.toml" error now points at the absolutized directory rather
+// than the bare relative input. The bug report called out that the relative
+// form gave "no hint of the wrong base directory"; the absolute path makes the
+// resolution base diagnosable for the caller.
+func TestNewClientConfig_RelativeMissingWorldToml_ErrorNamesAbsPath(t *testing.T) {
+	// Not parallel: t.Chdir changes the process-wide cwd, which is shared state.
+	wd := t.TempDir()
+	missing := filepath.Join(wd, "ghost")
+	if err := os.Mkdir(missing, 0o750); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	t.Chdir(wd)
+
+	_, err := NewClientConfig("ghost", false)
+	if err == nil {
+		t.Fatalf("expected error when %s is missing", worldtoml.FileName)
+	}
+	abs := filepath.Join(wd, "ghost")
+	if !strings.Contains(err.Error(), abs) {
+		t.Fatalf("expected error to name the absolutized path %q; got %q", abs, err.Error())
 	}
 }
 
