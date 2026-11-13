@@ -726,7 +726,8 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 	var subscribers []*streamSubscriber
 	//nolint:nestif // It's fine
 	if evt.Recipient != "" {
-		if subscriber, exists := s.subscribers[evt.Recipient]; exists && audienceOf(evt).admits(evt.Recipient, subscriber) {
+		if subscriber, exists := s.subscribers[evt.Recipient]; exists &&
+			audienceOf(evt).admits(evt.Recipient, subscriber) {
 			for subscription := range subscriber.events {
 				if matchesEvent(subscription, eventPb.GetName()) {
 					subscribers = []*streamSubscriber{subscriber}
