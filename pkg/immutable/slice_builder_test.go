@@ -61,6 +61,22 @@ func TestSliceBuilder_UseAfterDonePanics(t *testing.T) {
 	}
 }
 
+func TestSliceBuilder_CopyPanics(t *testing.T) {
+	t.Parallel()
+
+	b := immutable.SliceOf(1, 2).Edit()
+	c := *b
+	done := b.Done()
+	require.PanicsWithValue(t,
+		"immutable: SliceBuilder copied by value; use the pointer Edit or NewSliceBuilder returned",
+		func() { c.Set(0, 9) })
+	require.Equal(t, []int{1, 2}, collect(done), "a copy cannot write into the built Slice")
+
+	var zero immutable.SliceBuilder[int]
+	zero.Append(1)
+	require.Equal(t, []int{1}, collect(zero.Done()), "a zero SliceBuilder works in place")
+}
+
 func TestSliceBuilder_OutOfRangePanics(t *testing.T) {
 	t.Parallel()
 

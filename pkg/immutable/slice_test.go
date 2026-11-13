@@ -159,6 +159,25 @@ func TestSlice_WithoutDropsOneElement(t *testing.T) {
 	require.Equal(t, []int{1, 2, 3}, collect(s), "the receiver is unchanged")
 }
 
+func TestSlice_ShrinkingDerivationsDropSpareCapacity(t *testing.T) {
+	t.Parallel()
+
+	capOf := func(s immutable.Slice[int]) int { return reflect.ValueOf(s).FieldByName("items").Cap() }
+	nums := make([]int, 1000)
+	for i := range nums {
+		nums[i] = i
+	}
+	distinct := immutable.SliceOf(nums...)
+	same := immutable.SliceOf(slices.Repeat([]int{7}, 1000)...)
+
+	require.Less(t, capOf(distinct.Filter(func(v int) bool { return v == 0 })), 16,
+		"Filter down to one does not keep the 1000-element array")
+	require.Less(t, capOf(immutable.Compact(same)), 16, "Compact down to one does not keep it either")
+	require.Less(t, capOf(same.CompactFunc(func(a, b int) bool { return a == b })), 16, "nor CompactFunc")
+	require.Equal(t, 1000, capOf(distinct.Filter(func(int) bool { return true })),
+		"a result that fills its array is not copied again")
+}
+
 func TestSlice_FilterKeepsMatches(t *testing.T) {
 	t.Parallel()
 

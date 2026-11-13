@@ -180,7 +180,7 @@ func (s Slice[T]) Filter(keep func(T) bool) Slice[T] {
 			out = append(out, v)
 		}
 	}
-	return wrap(out)
+	return shrink(out)
 }
 
 // Insert returns a Slice with items inserted at index i, which may equal Len. It panics when i is out
@@ -262,7 +262,7 @@ func (s Slice[T]) Replace(i, j int, items ...T) Slice[T] {
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) CompactFunc(eq func(a, b T) bool) Slice[T] {
-	return wrap(slices.CompactFunc(slices.Clone(s.items), eq))
+	return shrink(slices.CompactFunc(slices.Clone(s.items), eq))
 }
 
 // Repeat returns a Slice holding the elements count times over. It panics when count is negative or
@@ -330,7 +330,7 @@ func Sorted[T cmp.Ordered](s Slice[T]) Slice[T] {
 //
 // NOTE: Requires component set if used.
 func Compact[T comparable](s Slice[T]) Slice[T] {
-	return wrap(slices.Compact(slices.Clone(s.items)))
+	return shrink(slices.Compact(slices.Clone(s.items)))
 }
 
 // Min returns the smallest element of s. It panics when s is empty, like [slices.Min].
@@ -404,6 +404,17 @@ func wrap[T any](items []T) Slice[T] {
 		return Slice[T]{}
 	}
 	return Slice[T]{items: items}
+}
+
+// shrink is wrap for a result that may be far smaller than its array, as after Filter: once more
+// than half the array is spare it copies to fit, so filtering 10,000 elements down to one does not
+// keep a 10,000-element array in the component. [slices.Clip] would not help, since the clipped array
+// is still the whole allocation.
+func shrink[T any](items []T) Slice[T] {
+	if len(items) > 0 && len(items) < cap(items)/2 {
+		items = slices.Clone(items)
+	}
+	return wrap(items)
 }
 
 // -------------------------------------------------------------------------------------------------

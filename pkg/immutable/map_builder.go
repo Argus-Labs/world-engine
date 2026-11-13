@@ -1,8 +1,6 @@
 package immutable
 
-import (
-	"slices"
-)
+import "slices"
 
 // MapBuilder applies a batch of edits to private copies of a Map's arrays and hands them over as a
 // Map with Done. Its Get and Has see the pending edits, so a batch can accumulate:
@@ -17,8 +15,9 @@ import (
 // Edit copies the values once. The keys stay shared with the source until the first insert or
 // delete, so a batch that only changes existing entries copies one array, not two.
 //
-// After Done every method panics, for the reason SliceBuilder gives.
+// After Done, and on a copy of the builder, every method panics, for the reasons SliceBuilder gives.
 type MapBuilder[K Key, V any] struct {
+	self     *MapBuilder[K, V] // the builder's own address; differs in a copy
 	keys     []K
 	vals     []V
 	ownsKeys bool
@@ -27,7 +26,9 @@ type MapBuilder[K Key, V any] struct {
 
 // Edit returns a builder holding a copy of the Map's entries. The Map itself is unchanged.
 func (m Map[K, V]) Edit() *MapBuilder[K, V] {
-	return &MapBuilder[K, V]{keys: m.keys, vals: slices.Clone(m.vals)}
+	b := &MapBuilder[K, V]{keys: m.keys, vals: slices.Clone(m.vals)}
+	b.self = b
+	return b
 }
 
 // Len returns the number of entries.
@@ -98,6 +99,12 @@ func (b *MapBuilder[K, V]) ownKeys() {
 }
 
 func (b *MapBuilder[K, V]) check() {
+	switch {
+	case b.self == nil: // a zero MapBuilder, first use
+		b.self = b
+	case b.self != b:
+		panic("immutable: MapBuilder copied by value; use the pointer Edit returned")
+	}
 	if b.done {
 		panic("immutable: MapBuilder used after Done")
 	}

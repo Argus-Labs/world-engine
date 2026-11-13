@@ -224,6 +224,18 @@ func TestMapBuilder_UseAfterDonePanics(t *testing.T) {
 	}
 }
 
+func TestMapBuilder_CopyPanics(t *testing.T) {
+	t.Parallel()
+
+	b := immutable.Map[string, int]{}.With("a", 1).Edit()
+	c := *b
+	done := b.Done()
+	require.PanicsWithValue(t, "immutable: MapBuilder copied by value; use the pointer Edit returned",
+		func() { c.Set("a", 9) })
+	v, _ := done.Get("a")
+	assert.Equal(t, 1, v, "a copy cannot write into the built Map")
+}
+
 // TestMap_ModelMatchesGoMap runs random edits, through derivations and builders alike, against a Go
 // map read back in sorted key order. Like the Slice model test, it keeps recent values and checks
 // after every step that none of them changed.

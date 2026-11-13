@@ -13,8 +13,11 @@ import "slices"
 // A builder is used through the pointer Edit and NewSliceBuilder return. After Done it holds nothing,
 // and every method panics: the array now belongs to the Slice, and a builder that could still write
 // would break that Slice's promise that its array never changes. The check is a plain panic rather
-// than assert.That because it has to hold in release builds.
+// than assert.That because it has to hold in release builds. The same goes for a copy of a builder:
+// it would share the array with the original and so with the Slice the original builds, so every
+// method on a copy panics too, as on a copied [strings.Builder].
 type SliceBuilder[T any] struct {
+	self  *SliceBuilder[T] // the builder's own address; differs in a copy
 	items []T
 	done  bool
 }
@@ -22,12 +25,16 @@ type SliceBuilder[T any] struct {
 // NewSliceBuilder returns an empty builder with room for capacity elements, for a list rebuilt from
 // scratch. It panics when capacity is negative, like make.
 func NewSliceBuilder[T any](capacity int) *SliceBuilder[T] {
-	return &SliceBuilder[T]{items: make([]T, 0, capacity)}
+	b := &SliceBuilder[T]{items: make([]T, 0, capacity)}
+	b.self = b
+	return b
 }
 
 // Edit returns a builder holding a copy of the Slice's elements. The Slice itself is unchanged.
 func (s Slice[T]) Edit() *SliceBuilder[T] {
-	return &SliceBuilder[T]{items: slices.Clone(s.items)}
+	b := &SliceBuilder[T]{items: slices.Clone(s.items)}
+	b.self = b
+	return b
 }
 
 // Len returns the number of elements.
@@ -77,6 +84,12 @@ func (b *SliceBuilder[T]) Done() Slice[T] {
 }
 
 func (b *SliceBuilder[T]) check() {
+	switch {
+	case b.self == nil: // a zero SliceBuilder, first use
+		b.self = b
+	case b.self != b:
+		panic("immutable: SliceBuilder copied by value; use the pointer Edit or NewSliceBuilder returned")
+	}
 	if b.done {
 		panic("immutable: SliceBuilder used after Done")
 	}
