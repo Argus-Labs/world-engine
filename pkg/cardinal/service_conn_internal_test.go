@@ -53,6 +53,24 @@ func TestSync_LaggedStreamLeavesSeatWhileHandlerBlocked(t *testing.T) {
 		"a cancelled stream accepted a subscription")
 }
 
+// A cancelled stream drops its unwritten events at once, so a handler blocked writing to a dead
+// connection holds the one event it is writing, not the stream's backlog. Not parallel: the lag
+// cut needs a burst of 16 MiB.
+func TestEventStream_CancelledStreamDropsQueue(t *testing.T) {
+	h := newStreamHarness(t)
+	stream, conn := h.openOnOwnConn(t, "player-1", "*")
+	subscriber := h.subscriber(t, "player-1")
+
+	conn.stall()
+	cutLagged(t, h, "player-1", subscriber)
+
+	require.Eventually(t, func() bool { return queuedBytes(subscriber) == 0 }, time.Second, time.Millisecond,
+		"the cancelled stream kept its queue")
+	h.publish(t, testutils.AnotherEvent{Data: incompressible(64 << 10)}, "player-1")
+	assert.Zero(t, queuedBytes(subscriber), "the cancelled stream queued an event")
+	assert.True(t, h.handlerRunning(stream.id), "the handler returned, so this did not test a blocked one")
+}
+
 // cutLagged fills subscriber's queue until its stream ends as lagged. Its connection must be
 // stalled, so nothing is written meanwhile.
 func cutLagged(t *testing.T, h *streamHarness, player string, subscriber *streamSubscriber) {
