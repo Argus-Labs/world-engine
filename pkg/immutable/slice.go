@@ -3,8 +3,8 @@
 // something new is needed. That encapsulation is what lets a component hold one without handing the
 // world's backing memory to every caller of Get.
 //
-// The name describes the intended discipline rather than a guarantee the compiler enforces. Slice
-// derivations edit in place by review decision, so read Slice's own doc before using one.
+// Nothing here writes to an array once a value holds it: every derivation returns a value over a new
+// array, so the receiver and every copy of it stay exactly as they were.
 package immutable
 
 import (
@@ -21,11 +21,6 @@ import (
 	"github.com/argus-labs/world-engine/pkg/assert"
 )
 
-// TODO(immutable): derivations edit in place and do not copy, by review decision — one allocation
-// per edit was judged too expensive for a game loop. The cost is that a derivation reaches the
-// column's array before any Set, so derive-then-Set is a requirement rather than a convention. See
-// the note above the Deriving section for what that means at a call site.
-
 // Slice is a sequence with a private backing array, for component fields whose length is genuinely
 // unbounded. It is the only variable-length collection a component may hold.
 //
@@ -33,24 +28,20 @@ import (
 // shares its backing array with the column. Slice keeps that array unexported, so no caller can
 // index into it, reslice it, or pass it to another package, and Get stays zero-copy.
 //
-// What Slice does not do is copy on a derivation. Most derivations edit the backing array in place
-// and return a Slice over that same array, so the column has already changed by the time the
-// derivation returns. Always Set the component afterwards:
+// Derivations never write to the receiver's array. Each returns a Slice over a new array (Sub and
+// Chunk return windows onto the old one, which is safe because nothing writes to it), so the column,
+// the caller's copy and any snapshot keep what they held. A derived Slice reaches the world only
+// through Set:
 //
 //	inv := ref.Get()
-//	inv.Items = inv.Items.With(0, item) // the column's array has changed here
-//	ref.Set(inv)                        // this republishes what is already true
+//	inv.Items = inv.Items.With(0, item) // the column is unchanged
+//	ref.Set(inv)                        // this stores the new Slice
 //
-// Deriving and dropping the result does not leave the world untouched — it leaves the world holding
-// an edit no snapshot recorded. Copy the elements out first (Values, or immutable.Collect) when the
-// original has to survive. Each derivation's doc
-// says whether it writes through.
+// Each derivation costs one copy. For several edits at once, use Edit or NewSliceBuilder, which copy
+// once and hand the array over with Done.
 //
-// Two empty Slices are not always [reflect.DeepEqual]. A derivation that empties one leaves its backing
-// array allocated, while the zero value and SliceOf have none, and DeepEqual looks at the field rather
-// than the elements. Compare with Equal or EqualFunc, which compare elements and agree with
-// [slices.Equal] that nil and empty are the same list. DecodeMsgpack leaves an empty array as the
-// zero value, so a component restored from a snapshot does match one built fresh.
+// Every empty Slice is the zero value: producers, derivations, Done and both decoders return nil
+// items for an empty result, so empty Slices are [reflect.DeepEqual] however they were built.
 //
 // The element type must be value-safe too: scalars, strings, fixed arrays, another Slice, [time.Time],
 // or structs of those. Slice does not check this — Slice[*T] compiles, and hands the pointer straight
@@ -66,7 +57,7 @@ type Slice[T any] struct {
 // SliceOf returns a Slice holding a copy of items. Later changes to the caller's slice do not
 // reach the returned value.
 func SliceOf[T any](items ...T) Slice[T] {
-	return Slice[T]{items: slices.Clone(items)}
+	return wrap(slices.Clone(items))
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -125,10 +116,8 @@ func (s Slice[T]) IsSortedFunc(compare func(a, b T) int) bool {
 	return slices.IsSortedFunc(s.items, compare)
 }
 
-// Chunk returns an iterator over consecutive sub-Slices of up to n elements. It panics when n is
-// less than one, like [slices.Chunk].
-//
-// NOTE: Requires component set if used.
+// Chunk returns an iterator over consecutive sub-Slices of up to n elements. Each is a window onto
+// the receiver's array, not a copy. It panics when n is less than one, like [slices.Chunk].
 func (s Slice[T]) Chunk(n int) iter.Seq[Slice[T]] {
 	assert.That(n >= 1, "immutable: Chunk(%d) size must be at least one", n)
 	// Called here rather than inside the closure so its own size check runs now, not on the first
@@ -136,8 +125,6 @@ func (s Slice[T]) Chunk(n int) iter.Seq[Slice[T]] {
 	parts := slices.Chunk(s.items, n)
 	return func(yield func(Slice[T]) bool) {
 		for part := range parts {
-			// Each part is a window onto the receiver's array rather than a copy, so deriving from
-			// one writes into the receiver.
 			if !yield(Slice[T]{items: part}) {
 				return
 			}
@@ -149,65 +136,65 @@ func (s Slice[T]) Chunk(n int) iter.Seq[Slice[T]] {
 // Deriving
 // -------------------------------------------------------------------------------------------------
 //
-// These do not copy. Where the result fits in the receiver's array they edit it in place and return
-// a Slice over that same array, so the receiver — and every other Slice sharing it, including the
-// one the component column still holds — sees the edit immediately.
-//
-// Two consequences worth stating plainly. Deriving and discarding the result still changes the
-// world. And the ones that shrink (Without, Filter, Delete, CompactFunc) leave the receiver at its
-// old length over a shifted, zero-filled tail, so the receiver is not merely reordered but wrong.
-// Set the component after every derivation, and copy the elements out first (immutable.Collect) when
-// the original has to survive.
+// Each returns a Slice over a new array and leaves the receiver unchanged. Range checks that must hold
+// in a release build, where assert.That compiles away, are left to the runtime's own slice bounds
+// checks.
 
-// Append returns a Slice with items added at the end. It allocates a new array, so the receiver is
-// unchanged.
+// Append returns a Slice with items added at the end.
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) Append(items ...T) Slice[T] {
-	return Slice[T]{items: slices.Concat(s.items, items)}
+	return wrap(slices.Concat(s.items, items))
 }
 
-// With returns a Slice with the element at index i replaced by v. It writes through: the receiver
-// holds v at i as well. It panics when i is out of range, like a slice.
+// With returns a Slice with the element at index i replaced by v. It panics when i is out of range,
+// like a slice.
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) With(i int, v T) Slice[T] {
 	assert.That(i >= 0 && i < len(s.items), "immutable: With(%d) out of range, length %d", i, len(s.items))
-	s.items[i] = v
-	return Slice[T]{items: s.items}
+	out := slices.Clone(s.items)
+	out[i] = v
+	return Slice[T]{items: out}
 }
 
-// Without returns a Slice with the element at index i removed. It writes through: the receiver keeps
-// its old length over the shifted, zero-filled tail. It panics when i is out of range, like a slice.
+// Without returns a Slice with the element at index i removed. It panics when i is out of range, like
+// a slice.
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) Without(i int) Slice[T] {
 	assert.That(i >= 0 && i < len(s.items), "immutable: Without(%d) out of range, length %d", i, len(s.items))
-	return Slice[T]{items: slices.Delete(s.items, i, i+1)}
+	return s.Replace(i, i+1)
 }
 
 // Filter returns a Slice holding the elements for which keep is true, in order, and keep runs once
-// per element. It writes through: the receiver keeps its old length over the shifted, zero-filled
-// tail.
+// per element.
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) Filter(keep func(T) bool) Slice[T] {
-	return Slice[T]{items: slices.DeleteFunc(s.items, func(v T) bool { return !keep(v) })}
+	// Sized for the worst case so the result costs one allocation; keep runs once per element, so
+	// the kept count cannot be measured first.
+	out := make([]T, 0, len(s.items))
+	for _, v := range s.items {
+		if keep(v) {
+			out = append(out, v)
+		}
+	}
+	return wrap(out)
 }
 
-// Insert returns a Slice with items inserted at index i, which may equal Len. It writes through
-// whenever the receiver has the spare capacity to hold the result and allocates otherwise, so treat
-// the receiver as changed either way. It panics when i is out of range, like [slices.Insert].
+// Insert returns a Slice with items inserted at index i, which may equal Len. It panics when i is out
+// of range, like [slices.Insert].
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) Insert(i int, items ...T) Slice[T] {
 	assert.That(i >= 0 && i <= len(s.items), "immutable: Insert(%d) out of range, length %d", i, len(s.items))
-	return Slice[T]{items: slices.Insert(s.items, i, items...)}
+	return s.Replace(i, i, items...)
 }
 
-// Sub returns a Slice holding the elements in [lo, hi). It is the one derivation that writes
-// nothing, but the result is a window onto the receiver's array, so deriving from that window writes
-// into the receiver. It panics when the range is out of bounds, like s[lo:hi].
+// Sub returns a Slice holding the elements in [lo, hi). The result is a window onto the receiver's
+// array rather than a copy, so it costs nothing. It panics when the range is out of bounds, like
+// s[lo:hi].
 //
 // The bounds are checked against Len explicitly: a derived Slice can have spare capacity, and a
 // plain slice expression would read past the end into it.
@@ -219,64 +206,67 @@ func (s Slice[T]) Sub(lo, hi int) Slice[T] {
 	// Three-index, so the runtime bounds the range by LENGTH rather than capacity. A derived Slice can
 	// carry spare capacity, and a plain s.items[lo:hi] would happily read into it. This check is the one
 	// that has to survive a release build, where assert.That compiles away.
-	return Slice[T]{items: s.items[lo:hi:len(s.items)]}
+	return wrap(s.items[lo:hi:len(s.items)])
 }
 
-// Reversed returns a Slice with the elements in reverse order. It writes through: the receiver is
-// reversed too, so calling it once a tick in a query flips the stored order every tick. To read in
-// reverse without deriving anything, use Backward.
+// Reversed returns a Slice with the elements in reverse order. To read in reverse without a copy, use
+// Backward.
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) Reversed() Slice[T] {
-	slices.Reverse(s.items)
-	return Slice[T]{items: s.items}
+	out := slices.Clone(s.items)
+	slices.Reverse(out)
+	return wrap(out)
 }
 
 // SortedFunc returns a Slice sorted by compare, which reports a<b as negative, a==b as zero and a>b
-// as positive. The sort is stable, so equal elements keep their order. It writes through: the
-// receiver is sorted too, so even a read-only use such as s.SortedFunc(cmp).At(0) reorders the
-// column. To find one extreme without deriving anything, use MinFunc or MaxFunc.
+// as positive. The sort is stable, so equal elements keep their order. To find one extreme without a
+// copy, use MinFunc or MaxFunc.
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) SortedFunc(compare func(a, b T) int) Slice[T] {
-	slices.SortStableFunc(s.items, compare)
-	return Slice[T]{items: s.items}
+	out := slices.Clone(s.items)
+	slices.SortStableFunc(out, compare)
+	return wrap(out)
 }
 
-// Delete returns a Slice with the elements in [i, j) removed. It writes through: the receiver keeps
-// its old length over the shifted, zero-filled tail. It panics when the range is out of bounds, like
-// [slices.Delete].
+// Delete returns a Slice with the elements in [i, j) removed. It panics when the range is out of
+// bounds, like [slices.Delete].
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) Delete(i, j int) Slice[T] {
 	assert.That(0 <= i && i <= j && j <= len(s.items),
 		"immutable: Delete(%d, %d) out of range, length %d", i, j, len(s.items))
-	return Slice[T]{items: slices.Delete(s.items, i, j)}
+	return s.Replace(i, j)
 }
 
-// Replace returns a Slice with the elements in [i, j) replaced by items. It writes through whenever
-// the receiver has the spare capacity to hold the result and allocates otherwise, so treat the
-// receiver as changed either way. It panics when the range is out of bounds, like [slices.Replace].
+// Replace returns a Slice with the elements in [i, j) replaced by items. It panics when the range is
+// out of bounds, like [slices.Replace].
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) Replace(i, j int, items ...T) Slice[T] {
 	assert.That(0 <= i && i <= j && j <= len(s.items),
 		"immutable: Replace(%d, %d) out of range, length %d", i, j, len(s.items))
-	return Slice[T]{items: slices.Replace(s.items, i, j, items...)}
+	// The range check that survives a release build: s.items[:i] and s.items[j:] alone would accept
+	// i > j and duplicate the elements between them.
+	_ = s.items[i:j]
+	out := make([]T, 0, len(s.items)-(j-i)+len(items))
+	out = append(out, s.items[:i]...)
+	out = append(out, items...)
+	out = append(out, s.items[j:]...)
+	return wrap(out)
 }
 
 // CompactFunc returns a Slice with runs of consecutive elements that eq reports equal collapsed to
-// one, like [slices.CompactFunc]. It writes through: the receiver keeps its old length over the
-// shifted, zero-filled tail.
+// one, like [slices.CompactFunc].
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) CompactFunc(eq func(a, b T) bool) Slice[T] {
-	return Slice[T]{items: slices.CompactFunc(s.items, eq)}
+	return wrap(slices.CompactFunc(slices.Clone(s.items), eq))
 }
 
-// Repeat returns a Slice holding the elements count times over. It allocates a new array, so the
-// receiver is unchanged. It panics when count is negative or the result would overflow, like
-// [slices.Repeat].
+// Repeat returns a Slice holding the elements count times over. It panics when count is negative or
+// the result would overflow, like [slices.Repeat].
 //
 // NOTE: Requires component set if used.
 func (s Slice[T]) Repeat(count int) Slice[T] {
@@ -328,8 +318,7 @@ func Contains[T comparable](s Slice[T], v T) bool {
 	return slices.Contains(s.items, v)
 }
 
-// Sorted returns a Slice with the elements of s in ascending order. The sort is stable. Like
-// SortedFunc it writes through, so s ends up sorted too.
+// Sorted returns a Slice with the elements of s in ascending order. The sort is stable.
 //
 // NOTE: Requires component set if used.
 func Sorted[T cmp.Ordered](s Slice[T]) Slice[T] {
@@ -337,12 +326,11 @@ func Sorted[T cmp.Ordered](s Slice[T]) Slice[T] {
 }
 
 // Compact returns a Slice with runs of consecutive equal elements collapsed to one, like
-// [slices.Compact]. Like CompactFunc it writes through, so s keeps its old length over the shifted,
-// zero-filled tail.
+// [slices.Compact].
 //
 // NOTE: Requires component set if used.
 func Compact[T comparable](s Slice[T]) Slice[T] {
-	return Slice[T]{items: slices.Compact(s.items)}
+	return wrap(slices.Compact(slices.Clone(s.items)))
 }
 
 // Min returns the smallest element of s. It panics when s is empty, like [slices.Min].
@@ -376,8 +364,8 @@ func BinarySearchFunc[E, T any](s Slice[E], target T, compare func(E, T) int) (i
 // Building from other values
 // -------------------------------------------------------------------------------------------------
 
-// Map returns a new Slice holding f applied to each element of s, in order.
-func Map[T, U any](s Slice[T], f func(T) U) Slice[U] {
+// Transform returns a new Slice holding f applied to each element of s, in order.
+func Transform[T, U any](s Slice[T], f func(T) U) Slice[U] {
 	if len(s.items) == 0 {
 		return Slice[U]{}
 	}
@@ -406,7 +394,16 @@ func Concat[T any](ss ...Slice[T]) Slice[T] {
 
 // Collect returns a Slice holding every element of seq, in order.
 func Collect[T any](seq iter.Seq[T]) Slice[T] {
-	return Slice[T]{items: slices.Collect(seq)}
+	return wrap(slices.Collect(seq))
+}
+
+// wrap returns a Slice over items, or the zero value when items is empty, so every empty Slice is
+// the same value however it was produced.
+func wrap[T any](items []T) Slice[T] {
+	if len(items) == 0 {
+		return Slice[T]{}
+	}
+	return Slice[T]{items: items}
 }
 
 // -------------------------------------------------------------------------------------------------

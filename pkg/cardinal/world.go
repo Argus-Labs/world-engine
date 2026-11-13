@@ -790,8 +790,9 @@ func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
 //   - an embedded field of an unexported type that is not a struct, such as a named int, which a
 //     snapshot stores but a restore cannot write back.
 //
-// Hold a list in a fixed-size array or an immutable.Slice instead. Fields tagged msgpack:"-" are
-// not stored, so they are not checked.
+// Hold a list in a fixed-size array or an immutable.Slice, and a lookup table in an immutable.Map,
+// instead. Their elements and values follow the same rules, and a type that contains itself is
+// refused. Fields tagged msgpack:"-" are not stored, so they are not checked.
 func (w *World) RegisterComponent[T ecs.Component]() {
 	if w.started {
 		panic(ErrWorldStarted)

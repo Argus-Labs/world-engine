@@ -129,9 +129,9 @@ reorder shapes after creation if you care about per-shape references in
 contact events.
 
 Read it with `Len`, `At`, and `All`; change it with `Append`, `With`, `Without`
-and friends, then `Set` the component. Those derivations edit the array the
-component already holds, so a `Set` after each one is required rather than
-tidy — see [`immutable.Slice`](../../immutable/slice.go).
+and friends, then `Set` the component. Each derivation returns a new Slice and
+leaves the component untouched until that `Set` — see
+[`immutable.Slice`](../../immutable/slice.go).
 
 ```go
 pb := entity.Get[physics2d.PhysicsBody2D]()

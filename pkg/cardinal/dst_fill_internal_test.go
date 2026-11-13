@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/immutable"
@@ -50,4 +51,37 @@ func TestFillRandom_FillsImmutableSlices(t *testing.T) {
 	require.Panics(t, func() {
 		fillRandom(prng, reflect.ValueOf(immutable.Slice[int32]{}), live)
 	}, "an unaddressable Slice must fail loudly")
+}
+
+type fillMapProbe struct {
+	Threat immutable.Map[EntityID, int32]
+	Nested immutable.Map[string, immutable.Map[uint8, fillProbeRow]]
+}
+
+// TestFillRandom_FillsImmutableMaps is the Map counterpart of TestFillRandom_FillsImmutableSlices.
+func TestFillRandom_FillsImmutableMaps(t *testing.T) {
+	t.Parallel()
+	prng := testutils.NewRand(t)
+	live := []EntityID{7, 8, 9}
+
+	var sawLiveKey, sawNested bool
+	for range 64 {
+		var probe fillMapProbe
+		fillRandom(prng, reflect.ValueOf(&probe).Elem(), live)
+
+		for k := range probe.Threat.Keys() {
+			sawLiveKey = sawLiveKey || slices.Contains(live, k)
+		}
+		for inner := range probe.Nested.Values() {
+			for row := range inner.Values() {
+				sawNested = sawNested || row.Cells.Len() > 0
+			}
+		}
+	}
+	require.True(t, sawLiveKey, "Map[EntityID, _] never got a live entity as a key")
+	require.True(t, sawNested, "a Slice inside a Map inside a Map was never filled")
+
+	require.Panics(t, func() {
+		fillRandom(prng, reflect.ValueOf(immutable.Map[string, int]{}), live)
+	}, "an unaddressable Map must fail loudly")
 }

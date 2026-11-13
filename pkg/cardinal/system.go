@@ -1,6 +1,8 @@
 package cardinal
 
 import (
+	"iter"
+
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
@@ -205,8 +207,16 @@ func (s SearchResult) Single() (Entity, error) {
 // declare one without a second import. It is an alias, so cardinal.Slice[T] and immutable.Slice[T]
 // are the same type and either spelling works.
 //
-// Its derivations edit in place; see immutable.Slice for what that means at a call site.
+// Its derivations return a new Slice and leave the receiver unchanged; see immutable.Slice.
 type Slice[T any] = immutable.Slice[T]
 
 // SliceOf returns a Slice holding a copy of items. See immutable.SliceOf.
 func SliceOf[T any](items ...T) Slice[T] { return immutable.SliceOf(items...) }
+
+// Map is world-engine's sorted map with private storage, re-exported like Slice. Its derivations
+// return a new Map and leave the receiver unchanged; see immutable.Map.
+type Map[K immutable.Key, V any] = immutable.Map[K, V]
+
+// MapFrom returns a Map holding every pair in seq, the last value winning for a repeated key. See
+// immutable.MapFrom.
+func MapFrom[K immutable.Key, V any](seq iter.Seq2[K, V]) Map[K, V] { return immutable.MapFrom(seq) }
