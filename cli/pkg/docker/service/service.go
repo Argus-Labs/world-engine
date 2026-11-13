@@ -12,12 +12,12 @@ import (
 
 type Builder func(cfg *Config) Service
 
-// ServiceOrder controls how shared service builders are ordered for consumers.
-type ServiceOrder int
+// Order controls how shared service builders are ordered for consumers.
+type Order int
 
 const (
 	// CardinalShardsFirst lists shard services first, then game services and NATS.
-	CardinalShardsFirst ServiceOrder = iota
+	CardinalShardsFirst Order = iota
 	// InfrastructureFirst lists NATS first, then game services and shard services.
 	InfrastructureFirst
 )
@@ -67,7 +67,7 @@ func getExposedPorts(ports []int) network.PortSet {
 // Game services keep their world.toml declaration order (it drives start order);
 // the auto-provisioned project database (when db = true is used) rides in from
 // BuildGameServices, prepended so it comes up first.
-func GetServices(cfg *Config, order ServiceOrder) []Builder {
+func GetServices(cfg *Config, order Order) []Builder {
 	shards := BuildCardinalShards(cfg)
 	gameServices := BuildGameServices(cfg)
 	out := make([]Builder, 0, len(shards)+len(gameServices)+1)
@@ -81,7 +81,7 @@ func GetServices(cfg *Config, order ServiceOrder) []Builder {
 		out = append(out, gameServices...)
 		out = append(out, shards...)
 	default:
-		panic(fmt.Sprintf("unknown ServiceOrder %d", order))
+		panic(fmt.Sprintf("unknown Order %d", order))
 	}
 	return out
 }

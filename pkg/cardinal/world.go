@@ -192,15 +192,6 @@ func (w *World) run(ctx context.Context) error {
 	if err := w.restore(ctx); err != nil {
 		return eris.Wrap(err, "failed to restore state from snapshot")
 	}
-	defer func() {
-		if w.currentTick.height == 0 {
-			return
-		}
-		// Label the last completed tick, matching regular snapshots and restore's +1.
-		label := w.currentTick.height - 1
-		w.snapshotWriter.Write(label, w.encodeSnapshot(label, time.Now()))
-	}()
-
 	logger := w.tel.GetLogger("shard")
 	logger.Info().Msg("starting core shard loop")
 
@@ -240,6 +231,13 @@ func (w *World) run(ctx context.Context) error {
 			w.reset()
 			replyCh <- struct{}{}
 		case <-ctx.Done():
+			// Capture only on normal shutdown, between ticks. A defer would also capture
+			// partially mutated state while unwinding a panic and overwrite the good snapshot.
+			if w.currentTick.height > 0 {
+				// Label the last completed tick, matching regular snapshots and restore's +1.
+				label := w.currentTick.height - 1
+				w.snapshotWriter.Write(label, w.encodeSnapshot(label, time.Now()))
+			}
 			return ctx.Err()
 		}
 	}

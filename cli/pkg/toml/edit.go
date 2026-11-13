@@ -3,6 +3,7 @@ package toml
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -31,7 +32,13 @@ func SetProject(content, project string) string {
 // is missing or the edit yields an invalid world.toml (e.g. there was no project
 // line to set).
 func WriteProject(path, project string) error {
-	data, err := os.ReadFile(path)
+	root, err := os.OpenRoot(filepath.Dir(path))
+	if err != nil {
+		return eris.Wrap(err, "failed to open project directory")
+	}
+	defer root.Close()
+	name := filepath.Base(path)
+	data, err := root.ReadFile(name)
 	if err != nil {
 		return eris.Wrap(err, "failed to read world.toml")
 	}
@@ -46,7 +53,7 @@ func WriteProject(path, project string) error {
 
 	// 0600 satisfies gosec G306; world.toml is not sensitive, but stricter perms
 	// are acceptable.
-	if err := os.WriteFile(path, []byte(updated), 0o600); err != nil {
+	if err := root.WriteFile(name, []byte(updated), 0o600); err != nil {
 		return eris.Wrap(err, "failed to write world.toml")
 	}
 	return nil

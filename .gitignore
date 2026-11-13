@@ -126,3 +126,6 @@ services/forge/main
 # The general tasks/ ignore rule must not hide moon's inherited task config.
 !.moon/tasks/
 !.moon/tasks/**
+
+# Thread-local Amp portal metadata
+.amp/portals/*

@@ -67,3 +67,14 @@ its separate architecture matrix and explicit `determinism-*` targets. Workflows
 explicit targets instead of `moon ci`, keeping the expensive determinism checks
 in their dedicated matrix. Generated clients can be selected explicitly
 on runners with their SDKs installed. Cleanup and formatting never run automatically.
+
+### Amp orbs
+
+`.agents/setup` installs the pinned Go and moon versions, Buf and the local
+protobuf generators, then downloads Go dependencies. It is safe to rerun and
+keeps the tools available in new login shells. `.agents/resume` checks the Go
+and moon versions without installing anything. Neither script requires secrets.
+
+Go unit tests use in-process services; no database or background server is needed.
+Docker-backed CLI integration tests, the .NET SDK, and TypeScript client npm
+dependencies are optional and are not provisioned by orb setup.

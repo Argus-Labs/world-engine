@@ -4,7 +4,7 @@ module github.com/argus-labs/world-engine
 // it, so @latest resolved to it. v1.0.1 only publishes this retraction.
 retract [v1.0.0, v1.0.1]
 
-go 1.27.1
+go 1.27.4
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2
