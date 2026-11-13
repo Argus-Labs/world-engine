@@ -1,7 +1,6 @@
 package harness
 
 import (
-	"fmt"
 	"math"
 	"testing"
 
@@ -69,22 +68,6 @@ const (
 	TriggerBegin
 	TriggerEnd
 )
-
-// String returns the event kind's name as it appears in failure messages.
-func (k EventKind) String() string {
-	switch k {
-	case ContactBegin:
-		return "ContactBegin"
-	case ContactEnd:
-		return "ContactEnd"
-	case TriggerBegin:
-		return "TriggerBegin"
-	case TriggerEnd:
-		return "TriggerEnd"
-	default:
-		return fmt.Sprintf("EventKind(%d)", uint8(k))
-	}
-}
 
 // LoggedEvent is one physics event captured with the tick it arrived on.
 type LoggedEvent struct {
@@ -162,12 +145,6 @@ func (c *Ctx) ExpectWorldReset() {
 
 // Tick returns the tick currently being simulated.
 func (c *Ctx) Tick() uint64 { return c.tick }
-
-// Scenario returns the running scenario's name.
-func (c *Ctx) Scenario() string { return c.scenario }
-
-// Report exposes the underlying report for the few places that need it directly.
-func (c *Ctx) Report() *Report { return c.report }
 
 // Lane returns this scenario's world-space X offset.
 func (c *Ctx) Lane() float64 { return c.lane }
@@ -307,17 +284,6 @@ func (c *Ctx) SetPos(id cardinal.EntityID, x, y float64) {
 	row.Set(t)
 }
 
-// SetRot sets the entity's rotation in radians.
-func (c *Ctx) SetRot(id cardinal.EntityID, radians float64) {
-	row, err := c.probes.GetByID(id)
-	if err != nil {
-		return
-	}
-	t := row.Get[physics.Transform2D]()
-	t.Rotation = radians
-	row.Set(t)
-}
-
 // SetVel sets the entity's linear velocity.
 func (c *Ctx) SetVel(id cardinal.EntityID, vx, vy float64) {
 	row, err := c.probes.GetByID(id)
@@ -326,17 +292,6 @@ func (c *Ctx) SetVel(id cardinal.EntityID, vx, vy float64) {
 	}
 	v := row.Get[physics.Velocity2D]()
 	v.Linear = physics.Vec2{X: vx, Y: vy}
-	row.Set(v)
-}
-
-// SetAngVel sets the entity's angular velocity.
-func (c *Ctx) SetAngVel(id cardinal.EntityID, angular float64) {
-	row, err := c.probes.GetByID(id)
-	if err != nil {
-		return
-	}
-	v := row.Get[physics.Velocity2D]()
-	v.Angular = angular
 	row.Set(v)
 }
 
@@ -439,24 +394,9 @@ func (c *Ctx) OverlapHits(res physics.AABBOverlapResult, id cardinal.EntityID) b
 	return false
 }
 
-// OverlapHitsShape reports whether an AABB overlap returned a specific shape slot.
-func (c *Ctx) OverlapHitsShape(res physics.AABBOverlapResult, id cardinal.EntityID, shapeIndex int) bool {
-	for _, h := range res.Hits {
-		if h.Entity == id && h.ShapeIndex == shapeIndex {
-			return true
-		}
-	}
-	return false
-}
-
 // -----------------------------------------------------------------------------
 // Events
 // -----------------------------------------------------------------------------
-
-// Events returns every event of the given kind recorded for this scenario so far.
-func (c *Ctx) Events(kind EventKind) []LoggedEvent {
-	return c.events.forScenario(c.scenario, kind)
-}
 
 // EventsBetween returns this scenario's events of a kind involving exactly a and b.
 func (c *Ctx) EventsBetween(kind EventKind, a, b cardinal.EntityID) []LoggedEvent {
@@ -483,17 +423,6 @@ func (c *Ctx) CountTouching(kind EventKind, id cardinal.EntityID) int {
 		}
 	}
 	return n
-}
-
-// EventsOnTick returns this scenario's events of a kind recorded on one tick.
-func (c *Ctx) EventsOnTick(kind EventKind, tick uint64) []LoggedEvent {
-	var out []LoggedEvent
-	for _, e := range c.events.forScenario(c.scenario, kind) {
-		if e.Tick == tick {
-			out = append(out, e)
-		}
-	}
-	return out
 }
 
 // -----------------------------------------------------------------------------
@@ -576,15 +505,6 @@ func (c *Ctx) LessEq(check string, got, threshold float64) bool {
 	return c.True(check, finite(got) && got <= threshold, "got %.6f, want <= %.6f", got, threshold)
 }
 
-// Between asserts lo <= got <= hi.
-func (c *Ctx) Between(check string, got, lo, hi float64) bool {
-	if c.tb != nil {
-		c.tb.Helper()
-	}
-	return c.True(check, finite(got) && got >= lo && got <= hi,
-		"got %.6f, want within [%.6f, %.6f]", got, lo, hi)
-}
-
 // Int asserts an integer equals want.
 func (c *Ctx) Int(check string, got, want int) bool {
 	if c.tb != nil {
@@ -599,14 +519,6 @@ func (c *Ctx) IntAtLeast(check string, got, want int) bool {
 		c.tb.Helper()
 	}
 	return c.True(check, got >= want, "got %d, want >= %d", got, want)
-}
-
-// Str asserts a string equals want.
-func (c *Ctx) Str(check, got, want string) bool {
-	if c.tb != nil {
-		c.tb.Helper()
-	}
-	return c.True(check, got == want, "got %q, want %q", got, want)
 }
 
 // NoError asserts err is nil.
