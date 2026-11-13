@@ -4,6 +4,7 @@ import (
 	"context"
 	cryptorand "crypto/rand"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -481,24 +482,34 @@ func TestEventStream_StoppedReaderStallMeasurement(t *testing.T) {
 // -------------------------------------------------------------------------------------------------
 
 type streamHarness struct {
-	fixture *serviceFixture
-	client  cardinalv1connect.CardinalServiceClient
-	ctx     context.Context
-	cancel  context.CancelFunc
-	nextID  atomic.Int64
+	fixture  *serviceFixture
+	client   cardinalv1connect.CardinalServiceClient
+	url      string
+	listener *pathListener
+	ctx      context.Context
+	cancel   context.CancelFunc
+	nextID   atomic.Int64
 
 	exitsMu sync.Mutex
 	exits   map[string]time.Time // Test stream ID -> when its ServeHTTP returned.
 }
 
-func newStreamHarness(t *testing.T) *streamHarness {
+// newStreamHarness serves a fresh service. Each adjust changes the server before it starts.
+func newStreamHarness(t *testing.T, adjust ...func(*http.Server)) *streamHarness {
 	t.Helper()
-	fixture := newServiceFixture(t, testutils.NewRand(t), false)
+	return startStreamHarness(t, newServiceFixture(t, testutils.NewRand(t), false), adjust...)
+}
+
+// startStreamHarness serves fixture's service with the production server configuration, on a
+// listener whose connections a test can break. Each adjust changes the server before it starts.
+func startStreamHarness(t *testing.T, fixture *serviceFixture, adjust ...func(*http.Server)) *streamHarness {
+	t.Helper()
 	mux, err := fixture.svc.newMux(authenticatorDev{}.authenticate)
 	require.NoError(t, err)
 
 	h := &streamHarness{fixture: fixture, exits: make(map[string]time.Time)}
-	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewUnstartedServer(nil)
+	server.Config = newHTTPServer("", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mux.ServeHTTP(w, r)
 		if id := r.Header.Get(testStreamIDHeader); id != "" {
 			h.exitsMu.Lock()
@@ -506,23 +517,42 @@ func newStreamHarness(t *testing.T) *streamHarness {
 			h.exitsMu.Unlock()
 		}
 	}))
-	server.Config.Protocols = h2cProtocols()
+	for _, f := range adjust {
+		f(server.Config)
+	}
+	h.listener = &pathListener{Listener: server.Listener, conns: make(map[string]*pathConn)}
+	server.Listener = h.listener
 	server.Start()
 	t.Cleanup(func() {
 		server.CloseClientConnections()
 		server.Close()
 	})
 
-	protocols := new(http.Protocols)
-	protocols.SetUnencryptedHTTP2(true)
-	transport := &http.Transport{Protocols: protocols}
-	t.Cleanup(transport.CloseIdleConnections)
-	h.client = cardinalv1connect.NewCardinalServiceClient(
-		&http.Client{Transport: transport}, server.URL, connect.WithGRPC())
-
+	h.url = server.URL
+	h.client = newH2CClient(t, server.URL, nil)
 	h.ctx, h.cancel = context.WithCancel(context.Background())
 	t.Cleanup(h.cancel) // Runs first: ends every client stream before the server closes.
 	return h
+}
+
+// newH2CClient returns a client with its own transport. dialed, if not nil, sees each connection
+// the transport opens.
+func newH2CClient(t *testing.T, url string, dialed func(net.Conn)) cardinalv1connect.CardinalServiceClient {
+	t.Helper()
+	protocols := new(http.Protocols)
+	protocols.SetUnencryptedHTTP2(true)
+	transport := &http.Transport{Protocols: protocols}
+	if dialed != nil {
+		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			conn, err := (&net.Dialer{}).DialContext(ctx, network, addr)
+			if err == nil {
+				dialed(conn)
+			}
+			return conn, err
+		}
+	}
+	t.Cleanup(transport.CloseIdleConnections)
+	return cardinalv1connect.NewCardinalServiceClient(&http.Client{Transport: transport}, url, connect.WithGRPC())
 }
 
 func (h *streamHarness) subscriptions(events ...string) []*cardinalv1.EventSubscription {
@@ -539,13 +569,34 @@ func (h *streamHarness) open(t *testing.T, player string, events ...string) *cli
 }
 
 func (h *streamHarness) tryOpen(player string, events ...string) (*clientStream, error) {
+	return h.tryOpenOn(h.client, player, events...)
+}
+
+// openOnOwnConn opens player's stream on a connection of its own and returns the server's side of
+// that connection.
+func (h *streamHarness) openOnOwnConn(t *testing.T, player string, events ...string) (*clientStream, *pathConn) {
+	t.Helper()
+	local := make(chan string, 1)
+	client := newH2CClient(t, h.url, func(conn net.Conn) { local <- conn.LocalAddr().String() })
+	stream, err := h.tryOpenOn(client, player, events...)
+	require.NoError(t, err)
+	// The server accepted the connection before it answered on it.
+	return stream, h.listener.conn(t, <-local)
+}
+
+func (h *streamHarness) tryOpenOn(
+	client cardinalv1connect.CardinalServiceClient, player string, events ...string,
+) (*clientStream, error) {
 	ctx, cancel := context.WithCancel(h.ctx)
-	req := connect.NewRequest(&cardinalv1.StartEventStreamRequest{Subscriptions: h.subscriptions(events...)})
+	req := connect.NewRequest(&cardinalv1.StartEventStreamRequest{})
+	if len(events) > 0 {
+		req.Msg.Subscriptions = h.subscriptions(events...)
+	}
 	req.Header().Set(devPlayerIDHeader, player)
 	id := strconv.FormatInt(h.nextID.Add(1), 10)
 	req.Header().Set(testStreamIDHeader, id)
 
-	stream, err := h.client.StartEventStream(ctx, req)
+	stream, err := client.StartEventStream(ctx, req)
 	if err != nil {
 		cancel()
 		return nil, err
@@ -592,6 +643,35 @@ func (h *streamHarness) tryUnsubscribe(player string, events ...string) error {
 func (h *streamHarness) subscribe(t *testing.T, player string, events ...string) {
 	t.Helper()
 	require.NoError(t, h.trySubscribe(player, events...))
+}
+
+// shortenConnTimeouts sets the server's HTTP/2 connection timeouts to ones a test can wait for. It
+// changes only timeouts the server sets, and a zero keeps the server's.
+func shortenConnTimeouts(write, pingAfter, ping time.Duration) func(*http.Server) {
+	return func(server *http.Server) {
+		h2 := server.HTTP2
+		if h2 == nil {
+			return
+		}
+		for _, timeout := range []struct {
+			field *time.Duration
+			to    time.Duration
+		}{
+			{&h2.WriteByteTimeout, write}, {&h2.SendPingTimeout, pingAfter}, {&h2.PingTimeout, ping},
+		} {
+			if *timeout.field > 0 && timeout.to > 0 {
+				*timeout.field = timeout.to
+			}
+		}
+	}
+}
+
+// handlerRunning reports whether the server's handler for stream id has not returned yet.
+func (h *streamHarness) handlerRunning(id string) bool {
+	h.exitsMu.Lock()
+	defer h.exitsMu.Unlock()
+	_, exited := h.exits[id]
+	return !exited
 }
 
 // awaitHandlerExit returns when the server's handler for stream id returned.

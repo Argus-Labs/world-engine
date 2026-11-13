@@ -186,6 +186,14 @@ func (m *Manager) Drain() []Command {
 	return all
 }
 
+// Retain keeps, in order, only the drained commands for which keep returns true. Call it after
+// Drain and before systems read the buffers.
+func (m *Manager) Retain(keep func(Command) bool) {
+	for id := range m.commands {
+		m.commands[id] = slices.DeleteFunc(m.commands[id], func(cmd Command) bool { return !keep(cmd) })
+	}
+}
+
 // Clear discards all pending commands from both queues and buffers.
 func (m *Manager) Clear() {
 	for id := range m.queues {
