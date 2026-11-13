@@ -3,6 +3,7 @@ package schema_test
 import (
 	"bytes"
 	"errors"
+	"math"
 	"strconv"
 	"testing"
 
@@ -110,6 +111,37 @@ func TestSerializeEncodesMapsInStableOrder(t *testing.T) {
 	var got mapPayload
 	require.NoError(t, schema.Deserialize(first, &got))
 	assert.Equal(t, want, got)
+}
+
+// decodedFirstScores belongs to TestSerializeAfterDeserializeEncodesMapsInStableOrder alone, so no
+// other test can prepare it first.
+type decodedFirstScores map[string]int
+
+type decodedFirstPayload struct{ Scores decodedFirstScores }
+
+func (decodedFirstPayload) Name() string { return "decoded_first_payload" }
+
+func TestSerializeAfterDeserializeEncodesMapsInStableOrder(t *testing.T) {
+	t.Parallel()
+	// map[string]any rather than map[string]int: encoding a type with msgpack directly while a
+	// parallel test registers it can overwrite the registration with msgpack's default encoder.
+	scores := map[string]any{}
+	for i := range 32 {
+		scores[strconv.Itoa(i)] = i
+	}
+	// Decode the type before anything has serialized or registered it.
+	data, err := msgpack.Marshal(map[string]any{"Scores": scores})
+	require.NoError(t, err)
+	var got decodedFirstPayload
+	require.NoError(t, schema.Deserialize(data, &got))
+
+	first, err := schema.Serialize(got)
+	require.NoError(t, err)
+	for range 20 {
+		again, err := schema.Serialize(got)
+		require.NoError(t, err)
+		require.Equal(t, first, again, "equal maps must encode to equal bytes")
+	}
 }
 
 // inventory has only a helper method, so it still gets the sorted map encoder.
@@ -237,6 +269,77 @@ func TestRegisterKeepsCustomFloat32Decoder(t *testing.T) {
 	require.NoError(t, err)
 	var got percentPayload
 	require.ErrorContains(t, schema.Deserialize(data, &got), "negative percent")
+}
+
+type level uint8
+
+type intPayload struct {
+	Small  uint8
+	Tiny   int8
+	Big    uint64
+	Wide   int64
+	Level  level
+	ByKey  map[uint16]int32
+	List   []int16
+	Pair   [2]uint16
+	Frozen immutable.Slice[uint32]
+}
+
+func (intPayload) Name() string { return "int_payload" }
+
+func TestDeserializeRejectsOutOfRangeIntegers(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		field string
+		value any
+	}{
+		{"Small", 256},
+		{"Small", -1},
+		{"Tiny", 128},
+		{"Tiny", -129},
+		{"Big", -1},
+		{"Wide", uint64(math.MaxInt64) + 1},
+		{"Level", 256},
+		{"ByKey", map[int]int{65536: 0}},
+		{"ByKey", map[int]int{0: math.MaxInt32 + 1}},
+		{"List", []int{math.MinInt16 - 1}},
+		{"Pair", []int{0, 65536}},
+		{"Frozen", []int{-1}},
+	} {
+		data, err := msgpack.Marshal(map[string]any{tc.field: tc.value})
+		require.NoError(t, err)
+		kept := intPayload{Small: 7}
+		err = schema.Deserialize(data, &kept)
+		require.ErrorContains(t, err, "out of range", "%s = %v", tc.field, tc.value)
+		require.Equal(t, intPayload{Small: 7}, kept)
+	}
+
+	// Each type's own bounds still decode.
+	data, err := msgpack.Marshal(map[string]any{
+		"Small":  255,
+		"Tiny":   -128,
+		"Big":    uint64(math.MaxUint64),
+		"Wide":   math.MinInt64,
+		"Level":  255,
+		"ByKey":  map[int]int{65535: math.MinInt32},
+		"List":   []int{math.MaxInt16},
+		"Pair":   []int{0, math.MaxUint16},
+		"Frozen": []int{math.MaxUint32},
+	})
+	require.NoError(t, err)
+	var got intPayload
+	require.NoError(t, schema.Deserialize(data, &got))
+	require.Equal(t, intPayload{
+		Small:  255,
+		Tiny:   -128,
+		Big:    math.MaxUint64,
+		Wide:   math.MinInt64,
+		Level:  255,
+		ByKey:  map[uint16]int32{65535: math.MinInt32},
+		List:   []int16{math.MaxInt16},
+		Pair:   [2]uint16{0, math.MaxUint16},
+		Frozen: immutable.SliceOf[uint32](math.MaxUint32),
+	}, got)
 }
 
 type unsupportedPayload struct{ Channel chan int }
