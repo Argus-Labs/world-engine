@@ -11,6 +11,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/kernel"
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
 )
 
@@ -96,6 +97,7 @@ func (w *World) ensureSync() *syncPublisher {
 	p.authorities = registerBuiltin[syncstate.Authorities](w)
 	w.sync = p
 	w.world.Observe(p.observe)
+	w.hookSync()
 	w.events.RegisterHandler(event.KindSync, w.dispatchSync)
 	return p
 }
@@ -249,57 +251,87 @@ func (m commandMemory) forget(now time.Time) {
 	}
 }
 
-// judgeCommands removes the commands a sender may not send before any handler sees them, and
-// tells each rejected player why. A target is judged by what the server last published. A
-// player's repeat of a remembered command ID is not judged again: it gets the first verdict, and
-// never reaches a handler.
-func (w *World) judgeCommands() {
-	type rejection struct {
-		cmd    command.Command
-		id     uint64
-		reason syncstate.Reason
+// hookSync registers sync's hooks with the tick, once. A world that registers a command judges
+// its commands; the hooks that publish do nothing until EnableSync.
+func (w *World) hookSync() {
+	if w.hooks != nil {
+		return
 	}
-	now := w.Timestamp()
+	w.hooks = kernel.New(w.world)
+	w.hooks.Register(kernel.Hooks{
+		Name:   "sync",
+		Begin:  w.beginJudging,
+		Admit:  w.judgeCommand,
+		Emit:   w.emitSync,
+		Commit: w.commitSync,
+		Settle: w.settleSync,
+	})
+}
+
+// beginJudging forgets, before the tick's first command is judged, the verdicts that have aged
+// out and what EnableSync's predicate said about last tick's senders.
+func (w *World) beginJudging() {
 	if w.judged == nil {
 		w.judged = commandMemory{}
 	}
-	w.judged.forget(now)
-	var rejected []rejection
-	admitted := map[string]bool{} // EnableSync's verdict per sender, once per tick
-	w.commands.Retain(func(cmd command.Command) bool {
-		var id uint64
-		if t, ok := cmd.Payload.(targeted); ok {
-			id = t.SyncCommandID()
-		}
-		var reason syncstate.Reason
-		repeat := false
-		player, isPlayer := cmd.Sender.Player() // only players' IDs are remembered
-		if isPlayer {
-			reason, repeat = w.judged.recall(player, id)
-		}
-		if !repeat {
-			reason = w.commandVerdict(cmd, admitted)
-			if isPlayer {
-				w.judged.remember(player, judgedCommand{id: id, at: now, verdict: reason})
-			}
-		}
-		if reason != "" {
-			rejected = append(rejected, rejection{cmd, id, reason})
-		}
-		return reason == "" && !repeat
-	})
-	// Reply only once every command is judged: sending publishes pending changes first.
-	for _, r := range rejected {
-		if player, ok := r.cmd.Sender.Player(); ok {
-			w.SendTo(player, syncstate.CommandRejected{Command: r.cmd.Name, Reason: r.reason, CommandID: r.id})
-			continue
-		}
-		w.tel.Logger.Warn().Str("command", r.cmd.Name).Str("sender", r.cmd.Sender.ID()).
-			Str("reason", string(r.reason)).Msg("rejected a command from another shard")
+	if w.admitted == nil {
+		w.admitted = map[string]bool{}
 	}
+	w.judged.forget(w.Timestamp())
+	clear(w.admitted)
 }
 
-func (w *World) commandVerdict(cmd command.Command, admitted map[string]bool) syncstate.Reason {
+// judgeCommand rejects a command its sender may not send, before any handler sees it. A target is
+// judged by what the server last published. A player's repeat of a remembered command ID is not
+// judged again: it gets the first verdict, and never reaches a handler.
+func (w *World) judgeCommand(cmd command.Command) kernel.Verdict {
+	var id uint64
+	if t, ok := cmd.Payload.(targeted); ok {
+		id = t.SyncCommandID()
+	}
+	var reason syncstate.Reason
+	repeat := false
+	player, isPlayer := cmd.Sender.Player() // only players' IDs are remembered
+	if isPlayer {
+		reason, repeat = w.judged.recall(player, id)
+	}
+	if !repeat {
+		reason = w.commandVerdict(cmd)
+		if isPlayer {
+			w.judged.remember(player, judgedCommand{id: id, at: w.Timestamp(), verdict: reason})
+		}
+	}
+	switch {
+	case reason != "":
+		return kernel.Verdict{Outcome: kernel.Rejected, Reason: string(reason), CommandID: id}
+	case repeat:
+		return kernel.Verdict{Outcome: kernel.Dropped}
+	}
+	return kernel.Verdict{}
+}
+
+// emitSync is sync's part in sending an event. It stamps the event, narrows a client event to
+// the readers who may see it, and publishes the changes made before it, so they arrive first.
+func (w *World) emitSync(e *kernel.Emit) {
+	w.stampSync(e.Payload)
+	if e.Kind != kernel.SystemEvent {
+		// Before the capture below can drop a destroyed entity's last entry.
+		if audience := w.syncAudience(e.Payload); audience != nil {
+			e.Narrow(audience)
+		}
+	}
+	w.captureSync(false)
+}
+
+// commitSync publishes what the tick's systems left behind: the last capture, then an open or a
+// close for every reader whose stream must change.
+func (w *World) commitSync() {
+	w.captureSync(true)
+	w.reconcileSync()
+}
+
+// commandVerdict judges a command no earlier verdict covers; "" admits it.
+func (w *World) commandVerdict(cmd command.Command) syncstate.Reason {
 	player, isPlayer := cmd.Sender.Player()
 	switch w.commandSenders[cmd.Name] {
 	case syncstate.FromPlayers:
@@ -319,10 +351,10 @@ func (w *World) commandVerdict(cmd command.Command, admitted map[string]bool) sy
 	if !p.enabled() || !isPlayer {
 		return syncstate.StaleTarget // only an admitted player can hold authority
 	}
-	allowed, known := admitted[player]
+	allowed, known := w.admitted[player]
 	if !known {
 		allowed = p.admit(player)
-		admitted[player] = allowed
+		w.admitted[player] = allowed
 	}
 	return p.judge(player, allowed, target.SyncTarget())
 }
