@@ -417,7 +417,7 @@ var twoShardContainers = []docker.ContainerSummary{
 	{Name: "p-chat", Labels: service.Labels("p", service.RoleShard, "chat", "chat-0")},
 }
 
-// twoShardConfig is the shared shard config for the CheckLayout tests.
+// twoShardConfig is the shared two-shard config for the CheckLayout tests.
 var twoShardConfig = []worldtoml.Shard{
 	{ID: "game", InstanceID: "game-0"},
 	{ID: "chat", InstanceID: "chat-0"},
@@ -517,4 +517,79 @@ func TestCheckLayout_LayoutComparison(t *testing.T) {
 			}
 		})
 	}
+}
+
+// WaitForShardsReady returns counts only (no error). A cancellation that lands
+// before the first completed probe round collapses into a plain (0, expected)
+// return without ever invoking onProgress; a mid-wait cancellation returns the
+// last completed count.
+
+func TestWaitForShardsReady_CanceledContextReturnsZeroWithoutProgress(t *testing.T) {
+	t.Parallel()
+
+	cfg := poolShardConfig()
+	r := New(nil, cfg)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	var progressCalls int
+	ready, expected := r.WaitForShardsReady(ctx, nil, func(_, _ int) { progressCalls++ })
+
+	if ready != 0 {
+		t.Fatalf("canceled context: ready = %d, want 0", ready)
+	}
+	if expected != len(cfg.WorldToml.Shards) {
+		t.Fatalf("expected = %d, want %d", expected, len(cfg.WorldToml.Shards))
+	}
+	if progressCalls != 0 {
+		t.Fatalf("onProgress called %d times, want 0 (cancel before first tick)", progressCalls)
+	}
+}
+
+// WaitForShardsReady preserves the last completed count when the caller
+// context is canceled mid-wait (not the internal shardReadyTimeout readiness
+// timeout): with one of two shards serving and the other down, canceling the
+// caller context after partial progress is observed returns the partial
+// count rather than zero. This is caller-cancellation coverage: the caller's
+// context is what ends, and it does not exercise the genuine internal
+// shardReadyTimeout readiness deadline with a live caller.
+func TestWaitForShardsReady_CallerCanceledReturnsLastCount(t *testing.T) {
+	t.Parallel()
+
+	cfg := poolShardConfig()
+	r := New(nil, cfg)
+
+	// Probe free ports via the same probeHostPort seam the reproduction tests
+	// use (withFreePorts), so a running local world's shard ports cannot
+	// collide and silently skip this coverage. The dead listener (instance 0)
+	// accept-and-closes; the serving listener (instance 1) replies, so
+	// shardReady reports one of two ready.
+	withFreePorts(t, r, func() {
+		// Cancel the caller context from the progress callback once partial
+		// progress (1/len(cfg.WorldToml.Shards)) is observed, so the retained-count
+		// assertion does not depend on the first probe round beating a fixed
+		// deadline.
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		var lastReady, lastExpected int
+		ready, expected := r.WaitForShardsReady(ctx, nil, func(ready, expected int) {
+			lastReady, lastExpected = ready, expected
+			if ready == 1 && expected == len(cfg.WorldToml.Shards) {
+				cancel()
+			}
+		})
+
+		if ready != 1 {
+			t.Fatalf("partial count must survive the caller context canceling: ready = %d, want 1", ready)
+		}
+		if expected != len(cfg.WorldToml.Shards) {
+			t.Fatalf("expected = %d, want %d", expected, len(cfg.WorldToml.Shards))
+		}
+		if lastReady != 1 || lastExpected != len(cfg.WorldToml.Shards) {
+			t.Fatalf("onProgress did not observe partial progress: last = %d/%d, want 1/%d",
+				lastReady, lastExpected, len(cfg.WorldToml.Shards))
+		}
+	})
 }

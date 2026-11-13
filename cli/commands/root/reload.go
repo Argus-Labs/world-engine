@@ -2,6 +2,7 @@ package root
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -259,9 +260,9 @@ func purgeAndRedeploy(
 // record the instance IDs handed to WaitForShardsReady and return canned
 // ready/expected counts.
 type shardRoller interface {
+	shardReadinessWaiter
 	PruneOrphanedShards(ctx context.Context) error
 	Deploy(ctx context.Context, opts local.DeployOpts) error
-	WaitForShardsReady(ctx context.Context, instanceIDs []string, onProgress func(ready, expected int)) (int, int)
 }
 
 // rollShards recreates the targeted shards' containers, one dashboard row per shard.
@@ -298,46 +299,78 @@ func rollShards(
 	if waitReady {
 		// Deploy recreates every instance in each targeted pool, so wait for the whole pool.
 		waitInstanceIDs := targets.poolInstances(opts.ShardIDs())
-		var ready, expected int
-		waitForShardsReadyRow(sess, func(onProgress func(ready, expected int)) {
-			ready, expected = rt.WaitForShardsReady(ctx, waitInstanceIDs, onProgress)
-		})
-		if ready < expected {
-			// Returned, not just shown: the row is already Failed, but the summary and the
-			// exit code are what a script or an agent reads, and plain progress has no rows.
-			return &shardsNotReadyError{ready: ready, expected: expected}
-		}
+		return waitForShardsReadyResult(ctx, sess, rt, waitInstanceIDs)
+	}
+	return nil
+}
+
+// shardReadinessWaiter is the subset of local.Runtime the readiness wait uses;
+// *local.Runtime satisfies it.
+type shardReadinessWaiter interface {
+	WaitForShardsReady(
+		ctx context.Context,
+		instanceIDs []string,
+		onProgress func(ready, expected int),
+	) (ready, expected int)
+}
+
+// waitForShardsReadyResult waits for the targeted instances to serve and
+// classifies the outcome: the waiter returns counts without an error,
+// cancellation returns [context.Canceled], and incomplete counts return
+// shardsNotReadyError (complete counts still succeed with an expired
+// deadline).
+func waitForShardsReadyResult(
+	ctx context.Context, sess phasebox.Session, waiter shardReadinessWaiter, instanceIDs []string,
+) error {
+	var ready, expected int
+	waitForShardsReadyRow(ctx, sess, func(onProgress func(ready, expected int)) {
+		ready, expected = waiter.WaitForShardsReady(ctx, instanceIDs, onProgress)
+	})
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return ctx.Err()
+	}
+	if ready < expected {
+		// Returned, not just shown: the row, if any, is already Failed, but the
+		// summary and the exit code are what a script or an agent reads, and plain
+		// progress has no rows.
+		return &shardsNotReadyError{ready: ready, expected: expected}
 	}
 	return nil
 }
 
 // waitForShardsReadyRow drives the "ready" progress row through WaitForShardsReady
-// to a terminal state. waitForReady performs the actual wait and invokes
-// onProgress for every poll tick (local.Runtime.WaitForShardsReady). The row is
-// set Active on every tick, then closed to Done when ready >= expected or Failed
-// ("timed out …") otherwise. The progressed guard is defensive: WaitForShardsReady
-// always ticks at least once because its counter starts below zero, so it only
-// protects a future waitForReady that could return without reporting anything.
+// to a terminal state. Cancellation takes precedence even when the counts are
+// complete: a Ctrl+C landed after the last probe round is a cancel, not a silent
+// success. The progressed guard handles cancellation before the first completed
+// probe round, where WaitForShardsReady returns (0, expected) without invoking
+// onProgress — the row stays absent rather than rendering a terminal claim with
+// no evidence.
 //
 // Must run before the enclosing section finishes: phasebox drops upserts to a
 // finished section (see Model.upsert), so a terminal update after dash.Run
 // returns would be silently lost and the row would keep rendering its spinner.
-func waitForShardsReadyRow(sess phasebox.Session, waitForReady func(onProgress func(ready, expected int))) {
+func waitForShardsReadyRow(
+	ctx context.Context, sess phasebox.Session, waitForReady func(onProgress func(ready, expected int)),
+) {
 	var lastReady, expected int
 	progressed := false
 	waitForReady(func(ready, exp int) {
 		lastReady, expected = ready, exp
 		progressed = true
-		sess.UpsertRow("ready", "Waiting for shards ready", fmt.Sprintf("%d/%d", ready, exp), phasebox.Active)
+		sess.UpsertRow("ready", "Waiting for shards to be ready", fmt.Sprintf("%d/%d", ready, exp), phasebox.Active)
 	})
 	if !progressed {
+		return
+	}
+	if errors.Is(ctx.Err(), context.Canceled) {
+		sess.Fail("ready", "Waiting for shards to be ready", ctx.Err())
 		return
 	}
 	state, detail := phasebox.Done, fmt.Sprintf("%d/%d", lastReady, expected)
 	if lastReady < expected {
 		state, detail = phasebox.Failed, fmt.Sprintf("timed out (%d/%d ready)", lastReady, expected)
 	}
-	sess.UpsertRow("ready", "Waiting for shards ready", detail, state)
+	sess.UpsertRow("ready", "Waiting for shards to be ready", detail, state)
 }
 
 // shardsNotReadyError reports instances that were deployed but never answered. It is its
