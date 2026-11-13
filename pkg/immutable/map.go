@@ -46,6 +46,11 @@ type Key interface {
 //
 // The zero value is an empty Map, and every empty Map is the zero value.
 //
+// Don't key a Map by an entity ID unless the system that destroys those entities also removes their
+// keys. Entity IDs are reused as soon as an entity is destroyed, so a stale key silently refers to
+// whichever entity takes the slot next. Key long-lived data by an ID the game owns: a player ID, a
+// database ID, or a counter the game mints that never repeats.
+//
 // The value type must be value-safe, the same rule Slice elements follow. Map does not check this;
 // registering a component that holds such a Map fails.
 type Map[K Key, V any] struct {

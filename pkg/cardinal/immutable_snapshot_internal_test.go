@@ -29,11 +29,13 @@ type snapCell struct {
 // snapDeep nests a Map three levels deep, with a struct holding a Slice at the bottom, beside a Slice
 // of Maps.
 type snapDeep struct {
-	Regions immutable.Map[string, immutable.Map[uint32, immutable.Map[EntityID, snapCell]]]
+	Regions immutable.Map[string, immutable.Map[uint32, immutable.Map[cellID, snapCell]]]
 	Log     immutable.Slice[immutable.Map[int8, string]]
 }
 
 func (snapDeep) Name() string { return "snap_deep" }
+
+type cellID uint16
 
 type snapRow struct {
 	Deep snapDeep
@@ -58,7 +60,9 @@ func (s *snapGrow) Run(w *World) {
 	}
 
 	tick := w.TickHeight()
+	var row cellID
 	for e := range w.Contains[snapRow]().Iter() {
+		row++
 		d := e.Get[snapDeep]()
 		region := "r" + strconv.FormatUint(tick%3, 10)
 		zone := uint32(tick % 2)
@@ -66,12 +70,12 @@ func (s *snapGrow) Run(w *World) {
 		zones, _ := d.Regions.Get(region)
 		cells, _ := zones.Get(zone)
 		b := cells.Edit()
-		c, _ := b.Get(e.ID())
+		c, _ := b.Get(row)
 		c.HP += int64(tick) + 1
 		c.Tags = c.Tags.Append("t" + strconv.FormatUint(tick, 10))
-		b.Set(e.ID(), c)
-		b.Set(EntityID(1000+tick%5), snapCell{HP: -int64(tick)})
-		zones = zones.With(zone, b.Done()).With(99, immutable.Map[EntityID, snapCell]{})
+		b.Set(row, c)
+		b.Set(cellID(1000+tick%5), snapCell{HP: -int64(tick)})
+		zones = zones.With(zone, b.Done()).With(99, immutable.Map[cellID, snapCell]{})
 		d.Regions = d.Regions.With(region, zones)
 		if tick%5 == 4 {
 			d.Regions = d.Regions.Without("r0")
@@ -91,7 +95,7 @@ func (*snapPeek) Run(w *World) {
 		d := e.Get[snapDeep]()
 		for region, zones := range d.Regions.All() {
 			b := zones.Without(0).Edit()
-			b.Set(77, immutable.Map[EntityID, snapCell]{}.With(1, snapCell{HP: 1}))
+			b.Set(77, immutable.Map[cellID, snapCell]{}.With(1, snapCell{HP: 1}))
 			b.Delete(1)
 			for zone, cells := range zones.All() {
 				for id, c := range cells.All() {

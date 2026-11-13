@@ -11,7 +11,7 @@ import (
 
 // threat holds every collection shape a component may use, edited every tick by threatSystem.
 type threat struct {
-	Table immutable.Map[cardinal.EntityID, int64]
+	Table immutable.Map[string, int64] // keyed by attacking player, an ID the game owns
 	Log   immutable.Slice[int64]
 	ByTag immutable.Map[string, immutable.Slice[uint8]]
 }
@@ -23,7 +23,7 @@ type threatRow struct {
 }
 
 type hitCommand struct {
-	Attacker cardinal.EntityID
+	Attacker string
 	Damage   int64
 	Tags     immutable.Map[string, uint8]
 }
@@ -94,7 +94,7 @@ func TestImmutableCollections_Deterministic(t *testing.T) {
 				tags["tag"+strconv.Itoa((step+i)%11)] = uint8(i)
 			}
 			w.Command("p"+strconv.Itoa(step%3), hitCommand{
-				Attacker: cardinal.EntityID(step % 13),
+				Attacker: "player-" + strconv.Itoa(step%13),
 				Damage:   int64(step*7%23) - 5,
 				Tags:     immutable.MapFrom(maps.All(tags)),
 			})
