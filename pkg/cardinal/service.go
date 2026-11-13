@@ -247,23 +247,29 @@ type streamSubscriber struct {
 	// Events waiting for the stream's handler, its only writer, which drains them in order.
 	queueMu     sync.Mutex
 	queue       []queuedEvent // Guarded by queueMu.
-	queuedBytes int           // Guarded by queueMu. Counts events until they are written.
+	queuedBytes int           // Guarded by queueMu. Counts events until the writer takes them.
 	queueReady  chan struct{} // Signalled after each enqueue; capacity 1.
 }
 
 type queuedEvent struct {
 	response *cardinalv1.StartEventStreamResponse
 	queuedAt time.Time
-	size     int // Charged against streamQueueBytes until written.
+	size     int // Charged against streamQueueBytes until the writer takes it.
 }
 
 // enqueue hands an event of size bytes to the stream's writer without blocking. A stream already
 // holding streamQueueBytes of unwritten events ends as lagged instead, so a stopped reader cannot
 // grow without bound. A reader that is merely behind a large tick is ended by age, not by this
-// limit: see streamLagLimit.
+// limit: see streamLagLimit. A cancelled stream takes nothing: see dropQueue.
 func (s *streamSubscriber) enqueue(response *cardinalv1.StartEventStreamResponse, size int) error {
 	size += queuedEventOverhead
 	s.queueMu.Lock()
+	select {
+	case <-s.ctx.Done():
+		s.queueMu.Unlock()
+		return nil
+	default:
+	}
 	if s.queuedBytes+size > streamQueueBytes {
 		s.queueMu.Unlock()
 		s.cancel(errStreamLagged)
@@ -280,26 +286,44 @@ func (s *streamSubscriber) enqueue(response *cardinalv1.StartEventStreamResponse
 	return nil
 }
 
-// writeQueued writes every waiting event, oldest first, releasing each one's charge once written.
-// It stops at a failed write, or once the stream is cancelled, leaving the rest unwritten.
-func (s *streamSubscriber) writeQueued() error {
+// dropQueue releases every waiting event; it runs once the stream is cancelled, for any reason.
+// Nothing more is written to the stream, but its handler can stay blocked in a write for as long as
+// its connection lives, so it holds only the event it is writing.
+func (s *streamSubscriber) dropQueue() {
 	s.queueMu.Lock()
-	queued := s.queue
-	s.queue = nil
-	s.queueMu.Unlock()
+	defer s.queueMu.Unlock()
+	s.queue, s.queuedBytes = nil, 0
+}
 
-	for _, evt := range queued {
+// writeQueued writes every waiting event, oldest first, taking one at a time. It stops at a failed
+// write, or once the stream is cancelled.
+func (s *streamSubscriber) writeQueued() error {
+	for {
+		evt, ok := s.dequeue()
+		if !ok {
+			return nil
+		}
 		if s.ctx.Err() != nil { // Superseded, lagged, or closed.
 			return streamEndError(s.ctx)
 		}
 		if err := s.write(evt.response, evt.queuedAt); err != nil {
 			return err
 		}
-		s.queueMu.Lock()
-		s.queuedBytes -= evt.size
-		s.queueMu.Unlock()
 	}
-	return nil
+}
+
+// dequeue takes the oldest waiting event and releases its charge.
+func (s *streamSubscriber) dequeue() (queuedEvent, bool) {
+	s.queueMu.Lock()
+	defer s.queueMu.Unlock()
+	if len(s.queue) == 0 {
+		return queuedEvent{}, false
+	}
+	evt := s.queue[0]
+	s.queue[0] = queuedEvent{} // The queue no longer holds it.
+	s.queue = s.queue[1:]
+	s.queuedBytes -= evt.size
+	return evt, true
 }
 
 // write sends one response; only the stream's handler calls it. A write still pending
@@ -492,6 +516,7 @@ func (s *service) StartEventStream(
 	}
 	subscriber.lagged.Stop()
 	defer subscriber.lagged.Stop()
+	context.AfterFunc(ctx, subscriber.dropQueue)
 	addSubscriptions(subscriber, req.Msg.GetSubscriptions())
 	s.addSubscriber(player.ID, subscriber)
 	defer s.removeSubscriber(player.ID, subscriber)
