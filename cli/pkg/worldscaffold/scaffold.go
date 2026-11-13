@@ -38,24 +38,6 @@ var localDevSkill string
 //nolint:gochecknoglobals // fixed list
 var skillDirs = []string{".claude/skills/world-local-dev", ".agents/skills/world-local-dev"}
 
-// Scaffold creates a new project at targetDir from the given template: it clones
-// and instantiates the template (see InstantiateTemplate) at the World Engine
-// release this binary was built from, then tidies dependencies. It is the single entry point for
-// callers that don't manage the individual steps (e.g. the editor). On any
-// failure it leaves nothing behind — targetDir is removed so the name stays
-// retryable.
-func Scaffold(ctx context.Context, tmpl GameTemplate, targetDir string) error {
-	if err := InstantiateTemplate(ctx, tmpl.URL, version.WorldEngine(), targetDir, tmpl.Subdir); err != nil {
-		return err
-	}
-	if err := Tidy(ctx, targetDir); err != nil {
-		// InstantiateTemplate created targetDir; drop it so a retry starts clean.
-		removeAll(ctx, targetDir)
-		return err
-	}
-	return nil
-}
-
 // InstantiateTemplate clones a git template and turns it into a ready-to-build
 // project named after targetDir's base: it writes a go.mod, rewrites example
 // imports to the module path, and sets world.toml's project field. On any failure
