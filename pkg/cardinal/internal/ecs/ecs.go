@@ -164,5 +164,8 @@ func (w *World) GetSystemEvents[T SystemEvent]() ([]T, error) {
 }
 
 func (w *World) EmitSystemEvent[T SystemEvent](systemEvent T) error {
+	if w.state.readOnly != "" {
+		w.state.refuseWrite("EmitSystemEvent")
+	}
 	return w.systemEvents.enqueue(systemEvent)
 }
