@@ -7,8 +7,9 @@ import (
 )
 
 // check asserts, at the end of every tick in development builds, that the publisher's derived
-// state equals what it is derived from: every seated reader's slot bits equal the list test, and
-// each policy lists exactly the entities whose entries use it.
+// state equals what it is derived from: every seated reader's slot bits equal the list test,
+// each policy lists exactly the entities whose entries use it, and each entry's components are in
+// ascending index order.
 func (p *syncPublisher) check() {
 	indexed := 0
 	for key, pol := range p.policies {
@@ -42,9 +43,15 @@ func (p *syncPublisher) check() {
 		})
 	}
 	published := 0
-	for _, e := range p.entries {
-		if e != nil {
-			published++
+	for n, e := range p.entries {
+		if e == nil {
+			continue
+		}
+		published++
+		for i := 1; i < len(e.values); i++ {
+			assert.That(e.values[i-1].Component < e.values[i].Component,
+				"sync entity %d lists component %d after %d; patches need ascending indexes",
+				n, e.values[i].Component, e.values[i-1].Component)
 		}
 	}
 	assert.That(indexed == published, "sync policies list %d entities, %d are published", indexed, published)

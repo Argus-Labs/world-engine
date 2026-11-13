@@ -44,6 +44,9 @@ func (w *World) Identity(eid EntityID) (string, uint64) {
 	return w.state.session, w.state.incarnations[eid]
 }
 
+// Session returns the session every lifetime Identity returns belongs to; "" before Observe.
+func (w *World) Session() string { return w.state.session }
+
 // ReadObserved encodes only the requested columns, once for this publication boundary.
 // The caller owns all returned bytes. Call only on the tick goroutine.
 func (w *World) ReadObserved(eid EntityID, names []string) (map[string][]byte, error) {

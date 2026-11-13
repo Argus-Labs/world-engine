@@ -6,11 +6,9 @@ import (
 	"strings"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
-	"github.com/google/uuid"
 	"github.com/vmihailenco/msgpack/v5"
 	"google.golang.org/protobuf/proto"
 )
@@ -107,14 +105,14 @@ func (w *World) dispatchSync(_ context.Context, evt event.Event) error {
 		}
 	case syncOpen:
 		r := &p.roster.readers[item.slot]
-		r.subscriber, r.generation, r.stream, r.sequence = item.subscriber, item.generation, uuid.NewString(), 0
+		r.subscriber, r.generation, r.stream, r.sequence = item.subscriber, item.generation, p.nextStream(), 0
 		p.roster.live.put(item.slot, true)
 		w.sendSync(r, true, p.baseline(item.slot))
 	case syncClose:
 		r := &p.roster.readers[item.slot]
 		p.roster.live.put(item.slot, false)
 		if item.clear {
-			r.stream, r.sequence = uuid.NewString(), 0
+			r.stream, r.sequence = p.nextStream(), 0
 			w.sendSync(r, true, syncDelta{})
 		}
 		r.subscriber = nil
@@ -135,49 +133,56 @@ func (w *World) settleSync() {
 	p.check()
 }
 
-// syncWire is a sync.Frame whose records were encoded once, when their entries were published.
-// Its fields match sync.Frame in name and order, so it encodes to the same bytes.
+// syncWire is a sync.Frame whose records and patches were encoded once, when their transitions
+// were captured. Its fields match sync.Frame in order and type, so it encodes to the same bytes.
 type syncWire struct {
-	Version     int
-	Fingerprint string
-	Stream      string
-	Sequence    uint64
-	Baseline    bool
-	Records     []msgpack.RawMessage
-	Removed     []syncstate.ID
-	Access      []syncstate.Grant
+	_msgpack struct{} `msgpack:",as_array"` //nolint:unused // msgpack reads the tag: encode as an array
+
+	Open     *syncstate.Open
+	Stream   uint64
+	Sequence uint64
+	Records  []msgpack.RawMessage
+	Patches  []msgpack.RawMessage
+	Removed  []syncstate.Ref
+	Access   []syncstate.Grant
 }
 
-func (syncWire) Name() string { return syncstate.EventName }
+// nextStream numbers a new stream. Numbers are never reused while the world runs, so a delta
+// from a stream the reader left never matches the one it holds.
+func (p *syncPublisher) nextStream() uint64 {
+	p.streams++
+	return p.streams
+}
 
-// sendSync numbers one frame on the reader's stream and queues it for the reader's writer.
+// sendSync numbers one frame on the reader's stream and queues it for the reader's writer. A
+// baseline opens the stream: it alone says the protocol, the contract and the session.
 func (w *World) sendSync(r *syncReader, baseline bool, d syncDelta) {
 	r.sequence++
 	if r.subscriber == nil || r.subscriber.ctx.Err() != nil {
 		return
 	}
-	p := w.sync
-	if p.fingerprint == "" {
-		fingerprint, err := w.SyncContract().Fingerprint()
-		if err != nil {
-			panic(err)
+	frame := syncWire{
+		Stream:   r.stream,
+		Sequence: r.sequence,
+		Records:  d.records,
+		Patches:  d.patches,
+		Removed:  d.removed,
+		Access:   d.access,
+	}
+	if baseline {
+		p := w.sync
+		if p.fingerprint == "" {
+			fingerprint, err := w.SyncContract().Fingerprint()
+			if err != nil {
+				panic(err)
+			}
+			p.fingerprint = fingerprint
 		}
-		p.fingerprint = fingerprint
+		frame.Open = &syncstate.Open{
+			Version: syncstate.ProtocolVersion, Fingerprint: p.fingerprint, Session: w.world.Session(),
+		}
 	}
-	data, err := schema.Serialize(syncWire{
-		Version:     syncstate.ProtocolVersion,
-		Fingerprint: p.fingerprint,
-		Stream:      r.stream,
-		Sequence:    r.sequence,
-		Baseline:    baseline,
-		Records:     d.records,
-		Removed:     d.removed,
-		Access:      d.access,
-	})
-	if err != nil {
-		panic(err)
-	}
-	evt := &iscv1.Event{Name: syncstate.EventName, Payload: data}
+	evt := &iscv1.Event{Name: syncstate.EventName, Payload: encodeSync(frame)}
 	// A full queue ends the stream as lagged; the next reconcile closes its slot.
 	_ = r.subscriber.enqueue(&cardinalv1.StartEventStreamResponse{Address: w.address, Event: evt}, proto.Size(evt))
 }

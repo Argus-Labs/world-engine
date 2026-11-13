@@ -42,26 +42,26 @@ func TestSyncTwoHTTP2ClientsReconnectAndReadmission(t *testing.T) {
 	w.Tick()
 	a := receiveSyncFrame(t, alice)
 	b := receiveSyncFrame(t, bob)
-	require.True(t, a.Baseline)
-	require.True(t, b.Baseline)
+	require.NotNil(t, a.Open)
+	require.NotNil(t, b.Open)
 	require.NotEqual(t, a.Stream, b.Stream)
 	require.Equal(t, a.Records, b.Records)
 	require.Len(t, a.Records, 1)
 	var names []string
 	for _, component := range a.Records[0].Components {
-		names = append(names, component.Name)
+		names = append(names, w.SyncContract().Components[component.Component].Name)
 	}
 	require.ElementsMatch(t, []string{"loadout", "cosmetics"}, names, "private component is omitted")
-	require.Equal(t, e.SyncID(), a.Records[0].ID)
+	require.Equal(t, e.SyncID(), a.Records[0].Ref.ID(a.Open.Session))
 
 	e.Set(syncLoadout{WeaponID: "sword", Ammo: 7, Equipped: true})
 	w.Tick()
 	aUpdate := receiveSyncFrame(t, alice)
 	bUpdate := receiveSyncFrame(t, bob)
-	require.False(t, aUpdate.Baseline)
-	require.False(t, bUpdate.Baseline)
-	require.Equal(t, aUpdate.Records, bUpdate.Records)
-	require.Equal(t, uint16(7), streamLoadout(t, bUpdate).Ammo)
+	require.Nil(t, aUpdate.Open)
+	require.Nil(t, bUpdate.Open)
+	require.Equal(t, aUpdate.Patches, bUpdate.Patches)
+	require.Equal(t, uint16(7), streamLoadout(t, w, bUpdate).Ammo)
 
 	alice.cancel()
 	select {
@@ -73,41 +73,42 @@ func TestSyncTwoHTTP2ClientsReconnectAndReadmission(t *testing.T) {
 	w.Tick()
 	bOffline := receiveSyncFrame(t, bob)
 	require.Equal(t, b.Stream, bOffline.Stream)
-	require.Equal(t, uint16(9), streamLoadout(t, bOffline).Ammo)
+	require.Equal(t, uint16(9), streamLoadout(t, w, bOffline).Ammo)
 
 	alice = aliceClient.open(t, "alice")
 	alice.read()
 	aliceClient.subscribe(t, "alice", syncstate.EventName)
 	w.Tick() // No state change: reconnect still needs a complete baseline.
 	rejoined := receiveSyncFrame(t, alice)
-	require.True(t, rejoined.Baseline)
+	require.NotNil(t, rejoined.Open)
 	require.NotEqual(t, a.Stream, rejoined.Stream)
-	require.Equal(t, bOffline.Records, rejoined.Records)
+	require.Equal(t, syncLoadout{WeaponID: "bow", Ammo: 9}, streamLoadout(t, w, rejoined))
+	require.Equal(t, bOffline.Patches[0].Revision, rejoined.Records[0].Revision)
 
 	allowAlice = false
 	w.Tick()
 	revoked := receiveSyncFrame(t, alice)
-	require.True(t, revoked.Baseline)
+	require.NotNil(t, revoked.Open)
 	require.NotEqual(t, rejoined.Stream, revoked.Stream)
 	require.Empty(t, revoked.Records)
 	e.Set(syncLoadout{WeaponID: "staff", Ammo: 11})
 	w.Tick()
-	require.Equal(t, uint16(11), streamLoadout(t, receiveSyncFrame(t, bob)).Ammo)
+	require.Equal(t, uint16(11), streamLoadout(t, w, receiveSyncFrame(t, bob)).Ammo)
 	allowAlice = true
 	w.Tick()
 	readmitted := receiveSyncFrame(t, alice)
 	// If a suspended-segment update leaked, it would arrive before this baseline.
-	require.True(t, readmitted.Baseline)
+	require.NotNil(t, readmitted.Open)
 	require.NotEqual(t, revoked.Stream, readmitted.Stream)
-	require.Equal(t, syncLoadout{WeaponID: "staff", Ammo: 11}, streamLoadout(t, readmitted))
+	require.Equal(t, syncLoadout{WeaponID: "staff", Ammo: 11}, streamLoadout(t, w, readmitted))
 
 	e.Set(syncLoadout{WeaponID: "staff", Ammo: 12})
 	w.Tick()
-	require.Equal(t, uint16(12), streamLoadout(t, receiveSyncFrame(t, alice)).Ammo)
+	require.Equal(t, uint16(12), streamLoadout(t, w, receiveSyncFrame(t, alice)).Ammo)
 	lastBob := receiveSyncFrame(t, bob)
-	require.False(t, lastBob.Baseline, "the uninterrupted client never receives the other client's baselines")
+	require.Nil(t, lastBob.Open, "the uninterrupted client never receives the other client's baselines")
 	require.Equal(t, b.Stream, lastBob.Stream)
-	require.Equal(t, uint16(12), streamLoadout(t, lastBob).Ammo)
+	require.Equal(t, uint16(12), streamLoadout(t, w, lastBob).Ammo)
 }
 
 func newSyncStreamHarness(t *testing.T, w *TestWorld) (*streamHarness, *streamHarness) {
@@ -155,11 +156,18 @@ func receiveSyncFrame(t *testing.T, client *clientStream) syncstate.Frame {
 	}
 }
 
-func streamLoadout(t *testing.T, frame syncstate.Frame) syncLoadout {
+// streamLoadout reads the loadout from a frame's one record or one patch.
+func streamLoadout(t *testing.T, w *TestWorld, frame syncstate.Frame) syncLoadout {
 	t.Helper()
-	require.Len(t, frame.Records, 1)
-	for _, component := range frame.Records[0].Components {
-		if component.Name == "loadout" {
+	require.Len(t, frame.Records, 1-len(frame.Patches))
+	var values []syncstate.Value
+	if len(frame.Records) == 1 {
+		values = frame.Records[0].Components
+	} else {
+		values = frame.Patches[0].Changed
+	}
+	for _, component := range values {
+		if component.Component == syncIndex(t, w.World, "loadout") {
 			var value syncLoadout
 			require.NoError(t, msgpack.Unmarshal(component.Data, &value))
 			return value
@@ -236,7 +244,7 @@ func TestSyncSubscriptionsRaceTheTick(t *testing.T) {
 	wg.Wait()
 	// Every stream any subscriber saw passes the client's checks.
 	for _, sub := range created {
-		checkSyncStream(t, sub)
+		checkSyncStream(t, w, sub)
 	}
 	// Streams opened after the churn hold the world.
 	var final []*streamSubscriber
@@ -253,7 +261,7 @@ func TestSyncSubscriptionsRaceTheTick(t *testing.T) {
 		want[uint32(e.ID())] = e.SyncID()
 	}
 	for _, sub := range final {
-		held, ok := checkSyncStream(t, sub)
+		held, ok := checkSyncStream(t, w, sub)
 		require.True(t, ok, "an open stream has a baseline")
 		require.Equal(t, want, held)
 	}
@@ -261,31 +269,21 @@ func TestSyncSubscriptionsRaceTheTick(t *testing.T) {
 
 // checkSyncStream replays one subscriber's sync frames with the client's checks and returns
 // what the last stream holds.
-func checkSyncStream(t *testing.T, sub *streamSubscriber) (map[uint32]syncstate.ID, bool) {
+func checkSyncStream(t *testing.T, w *TestWorld, sub *streamSubscriber) (map[uint32]syncstate.ID, bool) {
 	t.Helper()
-	var stream string
-	var sequence uint64
-	held := map[uint32]syncstate.ID{}
+	client := newSyncClient(w.SyncContract())
 	for _, q := range sub.queue {
 		var f syncstate.Frame
 		require.NoError(t, msgpack.Unmarshal(q.response.GetEvent().GetPayload(), &f))
-		if f.Baseline {
-			stream, sequence, held = f.Stream, f.Sequence, map[uint32]syncstate.ID{}
-		} else {
-			require.NotEmpty(t, stream, "a delta before any baseline")
-			if f.Stream != stream {
-				continue // an old stream after a resubscribe: the client ignores it
-			}
-			require.Equal(t, sequence+1, f.Sequence)
-			sequence = f.Sequence
+		if f.Open == nil {
+			require.True(t, client.ready, "a delta before any baseline")
 		}
-		for _, id := range f.Removed {
-			require.Equal(t, id, held[id.Entity])
-			delete(held, id.Entity)
-		}
-		for _, r := range f.Records {
-			held[r.ID.Entity] = r.ID
-		}
+		_, err := client.apply(f) // a delta from an old stream after a resubscribe is ignored
+		require.NoError(t, err)
 	}
-	return held, stream != ""
+	held := map[uint32]syncstate.ID{}
+	for n, r := range client.held {
+		held[n] = client.id(r.Ref)
+	}
+	return held, client.ready
 }

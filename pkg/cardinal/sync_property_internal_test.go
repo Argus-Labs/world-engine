@@ -7,6 +7,7 @@ import (
 	"maps"
 	"math/rand/v2"
 	"os"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -28,7 +29,9 @@ import (
 // each reader holds equals its slice of the world. The expected values come from an independent
 // reading of the world through the public entity API (truth), which shares no code with the
 // publisher. Each reader's holdings are rebuilt from the frames it received by a client that
-// applies the Unity client's checks (stream, gap, revision, removals, grants).
+// applies the compact layout's client rules (stream, gap, revision, removals, records, patches,
+// grants); a patch merges into the held record. What each reader holds must also equal, field for
+// field, the record a baseline would send it now.
 //
 // Raise the seed count with SYNC_PROPERTY_SEEDS=n. A failure names its seed and tick.
 
@@ -39,6 +42,15 @@ type propValue struct {
 }
 
 func (propValue) Name() string { return "prop_value" }
+
+// propTag is a second synced component, so a patch can carry one component and keep another.
+type propTag struct {
+	syncstate.State
+
+	T int
+}
+
+func (propTag) Name() string { return "prop_tag" }
 
 type propSynced struct {
 	syncstate.Sync
@@ -120,22 +132,21 @@ func (h propHandler) Run(w *World) {
 	}
 }
 
-// propHeld is one entity as a client holds it.
+// propHeld is one entity as a client holds it, decoded.
 type propHeld struct {
 	id       syncstate.ID
-	revision uint64
 	access   syncstate.Access
 	value    int
 	hasValue bool
+	tag      int
+	hasTag   bool
 }
 
-// propClient is a client connection. It mirrors the checks Unity's SyncBridge makes.
+// propClient is a client connection: the sync client, and the events it received.
 type propClient struct {
-	fresh    bool // a new connection: nothing may arrive before its baseline
-	ready    bool
-	stream   string
-	sequence uint64
-	held     map[uint32]propHeld
+	*syncClient
+
+	fresh    bool         // a new connection: nothing may arrive before its baseline
 	events   map[int]bool // event N received
 	rejected map[string]syncstate.Reason
 }
@@ -281,7 +292,7 @@ func (s *propSim) connect(r *propReader) {
 	}
 	addSubscriptions(sub, []*cardinalv1.EventSubscription{{Events: events}})
 	s.w.service.addSubscriber(r.name, sub)
-	r.sub, r.client = sub, newPropClient()
+	r.sub, r.client = sub, s.newPropClient()
 	r.client.fresh = true
 }
 
@@ -290,7 +301,7 @@ func (s *propSim) disconnect(r *propReader) {
 		s.w.service.removeSubscriber(r.name, r.sub)
 		r.sub.cancel(nil)
 	}
-	r.sub, r.client = nil, newPropClient()
+	r.sub, r.client = nil, s.newPropClient()
 }
 
 func (s *propSim) setSubscribed(r *propReader, on bool) {
@@ -307,12 +318,17 @@ func (s *propSim) setSubscribed(r *propReader, on bool) {
 	}
 	s.w.service.mu.Unlock()
 	if !on { // the client drops its view; deltas already in flight on the old stream are ignored
-		r.client.fresh, r.client.ready, r.client.held = false, false, map[uint32]propHeld{}
+		r.client.fresh, r.client.ready = false, false
+		r.client.clear()
 	}
 }
 
-func newPropClient() *propClient {
-	return &propClient{held: map[uint32]propHeld{}, events: map[int]bool{}, rejected: map[string]syncstate.Reason{}}
+func (s *propSim) newPropClient() *propClient {
+	return &propClient{
+		syncClient: newSyncClient(s.w.SyncContract()),
+		events:     map[int]bool{},
+		rejected:   map[string]syncstate.Reason{},
+	}
 }
 
 // drain hands everything queued for a reader's connection to its client, in order.
@@ -343,7 +359,8 @@ func (s *propSim) drain(r *propReader) {
 	}
 }
 
-//nolint:gocyclo,cyclop // One place for every check the client makes, in the order it makes them.
+// receive hands one frame to the reader's client, and checks what the engine promises beyond
+// the client rules.
 func (s *propSim) receive(r *propReader, data []byte) {
 	c := r.client
 	var f syncstate.Frame
@@ -351,90 +368,99 @@ func (s *propSim) receive(r *propReader, data []byte) {
 		s.failf("%s: decode frame: %v", r.name, err)
 		return
 	}
-	// Encode once: the wire bytes are exactly what marshalling the frame's structs produces.
-	if again, err := schema.Serialize(f); err != nil || !bytes.Equal(again, data) {
-		s.failf("%s: frame bytes differ from the struct encoding (%v)", r.name, err)
+	// Encode once: the wire bytes are exactly what encoding the frame's structs produces.
+	if again := encodeSync(f); !bytes.Equal(again, data) {
+		s.failf("%s: frame bytes differ from the struct encoding", r.name)
 	}
-	if f.Version != syncstate.ProtocolVersion || f.Fingerprint == "" || f.Stream == "" {
-		s.failf("%s: bad header %d %q %q", r.name, f.Version, f.Fingerprint, f.Stream)
-	}
-	if f.Baseline {
-		if len(f.Removed) != 0 {
-			s.failf("%s: baseline with removals", r.name)
-		}
-		c.ready, c.stream, c.held = true, f.Stream, map[uint32]propHeld{}
+	switch {
+	case f.Open != nil:
 		s.stats["baselines"]++
-	} else {
-		if !c.ready && !c.fresh {
-			s.stats["deltas ignored after resubscribing"]++
-			return
-		}
-		switch {
-		case !c.ready || f.Stream != c.stream:
-			s.failf(
-				"%s: delta on stream %q before its baseline (holding %q, ready %v)",
-				r.name,
-				f.Stream,
-				c.stream,
-				c.ready,
-			)
-		case f.Sequence != c.sequence+1:
-			s.failf("%s: sequence %d after %d", r.name, f.Sequence, c.sequence)
-		case len(f.Records)+len(f.Removed)+len(f.Access) == 0:
-			s.failf("%s: empty delta", r.name)
-		}
-		s.stats["deltas"]++
-		if len(f.Records) == 0 && len(f.Removed) == 0 {
-			s.stats["access-only deltas"]++
-		}
+	case !c.ready && !c.fresh:
+		s.stats["deltas ignored after resubscribing"]++
+		return
+	case !c.ready || f.Stream != c.stream:
+		s.failf("%s: delta on stream %d before its baseline (holding %d, ready %v)",
+			r.name, f.Stream, c.stream, c.ready)
+		return
+	case len(f.Records)+len(f.Patches)+len(f.Removed)+len(f.Access) == 0:
+		s.failf("%s: empty delta", r.name)
 	}
-	c.sequence = f.Sequence
-	for _, id := range f.Removed {
-		if cur, ok := c.held[id.Entity]; !ok || cur.id != id {
-			s.failf("%s: removed %v, which it does not hold", r.name, id)
+	// Every revision of a lifetime a reader holds reaches it, so a patch, or a record over a held
+	// lifetime, is exactly one revision on.
+	removed := map[syncstate.Ref]bool{}
+	for _, ref := range f.Removed {
+		removed[ref] = true
+	}
+	for _, pa := range f.Patches {
+		h := c.held[pa.Ref.Entity]
+		if h.Ref == pa.Ref && pa.Revision != h.Revision+1 {
+			s.failf("%s: patch %v to revision %d at %d", r.name, pa.Ref, pa.Revision, h.Revision)
 		}
-		delete(c.held, id.Entity)
-		if n := EntityID(id.Entity); s.w.Entity(n).Alive() && s.w.Entity(n).SyncID() == id {
-			s.stats["removals of a live entity (lost view)"]++
+		for _, v := range h.Components {
+			if !slices.Contains(pa.Dropped, v.Component) && !slices.Contains(componentsOf(pa.Changed), v.Component) {
+				s.stats["patches that keep a held component"]++
+				break
+			}
 		}
 	}
 	for _, rec := range f.Records {
-		cur, ok := c.held[rec.ID.Entity]
-		if ok && cur.id != rec.ID {
-			s.failf("%s: record %v over %v without a removal", r.name, rec.ID, cur.id)
-		}
-		if ok && rec.Revision <= cur.revision {
-			s.failf("%s: revision %d after %d for %v", r.name, rec.Revision, cur.revision, rec.ID)
-		}
-		next := propHeld{id: rec.ID, revision: rec.Revision, access: cur.access}
-		for _, v := range rec.Components {
-			if v.Name != (propValue{}).Name() || v.Presence == 0 {
-				s.failf("%s: unexpected component %q presence %d", r.name, v.Name, v.Presence)
-				continue
+		if h, ok := c.held[rec.Ref.Entity]; f.Open == nil && ok && h.Ref == rec.Ref && !removed[rec.Ref] {
+			if rec.Revision != h.Revision+1 || rec.Presence == h.Presence {
+				s.failf("%s: record %v at revision %d presence %d over revision %d presence %d",
+					r.name, rec.Ref, rec.Revision, rec.Presence, h.Revision, h.Presence)
 			}
+			s.stats["records over a held lifetime (new entity presence)"]++
+		}
+	}
+	if _, err := c.apply(f); err != nil {
+		s.failf("%s: %v", r.name, err)
+	}
+	if f.Open == nil {
+		s.stats["deltas"]++
+		if len(f.Records)+len(f.Patches)+len(f.Removed) == 0 {
+			s.stats["access-only deltas"]++
+		}
+	}
+	for _, ref := range f.Removed {
+		if n := EntityID(ref.Entity); s.w.Entity(n).Alive() && s.w.Entity(n).SyncID() == c.id(ref) {
+			s.stats["removals of a live entity (lost view)"]++
+		}
+	}
+	for _, pa := range f.Patches {
+		s.stats["patches"]++
+		s.stats["patched components changed"] += len(pa.Changed)
+		s.stats["patched components dropped"] += len(pa.Dropped)
+	}
+	s.stats["records"] += len(f.Records)
+	s.stats["grants"] += len(f.Access)
+}
+
+// decode reads what a client holds of one entity through the contract.
+func (s *propSim) decode(r *propReader, rec syncstate.Record) propHeld {
+	h := propHeld{id: r.client.id(rec.Ref), access: r.client.access[rec.Ref.Entity]}
+	contract := s.w.SyncContract()
+	for _, v := range rec.Components {
+		if v.Presence == 0 {
+			s.failf("%s: component %d of %v has presence 0", r.name, v.Component, rec.Ref)
+		}
+		switch name := contract.Components[v.Component].Name; name {
+		case propValue{}.Name():
 			var value propValue
 			if err := msgpack.Unmarshal(v.Data, &value); err != nil {
 				s.failf("%s: decode value: %v", r.name, err)
 			}
-			next.value, next.hasValue = value.V, true
-		}
-		c.held[rec.ID.Entity] = next
-		s.stats["records"]++
-	}
-	for _, g := range f.Access {
-		cur, ok := c.held[g.ID.Entity]
-		if !ok || cur.id != g.ID {
-			s.failf("%s: grant for %v, which it does not hold", r.name, g.ID)
-		}
-		cur.access = g.Access
-		c.held[g.ID.Entity] = cur
-		s.stats["grants"]++
-	}
-	for _, h := range c.held {
-		if h.access == syncstate.None {
-			s.failf("%s: holds %v without access", r.name, h.id)
+			h.value, h.hasValue = value.V, true
+		case propTag{}.Name():
+			var tag propTag
+			if err := msgpack.Unmarshal(v.Data, &tag); err != nil {
+				s.failf("%s: decode tag: %v", r.name, err)
+			}
+			h.tag, h.hasTag = tag.T, true
+		default:
+			s.failf("%s: unexpected component %q", r.name, name)
 		}
 	}
+	return h
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -498,6 +524,9 @@ func (s *propSim) create() {
 		e = s.w.Create[propSynced]()
 	}
 	e.Set(propValue{V: s.rng.IntN(3)})
+	if s.rng.IntN(2) == 0 {
+		e.Set(propTag{T: s.rng.IntN(3)})
+	}
 	if s.rng.IntN(2) == 0 {
 		s.setLists(e)
 	}
@@ -595,6 +624,23 @@ func (s *propSim) readerOp() {
 	}
 }
 
+// toggle removes one synced component from an entity, or adds it back.
+func (s *propSim) toggle(e Entity) {
+	if s.rng.IntN(2) == 0 {
+		if e.Has[propValue]() {
+			e.Remove[propValue]()
+		} else {
+			e.Set(propValue{V: 1})
+		}
+		return
+	}
+	if e.Has[propTag]() {
+		e.Remove[propTag]()
+	} else {
+		e.Set(propTag{T: 1})
+	}
+}
+
 func (s *propSim) op() {
 	ids := s.entities()
 	n, ok := s.pick(ids)
@@ -614,16 +660,14 @@ func (s *propSim) op() {
 			}
 		}
 	case 3, 4:
-		if ok {
+		if ok && s.rng.IntN(2) == 0 {
 			s.w.Entity(n).Set(propValue{V: s.rng.IntN(3)})
+		} else if ok {
+			s.w.Entity(n).Set(propTag{T: s.rng.IntN(3)})
 		}
 	case 5:
 		if ok {
-			if s.w.Entity(n).Has[propValue]() {
-				s.w.Entity(n).Remove[propValue]()
-			} else {
-				s.w.Entity(n).Set(propValue{V: 1})
-			}
+			s.toggle(s.w.Entity(n))
 		}
 	case 6:
 		if ok {
@@ -869,7 +913,7 @@ func (s *propSim) checkEvents() {
 			// Never told about a lifetime whose state it will not receive.
 			n := EntityID(ev.id.Entity)
 			if got && !ev.ungated && r.sub != nil && r.subscribed && r.admitted && s.synced(n) &&
-				s.w.Entity(n).SyncID() == ev.id && r.client.held[ev.id.Entity].id != ev.id {
+				s.w.Entity(n).SyncID() == ev.id && !r.client.holds(ev.id) {
 				s.failf("%s was told about %v but holds no state for it", r.name, ev.id)
 			}
 		}
@@ -889,14 +933,23 @@ func (s *propSim) checkReplicas() {
 					if e.Has[propValue]() {
 						h.value, h.hasValue = e.Get[propValue]().V, true
 					}
+					if e.Has[propTag]() {
+						h.tag, h.hasTag = e.Get[propTag]().T, true
+					}
 					want[uint32(n)] = h
 				}
 			}
 		}
 		got := map[uint32]propHeld{}
-		for k, h := range r.client.held {
-			h.revision = 0
-			got[k] = h
+		for k, rec := range r.client.held {
+			got[k] = s.decode(r, rec)
+			// What it holds, patches merged, is the record a baseline would send it now.
+			var fresh syncstate.Record
+			if e := s.w.sync.entry(EntityID(k)); e == nil || msgpack.Unmarshal(e.record, &fresh) != nil {
+				s.failf("%s holds %v, which has no published record", r.name, rec.Ref)
+			} else if !reflect.DeepEqual(normalized(rec), normalized(fresh)) {
+				s.failf("%s holds %+v, a baseline would send %+v", r.name, rec, fresh)
+			}
 		}
 		if !maps.Equal(got, want) {
 			s.failf("%s (open %v) holds %v, its slice is %v", r.name, open, got, want)
@@ -941,6 +994,14 @@ func (s *propSim) checkAuthorityOf(midTick bool) {
 	}
 }
 
+// normalized makes an empty list and a nil list equal, as the layout says they are.
+func normalized(r syncstate.Record) syncstate.Record {
+	if len(r.Components) == 0 {
+		r.Components = nil
+	}
+	return r
+}
+
 func runSyncProperty(t *testing.T, seed uint64, ticks int, stats map[string]int) error {
 	s := &propSim{
 		t:         t,
@@ -952,6 +1013,7 @@ func runSyncProperty(t *testing.T, seed uint64, ticks int, stats map[string]int)
 	}
 	s.w = NewTestWorld(t, func(w *World) {
 		w.RegisterComponent[propValue]()
+		w.RegisterComponent[propTag]()
 		w.EnableSync(func(player string) bool {
 			for _, r := range s.readers {
 				if r.name == player {
