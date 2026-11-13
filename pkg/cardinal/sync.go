@@ -115,7 +115,7 @@ func (w *World) registerSync(t reflect.Type, name string, cid ecs.ComponentID) {
 	if exposed {
 		p := w.ensureSync()
 		p.components[cid] = c
-		p.names, p.fingerprint = nil, ""
+		p.names, p.index, p.fingerprint = nil, nil, ""
 	}
 }
 
