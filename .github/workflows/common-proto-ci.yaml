@@ -50,3 +50,29 @@ jobs:
             --label "$LABEL" \
             --source-control-url "$SOURCE_CONTROL_URL" \
             --create
+
+  typescript:
+    name: Type-check (TypeScript)
+    runs-on: namespace-profile-linux-2vcpu-4gb-cached
+    steps:
+      - uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
+        with:
+          fetch-depth: 0 # moon resolves the base revision in CI
+
+      - name: Install moon
+        uses: moonrepo/setup-toolchain@261c62cb5b0f580c7be7c8cd0f023a2e96756095 # v0
+        with:
+          cache: false # Skip GitHub's remote cache; it would only hold ~/.proto
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        working-directory: proto/gen/ts
+        run: npm ci --no-audit --no-fund
+
+      # Type-checks index.ts, the package entry point, so its re-exports
+      # cannot drift from the generated modules again.
+      - name: Type-check the TypeScript client
+        run: moon run proto-ts:build
