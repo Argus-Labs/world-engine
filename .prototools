@@ -1,2 +1,7 @@
 go = "1.27.4"
 moon = "2.6.5"
+# The prebuilt release binary, so no lint run compiles the linter.
+golangci-lint = "2.15.0"
+
+[plugins]
+golangci-lint = "https://raw.githubusercontent.com/smsunarto/proto-plugins/main/plugins/golangci-lint.toml"

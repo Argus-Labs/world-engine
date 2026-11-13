@@ -7,9 +7,8 @@ toolchains:
 tasks:
   lint:
     description: 'Lint the World CLI'
-    command: '../bin/tools/golangci-lint run --timeout 10m ./...'
-    deps: ['world-engine:setup-lint']
-    inputs: ['**/*.go', '/go.mod', '/go.sum', '.golangci.yaml', 'moon.yml']
+    command: 'golangci-lint run --timeout 10m ./...'
+    inputs: ['**/*.go', '/go.mod', '/go.sum', '/.prototools', '.golangci.yaml', 'moon.yml']
   test:
     description: 'Run World CLI unit tests'
     command: 'go test ./...'
