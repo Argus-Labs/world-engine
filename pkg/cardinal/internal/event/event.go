@@ -12,10 +12,19 @@ import (
 
 // Event represents an event emitted from a system.
 type Event struct {
-	Kind      Kind   // The event kind
-	Payload   any    // The event payload itself
-	Recipient string // Empty recipient means broadcast to all matching subscribers; non-empty targets a single user
-	Audience  any    // Narrows the recipients of a default event; nil keeps the default delivery. Set by sync.
+	Kind      Kind     // The event kind
+	Payload   any      // The event payload itself
+	Recipient string   // Empty recipient means broadcast to all matching subscribers; non-empty targets a single user
+	Audience  Audience // Narrows the recipients of a default event; nil keeps the default delivery
+}
+
+// Audience narrows who receives a default event. It is asked at dispatch, on the tick goroutine
+// and with no lock held, once for each recipient the event would otherwise reach.
+type Audience interface {
+	// Admits reports whether player may receive the event. stream identifies the open stream the
+	// event would be written to, and is only ever compared for identity. It is nil when the player
+	// is waiting for the event as a command's reply.
+	Admits(player string, stream any) bool
 }
 
 // Payload is the interface all default event payloads must implement.
