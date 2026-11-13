@@ -139,6 +139,28 @@ func (s *service) init(address string) error {
 	return nil
 }
 
+// A client can vanish without closing its connection: a phone leaves coverage, a frozen app keeps
+// its socket. Cancelling its streams does not release their handlers, because each stream's reset
+// has to be written to that same connection (see withStreamWriteDeadline). So the server closes an
+// HTTP/2 connection that stops working, and every handler on it returns.
+const (
+	// connWriteTimeout closes a connection whose pending writes make no progress for this long.
+	// Every byte written restarts it, so a slow reader that keeps reading is never closed by it. It
+	// is twice a stream's own teardown (streamLagLimit + streamTeardownGrace), so a stream that lags
+	// on a stalled connection is ended by its lag limit first, and its end can still reach a client
+	// whose connection recovers.
+	connWriteTimeout = 2 * (streamLagLimit + streamTeardownGrace)
+	// connPingAfter is how long a connection may go without sending the server a frame before the
+	// server pings it. A client that reads sends flow-control updates, so mostly idle connections
+	// are pinged.
+	connPingAfter = 10 * time.Second
+	// connPingTimeout closes a connection that has not answered a ping for this long. The client's
+	// HTTP/2 stack answers, not the game, and the server sends the ping ahead of its queued data, so
+	// this covers several TCP retransmissions on a poor link. A dead idle client is kept connPingAfter +
+	// connPingTimeout after its last frame.
+	connPingTimeout = 20 * time.Second
+)
+
 // newHTTPServer returns the client-facing server for handler, before it serves.
 func newHTTPServer(address string, handler http.Handler) *http.Server {
 	return &http.Server{
@@ -146,6 +168,11 @@ func newHTTPServer(address string, handler http.Handler) *http.Server {
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		Protocols:         h2cProtocols(),
+		HTTP2: &http.HTTP2Config{
+			WriteByteTimeout: connWriteTimeout,
+			SendPingTimeout:  connPingAfter,
+			PingTimeout:      connPingTimeout,
+		},
 	}
 }
 
@@ -800,7 +827,8 @@ func matchesEvent(subscription string, eventName string) bool {
 // the HTTP/2 server then resets the stream (RST_STREAM) and every blocked or later write on it
 // fails. Over HTTP/1.1 the deadline applies to the connection, so every write on it fails.
 // A client whose whole TCP connection is stalled is not covered: the reset frame itself cannot be
-// written, so only the connection's own failure releases the writes.
+// written, so only the connection's failure releases the writes. The server closes such a
+// connection after connWriteTimeout, or connPingAfter + connPingTimeout once it falls silent.
 
 type streamWriteDeadlineKey struct{}
 
