@@ -283,6 +283,7 @@ type syncPublisher struct {
 	roster   syncRoster
 	retired  map[syncstate.ID]*syncEntry // entries removed this tick, for events about their lifetimes
 	streams  uint64                      // the last stream number given to a reader
+	deltas   []syncDelta                 // by slot: the commit being dispatched; see emptyDeltas
 }
 
 func (p *syncPublisher) enabled() bool { return p != nil && p.admit != nil }

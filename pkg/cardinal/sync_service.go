@@ -2,6 +2,8 @@ package cardinal
 
 import (
 	"context"
+	"encoding/binary"
+	"math"
 	"slices"
 	"strings"
 
@@ -10,6 +12,7 @@ import (
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/vmihailenco/msgpack/v5"
+	"github.com/vmihailenco/msgpack/v5/msgpcode"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -96,7 +99,7 @@ func (w *World) dispatchSync(_ context.Context, evt event.Event) error {
 	p := w.sync
 	switch item := evt.Payload.(type) {
 	case syncCommit:
-		deltas := make([]syncDelta, len(p.roster.readers))
+		deltas := p.emptyDeltas()
 		p.fold(item, deltas)
 		for slot := range deltas {
 			if !deltas[slot].empty() {
@@ -133,20 +136,6 @@ func (w *World) settleSync() {
 	p.check()
 }
 
-// syncWire is a sync.Frame whose records and patches were encoded once, when their transitions
-// were captured. Its fields match sync.Frame in order and type, so it encodes to the same bytes.
-type syncWire struct {
-	_msgpack struct{} `msgpack:",as_array"` //nolint:unused // msgpack reads the tag: encode as an array
-
-	Open     *syncstate.Open
-	Stream   uint64
-	Sequence uint64
-	Records  []msgpack.RawMessage
-	Patches  []msgpack.RawMessage
-	Removed  []syncstate.Ref
-	Access   []syncstate.Grant
-}
-
 // nextStream numbers a new stream. Numbers are never reused while the world runs, so a delta
 // from a stream the reader left never matches the one it holds.
 func (p *syncPublisher) nextStream() uint64 {
@@ -161,14 +150,7 @@ func (w *World) sendSync(r *syncReader, baseline bool, d syncDelta) {
 	if r.subscriber == nil || r.subscriber.ctx.Err() != nil {
 		return
 	}
-	frame := syncWire{
-		Stream:   r.stream,
-		Sequence: r.sequence,
-		Records:  d.records,
-		Patches:  d.patches,
-		Removed:  d.removed,
-		Access:   d.access,
-	}
+	var open []byte
 	if baseline {
 		p := w.sync
 		if p.fingerprint == "" {
@@ -178,13 +160,105 @@ func (w *World) sendSync(r *syncReader, baseline bool, d syncDelta) {
 			}
 			p.fingerprint = fingerprint
 		}
-		frame.Open = &syncstate.Open{
+		open = encodeSync(syncstate.Open{
 			Version: syncstate.ProtocolVersion, Fingerprint: p.fingerprint, Session: w.world.Session(),
-		}
+		})
 	}
-	evt := &iscv1.Event{Name: syncstate.EventName, Payload: encodeSync(frame)}
+	evt := &iscv1.Event{Name: syncstate.EventName, Payload: appendFrame(nil, open, r.stream, r.sequence, d)}
 	// A full queue ends the stream as lagged; the next reconcile closes its slot.
 	_ = r.subscriber.enqueue(&cardinalv1.StartEventStreamResponse{Address: w.address, Event: evt}, proto.Size(evt))
+}
+
+// emptyDeltas returns an empty delta for every slot. Their lists keep their capacity, and the
+// encodings they last held until overwritten, from earlier commits: sendSync copies a delta into
+// its frame, so no delta is read after its commit.
+func (p *syncPublisher) emptyDeltas() []syncDelta {
+	for len(p.deltas) < len(p.roster.readers) {
+		p.deltas = append(p.deltas, syncDelta{})
+	}
+	deltas := p.deltas[:len(p.roster.readers)]
+	for i := range deltas {
+		d := &deltas[i]
+		d.records, d.patches, d.removed, d.access = d.records[:0], d.patches[:0], d.removed[:0], d.access[:0]
+	}
+	return deltas
+}
+
+// appendFrame appends one reader's frame to b, byte for byte what encodeSync makes of the
+// sync.Frame it stands for: an array in field order and the smallest integer encodings. An empty
+// list is written as nil, as the engine always writes it. Records and patches are copied as
+// encoded once at capture. open is the encoded Open of a baseline, nil on a delta.
+func appendFrame(b []byte, open []byte, stream, sequence uint64, d syncDelta) []byte {
+	const refMax, grantMax = 1 + 5 + 9, 1 + (1 + 5 + 9) + 1 // [entity, incarnation], [ref, access]
+	size := 1 + max(1, len(open)) + 9 + 9 + 4*5 + len(d.removed)*refMax + len(d.access)*grantMax
+	for _, raw := range d.records {
+		size += len(raw)
+	}
+	for _, raw := range d.patches {
+		size += len(raw)
+	}
+	b = slices.Grow(b, size)
+
+	b = append(b, msgpcode.FixedArrayLow|7) // the frame's seven fields
+	if open == nil {
+		b = append(b, msgpcode.Nil)
+	} else {
+		b = append(b, open...)
+	}
+	b = appendUint(b, stream)
+	b = appendUint(b, sequence)
+	b = appendRaw(b, d.records)
+	b = appendRaw(b, d.patches)
+	b = appendArrayLen(b, len(d.removed))
+	for _, ref := range d.removed {
+		b = appendRef(b, ref)
+	}
+	b = appendArrayLen(b, len(d.access))
+	for _, g := range d.access {
+		b = appendUint(appendRef(append(b, msgpcode.FixedArrayLow|2), g.Ref), uint64(g.Access))
+	}
+	return b
+}
+
+func appendRaw(b []byte, list []msgpack.RawMessage) []byte {
+	b = appendArrayLen(b, len(list))
+	for _, raw := range list {
+		b = append(b, raw...)
+	}
+	return b
+}
+
+func appendRef(b []byte, ref syncstate.Ref) []byte {
+	return appendUint(appendUint(append(b, msgpcode.FixedArrayLow|2), uint64(ref.Entity)), ref.Incarnation)
+}
+
+// appendArrayLen appends a list's array header, or nil for an empty list.
+func appendArrayLen(b []byte, n int) []byte {
+	switch {
+	case n == 0:
+		return append(b, msgpcode.Nil)
+	case n < 16:
+		return append(b, msgpcode.FixedArrayLow|byte(n)) //nolint:gosec // 0 < n < 16
+	case n <= math.MaxUint16:
+		return binary.BigEndian.AppendUint16(append(b, msgpcode.Array16), uint16(n))
+	}
+	// A frame's list is far shorter than 2^32.
+	return binary.BigEndian.AppendUint32(append(b, msgpcode.Array32), uint32(n)) //nolint:gosec // see above
+}
+
+// appendUint appends n in its smallest MessagePack encoding, as UseCompactInts does.
+func appendUint(b []byte, n uint64) []byte {
+	switch {
+	case n <= math.MaxInt8:
+		return append(b, byte(n))
+	case n <= math.MaxUint8:
+		return append(b, msgpcode.Uint8, byte(n))
+	case n <= math.MaxUint16:
+		return binary.BigEndian.AppendUint16(append(b, msgpcode.Uint16), uint16(n))
+	case n <= math.MaxUint32:
+		return binary.BigEndian.AppendUint32(append(b, msgpcode.Uint32), uint32(n))
+	}
+	return binary.BigEndian.AppendUint64(append(b, msgpcode.Uint64), n)
 }
 
 // syncAudience narrows an event's recipients by sync access, judged at dispatch.

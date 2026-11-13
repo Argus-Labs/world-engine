@@ -144,6 +144,13 @@ func (s *service) init(address string) error {
 	return nil
 }
 
+// compressMinBytes is the smallest response the Cardinal service compresses for a client that
+// accepts gzip. Each message is compressed on its own, so gzip's fixed cost of about 20 bytes
+// outweighs what it finds in a small one: on world_sync frames measured under load, gzip made
+// frames under 64 bytes 1.5 times larger and left those of 128 to 255 bytes the same size, while
+// it shrank deltas of a few KiB by a third or more and baselines by three quarters.
+const compressMinBytes = 256
+
 // newMux returns the client-facing handler: the Cardinal service behind authenticate, plus the
 // debug service when enabled.
 func (s *service) newMux(authenticate authn.AuthFunc) (*http.ServeMux, error) {
@@ -159,6 +166,7 @@ func (s *service) newMux(authenticate authn.AuthFunc) (*http.ServeMux, error) {
 			otelInterceptor,
 			validateInterceptor,
 		),
+		connect.WithCompressMinBytes(compressMinBytes),
 	)
 	mux := http.NewServeMux()
 	mux.Handle(cardinalPath, withStreamWriteDeadline(authn.NewMiddleware(authenticate).Wrap(cardinalHandler)))
