@@ -102,6 +102,16 @@ var (
 
 const propMaxEntities = 6
 
+// propDropped is the verdict on a repeat of an admitted command: no handler, no rejection.
+const propDropped syncstate.Reason = "dropped"
+
+// propJudged is a command with an ID, and the verdict it got.
+type propJudged struct {
+	cmd     propPoke
+	verdict syncstate.Reason
+	at      int64
+}
+
 type propCommandSeen struct {
 	sender, name string
 	target       EntityID
@@ -148,7 +158,7 @@ type propClient struct {
 
 	fresh    bool         // a new connection: nothing may arrive before its baseline
 	events   map[int]bool // event N received
-	rejected map[string]syncstate.Reason
+	rejected map[string]syncstate.CommandRejected
 }
 
 type propReader struct {
@@ -178,9 +188,15 @@ type propSim struct {
 	w         *TestWorld
 	readers   []*propReader
 	seen      []propCommandSeen
-	rejects   map[string]syncstate.Reason // recorded command_rejected sends: recipient/name -> reason
-	verdicts  map[string]syncstate.Reason // expected: sender/name -> reason ("" accepted)
+	rejects   map[string]syncstate.CommandRejected // recorded command_rejected sends: recipient/name -> payload
+	verdicts  map[string]syncstate.Reason          // expected: sender/name -> reason ("" accepted)
 	targets   map[string]EntityID
+	ids       map[string]uint64       // sender/name -> the CommandID sent
+	sent      map[string]propPoke     // sender/prop_poke -> the command sent
+	repeats   map[string]bool         // sender/name sent an ID the engine remembers
+	judgedAt  int64                   // the height, so the server time in seconds, this tick judges at
+	nextID    uint64                  // the last CommandID handed out
+	judged    map[string][]propJudged // per player, the IDs judged since the last reset
 	debug     map[string]string
 	events    []*propEvent
 	lastTruth map[syncstate.ID]map[string]syncstate.Access // the lists each published lifetime was last captured with
@@ -327,7 +343,7 @@ func (s *propSim) newPropClient() *propClient {
 	return &propClient{
 		syncClient: newSyncClient(s.w.SyncContract()),
 		events:     map[int]bool{},
-		rejected:   map[string]syncstate.Reason{},
+		rejected:   map[string]syncstate.CommandRejected{},
 	}
 }
 
@@ -354,7 +370,7 @@ func (s *propSim) drain(r *propReader) {
 			if err := msgpack.Unmarshal(evt.GetPayload(), &payload); err != nil {
 				s.failf("%s: decode rejection: %v", r.name, err)
 			}
-			r.client.rejected[payload.Command] = payload.Reason
+			r.client.rejected[payload.Command] = payload
 		}
 	}
 }
@@ -721,9 +737,22 @@ func (s *propSim) op() {
 // truth is the world now, which is what the last tick published; admission is judged at drain.
 func (s *propSim) sendCommands() {
 	s.verdicts, s.targets, s.debug = map[string]syncstate.Reason{}, map[string]EntityID{}, map[string]string{}
+	s.ids, s.sent, s.repeats = map[string]uint64{}, map[string]propPoke{}, map[string]bool{}
+	s.judgedAt = int64(s.w.TickHeight())
 	ids := s.entities()
 	for _, player := range propPlayers {
 		if s.rng.IntN(3) == 0 {
+			continue
+		}
+		key := player + "/prop_poke"
+		if prev, ok := s.recent(player); ok && s.rng.IntN(4) == 0 {
+			// A retry inside the memory gets the first verdict; an admitted one is dropped.
+			s.verdicts[key], s.repeats[key] = prev.verdict, true
+			if prev.verdict == "" {
+				s.verdicts[key] = propDropped
+			}
+			s.targets[key], s.ids[key] = EntityID(prev.cmd.TargetEntity), prev.cmd.CommandID
+			s.w.Command(player, prev.cmd)
 			continue
 		}
 		var target syncstate.ID
@@ -749,7 +778,6 @@ func (s *propSim) sendCommands() {
 			case syncstate.None:
 			}
 		}
-		key := player + "/prop_poke"
 		s.verdicts[key], s.targets[key] = want, n
 		if en := s.w.sync.entry(n); en != nil {
 			s.debug[key] = fmt.Sprintf(
@@ -764,7 +792,13 @@ func (s *propSim) sendCommands() {
 				en.policy.stale,
 			)
 		}
-		s.w.Command(player, propPoke{Target: syncstate.TargetOf(target), N: s.rng.IntN(100)})
+		cmd := propPoke{Target: syncstate.TargetOf(target), N: s.rng.IntN(100)}
+		if s.rng.IntN(5) != 0 { // else 0: no ID
+			s.nextID++
+			cmd.CommandID = s.nextID
+		}
+		s.ids[key], s.sent[key] = cmd.CommandID, cmd
+		s.w.Command(player, cmd)
 		if s.rng.IntN(4) == 0 {
 			s.verdicts[player+"/prop_shard_only"] = syncstate.ShardOnly
 			s.w.Command(player, propShardOnly{})
@@ -788,10 +822,32 @@ func (s *propSim) sendCommands() {
 	}
 }
 
+// recent picks one of the player's IDs the engine still remembers: judged since the last reset,
+// less than 30 s of server time before this tick. Every player sends at most one new ID a tick,
+// so the 256 cap is never reached here.
+func (s *propSim) recent(player string) (propJudged, bool) {
+	var inside []propJudged
+	for _, j := range s.judged[player] {
+		if s.judgedAt-j.at < 30 {
+			inside = append(inside, j)
+		}
+	}
+	if len(inside) == 0 {
+		return propJudged{}, false
+	}
+	return inside[s.rng.IntN(len(inside))], true
+}
+
 // checkCommands compares the verdicts with the truth. Admission is judged when the tick drains
 // the commands, before this tick's operations.
 func (s *propSim) checkCommands(admitted map[string]bool) {
-	got := maps.Clone(s.rejects)
+	got := map[string]syncstate.Reason{}
+	for key, r := range s.rejects {
+		got[key] = r.Reason
+		if r.CommandID != s.ids[key] {
+			s.failf("command %s: rejection names CommandID %d, want %d", key, r.CommandID, s.ids[key])
+		}
+	}
 	for _, seen := range s.seen {
 		key := seen.sender + "/" + seen.name
 		if _, dup := got[key]; dup {
@@ -803,37 +859,51 @@ func (s *propSim) checkCommands(admitted map[string]bool) {
 		}
 	}
 	for key, want := range s.verdicts {
-		player, _, _ := strings.Cut(key, "/")
-		if want == "" || want == syncstate.NoAuthority {
+		player, name, _ := strings.Cut(key, "/")
+		if (want == "" || want == syncstate.NoAuthority) && !s.repeats[key] {
 			if !admitted[player] {
 				want = syncstate.StaleTarget
 			}
 		}
+		if name == "prop_poke" && !s.repeats[key] && s.ids[key] != 0 {
+			s.judged[player] = append(s.judged[player], propJudged{s.sent[key], want, s.judgedAt})
+		}
 		reason, known := got[key]
-		if want == syncstate.PlayerOnly { // a shard has no stream: the rejection is only logged
+		switch want { //nolint:exhaustive // the rest leave a verdict
+		case syncstate.PlayerOnly: // a shard has no stream: the rejection is only logged
 			if known {
 				s.failf("command %s from a shard reached a handler", key)
 			}
 			continue
+		case propDropped:
+			if known {
+				s.failf("repeat %s of an admitted command got %q (\"\": it ran again)", key, reason)
+			}
+			s.stats["commands: repeat dropped"]++
+			continue
+		}
+		if s.repeats[key] {
+			s.stats["commands: repeat rejected again"]++
 		}
 		if !known || reason != want {
 			s.failf("command %s: got %q (known %v), want %q; %s", key, reason, known, want, s.debug[key])
 		}
-		name := string(want)
+		label := string(want)
 		if want == "" {
-			name = "accepted"
+			label = "accepted"
 		}
-		s.stats["commands: "+name]++
+		s.stats["commands: "+label]++
 	}
-	if len(got) != len(s.verdicts)-countPlayerOnly(s.verdicts) {
+	if len(got) != len(s.verdicts)-countUnobserved(s.verdicts) {
 		s.failf("commands: %d verdicts observed, %d expected", len(got), len(s.verdicts))
 	}
 }
 
-func countPlayerOnly(v map[string]syncstate.Reason) int {
+// countUnobserved counts the verdicts that leave neither a handler run nor a rejection.
+func countUnobserved(v map[string]syncstate.Reason) int {
 	n := 0
 	for _, r := range v {
-		if r == syncstate.PlayerOnly {
+		if r == syncstate.PlayerOnly || r == propDropped {
 			n++
 		}
 	}
@@ -845,12 +915,13 @@ func countPlayerOnly(v map[string]syncstate.Reason) int {
 // -------------------------------------------------------------------------------------------------
 
 func (s *propSim) step() {
-	s.seen, s.rejects, s.events = nil, map[string]syncstate.Reason{}, nil
+	s.seen, s.rejects, s.events = nil, map[string]syncstate.CommandRejected{}, nil
 	s.destroyed, s.ended = nil, map[syncstate.ID]map[string]syncstate.Access{}
 	reset := s.rng.IntN(60) == 0
 	if reset { // only between ticks, as the debug service does; it drops queued commands
 		s.w.World.reset()
 		s.verdicts = map[string]syncstate.Reason{}
+		s.judged = map[string][]propJudged{} // the test clock rewinds; IDs from before are not reused
 	} else {
 		s.sendCommands()
 	}
@@ -871,16 +942,16 @@ func (s *propSim) step() {
 	for _, r := range s.readers {
 		s.drain(r)
 		// A connected sender hears about each of its rejected commands on its stream.
-		for key, reason := range s.rejects {
+		for key, sent := range s.rejects {
 			if sender, name, _ := strings.Cut(
 				key,
 				"/",
 			); sender == r.name && r.sub != nil &&
-				r.client.rejected[name] != reason {
-				s.failf("%s did not receive its rejection of %s (%q)", r.name, name, reason)
+				r.client.rejected[name] != sent {
+				s.failf("%s did not receive its rejection of %s (%v)", r.name, name, sent)
 			}
 		}
-		r.client.rejected = map[string]syncstate.Reason{}
+		r.client.rejected = map[string]syncstate.CommandRejected{}
 	}
 	if !reset {
 		s.checkCommands(admitted)
@@ -1009,6 +1080,7 @@ func runSyncProperty(t *testing.T, seed uint64, ticks int, stats map[string]int)
 		rng:       rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15)),
 		lastTruth: map[syncstate.ID]map[string]syncstate.Access{},
 		ended:     map[syncstate.ID]map[string]syncstate.Access{},
+		judged:    map[string][]propJudged{},
 		stats:     stats,
 	}
 	s.w = NewTestWorld(t, func(w *World) {
@@ -1032,7 +1104,7 @@ func runSyncProperty(t *testing.T, seed uint64, ticks int, stats map[string]int)
 	s.w.tel.Logger = zerolog.Nop()
 	s.w.World.events.RegisterHandler(event.KindDefault, func(ctx context.Context, evt event.Event) error {
 		if rejected, ok := evt.Payload.(syncstate.CommandRejected); ok {
-			s.rejects[evt.Recipient+"/"+rejected.Command] = rejected.Reason
+			s.rejects[evt.Recipient+"/"+rejected.Command] = rejected
 		}
 		return s.w.service.publishDefaultEvent(ctx, evt)
 	})
