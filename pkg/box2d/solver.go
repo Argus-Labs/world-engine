@@ -436,17 +436,20 @@ const solverLightColorGrain = 1024
 const _ = uint(solverLightColorGrain - solverColorGrain)
 
 // integrateVelocitiesTask integrates velocities and applies damping, gravity
-// and speed clamps (upstream b2IntegrateVelocitiesTask).
+// and forces (upstream b2IntegrateVelocitiesTask). The motion locks and the
+// max linear/angular speed clamps are NOT applied here: upstream v3.2.0 runs
+// them post-solve in b2IntegratePositionsTask (immediately before position
+// integration), so the constraint solve sees the real velocity on locked DOFs
+// and the clamps bound the post-solve velocity that is actually integrated.
+// (In v3.1.0 these ran pre-solve here; this port previously followed that
+// older layout, which left solver-induced velocity — penetration bias,
+// springs, motors — unclamped.)
 func integrateVelocitiesTask(startIndex, endIndex int, ctx *stepContext) {
 	states := ctx.states
 	sims := ctx.sims
 
 	gravity := ctx.world.gravity
 	h := ctx.h
-	maxLinearSpeed := ctx.maxLinearVelocity
-	maxAngularSpeed := MaxRotation * ctx.invDT
-	maxLinearSpeedSquared := maxLinearSpeed * maxLinearSpeed
-	maxAngularSpeedSquared := maxAngularSpeed * maxAngularSpeed
 
 	for i := startIndex; i < endIndex; i++ {
 		sim := &sims[i]
@@ -480,20 +483,37 @@ func integrateVelocitiesTask(startIndex, endIndex int, ctx *stepContext) {
 		// w = angularVelocityDelta + angularDamping * w
 		wAng = angularVelocityDelta + float64(angularDamping*wAng)
 
-		// Clamp to max linear speed
-		if Dot(v, v) > maxLinearSpeedSquared {
-			ratio := maxLinearSpeed / Length(v)
-			v = MulSV(ratio, v)
-			sim.flags |= isSpeedCapped
-		}
+		state.linearVelocity = v
+		state.angularVelocity = wAng
+	}
+}
 
-		// Clamp to max angular speed
-		if wAng*wAng > maxAngularSpeedSquared && sim.flags&allowFastRotation == 0 {
-			ratio := maxAngularSpeed / absFloat(wAng)
-			wAng *= ratio
-			sim.flags |= isSpeedCapped
-		}
+// integratePositionsTask applies the motion locks and the max linear/angular
+// speed clamps to the post-solve velocity, then integrates the delta position
+// and rotation (upstream b2IntegratePositionsTask). The locks are applied
+// here — after the constraint solve, "as a constraint that comes last" — so
+// the solver sees the real velocity on locked DOFs, and the clamps bound the
+// post-solve velocity that is actually integrated (upstream v3.2.0; in
+// v3.1.0 these ran pre-solve in b2IntegrateVelocitiesTask, which left
+// solver-induced velocity unclamped).
+func integratePositionsTask(startIndex, endIndex int, ctx *stepContext) {
+	states := ctx.states
+	h := ctx.h
 
+	maxLinearSpeed := ctx.maxLinearVelocity
+	maxAngularSpeed := MaxRotation * ctx.invDT
+	maxLinearSpeedSquared := maxLinearSpeed * maxLinearSpeed
+	maxAngularSpeedSquared := maxAngularSpeed * maxAngularSpeed
+
+	assert(startIndex <= endIndex)
+
+	for i := startIndex; i < endIndex; i++ {
+		state := &states[i]
+
+		v := state.linearVelocity
+		wAng := state.angularVelocity
+
+		// Motion locks - these can be viewed as a constraint that comes last
 		if state.flags&lockLinearX != 0 {
 			v.X = 0.0
 		}
@@ -506,33 +526,22 @@ func integrateVelocitiesTask(startIndex, endIndex int, ctx *stepContext) {
 			wAng = 0.0
 		}
 
+		// Clamp to max linear speed
+		if Dot(v, v) > maxLinearSpeedSquared {
+			ratio := maxLinearSpeed / Length(v)
+			v = MulSV(ratio, v)
+			state.flags |= isSpeedCapped
+		}
+
+		// Clamp to max angular speed
+		if wAng*wAng > maxAngularSpeedSquared && state.flags&allowFastRotation == 0 {
+			ratio := maxAngularSpeed / absFloat(wAng)
+			wAng *= ratio
+			state.flags |= isSpeedCapped
+		}
+
 		state.linearVelocity = v
 		state.angularVelocity = wAng
-	}
-}
-
-// integratePositionsTask integrates the delta position and rotation of the
-// body states (upstream b2IntegratePositionsTask).
-func integratePositionsTask(startIndex, endIndex int, ctx *stepContext) {
-	states := ctx.states
-	h := ctx.h
-
-	assert(startIndex <= endIndex)
-
-	for i := startIndex; i < endIndex; i++ {
-		state := &states[i]
-
-		if state.flags&lockLinearX != 0 {
-			state.linearVelocity.X = 0.0
-		}
-
-		if state.flags&lockLinearY != 0 {
-			state.linearVelocity.Y = 0.0
-		}
-
-		if state.flags&lockAngularZ != 0 {
-			state.angularVelocity = 0.0
-		}
 
 		state.deltaPosition = MulAdd(state.deltaPosition, h, state.linearVelocity)
 		state.deltaRotation = IntegrateRotation(state.deltaRotation, h*state.angularVelocity)
@@ -582,6 +591,15 @@ func (w *World) finalizeBodiesTask(startIndex, endIndex, workerIndex int, ctx *s
 		state := &states[simIndex]
 		sim := &sims[simIndex]
 
+		// Re-apply the motion locks to the post-relax/post-restitution
+		// velocity. integratePositionsTask already zeroes locked DOFs
+		// before position integration, but the relax and restitution
+		// stages run after it and can re-introduce velocity on a locked
+		// axis (e.g. a revolute motor driving an AngularZ-locked body).
+		// Finalization consumes the velocity below — for the sleep metric,
+		// the continuous solve, and the published body velocity — so the
+		// locked components must be zeroed again here, matching the base
+		// behavior (upstream b2FinalizeBodiesTask zeroes locked DOFs).
 		if state.flags&lockLinearX != 0 {
 			state.linearVelocity.X = 0.0
 		}
@@ -641,8 +659,16 @@ func (w *World) finalizeBodiesTask(startIndex, endIndex, workerIndex int, ctx *s
 		// never called ApplyBodyMassFromShapes.
 		assert(b.flags&dirtyMass == 0)
 
+		// Clear the transient flags (fast, speed capped, had TOI). These flags
+		// are conditionally set as part of the code below. The state flag
+		// carries isSpeedCapped (set post-solve in integratePositionsTask —
+		// upstream b2FinalizeBodiesTask), while the sim carries
+		// hadTimeOfImpact from the continuous solve; both are cleared after
+		// being copied onto the body for debug draw.
 		b.flags &^= isFast | isSpeedCapped | hadTimeOfImpact
-		b.flags |= sim.flags & (isSpeedCapped | hadTimeOfImpact)
+		b.flags |= state.flags & isSpeedCapped
+		b.flags |= sim.flags & hadTimeOfImpact
+		state.flags &^= isSpeedCapped | hadTimeOfImpact
 		sim.flags &^= isFast | isSpeedCapped | hadTimeOfImpact
 
 		if !enableSleep || !b.enableSleep || sleepVelocity > b.sleepThreshold {
