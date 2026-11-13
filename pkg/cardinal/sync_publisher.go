@@ -2,7 +2,9 @@ package cardinal
 
 import (
 	"bytes"
+	"cmp"
 	"maps"
+	"math"
 	"math/bits"
 	"slices"
 	"strconv"
@@ -102,7 +104,7 @@ type syncReader struct {
 	player     string // "" while the slot is free
 	subscriber *streamSubscriber
 	generation uint64 // the world_sync subscription the stream was opened for
-	stream     string
+	stream     uint64
 	sequence   uint64
 }
 
@@ -228,16 +230,21 @@ type syncEntry struct {
 	id       syncstate.ID
 	revision uint64
 	presence uint64
-	values   []syncstate.Value  // the state, compared by value
+	values   []syncstate.Value  // the state, compared by value, in ascending component index
 	record   msgpack.RawMessage // the same state as a sync.Record, encoded once for every reader
 	policy   *syncPolicy
 }
+
+func (e *syncEntry) ref() syncstate.Ref { return syncstate.RefOf(e.id) }
 
 // syncTransition is one log item. It carries the entry it replaces, so what each reader held
 // before is derived from it and no per-reader rows are stored.
 type syncTransition struct {
 	entity   EntityID
 	old, now *syncEntry // nil: no entry
+	// patch moves a reader holding old to now, encoded once for every such reader. It is set
+	// when now is a later revision of the same lifetime with the same entity presence.
+	patch msgpack.RawMessage
 }
 
 // accessLists are an entity's access components as read from the world.
@@ -254,7 +261,8 @@ type accessLists struct {
 type syncPublisher struct {
 	admit       func(string) bool // nil until EnableSync: nothing is tracked or sent
 	components  map[ecs.ComponentID]syncstate.Component
-	names       []string // sorted names of components; nil until first needed
+	names       []string                   // names of components in byte order; nil until first needed
+	index       map[ecs.ComponentID]uint16 // each component's position in names: its wire index
 	marker      ecs.ComponentID
 	group       ecs.ComponentID
 	viewers     ecs.ComponentID
@@ -274,6 +282,7 @@ type syncPublisher struct {
 	serial   uint64
 	roster   syncRoster
 	retired  map[syncstate.ID]*syncEntry // entries removed this tick, for events about their lifetimes
+	streams  uint64                      // the last stream number given to a reader
 }
 
 func (p *syncPublisher) enabled() bool { return p != nil && p.admit != nil }
@@ -591,11 +600,15 @@ func (p *syncPublisher) capture(w *World, final bool) []syncTransition {
 			continue
 		}
 		now := p.read(w, n, id, old)
+		t := syncTransition{entity: n, old: old, now: now}
 		switch {
 		case old == nil:
 			now.revision = 1
 		case !sameState(old, now):
 			now.revision = old.revision + 1
+			if now.presence == old.presence {
+				t.patch = encodePatch(old, now)
+			}
 		case old.policy == now.policy:
 			continue // nothing changed: one pointer comparison
 		default:
@@ -605,7 +618,7 @@ func (p *syncPublisher) capture(w *World, final bool) []syncTransition {
 			now.record = encodeRecord(now)
 		}
 		p.put(n, now)
-		out = append(out, syncTransition{entity: n, old: old, now: now})
+		out = append(out, t)
 	}
 	return out
 }
@@ -613,11 +626,7 @@ func (p *syncPublisher) capture(w *World, final bool) []syncTransition {
 // read builds the entry of one synced entity: its synced components and its policy.
 func (p *syncPublisher) read(w *World, n EntityID, id syncstate.ID, old *syncEntry) *syncEntry {
 	if p.names == nil {
-		p.names = []string{}
-		for _, c := range p.components {
-			p.names = append(p.names, c.Name)
-		}
-		slices.Sort(p.names)
+		p.indexComponents()
 	}
 	data, err := w.world.ReadObserved(n, p.names)
 	if err != nil {
@@ -626,7 +635,6 @@ func (p *syncPublisher) read(w *World, n EntityID, id syncstate.ID, old *syncEnt
 	now := &syncEntry{
 		id:       id,
 		presence: max(1, p.presence[n][p.marker]),
-		values:   []syncstate.Value{},
 		policy:   p.policyOf(readLists(w, n), old),
 	}
 	for cid, c := range p.components {
@@ -636,28 +644,80 @@ func (p *syncPublisher) read(w *World, n EntityID, id syncstate.ID, old *syncEnt
 		}
 		now.values = append(
 			now.values,
-			syncstate.Value{Name: c.Name, Presence: max(1, p.presence[n][cid]), Data: value},
+			syncstate.Value{Component: p.index[cid], Presence: max(1, p.presence[n][cid]), Data: value},
 		)
 	}
-	slices.SortFunc(now.values, func(a, b syncstate.Value) int { return strings.Compare(a.Name, b.Name) })
+	slices.SortFunc(now.values, func(a, b syncstate.Value) int { return cmp.Compare(a.Component, b.Component) })
 	return now
 }
 
+// indexComponents numbers the synced components by name in byte order, the order the contract
+// lists them in. A component's number is its index on the wire.
+func (p *syncPublisher) indexComponents() {
+	if len(p.components) > math.MaxUint16+1 {
+		panic("sync supports at most 65536 synced components")
+	}
+	p.names, p.index = []string{}, map[ecs.ComponentID]uint16{}
+	for _, c := range p.components {
+		p.names = append(p.names, c.Name)
+	}
+	slices.Sort(p.names)
+	for cid, c := range p.components {
+		i, _ := slices.BinarySearch(p.names, c.Name)
+		p.index[cid] = uint16(i) //nolint:gosec // bounded above
+	}
+}
+
+func sameValue(x, y syncstate.Value) bool {
+	return x.Component == y.Component && x.Presence == y.Presence && bytes.Equal(x.Data, y.Data)
+}
+
 func sameState(a, b *syncEntry) bool {
-	return a.presence == b.presence && slices.EqualFunc(a.values, b.values, func(x, y syncstate.Value) bool {
-		return x.Name == y.Name && x.Presence == y.Presence && bytes.Equal(x.Data, y.Data)
-	})
+	return a.presence == b.presence && slices.EqualFunc(a.values, b.values, sameValue)
 }
 
 // encodeRecord encodes an entry's record once. Every reader's frame copies these bytes.
 func encodeRecord(e *syncEntry) msgpack.RawMessage {
-	data, err := msgpack.Marshal(syncstate.Record{
-		ID: e.id, Revision: e.revision, Presence: e.presence, Components: e.values,
+	return encodeSync(syncstate.Record{
+		Ref: e.ref(), Revision: e.revision, Presence: e.presence, Components: e.values,
 	})
-	if err != nil {
+}
+
+// encodePatch encodes what moves a reader from old to now, two revisions of one lifetime with
+// the same entity presence: every component now has that old lacks or holds with other data or
+// presence, and every component old has that now lacks.
+func encodePatch(old, now *syncEntry) msgpack.RawMessage {
+	patch := syncstate.Patch{Ref: now.ref(), Revision: now.revision}
+	i, j := 0, 0
+	for i < len(old.values) || j < len(now.values) {
+		switch {
+		case j == len(now.values) || i < len(old.values) && old.values[i].Component < now.values[j].Component:
+			patch.Dropped = append(patch.Dropped, old.values[i].Component)
+			i++
+		case i == len(old.values) || now.values[j].Component < old.values[i].Component:
+			patch.Changed = append(patch.Changed, now.values[j])
+			j++
+		default:
+			if !sameValue(old.values[i], now.values[j]) {
+				patch.Changed = append(patch.Changed, now.values[j])
+			}
+			i, j = i+1, j+1
+		}
+	}
+	return encodeSync(patch)
+}
+
+// encodeSync encodes a frame or a part of one: arrays in field order, with the smallest integer
+// encodings. Frames hold no Go maps, and component data is already encoded, so equal values
+// encode to equal bytes.
+func encodeSync(v any) []byte {
+	var buf bytes.Buffer
+	enc := msgpack.NewEncoder(&buf)
+	enc.UseCompactInts(true)
+	if err := enc.Encode(v); err != nil {
 		panic(err)
 	}
-	return data
+	return buf.Bytes()
 }
 
 // sweep drops policies no entry uses. It runs after dispatch, when no queued item or retired
@@ -765,12 +825,15 @@ func liveAuthority(w *World, player string) []syncstate.ID {
 
 // syncDelta is what one reader is told about one commit.
 type syncDelta struct {
-	records []msgpack.RawMessage
-	removed []syncstate.ID
+	records []msgpack.RawMessage // whole entities, for lifetimes the reader starts to hold
+	patches []msgpack.RawMessage // changes to lifetimes the reader already holds
+	removed []syncstate.Ref
 	access  []syncstate.Grant
 }
 
-func (d *syncDelta) empty() bool { return len(d.records)+len(d.removed)+len(d.access) == 0 }
+func (d *syncDelta) empty() bool {
+	return len(d.records)+len(d.patches)+len(d.removed)+len(d.access) == 0
+}
 
 // fold works out who is told what for one commit; deltas is indexed by slot. A transition costs
 // one pass over the words of open slots, plus its deliveries.
@@ -784,6 +847,9 @@ func (p *syncPublisher) fold(commit []syncTransition, deltas []syncDelta) {
 	}
 }
 
+// foldWord is the table of who gets a record and who gets a patch, for one word of slots. A
+// reader that holds a lifetime has received every one of its revisions, so one patch against
+// old is right for every reader that held old.
 func foldWord(t syncTransition, w int, open uint64, deltas []syncDelta) {
 	var h0, a0, h1, a1 uint64 // held before, authority before, holds now, authority now
 	if t.old != nil {
@@ -795,29 +861,36 @@ func foldWord(t syncTransition, w int, open uint64, deltas []syncDelta) {
 	h0, a0, h1, a1 = h0&open, a0&open, h1&open, a1&open
 
 	removed, record, grant := h0, h1, h1 // a despawn, a spawn, or one lifetime replacing another
+	var patch uint64
 	if t.old != nil && t.now != nil && t.old.id == t.now.id {
 		removed = h0 &^ h1 // lost view
-		record = h1 &^ h0  // gained view
-		if t.now.revision > t.old.revision {
-			record = h1 // every viewer gets the update
+		record = h1 &^ h0  // gained view: the whole entity
+		switch {
+		case t.patch != nil:
+			patch = h1 & h0 // kept view: only what changed
+		case t.now.revision > t.old.revision:
+			record = h1 // the entity's presence changed: every viewer starts it over
 		}
 		grant = h1&^h0 | h1&(a0^a1) // gained view, promoted or demoted
 	}
-	for m := removed | record | grant; m != 0; m &= m - 1 {
+	for m := removed | record | patch | grant; m != 0; m &= m - 1 {
 		bit := m & -m
 		d := &deltas[w<<6+bits.TrailingZeros64(m)]
 		if removed&bit != 0 {
-			d.removed = append(d.removed, t.old.id)
+			d.removed = append(d.removed, t.old.ref())
 		}
 		if record&bit != 0 {
 			d.records = append(d.records, t.now.record)
+		}
+		if patch&bit != 0 {
+			d.patches = append(d.patches, t.patch)
 		}
 		if grant&bit != 0 {
 			access := syncstate.View
 			if a1&bit != 0 {
 				access = syncstate.Authority
 			}
-			d.access = append(d.access, syncstate.Grant{ID: t.now.id, Access: access})
+			d.access = append(d.access, syncstate.Grant{Ref: t.now.ref(), Access: access})
 		}
 	}
 }
@@ -839,7 +912,7 @@ func (p *syncPublisher) baseline(s int) syncDelta {
 			access = syncstate.Authority
 		}
 		d.records = append(d.records, e.record)
-		d.access = append(d.access, syncstate.Grant{ID: e.id, Access: access})
+		d.access = append(d.access, syncstate.Grant{Ref: e.ref(), Access: access})
 	}
 	return d
 }

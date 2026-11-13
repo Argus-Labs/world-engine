@@ -103,6 +103,7 @@ func newAccessFixture(t *testing.T, players ...string) *accessFixture {
 	}
 	f.TestWorld = NewTestWorld(t, func(w *World) {
 		w.RegisterComponent[syncHealth]()
+		w.RegisterComponent[syncLoadout]()
 		w.RegisterComponent[syncPrivate]()
 		w.EnableSync(func(player string) bool { return f.admitted[player] })
 		w.RegisterCommand[accessCast](syncstate.FromPlayers)
@@ -175,65 +176,178 @@ func revisionOf(t *testing.T, f syncstate.Frame) uint64 {
 	return f.Records[0].Revision
 }
 
+// value is a component as a frame carries it.
+func (f *accessFixture) value(t *testing.T, name string, presence uint64, component any) syncstate.Value {
+	t.Helper()
+	data, err := schema.Serialize(component.(schema.Serializable))
+	require.NoError(t, err)
+	return syncstate.Value{Component: syncIndex(t, f.World, name), Presence: presence, Data: data}
+}
+
 // Each row of the fold table in the design: what a reader held, what the change gives, and
 // what the reader is told.
+//
+//nolint:maintidx // One scenario walks the table row by row.
 func TestSyncFoldTable(t *testing.T) {
-	f := newAccessFixture(t, "alice", "bob")
+	f := newAccessFixture(t, "alice", "bob", "carol")
 	e := f.Create[syncAvatar]()
 	e.Set(syncHealth{HP: 10})
+	e.Set(syncLoadout{WeaponID: "wand"})
+	e.Set(syncstate.Viewers{Players: players("bob")})
 	e.Set(syncstate.Authorities{Players: players("alice")})
 	f.Tick()
-	id := e.SyncID()
+	ref := refOf(e)
+	loadout := syncIndex(t, f.World, "loadout")
 
 	// Spawn: nothing held, a row given: record and access.
 	alice, bob := f.frame(t, "alice"), f.frame(t, "bob")
-	assert.Len(t, alice.Records, 1)
-	assert.Equal(t, []syncstate.Grant{{ID: id, Access: syncstate.Authority}}, alice.Access)
-	assert.Equal(t, []syncstate.Grant{{ID: id, Access: syncstate.View}}, bob.Access)
+	assert.Equal(t, []syncstate.Record{{Ref: ref, Revision: 1, Presence: 1, Components: []syncstate.Value{
+		f.value(t, "health", 1, syncHealth{HP: 10}), f.value(t, "loadout", 1, syncLoadout{WeaponID: "wand"}),
+	}}}, alice.Records)
+	assert.Equal(t, []syncstate.Grant{{Ref: ref, Access: syncstate.Authority}}, alice.Access)
+	assert.Equal(t, []syncstate.Grant{{Ref: ref, Access: syncstate.View}}, bob.Access)
 	assert.Equal(t, alice.Records, bob.Records, "records are shared state; access travels apart")
+	f.quiet(t, "carol")
 
-	// Update: a higher revision gives the record only.
+	// Kept view, revision rose, entity presence unchanged: a patch holding only what changed.
 	e.Set(syncHealth{HP: 9})
 	f.Tick()
-	alice = f.frame(t, "alice")
-	assert.Equal(t, uint64(2), revisionOf(t, alice))
-	assert.Empty(t, alice.Access)
-	assert.Empty(t, f.frame(t, "bob").Access)
+	patch := syncstate.Patch{
+		Ref: ref, Revision: 2, Changed: []syncstate.Value{f.value(t, "health", 1, syncHealth{HP: 9})},
+	}
+	for _, p := range []string{"alice", "bob"} {
+		fr := f.frame(t, p)
+		assert.Equal(t, []syncstate.Patch{patch}, fr.Patches, p)
+		assert.Empty(t, fr.Records, p)
+		assert.Empty(t, fr.Access, p)
+	}
+
+	// Gained view in the same commit that changed the entity: the whole record and a grant, while
+	// the readers that kept view get the patch.
+	e.Set(syncHealth{HP: 8})
+	e.Set(syncstate.Viewers{Players: players("bob", "carol")})
+	f.Tick()
+	carol := f.frame(t, "carol")
+	assert.Empty(t, carol.Patches)
+	assert.Equal(t, []syncstate.Record{{Ref: ref, Revision: 3, Presence: 1, Components: []syncstate.Value{
+		f.value(t, "health", 1, syncHealth{HP: 8}), f.value(t, "loadout", 1, syncLoadout{WeaponID: "wand"}),
+	}}}, carol.Records)
+	assert.Equal(t, []syncstate.Grant{{Ref: ref, Access: syncstate.View}}, carol.Access)
+	for _, p := range []string{"alice", "bob"} {
+		fr := f.frame(t, p)
+		assert.Equal(t, []syncstate.Patch{{Ref: ref, Revision: 3, Changed: []syncstate.Value{
+			f.value(t, "health", 1, syncHealth{HP: 8}),
+		}}}, fr.Patches, p)
+		assert.Empty(t, fr.Records, p)
+		assert.Empty(t, fr.Access, p)
+	}
+
+	// A removed component arrives in Dropped.
+	e.Remove[syncLoadout]()
+	f.Tick()
+	for _, p := range []string{"alice", "bob", "carol"} {
+		dropped := []syncstate.Patch{{Ref: ref, Revision: 4, Dropped: []uint16{loadout}}}
+		assert.Equal(t, dropped, f.frame(t, p).Patches, p)
+	}
+
+	// A re-added component arrives in Changed with its new presence.
+	e.Set(syncLoadout{WeaponID: "bow"})
+	f.Tick()
+	readded := f.frame(t, "bob").Patches
+	require.Len(t, readded, 1)
+	require.Len(t, readded[0].Changed, 1)
+	added := readded[0].Changed[0]
+	assert.Greater(t, added.Presence, uint64(1), "a new presence")
+	assert.Equal(t, []syncstate.Patch{{Ref: ref, Revision: 5, Changed: []syncstate.Value{
+		f.value(t, "loadout", added.Presence, syncLoadout{WeaponID: "bow"}),
+	}}}, readded)
+	for _, p := range []string{"alice", "carol"} {
+		assert.Equal(t, readded, f.frame(t, p).Patches, p)
+	}
+
+	// Removed and re-added between two publications with equal data: only its presence changed.
+	e.Remove[syncLoadout]()
+	e.Set(syncLoadout{WeaponID: "bow"})
+	f.Tick()
+	again := f.frame(t, "bob").Patches
+	require.Len(t, again, 1)
+	require.Len(t, again[0].Changed, 1)
+	assert.Greater(t, again[0].Changed[0].Presence, added.Presence)
+	assert.Equal(t, []syncstate.Patch{{Ref: ref, Revision: 6, Changed: []syncstate.Value{
+		f.value(t, "loadout", again[0].Changed[0].Presence, syncLoadout{WeaponID: "bow"}),
+	}}}, again)
+	f.frame(t, "alice")
+	f.frame(t, "carol")
+
+	// Kept view, revision rose and promoted: a patch and a grant.
+	e.Set(syncHealth{HP: 7})
+	e.Set(syncstate.Authorities{Players: players("alice", "bob")})
+	f.Tick()
+	bob = f.frame(t, "bob")
+	assert.Len(t, bob.Patches, 1)
+	assert.Empty(t, bob.Records)
+	assert.Equal(t, []syncstate.Grant{{Ref: ref, Access: syncstate.Authority}}, bob.Access)
+	assert.Empty(t, f.frame(t, "alice").Access)
+	f.frame(t, "carol")
+	e.Set(syncstate.Authorities{Players: players("alice")})
+	f.Tick()
+	f.frame(t, "bob")
+
+	// Entity presence changed (sync removed and re-added): every holder gets the whole record,
+	// and no grant, since access did not change.
+	e.Remove[syncstate.Sync]()
+	e.Set(syncstate.Sync{})
+	f.Tick()
+	for _, p := range []string{"alice", "bob", "carol"} {
+		fr := f.frame(t, p)
+		assert.Empty(t, fr.Patches, p)
+		assert.Empty(t, fr.Access, p)
+		require.Len(t, fr.Records, 1, p)
+		assert.Equal(t, uint64(8), fr.Records[0].Revision, p)
+		assert.Greater(t, fr.Records[0].Presence, uint64(1), "%s: a new entity presence", p)
+		assert.Equal(t, ref, fr.Records[0].Ref, p)
+	}
 
 	// Promoted: view to authority gives access only, and does not bump the revision.
 	e.Set(syncstate.Authorities{Players: players("alice", "bob")})
 	f.Tick()
 	bob = f.frame(t, "bob")
 	assert.Empty(t, bob.Records)
-	assert.Equal(t, []syncstate.Grant{{ID: id, Access: syncstate.Authority}}, bob.Access)
-	f.quiet(t, "alice")
+	assert.Empty(t, bob.Patches)
+	assert.Equal(t, []syncstate.Grant{{Ref: ref, Access: syncstate.Authority}}, bob.Access)
+	f.quiet(t, "alice", "carol")
 
 	// Demoted: access only again.
 	e.Set(syncstate.Authorities{Players: players("alice")})
 	f.Tick()
-	assert.Equal(t, []syncstate.Grant{{ID: id, Access: syncstate.View}}, f.frame(t, "bob").Access)
-	f.quiet(t, "alice")
+	bob = f.frame(t, "bob")
+	assert.Empty(t, bob.Patches)
+	assert.Equal(t, []syncstate.Grant{{Ref: ref, Access: syncstate.View}}, bob.Access)
+	f.quiet(t, "alice", "carol")
 
 	// Lost view: an empty Viewers leaves the entity to its authorities; bob is told it is gone.
 	e.Set(syncstate.Viewers{})
 	f.Tick()
-	bob = f.frame(t, "bob")
-	assert.Equal(t, []syncstate.ID{id}, bob.Removed)
-	assert.Empty(t, bob.Records)
+	for _, p := range []string{"bob", "carol"} {
+		fr := f.frame(t, p)
+		assert.Equal(t, []syncstate.Ref{ref}, fr.Removed, p)
+		assert.Empty(t, fr.Records, p)
+		assert.Empty(t, fr.Patches, p)
+	}
 	f.quiet(t, "alice")
 
 	// Gained view of an entity it saw before: the full current record and access.
 	e.Set(syncstate.Viewers{Players: players("bob")})
 	f.Tick()
 	bob = f.frame(t, "bob")
-	assert.Equal(t, uint64(2), revisionOf(t, bob), "access changes never bump the revision")
-	assert.Equal(t, []syncstate.Grant{{ID: id, Access: syncstate.View}}, bob.Access)
-	f.quiet(t, "alice")
+	assert.Equal(t, uint64(8), revisionOf(t, bob), "access changes never bump the revision")
+	assert.Equal(t, []syncstate.Grant{{Ref: ref, Access: syncstate.View}}, bob.Access)
+	f.quiet(t, "alice", "carol")
 
 	// A list rewrite that changes nobody's access sends nothing.
 	e.Set(syncstate.Viewers{Players: players("bob"), Groups: players("nobody")})
 	f.Tick()
-	f.quiet(t, "alice", "bob")
+	f.quiet(t, "alice", "bob", "carol")
 
 	// Numeric ID reused within a tick: removed, then record and access, in one frame.
 	e.Destroy()
@@ -243,25 +357,31 @@ func TestSyncFoldTable(t *testing.T) {
 	require.Equal(t, e.ID(), next.ID())
 	for _, p := range []string{"alice", "bob"} {
 		fr := f.frame(t, p)
-		assert.Equal(t, []syncstate.ID{id}, fr.Removed, p)
-		assert.Equal(t, []syncstate.Grant{{ID: next.SyncID(), Access: syncstate.View}}, fr.Access, p)
+		assert.Equal(t, []syncstate.Ref{ref}, fr.Removed, p)
+		assert.Equal(t, []syncstate.Grant{{Ref: refOf(next), Access: syncstate.View}}, fr.Access, p)
 		assert.Equal(t, uint64(1), revisionOf(t, fr), p)
+		assert.Empty(t, fr.Patches, p)
 	}
+	assert.Len(t, f.frame(t, "carol").Records, 1)
 
-	// Readmission: an empty ledger takes every current entry, flagged as a baseline.
+	// Readmission: an empty ledger takes every current entry, as a baseline on a new stream.
 	f.admitted["bob"] = false
 	f.Tick()
 	revoked := f.frame(t, "bob")
-	assert.True(t, revoked.Baseline)
+	assert.NotNil(t, revoked.Open)
 	assert.Empty(t, revoked.Records)
 	f.admitted["bob"] = true
 	f.Tick()
 	readmitted := f.frame(t, "bob")
-	assert.True(t, readmitted.Baseline)
-	assert.NotEqual(t, revoked.Stream, readmitted.Stream)
+	require.NotNil(t, readmitted.Open)
+	assert.Equal(t, next.SyncID().Session, readmitted.Open.Session)
+	assert.Greater(t, readmitted.Stream, revoked.Stream)
 	assert.Equal(t, uint64(1), readmitted.Sequence)
-	assert.Equal(t, []syncstate.Grant{{ID: next.SyncID(), Access: syncstate.View}}, readmitted.Access)
-	f.quiet(t, "alice")
+	assert.Len(t, readmitted.Records, 1)
+	assert.Empty(t, readmitted.Patches, "a baseline carries only records and grants")
+	assert.Empty(t, readmitted.Removed, "a baseline carries only records and grants")
+	assert.Equal(t, []syncstate.Grant{{Ref: refOf(next), Access: syncstate.View}}, readmitted.Access)
+	f.quiet(t, "alice", "carol")
 }
 
 func TestSyncCommandVerdicts(t *testing.T) {
@@ -468,7 +588,7 @@ func TestSyncGroupsFailClosed(t *testing.T) {
 	dup := f.Create[accessTeam]()
 	dup.Set(syncstate.Group{GroupName: "team", Players: players("alice")})
 	f.Tick()
-	assert.Equal(t, []syncstate.ID{e.SyncID()}, f.frame(t, "bob").Removed)
+	assert.Equal(t, []syncstate.Ref{refOf(e)}, f.frame(t, "bob").Removed)
 	f.quiet(t, "alice")
 	assert.Contains(t, logs.String(), "not unique")
 
@@ -487,7 +607,7 @@ func TestSyncGroupsFailClosed(t *testing.T) {
 	alice := f.frame(t, "alice")
 	assert.Len(t, alice.Records, 1, "alice gains view of the entity that names the group")
 	assert.ElementsMatch(t, []syncstate.Grant{
-		{ID: e.SyncID(), Access: syncstate.View}, {ID: other.SyncID(), Access: syncstate.Authority},
+		{Ref: refOf(e), Access: syncstate.View}, {Ref: refOf(other), Access: syncstate.Authority},
 	}, alice.Access)
 	f.quiet(t, "bob")
 
@@ -496,8 +616,8 @@ func TestSyncGroupsFailClosed(t *testing.T) {
 	f.Tick()
 	for _, p := range []string{"alice", "bob"} {
 		fr := f.frame(t, p)
-		assert.Equal(t, []syncstate.ID{e.SyncID()}, fr.Removed, p)
-		assert.Equal(t, []syncstate.Grant{{ID: other.SyncID(), Access: syncstate.View}}, fr.Access, p)
+		assert.Equal(t, []syncstate.Ref{refOf(e)}, fr.Removed, p)
+		assert.Equal(t, []syncstate.Grant{{Ref: refOf(other), Access: syncstate.View}}, fr.Access, p)
 	}
 
 	// Group members never reach the wire, even on a synced entity.
@@ -527,10 +647,10 @@ func TestSyncSlotCoolsUntilDispatch(t *testing.T) {
 	f.connect(t, "bob")
 	f.Tick()
 	cleared := f.frame(t, "alice")
-	assert.True(t, cleared.Baseline)
+	assert.NotNil(t, cleared.Open)
 	assert.Empty(t, cleared.Records, "alice never sees bob's entity")
 	joined := f.frame(t, "bob")
-	assert.True(t, joined.Baseline)
+	assert.NotNil(t, joined.Open)
 	assert.Len(t, joined.Records, 1)
 	assert.Equal(t, 1, f.sync.roster.slotOf["bob"], "bob took a new slot while alice's cooled")
 	f.Tick()
@@ -590,38 +710,70 @@ func TestSyncEventsReachOnlyViewers(t *testing.T) {
 	assert.Equal(t, []string{"access_spawn"}, f.received("bob"))
 }
 
-// Each entry's record is encoded once, and every reader's frame carries those bytes: the frame
-// on the wire equals the struct encoding of the same frame built from the world.
-func TestSyncFramesAreByteIdenticalToStructEncoding(t *testing.T) {
+// The frame layout, byte for byte, against the compact wire spec: positional arrays, the smallest
+// integers, the session once per stream, component indexes, and the fingerprint only on the
+// baseline. Records and patches are encoded once and carried by every reader's frame.
+func TestSyncFrameLayoutGolden(t *testing.T) {
 	f := newAccessFixture(t, "alice", "bob")
 	e := f.Create[syncAvatar]()
 	e.Set(syncHealth{HP: 7, MaxHP: 9})
+	e.Set(syncLoadout{WeaponID: "wand"})
 	e.Set(syncstate.Authorities{Players: players("alice")})
 	f.Tick()
-	health, err := schema.Serialize(syncHealth{HP: 7, MaxHP: 9})
-	require.NoError(t, err)
-	record := syncstate.Record{ID: e.SyncID(), Revision: 1, Presence: 1, Components: []syncstate.Value{
-		{Name: "health", Presence: 1, Data: health},
-	}}
+	syncFrames(t, f.subs["alice"])
+	syncFrames(t, f.subs["bob"])
+	f.connect(t, "dave")
+	f.admitted["dave"] = true
+	f.Tick()
+	require.Less(t, uint32(e.ID()), uint32(128))
+	require.Less(t, e.SyncID().Incarnation, uint64(128))
+	ref := []byte{0x92, byte(e.ID()), byte(e.SyncID().Incarnation)}
+	bin := func(t *testing.T, component any) []byte {
+		t.Helper()
+		data, err := schema.Serialize(component.(schema.Serializable))
+		require.NoError(t, err)
+		require.Less(t, len(data), 256)
+		return append([]byte{0xc4, byte(len(data))}, data...)
+	}
+	str := func(s string) []byte { return append([]byte{0xd9, byte(len(s))}, s...) }
+	cat := func(parts ...[]byte) []byte { return bytes.Join(parts, nil) }
 	fingerprint, err := f.SyncContract().Fingerprint()
 	require.NoError(t, err)
-	for player, access := range map[string]syncstate.Access{"alice": syncstate.Authority, "bob": syncstate.View} {
-		require.Len(t, f.subs[player].queue, 1)
+	health, loadout := syncIndex(t, f.World, "health"), syncIndex(t, f.World, "loadout")
+	require.Equal(t, []uint16{0, 1}, []uint16{health, loadout}, "contract order: health, loadout")
+
+	// dave's baseline: [Open, Stream, Sequence, Records, Patches, Removed, Access]
+	want := cat(
+		[]byte{0x97},
+		[]byte{0x93, 0x02}, str(fingerprint), str(e.SyncID().Session), // Open: version, fingerprint, session
+		[]byte{0x03, 0x01},                                // stream 3 (alice 1, bob 2), sequence 1
+		[]byte{0x91, 0x94}, ref, []byte{0x01, 0x01, 0x92}, // one record: ref, revision 1, presence 1, two values
+		[]byte{0x93, 0x00, 0x01}, bin(t, syncHealth{HP: 7, MaxHP: 9}), // health: index 0, presence 1
+		[]byte{0x93, 0x01, 0x01}, bin(t, syncLoadout{WeaponID: "wand"}), // loadout: index 1, presence 1
+		[]byte{0xc0, 0xc0},                    // no patches, no removals
+		[]byte{0x91, 0x92}, ref, []byte{0x01}, // one grant: ref, view
+	)
+	baseline := f.subs["dave"].queue
+	require.Len(t, baseline, 1)
+	assert.Equal(t, want, baseline[0].response.GetEvent().GetPayload())
+	syncFrames(t, f.subs["dave"])
+
+	// One entity with two components moves one: a delta holds a patch with that one component.
+	e.Set(syncLoadout{WeaponID: "bow", Ammo: 3})
+	f.Tick()
+	moved := bin(t, syncLoadout{WeaponID: "bow", Ammo: 3})
+	// a patch: ref, revision 2, one changed value (loadout, presence 1), nothing dropped
+	patch := cat([]byte{0x94}, ref, []byte{0x02, 0x91, 0x93, 0x01, 0x01}, moved, []byte{0xc0})
+	for player, stream := range map[string]byte{"alice": 1, "bob": 2, "dave": 3} {
+		sequence := byte(3)
+		if player == "dave" {
+			sequence = 2
+		}
+		delta := cat([]byte{0x97, 0xc0, stream, sequence, 0xc0, 0x91}, patch, []byte{0xc0, 0xc0})
+		require.Len(t, f.subs[player].queue, 1, player)
 		wire := f.subs[player].queue[0].response.GetEvent().GetPayload()
-		var decoded syncstate.Frame
-		require.NoError(t, msgpack.Unmarshal(wire, &decoded))
-		want, err := schema.Serialize(syncstate.Frame{
-			Version: syncstate.ProtocolVersion, Fingerprint: fingerprint, Stream: decoded.Stream, Sequence: 2,
-			Records: []syncstate.Record{record}, Access: []syncstate.Grant{{ID: e.SyncID(), Access: access}},
-		})
-		require.NoError(t, err)
-		assert.Equal(t, want, wire, player)
-		assert.True(
-			t,
-			bytes.Contains(wire, f.sync.entry(e.ID()).record),
-			"%s's frame carries the record encoded once",
-			player,
-		)
+		assert.Equal(t, delta, wire, player)
+		t.Logf("%s's delta: %d bytes, of which %d are the changed component's data", player, len(wire), len(moved)-2)
 	}
 }
 
@@ -639,5 +791,5 @@ func TestSyncPolicyTellsUnknownGroupsApart(t *testing.T) {
 	team.Set(syncstate.Group{GroupName: "blue", Players: players("alice")})
 	f.Tick()
 	fr := f.frame(t, "alice")
-	assert.Equal(t, []syncstate.Grant{{ID: blue.SyncID(), Access: syncstate.View}}, fr.Access)
+	assert.Equal(t, []syncstate.Grant{{Ref: refOf(blue), Access: syncstate.View}}, fr.Access)
 }
