@@ -501,7 +501,7 @@ func TestWorldState_SerializationSmoke(t *testing.T) {
 	}
 
 	// Remove some entities to populate free list.
-	removeCount := prng.IntN(entityCount / 4)
+	removeCount := prng.IntN(entityCount/4 + 1) // +1: IntN panics on 0 when entityCount < 4
 	for range removeCount {
 		eid := EntityID(prng.IntN(entityCount))
 		ws1.removeEntity(eid)
