@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,6 +10,92 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type snapshotBalance struct{ Coins int }
+
+func (snapshotBalance) Name() string { return "snapshot_balance" }
+
+type snapshotAccount struct{ Balance snapshotBalance }
+
+type snapshotSystemFunc func(*World)
+
+func (f snapshotSystemFunc) Run(w *World) { f(w) }
+
+func TestRunLoopPanicPreservesCompletedSnapshot(t *testing.T) {
+	for _, async := range []bool{false, true} {
+		t.Run(fmt.Sprintf("async=%t", async), func(t *testing.T) {
+			w := newTestWorld(t)
+			if async {
+				w.snapshotWriter.Stop(context.Background())
+				w.snapshotWriter = snapshot.NewAsyncWriter(w.snapshotStorage, &w.tel)
+				defer w.snapshotWriter.Stop(context.Background())
+			}
+			w.options.TickRate = 1000
+			w.RegisterComponent[snapshotBalance]()
+			w.RegisterSystem(snapshotSystemFunc(func(w *World) {
+				if w.TickHeight() == 0 {
+					w.Create[snapshotAccount]().Set(snapshotBalance{Coins: 100})
+					w.Create[snapshotAccount]()
+					return
+				}
+				w.Entity(0).Set(snapshotBalance{Coins: 90})
+				panic("transfer interrupted before recipient credit")
+			}))
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			require.PanicsWithValue(t, "transfer interrupted before recipient credit", func() {
+				_ = w.run(ctx)
+			})
+			require.NoError(t, w.snapshotWriter.Drain(ctx))
+
+			// Restart from the actual stored bytes, not the partially mutated live world.
+			restored := newTestWorld(t)
+			restored.RegisterComponent[snapshotBalance]()
+			restored.useSyncSnapshotStorage(w.snapshotStorage)
+			restored.init()
+			require.NoError(t, restored.restore(ctx))
+			assert.Equal(t, uint64(1), restored.TickHeight())
+			assert.Equal(t, 100, restored.Entity(0).Get[snapshotBalance]().Coins)
+			assert.Equal(t, 0, restored.Entity(1).Get[snapshotBalance]().Coins)
+		})
+	}
+}
+
+func TestRunLoopShutdownPersistsUnsnapshottedTick(t *testing.T) {
+	for _, async := range []bool{false, true} {
+		t.Run(fmt.Sprintf("async=%t", async), func(t *testing.T) {
+			w := newTestWorld(t)
+			if async {
+				w.snapshotWriter.Stop(context.Background())
+				w.snapshotWriter = snapshot.NewAsyncWriter(w.snapshotStorage, &w.tel)
+				defer w.snapshotWriter.Stop(context.Background())
+			}
+			w.options.SnapshotRate = 100
+			w.RegisterComponent[snapshotBalance]()
+			w.RegisterSystem(snapshotSystemFunc(func(w *World) {
+				if w.TickHeight() == 0 {
+					w.Create[snapshotAccount]()
+				}
+				w.Entity(0).Set(snapshotBalance{Coins: 100 + int(w.TickHeight())})
+			}))
+
+			// Only tick 0 is a scheduled snapshot; shutdown must also save completed tick 2.
+			runSnapshotTicks(t, w, 3)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			require.NoError(t, w.snapshotWriter.Drain(ctx))
+
+			restored := newTestWorld(t)
+			restored.RegisterComponent[snapshotBalance]()
+			restored.useSyncSnapshotStorage(w.snapshotStorage)
+			restored.init()
+			require.NoError(t, restored.restore(ctx))
+			assert.Equal(t, uint64(3), restored.TickHeight())
+			assert.Equal(t, 102, restored.Entity(0).Get[snapshotBalance]().Coins)
+		})
+	}
+}
 
 // newTestWorld builds a minimal, isolated World backed by the in-memory snapshot storage and a
 // synchronous writer. Debug stepping lets tests drive shutdown at an exact tick height.
@@ -34,7 +121,7 @@ func newTestWorld(t *testing.T) *World {
 	return w
 }
 
-// runSnapshotTicks runs a fixed number of ticks, then exercises run's shutdown defer.
+// runSnapshotTicks runs a fixed number of ticks, then exercises run's normal shutdown.
 func runSnapshotTicks(t *testing.T, w *World, ticks int) {
 	t.Helper()
 	w.debug.setPaused(true)
@@ -82,7 +169,7 @@ func TestRestorePreservesTickHeightAfterTicks(t *testing.T) {
 		"after 5 ticks + one restart, height should still be 5, but it shifted to %d", w.currentTick.height)
 }
 
-// TestWriteFinalSnapshotSkipsWhenUnstarted verifies the deferred final snapshot writes nothing for a
+// TestWriteFinalSnapshotSkipsWhenUnstarted verifies the final snapshot writes nothing for a
 // world that never ticked, so restore loads no snapshot and leaves the height at 0.
 func TestWriteFinalSnapshotSkipsWhenUnstarted(t *testing.T) {
 	w := newTestWorld(t)
@@ -106,7 +193,7 @@ func TestWriteFinalSnapshotLabelsPreIncrement(t *testing.T) {
 		"final snapshot after 5 ticks must use the pre-increment label (4), not the post-increment label (5)")
 }
 
-// TestRunLoopRestartPreservesHeight drives the real run loop (its deferred final snapshot is the
+// TestRunLoopRestartPreservesHeight drives the real run loop (its final snapshot is the
 // production shutdown path), shuts it down cleanly via context cancellation, then restores into a
 // FRESH World sharing the same storage, asserting the running height is preserved across the
 // restart boundary. (Procedure F in the test plan.)
@@ -139,7 +226,7 @@ func TestRunLoopRestartPreservesHeight(t *testing.T) {
 		require.Equal(t, uint64(i+1), h, "step %d should report height %d", i+1, i+1)
 	}
 
-	// Clean shutdown while paused: cancel so run returns and the final-snapshot defer fires.
+	// Clean shutdown while paused: cancel so run writes its final snapshot and returns.
 	cancel()
 	require.ErrorIs(t, <-runErr, context.Canceled, "run should return context.Canceled on shutdown")
 
@@ -201,7 +288,7 @@ func TestRunLoopZeroTicksStaysAtZero(t *testing.T) {
 }
 
 // TestCrashMidTickRestoresCorrectly simulates a crash after persistState ran (pre-increment label)
-// but before the deferred final snapshot, then restores. Validates that a persistState-labeled
+// but before the final shutdown snapshot, then restores. Validates that a persistState-labeled
 // (pre-increment) snapshot restores to the correct running height with restore's +1.
 // (Procedure G in the test plan.)
 func TestCrashMidTickRestoresCorrectly(t *testing.T) {
@@ -211,7 +298,7 @@ func TestCrashMidTickRestoresCorrectly(t *testing.T) {
 		w.Tick(time.Now())
 	}
 	// After 3 ticks, height is 3. persistState wrote pre-increment labels 0, 1, 2 (last stored = 2).
-	// Simulate a crash before the deferred final snapshot: do not shut down through run.
+	// Simulate a crash before the final shutdown snapshot: do not shut down through run.
 	require.NoError(t, w.restore(context.Background()))
 	assert.Equal(
 		t,
