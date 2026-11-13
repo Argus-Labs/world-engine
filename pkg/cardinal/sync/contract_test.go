@@ -1,10 +1,12 @@
-package sync
+package sync_test
 
 import (
-	"github.com/stretchr/testify/require"
-	"github.com/vmihailenco/msgpack/v5"
 	"reflect"
 	"testing"
+
+	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
+	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 func TestMarkerDoesNotChangeMessagePack(t *testing.T) {
@@ -13,7 +15,8 @@ func TestMarkerDoesNotChangeMessagePack(t *testing.T) {
 		MaxHP int
 	}
 	type public struct {
-		State
+		syncstate.State
+
 		HP    int
 		MaxHP int
 	}
@@ -22,27 +25,31 @@ func TestMarkerDoesNotChangeMessagePack(t *testing.T) {
 	after, err := msgpack.Marshal(public{HP: 7, MaxHP: 100})
 	require.NoError(t, err)
 	require.Equal(t, before, after)
-	_, exposed, err := Describe(reflect.TypeFor[private](), "health")
+	_, exposed, err := syncstate.Describe(reflect.TypeFor[private](), "health")
 	require.NoError(t, err)
 	require.False(t, exposed)
-	component, exposed, err := Describe(reflect.TypeFor[public](), "health")
+	component, exposed, err := syncstate.Describe(reflect.TypeFor[public](), "health")
 	require.NoError(t, err)
 	require.True(t, exposed)
-	require.Equal(t, []Field{{Name: "HP", Type: "int64"}, {Name: "MaxHP", Type: "int64"}}, component.Fields)
+	require.Equal(t, []syncstate.Field{{Name: "HP", Type: "int64"}, {Name: "MaxHP", Type: "int64"}}, component.Fields)
 }
 
 func TestContractPinsWidthsAndNames(t *testing.T) {
 	type health struct {
-		State
+		syncstate.State
+
 		HP      int32 `msgpack:"hp"`
 		Speed   float32
 		Private int `msgpack:"-"`
 	}
-	c, _, err := Describe(reflect.TypeFor[health](), "health")
+	c, _, err := syncstate.Describe(reflect.TypeFor[health](), "health")
 	require.NoError(t, err)
-	require.Equal(t, []Field{{Name: "Speed", Type: "float32"}, {Name: "hp", Type: "int32"}}, c.Fields)
-	a := Contract{Version: 1, Components: []Component{c, {Name: "other", Fields: []Field{{Name: "x", Type: "int64"}}}}}
-	b := Contract{Version: 1, Components: []Component{a.Components[1], c}}
+	require.Equal(t, []syncstate.Field{{Name: "Speed", Type: "float32"}, {Name: "hp", Type: "int32"}}, c.Fields)
+	a := syncstate.Contract{
+		Version:    1,
+		Components: []syncstate.Component{c, {Name: "other", Fields: []syncstate.Field{{Name: "x", Type: "int64"}}}},
+	}
+	b := syncstate.Contract{Version: 1, Components: []syncstate.Component{a.Components[1], c}}
 	af, err := a.Fingerprint()
 	require.NoError(t, err)
 	bf, err := b.Fingerprint()
@@ -57,19 +64,22 @@ func TestContractPinsWidthsAndNames(t *testing.T) {
 func TestRejectUnsupportedSyncShapes(t *testing.T) {
 	for _, value := range []any{
 		struct {
-			State
+			syncstate.State
+
 			Values []int
 		}{}, struct {
-			State
+			syncstate.State
+
 			Value int `msgpack:",omitempty"`
 		}{},
 		struct {
-			State
+			syncstate.State
+
 			A int `msgpack:"x"`
 			B int `msgpack:"x"`
 		}{},
 	} {
-		_, exposed, err := Describe(reflect.TypeOf(value), "state")
+		_, exposed, err := syncstate.Describe(reflect.TypeOf(value), "state")
 		require.True(t, exposed)
 		require.Error(t, err)
 	}

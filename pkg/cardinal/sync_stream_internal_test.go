@@ -260,7 +260,12 @@ func TestSyncSubscriptionsRaceTheTick(t *testing.T) {
 	var final []*streamSubscriber
 	for i := range 6 {
 		ctx, cancel := context.WithCancelCause(t.Context())
-		sub := &streamSubscriber{ctx: ctx, cancel: cancel, events: map[string]struct{}{}, queueReady: make(chan struct{}, 1)}
+		sub := &streamSubscriber{
+			ctx:        ctx,
+			cancel:     cancel,
+			events:     map[string]struct{}{},
+			queueReady: make(chan struct{}, 1),
+		}
 		addSubscriptions(sub, []*cardinalv1.EventSubscription{{Events: []string{syncstate.EventName}}})
 		w.service.addSubscriber(fmt.Sprintf("p%d", i), sub)
 		final = append(final, sub)
