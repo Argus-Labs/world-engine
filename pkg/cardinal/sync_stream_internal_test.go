@@ -80,6 +80,14 @@ func TestSyncTwoHTTP2ClientsReconnectAndReadmission(t *testing.T) {
 	aliceClient.subscribe(t, "alice", syncstate.EventName)
 	w.Tick() // No state change: reconnect still needs a complete baseline.
 	rejoined := receiveSyncFrame(t, alice)
+	// A reader told nothing for a heartbeat, as at every TestWorld step, gets an empty delta.
+	heartbeat := func() {
+		t.Helper()
+		f := receiveSyncFrame(t, bob)
+		require.True(t, emptyDelta(f), "bob's heartbeat")
+		require.Equal(t, b.Stream, f.Stream)
+	}
+	heartbeat()
 	require.NotNil(t, rejoined.Open)
 	require.NotEqual(t, a.Stream, rejoined.Stream)
 	require.Equal(t, syncLoadout{WeaponID: "bow", Ammo: 9}, streamLoadout(t, w, rejoined))
@@ -88,6 +96,7 @@ func TestSyncTwoHTTP2ClientsReconnectAndReadmission(t *testing.T) {
 	allowAlice = false
 	w.Tick()
 	revoked := receiveSyncFrame(t, alice)
+	heartbeat()
 	require.NotNil(t, revoked.Open)
 	require.NotEqual(t, rejoined.Stream, revoked.Stream)
 	require.Empty(t, revoked.Records)
@@ -97,6 +106,7 @@ func TestSyncTwoHTTP2ClientsReconnectAndReadmission(t *testing.T) {
 	allowAlice = true
 	w.Tick()
 	readmitted := receiveSyncFrame(t, alice)
+	heartbeat()
 	// If a suspended-segment update leaked, it would arrive before this baseline.
 	require.NotNil(t, readmitted.Open)
 	require.NotEqual(t, revoked.Stream, readmitted.Stream)
