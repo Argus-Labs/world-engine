@@ -494,15 +494,15 @@ type streamHarness struct {
 	exits   map[string]time.Time // Test stream ID -> when its ServeHTTP returned.
 }
 
-// newStreamHarness serves a fresh service.
-func newStreamHarness(t *testing.T) *streamHarness {
+// newStreamHarness serves a fresh service. Each adjust changes the server before it starts.
+func newStreamHarness(t *testing.T, adjust ...func(*http.Server)) *streamHarness {
 	t.Helper()
-	return startStreamHarness(t, newServiceFixture(t, testutils.NewRand(t), false))
+	return startStreamHarness(t, newServiceFixture(t, testutils.NewRand(t), false), adjust...)
 }
 
 // startStreamHarness serves fixture's service with the production server configuration, on a
-// listener whose connections a test can break.
-func startStreamHarness(t *testing.T, fixture *serviceFixture) *streamHarness {
+// listener whose connections a test can break. Each adjust changes the server before it starts.
+func startStreamHarness(t *testing.T, fixture *serviceFixture, adjust ...func(*http.Server)) *streamHarness {
 	t.Helper()
 	mux, err := fixture.svc.newMux(authenticatorDev{}.authenticate)
 	require.NoError(t, err)
@@ -517,6 +517,9 @@ func startStreamHarness(t *testing.T, fixture *serviceFixture) *streamHarness {
 			h.exitsMu.Unlock()
 		}
 	}))
+	for _, f := range adjust {
+		f(server.Config)
+	}
 	h.listener = &pathListener{Listener: server.Listener, conns: make(map[string]*pathConn)}
 	server.Listener = h.listener
 	server.Start()
@@ -640,6 +643,27 @@ func (h *streamHarness) tryUnsubscribe(player string, events ...string) error {
 func (h *streamHarness) subscribe(t *testing.T, player string, events ...string) {
 	t.Helper()
 	require.NoError(t, h.trySubscribe(player, events...))
+}
+
+// shortenConnTimeouts sets the server's HTTP/2 connection timeouts to ones a test can wait for. It
+// changes only timeouts the server sets, and a zero keeps the server's.
+func shortenConnTimeouts(write, pingAfter, ping time.Duration) func(*http.Server) {
+	return func(server *http.Server) {
+		h2 := server.HTTP2
+		if h2 == nil {
+			return
+		}
+		for _, timeout := range []struct {
+			field *time.Duration
+			to    time.Duration
+		}{
+			{&h2.WriteByteTimeout, write}, {&h2.SendPingTimeout, pingAfter}, {&h2.PingTimeout, ping},
+		} {
+			if *timeout.field > 0 && timeout.to > 0 {
+				*timeout.field = timeout.to
+			}
+		}
+	}
 }
 
 // handlerRunning reports whether the server's handler for stream id has not returned yet.
