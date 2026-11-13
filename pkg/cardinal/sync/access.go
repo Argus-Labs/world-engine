@@ -37,16 +37,27 @@ func (Authorities) Name() string { return "sync_authorities" }
 // command only when the sender has authority over that lifetime as the server last published it,
 // and the handler reads the verified entity through CommandContext.Target. Clients fill it from
 // the synced view they act on.
+//
+// CommandID makes a retry safe. Cardinal judges each nonzero ID a player sends once and
+// remembers the verdict for 30 s of server time, at most 256 IDs per player, oldest dropped
+// first. A repeat never reaches a handler: a repeat of an admitted command is dropped, and a
+// repeat of a rejected one is rejected again, so a client may send the same payload again until
+// it hears back. 0 means no ID: every copy is judged. The memory is not persisted: a retry after
+// the shard restarts is judged afresh, and its target, a lifetime of the old session, is stale.
 type Target struct {
 	TargetSession     string
 	TargetEntity      uint32
 	TargetIncarnation uint64
+	CommandID         uint64
 }
 
 // SyncTarget returns the lifetime the command targets.
 func (t Target) SyncTarget() ID {
 	return ID{Session: t.TargetSession, Entity: t.TargetEntity, Incarnation: t.TargetIncarnation}
 }
+
+// SyncCommandID returns the command's ID, 0 if it has none.
+func (t Target) SyncCommandID() uint64 { return t.CommandID }
 
 // TargetOf returns a Target for one entity lifetime.
 func TargetOf(id ID) Target {
@@ -75,8 +86,9 @@ const (
 // CommandRejected is the event Cardinal sends to a player whose command it rejected. Game-rule
 // rejections, such as cooldowns, stay game events.
 type CommandRejected struct {
-	Command string
-	Reason  Reason
+	Command   string
+	Reason    Reason
+	CommandID uint64 // The rejected command's Target.CommandID; 0 if it had none or no Target
 }
 
 func (CommandRejected) Name() string { return "command_rejected" }

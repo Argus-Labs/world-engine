@@ -57,6 +57,7 @@ type World struct {
 
 	sync           *syncPublisher               // Sync state the tick publishes; nil until a sync type is registered
 	commandSenders map[string]syncstate.Senders // Command name -> who may send it; absent: anyone
+	judged         commandMemory                // Verdicts on players' recent command IDs; nil until the first tick
 	systemEventTap func(ecs.SystemEvent)        // Sees each emitted system event; set only by TestWorld
 }
 
@@ -582,7 +583,8 @@ func (w *World) Logger() *zerolog.Logger {
 //
 // senders limits who may send it, such as sync.FromPlayers; without one, players and shards both
 // may. A command that embeds sync.Target reaches handlers only when its sender has authority over
-// the target. Cardinal replies to each player whose command it drops with sync.CommandRejected.
+// the target. Cardinal replies to each player whose command it drops with sync.CommandRejected,
+// and judges a player's repeat of a Target.CommandID only once.
 func (w *World) RegisterCommand[T Command](senders ...syncstate.Senders) {
 	if w.started {
 		panic(ErrWorldStarted)
