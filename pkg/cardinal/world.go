@@ -435,6 +435,10 @@ func (w *World) reset() {
 	// Reset the ECS world.
 	w.world.Reset()
 
+	// Reset the tick before init so Init systems see the same clock as on a cold start.
+	w.currentTick.height = 0
+	w.currentTick.timestamp = time.Time{}
+
 	// Clear pending commands and events from before the reset. Init systems may
 	// Broadcast/SendTo client-facing events that must survive reset and be delivered
 	// on the next tick, matching cold-start behavior, so the clears run before init.
@@ -443,10 +447,6 @@ func (w *World) reset() {
 
 	// Run initialization systems again.
 	w.init()
-
-	// Reset the tick.
-	w.currentTick.height = 0
-	w.currentTick.timestamp = time.Time{}
 
 	// Publish the reset state when the debug service is enabled.
 	if w.debug != nil {

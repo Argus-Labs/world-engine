@@ -290,3 +290,53 @@ func TestResetPreservesInitEmittedClientEvents(t *testing.T) {
 			"matching cold-start behavior; got %v", observed)
 	require.Equal(t, emitVal, observed[0].Value)
 }
+
+// initClock is the tick clock an Init system observes.
+type initClock struct {
+	height    uint64
+	timestamp time.Time
+}
+
+// clockOnInitSystem is an Init-hook system that records the tick clock on each run, as a game reads
+// it to schedule a deadline such as TickHeight()+10.
+type clockOnInitSystem struct {
+	observed []initClock
+}
+
+func (s *clockOnInitSystem) Run(w *World) {
+	s.observed = append(s.observed, initClock{height: w.TickHeight(), timestamp: w.Timestamp()})
+}
+
+// TestResetRunsInitOnColdStartClock verifies that the shipped cardinal reset() path runs Init
+// systems on the cold-start clock, not on the clock of the last tick before the reset. Otherwise a
+// deadline Init schedules at TickHeight()+10 lands at 13 after three ticks, while the world itself
+// restarts at tick 0.
+func TestResetRunsInitOnColdStartClock(t *testing.T) {
+	t.Setenv("LOG_LEVEL", "disabled")
+
+	debug := true
+	w, err := NewWorld(WorldOptions{
+		Project:             "reset-clock",
+		ShardID:             "0",
+		TickRate:            60,
+		SnapshotStorageType: snapshot.StorageTypeNop,
+		SnapshotRate:        5,
+		Debug:               &debug,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, w.debug)
+
+	clock := &clockOnInitSystem{}
+	w.RegisterSystem(clock, WithHook(Init))
+
+	w.init() // cold start
+	for i := range 3 {
+		w.Tick(time.Unix(int64(i+1), 0))
+	}
+	w.reset()
+
+	require.Len(t, clock.observed, 2)
+	assert.Equal(t, clock.observed[0], clock.observed[1],
+		"Init after reset should observe the cold-start clock")
+	assert.Equal(t, uint64(0), w.TickHeight())
+}
