@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"net/netip"
 	"reflect"
@@ -155,15 +156,20 @@ func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]
 	}
 }
 
-// checkStoredFields checks each field of struct t that a snapshot stores.
+// checkStoredFields checks each field of struct t that a snapshot stores. It also detects
+// MessagePack duplicate map keys inline: a field whose key an earlier field already emitted is
+// reported once, in declaration order, only when the field itself is otherwise storable.
 func checkStoredFields(t reflect.Type, path string, visiting map[reflect.Type]bool, problems *[]fieldProblem) {
-	checkFieldShadowing(t, path, problems)
+	// emitted holds the MessagePack keys struct t has already written, mapped to whether the key
+	// came from a field promoted out of an inlined embedded struct. msgpack drops a later field whose
+	// key is already present, so a restore silently loses one value; that is the hazard reported below.
+	emitted := make(map[string]bool)
 	for _, f := range storedFields(t) {
 		before := len(*problems)
 		checkComponentField(f.Type, path+"."+f.Name, visiting, problems)
 		// MessagePack stores an unexported embedded non-struct under its type name, but a restore
-		// cannot write to it. An embedded struct is fine: its exported fields are written directly,
-		// unless a sibling field shadows one of them (checkFieldShadowing reports that).
+		// cannot write to it. An embedded struct is fine: its exported fields are written directly.
+		reportDuplicateKeys(f, path, emitted, before, problems)
 		if len(*problems) == before && f.Anonymous && !f.IsExported() && f.Type.Kind() != reflect.Struct {
 			unexported := fieldProblem{
 				path:   path + "." + f.Name,
@@ -176,84 +182,146 @@ func checkStoredFields(t reflect.Type, path string, visiting map[reflect.Type]bo
 	}
 }
 
-// checkFieldShadowing reports a problem when MessagePack would emit struct t as a map with duplicate
-// keys, which a restore cannot decode. vmihailenco/msgpack walks fields in declaration order: an
-// embedded struct whose promoted names nothing has claimed yet is inlined (its fields are written
-// directly), and a field added later by name is appended even when that name is already present, so a
-// sibling declared after an embedded struct that promotes the same name yields two map keys with one
-// name. Go forbids two fields with the same name in one struct, so this only arises from a sibling
-// shadowing a field promoted from an earlier embedded struct. The reverse order is left alone: the
-// sibling is seen first, so the embedded struct is not inlined and is stored under its type name.
-//
-// The walk here only reaches structs without their own codec (checkComponentField returns first for
-// those), so every embedded struct field is one MessagePack inlines; embedded non-structs and pointers
-// are stored under their type name or refused elsewhere.
-func checkFieldShadowing(t reflect.Type, path string, problems *[]fieldProblem) {
-	_, dups := msgpackFieldNames(t, path)
-	*problems = append(*problems, dups...)
-}
-
-// msgpackFieldNames returns the map keys MessagePack would emit for struct t, in order, mirroring
-// vmihailenco/msgpack's getFields/shouldInline resolution. The second value is one problem per name
-// that would be written twice. It recurses into embedded structs by value; Go outlaws by-value
-// embedding cycles, so the recursion terminates without a visited set.
-func msgpackFieldNames(t reflect.Type, path string) ([]string, []fieldProblem) {
-	var names []string
-	var dups []fieldProblem
-	seen := make(map[string]bool)
-	for _, f := range storedFields(t) {
-		name := storedName(f)
-		inlined := false
-		var promoted []string
-		if f.Anonymous && f.Type.Kind() == reflect.Struct && !hasMsgpackOption(f, "noinline") {
-			// The embedded struct's own internal collisions are reported when checkComponentField
-			// recurses into it, so only its resolved names are needed here.
-			promoted, _ = msgpackFieldNames(f.Type, path+"."+f.Name)
-			conflict := slices.ContainsFunc(promoted, func(n string) bool { return seen[n] })
-			inlined = hasMsgpackOption(f, "inline") || !conflict
-		}
-		if inlined {
-			// The promoted names are written directly; an explicit "inline" tag drops any that
-			// conflict, while an auto-inlined struct has none by construction. The embedded struct's
-			// own name occupies a map slot without producing a key, but a later field reusing it
-			// would, which the seen map below catches.
-			for _, n := range promoted {
-				if !seen[n] {
-					seen[n] = true
-					names = append(names, n)
-				}
-			}
-			seen[name] = true
+// reportDuplicateKeys walks the MessagePack keys field f writes within its parent and records one
+// problem per key an earlier field already emitted. emitted is the parent's already-emitted key set,
+// mapped to whether the key came from a promoted field; it is updated in place. A duplicate is
+// reported only when before still equals len(*problems), so a field an earlier check already flagged
+// gets at most one problem. An embedded struct is involved when this key is a promoted field or the
+// earlier one was, in which case tagging the embedded struct msgpack:",noinline" is also a fix.
+func reportDuplicateKeys(
+	f reflect.StructField, path string, emitted map[string]bool, before int, problems *[]fieldProblem,
+) {
+	for _, k := range fieldKeys(f, emitted) {
+		earlierPromoted, ok := emitted[k.key]
+		if !ok {
+			emitted[k.key] = k.field.Name != f.Name
 			continue
 		}
-		if seen[name] {
-			dups = append(dups, fieldProblem{
-				path:   path + "." + f.Name,
-				typ:    f.Type,
-				reason: reasonShadowedField,
-				fix:    fixShadowedField,
-			})
+		// This key is already in the map, so msgpack drops this field's value on the next snapshot.
+		if len(*problems) != before {
+			continue
 		}
-		names = append(names, name)
-		seen[name] = true
+		dup := path + "." + f.Name
+		if k.field.Name != f.Name {
+			dup += "." + k.field.Name // a promoted field of this embedded struct
+		}
+		fix := fixDuplicateKey
+		if k.field.Name != f.Name || earlierPromoted {
+			fix = fixDuplicateKeyEmbedded
+		}
+		*problems = append(*problems, fieldProblem{
+			path:   dup,
+			typ:    k.field.Type,
+			reason: reasonDuplicateKey(k.key),
+			fix:    fix,
+		})
 	}
-	return names, dups
+}
+
+// emittedKey is one MessagePack map key a struct emits, plus the field within that struct whose value
+// the key carries. For a direct field the field is the field itself; for a field promoted out of an
+// inlined embedded struct it is the embedded struct's child field, so a caller can build its path.
+type emittedKey struct {
+	key   string
+	field reflect.StructField
+}
+
+// inlineable reports whether f is an embedded struct MessagePack inlines: anonymous, a struct once
+// pointers are unwrapped, not an immutable.Slice, not noinline-tagged, and without its own codec or a
+// known value type. The unwrapped element type is returned for the caller to recurse into.
+func inlineable(f reflect.StructField) (reflect.Type, bool) {
+	ft := f.Type
+	for ft.Kind() == reflect.Pointer {
+		ft = ft.Elem()
+	}
+	_, immutableSlice := immutable.SliceElem(ft)
+	return ft, f.Anonymous && ft.Kind() == reflect.Struct && !immutableSlice &&
+		!hasMsgpackOption(f, "noinline") && !hasCodec(ft) && !knownValueType(ft)
+}
+
+// appendKeys adds the keys nested that are not already in seen, marking them seen. It mirrors
+// msgpack's appendUnshadowed: a promoted name already claimed is dropped (the caller reports it).
+func appendKeys(keys []emittedKey, nested []emittedKey, seen map[string]bool) []emittedKey {
+	for _, k := range nested {
+		if !seen[k.key] {
+			keys = append(keys, k)
+			seen[k.key] = true
+		}
+	}
+	return keys
+}
+
+// fieldKeys returns the MessagePack map keys field f writes within its parent struct. An embedded
+// struct that msgpack inlines contributes its promoted fields' keys; any other field contributes one
+// key of its own. emitted is the parent's already-emitted key set, which decides whether an auto-inlined
+// embedded struct's promoted names collide; an explicit "inline" tag inlines regardless.
+func fieldKeys(f reflect.StructField, emitted map[string]bool) []emittedKey {
+	if ft, inlinable := inlineable(f); inlinable {
+		nested := resolveKeys(ft)
+		explicit := hasMsgpackOption(f, "inline")
+		conflict := slices.ContainsFunc(nested, func(k emittedKey) bool {
+			_, ok := emitted[k.key]
+			return ok
+		})
+		if explicit || !conflict {
+			return nested
+		}
+	}
+	return []emittedKey{{key: storedName(f), field: f}}
+}
+
+// resolveKeys returns the MessagePack map keys struct t emits, in order, mirroring vmihailenco/msgpack's
+// getFields/shouldInline resolution: an embedded struct whose promoted names nothing has claimed yet is
+// inlined (its fields written directly), and an explicit "inline" tag inlines it regardless, dropping
+// any promoted name already claimed. A later field whose key is already present is dropped, matching
+// msgpack, so the caller's parent-level walk — not this resolver — reports the duplicate. Embedded
+// pointers are unwrapped, immutable.Slice and structs with their own codec or a known value type are
+// never inlined (they are stored under their name). Go outlaws by-value embedding cycles, so the
+// recursion terminates without a visited set.
+func resolveKeys(t reflect.Type) []emittedKey {
+	var keys []emittedKey
+	seen := make(map[string]bool)
+	for _, f := range storedFields(t) {
+		if ft, ok := inlineable(f); ok {
+			nested := resolveKeys(ft)
+			explicit := hasMsgpackOption(f, "inline")
+			conflict := slices.ContainsFunc(nested, func(k emittedKey) bool { return seen[k.key] })
+			if explicit || !conflict {
+				keys = appendKeys(keys, nested, seen)
+				continue
+			}
+		}
+		name := storedName(f)
+		if !seen[name] {
+			keys = append(keys, emittedKey{key: name, field: f})
+			seen[name] = true
+		}
+	}
+	return keys
 }
 
 // storedName returns the map key MessagePack uses for f: the name in its msgpack tag when set,
 // otherwise the field name. Call only on fields storedFields returns, which already excludes
 // msgpack:"-" fields.
 func storedName(f reflect.StructField) string {
-	if name, _, _ := strings.Cut(f.Tag.Get("msgpack"), ","); name != "" {
+	if name := strings.TrimSpace(strings.Split(f.Tag.Get("msgpack"), ",")[0]); name != "" {
 		return name
 	}
 	return f.Name
 }
 
-// hasMsgpackOption reports whether f's msgpack tag carries the given option, such as "inline" or
-// "noinline".
+// hasMsgpackOption reports whether f's msgpack tag carries the given option (after the name), such as
+// "inline" or "noinline". A bare msgpack:"noinline" names the key "noinline"; only a comma-prefixed
+// option, such as msgpack:",noinline", disables inlining.
 func hasMsgpackOption(f reflect.StructField, option string) bool {
-	return slices.Contains(strings.Split(f.Tag.Get("msgpack"), ","), option)
+	parts := strings.Split(f.Tag.Get("msgpack"), ",")
+	return slices.ContainsFunc(parts[1:], func(o string) bool { return strings.TrimSpace(o) == option })
+}
+
+// reasonDuplicateKey describes a field whose MessagePack key an earlier field already wrote.
+func reasonDuplicateKey(key string) string {
+	return fmt.Sprintf("has the same MessagePack key %q as an earlier field, so a snapshot writes one "+
+		"value and a restore loses the other", key)
 }
 
 // holdsNotData reports whether a slice, map, pointer or interface type holds something that is not
@@ -390,8 +458,6 @@ const (
 		"stored component"
 	reasonUnexportedEmbedded = "is embedded with an unexported type, so a snapshot stores it but a restore " +
 		"cannot write it back"
-	reasonShadowedField = "shadows a field promoted from an earlier embedded struct, so MessagePack writes two " +
-		"map keys with this name and a restore cannot decode them back"
 
 	fixSlice = "use a fixed-size array [N]T with the live length in its own field, or immutable.Slice[T] " +
 		"if the length is genuinely unbounded"
@@ -403,13 +469,14 @@ const (
 	fixNotData     = "store an ID or enum that the code can rebuild the behavior from"
 	fixUnsupported = "store a scalar, string, or struct of those; a complex number becomes two float64 " +
 		"fields, and an address means nothing after a restore"
-	fixPointerEncoder     = "give the encoding method a value receiver; the decoding method keeps its pointer receiver"
-	fixOneSidedCodec      = "implement the matching method too, such as DecodeMsgpack beside EncodeMsgpack"
-	fixEmbeddedCodec      = "give it a field name"
-	fixCodecShares        = "keep its state in numbers, strings, fixed-size arrays, or structs of those"
-	fixUnexportedEmbedded = "give it an exported field name, or export its type"
-	fixShadowedField      = "rename this field or the promoted field it shadows, or declare this field before " +
-		"the embedded struct so the embedded struct is stored under its type name instead"
+	fixPointerEncoder       = "give the encoding method a value receiver; the decoding method keeps its pointer receiver"
+	fixOneSidedCodec        = "implement the matching method too, such as DecodeMsgpack beside EncodeMsgpack"
+	fixEmbeddedCodec        = "give it a field name"
+	fixCodecShares          = "keep its state in numbers, strings, fixed-size arrays, or structs of those"
+	fixUnexportedEmbedded   = "give it an exported field name, or export its type"
+	fixDuplicateKey         = "give this field a different MessagePack key"
+	fixDuplicateKeyEmbedded = "give this field a different MessagePack key, or tag the embedded struct " +
+		`msgpack:",noinline"`
 )
 
 // hidesState reports whether t keeps state in unexported fields and stores none of it. A struct
