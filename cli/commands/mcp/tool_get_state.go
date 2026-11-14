@@ -35,7 +35,7 @@ type GetStateInput struct {
 	InstanceName string   `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance; accepts variants like 'game-5', 'game 5', 'game5', or '5'. Defaults to the shard's first instance."`
 	Find         []string `json:"find,omitempty"          jsonschema_description:"Component names to filter on (e.g. ['Health','Position']). Names are the component's registered Name(), not the Go type. Omit to return every entity."`
 	Match        string   `json:"match,omitempty"         jsonschema_description:"How find is applied: 'contains' (entity has at least these components — the default) or 'exact' (entity has exactly these and nothing else)."`
-	Where        string   `json:"where,omitempty"         jsonschema_description:"expr-lang boolean expression filtering entities, e.g. 'Health.HP > 50'. Component names are the variables and '_id' is the entity ID. Fields use the MessagePack field names advertised by introspect. An entity missing a component the expression reads fields from doesn't match; a bare comparison like 'Gravestone == nil' still evaluates for every entity."`
+	Where        string   `json:"where,omitempty"         jsonschema_description:"expr-lang boolean expression filtering entities, e.g. 'Health.HP > 50'. Component names are the variables and '_id' is the entity ID. Fields use the MessagePack field names advertised by introspect. A missing component is nil, so guards like 'Position == nil || Position.X > 0' and optional access like 'Position?.X == nil' evaluate as written; an entity whose evaluation fails because it lacks a component the expression reads fields from doesn't match."`
 	MaxEntities  int      `json:"max_entities,omitempty"  jsonschema_description:"Maximum entities to return (default 100). Use a negative value to return every match."`
 	Organization string   `json:"organization,omitempty"  jsonschema_description:"Ignored: since the organization left a shard's address, project alone identifies the world"`
 	Project      string   `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the running containers when omitted)"`
@@ -149,11 +149,10 @@ type stateFilter struct {
 	find  map[string]struct{} // requested component names; empty matches every entity
 	match string
 	where *vm.Program // nil when no where expression was given
-	// Components the where expression reads fields from (e.g. "Health" in 'Health.HP > 50'). An
-	// entity missing one can't satisfy the expression, so it's rejected instead of evaluated —
-	// evaluating would fail on the nil lookup. Bare references ('Health == nil') aren't collected,
-	// so absence checks still evaluate.
-	whereNeeds []string
+	// Components the where expression reads fields from (e.g. "Health" in 'Health.HP > 50'). When
+	// evaluation fails for an entity missing one, the failure is a non-match rather than an error.
+	// Bare references ('Health == nil') aren't collected.
+	whereReads []string
 }
 
 // compileStateFilter validates the filter inputs and compiles the where clause
@@ -184,14 +183,14 @@ func compileStateFilter(args GetStateInput) (stateFilter, error) {
 			return stateFilter{}, eris.Wrap(err, "failed to parse where clause")
 		}
 		f.where = program
-		f.whereNeeds = whereFieldReads(args.Where)
+		f.whereReads = whereFieldReads(args.Where)
 	}
 	return f, nil
 }
 
 // whereFieldReads returns the component names a where expression reads fields from — the roots of
 // member accesses like 'Health.HP' or 'Health["HP"]'. Parse errors return nothing; expr.Compile has
-// already accepted the expression, so a failure here just skips the presence pre-check.
+// already accepted the expression, so a failure here only means every evaluation error surfaces.
 func whereFieldReads(where string) []string {
 	tree, err := parser.Parse(where)
 	if err != nil {
@@ -245,17 +244,19 @@ func (f stateFilter) matchesWhere(id uint32, components map[string]any) (bool, e
 	if f.where == nil {
 		return true, nil
 	}
-	for _, name := range f.whereNeeds {
-		if _, ok := components[name]; !ok {
-			return false, nil // can't satisfy a field read on a component it doesn't have
-		}
-	}
 	env := make(map[string]any, len(components)+1)
 	maps.Copy(env, components)
 	env["_id"] = id
 
+	// Evaluate first: expr skips reads that a guard ('Position == nil || ...') or optional access
+	// ('Position?.X') makes safe, which no static check of the expression can tell apart.
 	output, err := expr.Run(f.where, env)
 	if err != nil {
+		for _, name := range f.whereReads {
+			if _, ok := components[name]; !ok {
+				return false, nil // failed reading a component the entity doesn't have
+			}
+		}
 		return false, eris.Wrap(err, "failed to run where clause")
 	}
 	matched, ok := output.(bool)
