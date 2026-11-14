@@ -28,7 +28,8 @@ message Command {
   // The address of the cardinal shard to send the command to.
   micro.v1.ServiceAddress address = 2 [(buf.validate.field).required = true];
 
-  // The serialized command payload. May be empty: a command whose proto message
-  // has no set fields serializes to zero bytes, so this is not marked required.
+  // The serialized command payload, encoded as MessagePack. Never zero bytes: a
+  // payload with no set fields serializes to the empty MessagePack map (0x80), and
+  // a zero-length body is not valid MessagePack, so the receiver rejects it.
   bytes payload = 4;
 }

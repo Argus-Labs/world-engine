@@ -32,8 +32,9 @@ type Command struct {
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// The address of the cardinal shard to send the command to.
 	Address *v1.ServiceAddress `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
-	// The serialized command payload. May be empty: a command whose proto message
-	// has no set fields serializes to zero bytes, so this is not marked required.
+	// The serialized command payload, encoded as MessagePack. Never zero bytes: a
+	// payload with no set fields serializes to the empty MessagePack map (0x80), and
+	// a zero-length body is not valid MessagePack, so the receiver rejects it.
 	Payload       []byte `protobuf:"bytes,4,opt,name=payload,proto3" json:"payload,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

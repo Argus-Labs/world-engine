@@ -24,7 +24,9 @@ import (
 //
 //	subject  <to>.isc.<name>.<from>
 //	         rampage.gameplay-usw1-3.isc.plat_result.rampage.platform
-//	body     the command's protobuf encoding, verbatim; empty when no field is set
+//	body     the command payload's MessagePack encoding, verbatim. A payload
+//	         with no set fields is the empty MessagePack map (0x80), and a
+//	         zero-length body is not valid MessagePack, so the receiver rejects it
 //	headers  W3C trace context (traceparent, tracestate) when the sender is traced
 //	reply    no headers: the receiver accepted the command
 //	         Nats-Service-Error-Code (a gRPC code number) and Nats-Service-Error: it rejected it
@@ -58,7 +60,7 @@ var commandName = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,128}$`)
 type Command struct {
 	Name    string          // The command name
 	From    *ServiceAddress // The sending service, from the subject
-	Payload []byte          // The command's protobuf encoding
+	Payload []byte          // The command payload's MessagePack encoding
 }
 
 // CommandHandler handles one received command. Returning nil accepts it. Returning an error rejects

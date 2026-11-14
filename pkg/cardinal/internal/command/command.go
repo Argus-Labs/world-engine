@@ -137,9 +137,11 @@ func (m *Manager) Enqueue(ctx context.Context, command *iscv1.Command, sender Se
 	assert.That(command.GetName() != "", "command has empty name")
 	assert.That(command.GetAddress() != nil, "command has nil address")
 	assert.That(sender.id != "", "command has no sender")
-	// Payload may be empty: a command whose proto message has no set fields serializes to zero
-	// bytes (e.g. lobby_heartbeat). Identity lives in name/address/sender, so an empty payload
-	// is valid — only those three are real invariants.
+	// The payload is the command's MessagePack encoding (schema.Serialize), never zero
+	// bytes: the codec emits at least the empty-map byte (0x80), so a command with no
+	// payload fields (e.g. lobby_heartbeat) still carries 0x80. A zero-length body is
+	// not valid MessagePack, and the queue's Enqueue rejects it on decode. Enqueue here
+	// only asserts name/address/sender; the queue's decode owns payload validation.
 
 	// We're doing 2 lookups here to keep the Enqueue caller simple, at the cost of less performance.
 	// If this is determined to be a bottleneck in the future, do what callers of Get do and store the

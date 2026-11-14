@@ -130,8 +130,9 @@ namespace WorldEngine.Proto.Isc.V1 {
     public const int PayloadFieldNumber = 4;
     private pb::ByteString payload_ = pb::ByteString.Empty;
     /// <summary>
-    /// The serialized command payload. May be empty: a command whose proto message
-    /// has no set fields serializes to zero bytes, so this is not marked required.
+    /// The serialized command payload, encoded as MessagePack. Never zero bytes: a
+    /// payload with no set fields serializes to the empty MessagePack map (0x80), and
+    /// a zero-length body is not valid MessagePack, so the receiver rejects it.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
