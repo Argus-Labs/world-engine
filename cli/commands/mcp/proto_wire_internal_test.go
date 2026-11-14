@@ -268,3 +268,97 @@ func TestMalformedMessagePackStateStaysRaw(t *testing.T) {
 	got := entityComponents([]string{"Bad"}, [][]byte{blob}, componentDescriptors{"Bad": {}})
 	assert.Equal(t, blob, got["Bad"])
 }
+
+// TestEncodeCommandPayloadAnyField covers the permissive boolean-`true` property
+// schema the shard's generator emits for interface{}/any command fields (see
+// pkg/cardinal/internal/introspect/catalog.go: an empty jsonschema.Schema
+// marshals to JSON `true`). The converter must accept every value shape the
+// schema's validation accepts, while still rejecting genuinely unknown fields
+// when additionalProperties is false.
+func TestEncodeCommandPayloadAnyField(t *testing.T) {
+	t.Parallel()
+	// Schema exactly as the shard's reflectSchema emits for `type Payload struct { Any any; Name string }`.
+	schema := map[string]any{
+		"$ref": "#/$defs/type0",
+		"$defs": map[string]any{
+			"type0": map[string]any{
+				"type":                 "object",
+				"additionalProperties": false,
+				"properties": map[string]any{
+					"Any":  true,
+					"Name": map[string]any{"type": "string"},
+				},
+			},
+		},
+	}
+	for _, tc := range []struct {
+		name    string
+		payload string
+		want    any
+	}{
+		{"integer", `{"Any":1}`, int64(1)},
+		{"float", `{"Any":1.5}`, 1.5},
+		{"string", `{"Any":"str"}`, "str"},
+		{"bool", `{"Any":true}`, true},
+		{"array of ints", `{"Any":[1,2]}`, []any{int64(1), int64(2)}},
+		{"null", `{"Any":null}`, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			blob, err := encodeCommandPayload(schema, tc.payload)
+			require.NoError(t, err)
+			var target struct {
+				Any  any
+				Name string
+			}
+			require.NoError(t, msgpack.Unmarshal(blob, &target))
+			assert.Equal(t, tc.want, target.Any)
+		})
+	}
+
+	// A nested object under the any field converts permissively too, so a
+	// command can carry structured `any` payloads (e.g. arbitrary JSON).
+	t.Run("nested object", func(t *testing.T) {
+		t.Parallel()
+		blob, err := encodeCommandPayload(schema, `{"Any":{"x":1,"y":"z"}}`)
+		require.NoError(t, err)
+		var target struct{ Any map[string]any }
+		require.NoError(t, msgpack.Unmarshal(blob, &target))
+		assert.Equal(t, map[string]any{"x": int64(1), "y": "z"}, target.Any)
+	})
+
+	// The any field composes with a typed sibling field.
+	t.Run("any with typed sibling", func(t *testing.T) {
+		t.Parallel()
+		blob, err := encodeCommandPayload(schema, `{"Any":7,"Name":"x"}`)
+		require.NoError(t, err)
+		var target struct {
+			Any  any
+			Name string
+		}
+		require.NoError(t, msgpack.Unmarshal(blob, &target))
+		assert.Equal(t, int64(7), target.Any)
+		assert.Equal(t, "x", target.Name)
+	})
+
+	// Strictness is preserved: with no additionalProperties, validation passes
+	// and the converter's own unknown-field backstop rejects the field.
+	t.Run("unknown field still rejected", func(t *testing.T) {
+		t.Parallel()
+		noAdditionalProperties := map[string]any{
+			"$ref": "#/$defs/type0",
+			"$defs": map[string]any{
+				"type0": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"Any":  true,
+						"Name": map[string]any{"type": "string"},
+					},
+				},
+			},
+		}
+		_, err := encodeCommandPayload(noAdditionalProperties, `{"Unknown":1}`)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown field")
+	})
+}
