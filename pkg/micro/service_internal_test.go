@@ -15,6 +15,10 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
+	otelcodes "go.opentelemetry.io/otel/codes"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -303,4 +307,128 @@ func newTestService(t *testing.T, prng *rand.Rand) (*Service, *Client) {
 	t.Cleanup(func() { _ = svc.Close() })
 
 	return svc, client
+}
+
+// newRecordingTracer installs an in-memory span exporter as the global tracer provider for the
+// duration of the test and returns it. Tests that call it must not run in parallel because it
+// mutates global OTel state.
+func newRecordingTracer(t *testing.T) *tracetest.InMemoryExporter {
+	t.Helper()
+	exporter := tracetest.NewInMemoryExporter()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
+	previous := otel.GetTracerProvider()
+	otel.SetTracerProvider(provider)
+	t.Cleanup(func() {
+		otel.SetTracerProvider(previous)
+		require.NoError(t, provider.Shutdown(context.Background()))
+	})
+	return exporter
+}
+
+// spansByName indexes exported spans by their name. If a name appears more than once the last
+// span wins; tests that care about duplicates should inspect GetSpans directly.
+func spansByName(exporter *tracetest.InMemoryExporter) map[string]tracetest.SpanStub {
+	byName := make(map[string]tracetest.SpanStub)
+	for _, s := range exporter.GetSpans() {
+		byName[s.Name] = s
+	}
+	return byName
+}
+
+// requireSpans waits until at least want spans have been exported. The server-side handler runs
+// on a NATS callback goroutine, so its deferred span.End may race the client receiving the reply.
+func requireSpans(t *testing.T, exporter *tracetest.InMemoryExporter, want int) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		return len(exporter.GetSpans()) >= want
+	}, 2*time.Second, 5*time.Millisecond, "expected at least %d exported spans", want)
+}
+
+// -------------------------------------------------------------------------------------------------
+// Handler span status (regression: outer span must mirror application-level failures)
+// -------------------------------------------------------------------------------------------------
+// handleNATSMessage encodes application-level failures into the response status (a non-OK gRPC
+// code/message) but returns a nil Go error, while the child "handler.execute" span records the
+// error. The outer "handler.<name>" span must mirror that status so trace-based observability
+// counts application failures as errors, consistent with the transport/parse/marshal failure
+// paths. These tests install an in-memory span exporter to assert the exported span statuses.
+// They must not run in parallel because they mutate the global tracer provider.
+// -------------------------------------------------------------------------------------------------
+
+func TestService_HandlerSpanStatus(t *testing.T) {
+	exporter := newRecordingTracer(t)
+
+	t.Run("app-level failure sets both spans to Error", func(t *testing.T) {
+		exporter.Reset()
+		rng := testutils.NewRand(t)
+		svc, client := newTestService(t, rng)
+		endpoint := randEndpointName(rng)
+		payload := RandServiceAddress(t, rng)
+
+		require.NoError(t, svc.AddEndpoint(endpoint, func(_ context.Context, req *Request) *Response {
+			return NewErrorResponse(req, eris.New("resource not found"), codes.NotFound)
+		}))
+		require.NoError(t, client.Flush())
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		_, err := client.Request(ctx, svc.Address, endpoint, payload)
+		require.Error(t, err)
+		require.Equal(t, codes.NotFound, status.Code(err))
+
+		requireSpans(t, exporter, 2)
+		byName := spansByName(exporter)
+
+		outer, ok := byName["handler."+endpoint]
+		require.True(t, ok, "outer span handler.%s missing", endpoint)
+		inner, ok := byName["handler.execute"]
+		require.True(t, ok, "inner span handler.execute missing")
+
+		require.Equal(t, otelcodes.Error, outer.Status.Code,
+			"outer span must be Error when the handler returns a non-OK status")
+		require.Equal(t, "resource not found", outer.Status.Description,
+			"outer span description must carry the app-level status message")
+		require.Equal(t, otelcodes.Error, inner.Status.Code,
+			"inner span must be Error when the handler returns a non-OK status")
+		require.Equal(t, "resource not found", inner.Status.Description,
+			"inner span description must carry the app-level status message")
+
+		require.Equal(t, outer.SpanContext.SpanID(), inner.Parent.SpanID(),
+			"inner span must be a child of the outer span")
+	})
+
+	t.Run("happy path sets both spans to Ok", func(t *testing.T) {
+		exporter.Reset()
+		rng := testutils.NewRand(t)
+		svc, client := newTestService(t, rng)
+		endpoint := randEndpointName(rng)
+		payload := RandServiceAddress(t, rng)
+
+		require.NoError(t, svc.AddEndpoint(endpoint, func(_ context.Context, req *Request) *Response {
+			return NewSuccessResponse(req, payload)
+		}))
+		require.NoError(t, client.Flush())
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		resp, err := client.Request(ctx, svc.Address, endpoint, payload)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.Equal(t, int32(codes.OK), resp.GetStatus().GetCode())
+
+		requireSpans(t, exporter, 2)
+		byName := spansByName(exporter)
+
+		outer, ok := byName["handler."+endpoint]
+		require.True(t, ok, "outer span handler.%s missing", endpoint)
+		inner, ok := byName["handler.execute"]
+		require.True(t, ok, "inner span handler.execute missing")
+
+		require.Equal(t, otelcodes.Ok, outer.Status.Code,
+			"outer span must be Ok when the handler succeeds")
+		require.Equal(t, otelcodes.Ok, inner.Status.Code,
+			"inner span must be Ok when the handler succeeds")
+	})
 }
