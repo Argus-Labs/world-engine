@@ -19,5 +19,6 @@ func All() []harness.Scenario {
 		Lifecycle(),
 		Stability(),
 		Reset(),
+		Dormant(),
 	}
 }

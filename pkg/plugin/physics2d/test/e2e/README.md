@@ -14,7 +14,7 @@ go run  ./pkg/plugin/physics2d/test/e2e/cmd/physics2d-e2e -h         # the same 
 
 | Test | Pins |
 |---|---|
-| `TestScenarios` | Thirteen scripted scenarios, about 400 checks. Each runs in its own world as a parallel subtest, so `-run TestScenarios/flags` works and a failure names the scenario and the line |
+| `TestScenarios` | Fourteen scripted scenarios, about 400 checks. Each runs in its own world as a parallel subtest, so `-run TestScenarios/flags` works and a failure names the scenario and the line |
 | `TestExhaustiveBodyMatrix` | Every body type × every shape type × every combination of the five body flags (896 bodies, one world). Each flag is read back from the engine, not the component; the wire round-trip is lossless; a `Plugin.Reset` rebuild recreates the same engine state |
 | `TestRandomScenes` | Seeded random scenes of valid bodies over a static floor. Invariants: lossless wire round-trip, no solid dynamic body ends up inside the floor, and the same seed simulates identically twice and at `Workers: 4` |
 | `TestRestore` | Snapshot a world, round-trip every component through the wire format, rebuild it in a fresh world, simulate both on and compare. Once with the documented `Plugin.Reset`, once without |
@@ -68,6 +68,7 @@ through the floor, and that would make the invariant unprovable.
 | `lifecycle` | Create, destroy, teleport, retype, resize (capsules included), add/remove shapes, refilter, retune |
 | `stability` | 10-box stack, deep overlap recovery, 2 cm to 100 m shapes, 5 km from origin |
 | `reset` | `Plugin.Reset` rebuild: poses, velocities, no replayed events, queries |
+| `dormant` | `Velocity2D` survives a temporary `Active=false` disable and is applied on re-enable |
 
 Two watchdogs run every tick regardless of scenario: every body is checked for
 NaN/Inf and named if it goes bad, and the engine world is checked for

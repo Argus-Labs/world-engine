@@ -12,9 +12,9 @@ type WritebackEntry struct {
 }
 
 // WritebackFromStepResults reads post-step positions, rotations, velocities, and awake state
-// from the Box2D world and writes them into the corresponding ECS Transform2D, Velocity2D,
-// and PhysicsBody2D components. It also updates the shadow state so the next ReconcileFromECS
-// tick sees no diff for these values.
+// from the Box2D world and writes them into the corresponding ECS Transform2D, Velocity2D
+// (active bodies only — see below), and PhysicsBody2D components. It also updates the shadow
+// state so the next ReconcileFromECS tick sees no diff for these values.
 //
 // Iteration is driven by entries (ECS iteration order, EntityID-sorted), never by the
 // runtime's Go maps, so the write order is deterministic.
@@ -30,6 +30,12 @@ type WritebackEntry struct {
 // Awake is mirrored back on change so the component tracks solver sleep state instead of
 // freezing at its creation value. Disabled bodies are skipped: IsBodyAwake reads false for
 // them, which is disablement, not sleep.
+//
+// Velocity is mirrored back only for active bodies. A disabled body has no solver state, so
+// BodyLinearVelocity/BodyAngularVelocity read zero there — that zero is an artifact of
+// disablement, not rest, and is not written back. Velocity2D therefore survives a temporary
+// disable in ECS and the shadow; the reconciler pushes it into Box2D on re-enable (see
+// reconcileExistingBody's enabledThisTick force-push).
 func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 	if rt.World == nil {
 		return
@@ -68,7 +74,9 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 		}
 
 		e.Entity.Set(t)
-		e.Entity.Set(v)
+		if pb.Active {
+			e.Entity.Set(v)
+		}
 		if pb.Active && pb.Awake != awake {
 			pb.Awake = awake
 			e.Entity.Set(pb)
@@ -77,8 +85,8 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 		// Update shadow so ReconcileFromECS sees no diff for these fields next tick.
 		if shadow, exists := rt.Shadow[id]; exists {
 			shadow.Transform = t
-			shadow.Velocity = v
 			if pb.Active {
+				shadow.Velocity = v
 				shadow.PhysicsBody.Awake = awake
 			}
 			rt.Shadow[id] = shadow
