@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"math/rand/v2"
+	"net/http/httptest"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"buf.build/go/protovalidate"
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
@@ -20,6 +22,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
+	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
@@ -468,4 +471,85 @@ func TestService_SendCommandWithReply_RoutesReplyByRecipient(t *testing.T) {
 			assert.Equal(t, testutils.SimpleEvent{Value: 3}, res.reply)
 		}
 	})
+}
+
+// -------------------------------------------------------------------------------------------------
+// SendCommandWithReply event name validation tests
+// -------------------------------------------------------------------------------------------------
+// Event streams subscribe to grouped "<group>.<event>" names, so a client must be able to wait for
+// one as a reply. A reply waits for one exact name: wildcards and empty tokens name no event. These
+// requests go through the client-facing mux, so the validate interceptor checks them.
+// -------------------------------------------------------------------------------------------------
+
+// namedEvent is a reply event whose name comes from the instance, so a test can reply under any name.
+type namedEvent struct {
+	EventName string
+}
+
+func (e namedEvent) Name() string { return e.EventName }
+
+func TestService_SendCommandWithReply_GroupedEventName(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"inventory.updated", "game.inventory.updated"} {
+		t.Run("accepts "+name, func(t *testing.T) {
+			t.Parallel()
+			resp, err := scwrSendThroughMux(t, name)
+			require.NoError(t, err)
+			assert.Equal(t, name, resp.Msg.GetEvent().GetName())
+			// Event streams deliver the reply's message, so its own rules must accept the name too.
+			assert.NoError(t, protovalidate.Validate(&iscv1.Event{Name: name, Payload: []byte{1}}))
+		})
+	}
+
+	for _, name := range []string{
+		"inventory.>", "inventory.*", ">", "inventory>updated", "inventory.", ".updated", "inventory..updated",
+	} {
+		t.Run("rejects "+name, func(t *testing.T) {
+			t.Parallel()
+			_, err := scwrSendThroughMux(t, name)
+			assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "error: %v", err)
+			assert.Error(t, protovalidate.Validate(&iscv1.Event{Name: name, Payload: []byte{1}}))
+		})
+	}
+}
+
+// scwrSendThroughMux sends a SimpleCommand with reply through the client-facing mux, as a real client
+// does. Enqueueing the command replies to the sender with an event named eventName.
+func scwrSendThroughMux(
+	t *testing.T, eventName string,
+) (*connect.Response[cardinalv1.SendCommandWithReplyResponse], error) {
+	t.Helper()
+	const player = "alice"
+	svc, w := newSCWRFixture(t, testutils.NewRand(t), func(world *World) command.Queue {
+		return &tickingReplyQueue{
+			Queue: command.NewQueue[testutils.SimpleCommand](),
+			tick: func() {
+				world.events.Enqueue(event.Event{
+					Kind:      event.KindDefault,
+					Payload:   namedEvent{EventName: eventName},
+					Recipient: player,
+				})
+				assert.NoError(t, world.events.Dispatch(t.Context()))
+			},
+		}
+	})
+	mux, err := svc.newMux(authenticatorDev{}.authenticate)
+	require.NoError(t, err)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	client := cardinalv1connect.NewCardinalServiceClient(server.Client(), server.URL)
+
+	ctx, cancel := context.WithTimeout(t.Context(), scwrReplyTimeout)
+	defer cancel()
+	req := connect.NewRequest(&cardinalv1.SendCommandWithReplyRequest{
+		Command: &iscv1.Command{
+			Name:    testutils.SimpleCommand{}.Name(),
+			Address: w.address,
+			Payload: testutils.SimpleCommand{}.MarshalWire(),
+		},
+		EventName: eventName,
+	})
+	req.Header().Set(devPlayerIDHeader, player)
+	return client.SendCommandWithReply(ctx, req)
 }
