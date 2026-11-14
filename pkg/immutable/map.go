@@ -147,6 +147,11 @@ func (m Map[K, V]) Values() iter.Seq[V] {
 // NOTE: Requires component set if used.
 func (m Map[K, V]) With(k K, v V) Map[K, V] {
 	i, ok := slices.BinarySearch(m.keys, k)
+	return m.setAt(i, ok, k, v)
+}
+
+// setAt is With after its search: i is where k was found (ok) or would be inserted.
+func (m Map[K, V]) setAt(i int, ok bool, k K, v V) Map[K, V] {
 	if ok {
 		vals := slices.Clone(m.vals)
 		vals[i] = v
@@ -175,8 +180,12 @@ func (m Map[K, V]) Without(k K) Map[K, V] {
 //
 // NOTE: Requires component set if used.
 func (m Map[K, V]) Update(k K, f func(V) V) Map[K, V] {
-	v, _ := m.Get(k)
-	return m.With(k, f(v))
+	i, ok := slices.BinarySearch(m.keys, k)
+	var v V
+	if ok {
+		v = m.vals[i]
+	}
+	return m.setAt(i, ok, k, f(v))
 }
 
 // insertAt returns a new array holding s with v inserted at index i.
@@ -376,10 +385,11 @@ func sortedMap[K Key, V any](keys []K, vals []V) (Map[K, V], error) {
 			sk[i], sv[i] = keys[j], vals[j]
 		}
 		keys, vals = sk, sv
-	}
-	for i := 1; i < len(keys); i++ {
-		if keys[i-1] == keys[i] {
-			return Map[K, V]{}, eris.Errorf("immutable map: duplicate key %v", keys[i])
+		// Only sorting can bring duplicates together; input that passed the strict < check has none.
+		for i := 1; i < len(keys); i++ {
+			if keys[i-1] == keys[i] {
+				return Map[K, V]{}, eris.Errorf("immutable map: duplicate key %v", keys[i])
+			}
 		}
 	}
 	return Map[K, V]{keys: keys, vals: vals}, nil

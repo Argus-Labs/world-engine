@@ -498,8 +498,8 @@ func FuzzMap_DecodeMsgpack(f *testing.F) {
 		if msgpack.Unmarshal(data, &m) != nil {
 			return
 		}
-		for i := 1; i < m.Len(); i++ {
-			keys, _ := entries(m)
+		keys, _ := entries(m)
+		for i := 1; i < len(keys); i++ {
 			require.Less(t, keys[i-1], keys[i], "decoded keys are strictly ascending")
 		}
 		again, err := msgpack.Marshal(m)

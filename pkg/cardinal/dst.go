@@ -310,6 +310,9 @@ func (f *dstFixture) verifySnapshotRoundtrip(t *testing.T) {
 // filled a few levels deep and then stops.
 const maxFillRepeats = 2
 
+// maxFillLen bounds how many entries the filler draws for one slice, Slice or Map: 0 to 4.
+const maxFillLen = 5
+
 // fillRandom recursively fills a [reflect.Value] with random data based on its type.
 func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 	(&filler{prng: prng, live: liveEntityIDs, onPath: map[reflect.Type]int{}}).fill(v)
@@ -394,7 +397,7 @@ func (f *filler) slice(v reflect.Value) {
 		return
 	}
 	defer f.leave(v.Type())
-	n := f.prng.IntN(5)
+	n := f.prng.IntN(maxFillLen)
 	slice := reflect.MakeSlice(v.Type(), n, n)
 	for i := range n {
 		f.fill(slice.Index(i))
@@ -421,7 +424,7 @@ func (f *filler) immutableSlice(v reflect.Value) bool {
 		panic("dst: " + t.String() + " is not settable, so it cannot be filled")
 	}
 
-	n := f.prng.IntN(5)
+	n := f.prng.IntN(maxFillLen)
 	items := reflect.MakeSlice(reflect.SliceOf(elem), n, n)
 	for i := range n {
 		f.fill(items.Index(i))
@@ -443,13 +446,12 @@ func (f *filler) immutableMap(v reflect.Value) bool {
 	}
 
 	m := reflect.Zero(t)
-	with := m.MethodByName("With")
-	for range f.prng.IntN(5) {
+	with, _ := t.MethodByName("With") // unbound, so the Map is passed as the first argument
+	for range f.prng.IntN(maxFillLen) {
 		key, value := reflect.New(keyType).Elem(), reflect.New(valueType).Elem()
 		f.fill(key)
 		f.fill(value)
-		m = with.Call([]reflect.Value{key, value})[0]
-		with = m.MethodByName("With")
+		m = with.Func.Call([]reflect.Value{m, key, value})[0]
 	}
 	v.Set(m)
 	return true
