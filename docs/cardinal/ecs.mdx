@@ -147,8 +147,9 @@ Reads such as `At`, `All`, `IndexFunc`, and `MinFunc` are methods, and so are de
 Anything that needs a type constraint is a package function, for example `Equal`, `Contains`,
 `Sorted`, `Min`, `Transform`, and `Concat`.
 
-Every derivation returns a Slice over a new array and leaves the receiver unchanged, so the stored
-component, your copy and any snapshot keep what they held until you `Set` the result.
+Every derivation leaves the receiver unchanged, so the stored component, your copy and any snapshot
+keep what they held until you `Set` the result. All but `Sub` and `Chunk` return a Slice over a new
+array; those two return a window onto the old one, which is safe because nothing writes to it.
 
 Derive, then `Set` the component that holds it:
 
@@ -214,7 +215,7 @@ type PlayerMemory struct {
 }
 
 type NPCMemory struct {
-	Players immutable.Map[cardinal.EntityID, PlayerMemory] `json:"players"`
+	Players immutable.Map[string, PlayerMemory] `json:"players"` // keyed by player ID
 }
 
 func (NPCMemory) Name() string {
@@ -231,7 +232,8 @@ order, and a Map encodes in key order too, so the same entries always give the s
 they were inserted. That is what keeps snapshots and `RequireDeterministic` hashes stable. If
 insertion order matters, store it in the value.
 
-Read with `Get`, `Has`, and `Len`; derive with `With`, `Without`, and `Update`, then `Set`:
+Read with `Get`, `Has`, and `Len`; derive with `With`, `Without`, `Update`, and `DeleteFunc`, then
+`Set`:
 
 ```go
 mem := npc.Get[NPCMemory]()
@@ -239,6 +241,14 @@ pm, _ := mem.Players.Get(pid) // a copy
 pm.Affinity += 5
 mem.Players = mem.Players.With(pid, pm)
 npc.Set(mem)
+```
+
+`DeleteFunc` prunes many entries in one copy:
+
+```go
+mem.Players = mem.Players.DeleteFunc(func(_ string, pm PlayerMemory) bool {
+	return now-pm.LastSeen > forgetAfter
+})
 ```
 
 For many edits at once, `Edit` returns a builder. Its `Get` sees its own pending edits, so it can
@@ -260,9 +270,11 @@ order the Go map yields. Compare Maps with `immutable.MapEqual`, or `EqualFunc` 
 not comparable.
 
 <Note>
-  A key that is an `EntityID` keeps pointing at that ID after the entity is destroyed, the same as any
-  stored ID (see [Entity Handles and Stored IDs](#entity-handles-and-stored-ids)). Check `Alive` and
-  remove stale keys when you update the Map.
+  Entity IDs are reused as soon as an entity is destroyed, so a key that is an `EntityID` silently
+  refers to whichever entity takes the slot next, and `Alive` cannot tell the difference (see
+  [Entity Handles and Stored IDs](#entity-handles-and-stored-ids)). Key long-lived data by an ID the
+  game owns, such as the player ID from `cmd.Player()`. If you do key by entity, remove the key in the
+  system that destroys the entity.
 </Note>
 
 ### Tag Components

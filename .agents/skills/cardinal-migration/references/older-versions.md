@@ -34,7 +34,7 @@ before editing (SKILL.md, Before editing). Convert each field, then fix its uses
 | Field                  | Becomes                                                               |
 | ---------------------- | --------------------------------------------------------------------- |
 | `[]T`                  | `immutable.Slice[T]`, or `[N]T` plus a count when N is small and hard |
-| `map[K]V`              | `immutable.Slice[P]` of `struct{ K K; V V }`, found with `IndexFunc`  |
+| `map[K]V`              | `immutable.Map[K, V]` with integer or string keys; see below          |
 | optional `*T`          | `T` plus `HasT bool`                                                  |
 | `*T` shared on purpose | an ID (`EntityID`, index or key) looked up where it is used           |
 | `any` or an interface  | a kind enum plus one field per variant, or an encoded string          |
@@ -46,6 +46,11 @@ and leaves the receiver unchanged, so assign and set: `c.Items = c.Items.Filter(
 then `e.Set(c)`. For several edits at once, use `b := c.Items.Edit()`, edit `b`, then
 `c.Items = b.Done()`. The old `immutable.Map` function is now `immutable.Transform`. A
 `for i := range c.Items` over the old slice becomes `for i, x := range c.Items.All()`.
+
+`immutable.Map[K, V]` is the same for a lookup table: build with
+`immutable.MapFrom(maps.All(goMap))`, read with `Get`, `Has`, `All`, derive with `With`,
+`Without`, `Update`, `DeleteFunc`, and batch with `Edit`/`Done`. Keys are integers or
+strings, kept sorted. Do not key it by `EntityID` across ticks: IDs are reused.
 
 Which of these needs a design decision is the user's call: a shared pointer or an
 interface field usually does. List them and ask before converting.
