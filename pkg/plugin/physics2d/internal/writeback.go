@@ -30,6 +30,14 @@ type WritebackEntry struct {
 // Awake is mirrored back on change so the component tracks solver sleep state instead of
 // freezing at its creation value. Disabled bodies are skipped: IsBodyAwake reads false for
 // them, which is disablement, not sleep.
+//
+// Velocity is mirrored back only for active bodies. A disabled body has no solver state, so
+// BodyLinearVelocity/BodyAngularVelocity read zero there — that zero is an artifact of
+// disablement, not rest. Writing it back would stomp the gameplay-authored Velocity2D (and
+// the shadow that diffing reads), so any velocity authored while disabled or held at the
+// moment of disable is permanently erased and never applied when the body is re-enabled.
+// Skipping the mirror lets Velocity2D survive a temporary disable, and the reconciler
+// pushes it into Box2D on re-enable (see reconcileExistingBody's enabledThisTick force-push).
 func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 	if rt.World == nil {
 		return
@@ -68,7 +76,9 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 		}
 
 		e.Entity.Set(t)
-		e.Entity.Set(v)
+		if pb.Active {
+			e.Entity.Set(v)
+		}
 		if pb.Active && pb.Awake != awake {
 			pb.Awake = awake
 			e.Entity.Set(pb)
@@ -77,8 +87,8 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 		// Update shadow so ReconcileFromECS sees no diff for these fields next tick.
 		if shadow, exists := rt.Shadow[id]; exists {
 			shadow.Transform = t
-			shadow.Velocity = v
 			if pb.Active {
+				shadow.Velocity = v
 				shadow.PhysicsBody.Awake = awake
 			}
 			rt.Shadow[id] = shadow

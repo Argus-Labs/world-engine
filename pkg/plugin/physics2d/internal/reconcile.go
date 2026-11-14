@@ -209,16 +209,26 @@ func (rt *Runtime) reconcileExistingBody(
 	// have created the body born-moving. Force the push so both paths agree.
 	leftUntrackedVelocity := untrackedVelocity(prev.PhysicsBody.BodyType) &&
 		!untrackedVelocity(e.PhysicsBody.BodyType)
+	// A body re-enabled this tick restarts at zero velocity in Box2D: EnableBody transfers it
+	// into the awake set with identityBodyState, discarding any velocity it held before disable.
+	// Writeback skips velocity for inactive bodies (see WritebackFromStepResults), so the
+	// gameplay Velocity2D survives the disabled period in the shadow; on this tick
+	// VelocityDiffers reports "no change" and the push would be skipped, leaving Box2D at zero.
+	// Force the push so the authored velocity takes effect when the body resumes — the same
+	// reasoning as leftUntrackedVelocity, for a body whose velocity Box2D stopped tracking
+	// because it was disabled rather than because its type was untracked.
+	enabledThisTick := !prev.PhysicsBody.Active && e.PhysicsBody.Active
+	forcePush := leftUntrackedVelocity || enabledThisTick
 	switch {
 	case e.PhysicsBody.BodyType == component.BodyTypeManual:
 		rt.World.SetBodyLinearVelocity(bodyID, box2d.Vec2{})
 		rt.World.SetBodyAngularVelocity(bodyID, 0)
 	case e.PhysicsBody.FixedRotation:
 		rt.World.SetBodyAngularVelocity(bodyID, 0)
-		if prev.VelocityDiffers(e.Velocity) || leftUntrackedVelocity {
+		if prev.VelocityDiffers(e.Velocity) || forcePush {
 			rt.World.SetBodyLinearVelocity(bodyID, box2d.Vec2{X: e.Velocity.Linear.X, Y: e.Velocity.Linear.Y})
 		}
-	case prev.VelocityDiffers(e.Velocity) || leftUntrackedVelocity:
+	case prev.VelocityDiffers(e.Velocity) || forcePush:
 		rt.World.SetBodyLinearVelocity(bodyID, box2d.Vec2{X: e.Velocity.Linear.X, Y: e.Velocity.Linear.Y})
 		rt.World.SetBodyAngularVelocity(bodyID, e.Velocity.Angular)
 	}
