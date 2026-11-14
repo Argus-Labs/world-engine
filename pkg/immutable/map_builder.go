@@ -12,21 +12,26 @@ import "slices"
 //	}
 //	c.Table = b.Done()
 //
-// Edit copies the values once. The keys stay shared with the source until the first insert or
-// delete, so a batch that only changes existing entries copies one array, not two.
+// Edit copies nothing. Each array is copied once, on its first write: the values on the first Set,
+// the keys as well on the first new key or Delete. A batch that only changes existing entries
+// copies one array, and every copy is sized for the write that made it.
+//
+// Each new key or Delete shifts the arrays, so k of them in an n-entry Map cost O(k·n), as in any
+// map stored as sorted arrays. To build a large Map from scratch, use MapFrom, which sorts once.
 //
 // After Done, and on a copy of the builder, every method panics, for the reasons SliceBuilder gives.
 type MapBuilder[K Key, V any] struct {
 	self     *MapBuilder[K, V] // the builder's own address; differs in a copy
 	keys     []K
 	vals     []V
-	ownsKeys bool
+	ownsKeys bool // keys is this builder's own array, not the source Map's
+	ownsVals bool // likewise for vals
 	done     bool
 }
 
-// Edit returns a builder holding a copy of the Map's entries. The Map itself is unchanged.
+// Edit returns a builder that starts from the Map's entries. The Map itself is unchanged.
 func (m Map[K, V]) Edit() *MapBuilder[K, V] {
-	b := &MapBuilder[K, V]{keys: m.keys, vals: slices.Clone(m.vals)}
+	b := &MapBuilder[K, V]{keys: m.keys, vals: m.vals}
 	b.self = b
 	return b
 }
@@ -55,12 +60,12 @@ func (b *MapBuilder[K, V]) Set(k K, v V) {
 	b.check()
 	i, ok := slices.BinarySearch(b.keys, k)
 	if ok {
+		b.vals = own(b.vals, &b.ownsVals)
 		b.vals[i] = v
 		return
 	}
-	b.ownKeys()
-	b.keys = slices.Insert(b.keys, i, k)
-	b.vals = slices.Insert(b.vals, i, v)
+	b.keys = spliceIn(b.keys, &b.ownsKeys, i, k)
+	b.vals = spliceIn(b.vals, &b.ownsVals, i, v)
 }
 
 // Delete removes k. It does nothing when k is absent.
@@ -70,9 +75,8 @@ func (b *MapBuilder[K, V]) Delete(k K) {
 	if !ok {
 		return
 	}
-	b.ownKeys()
-	b.keys = slices.Delete(b.keys, i, i+1)
-	b.vals = slices.Delete(b.vals, i, i+1)
+	b.keys = spliceOut(b.keys, &b.ownsKeys, i, i+1)
+	b.vals = spliceOut(b.vals, &b.ownsVals, i, i+1)
 }
 
 // Done returns the built Map and empties the builder, which panics if used again.
@@ -81,14 +85,6 @@ func (b *MapBuilder[K, V]) Done() Map[K, V] {
 	keys, vals := b.keys, b.vals
 	b.keys, b.vals, b.done = nil, nil, true
 	return wrapMap(keys, vals)
-}
-
-// ownKeys copies the keys before the first write to them, since until then they are the source Map's.
-func (b *MapBuilder[K, V]) ownKeys() {
-	if !b.ownsKeys {
-		b.keys = slices.Clone(b.keys)
-		b.ownsKeys = true
-	}
 }
 
 func (b *MapBuilder[K, V]) check() {

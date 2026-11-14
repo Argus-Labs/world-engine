@@ -82,6 +82,12 @@ func TestMap_DerivationsLeaveReceiverUnchanged(t *testing.T) {
 			b.Set("a", 7)
 			return b.Done()
 		},
+		"builder delete first": func(m immutable.Map[string, int]) immutable.Map[string, int] {
+			b := m.Edit()
+			b.Delete("b")
+			b.Set("a", 7)
+			return b.Done()
+		},
 		"builder insert and delete": func(m immutable.Map[string, int]) immutable.Map[string, int] {
 			b := m.Edit()
 			b.Set("z", 7)
@@ -513,6 +519,9 @@ func FuzzMap_DecodeMsgpack(f *testing.F) {
 }
 
 func TestMap_Allocations(t *testing.T) {
+	if raceEnabled {
+		t.Skip("allocation counts are not meaningful under -race")
+	}
 	m := immutable.MapFrom(maps.All(map[int]int{1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8}))
 	var sink int
 
@@ -543,5 +552,13 @@ func TestMap_Allocations(t *testing.T) {
 		sink += b.Done().Len()
 	})
 	assert.LessOrEqual(t, batch, 2.0, "a batch of updates to existing keys")
+
+	assert.InDelta(t, 1, testing.AllocsPerRun(100, func() { sink += m.Edit().Done().Len() }), 0,
+		"a builder that never writes copies nothing")
+	assert.InDelta(t, 3, testing.AllocsPerRun(100, func() {
+		b := m.Edit()
+		b.Set(30, 9)
+		sink += b.Done().Len()
+	}), 0, "a new key copies each array once")
 	_ = sink
 }

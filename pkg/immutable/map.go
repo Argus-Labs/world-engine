@@ -17,7 +17,8 @@ import (
 // Key is the set of types a Map may be keyed by: integers, strings, and named types of them, such as
 // `type PlayerID uint64`. Their < is a total order and the same on every platform, which is what
 // keeps a Map's layout and encoding deterministic. Floats are left out because NaN breaks sorting,
-// and structs because they have no < at all.
+// and structs because they have no < at all. That makes Key [cmp.Ordered] without floats and
+// uintptr, the same restriction Rust's BTreeMap makes.
 type Key interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
 		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 |

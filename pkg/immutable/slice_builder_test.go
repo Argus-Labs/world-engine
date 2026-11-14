@@ -26,6 +26,40 @@ func TestSliceBuilder_EditLeavesSourceUnchanged(t *testing.T) {
 	require.Equal(t, []int{1, 2, 3}, collect(s), "the source is unchanged")
 }
 
+// Each write takes its own path to the builder's first copy, so each must leave the source alone
+// when it comes first.
+func TestSliceBuilder_FirstWriteCopies(t *testing.T) {
+	t.Parallel()
+
+	first := map[string]struct {
+		write func(*immutable.SliceBuilder[int])
+		want  []int
+	}{
+		"Set":    {func(b *immutable.SliceBuilder[int]) { b.Set(0, 9) }, []int{9, 2, 3}},
+		"Append": {func(b *immutable.SliceBuilder[int]) { b.Append(4) }, []int{1, 2, 3, 4}},
+		"Insert": {func(b *immutable.SliceBuilder[int]) { b.Insert(1, 7) }, []int{1, 7, 2, 3}},
+		"Delete": {func(b *immutable.SliceBuilder[int]) { b.Delete(0, 1) }, []int{2, 3}},
+	}
+	for name, c := range first {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			s := immutable.SliceOf(1, 2, 3)
+			b := s.Edit()
+			c.write(b)
+			b.Set(0, 8) // a later write lands in the builder's copy too
+			want := slices.Clone(c.want)
+			want[0] = 8
+			require.Equal(t, want, collect(b.Done()))
+			require.Equal(t, []int{1, 2, 3}, collect(s), "the source is unchanged")
+		})
+	}
+
+	s := immutable.SliceOf(1, 2, 3)
+	require.Panics(t, func() { s.Edit().Delete(2, 1) }, "an inverted range panics before any copy")
+	require.Equal(t, []int{1, 2, 3}, collect(s))
+}
+
 func TestSliceBuilder_NewBuildsFromScratch(t *testing.T) {
 	t.Parallel()
 
@@ -163,6 +197,9 @@ func TestSlice_ModelMatchesPlainSlice(t *testing.T) {
 }
 
 func TestSlice_Allocations(t *testing.T) {
+	if raceEnabled {
+		t.Skip("allocation counts are not meaningful under -race")
+	}
 	s := immutable.SliceOf(1, 2, 3, 4, 5, 6, 7, 8)
 	var sink int
 
@@ -188,5 +225,14 @@ func TestSlice_Allocations(t *testing.T) {
 		sink += b.Done().Len()
 	})
 	require.LessOrEqual(t, batch, 2.0, "64 appends into a sized builder")
+
+	// Edit copies on the first write, sized for it, so these cost the builder and at most one array.
+	require.InDelta(t, 1, testing.AllocsPerRun(100, func() { sink += s.Edit().Done().Len() }), 0,
+		"a builder that never writes copies nothing")
+	require.InDelta(t, 2, testing.AllocsPerRun(100, func() {
+		b := s.Edit()
+		b.Append(9)
+		sink += b.Done().Len()
+	}), 0, "Edit then Append copies once")
 	_ = sink
 }
