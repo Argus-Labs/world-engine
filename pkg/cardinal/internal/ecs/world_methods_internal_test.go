@@ -88,3 +88,62 @@ func TestWorldMethods_SystemEvents_ResetClearsInitBuffer(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, events, "Reset must clear buffered system events")
 }
+
+// TestWorldMethods_SystemEvents_FromProtoClearsInitBuffer verifies that FromProto drains the
+// system-event buffer. FromProto replaces world state wholesale (as Reset does), and the startup
+// path runs Init before restore (run -> init -> restore), so any events init systems emitted
+// describe the discarded world generation and must not survive into the first post-restore tick.
+func TestWorldMethods_SystemEvents_FromProtoClearsInitBuffer(t *testing.T) {
+	t.Parallel()
+	w := NewWorld()
+	_, err := w.RegisterSystemEvent[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+	require.NoError(t, w.RegisterSystem("emit-on-init", Init, func() {
+		require.NoError(t, w.EmitSystemEvent(testutils.SimpleSystemEvent{Value: 1}))
+	}))
+
+	w.Init() // emits one event into the buffer
+	events, err := w.GetSystemEvents[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+
+	// Snapshot the current state and restore it. FromProto replaces the world state wholesale,
+	// so it must drain the buffer like Reset.
+	pb, err := w.ToProto()
+	require.NoError(t, err)
+	require.NoError(t, w.FromProto(pb))
+
+	events, err = w.GetSystemEvents[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+	require.Empty(t, events, "FromProto must clear buffered system events")
+}
+
+// TestWorldMethods_SystemEvents_FromProtoClearsInitBufferOnFreshWorld mirrors
+// TestWorldMethods_SystemEvents_FromProtoClearsInitBuffer but restores into a fresh World. The
+// production restart boots a new ecs.World, registers the same system events, then restores the
+// snapshot: the buffer on the new world must start empty after FromProto commits.
+func TestWorldMethods_SystemEvents_FromProtoClearsInitBufferOnFreshWorld(t *testing.T) {
+	t.Parallel()
+	src := NewWorld()
+	_, err := src.RegisterSystemEvent[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+	require.NoError(t, src.RegisterSystem("emit-on-init", Init, func() {
+		require.NoError(t, src.EmitSystemEvent(testutils.SimpleSystemEvent{Value: 1}))
+	}))
+	src.Init()
+	pb, err := src.ToProto()
+	require.NoError(t, err)
+
+	// A fresh world, as on restart: it has the same event types registered but its buffer is
+	// empty. Emit directly into it to simulate an init run that happened before restore, then
+	// confirm FromProto drains it.
+	dst := NewWorld()
+	_, err = dst.RegisterSystemEvent[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+	require.NoError(t, dst.EmitSystemEvent(testutils.SimpleSystemEvent{Value: 1}))
+	require.NoError(t, dst.FromProto(pb))
+
+	events, err := dst.GetSystemEvents[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+	require.Empty(t, events, "FromProto must clear buffered system events on the restored world")
+}

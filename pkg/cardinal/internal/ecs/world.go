@@ -113,10 +113,16 @@ func (w *World) ToProto() (*cardinalv1.WorldState, error) {
 
 // FromProto populates the World's state from a proto message.
 // This should only be called after the World has been properly initialized with components registered.
+//
+// Like Reset, FromProto replaces the world state wholesale, so it drains the system-event buffer:
+// init systems run before restore in the startup path (run -> init -> restore), and any events they
+// emitted describe the discarded world generation. Their payloads (e.g. entity IDs from
+// init-created, now-discarded entities) must not survive into the first post-restore tick.
 func (w *World) FromProto(pb *cardinalv1.WorldState) error {
 	if err := w.state.fromProto(pb); err != nil {
 		return err
 	}
+	w.systemEvents.clear()
 	return nil
 }
 

@@ -227,6 +227,79 @@ func TestResetClearsSystemEventsThroughShippedPath(t *testing.T) {
 	require.Equal(t, testutils.SimpleSystemEvent{Value: emitVal}, observed[0])
 }
 
+// TestRestoreClearsSystemEventsThroughShippedPath verifies that the shipped cardinal
+// restore() path does not leak init-emitted system events from the pre-restore Init into
+// the first post-restore Tick. The production startup flow runs init before restore
+// (run -> init -> restore), so a system that emits during Init can enqueue events into the
+// buffer before FromProto replaces the world state. The receiver runs inside the tick before
+// Tick's deferred clear, so it would observe the stale batch unless FromProto clears the
+// buffer (as Reset already does).
+func TestRestoreClearsSystemEventsThroughShippedPath(t *testing.T) {
+	t.Setenv("LOG_LEVEL", "disabled")
+
+	debug := true
+	w, err := NewWorld(WorldOptions{
+		Project:             "restore-events",
+		ShardID:             "0",
+		TickRate:            60,
+		SnapshotStorageType: snapshot.StorageTypeNop,
+		SnapshotRate:        5,
+		Debug:               &debug,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, w.debug)
+
+	// Swap the nop storage for in-memory so a snapshot can be written and read back through
+	// the shipped restore path. The sync writer observes every Write immediately.
+	w.useSyncSnapshotStorage(&memSnapshotStorage{t: t})
+
+	_, err = w.world.RegisterSystemEvent[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+
+	var observed []testutils.SimpleSystemEvent
+	const emitVal = 7
+
+	// Init-hook system emits a system event during init; the production startup path runs
+	// init before restore, so this event sits in the buffer when restore runs.
+	require.NoError(t, w.world.RegisterSystem("emit-on-init", ecs.Init, func() {
+		require.NoError(t, w.world.EmitSystemEvent(testutils.SimpleSystemEvent{Value: emitVal}))
+	}))
+	// Update-hook receiver collects every event visible during a tick. It runs before Tick's
+	// deferred clear, so it observes whatever was buffered before the tick.
+	require.NoError(t, w.world.RegisterSystem("receive-on-update", ecs.Update, func() {
+		evs, err := w.world.GetSystemEvents[testutils.SimpleSystemEvent]()
+		require.NoError(t, err)
+		observed = append(observed, evs...)
+	}))
+
+	// Run init: the init-hook system emits one event into the buffer. This mirrors the
+	// production run() order (init before restore).
+	w.init()
+
+	// Write a snapshot directly without ticking, so the init-emitted event remains in the
+	// buffer when restore runs. A tick would have drained it via Tick's deferred clear.
+	const snapHeight = uint64(0)
+	w.snapshotWriter.Write(snapHeight, w.encodeSnapshot(snapHeight, time.Unix(0, 0)))
+
+	// Shipped restore: loads the snapshot and calls w.world.FromProto. FromProto replaces the
+	// world state wholesale and must drain the buffer so the init-emitted event does not leak
+	// into the first post-restore tick.
+	require.NoError(t, w.restore(context.Background()))
+
+	// The buffer must be empty immediately after restore, before the tick runs.
+	preTick, err := w.world.GetSystemEvents[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+	require.Empty(t, preTick,
+		"restore must drain init-emitted system events before the first post-restore tick")
+
+	// First post-restore tick: the receiver runs before Tick's deferred clear, so it would
+	// observe the stale init-emitted event if FromProto had not cleared the buffer.
+	w.Tick(time.Unix(0, 0))
+
+	require.Empty(t, observed,
+		"receiver should see no stale init-emitted system events after restore; got %v", observed)
+}
+
 // broadcastOnInitSystem is an Init-hook system that broadcasts a client-facing event. The
 // cardinal Broadcast/SendTo API has no guard against use inside an Init system, so a game may
 // emit a "world initialized" event here that clients expect on the first tick.
