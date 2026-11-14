@@ -135,6 +135,9 @@ jobs:
         env:
           KUBEBUILDER_ASSETS: ${{ steps.setup-envtest.outputs.kubebuilder-assets }}
 
+      - name: Run release-build tests
+        run: moon run world-engine:test-release
+
       - name: Run CLI tests
         run: moon run cli:test-ci
 
