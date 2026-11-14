@@ -137,9 +137,8 @@ func (m *Manager) Enqueue(ctx context.Context, command *iscv1.Command, sender Se
 	assert.That(command.GetName() != "", "command has empty name")
 	assert.That(command.GetAddress() != nil, "command has nil address")
 	assert.That(sender.id != "", "command has no sender")
-	// Payload may be empty: a command whose proto message has no set fields serializes to zero
-	// bytes (e.g. lobby_heartbeat). Identity lives in name/address/sender, so an empty payload
-	// is valid — only those three are real invariants.
+	// Payload validation is the queue's job: sliceQueue.Enqueue decodes it and rejects
+	// malformed or empty bytes.
 
 	// We're doing 2 lookups here to keep the Enqueue caller simple, at the cost of less performance.
 	// If this is determined to be a bottleneck in the future, do what callers of Get do and store the

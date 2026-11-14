@@ -20,6 +20,8 @@ import (
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
+	"github.com/nats-io/nats.go"
+	natsmicro "github.com/nats-io/nats.go/micro"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -168,6 +170,52 @@ func TestService_PublishInterShardCommand(t *testing.T) {
 		cmds := awaitCommands(t, fixtureB)
 		assert.Equal(t, payload, cmds[0].Payload)
 		assert.Equal(t, command.ShardSender(fixtureA.world.address), cmds[0].Sender)
+	})
+
+	// A non-Cardinal peer (a raw NATS client in any language) implements the documented ISC wire
+	// contract: a MessagePack body is accepted and enqueued, while protobuf bytes or an empty body
+	// come back InvalidArgument. This is the regression test for the bug this PR documents.
+	t.Run("non-Cardinal peer: MessagePack accepted, protobuf and empty rejected", func(t *testing.T) {
+		t.Parallel()
+		prng := testutils.NewRand(t)
+
+		fixture := newServiceFixture(t, prng, true) // Cardinal receiver with the ISC handler + SimpleCommand queue.
+
+		peer, err := nats.Connect(TestNATS.ClientURL())
+		require.NoError(t, err)
+		t.Cleanup(peer.Close)
+
+		from := RandServiceAddress(prng)
+		subject := micro.CommandRoute{
+			To:   fixture.world.address,
+			Name: testutils.SimpleCommand{}.Name(),
+			From: from,
+		}.Subject()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// A MessagePack-encoded body is accepted and enqueued with the payload decoded and the
+		// sending shard as the sender.
+		msgpackBody := testutils.SimpleCommand{Value: 42}.MarshalWire()
+		reply, err := peer.RequestWithContext(ctx, subject, msgpackBody)
+		require.NoError(t, err)
+		assert.Empty(t, reply.Header.Get(natsmicro.ErrorCodeHeader), "accepted command must not carry an error code")
+
+		cmds := awaitCommands(t, fixture)
+		require.Len(t, cmds, 1)
+		assert.Equal(t, testutils.SimpleCommand{Value: 42}, cmds[0].Payload)
+		assert.Equal(t, command.ShardSender(from), cmds[0].Sender)
+
+		// A protobuf-encoded body (field 1, varint 42) is rejected with InvalidArgument (gRPC code 3).
+		reply, err = peer.RequestWithContext(ctx, subject, []byte{0x08, 0x2a})
+		require.NoError(t, err)
+		assert.Equal(t, "3", reply.Header.Get(natsmicro.ErrorCodeHeader))
+
+		// A zero-length body is rejected with the same code.
+		reply, err = peer.RequestWithContext(ctx, subject, nil)
+		require.NoError(t, err)
+		assert.Equal(t, "3", reply.Header.Get(natsmicro.ErrorCodeHeader))
 	})
 }
 

@@ -38,8 +38,11 @@ export type Command = Message<"worldengine.isc.v1.Command"> & {
   address?: ServiceAddress;
 
   /**
-   * The serialized command payload. May be empty: a command whose proto message
-   * has no set fields serializes to zero bytes, so this is not marked required.
+   * The serialized command payload, encoded as MessagePack; see pkg/micro/command.go
+   * for the wire format and empty-payload behavior. Stays optional because the
+   * receiver rejects a zero-length body on decode, so marking it required would
+   * re-check what the receiver already enforces and would change client validation
+   * (its own change).
    *
    * @generated from field: bytes payload = 4;
    */

@@ -76,17 +76,18 @@ func TestCommand_RoundTrip(t *testing.T) {
 
 	// Accepted: the receiver sees the sender from the subject and the payload byte for byte.
 	{
-		require.NoError(t, client.SendCommand(ctx, from, svc.Address, "greet", []byte{0x08, 0x2a}))
+		msgpackBody := testutils.SimpleCommand{Value: 42}.MarshalWire()
+		require.NoError(t, client.SendCommand(ctx, from, svc.Address, "greet", msgpackBody))
 
 		raw, err := wire.NextMsgWithContext(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, String(svc.Address)+".isc.greet.rampage."+from.GetServiceId(), raw.Subject)
-		assert.Equal(t, []byte{0x08, 0x2a}, raw.Data)
+		assert.Equal(t, msgpackBody, raw.Data)
 
 		cmd := <-received
 		assert.Equal(t, "greet", cmd.Name)
 		assert.True(t, proto.Equal(from, cmd.From), "from = %v", cmd.From)
-		assert.Equal(t, []byte{0x08, 0x2a}, cmd.Payload)
+		assert.Equal(t, msgpackBody, cmd.Payload)
 	}
 
 	// Rejected with a status code: the sender gets the code and message back.
