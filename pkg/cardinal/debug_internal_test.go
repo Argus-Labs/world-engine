@@ -182,6 +182,25 @@ func newDebugStateWorld(t *testing.T) *World {
 	return w
 }
 
+// registerEmitReceiveSystems registers an Init-hook system that emits one SimpleSystemEvent and an
+// Update-hook receiver that collects every buffered event, returning a pointer to the observed
+// slice. Shared by the reset and restore shipped-path system-event tests.
+func registerEmitReceiveSystems(t *testing.T, w *World) *[]testutils.SimpleSystemEvent {
+	t.Helper()
+	_, err := w.world.RegisterSystemEvent[testutils.SimpleSystemEvent]()
+	require.NoError(t, err)
+	var observed []testutils.SimpleSystemEvent
+	require.NoError(t, w.world.RegisterSystem("emit-on-init", ecs.Init, func() {
+		require.NoError(t, w.world.EmitSystemEvent(testutils.SimpleSystemEvent{Value: 7}))
+	}))
+	require.NoError(t, w.world.RegisterSystem("receive-on-update", ecs.Update, func() {
+		evs, err := w.world.GetSystemEvents[testutils.SimpleSystemEvent]()
+		require.NoError(t, err)
+		observed = append(observed, evs...)
+	}))
+	return &observed
+}
+
 // TestResetClearsSystemEventsThroughShippedPath verifies that the shipped cardinal
 // reset() path — the function the resetChan branch in run() dispatches to when debug
 // mode is enabled — does not leak init-emitted system events from a prior Init into
@@ -203,28 +222,55 @@ func TestResetClearsSystemEventsThroughShippedPath(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, w.debug)
 
-	_, err = w.world.RegisterSystemEvent[testutils.SimpleSystemEvent]()
-	require.NoError(t, err)
-
-	var observed []testutils.SimpleSystemEvent
-	const emitVal = 7
-
-	require.NoError(t, w.world.RegisterSystem("emit-on-init", ecs.Init, func() {
-		require.NoError(t, w.world.EmitSystemEvent(testutils.SimpleSystemEvent{Value: emitVal}))
-	}))
-	require.NoError(t, w.world.RegisterSystem("receive-on-update", ecs.Update, func() {
-		evs, err := w.world.GetSystemEvents[testutils.SimpleSystemEvent]()
-		require.NoError(t, err)
-		observed = append(observed, evs...)
-	}))
+	observed := registerEmitReceiveSystems(t, w)
 
 	w.world.Init()          // first Init: emits one event
 	w.reset()               // shipped reset: Reset()+Init() emits again
 	w.Tick(time.Unix(0, 0)) // first post-reset tick: receiver runs
 
-	require.Len(t, observed, 1,
-		"receiver should see only the fresh post-reset event; got stale+fresh: %v", observed)
-	require.Equal(t, testutils.SimpleSystemEvent{Value: emitVal}, observed[0])
+	require.Len(t, *observed, 1,
+		"receiver should see only the fresh post-reset event; got stale+fresh: %v", *observed)
+	require.Equal(t, testutils.SimpleSystemEvent{Value: 7}, (*observed)[0])
+}
+
+// TestRestoreClearsSystemEventsThroughShippedPath verifies that the shipped restore() path does
+// not leak init-emitted system events from the pre-restore Init into the first post-restore Tick.
+func TestRestoreClearsSystemEventsThroughShippedPath(t *testing.T) {
+	t.Setenv("LOG_LEVEL", "disabled")
+
+	// Source world writes a snapshot through run()'s real init -> tick -> shutdown path.
+	src := newTestWorld(t)
+	storage := src.snapshotStorage
+	runSnapshotTicks(t, src, 1)
+
+	// Restarted world shares storage, so run()'s init -> restore loads the source snapshot.
+	restarted := newTestWorld(t)
+	restarted.useSyncSnapshotStorage(storage)
+	observed := registerEmitReceiveSystems(t, restarted)
+
+	// run() runs init (emits) -> restore (FromProto clears the buffer) -> 1 tick (receiver).
+	runSnapshotTicks(t, restarted, 1)
+
+	require.Empty(t, *observed,
+		"receiver should see no stale init-emitted system events after restore; got %v", *observed)
+}
+
+// TestRestoreWithoutSnapshotPreservesInitEmittedSystemEvents pins the no-snapshot (cold-start)
+// case: when restore() finds no snapshot it returns early, so init's system events survive to the
+// first tick. A clear placed in restore() before the ErrSnapshotNotFound early return would pass
+// TestRestoreClearsSystemEventsThroughShippedPath but break cold starts by dropping these events.
+func TestRestoreWithoutSnapshotPreservesInitEmittedSystemEvents(t *testing.T) {
+	t.Setenv("LOG_LEVEL", "disabled")
+	w := newTestWorld(t)
+	observed := registerEmitReceiveSystems(t, w)
+
+	w.init()                                            // cold start: init emits before restore
+	require.NoError(t, w.restore(context.Background())) // no snapshot -> early return, buffer untouched
+	w.Tick(time.Unix(0, 0))                             // first tick: receiver observes the init-emitted event
+
+	require.Len(t, *observed, 1,
+		"cold-start init events should survive to the first tick when no snapshot is restored; got %v", *observed)
+	require.Equal(t, testutils.SimpleSystemEvent{Value: 7}, (*observed)[0])
 }
 
 // broadcastOnInitSystem is an Init-hook system that broadcasts a client-facing event. The
@@ -287,6 +333,47 @@ func TestResetPreservesInitEmittedClientEvents(t *testing.T) {
 
 	require.Len(t, observed, 1,
 		"init-emitted client event should survive reset and be delivered on the next tick, "+
+			"matching cold-start behavior; got %v", observed)
+	require.Equal(t, emitVal, observed[0].Value)
+}
+
+// TestRestorePreservesInitEmittedClientEvents verifies that the shipped restore() path preserves
+// init-emitted client-facing events for delivery on the first post-restore tick, matching
+// cold-start behavior. It is the client-event (event.Manager) analogue of
+// TestRestoreClearsSystemEventsThroughShippedPath (which covers ECS system events) and mirrors
+// TestResetPreservesInitEmittedClientEvents. restore() does not clear w.events, so init's client
+// events survive the world-state replacement.
+func TestRestorePreservesInitEmittedClientEvents(t *testing.T) {
+	t.Setenv("LOG_LEVEL", "disabled")
+
+	// Source world writes a snapshot through run()'s real init -> tick -> shutdown path.
+	src := newTestWorld(t)
+	storage := src.snapshotStorage
+	runSnapshotTicks(t, src, 1)
+
+	// Restarted world shares storage, so run()'s init -> restore loads the source snapshot.
+	restarted := newTestWorld(t)
+	restarted.useSyncSnapshotStorage(storage)
+
+	restarted.RegisterEvent[testutils.SimpleEvent]()
+	const emitVal = 42
+	require.NotPanics(t, func() {
+		restarted.RegisterSystem(&broadcastOnInitSystem{value: emitVal}, WithHook(Init))
+	})
+
+	var observed []testutils.SimpleEvent
+	restarted.events.RegisterHandler(event.KindDefault, func(_ context.Context, e event.Event) error {
+		if payload, ok := e.Payload.(testutils.SimpleEvent); ok {
+			observed = append(observed, payload)
+		}
+		return nil
+	})
+
+	// run() runs init (broadcasts) -> restore (does not clear w.events) -> 1 tick (dispatch).
+	runSnapshotTicks(t, restarted, 1)
+
+	require.Len(t, observed, 1,
+		"init-emitted client event should survive restore and be delivered on the first tick, "+
 			"matching cold-start behavior; got %v", observed)
 	require.Equal(t, emitVal, observed[0].Value)
 }

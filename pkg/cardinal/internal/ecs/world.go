@@ -113,10 +113,13 @@ func (w *World) ToProto() (*cardinalv1.WorldState, error) {
 
 // FromProto populates the World's state from a proto message.
 // This should only be called after the World has been properly initialized with components registered.
+//
+// Restore runs after init, so this drops events init emitted against the state being replaced.
 func (w *World) FromProto(pb *cardinalv1.WorldState) error {
 	if err := w.state.fromProto(pb); err != nil {
 		return err
 	}
+	w.systemEvents.clear()
 	return nil
 }
 
