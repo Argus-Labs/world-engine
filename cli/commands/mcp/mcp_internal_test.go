@@ -453,6 +453,82 @@ func TestFlattenWorldState_WhereBareNilCheckMatchesAbsence(t *testing.T) {
 	assert.Equal(t, 1, got.matched)
 }
 
+// entityIDs lists the IDs of flattened entities in order, or nil when there are none.
+func entityIDs(entities []EntityState) []uint32 {
+	var ids []uint32
+	for _, e := range entities {
+		ids = append(ids, e.ID)
+	}
+	return ids
+}
+
+func TestFlattenWorldState_WhereGuardsAndOptionalAccessFollowTheEvaluator(t *testing.T) {
+	t.Parallel()
+	descriptors := stateDescriptors(t)
+	// Entity 11 has no Position. expr reads Position.X only when the guard lets it, and Position?.X
+	// is nil-safe, so 11 matches wherever the expression evaluates true for it.
+	tests := []struct {
+		where string
+		want  []uint32
+	}{
+		{where: "Position == nil || Position.X > 0", want: []uint32{7, 9, 11}},
+		{where: "_id == 11 || Position.X > 0", want: []uint32{7, 9, 11}},
+		{where: "Position?.X == nil", want: []uint32{11}},
+		{where: "Position != nil && Position.X > 1", want: []uint32{9}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.where, func(t *testing.T) {
+			t.Parallel()
+			filter, err := compileStateFilter(GetStateInput{Where: tt.where})
+			require.NoError(t, err)
+
+			got, err := flattenWorldState(sampleWorld(t, descriptors), -1, filter, descriptors)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, entityIDs(got.entities))
+		})
+	}
+}
+
+func TestFlattenWorldState_WhereFailingOnMissingComponentDoesNotMatch(t *testing.T) {
+	t.Parallel()
+	descriptors := stateDescriptors(t)
+	// Evaluation fails for an entity without the component the expression reads; that entity
+	// doesn't match, and the call still succeeds.
+	tests := []struct {
+		where string
+		want  []uint32
+	}{
+		{where: "Position?.X > 0", want: []uint32{7, 9}}, // nil > 0 for entity 11
+		{where: "Bogus.Y == 1", want: nil},               // no entity has Bogus
+	}
+	for _, tt := range tests {
+		t.Run(tt.where, func(t *testing.T) {
+			t.Parallel()
+			filter, err := compileStateFilter(GetStateInput{Where: tt.where})
+			require.NoError(t, err)
+
+			got, err := flattenWorldState(sampleWorld(t, descriptors), -1, filter, descriptors)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, entityIDs(got.entities))
+		})
+	}
+}
+
+func TestFlattenWorldState_WhereErrorOnPresentComponentIsAnError(t *testing.T) {
+	t.Parallel()
+	descriptors := stateDescriptors(t)
+	// Every entity has Health, so the failure is a bad expression, not a missing component.
+	filter, err := compileStateFilter(GetStateInput{Where: `Health.HP > "x"`})
+	require.NoError(t, err)
+
+	_, err = flattenWorldState(sampleWorld(t, descriptors), -1, filter, descriptors)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "where clause")
+}
+
 func TestWhereFieldReads_CollectsMemberRootsOnly(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, []string{"Health"}, whereFieldReads("Health.HP > 50"))
