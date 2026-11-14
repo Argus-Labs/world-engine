@@ -34,7 +34,6 @@ func Dormant() harness.Scenario {
 	const (
 		disableTick = 40
 		frozenTick  = 50
-		enableTick  = 50
 		resumeTick  = 110
 		moverSpeed  = 5.0
 	)
@@ -56,10 +55,7 @@ func Dormant() harness.Scenario {
 			s.cooledMover = c.SpawnMoving("cooled-mover", 0, 10, moverSpeed, 0, zeroGDrifter(true))
 
 			// Row y=20: created disabled with a nonzero velocity.
-			s.bornDormant = c.SpawnFull("born-dormant",
-				physics.Transform2D{Position: physics.Vec2{X: 0, Y: 20}},
-				physics.Velocity2D{Linear: physics.Vec2{X: moverSpeed, Y: 0}},
-				zeroGDrifter(false))
+			s.bornDormant = c.SpawnMoving("born-dormant", 0, 20, moverSpeed, 0, zeroGDrifter(false))
 		},
 		Steps: []harness.Step{
 			{Tick: disableTick, Do: func(c *harness.Ctx) {
@@ -94,13 +90,13 @@ func Dormant() harness.Scenario {
 				c.Greater("re-enabled mover resumed moving beyond its frozen position",
 					moverX, s.frozenX+1.0)
 				c.Near("re-enabled mover keeps its authored velocity",
-					c.Vel(s.cooledMover).X, moverSpeed, 0.05)
+					c.Vel(s.cooledMover).X, moverSpeed, 1e-9)
 
 				dormantX := c.Pos(s.bornDormant).X
 				c.Greater("born-dormant body moved after being enabled",
 					dormantX, s.dormantX+1.0)
 				c.Near("born-dormant body keeps its authored velocity after enable",
-					c.Vel(s.bornDormant).X, moverSpeed, 0.05)
+					c.Vel(s.bornDormant).X, moverSpeed, 1e-9)
 			}},
 		},
 	}

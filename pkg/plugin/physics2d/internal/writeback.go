@@ -12,9 +12,9 @@ type WritebackEntry struct {
 }
 
 // WritebackFromStepResults reads post-step positions, rotations, velocities, and awake state
-// from the Box2D world and writes them into the corresponding ECS Transform2D, Velocity2D,
-// and PhysicsBody2D components. It also updates the shadow state so the next ReconcileFromECS
-// tick sees no diff for these values.
+// from the Box2D world and writes them into the corresponding ECS Transform2D, Velocity2D
+// (active bodies only — see below), and PhysicsBody2D components. It also updates the shadow
+// state so the next ReconcileFromECS tick sees no diff for these values.
 //
 // Iteration is driven by entries (ECS iteration order, EntityID-sorted), never by the
 // runtime's Go maps, so the write order is deterministic.
@@ -33,11 +33,9 @@ type WritebackEntry struct {
 //
 // Velocity is mirrored back only for active bodies. A disabled body has no solver state, so
 // BodyLinearVelocity/BodyAngularVelocity read zero there — that zero is an artifact of
-// disablement, not rest. Writing it back would stomp the gameplay-authored Velocity2D (and
-// the shadow that diffing reads), so any velocity authored while disabled or held at the
-// moment of disable is permanently erased and never applied when the body is re-enabled.
-// Skipping the mirror lets Velocity2D survive a temporary disable, and the reconciler
-// pushes it into Box2D on re-enable (see reconcileExistingBody's enabledThisTick force-push).
+// disablement, not rest, and is not written back. Velocity2D therefore survives a temporary
+// disable in ECS and the shadow; the reconciler pushes it into Box2D on re-enable (see
+// reconcileExistingBody's enabledThisTick force-push).
 func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 	if rt.World == nil {
 		return

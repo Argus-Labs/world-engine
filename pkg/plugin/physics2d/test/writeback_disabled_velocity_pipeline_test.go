@@ -86,9 +86,7 @@ func TestDisabledVelocitySurvivesDisableEnable_Pipeline(t *testing.T) {
 		}
 		engineVel := func(id cardinal.EntityID) physics.Vec2 {
 			bid, ok := p.BodyID(id)
-			if !ok || p.Engine() == nil {
-				return physics.Vec2{}
-			}
+			req.True(ok, "entity %d has no physics body", id)
 			lv := p.Engine().BodyLinearVelocity(bid)
 			return physics.Vec2{X: lv.X, Y: lv.Y}
 		}
