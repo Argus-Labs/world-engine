@@ -37,20 +37,25 @@ func (e *recordingEmitter) total() int {
 	return len(e.triggerBegins) + len(e.triggerEnds) + len(e.contactBegins) + len(e.contactEnds)
 }
 
-// sensorVisitorPair builds the persisted ActiveContacts baseline for a single sensor (entity
-// sa, shape index saIdx) <-> visitor (entity sb, shape index sbIdx) overlap, the way a real
-// TriggerBegin would have left it in the map. The pair is normalized so EntityA < EntityB.
-func sensorVisitorPair(sa cardinal.EntityID, saIdx int, sb cardinal.EntityID, sbIdx int,
-) component.ActiveContacts {
-	if sb < sa || (sb == sa && sbIdx < saIdx) {
-		sa, sb = sb, sa
-		saIdx, sbIdx = sbIdx, saIdx
-	}
+// Entity ids used by every suite below. Sensor suites pair sensorEntity (1) with visitorEntity
+// (2); solid suites pair floorEntity (1) with boxEntity (2).
+const (
+	sensorEntity  cardinal.EntityID = 1
+	visitorEntity cardinal.EntityID = 2
+	floorEntity   cardinal.EntityID = 1
+	boxEntity     cardinal.EntityID = 2
+)
+
+// sensorVisitorBaseline builds the persisted ActiveContacts baseline for the single
+// sensor<->visitor overlap every sensor suite uses (sensor entity 1, shape index 0, visitor
+// entity 2, shape index 0), the way a real TriggerBegin would have left it in the map. The pair
+// is pre-normalized (EntityA < EntityB).
+func sensorVisitorBaseline() component.ActiveContacts {
 	return component.ActiveContacts{Pairs: immutable.SliceOf(component.ContactPairEntry{
-		EntityA:             sa,
-		ShapeIndexA:         saIdx,
-		EntityB:             sb,
-		ShapeIndexB:         sbIdx,
+		EntityA:             sensorEntity,
+		ShapeIndexA:         0,
+		EntityB:             visitorEntity,
+		ShapeIndexB:         0,
 		IsSensor:            true,
 		FilterACategoryBits: 1,
 		FilterAMaskBits:     ^uint64(0),
@@ -90,6 +95,49 @@ func dynamicVisitor(r float64) component.PhysicsBody2D {
 	return pb
 }
 
+// solidFloor returns the static floor the two solid suites share.
+func solidFloor() component.PhysicsBody2D {
+	return component.NewPhysicsBody2D(component.BodyTypeStatic, component.ColliderShape{
+		ShapeType:    component.ShapeTypeBox,
+		HalfExtents:  component.Vec2{X: 4, Y: 1},
+		Friction:     0.6,
+		Density:      0,
+		CategoryBits: 1,
+		MaskBits:     ^uint64(0),
+	})
+}
+
+// solidBox returns the dynamic box the two solid suites share.
+func solidBox() component.PhysicsBody2D {
+	return component.NewPhysicsBody2D(component.BodyTypeDynamic, component.ColliderShape{
+		ShapeType:    component.ShapeTypeBox,
+		HalfExtents:  component.Vec2{X: 0.5, Y: 0.5},
+		Friction:     0.6,
+		Density:      1,
+		CategoryBits: 1,
+		MaskBits:     ^uint64(0),
+	})
+}
+
+// solidFloorBoxEntries builds the shared floor+box rebuild entries. boxY places the box: 0.5
+// rests it on the floor (center -1, half 1 -> top at y=0); 50 lifts it clear of the floor.
+func solidFloorBoxEntries(boxY float64) []PhysicsRebuildEntry {
+	return []PhysicsRebuildEntry{
+		at(floorEntity, 0, -1, solidFloor()),
+		at(boxEntity, 0, boxY, solidBox()),
+	}
+}
+
+// solidFloorBoxBaseline builds the shared persisted baseline for the floor<->box pair.
+func solidFloorBoxBaseline() component.ActiveContacts {
+	pairs := []component.ContactPairEntry{{
+		EntityA: floorEntity, ShapeIndexA: 0, EntityB: boxEntity, ShapeIndexB: 0,
+		FilterACategoryBits: 1, FilterAMaskBits: ^uint64(0),
+		FilterBCategoryBits: 1, FilterBMaskBits: ^uint64(0),
+	}}
+	return component.ActiveContacts{Pairs: immutable.SliceOf(pairs...)}
+}
+
 // at returns a rebuild entry for a body at (x,y) with zero velocity.
 func at(id cardinal.EntityID, x, y float64, pb component.PhysicsBody2D) PhysicsRebuildEntry {
 	return PhysicsRebuildEntry{
@@ -123,13 +171,11 @@ func resetRebuildAndDiff(t *testing.T, entries []PhysicsRebuildEntry,
 	return rt, em
 }
 
-// sensorVisitorOverlapLive reports whether the sensor shape on sensorEntity still overlaps the
-// visitor shape on visitorEntity in the live world, via the sensor's own overlap list
+// sensorVisitorOverlapLive reports whether the sensor shape on sensorEntity (1) still overlaps
+// the visitor shape on visitorEntity (2) in the live world, via the sensor's own overlap list
 // (World.ShapeSensorData). This is the API the fix re-derives state from, so it is also the API
 // the assertions check.
-//
-//nolint:unparam // every suite uses entities 1 and 2; params stay generic for future multi-sensor suites.
-func sensorVisitorOverlapLive(t *testing.T, rt *Runtime, sensorEntity, visitorEntity cardinal.EntityID) bool {
+func sensorVisitorOverlapLive(t *testing.T, rt *Runtime) bool {
 	t.Helper()
 	sensorShape := rt.Shapes[sensorEntity][0]
 	capacity := rt.World.ShapeSensorCapacity(sensorShape)
@@ -151,28 +197,24 @@ func sensorVisitorOverlapLive(t *testing.T, rt *Runtime, sensorEntity, visitorEn
 
 // --- The regression test for the reported bug ---
 
-// TestDiffAfterRebuildSustainedSensorOverlapEmitsNoEvents is the direct regression test for the
-// spurious-TriggerEnd-after-rebuild bug. A sensor pair that is persisted in the ActiveContacts
-// baseline and still overlapping after the rebuild must produce no events on the post-rebuild
-// diff tick, and the pair must stay in the baseline. Before the fix, the diff's End loop treated
-// every persisted sensor pair as "gone" (sensor pairs are structurally absent from the live
-// solid contact list) and emitted a TriggerEnd while the overlap persisted, desynchronizing any
-// game code that latches trigger state on Begin/End.
+// TestDiffAfterRebuildSustainedSensorOverlapEmitsNoEvents pins the spurious-TriggerEnd bug: a
+// sensor pair persisted in the ActiveContacts baseline that still overlaps after the rebuild
+// must produce no events on the post-rebuild diff tick, and the pair must stay in the baseline.
+// It also pins the "lost until re-enter" half: across the following normal ticks the pair stays
+// in the baseline and no Begin/End fires while the entity remains inside.
 func TestDiffAfterRebuildSustainedSensorOverlapEmitsNoEvents(t *testing.T) {
 	t.Parallel()
-
-	const sensorEntity, visitorEntity cardinal.EntityID = 1, 2
 
 	entries := []PhysicsRebuildEntry{
 		at(sensorEntity, 0, 0, sensorBox(3, 3)),
 		at(visitorEntity, 0, 0, dynamicVisitor(0.5)), // co-located, overlapping
 	}
-	baseline := sensorVisitorPair(sensorEntity, 0, visitorEntity, 0)
+	baseline := sensorVisitorBaseline()
 
 	rt, em := resetRebuildAndDiff(t, entries, baseline)
 
 	// The overlap demonstrably persists after the suppressed step + diff.
-	require.True(t, sensorVisitorOverlapLive(t, rt, sensorEntity, visitorEntity),
+	require.True(t, sensorVisitorOverlapLive(t, rt),
 		"visitor must still overlap the sensor after the rebuild diff")
 
 	// No events whatsoever: sustained overlap, game already knows.
@@ -188,42 +230,37 @@ func TestDiffAfterRebuildSustainedSensorOverlapEmitsNoEvents(t *testing.T) {
 	require.True(t, info.IsSensor, "retained pair must still be flagged sensor")
 
 	// Subsequent normal steps keep the overlap sustained: no TriggerBegin/End ever fires,
-	// and the pair never leaves the baseline. This is the "lost until re-enter" half of the
-	// bug: before the fix the pair was deleted, so no begin could ever fire again while the
-	// entity stayed inside.
+	// and the pair never leaves the baseline while the entity stays inside.
 	for range 5 {
 		em2 := &recordingEmitter{}
 		rt.SetStepEmitter(em2)
 		rt.Step()
 		rt.FlushBufferedContacts()
 		require.Zero(t, em2.total(), "no events on sustained sensor ticks after rebuild")
-		require.True(t, sensorVisitorOverlapLive(t, rt, sensorEntity, visitorEntity),
+		require.True(t, sensorVisitorOverlapLive(t, rt),
 			"overlap must persist across post-rebuild ticks")
 	}
 	require.Len(t, rt.ActiveContacts, 1, "pair must still be in ActiveContacts after post-rebuild ticks")
 }
 
-// TestDiffAfterRebuildGoneSensorOverlapEmitsTriggerEnd verifies the fix does not over-correct: a
+// TestDiffAfterRebuildGoneSensorOverlapEmitsTriggerEnd pins the no-over-correction branch: a
 // persisted sensor pair whose overlap is genuinely gone after the rebuild (the visitor was moved
-// out of the sensor, or the sensor no longer overlaps) still synthesizes a TriggerEnd and is
-// removed from the baseline. Before the fix this case happened to pass (every sensor pair was
-// ended), so this test pins that the query-based fix handles the gone case correctly.
+// out of the sensor) still synthesizes exactly one TriggerEnd for the right pair and is removed
+// from the baseline, with no other events.
 func TestDiffAfterRebuildGoneSensorOverlapEmitsTriggerEnd(t *testing.T) {
 	t.Parallel()
-
-	const sensorEntity, visitorEntity cardinal.EntityID = 1, 2
 
 	// Visitor rebuilt far outside the sensor (box spans [-3,3]^2; (40,40) is well clear).
 	entries := []PhysicsRebuildEntry{
 		at(sensorEntity, 0, 0, sensorBox(3, 3)),
 		at(visitorEntity, 40, 40, dynamicVisitor(0.5)),
 	}
-	baseline := sensorVisitorPair(sensorEntity, 0, visitorEntity, 0)
+	baseline := sensorVisitorBaseline()
 
 	rt, em := resetRebuildAndDiff(t, entries, baseline)
 
 	// The overlap is genuinely gone.
-	require.False(t, sensorVisitorOverlapLive(t, rt, sensorEntity, visitorEntity),
+	require.False(t, sensorVisitorOverlapLive(t, rt),
 		"visitor must not overlap the sensor after the rebuild")
 
 	// Exactly one TriggerEnd for the right pair, no other events.
@@ -242,17 +279,15 @@ func TestDiffAfterRebuildGoneSensorOverlapEmitsTriggerEnd(t *testing.T) {
 	require.True(t, rt.ActiveContactsDirty, "dirty flag must be set so the ECS component is rewritten")
 }
 
-// TestDiffAfterRebuildDoesNotEmitBeginForNewSensorOverlap pins the build-time suppression that
-// the fix must preserve. When the baseline is empty (a fresh build / restore whose persisted
-// contacts were empty) but a sensor overlap exists after the rebuild, the diff must NOT
-// synthesize a TriggerBegin: the suppressed step is precisely the one-shot suppression of
-// co-located overlaps (see adoptLiveContactsWithoutEmit and bufferContactEventsFromWorld).
-// The fix only re-derives sensor state for the End decision; it must not start emitting Begins
-// for sensor pairs the game never saw a Begin for.
+// TestDiffAfterRebuildDoesNotEmitBeginForNewSensorOverlap pins the build-time suppression the fix
+// must preserve. When the baseline is empty (a fresh build / restore whose persisted contacts
+// were empty) but a sensor overlap exists after the rebuild, the diff must NOT synthesize a
+// TriggerBegin: the suppressed step is precisely the one-shot suppression of co-located overlaps
+// (see adoptLiveContactsWithoutEmit and bufferContactEventsFromWorld). The fix re-derives
+// sensor state only for the End decision; it must not start emitting Begins for sensor pairs the
+// game never saw a Begin for.
 func TestDiffAfterRebuildDoesNotEmitBeginForNewSensorOverlap(t *testing.T) {
 	t.Parallel()
-
-	const sensorEntity, visitorEntity cardinal.EntityID = 1, 2
 
 	entries := []PhysicsRebuildEntry{
 		at(sensorEntity, 0, 0, sensorBox(3, 3)),
@@ -262,12 +297,40 @@ func TestDiffAfterRebuildDoesNotEmitBeginForNewSensorOverlap(t *testing.T) {
 
 	rt, em := resetRebuildAndDiff(t, entries, emptyBaseline)
 
-	require.True(t, sensorVisitorOverlapLive(t, rt, sensorEntity, visitorEntity),
+	require.True(t, sensorVisitorOverlapLive(t, rt),
 		"visitor overlaps the sensor after the rebuild")
 	require.Zero(t, em.total(),
 		"a sensor overlap absent from the baseline must be suppressed (no TriggerBegin)")
 	require.Empty(t, rt.ActiveContacts,
 		"a suppressed sensor overlap must not enter ActiveContacts")
+}
+
+// TestDiffAfterRebuildSensorPairToggledSolidIsRetained pins the sensor->solid toggle edge case
+// for the End loop: a pair persisted as a sensor but rebuilt solid (a collider toggled after the
+// physics pass, then snapshotted) re-enters the live solid contact list. The diff must treat it
+// as sustained (no TriggerEnd) and retain it so the next refresh flips its IsSensor flag, rather
+// than ending and deleting it while the solid contact still touches.
+func TestDiffAfterRebuildSensorPairToggledSolidIsRetained(t *testing.T) {
+	t.Parallel()
+
+	// Persisted as a sensor pair, but both bodies are rebuilt solid (no IsSensor), co-located
+	// so the solid contact list carries the pair.
+	entries := []PhysicsRebuildEntry{
+		at(sensorEntity, 0, 0, solidBox()),  // solid, not a sensor
+		at(visitorEntity, 0, 0, solidBox()), // solid, co-located -> solid contact
+	}
+	baseline := sensorVisitorBaseline() // persisted with IsSensor=true
+
+	rt, em := resetRebuildAndDiff(t, entries, baseline)
+
+	// No End: the pair is in the live solid contact list, so it is not gone.
+	require.Empty(t, em.triggerEnds, "a sensor-persisted pair rebuilt solid must not emit a TriggerEnd")
+	require.Empty(t, em.contactEnds, "the rebuilt solid pair is sustained, not gone")
+	// The pair is retained; the refresh will flip IsSensor on the next normal tick.
+	require.Len(t, rt.ActiveContacts, 1, "the toggled pair must remain in ActiveContacts")
+	key := ContactPairKey{EntityA: sensorEntity, ShapeIndexA: 0, EntityB: visitorEntity, ShapeIndexB: 0}
+	_, ok := rt.ActiveContacts[key]
+	require.True(t, ok, "the exact pair key must be retained across the sensor->solid toggle")
 }
 
 // TestDiffAfterRebuildSustainedSolidOverlapEmitsNoEvents is a sanity guard for the solid End
@@ -277,37 +340,8 @@ func TestDiffAfterRebuildDoesNotEmitBeginForNewSensorOverlap(t *testing.T) {
 func TestDiffAfterRebuildSustainedSolidOverlapEmitsNoEvents(t *testing.T) {
 	t.Parallel()
 
-	const floorEntity, boxEntity cardinal.EntityID = 1, 2
-
-	floor := component.NewPhysicsBody2D(component.BodyTypeStatic, component.ColliderShape{
-		ShapeType:    component.ShapeTypeBox,
-		HalfExtents:  component.Vec2{X: 4, Y: 1},
-		Friction:     0.6,
-		Density:      0,
-		CategoryBits: 1,
-		MaskBits:     ^uint64(0),
-	})
-	box := component.NewPhysicsBody2D(component.BodyTypeDynamic, component.ColliderShape{
-		ShapeType:    component.ShapeTypeBox,
-		HalfExtents:  component.Vec2{X: 0.5, Y: 0.5},
-		Friction:     0.6,
-		Density:      1,
-		CategoryBits: 1,
-		MaskBits:     ^uint64(0),
-	})
 	// Floor top at y=0 (center -1, half 1); box resting on it (center 0.5, half 0.5).
-	entries := []PhysicsRebuildEntry{
-		at(floorEntity, 0, -1, floor),
-		at(boxEntity, 0, 0.5, box),
-	}
-	pairs := []component.ContactPairEntry{{
-		EntityA: floorEntity, ShapeIndexA: 0, EntityB: boxEntity, ShapeIndexB: 0,
-		FilterACategoryBits: 1, FilterAMaskBits: ^uint64(0),
-		FilterBCategoryBits: 1, FilterBMaskBits: ^uint64(0),
-	}}
-	baseline := component.ActiveContacts{Pairs: immutable.SliceOf(pairs...)}
-
-	rt, em := resetRebuildAndDiff(t, entries, baseline)
+	rt, em := resetRebuildAndDiff(t, solidFloorBoxEntries(0.5), solidFloorBoxBaseline())
 
 	require.Zero(t, em.total(), "sustained solid contact must emit no events after rebuild")
 	require.Len(t, rt.ActiveContacts, 1, "sustained solid pair must remain in ActiveContacts")
@@ -319,37 +353,8 @@ func TestDiffAfterRebuildSustainedSolidOverlapEmitsNoEvents(t *testing.T) {
 func TestDiffAfterRebuildGoneSolidOverlapEmitsContactEnd(t *testing.T) {
 	t.Parallel()
 
-	const floorEntity, boxEntity cardinal.EntityID = 1, 2
-
-	floor := component.NewPhysicsBody2D(component.BodyTypeStatic, component.ColliderShape{
-		ShapeType:    component.ShapeTypeBox,
-		HalfExtents:  component.Vec2{X: 4, Y: 1},
-		Friction:     0.6,
-		Density:      0,
-		CategoryBits: 1,
-		MaskBits:     ^uint64(0),
-	})
-	box := component.NewPhysicsBody2D(component.BodyTypeDynamic, component.ColliderShape{
-		ShapeType:    component.ShapeTypeBox,
-		HalfExtents:  component.Vec2{X: 0.5, Y: 0.5},
-		Friction:     0.6,
-		Density:      1,
-		CategoryBits: 1,
-		MaskBits:     ^uint64(0),
-	})
 	// Floor at y=-1, box far away at y=50: not touching.
-	entries := []PhysicsRebuildEntry{
-		at(floorEntity, 0, -1, floor),
-		at(boxEntity, 0, 50, box),
-	}
-	pairs := []component.ContactPairEntry{{
-		EntityA: floorEntity, ShapeIndexA: 0, EntityB: boxEntity, ShapeIndexB: 0,
-		FilterACategoryBits: 1, FilterAMaskBits: ^uint64(0),
-		FilterBCategoryBits: 1, FilterBMaskBits: ^uint64(0),
-	}}
-	baseline := component.ActiveContacts{Pairs: immutable.SliceOf(pairs...)}
-
-	rt, em := resetRebuildAndDiff(t, entries, baseline)
+	rt, em := resetRebuildAndDiff(t, solidFloorBoxEntries(50), solidFloorBoxBaseline())
 
 	require.Len(t, em.contactEnds, 1, "gone solid pair must emit a ContactEnd")
 	require.Empty(t, em.triggerEnds, "solid pair must not emit a TriggerEnd")
