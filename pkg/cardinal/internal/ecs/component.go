@@ -157,11 +157,13 @@ func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]
 
 // checkStoredFields checks each field of struct t that a snapshot stores.
 func checkStoredFields(t reflect.Type, path string, visiting map[reflect.Type]bool, problems *[]fieldProblem) {
+	checkFieldShadowing(t, path, problems)
 	for _, f := range storedFields(t) {
 		before := len(*problems)
 		checkComponentField(f.Type, path+"."+f.Name, visiting, problems)
 		// MessagePack stores an unexported embedded non-struct under its type name, but a restore
-		// cannot write to it. An embedded struct is fine: its exported fields are written directly.
+		// cannot write to it. An embedded struct is fine: its exported fields are written directly,
+		// unless a sibling field shadows one of them (checkFieldShadowing reports that).
 		if len(*problems) == before && f.Anonymous && !f.IsExported() && f.Type.Kind() != reflect.Struct {
 			unexported := fieldProblem{
 				path:   path + "." + f.Name,
@@ -172,6 +174,86 @@ func checkStoredFields(t reflect.Type, path string, visiting map[reflect.Type]bo
 			*problems = append(*problems, unexported)
 		}
 	}
+}
+
+// checkFieldShadowing reports a problem when MessagePack would emit struct t as a map with duplicate
+// keys, which a restore cannot decode. vmihailenco/msgpack walks fields in declaration order: an
+// embedded struct whose promoted names nothing has claimed yet is inlined (its fields are written
+// directly), and a field added later by name is appended even when that name is already present, so a
+// sibling declared after an embedded struct that promotes the same name yields two map keys with one
+// name. Go forbids two fields with the same name in one struct, so this only arises from a sibling
+// shadowing a field promoted from an earlier embedded struct. The reverse order is left alone: the
+// sibling is seen first, so the embedded struct is not inlined and is stored under its type name.
+//
+// The walk here only reaches structs without their own codec (checkComponentField returns first for
+// those), so every embedded struct field is one MessagePack inlines; embedded non-structs and pointers
+// are stored under their type name or refused elsewhere.
+func checkFieldShadowing(t reflect.Type, path string, problems *[]fieldProblem) {
+	_, dups := msgpackFieldNames(t, path)
+	*problems = append(*problems, dups...)
+}
+
+// msgpackFieldNames returns the map keys MessagePack would emit for struct t, in order, mirroring
+// vmihailenco/msgpack's getFields/shouldInline resolution. The second value is one problem per name
+// that would be written twice. It recurses into embedded structs by value; Go outlaws by-value
+// embedding cycles, so the recursion terminates without a visited set.
+func msgpackFieldNames(t reflect.Type, path string) ([]string, []fieldProblem) {
+	var names []string
+	var dups []fieldProblem
+	seen := make(map[string]bool)
+	for _, f := range storedFields(t) {
+		name := storedName(f)
+		inlined := false
+		var promoted []string
+		if f.Anonymous && f.Type.Kind() == reflect.Struct && !hasMsgpackOption(f, "noinline") {
+			// The embedded struct's own internal collisions are reported when checkComponentField
+			// recurses into it, so only its resolved names are needed here.
+			promoted, _ = msgpackFieldNames(f.Type, path+"."+f.Name)
+			conflict := slices.ContainsFunc(promoted, func(n string) bool { return seen[n] })
+			inlined = hasMsgpackOption(f, "inline") || !conflict
+		}
+		if inlined {
+			// The promoted names are written directly; an explicit "inline" tag drops any that
+			// conflict, while an auto-inlined struct has none by construction. The embedded struct's
+			// own name occupies a map slot without producing a key, but a later field reusing it
+			// would, which the seen map below catches.
+			for _, n := range promoted {
+				if !seen[n] {
+					seen[n] = true
+					names = append(names, n)
+				}
+			}
+			seen[name] = true
+			continue
+		}
+		if seen[name] {
+			dups = append(dups, fieldProblem{
+				path:   path + "." + f.Name,
+				typ:    f.Type,
+				reason: reasonShadowedField,
+				fix:    fixShadowedField,
+			})
+		}
+		names = append(names, name)
+		seen[name] = true
+	}
+	return names, dups
+}
+
+// storedName returns the map key MessagePack uses for f: the name in its msgpack tag when set,
+// otherwise the field name. Call only on fields storedFields returns, which already excludes
+// msgpack:"-" fields.
+func storedName(f reflect.StructField) string {
+	if name, _, _ := strings.Cut(f.Tag.Get("msgpack"), ","); name != "" {
+		return name
+	}
+	return f.Name
+}
+
+// hasMsgpackOption reports whether f's msgpack tag carries the given option, such as "inline" or
+// "noinline".
+func hasMsgpackOption(f reflect.StructField, option string) bool {
+	return slices.Contains(strings.Split(f.Tag.Get("msgpack"), ","), option)
 }
 
 // holdsNotData reports whether a slice, map, pointer or interface type holds something that is not
@@ -308,6 +390,8 @@ const (
 		"stored component"
 	reasonUnexportedEmbedded = "is embedded with an unexported type, so a snapshot stores it but a restore " +
 		"cannot write it back"
+	reasonShadowedField = "shadows a field promoted from an earlier embedded struct, so MessagePack writes two " +
+		"map keys with this name and a restore cannot decode them back"
 
 	fixSlice = "use a fixed-size array [N]T with the live length in its own field, or immutable.Slice[T] " +
 		"if the length is genuinely unbounded"
@@ -324,6 +408,8 @@ const (
 	fixEmbeddedCodec      = "give it a field name"
 	fixCodecShares        = "keep its state in numbers, strings, fixed-size arrays, or structs of those"
 	fixUnexportedEmbedded = "give it an exported field name, or export its type"
+	fixShadowedField      = "rename this field or the promoted field it shadows, or declare this field before " +
+		"the embedded struct so the embedded struct is stored under its type name instead"
 )
 
 // hidesState reports whether t keeps state in unexported fields and stores none of it. A struct
