@@ -446,6 +446,163 @@ type codecComponent struct {
 
 func (codecComponent) Name() string { return "codec_component" }
 
+// shadowBase is embedded below to exercise field-name shadowing. MessagePack inlines an embedded
+// struct's exported fields, so a sibling with the same name as a promoted field produces two map
+// keys with that name, which a restore cannot decode.
+type shadowBase struct{ X int }
+
+// shadowSiblingFirst declares the field before the embedded struct. MessagePack then sees X first,
+// declines to inline shadowBase, and stores it under its type name — so this round-trips. It is the
+// control for shadowEmbeddedFirst.
+type shadowSiblingFirst struct {
+	X string
+	//nolint:embeddedstructfieldcheck // Sibling-before-embedded is the control's whole point.
+	shadowBase
+}
+
+func (shadowSiblingFirst) Name() string { return "shadow_sibling_first" }
+
+// shadowEmbeddedFirst declares the embedded struct before the shadowing field. MessagePack inlines
+// shadowBase (promoting X) and then writes the sibling X as a second key of the same name, which a
+// restore cannot read back. The validator must refuse it at registration.
+type shadowEmbeddedFirst struct {
+	//nolint:embeddedstructfieldcheck // Reproduces the duplicate-key bug the validator must refuse.
+	shadowBase
+	X string
+}
+
+func (shadowEmbeddedFirst) Name() string { return "shadow_embedded_first" }
+
+// shadowMid embeds shadowBase, so its X is promoted when shadowMid is itself embedded.
+type shadowMid struct{ shadowBase }
+
+// shadowThroughMid reproduces the duplicate-key bug one embedding level down: shadowMid is inlined
+// (promoting shadowBase.X), then the sibling X shadows it.
+type shadowThroughMid struct {
+	//nolint:embeddedstructfieldcheck // Reproduces the duplicate-key bug one level down.
+	shadowMid
+	X string
+}
+
+func (shadowThroughMid) Name() string { return "shadow_through_mid" }
+
+// shadowEmbeddedRenamed averts the collision by renaming the sibling's msgpack key, so the two
+// stored names differ and the struct round-trips. The validator must accept it (no false positive).
+type shadowEmbeddedRenamed struct {
+	shadowBase
+
+	X string `msgpack:"Y"`
+}
+
+func (shadowEmbeddedRenamed) Name() string { return "shadow_embedded_renamed" }
+
+// The shapes below exercise the MessagePack field-resolution edge cases that the shadowing check
+// must match. They are not registered as components; they feed the differential test that pins the
+// resolver to real msgpack output and proves which shapes lose data on a round trip.
+
+// inlineBase is embedded below to test tag-driven inlining and naming.
+type inlineBase struct{ Q string }
+
+// inlineSiblingFirst: the sibling comes first, so the embedded struct is not inlined (round-trips).
+type inlineSiblingFirst struct {
+	X string
+	//nolint:embeddedstructfieldcheck // Sibling-before-embedded is the control's whole point.
+	inlineBase
+}
+
+// inlineTaggedName: the embedded struct's tag names its key "Q", colliding with the sibling Q.
+type inlineTaggedName struct {
+	inlineBase `msgpack:"Q"`
+
+	Q string
+}
+
+// inlineSiblingKeyMatchesEmbeddedName: the sibling reuses the embedded struct's own name as its key.
+// MessagePack does not emit an inlined struct's own name, so this round-trips.
+type inlineSiblingKeyMatchesEmbeddedName struct {
+	inlineBase
+
+	Y int `msgpack:"inlineBase"`
+}
+
+// inlineExplicitDrop: the explicit inline tag forces inlining even though X is already claimed, so
+// the promoted X is silently dropped (loses the embedded value).
+type inlineDropBase struct{ X int }
+
+type inlineExplicitDrop struct {
+	X string
+	//nolint:embeddedstructfieldcheck // Sibling-before-embedded forces the drop the validator must catch.
+	inlineDropBase `msgpack:",inline"`
+}
+
+type inlineExplicitDropFirst struct {
+	inlineDropBase `msgpack:",inline"`
+
+	X string
+}
+
+// inlineExplicitNoConflict: the explicit inline tag inlines, but no name collides (round-trips).
+type inlineExplicitNoConflict struct {
+	Z string
+	//nolint:embeddedstructfieldcheck // Sibling-before-embedded is the point: no collision, so it round-trips.
+	inlineBase `msgpack:",inline"`
+}
+
+// inlineNoinline: the ",noinline" option stores the embedded struct under its type name (round-trips).
+type inlineNoinline struct {
+	inlineBase `msgpack:",noinline"`
+
+	Q string
+}
+
+// inlineBareNoinline: a bare msgpack:"noinline" names the key "noinline" (it is not the option), so
+// the embedded struct is still inlined and the sibling Q collides (loses the sibling's value).
+type inlineBareNoinline struct {
+	inlineBase `msgpack:"noinline"`
+
+	Q string
+}
+
+// inlineSpaceNoinline: a ", noinline" with a space is the option (tagparser trims), so the embedded
+// struct is stored under its type name (round-trips).
+type inlineSpaceNoinline struct {
+	inlineBase `msgpack:", noinline"`
+
+	Q string
+}
+
+// inlinePointerEmbed: an embedded pointer is unwrapped and inlined, so the sibling Q collides.
+type inlinePointerEmbed struct {
+	*inlineBase
+
+	Q string
+}
+
+// inlineTwoSiblingsSameKey: two non-embedded fields share a key (no embedding); the second is dropped.
+type inlineTwoSiblingsSameKey struct {
+	A int `msgpack:"k"`
+	B int `msgpack:"k"`
+}
+
+// inlineSameTypeShadow: the sibling shadows a promoted field of the same Go type (silent drop).
+type inlineSameTypeBase struct{ X int }
+
+type inlineSameTypeShadow struct {
+	inlineSameTypeBase
+
+	X int
+}
+
+// inlineStampTimeAddr: a sibling reuses an embedded codec type's own name. The codec types are not
+// inlined; the sibling's key collides with the embedded struct's stored name (loses a value).
+type inlineStampTimeAddr struct {
+	Stamp int `msgpack:"Time"`
+	//nolint:embeddedstructfieldcheck // Sibling-before-embedded-codec reproduces the stored-name collision.
+	time.Time
+
+	netip.Addr
+}
+
 func TestComponent_ValidateTypeAllowsStorableShapes(t *testing.T) {
 	t.Parallel()
 
@@ -501,6 +658,9 @@ func TestComponent_ValidateTypeAllowsStorableShapes(t *testing.T) {
 			X     int
 			OnHit func() `msgpack:"-"`
 		}]()},
+		{"sibling before an embedded struct that promotes the same name", reflect.TypeFor[shadowSiblingFirst]()},
+		{"sibling after an embedded struct, renamed via tag to avoid the collision",
+			reflect.TypeFor[shadowEmbeddedRenamed]()},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -522,6 +682,7 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 		embedded    = "is embedded, so its own codec stores the whole struct"
 		codecShares = "encodes itself but holds a reference"
 		unexported  = "is embedded with an unexported type"
+		dupKey      = "has the same MessagePack key"
 	)
 	cases := []struct {
 		name string
@@ -652,6 +813,14 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 			reflect.TypeFor[struct{ First, Second sliceHolder }](),
 			[]string{".First.Items ([]int) " + shared, ".Second.Items ([]int) " + shared},
 		},
+
+		// Sibling shadows a field promoted from an earlier embedded struct: MessagePack inlines the
+		// embedded struct, then drops the sibling's value as a second map key of the same name.
+		{"sibling shadows a promoted embedded field", reflect.TypeFor[shadowEmbeddedFirst](),
+			[]string{"shadowEmbeddedFirst.X (string) " + dupKey}},
+		{"sibling shadows a field promoted through two embedded structs",
+			reflect.TypeFor[shadowThroughMid](),
+			[]string{"shadowThroughMid.X (string) " + dupKey}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -725,4 +894,164 @@ func TestWorldState_OwnCodecOverEmbeddedCodecRoundTripsThroughSnapshot(t *testin
 	got, err := restored.getComponent[buff](e)
 	require.NoError(t, err)
 	assert.Equal(t, value, got, "the struct's own codec stores Stacks beside the timestamp")
+}
+
+// TestWorld_RegisterComponentRejectsShadowedField: a component whose sibling field shadows a field
+// promoted from an earlier embedded struct is refused at registration. Before the fix it registered
+// and produced snapshots that could never be restored (silent data loss); now it never registers.
+func TestWorld_RegisterComponentRejectsShadowedField(t *testing.T) {
+	t.Parallel()
+	w := NewWorld()
+
+	_, err := w.RegisterComponent[shadowEmbeddedFirst]()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "has the same MessagePack key")
+	// The shadowed field is named in the error so the author can find it.
+	assert.Contains(t, err.Error(), "shadowEmbeddedFirst.X")
+
+	// A refused type takes no ID, so it cannot be looked up or set on an entity.
+	_, lookupErr := w.state.components.getID("shadow_embedded_first")
+	require.ErrorIs(t, lookupErr, ErrComponentNotFound)
+
+	// The same hazard one embedding level down is refused too.
+	_, err = w.RegisterComponent[shadowThroughMid]()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "has the same MessagePack key")
+
+	// The next valid registration still gets the first ID: a refused type allocated nothing.
+	id, err := w.RegisterComponent[testutils.SimpleComponent]()
+	require.NoError(t, err)
+	assert.Equal(t, ComponentID(0), id)
+}
+
+// TestWorld_RegisterComponentAllowsShadowingReverseOrder: the reverse declaration order (sibling
+// before the embedded struct) and a tag rename that separates the keys both register, confirming
+// the validator does not over-reject shapes that round-trip.
+func TestWorld_RegisterComponentAllowsShadowingReverseOrder(t *testing.T) {
+	t.Parallel()
+	w := NewWorld()
+
+	idFirst, err := w.RegisterComponent[shadowSiblingFirst]()
+	require.NoError(t, err)
+	require.Equal(t, ComponentID(0), idFirst)
+
+	idRenamed, err := w.RegisterComponent[shadowEmbeddedRenamed]()
+	require.NoError(t, err)
+	require.Equal(t, ComponentID(1), idRenamed,
+		"a tag rename that separates the keys must not be refused")
+}
+
+// TestWorldState_ShadowedFieldOrderRoundTrips: the control shape (sibling before the embedded
+// struct) survives a snapshot -> restore -> snapshot round trip with no value loss, proving the fix
+// refuses only the broken order and leaves the working order untouched.
+func TestWorldState_ShadowedFieldOrderRoundTrips(t *testing.T) {
+	t.Parallel()
+	ws := newWorldState()
+	_, err := ws.components.register[shadowSiblingFirst]("shadow_sibling_first")
+	require.NoError(t, err)
+	e := ws.newEntity()
+	value := shadowSiblingFirst{X: "hi", shadowBase: shadowBase{X: 7}}
+	require.NoError(t, ws.setComponent(e, value))
+
+	pb, err := ws.toProto()
+	require.NoError(t, err)
+	data := encodeWorld(t, ws)
+	restored := newWorldState()
+	_, err = restored.components.register[shadowSiblingFirst]("shadow_sibling_first")
+	require.NoError(t, err)
+	require.NoError(t, restored.fromProto(pb))
+	got, err := restored.getComponent[shadowSiblingFirst](e)
+	require.NoError(t, err)
+	assert.Equal(t, value, got, "the reverse order must round-trip exactly")
+
+	// The restored world re-encodes to the same bytes: the snapshot is byte-stable.
+	assert.Equal(t, data, encodeWorld(t, restored), "snapshot -> restore -> snapshot must be byte-stable")
+}
+
+// TestResolveKeysMatchesMessagePack pins the MessagePack field resolver to real msgpack output. For
+// each shape, the keys resolveKeys predicts must equal the keys msgpack actually emits, and the
+// validator must refuse exactly the shapes whose snapshot -> restore loses a value. This is the
+// differential test the shadowing check needs: it catches drift the next msgpack bump would introduce,
+// and it proves the PR's premise — the "embedded first" order fails to round-trip.
+func TestResolveKeysMatchesMessagePack(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		value any
+		lossy bool // a snapshot -> restore loses or cannot decode a value
+	}{
+		// Working orders and renames: no value lost, must be accepted.
+		{"sibling before embedded", inlineSiblingFirst{X: "x", Q: "a"}, false},
+		{"sibling after embedded renamed via tag",
+			shadowEmbeddedRenamed{shadowBase: shadowBase{X: 7}, X: "x"}, false},
+		{"sibling key matches embedded name",
+			inlineSiblingKeyMatchesEmbeddedName{Q: "a", Y: 7}, false},
+		{"explicit inline without conflict",
+			inlineExplicitNoConflict{Z: "z", Q: "a"}, false},
+		{",noinline option stores under type name",
+			inlineNoinline{inlineBase: inlineBase{Q: "a"}, Q: "b"}, false},
+		{", noinline option (with space) stores under type name",
+			inlineSpaceNoinline{inlineBase: inlineBase{Q: "a"}, Q: "b"}, false},
+
+		// Lossy orders: a value is dropped on round trip, must be refused.
+		{"embedded first, sibling shadows promoted field",
+			shadowEmbeddedFirst{shadowBase: shadowBase{X: 7}, X: "x"}, true},
+		{"shadow through two embedded structs",
+			shadowThroughMid{shadowBase: shadowBase{X: 7}, X: "x"}, true},
+		{"embedded struct's tag name collides with sibling",
+			inlineTaggedName{inlineBase: inlineBase{Q: "a"}, Q: "b"}, true},
+		{"explicit inline drops a promoted field (sibling first)",
+			inlineExplicitDrop{X: "x", inlineDropBase: inlineDropBase{X: 7}}, true},
+		{"explicit inline drops a promoted field (embedded first)",
+			inlineExplicitDropFirst{inlineDropBase: inlineDropBase{X: 7}, X: "x"}, true},
+		{"bare msgpack:\"noinline\" is a name, not an option",
+			inlineBareNoinline{inlineBase: inlineBase{Q: "a"}, Q: "b"}, true},
+		{"embedded pointer is inlined, sibling collides",
+			inlinePointerEmbed{inlineBase: &inlineBase{Q: "a"}, Q: "b"}, true},
+		{"two siblings share a key",
+			inlineTwoSiblingsSameKey{A: 1, B: 2}, true},
+		{"sibling shadows a promoted field of the same Go type",
+			inlineSameTypeShadow{inlineSameTypeBase: inlineSameTypeBase{X: 7}, X: 9}, true},
+		{"sibling key collides with an embedded codec type's stored name",
+			inlineStampTimeAddr{Stamp: 1, Time: time.Unix(1, 0).UTC(),
+				Addr: netip.MustParseAddr("1.2.3.4")}, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			typ := reflect.TypeOf(tc.value)
+
+			// The resolver's predicted keys must match the keys msgpack actually emits.
+			predicted := make(map[string]bool)
+			for _, k := range resolveKeys(typ) {
+				predicted[k.key] = true
+			}
+			data, err := msgpack.Marshal(tc.value)
+			require.NoError(t, err)
+			var wire map[string]any
+			require.NoError(t, msgpack.Unmarshal(data, &wire))
+			assert.Len(t, predicted, len(wire),
+				"predicted keys %v do not match msgpack keys %v", predicted, wire)
+			for k := range predicted {
+				assert.Contains(t, wire, k, "predicted key %q missing from msgpack output", k)
+			}
+
+			// A real snapshot -> restore loses a value exactly when the resolver dropped a duplicate.
+			rv := reflect.New(typ).Interface()
+			unmarshalErr := msgpack.Unmarshal(data, rv)
+			roundTrips := unmarshalErr == nil &&
+				reflect.DeepEqual(tc.value, reflect.ValueOf(rv).Elem().Interface())
+			assert.Equal(t, tc.lossy, !roundTrips,
+				"lossy=%v but round-trip preserved=%v (unmarshal err: %v)", tc.lossy, roundTrips, unmarshalErr)
+
+			// The validator must refuse exactly the lossy shapes.
+			err = validateComponentType(typ)
+			if tc.lossy {
+				assert.Error(t, err, "a lossy shape must be refused at registration")
+			} else {
+				assert.NoError(t, err, "a non-lossy shape must be accepted: %v", err)
+			}
+		})
+	}
 }
