@@ -40,11 +40,7 @@ func (b *MapBuilder[K, V]) Len() int {
 // Get returns a copy of the value under k, and whether k is present, pending edits included.
 func (b *MapBuilder[K, V]) Get(k K) (V, bool) {
 	b.check()
-	if i, ok := slices.BinarySearch(b.keys, k); ok {
-		return b.vals[i], true
-	}
-	var zero V
-	return zero, false
+	return lookup(b.keys, b.vals, k)
 }
 
 // Has reports whether k is present, pending edits included.
@@ -84,10 +80,7 @@ func (b *MapBuilder[K, V]) Done() Map[K, V] {
 	b.check()
 	keys, vals := b.keys, b.vals
 	b.keys, b.vals, b.done = nil, nil, true
-	if len(keys) == 0 {
-		return Map[K, V]{}
-	}
-	return Map[K, V]{keys: keys, vals: vals}
+	return wrapMap(keys, vals)
 }
 
 // ownKeys copies the keys before the first write to them, since until then they are the source Map's.

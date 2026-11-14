@@ -74,9 +74,6 @@ func MapFrom[K Key, V any](seq iter.Seq2[K, V]) Map[K, V] {
 	for k, v := range seq {
 		entries = append(entries, entry{k, v})
 	}
-	if len(entries) == 0 {
-		return Map[K, V]{}
-	}
 	// Stable, so of the entries sharing a key the one seq yielded last is still last.
 	slices.SortStableFunc(entries, func(a, b entry) int { return cmp.Compare(a.k, b.k) })
 	keys := make([]K, 0, len(entries))
@@ -88,7 +85,7 @@ func MapFrom[K Key, V any](seq iter.Seq2[K, V]) Map[K, V] {
 		keys = append(keys, e.k)
 		vals = append(vals, e.v)
 	}
-	return Map[K, V]{keys: keys, vals: vals}
+	return wrapMap(keys, vals)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -103,11 +100,7 @@ func (m Map[K, V]) Len() int {
 // Get returns a copy of the value stored under k, and whether k is present. A missing key yields the
 // zero value.
 func (m Map[K, V]) Get(k K) (V, bool) {
-	if i, ok := slices.BinarySearch(m.keys, k); ok {
-		return m.vals[i], true
-	}
-	var zero V
-	return zero, false
+	return lookup(m.keys, m.vals, k)
 }
 
 // Has reports whether k is present.
@@ -157,7 +150,10 @@ func (m Map[K, V]) setAt(i int, ok bool, k K, v V) Map[K, V] {
 		vals[i] = v
 		return Map[K, V]{keys: m.keys, vals: vals}
 	}
-	return Map[K, V]{keys: insertAt(m.keys, i, k), vals: insertAt(m.vals, i, v)}
+	return Map[K, V]{
+		keys: slices.Concat(m.keys[:i], []K{k}, m.keys[i:]),
+		vals: slices.Concat(m.vals[:i], []V{v}, m.vals[i:]),
+	}
 }
 
 // Without returns a Map with k removed. When k is absent it returns the receiver, which costs
@@ -169,10 +165,7 @@ func (m Map[K, V]) Without(k K) Map[K, V] {
 	if !ok {
 		return m
 	}
-	if len(m.keys) == 1 {
-		return Map[K, V]{}
-	}
-	return Map[K, V]{keys: removeAt(m.keys, i), vals: removeAt(m.vals, i)}
+	return wrapMap(slices.Concat(m.keys[:i], m.keys[i+1:]), slices.Concat(m.vals[:i], m.vals[i+1:]))
 }
 
 // Update returns a Map with the value under k replaced by f of the current one. f receives the zero
@@ -188,19 +181,22 @@ func (m Map[K, V]) Update(k K, f func(V) V) Map[K, V] {
 	return m.setAt(i, ok, k, f(v))
 }
 
-// insertAt returns a new array holding s with v inserted at index i.
-func insertAt[T any](s []T, i int, v T) []T {
-	out := make([]T, 0, len(s)+1)
-	out = append(out, s[:i]...)
-	out = append(out, v)
-	return append(out, s[i:]...)
+// lookup returns the value under k in sorted keys and their vals, and whether k is present. Map and
+// MapBuilder share it.
+func lookup[K Key, V any](keys []K, vals []V, k K) (V, bool) {
+	if i, ok := slices.BinarySearch(keys, k); ok {
+		return vals[i], true
+	}
+	var zero V
+	return zero, false
 }
 
-// removeAt returns a new array holding s without the element at index i.
-func removeAt[T any](s []T, i int) []T {
-	out := make([]T, 0, len(s)-1)
-	out = append(out, s[:i]...)
-	return append(out, s[i+1:]...)
+// wrapMap is wrap for a Map: every empty result becomes the zero value.
+func wrapMap[K Key, V any](keys []K, vals []V) Map[K, V] {
+	if len(keys) == 0 {
+		return Map[K, V]{}
+	}
+	return Map[K, V]{keys: keys, vals: vals}
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -367,9 +363,6 @@ func MapTypes(t reflect.Type) (reflect.Type, reflect.Type, bool) {
 // sortedMap builds a Map from decoded entries in whatever order they arrived. Input that is already
 // sorted, which is everything this package encoded, costs one pass; anything else is sorted once.
 func sortedMap[K Key, V any](keys []K, vals []V) (Map[K, V], error) {
-	if len(keys) == 0 {
-		return Map[K, V]{}, nil
-	}
 	sorted := true
 	for i := 1; i < len(keys) && sorted; i++ {
 		sorted = keys[i-1] < keys[i]
@@ -392,7 +385,7 @@ func sortedMap[K Key, V any](keys []K, vals []V) (Map[K, V], error) {
 			}
 		}
 	}
-	return Map[K, V]{keys: keys, vals: vals}, nil
+	return wrapMap(keys, vals), nil
 }
 
 // keyText returns k as a JSON object key: the string itself, or an integer in decimal.

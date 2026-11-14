@@ -250,11 +250,7 @@ func (s Slice[T]) Replace(i, j int, items ...T) Slice[T] {
 	// The range check that survives a release build: s.items[:i] and s.items[j:] alone would accept
 	// i > j and duplicate the elements between them.
 	_ = s.items[i:j]
-	out := make([]T, 0, len(s.items)-(j-i)+len(items))
-	out = append(out, s.items[:i]...)
-	out = append(out, items...)
-	out = append(out, s.items[j:]...)
-	return wrap(out)
+	return wrap(slices.Concat(s.items[:i], items, s.items[j:]))
 }
 
 // CompactFunc returns a Slice with runs of consecutive elements that eq reports equal collapsed to
