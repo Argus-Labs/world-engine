@@ -162,6 +162,18 @@ type Runtime struct {
 	liveContactsScratch map[ContactPairKey]ContactPairInfo
 	contactDataScratch  []box2d.ContactData
 
+	// liveSensorOverlapsScratch is reused by gatherLiveSensorOverlapsInto, which runs once
+	// per post-rebuild diff (see diffActiveContactsAfterRebuild). Sensor pairs never appear
+	// in the solid contact list (Box2D sensors never create contacts), so the diff gathers
+	// the live sensor overlap set separately to decide whether a persisted sensor pair is
+	// sustained rather than ended.
+	liveSensorOverlapsScratch map[ContactPairKey]ContactPairInfo
+
+	// sensorVisitorScratch backs the per-sensor ShapeSensorData gather in
+	// gatherLiveSensorOverlapsInto, reused across rebuilds so the visitor ShapeID list does
+	// not reallocate per sensor.
+	sensorVisitorScratch []box2d.ShapeID
+
 	// seenContactsScratch stamps contact indices already folded into the
 	// current gather, so the second endpoint of a pair is discarded before it
 	// pays for two shapeIdentity resolutions. Indexed by the contact's packed
@@ -255,6 +267,8 @@ func (rt *Runtime) Reset() {
 	rt.writebackScratch = nil
 	rt.liveContactsScratch = nil
 	rt.contactDataScratch = nil
+	rt.liveSensorOverlapsScratch = nil
+	rt.sensorVisitorScratch = nil
 	rt.seenContactsScratch = nil
 	rt.wakeOrderScratch = nil
 	rt.overlapHitsScratch = nil
