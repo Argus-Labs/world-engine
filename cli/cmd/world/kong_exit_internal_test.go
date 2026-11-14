@@ -18,23 +18,6 @@ import (
 // ran, and only the override, before kong returned.
 const kongExitSentinel = "kong-exit-override-sentinel"
 
-// kongOptionsForTest mirrors the option set main passes to kong.Parse, plus a
-// kong.Exit override and quiet writers. Keeping it aligned with main ensures
-// the test exercises the same kong behavior the production wiring relies on.
-func kongOptionsForTest(exit func(int), stdout io.Writer) []kong.Option {
-	var cli root.Cmd
-	return []kong.Option{
-		kong.Name("world"),
-		kong.Description("World CLI: Your complete toolkit for World Engine development"),
-		kong.UsageOnError(),
-		kong.ConfigureHelp(kong.HelpOptions{Compact: true, Summary: true}),
-		kong.Bind(&cli),
-		kong.Vars{"version": "test"},
-		kong.Writers(stdout, io.Discard),
-		kong.Exit(exit),
-	}
-}
-
 // parseViaKong drives kong the way the package-level kong.Parse does
 // (kong.New -> Kong.Parse -> FatalIfErrorf) but with explicit args, so the
 // test does not depend on [os.Args]. It reports whether the kong.Exit override
@@ -62,13 +45,14 @@ func parseViaKong(t *testing.T, args []string) (bool, int, string, bool) {
 				}
 			}
 		}()
-		k, err := kong.New(&cli, kongOptionsForTest(exit, &buf)...)
+		opts := append(kongOptions(&cli, "test", exit),
+			kong.Writers(&buf, io.Discard))
+		k, err := kong.New(&cli, opts...)
 		require.NoError(t, err, "kong.New must succeed for the CLI grammar")
 
-		ctx, perr := k.Parse(args)
+		_, perr := k.Parse(args)
 		k.FatalIfErrorf(perr) // terminates via k.Exit on a parse error
 		returned = true
-		_ = ctx
 	}()
 	return called, code, buf.String(), returned
 }
@@ -82,13 +66,14 @@ func parseViaKong(t *testing.T, args []string) (bool, int, string, bool) {
 // the daily Running event would be dropped again.
 func TestKongEarlyExit_RoutesThroughExitOverride(t *testing.T) {
 	cases := []struct {
-		name     string
-		args     []string
-		wantZero bool
+		name string
+		args []string
+		want int
 	}{
-		{"help", []string{"--help"}, true},
-		{"version", []string{"--version"}, true},
-		{"parse-error", []string{"--definitely-not-a-flag"}, false},
+		{"help", []string{"--help"}, 0},
+		{"version", []string{"--version"}, 0},
+		{"bare", nil, 80}, // kong.exitUsageError: no command given
+		{"parse-error", []string{"--definitely-not-a-flag"}, 80},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -96,11 +81,7 @@ func TestKongEarlyExit_RoutesThroughExitOverride(t *testing.T) {
 
 			require.True(t, called, "kong.Exit override must be invoked on %s", tc.name)
 			require.False(t, returned, "kong must terminate before returning on an early-exit path")
-			if tc.wantZero {
-				assert.Equal(t, 0, code, "%s must terminate with exit code 0", tc.name)
-			} else {
-				assert.NotZero(t, code, "%s must terminate with a non-zero exit code", tc.name)
-			}
+			assert.Equal(t, tc.want, code, "%s must terminate with the expected exit code", tc.name)
 			// The terminating output must still be produced before the exit, so
 			// --help/--version remain useful to users on the post-fix path.
 			assert.NotEmpty(t, stdout, "kong must print help/version/usage before calling kong.Exit")
