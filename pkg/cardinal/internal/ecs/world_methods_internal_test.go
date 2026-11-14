@@ -85,10 +85,10 @@ func TestWorldMethods_SystemEvents_ReplacingWorldClearsInitBuffer(t *testing.T) 
 	t.Parallel()
 	cases := []struct {
 		name    string
-		replace func(w *World)
+		replace func(t *testing.T, w *World)
 	}{
-		{name: "Reset", replace: func(w *World) { w.Reset() }},
-		{name: "FromProto", replace: func(w *World) {
+		{name: "Reset", replace: func(_ *testing.T, w *World) { w.Reset() }},
+		{name: "FromProto", replace: func(t *testing.T, w *World) {
 			pb, err := w.ToProto()
 			require.NoError(t, err)
 			require.NoError(t, w.FromProto(pb))
@@ -96,6 +96,7 @@ func TestWorldMethods_SystemEvents_ReplacingWorldClearsInitBuffer(t *testing.T) 
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			w := NewWorld()
 			_, err := w.RegisterSystemEvent[testutils.SimpleSystemEvent]()
 			require.NoError(t, err)
@@ -108,7 +109,7 @@ func TestWorldMethods_SystemEvents_ReplacingWorldClearsInitBuffer(t *testing.T) 
 			require.NoError(t, err)
 			require.Len(t, events, 1)
 
-			tc.replace(w)
+			tc.replace(t, w)
 
 			events, err = w.GetSystemEvents[testutils.SimpleSystemEvent]()
 			require.NoError(t, err)
