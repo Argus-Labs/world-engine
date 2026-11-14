@@ -114,6 +114,14 @@ func commandObject(v, schema, root map[string]any) (any, error) {
 	for name, field := range v {
 		child, ok := properties[name].(map[string]any)
 		if !ok {
+			// A boolean `true` property schema (emitted by the shard's generator for
+			// interface{}/any fields) permits any value, like an empty schema.
+			if permissive, isBool := properties[name].(bool); isBool && permissive {
+				child = map[string]any{}
+				ok = true
+			}
+		}
+		if !ok {
 			child, ok = schema["additionalProperties"].(map[string]any)
 			if !ok && schema["additionalProperties"] != true && len(schema) != 0 {
 				return nil, eris.Errorf("unknown field %q", name)
