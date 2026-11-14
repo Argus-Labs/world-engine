@@ -42,6 +42,25 @@ func failureMessages(err error) []string {
 	return []string{err.Error()}
 }
 
+// kongOptions returns the kong.Option set shared by main and the kong_exit
+// tests so the tests exercise the same kong behavior the production wiring
+// relies on. exit is the kong.Exit hook: main flushes telemetry before os.Exit;
+// the test records the call and panics to stop kong from proceeding.
+func kongOptions(cli *root.Cmd, version string, exit func(int)) []kong.Option {
+	return []kong.Option{
+		kong.Name("world"),
+		kong.Description("World CLI: Your complete toolkit for World Engine development"),
+		kong.UsageOnError(),
+		kong.ConfigureHelp(kong.HelpOptions{
+			Compact: true,
+			Summary: true,
+		}),
+		kong.Bind(cli),
+		kong.Vars{"version": version},
+		kong.Exit(exit),
+	}
+}
+
 func main() {
 	// Runs before anything else, so a hand-off leaves no telemetry or output from this binary.
 	delegateToProjectTool(os.Args[1:])
@@ -102,27 +121,14 @@ func main() {
 
 	ctx := kong.Parse(
 		&cli,
-		kong.Name("world"),
-		kong.Description("World CLI: Your complete toolkit for World Engine development"),
-		kong.UsageOnError(),
-		kong.ConfigureHelp(kong.HelpOptions{
-			Compact: true,
-			Summary: true,
-		}),
-		kong.Bind(&cli),
-		kong.Vars{"version": version},
-		// kong.Parse terminates the process from inside the call via kong.Exit
-		// (default os.Exit) on --help, --version, and parse errors. os.Exit
-		// skips every defer in main, so the deferred PosthogClose -- the only
-		// thing that drains the in-memory PostHog queue -- would never run, and
-		// the daily "Running" event captured above would be silently dropped
-		// after the day's dedupe quota was consumed. Flush telemetry here, in
-		// the same order main's defers do, before exiting so those paths
-		// deliver the event instead of dropping it.
-		kong.Exit(func(code int) {
+		kongOptions(&cli, version, func(code int) {
+			// kong.Parse terminates --help/--version/parse errors via kong.Exit
+			// (default [os.Exit]), which skips main's defers and would drop the
+			// buffered Running event. Flush in the same order as the defers
+			// before exiting.
 			telemetry.FlushTelemetry()
 			os.Exit(code)
-		}),
+		})...,
 	)
 
 	// kong is authoritative: it also accepts forms checkVerboseFlag misses, e.g. --verbose=true.

@@ -1,34 +1,24 @@
 package telemetry
 
 import (
-	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/getsentry/sentry-go"
 	"github.com/posthog/posthog-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// These tests cover the two facets of the "Running event dropped on kong's
-// early-exit paths" bug:
-//
-//  1. PosthogInit must NOT stamp the daily dedupe file: the stamp may only be
-//     written after a Running event is actually enqueued, so a path that never
-//     captures (or drops the flush) does not consume the day's quota.
-//  2. FlushTelemetry must drain every sink in the order main's defers run them
-//     (PostHog before Sentry), so kong.Exit can flush before os.Exit and the
-//     buffered Running event is delivered on --help/--version/parse errors.
-//
-// The PostHog client is injected as a posthogClientAPI fake so the tests never
-// touch the network or the real in-memory queue. HOME is redirected to a temp
-// directory so the dedupe file (~/.worldcli/last_logged_time) is isolated.
-
-const exitPanicSentinel = "telemetry-test-exit-sentinel"
+// These tests cover the "Running event dropped on kong's early-exit paths" fix:
+// PosthogInit must NOT stamp the daily dedupe file (only a queued Running
+// event may), and FlushTelemetry must drain PostHog before Sentry in main's
+// defer order. The PostHog client is injected so the tests never touch the
+// network or the real in-memory queue; HOME is redirected to a temp dir so
+// the dedupe file is isolated.
 
 // recordingPosthogClient is a posthogClientAPI fake that records Enqueue/Close.
 // rec, when non-nil, records the order Close runs relative to other sinks.
@@ -37,7 +27,6 @@ type recordingPosthogClient struct {
 	enqueued   []posthog.Capture
 	closed     int
 	enqueueErr error
-	closeErr   error
 	rec        *orderRecorder
 }
 
@@ -60,7 +49,7 @@ func (f *recordingPosthogClient) Close() error {
 	if f.rec != nil {
 		f.rec.record("posthog-close")
 	}
-	return f.closeErr
+	return nil
 }
 
 func (f *recordingPosthogClient) Enqueued() []posthog.Capture {
@@ -99,20 +88,6 @@ func (r *orderRecorder) snapshot() []string {
 	return out
 }
 
-// orderSentryTransport is a sentry.Transport whose Flush records into an
-// orderRecorder, so FlushTelemetry's PostHog-before-Sentry order is observable.
-type orderSentryTransport struct {
-	rec *orderRecorder
-}
-
-func (o *orderSentryTransport) Configure(sentry.ClientOptions) {}
-func (o *orderSentryTransport) SendEvent(*sentry.Event)        {}
-func (o *orderSentryTransport) Flush(time.Duration) bool       { o.rec.record("sentry-flush"); return true }
-func (o *orderSentryTransport) FlushWithContext(context.Context) bool {
-	return o.Flush(0)
-}
-func (o *orderSentryTransport) Close() { o.Flush(0) }
-
 // resetPosthogGlobals clears the package-level PostHog state and restores it on
 // cleanup so tests are isolated. Call at the top of every PostHog test.
 func resetPosthogGlobals(t *testing.T) {
@@ -142,12 +117,6 @@ func timestampPath(t *testing.T) string {
 	p, err := getTimestampFilePath()
 	require.NoError(t, err)
 	return p
-}
-
-func writeTimestamp(t *testing.T, ts time.Time) {
-	t.Helper()
-	require.NoError(t, os.MkdirAll(filepath.Dir(timestampPath(t)), 0o700))
-	require.NoError(t, os.WriteFile(timestampPath(t), []byte(ts.Format(time.DateOnly)), 0o644))
 }
 
 func readTimestamp(t *testing.T) (string, bool) {
@@ -251,7 +220,7 @@ func TestPosthogCaptureEvent_Running_AcrossInvocations_DedupeIsFileDriven(t *tes
 func TestPosthogCaptureEvent_Running_NextDay_EnqueuesAndRestamps(t *testing.T) {
 	isolateStoreDir(t)
 	resetPosthogGlobals(t)
-	writeTimestamp(t, time.Now().AddDate(0, 0, -1)) // yesterday's stamp on disk
+	require.NoError(t, updateLastLoggedTime(time.Now().AddDate(0, 0, -1))) // yesterday's stamp on disk
 
 	fake := &recordingPosthogClient{}
 	posthogInitWithClient(fake)
@@ -286,8 +255,8 @@ func TestPosthogCaptureEvent_NonRunningEvent_DoesNotStampDedupe(t *testing.T) {
 func TestPosthogCaptureEvent_EnqueueError_DoesNotConsumeDay(t *testing.T) {
 	isolateStoreDir(t)
 	resetPosthogGlobals(t)
-	writeTimestamp(t, time.Now().AddDate(0, 0, -1)) // yesterday
-	fake := &recordingPosthogClient{enqueueErr: assertError("queue full")}
+	require.NoError(t, updateLastLoggedTime(time.Now().AddDate(0, 0, -1))) // yesterday
+	fake := &recordingPosthogClient{enqueueErr: posthog.ErrQueueFull}
 	posthogInitWithClient(fake)
 
 	PosthogCaptureEvent(RunningEvent, map[string]any{"version": "v1"})
@@ -329,7 +298,7 @@ func TestFlushTelemetry_FlushesPostHogThenSentryInOrder(t *testing.T) {
 
 	// Sentry side: bind a client whose transport.Flush records into the same
 	// recorder, then mark Sentry initialized so SentryFlush actually flushes.
-	cleanup := bindTestSentry(t, &orderSentryTransport{rec: rec})
+	cleanup := bindTestSentry(t, &flushRequiredTransport{onFlush: func() { rec.record("sentry-flush") }})
 	defer cleanup()
 	prevSentryInit := sentryInitialized
 	sentryInitialized = true
@@ -356,30 +325,46 @@ func TestFlushTelemetry_NoopWhenUninitialized_DoesNotPanic(t *testing.T) {
 }
 
 func TestFlushTelemetry_DrainsBufferedEventWhenDefersSkipped(t *testing.T) {
-	// This is the unit-level reproduction of the kong early-exit scenario: the
-	// Running event is enqueued before kong.Parse, then kong os.Exits and main's
-	// defers never run. The fix substitutes the defer with an explicit
-	// FlushTelemetry() inside the kong.Exit hook. Here we enqueue, then call
-	// FlushTelemetry directly (standing in for the hook, with NO deferred
-	// PosthogClose), and assert the buffered event is handed to the client's
-	// Close -- the only delivery mechanism -- so it is not stranded in memory.
+	// Unit-level reproduction of the kong early-exit scenario against the real
+	// posthog client pointed at an httptest.Server: the Running event is
+	// enqueued before kong.Parse would os.Exit, then FlushTelemetry (standing
+	// in for the kong.Exit hook, with NO deferred PosthogClose) must drain it
+	// so /batch/ receives the event instead of stranding it in memory. The
+	// recording-fake variant can only prove Close ran, not that the buffered
+	// event was delivered; this asserts delivery on the wire.
 	isolateStoreDir(t)
 	resetPosthogGlobals(t)
-	fake := &recordingPosthogClient{}
-	posthogInitWithClient(fake)
+
+	var (
+		mu      sync.Mutex
+		gotPath string
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		gotPath = r.URL.Path
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+
+	c, err := posthog.NewWithConfig("test-key", posthog.Config{
+		Endpoint:        server.URL,
+		ShutdownTimeout: 2 * time.Second,
+		Interval:        time.Hour, // don't background-flush; Close is the drain
+		BatchSize:       100,
+	})
+	require.NoError(t, err)
+	posthogInitWithClient(c)
 
 	PosthogCaptureEvent(RunningEvent, map[string]any{"version": "v1"})
-	require.Len(t, fake.Enqueued(), 1, "Running must be buffered before the early exit")
 
 	// No deferred PosthogClose: simulate kong calling the hook and then os.Exit
 	// skipping every main defer.
 	FlushTelemetry()
 
-	assert.Equal(t, 1, fake.Closed(), "FlushTelemetry must drain the buffered event via Close when defers are skipped")
+	mu.Lock()
+	path := gotPath
+	mu.Unlock()
+	require.Equal(t, "/batch/", path, "FlushTelemetry must drain the buffered Running event to /batch/")
 	assert.False(t, posthogInitialized, "the hook must leave PostHog closed")
 }
-
-// assertError is a tiny sentinel error for enqueue/close failure injection.
-type assertError string
-
-func (e assertError) Error() string { return string(e) }
