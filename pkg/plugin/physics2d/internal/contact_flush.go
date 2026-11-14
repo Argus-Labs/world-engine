@@ -24,6 +24,10 @@ import (
 //   - Pairs in the map but not in live -> emit End, remove from map
 //   - Pairs in both -> no event (game already knows)
 //
+// The "in live" check is against both the live solid contact list and the re-derived live
+// sensor overlap set (see gatherLiveSensorOverlapsInto), since sensor pairs never appear in
+// the solid contact list. See diffActiveContactsAfterRebuild.
+//
 // If NoPersistedActiveContactsBaseline is set (missing singleton on a suppressed step), the
 // suppressed flush adopts live contacts into the map without emitting events so one-shot
 // Begin handlers do not all fire spuriously; the flag is cleared.
@@ -93,6 +97,15 @@ func (rt *Runtime) adoptLiveContactsWithoutEmit() {
 // diffActiveContactsAfterRebuild walks the live contact list and diffs against the persisted
 // ActiveContacts map. Emits Begin for genuinely new overlaps and End for contacts that no
 // longer exist in the simulation. Events are sorted for deterministic ordering.
+//
+// Sensor (trigger) pairs are checked against the re-derived live sensor overlap set, not just
+// the solid contact list (see gatherLiveSensorOverlapsInto). A persisted pair is treated as
+// gone only when it is in neither live set, so a pair persisted as sensor but rebuilt solid
+// (a collider toggled after the physics pass, then snapshotted) is retained and the next
+// refresh flips its IsSensor flag, matching the pre-fix behavior. New sensor overlaps that
+// began during the suppressed step are intentionally not emitted as Begins, matching the
+// build-time suppression of co-located overlaps (see adoptLiveContactsWithoutEmit and the
+// suppressed step in bufferContactEventsFromWorld).
 func (rt *Runtime) diffActiveContactsAfterRebuild(em event.ContactEventEmitter) {
 	if rt.World == nil {
 		return
@@ -101,9 +114,14 @@ func (rt *Runtime) diffActiveContactsAfterRebuild(em event.ContactEventEmitter) 
 	liveContacts := rt.liveContacts()
 	rt.gatherLiveContactsInto(liveContacts)
 
+	// Sensor pairs never appear in liveContacts (see gatherLiveSensorOverlapsInto), so the
+	// End loop checks persisted pairs against this re-derived set as well.
+	liveSensorOverlaps := make(map[ContactPairKey]struct{})
+	rt.gatherLiveSensorOverlapsInto(liveSensorOverlaps)
+
 	var events []BufferedContactEvent
 
-	// New overlaps: in live but not in persisted map -> Begin.
+	// New overlaps: in live (solid) but not in persisted map -> Begin.
 	for key, info := range liveContacts {
 		if _, exists := rt.ActiveContacts[key]; !exists {
 			events = append(events, makeContactEvent(ContactLifecycleBegin, key, info))
@@ -112,13 +130,19 @@ func (rt *Runtime) diffActiveContactsAfterRebuild(em event.ContactEventEmitter) 
 		}
 	}
 
-	// Gone overlaps: in persisted map but not in live -> End.
+	// Gone overlaps: in persisted map but in neither live set -> End. A pair persisted as
+	// sensor but rebuilt solid re-enters liveContacts, so it is retained here and the next
+	// refresh flips its IsSensor flag; only a pair absent from both sets is genuinely gone.
 	for key, info := range rt.ActiveContacts {
-		if _, exists := liveContacts[key]; !exists {
-			events = append(events, makeContactEvent(ContactLifecycleEnd, key, info))
-			delete(rt.ActiveContacts, key)
-			rt.ActiveContactsDirty = true
+		if _, inSolid := liveContacts[key]; inSolid {
+			continue
 		}
+		if _, inSensor := liveSensorOverlaps[key]; inSensor {
+			continue
+		}
+		events = append(events, makeContactEvent(ContactLifecycleEnd, key, info))
+		delete(rt.ActiveContacts, key)
+		rt.ActiveContactsDirty = true
 	}
 
 	sort.Slice(events, func(i, j int) bool {
@@ -168,6 +192,69 @@ func (rt *Runtime) liveContacts() map[ContactPairKey]ContactPairInfo {
 		rt.liveContactsScratch = make(map[ContactPairKey]ContactPairInfo)
 	}
 	return rt.liveContactsScratch
+}
+
+// gatherLiveSensorOverlapsInto fills dst (cleared first) with the currently overlapping sensor
+// pairs by walking every tracked sensor shape's live overlap list (World.ShapeSensorData).
+//
+// Box2D sensors never create contacts (the broad-phase short-circuits sensor pairs and
+// createContact asserts neither shape is a sensor), so sensor pairs are structurally absent
+// from the solid contact list that gatherLiveContactsInto fills. diffActiveContactsAfterRebuild
+// gathers them separately and treats a persisted pair as gone only when it is in neither live
+// set, so a sustained overlap is not mistaken for an ended one.
+//
+// Only the pair key is recorded: the End loop checks existence and the emitted event reuses the
+// persisted ContactPairInfo. Solid and sensor pairs occupy disjoint keys (a pair is either
+// solid or sensor, never both), and pairs gathered from both sensors (both shapes are sensors)
+// collapse to a single entry via the normalized map key, mirroring the dedup-by-key path in
+// collectBodyContacts.
+func (rt *Runtime) gatherLiveSensorOverlapsInto(dst map[ContactPairKey]struct{}) {
+	clear(dst)
+
+	var visitorBuf []box2d.ShapeID
+	for _, slots := range rt.Shapes {
+		for _, sensorID := range slots {
+			// Chain slots hold a null ShapeID; ShapeSensorData would index a freed slot.
+			if sensorID.IsNull() {
+				continue
+			}
+			visitorBuf = rt.collectSensorVisitors(sensorID, dst, visitorBuf)
+		}
+	}
+}
+
+// collectSensorVisitors records one sensor shape's current overlap list into dst. Skips destroyed
+// visitor shapes so the pair is treated as gone (and a TriggerEnd is synthesized) rather than
+// resolved to a freed shape slot. Pairs already recorded (e.g. when both shapes are sensors)
+// collapse to a single entry via the normalized map key. visitorBuf is reused across sensors.
+func (rt *Runtime) collectSensorVisitors(sensorID box2d.ShapeID, dst map[ContactPairKey]struct{},
+	visitorBuf []box2d.ShapeID,
+) []box2d.ShapeID {
+	w := rt.World
+	capacity := w.ShapeSensorCapacity(sensorID)
+	if capacity == 0 {
+		return visitorBuf
+	}
+	if cap(visitorBuf) < capacity {
+		visitorBuf = make([]box2d.ShapeID, capacity)
+	}
+	n := w.ShapeSensorData(sensorID, visitorBuf[:capacity])
+
+	sensorEntity, sensorShapeIndex := rt.shapeIdentity(sensorID)
+	for i := range n {
+		visitorID := visitorBuf[i]
+		// overlaps2 may carry a destroyed visitor shape (see World.ShapeSensorData).
+		if !w.IsShapeValid(visitorID) {
+			continue
+		}
+		visitorEntity, visitorShapeIndex := rt.shapeIdentity(visitorID)
+		key := normalizeContactPairKey(sensorEntity, sensorShapeIndex, visitorEntity, visitorShapeIndex)
+		if _, seen := dst[key]; seen {
+			continue
+		}
+		dst[key] = struct{}{}
+	}
+	return visitorBuf
 }
 
 // beginContactGather advances the stamp epoch used by markContactSeen. Wrapping back to 0 would
