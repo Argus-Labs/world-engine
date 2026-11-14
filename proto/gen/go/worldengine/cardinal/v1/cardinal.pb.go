@@ -112,7 +112,8 @@ type SendCommandWithReplyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The command to execute on the shard.
 	Command *v1.Command `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
-	// The name of the event to wait for after the command is executed.
+	// The name of the event to wait for after the command is executed. If the event belongs to a
+	// group, use the `<group>.<event>` format. Wildcards are not supported.
 	EventName     string `protobuf:"bytes,2,opt,name=event_name,json=eventName,proto3" json:"event_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -535,11 +536,11 @@ const file_worldengine_cardinal_v1_cardinal_proto_rawDesc = "" +
 	"&worldengine/cardinal/v1/cardinal.proto\x12\x17worldengine.cardinal.v1\x1a\x1bbuf/validate/validate.proto\x1a worldengine/isc/v1/command.proto\x1a\x1eworldengine/isc/v1/event.proto\x1a\"worldengine/micro/v1/service.proto\"S\n" +
 	"\x12SendCommandRequest\x12=\n" +
 	"\acommand\x18\x01 \x01(\v2\x1b.worldengine.isc.v1.CommandB\x06\xbaH\x03\xc8\x01\x01R\acommand\"\x15\n" +
-	"\x13SendCommandResponse\"\x9c\x01\n" +
+	"\x13SendCommandResponse\"\xb0\x01\n" +
 	"\x1bSendCommandWithReplyRequest\x12=\n" +
-	"\acommand\x18\x01 \x01(\v2\x1b.worldengine.isc.v1.CommandB\x06\xbaH\x03\xc8\x01\x01R\acommand\x12>\n" +
+	"\acommand\x18\x01 \x01(\v2\x1b.worldengine.isc.v1.CommandB\x06\xbaH\x03\xc8\x01\x01R\acommand\x12R\n" +
 	"\n" +
-	"event_name\x18\x02 \x01(\tB\x1f\xbaH\x1c\xc8\x01\x01r\x17\x10\x01\x18\x80\x012\x10^[a-zA-Z0-9_-]+$R\teventName\"O\n" +
+	"event_name\x18\x02 \x01(\tB3\xbaH0\xc8\x01\x01r+\x10\x01\x18\x80\x012$^[a-zA-Z0-9_-]+([.][a-zA-Z0-9_-]+)*$R\teventName\"O\n" +
 	"\x1cSendCommandWithReplyResponse\x12/\n" +
 	"\x05event\x18\x01 \x01(\v2\x19.worldengine.isc.v1.EventR\x05event\"\x9b\x01\n" +
 	"\x11EventSubscription\x12F\n" +
