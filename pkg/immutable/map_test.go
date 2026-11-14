@@ -343,6 +343,7 @@ func TestMap_MessagePackRoundTrip(t *testing.T) {
 		Players immutable.Map[playerID, memory]
 		Nested  immutable.Map[string, immutable.Map[int8, string]]
 		Empty   immutable.Map[string, int] `msgpack:",omitempty"`
+		Zero    immutable.Map[string, int]
 	}
 	want := holder{
 		Players: immutable.Map[playerID, memory]{}.
@@ -362,6 +363,7 @@ func TestMap_MessagePackRoundTrip(t *testing.T) {
 	var wire map[string]msgpack.RawMessage
 	require.NoError(t, msgpack.Unmarshal(data, &wire))
 	assert.NotContains(t, wire, "Empty", "omitempty leaves an empty Map out")
+	assert.Equal(t, msgpack.RawMessage{0x80}, wire["Zero"], "the zero value is an empty map, not nil")
 	var players map[uint64]map[string]any
 	require.NoError(t, msgpack.Unmarshal(wire["Players"], &players))
 	assert.Equal(t, []uint64{2, 7}, slices.Sorted(maps.Keys(players)))
