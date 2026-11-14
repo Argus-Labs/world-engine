@@ -112,7 +112,7 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 		start := time.Now()
 
 		// Process the request.
-		req, replyBz, err := handleNATSMessage(ctx, msg, handler, s.Address, requestLogger)
+		req, resp, replyBz, err := handleNATSMessage(ctx, msg, handler, s.Address, requestLogger)
 
 		// Calculate duration and add to span.
 		duration := time.Since(start)
@@ -146,7 +146,14 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 
 			replyBz = errRespBz // Set response payload to the error response
 		} else {
-			span.SetStatus(otelcodes.Ok, "")
+			// Surface the application handler's gRPC status on the outer span so trace-based
+			// observability counts application-level failures as errors, consistent with the
+			// transport/parse/marshal failure paths above and the child "handler.execute" span.
+			if appStatus := resp.Status.GetCode(); appStatus != int32(codes.OK) {
+				span.SetStatus(otelcodes.Error, resp.Status.GetMessage())
+			} else {
+				span.SetStatus(otelcodes.Ok, "")
+			}
 		}
 
 		// Respond to the message.
@@ -172,13 +179,17 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 // It returns the parsed *Request even when an error occurs (when possible), so that callers
 // can echo the client's request_id on error responses for correlation. The returned *Request
 // may be nil when the request could not be parsed at all (e.g. malformed protobuf).
+//
+// On success (err == nil) the returned *Response carries the application handler's gRPC
+// status, letting the caller mirror application-level failures on the outer span. The
+// *Response is nil whenever err is non-nil.
 func handleNATSMessage(
 	ctx context.Context,
 	msg *nats.Msg,
 	handler Handler,
 	serviceAddr *microv1.ServiceAddress,
 	logger zerolog.Logger,
-) (*Request, []byte, error) {
+) (*Request, *Response, []byte, error) {
 	// Create child span for handler execution
 	ctx, span := trace.New(ctx, "handler.execute",
 		oteltrace.WithSpanKind(oteltrace.SpanKindInternal))
@@ -189,7 +200,7 @@ func handleNATSMessage(
 		span.RecordError(err)
 		span.SetStatus(otelcodes.Error, err.Error())
 
-		return req, nil, eris.Wrap(err, "failed to parse request")
+		return req, nil, nil, eris.Wrap(err, "failed to parse request")
 	}
 
 	span.SetAttributes(attribute.String("request.id", req.RequestID))
@@ -223,10 +234,10 @@ func handleNATSMessage(
 		span.RecordError(err)
 		span.SetStatus(otelcodes.Error, err.Error())
 
-		return req, nil, eris.Wrap(err, "failed to marshal response")
+		return req, nil, nil, eris.Wrap(err, "failed to marshal response")
 	}
 
-	return req, respBytes, nil
+	return req, resp, respBytes, nil
 }
 
 // Close closes all the endpoints registered with the service.
