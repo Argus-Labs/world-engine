@@ -42,13 +42,14 @@ message SendCommandWithReplyRequest {
   // The command to execute on the shard.
   isc.v1.Command command = 1 [(buf.validate.field).required = true];
 
-  // The name of the event to wait for after the command is executed.
+  // The name of the event to wait for after the command is executed. If the event belongs to a
+  // group, use the `<group>.<event>` format. Wildcards are not supported.
   string event_name = 2 [
     (buf.validate.field).required = true,
     (buf.validate.field).string = {
       min_len: 1
       max_len: 128
-      pattern: "^[a-zA-Z0-9_-]+$"
+      pattern: "^[a-zA-Z0-9_-]+([.][a-zA-Z0-9_-]+)*$"
     }
   ];
 }

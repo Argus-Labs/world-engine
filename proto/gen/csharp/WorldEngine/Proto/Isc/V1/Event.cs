@@ -25,12 +25,12 @@ namespace WorldEngine.Proto.Isc.V1 {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "Ch53b3JsZGVuZ2luZS9pc2MvdjEvZXZlbnQucHJvdG8SEndvcmxkZW5naW5l",
-            "LmlzYy52MRobYnVmL3ZhbGlkYXRlL3ZhbGlkYXRlLnByb3RvIl4KBUV2ZW50",
-            "EjMKBG5hbWUYASABKAlCH7pIHHIXEAEYgAEyEF5bYS16QS1aMC05Xy1dKyTI",
-            "AQFSBG5hbWUSIAoHcGF5bG9hZBgCIAEoDEIGukgDyAEBUgdwYXlsb2FkQmVa",
-            "SGdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2Vu",
-            "L2dvL3dvcmxkZW5naW5lL2lzYy92MTtpc2N2MaoCGFdvcmxkRW5naW5lLlBy",
-            "b3RvLklzYy5WMWIGcHJvdG8z"));
+            "LmlzYy52MRobYnVmL3ZhbGlkYXRlL3ZhbGlkYXRlLnByb3RvInIKBUV2ZW50",
+            "EkcKBG5hbWUYASABKAlCM7pIMHIrEAEYgAEyJF5bYS16QS1aMC05Xy1dKyhb",
+            "Ll1bYS16QS1aMC05Xy1dKykqJMgBAVIEbmFtZRIgCgdwYXlsb2FkGAIgASgM",
+            "Qga6SAPIAQFSB3BheWxvYWRCZVpIZ2l0aHViLmNvbS9hcmd1cy1sYWJzL3dv",
+            "cmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRlbmdpbmUvaXNjL3YxO2lz",
+            "Y3YxqgIYV29ybGRFbmdpbmUuUHJvdG8uSXNjLlYxYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
@@ -94,7 +94,7 @@ namespace WorldEngine.Proto.Isc.V1 {
     public const int NameFieldNumber = 1;
     private string name_ = "";
     /// <summary>
-    /// The event name.
+    /// The event name, in the `&lt;group>.&lt;event>` format if the event belongs to a group.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
