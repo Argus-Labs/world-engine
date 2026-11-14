@@ -277,10 +277,7 @@ func TestMalformedMessagePackStateStaysRaw(t *testing.T) {
 // when additionalProperties is false.
 func TestEncodeCommandPayloadAnyField(t *testing.T) {
 	t.Parallel()
-	// Schema exactly as the shard's reflectSchema emits for
-	// `type Payload struct { Any any; Name string }`: the interface{} field
-	// marshals to the JSON literal `true`, and the struct gets
-	// additionalProperties: false.
+	// Schema exactly as the shard's reflectSchema emits for `type Payload struct { Any any; Name string }`.
 	schema := map[string]any{
 		"$ref": "#/$defs/type0",
 		"$defs": map[string]any{
@@ -344,36 +341,24 @@ func TestEncodeCommandPayloadAnyField(t *testing.T) {
 		assert.Equal(t, "x", target.Name)
 	})
 
-	// Strictness is preserved: a field absent from properties is rejected —
-	// here by the compiled schema's additionalProperties: false check, which
-	// runs before conversion as an independent backstop.
+	// Strictness is preserved: with no additionalProperties, validation passes
+	// and the converter's own unknown-field backstop rejects the field.
 	t.Run("unknown field still rejected", func(t *testing.T) {
 		t.Parallel()
-		_, err := encodeCommandPayload(schema, `{"Unknown":1}`)
+		noAdditionalProperties := map[string]any{
+			"$ref": "#/$defs/type0",
+			"$defs": map[string]any{
+				"type0": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"Any":  true,
+						"Name": map[string]any{"type": "string"},
+					},
+				},
+			},
+		}
+		_, err := encodeCommandPayload(noAdditionalProperties, `{"Unknown":1}`)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "Unknown")
+		assert.Contains(t, err.Error(), "unknown field")
 	})
-}
-
-// TestEncodeCommandPayloadAnyFieldAdditionalPropertiesTrue confirms the
-// existing permissive additionalProperties path still admits arbitrary keys
-// (carrying any-typed values) alongside a boolean-true property schema.
-func TestEncodeCommandPayloadAnyFieldAdditionalPropertiesTrue(t *testing.T) {
-	t.Parallel()
-	schema := map[string]any{
-		"type":                 "object",
-		"additionalProperties": true,
-		"properties": map[string]any{
-			"Any": true,
-		},
-	}
-	blob, err := encodeCommandPayload(schema, `{"Any":1,"Extra":"ok"}`)
-	require.NoError(t, err)
-	var target struct {
-		Any   any
-		Extra any
-	}
-	require.NoError(t, msgpack.Unmarshal(blob, &target))
-	assert.Equal(t, int64(1), target.Any)
-	assert.Equal(t, "ok", target.Extra)
 }

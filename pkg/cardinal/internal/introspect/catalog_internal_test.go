@@ -133,6 +133,29 @@ func TestCatalogDescribesTimestampAsString(t *testing.T) {
 	assert.Equal(t, map[string]any{"type": "string", "format": "date-time"}, properties["At"])
 }
 
+type anyField struct {
+	Any   any
+	Label string
+}
+
+func (anyField) Name() string { return "anyField" }
+
+// TestCatalogDescribesAnyFieldAsTrue pins the generator side of the any-field
+// behavior: reflectSchema emits an empty jsonschema.Schema for an interface{}/any
+// field, which marshals to the JSON literal `true`. The send_command converter
+// relies on this; if the generator ever changes how it emits `any`, this test
+// fails before the converter breaks.
+func TestCatalogDescribesAnyFieldAsTrue(t *testing.T) {
+	t.Parallel()
+	c := NewCatalog()
+	require.NoError(t, c.Register(Command, anyField{}))
+	require.NoError(t, c.Finalize())
+	root := c.Commands()[0].GetJsonSchema().AsMap()
+	properties := resolve(t, root, root)["properties"].(map[string]any)
+	assert.Equal(t, true, properties["Any"])
+	assert.Equal(t, map[string]any{"type": "string"}, properties["Label"])
+}
+
 type Embedded struct {
 	Value int `msgpack:"value" json:"wrong"`
 }
