@@ -24,9 +24,12 @@ import (
 //
 //	subject  <to>.isc.<name>.<from>
 //	         rampage.gameplay-usw1-3.isc.plat_result.rampage.platform
-//	body     the command payload's MessagePack encoding, verbatim. A payload
-//	         with no set fields is the empty MessagePack map (0x80), and a
-//	         zero-length body is not valid MessagePack, so the receiver rejects it
+//	body     the command payload's MessagePack encoding, verbatim. A payload type
+//	         with no fields is the empty MessagePack map (0x80), and a zero-length
+//	         body is not valid MessagePack, so Cardinal rejects it. The map keys are
+//	         the payload struct's Go field names (or msgpack tags), documented per
+//	         command by the debug introspection TypeSchema.json_schema field
+//	         (proto/worldengine/cardinal/v1/debug.proto).
 //	headers  W3C trace context (traceparent, tracestate) when the sender is traced
 //	reply    no headers: the receiver accepted the command
 //	         Nats-Service-Error-Code (a gRPC code number) and Nats-Service-Error: it rejected it
