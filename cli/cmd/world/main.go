@@ -111,6 +111,18 @@ func main() {
 		}),
 		kong.Bind(&cli),
 		kong.Vars{"version": version},
+		// kong.Parse terminates the process from inside the call via kong.Exit
+		// (default os.Exit) on --help, --version, and parse errors. os.Exit
+		// skips every defer in main, so the deferred PosthogClose -- the only
+		// thing that drains the in-memory PostHog queue -- would never run, and
+		// the daily "Running" event captured above would be silently dropped
+		// after the day's dedupe quota was consumed. Flush telemetry here, in
+		// the same order main's defers do, before exiting so those paths
+		// deliver the event instead of dropping it.
+		kong.Exit(func(code int) {
+			telemetry.FlushTelemetry()
+			os.Exit(code)
+		}),
 	)
 
 	// kong is authoritative: it also accepts forms checkVerboseFlag misses, e.g. --verbose=true.
