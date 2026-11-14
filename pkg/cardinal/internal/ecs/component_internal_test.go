@@ -490,6 +490,8 @@ func TestComponent_ValidateTypeAllowsStorableShapes(t *testing.T) {
 		{"immutable.Slice of immutable.Slice", reflect.TypeFor[struct {
 			S immutable.Slice[immutable.Slice[int]]
 		}]()},
+		{"type reaching itself through immutable.Slice", reflect.TypeFor[selfViaImmutable]()},
+		{"type reaching itself through immutable.Map", reflect.TypeFor[selfViaMap]()},
 		{"immutable.Map of scalars", reflect.TypeFor[struct{ M immutable.Map[string, int] }]()},
 		{"immutable.Map shapes", reflect.TypeFor[mapsComponent]()},
 		{"immutable.Map of codec types", reflect.TypeFor[struct {
@@ -544,7 +546,6 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 		embedded    = "is embedded, so its own codec stores the whole struct"
 		codecShares = "encodes itself but holds a reference"
 		unexported  = "is embedded with an unexported type"
-		recursive   = "contains itself"
 	)
 	cases := []struct {
 		name string
@@ -658,8 +659,6 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 			[]string{".S[] (func()) " + notData}},
 		{"slice inside a struct inside immutable.Slice", reflect.TypeFor[struct{ S immutable.Slice[sliceHolder] }](),
 			[]string{".S[].Items ([]int) " + shared}},
-		{"type reaching itself through immutable.Slice", reflect.TypeFor[selfViaImmutable](),
-			[]string{"selfViaImmutable.Children[] (ecs.selfViaImmutable) " + recursive}},
 		{"slice inside immutable.Map", reflect.TypeFor[struct{ M immutable.Map[int, []int] }](),
 			[]string{".M{value} ([]int) " + shared}},
 		{"pointer inside immutable.Map", reflect.TypeFor[struct{ M immutable.Map[string, *int] }](),
@@ -671,8 +670,6 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 		{"slice inside a struct inside a nested immutable.Map", reflect.TypeFor[struct {
 			M immutable.Map[string, immutable.Map[int, sliceHolder]]
 		}](), []string{".M{value}{value}.Items ([]int) " + shared}},
-		{"type reaching itself through immutable.Map", reflect.TypeFor[selfViaMap](),
-			[]string{"selfViaMap.Kids{value} (ecs.selfViaMap) " + recursive}},
 		{"embedded immutable.Map alone", reflect.TypeFor[struct{ immutable.Map[int, int] }](),
 			[]string{".Map (immutable.Map[int,int]) " + embedded}},
 		{"exported field of an unexported embedded struct", reflect.TypeFor[struct{ embeddedSlice }](),

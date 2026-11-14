@@ -99,9 +99,9 @@ component may hold values only:
 
 A component may **not** hold pointers, Go maps, plain slices (`[]T`), interfaces, channels, or
 funcs. A plain slice or map inside a copy still shares its memory with the stored component, so
-writing through it changes the world without a `Set`. A type that contains itself, such as
-`type Node struct{ Kids immutable.Slice[Node] }`, is refused too: make each node its own entity, or
-flatten the tree into one Slice of nodes that refer to each other by index.
+writing through it changes the world without a `Set`. A type may contain itself through an
+`immutable.Slice` or `immutable.Map`, such as `type Node struct{ Kids immutable.Slice[Node] }`, so a
+component can hold a tree.
 
 A list with a known upper bound is a fixed array plus a count:
 

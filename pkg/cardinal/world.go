@@ -793,8 +793,8 @@ func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
 //     snapshot stores but a restore cannot write back.
 //
 // Hold a list in a fixed-size array or an immutable.Slice, and a lookup table in an immutable.Map,
-// instead. Their elements and values follow the same rules, and a type that contains itself is
-// refused. Fields tagged msgpack:"-" are not stored, so they are not checked.
+// instead. Their elements and values follow the same rules, and may be the type that holds them, as
+// in a tree. Fields tagged msgpack:"-" are not stored, so they are not checked.
 func (w *World) RegisterComponent[T ecs.Component]() {
 	if w.started {
 		panic(ErrWorldStarted)

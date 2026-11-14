@@ -102,13 +102,15 @@ type fieldProblem struct {
 }
 
 // checkComponentField walks t and appends one problem per field that cannot be stored. visiting holds
-// the types on the current path, so a type that reaches itself is reported once instead of looping.
+// the types on the current path.
+//
+// A type that reaches itself through a Slice or Map is allowed: it is a tree, such as a skill tree, a
+// dialogue tree or a container inside a container. Every value is still finite, since a component
+// holds no pointers and a built array never changes, so a tree encodes, restores and appears in the
+// catalog like any other value. Its fields are already being checked further up the path, so the walk
+// stops there instead of looping.
 func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]bool, problems *[]fieldProblem) {
-	if visiting[t] {
-		*problems = append(*problems, fieldProblem{path: path, typ: t, reason: reasonRecursive, fix: fixRecursive})
-		return
-	}
-	if knownValueType(t) {
+	if visiting[t] || knownValueType(t) {
 		return
 	}
 	visiting[t] = true
@@ -318,7 +320,6 @@ const (
 		"stored component"
 	reasonUnexportedEmbedded = "is embedded with an unexported type, so a snapshot stores it but a restore " +
 		"cannot write it back"
-	reasonRecursive = "contains itself, so the component is a tree with no bound on its depth"
 
 	fixSlice = "use a fixed-size array [N]T with the live length in its own field, or immutable.Slice[T] " +
 		"if the length is genuinely unbounded"
@@ -335,8 +336,6 @@ const (
 	fixEmbeddedCodec      = "give it a field name"
 	fixCodecShares        = "keep its state in numbers, strings, fixed-size arrays, or structs of those"
 	fixUnexportedEmbedded = "give it an exported field name, or export its type"
-	fixRecursive          = "make each node its own entity with a parent component, or flatten the tree into " +
-		"one immutable.Slice of nodes that refer to each other by index"
 )
 
 // hidesState reports whether t keeps state in unexported fields and stores none of it. A struct
