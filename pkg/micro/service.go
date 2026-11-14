@@ -143,10 +143,11 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 			assert.That(err == nil, "failed to marshal error response")
 			replyBz = errRespBz // Set response payload to the error response
 		} else {
-			// Surface the application handler's gRPC status on the outer span so trace-based
-			// observability counts application-level failures as errors, consistent with the
-			// transport/parse/marshal failure paths above and the child "handler.execute" span.
-			if appStatus := resp.Status.GetCode(); appStatus != int32(codes.OK) {
+			// handleNATSMessage returns a nil error for application failures; the failure is in
+			// resp.Status. Mirror it onto the outer span, matching the child "handler.execute" span.
+			appStatus := resp.Status.GetCode()
+			span.SetAttributes(attribute.Int("status.code", int(appStatus)))
+			if appStatus != int32(codes.OK) {
 				span.SetStatus(otelcodes.Error, resp.Status.GetMessage())
 			} else {
 				span.SetStatus(otelcodes.Ok, "")
@@ -176,9 +177,8 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 // can echo the client's request_id on error responses for correlation. The returned *Request
 // may be nil when the request could not be parsed at all (e.g. malformed protobuf).
 //
-// On success (err == nil) the returned *Response carries the application handler's gRPC
-// status, letting the caller mirror application-level failures on the outer span. The
-// *Response is nil whenever err is non-nil.
+// On success (err == nil) the returned *Response is non-nil and carries the application
+// handler's gRPC status; it is nil whenever err is non-nil.
 func handleNATSMessage(
 	ctx context.Context,
 	msg *nats.Msg,
