@@ -82,6 +82,9 @@ func TestMap_DerivationsLeaveReceiverUnchanged(t *testing.T) {
 			b.Set("a", 7)
 			return b.Done()
 		},
+		"DeleteFunc": func(m immutable.Map[string, int]) immutable.Map[string, int] {
+			return m.DeleteFunc(func(k string, _ int) bool { return k == "b" })
+		},
 		"builder delete first": func(m immutable.Map[string, int]) immutable.Map[string, int] {
 			b := m.Edit()
 			b.Delete("b")
@@ -127,6 +130,40 @@ func TestMap_WithWithoutUpdate(t *testing.T) {
 	assert.True(t, immutable.MapEqual(mapOf(map[string]int{"a": 2, "c": 3}), m.Update("a", inc)))
 	assert.True(t, immutable.MapEqual(mapOf(map[string]int{"a": 1, "c": 3, "d": 1}), m.Update("d", inc)),
 		"Update starts from the zero value for an absent key")
+}
+
+func TestMap_DeleteFunc(t *testing.T) {
+	t.Parallel()
+
+	m := mapOf(map[string]int{"a": 1, "b": 2, "c": 3, "d": 4})
+	var seen []string
+	odd := m.DeleteFunc(func(k string, v int) bool {
+		seen = append(seen, k)
+		return v%2 == 0
+	})
+	assert.True(t, immutable.MapEqual(mapOf(map[string]int{"a": 1, "c": 3}), odd))
+	assert.Equal(t, []string{"a", "b", "c", "d"}, seen, "del runs once per entry, in key order")
+	keys, _ := entries(m)
+	assert.Equal(t, []string{"a", "b", "c", "d"}, keys, "the receiver is unchanged")
+
+	none := m.DeleteFunc(func(string, int) bool { return false })
+	assert.True(t, immutable.MapEqual(m, none), "removing nothing returns the same entries")
+	all := m.DeleteFunc(func(string, int) bool { return true })
+	assert.True(t, reflect.DeepEqual(immutable.Map[string, int]{}, all), "removing everything gives the zero value")
+
+	big := immutable.MapFrom(func(yield func(int, int) bool) {
+		for i := range 1000 {
+			if !yield(i, i) {
+				return
+			}
+		}
+	})
+	one := big.DeleteFunc(func(k, _ int) bool { return k != 0 })
+	capOf := func(m immutable.Map[int, int], field string) int {
+		return reflect.ValueOf(m).FieldByName(field).Cap()
+	}
+	assert.Less(t, capOf(one, "keys"), 16, "pruning down to one does not keep the 1000-entry keys")
+	assert.Less(t, capOf(one, "vals"), 16, "nor the values")
 }
 
 func TestMap_EmptyIsZeroValue(t *testing.T) {
@@ -260,7 +297,7 @@ func TestMap_ModelMatchesGoMap(t *testing.T) {
 	for step := range 3000 {
 		k, v := r.IntN(40), r.IntN(1000)
 		model = maps.Clone(model)
-		switch r.IntN(5) {
+		switch r.IntN(6) {
 		case 0, 1:
 			cur = cur.With(k, v)
 			model[k] = v
@@ -270,6 +307,11 @@ func TestMap_ModelMatchesGoMap(t *testing.T) {
 		case 3:
 			cur = cur.Update(k, inc)
 			model[k]++
+		case 4:
+			mod := 3 + r.IntN(8)
+			del := func(k, _ int) bool { return k%mod == 0 }
+			cur = cur.DeleteFunc(del)
+			maps.DeleteFunc(model, del)
 		default:
 			b := cur.Edit()
 			for range r.IntN(6) {

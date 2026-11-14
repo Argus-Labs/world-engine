@@ -33,8 +33,8 @@ type Key interface {
 // entries give the same order and the same bytes on every run, machine and build, however they were
 // inserted. "First" means smallest key; if insertion order matters, store it in the value.
 //
-// Derivations never write to the receiver's arrays. With, Without and Update each return a new Map,
-// so the column, the caller's copy and any snapshot keep what they held:
+// Derivations never write to the receiver's arrays. With, Without, Update and DeleteFunc each return
+// a new Map, so the column, the caller's copy and any snapshot keep what they held:
 //
 //	c := npc.Get[NPCMemory]()
 //	mem, _ := c.Players.Get(pid)
@@ -167,6 +167,34 @@ func (m Map[K, V]) Without(k K) Map[K, V] {
 		return m
 	}
 	return wrapMap(slices.Concat(m.keys[:i], m.keys[i+1:]), slices.Concat(m.vals[:i], m.vals[i+1:]))
+}
+
+// DeleteFunc returns a Map without the entries del reports true for, like [maps.DeleteFunc]. del runs
+// once per entry, in key order. When it removes nothing, DeleteFunc returns the receiver, which costs
+// nothing; otherwise it copies once, so pruning many keys costs one pass instead of one copy each.
+//
+// NOTE: Requires component set if used.
+func (m Map[K, V]) DeleteFunc(del func(K, V) bool) Map[K, V] {
+	first := 0
+	for first < len(m.keys) && !del(m.keys[first], m.vals[first]) {
+		first++
+	}
+	if first == len(m.keys) {
+		return m
+	}
+	keys := append(make([]K, 0, len(m.keys)-1), m.keys[:first]...)
+	vals := append(make([]V, 0, len(m.vals)-1), m.vals[:first]...)
+	for i := first + 1; i < len(m.keys); i++ {
+		if !del(m.keys[i], m.vals[i]) {
+			keys = append(keys, m.keys[i])
+			vals = append(vals, m.vals[i])
+		}
+	}
+	// As Slice's shrink does: pruning most of a large Map should not keep its full-size arrays.
+	if len(keys) < cap(keys)/2 {
+		keys, vals = slices.Clone(keys), slices.Clone(vals)
+	}
+	return wrapMap(keys, vals)
 }
 
 // Update returns a Map with the value under k replaced by f of the current one. f receives the zero
