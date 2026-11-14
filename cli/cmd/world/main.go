@@ -42,6 +42,25 @@ func failureMessages(err error) []string {
 	return []string{err.Error()}
 }
 
+// kongOptions returns the kong.Option set shared by main and the kong_exit
+// tests so the tests exercise the same kong behavior the production wiring
+// relies on. exit is the kong.Exit hook: main flushes telemetry before os.Exit;
+// the test records the call and panics to stop kong from proceeding.
+func kongOptions(cli *root.Cmd, version string, exit func(int)) []kong.Option {
+	return []kong.Option{
+		kong.Name("world"),
+		kong.Description("World CLI: Your complete toolkit for World Engine development"),
+		kong.UsageOnError(),
+		kong.ConfigureHelp(kong.HelpOptions{
+			Compact: true,
+			Summary: true,
+		}),
+		kong.Bind(cli),
+		kong.Vars{"version": version},
+		kong.Exit(exit),
+	}
+}
+
 func main() {
 	// Runs before anything else, so a hand-off leaves no telemetry or output from this binary.
 	delegateToProjectTool(os.Args[1:])
@@ -102,15 +121,14 @@ func main() {
 
 	ctx := kong.Parse(
 		&cli,
-		kong.Name("world"),
-		kong.Description("World CLI: Your complete toolkit for World Engine development"),
-		kong.UsageOnError(),
-		kong.ConfigureHelp(kong.HelpOptions{
-			Compact: true,
-			Summary: true,
-		}),
-		kong.Bind(&cli),
-		kong.Vars{"version": version},
+		kongOptions(&cli, version, func(code int) {
+			// kong.Parse terminates --help/--version/parse errors via kong.Exit
+			// (default [os.Exit]), which skips main's defers and would drop the
+			// buffered Running event. Flush in the same order as the defers
+			// before exiting.
+			telemetry.FlushTelemetry()
+			os.Exit(code)
+		})...,
 	)
 
 	// kong is authoritative: it also accepts forms checkVerboseFlag misses, e.g. --verbose=true.

@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -18,9 +19,17 @@ const (
 	timestampFile         = "last_logged_time"
 )
 
+// posthogClientAPI is the subset of posthog.Client this package depends on:
+// queueing a message and closing the client. Narrowing to it lets tests inject
+// a fake instead of the real in-memory + HTTP client.
+type posthogClientAPI interface {
+	posthog.EnqueueClient
+	io.Closer
+}
+
 var (
 	//nolint:gochecknoglobals // Global PostHog client for telemetry across the application
-	posthogClient posthog.Client
+	posthogClient posthogClientAPI
 	//nolint:gochecknoglobals // Global flag to track if PostHog has been initialized
 	posthogInitialized bool
 	//nolint:gochecknoglobals // Global timestamp for rate limiting telemetry events
@@ -29,24 +38,39 @@ var (
 
 // PosthogInit Posthog initialization.
 func PosthogInit(posthogAPIKey string) {
-	if posthogAPIKey != "" {
-		posthogClient = posthog.New(posthogAPIKey)
-		posthogInitialized = true
-
-		// get last logged time
-		lastTime, err := getLastLoggedTime()
-		if err != nil {
-			log.Err(err).Msg("Cannot get last logged time")
-		}
-
-		lastLoggedTime = lastTime
-
-		// Update last visited timestamp
-		err = updateLastLoggedTime(time.Now())
-		if err != nil {
-			log.Err(err).Msg("Cannot update last logged time")
-		}
+	if posthogAPIKey == "" {
+		return
 	}
+	// ShutdownTimeout bounds Close so kong's early-exit paths (--help,
+	// --version, parse errors) can't block indefinitely on a dropped-packet
+	// network: posthog.New leaves it at 0 (wait indefinitely). Normal commands
+	// already pay this cost on the deferred close; help/version are the ones
+	// people script, so a short deadline keeps them snappy.
+	c, err := posthog.NewWithConfig(posthogAPIKey, posthog.Config{
+		ShutdownTimeout: 2 * time.Second,
+	})
+	if err != nil {
+		log.Err(err).Msg("Cannot init posthog client")
+		return
+	}
+	posthogInitWithClient(c)
+}
+
+// posthogInitWithClient binds the PostHog client and loads the daily dedupe
+// timestamp. It deliberately does NOT stamp the dedupe file: the stamp is
+// written only after a Running event is queued (see PosthogCaptureEvent), so
+// a path that never captures the event does not consume the day's quota.
+func posthogInitWithClient(c posthogClientAPI) {
+	posthogClient = c
+	posthogInitialized = true
+
+	// get last logged time
+	lastTime, err := getLastLoggedTime()
+	if err != nil {
+		log.Err(err).Msg("Cannot get last logged time")
+	}
+
+	lastLoggedTime = lastTime
 }
 
 // getLastLoggedTime reads the last visited timestamp from the file.
@@ -106,7 +130,8 @@ func PosthogCaptureEvent(event string, properties map[string]any) {
 	if !posthogInitialized {
 		return
 	}
-	if event == RunningEvent && isSameDay(lastLoggedTime, time.Now()) {
+	now := time.Now()
+	if event == RunningEvent && isSameDay(lastLoggedTime, now) {
 		return // skip duplicate daily RunningEvent
 	}
 
@@ -120,12 +145,24 @@ func PosthogCaptureEvent(event string, properties map[string]any) {
 	// Capture the event
 	err = posthogClient.Enqueue(posthog.Capture{
 		DistinctId: machineID,
-		Timestamp:  time.Now(),
+		Timestamp:  now,
 		Event:      event,
 		Properties: properties,
 	})
 	if err != nil {
 		log.Err(err).Msg("Cannot capture event")
+		return
+	}
+
+	// Stamp the daily dedupe file only after the Running event has been
+	// enqueued, so the day's quota is consumed by a capture that actually
+	// queued an event rather than at init. Only the Running event is deduped,
+	// so non-daily events (e.g. PostInstallationEvent) never stamp the file.
+	if event == RunningEvent {
+		lastLoggedTime = now
+		if err := updateLastLoggedTime(lastLoggedTime); err != nil {
+			log.Err(err).Msg("Cannot update last logged time")
+		}
 	}
 }
 
