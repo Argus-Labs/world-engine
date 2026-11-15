@@ -169,7 +169,7 @@ type worldOptionsEnv struct {
 	// Number of ticks each second, which the World CLI sets from world.toml's tick_rate. Unlike the
 	// other variables, it overrides WorldOptions.TickRate: tick_rate is the deployment's setting, and
 	// the compiled rate is the default a shard falls back to when tick_rate is unset. It is a whole
-	// number, as in world.toml, so a negative or fractional value fails to parse.
+	// number, as in world.toml: 0 counts as unset, and a negative or fractional value fails to parse.
 	TickRate uint32 `env:"CARDINAL_TICK_RATE"`
 
 	// Snapshot storage type ("NOP", "JETSTREAM", or "S3").

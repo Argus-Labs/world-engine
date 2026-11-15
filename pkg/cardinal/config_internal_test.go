@@ -55,6 +55,7 @@ func TestNewWorld_TickRateEnvOverridesOptions(t *testing.T) {
 		want         time.Duration
 	}{
 		{name: "unset keeps compiled rate", env: "", compiledRate: 1, want: time.Second},
+		{name: "zero counts as unset", env: "0", compiledRate: 1, want: time.Second},
 		{name: "env overrides compiled rate", env: "20", compiledRate: 1, want: 50 * time.Millisecond},
 		{name: "env alone sets rate", env: "20", compiledRate: 0, want: 50 * time.Millisecond},
 	} {
@@ -68,4 +69,14 @@ func TestNewWorld_TickRateEnvOverridesOptions(t *testing.T) {
 			require.Equal(t, tc.want, w.options.tickInterval())
 		})
 	}
+
+	t.Run("malformed env fails startup", func(t *testing.T) {
+		t.Setenv("CARDINAL_PROJECT", "rampage")
+		t.Setenv("CARDINAL_SHARD_ID", "game")
+		for _, env := range []string{"-1", "0.5"} {
+			t.Setenv("CARDINAL_TICK_RATE", env)
+			_, err := NewWorld(WorldOptions{TickRate: 1, SnapshotRate: 1})
+			require.ErrorContains(t, err, `parse error on field "TickRate"`, env)
+		}
+	})
 }
