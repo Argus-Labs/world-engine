@@ -74,6 +74,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	options := newDefaultWorldOptions()
 	options.apply(envs.toOptions())
 	options.apply(opts)
+	options.apply(WorldOptions{TickRate: float64(envs.TickRate)}) // CARDINAL_TICK_RATE wins; see worldOptionsEnv
 
 	if err := options.validate(); err != nil {
 		return nil, eris.Wrap(err, "invalid world options")

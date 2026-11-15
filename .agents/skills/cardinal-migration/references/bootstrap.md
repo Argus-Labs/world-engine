@@ -201,4 +201,4 @@ Re-registering the same type is a no-op, so duplicates are harmless.
 `NewWorld` validates the merged options and env, and stops at the first missing one. A test
 must set `Region`, `Organization`, `Project`, `ShardID`, `SnapshotRate` (or
 `CARDINAL_REGION`, `CARDINAL_ORG`, `CARDINAL_PROJECT`, `CARDINAL_SHARD_ID`,
-`CARDINAL_SNAPSHOT_RATE`) and `TickRate > 0`, which has no env var.
+`CARDINAL_SNAPSHOT_RATE`) and `TickRate > 0` (or `CARDINAL_TICK_RATE`, which overrides it).

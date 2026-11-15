@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -40,5 +41,31 @@ func TestNewWorld_RejectsInvalidAddress(t *testing.T) {
 		opts.TickRate, opts.SnapshotRate = 1, 1
 		_, err := NewWorld(opts)
 		require.ErrorContains(t, err, "invalid project or shard ID", "%s.%s", opts.Project, opts.ShardID)
+	}
+}
+
+// TestNewWorld_TickRateEnvOverridesOptions checks that CARDINAL_TICK_RATE, which the World CLI sets
+// from world.toml's tick_rate, paces the world even when the code compiles in another rate, and
+// that the compiled rate applies when the variable is unset.
+func TestNewWorld_TickRateEnvOverridesOptions(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		env          string
+		compiledRate float64
+		want         time.Duration
+	}{
+		{name: "unset keeps compiled rate", env: "", compiledRate: 1, want: time.Second},
+		{name: "env overrides compiled rate", env: "20", compiledRate: 1, want: 50 * time.Millisecond},
+		{name: "env alone sets rate", env: "20", compiledRate: 0, want: 50 * time.Millisecond},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("CARDINAL_PROJECT", "rampage")
+			t.Setenv("CARDINAL_SHARD_ID", "game")
+			t.Setenv("CARDINAL_TICK_RATE", tc.env)
+
+			w, err := NewWorld(WorldOptions{TickRate: tc.compiledRate, SnapshotRate: 1})
+			require.NoError(t, err)
+			require.Equal(t, tc.want, w.options.tickInterval())
+		})
 	}
 }
