@@ -120,6 +120,22 @@ func TestSliceBuilder_OutOfRangePanics(t *testing.T) {
 	require.Panics(t, func() { b.Insert(3, 0) })
 	require.Panics(t, func() { b.Delete(1, 3) })
 	require.Equal(t, []int{1, 2}, collect(b.Done()), "failed edits change nothing")
+
+	// A write after a recovered panic must still copy first. The source has spare capacity, which a
+	// Delete range check against capacity alone would let through.
+	for name, bad := range map[string]func(*immutable.SliceBuilder[int]){
+		"insert": func(b *immutable.SliceBuilder[int]) { b.Insert(3, 0) },
+		"delete": func(b *immutable.SliceBuilder[int]) { b.Delete(1, 4) },
+	} {
+		nb := immutable.NewSliceBuilder[int](4)
+		nb.Append(1, 2)
+		src := nb.Done()
+		eb := src.Edit()
+		require.Panics(t, func() { bad(eb) }, name)
+		eb.Set(0, 9)
+		require.Equal(t, []int{1, 2}, collect(src), "%s: the source is unchanged", name)
+		require.Equal(t, []int{9, 2}, collect(eb.Done()), name)
+	}
 }
 
 // TestSlice_ModelMatchesPlainSlice runs random edits, through derivations and builders alike, against

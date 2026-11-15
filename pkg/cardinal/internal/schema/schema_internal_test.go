@@ -3,6 +3,7 @@ package schema_test
 import (
 	"bytes"
 	"errors"
+	"maps"
 	"strconv"
 	"testing"
 
@@ -163,6 +164,8 @@ type floatPayload struct {
 	Arr    [2]meters
 	ByKey  map[string]meters
 	Frozen immutable.Slice[meters]
+	Bare   immutable.Slice[float32]
+	Table  immutable.Map[string, float32]
 }
 
 func (floatPayload) Name() string { return "float_payload" }
@@ -180,6 +183,8 @@ func TestDeserializeWidensFloat32(t *testing.T) {
 		"Arr":    []float64{3.5, 3.75},
 		"ByKey":  map[string]float64{"x": 4.25},
 		"Frozen": []float64{4.5},
+		"Bare":   []float64{4.75},
+		"Table":  map[string]float64{"y": 5.25},
 	})
 	require.NoError(t, err)
 	var got floatPayload
@@ -193,6 +198,8 @@ func TestDeserializeWidensFloat32(t *testing.T) {
 		Arr:    [2]meters{3.5, 3.75},
 		ByKey:  map[string]meters{"x": 4.25},
 		Frozen: immutable.SliceOf[meters](4.5),
+		Bare:   immutable.SliceOf[float32](4.75),
+		Table:  immutable.MapFrom(maps.All(map[string]float32{"y": 5.25})),
 	}, got)
 
 	data, err = msgpack.Marshal(map[string]any{"Plain": 1e39})

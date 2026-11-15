@@ -104,17 +104,21 @@ func spliceIn[T any](s []T, owns *bool, i int, items ...T) []T {
 	if *owns {
 		return slices.Insert(s, i, items...)
 	}
+	// The flag is set only after slicing succeeds: a builder that recovered from an out-of-range
+	// panic would otherwise write into the source Slice's array.
+	out := slices.Concat(s[:i], items, s[i:])
 	*owns = true
-	return slices.Concat(s[:i], items, s[i:])
+	return out
 }
 
 func spliceOut[T any](s []T, owns *bool, i, j int) []T {
 	if *owns {
 		return slices.Delete(s, i, j)
 	}
-	_ = s[i:j] // s[:i] and s[j:] alone would accept i > j
+	_ = s[i:j]                         // s[:i] and s[j:] alone would accept i > j
+	out := slices.Concat(s[:i], s[j:]) // as in spliceIn, own only once slicing succeeds
 	*owns = true
-	return slices.Concat(s[:i], s[j:])
+	return out
 }
 
 func (b *SliceBuilder[T]) check() {
