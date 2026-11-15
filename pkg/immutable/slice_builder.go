@@ -11,8 +11,8 @@ import "slices"
 //	inv.Items = b.Done()
 //
 // A builder from Edit shares the Slice's array until its first write, then copies it once, sized for
-// that write: a batch of Sets or Deletes stores an exact-size array, and Append and Insert grow it
-// from there as append does. A builder that never writes copies nothing.
+// that write; Append and Insert then grow it as append does. A builder that never writes copies
+// nothing.
 //
 // A builder is used through the pointer Edit and NewSliceBuilder return. After Done it holds nothing,
 // and every method panics: the array now belongs to the Slice, and a builder that could still write

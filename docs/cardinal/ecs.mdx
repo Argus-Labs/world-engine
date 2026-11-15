@@ -249,6 +249,7 @@ npc.Set(mem)
 mem.Players = mem.Players.DeleteFunc(func(_ string, pm PlayerMemory) bool {
 	return now-pm.LastSeen > forgetAfter
 })
+npc.Set(mem)
 ```
 
 For many edits at once, `Edit` returns a builder. Its `Get` sees its own pending edits, so it can

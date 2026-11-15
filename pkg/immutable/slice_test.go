@@ -176,6 +176,8 @@ func TestSlice_ShrinkingDerivationsDropSpareCapacity(t *testing.T) {
 	require.Less(t, capOf(same.CompactFunc(func(a, b int) bool { return a == b })), 16, "nor CompactFunc")
 	require.Equal(t, 1000, capOf(distinct.Filter(func(int) bool { return true })),
 		"a result that fills its array is not copied again")
+	require.Equal(t, 1, capOf(immutable.SliceOf(1, 2, 3).Filter(func(v int) bool { return v == 1 })),
+		"one kept of three leaves more than half spare, so it is copied too")
 }
 
 func TestSlice_FilterKeepsMatches(t *testing.T) {

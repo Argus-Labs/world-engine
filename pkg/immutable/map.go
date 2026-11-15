@@ -18,7 +18,7 @@ import (
 // `type PlayerID uint64`. Their < is a total order and the same on every platform, which is what
 // keeps a Map's layout and encoding deterministic. Floats are left out because NaN breaks sorting,
 // and structs because they have no < at all. That makes Key [cmp.Ordered] without floats and
-// uintptr, the same restriction Rust's BTreeMap makes.
+// uintptr. Rust's BTreeMap leaves out floats for the same reason: f64 is not Ord.
 type Key interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
 		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 |
@@ -42,7 +42,8 @@ type Key interface {
 //	c.Players = c.Players.With(pid, mem)
 //	npc.Set(c)
 //
-// Each derivation costs one copy. For several edits at once, use Edit, which copies once and hands
+// Each derivation costs one copy, plus a second, smaller one when DeleteFunc removes most entries.
+// For several edits at once, use Edit, which copies once and hands
 // the result over with Done.
 //
 // The zero value is an empty Map, and every empty Map is the zero value.
@@ -172,6 +173,8 @@ func (m Map[K, V]) Without(k K) Map[K, V] {
 // DeleteFunc returns a Map without the entries del reports true for, like [maps.DeleteFunc]. del runs
 // once per entry, in key order. When it removes nothing, DeleteFunc returns the receiver, which costs
 // nothing; otherwise it copies once, so pruning many keys costs one pass instead of one copy each.
+// When it removes most entries it copies the rest again to fit, so a pruned Map does not keep its
+// full-size arrays.
 //
 // NOTE: Requires component set if used.
 func (m Map[K, V]) DeleteFunc(del func(K, V) bool) Map[K, V] {
@@ -191,7 +194,7 @@ func (m Map[K, V]) DeleteFunc(del func(K, V) bool) Map[K, V] {
 		}
 	}
 	// As Slice's shrink does: pruning most of a large Map should not keep its full-size arrays.
-	if len(keys) < cap(keys)/2 {
+	if cap(keys)-len(keys) > len(keys) {
 		keys, vals = slices.Clone(keys), slices.Clone(vals)
 	}
 	return wrapMap(keys, vals)

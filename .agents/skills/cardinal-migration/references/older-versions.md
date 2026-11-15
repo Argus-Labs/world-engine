@@ -50,7 +50,9 @@ then `e.Set(c)`. For several edits at once, use `b := c.Items.Edit()`, edit `b`,
 `immutable.Map[K, V]` is the same for a lookup table: build with
 `immutable.MapFrom(maps.All(goMap))`, read with `Get`, `Has`, `All`, derive with `With`,
 `Without`, `Update`, `DeleteFunc`, and batch with `Edit`/`Done`. Keys are integers or
-strings, kept sorted. Do not key it by `EntityID` across ticks: IDs are reused.
+strings, kept sorted. `EntityID`s are reused as soon as the entity is destroyed: key
+long-lived data by an ID the game owns, or remove the key in the system that destroys the
+entity.
 
 Which of these needs a design decision is the user's call: a shared pointer or an
 interface field usually does. List them and ask before converting.

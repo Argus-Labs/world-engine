@@ -13,9 +13,9 @@ import (
 )
 
 // EntityID identifies an entity in this world. It is reused as soon as the entity is destroyed, so
-// an ID kept past that point refers to whichever entity is created next in its place. Use it within
-// a tick; to refer to something across ticks, in a component field, a Map key or a client, use an
-// ID the game owns.
+// an ID kept past that point refers to whichever entity is created next in its place. To refer to
+// something across ticks, in a component field, a Map key or a client, use an ID the game owns, or
+// remove the stored ID in the system that destroys the entity.
 type EntityID = ecs.EntityID
 
 // System is a unit of game logic that runs once per tick phase. Run receives the world it was

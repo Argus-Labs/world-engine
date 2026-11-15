@@ -37,8 +37,9 @@ import (
 //	inv.Items = inv.Items.With(0, item) // the column is unchanged
 //	ref.Set(inv)                        // this stores the new Slice
 //
-// Each derivation other than Sub and Chunk costs one copy. For several edits at once, use Edit or
-// NewSliceBuilder, which copy once and hand the array over with Done.
+// Each derivation other than Sub and Chunk costs one copy, plus a second, smaller one when Filter or
+// Compact leaves most of the array spare. For several edits at once, use Edit or NewSliceBuilder,
+// which copy once and hand the array over with Done.
 //
 // Every empty Slice is the zero value: producers, derivations, Done and both decoders return nil
 // items for an empty result, so empty Slices are [reflect.DeepEqual] however they were built.
@@ -407,7 +408,7 @@ func wrap[T any](items []T) Slice[T] {
 // keep a 10,000-element array in the component. [slices.Clip] would not help, since the clipped array
 // is still the whole allocation.
 func shrink[T any](items []T) Slice[T] {
-	if len(items) > 0 && len(items) < cap(items)/2 {
+	if len(items) > 0 && cap(items)-len(items) > len(items) {
 		items = slices.Clone(items)
 	}
 	return wrap(items)
