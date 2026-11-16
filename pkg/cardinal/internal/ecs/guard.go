@@ -12,6 +12,14 @@ func (w *World) ReadOnly(holder string) string {
 	return previous
 }
 
+// guardWrite refuses the write named op while the world is read-only. Each guarded write calls it
+// first. It is small enough to inline, so a write that is allowed pays one comparison.
+func (ws *worldState) guardWrite(op string) {
+	if ws.readOnly != "" {
+		ws.refuseWrite(op)
+	}
+}
+
 // refuseWrite panics because op would change a world that is read-only.
 func (ws *worldState) refuseWrite(op string) {
 	panic(fmt.Sprintf("cardinal: %s must not change the world, and it called %s", ws.readOnly, op))

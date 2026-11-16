@@ -57,9 +57,7 @@ func newWorldState() *worldState {
 
 // reset clears all entity data while preserving registered components.
 func (ws *worldState) reset() {
-	if ws.readOnly != "" {
-		ws.refuseWrite("Reset")
-	}
+	ws.guardWrite("Reset")
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 
@@ -79,9 +77,7 @@ func (ws *worldState) reset() {
 
 // newEntity creates a new entity of the void archetype in the world state. Returns the entity ID.
 func (ws *worldState) newEntity() EntityID {
-	if ws.readOnly != "" {
-		ws.refuseWrite("Create")
-	}
+	ws.guardWrite("Create")
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 
@@ -118,9 +114,7 @@ func (ws *worldState) newEntityWithArchetype(components bitmap.Bitmap) EntityID 
 // removeEntity removes an entity from the world state. Returns true if the entity is removed, false
 // if the entity doesn't exist.
 func (ws *worldState) removeEntity(eid EntityID) bool {
-	if ws.readOnly != "" {
-		ws.refuseWrite("Destroy")
-	}
+	ws.guardWrite("Destroy")
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 
@@ -243,9 +237,7 @@ func (ws *worldState) findOrCreateArchetype(components bitmap.Bitmap) archetypeI
 // If the entity's archetype contains the component type, this will update the value. If it doesn't,
 // it will move the entity to a new archetype and set the value there.
 func (ws *worldState) setComponent[T Component](eid EntityID, component T) error {
-	if ws.readOnly != "" {
-		ws.refuseWrite("Set")
-	}
+	ws.guardWrite("Set")
 	aid, exists := ws.entityArch.get(eid)
 	if !exists {
 		return eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
@@ -321,9 +313,7 @@ func (ws *worldState) getComponent[T Component](eid EntityID) (T, error) {
 // removeComponent removes a component from the given entity. Returns an error if the entity or the
 // component to remove doesn't exist.
 func (ws *worldState) removeComponent[T Component](eid EntityID) error {
-	if ws.readOnly != "" {
-		ws.refuseWrite("Remove")
-	}
+	ws.guardWrite("Remove")
 	var zero T
 
 	aid, exists := ws.entityArch.get(eid)
@@ -404,9 +394,7 @@ const invalidComponentID ComponentID = maxComponentID + 1
 // fromProto rebuilds the worldState from a decoded snapshot. It builds a new state first and
 // commits it at the end. Thus a bad snapshot does not change the live world.
 func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
-	if ws.readOnly != "" {
-		ws.refuseWrite("FromProto")
-	}
+	ws.guardWrite("FromProto")
 	if pb == nil {
 		return eris.New("snapshot has no world state")
 	}
