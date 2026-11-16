@@ -157,10 +157,10 @@ func TestTestWorld_TickRunsHooksInOrderOnTheTestClock(t *testing.T) {
 	var log []observation
 	w := cardinal.NewTestWorld(t, func(w *cardinal.World) {
 		// Registered out of hook order: Tick orders by hook, not by registration.
-		w.RegisterSystem(&observe{hook: "post", log: &log}, cardinal.WithHook(cardinal.PostUpdate))
+		w.RegisterSystem(&observe{hook: "post", log: &log}, cardinal.WithPhase(cardinal.PostUpdate))
 		w.RegisterSystem(&observe{hook: "update", log: &log})
-		w.RegisterSystem(&observe{hook: "pre", log: &log}, cardinal.WithHook(cardinal.PreUpdate))
-		w.RegisterSystem(&observe{hook: "init", log: &log}, cardinal.WithHook(cardinal.Init))
+		w.RegisterSystem(&observe{hook: "pre", log: &log}, cardinal.WithPhase(cardinal.PreUpdate))
+		w.RegisterSystem(&observe{hook: "init", log: &log}, cardinal.WithPhase(cardinal.Init))
 	})
 	for range 3 {
 		w.Tick()
@@ -229,7 +229,7 @@ func TestRequireDeterministic_PassesAScriptThatReplays(t *testing.T) {
 		w.RegisterSystemEvent[testutils.SimpleSystemEvent]()
 		w.RegisterSystemEvent[hit]()
 		w.RegisterSystem(&markA{})
-		w.RegisterSystem(&markB{}, cardinal.WithHook(cardinal.PostUpdate))
+		w.RegisterSystem(&markB{}, cardinal.WithPhase(cardinal.PostUpdate))
 	}, func(w *cardinal.TestWorld) {
 		w.Create[marked]()
 		w.Command("alice", testutils.SimpleCommand{Value: 7})

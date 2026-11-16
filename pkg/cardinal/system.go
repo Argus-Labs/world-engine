@@ -32,15 +32,21 @@ var ErrWorldStarted = eris.New(
 
 // systemConfig holds all configurable options for system registration.
 type systemConfig struct {
-	// The hook that determines when the system should be executed.
-	hook ecs.SystemHook
+	// The phase of the update cycle the system runs in.
+	phase ecs.Phase
 }
 
 // SystemOption is a function that configures a SystemConfig.
 type SystemOption func(*systemConfig)
 
-// SystemHook defines when a system should be executed in the update cycle.
-type SystemHook = ecs.SystemHook
+// Phase is the stage of the update cycle a system runs in. Systems in a phase run in the order
+// they were registered.
+type Phase = ecs.Phase
+
+// SystemHook is the former name of Phase.
+//
+// Deprecated: Use Phase.
+type SystemHook = Phase
 
 const (
 	// PreUpdate runs before the main update.
@@ -53,9 +59,16 @@ const (
 	Init = ecs.Init
 )
 
-// WithHook returns an option to set the system hook.
-func WithHook(hook SystemHook) SystemOption {
-	return func(cfg *systemConfig) { cfg.hook = hook }
+// WithPhase sets the phase a system runs in. Systems without it run in Update.
+func WithPhase(phase Phase) SystemOption {
+	return func(cfg *systemConfig) { cfg.phase = phase }
+}
+
+// WithHook is the former name of WithPhase.
+//
+// Deprecated: Use WithPhase.
+func WithHook(phase Phase) SystemOption {
+	return WithPhase(phase)
 }
 
 // -------------------------------------------------------------------------------------------------

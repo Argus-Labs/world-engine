@@ -37,7 +37,7 @@ func TestQuery_EmptyOverlapMarshalsAsEmptyArray(t *testing.T) {
 			CategoryBits: 0xFFFF,
 			MaskBits:     0xFFFF,
 		}))
-	}}, cardinal.WithHook(cardinal.Init))
+	}}, cardinal.WithPhase(cardinal.Init))
 
 	initCardinalECS(w)
 	tickN(t, w, 2)

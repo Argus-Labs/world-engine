@@ -46,7 +46,7 @@ func spawnTwoShapeBody(t *testing.T, w *cardinal.World) *cardinal.EntityID {
 			},
 		))
 		*entityID = id
-	}}, cardinal.WithHook(cardinal.Init))
+	}}, cardinal.WithPhase(cardinal.Init))
 	return entityID
 }
 
@@ -90,7 +90,7 @@ func TestLookup_UnknownAndDestroyedEntity(t *testing.T) {
 		if w.TickHeight() == 5 {
 			require.True(t, w.Entity(*entityID).Destroy(), "Destroy(lookup entity)")
 		}
-	}}, cardinal.WithHook(cardinal.Update))
+	}}, cardinal.WithPhase(cardinal.Update))
 
 	initCardinalECS(w)
 	tickN(t, w, 3)

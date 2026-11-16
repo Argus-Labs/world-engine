@@ -46,8 +46,8 @@ func (w *World) Tick() {
 	defer w.systemEvents.clear()
 
 	// Run the systems sequentially.
-	for _, hook := range []SystemHook{PreUpdate, Update, PostUpdate} {
-		for _, system := range w.systems[hook] {
+	for _, phase := range []Phase{PreUpdate, Update, PostUpdate} {
+		for _, system := range w.systems[phase] {
 			system.fn()
 		}
 	}
@@ -69,15 +69,15 @@ func (w *World) Reset() {
 // Schedules returns the systems for all execution phases.
 func (w *World) Schedules() []ScheduleInfo {
 	schedules := make([]ScheduleInfo, 4)
-	for hook := range 4 {
-		systems := make([]SystemInfo, len(w.systems[hook]))
-		for i, sys := range w.systems[hook] {
+	for phase := range 4 {
+		systems := make([]SystemInfo, len(w.systems[phase]))
+		for i, sys := range w.systems[phase] {
 			systems[i] = SystemInfo{
 				ID:   i,
 				Name: sys.name,
 			}
 		}
-		schedules[hook] = ScheduleInfo{Hook: SystemHook(hook), Systems: systems}
+		schedules[phase] = ScheduleInfo{Phase: Phase(phase), Systems: systems}
 	}
 	return schedules
 }

@@ -498,18 +498,18 @@ func (w *World) RegisterSystem(s System, opts ...SystemOption) {
 	if v := reflect.ValueOf(s); s == nil || (v.Kind() == reflect.Pointer && v.IsNil()) {
 		panic(eris.Errorf("system %T is nil; register a constructed instance", s))
 	}
-	cfg := systemConfig{hook: Update}
+	cfg := systemConfig{phase: Update}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
 	name := fmt.Sprintf("%T", s)
-	hookName := ecsHookToProto(uint8(cfg.hook)).String()
+	phaseName := phaseToProto(cfg.phase).String()
 
 	// The attributes are fixed per system, so they are built once here.
-	attrs := oteltrace.WithAttributes(attrSystemName.String(name), attrSystemHook.String(hookName))
+	attrs := oteltrace.WithAttributes(attrSystemName.String(name), attrSystemHook.String(phaseName))
 	fn := func() { w.runSystem(s, name, attrs) }
 
-	if err := w.world.RegisterSystem(name, cfg.hook, fn); err != nil {
+	if err := w.world.RegisterSystem(name, cfg.phase, fn); err != nil {
 		panic(eris.Wrapf(err, "error registering system"))
 	}
 }

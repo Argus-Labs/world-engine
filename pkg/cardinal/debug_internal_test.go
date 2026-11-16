@@ -264,7 +264,7 @@ func TestResetPreservesInitEmittedClientEvents(t *testing.T) {
 
 	const emitVal = 42
 	require.NotPanics(t, func() {
-		w.RegisterSystem(&broadcastOnInitSystem{value: emitVal}, WithHook(Init))
+		w.RegisterSystem(&broadcastOnInitSystem{value: emitVal}, WithPhase(Init))
 	})
 
 	var observed []testutils.SimpleEvent

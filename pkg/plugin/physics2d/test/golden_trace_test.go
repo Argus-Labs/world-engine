@@ -239,7 +239,7 @@ func runGoldenScenarioWorkers(t *testing.T, sc goldenScenario, workers int) gold
 				trace.Queries = append(trace.Queries, q)
 			}
 		}
-	}}, cardinal.WithHook(cardinal.PostUpdate))
+	}}, cardinal.WithPhase(cardinal.PostUpdate))
 
 	initCardinalECS(w)
 	tickN(t, w, sc.tickCount)
@@ -343,7 +343,7 @@ func goldenSpawn(w *cardinal.World, entities func() []goldenEntity) {
 			row.Set(e.vel)
 			row.Set(e.body)
 		}
-	}}, cardinal.WithHook(cardinal.Init))
+	}}, cardinal.WithPhase(cardinal.Init))
 }
 
 // ---------------------------------------------------------------------------

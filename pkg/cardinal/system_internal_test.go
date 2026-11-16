@@ -101,7 +101,7 @@ func TestRegisterSystem_InitHook(t *testing.T) {
 	w := &World{world: ecs.NewWorld()}
 	count := 0
 	system := &privateStateSystem{dependency: &count}
-	w.RegisterSystem(system, WithHook(Init))
+	w.RegisterSystem(system, WithPhase(Init))
 
 	w.world.Init()
 	w.world.Tick()
@@ -135,7 +135,7 @@ func TestRegister_RejectsAfterStart(t *testing.T) {
 	t.Run("inside an init system", func(t *testing.T) {
 		t.Parallel()
 		w := &World{world: ecs.NewWorld()}
-		w.RegisterSystem(registeringSystem{}, WithHook(Init))
+		w.RegisterSystem(registeringSystem{}, WithPhase(Init))
 		require.PanicsWithError(t, ErrWorldStarted.Error(), w.init)
 	})
 

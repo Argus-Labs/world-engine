@@ -63,7 +63,7 @@ func TestReconcileErrorDoesNotSkipLaterEntities_Pipeline(t *testing.T) {
 		}
 		idA = spawn(0)
 		idB = spawn(100)
-	}}, cardinal.WithHook(cardinal.Init))
+	}}, cardinal.WithPhase(cardinal.Init))
 
 	w.RegisterSystem(&reconcileErrorPipelineDriver{run: func(w *cardinal.World) {
 		req := require.New(t)
@@ -120,7 +120,7 @@ func TestReconcileErrorDoesNotSkipLaterEntities_Pipeline(t *testing.T) {
 			req.Less(trA.Position.Y, 7.0, "A ECS Y fell after repair (writeback resumed for A): %v", trA)
 			verifiedResume = true
 		}
-	}}, cardinal.WithHook(cardinal.PostUpdate))
+	}}, cardinal.WithPhase(cardinal.PostUpdate))
 
 	initCardinalECS(w)
 	tickN(t, w, lastTick+1)

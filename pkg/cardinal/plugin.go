@@ -16,7 +16,7 @@ package cardinal
 //	    w.RegisterComponent[MyComponent]()
 //	    w.RegisterCommand[MyCommand]()
 //	    w.RegisterEvent[MyEvent]()
-//	    w.RegisterSystem(&MyInitSystem{}, cardinal.WithHook(cardinal.Init))
+//	    w.RegisterSystem(&MyInitSystem{}, cardinal.WithPhase(cardinal.Init))
 //	    w.RegisterSystem(&MyTickSystem{})
 //	}
 type Plugin interface {

@@ -61,7 +61,7 @@ func snapshotBenchWorld(b *testing.B, rate uint32, bodies, warmup int) *cardinal
 		Gravity:  physics.Vec2{},
 		TickRate: 60,
 	}))
-	w.RegisterSystem(restingBodiesSystem(bodies), cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(restingBodiesSystem(bodies), cardinal.WithPhase(cardinal.Init))
 	initCardinalECS(w)
 	benchTickN(w, warmup)
 	return w
