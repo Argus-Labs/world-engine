@@ -105,9 +105,9 @@ type Runner struct {
 	emit        Emit // The event Emit is running hooks for.
 }
 
-// New returns a runner whose hooks may read world and may not write to it.
-func New(world *ecs.World) *Runner {
-	return &Runner{world: world}
+// New returns a runner whose hooks may read w and may not write to it.
+func New(w *ecs.World) *Runner {
+	return &Runner{world: w}
 }
 
 // Register adds hooks after every registration before it. Register before the first tick.
