@@ -1,8 +1,8 @@
-// Package kernel runs the hooks Cardinal calls at fixed points of a tick. A hook reads the world
+// Package plugin runs the hooks plugins register, at fixed points of a tick. A hook reads the world
 // and decides what the tick admits, sends and publishes; it never writes to the world.
 //
 // Hooks run on the tick goroutine, in the order their registrants were registered.
-package kernel
+package plugin
 
 import (
 	"fmt"
