@@ -58,8 +58,8 @@ type World struct {
 
 	sync           *syncPublisher               // Sync state the tick publishes; nil until a sync type is registered
 	commandSenders map[string]syncstate.Senders // Command name -> who may send it; absent: anyone
-	judged         commandMemory                // Verdicts on players' recent command IDs; nil until the first tick
-	admitted       map[string]bool              // EnableSync's verdict on each sender judged this tick
+	judged         commandMemory                // Verdicts on players' recent command IDs; set by hookSync
+	admitted       map[string]bool              // EnableSync's verdict on each sender judged this tick; set by hookSync
 	systemEventTap func(ecs.SystemEvent)        // Sees each emitted system event; set only by TestWorld
 }
 

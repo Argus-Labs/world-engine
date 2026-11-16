@@ -153,6 +153,16 @@ func (w *World) stampSync(payload any) {
 	}
 }
 
+// syncAudience narrows an event's recipients by sync access, judged at dispatch.
+type syncAudience struct {
+	publisher  *syncPublisher
+	id         syncstate.ID // the lifetime the event is about, when stamped
+	stamped    bool
+	occurrence bool        // live feedback: only for readers whose sync stream is open
+	ungated    bool        // the lifetime was alive and not synced when the event was emitted
+	fallback   *syncPolicy // judged by this if the lifetime has no entry at dispatch; nil: nobody
+}
+
 // syncAudience returns who may receive an event at dispatch, or nil for the default delivery;
 // payload points at the event. It captures the fallback an event about an entity is judged by if
 // the lifetime has no entry at dispatch: the live lists if the lifetime is synced now, else its
@@ -187,6 +197,35 @@ func (w *World) syncAudience(payload any) *syncAudience {
 		audience.ungated = true // alive, and never synced as this lifetime: not about synced state
 	}
 	return audience
+}
+
+// policy is what the event is judged by: the lifetime's entry if it has one now, else the
+// fallback captured at emit. It returns false when access does not apply.
+func (a *syncAudience) policy() (*syncPolicy, bool) {
+	if !a.stamped {
+		return nil, false
+	}
+	if e := a.publisher.entry(EntityID(a.id.Entity)); e != nil && e.id == a.id {
+		return e.policy, true
+	}
+	return a.fallback, !a.ungated
+}
+
+// Admits reports whether player may receive the event on stream, or as a reply waiter when stream
+// is nil. An occurrence needs the player's open sync stream; any stamped event needs view access
+// to its entity, and admission.
+func (a *syncAudience) Admits(player string, stream event.Stream) bool {
+	p := a.publisher
+	pol, gated := a.policy()
+	if a.occurrence {
+		slot, seated := p.roster.slotOf[player]
+		if !seated || !p.roster.live.has(slot) ||
+			(stream != nil && p.roster.readers[slot].subscriber != stream) {
+			return false
+		}
+		return !gated || p.access(pol, player) >= syncstate.View
+	}
+	return !gated || (p.access(pol, player) >= syncstate.View && p.admit(player))
 }
 
 // targeted is a command that embeds sync.Target.
@@ -257,6 +296,7 @@ func (w *World) hookSync() {
 	if w.hooks != nil {
 		return
 	}
+	w.judged, w.admitted = commandMemory{}, map[string]bool{}
 	w.hooks = plugin.New(w.world)
 	w.hooks.Register(plugin.Hooks{
 		Name:   "sync",
@@ -271,12 +311,6 @@ func (w *World) hookSync() {
 // beginJudging forgets, before the tick's first command is judged, the verdicts that have aged
 // out and what EnableSync's predicate said about last tick's senders.
 func (w *World) beginJudging() {
-	if w.judged == nil {
-		w.judged = commandMemory{}
-	}
-	if w.admitted == nil {
-		w.admitted = map[string]bool{}
-	}
 	w.judged.forget(w.Timestamp())
 	clear(w.admitted)
 }
@@ -310,26 +344,6 @@ func (w *World) judgeCommand(cmd command.Command) plugin.Verdict {
 	return plugin.Verdict{}
 }
 
-// emitSync is sync's part in sending an event. It stamps the event, narrows a client event to
-// the readers who may see it, and publishes the changes made before it, so they arrive first.
-func (w *World) emitSync(e *plugin.Emit) {
-	w.stampSync(e.Payload)
-	if e.Kind != plugin.SystemEvent {
-		// Before the capture below can drop a destroyed entity's last entry.
-		if audience := w.syncAudience(e.Payload); audience != nil {
-			e.Narrow(audience)
-		}
-	}
-	w.captureSync(false)
-}
-
-// commitSync publishes what the tick's systems left behind: the last capture, then an open or a
-// close for every reader whose stream must change.
-func (w *World) commitSync() {
-	w.captureSync(true)
-	w.reconcileSync()
-}
-
 // commandVerdict judges a command no earlier verdict covers; "" admits it.
 func (w *World) commandVerdict(cmd command.Command) syncstate.Reason {
 	player, isPlayer := cmd.Sender.Player()
@@ -357,4 +371,24 @@ func (w *World) commandVerdict(cmd command.Command) syncstate.Reason {
 		w.admitted[player] = allowed
 	}
 	return p.judge(player, allowed, target.SyncTarget())
+}
+
+// emitSync is sync's part in sending an event. It stamps the event, narrows a client event to
+// the readers who may see it, and publishes the changes made before it, so they arrive first.
+func (w *World) emitSync(e *plugin.Emit) {
+	w.stampSync(e.Payload)
+	if e.Kind != plugin.SystemEvent {
+		// Before the capture below can drop a destroyed entity's last entry.
+		if audience := w.syncAudience(e.Payload); audience != nil {
+			e.Narrow(audience)
+		}
+	}
+	w.captureSync(false)
+}
+
+// commitSync publishes what the tick's systems left behind: the last capture, then an open or a
+// close for every reader whose stream must change.
+func (w *World) commitSync() {
+	w.captureSync(true)
+	w.reconcileSync()
 }

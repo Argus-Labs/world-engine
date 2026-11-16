@@ -159,11 +159,17 @@ func (l resolvedList) has(player string) bool {
 	return false
 }
 
+// The two access lists of a policy, in the order syncPolicy.src and syncPolicy.lists hold them.
+const (
+	viewerList    = iota // sync.Viewers
+	authorityList        // sync.Authorities
+)
+
 // syncPolicy is one interned pair of access lists. Entities with equal lists share one, so
 // "did access change?" is a pointer comparison.
 type syncPolicy struct {
 	key      string
-	src      [2]*syncList    // viewers, authorities as written; nil: the entity has no such component
+	src      [2]*syncList    // each list as written; nil: the entity has no such component
 	lists    [2]resolvedList // the same, resolved
 	stale    bool            // a group it names was replaced: its entities resolve their lists again
 	view     bitset          // slots named by viewers
@@ -174,7 +180,7 @@ type syncPolicy struct {
 // words returns one word of "may view" and "has authority", indexed by slot.
 func (p *syncPolicy) words(w int) (uint64, uint64) {
 	auth := p.auth.word(w)
-	if p.src[0] == nil {
+	if p.src[viewerList] == nil {
 		return ^uint64(0), auth // no sync.Viewers: every reader may view
 	}
 	return p.view.word(w) | auth, auth
@@ -183,17 +189,17 @@ func (p *syncPolicy) words(w int) (uint64, uint64) {
 // access is the definition, and the path for a player without a slot.
 func (p *syncPolicy) access(player string) syncstate.Access {
 	switch {
-	case p.lists[1].has(player):
+	case p.lists[authorityList].has(player):
 		return syncstate.Authority
-	case p.src[0] == nil || p.lists[0].has(player):
+	case p.src[viewerList] == nil || p.lists[viewerList].has(player):
 		return syncstate.View
 	}
 	return syncstate.None
 }
 
 func (p *syncPolicy) bind(s int, player string) {
-	p.view.put(s, p.lists[0].has(player))
-	p.auth.put(s, p.lists[1].has(player))
+	p.view.put(s, p.lists[viewerList].has(player))
+	p.auth.put(s, p.lists[authorityList].has(player))
 }
 
 func (l *syncList) groupNames() []string {
@@ -375,8 +381,8 @@ func (p *syncPublisher) intern(src [2]*syncList) *syncPolicy {
 		return pol
 	}
 	pol := &syncPolicy{key: key.String(), src: src, lists: lists}
-	p.mask(&pol.view, src[0], lists[0])
-	p.mask(&pol.auth, src[1], lists[1])
+	p.mask(&pol.view, src[viewerList], lists[viewerList])
+	p.mask(&pol.auth, src[authorityList], lists[authorityList])
 	p.policies[pol.key] = pol
 	return pol
 }
@@ -438,22 +444,24 @@ func (p *syncPublisher) mask(bits *bitset, l *syncList, resolved resolvedList) {
 // policyOf returns the policy for an entity's lists. They are resolved again only when they
 // differ from the old policy's as written, or a group that policy names was replaced.
 func (p *syncPublisher) policyOf(lists accessLists, old *syncEntry) *syncPolicy {
-	if old != nil && !old.policy.stale &&
-		old.policy.src[0].written(lists.hasViewers, lists.viewers.Players, lists.viewers.Groups) &&
-		old.policy.src[1].written(lists.hasAuthorities, lists.authorities.Players, lists.authorities.Groups) {
-		return old.policy
+	if old != nil && !old.policy.stale {
+		src := old.policy.src
+		if src[viewerList].written(lists.hasViewers, lists.viewers.Players, lists.viewers.Groups) &&
+			src[authorityList].written(lists.hasAuthorities, lists.authorities.Players, lists.authorities.Groups) {
+			return old.policy
+		}
 	}
 	return p.intern(lists.sources())
 }
 
-// sources returns the lists as written: viewers, then authorities. nil: no such component.
+// sources returns the lists as written. nil: no such component.
 func (l *accessLists) sources() [2]*syncList {
 	var src [2]*syncList
 	if l.hasViewers {
-		src[0] = &syncList{stringsOf(l.viewers.Players), stringsOf(l.viewers.Groups)}
+		src[viewerList] = &syncList{stringsOf(l.viewers.Players), stringsOf(l.viewers.Groups)}
 	}
 	if l.hasAuthorities {
-		src[1] = &syncList{stringsOf(l.authorities.Players), stringsOf(l.authorities.Groups)}
+		src[authorityList] = &syncList{stringsOf(l.authorities.Players), stringsOf(l.authorities.Groups)}
 	}
 	return src
 }
@@ -814,7 +822,7 @@ func liveAuthority(w *World, player string) []syncstate.ID {
 	var out []syncstate.ID
 	for _, n := range held {
 		lists := readLists(w, n)
-		if lists.sources()[1].resolve(groups).has(player) {
+		if lists.sources()[authorityList].resolve(groups).has(player) {
 			out = append(out, w.Entity(n).SyncID())
 		}
 	}
