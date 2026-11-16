@@ -780,16 +780,16 @@ func TestPhysics2D_CardinalIntegration(t *testing.T) {
 	w.RegisterComponent[harnessTag]()
 
 	// Init hook must run before plugin Init so FullRebuildFromECS sees harness entities.
-	w.RegisterSystem(&sceneInitSystem{}, cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(&sceneInitSystem{}, cardinal.WithPhase(cardinal.Init))
 	plugin := physics.NewPlugin(physics.Config{
 		Gravity:  physics.Vec2{X: 0, Y: -10},
 		TickRate: 60,
 	})
 	w.RegisterPlugin(plugin)
 	// Gameplay system moves the manual body each tick (before physics reconcile).
-	w.RegisterSystem(&manualMoveSystem{}, cardinal.WithHook(cardinal.PreUpdate))
+	w.RegisterSystem(&manualMoveSystem{}, cardinal.WithPhase(cardinal.PreUpdate))
 	// Assertions run after physics step (same-tick contact receivers).
-	w.RegisterSystem(newVerifySystem(plugin), cardinal.WithHook(cardinal.PostUpdate))
+	w.RegisterSystem(newVerifySystem(plugin), cardinal.WithPhase(cardinal.PostUpdate))
 
 	initCardinalECS(w)
 

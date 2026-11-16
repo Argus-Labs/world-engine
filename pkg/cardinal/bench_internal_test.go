@@ -556,7 +556,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 					entity := w.Create[arch1]()
 					entity.Set(Position3D{X: float64(j), Y: float64(j), Z: float64(j)})
 				}
-			}}, WithHook(Init))
+			}}, WithPhase(Init))
 
 			w.RegisterSystem(&benchRunSystem{run: func(w *World) {
 				entities := w.Contains[arch1]()
@@ -567,7 +567,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 					entity.Set(pos)
 				}
 				b.StopTimer()
-			}}, WithHook(Update))
+			}}, WithPhase(Update))
 
 			w.world.Init()
 			w.world.Tick()
@@ -589,7 +589,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 					entity.Set(Transform{Scale: 1.0, Rotation: float64(j)})
 					entity.Set(Inventory{Items: immutable.SliceOf("item"), Capacity: 10})
 				}
-			}}, WithHook(Init))
+			}}, WithPhase(Init))
 
 			w.RegisterSystem(&benchRunSystem{run: func(w *World) {
 				entities := w.Contains[arch5]()
@@ -602,7 +602,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 					entity.Set(vel)
 				}
 				b.StopTimer()
-			}}, WithHook(Update))
+			}}, WithPhase(Update))
 
 			w.world.Init()
 			w.world.Tick()
@@ -632,7 +632,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 						IsDirty: false, Interpolate: true,
 					})
 				}
-			}}, WithHook(Init))
+			}}, WithPhase(Init))
 
 			w.RegisterSystem(&benchRunSystem{run: func(w *World) {
 				entities := w.Contains[arch10]()
@@ -650,7 +650,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 					entity.Set(renderer)
 				}
 				b.StopTimer()
-			}}, WithHook(Update))
+			}}, WithPhase(Update))
 
 			w.world.Init()
 			w.world.Tick()

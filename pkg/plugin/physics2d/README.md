@@ -29,7 +29,7 @@ system resolves its archetypes on its first `Contains`, `Exact`, or `Create` cal
 not when it is registered, and every `Register*` call panics once the world has started.
 
 ```go
-w.RegisterSystem(&spawnBodiesSystem{}, cardinal.WithHook(cardinal.Init))
+w.RegisterSystem(&spawnBodiesSystem{}, cardinal.WithPhase(cardinal.Init))
 w.RegisterPlugin(physics)
 ```
 

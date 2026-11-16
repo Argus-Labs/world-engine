@@ -346,8 +346,8 @@ func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 	physics.RegisterComponents(w)
 	w.RegisterComponent[probe.Probe]()
 
-	w.RegisterSystem(&setupState{runner: r}, cardinal.WithHook(cardinal.Init))
-	w.RegisterSystem(&preStepState{runner: r}, cardinal.WithHook(cardinal.PreUpdate))
+	w.RegisterSystem(&setupState{runner: r}, cardinal.WithPhase(cardinal.Init))
+	w.RegisterSystem(&preStepState{runner: r}, cardinal.WithPhase(cardinal.PreUpdate))
 
 	// Registered ahead of the plugin so it sees ECS as the tick found it. After
 	// a snapshot restore that is the deserialized state, before anything has had
@@ -368,10 +368,10 @@ func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 	})
 
 	// Ahead of the plugin so the watchdog sees the world as the tick found it.
-	w.RegisterSystem(&watchWorldState{runner: r}, cardinal.WithHook(cardinal.PreUpdate))
+	w.RegisterSystem(&watchWorldState{runner: r}, cardinal.WithPhase(cardinal.PreUpdate))
 	w.RegisterPlugin(r.plugin)
 
-	w.RegisterSystem(&stepState{runner: r}, cardinal.WithHook(cardinal.Update))
+	w.RegisterSystem(&stepState{runner: r}, cardinal.WithPhase(cardinal.Update))
 
 	if cfg.PostCapture != nil {
 		RegisterPostCapture(w, cfg.PostCapture)
@@ -491,7 +491,7 @@ type digestCollectorState struct {
 // runOnce registers fn as a one-shot Update system and ticks the world once so
 // it can read component state on the world's system goroutine.
 func runOnce(w *cardinal.World, fn func(w *cardinal.World)) {
-	w.RegisterSystem(&digestCollectorState{collect: fn}, cardinal.WithHook(cardinal.Update))
+	w.RegisterSystem(&digestCollectorState{collect: fn}, cardinal.WithPhase(cardinal.Update))
 	w.Tick(time.Unix(1<<20, 0))
 }
 

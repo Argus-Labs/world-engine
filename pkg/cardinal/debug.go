@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/rotisserie/eris"
 
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
@@ -102,22 +103,23 @@ func (d *debugModule) buildSchedules() []*cardinalv1.SystemSchedule {
 			}
 		}
 		schedules = append(schedules, &cardinalv1.SystemSchedule{
-			Hook:    ecsHookToProto(uint8(s.Hook)),
+			Hook:    phaseToProto(s.Phase),
 			Systems: nodes,
 		})
 	}
 	return schedules
 }
 
-func ecsHookToProto(hook uint8) cardinalv1.SystemHook {
+// phaseToProto maps a phase to the debug protocol's SystemHook enum, which keeps its wire name.
+func phaseToProto(phase ecs.Phase) cardinalv1.SystemHook {
 	mapping := [4]cardinalv1.SystemHook{
 		cardinalv1.SystemHook_SYSTEM_HOOK_PRE_UPDATE,
 		cardinalv1.SystemHook_SYSTEM_HOOK_UPDATE,
 		cardinalv1.SystemHook_SYSTEM_HOOK_POST_UPDATE,
 		cardinalv1.SystemHook_SYSTEM_HOOK_INIT,
 	}
-	if int(hook) < len(mapping) {
-		return mapping[hook]
+	if int(phase) < len(mapping) {
+		return mapping[phase]
 	}
 	return cardinalv1.SystemHook_SYSTEM_HOOK_UNSPECIFIED
 }

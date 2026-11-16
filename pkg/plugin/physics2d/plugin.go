@@ -164,8 +164,8 @@ func (p *Plugin) Register(w *cardinal.World) {
 	w.RegisterSystemEvent[physicevent.ContactEndEvent]()
 	w.RegisterSystemEvent[physicevent.TriggerBeginEvent]()
 	w.RegisterSystemEvent[physicevent.TriggerEndEvent]()
-	w.RegisterSystem(physicssystem.NewInitPhysicsSystem(rt), cardinal.WithHook(cardinal.Init))
-	w.RegisterSystem(physicssystem.NewPhysicsPipelineSystem(rt), cardinal.WithHook(cardinal.PreUpdate))
+	w.RegisterSystem(physicssystem.NewInitPhysicsSystem(rt), cardinal.WithPhase(cardinal.Init))
+	w.RegisterSystem(physicssystem.NewPhysicsPipelineSystem(rt), cardinal.WithPhase(cardinal.PreUpdate))
 
 	// Assigned last: a registration that panics above (for example a component name clash) leaves
 	// the instance unregistered, so it can still be registered on another world.

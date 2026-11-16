@@ -34,7 +34,7 @@ func main() {
 
 	w.RegisterSystemEvent[systemevent.PlayerDeath]()
 
-	w.RegisterSystem(&system.PlayerSpawnerSystem{}, cardinal.WithHook(cardinal.Init))
+	w.RegisterSystem(&system.PlayerSpawnerSystem{}, cardinal.WithPhase(cardinal.Init))
 
 	w.RegisterSystem(&system.CreatePlayerSystem{})
 	w.RegisterSystem(&system.RegenSystem{})

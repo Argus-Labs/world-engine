@@ -42,7 +42,7 @@ func TestWorld_ModelFuzz(t *testing.T) {
 	expectedTickOrder := make([]string, 0)
 	tickOrder := make([]string, 0)
 
-	for _, hook := range []SystemHook{PreUpdate, Update, PostUpdate} {
+	for _, hook := range []Phase{PreUpdate, Update, PostUpdate} {
 		numSystems := prng.IntN(5) + 1
 		for systemID := range numSystems {
 			name := fmt.Sprintf("%d-%d", hook, systemID)

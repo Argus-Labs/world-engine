@@ -71,7 +71,7 @@ func TestTickEmitsSpans(t *testing.T) {
 	exporter := newRecordingTracer(t)
 
 	sys := &tracedSystem{}
-	w.RegisterSystem(sys, WithHook(PostUpdate))
+	w.RegisterSystem(sys, WithPhase(PostUpdate))
 	w.init()
 	exporter.Reset()
 

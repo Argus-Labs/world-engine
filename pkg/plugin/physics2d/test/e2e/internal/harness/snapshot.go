@@ -115,12 +115,12 @@ func contactKey(p physics.ContactPairEntry) string {
 // Call it before RegisterPlugin. After a snapshot restore, the first tick's
 // pre-capture is the deserialized ECS state with nothing else having touched it.
 func RegisterPreCapture(w *cardinal.World, into *Capture) {
-	w.RegisterSystem(&preCaptureState{into: into}, cardinal.WithHook(cardinal.PreUpdate))
+	w.RegisterSystem(&preCaptureState{into: into}, cardinal.WithPhase(cardinal.PreUpdate))
 }
 
 // RegisterPostCapture registers a capture that runs after the physics pipeline.
 func RegisterPostCapture(w *cardinal.World, into *Capture) {
-	w.RegisterSystem(&postCaptureState{into: into}, cardinal.WithHook(cardinal.PostUpdate))
+	w.RegisterSystem(&postCaptureState{into: into}, cardinal.WithPhase(cardinal.PostUpdate))
 }
 
 // -----------------------------------------------------------------------------

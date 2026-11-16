@@ -233,25 +233,25 @@ w.RegisterSystem(&MySystem{})
 
 Registered systems run sequentially within each tick phase, in registration order.
 
-### System Hooks
+### System Phases
 
-You can control when a system executes during a tick by specifying a hook when you register the system, for example:
+You can control when a system executes during a tick by specifying a phase when you register the system, for example:
 
 ```go
 // This system now runs in the pre-update phase of the tick.
-w.RegisterSystem(&MySystem{}, cardinal.WithHook(cardinal.PreUpdate))
+w.RegisterSystem(&MySystem{}, cardinal.WithPhase(cardinal.PreUpdate))
 ```
 
-By default, systems run on the update phase. Here are the different hooks you can use:
+By default, systems run in the update phase. Here are the different phases you can use:
 
-| Hook         | When it runs                                                                           |
-| ------------ | -------------------------------------------------------------------------------------- |
-| `Init`       | Once during world initialization (only once at tick 0), before any game loop starts    |
-| `PreUpdate`  | Every tick, before the main update phase                                               |
-| `Update`     | Every tick, during the main update phase (this is the default if no hook is specified) |
-| `PostUpdate` | Every tick, after the main update phase                                                |
+| Phase        | When it runs                                                                            |
+| ------------ | --------------------------------------------------------------------------------------- |
+| `Init`       | Once during world initialization (only once at tick 0), before any game loop starts     |
+| `PreUpdate`  | Every tick, before the main update phase                                                |
+| `Update`     | Every tick, during the main update phase (this is the default if no phase is specified) |
+| `PostUpdate` | Every tick, after the main update phase                                                 |
 
-Each of these corresponds to a tick phase, except `Init`, which runs only once in the first tick.
+`Init` is the only phase that runs once instead of every tick. `WithHook` is the deprecated former name of `WithPhase`.
 
 ## Queries
 

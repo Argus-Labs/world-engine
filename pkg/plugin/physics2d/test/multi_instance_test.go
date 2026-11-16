@@ -34,7 +34,7 @@ func spawnBallAndFloor(w *cardinal.World, x float64, ballID *cardinal.EntityID) 
 		ball.Set(physics.Velocity2D{})
 		ball.Set(newRigid(physics.BodyTypeDynamic, circleColliderShapes()...))
 		*ballID = id
-	}}, cardinal.WithHook(cardinal.Init))
+	}}, cardinal.WithPhase(cardinal.Init))
 }
 
 // ballY reads the ball's current Y position through the plugin's raycast-free ECS view: a
@@ -46,7 +46,7 @@ func trackBallY(w *cardinal.World, out *float64) {
 				*out = row.Get[physics.Transform2D]().Position.Y
 			}
 		}
-	}}, cardinal.WithHook(cardinal.PostUpdate))
+	}}, cardinal.WithPhase(cardinal.PostUpdate))
 }
 
 // TestMultiInstance_IndependentWorlds proves two plugins in one process simulate independently:
