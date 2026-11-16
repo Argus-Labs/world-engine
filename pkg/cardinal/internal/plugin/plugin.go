@@ -72,7 +72,7 @@ func (e *Emit) Narrow(audience event.Audience) {
 // both admits a recipient that each of its two audiences admits.
 type both struct{ first, second event.Audience }
 
-func (b both) Admits(player string, stream any) bool {
+func (b both) Admits(player string, stream event.Stream) bool {
 	return b.first.Admits(player, stream) && b.second.Admits(player, stream)
 }
 

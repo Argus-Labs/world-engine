@@ -882,6 +882,9 @@ func admits(audience event.Audience, player string, stream *streamSubscriber) bo
 	return audience == nil || audience.Admits(player, stream)
 }
 
+// EventStream makes the subscriber the event.Stream audiences are asked about.
+func (*streamSubscriber) EventStream() {}
+
 // subscribedTo reports whether the stream asked for the named event. Requires service.mu.
 func (s *streamSubscriber) subscribedTo(eventName string) bool {
 	for subscription := range s.events {

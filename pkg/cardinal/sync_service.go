@@ -346,17 +346,16 @@ func (a *syncAudience) policy() (*syncPolicy, bool) {
 	return a.fallback, !a.ungated
 }
 
-// Admits reports whether player may receive the event on stream, a *streamSubscriber, or as a
-// reply waiter when stream is nil. An occurrence needs the player's open sync stream; any stamped
-// event needs view access to its entity, and admission.
-func (a *syncAudience) Admits(player string, stream any) bool {
-	subscriber, _ := stream.(*streamSubscriber)
+// Admits reports whether player may receive the event on stream, or as a reply waiter when stream
+// is nil. An occurrence needs the player's open sync stream; any stamped event needs view access
+// to its entity, and admission.
+func (a *syncAudience) Admits(player string, stream event.Stream) bool {
 	p := a.publisher
 	pol, gated := a.policy()
 	if a.occurrence {
 		slot, seated := p.roster.slotOf[player]
 		if !seated || !p.roster.live.has(slot) ||
-			(subscriber != nil && p.roster.readers[slot].subscriber != subscriber) {
+			(stream != nil && p.roster.readers[slot].subscriber != stream) {
 			return false
 		}
 		return !gated || p.access(pol, player) >= syncstate.View

@@ -15,7 +15,7 @@ import (
 // hookAudience is an audience a test supplies as a function.
 type hookAudience func(player string) bool
 
-func (a hookAudience) Admits(player string, _ any) bool { return a(player) }
+func (a hookAudience) Admits(player string, _ event.Stream) bool { return a(player) }
 
 // hookSystem is a system a test supplies as a function.
 type hookSystem func(w *World)

@@ -21,10 +21,15 @@ type Event struct {
 // Audience narrows who receives a default event. It is asked at dispatch, on the tick goroutine
 // and with no lock held, once for each recipient the event would otherwise reach.
 type Audience interface {
-	// Admits reports whether player may receive the event. stream identifies the open stream the
-	// event would be written to, and is only ever compared for identity. It is nil when the player
-	// is waiting for the event as a command's reply.
-	Admits(player string, stream any) bool
+	// Admits reports whether player may receive the event on stream, the open stream it would be
+	// written to. stream is nil when the player is waiting for the event as a command's reply.
+	Admits(player string, stream Stream) bool
+}
+
+// Stream is an open event stream an Audience is asked about. An audience only compares streams
+// for identity. Cardinal's stream subscriber is the one implementation.
+type Stream interface {
+	EventStream()
 }
 
 // Payload is the interface all default event payloads must implement.

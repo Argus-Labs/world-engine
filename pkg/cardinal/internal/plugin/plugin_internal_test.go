@@ -6,6 +6,7 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,7 +14,7 @@ import (
 // only admits the players it names.
 type only map[string]bool
 
-func (o only) Admits(player string, _ any) bool { return o[player] }
+func (o only) Admits(player string, _ event.Stream) bool { return o[player] }
 
 func TestRunner_RunsHooksInRegistrationOrder(t *testing.T) {
 	t.Parallel()
