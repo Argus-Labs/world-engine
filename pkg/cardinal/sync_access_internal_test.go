@@ -287,8 +287,8 @@ func TestSyncFoldTable(t *testing.T) {
 
 	// Entity presence changed (sync removed and re-added): every holder gets the whole record,
 	// and no grant, since access did not change.
-	e.Remove[syncstate.Sync]()
-	e.Set(syncstate.Sync{})
+	e.Remove[syncstate.Entity]()
+	e.Set(syncstate.Entity{})
 	f.Tick()
 	for _, p := range []string{"alice", "bob", "carol"} {
 		fr := f.frame(t, p)
@@ -609,7 +609,7 @@ func TestSyncGroupsFailClosed(t *testing.T) {
 	}
 
 	// Group members never reach the wire, even on a synced entity.
-	team.Set(syncstate.Sync{})
+	team.Set(syncstate.Entity{})
 	f.Tick()
 	record := f.frame(t, "bob").Records
 	require.Len(t, record, 1)

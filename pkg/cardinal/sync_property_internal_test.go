@@ -37,7 +37,7 @@ import (
 // Raise the seed count with SYNC_PROPERTY_SEEDS=n. A failure names its seed and tick.
 
 type propValue struct {
-	syncstate.State
+	syncstate.Component
 
 	V int
 }
@@ -46,7 +46,7 @@ func (propValue) Name() string { return "prop_value" }
 
 // propTag is a second synced component, so a patch can carry one component and keep another.
 type propTag struct {
-	syncstate.State
+	syncstate.Component
 
 	T int
 }
@@ -54,7 +54,7 @@ type propTag struct {
 func (propTag) Name() string { return "prop_tag" }
 
 type propSynced struct {
-	syncstate.Sync
+	syncstate.Entity
 
 	Value propValue
 }
@@ -222,7 +222,7 @@ func (s *propSim) failf(format string, args ...any) {
 
 func (s *propSim) synced(n EntityID) bool {
 	e := s.w.Entity(n)
-	return e.Alive() && e.Has[syncstate.Sync]()
+	return e.Alive() && e.Has[syncstate.Entity]()
 }
 
 func (s *propSim) groupMembers() map[string][][]string {
@@ -684,10 +684,10 @@ func (s *propSim) op() {
 		}
 	case 8:
 		if ok {
-			if s.w.Entity(n).Has[syncstate.Sync]() {
-				s.w.Entity(n).Remove[syncstate.Sync]()
+			if s.w.Entity(n).Has[syncstate.Entity]() {
+				s.w.Entity(n).Remove[syncstate.Entity]()
 			} else {
-				s.w.Entity(n).Set(syncstate.Sync{})
+				s.w.Entity(n).Set(syncstate.Entity{})
 			}
 		}
 	case 9, 10:

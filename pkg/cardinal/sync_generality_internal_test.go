@@ -13,7 +13,7 @@ import (
 )
 
 type syncLoadout struct {
-	syncstate.State
+	syncstate.Component
 
 	WeaponID string
 	Ammo     uint16
@@ -23,7 +23,7 @@ type syncLoadout struct {
 func (syncLoadout) Name() string { return "loadout" }
 
 type syncCosmetics struct {
-	syncstate.State
+	syncstate.Component
 
 	Tint    uint32
 	Opacity float32
@@ -32,7 +32,7 @@ type syncCosmetics struct {
 func (syncCosmetics) Name() string { return "cosmetics" }
 
 type syncEquipment struct {
-	syncstate.Sync
+	syncstate.Entity
 
 	Loadout   syncLoadout
 	Cosmetics syncCosmetics

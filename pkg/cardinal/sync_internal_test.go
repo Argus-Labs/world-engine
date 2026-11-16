@@ -17,7 +17,7 @@ import (
 )
 
 type syncHealth struct {
-	syncstate.State
+	syncstate.Component
 
 	HP    int
 	MaxHP int
@@ -30,7 +30,7 @@ type syncPrivate struct{ Secret string }
 func (syncPrivate) Name() string { return "private" }
 
 type syncAvatar struct {
-	syncstate.Sync
+	syncstate.Entity
 
 	Health  syncHealth
 	Private syncPrivate
@@ -351,8 +351,8 @@ func TestSyncReuseAndPresenceNeverAlias(t *testing.T) {
 	entity.Set(syncHealth{HP: 7})
 	w.Tick()
 	first := only().Records[0]
-	entity.Remove[syncstate.Sync]()
-	entity.Set(syncstate.Sync{})
+	entity.Remove[syncstate.Entity]()
+	entity.Set(syncstate.Entity{})
 	w.Tick()
 	restated := only()
 	require.Empty(t, restated.Patches)
@@ -547,7 +547,7 @@ func TestSyncRevocationClearsStateWithoutDroppingCleanupOrRefusal(t *testing.T) 
 }
 
 type syncZeta struct {
-	syncstate.State
+	syncstate.Component
 
 	Z int
 }
@@ -555,7 +555,7 @@ type syncZeta struct {
 func (syncZeta) Name() string { return "Zeta" }
 
 type syncAlpha struct {
-	syncstate.State
+	syncstate.Component
 
 	A int
 }
@@ -563,7 +563,7 @@ type syncAlpha struct {
 func (syncAlpha) Name() string { return "alpha" }
 
 type syncBeta struct {
-	syncstate.State
+	syncstate.Component
 
 	B int
 }
@@ -571,7 +571,7 @@ type syncBeta struct {
 func (syncBeta) Name() string { return "beta" }
 
 type syncLettered struct {
-	syncstate.Sync
+	syncstate.Entity
 
 	Beta  syncBeta
 	Zeta  syncZeta

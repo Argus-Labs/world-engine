@@ -15,7 +15,7 @@ func TestMarkerDoesNotChangeMessagePack(t *testing.T) {
 		MaxHP int
 	}
 	type public struct {
-		syncstate.State
+		syncstate.Component
 
 		HP    int
 		MaxHP int
@@ -36,7 +36,7 @@ func TestMarkerDoesNotChangeMessagePack(t *testing.T) {
 
 func TestContractPinsWidthsAndNames(t *testing.T) {
 	type health struct {
-		syncstate.State
+		syncstate.Component
 
 		HP      int32 `msgpack:"hp"`
 		Speed   float32
@@ -46,10 +46,13 @@ func TestContractPinsWidthsAndNames(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []syncstate.Field{{Name: "Speed", Type: "float32"}, {Name: "hp", Type: "int32"}}, c.Fields)
 	a := syncstate.Contract{
-		Version:    1,
-		Components: []syncstate.Component{c, {Name: "other", Fields: []syncstate.Field{{Name: "x", Type: "int64"}}}},
+		Version: 1,
+		Components: []syncstate.ComponentSchema{
+			c,
+			{Name: "other", Fields: []syncstate.Field{{Name: "x", Type: "int64"}}},
+		},
 	}
-	b := syncstate.Contract{Version: 1, Components: []syncstate.Component{a.Components[1], c}}
+	b := syncstate.Contract{Version: 1, Components: []syncstate.ComponentSchema{a.Components[1], c}}
 	af, err := a.Fingerprint()
 	require.NoError(t, err)
 	bf, err := b.Fingerprint()
@@ -64,16 +67,16 @@ func TestContractPinsWidthsAndNames(t *testing.T) {
 func TestRejectUnsupportedSyncShapes(t *testing.T) {
 	for _, value := range []any{
 		struct {
-			syncstate.State
+			syncstate.Component
 
 			Values []int
 		}{}, struct {
-			syncstate.State
+			syncstate.Component
 
 			Value int `msgpack:",omitempty"`
 		}{},
 		struct {
-			syncstate.State
+			syncstate.Component
 
 			A int `msgpack:"x"`
 			B int `msgpack:"x"`
