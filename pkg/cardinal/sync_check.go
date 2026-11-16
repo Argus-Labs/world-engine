@@ -21,8 +21,9 @@ func (p *syncPublisher) check() {
 				"sync policy %q lists entity %d, which does not use it", key, n)
 		}
 		p.forSeated(func(slot int, player string) {
+			view, auth := pol.lists[viewerList].has(player), pol.lists[authorityList].has(player)
 			assert.That(
-				pol.view.has(slot) == pol.lists[0].has(player) && pol.auth.has(slot) == pol.lists[1].has(player),
+				pol.view.has(slot) == view && pol.auth.has(slot) == auth,
 				"sync policy %q has the wrong bits for %s in slot %d",
 				key,
 				player,

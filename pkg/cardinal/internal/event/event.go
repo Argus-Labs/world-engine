@@ -41,9 +41,9 @@ type Payload interface {
 type Kind uint8
 
 const (
-	KindSync              Kind = 2 // Sync log items: commits, then reader opens and closes
 	KindDefault           Kind = 0 // The default event type
 	KindInterShardCommand Kind = 1 // Inter-shard commands
+	KindSync              Kind = 2 // Sync log items: commits, then reader opens and closes
 )
 
 // Handler is a function called to handle emitted events. ctx carries the dispatching tick's span.
