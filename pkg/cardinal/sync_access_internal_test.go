@@ -2,7 +2,6 @@ package cardinal
 
 import (
 	"bytes"
-	"context"
 	"testing"
 	"time"
 
@@ -12,12 +11,10 @@ import (
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
 	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/micro"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vmihailenco/msgpack/v5"
 )
 
 type accessCast struct {
@@ -128,18 +125,8 @@ func newAccessFixture(t *testing.T, players ...string) *accessFixture {
 
 func (f *accessFixture) connect(t *testing.T, player string) {
 	t.Helper()
-	ctx, cancel := context.WithCancelCause(t.Context())
-	sub := &streamSubscriber{
-		ctx:        ctx,
-		cancel:     cancel,
-		events:     map[string]struct{}{},
-		queueReady: make(chan struct{}, 1),
-	}
-	addSubscriptions(sub, []*cardinalv1.EventSubscription{{Events: []string{
-		syncstate.EventName, "access_spawn", "access_hit", "command_rejected",
-	}}})
-	f.service.addSubscriber(player, sub)
-	f.subs[player] = sub
+	f.subs[player] = openStream(t, f.service, player,
+		syncstate.EventName, "access_spawn", "access_hit", "command_rejected")
 }
 
 // frame returns the one sync frame player received, or fails.
@@ -432,12 +419,7 @@ func TestSyncCommandVerdicts(t *testing.T) {
 
 	got := map[string][]syncstate.Reason{}
 	for _, p := range []string{"alice", "bob", "dave"} {
-		for _, q := range f.subs[p].queue {
-			if q.response.GetEvent().GetName() != "command_rejected" {
-				continue
-			}
-			var r syncstate.CommandRejected
-			require.NoError(t, msgpack.Unmarshal(q.response.GetEvent().GetPayload(), &r))
+		for _, r := range f.rejections(t, p) {
 			got[p] = append(got[p], r.Reason)
 		}
 	}
@@ -704,9 +686,7 @@ func TestSyncEventsReachOnlyViewers(t *testing.T) {
 	// An occurrence needs an open sync stream, even about a public entity.
 	public := f.Create[syncAvatar]()
 	f.Tick()
-	f.service.mu.Lock()
-	removeSubscriptions(f.subs["bob"], []*cardinalv1.EventSubscription{{Events: []string{syncstate.EventName}}})
-	f.service.mu.Unlock()
+	setSyncSubscribed(f.service, f.subs["bob"], false)
 	f.Tick() // bob's sync stream closes
 	f.received("alice")
 	f.received("bob")

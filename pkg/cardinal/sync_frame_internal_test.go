@@ -1,14 +1,12 @@
 package cardinal
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"math/rand/v2"
 	"testing"
 
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/stretchr/testify/require"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -141,14 +139,7 @@ func BenchmarkSyncTickLimit(b *testing.B) {
 	})
 	var subs []*streamSubscriber
 	for i := range readers {
-		ctx, cancel := context.WithCancelCause(b.Context())
-		sub := &streamSubscriber{
-			ctx: ctx, cancel: cancel, queueReady: make(chan struct{}, 1),
-			events: map[string]struct{}{syncstate.EventName: {}},
-		}
-		addSubscriptions(sub, []*cardinalv1.EventSubscription{{Events: []string{syncstate.EventName}}})
-		w.service.addSubscriber(fmt.Sprintf("bot-%d", i), sub)
-		subs = append(subs, sub)
+		subs = append(subs, openStream(b, w.service, fmt.Sprintf("bot-%d", i), syncstate.EventName))
 	}
 	var all []Entity
 	for range entities {

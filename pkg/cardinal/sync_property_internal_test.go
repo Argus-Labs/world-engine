@@ -19,7 +19,6 @@ import (
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
 	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/micro"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/rs/zerolog"
 	"github.com/vmihailenco/msgpack/v5"
@@ -299,20 +298,11 @@ func (s *propSim) captured(final bool) {
 // -------------------------------------------------------------------------------------------------
 
 func (s *propSim) connect(r *propReader) {
-	ctx, cancel := context.WithCancelCause(context.Background())
-	sub := &streamSubscriber{
-		ctx:        ctx,
-		cancel:     cancel,
-		events:     map[string]struct{}{},
-		queueReady: make(chan struct{}, 1),
-	}
 	events := []string{"prop_spawn", "prop_hit", "command_rejected"}
 	if r.subscribed {
 		events = append(events, syncstate.EventName)
 	}
-	addSubscriptions(sub, []*cardinalv1.EventSubscription{{Events: events}})
-	s.w.service.addSubscriber(r.name, sub)
-	r.sub, r.client = sub, s.newPropClient()
+	r.sub, r.client = openStream(s.t, s.w.service, r.name, events...), s.newPropClient()
 	r.client.fresh = true
 }
 
@@ -329,14 +319,7 @@ func (s *propSim) setSubscribed(r *propReader, on bool) {
 	if r.sub == nil {
 		return
 	}
-	subscriptions := []*cardinalv1.EventSubscription{{Events: []string{syncstate.EventName}}}
-	s.w.service.mu.Lock()
-	if on {
-		addSubscriptions(r.sub, subscriptions)
-	} else {
-		removeSubscriptions(r.sub, subscriptions)
-	}
-	s.w.service.mu.Unlock()
+	setSyncSubscribed(s.w.service, r.sub, on)
 	if !on { // the client drops its view; deltas already in flight on the old stream are ignored
 		r.client.fresh, r.client.ready = false, false
 		r.client.clear()
@@ -508,21 +491,19 @@ func (s *propSim) names(from []string) immutable.Slice[string] {
 }
 
 func (s *propSim) setLists(e Entity) {
-	switch s.rng.IntN(4) {
-	case 0:
+	if s.rng.IntN(4) == 0 {
 		e.Remove[syncstate.Viewers]()
-	default:
-		e.Set(syncstate.Viewers{Players: s.names(propPlayers), Groups: s.names(propGroups)})
+		return
 	}
+	e.Set(syncstate.Viewers{Players: s.names(propPlayers), Groups: s.names(propGroups)})
 }
 
 func (s *propSim) setAuthorities(e Entity) {
-	switch s.rng.IntN(4) {
-	case 0:
+	if s.rng.IntN(4) == 0 {
 		e.Remove[syncstate.Authorities]()
-	default:
-		e.Set(syncstate.Authorities{Players: s.names(propPlayers), Groups: s.names(propGroups)})
+		return
 	}
+	e.Set(syncstate.Authorities{Players: s.names(propPlayers), Groups: s.names(propGroups)})
 }
 
 // entities returns the live entities that are not group holders.
@@ -588,28 +569,22 @@ func (s *propSim) emit(id syncstate.ID) {
 	default:
 	}
 	stamp := syncstate.For(id)
-	var payload any
 	if ev.occurrence {
-		payload = propHit{Event: stamp, Entity: id.Entity, N: ev.n}
+		propSend(s.w, ev.recipient, propHit{Event: stamp, Entity: id.Entity, N: ev.n})
 	} else {
-		payload = propSpawn{Event: stamp, Entity: id.Entity, N: ev.n}
-	}
-	switch p := payload.(type) {
-	case propHit:
-		if ev.recipient == "" {
-			s.w.Broadcast(p)
-		} else {
-			s.w.SendTo(ev.recipient, p)
-		}
-	case propSpawn:
-		if ev.recipient == "" {
-			s.w.Broadcast(p)
-		} else {
-			s.w.SendTo(ev.recipient, p)
-		}
+		propSend(s.w, ev.recipient, propSpawn{Event: stamp, Entity: id.Entity, N: ev.n})
 	}
 	s.captured(false)
 	s.events = append(s.events, ev)
+}
+
+// propSend sends evt to recipient, or broadcasts it when recipient is "".
+func propSend[T Event](w *TestWorld, recipient string, evt T) {
+	if recipient == "" {
+		w.Broadcast(evt)
+		return
+	}
+	w.SendTo(recipient, evt)
 }
 
 func (s *propSim) groupOp() {
@@ -962,11 +937,8 @@ func (s *propSim) step() {
 		s.checkHeartbeat(r, wasOpen && r.sub != nil && r.subscribed && r.admitted, promise > 0 && now >= before+promise)
 		// A connected sender hears about each of its rejected commands on its stream.
 		for key, sent := range s.rejects {
-			if sender, name, _ := strings.Cut(
-				key,
-				"/",
-			); sender == r.name && r.sub != nil &&
-				r.client.rejected[name] != sent {
+			sender, name, _ := strings.Cut(key, "/")
+			if sender == r.name && r.sub != nil && r.client.rejected[name] != sent {
 				s.failf("%s did not receive its rejection of %s (%v)", r.name, name, sent)
 			}
 		}
