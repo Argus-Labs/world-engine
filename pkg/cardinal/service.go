@@ -55,10 +55,10 @@ type service struct {
 var _ cardinalv1connect.CardinalServiceHandler = (*service)(nil)
 
 // newService creates a new direct client-facing Cardinal service.
-func newService(world *World, authMode AuthMode, argusAuthURL string) *service {
+func newService(w *World, authMode AuthMode, argusAuthURL string) *service {
 	return &service{
-		world:        world,
-		log:          world.tel.GetLogger("service"),
+		world:        w,
+		log:          w.tel.GetLogger("service"),
 		authMode:     authMode,
 		argusAuthURL: argusAuthURL,
 		commands:     make(map[string]struct{}),

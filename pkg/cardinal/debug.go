@@ -29,9 +29,9 @@ type debugModule struct {
 var _ cardinalv1connect.DebugServiceHandler = (*debugModule)(nil)
 
 // newDebugModule creates a new debugModule bound to the given World.
-func newDebugModule(world *World) *debugModule {
+func newDebugModule(w *World) *debugModule {
 	return &debugModule{
-		world:   world,
+		world:   w,
 		control: newTickControl(),
 		catalog: introspect.NewCatalog(),
 	}
