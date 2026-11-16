@@ -43,14 +43,17 @@ func (w *World) EnableSync(admit func(playerID string) bool) {
 
 // SyncContract exports registered, tagged component types without starting the world.
 func (w *World) SyncContract() syncstate.Contract {
-	contract := syncstate.Contract{Version: syncstate.ProtocolVersion, Components: []syncstate.Component{}}
+	contract := syncstate.Contract{Version: syncstate.ProtocolVersion, Components: []syncstate.ComponentSchema{}}
 	if w.sync != nil {
 		for _, c := range w.sync.components {
 			c.Fields = slices.Clone(c.Fields)
 			contract.Components = append(contract.Components, c)
 		}
 	}
-	slices.SortFunc(contract.Components, func(a, b syncstate.Component) int { return strings.Compare(a.Name, b.Name) })
+	slices.SortFunc(
+		contract.Components,
+		func(a, b syncstate.ComponentSchema) int { return strings.Compare(a.Name, b.Name) },
+	)
 	return contract
 }
 
@@ -83,7 +86,7 @@ func (w *World) ensureSync() *syncPublisher {
 		return w.sync
 	}
 	p := &syncPublisher{
-		components:   map[ecs.ComponentID]syncstate.Component{},
+		components:   map[ecs.ComponentID]syncstate.ComponentSchema{},
 		presence:     map[EntityID]map[ecs.ComponentID]uint64{},
 		groupHolders: map[EntityID]struct{}{},
 		groups:       map[string]*syncGroup{},
@@ -91,7 +94,7 @@ func (w *World) ensureSync() *syncPublisher {
 		retired:      map[syncstate.ID]*syncEntry{},
 		roster:       syncRoster{slotOf: map[string]int{}},
 	}
-	p.marker = registerBuiltin[syncstate.Sync](w)
+	p.marker = registerBuiltin[syncstate.Entity](w)
 	p.group = registerBuiltin[syncstate.Group](w)
 	p.viewers = registerBuiltin[syncstate.Viewers](w)
 	p.authorities = registerBuiltin[syncstate.Authorities](w)

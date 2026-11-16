@@ -1,15 +1,17 @@
 // Package sync declares the state an authoritative world exposes to its clients.
 package sync
 
-// State opts a registered component into sync. Unmarked components remain private.
-// Embed it anonymously; it carries no runtime or MessagePack fields.
-type State struct{}
+// Component opts a registered component type into sync: its fields join the contract and may
+// reach clients. Unmarked components remain private. Embed it anonymously; it carries no
+// runtime or MessagePack fields.
+type Component struct{}
 
-// Sync opts an entity into sync. Embed it in the entity's archetype.
+// Entity opts one entity into sync: its Component-marked components reach the clients that may
+// view it. Embed it in the entity's archetype, or add and remove it at runtime.
 // Cardinal registers this built-in component when sync is enabled.
-type Sync struct{}
+type Entity struct{}
 
-func (Sync) Name() string { return "sync" }
+func (Entity) Name() string { return "sync" }
 
 // ID names one entity lifetime. Numeric entity IDs alone can be reused.
 type ID struct {

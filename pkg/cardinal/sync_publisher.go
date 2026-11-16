@@ -267,7 +267,7 @@ type accessLists struct {
 
 type syncPublisher struct {
 	admit       func(string) bool // nil until EnableSync: nothing is tracked or sent
-	components  map[ecs.ComponentID]syncstate.Component
+	components  map[ecs.ComponentID]syncstate.ComponentSchema
 	names       []string                   // names of components in byte order; nil until first needed
 	index       map[ecs.ComponentID]uint16 // each component's position in names: its wire index
 	marker      ecs.ComponentID
@@ -569,10 +569,10 @@ func (p *syncPublisher) snapshot(old *syncGroup, members map[string]struct{}) *s
 	return g
 }
 
-// lifetime returns the lifetime of a synced entity: alive, with the sync.Sync marker.
+// lifetime returns the lifetime of a synced entity: alive, with the sync.Entity marker.
 func (p *syncPublisher) lifetime(w *World, n EntityID) (syncstate.ID, bool) {
 	e := w.Entity(n)
-	if !e.Alive() || !e.Has[syncstate.Sync]() {
+	if !e.Alive() || !e.Has[syncstate.Entity]() {
 		return syncstate.ID{}, false
 	}
 	return e.SyncID(), true

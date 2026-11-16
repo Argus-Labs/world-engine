@@ -16,11 +16,12 @@ import (
 // Contract is the offline, exact wire schema consumed by Unity's contract generator.
 // Version includes the receive-only, per-entity commit protocol and session audience policy.
 type Contract struct {
-	Version    int         `json:"version"`
-	Components []Component `json:"components"`
+	Version    int               `json:"version"`
+	Components []ComponentSchema `json:"components"`
 }
 
-type Component struct {
+// ComponentSchema is one synced component's wire fields in the contract.
+type ComponentSchema struct {
 	Name   string  `json:"name"`
 	Fields []Field `json:"fields"`
 }
@@ -32,8 +33,8 @@ type Field struct {
 
 // Describe returns the sync contract of one registered component, or false for private types.
 // The MVP intentionally accepts only exact scalar shapes; custom codecs require a new contract.
-func Describe(t reflect.Type, name string) (Component, bool, error) {
-	result := Component{Name: name, Fields: []Field{}}
+func Describe(t reflect.Type, name string) (ComponentSchema, bool, error) {
+	result := ComponentSchema{Name: name, Fields: []Field{}}
 	if !marked(t) {
 		return result, false, nil
 	}
@@ -72,7 +73,7 @@ func Describe(t reflect.Type, name string) (Component, bool, error) {
 // CanonicalJSON is stable across registration and Go field order. MessagePack maps use field names.
 func (c Contract) CanonicalJSON() ([]byte, error) {
 	sorted := Contract{Version: c.Version, Components: slices.Clone(c.Components)}
-	slices.SortFunc(sorted.Components, func(a, b Component) int { return strings.Compare(a.Name, b.Name) })
+	slices.SortFunc(sorted.Components, func(a, b ComponentSchema) int { return strings.Compare(a.Name, b.Name) })
 	for i := range sorted.Components {
 		sorted.Components[i].Fields = slices.Clone(sorted.Components[i].Fields)
 		slices.SortFunc(sorted.Components[i].Fields, func(a, b Field) int { return strings.Compare(a.Name, b.Name) })
@@ -89,13 +90,13 @@ func (c Contract) Fingerprint() (string, error) {
 	return hex.EncodeToString(digest[:]), nil
 }
 
-// marked reports whether t is a struct that embeds the State marker.
+// marked reports whether t is a struct that embeds the Component marker.
 func marked(t reflect.Type) bool {
 	if t.Kind() != reflect.Struct {
 		return false
 	}
 	for f := range t.Fields() {
-		if f.Anonymous && f.Type == reflect.TypeFor[State]() {
+		if f.Anonymous && f.Type == reflect.TypeFor[Component]() {
 			return true
 		}
 	}
@@ -103,9 +104,9 @@ func marked(t reflect.Type) bool {
 }
 
 // wireKey returns the MessagePack map key of one field of a sync component, or false when the
-// field is not encoded: the State marker, an unexported field, or a field tagged "-".
+// field is not encoded: the Component marker, an unexported field, or a field tagged "-".
 func wireKey(component string, f reflect.StructField) (string, bool, error) {
-	if f.Type == reflect.TypeFor[State]() && f.Anonymous {
+	if f.Type == reflect.TypeFor[Component]() && f.Anonymous {
 		return "", false, nil
 	}
 	if !f.IsExported() {
