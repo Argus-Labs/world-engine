@@ -30,8 +30,8 @@ type hitCommand struct {
 
 func (hitCommand) Name() string { return "hit" }
 
-// threatSystem keeps two entities alive and folds every hit into each one's threat, through Map and
-// Slice builders, single derivations and nested values.
+// threatSystem keeps two entities alive and folds every hit into each one's threat, through a Map
+// builder, single derivations, in-place Slice edits and Slices nested in Map values.
 type threatSystem struct{}
 
 func (*threatSystem) Run(w *cardinal.World) {
@@ -49,22 +49,23 @@ func (*threatSystem) Run(w *cardinal.World) {
 	}
 	for entity := range w.Contains[threatRow]().Iter() {
 		c := entity.Get[threat]()
-		table, log := c.Table.Edit(), c.Log.Edit()
+		table := c.Table.Edit()
 		for _, hit := range hits {
 			v, _ := table.Get(hit.Attacker)
 			table.Set(hit.Attacker, v+hit.Damage)
-			log.Append(hit.Damage)
+			c.Log.Append(hit.Damage)
 			for tag, count := range hit.Tags.All() {
 				c.ByTag = c.ByTag.Update(tag, func(s immutable.Slice[uint8]) immutable.Slice[uint8] {
-					s = s.Append(count)
-					return s.Sub(max(0, s.Len()-4), s.Len())
+					s.Append(count)
+					s.Delete(0, max(0, s.Len()-4))
+					return s
 				})
 			}
 		}
-		if log.Len() > 16 {
-			log.Delete(0, log.Len()-16)
+		if c.Log.Len() > 16 {
+			c.Log.Delete(0, c.Log.Len()-16)
 		}
-		c.Table, c.Log = table.Done(), log.Done()
+		c.Table = table.Done()
 		for c.Table.Len() > 8 {
 			for k := range c.Table.Keys() {
 				c.Table = c.Table.Without(k)

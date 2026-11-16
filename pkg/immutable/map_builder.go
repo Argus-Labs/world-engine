@@ -19,7 +19,11 @@ import "slices"
 // Each new key or Delete shifts the arrays, so k of them in an n-entry Map cost O(k·n), as in any
 // map stored as sorted arrays. To build a large Map from scratch, use MapFrom, which sorts once.
 //
-// After Done, and on a copy of the builder, every method panics, for the reasons SliceBuilder gives.
+// A builder is used through the pointer Edit returned. After Done, and on a copy of the builder,
+// every method panics: the arrays now belong to the Map, and a builder that could still write would
+// break that Map's promise that its arrays never change. A copy would share the arrays with the
+// original and so with the Map the original builds, as with a copied [strings.Builder]. The check is
+// a plain panic rather than assert.That because it has to hold in release builds.
 type MapBuilder[K Key, V any] struct {
 	self     *MapBuilder[K, V] // the builder's own address; differs in a copy
 	keys     []K
@@ -97,4 +101,35 @@ func (b *MapBuilder[K, V]) check() {
 	if b.done {
 		panic("immutable: MapBuilder used after Done")
 	}
+}
+
+// own, spliceIn and spliceOut are MapBuilder's writes. Until *owns is set, s is the source Map's array,
+// so the first write copies it, in one step sized for that write; after that they edit s in place.
+func own[T any](s []T, owns *bool) []T {
+	if *owns {
+		return s
+	}
+	*owns = true
+	return slices.Clone(s)
+}
+
+func spliceIn[T any](s []T, owns *bool, i int, items ...T) []T {
+	if *owns {
+		return slices.Insert(s, i, items...)
+	}
+	// The flag is set only after slicing succeeds: a builder that recovered from an out-of-range
+	// panic would otherwise write into the source Map's array.
+	out := slices.Concat(s[:i], items, s[i:])
+	*owns = true
+	return out
+}
+
+func spliceOut[T any](s []T, owns *bool, i, j int) []T {
+	if *owns {
+		return slices.Delete(s, i, j)
+	}
+	_ = s[i:j]                         // s[:i] and s[j:] alone would accept i > j
+	out := slices.Concat(s[:i], s[j:]) // as in spliceIn, own only once slicing succeeds
+	*owns = true
+	return out
 }

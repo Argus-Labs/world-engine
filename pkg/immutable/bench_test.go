@@ -46,86 +46,71 @@ func benchMap(n int) (immutable.Map[int, benchItem], []int) {
 	return m, keys
 }
 
+// BenchmarkSlice copies the Slice out on every iteration and back in at the end, as Cardinal's Get
+// and Set do, so each scenario includes both copies. ReadAll pays the Get copy too: Get copies
+// whether or not the system edits.
 func BenchmarkSlice(b *testing.B) {
 	for _, n := range benchSizes {
 		stored := benchSlice(n)
 		b.Run(fmt.Sprintf("AppendOne/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				s := stored
-				s = s.Append(benchItem{})
-				sinkSlice = s
+				s := stored.Clone()
+				s.Append(benchItem{})
+				sinkSlice = s.Clone()
 			}
 		})
 		b.Run(fmt.Sprintf("AppendLoop/%d", n), func(b *testing.B) {
 			for b.Loop() {
 				var s immutable.Slice[benchItem]
 				for i := range n {
-					s = s.Append(benchItem{ID: int64(i)})
+					s.Append(benchItem{ID: int64(i)})
 				}
-				sinkSlice = s
-			}
-		})
-		b.Run(fmt.Sprintf("AppendLoopBuilder/%d", n), func(b *testing.B) {
-			for b.Loop() {
-				bl := immutable.NewSliceBuilder[benchItem](0)
-				for i := range n {
-					bl.Append(benchItem{ID: int64(i)})
-				}
-				sinkSlice = bl.Done()
+				sinkSlice = s.Clone()
 			}
 		})
 		b.Run(fmt.Sprintf("SetOne/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				s := stored
-				s = s.With(n/2, benchItem{Qty: 1})
-				sinkSlice = s
+				s := stored.Clone()
+				s.Set(n/2, benchItem{Qty: 1})
+				sinkSlice = s.Clone()
 			}
 		})
 		b.Run(fmt.Sprintf("SetAll/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				s := stored
+				s := stored.Clone()
 				for i := range n {
-					s = s.With(i, benchItem{Qty: 1})
+					s.Set(i, benchItem{Qty: 1})
 				}
-				sinkSlice = s
-			}
-		})
-		b.Run(fmt.Sprintf("SetAllBuilder/%d", n), func(b *testing.B) {
-			for b.Loop() {
-				bl := stored.Edit()
-				for i := range n {
-					bl.Set(i, benchItem{Qty: 1})
-				}
-				sinkSlice = bl.Done()
+				sinkSlice = s.Clone()
 			}
 		})
 		b.Run(fmt.Sprintf("InsertFront/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				s := stored
-				s = s.Insert(0, benchItem{})
-				sinkSlice = s
+				s := stored.Clone()
+				s.Insert(0, benchItem{})
+				sinkSlice = s.Clone()
 			}
 		})
 		b.Run(fmt.Sprintf("FilterHalf/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				s := stored
-				s = s.Filter(func(it benchItem) bool { return it.ID%2 == 0 })
-				sinkSlice = s
+				s := stored.Clone()
+				s.DeleteFunc(func(it benchItem) bool { return it.ID%2 != 0 })
+				sinkSlice = s.Clone()
 			}
 		})
 		b.Run(fmt.Sprintf("TrimFront/%d", n), func(b *testing.B) {
 			// A capped log: one entry in, the oldest out.
 			for b.Loop() {
-				s := stored
-				s = s.Append(benchItem{})
-				s = s.Delete(0, 1)
-				sinkSlice = s
+				s := stored.Clone()
+				s.Append(benchItem{})
+				s.Delete(0, 1)
+				sinkSlice = s.Clone()
 			}
 		})
 		b.Run(fmt.Sprintf("ReadAll/%d", n), func(b *testing.B) {
 			for b.Loop() {
 				var sum int64
-				for _, it := range stored.All() {
+				for _, it := range stored.Clone().All() {
 					sum += it.ID
 				}
 				sinkInt = sum
@@ -216,45 +201,30 @@ type benchComponent struct {
 }
 
 // BenchmarkTick models one tick over many entities: each system run copies the component out,
-// appends two log entries and drops the two oldest, bumps two stats, and stores it back.
+// appends two log entries and drops the two oldest, bumps two stats, and stores it back. The copies
+// are the ones Cardinal makes on Get and Set, built with CloneFunc as Cardinal builds them.
 func BenchmarkTick(b *testing.B) {
 	const entities = 1000
-	newColumn := func() []benchComponent {
-		col := make([]benchComponent, entities)
-		for i := range col {
-			stats, _ := benchMapInt(16)
-			col[i] = benchComponent{Log: benchSlice(16), Stats: stats}
-		}
-		return col
+	col := make([]benchComponent, entities)
+	for i := range col {
+		stats, _ := benchMapInt(16)
+		col[i] = benchComponent{Log: benchSlice(16), Stats: stats}
 	}
-	b.Run("Derive", func(b *testing.B) {
-		col := newColumn()
+	clone := immutable.CloneFunc[benchComponent]()
+	b.Run("InPlace", func(b *testing.B) {
 		for b.Loop() {
 			for e := range col {
 				c := col[e]
-				c.Log = c.Log.Append(benchItem{}, benchItem{})
-				c.Log = c.Log.Delete(0, 2)
-				c.Stats = c.Stats.Update(1, func(v int64) int64 { return v + 1 })
-				c.Stats = c.Stats.Update(2, func(v int64) int64 { return v + 1 })
-				col[e] = c
-			}
-		}
-	})
-	b.Run("Builder", func(b *testing.B) {
-		col := newColumn()
-		for b.Loop() {
-			for e := range col {
-				c := col[e]
-				lb := c.Log.Edit()
-				lb.Append(benchItem{}, benchItem{})
-				lb.Delete(0, 2)
-				c.Log = lb.Done()
+				clone(&c)
+				c.Log.Append(benchItem{}, benchItem{})
+				c.Log.Delete(0, 2)
 				mb := c.Stats.Edit()
 				v, _ := mb.Get(1)
 				mb.Set(1, v+1)
 				v, _ = mb.Get(2)
 				mb.Set(2, v+1)
 				c.Stats = mb.Done()
+				clone(&c)
 				col[e] = c
 			}
 		}

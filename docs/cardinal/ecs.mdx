@@ -118,8 +118,7 @@ type Inventory struct {
 
 When the length has no bound you can defend, hold the list in `immutable.Slice[T]` from
 `github.com/argus-labs/world-engine/pkg/immutable`. On the wire it is the same MessagePack array a
-`[]T` would be. The difference is that the backing array is hidden: no other package can index into
-it, reslice it, or hold on to it, and every reader hands back a copy of the element.
+`[]T` would be. You edit it in place, the way you would a Go slice.
 
 ```go
 import "github.com/argus-labs/world-engine/pkg/immutable"
@@ -138,20 +137,13 @@ func (Buffs) Name() string {
 }
 ```
 
-The API follows Go's `slices` package closely. Operations are named for their result rather than for
-an action on the receiver — `Reverse` becomes `Reversed`, and `Sort` and `SortFunc` become `Sorted`
-and `SortedFunc`.
+Cardinal copies every Slice a component holds when `Get` hands the component to you and when `Set`
+takes it back. Editing your copy never changes the world until you `Set` it, and editing it after
+`Set` never changes what was stored. Events, system events and commands are copied the same way.
+This is the usual Go rule for anything that stores slices: copy them when they come in and when
+they go out.
 
-Reads such as `At`, `All`, `IndexFunc`, and `MinFunc` are methods, and so are derivations such as
-`Append`, `Insert`, `With`, `Without`, `Sub`, `Filter`, `Delete`, `Reversed`, and `SortedFunc`.
-Anything that needs a type constraint is a package function, for example `Equal`, `Contains`,
-`Sorted`, `Min`, `Transform`, and `Concat`.
-
-Every derivation leaves the receiver unchanged, so the stored component, your copy and any snapshot
-keep what they held until you `Set` the result. All but `Sub` and `Chunk` return a Slice over a new
-array; those two return a window onto the old one, which is safe because nothing writes to it.
-
-Derive, then `Set` the component that holds it:
+Edit, then `Set` the component that holds it:
 
 ```go
 type BuffSystem struct{}
@@ -162,40 +154,37 @@ func (s *BuffSystem) Run(w *cardinal.World) {
 		buffs := mob.Get[Buffs]()
 
 		// Drop expired buffs and add a new one.
-		buffs.Active = buffs.Active.
-			Filter(func(b Buff) bool { return b.ExpiresAt > now }).
-			Append(Buff{Kind: "haste", ExpiresAt: now + 60})
+		buffs.Active.DeleteFunc(func(b Buff) bool { return b.ExpiresAt <= now })
+		buffs.Active.Append(Buff{Kind: "haste", ExpiresAt: now + 60})
 
 		mob.Set(buffs)
 	}
 }
 ```
 
-`immutable.SliceOf(items...)` builds a Slice from a plain slice and copies it, so later changes to
-that slice never reach the component. To go the other way — a plain `[]T` for an API that needs one —
-use `slices.Collect(s.Values())`.
+The API follows Go's built-ins and `slices` package:
 
-Each derivation costs one copy. For several edits in one go, or a list rebuilt every tick, use a
-builder: it copies once, takes any number of edits, and hands the result over with `Done`.
+| Go                           | `immutable.Slice`                      |
+| ---------------------------- | -------------------------------------- |
+| `len(s)`                     | `s.Len()`                              |
+| `s[i]`                       | `s.At(i)`                              |
+| `s[i] = v`                   | `s.Set(i, v)`                          |
+| `s = append(s, v...)`        | `s.Append(v...)`                       |
+| `for i, v := range s`        | `for i, v := range s.All()`            |
+| `s = s[:0]`                  | `s.Reset()`                            |
+| `slices.Insert`, `Delete`, `DeleteFunc`, `Reverse` | methods of the same name |
+| `slices.SortStableFunc`      | `s.SortStableFunc(cmp)`                |
+| `slices.Sort`                | `immutable.Sort(&s)`                   |
+| `slices.Equal`, `Index`, `Contains` | `immutable.Equal`, `Index`, `Contains` |
+| `slices.IndexFunc`, `ContainsFunc`, `EqualFunc`, `Values`, `Backward` | methods of the same name |
 
-```go
-// Several edits: one copy.
-b := log.Entries.Edit()
-b.Append(entry)
-if b.Len() > maxEntries {
-	b.Delete(0, b.Len()-maxEntries)
-}
-log.Entries = b.Done()
+Sorting is always stable, so a world sorts the same way on every machine and Go release; there is no
+unstable sort. `immutable.SliceOf(items...)` builds a Slice from a plain slice and copies it, so later
+changes to that slice never reach the component. To go the other way — a plain `[]T` for an API that
+needs one — use `slices.Collect(s.Values())`.
 
-// Rebuilt from scratch: no copy of the old list at all.
-nb := immutable.NewSliceBuilder[Contact](len(found))
-for _, c := range found {
-	nb.Append(c)
-}
-contacts.List = nb.Done()
-```
-
-A builder panics if used after `Done`.
+Inside one system a Slice behaves exactly like a Go slice. `other := buffs.Active` shares the array,
+so an edit through `other` can show up in `buffs.Active`. Use `Clone` for a copy that shares nothing.
 
 <Note>
   The element type follows the same rule as any field: values only. That includes another Slice, so
@@ -205,8 +194,8 @@ A builder panics if used after `Done`.
 ### Lookup Tables: `immutable.Map`
 
 For values looked up by key, such as quest flags, cooldowns per ability, or threat per attacker, use
-`immutable.Map[K, V]`. It is the map counterpart of Slice: storage is hidden, every read returns a
-copy, and every derivation returns a new Map.
+`immutable.Map[K, V]`. Unlike Slice it is never edited in place: storage is hidden, every read
+returns a copy, and every derivation returns a new Map.
 
 ```go
 type PlayerMemory struct {

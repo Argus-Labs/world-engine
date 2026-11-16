@@ -211,7 +211,7 @@ func (s SearchResult) Single() (Entity, error) {
 // declare one without a second import. It is an alias, so cardinal.Slice[T] and immutable.Slice[T]
 // are the same type and either spelling works.
 //
-// Its derivations return a new Slice and leave the receiver unchanged; see immutable.Slice.
+// It is edited in place like a Go slice, and Cardinal copies it on Get and Set; see immutable.Slice.
 type Slice[T any] = immutable.Slice[T]
 
 // SliceOf returns a Slice holding a copy of items. See immutable.SliceOf.

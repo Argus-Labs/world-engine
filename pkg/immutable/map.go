@@ -25,9 +25,10 @@ type Key interface {
 		~string
 }
 
-// Map is a sorted map with private storage, for component fields that look values up by key. It is
-// to a Go map what Slice is to a []T: a copy from Get shares nothing that can change, so editing it
-// never reaches the world without Set.
+// Map is a sorted map with private storage, for component fields that look values up by key. Its
+// arrays never change once a Map holds them, so a copy from Get shares nothing that can change and
+// editing it never reaches the world without Set. A Slice inside a value is the exception, since a
+// Slice is edited in place; Cardinal copies those on Get and Set, as it does every Slice.
 //
 // Entries are kept sorted by key, never hashed. Iteration and encoding run in key order, so the same
 // entries give the same order and the same bytes on every run, machine and build, however they were
@@ -193,7 +194,7 @@ func (m Map[K, V]) DeleteFunc(del func(K, V) bool) Map[K, V] {
 			vals = append(vals, m.vals[i])
 		}
 	}
-	// As Slice's shrink does: pruning most of a large Map should not keep its full-size arrays.
+	// Pruning most of a large Map should not keep its full-size arrays.
 	if cap(keys)-len(keys) > len(keys) {
 		keys, vals = slices.Clone(keys), slices.Clone(vals)
 	}

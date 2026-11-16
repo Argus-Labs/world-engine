@@ -19,6 +19,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/argus-labs/world-engine/pkg/telemetry/posthog"
@@ -606,7 +607,9 @@ func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 			// semantics, no pointer: Serializable is satisfied by the value type.
 			payload, isT := cmd.Payload.(T)
 			assert.That(isT, "mismatched command type passed to command context")
-			if !yield(CommandContext[T]{Payload: payload, sender: cmd.Sender}) {
+			// Each reader gets its own copy of the payload's Slices: the queue is shared by every
+			// system this tick and kept for the transaction log.
+			if !yield(CommandContext[T]{Payload: immutable.Clone(payload), sender: cmd.Sender}) {
 				return
 			}
 		}
@@ -618,8 +621,9 @@ func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 // its own. It mirrors the client-facing SendCommand RPC — a shard sending to a shard is the same operation,
 // initiated in-engine.
 //
-// Fire-and-forget: cmd is encoded when events flush at end-of-tick, so it must not be mutated after this
-// call — a *Command whose fields change before the flush would send the mutated value. The send then
+// Fire-and-forget: cmd is encoded when events flush at end-of-tick. Its Slices are copied here, so
+// editing them after this call does not change what is sent, but a *Command whose fields change before
+// the flush would send the mutated value. The send then
 // happens in the background, in order per target shard. A send that fails is not returned but is logged
 // at error level, because a dropped shard-to-shard command is serious.
 func (w *World) SendToShard(to OtherWorld, cmd command.Payload) {
@@ -635,7 +639,7 @@ func (w *World) SendToShard(to OtherWorld, cmd command.Payload) {
 		Payload: command.Command{
 			Name:    cmd.Name(),
 			Address: serviceAddress,
-			Payload: cmd,
+			Payload: immutable.Clone(cmd),
 		},
 	})
 }
@@ -678,7 +682,7 @@ func (w *World) Broadcast[T Event](evt T) {
 	attrs := w.registeredEvent[T]()
 	w.events.Enqueue(event.Event{
 		Kind:    event.KindDefault,
-		Payload: evt,
+		Payload: immutable.Clone(evt), // encoded at the flush, so a later edit must not reach it
 	})
 	w.metrics.countEvent(w.traceCtx, attrs)
 }
@@ -698,7 +702,7 @@ func (w *World) SendTo[T Event](recipient string, evt T) {
 	attrs := w.registeredEvent[T]()
 	w.events.Enqueue(event.Event{
 		Kind:      event.KindDefault,
-		Payload:   evt,
+		Payload:   immutable.Clone(evt), // encoded at the flush, so a later edit must not reach it
 		Recipient: recipient,
 	})
 	w.metrics.countEvent(w.traceCtx, attrs)
@@ -752,7 +756,8 @@ func (w *World) SystemEvents[T ecs.SystemEvent]() iter.Seq[T] {
 
 	return func(yield func(T) bool) {
 		for _, systemEvent := range systemEvents {
-			if !yield(systemEvent) {
+			// A copy per reader, so one system editing a Slice cannot change what the next one reads.
+			if !yield(immutable.Clone(systemEvent)) {
 				return
 			}
 		}
@@ -763,6 +768,7 @@ func (w *World) SystemEvents[T ecs.SystemEvent]() iter.Seq[T] {
 // registered with RegisterSystemEvent, in release builds too: an unregistered emit dropped
 // silently would leave every later SystemEvents reader empty.
 func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
+	systemEvent = immutable.Clone(systemEvent) // the emitter may keep editing its own value
 	if err := w.world.EmitSystemEvent(systemEvent); err != nil {
 		panic(eris.Wrapf(err, "system event %T is not registered; call RegisterSystemEvent before StartGame",
 			systemEvent))

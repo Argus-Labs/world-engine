@@ -3,6 +3,7 @@ package ecs
 import (
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
+	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/rotisserie/eris"
 )
 
@@ -28,25 +29,33 @@ var _ abstractColumn = &column[Component]{}
 // column stores the component data of entities in an archetype. The length of the components slice
 // must match the length of the entities slice in the archetype.
 type column[T Component] struct {
-	compName   string // The name of the component stored in this column
-	components []T    // Array containing the component data
+	compName   string   // The name of the component stored in this column
+	components []T      // Array containing the component data
+	clone      func(*T) // Gives a value's Slices their own arrays; nil when T holds no Slice
 }
 
 const columnCapacity = 16
 
 // newColumn creates a new column with the specified type.
 func newColumn[T Component]() column[T] {
+	return newColumnWithClone(immutable.CloneFunc[T]())
+}
+
+func newColumnWithClone[T Component](clone func(*T)) column[T] {
 	var zero T
 	return column[T]{
 		compName:   zero.Name(),
 		components: make([]T, 0, columnCapacity),
+		clone:      clone,
 	}
 }
 
-// newColumnFactory returns a function that constructs a new column of type T.
+// newColumnFactory returns a function that constructs a new column of type T. The clone function is
+// built here, once per component type, rather than once per archetype.
 func newColumnFactory[T Component]() columnFactory {
+	clone := immutable.CloneFunc[T]()
 	return func() abstractColumn {
-		col := newColumn[T]()
+		col := newColumnWithClone(clone)
 		return &col
 	}
 }
@@ -89,6 +98,31 @@ func (c *column[T]) setAbstract(row int, component Component) {
 	concrete, ok := component.(T)
 	assert.That(ok, "tried to set the wrong component type")
 	c.set(row, concrete)
+}
+
+// getCopy returns the value in a given row with its Slices copied, so editing them never reaches
+// the column. It is what Get hands to a system.
+func (c *column[T]) getCopy(row int) T {
+	if c.clone == nil {
+		return c.get(row)
+	}
+	// Declared only on this path: taking its address moves it to the heap, and a component with no
+	// Slice must not pay for that.
+	v := c.get(row)
+	c.clone(&v)
+	return v
+}
+
+// setCopy stores component in a given row with its Slices copied, so the caller editing them after
+// Set never reaches the column. It is what Set stores.
+func (c *column[T]) setCopy(row int, component T) {
+	if c.clone == nil {
+		c.set(row, component)
+		return
+	}
+	v := component // as in getCopy: &component would move every component to the heap
+	c.clone(&v)
+	c.set(row, v)
 }
 
 // get gets the value from a given row. A row corresponds to a single entity. Expects the caller

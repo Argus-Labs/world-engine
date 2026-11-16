@@ -60,8 +60,8 @@ const (
 // A polygon has a bound Box2D fixes at MaxPolygonVertices, so Vertices is a fixed array stored
 // inline and VertexCount says how many of its slots are live — the same shape box2d.Polygon uses.
 // A chain has no such bound, so ChainPoints is an immutable.Slice: it encodes as an array, as a
-// []Vec2 would, and its backing array cannot be indexed or resliced. Its derivations (With,
-// Filter, ...) return a new Slice, so Set the component to store one.
+// []Vec2 would, and its backing array cannot be indexed or resliced. Edit it in place (Set,
+// Append, ...) and Set the component to store it.
 //
 // ChainPoints encodes as a plain JSON array ("chain_points": [{"x":0,"y":0}, ...]), so a
 // hand-written payload can carry one; snapshot component payloads use MessagePack.

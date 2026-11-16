@@ -39,13 +39,16 @@ before editing (SKILL.md, Before editing). Convert each field, then fix its uses
 | `*T` shared on purpose | an ID (`EntityID`, index or key) looked up where it is used           |
 | `any` or an interface  | a kind enum plus one field per variant, or an encoded string          |
 
-`immutable.Slice` hides its array and never writes to it. Build with
-`immutable.SliceOf(xs...)`. Read with `Len`, `At`, `All`, `Values`, `IndexFunc`. Every
-derivation (`With`, `Without`, `Filter`, `Append`, `SortedFunc`, ...) returns a new Slice
-and leaves the receiver unchanged, so assign and set: `c.Items = c.Items.Filter(keep)`,
-then `e.Set(c)`. For several edits at once, use `b := c.Items.Edit()`, edit `b`, then
-`c.Items = b.Done()`. The old `immutable.Map` function is now `immutable.Transform`. A
-`for i := range c.Items` over the old slice becomes `for i, x := range c.Items.All()`.
+`immutable.Slice` hides its array and is edited in place, like a Go slice; Cardinal copies
+it on `Get` and `Set`, so an edit reaches the world only through `Set`. Build with
+`immutable.SliceOf(xs...)`. Read with `Len`, `At`, `All`, `Values`, `IndexFunc`. Edit with
+`Set`, `Append`, `Insert`, `Delete`, `DeleteFunc`, `Reset`, `SortStableFunc`, `Reverse`,
+then `e.Set(c)`. Old derivations map as: `c.Items = c.Items.With(i, x)` becomes
+`c.Items.Set(i, x)`, `Filter(keep)` becomes `DeleteFunc` with the test inverted, `Reversed`
+becomes `Reverse`, `SortedFunc` becomes `SortStableFunc`, and `Sub(i, j)` becomes deleting
+the rest. `Edit`, `NewSliceBuilder`, `Transform`, `Concat`, `Chunk`, `Repeat`, `Replace`,
+`Compact` and `Min`/`Max` are gone; use a loop or `slices` on `slices.Collect(s.Values())`.
+A `for i := range c.Items` over the old slice becomes `for i, x := range c.Items.All()`.
 
 `immutable.Map[K, V]` is the same for a lookup table: build with
 `immutable.MapFrom(maps.All(goMap))`, read with `Get`, `Has`, `All`, derive with `With`,

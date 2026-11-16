@@ -246,7 +246,7 @@ func (ws *worldState) setComponent[T Component](eid EntityID, component T) error
 
 	row, exists := archetype.rows.get(eid)
 	assert.That(exists, "entity should have a row in its archetype")
-	column.set(row, component)
+	column.setCopy(row, component)
 	return nil
 }
 
@@ -279,7 +279,7 @@ func (ws *worldState) getComponent[T Component](eid EntityID) (T, error) {
 
 	row, exists := archetype.rows.get(eid)
 	assert.That(exists, "entity should have a row in its archetype")
-	return column.get(row), nil
+	return column.getCopy(row), nil
 }
 
 // removeComponent removes a component from the given entity. Returns an error if the entity or the

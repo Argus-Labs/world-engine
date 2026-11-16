@@ -410,8 +410,9 @@ func (f *filler) slice(v reflect.Value) {
 // CanSet is false and the Slice would stay empty, leaving every command that carries one untested.
 //
 // immutable.SliceElem identifies the Slice and its element type, a random []T is built with the
-// ordinary recursion, and Append takes it in one call — Append is variadic, so CallSlice hands it the
-// whole slice at once. That is the Slice's own API, so immutable needs no setter and no codec.
+// ordinary recursion, and Append takes it in one call on the emptied Slice — Append is variadic, so
+// CallSlice hands it the whole slice at once. That is the Slice's own API, so immutable needs no
+// setter and no codec.
 func (f *filler) immutableSlice(v reflect.Value) bool {
 	t := v.Type()
 	elem, ok := immutable.SliceElem(t)
@@ -429,7 +430,8 @@ func (f *filler) immutableSlice(v reflect.Value) bool {
 	for i := range n {
 		f.fill(items.Index(i))
 	}
-	v.Set(v.MethodByName("Append").CallSlice([]reflect.Value{items})[0])
+	v.Set(reflect.Zero(t))
+	v.Addr().MethodByName("Append").CallSlice([]reflect.Value{items})
 	return true
 }
 

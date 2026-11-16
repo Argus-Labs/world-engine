@@ -72,7 +72,7 @@ func (s *snapGrow) Run(w *World) {
 		b := cells.Edit()
 		c, _ := b.Get(row)
 		c.HP += int64(tick) + 1
-		c.Tags = c.Tags.Append("t" + strconv.FormatUint(tick, 10))
+		c.Tags.Append("t" + strconv.FormatUint(tick, 10))
 		b.Set(row, c)
 		b.Set(cellID(1000+tick%5), snapCell{HP: -int64(tick)})
 		zones = zones.With(zone, b.Done()).With(99, immutable.Map[cellID, snapCell]{})
@@ -81,13 +81,13 @@ func (s *snapGrow) Run(w *World) {
 			d.Regions = d.Regions.Without("r0")
 		}
 
-		d.Log = d.Log.Append(immutable.MapFrom(maps.All(map[int8]string{int8(tick % 7): "x", -1: region})))
+		d.Log.Append(immutable.MapFrom(maps.All(map[int8]string{int8(tick % 7): "x", -1: region})))
 		e.Set(d)
 	}
 }
 
-// snapPeek derives from every field of every snapDeep, the old in-place traps included, and never
-// calls Set.
+// snapPeek edits every field of every snapDeep in place and never calls Set, so none of it may reach
+// the world or a snapshot.
 type snapPeek struct{}
 
 func (*snapPeek) Run(w *World) {
@@ -100,7 +100,8 @@ func (*snapPeek) Run(w *World) {
 			for zone, cells := range zones.All() {
 				for id, c := range cells.All() {
 					if c.Tags.Len() > 0 {
-						c.Tags = c.Tags.With(0, "peek").Reversed()
+						c.Tags.Set(0, "peek")
+						c.Tags.Reverse()
 					}
 					cells = cells.With(id, c)
 				}
@@ -108,11 +109,9 @@ func (*snapPeek) Run(w *World) {
 			}
 			d.Regions = d.Regions.With(region, b.Done())
 		}
-		if d.Log.Len() > 0 {
-			_ = d.Log.SortedFunc(func(a, b immutable.Map[int8, string]) int { return cmp.Compare(b.Len(), a.Len()) }).
-				At(0)
-		}
-		d.Log = d.Log.Reversed().Filter(func(m immutable.Map[int8, string]) bool { return m.Has(0) })
+		d.Log.SortStableFunc(func(a, b immutable.Map[int8, string]) int { return cmp.Compare(b.Len(), a.Len()) })
+		d.Log.Reverse()
+		d.Log.DeleteFunc(func(m immutable.Map[int8, string]) bool { return !m.Has(0) })
 	}
 }
 
