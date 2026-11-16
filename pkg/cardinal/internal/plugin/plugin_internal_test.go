@@ -1,4 +1,4 @@
-package kernel
+package plugin
 
 import (
 	"errors"

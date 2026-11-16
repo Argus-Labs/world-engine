@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/kernel"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/plugin"
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/stretchr/testify/assert"
@@ -24,12 +24,12 @@ func (s hookSystem) Run(w *World) { s(w) }
 
 // newHookWorld is a world that publishes through the service to one stream, alice's, and runs
 // the Emit hook the test supplies.
-func newHookWorld(t *testing.T, emit func(*kernel.Emit)) (*TestWorld, *streamSubscriber) {
+func newHookWorld(t *testing.T, emit func(*plugin.Emit)) (*TestWorld, *streamSubscriber) {
 	t.Helper()
 	w := NewTestWorld(t, func(w *World) {
 		w.RegisterEvent[hookBenchNote]()
-		w.hooks = kernel.New(w.world)
-		w.hooks.Register(kernel.Hooks{Name: "probe", Emit: emit})
+		w.hooks = plugin.New(w.world)
+		w.hooks.Register(plugin.Hooks{Name: "probe", Emit: emit})
 	})
 	w.World.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
 	ctx, cancel := context.WithCancelCause(t.Context())
@@ -46,7 +46,7 @@ func newHookWorld(t *testing.T, emit func(*kernel.Emit)) (*TestWorld, *streamSub
 func TestHook_AudienceIsAskedWithoutTheServiceLock(t *testing.T) {
 	var w *TestWorld
 	var lockWasFree []bool
-	w, sub := newHookWorld(t, func(e *kernel.Emit) {
+	w, sub := newHookWorld(t, func(e *plugin.Emit) {
 		e.Narrow(hookAudience(func(string) bool {
 			free := w.service.mu.TryLock()
 			if free {
@@ -66,7 +66,7 @@ func TestHook_AudienceIsAskedWithoutTheServiceLock(t *testing.T) {
 // Dispatch only publishes. An audience that writes to the world stops the tick, as a hook does.
 func TestHook_AudienceCannotWriteToTheWorld(t *testing.T) {
 	var w *TestWorld
-	w, _ = newHookWorld(t, func(e *kernel.Emit) {
+	w, _ = newHookWorld(t, func(e *plugin.Emit) {
 		e.Narrow(hookAudience(func(string) bool {
 			w.world.Create()
 			return true
@@ -97,9 +97,9 @@ func TestHook_SyncPredicateCannotWriteToTheWorld(t *testing.T) {
 	addSubscriptions(sub, []*cardinalv1.EventSubscription{{Events: []string{syncstate.EventName}}})
 	w.service.addSubscriber("alice", sub)
 
-	var panicked *kernel.PanicError
+	var panicked *plugin.PanicError
 	func() {
-		defer func() { panicked, _ = recover().(*kernel.PanicError) }()
+		defer func() { panicked, _ = recover().(*plugin.PanicError) }()
 		w.Tick()
 	}()
 
@@ -111,7 +111,7 @@ func TestHook_SyncPredicateCannotWriteToTheWorld(t *testing.T) {
 // Another registrant's audience and sync's both have to admit a reader.
 func TestHook_AudiencesNarrowTogetherWithSync(t *testing.T) {
 	f := newAccessFixture(t, "alice", "bob", "carol")
-	f.hooks.Register(kernel.Hooks{Name: "nearby", Emit: func(e *kernel.Emit) {
+	f.hooks.Register(plugin.Hooks{Name: "nearby", Emit: func(e *plugin.Emit) {
 		e.Narrow(hookAudience(func(player string) bool { return player == "bob" || player == "carol" }))
 	}})
 	avatar := f.Create[syncAvatar]()
