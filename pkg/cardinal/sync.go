@@ -11,7 +11,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/kernel"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/plugin"
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
 )
 
@@ -257,8 +257,8 @@ func (w *World) hookSync() {
 	if w.hooks != nil {
 		return
 	}
-	w.hooks = kernel.New(w.world)
-	w.hooks.Register(kernel.Hooks{
+	w.hooks = plugin.New(w.world)
+	w.hooks.Register(plugin.Hooks{
 		Name:   "sync",
 		Begin:  w.beginJudging,
 		Admit:  w.judgeCommand,
@@ -284,7 +284,7 @@ func (w *World) beginJudging() {
 // judgeCommand rejects a command its sender may not send, before any handler sees it. A target is
 // judged by what the server last published. A player's repeat of a remembered command ID is not
 // judged again: it gets the first verdict, and never reaches a handler.
-func (w *World) judgeCommand(cmd command.Command) kernel.Verdict {
+func (w *World) judgeCommand(cmd command.Command) plugin.Verdict {
 	var id uint64
 	if t, ok := cmd.Payload.(targeted); ok {
 		id = t.SyncCommandID()
@@ -303,18 +303,18 @@ func (w *World) judgeCommand(cmd command.Command) kernel.Verdict {
 	}
 	switch {
 	case reason != "":
-		return kernel.Verdict{Outcome: kernel.Rejected, Reason: string(reason), CommandID: id}
+		return plugin.Verdict{Outcome: plugin.Rejected, Reason: string(reason), CommandID: id}
 	case repeat:
-		return kernel.Verdict{Outcome: kernel.Dropped}
+		return plugin.Verdict{Outcome: plugin.Dropped}
 	}
-	return kernel.Verdict{}
+	return plugin.Verdict{}
 }
 
 // emitSync is sync's part in sending an event. It stamps the event, narrows a client event to
 // the readers who may see it, and publishes the changes made before it, so they arrive first.
-func (w *World) emitSync(e *kernel.Emit) {
+func (w *World) emitSync(e *plugin.Emit) {
 	w.stampSync(e.Payload)
-	if e.Kind != kernel.SystemEvent {
+	if e.Kind != plugin.SystemEvent {
 		// Before the capture below can drop a destroyed entity's last entry.
 		if audience := w.syncAudience(e.Payload); audience != nil {
 			e.Narrow(audience)

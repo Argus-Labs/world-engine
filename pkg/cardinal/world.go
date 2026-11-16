@@ -18,7 +18,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/introspect"
-	"github.com/argus-labs/world-engine/pkg/cardinal/internal/kernel"
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/plugin"
 	"github.com/argus-labs/world-engine/pkg/cardinal/snapshot"
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -55,7 +55,7 @@ type World struct {
 	archetypes map[reflect.Type]bitmap.Bitmap      // Component sets resolved from archetype structs
 	eventTypes map[reflect.Type][]metric.AddOption // Registered events, with the attributes they are counted under
 	started    bool                                // Set by init; Register* methods panic afterwards
-	hooks      *kernel.Runner                      // Hooks the tick runs; nil until something registers one
+	hooks      *plugin.Runner                      // Hooks the tick runs; nil until something registers one
 
 	sync           *syncPublisher               // Sync state the tick publishes; nil until a sync type is registered
 	commandSenders map[string]syncstate.Senders // Command name -> who may send it; absent: anyone
@@ -373,15 +373,15 @@ func (w *World) admitCommands() {
 	}
 	type rejection struct {
 		cmd     command.Command
-		verdict kernel.Verdict
+		verdict plugin.Verdict
 	}
 	var rejected []rejection
 	w.commands.Retain(func(cmd command.Command) bool {
 		verdict := w.hooks.Admit(cmd)
-		if verdict.Outcome == kernel.Rejected {
+		if verdict.Outcome == plugin.Rejected {
 			rejected = append(rejected, rejection{cmd, verdict})
 		}
-		return verdict.Outcome == kernel.Admitted
+		return verdict.Outcome == plugin.Admitted
 	})
 	// Reply only once every command is judged: sending publishes pending changes first.
 	for _, r := range rejected {
@@ -522,11 +522,11 @@ type Tick struct {
 
 // RegisterPlugin registers a plugin with the world. Must be called before StartGame().
 // Panics if the plugin fails to register, consistent with other registration functions.
-func (w *World) RegisterPlugin(plugin Plugin) {
+func (w *World) RegisterPlugin(p Plugin) {
 	if w.started {
 		panic(ErrWorldStarted)
 	}
-	plugin.Register(w)
+	p.Register(w)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -742,7 +742,7 @@ func (w *World) registeredEvent[T Event]() []metric.AddOption {
 // panics if T was not registered with RegisterEvent.
 func (w *World) Broadcast[T Event](evt T) {
 	attrs := w.registeredEvent[T]()
-	audience := w.hooks.Emit(kernel.Broadcast, &evt, "")
+	audience := w.hooks.Emit(plugin.Broadcast, &evt, "")
 	w.events.Enqueue(event.Event{
 		Kind:     event.KindDefault,
 		Payload:  evt,
@@ -764,7 +764,7 @@ func (w *World) Broadcast[T Event](evt T) {
 func (w *World) SendTo[T Event](recipient string, evt T) {
 	assert.That(recipient != "", "recipient must not be empty (use Broadcast for fan-out)")
 	attrs := w.registeredEvent[T]()
-	audience := w.hooks.Emit(kernel.Targeted, &evt, recipient)
+	audience := w.hooks.Emit(plugin.Targeted, &evt, recipient)
 	w.events.Enqueue(event.Event{
 		Kind:      event.KindDefault,
 		Payload:   evt,
@@ -833,7 +833,7 @@ func (w *World) SystemEvents[T ecs.SystemEvent]() iter.Seq[T] {
 // registered with RegisterSystemEvent, in release builds too: an unregistered emit dropped
 // silently would leave every later SystemEvents reader empty.
 func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
-	w.hooks.Emit(kernel.SystemEvent, &systemEvent, "")
+	w.hooks.Emit(plugin.SystemEvent, &systemEvent, "")
 	if err := w.world.EmitSystemEvent(systemEvent); err != nil {
 		panic(eris.Wrapf(err, "system event %T is not registered; call RegisterSystemEvent before StartGame",
 			systemEvent))
