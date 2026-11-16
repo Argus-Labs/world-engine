@@ -5,7 +5,6 @@ import (
 	"time"
 
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,18 +32,6 @@ func syncKind(f syncstate.Frame) string {
 		return "empty"
 	}
 	return "delta"
-}
-
-// setSyncSubscribed subscribes sub to world_sync or unsubscribes it, as the service's RPCs do.
-func setSyncSubscribed(w *TestWorld, sub *streamSubscriber, on bool) {
-	subscriptions := []*cardinalv1.EventSubscription{{Events: []string{syncstate.EventName}}}
-	w.service.mu.Lock()
-	defer w.service.mu.Unlock()
-	if on {
-		addSubscriptions(sub, subscriptions)
-	} else {
-		removeSubscriptions(sub, subscriptions)
-	}
 }
 
 // A client rebuilds server time by adding Times: a baseline's is its tick's Unix milliseconds, a
@@ -105,7 +92,7 @@ func TestSyncTimesAddUpToEachFrameTick(t *testing.T) {
 func TestSyncHeartbeatEveryHeartbeatOfServerTime(t *testing.T) {
 	revoked := false
 	w, idle := newSyncFixture(t, func(player string) bool { return player != "alice" || !revoked })
-	busy := reconnectSync(t, w, "bob")
+	busy := openStream(t, w.service, "bob", syncstate.EventName, "hurt")
 	e := w.Create[syncAvatar]()
 	e.Set(syncstate.Viewers{Players: players("bob")}) // alice sees nothing, so she hears nothing
 	start := time.UnixMilli(1_762_950_000_000)
@@ -152,7 +139,7 @@ func TestSyncHeartbeatEveryHeartbeatOfServerTime(t *testing.T) {
 	}, heard)
 
 	idle.cancel(nil) // still subscribed and seated, but its stream is cancelled
-	setSyncSubscribed(w, busy, false)
+	setSyncSubscribed(w.service, busy, false)
 	tick(7150) // the tick that closes bob's stream still delivers its commit, before the close
 	closed := busy
 	busy = nil

@@ -1,13 +1,11 @@
 package cardinal
 
 import (
-	"context"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/plugin"
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,13 +30,7 @@ func newHookWorld(t *testing.T, emit func(*plugin.Emit)) (*TestWorld, *streamSub
 		w.hooks.Register(plugin.Hooks{Name: "probe", Emit: emit})
 	})
 	w.World.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
-	ctx, cancel := context.WithCancelCause(t.Context())
-	sub := &streamSubscriber{
-		ctx: ctx, cancel: cancel, events: map[string]struct{}{}, queueReady: make(chan struct{}, 1),
-	}
-	addSubscriptions(sub, []*cardinalv1.EventSubscription{{Events: []string{"hook_bench_note"}}})
-	w.service.addSubscriber("alice", sub)
-	return w, sub
+	return w, openStream(t, w.service, "alice", "hook_bench_note")
 }
 
 // An audience runs game code. The service asks it after releasing its lock, so that code can
@@ -90,12 +82,7 @@ func TestHook_SyncPredicateCannotWriteToTheWorld(t *testing.T) {
 			return true
 		})
 	})
-	ctx, cancel := context.WithCancelCause(t.Context())
-	sub := &streamSubscriber{
-		ctx: ctx, cancel: cancel, events: map[string]struct{}{}, queueReady: make(chan struct{}, 1),
-	}
-	addSubscriptions(sub, []*cardinalv1.EventSubscription{{Events: []string{syncstate.EventName}}})
-	w.service.addSubscriber("alice", sub)
+	openStream(t, w.service, "alice", syncstate.EventName)
 
 	var panicked *plugin.PanicError
 	func() {

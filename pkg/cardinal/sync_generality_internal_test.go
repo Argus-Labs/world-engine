@@ -1,7 +1,6 @@
 package cardinal
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"testing"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/stretchr/testify/require"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -62,15 +60,7 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 		]}
 	]}`, string(contract))
 	w := NewTestWorld(t, func(w *World) { register(w); w.EnableSync(func(string) bool { return true }) })
-	ctx, cancel := context.WithCancelCause(t.Context())
-	defer cancel(nil)
-	sub := &streamSubscriber{
-		ctx:        ctx,
-		cancel:     cancel,
-		events:     map[string]struct{}{syncstate.EventName: {}},
-		queueReady: make(chan struct{}, 1),
-	}
-	w.service.addSubscriber("observer", sub)
+	sub := openStream(t, w.service, "observer", syncstate.EventName)
 	client := newSyncClient(w.SyncContract())
 	cosmetics, loadout := syncIndex(t, w.World, "cosmetics"), syncIndex(t, w.World, "loadout")
 	require.Equal(t, []uint16{0, 1}, []uint16{cosmetics, loadout})
@@ -198,16 +188,11 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 	// Recovery: the reader unsubscribes, then subscribes again and gets a fresh baseline.
 	resubscribe := func(before func()) syncstate.Frame {
 		t.Helper()
-		subscriptions := []*cardinalv1.EventSubscription{{Events: []string{syncstate.EventName}}}
-		w.service.mu.Lock()
-		removeSubscriptions(sub, subscriptions)
-		w.service.mu.Unlock()
+		setSyncSubscribed(w.service, sub, false)
 		tick(step)
 		require.Empty(t, sub.queue, "an unsubscribed reader is closed without a frame")
 		before()
-		w.service.mu.Lock()
-		addSubscriptions(sub, subscriptions)
-		w.service.mu.Unlock()
+		setSyncSubscribed(w.service, sub, true)
 		tick(step)
 		return next()
 	}

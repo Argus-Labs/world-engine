@@ -52,15 +52,31 @@ func newSyncFixture(t *testing.T, admit func(string) bool) (*TestWorld, *streamS
 		w.RegisterEvent[syncReply]()
 	})
 	w.World.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
-	ctx, cancel := context.WithCancelCause(t.Context())
+	return w, openStream(t, w.service, "alice", syncstate.EventName, "hurt")
+}
+
+// openStream registers a stream for player that subscribes to events, as StartEventStream does.
+// Nothing writes the stream, so what the tick sends it stays in its queue for the test to read.
+func openStream(tb testing.TB, s *service, player string, events ...string) *streamSubscriber {
+	ctx, cancel := context.WithCancelCause(tb.Context())
 	sub := &streamSubscriber{
-		ctx:        ctx,
-		cancel:     cancel,
-		events:     map[string]struct{}{syncstate.EventName: {}, "hurt": {}},
-		queueReady: make(chan struct{}, 1),
+		ctx: ctx, cancel: cancel, events: map[string]struct{}{}, queueReady: make(chan struct{}, 1),
 	}
-	w.service.addSubscriber("alice", sub)
-	return w, sub
+	addSubscriptions(sub, []*cardinalv1.EventSubscription{{Events: events}})
+	s.addSubscriber(player, sub)
+	return sub
+}
+
+// setSyncSubscribed subscribes sub to world_sync or unsubscribes it, as the service's RPCs do.
+func setSyncSubscribed(s *service, sub *streamSubscriber, on bool) {
+	subscriptions := []*cardinalv1.EventSubscription{{Events: []string{syncstate.EventName}}}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if on {
+		addSubscriptions(sub, subscriptions)
+	} else {
+		removeSubscriptions(sub, subscriptions)
+	}
 }
 
 // syncClient applies one connection's frames by the client rules of the compact layout: it
@@ -390,26 +406,11 @@ func TestSyncCommitPrecedesOccurrenceAndRecoveryIsQuiet(t *testing.T) {
 	require.Equal(t, 20, health.HP)
 	// A reconnect: the new stream gets a baseline and none of the tick's occurrences, which
 	// belong to the stream that was open when they happened.
-	reconnected := reconnectSync(t, w, "alice")
+	reconnected := openStream(t, w.service, "alice", syncstate.EventName, "hurt")
 	w.Broadcast(syncHurt{Amount: 1})
 	w.Tick()
 	require.Len(t, reconnected.queue, 1)
 	require.NotNil(t, syncFrames(t, reconnected)[0].Open)
-}
-
-// reconnectSync replaces player's stream with a new one subscribed to sync and hurt.
-func reconnectSync(t *testing.T, w *TestWorld, player string) *streamSubscriber {
-	t.Helper()
-	ctx, cancel := context.WithCancelCause(t.Context())
-	sub := &streamSubscriber{
-		ctx:        ctx,
-		cancel:     cancel,
-		events:     map[string]struct{}{"hurt": {}},
-		queueReady: make(chan struct{}, 1),
-	}
-	addSubscriptions(sub, []*cardinalv1.EventSubscription{{Events: []string{syncstate.EventName}}})
-	w.service.addSubscriber(player, sub)
-	return sub
 }
 
 func TestSyncAudienceRevocation(t *testing.T) {
@@ -465,14 +466,7 @@ func TestSyncInitializationPublishesOnlyTheFinishedEntity(t *testing.T) {
 func TestSyncMetadataWithoutEnableKeepsLegacyEventDelivery(t *testing.T) {
 	w := NewTestWorld(t, func(w *World) { w.RegisterComponent[syncHealth](); w.RegisterEvent[syncHurt]() })
 	w.World.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
-	ctx, cancel := context.WithCancelCause(t.Context())
-	sub := &streamSubscriber{
-		ctx:        ctx,
-		cancel:     cancel,
-		events:     map[string]struct{}{"hurt": {}},
-		queueReady: make(chan struct{}, 1),
-	}
-	w.service.addSubscriber("balance", sub)
+	sub := openStream(t, w.service, "balance", "hurt")
 	w.SendTo("balance", syncHurt{Amount: 3})
 	w.Tick()
 	require.Len(t, sub.queue, 1)
@@ -483,7 +477,7 @@ func TestSyncNewSubscriberCannotReceiveBeforeTickBaseline(t *testing.T) {
 	w, old := newSyncFixture(t, func(string) bool { return true })
 	w.Tick()
 	syncFrames(t, old)
-	sub := reconnectSync(t, w, "bob")
+	sub := openStream(t, w.service, "bob", syncstate.EventName, "hurt")
 	w.Broadcast(syncHurt{Amount: 1}) // the tick bob joins: bob's stream opens after its events
 	w.Tick()
 	require.Len(t, sub.queue, 1)
@@ -598,15 +592,7 @@ func TestSyncComponentIndexIsContractOrder(t *testing.T) {
 	var contract syncstate.Contract
 	require.NoError(t, json.Unmarshal(exported, &contract))
 	w := NewTestWorld(t, func(w *World) { register(w); w.EnableSync(func(string) bool { return true }) })
-	ctx, cancel := context.WithCancelCause(t.Context())
-	defer cancel(nil)
-	sub := &streamSubscriber{
-		ctx:        ctx,
-		cancel:     cancel,
-		events:     map[string]struct{}{syncstate.EventName: {}},
-		queueReady: make(chan struct{}, 1),
-	}
-	w.service.addSubscriber("observer", sub)
+	sub := openStream(t, w.service, "observer", syncstate.EventName)
 	e := w.Create[syncLettered]()
 	e.Set(syncBeta{B: 2})
 	e.Set(syncZeta{Z: 26})

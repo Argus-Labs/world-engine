@@ -12,7 +12,6 @@ import (
 	"connectrpc.com/connect"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
-	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	"github.com/stretchr/testify/require"
 	"github.com/vmihailenco/msgpack/v5"
@@ -203,32 +202,19 @@ func TestSyncSubscriptionsRaceTheTick(t *testing.T) {
 	for i := range 6 {
 		player := fmt.Sprintf("p%d", i)
 		wg.Go(func() {
-			subscription := []*cardinalv1.EventSubscription{{Events: []string{syncstate.EventName}}}
 			for j := 0; ; j++ {
 				select {
 				case <-stop:
 					return
 				default:
 				}
-				ctx, cancel := context.WithCancelCause(context.Background())
-				sub := &streamSubscriber{
-					ctx:        ctx,
-					cancel:     cancel,
-					events:     map[string]struct{}{},
-					queueReady: make(chan struct{}, 1),
-				}
-				addSubscriptions(sub, subscription)
+				sub := openStream(t, w.service, player, syncstate.EventName)
 				mu.Lock()
 				created = append(created, sub)
 				mu.Unlock()
-				w.service.addSubscriber(player, sub)
 				if j%3 == 0 { // unsubscribe and subscribe again on the same stream
-					w.service.mu.Lock()
-					removeSubscriptions(sub, subscription)
-					w.service.mu.Unlock()
-					w.service.mu.Lock()
-					addSubscriptions(sub, subscription)
-					w.service.mu.Unlock()
+					setSyncSubscribed(w.service, sub, false)
+					setSyncSubscribed(w.service, sub, true)
 				}
 				if j%4 == 0 {
 					w.service.removeSubscriber(player, sub)
@@ -259,16 +245,7 @@ func TestSyncSubscriptionsRaceTheTick(t *testing.T) {
 	// Streams opened after the churn hold the world.
 	var final []*streamSubscriber
 	for i := range 6 {
-		ctx, cancel := context.WithCancelCause(t.Context())
-		sub := &streamSubscriber{
-			ctx:        ctx,
-			cancel:     cancel,
-			events:     map[string]struct{}{},
-			queueReady: make(chan struct{}, 1),
-		}
-		addSubscriptions(sub, []*cardinalv1.EventSubscription{{Events: []string{syncstate.EventName}}})
-		w.service.addSubscriber(fmt.Sprintf("p%d", i), sub)
-		final = append(final, sub)
+		final = append(final, openStream(t, w.service, fmt.Sprintf("p%d", i), syncstate.EventName))
 	}
 	w.Tick()
 	want := map[uint32]syncstate.ID{}
