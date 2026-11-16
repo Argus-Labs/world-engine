@@ -11,6 +11,7 @@ and record the premise, verification, caveats, AI authorship, and human contribu
 
 - Before designing, editing, or reviewing Go code, read and follow [go-development](.agents/skills/go-development/SKILL.md).
 - For Go command-line or terminal UI work, also read and follow [go-cli](.agents/skills/go-cli/SKILL.md).
+- Name a `*World` parameter `w`, like its method receivers, for both `cardinal.World` and `ecs.World`. Use another name only where `w` is already taken in that scope.
 - Existing repository conventions take precedence over the skills' defaults. Keep changes scoped to the request.
 
 ## Development and verification
