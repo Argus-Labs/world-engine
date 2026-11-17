@@ -10,8 +10,8 @@ import (
 type ShapeSlice = immutable.Slice[component.ColliderShape]
 
 // ShadowState is a snapshot of the ECS physics components last applied to Box2D for one entity.
-// It is a plain struct copy of components read with Get, which hands out its own copy of every
-// immutable.Slice, so the Shapes it holds share no array with the world.
+// It is a plain struct copy: an immutable.Slice never writes to storage it shares, so a later edit
+// to the live components cannot reach the Shapes held here.
 type ShadowState struct {
 	Transform   component.Transform2D
 	Velocity    component.Velocity2D

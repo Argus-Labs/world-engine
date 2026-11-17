@@ -1,9 +1,9 @@
 // Package immutable holds the collections a component may hold: Slice and Map. Both keep their
 // storage private, so nothing outside this package can reach into one.
 //
-// Both are edited in place, like a Go slice and map. They are safe in a component because Cardinal
-// copies them on the way in and out of the world (Get, Set, events and commands) with Clone and
-// CloneFunc, so a system only ever edits its own copy.
+// Both are edited in place, like a Go slice and map, but their storage never changes once a value
+// holds it: an edit copies the small part it touches. Copying a Slice or Map is therefore free and
+// safe, which is what lets Cardinal pass them in and out of the world without copying them.
 package immutable
 
 import (
@@ -11,6 +11,7 @@ import (
 	"iter"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/goccy/go-json"
@@ -18,33 +19,38 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-// Slice is a list with a private array, for component fields whose length is genuinely unbounded.
+// Slice is a list with private storage, for component fields whose length is genuinely unbounded.
 // It is the only variable-length list a component may hold.
 //
 // Edit it in place, the way you would a Go slice, and store it with Set:
 //
-//	inv := ref.Get()       // inv.Items is a copy; the world is unchanged
+//	inv := ref.Get()
 //	inv.Items.Append(item)
 //	inv.Items.Set(0, other)
-//	ref.Set(inv)           // the world stores a copy of inv.Items
+//	ref.Set(inv)
 //
-// Cardinal copies every Slice a component holds when Get hands the component out and when Set takes
-// it in, so an edit never reaches the world without Set, and an edit after Set never reaches what was
-// stored. Events and commands are copied the same way. It is the usual Go rule for a type that stores
-// slices: copy them when they come in and when they go out.
+// The storage underneath never changes once a Slice holds it: an edit copies only the small part it
+// touches and leaves every other Slice that shared it as it was. So copying a Slice is free and
+// always safe. d := inv.Items and then editing d never changes inv.Items, a loop over a Slice sees it
+// as it was when the loop started, and Cardinal hands Slices in and out of the world without copying
+// them. An edit reaches the world only through Set.
 //
-// Inside one system a Slice behaves exactly like a Go slice. Assigning one (d := inv.Items) shares
-// its array, so an edit through d can show up in inv.Items, and two copies that both Append can
-// overwrite each other's new elements. Use Clone for a copy that shares nothing.
+// Reading an element is a lookup in a tree of 32-element chunks: direct for the first 64 elements,
+// one more step per 32x after that. An edit copies one chunk of up to 32 elements and the path above
+// it; Append copies the last chunk. Insert, Delete, DeleteFunc and the sorts rebuild the Slice,
+// which costs O(n), as they do for a Go slice.
 //
-// Every empty Slice is the zero value: an edit that empties one, Reset, SliceOf, Collect, Clone and
-// both decoders leave nil items, so empty Slices are [reflect.DeepEqual] however they were made.
+// Every empty Slice is the zero value, and equal Slices have the same storage layout, so
+// [reflect.DeepEqual] compares Slices by their elements however they were built.
 //
 // The element type must be value-safe too: scalars, strings, fixed arrays, another Slice, a Map,
 // [time.Time], or structs of those. Slice does not check this, but registering a component that
 // holds a Slice of anything else fails.
 type Slice[T any] struct {
-	items []T
+	root  *vnode[T] // full chunks before the tail; nil when there are none
+	tail  []T       // the last ((n-1) mod 32)+1 elements; nil when empty
+	n     int
+	shift uint // levels above the leaves in root, times chunkBits
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -54,19 +60,12 @@ type Slice[T any] struct {
 // SliceOf returns a Slice holding a copy of items. Later changes to the caller's slice do not reach
 // the returned value.
 func SliceOf[T any](items ...T) Slice[T] {
-	return Slice[T]{items: emptyToNil(slices.Clone(items))}
+	return fromItems(slices.Clone(items))
 }
 
 // Collect returns a Slice holding every element of seq, in order.
 func Collect[T any](seq iter.Seq[T]) Slice[T] {
-	return Slice[T]{items: emptyToNil(slices.Collect(seq))}
-}
-
-// Clone returns a copy of s that shares no array with it, including the arrays of Slices nested in
-// its elements.
-func (s Slice[T]) Clone() Slice[T] {
-	s.cloneDeep()
-	return s
+	return fromItems(slices.Collect(seq))
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -75,59 +74,104 @@ func (s Slice[T]) Clone() Slice[T] {
 
 // Len returns the number of elements.
 func (s Slice[T]) Len() int {
-	return len(s.items)
+	return s.n
 }
 
 // At returns the element at index i. It panics when i is out of range, like a slice.
 func (s Slice[T]) At(i int) T {
-	return s.items[i]
+	s.checkIndex(i)
+	if off := s.treeLen(); i >= off {
+		return s.tail[i-off]
+	}
+	return s.leafAt(i)[i&chunkMask]
 }
 
 // All returns an iterator over index and element, in order.
 func (s Slice[T]) All() iter.Seq2[int, T] {
-	return slices.All(s.items)
+	return func(yield func(int, T) bool) {
+		i := 0
+		for c := range s.chunks() {
+			for _, v := range c {
+				if !yield(i, v) {
+					return
+				}
+				i++
+			}
+		}
+	}
 }
 
 // Values returns an iterator over the elements, in order.
 func (s Slice[T]) Values() iter.Seq[T] {
-	return slices.Values(s.items)
+	return func(yield func(T) bool) {
+		for c := range s.chunks() {
+			for _, v := range c {
+				if !yield(v) {
+					return
+				}
+			}
+		}
+	}
 }
 
 // Backward returns an iterator over index and element from the last element to the first.
 func (s Slice[T]) Backward() iter.Seq2[int, T] {
-	return slices.Backward(s.items)
+	return func(yield func(int, T) bool) {
+		i := s.n
+		for c := range s.backwardChunks() {
+			for _, v := range slices.Backward(c) {
+				i--
+				if !yield(i, v) {
+					return
+				}
+			}
+		}
+	}
 }
 
 // IndexFunc returns the index of the first element for which f is true, or -1.
 func (s Slice[T]) IndexFunc(f func(T) bool) int {
-	return slices.IndexFunc(s.items, f)
+	for i, v := range s.All() {
+		if f(v) {
+			return i
+		}
+	}
+	return -1
 }
 
 // ContainsFunc reports whether f is true for any element.
 func (s Slice[T]) ContainsFunc(f func(T) bool) bool {
-	return slices.ContainsFunc(s.items, f)
+	return s.IndexFunc(f) >= 0
 }
 
 // EqualFunc reports whether both Slices have the same length and eq holds for every pair of elements
 // at the same index.
 func (s Slice[T]) EqualFunc(other Slice[T], eq func(a, b T) bool) bool {
-	return slices.EqualFunc(s.items, other.items, eq)
+	if s.n != other.n {
+		return false
+	}
+	for i, v := range s.All() {
+		if !eq(v, other.At(i)) {
+			return false
+		}
+	}
+	return true
 }
 
 // Equal reports whether a and b hold the same elements in the same order. Like [slices.Equal] it is
 // a function, because a method cannot narrow T to comparable.
 func Equal[T comparable](a, b Slice[T]) bool {
-	return slices.Equal(a.items, b.items)
+	return a.EqualFunc(b, func(x, y T) bool { return x == y })
 }
 
 // Index returns the index of the first element of s equal to v, or -1.
 func Index[T comparable](s Slice[T], v T) int {
-	return slices.Index(s.items, v)
+	return s.IndexFunc(func(x T) bool { return x == v })
 }
 
 // Contains reports whether v is an element of s.
 func Contains[T comparable](s Slice[T], v T) bool {
-	return slices.Contains(s.items, v)
+	return Index(s, v) >= 0
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -136,36 +180,129 @@ func Contains[T comparable](s Slice[T], v T) bool {
 
 // Set replaces the element at index i with v. It panics when i is out of range, like a slice.
 func (s *Slice[T]) Set(i int, v T) {
-	s.items[i] = v
+	s.checkIndex(i)
+	if off := s.treeLen(); i >= off {
+		tail := slices.Clone(s.tail)
+		tail[i-off] = v
+		s.tail = tail
+		return
+	}
+	s.root = setInTree(s.root, s.shift, i, v)
 }
 
-// Append adds items at the end. Like append, it grows the array only when it is full, so appending
-// in a loop is linear.
+// Append adds items at the end. It copies the last chunk of up to 32 elements, so appending in a loop
+// is linear.
 func (s *Slice[T]) Append(items ...T) {
-	s.items = append(s.items, items...)
+	for len(items) > 0 {
+		if len(s.tail) == chunkSize {
+			s.pushLeaf(leafNode(s.tail))
+			s.tail = nil
+		}
+		take := min(chunkSize-len(s.tail), len(items))
+		tail := make([]T, len(s.tail)+take)
+		copy(tail, s.tail)
+		copy(tail[len(s.tail):], items[:take])
+		s.tail = tail
+		s.n += take
+		items = items[take:]
+	}
 }
 
 // Insert inserts items at index i, which may equal Len. It panics when i is out of range, like
 // [slices.Insert].
 func (s *Slice[T]) Insert(i int, items ...T) {
-	s.items = slices.Insert(s.items, i, items...)
+	if i < 0 || i > s.n {
+		panic(indexError(i, s.n+1))
+	}
+	if i == s.n {
+		s.Append(items...)
+		return
+	}
+	if len(items) == 0 {
+		return
+	}
+	all := s.toItems(len(items))
+	*s = fromItems(slices.Insert(all, i, items...))
 }
 
 // Delete removes the elements in [i, j). It panics when the range is out of bounds, like
 // [slices.Delete].
 func (s *Slice[T]) Delete(i, j int) {
-	s.items = emptyToNil(slices.Delete(s.items, i, j))
+	if i < 0 || j > s.n || i > j {
+		panic(rangeError(i, j, s.n))
+	}
+	if i == j {
+		return
+	}
+	if s.root == nil && i == 0 {
+		// Every element is in the tail, which stays canonical as a later view of the same array.
+		s.tail = s.tail[j:]
+		s.n -= j
+		if s.n == 0 {
+			s.tail = nil
+		}
+		return
+	}
+	if off := s.treeLen(); j == s.n && i > off {
+		// Only the end of the tail goes, and some of it stays: a shorter view of the same tail.
+		s.tail = s.tail[: i-off : i-off]
+		s.n = i
+		return
+	}
+	kept := make([]T, 0, s.n-(j-i))
+	k := 0
+	for c := range s.chunks() {
+		for _, v := range c {
+			if k < i || k >= j {
+				kept = append(kept, v)
+			}
+			k++
+		}
+	}
+	*s = fromItems(kept)
 }
 
 // DeleteFunc removes every element for which del is true, keeping the rest in order.
 func (s *Slice[T]) DeleteFunc(del func(T) bool) {
-	s.items = emptyToNil(slices.DeleteFunc(s.items, del))
+	var kept []T
+	k := 0
+	deleted := false
+	for c := range s.chunks() {
+		for _, v := range c {
+			switch {
+			case del(v):
+				if !deleted {
+					deleted = true
+					kept = make([]T, 0, s.n-1)
+					kept = appendFirst(kept, *s, k)
+				}
+			case deleted:
+				kept = append(kept, v)
+			}
+			k++
+		}
+	}
+	if deleted {
+		*s = fromItems(kept)
+	}
+}
+
+// appendFirst appends the first k elements of s to dst.
+func appendFirst[T any](dst []T, s Slice[T], k int) []T {
+	for c := range s.chunks() {
+		if k <= len(c) {
+			return append(dst, c[:k]...)
+		}
+		dst = append(dst, c...)
+		k -= len(c)
+	}
+	return dst
 }
 
 // Reset removes every element, like [bytes.Buffer.Reset]. It is not Go's clear, which zeroes the
 // elements and keeps the length.
 func (s *Slice[T]) Reset() {
-	s.items = nil
+	*s = Slice[T]{}
 }
 
 // SortStableFunc sorts the elements by compare, which reports a<b as negative, a==b as zero and a>b
@@ -173,26 +310,44 @@ func (s *Slice[T]) Reset() {
 // on the algorithm a Go release sorts with. There is no unstable sort for that reason: a world must
 // sort the same way on every machine and build.
 func (s *Slice[T]) SortStableFunc(compare func(a, b T) int) {
-	slices.SortStableFunc(s.items, compare)
+	if s.n < 2 {
+		return
+	}
+	items := s.toItems(0)
+	slices.SortStableFunc(items, compare)
+	*s = fromItems(items)
 }
 
 // Sort sorts the elements of s in ascending order. It is stable for the same reason SortStableFunc
 // is, which matters for floats: -0.0 and 0.0 compare equal, so an unstable sort may order them either
 // way.
 func Sort[T cmp.Ordered](s *Slice[T]) {
-	slices.SortStableFunc(s.items, cmp.Compare[T])
+	s.SortStableFunc(cmp.Compare[T])
 }
 
 // Reverse reverses the order of the elements.
 func (s *Slice[T]) Reverse() {
-	slices.Reverse(s.items)
+	if s.n < 2 {
+		return
+	}
+	items := s.toItems(0)
+	slices.Reverse(items)
+	*s = fromItems(items)
 }
 
-func emptyToNil[T any](items []T) []T {
-	if len(items) == 0 {
-		return nil
+func (s Slice[T]) checkIndex(i int) {
+	if i < 0 || i >= s.n {
+		panic(indexError(i, s.n))
 	}
-	return items
+}
+
+func indexError(i, n int) string {
+	return "immutable: index " + strconv.Itoa(i) + " out of range with length " + strconv.Itoa(n)
+}
+
+func rangeError(i, j, n int) string {
+	return "immutable: range [" + strconv.Itoa(i) + ":" + strconv.Itoa(j) + "] out of range with length " +
+		strconv.Itoa(n)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -210,10 +365,10 @@ func emptyToNil[T any](items []T) []T {
 // MarshalJSON encodes the Slice as a JSON array of its items. The zero value encodes as `[]`, not
 // `null`: a Slice is never "absent", only empty.
 func (s Slice[T]) MarshalJSON() ([]byte, error) {
-	if len(s.items) == 0 {
+	if s.n == 0 {
 		return []byte("[]"), nil
 	}
-	return json.Marshal(s.items)
+	return json.Marshal(s.toItems(0))
 }
 
 // UnmarshalJSON replaces the Slice with the array in data. An empty array and `null` both yield the
@@ -224,16 +379,16 @@ func (s *Slice[T]) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &items); err != nil {
 		return err
 	}
-	s.items = emptyToNil(items)
+	*s = fromItems(items)
 	return nil
 }
 
 // EncodeMsgpack encodes a Slice as an array, including empty and byte-valued Slices.
 func (s Slice[T]) EncodeMsgpack(enc *msgpack.Encoder) error {
-	if err := enc.EncodeArrayLen(len(s.items)); err != nil {
+	if err := enc.EncodeArrayLen(s.n); err != nil {
 		return eris.Wrap(err, "failed to encode immutable slice length")
 	}
-	for _, item := range s.items {
+	for item := range s.Values() {
 		if err := enc.Encode(item); err != nil {
 			return eris.Wrap(err, "failed to encode immutable slice element")
 		}
@@ -258,12 +413,12 @@ func (s *Slice[T]) DecodeMsgpack(dec *msgpack.Decoder) error {
 		}
 		items = append(items, item)
 	}
-	s.items = items
+	*s = fromItems(items)
 	return nil
 }
 
 // IsZero lets MessagePack's omitempty distinguish populated Slices from empty ones.
-func (s Slice[T]) IsZero() bool { return len(s.items) == 0 }
+func (s Slice[T]) IsZero() bool { return s.n == 0 }
 
 // SliceElem reports whether t is an instantiation of Slice and, if so, returns its element type.
 // It exists so tooling that works through reflection, such as the DST random filler, can recognise
@@ -275,9 +430,9 @@ func SliceElem(t reflect.Type) (reflect.Type, bool) {
 	if t.PkgPath() != reflect.TypeFor[Slice[struct{}]]().PkgPath() {
 		return nil, false
 	}
-	items, ok := t.FieldByName("items")
-	if !ok || items.Type.Kind() != reflect.Slice {
+	tail, ok := t.FieldByName("tail")
+	if !ok || tail.Type.Kind() != reflect.Slice {
 		return nil, false
 	}
-	return items.Type.Elem(), true
+	return tail.Type.Elem(), true
 }

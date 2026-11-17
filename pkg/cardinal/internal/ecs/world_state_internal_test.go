@@ -921,6 +921,7 @@ func TestWorldState_GetAndSetCopySlices(t *testing.T) {
 		v.Items.Append(-2)
 		group := v.Groups.At(0)
 		group.Set(0, -3)
+		v.Groups.Set(0, group)
 	}
 
 	require.NoError(t, ws.setComponent(e, value))
@@ -954,6 +955,7 @@ func TestWorldState_ToProtoOwnsPayloads(t *testing.T) {
 	value.Items.Set(0, 99)
 	group := value.Groups.At(0)
 	group.Set(0, 88)
+	value.Groups.Set(0, group)
 	require.NoError(t, ws.setComponent(e, value))
 	live, err := ws.getComponent[nestedPayload](e)
 	require.NoError(t, err)

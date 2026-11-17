@@ -270,7 +270,6 @@ func TestSlice_EmptyIsZeroValue(t *testing.T) {
 		{"SliceOf()", immutable.SliceOf[int]()},
 		{"SliceOf(empty literal)", immutable.SliceOf([]int{}...)},
 		{"Collect(empty)", immutable.Collect(zero.Values())},
-		{"Clone(zero)", zero.Clone()},
 		{"Delete all", edited(func(s *immutable.Slice[int]) { s.Delete(0, 2) })},
 		{"DeleteFunc all", edited(func(s *immutable.Slice[int]) { s.DeleteFunc(func(int) bool { return true }) })},
 		{"Reset", edited(func(s *immutable.Slice[int]) { s.Reset() })},
@@ -330,32 +329,30 @@ func TestSlice_ModelMatchesPlainSlice(t *testing.T) {
 	}
 }
 
-// A Slice behaves like a Go slice inside one system: an assignment shares the array. Clone is the way
-// to a copy that shares nothing, and the copy Cardinal makes on Get and Set.
-func TestSlice_AssignmentSharesAndCloneDoesNot(t *testing.T) {
+// An edit never reaches another copy, whether the copy was made by assignment or holds the edited
+// Slice as an element.
+func TestSlice_CopiesShareNothing(t *testing.T) {
 	t.Parallel()
 
 	s := immutable.SliceOf(1, 2, 3)
-	shared := s
-	shared.Set(0, 9)
-	require.Equal(t, 9, s.At(0), "an assignment shares the array, as with a Go slice")
+	cp := s
+	cp.Set(0, 9)
+	cp.Append(4)
+	require.Equal(t, []int{1, 2, 3}, collect(s), "an edit through an assigned copy")
+	require.Equal(t, []int{9, 2, 3, 4}, collect(cp))
 
-	clone := s.Clone()
-	clone.Set(0, 1)
-	clone.Append(4)
-	require.Equal(t, []int{9, 2, 3}, collect(s), "edits to a clone do not reach the original")
-	require.Equal(t, []int{1, 2, 3, 4}, collect(clone))
-}
-
-func TestSlice_CloneCopiesNestedSlices(t *testing.T) {
-	t.Parallel()
-
-	s := immutable.SliceOf(immutable.SliceOf(1, 2), immutable.SliceOf(3))
-	clone := s.Clone()
-	inner := clone.At(0)
+	nested := immutable.SliceOf(immutable.SliceOf(1, 2), immutable.SliceOf(3))
+	inner := nested.At(0)
 	inner.Set(0, 9)
-	require.Equal(t, 1, s.At(0).At(0), "an inner Slice of a clone has its own array")
-	require.Equal(t, 9, clone.At(0).At(0), "the clone's inner Slice shares with the element At returned")
+	require.Equal(t, 1, nested.At(0).At(0), "an edit to an element At returned")
+
+	// Two copies that both Append keep their own elements, as Go slices sharing an array do not.
+	a := immutable.SliceOf(1)
+	b := a
+	a.Append(2)
+	b.Append(3)
+	require.Equal(t, []int{1, 2}, collect(a))
+	require.Equal(t, []int{1, 3}, collect(b))
 }
 
 func TestSlice_Allocations(t *testing.T) {
@@ -363,20 +360,29 @@ func TestSlice_Allocations(t *testing.T) {
 		t.Skip("allocation counts are not meaningful under -race")
 	}
 	s := immutable.SliceOf(1, 2, 3, 4, 5, 6, 7, 8)
+	big := immutable.Collect(func(yield func(int) bool) {
+		for i := range 5000 {
+			if !yield(i) {
+				return
+			}
+		}
+	})
 	var sink int
 
 	reads := testing.AllocsPerRun(100, func() {
-		sink += s.Len() + s.At(3) + immutable.Index(s, 4)
+		sink += s.Len() + s.At(3) + immutable.Index(s, 4) + big.At(4000)
 		for _, v := range s.All() {
 			sink += v
 		}
 	})
 	require.Zero(t, reads, "reads never allocate")
-	require.Zero(t, testing.AllocsPerRun(100, func() { s.Set(0, 9) }), "Set")
-	require.InDelta(t, 1, testing.AllocsPerRun(100, func() { sink += s.Clone().Len() }), 0, "Clone of a flat Slice")
+	require.Zero(t, testing.AllocsPerRun(100, func() { d := s; sink += d.Len() }), "a copy")
+	require.InDelta(t, 1, testing.AllocsPerRun(100, func() { d := s; d.Set(0, 9) }), 0, "Set: one chunk")
+	require.InDelta(t, 3, testing.AllocsPerRun(100, func() { d := big; d.Set(1000, 9) }), 0,
+		"Set in a 5000-element Slice: the chunk and the two nodes above it")
+	require.InDelta(t, 1, testing.AllocsPerRun(100, func() { d := big; d.Append(9) }), 0, "Append: the last chunk")
 
-	// Append grows the array only when it is full, so a loop of 1024 appends allocates about log2(1024)
-	// times, not 1024.
+	// Each Append copies the last chunk, at most 32 elements, so a loop of appends is linear.
 	loop := testing.AllocsPerRun(100, func() {
 		var b immutable.Slice[int]
 		for i := range 1024 {
@@ -384,15 +390,15 @@ func TestSlice_Allocations(t *testing.T) {
 		}
 		sink += b.Len()
 	})
-	require.LessOrEqual(t, loop, 20.0, "1024 appends")
+	require.LessOrEqual(t, loop, 1100.0, "1024 appends")
 	_ = sink
 }
 
-// Slice copies the engine type's name and layout but lives in this package, so SliceElem must
-// refuse it.
+// Slice copies the engine type's name and a field of its layout but lives in this package, so
+// SliceElem must refuse it.
 //
 //nolint:unused // the field is never read on purpose; only the layout matters
-type Slice[T any] struct{ items []T }
+type Slice[T any] struct{ tail []T }
 
 func TestSliceElem(t *testing.T) {
 	t.Parallel()

@@ -7,12 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type flat struct {
-	A int
-	B [4]string
-	C point
-}
-
 type withSlices struct {
 	Name   string
 	Items  immutable.Slice[int]
@@ -30,18 +24,6 @@ type tree struct {
 
 type mapTree struct {
 	Kids immutable.Map[int, mapTree]
-}
-
-func TestCloneFunc_NilWithoutSlices(t *testing.T) {
-	t.Parallel()
-
-	require.Nil(t, immutable.CloneFunc[int]())
-	require.Nil(t, immutable.CloneFunc[flat]())
-	require.Nil(t, immutable.CloneFunc[[0]immutable.Slice[int]]())
-	require.NotNil(t, immutable.CloneFunc[immutable.Map[int, point]]())
-	require.NotNil(t, immutable.CloneFunc[withSlices]())
-	require.NotNil(t, immutable.CloneFunc[tree]())
-	require.NotNil(t, immutable.CloneFunc[mapTree]())
 }
 
 func newWithSlices() withSlices {
@@ -71,45 +53,40 @@ func editAll(v *withSlices) {
 	v.Table.Delete(1)
 }
 
-func TestCloneFunc_CopySharesNoSlice(t *testing.T) {
+func TestCopy_SharesNoStorage(t *testing.T) {
 	t.Parallel()
 
-	clone := immutable.CloneFunc[withSlices]()
 	orig := newWithSlices()
 	cp := orig
-	clone(&cp)
 	editAll(&cp)
 	require.Equal(t, newWithSlices(), orig, "edits to the copy reach no Slice of the original")
 
 	// The same holds the other way: the original edited after the copy leaves the copy alone.
 	orig, cp = newWithSlices(), withSlices{}
 	cp = orig
-	clone(&cp)
 	editAll(&orig)
 	require.Equal(t, newWithSlices(), cp)
 }
 
-func TestCloneFunc_Tree(t *testing.T) {
+func TestCopy_Tree(t *testing.T) {
 	t.Parallel()
 
 	leaf := tree{Value: 2, Kids: immutable.SliceOf(tree{Value: 3})}
 	orig := tree{Value: 1, Kids: immutable.SliceOf(leaf)}
 	cp := orig
-	immutable.CloneFunc[tree]()(&cp)
 
 	child := cp.Kids.At(0)
 	child.Kids.Set(0, tree{Value: -1})
 	require.Equal(t, 3, orig.Kids.At(0).Kids.At(0).Value, "every level of the tree is copied")
 }
 
-func TestCloneFunc_MapTree(t *testing.T) {
+func TestCopy_MapTree(t *testing.T) {
 	t.Parallel()
 
 	var leaf, orig mapTree
 	leaf.Kids.Set(2, mapTree{})
 	orig.Kids.Set(1, leaf)
 	cp := orig
-	immutable.CloneFunc[mapTree]()(&cp)
 
 	child, _ := cp.Kids.Get(1)
 	child.Kids.Set(3, mapTree{})
@@ -119,20 +96,6 @@ func TestCloneFunc_MapTree(t *testing.T) {
 	require.False(t, got.Kids.Has(3))
 }
 
-func TestClone(t *testing.T) {
-	t.Parallel()
-
-	orig := newWithSlices()
-	cp := immutable.Clone(orig)
-	editAll(&cp)
-	require.Equal(t, newWithSlices(), orig)
-
-	require.Equal(t, 7, immutable.Clone(7))
-	require.Nil(t, immutable.Clone[any](nil))
-}
-
-// embedsSlice gets cloneDeep promoted from its embedded Slice, and must still have its other fields
-// copied.
 type embedsSlice struct {
 	immutable.Slice[int]
 
@@ -140,14 +103,14 @@ type embedsSlice struct {
 	List  immutable.Slice[int]
 }
 
-func TestClone_StructEmbeddingASlice(t *testing.T) {
+func TestCopy_StructEmbeddingASlice(t *testing.T) {
 	t.Parallel()
 
 	var orig embedsSlice
 	orig.Append(1)
 	orig.Table.Set(1, 1)
 	orig.List.Append(1)
-	cp := immutable.Clone(orig)
+	cp := orig
 	cp.Set(0, 9)
 	cp.Table.Set(1, 9)
 	cp.List.Set(0, 9)
@@ -157,32 +120,14 @@ func TestClone_StructEmbeddingASlice(t *testing.T) {
 	require.Equal(t, 1, orig.List.At(0), "the Slice beside it is copied")
 }
 
-func TestClone_InterfaceCopiesHeldValue(t *testing.T) {
+// A value held in an interface, as Cardinal holds commands and events, is unchanged by edits to a copy
+// taken out of it.
+func TestCopy_OutOfAnInterface(t *testing.T) {
 	t.Parallel()
 
-	orig := newWithSlices()
-	var held any = orig
-	cp, ok := immutable.Clone(held).(withSlices)
+	var held any = newWithSlices()
+	cp, ok := held.(withSlices)
 	require.True(t, ok)
 	editAll(&cp)
-	require.Equal(t, newWithSlices(), orig)
-}
-
-func TestCloneFunc_Allocations(t *testing.T) {
-	if raceEnabled {
-		t.Skip("allocation counts are not meaningful under -race")
-	}
-	type component struct {
-		ID    int
-		Items immutable.Slice[int]
-		Log   immutable.Slice[point]
-	}
-	clone := immutable.CloneFunc[component]()
-	v := component{Items: immutable.SliceOf(1, 2, 3), Log: immutable.SliceOf(point{1, 2})}
-	// One allocation per non-empty Slice, plus one for the value itself: passing it to reflect moves
-	// it to the heap.
-	require.InDelta(t, 3, testing.AllocsPerRun(100, func() {
-		cp := v
-		clone(&cp)
-	}), 0)
+	require.Equal(t, newWithSlices(), held)
 }

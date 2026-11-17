@@ -144,7 +144,6 @@ func TestMap_EmptyIsZeroValue(t *testing.T) {
 		"Delete last":   deleted,
 		"DeleteFunc":    filtered,
 		"Clear":         cleared,
-		"Clone empty":   immutable.Map[string, int]{}.Clone(),
 		"MapFrom empty": immutable.MapFrom(maps.All(map[string]int{})),
 		"msgpack {}":    fromMsgpack,
 		"JSON {}":       fromJSON,
@@ -153,25 +152,19 @@ func TestMap_EmptyIsZeroValue(t *testing.T) {
 	}
 }
 
-func TestMap_AssignmentSharesAndCloneDoesNot(t *testing.T) {
+func TestMap_CopiesShareNothing(t *testing.T) {
 	t.Parallel()
 
 	m := mapOf(map[string]int{"a": 1, "b": 2})
-	shared := m
-	shared.Set("a", 9)
-	v, _ := m.Get("a")
-	require.Equal(t, 9, v, "an assignment shares the storage, as with a Go map")
-
-	clone := m.Clone()
-	clone.Set("a", 1)
-	clone.Set("c", 3)
-	clone.Delete("b")
+	cp := m
+	cp.Set("a", 9)
+	cp.Set("c", 3)
+	cp.Delete("b")
 	keys, vals := entries(m)
-	require.Equal(t, []string{"a", "b"}, keys, "edits to a clone do not reach the original")
-	require.Equal(t, []int{9, 2}, vals)
+	require.Equal(t, []string{"a", "b"}, keys, "edits through an assigned copy do not reach the original")
+	require.Equal(t, []int{1, 2}, vals)
 
-	// Adding or deleting keys through one copy leaves the other a valid Map: sorted, every key found,
-	// and encodable to a snapshot that restores.
+	// Adding or deleting keys through one copy leaves the other unchanged and valid.
 	for name, edit := range map[string]func(*immutable.Map[int, int]){
 		"Delete first":   func(m *immutable.Map[int, int]) { m.Delete(0) },
 		"Delete middle":  func(m *immutable.Map[int, int]) { m.Delete(2) },
@@ -186,6 +179,7 @@ func TestMap_AssignmentSharesAndCloneDoesNot(t *testing.T) {
 		}
 		other := orig
 		edit(&other)
+		require.Equal(t, []int{0, 2, 4, 6, 8}, slices.Collect(orig.Keys()), name)
 		requireValidMap(t, orig, name+", the other copy")
 		requireValidMap(t, other, name+", the edited copy")
 	}
@@ -212,13 +206,13 @@ func TestMap_RangeAndDelete(t *testing.T) {
 	require.Equal(t, []int{0, 7}, keys, "only the expired buffs are removed")
 }
 
-func TestMap_CloneCopiesNestedCollections(t *testing.T) {
+func TestMap_CopyKeepsNestedCollections(t *testing.T) {
 	t.Parallel()
 
 	var m immutable.Map[int, memory]
 	m.Set(1, memory{Seen: immutable.SliceOf("x")})
-	clone := m.Clone()
-	mem, _ := clone.Get(1)
+	cp := m
+	mem, _ := cp.Get(1)
 	mem.Seen.Set(0, "edited")
 
 	orig, _ := m.Get(1)
@@ -574,19 +568,15 @@ func TestMap_Allocations(t *testing.T) {
 	})
 	assert.Zero(t, reads, "reads never allocate")
 
-	assert.Zero(t, testing.AllocsPerRun(100, func() { m.Set(3, 9) }), "Set on an existing key")
-	assert.Zero(t, testing.AllocsPerRun(100, func() { m.Delete(30) }), "Delete of an absent key")
-	assert.Zero(t, testing.AllocsPerRun(100, func() { m.DeleteFunc(func(int, int) bool { return false }) }),
+	assert.Zero(t, testing.AllocsPerRun(100, func() { d := m; sink += d.Len() }), "a copy")
+	assert.Zero(t, testing.AllocsPerRun(100, func() { d := m; d.Delete(30) }), "Delete of an absent key")
+	assert.Zero(t, testing.AllocsPerRun(100, func() { d := m; d.DeleteFunc(func(int, int) bool { return false }) }),
 		"DeleteFunc that removes nothing")
-	assert.InDelta(t, 6, testing.AllocsPerRun(100, func() {
-		d := m.Clone()
-		d.Delete(4)
-		d.DeleteFunc(func(k, _ int) bool { return k%2 == 0 })
-	}), 0, "Clone, Delete and DeleteFunc: one new pair of arrays each")
-	assert.InDelta(t, 2, testing.AllocsPerRun(100, func() { sink += m.Clone().Len() }), 0, "Clone: one per array")
+	// An edit copies the chunk of entries it touches, the only allocation in a Map of one chunk.
+	assert.InDelta(t, 1, testing.AllocsPerRun(100, func() { d := m; d.Set(3, 9) }), 0, "Set on an existing key")
+	assert.InDelta(t, 1, testing.AllocsPerRun(100, func() { d := m; d.Set(30, 9) }), 0, "Set of a new key")
+	assert.InDelta(t, 1, testing.AllocsPerRun(100, func() { d := m; d.Delete(3) }), 0, "Delete")
 
-	// Set grows the arrays only when they are full, so 1024 new keys allocate about 2·log2(1024)
-	// times, not 2048.
 	loop := testing.AllocsPerRun(100, func() {
 		var b immutable.Map[int, int]
 		for k := range 1024 {
@@ -594,6 +584,6 @@ func TestMap_Allocations(t *testing.T) {
 		}
 		sink += b.Len()
 	})
-	assert.LessOrEqual(t, loop, 40.0, "1024 new keys")
+	assert.LessOrEqual(t, loop, 2100.0, "1024 new keys: a couple of small copies each")
 	_ = sink
 }

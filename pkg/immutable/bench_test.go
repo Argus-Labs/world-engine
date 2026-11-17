@@ -8,9 +8,9 @@ import (
 	"github.com/argus-labs/world-engine/pkg/immutable"
 )
 
-// These benchmarks model how Cardinal uses the collections: a component is copied out of its
-// column, edited, and stored back, and the stored value must not change before it is stored.
-// Each iteration starts from the stored value, so every edit pays whatever a first edit costs.
+// These benchmarks model how Cardinal uses the collections: a component is taken out of its column,
+// edited, and stored back, and the stored value must not change before it is stored. Each iteration
+// starts from the stored value, so every edit pays whatever a first edit costs.
 // The scenario names are stable so results can be compared across commits with benchstat.
 
 type benchItem struct {
@@ -46,17 +46,16 @@ func benchMap(n int) (immutable.Map[int, benchItem], []int) {
 	return m, keys
 }
 
-// BenchmarkSlice copies the Slice out on every iteration and back in at the end, as Cardinal's Get
-// and Set do, so each scenario includes both copies. ReadAll pays the Get copy too: Get copies
-// whether or not the system edits.
+// BenchmarkSlice starts every iteration from the stored Slice, as a system starts from the value Get
+// returns, so each scenario pays whatever a first edit costs.
 func BenchmarkSlice(b *testing.B) {
 	for _, n := range benchSizes {
 		stored := benchSlice(n)
 		b.Run(fmt.Sprintf("AppendOne/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				s := stored.Clone()
+				s := stored
 				s.Append(benchItem{})
-				sinkSlice = s.Clone()
+				sinkSlice = s
 			}
 		})
 		b.Run(fmt.Sprintf("AppendLoop/%d", n), func(b *testing.B) {
@@ -65,52 +64,52 @@ func BenchmarkSlice(b *testing.B) {
 				for i := range n {
 					s.Append(benchItem{ID: int64(i)})
 				}
-				sinkSlice = s.Clone()
+				sinkSlice = s
 			}
 		})
 		b.Run(fmt.Sprintf("SetOne/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				s := stored.Clone()
+				s := stored
 				s.Set(n/2, benchItem{Qty: 1})
-				sinkSlice = s.Clone()
+				sinkSlice = s
 			}
 		})
 		b.Run(fmt.Sprintf("SetAll/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				s := stored.Clone()
+				s := stored
 				for i := range n {
 					s.Set(i, benchItem{Qty: 1})
 				}
-				sinkSlice = s.Clone()
+				sinkSlice = s
 			}
 		})
 		b.Run(fmt.Sprintf("InsertFront/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				s := stored.Clone()
+				s := stored
 				s.Insert(0, benchItem{})
-				sinkSlice = s.Clone()
+				sinkSlice = s
 			}
 		})
 		b.Run(fmt.Sprintf("FilterHalf/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				s := stored.Clone()
+				s := stored
 				s.DeleteFunc(func(it benchItem) bool { return it.ID%2 != 0 })
-				sinkSlice = s.Clone()
+				sinkSlice = s
 			}
 		})
 		b.Run(fmt.Sprintf("TrimFront/%d", n), func(b *testing.B) {
 			// A capped log: one entry in, the oldest out.
 			for b.Loop() {
-				s := stored.Clone()
+				s := stored
 				s.Append(benchItem{})
 				s.Delete(0, 1)
-				sinkSlice = s.Clone()
+				sinkSlice = s
 			}
 		})
 		b.Run(fmt.Sprintf("ReadAll/%d", n), func(b *testing.B) {
 			for b.Loop() {
 				var sum int64
-				for _, it := range stored.Clone().All() {
+				for _, it := range stored.All() {
 					sum += it.ID
 				}
 				sinkInt = sum
@@ -119,23 +118,22 @@ func BenchmarkSlice(b *testing.B) {
 	}
 }
 
-// BenchmarkMap pays the same copies as BenchmarkSlice. GetAll reads the stored Map without the Get
-// copy, so it measures lookups alone.
+// BenchmarkMap starts every iteration from the stored Map, as BenchmarkSlice does.
 func BenchmarkMap(b *testing.B) {
 	for _, n := range benchSizes {
 		stored, keys := benchMap(n)
 		b.Run(fmt.Sprintf("SetExistingOne/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				m := stored.Clone()
+				m := stored
 				m.Set(keys[0], benchItem{Qty: 1})
-				sinkMap = m.Clone()
+				sinkMap = m
 			}
 		})
 		b.Run(fmt.Sprintf("InsertOne/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				m := stored.Clone()
+				m := stored
 				m.Set(n+1, benchItem{})
-				sinkMap = m.Clone()
+				sinkMap = m
 			}
 		})
 		b.Run(fmt.Sprintf("InsertLoop/%d", n), func(b *testing.B) {
@@ -144,25 +142,25 @@ func BenchmarkMap(b *testing.B) {
 				for _, k := range keys {
 					m.Set(k, benchItem{})
 				}
-				sinkMap = m.Clone()
+				sinkMap = m
 			}
 		})
 		b.Run(fmt.Sprintf("UpdateAll/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				m := stored.Clone()
+				m := stored
 				for _, k := range keys {
 					v, _ := m.Get(k)
 					v.Qty++
 					m.Set(k, v)
 				}
-				sinkMap = m.Clone()
+				sinkMap = m
 			}
 		})
 		b.Run(fmt.Sprintf("DeleteHalf/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				m := stored.Clone()
+				m := stored
 				m.DeleteFunc(func(k int, _ benchItem) bool { return k%2 == 0 })
-				sinkMap = m.Clone()
+				sinkMap = m
 			}
 		})
 		b.Run(fmt.Sprintf("GetAll/%d", n), func(b *testing.B) {
@@ -184,9 +182,9 @@ type benchComponent struct {
 	Stats immutable.Map[int, int64]
 }
 
-// BenchmarkTick models one tick over many entities: each system run copies the component out,
-// appends two log entries and drops the two oldest, bumps two stats, and stores it back. The copies
-// are the ones Cardinal makes on Get and Set, built with CloneFunc as Cardinal builds them.
+// BenchmarkTick models one tick over many entities: each system run takes the component out,
+// appends two log entries and drops the two oldest, bumps two stats, and stores it back. Get and Set
+// copy only the component struct; the collections share storage that no edit writes to.
 func BenchmarkTick(b *testing.B) {
 	const entities = 1000
 	col := make([]benchComponent, entities)
@@ -194,19 +192,16 @@ func BenchmarkTick(b *testing.B) {
 		stats, _ := benchMapInt(16)
 		col[i] = benchComponent{Log: benchSlice(16), Stats: stats}
 	}
-	clone := immutable.CloneFunc[benchComponent]()
 	b.Run("InPlace", func(b *testing.B) {
 		for b.Loop() {
 			for e := range col {
 				c := col[e]
-				clone(&c)
 				c.Log.Append(benchItem{}, benchItem{})
 				c.Log.Delete(0, 2)
 				v, _ := c.Stats.Get(1)
 				c.Stats.Set(1, v+1)
 				v, _ = c.Stats.Get(2)
 				c.Stats.Set(2, v+1)
-				clone(&c)
 				col[e] = c
 			}
 		}

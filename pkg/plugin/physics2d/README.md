@@ -129,8 +129,8 @@ reorder shapes after creation if you care about per-shape references in
 contact events.
 
 Read it with `Len`, `At`, and `All`; edit it in place with `Set`, `Append`,
-`Delete` and friends, then `Set` the component. `Get` hands out a copy, so the
-component is untouched until that `Set` — see
+`Delete` and friends, then `Set` the component. An edit changes only your copy,
+so the component is untouched until that `Set` — see
 [`immutable.Slice`](../../immutable/slice.go).
 
 ```go
