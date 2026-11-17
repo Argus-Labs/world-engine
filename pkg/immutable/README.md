@@ -81,7 +81,7 @@ the component to a variable first.
 **Sorting is always stable.** There is no unstable sort, so the result never depends on the sort
 algorithm a Go release uses. Same world, same bytes.
 
-**An empty Slice is always the zero value.** Deleting every element, `Reset`, `SliceOf()` and decoding
+**An empty Slice is always the zero value.** Deleting every element, `Reset`, `SliceOf[T]()` and decoding
 `[]` or `null` all give the zero value, so empty Slices are `reflect.DeepEqual`.
 
 **Assignment shares, as with a Go slice.** Inside one system, `other := inv.Items` shares the array.
@@ -240,7 +240,7 @@ func (s *InventorySystem) Run(w *cardinal.World) {
 
 ### Coming from the old derive API
 
-Older versions returned a new Slice from every edit, and had a builder. Translate:
+Older versions returned a new Slice from every edit. Translate:
 
 | Old                                  | New                                         |
 | ------------------------------------ | ------------------------------------------- |
@@ -254,10 +254,8 @@ Older versions returned a new Slice from every edit, and had a builder. Translat
 | `s = s.Reversed()`                   | `s.Reverse()`                               |
 | `s = s.SortedFunc(cmp)`              | `s.SortStableFunc(cmp)`                     |
 | `s = immutable.Sorted(s)`            | `immutable.Sort(&s)`                        |
-| `b := s.Edit(); ...; s = b.Done()`   | edit `s` directly                           |
-| `immutable.NewSliceBuilder[T](n)`    | `var s immutable.Slice[T]` and `Append`     |
 
-`Chunk`, `Repeat`, `Replace`, `Compact`, `CompactFunc`, `Transform`, `Concat`, `Min`, `Max`,
+`Chunk`, `Repeat`, `Replace`, `Compact`, `CompactFunc`, the `immutable.Map` function, `Concat`, `Min`, `Max`,
 `MinFunc`, `MaxFunc`, `IsSorted`, `BinarySearch` and the `Compare` functions are gone. Use a loop,
 or the `slices` package on `slices.Collect(s.Values())`.
 
@@ -343,7 +341,6 @@ data by an ID the game owns, such as a player ID.
 
 | Wrong                                          | Right                                   |
 | ---------------------------------------------- | --------------------------------------- |
-| `m = m.With(k, v)` (does not compile)          | `m.Set(k, v)`                           |
 | editing `c.Table` and never calling `Set`      | `entity.Set(c)` after editing           |
 | relying on the order keys were added           | store the order in the value            |
 | `Set` in a loop to build thousands of keys     | `immutable.MapFrom(seq)`                |
@@ -448,13 +445,3 @@ func (s *ThreatSystem) Run(w *cardinal.World) {
 	}
 }
 ```
-
-### Coming from the old derive API
-
-| Old                                  | New                                         |
-| ------------------------------------ | ------------------------------------------- |
-| `m = m.With(k, v)`                   | `m.Set(k, v)`                               |
-| `m = m.Without(k)`                   | `m.Delete(k)`                               |
-| `m = m.Update(k, f)`                 | `v, _ := m.Get(k); m.Set(k, f(v))`          |
-| `m = m.DeleteFunc(del)`              | `m.DeleteFunc(del)`                         |
-| `b := m.Edit(); ...; m = b.Done()`   | the same edits on `m` directly              |

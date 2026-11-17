@@ -57,7 +57,9 @@ why none apply. Items marked (audit) are also reported by `scripts/audit.go`.
 16. `immutable.Slice` encodes to JSON as an array (was `{}`). Affects logs and anything that
     `json.Marshal`s components.
 17. `immutable.Slice` is now edited in place (`c.Items.Append(x)`, `c.Items.Set(i, x)`)
-    and Cardinal copies it on `Get` and `Set`. In older versions its derivations returned
+    and Cardinal copies it on `Get` and `Set` and in commands, events and system events
+    (`SendTo`, `Broadcast`, `SendToShard`, `EmitSystemEvent`, and each `Commands` and
+    `SystemEvents` reader). In older versions its derivations returned
     a Slice that had to be assigned back, and all but `Append` and `Repeat` also edited the
     stored component's array before any `Set`. Remove `immutable.Collect(c.Items.Values())`
     copies made only to protect the world. A change still needs `e.Set(c)`. See

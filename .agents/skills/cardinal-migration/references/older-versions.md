@@ -45,18 +45,18 @@ it on `Get` and `Set`, so an edit reaches the world only through `Set`. Build wi
 `Set`, `Append`, `Insert`, `Delete`, `DeleteFunc`, `Reset`, `SortStableFunc`, `Reverse`,
 then `e.Set(c)`. Old derivations map as: `c.Items = c.Items.With(i, x)` becomes
 `c.Items.Set(i, x)`, `Filter(keep)` becomes `DeleteFunc` with the test inverted, `Reversed`
-becomes `Reverse`, `SortedFunc` becomes `SortStableFunc`, and `Sub(i, j)` becomes deleting
-the rest. `Edit`, `NewSliceBuilder`, `Transform`, `Concat`, `Chunk`, `Repeat`, `Replace`,
+becomes `Reverse`, `SortedFunc` becomes `SortStableFunc`, and `Sub(i, j)` becomes
+`Delete(j, Len())` then `Delete(0, i)`. The `immutable.Map` function, `Concat`, `Chunk`, `Repeat`, `Replace`,
 `Compact` and `Min`/`Max` are gone; use a loop or `slices` on `slices.Collect(s.Values())`.
 A `for i := range c.Items` over the old slice becomes `for i, x := range c.Items.All()`.
 
 `immutable.Map[K, V]` is the same for a lookup table, edited in place like a Go map and
 copied the same way: build with `immutable.MapFrom(maps.All(goMap))`, read with `Get`,
-`Has`, `All`, edit with `Set`, `Delete`, `DeleteFunc`, `Clear`, then `e.Set(c)`. Old
-derivations map as: `m = m.With(k, v)` becomes `m.Set(k, v)`, `m = m.Without(k)` becomes
-`m.Delete(k)`, `m = m.Update(k, f)` becomes `v, _ := m.Get(k); m.Set(k, f(v))`, and an
-`Edit`/`Done` batch becomes the same edits on `m` directly. Keys are integers or strings,
-kept sorted. `EntityID`s are reused as soon as the entity is destroyed: key
+`Has`, `All`, edit with `Set`, `Delete`, `DeleteFunc`, `Clear`, then `e.Set(c)`. A Go map
+maps as: `v, ok := m[k]` becomes `m.Get(k)`, `m[k] = v` becomes `m.Set(k, v)`, `delete(m, k)`
+becomes `m.Delete(k)`, `clear(m)` becomes `m.Clear()`, and `for k, v := range m` becomes
+`for k, v := range m.All()`, in key order. Deleting inside that loop is safe; collect the keys
+first to add new ones in a loop. Keys are integers, strings or named types of them, kept sorted. `EntityID`s are reused as soon as the entity is destroyed: key
 long-lived data by an ID the game owns, or remove the key in the system that destroys the
 entity.
 

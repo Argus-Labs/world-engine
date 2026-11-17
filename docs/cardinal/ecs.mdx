@@ -171,7 +171,7 @@ The API follows Go's built-ins and `slices` package:
 | `s[i] = v`                   | `s.Set(i, v)`                          |
 | `s = append(s, v...)`        | `s.Append(v...)`                       |
 | `for i, v := range s`        | `for i, v := range s.All()`            |
-| `s = s[:0]`                  | `s.Reset()`                            |
+| `s = nil`                    | `s.Reset()`                            |
 | `slices.Insert`, `Delete`, `DeleteFunc`, `Reverse` | methods of the same name |
 | `slices.SortStableFunc`      | `s.SortStableFunc(cmp)`                |
 | `slices.Sort`                | `immutable.Sort(&s)`                   |

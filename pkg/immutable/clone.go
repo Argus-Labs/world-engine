@@ -50,6 +50,11 @@ func Clone[T any](v T) T {
 // same for every Slice and Map inside its elements.
 type deepCloner interface{ cloneDeep() }
 
+var (
+	_ deepCloner = (*Slice[int])(nil)
+	_ deepCloner = (*Map[int, int])(nil)
+)
+
 func (s *Slice[T]) cloneDeep() {
 	if len(s.items) == 0 {
 		s.items = nil
@@ -104,11 +109,14 @@ func buildCloner(t reflect.Type) cloner {
 	if !holdsCollection(t) {
 		return nil
 	}
-	if reflect.PointerTo(t).Implements(reflect.TypeFor[deepCloner]()) {
+	// t itself, not its method set: a struct that embeds a Slice or Map gets cloneDeep promoted, and
+	// treating it as one would skip its other fields.
+	_, isSlice := SliceElem(t)
+	if _, _, isMap := MapTypes(t); isSlice || isMap {
 		return func(v reflect.Value) {
 			// NewAt rather than v.Addr().Interface(), which panics when v was reached through an
 			// unexported field. The pointer is v's own address, typed as v's own type.
-			dc := reflect.NewAt(t, v.Addr().UnsafePointer()).Interface().(deepCloner) //nolint:errcheck,forcetypeassert,lll // Implements checked it.
+			dc := reflect.NewAt(t, v.Addr().UnsafePointer()).Interface().(deepCloner) //nolint:errcheck,forcetypeassert,lll // *Slice and *Map implement it.
 			dc.cloneDeep()
 		}
 	}

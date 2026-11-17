@@ -131,6 +131,32 @@ func TestClone(t *testing.T) {
 	require.Nil(t, immutable.Clone[any](nil))
 }
 
+// embedsSlice gets cloneDeep promoted from its embedded Slice, and must still have its other fields
+// copied.
+type embedsSlice struct {
+	immutable.Slice[int]
+
+	Table immutable.Map[int, int]
+	List  immutable.Slice[int]
+}
+
+func TestClone_StructEmbeddingASlice(t *testing.T) {
+	t.Parallel()
+
+	var orig embedsSlice
+	orig.Append(1)
+	orig.Table.Set(1, 1)
+	orig.List.Append(1)
+	cp := immutable.Clone(orig)
+	cp.Set(0, 9)
+	cp.Table.Set(1, 9)
+	cp.List.Set(0, 9)
+	require.Equal(t, 1, orig.At(0), "the embedded Slice is copied")
+	v, _ := orig.Table.Get(1)
+	require.Equal(t, 1, v, "the Map beside it is copied")
+	require.Equal(t, 1, orig.List.At(0), "the Slice beside it is copied")
+}
+
 func TestClone_InterfaceCopiesHeldValue(t *testing.T) {
 	t.Parallel()
 
