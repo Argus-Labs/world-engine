@@ -248,6 +248,10 @@ The API follows Go's built-ins and `maps` package:
 | `maps.Keys`, `Values`, `DeleteFunc`, `Clone` | methods of the same name               |
 | `maps.Equal`, `EqualFunc`          | `immutable.MapEqual(a, b)`, `a.EqualFunc(b, eq)` |
 
+As with a Go map, deleting while ranging is safe: the loop still visits every other entry once.
+Unlike a Go map, adding a new key while ranging can skip or repeat entries, so collect the keys first
+with `slices.Collect(m.Keys())`.
+
 The storage is two sorted arrays, so a lookup or a change to an existing key is a binary search, and
 adding or removing a key shifts the entries after it. That is cheap at the sizes components hold. To
 build a large Map at once, use `immutable.MapFrom`, which sorts once.

@@ -36,8 +36,10 @@ type Key interface {
 //	npc.Set(c)                // the world stores a copy of c.Players
 //
 // Cardinal copies every Map a component holds on Get and Set, and in events and commands, exactly as
-// it copies a Slice, so an edit never reaches the world without Set. Inside one system a Map behaves
-// like a Go map: assigning one shares its storage, and Clone makes a copy that shares nothing.
+// it copies a Slice, so an edit never reaches the world without Set. Inside one system, assigning a
+// Map shares its storage like a Go slice: a value changed through one copy can show in the other,
+// though a key added or removed may not. Clone makes a copy that shares nothing. Deleting inside a
+// loop over the Map is safe, as with a Go map; adding keys there is not (see Set).
 //
 // Entries are kept sorted by key, never hashed. Iteration and encoding run in key order, so the same
 // entries give the same order and the same bytes on every run, machine and build, however they were
@@ -150,7 +152,9 @@ func (m Map[K, V]) Values() iter.Seq[V] {
 // -------------------------------------------------------------------------------------------------
 
 // Set stores v under k, replacing any value already there. Replacing costs a binary search; a new key
-// also shifts the entries after it.
+// also shifts the entries after it, in place when the arrays have room. So, unlike a Go map, don't
+// add keys inside a loop over m: the loop can skip or repeat entries. Collect the keys to add first,
+// or loop over [slices.Collect](m.Keys()).
 func (m *Map[K, V]) Set(k K, v V) {
 	i, ok := slices.BinarySearch(m.keys, k)
 	if ok {
@@ -162,29 +166,41 @@ func (m *Map[K, V]) Set(k K, v V) {
 }
 
 // Delete removes k. It does nothing when k is absent, like delete.
+//
+// It is safe inside a loop over m, as it is for a Go map: the loop still visits every other entry
+// once. Removing a key moves the rest into new arrays rather than shifting them in place, so a loop
+// over m, or another copy of m, keeps reading the old arrays, which stay valid.
 func (m *Map[K, V]) Delete(k K) {
 	i, ok := slices.BinarySearch(m.keys, k)
 	if !ok {
 		return
 	}
-	m.keys = emptyToNil(slices.Delete(m.keys, i, i+1))
-	m.vals = emptyToNil(slices.Delete(m.vals, i, i+1))
+	m.keys = emptyToNil(slices.Concat(m.keys[:i], m.keys[i+1:]))
+	m.vals = emptyToNil(slices.Concat(m.vals[:i], m.vals[i+1:]))
 }
 
 // DeleteFunc removes every entry del reports true for, like [maps.DeleteFunc]. del runs once per
-// entry, in key order, and the whole pass costs O(n) however many entries go.
+// entry, in key order. The whole pass costs O(n) and one new pair of arrays however many entries go,
+// so prefer it to Delete in a loop when removing many. Like Delete, it leaves the old arrays intact.
 func (m *Map[K, V]) DeleteFunc(del func(K, V) bool) {
-	n := 0
+	var keys []K
+	var vals []V
 	for i, k := range m.keys {
-		if del(k, m.vals[i]) {
-			continue
+		switch {
+		case !del(k, m.vals[i]):
+			if keys != nil {
+				keys, vals = append(keys, k), append(vals, m.vals[i])
+			}
+		case keys == nil:
+			// The first deletion: copy the entries kept so far into new arrays sized for the rest.
+			keys = append(make([]K, 0, len(m.keys)-1), m.keys[:i]...)
+			vals = append(make([]V, 0, len(m.vals)-1), m.vals[:i]...)
 		}
-		m.keys[n], m.vals[n] = k, m.vals[i]
-		n++
 	}
-	clear(m.keys[n:])
-	clear(m.vals[n:])
-	m.keys, m.vals = emptyToNil(m.keys[:n]), emptyToNil(m.vals[:n])
+	if keys == nil {
+		return // nothing deleted
+	}
+	m.keys, m.vals = emptyToNil(keys), emptyToNil(vals)
 }
 
 // Clear removes every entry, like Go's clear on a map and [sync.Map.Clear].

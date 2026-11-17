@@ -2,6 +2,7 @@ package immutable_test
 
 import (
 	"bytes"
+	"fmt"
 	"maps"
 	"reflect"
 	"slices"
@@ -168,6 +169,47 @@ func TestMap_AssignmentSharesAndCloneDoesNot(t *testing.T) {
 	keys, vals := entries(m)
 	require.Equal(t, []string{"a", "b"}, keys, "edits to a clone do not reach the original")
 	require.Equal(t, []int{9, 2}, vals)
+
+	// Adding or deleting keys through one copy leaves the other a valid Map: sorted, every key found,
+	// and encodable to a snapshot that restores.
+	for name, edit := range map[string]func(*immutable.Map[int, int]){
+		"Delete first":   func(m *immutable.Map[int, int]) { m.Delete(0) },
+		"Delete middle":  func(m *immutable.Map[int, int]) { m.Delete(2) },
+		"DeleteFunc":     func(m *immutable.Map[int, int]) { m.DeleteFunc(func(k, _ int) bool { return k%2 == 1 }) },
+		"Set new first":  func(m *immutable.Map[int, int]) { m.Set(-1, -1) },
+		"Set new middle": func(m *immutable.Map[int, int]) { m.Set(5, 5) },
+		"Clear":          func(m *immutable.Map[int, int]) { m.Clear() },
+	} {
+		var orig immutable.Map[int, int]
+		for _, k := range []int{0, 2, 4, 6, 8} {
+			orig.Set(k, k)
+		}
+		other := orig
+		edit(&other)
+		requireValidMap(t, orig, name+", the other copy")
+		requireValidMap(t, other, name+", the edited copy")
+	}
+}
+
+// TestMap_RangeAndDelete is how game code expires entries in a Go map: delete the current key while
+// ranging. Every entry must be visited once, and only the expired ones removed.
+func TestMap_RangeAndDelete(t *testing.T) {
+	t.Parallel()
+
+	var buffs immutable.Map[int, int] // buff ID to the tick it expires at
+	for id, at := range map[int]int{0: 1000, 3: 5, 4: 6, 7: 1000, 9: 2} {
+		buffs.Set(id, at)
+	}
+	var visited []int
+	for id, at := range buffs.All() {
+		visited = append(visited, id)
+		if at <= 10 {
+			buffs.Delete(id)
+		}
+	}
+	require.Equal(t, []int{0, 3, 4, 7, 9}, visited, "every buff is visited once, with no extra entry")
+	keys, _ := entries(buffs)
+	require.Equal(t, []int{0, 7}, keys, "only the expired buffs are removed")
 }
 
 func TestMap_CloneCopiesNestedCollections(t *testing.T) {
@@ -218,16 +260,19 @@ func TestMap_EqualFunc(t *testing.T) {
 	assert.False(t, one().EqualFunc(changed, eq))
 }
 
-// TestMap_ModelMatchesGoMap runs random edits against a Go map read back in sorted key order.
+// TestMap_ModelMatchesGoMap runs random edits against a Go map read back in sorted key order. Some
+// delete inside a loop over the Map, as Go allows for its maps. Earlier copies of the Map are kept,
+// and after every edit each must still be a valid Map, even though it shares storage.
 func TestMap_ModelMatchesGoMap(t *testing.T) {
 	t.Parallel()
 	r := testutils.NewRand(t)
 
 	var m immutable.Map[int, int]
 	model := map[int]int{}
+	var copies []immutable.Map[int, int]
 	for step := range 3000 {
 		k, v := r.IntN(40), r.IntN(1000)
-		switch op := r.IntN(10); {
+		switch op := r.IntN(12); {
 		case op < 4:
 			m.Set(k, v)
 			model[k] = v
@@ -243,6 +288,27 @@ func TestMap_ModelMatchesGoMap(t *testing.T) {
 			del := func(k, _ int) bool { return k%mod == 0 }
 			m.DeleteFunc(del)
 			maps.DeleteFunc(model, del)
+		case op == 9:
+			mod := 2 + r.IntN(4)
+			del := func(k, v int) bool { return k%mod == 0 || v < 300 }
+			want := slices.Collect(m.Keys())
+			var visited []int
+			for k, v := range m.All() {
+				visited = append(visited, k)
+				if del(k, v) {
+					m.Delete(k)
+				}
+			}
+			maps.DeleteFunc(model, del)
+			require.Equal(t, want, visited, "step %d: deleting the current key visits every key once", step)
+		case op == 10:
+			// Adding keys in a loop goes over the keys collected first, as Set's doc says.
+			for _, k := range slices.Collect(m.Keys()) {
+				if k%4 == 0 && !m.Has(k+1) {
+					m.Set(k+1, step)
+					model[k+1] = step
+				}
+			}
 		case r.IntN(20) == 0:
 			m.Clear()
 			clear(model)
@@ -256,7 +322,33 @@ func TestMap_ModelMatchesGoMap(t *testing.T) {
 			require.Equal(t, model[k], vals[j], "value for %d at step %d", k, step)
 			require.True(t, m.Has(k), "Has(%d) at step %d", k, step)
 		}
+
+		if r.IntN(10) == 0 {
+			copies = append(copies, m)[max(0, len(copies)-4):]
+		}
+		for i, c := range copies {
+			requireValidMap(t, c, fmt.Sprintf("copy %d at step %d", i, step))
+		}
 	}
+}
+
+// requireValidMap checks what every Map must hold however it was edited: keys strictly ascending,
+// each one found by Get, and a MessagePack round trip that gives back the same entries.
+func requireValidMap[K immutable.Key, V any](t *testing.T, m immutable.Map[K, V], msg string) {
+	t.Helper()
+	keys, vals := entries(m)
+	ascending := slices.IsSorted(keys) && len(slices.Compact(slices.Clone(keys))) == len(keys)
+	require.True(t, ascending, "%s: keys %v are not strictly ascending", msg, keys)
+	for _, k := range keys {
+		require.True(t, m.Has(k), "%s: Has(%v)", msg, k)
+	}
+	data, err := msgpack.Marshal(m)
+	require.NoError(t, err, msg)
+	var back immutable.Map[K, V]
+	require.NoError(t, msgpack.Unmarshal(data, &back), "%s: the encoding restores", msg)
+	backKeys, backVals := entries(back)
+	require.Equal(t, keys, backKeys, msg)
+	require.Equal(t, vals, backVals, msg)
 }
 
 // TestMap_EncodingIgnoresInsertOrder is the determinism guarantee: the same entries, however they
@@ -484,6 +576,13 @@ func TestMap_Allocations(t *testing.T) {
 
 	assert.Zero(t, testing.AllocsPerRun(100, func() { m.Set(3, 9) }), "Set on an existing key")
 	assert.Zero(t, testing.AllocsPerRun(100, func() { m.Delete(30) }), "Delete of an absent key")
+	assert.Zero(t, testing.AllocsPerRun(100, func() { m.DeleteFunc(func(int, int) bool { return false }) }),
+		"DeleteFunc that removes nothing")
+	assert.InDelta(t, 6, testing.AllocsPerRun(100, func() {
+		d := m.Clone()
+		d.Delete(4)
+		d.DeleteFunc(func(k, _ int) bool { return k%2 == 0 })
+	}), 0, "Clone, Delete and DeleteFunc: one new pair of arrays each")
 	assert.InDelta(t, 2, testing.AllocsPerRun(100, func() { sink += m.Clone().Len() }), 0, "Clone: one per array")
 
 	// Set grows the arrays only when they are full, so 1024 new keys allocate about 2·log2(1024)

@@ -283,15 +283,19 @@ func (*ucInventorySystem) Run(w *World) {
 	}
 }
 
-// ucAbilitySystem expires cooldowns, then casts an ability when it is off cooldown and tells the
-// caster every cooldown it now has.
+// ucAbilitySystem expires cooldowns by deleting while ranging, as with a Go map, then casts an
+// ability when it is off cooldown and tells the caster every cooldown it now has.
 type ucAbilitySystem struct{}
 
 func (*ucAbilitySystem) Run(w *World) {
 	tick := w.TickHeight()
 	for e := range w.Contains[ucRow]().Iter() {
 		cd := e.Get[ucCooldowns]()
-		cd.ReadyAt.DeleteFunc(func(_ string, at uint64) bool { return at <= tick })
+		for ability, at := range cd.ReadyAt.All() {
+			if at <= tick {
+				cd.ReadyAt.Delete(ability)
+			}
+		}
 		e.Set(cd)
 	}
 	for cmd := range w.Commands[ucCast]() {

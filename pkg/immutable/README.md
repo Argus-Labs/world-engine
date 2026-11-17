@@ -326,8 +326,14 @@ at once, use `MapFrom`, which sorts once.
 
 **An empty Map is always the zero value**, however it was emptied.
 
-**Assignment shares, as with Slice.** `other := th.Table` shares storage; use `Clone()` for a copy
-that shares nothing.
+**Deleting inside a loop is safe; adding is not.** As with a Go map, you can `Delete` the current key
+(or any key) while ranging over `All`, `Keys` or `Values`, and the loop still visits every other entry
+once. Adding a new key with `Set` inside such a loop can skip or repeat entries, so collect the keys
+first: `for _, k := range slices.Collect(m.Keys())`. Changing the value of an existing key is fine.
+
+**Assignment shares, as with Slice.** `other := th.Table` shares storage, so a value changed through
+one can show in the other, though a key added or removed through one may not. Use `Clone()` for a
+copy that shares nothing.
 
 **Don't key by entity ID** unless the system that destroys those entities also deletes their keys.
 Entity IDs are reused, so a stale key silently refers to the next entity in that slot. Key long-lived
@@ -341,6 +347,7 @@ data by an ID the game owns, such as a player ID.
 | editing `c.Table` and never calling `Set`      | `entity.Set(c)` after editing           |
 | relying on the order keys were added           | store the order in the value            |
 | `Set` in a loop to build thousands of keys     | `immutable.MapFrom(seq)`                |
+| `Set` of a new key inside `for ... range m.All()` | loop over `slices.Collect(m.Keys())` |
 | `immutable.Map[EntityID, V]` for long-lived data | key by an ID the game owns            |
 
 ### Full example
