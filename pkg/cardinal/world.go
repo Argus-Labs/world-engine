@@ -621,8 +621,8 @@ func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 // its own. It mirrors the client-facing SendCommand RPC — a shard sending to a shard is the same operation,
 // initiated in-engine.
 //
-// Fire-and-forget: cmd is encoded when events flush at end-of-tick. Its Slices are copied here, so
-// editing them after this call does not change what is sent, but a *Command whose fields change before
+// Fire-and-forget: cmd is encoded when events flush at end-of-tick. Its Slices and Maps are copied here,
+// so editing them after this call does not change what is sent, but a *Command whose fields change before
 // the flush would send the mutated value. The send then
 // happens in the background, in order per target shard. A send that fails is not returned but is logged
 // at error level, because a dropped shard-to-shard command is serious.

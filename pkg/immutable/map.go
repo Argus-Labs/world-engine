@@ -25,27 +25,28 @@ type Key interface {
 		~string
 }
 
-// Map is a sorted map with private storage, for component fields that look values up by key. Its
-// arrays never change once a Map holds them, so a copy from Get shares nothing that can change and
-// editing it never reaches the world without Set. A Slice inside a value is the exception, since a
-// Slice is edited in place; Cardinal copies those on Get and Set, as it does every Slice.
+// Map is a sorted map with private storage, for component fields that look values up by key.
+//
+// Edit it in place, the way you would a Go map, and store it with Set:
+//
+//	c := npc.Get[NPCMemory]() // c.Players is a copy; the world is unchanged
+//	mem, _ := c.Players.Get(pid)
+//	mem.Affinity += 5         // edits the copy Get returned
+//	c.Players.Set(pid, mem)
+//	npc.Set(c)                // the world stores a copy of c.Players
+//
+// Cardinal copies every Map a component holds on Get and Set, and in events and commands, exactly as
+// it copies a Slice, so an edit never reaches the world without Set. Inside one system a Map behaves
+// like a Go map: assigning one shares its storage, and Clone makes a copy that shares nothing.
 //
 // Entries are kept sorted by key, never hashed. Iteration and encoding run in key order, so the same
 // entries give the same order and the same bytes on every run, machine and build, however they were
 // inserted. "First" means smallest key; if insertion order matters, store it in the value.
 //
-// Derivations never write to the receiver's arrays. With, Without, Update and DeleteFunc each return
-// a new Map, so the column, the caller's copy and any snapshot keep what they held:
-//
-//	c := npc.Get[NPCMemory]()
-//	mem, _ := c.Players.Get(pid)
-//	mem.Affinity += 5 // edits the copy only
-//	c.Players = c.Players.With(pid, mem)
-//	npc.Set(c)
-//
-// Each derivation costs one copy, plus a second, smaller one when DeleteFunc removes most entries.
-// For several edits at once, use Edit, which copies once and hands
-// the result over with Done.
+// The storage is two sorted arrays, as in C++'s std::flat_map: a lookup is a binary search, and a
+// copy is two plain array copies, which matters because Cardinal copies on every Get and Set. Adding
+// or removing a key shifts the entries after it, so k new keys in an n-entry Map cost O(k·n). To
+// build a large Map at once, use MapFrom, which sorts once.
 //
 // The zero value is an empty Map, and every empty Map is the zero value.
 //
@@ -91,6 +92,13 @@ func MapFrom[K Key, V any](seq iter.Seq2[K, V]) Map[K, V] {
 	return wrapMap(keys, vals)
 }
 
+// Clone returns a copy of m that shares no storage with it, including the storage of Slices and Maps
+// nested in its values.
+func (m Map[K, V]) Clone() Map[K, V] {
+	m.cloneDeep()
+	return m
+}
+
 // -------------------------------------------------------------------------------------------------
 // Reading
 // -------------------------------------------------------------------------------------------------
@@ -103,7 +111,11 @@ func (m Map[K, V]) Len() int {
 // Get returns a copy of the value stored under k, and whether k is present. A missing key yields the
 // zero value.
 func (m Map[K, V]) Get(k K) (V, bool) {
-	return lookup(m.keys, m.vals, k)
+	if i, ok := slices.BinarySearch(m.keys, k); ok {
+		return m.vals[i], true
+	}
+	var zero V
+	return zero, false
 }
 
 // Has reports whether k is present.
@@ -134,97 +146,53 @@ func (m Map[K, V]) Values() iter.Seq[V] {
 }
 
 // -------------------------------------------------------------------------------------------------
-// Deriving
+// Editing
 // -------------------------------------------------------------------------------------------------
 
-// With returns a Map with v stored under k, replacing any value already there. Replacing a value
-// copies only the values; adding a key copies both arrays.
-//
-// NOTE: Requires component set if used.
-func (m Map[K, V]) With(k K, v V) Map[K, V] {
+// Set stores v under k, replacing any value already there. Replacing costs a binary search; a new key
+// also shifts the entries after it.
+func (m *Map[K, V]) Set(k K, v V) {
 	i, ok := slices.BinarySearch(m.keys, k)
-	return m.setAt(i, ok, k, v)
-}
-
-// setAt is With after its search: i is where k was found (ok) or would be inserted.
-func (m Map[K, V]) setAt(i int, ok bool, k K, v V) Map[K, V] {
 	if ok {
-		vals := slices.Clone(m.vals)
-		vals[i] = v
-		return Map[K, V]{keys: m.keys, vals: vals}
+		m.vals[i] = v
+		return
 	}
-	return Map[K, V]{
-		keys: slices.Concat(m.keys[:i], []K{k}, m.keys[i:]),
-		vals: slices.Concat(m.vals[:i], []V{v}, m.vals[i:]),
-	}
+	m.keys = slices.Insert(m.keys, i, k)
+	m.vals = slices.Insert(m.vals, i, v)
 }
 
-// Without returns a Map with k removed. When k is absent it returns the receiver, which costs
-// nothing.
-//
-// NOTE: Requires component set if used.
-func (m Map[K, V]) Without(k K) Map[K, V] {
+// Delete removes k. It does nothing when k is absent, like delete.
+func (m *Map[K, V]) Delete(k K) {
 	i, ok := slices.BinarySearch(m.keys, k)
 	if !ok {
-		return m
+		return
 	}
-	return wrapMap(slices.Concat(m.keys[:i], m.keys[i+1:]), slices.Concat(m.vals[:i], m.vals[i+1:]))
+	m.keys = emptyToNil(slices.Delete(m.keys, i, i+1))
+	m.vals = emptyToNil(slices.Delete(m.vals, i, i+1))
 }
 
-// DeleteFunc returns a Map without the entries del reports true for, like [maps.DeleteFunc]. del runs
-// once per entry, in key order. When it removes nothing, DeleteFunc returns the receiver, which costs
-// nothing; otherwise it copies once, so pruning many keys costs one pass instead of one copy each.
-// When it removes most entries it copies the rest again to fit, so a pruned Map does not keep its
-// full-size arrays.
-//
-// NOTE: Requires component set if used.
-func (m Map[K, V]) DeleteFunc(del func(K, V) bool) Map[K, V] {
-	first := 0
-	for first < len(m.keys) && !del(m.keys[first], m.vals[first]) {
-		first++
-	}
-	if first == len(m.keys) {
-		return m
-	}
-	keys := append(make([]K, 0, len(m.keys)-1), m.keys[:first]...)
-	vals := append(make([]V, 0, len(m.vals)-1), m.vals[:first]...)
-	for i := first + 1; i < len(m.keys); i++ {
-		if !del(m.keys[i], m.vals[i]) {
-			keys = append(keys, m.keys[i])
-			vals = append(vals, m.vals[i])
+// DeleteFunc removes every entry del reports true for, like [maps.DeleteFunc]. del runs once per
+// entry, in key order, and the whole pass costs O(n) however many entries go.
+func (m *Map[K, V]) DeleteFunc(del func(K, V) bool) {
+	n := 0
+	for i, k := range m.keys {
+		if del(k, m.vals[i]) {
+			continue
 		}
+		m.keys[n], m.vals[n] = k, m.vals[i]
+		n++
 	}
-	// Pruning most of a large Map should not keep its full-size arrays.
-	if cap(keys)-len(keys) > len(keys) {
-		keys, vals = slices.Clone(keys), slices.Clone(vals)
-	}
-	return wrapMap(keys, vals)
+	clear(m.keys[n:])
+	clear(m.vals[n:])
+	m.keys, m.vals = emptyToNil(m.keys[:n]), emptyToNil(m.vals[:n])
 }
 
-// Update returns a Map with the value under k replaced by f of the current one. f receives the zero
-// value when k is absent, so counters and accumulators need no separate Has check.
-//
-// NOTE: Requires component set if used.
-func (m Map[K, V]) Update(k K, f func(V) V) Map[K, V] {
-	i, ok := slices.BinarySearch(m.keys, k)
-	var v V
-	if ok {
-		v = m.vals[i]
-	}
-	return m.setAt(i, ok, k, f(v))
+// Clear removes every entry, like Go's clear on a map and [sync.Map.Clear].
+func (m *Map[K, V]) Clear() {
+	m.keys, m.vals = nil, nil
 }
 
-// lookup returns the value under k in sorted keys and their vals, and whether k is present. Map and
-// MapBuilder share it.
-func lookup[K Key, V any](keys []K, vals []V, k K) (V, bool) {
-	if i, ok := slices.BinarySearch(keys, k); ok {
-		return vals[i], true
-	}
-	var zero V
-	return zero, false
-}
-
-// wrapMap is wrap for a Map: every empty result becomes the zero value.
+// wrapMap returns a Map holding keys and vals, or the zero value when they are empty.
 func wrapMap[K Key, V any](keys []K, vals []V) Map[K, V] {
 	if len(keys) == 0 {
 		return Map[K, V]{}

@@ -435,8 +435,8 @@ func (f *filler) immutableSlice(v reflect.Value) bool {
 	return true
 }
 
-// immutableMap is immutableSlice for an immutable.Map. It adds random entries one With at a
-// time; a repeated random key just overwrites, so the Map may end up with fewer entries than drawn.
+// immutableMap is immutableSlice for an immutable.Map. It adds random entries one Set at a time; a
+// repeated random key just overwrites, so the Map may end up with fewer entries than drawn.
 func (f *filler) immutableMap(v reflect.Value) bool {
 	t := v.Type()
 	keyType, valueType, ok := immutable.MapTypes(t)
@@ -447,15 +447,14 @@ func (f *filler) immutableMap(v reflect.Value) bool {
 		panic("dst: " + t.String() + " is not settable, so it cannot be filled")
 	}
 
-	m := reflect.Zero(t)
-	with, _ := t.MethodByName("With") // unbound, so the Map is passed as the first argument
+	v.Set(reflect.Zero(t))
+	set := v.Addr().MethodByName("Set")
 	for range f.prng.IntN(maxFillLen) {
 		key, value := reflect.New(keyType).Elem(), reflect.New(valueType).Elem()
 		f.fill(key)
 		f.fill(value)
-		m = with.Func.Call([]reflect.Value{m, key, value})[0]
+		set.Call([]reflect.Value{key, value})
 	}
-	v.Set(m)
 	return true
 }
 

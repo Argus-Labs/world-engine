@@ -2,7 +2,7 @@
 
 The collections a Cardinal component may hold: `Slice` for lists and `Map` for lookup tables.
 Written for AI agents and people writing game code. The source of truth is the Go doc in
-`slice.go` and `map.go`; this file is the short version. Map is documented in `map.go` for now.
+`slice.go` and `map.go`; this file is the short version.
 
 ## Slice
 
@@ -105,8 +105,7 @@ grow its array, put the element back with `s.Set(i, inner)`.
 **Every `Get` copies.** `Get` copies every Slice in the component, even when you only read it. Get a
 component once per entity per system and work on that copy; don't call `Get` again inside a loop.
 
-**Map is different.** `immutable.Map` is never edited in place. Its derivations return a new Map
-(`m = m.With(k, v)`). Don't mix up the two styles.
+**Map works the same way.** Edit it in place, then `Set`. See [Map](#map).
 
 ### Common mistakes
 
@@ -261,3 +260,194 @@ Older versions returned a new Slice from every edit, and had a builder. Translat
 `Chunk`, `Repeat`, `Replace`, `Compact`, `CompactFunc`, `Transform`, `Concat`, `Min`, `Max`,
 `MinFunc`, `MaxFunc`, `IsSorted`, `BinarySearch` and the `Compare` functions are gone. Use a loop,
 or the `slices` package on `slices.Collect(s.Values())`.
+
+## Map
+
+### When to use it
+
+A component may not hold a plain `map[K]V` (`RegisterComponent` panics). Use:
+
+- a struct with one field per key, when the set of keys is fixed.
+- `immutable.Map[K, V]`, when it is not. `cardinal.Map[K, V]` is the same type.
+
+```go
+type Threat struct {
+	Table immutable.Map[string, int64] `json:"table"` // damage per player ID
+}
+```
+
+Keys are integers, strings, or named types of them (`type PlayerID uint64`). Anything else does not
+compile. Values follow the same rule as Slice elements.
+
+### The rule is the same: edit in place, then `Set`
+
+```go
+th := boss.Get[Threat]()
+v, _ := th.Table.Get(player)
+th.Table.Set(player, v+damage)
+boss.Set(th)
+```
+
+Cardinal copies every Map on `Get`, `Set`, events and commands, exactly as it copies a Slice.
+
+### API
+
+| Go                                  | `immutable.Map`                                   |
+| ----------------------------------- | ------------------------------------------------- |
+| `len(m)`                            | `m.Len()`                                         |
+| `v, ok := m[k]`                     | `v, ok := m.Get(k)`                               |
+| `_, ok := m[k]`                     | `m.Has(k)`                                        |
+| `m[k] = v`                          | `m.Set(k, v)`                                     |
+| `delete(m, k)`                      | `m.Delete(k)`                                     |
+| `maps.DeleteFunc(m, del)`           | `m.DeleteFunc(del)`                               |
+| `clear(m)`                          | `m.Clear()`                                       |
+| `for k, v := range m`               | `for k, v := range m.All()`, in key order         |
+| `maps.Keys(m)`, `maps.Values(m)`    | `m.Keys()`, `m.Values()`, in key order            |
+| `maps.Equal`, `maps.EqualFunc`      | `immutable.MapEqual(a, b)`, `a.EqualFunc(b, eq)`  |
+| a map literal, `maps.Collect(seq)`  | `immutable.MapFrom(seq)`                          |
+| `maps.Clone(m)`                     | `m.Clone()`                                       |
+
+To build from a Go map, use `immutable.MapFrom(maps.All(goMap))`. The result is the same whatever
+order the Go map yields.
+
+### Things to know
+
+**Loops run in key order.** Entries are kept sorted by key, never hashed, so `All`, `Keys`, `Values`
+and the encoding always run smallest key first. Two servers running the same world loop in the same
+order, and the same entries give the same bytes. "First" means smallest key; if insertion order
+matters, store it in the value.
+
+**Values come out by value**, as with a Go map of structs, where `m[k].HP++` does not compile either.
+Read, change, `Set`.
+
+**New keys cost more than updates.** Changing an existing key's value is a binary search. Adding or
+removing a key shifts the entries after it, which is cheap at component sizes. To build a large Map
+at once, use `MapFrom`, which sorts once.
+
+**An empty Map is always the zero value**, however it was emptied.
+
+**Assignment shares, as with Slice.** `other := th.Table` shares storage; use `Clone()` for a copy
+that shares nothing.
+
+**Don't key by entity ID** unless the system that destroys those entities also deletes their keys.
+Entity IDs are reused, so a stale key silently refers to the next entity in that slot. Key long-lived
+data by an ID the game owns, such as a player ID.
+
+### Common mistakes
+
+| Wrong                                          | Right                                   |
+| ---------------------------------------------- | --------------------------------------- |
+| `m = m.With(k, v)` (does not compile)          | `m.Set(k, v)`                           |
+| editing `c.Table` and never calling `Set`      | `entity.Set(c)` after editing           |
+| relying on the order keys were added           | store the order in the value            |
+| `Set` in a loop to build thousands of keys     | `immutable.MapFrom(seq)`                |
+| `immutable.Map[EntityID, V]` for long-lived data | key by an ID the game owns            |
+
+### Full example
+
+One system that uses every Map function. A comment marks each one.
+
+```go
+import (
+	"maps"
+
+	"github.com/argus-labs/world-engine/pkg/cardinal"
+	"github.com/argus-labs/world-engine/pkg/immutable"
+)
+
+type Threat struct {
+	Table immutable.Map[string, int64]  `json:"table"` // damage per player ID
+	Bans  immutable.Map[string, uint64] `json:"bans"`  // player ID to the tick the ban ends
+}
+
+func (Threat) Name() string { return "threat" }
+
+type Hit struct {
+	Attacker string
+	Damage   int64
+}
+
+func (Hit) Name() string { return "hit" }
+
+type TopThreat struct {
+	Player string                       `json:"player"`
+	Table  immutable.Map[string, int64] `json:"table"`
+}
+
+func (TopThreat) Name() string { return "top-threat" }
+
+// NewThreat starts every boss ignoring the test accounts for the first 1000 ticks.
+func NewThreat() Threat {
+	return Threat{Bans: immutable.MapFrom(maps.All(map[string]uint64{"tester-1": 1000, "tester-2": 1000}))} // MapFrom
+}
+
+type ThreatSystem struct{}
+
+func (s *ThreatSystem) Run(w *cardinal.World) {
+	now := w.TickHeight()
+	var hits []Hit
+	for cmd := range w.Commands[Hit]() {
+		hits = append(hits, cmd.Payload)
+	}
+
+	for e := range w.Contains[struct{ Threat Threat }]().Iter() {
+		th := e.Get[Threat]() // a copy: nothing below reaches the world until Set
+
+		// Clone: copies that share nothing, to see later whether anything changed.
+		oldTable, oldBans := th.Table.Clone(), th.Bans.Clone()
+
+		for _, h := range hits {
+			if end, banned := th.Bans.Get(h.Attacker); banned && end > now { // Get
+				continue
+			}
+			if !th.Table.Has(h.Attacker) { // Has
+				w.Logger().Info().Str("player", h.Attacker).Msg("new attacker")
+			}
+			v, _ := th.Table.Get(h.Attacker)     // Get: the zero value when absent
+			th.Table.Set(h.Attacker, v+h.Damage) // Set
+		}
+
+		th.Table.Delete("")                                                 // Delete: does nothing if absent
+		th.Table.DeleteFunc(func(_ string, v int64) bool { return v <= 0 }) // DeleteFunc: healing cancelled it out
+		th.Bans.DeleteFunc(func(_ string, end uint64) bool { return end <= now })
+		if th.Table.Len() > 100 { // Len
+			th.Table.Clear() // Clear: reset a boss the whole server has hit
+		}
+
+		sameTable := immutable.MapEqual(th.Table, oldTable)                              // MapEqual
+		sameBans := th.Bans.EqualFunc(oldBans, func(a, b uint64) bool { return a == b }) // EqualFunc
+		if sameTable && sameBans {
+			continue // nothing changed: no Set, no event
+		}
+		e.Set(th) // the world stores a copy; editing th after this changes nothing stored
+
+		// All runs in key order, so on a tie the smallest player ID wins, on every server.
+		top, best := "", int64(0)
+		for player, v := range th.Table.All() { // All
+			if v > best {
+				top, best = player, v
+			}
+		}
+		var total int64
+		for v := range th.Table.Values() { // Values
+			total += v
+		}
+		for player := range th.Table.Keys() { // Keys
+			w.Logger().Debug().Str("player", player).Msg("on threat table")
+		}
+		w.Logger().Info().Str("top", top).Int64("total", total).Msg("threat")
+
+		w.Broadcast(TopThreat{Player: top, Table: th.Table}) // copied on send
+	}
+}
+```
+
+### Coming from the old derive API
+
+| Old                                  | New                                         |
+| ------------------------------------ | ------------------------------------------- |
+| `m = m.With(k, v)`                   | `m.Set(k, v)`                               |
+| `m = m.Without(k)`                   | `m.Delete(k)`                               |
+| `m = m.Update(k, f)`                 | `v, _ := m.Get(k); m.Set(k, f(v))`          |
+| `m = m.DeleteFunc(del)`              | `m.DeleteFunc(del)`                         |
+| `b := m.Edit(); ...; m = b.Done()`   | the same edits on `m` directly              |

@@ -47,7 +47,10 @@ func TestMap_ZeroValueIsEmpty(t *testing.T) {
 func TestMap_ReadsAndKeyOrder(t *testing.T) {
 	t.Parallel()
 
-	m := immutable.Map[int, string]{}.With(3, "c").With(1, "a").With(2, "b")
+	var m immutable.Map[int, string]
+	m.Set(3, "c")
+	m.Set(1, "a")
+	m.Set(2, "b")
 	keys, vals := entries(m)
 	assert.Equal(t, []int{1, 2, 3}, keys)
 	assert.Equal(t, []string{"a", "b", "c"}, vals)
@@ -68,124 +71,116 @@ func TestMap_ReadsAndKeyOrder(t *testing.T) {
 	assert.Equal(t, []int{1, 2}, seen, "All stops when the loop does")
 }
 
-func TestMap_DerivationsLeaveReceiverUnchanged(t *testing.T) {
+func TestMap_Edits(t *testing.T) {
 	t.Parallel()
 
-	base := mapOf(map[string]int{"a": 1, "b": 2, "c": 3})
-	derive := map[string]func(immutable.Map[string, int]) immutable.Map[string, int]{
-		"With existing": func(m immutable.Map[string, int]) immutable.Map[string, int] { return m.With("b", 9) },
-		"With new":      func(m immutable.Map[string, int]) immutable.Map[string, int] { return m.With("bb", 9) },
-		"Without":       func(m immutable.Map[string, int]) immutable.Map[string, int] { return m.Without("b") },
-		"Update":        func(m immutable.Map[string, int]) immutable.Map[string, int] { return m.Update("a", inc) },
-		"builder set existing": func(m immutable.Map[string, int]) immutable.Map[string, int] {
-			b := m.Edit()
-			b.Set("a", 7)
-			return b.Done()
-		},
-		"DeleteFunc": func(m immutable.Map[string, int]) immutable.Map[string, int] {
-			return m.DeleteFunc(func(k string, _ int) bool { return k == "b" })
-		},
-		"builder delete first": func(m immutable.Map[string, int]) immutable.Map[string, int] {
-			b := m.Edit()
-			b.Delete("b")
-			b.Set("a", 7)
-			return b.Done()
-		},
-		"builder insert and delete": func(m immutable.Map[string, int]) immutable.Map[string, int] {
-			b := m.Edit()
-			b.Set("z", 7)
-			b.Delete("a")
-			return b.Done()
-		},
+	tests := []struct {
+		name string
+		edit func(m *immutable.Map[string, int])
+		want map[string]int
+	}{
+		{"Set existing", func(m *immutable.Map[string, int]) { m.Set("b", 9) }, map[string]int{"a": 1, "b": 9, "c": 3}},
+		{"Set new first", func(m *immutable.Map[string, int]) { m.Set("0", 9) },
+			map[string]int{"0": 9, "a": 1, "b": 2, "c": 3}},
+		{"Set new middle", func(m *immutable.Map[string, int]) { m.Set("bb", 9) },
+			map[string]int{"a": 1, "b": 2, "bb": 9, "c": 3}},
+		{"Set new last", func(m *immutable.Map[string, int]) { m.Set("d", 9) },
+			map[string]int{"a": 1, "b": 2, "c": 3, "d": 9}},
+		{"Delete", func(m *immutable.Map[string, int]) { m.Delete("b") }, map[string]int{"a": 1, "c": 3}},
+		{"Delete absent", func(m *immutable.Map[string, int]) { m.Delete("zz") },
+			map[string]int{"a": 1, "b": 2, "c": 3}},
+		{"DeleteFunc", func(m *immutable.Map[string, int]) {
+			m.DeleteFunc(func(_ string, v int) bool { return v%2 == 1 })
+		}, map[string]int{"b": 2}},
+		{"DeleteFunc none", func(m *immutable.Map[string, int]) {
+			m.DeleteFunc(func(string, int) bool { return false })
+		}, map[string]int{"a": 1, "b": 2, "c": 3}},
+		{"Clear", func(m *immutable.Map[string, int]) { m.Clear() }, map[string]int{}},
 	}
-	for name, f := range derive {
-		t.Run(name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := f(base)
-			keys, vals := entries(base)
-			assert.Equal(t, []string{"a", "b", "c"}, keys, "the receiver's keys are unchanged")
-			assert.Equal(t, []int{1, 2, 3}, vals, "the receiver's values are unchanged")
-
-			// A derived Map may have spare capacity; deriving from it again must not write into it.
-			wantKeys, wantVals := entries(got)
-			f(got)
-			gotKeys, gotVals := entries(got)
-			assert.Equal(t, wantKeys, gotKeys, "a derived Map's keys are unchanged by deriving from it")
-			assert.Equal(t, wantVals, gotVals, "a derived Map's values are unchanged by deriving from it")
+			m := mapOf(map[string]int{"a": 1, "b": 2, "c": 3})
+			tt.edit(&m)
+			require.Equal(t, tt.want, maps.Collect(m.All()))
+			keys, _ := entries(m)
+			require.True(t, slices.IsSorted(keys), "keys stay sorted: %v", keys)
 		})
 	}
 }
 
-func inc(v int) int { return v + 1 }
-
-func TestMap_WithWithoutUpdate(t *testing.T) {
+func TestMap_DeleteFuncVisitsInKeyOrder(t *testing.T) {
 	t.Parallel()
 
-	m := mapOf(map[string]int{"a": 1, "c": 3})
-	assert.True(t, immutable.MapEqual(mapOf(map[string]int{"a": 1, "b": 2, "c": 3}), m.With("b", 2)))
-	assert.True(t, immutable.MapEqual(mapOf(map[string]int{"a": 5, "c": 3}), m.With("a", 5)))
-	assert.True(t, immutable.MapEqual(mapOf(map[string]int{"c": 3}), m.Without("a")))
-	assert.True(t, immutable.MapEqual(m, m.Without("zz")), "removing an absent key changes nothing")
-	assert.True(t, immutable.MapEqual(mapOf(map[string]int{"a": 2, "c": 3}), m.Update("a", inc)))
-	assert.True(t, immutable.MapEqual(mapOf(map[string]int{"a": 1, "c": 3, "d": 1}), m.Update("d", inc)),
-		"Update starts from the zero value for an absent key")
-}
-
-func TestMap_DeleteFunc(t *testing.T) {
-	t.Parallel()
-
-	m := mapOf(map[string]int{"a": 1, "b": 2, "c": 3, "d": 4})
+	m := mapOf(map[string]int{"c": 3, "a": 1, "d": 4, "b": 2})
 	var seen []string
-	odd := m.DeleteFunc(func(k string, v int) bool {
+	m.DeleteFunc(func(k string, _ int) bool {
 		seen = append(seen, k)
-		return v%2 == 0
+		return k == "b"
 	})
-	assert.True(t, immutable.MapEqual(mapOf(map[string]int{"a": 1, "c": 3}), odd))
-	assert.Equal(t, []string{"a", "b", "c", "d"}, seen, "del runs once per entry, in key order")
-	keys, _ := entries(m)
-	assert.Equal(t, []string{"a", "b", "c", "d"}, keys, "the receiver is unchanged")
-
-	none := m.DeleteFunc(func(string, int) bool { return false })
-	assert.True(t, immutable.MapEqual(m, none), "removing nothing returns the same entries")
-	all := m.DeleteFunc(func(string, int) bool { return true })
-	assert.True(t, reflect.DeepEqual(immutable.Map[string, int]{}, all), "removing everything gives the zero value")
-
-	big := immutable.MapFrom(func(yield func(int, int) bool) {
-		for i := range 1000 {
-			if !yield(i, i) {
-				return
-			}
-		}
-	})
-	one := big.DeleteFunc(func(k, _ int) bool { return k != 0 })
-	capOf := func(m immutable.Map[int, int], field string) int {
-		return reflect.ValueOf(m).FieldByName(field).Cap()
-	}
-	assert.Less(t, capOf(one, "keys"), 16, "pruning down to one does not keep the 1000-entry keys")
-	assert.Less(t, capOf(one, "vals"), 16, "nor the values")
+	require.Equal(t, []string{"a", "b", "c", "d"}, seen, "del runs once per entry, in key order")
 }
 
 func TestMap_EmptyIsZeroValue(t *testing.T) {
 	t.Parallel()
 
-	one := immutable.Map[string, int]{}.With("a", 1)
-	b := one.Edit()
-	b.Delete("a")
+	one := func() immutable.Map[string, int] {
+		var m immutable.Map[string, int]
+		m.Set("a", 1)
+		return m
+	}
+	deleted, filtered, cleared := one(), one(), one()
+	deleted.Delete("a")
+	filtered.DeleteFunc(func(string, int) bool { return true })
+	cleared.Clear()
 
 	var fromMsgpack, fromJSON immutable.Map[string, int]
 	require.NoError(t, msgpack.Unmarshal([]byte{0x80}, &fromMsgpack))
 	require.NoError(t, fromJSON.UnmarshalJSON([]byte(`{}`)))
 
 	for name, m := range map[string]immutable.Map[string, int]{
-		"Without last":  one.Without("a"),
-		"builder Done":  b.Done(),
+		"Delete last":   deleted,
+		"DeleteFunc":    filtered,
+		"Clear":         cleared,
+		"Clone empty":   immutable.Map[string, int]{}.Clone(),
 		"MapFrom empty": immutable.MapFrom(maps.All(map[string]int{})),
 		"msgpack {}":    fromMsgpack,
 		"JSON {}":       fromJSON,
 	} {
 		assert.True(t, reflect.DeepEqual(immutable.Map[string, int]{}, m), name)
 	}
+}
+
+func TestMap_AssignmentSharesAndCloneDoesNot(t *testing.T) {
+	t.Parallel()
+
+	m := mapOf(map[string]int{"a": 1, "b": 2})
+	shared := m
+	shared.Set("a", 9)
+	v, _ := m.Get("a")
+	require.Equal(t, 9, v, "an assignment shares the storage, as with a Go map")
+
+	clone := m.Clone()
+	clone.Set("a", 1)
+	clone.Set("c", 3)
+	clone.Delete("b")
+	keys, vals := entries(m)
+	require.Equal(t, []string{"a", "b"}, keys, "edits to a clone do not reach the original")
+	require.Equal(t, []int{9, 2}, vals)
+}
+
+func TestMap_CloneCopiesNestedCollections(t *testing.T) {
+	t.Parallel()
+
+	var m immutable.Map[int, memory]
+	m.Set(1, memory{Seen: immutable.SliceOf("x")})
+	clone := m.Clone()
+	mem, _ := clone.Get(1)
+	mem.Seen.Set(0, "edited")
+
+	orig, _ := m.Get(1)
+	require.Equal(t, "x", orig.Seen.At(0), "a Slice inside a value is copied too")
 }
 
 func TestMapFrom_LastValueWins(t *testing.T) {
@@ -209,137 +204,57 @@ func TestMapFrom_LastValueWins(t *testing.T) {
 func TestMap_EqualFunc(t *testing.T) {
 	t.Parallel()
 
-	a := immutable.Map[int, memory]{}.With(1, memory{Seen: immutable.SliceOf("x")})
-	b := immutable.Map[int, memory]{}.With(1, memory{Seen: immutable.SliceOf("x")})
+	one := func() immutable.Map[int, memory] {
+		var m immutable.Map[int, memory]
+		m.Set(1, memory{Seen: immutable.SliceOf("x")})
+		return m
+	}
 	eq := func(x, y memory) bool { return x.Affinity == y.Affinity && immutable.Equal(x.Seen, y.Seen) }
-	assert.True(t, a.EqualFunc(b, eq))
-	assert.False(t, a.EqualFunc(b.With(2, memory{}), eq))
-	assert.False(t, a.EqualFunc(b.With(1, memory{Affinity: 1}), eq))
+	assert.True(t, one().EqualFunc(one(), eq))
+	extra, changed := one(), one()
+	extra.Set(2, memory{})
+	changed.Set(1, memory{Affinity: 1})
+	assert.False(t, one().EqualFunc(extra, eq))
+	assert.False(t, one().EqualFunc(changed, eq))
 }
 
-func TestMapBuilder_SeesPendingEdits(t *testing.T) {
-	t.Parallel()
-
-	src := mapOf(map[playerID]int{1: 10, 2: 20})
-	b := src.Edit()
-	for _, hit := range []struct {
-		who playerID
-		dmg int
-	}{{1, 5}, {3, 7}, {3, 1}, {2, 0}} {
-		v, _ := b.Get(hit.who)
-		b.Set(hit.who, v+hit.dmg)
-	}
-	assert.True(t, b.Has(3))
-	b.Delete(2)
-	b.Delete(99)
-	assert.False(t, b.Has(2))
-	assert.Equal(t, 2, b.Len())
-
-	keys, vals := entries(b.Done())
-	assert.Equal(t, []playerID{1, 3}, keys)
-	assert.Equal(t, []int{15, 8}, vals)
-	keys, vals = entries(src)
-	assert.Equal(t, []playerID{1, 2}, keys, "the source is unchanged")
-	assert.Equal(t, []int{10, 20}, vals, "the source is unchanged")
-}
-
-func TestMapBuilder_UseAfterDonePanics(t *testing.T) {
-	t.Parallel()
-
-	uses := map[string]func(*immutable.MapBuilder[string, int]){
-		"Len":    func(b *immutable.MapBuilder[string, int]) { b.Len() },
-		"Get":    func(b *immutable.MapBuilder[string, int]) { b.Get("a") },
-		"Has":    func(b *immutable.MapBuilder[string, int]) { b.Has("a") },
-		"Set":    func(b *immutable.MapBuilder[string, int]) { b.Set("a", 1) },
-		"Delete": func(b *immutable.MapBuilder[string, int]) { b.Delete("a") },
-		"Done":   func(b *immutable.MapBuilder[string, int]) { b.Done() },
-	}
-	for name, use := range uses {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			b := immutable.Map[string, int]{}.With("a", 1).Edit()
-			done := b.Done()
-			require.PanicsWithValue(t, "immutable: MapBuilder used after Done", func() { use(b) })
-			v, _ := done.Get("a")
-			assert.Equal(t, 1, v, "the built Map is untouched")
-		})
-	}
-}
-
-func TestMapBuilder_CopyPanics(t *testing.T) {
-	t.Parallel()
-
-	b := immutable.Map[string, int]{}.With("a", 1).Edit()
-	c := *b
-	done := b.Done()
-	require.PanicsWithValue(t, "immutable: MapBuilder copied by value; use the pointer Edit returned",
-		func() { c.Set("a", 9) })
-	v, _ := done.Get("a")
-	assert.Equal(t, 1, v, "a copy cannot write into the built Map")
-}
-
-// TestMap_ModelMatchesGoMap runs random edits, through derivations and builders alike, against a Go
-// map read back in sorted key order. Like the Slice model test, it keeps recent values and checks
-// after every step that none of them changed.
+// TestMap_ModelMatchesGoMap runs random edits against a Go map read back in sorted key order.
 func TestMap_ModelMatchesGoMap(t *testing.T) {
 	t.Parallel()
 	r := testutils.NewRand(t)
 
-	type version struct {
-		m    immutable.Map[int, int]
-		want map[int]int
-	}
-	cur := immutable.Map[int, int]{}
+	var m immutable.Map[int, int]
 	model := map[int]int{}
-	var history []version
-
 	for step := range 3000 {
 		k, v := r.IntN(40), r.IntN(1000)
-		model = maps.Clone(model)
-		switch r.IntN(6) {
-		case 0, 1:
-			cur = cur.With(k, v)
+		switch op := r.IntN(10); {
+		case op < 4:
+			m.Set(k, v)
 			model[k] = v
-		case 2:
-			cur = cur.Without(k)
+		case op < 6:
+			got, _ := m.Get(k)
+			m.Set(k, got+v)
+			model[k] += v
+		case op < 8:
+			m.Delete(k)
 			delete(model, k)
-		case 3:
-			cur = cur.Update(k, inc)
-			model[k]++
-		case 4:
+		case op == 8:
 			mod := 3 + r.IntN(8)
 			del := func(k, _ int) bool { return k%mod == 0 }
-			cur = cur.DeleteFunc(del)
+			m.DeleteFunc(del)
 			maps.DeleteFunc(model, del)
-		default:
-			b := cur.Edit()
-			for range r.IntN(6) {
-				bk, bv := r.IntN(40), r.IntN(1000)
-				if r.IntN(3) == 0 {
-					b.Delete(bk)
-					delete(model, bk)
-					continue
-				}
-				got, _ := b.Get(bk)
-				b.Set(bk, got+bv)
-				model[bk] += bv
-			}
-			cur = b.Done()
+		case r.IntN(20) == 0:
+			m.Clear()
+			clear(model)
 		}
 
-		history = append(history, version{m: cur, want: model})
-		for i, h := range history {
-			keys, vals := entries(h.m)
-			wantKeys := slices.Sorted(maps.Keys(h.want))
-			require.Equal(t, len(wantKeys), h.m.Len(), "version %d at step %d", i, step)
-			require.True(t, slices.Equal(wantKeys, keys), "version %d keys at step %d", i, step)
-			for j, k := range wantKeys {
-				require.Equal(t, h.want[k], vals[j], "version %d value for %d at step %d", i, k, step)
-			}
-		}
-		if len(history) > 32 {
-			history = history[1:]
+		keys, vals := entries(m)
+		wantKeys := slices.Sorted(maps.Keys(model))
+		require.Equal(t, len(wantKeys), m.Len(), "step %d", step)
+		require.True(t, slices.Equal(wantKeys, keys), "keys at step %d", step)
+		for j, k := range wantKeys {
+			require.Equal(t, model[k], vals[j], "value for %d at step %d", k, step)
+			require.True(t, m.Has(k), "Has(%d) at step %d", k, step)
 		}
 	}
 }
@@ -360,16 +275,8 @@ func TestMap_EncodingIgnoresInsertOrder(t *testing.T) {
 	for range 20 {
 		r.Shuffle(len(keys), func(i, j int) { keys[i], keys[j] = keys[j], keys[i] })
 		var m immutable.Map[string, memory]
-		if r.IntN(2) == 0 {
-			for _, k := range keys {
-				m = m.With(k, want[k])
-			}
-		} else {
-			b := m.Edit()
-			for _, k := range keys {
-				b.Set(k, want[k])
-			}
-			m = b.Done()
+		for _, k := range keys {
+			m.Set(k, want[k])
 		}
 		pack, err := msgpack.Marshal(m)
 		require.NoError(t, err)
@@ -393,13 +300,10 @@ func TestMap_MessagePackRoundTrip(t *testing.T) {
 		Empty   immutable.Map[string, int] `msgpack:",omitempty"`
 		Zero    immutable.Map[string, int]
 	}
-	want := holder{
-		Players: immutable.Map[playerID, memory]{}.
-			With(7, memory{Affinity: 3, Seen: immutable.SliceOf("a", "b")}).
-			With(2, memory{Affinity: -1}),
-		Nested: immutable.Map[string, immutable.Map[int8, string]]{}.
-			With("x", immutable.Map[int8, string]{}.With(-3, "neg").With(4, "pos")),
-	}
+	var want holder
+	want.Players.Set(7, memory{Affinity: 3, Seen: immutable.SliceOf("a", "b")})
+	want.Players.Set(2, memory{Affinity: -1})
+	want.Nested.Set("x", mapOf(map[int8]string{-3: "neg", 4: "pos"}))
 	data, err := msgpack.Marshal(want)
 	require.NoError(t, err)
 
@@ -452,9 +356,8 @@ func TestMap_MessagePackDecodeSortsAndRejectsDuplicates(t *testing.T) {
 func TestMap_JSON(t *testing.T) {
 	t.Parallel()
 
-	ints := immutable.Map[int16, string]{}.With(10, "ten").With(-2, "minus two").With(3, "three")
-	strs := immutable.Map[string, immutable.Slice[int]]{}.With("b", immutable.SliceOf(1)).
-		With("a", immutable.Slice[int]{})
+	ints := mapOf(map[int16]string{10: "ten", -2: "minus two", 3: "three"})
+	strs := mapOf(map[string]immutable.Slice[int]{"b": immutable.SliceOf(1), "a": {}})
 
 	for _, lib := range jsonLibs {
 		t.Run(lib.name, func(t *testing.T) {
@@ -508,7 +411,7 @@ func TestMap_JSONRejectsBadInput(t *testing.T) {
 		"canonical then 05": `{"5":"a","05":"b"}`,
 	} {
 		for _, lib := range jsonLibs {
-			m := immutable.Map[int8, string]{}.With(1, "keep")
+			m := mapOf(map[int8]string{1: "keep"})
 			require.Error(t, lib.unmarshal([]byte(input), &m), "%s via %s", name, lib.name)
 			v, _ := m.Get(1)
 			assert.Equal(t, "keep", v, "%s via %s: a failed decode leaves the Map unchanged", name, lib.name)
@@ -537,7 +440,7 @@ func TestMapTypes(t *testing.T) {
 }
 
 func FuzzMap_DecodeMsgpack(f *testing.F) {
-	seed, err := msgpack.Marshal(immutable.Map[int, immutable.Slice[string]]{}.With(1, immutable.SliceOf("a")))
+	seed, err := msgpack.Marshal(mapOf(map[int]immutable.Slice[string]{1: immutable.SliceOf("a")}))
 	require.NoError(f, err)
 	f.Add(seed)
 	f.Add([]byte{0x82, 0x01, 0x90, 0x01, 0x90})
@@ -579,28 +482,19 @@ func TestMap_Allocations(t *testing.T) {
 	})
 	assert.Zero(t, reads, "reads never allocate")
 
-	assert.InDelta(t, 1, testing.AllocsPerRun(100, func() { sink += m.With(3, 9).Len() }), 0, "With existing")
-	assert.InDelta(t, 2, testing.AllocsPerRun(100, func() { sink += m.With(30, 9).Len() }), 0, "With new")
-	assert.InDelta(t, 2, testing.AllocsPerRun(100, func() { sink += m.Without(3).Len() }), 0, "Without")
-	assert.InDelta(t, 0, testing.AllocsPerRun(100, func() { sink += m.Without(30).Len() }), 0, "Without absent")
+	assert.Zero(t, testing.AllocsPerRun(100, func() { m.Set(3, 9) }), "Set on an existing key")
+	assert.Zero(t, testing.AllocsPerRun(100, func() { m.Delete(30) }), "Delete of an absent key")
+	assert.InDelta(t, 2, testing.AllocsPerRun(100, func() { sink += m.Clone().Len() }), 0, "Clone: one per array")
 
-	// Changing existing entries copies the values once, plus the builder itself.
-	batch := testing.AllocsPerRun(100, func() {
-		b := m.Edit()
-		for k := range 8 {
-			v, _ := b.Get(k + 1)
-			b.Set(k+1, v*2)
+	// Set grows the arrays only when they are full, so 1024 new keys allocate about 2·log2(1024)
+	// times, not 2048.
+	loop := testing.AllocsPerRun(100, func() {
+		var b immutable.Map[int, int]
+		for k := range 1024 {
+			b.Set(k, k)
 		}
-		sink += b.Done().Len()
+		sink += b.Len()
 	})
-	assert.LessOrEqual(t, batch, 2.0, "a batch of updates to existing keys")
-
-	assert.InDelta(t, 1, testing.AllocsPerRun(100, func() { sink += m.Edit().Done().Len() }), 0,
-		"a builder that never writes copies nothing")
-	assert.InDelta(t, 3, testing.AllocsPerRun(100, func() {
-		b := m.Edit()
-		b.Set(30, 9)
-		sink += b.Done().Len()
-	}), 0, "a new key copies each array once")
+	assert.LessOrEqual(t, loop, 40.0, "1024 new keys")
 	_ = sink
 }

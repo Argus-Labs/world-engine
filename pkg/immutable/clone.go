@@ -5,14 +5,14 @@ import (
 	"sync"
 )
 
-// CloneFunc returns a function that gives every Slice reachable from a T its own array, so the T no
-// longer shares one with the value it was copied from. It returns nil when T holds no Slice, so a
-// caller can skip the work entirely; Cardinal builds one per component type at registration and
+// CloneFunc returns a function that gives every Slice and Map reachable from a T its own storage, so
+// the T no longer shares any with the value it was copied from. It returns nil when T holds neither,
+// so a caller can skip the work entirely; Cardinal builds one per component type at registration and
 // calls it on every Get and Set.
 //
-// It reaches Slices in struct fields (exported or not), fixed arrays, the elements of other Slices
-// and the values of Maps. It does not follow pointers, interfaces, or Go slices and maps, which a
-// component cannot hold.
+// It reaches Slices and Maps in struct fields (exported or not), fixed arrays, and inside other
+// Slices and Maps. It does not follow pointers, interfaces, or Go slices and maps, which a component
+// cannot hold.
 func CloneFunc[T any]() func(*T) {
 	clone := clonerOf(reflect.TypeFor[T]())
 	if clone == nil {
@@ -21,9 +21,9 @@ func CloneFunc[T any]() func(*T) {
 	return func(p *T) { clone(reflect.ValueOf(p).Elem()) }
 }
 
-// Clone returns a copy of v that shares no Slice array with it. When T is an interface type, it
-// copies the value the interface holds. It looks T up on every call; for a type copied often, keep
-// the function CloneFunc returns instead.
+// Clone returns a copy of v that shares no Slice or Map storage with it. When T is an interface type,
+// it copies the value the interface holds. It looks T up on every call; for a type copied often,
+// keep the function CloneFunc returns instead.
 func Clone[T any](v T) T {
 	t := reflect.TypeFor[T]()
 	if t.Kind() != reflect.Interface {
@@ -46,8 +46,8 @@ func Clone[T any](v T) T {
 	return cp.Interface().(T) //nolint:errcheck,forcetypeassert // cp holds v's dynamic type, which implements T.
 }
 
-// deepCloner is implemented by *Slice and *Map: cloneDeep gives the value its own arrays, wherever
-// a shared one could be edited.
+// deepCloner is implemented by *Slice and *Map: cloneDeep gives the value its own arrays, and does the
+// same for every Slice and Map inside its elements.
 type deepCloner interface{ cloneDeep() }
 
 func (s *Slice[T]) cloneDeep() {
@@ -65,28 +65,30 @@ func (s *Slice[T]) cloneDeep() {
 	s.items = items
 }
 
-// cloneDeep copies the values only when they hold a Slice. A Map's own arrays are never written once
-// a Map holds them, so sharing them is safe; a Slice inside a value is edited in place, so it is not.
 func (m *Map[K, V]) cloneDeep() {
-	clone := clonerOf(reflect.TypeFor[V]())
-	if clone == nil || len(m.vals) == 0 {
+	if len(m.keys) == 0 {
+		m.keys, m.vals = nil, nil
 		return
 	}
+	keys := make([]K, len(m.keys))
+	copy(keys, m.keys)
 	vals := make([]V, len(m.vals))
 	copy(vals, m.vals)
-	for i := range vals {
-		clone(reflect.ValueOf(&vals[i]).Elem())
+	if clone := clonerOf(reflect.TypeFor[V]()); clone != nil {
+		for i := range vals {
+			clone(reflect.ValueOf(&vals[i]).Elem())
+		}
 	}
-	m.vals = vals
+	m.keys, m.vals = keys, vals
 }
 
-// cloner gives every Slice reachable from v its own array. v is addressable and of the type the
-// cloner was built for.
+// cloner gives every Slice and Map reachable from v its own storage. v is addressable and of the type
+// the cloner was built for.
 type cloner func(v reflect.Value)
 
 // cloners caches one cloner per type, [reflect.Type] to cloner. A nil cloner means the type holds no
-// Slice. It is global because Clone, called on every event and command, has no other place to keep
-// one, and building a cloner walks the whole type.
+// Slice or Map. It is global because Clone, called on every event and command, has no other place to
+// keep one, and building a cloner walks the whole type.
 var cloners sync.Map //nolint:gochecknoglobals // A per-type cache of pure functions of the type.
 
 func clonerOf(t reflect.Type) cloner {
@@ -99,7 +101,7 @@ func clonerOf(t reflect.Type) cloner {
 }
 
 func buildCloner(t reflect.Type) cloner {
-	if !holdsSlice(t, map[reflect.Type]bool{}) {
+	if !holdsCollection(t) {
 		return nil
 	}
 	if reflect.PointerTo(t).Implements(reflect.TypeFor[deepCloner]()) {
@@ -110,7 +112,7 @@ func buildCloner(t reflect.Type) cloner {
 			dc.cloneDeep()
 		}
 	}
-	switch t.Kind() { //nolint:exhaustive // holdsSlice is true only for structs, arrays, Slices and Maps.
+	switch t.Kind() { //nolint:exhaustive // holdsCollection is true only for structs, arrays, Slices and Maps.
 	case reflect.Struct:
 		type field struct {
 			index int
@@ -140,30 +142,24 @@ func buildCloner(t reflect.Type) cloner {
 	return nil
 }
 
-// holdsSlice reports whether a Slice is reachable from t. visiting holds the types on the current
-// path: a type that reaches itself, such as a tree of Maps, holds a Slice only if some other path
-// from it does.
-func holdsSlice(t reflect.Type, visiting map[reflect.Type]bool) bool {
-	if visiting[t] {
-		return false
-	}
+// holdsCollection reports whether a Slice or Map is reachable from t. It needs no cycle check: a type
+// can reach itself only through a Slice or Map, and the walk stops there.
+func holdsCollection(t reflect.Type) bool {
 	if _, ok := SliceElem(t); ok {
 		return true
 	}
-	visiting[t] = true
-	defer delete(visiting, t)
-	if _, value, ok := MapTypes(t); ok {
-		return holdsSlice(value, visiting)
+	if _, _, ok := MapTypes(t); ok {
+		return true
 	}
-	switch t.Kind() { //nolint:exhaustive // No other kind a component may hold contains a Slice.
+	switch t.Kind() { //nolint:exhaustive // No other kind a component may hold contains a Slice or Map.
 	case reflect.Struct:
 		for f := range t.Fields() {
-			if holdsSlice(f.Type, visiting) {
+			if holdsCollection(f.Type) {
 				return true
 			}
 		}
 	case reflect.Array:
-		return t.Len() > 0 && holdsSlice(t.Elem(), visiting)
+		return t.Len() > 0 && holdsCollection(t.Elem())
 	}
 	return false
 }

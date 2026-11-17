@@ -194,8 +194,8 @@ so an edit through `other` can show up in `buffs.Active`. Use `Clone` for a copy
 ### Lookup Tables: `immutable.Map`
 
 For values looked up by key, such as quest flags, cooldowns per ability, or threat per attacker, use
-`immutable.Map[K, V]`. Unlike Slice it is never edited in place: storage is hidden, every read
-returns a copy, and every derivation returns a new Map.
+`immutable.Map[K, V]`. It works like Slice: edit it in place, like a Go map, then `Set` the
+component. Cardinal copies it on `Get` and `Set`, so an edit reaches the world only through `Set`.
 
 ```go
 type PlayerMemory struct {
@@ -221,39 +221,36 @@ order, and a Map encodes in key order too, so the same entries always give the s
 they were inserted. That is what keeps snapshots and `RequireDeterministic` hashes stable. If
 insertion order matters, store it in the value.
 
-Read with `Get`, `Has`, and `Len`; derive with `With`, `Without`, `Update`, and `DeleteFunc`, then
-`Set`:
-
 ```go
 mem := npc.Get[NPCMemory]()
-pm, _ := mem.Players.Get(pid) // a copy
+pm, _ := mem.Players.Get(pid) // values come out by value
 pm.Affinity += 5
-mem.Players = mem.Players.With(pid, pm)
-npc.Set(mem)
-```
+mem.Players.Set(pid, pm)
 
-`DeleteFunc` prunes many entries in one copy:
-
-```go
-mem.Players = mem.Players.DeleteFunc(func(_ string, pm PlayerMemory) bool {
+// Forget players not seen for a while.
+mem.Players.DeleteFunc(func(_ string, pm PlayerMemory) bool {
 	return now-pm.LastSeen > forgetAfter
 })
 npc.Set(mem)
 ```
 
-For many edits at once, `Edit` returns a builder. Its `Get` sees its own pending edits, so it can
-accumulate:
+The API follows Go's built-ins and `maps` package:
 
-```go
-threat := boss.Get[Threat]()
-b := threat.Table.Edit()
-for _, hit := range hits {
-	v, _ := b.Get(hit.Attacker)
-	b.Set(hit.Attacker, v+hit.Damage)
-}
-threat.Table = b.Done()
-boss.Set(threat)
-```
+| Go                                 | `immutable.Map`                                  |
+| ---------------------------------- | ------------------------------------------------ |
+| `len(m)`                           | `m.Len()`                                        |
+| `v, ok := m[k]`                    | `v, ok := m.Get(k)`                              |
+| `_, ok := m[k]`                    | `m.Has(k)`                                       |
+| `m[k] = v`                         | `m.Set(k, v)`                                    |
+| `delete(m, k)`                     | `m.Delete(k)`                                    |
+| `clear(m)`                         | `m.Clear()`                                      |
+| `for k, v := range m`              | `for k, v := range m.All()`, in key order        |
+| `maps.Keys`, `Values`, `DeleteFunc`, `Clone` | methods of the same name               |
+| `maps.Equal`, `EqualFunc`          | `immutable.MapEqual(a, b)`, `a.EqualFunc(b, eq)` |
+
+The storage is two sorted arrays, so a lookup or a change to an existing key is a binary search, and
+adding or removing a key shifts the entries after it. That is cheap at the sizes components hold. To
+build a large Map at once, use `immutable.MapFrom`, which sorts once.
 
 `immutable.MapFrom(maps.All(goMap))` builds a Map from a Go map, and the result does not depend on the
 order the Go map yields. Compare Maps with `immutable.MapEqual`, or `EqualFunc` for values that are

@@ -69,16 +69,16 @@ func (s *snapGrow) Run(w *World) {
 
 		zones, _ := d.Regions.Get(region)
 		cells, _ := zones.Get(zone)
-		b := cells.Edit()
-		c, _ := b.Get(row)
+		c, _ := cells.Get(row)
 		c.HP += int64(tick) + 1
 		c.Tags.Append("t" + strconv.FormatUint(tick, 10))
-		b.Set(row, c)
-		b.Set(cellID(1000+tick%5), snapCell{HP: -int64(tick)})
-		zones = zones.With(zone, b.Done()).With(99, immutable.Map[cellID, snapCell]{})
-		d.Regions = d.Regions.With(region, zones)
+		cells.Set(row, c)
+		cells.Set(cellID(1000+tick%5), snapCell{HP: -int64(tick)})
+		zones.Set(zone, cells)
+		zones.Set(99, immutable.Map[cellID, snapCell]{})
+		d.Regions.Set(region, zones)
 		if tick%5 == 4 {
-			d.Regions = d.Regions.Without("r0")
+			d.Regions.Delete("r0")
 		}
 
 		d.Log.Append(immutable.MapFrom(maps.All(map[int8]string{int8(tick % 7): "x", -1: region})))
@@ -94,21 +94,24 @@ func (*snapPeek) Run(w *World) {
 	for e := range w.Contains[snapRow]().Iter() {
 		d := e.Get[snapDeep]()
 		for region, zones := range d.Regions.All() {
-			b := zones.Without(0).Edit()
-			b.Set(77, immutable.Map[cellID, snapCell]{}.With(1, snapCell{HP: 1}))
-			b.Delete(1)
 			for zone, cells := range zones.All() {
 				for id, c := range cells.All() {
 					if c.Tags.Len() > 0 {
 						c.Tags.Set(0, "peek")
 						c.Tags.Reverse()
 					}
-					cells = cells.With(id, c)
+					c.HP = -1
+					cells.Set(id, c)
 				}
-				b.Set(zone, cells)
+				cells.Set(4242, snapCell{HP: 1})
+				zones.Set(zone, cells)
 			}
-			d.Regions = d.Regions.With(region, b.Done())
+			zones.Delete(0)
+			zones.Set(77, immutable.MapFrom(maps.All(map[cellID]snapCell{1: {HP: 1}})))
+			d.Regions.Set(region, zones)
 		}
+		d.Regions.Set("peek", immutable.Map[uint32, immutable.Map[cellID, snapCell]]{})
+		d.Regions.Delete("r1")
 		d.Log.SortStableFunc(func(a, b immutable.Map[int8, string]) int { return cmp.Compare(b.Len(), a.Len()) })
 		d.Log.Reverse()
 		d.Log.DeleteFunc(func(m immutable.Map[int8, string]) bool { return !m.Has(0) })

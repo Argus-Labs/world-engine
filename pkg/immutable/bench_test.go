@@ -119,66 +119,50 @@ func BenchmarkSlice(b *testing.B) {
 	}
 }
 
+// BenchmarkMap pays the same copies as BenchmarkSlice. GetAll reads the stored Map without the Get
+// copy, so it measures lookups alone.
 func BenchmarkMap(b *testing.B) {
 	for _, n := range benchSizes {
 		stored, keys := benchMap(n)
 		b.Run(fmt.Sprintf("SetExistingOne/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				m := stored
-				m = m.With(keys[0], benchItem{Qty: 1})
-				sinkMap = m
+				m := stored.Clone()
+				m.Set(keys[0], benchItem{Qty: 1})
+				sinkMap = m.Clone()
 			}
 		})
 		b.Run(fmt.Sprintf("InsertOne/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				m := stored
-				m = m.With(n+1, benchItem{})
-				sinkMap = m
+				m := stored.Clone()
+				m.Set(n+1, benchItem{})
+				sinkMap = m.Clone()
 			}
 		})
 		b.Run(fmt.Sprintf("InsertLoop/%d", n), func(b *testing.B) {
 			for b.Loop() {
 				var m immutable.Map[int, benchItem]
 				for _, k := range keys {
-					m = m.With(k, benchItem{})
+					m.Set(k, benchItem{})
 				}
-				sinkMap = m
-			}
-		})
-		b.Run(fmt.Sprintf("InsertLoopBuilder/%d", n), func(b *testing.B) {
-			for b.Loop() {
-				bl := immutable.Map[int, benchItem]{}.Edit()
-				for _, k := range keys {
-					bl.Set(k, benchItem{})
-				}
-				sinkMap = bl.Done()
+				sinkMap = m.Clone()
 			}
 		})
 		b.Run(fmt.Sprintf("UpdateAll/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				m := stored
+				m := stored.Clone()
 				for _, k := range keys {
-					m = m.Update(k, func(v benchItem) benchItem { v.Qty++; return v })
-				}
-				sinkMap = m
-			}
-		})
-		b.Run(fmt.Sprintf("UpdateAllBuilder/%d", n), func(b *testing.B) {
-			for b.Loop() {
-				bl := stored.Edit()
-				for _, k := range keys {
-					v, _ := bl.Get(k)
+					v, _ := m.Get(k)
 					v.Qty++
-					bl.Set(k, v)
+					m.Set(k, v)
 				}
-				sinkMap = bl.Done()
+				sinkMap = m.Clone()
 			}
 		})
 		b.Run(fmt.Sprintf("DeleteHalf/%d", n), func(b *testing.B) {
 			for b.Loop() {
-				m := stored
-				m = m.DeleteFunc(func(k int, _ benchItem) bool { return k%2 == 0 })
-				sinkMap = m
+				m := stored.Clone()
+				m.DeleteFunc(func(k int, _ benchItem) bool { return k%2 == 0 })
+				sinkMap = m.Clone()
 			}
 		})
 		b.Run(fmt.Sprintf("GetAll/%d", n), func(b *testing.B) {
@@ -218,12 +202,10 @@ func BenchmarkTick(b *testing.B) {
 				clone(&c)
 				c.Log.Append(benchItem{}, benchItem{})
 				c.Log.Delete(0, 2)
-				mb := c.Stats.Edit()
-				v, _ := mb.Get(1)
-				mb.Set(1, v+1)
-				v, _ = mb.Get(2)
-				mb.Set(2, v+1)
-				c.Stats = mb.Done()
+				v, _ := c.Stats.Get(1)
+				c.Stats.Set(1, v+1)
+				v, _ = c.Stats.Get(2)
+				c.Stats.Set(2, v+1)
 				clone(&c)
 				col[e] = c
 			}

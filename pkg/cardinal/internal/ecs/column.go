@@ -31,7 +31,7 @@ var _ abstractColumn = &column[Component]{}
 type column[T Component] struct {
 	compName   string   // The name of the component stored in this column
 	components []T      // Array containing the component data
-	clone      func(*T) // Gives a value's Slices their own arrays; nil when T holds no Slice
+	clone      func(*T) // Gives a value's Slices and Maps their own storage; nil when T holds neither
 }
 
 const columnCapacity = 16
@@ -100,20 +100,20 @@ func (c *column[T]) setAbstract(row int, component Component) {
 	c.set(row, concrete)
 }
 
-// getCopy returns the value in a given row with its Slices copied, so editing them never reaches
+// getCopy returns the value in a given row with its Slices and Maps copied, so editing them never reaches
 // the column. It is what Get hands to a system.
 func (c *column[T]) getCopy(row int) T {
 	if c.clone == nil {
 		return c.get(row)
 	}
 	// Declared only on this path: taking its address moves it to the heap, and a component with no
-	// Slice must not pay for that.
+	// Slice or Map must not pay for that.
 	v := c.get(row)
 	c.clone(&v)
 	return v
 }
 
-// setCopy stores component in a given row with its Slices copied, so the caller editing them after
+// setCopy stores component in a given row with its Slices and Maps copied, so the caller editing them after
 // Set never reaches the column. It is what Set stores.
 func (c *column[T]) setCopy(row int, component T) {
 	if c.clone == nil {

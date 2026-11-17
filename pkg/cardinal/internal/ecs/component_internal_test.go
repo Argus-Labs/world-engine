@@ -750,14 +750,17 @@ func TestWorldState_MapsRoundTripThroughSnapshot(t *testing.T) {
 	_, err := ws.components.register[mapsComponent]("maps_component")
 	require.NoError(t, err)
 	e := ws.newEntity()
-	value := mapsComponent{
-		Memory: immutable.Map[playerKey, valuePoint]{}.With(9, valuePoint{X: 1}).With(2, valuePoint{Y: 3}),
-		Nested: immutable.Map[string, immutable.Map[int8, int]]{}.
-			With("b", immutable.Map[int8, int]{}.With(-1, 1)).
-			With("a", immutable.Map[int8, int]{}),
-		Lists:   immutable.Map[uint32, immutable.Slice[string]]{}.With(1, immutable.SliceOf("x", "y")),
-		History: immutable.SliceOf(immutable.Map[string, int]{}.With("k", 4)),
-	}
+	var value mapsComponent
+	value.Memory.Set(9, valuePoint{X: 1})
+	value.Memory.Set(2, valuePoint{Y: 3})
+	var inner immutable.Map[int8, int]
+	inner.Set(-1, 1)
+	value.Nested.Set("b", inner)
+	value.Nested.Set("a", immutable.Map[int8, int]{})
+	value.Lists.Set(1, immutable.SliceOf("x", "y"))
+	var history immutable.Map[string, int]
+	history.Set("k", 4)
+	value.History = immutable.SliceOf(history)
 	require.NoError(t, ws.setComponent(e, value))
 
 	pb, err := ws.toProto()

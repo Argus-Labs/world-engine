@@ -1,10 +1,9 @@
 // Package immutable holds the collections a component may hold: Slice and Map. Both keep their
 // storage private, so nothing outside this package can reach into one.
 //
-// A Slice is edited in place, like a Go slice. It is safe in a component because Cardinal copies it
-// on the way in and out of the world (Get, Set, events and commands) with Clone and CloneFunc, so a
-// system only ever edits its own copy. A Map is never edited in place: every derivation returns a
-// new Map.
+// Both are edited in place, like a Go slice and map. They are safe in a component because Cardinal
+// copies them on the way in and out of the world (Get, Set, events and commands) with Clone and
+// CloneFunc, so a system only ever edits its own copy.
 package immutable
 
 import (

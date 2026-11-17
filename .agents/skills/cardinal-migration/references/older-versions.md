@@ -50,10 +50,13 @@ the rest. `Edit`, `NewSliceBuilder`, `Transform`, `Concat`, `Chunk`, `Repeat`, `
 `Compact` and `Min`/`Max` are gone; use a loop or `slices` on `slices.Collect(s.Values())`.
 A `for i := range c.Items` over the old slice becomes `for i, x := range c.Items.All()`.
 
-`immutable.Map[K, V]` is the same for a lookup table: build with
-`immutable.MapFrom(maps.All(goMap))`, read with `Get`, `Has`, `All`, derive with `With`,
-`Without`, `Update`, `DeleteFunc`, and batch with `Edit`/`Done`. Keys are integers or
-strings, kept sorted. `EntityID`s are reused as soon as the entity is destroyed: key
+`immutable.Map[K, V]` is the same for a lookup table, edited in place like a Go map and
+copied the same way: build with `immutable.MapFrom(maps.All(goMap))`, read with `Get`,
+`Has`, `All`, edit with `Set`, `Delete`, `DeleteFunc`, `Clear`, then `e.Set(c)`. Old
+derivations map as: `m = m.With(k, v)` becomes `m.Set(k, v)`, `m = m.Without(k)` becomes
+`m.Delete(k)`, `m = m.Update(k, f)` becomes `v, _ := m.Get(k); m.Set(k, f(v))`, and an
+`Edit`/`Done` batch becomes the same edits on `m` directly. Keys are integers or strings,
+kept sorted. `EntityID`s are reused as soon as the entity is destroyed: key
 long-lived data by an ID the game owns, or remove the key in the system that destroys the
 entity.
 
