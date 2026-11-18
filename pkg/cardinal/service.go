@@ -24,6 +24,7 @@ import (
 	"github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1/cardinalv1connect"
 	iscv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1"
 	"github.com/golang-jwt/jwt/v5"
+	natsserver "github.com/nats-io/nats-server/v2/server"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	otelcodes "go.opentelemetry.io/otel/codes"
@@ -786,7 +787,10 @@ func matchesEvent(subscription string, eventName string) bool {
 	return subscription == eventName ||
 		subscription == "*" ||
 		subscription == ">" ||
-		(strings.HasSuffix(subscription, ".>") && strings.HasPrefix(eventName, strings.TrimSuffix(subscription, ">")))
+		(strings.HasSuffix(subscription, ".>") && strings.HasPrefix(eventName, strings.TrimSuffix(subscription, ">"))) ||
+		// A token-scoped '*' matches exactly one token, as in NATS: "chat.*" matches "chat.message"
+		// but not "chat.thread.reply". A bare '*' above still matches every event.
+		(strings.Contains(subscription, "*") && natsserver.SubjectMatchesFilter(eventName, subscription))
 }
 
 // -------------------------------------------------------------------------------------------------
