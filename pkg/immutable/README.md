@@ -460,6 +460,12 @@ n is the number of elements or entries. "How often" says when the worst case act
 | `MapFrom` | O(n log n) | O(n log n) | every call; it sorts once |
 | Map decoding | O(n) | O(n log n) | only for input not in key order; this package always encodes in key order |
 
+**Slice reads cost O(log₃₂ n), not O(1).** A flat array reads in O(1), but then every edit must copy
+all of it. The tree reads and edits in up to 4 levels below a million elements and 6 below a billion,
+and a Slice of up to 32 elements is one flat array. Nodes have 32 children because that balances the
+two: at a million elements, 16 children would mean 5 levels and 64 would still mean 4 while copying
+twice as much per edit. Clojure, Scala, Immutable.js and Kotlin use 32 for the same reason.
+
 **Use a Map for long queues and sorted lists, not a Slice.** Removing the front of a Slice shifts
 every position, so it costs O(n) every time. A Map keyed by a sequence number removes its smallest
 key in O(log n).
