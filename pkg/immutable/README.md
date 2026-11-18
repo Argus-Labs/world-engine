@@ -2,7 +2,8 @@
 
 The collections a Cardinal component may hold: `Slice` for lists and `Map` for lookup tables.
 Written for AI agents and people writing game code. The source of truth is the Go doc in
-`slice.go` and `map.go`; this file is the short version.
+`slice.go` and `map.go`; this file is the short version. How they are stored and why is in
+[DESIGN.md](DESIGN.md).
 
 ## Slice
 
@@ -257,7 +258,9 @@ Older versions returned a new Slice from every edit. Translate:
 
 `Chunk`, `Repeat`, `Replace`, `Compact`, `CompactFunc`, the `immutable.Map` function, `Concat`, `Min`, `Max`,
 `MinFunc`, `MaxFunc`, `IsSorted`, `BinarySearch` and the `Compare` functions are gone. Use a loop,
-or the `slices` package on `slices.Collect(s.Values())`.
+or the `slices` package on `slices.Collect(s.Values())`. `immutable.Map` is now the Map type, so a
+leftover `immutable.Map(s, f)` call fails with "cannot use generic type immutable.Map without
+instantiation" rather than "undefined".
 
 ## Map
 
@@ -455,16 +458,14 @@ n is the number of elements or entries. "How often" says when the worst case act
 | Slice `Insert` or `Delete` in the middle, delete from the front of a Slice over 32 elements | O(n) | O(n) | every call |
 | Slice `Sort`, `SortStableFunc` | O(n log n) | O(n log n) | every call |
 | Map `Get`, `Has` | O(log n) | about 1.7 × log₂ n comparisons | not seen in practice |
-| Map `Set`, `Delete` | O(log n) | O(n) | needs keys built against the hash seed; see below |
+| Map `Set`, `Delete` | O(log n) | O(n) | needs keys built against the hash seed; see [DESIGN.md](DESIGN.md#why-the-hash-is-seeded) |
 | `DeleteFunc` | O(n) | O(n) | every call; it is one pass |
 | `MapFrom` | O(n log n) | O(n log n) | every call; it sorts once |
 | Map decoding | O(n) | O(n log n) | only for input not in key order; this package always encodes in key order |
 
-**Slice reads cost O(log₃₂ n), not O(1).** A flat array reads in O(1), but then every edit must copy
-all of it. The tree reads and edits in up to 4 levels below a million elements and 6 below a billion,
-and a Slice of up to 32 elements is one flat array. Nodes have 32 children because that balances the
-two: at a million elements, 16 children would mean 5 levels and 64 would still mean 4 while copying
-twice as much per edit. Clojure, Scala, Immutable.js and Kotlin use 32 for the same reason.
+**Slice reads cost O(log₃₂ n), not O(1):** up to 4 tree levels below a million elements. It is the
+price of cheap edits; [DESIGN.md](DESIGN.md#slice-a-32-way-trie-over-the-index) explains it and why
+nodes have 32 children.
 
 **Use a Map for long queues and sorted lists, not a Slice.** Removing the front of a Slice shifts
 every position, so it costs O(n) every time. A Map keyed by a sequence number removes its smallest
@@ -475,17 +476,5 @@ design with safe copies can avoid that: writing in place is only safe when nothi
 storage, and Go cannot tell whether `d := a` happened. A small, bounded list that must not allocate
 belongs in a fixed-size array field, such as `[16]Item` plus a count.
 
-### Why the Map hash is seeded
-
-A Map decides where its storage chunks end by hashing keys. If that hash were fixed, anyone could
-read it in this repository and pick keys, such as player names, that never end a chunk. A Map of those
-keys cuts every chunk by length instead, and an edit near the front re-cuts the whole Map: O(n) per
-edit instead of O(log n), enough for one player to slow a shard down for everyone.
-
-So the hash is seeded at random when the program starts. Nothing changes for callers: there is no
-constructor, the zero value works, and order, encoding and snapshots follow the keys, never the seed.
-Every Map in a process shares the seed, so equal Maps still have the same layout and
-`reflect.DeepEqual` still compares them by contents.
-
-**Rule for this package: anything that takes a seed draws it at random when the program starts.**
-Never a constant: this repository is public, so a fixed seed is a published one.
+**The Map hash is seeded at random when the program starts**, so nobody can pick keys that slow a
+Map down. Nothing changes for callers; [DESIGN.md](DESIGN.md#why-the-hash-is-seeded) explains why.

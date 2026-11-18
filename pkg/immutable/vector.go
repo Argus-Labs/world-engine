@@ -13,8 +13,9 @@ import (
 // Cardinal handing one across the world boundary, free and safe.
 //
 // 32 trades read depth against edit size: each level is a dependent memory load, and each edit copies
-// one 32-wide node per level. 16 adds a level by a million elements; 64 saves none below 16 million
-// and doubles the copy. A power of two also makes each level's index a shift and a mask.
+// one 32-wide node per level. 16 adds a level for most sizes; 64 removes at most one, for some sizes
+// only, and doubles the copy. A power of two also makes each level's index a shift and a mask.
+// DESIGN.md explains the structure and the choices behind it.
 //
 // The shape depends only on the length: the tail holds the last ((n-1) mod 32)+1 elements, and the
 // tree is the shortest one holding the rest, filled from the left. Equal Slices therefore have equal

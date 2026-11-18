@@ -49,6 +49,8 @@ then `e.Set(c)`. Old derivations map as: `c.Items = c.Items.With(i, x)` becomes
 becomes `Reverse`, `SortedFunc` becomes `SortStableFunc`, and `Sub(i, j)` becomes
 `Delete(j, Len())` then `Delete(0, i)`. The `immutable.Map` function, `Concat`, `Chunk`, `Repeat`, `Replace`,
 `Compact` and `Min`/`Max` are gone; use a loop or `slices` on `slices.Collect(s.Values())`.
+`immutable.Map` now names the Map type, so a leftover `immutable.Map(s, f)` call fails with
+"cannot use generic type immutable.Map without instantiation" rather than "undefined".
 A `for i := range c.Items` over the old slice becomes `for i, x := range c.Items.All()`.
 
 `immutable.Map[K, V]` is the same for a lookup table, edited like a Go map and safe to

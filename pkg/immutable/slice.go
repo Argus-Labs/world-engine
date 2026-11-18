@@ -38,8 +38,9 @@ import (
 // Reading an element is a lookup in a tree of 32-element chunks: direct for the first 64 elements,
 // one more step per 32x after that. An edit copies one chunk of up to 32 elements and the path above
 // it; Append copies the last chunk. Insert, Delete and DeleteFunc rebuild the Slice, which costs
-// O(n) as it does for a Go slice, except that deleting from the end only drops the tail or the last
-// chunk. The sorts cost O(n log n).
+// O(n) as it does for a Go slice. Two deletes skip the rebuild: a run ending at the last element that
+// starts in the tail or the last chunk, and a run from the front of a Slice of up to 32 elements. The
+// sorts cost O(n log n).
 //
 // Every empty Slice is the zero value, and equal Slices have the same storage layout, so
 // [reflect.DeepEqual] compares Slices by their elements however they were built.

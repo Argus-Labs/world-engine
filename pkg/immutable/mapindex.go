@@ -14,7 +14,8 @@ import "slices"
 // shape follows positions, so a chunk splitting or merging shifts every later chunk and rebuilds it.
 //
 // Nodes average about 16 children. Wider nodes make the tree shorter but cost more to copy on every
-// edit, and measured slower for Maps of a few thousand entries.
+// edit, and measured slower for Maps of a few thousand entries. DESIGN.md explains the structure and
+// the choices behind it.
 
 const (
 	idxMin    = 8
