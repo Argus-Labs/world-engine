@@ -401,8 +401,52 @@ func (s *Slice[T]) SortStableFunc(compare func(a, b T) int) {
 		return
 	}
 	items := s.toItems(0)
-	slices.SortStableFunc(items, compare)
+	sortStable(items, compare)
 	*s = fromItems(items)
+}
+
+// smallSort is the length up to which Go's stable sort is a plain insertion sort.
+const smallSort = 20
+
+// sortStable sorts items by compare, keeping equal elements in their original order, in
+// O(n log n). Go's [slices.SortStableFunc] sorts in place without a buffer, which costs O(n log² n)
+// moves. This sorts the positions instead, with [slices.SortFunc], and breaks ties by position: no two
+// positions then compare equal, so there is exactly one correct order, and any correct sort finds it
+// on every machine and Go release. The elements then move into place once, each moved one time.
+func sortStable[T any](items []T, compare func(a, b T) int) {
+	if len(items) <= smallSort {
+		// Go's stable sort is an insertion sort at this size, faster than sorting positions.
+		slices.SortStableFunc(items, compare)
+		return
+	}
+	order := make([]int, len(items))
+	for i := range order {
+		order[i] = i
+	}
+	slices.SortFunc(order, func(a, b int) int {
+		if c := compare(items[a], items[b]); c != 0 {
+			return c
+		}
+		return cmp.Compare(a, b)
+	})
+	// items[j] must become the old items[order[j]]. Follow each cycle of the permutation once,
+	// marking the slots it fills.
+	for i := range order {
+		if order[i] < 0 {
+			continue
+		}
+		first, j := items[i], i
+		for {
+			k := order[j]
+			order[j] = -1
+			if k == i {
+				items[j] = first
+				break
+			}
+			items[j] = items[k]
+			j = k
+		}
+	}
 }
 
 // Sort sorts the elements of s in ascending order. It is stable for the same reason SortStableFunc

@@ -1,6 +1,7 @@
 package immutable_test
 
 import (
+	"cmp"
 	"fmt"
 	"math/rand/v2"
 	"testing"
@@ -365,6 +366,39 @@ func BenchmarkEqual(b *testing.B) {
 				if c.a.EqualFunc(c.b, sameItem) {
 					sinkInt++
 				}
+			}
+		})
+	}
+}
+
+// BenchmarkSort sorts a shuffled Slice by one field, with many ties, and builds a Map from shuffled
+// pairs, which sorts them.
+func BenchmarkSort(b *testing.B) {
+	for _, n := range benchSizes {
+		r := rand.New(rand.NewPCG(3, 4))
+		items := make([]benchItem, n)
+		for i := range items {
+			items[i] = benchItem{ID: int64(i), Qty: int64(r.IntN(max(1, n/8)))}
+		}
+		stored := immutable.SliceOf(items...)
+		byQty := func(a, b benchItem) int { return cmp.Compare(a.Qty, b.Qty) }
+		b.Run(fmt.Sprintf("Slice/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				s := stored
+				s.SortStableFunc(byQty)
+				sinkSlice = s
+			}
+		})
+		keys := r.Perm(n)
+		b.Run(fmt.Sprintf("MapFrom/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				sinkMap = immutable.MapFrom(func(yield func(int, benchItem) bool) {
+					for _, k := range keys {
+						if !yield(k, benchItem{}) {
+							return
+						}
+					}
+				})
 			}
 		})
 	}

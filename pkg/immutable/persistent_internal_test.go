@@ -1,6 +1,7 @@
 package immutable
 
 import (
+	"cmp"
 	"fmt"
 	"maps"
 	"math/rand/v2"
@@ -320,5 +321,48 @@ func requireKeyOrderReads(t *testing.T, r *rand.Rand, m Map[int, int], model map
 			}
 		}
 		require.Equal(t, wantKeys, gotKeys, "%s: Range(%d, %d)", msg, w[0], w[1])
+	}
+}
+
+// sortStable must give exactly what Go's stable sort gives. The elements compare by key only and
+// carry their original position, so many tie and any instability shows.
+func TestSortStable_MatchesGoStableSort(t *testing.T) {
+	t.Parallel()
+	r := testutils.NewRand(t)
+
+	type item struct{ key, pos int }
+	byKey := func(a, b item) int { return cmp.Compare(a.key, b.key) }
+	sizes := []int{0, 1, 2, 3, 12, 13, 20, 21, 100, 1000, 4096}
+	for range 200 {
+		sizes = append(sizes, r.IntN(300))
+	}
+	for _, n := range sizes {
+		for _, keys := range []int{1, 2, max(1, n/8), max(1, n)} {
+			items := make([]item, n)
+			for i := range items {
+				items[i] = item{r.IntN(keys), i}
+			}
+			want := slices.Clone(items)
+			slices.SortStableFunc(want, byKey)
+			got := slices.Clone(items)
+			sortStable(got, byKey)
+			require.Equal(t, want, got, "n=%d, %d distinct keys", n, keys)
+		}
+	}
+	// Already sorted and reversed input, the usual worst cases for a sort.
+	for _, n := range []int{100, 4096} {
+		asc := make([]item, n)
+		for i := range asc {
+			asc[i] = item{i / 3, i}
+		}
+		desc := slices.Clone(asc)
+		slices.Reverse(desc)
+		for _, in := range [][]item{asc, desc} {
+			want := slices.Clone(in)
+			slices.SortStableFunc(want, byKey)
+			got := slices.Clone(in)
+			sortStable(got, byKey)
+			require.Equal(t, want, got, "n=%d, presorted", n)
+		}
 	}
 }

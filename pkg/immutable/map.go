@@ -89,7 +89,7 @@ func MapFrom[K Key, V any](seq iter.Seq2[K, V]) Map[K, V] {
 		entries = append(entries, entry[K, V]{k, v})
 	}
 	// Stable, so of the entries sharing a key the one seq yielded last is still last.
-	slices.SortStableFunc(entries, func(a, b entry[K, V]) int { return cmp.Compare(a.k, b.k) })
+	sortStable(entries, func(a, b entry[K, V]) int { return cmp.Compare(a.k, b.k) })
 	kept := entries[:0]
 	for i, e := range entries {
 		if i+1 < len(entries) && entries[i+1].k == e.k {
