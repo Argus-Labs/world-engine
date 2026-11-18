@@ -259,8 +259,8 @@ Older versions returned a new Slice from every edit. Translate:
 `Chunk`, `Repeat`, `Replace`, `Compact`, `CompactFunc`, the `immutable.Map` function, `Concat`, `Min`, `Max`,
 `MinFunc`, `MaxFunc`, `IsSorted`, `BinarySearch` and the `Compare` functions are gone. Use a loop,
 or the `slices` package on `slices.Collect(s.Values())`. `immutable.Map` is now the Map type, so a
-leftover `immutable.Map(s, f)` call fails with "cannot use generic type immutable.Map without
-instantiation" rather than "undefined".
+leftover `immutable.Map(s, f)` call fails with a "cannot use generic type immutable.Map … without
+instantiation" error rather than "undefined".
 
 ## Map
 
@@ -471,7 +471,8 @@ nodes have 32 children.
 every position, so it costs O(n) every time. A Map keyed by a sequence number removes its smallest
 key in O(log n).
 
-**Edits allocate.** Reads and copies allocate nothing, but an edit allocates about once. In Go no
+**Edits allocate.** Reads and copies allocate nothing, but an edit allocates once per node it
+copies: once for a small value, a few times for a large one. In Go no
 design with safe copies can avoid that: writing in place is only safe when nothing else holds the
 storage, and Go cannot tell whether `d := a` happened. A small, bounded list that must not allocate
 belongs in a fixed-size array field, such as `[16]Item` plus a count.

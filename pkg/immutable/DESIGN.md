@@ -60,11 +60,14 @@ copying, the structure behind Clojure's and Scala's vectors. Code: [vector.go](v
 
 - **Read** `At(i)`: in the tail, a direct index. Otherwise one shift and mask per level, with no
   comparisons. 1 to 4 levels below a million elements.
-- **Set**: copy the leaf with the new value, then each branch above it.
+- **Set**: in the tail, copy the tail with the new value. Otherwise copy the leaf with the new
+  value, then each branch above it.
 - **Append**: copy the tail with the new element. A full tail becomes a leaf, pushed into the tree by
   copying the path, and a new tail starts.
-- **Delete from the end**: shorten the tail, or move the last leaf into the tail.
-- **Insert or delete elsewhere, sorts**: rebuild. Removing element `i` shifts every later element down
+- **Delete from the end**: shorten the tail, or move the last leaf into the tail, when the deleted
+  run starts in the tail or the last leaf.
+- **Delete from the front of a Slice of up to 32 elements**: take a shorter view of the tail.
+- **Any other insert or delete, sorts**: rebuild. Removing element `i` shifts every later element down
   one position, so every leaf after `i` holds different elements. This is the trie's one weakness:
   the position is the key.
 
@@ -93,7 +96,7 @@ and the price of O(log₃₂ n) edits. A Slice of up to 32 elements is a single 
             /             |              \
    index [1, 120, 260]  index [400, …]  index [900, …]
      /     |     \
- chunk   chunk   chunk  …                         ← sorted entries, 16–128 each
+ chunk   chunk   chunk  …                         ← sorted entries, 16–128 each (the last may be smaller)
 [1…119] [120…259] [260…399]
 ```
 
@@ -121,9 +124,10 @@ inserted in a different order give a different tree, and `DeepEqual` breaks. Her
 when its hash says so, and a key's hash never changes, so the same keys always give the same tree.
 
 - A chunk ends after a key whose hash has its low 4 bits zero, once the chunk holds at least 16
-  entries, or at 128 entries. Chunks average 32.
+  entries, or at 128 entries. Chunks average 32. The last chunk holds whatever is left, so it may be
+  smaller.
 - An index node ends the same way, using other hash bits of its last child's first key, with 8 to 32
-  children, about 16 on average.
+  children, about 16 on average. The last node on each level, the root included, may have fewer.
 
 This is a uniquely represented B-tree: Golovin's B-skip-list (2010) and B-treap (2009), and the
 "prolly tree" of Noms and Dolt. The idea is the skip list's (Pugh, 1990), with the coin flip that
@@ -162,7 +166,9 @@ the cap, never two in a row.
 
 ## Allocations
 
-Reads and copies allocate nothing. An edit allocates about once. Avoiding that would mean writing in
+Reads and copies allocate nothing. An edit allocates once per node it copies: once for a Map of
+one chunk or a Slice edit in the tail, and one per tree level for larger values (3 for a `Set` in a
+5,000-element Slice). Avoiding that would mean writing in
 place when no other value holds the storage, and Go cannot tell: it has no reference counts (Swift
 checks `isKnownUniquelyReferenced`) and no ownership rules (Rust). Running one system at a time
 prevents data races, not shared storage, since a value can still be copied into a local, another
