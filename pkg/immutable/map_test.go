@@ -584,6 +584,6 @@ func TestMap_Allocations(t *testing.T) {
 		}
 		sink += b.Len()
 	})
-	assert.LessOrEqual(t, loop, 2100.0, "1024 new keys: a couple of small copies each")
+	assert.LessOrEqual(t, loop, 2600.0, "1024 new keys: a chunk and the index path to it each")
 	_ = sink
 }

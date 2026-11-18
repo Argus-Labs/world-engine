@@ -85,6 +85,40 @@ func (s *Slice[T]) pushLeaf(leaf *vnode[T]) {
 	}
 }
 
+// popLeaf removes the last leaf from the tree and returns its items, leaving the shortest tree that
+// holds the rest so the layout stays canonical. The tail is left for the caller to replace.
+func (s *Slice[T]) popLeaf() []T {
+	last := s.treeLen() - 1
+	items := s.leafAt(last)
+	s.root = withoutLastLeaf(s.root, s.shift, last)
+	for s.root != nil && s.shift > 0 && len(s.root.kids) == 1 {
+		s.root = s.root.kids[0]
+		s.shift -= chunkBits
+	}
+	if s.root == nil {
+		s.shift = 0
+	}
+	return items
+}
+
+// withoutLastLeaf returns a copy of node without the leaf holding index last, the tree's last
+// element, or nil when nothing is left under node.
+func withoutLastLeaf[T any](node *vnode[T], shift uint, last int) *vnode[T] {
+	if shift == 0 {
+		return nil
+	}
+	k := (last >> shift) & chunkMask
+	kid := withoutLastLeaf(node.kids[k], shift-chunkBits, last)
+	if kid == nil && k == 0 {
+		return nil
+	}
+	b := branchNode(node.kids[:k]...)
+	if kid != nil {
+		b.kids = append(b.kids, kid)
+	}
+	return b
+}
+
 // pathTo wraps leaf in single-kid branches up to the given level.
 func pathTo[T any](shift uint, leaf *vnode[T]) *vnode[T] {
 	if shift == 0 {
@@ -191,32 +225,4 @@ func (s Slice[T]) toItems(extra int) []T {
 		items = append(items, c...)
 	}
 	return items
-}
-
-// splice replaces the elements in [i, j) with items. When the count is unchanged it copies only the
-// paths to the replaced elements; otherwise it rebuilds the Slice, which costs O(n/32) node copies.
-func (s *Slice[T]) splice(i, j int, items []T) {
-	if j-i == len(items) {
-		for k, v := range items {
-			s.Set(i+k, v)
-		}
-		return
-	}
-	all := make([]T, 0, s.n-(j-i)+len(items))
-	k := 0
-	for c := range s.chunks() {
-		for _, v := range c {
-			if k == i {
-				all = append(all, items...)
-			}
-			if k < i || k >= j {
-				all = append(all, v)
-			}
-			k++
-		}
-	}
-	if i == s.n {
-		all = append(all, items...)
-	}
-	*s = fromItems(all)
 }

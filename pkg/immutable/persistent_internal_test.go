@@ -62,12 +62,44 @@ func TestSlice_LayoutDependsOnlyOnContents(t *testing.T) {
 			i := r.IntN(len(model))
 			require.Equal(t, model[i], s.At(i), "step %d", step)
 		}
+		if r.IntN(50) == 0 {
+			var back []int
+			for _, v := range s.Backward() {
+				back = append(back, v)
+			}
+			slices.Reverse(back)
+			require.Equal(t, model, back, "step %d: Backward", step)
+		}
 		if r.IntN(20) == 0 {
 			copies = append(copies, saved{s, slices.Clone(model)})[max(0, len(copies)-4):]
 		}
 		for _, c := range copies {
 			require.Equal(t, c.items, slices.Collect(c.s.Values()), "step %d: a copy changed", step)
 		}
+	}
+}
+
+// TestSlice_PopKeepsLayout deletes from the end one element at a time, and in runs that start inside
+// the last leaf, through every tail and leaf boundary.
+func TestSlice_PopKeepsLayout(t *testing.T) {
+	t.Parallel()
+	r := testutils.NewRand(t)
+
+	items := make([]int, 3*chunkSize*chunkSize+5)
+	for i := range items {
+		items[i] = i
+	}
+	s := fromItems(slices.Clone(items))
+	for len(items) > 0 {
+		before, want := s, slices.Clone(items)
+		cut := len(items) - 1
+		if r.IntN(4) == 0 {
+			cut = max(0, cut-r.IntN(2*chunkSize))
+		}
+		s.Delete(cut, len(items))
+		items = items[:cut]
+		require.True(t, reflect.DeepEqual(fromItems(slices.Clone(items)), s), "length %d: layout differs", cut)
+		require.Equal(t, want, slices.Collect(before.Values()), "length %d: the copy changed", cut)
 	}
 }
 
@@ -82,7 +114,7 @@ func TestMap_LayoutDependsOnlyOnContents(t *testing.T) {
 		model map[int]int
 	}
 	var copies []saved
-	keySpace, peak := 20000, 0
+	keySpace, peak := 20000, 0 // up to about 600 chunks, three levels of index
 	for step := range 2500 {
 		switch op := r.IntN(10); {
 		case op < 5:
@@ -109,7 +141,9 @@ func TestMap_LayoutDependsOnlyOnContents(t *testing.T) {
 		want := MapFrom(maps.All(model))
 		require.Equal(t, len(model), m.Len(), "step %d", step)
 		require.True(t, reflect.DeepEqual(want, m), "step %d: layout differs", step)
-		peak = max(peak, m.chunkCount())
+		if m.root != nil {
+			peak = max(peak, checkIndex(t, m))
+		}
 		if r.IntN(20) == 0 {
 			copies = append(copies, saved{m, maps.Clone(model)})[max(0, len(copies)-4):]
 		}
@@ -117,7 +151,20 @@ func TestMap_LayoutDependsOnlyOnContents(t *testing.T) {
 			require.Equal(t, c.model, maps.Collect(c.m.All()), "step %d: a copy changed", step)
 		}
 	}
-	require.Greater(t, peak, 100, "the test reached a Map of many chunks")
+	require.GreaterOrEqual(t, peak, 3, "the test reached a Map with an index of three levels")
+
+	// Empty the Map one key at a time, so the index loses levels and its root shrinks to one child.
+	keys := slices.Collect(maps.Keys(model))
+	slices.Sort(keys)
+	r.Shuffle(len(keys), func(i, j int) { keys[i], keys[j] = keys[j], keys[i] })
+	for i, k := range keys {
+		m.Delete(k)
+		delete(model, k)
+		if i%25 == 0 || len(model) < 600 {
+			require.True(t, reflect.DeepEqual(MapFrom(maps.All(model)), m), "%d keys left: layout differs", len(model))
+		}
+	}
+	require.Zero(t, m.Len())
 }
 
 // TestMap_ChunksRespectLimits checks the chunking itself on a Map large enough that some chunks end
@@ -147,7 +194,76 @@ func TestMap_ChunksRespectLimits(t *testing.T) {
 		}
 	}
 	require.Positive(t, capped, "some chunks reached the cap")
+	require.GreaterOrEqual(t, checkIndex(t, m), 4, "the index has several levels")
 	require.InDelta(t, n/(mapChunkMin+mapChunkSpread), count, n/(mapChunkMin+mapChunkSpread)/10,
 		"chunks average mapChunkMin+mapChunkSpread entries")
 	require.True(t, reflect.DeepEqual(MapFrom(m.All()), m))
+}
+
+// checkIndex checks that every node of m's index holds the first key of each child, that every level
+// is cut where endsNode says, and that the root has more than one child. It returns the height.
+func checkIndex[K Key, V any](t *testing.T, m Map[K, V]) int {
+	t.Helper()
+	level := []*mnode[K, V]{m.root}
+	require.Greater(t, len(m.root.keys), 1, "the root has more than one child")
+	h := 1
+	for node := m.root; node.kids != nil; node = node.kids[0] {
+		h++
+	}
+	for l := h; level != nil; l-- {
+		var below []*mnode[K, V]
+		for n, node := range level {
+			require.LessOrEqual(t, len(node.keys), idxMax)
+			require.Equal(t, level[0].kids == nil, node.kids == nil, "every leaf of the index is on one level")
+			for i, k := range node.keys {
+				if node.kids == nil {
+					require.Equal(t, node.chunks[i][0].k, k)
+				} else {
+					require.Equal(t, node.kids[i].keys[0], k)
+				}
+				if n < len(level)-1 || i < len(node.keys)-1 {
+					require.Equal(t, i == len(node.keys)-1, endsNode(i+1, k, l),
+						"level %d node %d ends where the rule says", l, n)
+				}
+			}
+			below = append(below, node.kids...)
+		}
+		level = below
+	}
+	return h
+}
+
+func TestMap_EqualFuncWalksTheIndex(t *testing.T) {
+	t.Parallel()
+	r := testutils.NewRand(t)
+
+	model := map[int]int{}
+	for len(model) < 5000 {
+		model[r.IntN(1_000_000)] = r.Int()
+	}
+	a := MapFrom(maps.All(model))
+	keys := slices.Sorted(maps.Keys(model))
+	var b Map[int, int]
+	for _, i := range r.Perm(len(keys)) {
+		b.Set(keys[i], model[keys[i]])
+	}
+	require.NotNil(t, a.root)
+	require.True(t, MapEqual(a, b), "built differently")
+
+	changed := b
+	k := keys[r.IntN(len(keys))]
+	changed.Set(k, model[k]+1)
+	require.False(t, MapEqual(a, changed), "one value differs")
+	require.True(t, a.EqualFunc(changed, func(x, y int) bool { return x/2 == y/2 || x+1 == y }), "eq decides")
+
+	swapped := b
+	swapped.Delete(k)
+	for nk := k + 1; ; nk++ {
+		if _, ok := model[nk]; !ok {
+			swapped.Set(nk, model[k])
+			break
+		}
+	}
+	require.Equal(t, a.Len(), swapped.Len())
+	require.False(t, MapEqual(a, swapped), "one key differs")
 }

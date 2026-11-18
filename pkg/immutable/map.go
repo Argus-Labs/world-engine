@@ -47,11 +47,12 @@ type Key interface {
 // however they were inserted. "First" means smallest key; if insertion order matters, store it in the
 // value.
 //
-// The entries are stored in sorted chunks of about 32, and a Map of more than one chunk keeps them in
-// the tree a Slice uses. A lookup is a binary search down that tree and then within one chunk; an edit
-// copies one chunk and the path to it, so k edits in an n-entry Map cost about O(k·log n). Where the
-// chunks split depends only on the keys, so equal Maps have the same storage layout and
-// [reflect.DeepEqual] compares Maps by their entries however they were built.
+// The entries are stored in sorted chunks of about 32, and a Map of more than one chunk indexes them
+// with a tree keyed by each chunk's first key. A lookup is a binary search down that tree and then
+// within one chunk; an edit copies one chunk and the path to it, so k edits in an n-entry Map cost
+// about O(k·log n). Where the chunks and the tree's nodes split depends only on the keys, so equal
+// Maps have the same storage layout and [reflect.DeepEqual] compares Maps by their entries however
+// they were built.
 //
 // The zero value is an empty Map, and every empty Map is the zero value.
 //
@@ -64,10 +65,10 @@ type Key interface {
 // registering a component that holds such a Map fails.
 type Map[K Key, V any] struct {
 	// Entries sorted by key, never written once held. A Map of one chunk keeps it in one, so an edit
-	// copies just that chunk; a Map of more keeps them in chunks, and one is nil.
-	one    []entry[K, V]
-	chunks Slice[[]entry[K, V]]
-	n      int
+	// copies just that chunk; a Map of more indexes them under root, and one is nil.
+	one  []entry[K, V]
+	root *mnode[K, V]
+	n    int
 }
 
 type entry[K Key, V any] struct {
@@ -111,7 +112,7 @@ func (m Map[K, V]) Len() int {
 // Get returns a copy of the value stored under k, and whether k is present. A missing key yields the
 // zero value.
 func (m Map[K, V]) Get(k K) (V, bool) {
-	if _, chunk, i, ok := m.find(k); ok {
+	if chunk, i, ok := m.find(k); ok {
 		return chunk[i].v, true
 	}
 	var zero V
@@ -120,7 +121,7 @@ func (m Map[K, V]) Get(k K) (V, bool) {
 
 // Has reports whether k is present.
 func (m Map[K, V]) Has(k K) bool {
-	_, _, _, ok := m.find(k)
+	_, _, ok := m.find(k)
 	return ok
 }
 
@@ -159,66 +160,21 @@ func (m Map[K, V]) Values() iter.Seq[V] {
 	}
 }
 
-// find returns the chunk that holds k, or would, with its index, and k's index in it. The chunk is
-// the last one whose first key is at most k, or the first chunk.
-func (m Map[K, V]) find(k K) (int, []entry[K, V], int, bool) {
-	c, chunk := 0, m.one
-	switch {
-	case m.one != nil:
-	case m.n == 0:
-		return 0, nil, 0, false
-	default:
-		c, chunk = locateChunk(m.chunks, k)
+// find returns the chunk that holds k, or would, and k's index in it.
+func (m Map[K, V]) find(k K) ([]entry[K, V], int, bool) {
+	chunk := m.one
+	if chunk == nil {
+		if m.root == nil {
+			return nil, 0, false
+		}
+		node := m.root
+		for node.kids != nil {
+			node = node.kids[lastAtMost(node.keys, k)]
+		}
+		chunk = node.chunks[lastAtMost(node.keys, k)]
 	}
 	i, found := searchEntries(chunk, k)
-	return c, chunk, i, found
-}
-
-// locateChunk returns the index of the last chunk in s whose first key is at most k, or 0, and the
-// chunk. s is not empty. It walks the tree once, choosing a kid at each level by its first key.
-func locateChunk[K Key, V any](s Slice[[]entry[K, V]], k K) (int, []entry[K, V]) {
-	if s.root == nil || s.tail[0][0].k <= k {
-		j := lastStartingAtMost(s.tail, k)
-		return s.treeLen() + j, s.tail[j]
-	}
-	node, base := s.root, 0
-	for shift := s.shift; shift > 0; shift -= chunkBits {
-		lo, hi := 1, len(node.kids)
-		for lo < hi {
-			mid := int(uint(lo+hi) >> 1)
-			if firstKey(node.kids[mid]) <= k {
-				lo = mid + 1
-			} else {
-				hi = mid
-			}
-		}
-		base += (lo - 1) << shift
-		node = node.kids[lo-1]
-	}
-	j := lastStartingAtMost(node.items, k)
-	return base + j, node.items[j]
-}
-
-// firstKey returns the smallest key under node.
-func firstKey[K Key, V any](node *vnode[[]entry[K, V]]) K {
-	for node.kids != nil {
-		node = node.kids[0]
-	}
-	return node.items[0][0].k
-}
-
-// lastStartingAtMost returns the index of the last chunk whose first key is at most k, or 0.
-func lastStartingAtMost[K Key, V any](chunks [][]entry[K, V], k K) int {
-	lo, hi := 1, len(chunks)
-	for lo < hi {
-		mid := int(uint(lo+hi) >> 1)
-		if chunks[mid][0].k <= k {
-			lo = mid + 1
-		} else {
-			hi = mid
-		}
-	}
-	return lo - 1
+	return chunk, i, found
 }
 
 // searchEntries returns where k is or would be in the sorted entries, and whether it is there.
@@ -238,50 +194,12 @@ func searchEntries[K Key, V any](entries []entry[K, V], k K) (int, bool) {
 // allChunks yields the chunks in key order.
 func (m Map[K, V]) allChunks() iter.Seq[[]entry[K, V]] {
 	return func(yield func([]entry[K, V]) bool) {
-		if m.one != nil {
+		switch {
+		case m.one != nil:
 			yield(m.one)
-			return
+		case m.root != nil:
+			walkChunks(m.root, yield)
 		}
-		for leaf := range m.chunks.chunks() {
-			for _, c := range leaf {
-				if !yield(c) {
-					return
-				}
-			}
-		}
-	}
-}
-
-func (m Map[K, V]) chunkCount() int {
-	if m.one != nil {
-		return 1
-	}
-	return m.chunks.Len()
-}
-
-func (m Map[K, V]) chunkAt(c int) []entry[K, V] {
-	if m.one != nil {
-		return m.one
-	}
-	return m.chunks.At(c)
-}
-
-// spliceChunks replaces chunks [c, end) with out, keeping a single chunk in one.
-func (m *Map[K, V]) spliceChunks(c, end int, out [][]entry[K, V]) {
-	if m.one == nil {
-		m.chunks.splice(c, end, out)
-		if m.chunks.Len() == 1 {
-			m.one, m.chunks = m.chunks.At(0), Slice[[]entry[K, V]]{}
-		}
-		return
-	}
-	switch len(out) {
-	case 0:
-		m.one = nil
-	case 1:
-		m.one = out[0]
-	default:
-		m.one, m.chunks = nil, fromItems(slices.Clone(out))
 	}
 }
 
@@ -291,30 +209,43 @@ func (m *Map[K, V]) spliceChunks(c, end int, out [][]entry[K, V]) {
 
 // Set stores v under k, replacing any value already there.
 func (m *Map[K, V]) Set(k K, v V) {
-	c, old, i, found := m.find(k)
 	if m.n == 0 {
 		*m = mapFromSorted([]entry[K, V]{{k, v}})
 		return
 	}
+	var p mpath[K, V]
+	old := m.one
+	if old == nil {
+		old = m.locate(k, &p)
+	}
+	i, found := searchEntries(old, k)
 	if found {
 		edited := slices.Clone(old)
 		edited[i].v = v
 		if m.one != nil {
 			m.one = edited
 		} else {
-			m.chunks.Set(c, edited)
+			m.replaceAbove(&p, 0, mchild[K, V]{chunk: edited})
 		}
 		return
 	}
 	edited := make([]entry[K, V], 0, len(old)+1)
 	edited = append(append(append(edited, old[:i]...), entry[K, V]{k, v}), old[i:]...)
-	m.rechunk(c, edited)
+	m.rechunk(&p, edited)
 	m.n++
 }
 
 // Delete removes k. It does nothing when k is absent, like delete.
 func (m *Map[K, V]) Delete(k K) {
-	c, old, i, found := m.find(k)
+	if m.n == 0 {
+		return
+	}
+	var p mpath[K, V]
+	old := m.one
+	if old == nil {
+		old = m.locate(k, &p)
+	}
+	i, found := searchEntries(old, k)
 	if !found {
 		return
 	}
@@ -324,8 +255,20 @@ func (m *Map[K, V]) Delete(k K) {
 	}
 	edited := make([]entry[K, V], 0, len(old)-1)
 	edited = append(append(edited, old[:i]...), old[i+1:]...)
-	m.rechunk(c, edited)
+	m.rechunk(&p, edited)
 	m.n--
+}
+
+// rechunk replaces the edited chunk, the one at p or the Map's only one, with the chunks edited
+// splits into. edited is a new array that rechunk takes ownership of; the new chunks are windows onto
+// it, capped so that a later append cannot reach a neighbour.
+func (m *Map[K, V]) rechunk(p *mpath[K, V], edited []entry[K, V]) {
+	if m.one == nil {
+		m.rechunkTree(p, edited)
+		return
+	}
+	var buf [4]mchild[K, V]
+	m.setTop(cutEntries(buf[:0], edited), 0)
 }
 
 // DeleteFunc removes every entry del reports true for, like [maps.DeleteFunc]. del runs once per
@@ -390,55 +333,16 @@ func endsChunk[K Key](size int, k K) bool {
 	return size == mapChunkMax || size >= mapChunkMin && keyHash(k)&(mapChunkSpread-1) == 0
 }
 
-// rechunk replaces chunk c with the chunks edited splits into, continuing into the chunks after it
-// until a boundary lands where an old chunk ended. edited is a new array that rechunk takes ownership
-// of; the new chunks are windows onto it, capped so that a later append cannot reach a neighbour.
-func (m *Map[K, V]) rechunk(c int, edited []entry[K, V]) {
-	var buf [4][]entry[K, V]
-	out := buf[:0]
-	end, start, scan := c+1, 0, 0
-	for {
-		for ; scan < len(edited); scan++ {
-			if endsChunk(scan+1-start, edited[scan].k) {
-				out = append(out, edited[start:scan+1:scan+1])
-				start = scan + 1
-			}
-		}
-		if start == len(edited) || end == m.chunkCount() {
-			break
-		}
-		// Growing edited may move it, which leaves the windows already cut on the old array. That is
-		// fine: nothing writes to the old array again.
-		edited = append(edited, m.chunkAt(end)...)
-		end++
-	}
-	if start < len(edited) {
-		out = append(out, edited[start:len(edited):len(edited)])
-	}
-	m.spliceChunks(c, end, out)
-}
-
 // mapFromSorted returns the Map holding entries, which must be sorted by key without repeats. It
 // takes ownership of the array: the chunks are windows onto it.
 func mapFromSorted[K Key, V any](entries []entry[K, V]) Map[K, V] {
 	if len(entries) == 0 {
 		return Map[K, V]{}
 	}
-	var chunks [][]entry[K, V]
-	start := 0
-	for i, e := range entries {
-		if endsChunk(i+1-start, e.k) {
-			chunks = append(chunks, entries[start:i+1:i+1])
-			start = i + 1
-		}
-	}
-	if start < len(entries) {
-		chunks = append(chunks, entries[start:len(entries):len(entries)])
-	}
-	if len(chunks) == 1 {
-		return Map[K, V]{one: chunks[0], n: len(entries)}
-	}
-	return Map[K, V]{chunks: fromItems(chunks), n: len(entries)}
+	var buf [4]mchild[K, V]
+	m := Map[K, V]{n: len(entries)}
+	m.setTop(cutEntries(buf[:0], entries), 0)
+	return m
 }
 
 // keyHash hashes k the same way on every machine and build: FNV-1a over a string's bytes, or the
@@ -493,24 +397,14 @@ func keyHash[K Key](k K) uint64 {
 
 // EqualFunc reports whether both maps hold the same keys and eq holds for the values under each.
 func (m Map[K, V]) EqualFunc(other Map[K, V], eq func(a, b V) bool) bool {
-	if m.n != other.n || m.chunkCount() != other.chunkCount() {
+	if m.n != other.n || (m.root == nil) != (other.root == nil) {
 		return false
 	}
-	// Chunk boundaries depend only on the keys, so equal key sets are chunked alike.
-	i := 0
-	for a := range m.allChunks() {
-		b := other.chunkAt(i)
-		i++
-		if len(a) != len(b) {
-			return false
-		}
-		for j := range a {
-			if a[j].k != b[j].k || !eq(a[j].v, b[j].v) {
-				return false
-			}
-		}
+	// Chunk and node boundaries depend only on the keys, so equal key sets are laid out alike.
+	if m.root == nil {
+		return chunksEqual(m.one, other.one, eq)
 	}
-	return true
+	return nodesEqual(m.root, other.root, eq)
 }
 
 // MapEqual reports whether a and b hold the same entries. It is a function rather than a method

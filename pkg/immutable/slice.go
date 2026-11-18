@@ -249,6 +249,12 @@ func (s *Slice[T]) Delete(i, j int) {
 		s.n = i
 		return
 	}
+	if off := s.treeLen(); j == s.n && s.root != nil && i > off-chunkSize {
+		// The tail goes and the cut lands in the last leaf, which becomes the tail.
+		s.tail = s.popLeaf()[: i-(off-chunkSize) : i-(off-chunkSize)]
+		s.n = i
+		return
+	}
 	kept := make([]T, 0, s.n-(j-i))
 	k := 0
 	for c := range s.chunks() {
