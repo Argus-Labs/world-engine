@@ -39,8 +39,9 @@ before editing (SKILL.md, Before editing). Convert each field, then fix its uses
 | `*T` shared on purpose | an ID (`EntityID`, index or key) looked up where it is used           |
 | `any` or an interface  | a kind enum plus one field per variant, or an encoded string          |
 
-`immutable.Slice` hides its array and is edited in place, like a Go slice; Cardinal copies
-it on `Get` and `Set`, so an edit reaches the world only through `Set`. Build with
+`immutable.Slice` hides its storage and is edited like a Go slice, but never writes to
+storage it shares, so an edit reaches the world only through `Set` and `d := c.Items` is a
+free, real copy. Build with
 `immutable.SliceOf(xs...)`. Read with `Len`, `At`, `All`, `Values`, `IndexFunc`. Edit with
 `Set`, `Append`, `Insert`, `Delete`, `DeleteFunc`, `Reset`, `SortStableFunc`, `Reverse`,
 then `e.Set(c)`. Old derivations map as: `c.Items = c.Items.With(i, x)` becomes
@@ -50,13 +51,13 @@ becomes `Reverse`, `SortedFunc` becomes `SortStableFunc`, and `Sub(i, j)` become
 `Compact` and `Min`/`Max` are gone; use a loop or `slices` on `slices.Collect(s.Values())`.
 A `for i := range c.Items` over the old slice becomes `for i, x := range c.Items.All()`.
 
-`immutable.Map[K, V]` is the same for a lookup table, edited in place like a Go map and
-copied the same way: build with `immutable.MapFrom(maps.All(goMap))`, read with `Get`,
+`immutable.Map[K, V]` is the same for a lookup table, edited like a Go map and safe to
+copy the same way: build with `immutable.MapFrom(maps.All(goMap))`, read with `Get`,
 `Has`, `All`, edit with `Set`, `Delete`, `DeleteFunc`, `Clear`, then `e.Set(c)`. A Go map
 maps as: `v, ok := m[k]` becomes `m.Get(k)`, `m[k] = v` becomes `m.Set(k, v)`, `delete(m, k)`
 becomes `m.Delete(k)`, `clear(m)` becomes `m.Clear()`, and `for k, v := range m` becomes
-`for k, v := range m.All()`, in key order. Deleting inside that loop is safe; collect the keys
-first to add new ones in a loop. Keys are integers, strings or named types of them, kept sorted. `EntityID`s are reused as soon as the entity is destroyed: key
+`for k, v := range m.All()`, in key order. Setting and deleting keys inside that loop is safe; the
+loop reads the Map as it was when it started. Keys are integers, strings or named types of them, kept sorted. `EntityID`s are reused as soon as the entity is destroyed: key
 long-lived data by an ID the game owns, or remove the key in the system that destroys the
 entity.
 

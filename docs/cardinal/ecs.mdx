@@ -118,7 +118,7 @@ type Inventory struct {
 
 When the length has no bound you can defend, hold the list in `immutable.Slice[T]` from
 `github.com/argus-labs/world-engine/pkg/immutable`. On the wire it is the same MessagePack array a
-`[]T` would be. You edit it in place, the way you would a Go slice.
+`[]T` would be. You edit it the way you would a Go slice.
 
 ```go
 import "github.com/argus-labs/world-engine/pkg/immutable"
@@ -137,11 +137,10 @@ func (Buffs) Name() string {
 }
 ```
 
-Cardinal copies every Slice a component holds when `Get` hands the component to you and when `Set`
-takes it back. Editing your copy never changes the world until you `Set` it, and editing it after
-`Set` never changes what was stored. Events, system events and commands are copied the same way.
-This is the usual Go rule for anything that stores slices: copy them when they come in and when
-they go out.
+A Slice never writes to storage once it holds it: an edit copies the small piece it changes and
+points at the copy. So `Get` and `Set` copy nothing, an edit never changes the world until you `Set`
+it, and editing it after `Set` never changes what was stored. Events, system events and commands are
+safe the same way: editing a payload after sending it does not change what was sent.
 
 Edit, then `Set` the component that holds it:
 
@@ -183,8 +182,8 @@ unstable sort. `immutable.SliceOf(items...)` builds a Slice from a plain slice a
 changes to that slice never reach the component. To go the other way — a plain `[]T` for an API that
 needs one — use `slices.Collect(s.Values())`.
 
-Inside one system a Slice behaves exactly like a Go slice. `other := buffs.Active` shares the array,
-so an edit through `other` can show up in `buffs.Active`. Use `Clone` for a copy that shares nothing.
+Unlike a Go slice, assignment is a real copy, and free: after `other := buffs.Active`, an edit to
+either never shows in the other.
 
 <Note>
   The element type follows the same rule as any field: values only. That includes another Slice, so
@@ -194,8 +193,8 @@ so an edit through `other` can show up in `buffs.Active`. Use `Clone` for a copy
 ### Lookup Tables: `immutable.Map`
 
 For values looked up by key, such as quest flags, cooldowns per ability, or threat per attacker, use
-`immutable.Map[K, V]`. It works like Slice: edit it in place, like a Go map, then `Set` the
-component. Cardinal copies it on `Get` and `Set`, so an edit reaches the world only through `Set`.
+`immutable.Map[K, V]`. It works like Slice: edit it like a Go map, then `Set` the component. An edit
+reaches the world only through `Set`, and assignment is a free, real copy.
 
 ```go
 type PlayerMemory struct {
@@ -214,9 +213,9 @@ func (NPCMemory) Name() string {
 
 Keys are integers, strings, or named types of them; anything else fails to compile. Values follow the
 same rule as any field, so a struct, a Slice, or another Map all work. A flat Map with a combined key
-is usually better than a Map of Maps: one lookup and one copy instead of two.
+is usually better than a Map of Maps: one lookup and one edit instead of two.
 
-Entries are kept sorted by key, never hashed. Iterating with `All`, `Keys`, or `Values` runs in key
+Entries are kept sorted by key; keys are hashed only to decide where storage chunks end. Iterating with `All`, `Keys`, or `Values` runs in key
 order, and a Map encodes in key order too, so the same entries always give the same bytes however
 they were inserted. That is what keeps snapshots and `RequireDeterministic` hashes stable. If
 insertion order matters, store it in the value.
@@ -245,16 +244,17 @@ The API follows Go's built-ins and `maps` package:
 | `delete(m, k)`                     | `m.Delete(k)`                                    |
 | `clear(m)`                         | `m.Clear()`                                      |
 | `for k, v := range m`              | `for k, v := range m.All()`, in key order        |
-| `maps.Keys`, `Values`, `DeleteFunc`, `Clone` | methods of the same name               |
+| `maps.Keys`, `Values`, `DeleteFunc` | methods of the same name                        |
+| `maps.Clone(m)`                    | `c := m`, a free copy                            |
 | `maps.Equal`, `EqualFunc`          | `immutable.MapEqual(a, b)`, `a.EqualFunc(b, eq)` |
 
-As with a Go map, deleting while ranging is safe: the loop still visits every other entry once.
-Unlike a Go map, adding a new key while ranging can skip or repeat entries, so collect the keys first
-with `slices.Collect(m.Keys())`.
+A loop over `All`, `Keys` or `Values` reads the Map as it was when the loop started, so setting and
+deleting keys inside the loop is safe: nothing is skipped or repeated.
 
-The storage is two sorted arrays, so a lookup or a change to an existing key is a binary search, and
-adding or removing a key shifts the entries after it. That is cheap at the sizes components hold. To
-build a large Map at once, use `immutable.MapFrom`, which sorts once.
+Entries are stored in sorted chunks of about 32 under a tree index, so a lookup, an update, an insert
+and a delete each cost O(log n), and an edit copies one chunk. To build a large Map at once, use
+`immutable.MapFrom`, which sorts once. For a long queue, use a Map keyed by a sequence number rather
+than a Slice: removing the front of a Slice costs O(n), removing a Map's smallest key O(log n).
 
 `immutable.MapFrom(maps.All(goMap))` builds a Map from a Go map, and the result does not depend on the
 order the Go map yields. Compare Maps with `immutable.MapEqual`, or `EqualFunc` for values that are

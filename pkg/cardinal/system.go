@@ -207,18 +207,19 @@ func (s SearchResult) Single() (Entity, error) {
 // Re-exported immutable types
 // -------------------------------------------------------------------------------------------------
 
-// Slice is world-engine's sequence with a private backing array, re-exported so a component can
-// declare one without a second import. It is an alias, so cardinal.Slice[T] and immutable.Slice[T]
-// are the same type and either spelling works.
+// Slice is world-engine's sequence with private storage, re-exported so a component can declare one
+// without a second import. It is an alias, so cardinal.Slice[T] and immutable.Slice[T] are the same
+// type and either spelling works.
 //
-// It is edited in place like a Go slice, and Cardinal copies it on Get and Set; see immutable.Slice.
+// It is edited like a Go slice but never writes to storage another copy holds, so copies are free
+// and an edit reaches the world only through Set; see immutable.Slice.
 type Slice[T any] = immutable.Slice[T]
 
 // SliceOf returns a Slice holding a copy of items. See immutable.SliceOf.
 func SliceOf[T any](items ...T) Slice[T] { return immutable.SliceOf(items...) }
 
-// Map is world-engine's sorted map with private storage, re-exported like Slice. It is edited in
-// place like a Go map, and Cardinal copies it on Get and Set; see immutable.Map.
+// Map is world-engine's sorted map with private storage, re-exported like Slice. It is edited like a
+// Go map and is as safe to copy as Slice; see immutable.Map.
 type Map[K immutable.Key, V any] = immutable.Map[K, V]
 
 // MapFrom returns a Map holding every pair in seq, the last value winning for a repeated key. See
