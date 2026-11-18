@@ -92,13 +92,16 @@ component may hold values only:
 - Structs of those
 - Fixed-size arrays such as `[8]Vec2`, at any depth
 - `immutable.Slice[T]` for a list with no fixed bound (see below)
+- `immutable.Map[K, V]` for values looked up by key (see below)
 - `time.Time`, the one sanctioned exception. It carries a location pointer, but it travels as a
   MessagePack timestamp, so a restored value comes back in the shard's local time zone with no
   monotonic reading. Compare times with `Equal`, never `==`.
 
-A component may **not** hold pointers, maps, plain slices (`[]T`), interfaces, channels, or funcs.
-A plain slice inside a copy still shares its backing array with the stored component, so writing
-through it changes the world without a `Set`.
+A component may **not** hold pointers, Go maps, plain slices (`[]T`), interfaces, channels, or
+funcs. A plain slice or map inside a copy still shares its memory with the stored component, so
+writing through it changes the world without a `Set`. A type may contain itself through an
+`immutable.Slice` or `immutable.Map`, such as `type Node struct{ Kids immutable.Slice[Node] }`, so a
+component can hold a tree.
 
 A list with a known upper bound is a fixed array plus a count:
 
@@ -115,8 +118,7 @@ type Inventory struct {
 
 When the length has no bound you can defend, hold the list in `immutable.Slice[T]` from
 `github.com/argus-labs/world-engine/pkg/immutable`. On the wire it is the same MessagePack array a
-`[]T` would be. The difference is that the backing array is hidden: no other package can index into
-it, reslice it, or hold on to it, and every reader hands back a copy of the element.
+`[]T` would be. You edit it the way you would a Go slice.
 
 ```go
 import "github.com/argus-labs/world-engine/pkg/immutable"
@@ -135,16 +137,12 @@ func (Buffs) Name() string {
 }
 ```
 
-The API follows Go's `slices` package closely. Operations are named for their result rather than for
-an action on the receiver — `Reverse` becomes `Reversed`, and `Sort` and `SortFunc` become `Sorted`
-and `SortedFunc`.
+A Slice never writes to storage once it holds it: an edit copies the small piece it changes and
+points at the copy. So `Get` and `Set` copy nothing, an edit never changes the world until you `Set`
+it, and editing it after `Set` never changes what was stored. Events, system events and commands are
+safe the same way: editing a payload after sending it does not change what was sent.
 
-Reads such as `At`, `All`, `IndexFunc`, and `MinFunc` are methods, and so are derivations such as
-`Append`, `Insert`, `With`, `Without`, `Sub`, `Filter`, `Delete`, `Reversed`, and `SortedFunc`.
-Anything that needs a type constraint is a package function, for example `Equal`, `Contains`,
-`Sorted`, `Min`, `Map`, and `Concat`.
-
-Derive, then `Set` the component that holds it:
+Edit, then `Set` the component that holds it:
 
 ```go
 type BuffSystem struct{}
@@ -155,42 +153,126 @@ func (s *BuffSystem) Run(w *cardinal.World) {
 		buffs := mob.Get[Buffs]()
 
 		// Drop expired buffs and add a new one.
-		buffs.Active = buffs.Active.
-			Filter(func(b Buff) bool { return b.ExpiresAt > now }).
-			Append(Buff{Kind: "haste", ExpiresAt: now + 60})
+		buffs.Active.DeleteFunc(func(b Buff) bool { return b.ExpiresAt <= now })
+		buffs.Active.Append(Buff{Kind: "haste", ExpiresAt: now + 60})
 
 		mob.Set(buffs)
 	}
 }
 ```
 
-`immutable.SliceOf(items...)` builds a Slice from a plain slice and copies it, so later changes to
-that slice never reach the component. To go the other way — a plain `[]T` for an API that needs one —
-range over `Values`, or use `immutable.Collect` to build a fresh Slice from the result: there is no
-`Clone` method, since a copy taken that way could look like it protects the original while
-derivations write through it regardless.
+The API follows Go's built-ins and `slices` package:
 
-<Warning>
-  **Derivations do not copy, so the `Set` is not optional.** Most of them edit the hidden array in
-  place and return a Slice over that same array, which means the component has already changed by the
-  time the derivation returns. Deriving and then dropping the result does not leave the world alone —
-  it leaves the world holding an edit that no snapshot recorded.
+| Go                           | `immutable.Slice`                      |
+| ---------------------------- | -------------------------------------- |
+| `len(s)`                     | `s.Len()`                              |
+| `s[i]`                       | `s.At(i)`                              |
+| `s[i] = v`                   | `s.Set(i, v)`                          |
+| `s = append(s, v...)`        | `s.Append(v...)`                       |
+| `for i, v := range s`        | `for i, v := range s.All()`            |
+| `s = nil`                    | `s.Reset()`                            |
+| `slices.Insert`, `Delete`, `DeleteFunc`, `Reverse` | methods of the same name |
+| `for i := range s { s[i] = f(i, s[i]) }` | `s.UpdateFunc(f)`, one rebuild instead of a copy per element |
+| `for i, v := range s[lo:hi]` | `for i, v := range s.Range(lo, hi)`; `i` is the index in `s` |
+| `slices.SortStableFunc`      | `s.SortStableFunc(cmp)`                |
+| `slices.Sort`                | `immutable.Sort(&s)`                   |
+| `slices.Equal`, `Index`, `Contains` | `immutable.Equal`, `Index`, `Contains` |
+| `slices.IndexFunc`, `ContainsFunc`, `EqualFunc`, `Values`, `Backward` | methods of the same name |
 
-  `Append`, `Repeat`, and `Sub` leave the receiver alone; `Insert` and `Replace` leave it alone only
-  when they have to grow. The rest — `With`, `Without`, `Filter`, `Delete`, `Reversed`, `SortedFunc`,
-  `CompactFunc`, `Sorted`, and `Compact` — always write through. Ones that shrink leave the receiver
-  at its old length over a zero-filled tail, so the receiver is not just reordered but wrong.
+Sorting is always stable, so a world sorts the same way on every machine and Go release; there is no
+unstable sort. `immutable.SliceOf(items...)` builds a Slice from a plain slice and copies it, so later
+changes to that slice never reach the component. To go the other way — a plain `[]T` for an API that
+needs one — use `slices.Collect(s.Values())`.
 
-  Two rules follow. Call `Set` after every derivation, even one you think is read-only:
-  `s.SortedFunc(cmp).At(0)` reorders the stored list. And when the original has to survive, derive
-  from a copy instead: `immutable.SliceOf(slices.Collect(s.Values())...)`.
-
-  Each method's Go doc says whether it writes through.
-</Warning>
+Unlike a Go slice, assignment is a real copy, and free: after `other := buffs.Active`, an edit to
+either never shows in the other.
 
 <Note>
   The element type follows the same rule as any field: values only. That includes another Slice, so
   `immutable.Slice[immutable.Slice[Cell]]` works directly.
+</Note>
+
+### Lookup Tables: `immutable.Map`
+
+For values looked up by key, such as quest flags, cooldowns per ability, or threat per attacker, use
+`immutable.Map[K, V]`. It works like Slice: edit it like a Go map, then `Set` the component. An edit
+reaches the world only through `Set`, and assignment is a free, real copy.
+
+```go
+type PlayerMemory struct {
+	Affinity int    `json:"affinity"`
+	LastSeen uint64 `json:"last_seen"` // tick
+}
+
+type NPCMemory struct {
+	Players immutable.Map[string, PlayerMemory] `json:"players"` // keyed by player ID
+}
+
+func (NPCMemory) Name() string {
+	return "npc_memory"
+}
+```
+
+Keys are integers, strings, or named types of them; anything else fails to compile. Values follow the
+same rule as any field, so a struct, a Slice, or another Map all work. A flat Map with a combined key
+is usually better than a Map of Maps: one lookup and one edit instead of two.
+
+Entries are kept sorted by key; keys are hashed only to decide where storage chunks end. Iterating with `All`, `Keys`, or `Values` runs in key
+order, and a Map encodes in key order too, so the same entries always give the same bytes however
+they were inserted. That is what keeps snapshots and `RequireDeterministic` hashes stable. If
+insertion order matters, store it in the value.
+
+```go
+mem := npc.Get[NPCMemory]()
+pm, _ := mem.Players.Get(pid) // values come out by value
+pm.Affinity += 5
+mem.Players.Set(pid, pm)
+
+// Forget players not seen for a while.
+mem.Players.DeleteFunc(func(_ string, pm PlayerMemory) bool {
+	return now-pm.LastSeen > forgetAfter
+})
+npc.Set(mem)
+```
+
+The API follows Go's built-ins and `maps` package:
+
+| Go                                 | `immutable.Map`                                  |
+| ---------------------------------- | ------------------------------------------------ |
+| `len(m)`                           | `m.Len()`                                        |
+| `v, ok := m[k]`                    | `v, ok := m.Get(k)`                              |
+| `_, ok := m[k]`                    | `m.Has(k)`                                       |
+| `m[k] = v`                         | `m.Set(k, v)`                                    |
+| `delete(m, k)`                     | `m.Delete(k)`                                    |
+| `clear(m)`                         | `m.Clear()`                                      |
+| `for k, v := range m`              | `for k, v := range m.All()`, in key order        |
+| `maps.Keys`, `Values`, `DeleteFunc` | methods of the same name                        |
+| `for k, v := range m { m[k] = f(k, v) }` | `m.UpdateFunc(f)`, one rebuild            |
+| `maps.Clone(m)`                    | `c := m`, a free copy                            |
+| `maps.Equal`, `EqualFunc`          | `immutable.MapEqual(a, b)`, `a.EqualFunc(b, eq)` |
+| no equivalent: the largest key     | `k, ok := m.MaxKey()`                            |
+| no equivalent: keys in [lo, hi)    | `for k, v := range m.Range(lo, hi)`              |
+
+A loop over `All`, `Keys` or `Values` reads the Map as it was when the loop started, so setting and
+deleting keys inside the loop is safe: nothing is skipped or repeated.
+
+Entries are stored in sorted chunks of about 32 under a tree index, so a lookup, an update, an insert
+and a delete each cost O(log n), and an edit copies one chunk. To build a large Map at once, use
+`immutable.MapFrom`, which sorts once. For a queue of thousands, keep a head index next to the Slice
+rather than removing its front, which costs O(n). Once the head passes half the Slice, drop the
+consumed front with `Delete(0, head)` and set the head back to 0, so the Slice does not grow forever. A Map keyed by a
+sequence number also works, and removes its smallest key in O(log n).
+
+`immutable.MapFrom(maps.All(goMap))` builds a Map from a Go map, and the result does not depend on the
+order the Go map yields. Compare Maps with `immutable.MapEqual`, or `EqualFunc` for values that are
+not comparable.
+
+<Note>
+  Entity IDs are reused as soon as an entity is destroyed, so a key that is an `EntityID` silently
+  refers to whichever entity takes the slot next, and `Alive` cannot tell the difference (see
+  [Entity Handles and Stored IDs](#entity-handles-and-stored-ids)). Key long-lived data by an ID the
+  game owns, such as the player ID from `cmd.Player()`. If you do key by entity, remove the key in the
+  system that destroys the entity.
 </Note>
 
 ### Tag Components

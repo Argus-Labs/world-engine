@@ -100,8 +100,7 @@ func RunDST(t *testing.T, setup DSTSetupFunc, preTestCommands []Command) {
 			fix.world.reset()
 			require.NoError(t, fix.world.restore(context.Background()))
 
-			// Verify snapshot roundtrip fidelity: restored state re-serializes to identical bytes.
-			// fix.verifySnapshotRoundtrip(t)
+			fix.verifySnapshotRoundtrip(t)
 		}
 	}
 
@@ -125,8 +124,8 @@ const (
 // engineOps are the non-command operations that may be randomly enabled.
 var engineOps = []string{ //nolint:gochecknoglobals // DST operation table
 	opTick,
-	// opRestart,
-	// opSnapshotRestore,
+	opRestart,
+	opSnapshotRestore,
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -288,8 +287,60 @@ func (f *dstFixture) enqueueCommand(cmd Command) error {
 	}, command.PlayerSender("dst-pretest"))
 }
 
+// verifySnapshotRoundtrip checks that the world restore just loaded encodes back to exactly the world
+// state in the snapshot it was loaded from. A codec that drops, reorders or invents anything, or an
+// encoding that depends on more than the values, fails here for whatever components the game holds.
+func (f *dstFixture) verifySnapshotRoundtrip(t *testing.T) {
+	t.Helper()
+	if f.storage.data == nil {
+		return // Nothing stored yet, so restore loaded nothing.
+	}
+	snap, err := snapshot.Decode(f.storage.data)
+	require.NoError(t, err)
+	restored, err := f.world.world.ToProto()
+	require.NoError(t, err)
+	require.True(t, proto.Equal(snap.GetWorldState(), restored),
+		"snapshot round trip: the restored world encodes differently from the snapshot at tick %d",
+		snap.GetTickHeight())
+}
+
+// maxFillRepeats is how many times a type may appear inside itself while filling. A recursive type,
+// such as a node holding a Slice of nodes, would otherwise grow without end: each collection draws
+// about two entries, so the tree keeps branching. Past the limit the value is left zero, so a tree is
+// filled a few levels deep and then stops.
+const maxFillRepeats = 2
+
+// maxFillLen bounds how many entries the filler draws for one slice, Slice or Map: 0 to 4.
+const maxFillLen = 5
+
 // fillRandom recursively fills a [reflect.Value] with random data based on its type.
 func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
+	(&filler{prng: prng, live: liveEntityIDs, onPath: map[reflect.Type]int{}}).fill(v)
+}
+
+// filler carries one fillRandom call's state. onPath counts the types being filled on the current
+// path, which is how a recursive type is noticed.
+type filler struct {
+	prng   *rand.Rand
+	live   []EntityID
+	onPath map[reflect.Type]int
+}
+
+// enter reports whether a value of type t may be filled here, and if so records it on the path; the
+// caller then defers leave. Only structs and slices are counted, since a recursive type has to pass
+// through one of them.
+func (f *filler) enter(t reflect.Type) bool {
+	if f.onPath[t] > maxFillRepeats {
+		return false
+	}
+	f.onPath[t]++
+	return true
+}
+
+func (f *filler) leave(t reflect.Type) { f.onPath[t]-- }
+
+func (f *filler) fill(v reflect.Value) {
+	prng, liveEntityIDs := f.prng, f.live
 	t := v.Type()
 	if len(liveEntityIDs) > 0 &&
 		(t == reflect.TypeFor[uint32]() || t == reflect.TypeFor[EntityID]()) &&
@@ -317,36 +368,52 @@ func fillRandom(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) {
 		}
 		v.SetString(string(b))
 	case reflect.Struct:
-		if fillImmutableSlice(prng, v, liveEntityIDs) {
-			return
-		}
-		for _, field := range v.Fields() {
-			if field.CanSet() {
-				fillRandom(prng, field, liveEntityIDs)
-			}
+		if !f.immutableSlice(v) && !f.immutableMap(v) {
+			f.structFields(v)
 		}
 	case reflect.Slice:
-		n := prng.IntN(5)
-		slice := reflect.MakeSlice(v.Type(), n, n)
-		for i := range n {
-			fillRandom(prng, slice.Index(i), liveEntityIDs)
-		}
-		v.Set(slice)
+		f.slice(v)
 	case reflect.Array:
 		for i := range v.Len() {
-			fillRandom(prng, v.Index(i), liveEntityIDs)
+			f.fill(v.Index(i))
 		}
 	}
 }
 
-// fillImmutableSlice fills v with random elements when it is an immutable.Slice, and reports whether
-// it was one. The struct walk in fillRandom cannot do it: a Slice's only field is unexported, so
+func (f *filler) structFields(v reflect.Value) {
+	if !f.enter(v.Type()) {
+		return
+	}
+	defer f.leave(v.Type())
+	for _, field := range v.Fields() {
+		if field.CanSet() {
+			f.fill(field)
+		}
+	}
+}
+
+func (f *filler) slice(v reflect.Value) {
+	if !f.enter(v.Type()) {
+		return
+	}
+	defer f.leave(v.Type())
+	n := f.prng.IntN(maxFillLen)
+	slice := reflect.MakeSlice(v.Type(), n, n)
+	for i := range n {
+		f.fill(slice.Index(i))
+	}
+	v.Set(slice)
+}
+
+// immutableSlice fills v with random elements when it is an immutable.Slice, and reports whether it
+// was one. The struct walk in fillRandom cannot do it: a Slice's only field is unexported, so
 // CanSet is false and the Slice would stay empty, leaving every command that carries one untested.
 //
 // immutable.SliceElem identifies the Slice and its element type, a random []T is built with the
-// ordinary recursion, and Append takes it in one call — Append is variadic, so CallSlice hands it the
-// whole slice at once. That is the Slice's own API, so immutable needs no setter and no codec.
-func fillImmutableSlice(prng *rand.Rand, v reflect.Value, liveEntityIDs []EntityID) bool {
+// ordinary recursion, and Append takes it in one call on the emptied Slice — Append is variadic, so
+// CallSlice hands it the whole slice at once. That is the Slice's own API, so immutable needs no
+// setter and no codec.
+func (f *filler) immutableSlice(v reflect.Value) bool {
 	t := v.Type()
 	elem, ok := immutable.SliceElem(t)
 	if !ok {
@@ -358,12 +425,36 @@ func fillImmutableSlice(prng *rand.Rand, v reflect.Value, liveEntityIDs []Entity
 		panic("dst: " + t.String() + " is not settable, so it cannot be filled")
 	}
 
-	n := prng.IntN(5)
+	n := f.prng.IntN(maxFillLen)
 	items := reflect.MakeSlice(reflect.SliceOf(elem), n, n)
 	for i := range n {
-		fillRandom(prng, items.Index(i), liveEntityIDs)
+		f.fill(items.Index(i))
 	}
-	v.Set(v.MethodByName("Append").CallSlice([]reflect.Value{items})[0])
+	v.Set(reflect.Zero(t))
+	v.Addr().MethodByName("Append").CallSlice([]reflect.Value{items})
+	return true
+}
+
+// immutableMap is immutableSlice for an immutable.Map. It adds random entries one Set at a time; a
+// repeated random key just overwrites, so the Map may end up with fewer entries than drawn.
+func (f *filler) immutableMap(v reflect.Value) bool {
+	t := v.Type()
+	keyType, valueType, ok := immutable.MapTypes(t)
+	if !ok {
+		return false
+	}
+	if !v.CanSet() {
+		panic("dst: " + t.String() + " is not settable, so it cannot be filled")
+	}
+
+	v.Set(reflect.Zero(t))
+	set := v.Addr().MethodByName("Set")
+	for range f.prng.IntN(maxFillLen) {
+		key, value := reflect.New(keyType).Elem(), reflect.New(valueType).Elem()
+		f.fill(key)
+		f.fill(value)
+		set.Call([]reflect.Value{key, value})
+	}
 	return true
 }
 

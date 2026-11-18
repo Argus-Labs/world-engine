@@ -182,15 +182,7 @@ func (b *schemaBuilder) reflectType(t reflect.Type) *jsonschema.Schema {
 		}
 		return nullable(&jsonschema.Schema{Type: arrayType, Items: b.reflectType(t.Elem())})
 	case reflect.Map:
-		s := &jsonschema.Schema{Type: "object", AdditionalProperties: b.reflectType(t.Elem())}
-		if t.Key().Kind() != reflect.String {
-			key := b.reflectType(t.Key())
-			if key.Type != integerType {
-				b.err = eris.Errorf("unsupported MessagePack map key %s", t.Key())
-			}
-			s.Extras = map[string]any{"x-msgpack-key-format": key.Format}
-		}
-		return nullable(s)
+		return nullable(b.mapSchema(t.Key(), t.Elem()))
 	default:
 		b.err = eris.Errorf("unsupported MessagePack schema type %s", t)
 		return &jsonschema.Schema{}
@@ -203,11 +195,29 @@ func (b *schemaBuilder) codecSchema(t reflect.Type) (*jsonschema.Schema, bool) {
 	if elem, ok := immutable.SliceElem(t); ok {
 		return &jsonschema.Schema{Type: arrayType, Items: b.reflectType(elem)}, true
 	}
+	if key, value, ok := immutable.MapTypes(t); ok {
+		// Unlike a Go map, a Map is never nil: empty encodes as an empty map.
+		return b.mapSchema(key, value), true
+	}
 	if t == reflect.TypeFor[time.Time]() {
 		// It encodes as a MessagePack timestamp, which JSON carries as RFC 3339.
 		return &jsonschema.Schema{Type: stringType, Format: "date-time"}, true
 	}
 	return nil, false
+}
+
+// mapSchema describes a MessagePack map. An integer key is marked with its format, since a JSON
+// object's keys are always strings.
+func (b *schemaBuilder) mapSchema(key, value reflect.Type) *jsonschema.Schema {
+	s := &jsonschema.Schema{Type: "object", AdditionalProperties: b.reflectType(value)}
+	if key.Kind() != reflect.String {
+		k := b.reflectType(key)
+		if k.Type != integerType {
+			b.err = eris.Errorf("unsupported MessagePack map key %s", key)
+		}
+		s.Extras = map[string]any{"x-msgpack-key-format": k.Format}
+	}
+	return s
 }
 
 func nullable(s *jsonschema.Schema) *jsonschema.Schema {
@@ -239,7 +249,9 @@ func wireFields(t reflect.Type) []wireField {
 			ft = ft.Elem()
 		}
 		_, immutableSlice := immutable.SliceElem(ft)
-		if f.Anonymous && ft.Kind() == reflect.Struct && !immutableSlice && !slices.Contains(tags[1:], "noinline") {
+		_, _, immutableMap := immutable.MapTypes(ft)
+		if f.Anonymous && ft.Kind() == reflect.Struct && !immutableSlice && !immutableMap &&
+			!slices.Contains(tags[1:], "noinline") {
 			nested := wireFields(ft)
 			if canInline(nested, seen, slices.Contains(tags[1:], "inline")) {
 				fields = appendUnshadowed(fields, nested, seen)

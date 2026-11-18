@@ -102,7 +102,13 @@ type fieldProblem struct {
 }
 
 // checkComponentField walks t and appends one problem per field that cannot be stored. visiting holds
-// the types on the current path, so a type that reaches itself does not loop.
+// the types on the current path.
+//
+// A type that reaches itself through a Slice or Map is allowed: it is a tree, such as a skill tree, a
+// dialogue tree or a container inside a container. Every value is still finite, since a component
+// holds no pointers and a built array never changes, so a tree encodes, restores and appears in the
+// catalog like any other value. Its fields are already being checked further up the path, so the walk
+// stops there instead of looping.
 func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]bool, problems *[]fieldProblem) {
 	if visiting[t] || knownValueType(t) {
 		return
@@ -116,6 +122,12 @@ func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]
 	if elem, ok := immutable.SliceElem(t); ok {
 		// The Slice itself is safe; its element might not be.
 		checkComponentField(elem, path+"[]", visiting, problems)
+		return
+	}
+	if key, value, ok := immutable.MapTypes(t); ok {
+		// Key already limits the key to an integer or string, but a named one can still carry a codec.
+		checkComponentField(key, path+"{key}", visiting, problems)
+		checkComponentField(value, path+"{value}", visiting, problems)
 		return
 	}
 	if hasCodec(t) {
@@ -311,8 +323,8 @@ const (
 
 	fixSlice = "use a fixed-size array [N]T with the live length in its own field, or immutable.Slice[T] " +
 		"if the length is genuinely unbounded"
-	fixMap = "if the key set is fixed, use a struct with one field per key; otherwise a fixed-size array " +
-		"of entry structs plus a count"
+	fixMap = "if the key set is fixed, use a struct with one field per key; otherwise immutable.Map[K, V] " +
+		"with an integer or string key"
 	fixPointer   = "drop the star and store the value; if it means absent, put a Has<Name> bool beside it"
 	fixInterface = "use the one concrete type it holds; if it varies, add a tag field and one field per " +
 		"variant"

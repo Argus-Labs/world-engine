@@ -197,7 +197,7 @@ func Lifecycle() harness.Scenario {
 					pb.BodyType = physics.BodyTypeDynamic
 				})
 				c.EditBody(s.multiShape, func(pb *physics.PhysicsBody2D) {
-					pb.Shapes = pb.Shapes.Append(atOffset(box(0.5, 0.5), 3, 0))
+					pb.Shapes.Append(atOffset(box(0.5, 0.5), 3, 0))
 				})
 				c.EditShape(s.gripLater, 0, func(sh *physics.ColliderShape) {
 					sh.Friction = 0.9
@@ -244,9 +244,7 @@ func Lifecycle() harness.Scenario {
 			{Tick: removeTick, Do: func(c *harness.Ctx) {
 				frozenY := c.Pos(s.freezer).Y
 				c.EditBody(s.multiShape, func(pb *physics.PhysicsBody2D) {
-					// Sub is the one derivation that writes nothing, and Ctx.Body already
-					// handed back a clone, so the stored list is untouched either way.
-					pb.Shapes = pb.Shapes.Sub(0, 1)
+					pb.Shapes.Delete(1, pb.Shapes.Len())
 				})
 				c.SetVel(s.mover, crossSpeed, 0)
 				s.freezerY = frozenY

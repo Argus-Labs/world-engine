@@ -34,24 +34,35 @@ before editing (SKILL.md, Before editing). Convert each field, then fix its uses
 | Field                  | Becomes                                                               |
 | ---------------------- | --------------------------------------------------------------------- |
 | `[]T`                  | `immutable.Slice[T]`, or `[N]T` plus a count when N is small and hard |
-| `map[K]V`              | `immutable.Slice[P]` of `struct{ K K; V V }`, found with `IndexFunc`  |
+| `map[K]V`              | `immutable.Map[K, V]` with integer or string keys; see below          |
 | optional `*T`          | `T` plus `HasT bool`                                                  |
 | `*T` shared on purpose | an ID (`EntityID`, index or key) looked up where it is used           |
 | `any` or an interface  | a kind enum plus one field per variant, or an encoded string          |
 
-`immutable.Slice` hides its array but does not copy on write. Build with
-`immutable.SliceOf(xs...)`. Read with `Len`, `At`, `All`, `Values`, `IndexFunc`. Every
-derivation returns a Slice, but only `Append`, `Repeat`, `immutable.Map` and
-`immutable.Concat` allocate. `With`, `Without`, `Filter`, `Delete`, `Reversed`,
-`SortedFunc`, `CompactFunc`, `immutable.Sorted` and `immutable.Compact` edit the
-receiver's array in place. `Insert` and `Replace` do when it has spare capacity, and
-`Sub` and `Chunk` return windows onto it. `e.Get[C]()` returns a copy that shares the
-column's array, so a derivation rewrites stored state before any `Set`. A discarded
-`c.Items.Filter(keep)` leaves the stored slice at its old length over a shifted,
-zero-filled tail. Always assign and set: `c.Items = c.Items.Filter(keep)`, then
-`e.Set(c)`. For a read-only result, copy first:
-`immutable.Collect(c.Items.Values()).SortedFunc(cmp)`. A `for i := range c.Items` over
-the old slice becomes `for i, x := range c.Items.All()`.
+`immutable.Slice` hides its storage and is edited like a Go slice, but never writes to
+storage it shares, so an edit reaches the world only through `Set` and `d := c.Items` is a
+free, real copy. Build with
+`immutable.SliceOf(xs...)`. Read with `Len`, `At`, `All`, `Values`, `Range`, `IndexFunc`. Edit with
+`Set`, `Append`, `Insert`, `Delete`, `DeleteFunc`, `UpdateFunc`, `Reset`, `SortStableFunc`,
+`Reverse`,
+then `e.Set(c)`. Old derivations map as: `c.Items = c.Items.With(i, x)` becomes
+`c.Items.Set(i, x)`, `Filter(keep)` becomes `DeleteFunc` with the test inverted, `Reversed`
+becomes `Reverse`, `SortedFunc` becomes `SortStableFunc`, and `Sub(i, j)` becomes
+`Delete(j, Len())` then `Delete(0, i)`, or `Range(i, j)` to only read it (it yields indices in the whole Slice, so subtract `i` where the code expects them to start at 0). The `immutable.Map` function, `Concat`, `Chunk`, `Repeat`, `Replace`,
+`Compact` and `Min`/`Max` are gone; use a loop or `slices` on `slices.Collect(s.Values())`.
+`immutable.Map` now names the Map type, so a leftover `immutable.Map(s, f)` call fails with
+a "cannot use generic type immutable.Map … without instantiation" error rather than "undefined".
+A `for i := range c.Items` over the old slice becomes `for i, x := range c.Items.All()`.
+
+`immutable.Map[K, V]` is the same for a lookup table, edited like a Go map and safe to
+copy the same way: build with `immutable.MapFrom(maps.All(goMap))`, read with `Get`,
+`Has`, `All`, `MaxKey`, `Range`, edit with `Set`, `Delete`, `DeleteFunc`, `UpdateFunc`, `Clear`, then `e.Set(c)`. A Go map
+maps as: `v, ok := m[k]` becomes `m.Get(k)`, `m[k] = v` becomes `m.Set(k, v)`, `delete(m, k)`
+becomes `m.Delete(k)`, `clear(m)` becomes `m.Clear()`, and `for k, v := range m` becomes
+`for k, v := range m.All()`, in key order. Setting and deleting keys inside that loop is safe; the
+loop reads the Map as it was when it started. Keys are integers, strings or named types of them, kept sorted. `EntityID`s are reused as soon as the entity is destroyed: key
+long-lived data by an ID the game owns, or remove the key in the system that destroys the
+entity.
 
 Which of these needs a design decision is the user's call: a shared pointer or an
 interface field usually does. List them and ask before converting.

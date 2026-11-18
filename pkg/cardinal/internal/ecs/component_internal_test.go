@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vmihailenco/msgpack/v5"
+	"google.golang.org/protobuf/proto"
 )
 
 // -------------------------------------------------------------------------------------------------
@@ -305,6 +306,23 @@ type selfViaImmutable struct {
 	Children immutable.Slice[selfViaImmutable]
 }
 
+type selfViaMap struct {
+	Kids immutable.Map[int, selfViaMap]
+}
+
+type playerKey uint64
+
+// mapsComponent holds a Map of every shape a component may use: struct values, a nested Map, a Slice
+// value and a Map inside a Slice.
+type mapsComponent struct {
+	Memory  immutable.Map[playerKey, valuePoint]
+	Nested  immutable.Map[string, immutable.Map[int8, int]]
+	Lists   immutable.Map[uint32, immutable.Slice[string]]
+	History immutable.Slice[immutable.Map[string, int]]
+}
+
+func (mapsComponent) Name() string { return "maps_component" }
+
 type sliceComponent []int
 
 func (sliceComponent) Name() string { return "slice_component" }
@@ -473,6 +491,12 @@ func TestComponent_ValidateTypeAllowsStorableShapes(t *testing.T) {
 			S immutable.Slice[immutable.Slice[int]]
 		}]()},
 		{"type reaching itself through immutable.Slice", reflect.TypeFor[selfViaImmutable]()},
+		{"type reaching itself through immutable.Map", reflect.TypeFor[selfViaMap]()},
+		{"immutable.Map of scalars", reflect.TypeFor[struct{ M immutable.Map[string, int] }]()},
+		{"immutable.Map shapes", reflect.TypeFor[mapsComponent]()},
+		{"immutable.Map of codec types", reflect.TypeFor[struct {
+			M immutable.Map[int, fixedPoint]
+		}]()},
 		{"unexported field beside exported ones", reflect.TypeFor[hiddenBesideExported]()},
 		{"empty struct", reflect.TypeFor[struct{ E struct{} }]()},
 		{"scalar component", reflect.TypeFor[testutils.SimpleComponent]()},
@@ -635,6 +659,19 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 			[]string{".S[] (func()) " + notData}},
 		{"slice inside a struct inside immutable.Slice", reflect.TypeFor[struct{ S immutable.Slice[sliceHolder] }](),
 			[]string{".S[].Items ([]int) " + shared}},
+		{"slice inside immutable.Map", reflect.TypeFor[struct{ M immutable.Map[int, []int] }](),
+			[]string{".M{value} ([]int) " + shared}},
+		{"pointer inside immutable.Map", reflect.TypeFor[struct{ M immutable.Map[string, *int] }](),
+			[]string{".M{value} (*int) " + shared}},
+		{"Go map inside immutable.Map", reflect.TypeFor[struct {
+			M immutable.Map[string, map[int]int]
+		}](),
+			[]string{".M{value} (map[int]int) " + shared}},
+		{"slice inside a struct inside a nested immutable.Map", reflect.TypeFor[struct {
+			M immutable.Map[string, immutable.Map[int, sliceHolder]]
+		}](), []string{".M{value}{value}.Items ([]int) " + shared}},
+		{"embedded immutable.Map alone", reflect.TypeFor[struct{ immutable.Map[int, int] }](),
+			[]string{".Map (immutable.Map[int,int]) " + embedded}},
 		{"exported field of an unexported embedded struct", reflect.TypeFor[struct{ embeddedSlice }](),
 			[]string{".embeddedSlice.Items ([]int) " + shared}},
 		{
@@ -705,6 +742,40 @@ func TestWorldState_CodecTypesRoundTripThroughSnapshot(t *testing.T) {
 	got, err := restored.getComponent[codecComponent](e)
 	require.NoError(t, err)
 	assert.Equal(t, value, got)
+}
+
+func TestWorldState_MapsRoundTripThroughSnapshot(t *testing.T) {
+	t.Parallel()
+	ws := newWorldState()
+	_, err := ws.components.register[mapsComponent]("maps_component")
+	require.NoError(t, err)
+	e := ws.newEntity()
+	var value mapsComponent
+	value.Memory.Set(9, valuePoint{X: 1})
+	value.Memory.Set(2, valuePoint{Y: 3})
+	var inner immutable.Map[int8, int]
+	inner.Set(-1, 1)
+	value.Nested.Set("b", inner)
+	value.Nested.Set("a", immutable.Map[int8, int]{})
+	value.Lists.Set(1, immutable.SliceOf("x", "y"))
+	var history immutable.Map[string, int]
+	history.Set("k", 4)
+	value.History = immutable.SliceOf(history)
+	require.NoError(t, ws.setComponent(e, value))
+
+	pb, err := ws.toProto()
+	require.NoError(t, err)
+	restored := newWorldState()
+	_, err = restored.components.register[mapsComponent]("maps_component")
+	require.NoError(t, err)
+	require.NoError(t, restored.fromProto(pb))
+	got, err := restored.getComponent[mapsComponent](e)
+	require.NoError(t, err)
+	assert.Equal(t, value, got)
+
+	again, err := restored.toProto()
+	require.NoError(t, err)
+	assert.True(t, proto.Equal(pb, again), "a restored world encodes to the same snapshot")
 }
 
 func TestWorldState_OwnCodecOverEmbeddedCodecRoundTripsThroughSnapshot(t *testing.T) {

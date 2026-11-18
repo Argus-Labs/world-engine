@@ -128,16 +128,16 @@ identity is by index (slot `i` in `Shapes` ↔ fixture slot `i`), so don't
 reorder shapes after creation if you care about per-shape references in
 contact events.
 
-Read it with `Len`, `At`, and `All`; change it with `Append`, `With`, `Without`
-and friends, then `Set` the component. Those derivations edit the array the
-component already holds, so a `Set` after each one is required rather than
-tidy — see [`immutable.Slice`](../../immutable/slice.go).
+Read it with `Len`, `At`, and `All`; edit it in place with `Set`, `Append`,
+`Delete` and friends, then `Set` the component. An edit changes only your copy,
+so the component is untouched until that `Set` — see
+[`immutable.Slice`](../../immutable/slice.go).
 
 ```go
 pb := entity.Get[physics2d.PhysicsBody2D]()
 sh := pb.Shapes.At(0)
 sh.Friction = 0.9
-pb.Shapes = pb.Shapes.With(0, sh)
+pb.Shapes.Set(0, sh)
 entity.Set(pb)
 ```
 

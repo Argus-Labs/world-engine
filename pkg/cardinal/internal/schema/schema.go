@@ -11,9 +11,9 @@ import (
 
 	"github.com/rotisserie/eris"
 	// vmihailenco/msgpack rather than shamaton/msgpack or ugorji/go/codec:
-	//   - immutable.Slice[T] hides its items, so it must encode itself. vmihailenco calls its
-	//     EncodeMsgpack/DecodeMsgpack for every T; shamaton's hook registers one exact type, and its
-	//     decoder never learns the target type.
+	//   - immutable.Slice[T] and immutable.Map[K, V] hide their items, so they must encode themselves.
+	//     vmihailenco calls its EncodeMsgpack/DecodeMsgpack for every T; shamaton's hook registers one
+	//     exact type, and its decoder never learns the target type.
 	//   - msgpack.Register can replace the decoder of a built-in type such as float32.
 	//   - omitempty respects IsZero, so an empty Slice is left out.
 	//   - ugorji/go/codec can encode Slice[T] too, but it ships every other format (~5x binary size).
@@ -141,7 +141,7 @@ func prepare(t reflect.Type) {
 // registerTypes gives every float32 type in t, including named ones such as `type Meters float32`,
 // the decoder decodeFloat32, and every map type the encoder encodeSortedMap. msgpack matches
 // registered codecs by exact type, so each named type needs its own registration. It walks
-// unexported fields too, to reach the element type of an immutable.Slice. A type with its own codec
+// unexported fields too, to reach the element types of an immutable.Slice or immutable.Map. A type with its own codec
 // keeps it, since a registered one would take precedence over it.
 func registerTypes(t reflect.Type, seen map[reflect.Type]bool) {
 	if t == nil || seen[t] {

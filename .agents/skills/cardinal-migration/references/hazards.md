@@ -56,11 +56,14 @@ why none apply. Items marked (audit) are also reported by `scripts/audit.go`.
 
 16. `immutable.Slice` encodes to JSON as an array (was `{}`). Affects logs and anything that
     `json.Marshal`s components.
-17. `immutable.Slice` derivations other than `Append` and `Repeat` edit the stored
-    component's array in place, before any `Set`. A discarded `c.Items.Filter(keep)` or a
-    read-only `c.Items.SortedFunc(cmp).At(0)` still changes the world. Assign the result
-    and `e.Set(c)`. For a read-only result, copy first with
-    `immutable.Collect(c.Items.Values())`. See older-versions.md, Wire shapes.
+17. `immutable.Slice` methods now edit the receiver (`c.Items.Append(x)`,
+    `c.Items.Set(i, x)`) and never write to storage another copy holds, so `Get`, `Set`,
+    plain assignment, commands, events and system events share its storage safely. Elements
+    that are pointers, Go slices or Go maps are still shared, as with any Go copy. In older versions
+    its derivations returned a Slice that had to be assigned back, and all but `Append` and
+    `Repeat` also edited the stored component's array before any `Set`. Remove
+    `immutable.Collect(c.Items.Values())` copies made only to protect the world. A change
+    still needs `e.Set(c)`. See older-versions.md, Wire shapes.
 18. Snapshots: see runtime.md. Snapshots from v0.16.8 or earlier must be deleted.
 
 ## Operations

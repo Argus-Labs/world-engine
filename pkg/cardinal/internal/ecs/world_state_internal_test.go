@@ -900,6 +900,42 @@ type nestedPayload struct {
 
 func (nestedPayload) Name() string { return "nested_payload" }
 
+// Get and Set copy every Slice a component holds, so an edit reaches the world only through Set, and
+// an edit after Set never reaches what was stored.
+func TestWorldState_GetAndSetCopySlices(t *testing.T) {
+	t.Parallel()
+	ws := newWorldState()
+	_, err := ws.components.register[nestedPayload]("nested_payload")
+	require.NoError(t, err)
+	e := ws.newEntity()
+	want := nestedPayload{
+		Items:  immutable.SliceOf(1, 2),
+		Groups: immutable.SliceOf(immutable.SliceOf(3, 4)),
+	}
+	value := nestedPayload{
+		Items:  immutable.SliceOf(1, 2),
+		Groups: immutable.SliceOf(immutable.SliceOf(3, 4)),
+	}
+	edit := func(v *nestedPayload) {
+		v.Items.Set(0, -1)
+		v.Items.Append(-2)
+		group := v.Groups.At(0)
+		group.Set(0, -3)
+		v.Groups.Set(0, group)
+	}
+
+	require.NoError(t, ws.setComponent(e, value))
+	edit(&value)
+	got, err := ws.getComponent[nestedPayload](e)
+	require.NoError(t, err)
+	assert.Equal(t, want, got, "an edit after Set does not reach the stored component")
+
+	edit(&got)
+	again, err := ws.getComponent[nestedPayload](e)
+	require.NoError(t, err)
+	assert.Equal(t, want, again, "an edit after Get does not reach the stored component")
+}
+
 func TestWorldState_ToProtoOwnsPayloads(t *testing.T) {
 	t.Parallel()
 	ws := newWorldState()
@@ -915,12 +951,15 @@ func TestWorldState_ToProtoOwnsPayloads(t *testing.T) {
 	require.NoError(t, err)
 	frozen := proto.Clone(pb)
 
-	// With edits the backing array in place, so these writes reach the stored component too.
-	_ = value.Items.With(0, 99)
-	_ = value.Groups.At(0).With(0, 88)
+	// Change the stored component after encoding; the earlier payload must not follow it.
+	value.Items.Set(0, 99)
+	group := value.Groups.At(0)
+	group.Set(0, 88)
+	value.Groups.Set(0, group)
+	require.NoError(t, ws.setComponent(e, value))
 	live, err := ws.getComponent[nestedPayload](e)
 	require.NoError(t, err)
-	const reached = "the write must reach the stored component for this test to mean anything"
+	const reached = "the change must reach the stored component for this test to mean anything"
 	require.Equal(t, 99, live.Items.At(0), reached)
 	require.Equal(t, 88, live.Groups.At(0).At(0), reached)
 

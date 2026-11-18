@@ -1,6 +1,8 @@
 package cardinal
 
 import (
+	"iter"
+
 	"github.com/argus-labs/world-engine/pkg/assert"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
@@ -10,6 +12,10 @@ import (
 	"github.com/rotisserie/eris"
 )
 
+// EntityID identifies an entity in this world. It is reused as soon as the entity is destroyed, so
+// an ID kept past that point refers to whichever entity is created next in its place. To refer to
+// something across ticks, in a component field, a Map key or a client, use an ID the game owns, or
+// remove the stored ID in the system that destroys the entity.
 type EntityID = ecs.EntityID
 
 // System is a unit of game logic that runs once per tick phase. Run receives the world it was
@@ -214,12 +220,21 @@ func (s SearchResult) Single() (Entity, error) {
 // Re-exported immutable types
 // -------------------------------------------------------------------------------------------------
 
-// Slice is world-engine's sequence with a private backing array, re-exported so a component can
-// declare one without a second import. It is an alias, so cardinal.Slice[T] and immutable.Slice[T]
-// are the same type and either spelling works.
+// Slice is world-engine's sequence with private storage, re-exported so a component can declare one
+// without a second import. It is an alias, so cardinal.Slice[T] and immutable.Slice[T] are the same
+// type and either spelling works.
 //
-// Its derivations edit in place; see immutable.Slice for what that means at a call site.
+// It is edited like a Go slice but never writes to storage another copy holds, so copies are free
+// and an edit reaches the world only through Set; see immutable.Slice.
 type Slice[T any] = immutable.Slice[T]
 
 // SliceOf returns a Slice holding a copy of items. See immutable.SliceOf.
 func SliceOf[T any](items ...T) Slice[T] { return immutable.SliceOf(items...) }
+
+// Map is world-engine's sorted map with private storage, re-exported like Slice. It is edited like a
+// Go map and is as safe to copy as Slice; see immutable.Map.
+type Map[K immutable.Key, V any] = immutable.Map[K, V]
+
+// MapFrom returns a Map holding every pair in seq, the last value winning for a repeated key. See
+// immutable.MapFrom.
+func MapFrom[K immutable.Key, V any](seq iter.Seq2[K, V]) Map[K, V] { return immutable.MapFrom(seq) }
