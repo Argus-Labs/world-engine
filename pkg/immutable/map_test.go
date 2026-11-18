@@ -584,6 +584,8 @@ func TestMap_Allocations(t *testing.T) {
 		}
 		sink += b.Len()
 	})
-	assert.LessOrEqual(t, loop, 2600.0, "1024 new keys: a chunk and the index path to it each")
+	// The seeded hash moves chunk boundaries from run to run, so the count varies with the seed
+	// (about 2000 to 2900). The bound is the structural one: a chunk and two index nodes per key.
+	assert.LessOrEqual(t, loop, 3*1024.0, "1024 new keys: a chunk and the index path to it each")
 	_ = sink
 }
