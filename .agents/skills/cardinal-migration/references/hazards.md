@@ -58,7 +58,8 @@ why none apply. Items marked (audit) are also reported by `scripts/audit.go`.
     `json.Marshal`s components.
 17. `immutable.Slice` methods now edit the receiver (`c.Items.Append(x)`,
     `c.Items.Set(i, x)`) and never write to storage another copy holds, so `Get`, `Set`,
-    plain assignment, commands, events and system events share it safely. In older versions
+    plain assignment, commands, events and system events share its storage safely. Elements
+    that are pointers, Go slices or Go maps are still shared, as with any Go copy. In older versions
     its derivations returned a Slice that had to be assigned back, and all but `Append` and
     `Repeat` also edited the stored component's array before any `Set`. Remove
     `immutable.Collect(c.Items.Values())` copies made only to protect the world. A change

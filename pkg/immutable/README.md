@@ -452,10 +452,13 @@ n is the number of elements or entries. "How often" says when the worst case act
 | --- | --- | --- | --- |
 | Copy, `Get`, `Set` on the component | free | free | never more |
 | Slice `At`, `Set`, `Append`, delete from the end | O(log₃₂ n): 1 to 4 tree levels up to 1M | the same | fixed by length |
-| Slice `Insert` or `Delete` in the middle, delete from the front of a Slice over 32 elements, sorts | O(n) | O(n) | every call |
+| Slice `Insert` or `Delete` in the middle, delete from the front of a Slice over 32 elements | O(n) | O(n) | every call |
+| Slice `Sort`, `SortStableFunc` | O(n log n) | O(n log n) | every call |
 | Map `Get`, `Has` | O(log n) | about 1.7 × log₂ n comparisons | not seen in practice |
 | Map `Set`, `Delete` | O(log n) | O(n) | needs keys built against the hash seed; see below |
-| `DeleteFunc`, `MapFrom`, decoding | O(n) | O(n) | every call; it is one pass |
+| `DeleteFunc` | O(n) | O(n) | every call; it is one pass |
+| `MapFrom` | O(n log n) | O(n log n) | every call; it sorts once |
+| Map decoding | O(n) | O(n log n) | only for input not in key order; this package always encodes in key order |
 
 **Use a Map for long queues and sorted lists, not a Slice.** Removing the front of a Slice shifts
 every position, so it costs O(n) every time. A Map keyed by a sequence number removes its smallest
