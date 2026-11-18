@@ -48,7 +48,7 @@ free, real copy. Build with
 then `e.Set(c)`. Old derivations map as: `c.Items = c.Items.With(i, x)` becomes
 `c.Items.Set(i, x)`, `Filter(keep)` becomes `DeleteFunc` with the test inverted, `Reversed`
 becomes `Reverse`, `SortedFunc` becomes `SortStableFunc`, and `Sub(i, j)` becomes
-`Delete(j, Len())` then `Delete(0, i)`, or `Range(i, j)` to only read it. The `immutable.Map` function, `Concat`, `Chunk`, `Repeat`, `Replace`,
+`Delete(j, Len())` then `Delete(0, i)`, or `Range(i, j)` to only read it (it yields indices in the whole Slice, so subtract `i` where the code expects them to start at 0). The `immutable.Map` function, `Concat`, `Chunk`, `Repeat`, `Replace`,
 `Compact` and `Min`/`Max` are gone; use a loop or `slices` on `slices.Collect(s.Values())`.
 `immutable.Map` now names the Map type, so a leftover `immutable.Map(s, f)` call fails with
 a "cannot use generic type immutable.Map … without instantiation" error rather than "undefined".

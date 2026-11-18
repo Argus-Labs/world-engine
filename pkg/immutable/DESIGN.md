@@ -186,8 +186,9 @@ lists; inline storage for the first N elements; an edit session that writes node
 brings back a second API with an end call.
 
 What the package does instead is bulk edits that rebuild once: `DeleteFunc` and `UpdateFunc` touch
-every element in one pass with about one allocation per chunk, where a loop of `Set` or `Delete`
-calls copies a path per element.
+every element in one pass, where a loop of `Set` or `Delete` calls copies a path per element. Slice
+`UpdateFunc` allocates one array and about one node per 32 elements; Map `UpdateFunc` allocates one
+entries array and one per index node.
 
 ## Which functions exist
 

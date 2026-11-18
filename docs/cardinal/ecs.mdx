@@ -259,8 +259,9 @@ deleting keys inside the loop is safe: nothing is skipped or repeated.
 Entries are stored in sorted chunks of about 32 under a tree index, so a lookup, an update, an insert
 and a delete each cost O(log n), and an edit copies one chunk. To build a large Map at once, use
 `immutable.MapFrom`, which sorts once. For a queue of thousands, keep a head index next to the Slice
-rather than removing its front, which costs O(n); a Map keyed by a sequence number removes its
-smallest key in O(log n).
+rather than removing its front, which costs O(n), and drop the consumed front in one
+`Delete(0, head)` once the head passes half the Slice, so it does not grow forever. A Map keyed by a
+sequence number also works, and removes its smallest key in O(log n).
 
 `immutable.MapFrom(maps.All(goMap))` builds a Map from a Go map, and the result does not depend on the
 order the Go map yields. Compare Maps with `immutable.MapEqual`, or `EqualFunc` for values that are

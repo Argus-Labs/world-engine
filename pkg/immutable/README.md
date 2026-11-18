@@ -487,10 +487,11 @@ for, and cost the same written by hand:
 | Go | Write instead |
 | --- | --- |
 | `slices.Min`, `Max`, `IsSorted`, `Compare` | a loop over `s.Values()` |
-| `slices.BinarySearch(s, v)` | `sort.Search(s.Len(), func(i int) bool { return s.At(i) >= v })` |
+| `slices.BinarySearch(s, v)` | `i := sort.Search(s.Len(), func(i int) bool { return s.At(i) >= v })`, found if `i < s.Len() && s.At(i) == v` |
 | `slices.Compact(s)` | `DeleteFunc` with a closure that remembers the previous element |
 | `slices.Replace(s, i, j, v...)` | `s.Delete(i, j)`, then `s.Insert(i, v...)` |
-| `slices.Concat`, `AppendSeq` | `s.Append(slices.Collect(seq)...)` |
+| `slices.Concat(a, b)` | `s := a`, then `s.Append(slices.Collect(b.Values())...)` |
+| `slices.AppendSeq(s, seq)` | `s.Append(slices.Collect(seq)...)` |
 | `slices.Sorted(seq)` | `s := immutable.Collect(seq)`, then `immutable.Sort(&s)` |
 | a plain `[]T` | `slices.AppendSeq(dst, s.Values())` |
 | `maps.Insert`, `maps.Copy` | a loop of `m.Set` |
@@ -507,7 +508,8 @@ n is the number of elements or entries. "How often" says when the worst case act
 | Slice `Insert` or `Delete` in the middle, delete from the front of a Slice over 32 elements | O(n) | O(n) | every call |
 | Slice `Sort`, `SortStableFunc` | O(n log n) | O(n log n) | every call |
 | Slice `Range(lo, hi)`, reading k elements | O(log₃₂ n + k) | the same | fixed by length |
-| Map `Get`, `Has`, `MaxKey` | O(log n) | about 1.7 × log₂ n comparisons | not seen in practice |
+| Map `Get`, `Has` | O(log n) | about 1.7 × log₂ n comparisons | not seen in practice |
+| Map `MaxKey` | O(log n): one step per index level, no comparisons | the same | not seen in practice |
 | Map `Range(lo, hi)`, reading k entries | O(log n + k) | the same as `Get`, plus k | not seen in practice |
 | Map `Set`, `Delete` | O(log n) | O(n) | needs keys built against the hash seed; see [DESIGN.md](DESIGN.md#why-the-hash-is-seeded) |
 | `DeleteFunc`, `UpdateFunc` | O(n) | O(n) | every call; it is one pass |

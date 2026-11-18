@@ -696,7 +696,9 @@ func TestMap_Allocations(t *testing.T) {
 
 	forged := []byte{0xdf, 0x7f, 0xff, 0xff, 0xff, 0x01, 0x01} // a map of 2^31-1 entries, holding one
 	var d immutable.Map[int, int]
-	require.Error(t, msgpack.Unmarshal(forged, &d), "a forged length fails without a large allocation")
+	allocated := allocatedBytes(func() { err = msgpack.Unmarshal(forged, &d) })
+	require.Error(t, err)
+	assert.Less(t, allocated, uint64(1<<20), "a forged length must not size the allocation")
 
 	loop := testing.AllocsPerRun(100, func() {
 		var b immutable.Map[int, int]

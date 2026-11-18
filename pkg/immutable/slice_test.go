@@ -3,6 +3,7 @@ package immutable_test
 import (
 	"encoding/json"
 	"reflect"
+	"runtime"
 	"slices"
 	"testing"
 
@@ -706,5 +707,17 @@ func TestSlice_DecodeAllocations(t *testing.T) {
 
 	forged := []byte{0xdd, 0x7f, 0xff, 0xff, 0xff, 0x01} // an array of 2^31-1 elements, holding one
 	var s immutable.Slice[int]
-	require.Error(t, msgpack.Unmarshal(forged, &s))
+	allocated := allocatedBytes(func() { err = msgpack.Unmarshal(forged, &s) })
+	require.Error(t, err)
+	require.Less(t, allocated, uint64(1<<20), "a forged length must not size the allocation")
+}
+
+// allocatedBytes returns how many bytes f allocates. Callers must not run in parallel, or other
+// tests' allocations count too.
+func allocatedBytes(f func()) uint64 {
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	f()
+	runtime.ReadMemStats(&after)
+	return after.TotalAlloc - before.TotalAlloc
 }
