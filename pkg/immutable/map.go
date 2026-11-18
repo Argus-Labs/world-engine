@@ -160,6 +160,53 @@ func (m Map[K, V]) Values() iter.Seq[V] {
 	}
 }
 
+// MaxKey returns the largest key, and false when the Map is empty. It follows the last child down the
+// index, O(log n), where ranging over Keys to the end costs O(n). The smallest key needs no method:
+// it is the first one Keys yields.
+func (m Map[K, V]) MaxKey() (K, bool) {
+	chunk := m.one
+	if chunk == nil {
+		if m.root == nil {
+			var zero K
+			return zero, false
+		}
+		node := m.root
+		for node.kids != nil {
+			node = node.kids[len(node.kids)-1]
+		}
+		chunk = node.chunks[len(node.chunks)-1]
+	}
+	return chunk[len(chunk)-1].k, true
+}
+
+// Range returns an iterator over key and value for the keys in [lo, hi), in ascending key order. It
+// goes straight to lo, so reading k entries costs O(log n + k), where ranging over All and skipping
+// to lo costs O(n). It yields nothing when lo >= hi.
+func (m Map[K, V]) Range(lo, hi K) iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		if m.n == 0 || lo >= hi {
+			return
+		}
+		var p mpath[K, V]
+		chunk := m.one
+		if chunk == nil {
+			chunk = m.locate(lo, &p)
+		}
+		i, _ := searchEntries(chunk, lo)
+		for {
+			for _, e := range chunk[i:] {
+				if e.k >= hi || !yield(e.k, e.v) {
+					return
+				}
+			}
+			if m.one != nil || !advance(&p.f, 0, p.h) {
+				return
+			}
+			chunk, i = p.f[0].node.chunks[p.f[0].i], 0
+		}
+	}
+}
+
 // find returns the chunk that holds k, or would, and k's index in it.
 func (m Map[K, V]) find(k K) ([]entry[K, V], int, bool) {
 	chunk := m.one
@@ -295,6 +342,50 @@ func (m *Map[K, V]) DeleteFunc(del func(K, V) bool) {
 	}
 }
 
+// UpdateFunc replaces each value v under key k with f(k, v), in key order, like ranging over a Go map
+// and storing each result. No key changes, so the Map keeps its shape: it rebuilds once, O(n) with one
+// allocation for the entries and one per index node, where calling Set for every key copies a chunk
+// and its path each time. f sees the Map as it was before the call, and a panic in f leaves the Map
+// unchanged.
+func (m *Map[K, V]) UpdateFunc(f func(k K, v V) V) {
+	if m.n == 0 {
+		return
+	}
+	all := make([]entry[K, V], 0, m.n)
+	if m.one != nil {
+		m.one = updateChunk(&all, m.one, f)
+		return
+	}
+	m.root = updateNode(&all, m.root, f)
+}
+
+// updateChunk appends c's entries to *all with their values replaced by f, and returns them as a
+// window onto *all, capped so a later append cannot reach a neighbour. *all never grows past the
+// capacity it was made with, so earlier windows stay valid.
+func updateChunk[K Key, V any](all *[]entry[K, V], c []entry[K, V], f func(K, V) V) []entry[K, V] {
+	start := len(*all)
+	for _, e := range c {
+		*all = append(*all, entry[K, V]{e.k, f(e.k, e.v)})
+	}
+	return (*all)[start:len(*all):len(*all)]
+}
+
+// updateNode returns a copy of node with the same keys and every value below it replaced by f.
+func updateNode[K Key, V any](all *[]entry[K, V], node *mnode[K, V], f func(K, V) V) *mnode[K, V] {
+	b := allocNode[K, V](len(node.keys), node.kids == nil)
+	copy(b.keys, node.keys)
+	if node.kids == nil {
+		for i, c := range node.chunks {
+			b.chunks[i] = updateChunk(all, c, f)
+		}
+	} else {
+		for i, kid := range node.kids {
+			b.kids[i] = updateNode(all, kid, f)
+		}
+	}
+	return b
+}
+
 // appendFirstEntries appends the first k entries of m to dst.
 func appendFirstEntries[K Key, V any](dst []entry[K, V], m Map[K, V], k int) []entry[K, V] {
 	for c := range m.allChunks() {
@@ -428,8 +519,7 @@ func (m *Map[K, V]) UnmarshalJSON(data []byte) error {
 	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
 		return eris.New("immutable map: expected a JSON object")
 	}
-	var keys []K
-	var vals []V
+	var entries []entry[K, V]
 	for dec.More() {
 		tok, err := dec.Token()
 		if err != nil {
@@ -443,17 +533,15 @@ func (m *Map[K, V]) UnmarshalJSON(data []byte) error {
 		if err != nil {
 			return err
 		}
-		var v V
-		if err := dec.Decode(&v); err != nil {
+		entries = append(entries, entry[K, V]{k: k})
+		if err := dec.Decode(&entries[len(entries)-1].v); err != nil {
 			return eris.Wrapf(err, "failed to decode immutable map value for key %q", text)
 		}
-		keys = append(keys, k)
-		vals = append(vals, v)
 	}
 	if _, err := dec.Token(); err != nil {
 		return eris.Wrap(err, "failed to decode immutable map end")
 	}
-	decoded, err := sortedMap(keys, vals)
+	decoded, err := sortedMap(entries)
 	if err != nil {
 		return err
 	}
@@ -477,31 +565,29 @@ func (m Map[K, V]) EncodeMsgpack(enc *msgpack.Encoder) error {
 	return nil
 }
 
-// DecodeMsgpack replaces the Map only after every entry has decoded successfully. Arrays grow as
-// entries arrive rather than from the claimed length, so a forged length cannot force a large
-// allocation. nil and an empty map yield the zero value.
+// DecodeMsgpack replaces the Map only after every entry has decoded successfully. Each entry decodes
+// in place in the array, so decoding allocates per array growth, not per entry. The claimed length
+// only sizes the first allocation, up to a cap, so a forged length cannot force a large one. nil and
+// an empty map yield the zero value.
 func (m *Map[K, V]) DecodeMsgpack(dec *msgpack.Decoder) error {
 	n, err := dec.DecodeMapLen()
 	if err != nil {
 		return eris.Wrap(err, "failed to decode immutable map length")
 	}
-	var keys []K
-	var vals []V
+	entries := make([]entry[K, V], 0, min(max(n, 0), decodePrealloc))
 	for range n {
-		var k K
-		if err := dec.Decode(&k); err != nil {
+		entries = append(entries, entry[K, V]{})
+		e := &entries[len(entries)-1]
+		if err := dec.Decode(&e.k); err != nil {
 			return eris.Wrap(err, "failed to decode immutable map key")
 		}
-		var v V
 		// DecodeValue, not Decode: Decode handles *float32 itself and skips decoders registered with
 		// msgpack.Register, such as cardinal's, which accepts a 64-bit float into a float32.
-		if err := dec.DecodeValue(reflect.ValueOf(&v).Elem()); err != nil {
+		if err := dec.DecodeValue(reflect.ValueOf(&e.v).Elem()); err != nil {
 			return eris.Wrap(err, "failed to decode immutable map value")
 		}
-		keys = append(keys, k)
-		vals = append(vals, v)
 	}
-	decoded, err := sortedMap(keys, vals)
+	decoded, err := sortedMap(entries)
 	if err != nil {
 		return err
 	}
@@ -530,14 +616,13 @@ func MapTypes(t reflect.Type) (reflect.Type, reflect.Type, bool) {
 	return e.Field(0).Type, e.Field(1).Type, true
 }
 
-// sortedMap builds a Map from decoded entries in whatever order they arrived. Input that is already
-// sorted, which is everything this package encoded, costs one pass; anything else is sorted once.
-func sortedMap[K Key, V any](keys []K, vals []V) (Map[K, V], error) {
-	entries := make([]entry[K, V], len(keys))
+// sortedMap builds a Map from decoded entries in whatever order they arrived, taking ownership of the
+// array. Input that is already sorted, which is everything this package encoded, costs one pass;
+// anything else is sorted once.
+func sortedMap[K Key, V any](entries []entry[K, V]) (Map[K, V], error) {
 	sorted := true
-	for i, k := range keys {
-		entries[i] = entry[K, V]{k, vals[i]}
-		sorted = sorted && (i == 0 || keys[i-1] < k)
+	for i := 1; i < len(entries) && sorted; i++ {
+		sorted = entries[i-1].k < entries[i].k
 	}
 	if !sorted {
 		slices.SortFunc(entries, func(a, b entry[K, V]) int { return cmp.Compare(a.k, b.k) })

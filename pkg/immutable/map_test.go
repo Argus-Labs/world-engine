@@ -123,6 +123,90 @@ func TestMap_DeleteFuncVisitsInKeyOrder(t *testing.T) {
 	require.Equal(t, []string{"a", "b", "c", "d"}, seen, "del runs once per entry, in key order")
 }
 
+func TestMap_UpdateFunc(t *testing.T) {
+	t.Parallel()
+
+	m := mapOf(map[string]int{"c": 3, "a": 1, "d": 4, "b": 2})
+	before := m
+	var seen []string
+	m.UpdateFunc(func(k string, v int) int {
+		seen = append(seen, k)
+		return v * 10
+	})
+	require.Equal(t, []string{"a", "b", "c", "d"}, seen, "f runs once per entry, in key order")
+	require.Equal(t, map[string]int{"a": 10, "b": 20, "c": 30, "d": 40}, maps.Collect(m.All()))
+	require.Equal(t, map[string]int{"a": 1, "b": 2, "c": 3, "d": 4}, maps.Collect(before.All()),
+		"the copy is unchanged")
+
+	big := immutable.MapFrom(func(yield func(int, int) bool) {
+		for k := range 5000 {
+			if !yield(k*3, k) {
+				return
+			}
+		}
+	})
+	want := immutable.MapFrom(func(yield func(int, int) bool) {
+		for k := range 5000 {
+			if !yield(k*3, -k) {
+				return
+			}
+		}
+	})
+	updated := big
+	updated.UpdateFunc(func(_, v int) int { return -v })
+	require.True(t, reflect.DeepEqual(want, updated), "the same layout as the same entries built in one go")
+	require.Equal(t, 4999, func() int { v, _ := big.Get(4999 * 3); return v }(), "the copy is unchanged")
+
+	require.Panics(t, func() {
+		m.UpdateFunc(func(k string, v int) int {
+			if k == "c" {
+				panic("boom")
+			}
+			return 0
+		})
+	})
+	require.Equal(t, map[string]int{"a": 10, "b": 20, "c": 30, "d": 40}, maps.Collect(m.All()),
+		"a panic in f leaves the Map unchanged")
+}
+
+func TestMap_MaxKeyAndRange(t *testing.T) {
+	t.Parallel()
+
+	var empty immutable.Map[string, int]
+	_, ok := empty.MaxKey()
+	require.False(t, ok, "an empty Map has no largest key")
+	require.Empty(t, maps.Collect(empty.Range("a", "z")))
+
+	m := mapOf(map[string]int{"c": 3, "a": 1, "e": 5, "b": 2, "d": 4})
+	k, ok := m.MaxKey()
+	require.True(t, ok)
+	require.Equal(t, "e", k)
+
+	var keys []string
+	for k := range m.Range("b", "e") {
+		keys = append(keys, k)
+	}
+	require.Equal(t, []string{"b", "c", "d"}, keys, "lo is included, hi is not, in key order")
+	require.Equal(t, map[string]int{"a": 1, "b": 2}, maps.Collect(m.Range("", "bb")), "bounds need not be keys")
+	require.Empty(t, maps.Collect(m.Range("d", "d")), "lo == hi yields nothing")
+	require.Empty(t, maps.Collect(m.Range("e", "a")), "lo > hi yields nothing")
+
+	keys = nil
+	for k := range m.Range("a", "z") {
+		keys = append(keys, k)
+		if k == "b" {
+			break
+		}
+	}
+	require.Equal(t, []string{"a", "b"}, keys, "the loop stops at break")
+
+	seq := m.Range("a", "c")
+	m.Set("a", 100)
+	m.Delete("b")
+	require.Equal(t, map[string]int{"a": 1, "b": 2}, maps.Collect(seq),
+		"the iterator reads the Map as it was when Range was called")
+}
+
 func TestMap_EmptyIsZeroValue(t *testing.T) {
 	t.Parallel()
 
@@ -266,10 +350,15 @@ func TestMap_ModelMatchesGoMap(t *testing.T) {
 	var copies []immutable.Map[int, int]
 	for step := range 3000 {
 		k, v := r.IntN(40), r.IntN(1000)
-		switch op := r.IntN(12); {
+		switch op := r.IntN(13); {
 		case op < 4:
 			m.Set(k, v)
 			model[k] = v
+		case op == 11:
+			m.UpdateFunc(func(k, v int) int { return v + k%7 })
+			for k, v := range model {
+				model[k] = v + k%7
+			}
 		case op < 6:
 			got, _ := m.Get(k)
 			m.Set(k, got+v)
@@ -565,6 +654,11 @@ func TestMap_Allocations(t *testing.T) {
 		for k, v := range m.All() {
 			sink += k + v
 		}
+		maxKey, _ := m.MaxKey()
+		sink += maxKey
+		for k, v := range m.Range(2, 6) {
+			sink += k + v
+		}
 	})
 	assert.Zero(t, reads, "reads never allocate")
 
@@ -576,6 +670,33 @@ func TestMap_Allocations(t *testing.T) {
 	assert.InDelta(t, 1, testing.AllocsPerRun(100, func() { d := m; d.Set(3, 9) }), 0, "Set on an existing key")
 	assert.InDelta(t, 1, testing.AllocsPerRun(100, func() { d := m; d.Set(30, 9) }), 0, "Set of a new key")
 	assert.InDelta(t, 1, testing.AllocsPerRun(100, func() { d := m; d.Delete(3) }), 0, "Delete")
+	assert.InDelta(t, 1, testing.AllocsPerRun(100, func() {
+		d := m
+		d.UpdateFunc(func(_, v int) int { return v + 1 })
+	}), 0, "UpdateFunc on one chunk")
+
+	big := immutable.MapFrom(func(yield func(int, int) bool) {
+		for k := range 4096 {
+			if !yield(k, k) {
+				return
+			}
+		}
+	})
+	assert.LessOrEqual(t, testing.AllocsPerRun(20, func() {
+		d := big
+		d.UpdateFunc(func(_, v int) int { return v + 1 })
+	}), 40.0, "UpdateFunc on 4096 entries: one array and the index nodes")
+
+	data, err := msgpack.Marshal(big)
+	require.NoError(t, err)
+	assert.Less(t, testing.AllocsPerRun(20, func() {
+		var d immutable.Map[int, int]
+		require.NoError(t, msgpack.Unmarshal(data, &d))
+	}), 80.0, "decoding 4096 entries allocates per array growth and node, not per entry")
+
+	forged := []byte{0xdf, 0x7f, 0xff, 0xff, 0xff, 0x01, 0x01} // a map of 2^31-1 entries, holding one
+	var d immutable.Map[int, int]
+	require.Error(t, msgpack.Unmarshal(forged, &d), "a forged length fails without a large allocation")
 
 	loop := testing.AllocsPerRun(100, func() {
 		var b immutable.Map[int, int]

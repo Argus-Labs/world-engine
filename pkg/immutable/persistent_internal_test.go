@@ -1,7 +1,9 @@
 package immutable
 
 import (
+	"fmt"
 	"maps"
+	"math/rand/v2"
 	"reflect"
 	"slices"
 	"testing"
@@ -27,7 +29,7 @@ func TestSlice_LayoutDependsOnlyOnContents(t *testing.T) {
 	}
 	var copies []saved
 	for step := range 4000 {
-		switch op := r.IntN(10); {
+		switch op := r.IntN(11); {
 		case op < 4:
 			n := r.IntN(80)
 			for range n {
@@ -52,6 +54,11 @@ func TestSlice_LayoutDependsOnlyOnContents(t *testing.T) {
 			mod := 2 + r.IntN(30)
 			s.DeleteFunc(func(v int) bool { return v%mod == 0 })
 			model = slices.DeleteFunc(model, func(v int) bool { return v%mod == 0 })
+		case op == 9:
+			s.UpdateFunc(func(i, v int) int { return v ^ i })
+			for i := range model {
+				model[i] ^= i
+			}
 		case r.IntN(50) == 0:
 			s.Reset()
 			model = nil
@@ -61,6 +68,13 @@ func TestSlice_LayoutDependsOnlyOnContents(t *testing.T) {
 		if len(model) > 0 {
 			i := r.IntN(len(model))
 			require.Equal(t, model[i], s.At(i), "step %d", step)
+			j := i + r.IntN(min(100, len(model)-i)+1)
+			var got []int
+			for x, v := range s.Range(i, j) {
+				require.Equal(t, i+len(got), x, "step %d: Range index", step)
+				got = append(got, v)
+			}
+			require.Equal(t, model[i:j], append([]int{}, got...), "step %d: Range(%d, %d)", step, i, j)
 		}
 		if r.IntN(50) == 0 {
 			var back []int
@@ -116,7 +130,7 @@ func TestMap_LayoutDependsOnlyOnContents(t *testing.T) {
 	var copies []saved
 	keySpace, peak := 20000, 0 // up to about 600 chunks, three levels of index
 	for step := range 2500 {
-		switch op := r.IntN(10); {
+		switch op := r.IntN(11); {
 		case op < 5:
 			for range r.IntN(60) {
 				k, v := r.IntN(keySpace), r.Int()
@@ -134,6 +148,11 @@ func TestMap_LayoutDependsOnlyOnContents(t *testing.T) {
 			del := func(k, _ int) bool { return k%mod == 0 }
 			m.DeleteFunc(del)
 			maps.DeleteFunc(model, del)
+		case op == 9:
+			m.UpdateFunc(func(k, v int) int { return v ^ k })
+			for k, v := range model {
+				model[k] = v ^ k
+			}
 		case r.IntN(100) == 0:
 			m.Clear()
 			clear(model)
@@ -144,6 +163,7 @@ func TestMap_LayoutDependsOnlyOnContents(t *testing.T) {
 		if m.root != nil {
 			peak = max(peak, checkIndex(t, m))
 		}
+		requireKeyOrderReads(t, r, m, model, fmt.Sprintf("step %d", step))
 		if r.IntN(20) == 0 {
 			copies = append(copies, saved{m, maps.Clone(model)})[max(0, len(copies)-4):]
 		}
@@ -266,4 +286,35 @@ func TestMap_EqualFuncWalksTheIndex(t *testing.T) {
 	}
 	require.Equal(t, a.Len(), swapped.Len())
 	require.False(t, MapEqual(a, swapped), "one key differs")
+}
+
+// requireKeyOrderReads checks MaxKey, and Range over a random window and over windows at the ends,
+// against the model.
+func requireKeyOrderReads(t *testing.T, r *rand.Rand, m Map[int, int], model map[int]int, msg string) {
+	t.Helper()
+	keys := slices.Sorted(maps.Keys(model))
+	maxKey, ok := m.MaxKey()
+	require.Equal(t, len(keys) > 0, ok, "%s: MaxKey ok", msg)
+	if ok {
+		require.Equal(t, keys[len(keys)-1], maxKey, "%s: MaxKey", msg)
+	}
+	span := 10
+	if len(keys) > 0 {
+		span = keys[len(keys)-1] + 10
+	}
+	lo := r.IntN(span) - 5
+	windows := [][2]int{{lo, lo + r.IntN(span/4+2)}, {-10, 5}, {span - 300, span}, {lo, lo}, {lo + 1, lo}}
+	for _, w := range windows {
+		var gotKeys, wantKeys []int
+		for k, v := range m.Range(w[0], w[1]) {
+			require.Equal(t, model[k], v, "%s: Range value for %d", msg, k)
+			gotKeys = append(gotKeys, k)
+		}
+		for _, k := range keys {
+			if k >= w[0] && k < w[1] {
+				wantKeys = append(wantKeys, k)
+			}
+		}
+		require.Equal(t, wantKeys, gotKeys, "%s: Range(%d, %d)", msg, w[0], w[1])
+	}
 }

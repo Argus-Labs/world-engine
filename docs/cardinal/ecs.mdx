@@ -172,6 +172,8 @@ The API follows Go's built-ins and `slices` package:
 | `for i, v := range s`        | `for i, v := range s.All()`            |
 | `s = nil`                    | `s.Reset()`                            |
 | `slices.Insert`, `Delete`, `DeleteFunc`, `Reverse` | methods of the same name |
+| `for i := range s { s[i] = f(i, s[i]) }` | `s.UpdateFunc(f)`, one rebuild instead of a copy per element |
+| `for i, v := range s[lo:hi]` | `for i, v := range s.Range(lo, hi)`; `i` is the index in `s` |
 | `slices.SortStableFunc`      | `s.SortStableFunc(cmp)`                |
 | `slices.Sort`                | `immutable.Sort(&s)`                   |
 | `slices.Equal`, `Index`, `Contains` | `immutable.Equal`, `Index`, `Contains` |
@@ -245,16 +247,20 @@ The API follows Go's built-ins and `maps` package:
 | `clear(m)`                         | `m.Clear()`                                      |
 | `for k, v := range m`              | `for k, v := range m.All()`, in key order        |
 | `maps.Keys`, `Values`, `DeleteFunc` | methods of the same name                        |
+| `for k, v := range m { m[k] = f(k, v) }` | `m.UpdateFunc(f)`, one rebuild            |
 | `maps.Clone(m)`                    | `c := m`, a free copy                            |
 | `maps.Equal`, `EqualFunc`          | `immutable.MapEqual(a, b)`, `a.EqualFunc(b, eq)` |
+| no equivalent: the largest key     | `k, ok := m.MaxKey()`                            |
+| no equivalent: keys in [lo, hi)    | `for k, v := range m.Range(lo, hi)`              |
 
 A loop over `All`, `Keys` or `Values` reads the Map as it was when the loop started, so setting and
 deleting keys inside the loop is safe: nothing is skipped or repeated.
 
 Entries are stored in sorted chunks of about 32 under a tree index, so a lookup, an update, an insert
 and a delete each cost O(log n), and an edit copies one chunk. To build a large Map at once, use
-`immutable.MapFrom`, which sorts once. For a long queue, use a Map keyed by a sequence number rather
-than a Slice: removing the front of a Slice costs O(n), removing a Map's smallest key O(log n).
+`immutable.MapFrom`, which sorts once. For a queue of thousands, keep a head index next to the Slice
+rather than removing its front, which costs O(n); a Map keyed by a sequence number removes its
+smallest key in O(log n).
 
 `immutable.MapFrom(maps.All(goMap))` builds a Map from a Go map, and the result does not depend on the
 order the Go map yields. Compare Maps with `immutable.MapEqual`, or `EqualFunc` for values that are

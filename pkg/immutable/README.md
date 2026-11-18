@@ -57,12 +57,14 @@ reader can change what another reader sees.
 | `s = slices.Insert(s, i, v)`          | `s.Insert(i, v)`                  |
 | `s = slices.Delete(s, i, j)`          | `s.Delete(i, j)`                  |
 | `s = slices.DeleteFunc(s, del)`       | `s.DeleteFunc(del)`               |
+| `for i := range s { s[i] = f(i, s[i]) }` | `s.UpdateFunc(f)`, one rebuild  |
 | `s = s[:0]` or `s = nil`              | `s.Reset()`                       |
 | `slices.SortStableFunc(s, cmp)`       | `s.SortStableFunc(cmp)`           |
 | `slices.Sort(s)`                      | `immutable.Sort(&s)`              |
 | `slices.Reverse(s)`                   | `s.Reverse()`                     |
 | `for i, v := range s`                 | `for i, v := range s.All()`       |
 | `for _, v := range s`                 | `for v := range s.Values()`       |
+| `for i, v := range s[lo:hi]`          | `for i, v := range s.Range(lo, hi)`; `i` is the index in `s` |
 | `slices.Backward(s)`                  | `s.Backward()`                    |
 | `slices.IndexFunc`, `ContainsFunc`    | `s.IndexFunc(f)`, `s.ContainsFunc(f)` |
 | `slices.Equal`, `Index`, `Contains`   | `immutable.Equal(a, b)`, `immutable.Index(s, v)`, `immutable.Contains(s, v)` |
@@ -105,6 +107,29 @@ it back with `s.Set(i, inner)`.
 **Reading is free.** `Get` and reading a Slice allocate nothing. An edit copies about 32 elements and
 a few small tree nodes, however long the Slice is; see [Costs](#costs).
 
+**Loop with `All` or `Values`, not `At(i)`.** `At` walks down from the root on every call, while the
+iterators walk each chunk once: about twice as fast at 4,096 elements.
+
+**Build in one call.** `SliceOf(items...)` or `Collect(seq)` builds the whole Slice at once. `Append` in
+a loop copies the tail on every call.
+
+**Change every element with `UpdateFunc`, not `Set` in a loop.** `UpdateFunc` rebuilds once; each `Set`
+copies a chunk and its path. At 4,096 elements that is about 40 µs against 1.4 ms.
+
+**Read part of a Slice with `Range(lo, hi)`.** It goes straight to `lo`, where a loop of `At` calls
+walks down from the root for every element.
+
+**Remove one element by moving the last one into its place, when order does not matter:**
+
+```go
+last := s.Len() - 1
+s.Set(i, s.At(last))
+s.Delete(last, last+1)
+```
+
+That costs O(log₃₂ n), where `Delete(i, i+1)` in the middle rebuilds the Slice. To remove many while
+looping, use `DeleteFunc`; a hand-written loop doing this must run from the last index down.
+
 **Map works the same way.** Edit it, then `Set`. See [Map](#map).
 
 ### Common mistakes
@@ -117,7 +142,7 @@ a few small tree nodes, however long the Slice is; see [Costs](#costs).
 | `Items []Item` in a component                  | `Items immutable.Slice[Item]`           |
 | `immutable.Slice[*Item]`                       | `immutable.Slice[Item]`                 |
 | `entity.Get[C]()` inside an inner loop         | `Get` once, edit, `Set` once            |
-| a long queue: `Append`, then `Delete(0, k)`    | a Map keyed by a sequence number; see [Costs](#costs) |
+| a queue of thousands: `Append`, then `Delete(0, 1)` | a head index; see [Costs](#costs)  |
 
 ### Full example
 
@@ -302,12 +327,18 @@ commands copy nothing and stay safe.
 | `m[k] = v`                          | `m.Set(k, v)`                                     |
 | `delete(m, k)`                      | `m.Delete(k)`                                     |
 | `maps.DeleteFunc(m, del)`           | `m.DeleteFunc(del)`                               |
+| `for k, v := range m { m[k] = f(k, v) }` | `m.UpdateFunc(f)`, one rebuild               |
 | `clear(m)`                          | `m.Clear()`                                       |
 | `for k, v := range m`               | `for k, v := range m.All()`, in key order         |
 | `maps.Keys(m)`, `maps.Values(m)`    | `m.Keys()`, `m.Values()`, in key order            |
 | `maps.Equal`, `maps.EqualFunc`      | `immutable.MapEqual(a, b)`, `a.EqualFunc(b, eq)`  |
 | a map literal, `maps.Collect(seq)`  | `immutable.MapFrom(seq)`                          |
 | `maps.Clone(m)`                     | `c := m`, a free copy                             |
+| no equivalent: the largest key      | `k, ok := m.MaxKey()`                             |
+| no equivalent: keys in [lo, hi)     | `for k, v := range m.Range(lo, hi)`, in key order |
+
+The smallest key is the first one `Keys` yields. `MaxKey` and `Range` exist because a scan to the
+end or to `lo` would cost O(n), where they go straight there in O(log n).
 
 To build from a Go map, use `immutable.MapFrom(maps.All(goMap))`. The result is the same whatever
 order the Go map yields.
@@ -447,6 +478,24 @@ func (s *ThreatSystem) Run(w *cardinal.World) {
 }
 ```
 
+## Sugar functions you write yourself
+
+Slice and Map follow Go's `slices` and `maps`, but only add a function when it beats what you can
+write with the existing ones; see [DESIGN.md](DESIGN.md#which-functions-exist). These have been asked
+for, and cost the same written by hand:
+
+| Go | Write instead |
+| --- | --- |
+| `slices.Min`, `Max`, `IsSorted`, `Compare` | a loop over `s.Values()` |
+| `slices.BinarySearch(s, v)` | `sort.Search(s.Len(), func(i int) bool { return s.At(i) >= v })` |
+| `slices.Compact(s)` | `DeleteFunc` with a closure that remembers the previous element |
+| `slices.Replace(s, i, j, v...)` | `s.Delete(i, j)`, then `s.Insert(i, v...)` |
+| `slices.Concat`, `AppendSeq` | `s.Append(slices.Collect(seq)...)` |
+| `slices.Sorted(seq)` | `s := immutable.Collect(seq)`, then `immutable.Sort(&s)` |
+| a plain `[]T` | `slices.AppendSeq(dst, s.Values())` |
+| `maps.Insert`, `maps.Copy` | a loop of `m.Set` |
+| the smallest key | the first key `m.Keys()` yields |
+
 ## Costs
 
 n is the number of elements or entries. "How often" says when the worst case actually happens.
@@ -457,9 +506,11 @@ n is the number of elements or entries. "How often" says when the worst case act
 | Slice `At`, `Set`, `Append`, delete from the end | O(log₃₂ n): 1 to 4 tree levels up to 1M | the same | fixed by length |
 | Slice `Insert` or `Delete` in the middle, delete from the front of a Slice over 32 elements | O(n) | O(n) | every call |
 | Slice `Sort`, `SortStableFunc` | O(n log n) | O(n log n) | every call |
-| Map `Get`, `Has` | O(log n) | about 1.7 × log₂ n comparisons | not seen in practice |
+| Slice `Range(lo, hi)`, reading k elements | O(log₃₂ n + k) | the same | fixed by length |
+| Map `Get`, `Has`, `MaxKey` | O(log n) | about 1.7 × log₂ n comparisons | not seen in practice |
+| Map `Range(lo, hi)`, reading k entries | O(log n + k) | the same as `Get`, plus k | not seen in practice |
 | Map `Set`, `Delete` | O(log n) | O(n) | needs keys built against the hash seed; see [DESIGN.md](DESIGN.md#why-the-hash-is-seeded) |
-| `DeleteFunc` | O(n) | O(n) | every call; it is one pass |
+| `DeleteFunc`, `UpdateFunc` | O(n) | O(n) | every call; it is one pass |
 | `MapFrom` | O(n log n) | O(n log n) | every call; it sorts once |
 | Map decoding | O(n) | O(n log n) | only for input not in key order; this package always encodes in key order |
 
@@ -467,9 +518,11 @@ n is the number of elements or entries. "How often" says when the worst case act
 price of cheap edits; [DESIGN.md](DESIGN.md#slice-a-32-way-trie-over-the-index) explains it and why
 nodes have 32 children.
 
-**Use a Map for long queues and sorted lists, not a Slice.** Removing the front of a Slice shifts
-every position, so it costs O(n) every time. A Map keyed by a sequence number removes its smallest
-key in O(log n).
+**Long queues need a head index.** Dropping the front of a Slice and appending is fine at game sizes
+(about 2 µs at 256 elements), but removing the front rebuilds the Slice, so it costs O(n) per pop:
+27 µs at 4,096. Keep a head index next to the Slice and advance it instead, and drop the consumed front
+in one `Delete(0, head)` once it passes half the Slice. A Map keyed by a sequence number also works,
+and removes its smallest key in O(log n).
 
 **Edits allocate.** Reads and copies allocate nothing, but an edit allocates once per node it
 copies: once for a small value, a few times for a large one. In Go no

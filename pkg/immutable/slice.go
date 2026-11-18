@@ -131,6 +131,38 @@ func (s Slice[T]) Backward() iter.Seq2[int, T] {
 	}
 }
 
+// Range returns an iterator over index and element for the indices in [i, j), in order. It is
+// ranging over s[i:j], except that each index is the element's index in s. It goes straight to i, so
+// reading k elements costs O(log₃₂ n + k), where calling At for each costs O(k log₃₂ n). The loop
+// panics when the range is out of bounds, like slicing.
+func (s Slice[T]) Range(i, j int) iter.Seq2[int, T] {
+	// The work, bounds check included, lives in rangeChunks so that Range inlines and the iterator
+	// does not escape: Range allocates nothing, like the other reads.
+	return func(yield func(int, T) bool) { s.rangeChunks(i, j, yield) }
+}
+
+func (s Slice[T]) rangeChunks(i, j int, yield func(int, T) bool) {
+	if i < 0 || j > s.n || i > j {
+		panic(rangeError(i, j, s.n))
+	}
+	off := s.treeLen()
+	for x := i; x < j; {
+		var c []T
+		if x >= off {
+			c = s.tail[x-off : j-off]
+		} else {
+			leafStart := x &^ chunkMask
+			c = s.leafAt(x)[x-leafStart : min(chunkSize, j-leafStart)]
+		}
+		for _, v := range c {
+			if !yield(x, v) {
+				return
+			}
+			x++
+		}
+	}
+}
+
 // IndexFunc returns the index of the first element for which f is true, or -1.
 func (s Slice[T]) IndexFunc(f func(T) bool) int {
 	for i, v := range s.All() {
@@ -295,6 +327,23 @@ func (s *Slice[T]) DeleteFunc(del func(T) bool) {
 	}
 }
 
+// UpdateFunc replaces each element v at index i with f(i, v), in order. It rebuilds the Slice once,
+// O(n) with about one allocation per 32 elements, where calling Set for every element copies a
+// chunk and its path each time. f sees the Slice as it was before the call, and a panic in f leaves
+// the Slice unchanged.
+func (s *Slice[T]) UpdateFunc(f func(i int, v T) T) {
+	if s.n == 0 {
+		return
+	}
+	items := make([]T, 0, s.n)
+	for c := range s.chunks() {
+		for _, v := range c {
+			items = append(items, f(len(items), v))
+		}
+	}
+	*s = fromItems(items)
+}
+
 // appendFirst appends the first k elements of s to dst.
 func appendFirst[T any](dst []T, s Slice[T], k int) []T {
 	for c := range s.chunks() {
@@ -411,19 +460,25 @@ func (s *Slice[T]) DecodeMsgpack(dec *msgpack.Decoder) error {
 	if err != nil {
 		return eris.Wrap(err, "failed to decode immutable slice length")
 	}
-	var items []T
+	// Each element decodes in place in the array, so decoding allocates per array growth, not per
+	// element. The length comes off the wire, so it only sizes the first allocation up to a cap; a
+	// forged length cannot force a large one.
+	items := make([]T, 0, min(max(n, 0), decodePrealloc))
 	for range n {
-		var item T
+		var zero T
+		items = append(items, zero)
 		// DecodeValue, not Decode: Decode handles *float32 itself and skips decoders registered with
 		// msgpack.Register, such as cardinal's, which accepts a 64-bit float into a float32.
-		if err := dec.DecodeValue(reflect.ValueOf(&item).Elem()); err != nil {
+		if err := dec.DecodeValue(reflect.ValueOf(&items[len(items)-1]).Elem()); err != nil {
 			return eris.Wrap(err, "failed to decode immutable slice element")
 		}
-		items = append(items, item)
 	}
 	*s = fromItems(items)
 	return nil
 }
+
+// decodePrealloc caps how many elements or entries a decoder allocates room for before any arrive.
+const decodePrealloc = 1024
 
 // IsZero lets MessagePack's omitempty distinguish populated Slices from empty ones.
 func (s Slice[T]) IsZero() bool { return s.n == 0 }

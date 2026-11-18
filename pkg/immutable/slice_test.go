@@ -293,11 +293,17 @@ func TestSlice_ModelMatchesPlainSlice(t *testing.T) {
 	var model []int
 	for step := range 2000 {
 		n := len(model)
-		switch op := r.IntN(8); {
+		switch op := r.IntN(9); {
 		case op == 0:
 			v := r.IntN(100)
 			s.Append(v)
 			model = append(model, v)
+		case op == 8:
+			add := r.IntN(10)
+			s.UpdateFunc(func(i, v int) int { return v + i%3 + add })
+			for i := range model {
+				model[i] += i%3 + add
+			}
 		case op == 1 && n > 0:
 			i, v := r.IntN(n), r.IntN(100)
 			s.Set(i, v)
@@ -374,6 +380,9 @@ func TestSlice_Allocations(t *testing.T) {
 		for _, v := range s.All() {
 			sink += v
 		}
+		for i, v := range big.Range(2990, 3100) {
+			sink += i + v
+		}
 	})
 	require.Zero(t, reads, "reads never allocate")
 	require.Zero(t, testing.AllocsPerRun(100, func() { d := s; sink += d.Len() }), "a copy")
@@ -381,6 +390,10 @@ func TestSlice_Allocations(t *testing.T) {
 	require.InDelta(t, 3, testing.AllocsPerRun(100, func() { d := big; d.Set(1000, 9) }), 0,
 		"Set in a 5000-element Slice: the chunk and the two nodes above it")
 	require.InDelta(t, 1, testing.AllocsPerRun(100, func() { d := big; d.Append(9) }), 0, "Append: the last chunk")
+	require.LessOrEqual(t, testing.AllocsPerRun(20, func() {
+		d := big
+		d.UpdateFunc(func(_, v int) int { return v + 1 })
+	}), 5000.0/32+12, "UpdateFunc: one array, a node per 32 elements, the branches and their lists")
 
 	// Each Append copies the last chunk, at most 32 elements, so a loop of appends is linear.
 	loop := testing.AllocsPerRun(100, func() {
@@ -563,4 +576,135 @@ func TestSlice_JSONAsStructField(t *testing.T) {
 			require.Equal(t, in, back)
 		})
 	}
+}
+
+func TestSlice_UpdateFunc(t *testing.T) {
+	t.Parallel()
+
+	for _, n := range []int{0, 1, 31, 32, 33, 64, 65, 1000, 1057} {
+		items := make([]int, n)
+		for i := range items {
+			items[i] = i * 10
+		}
+		s := immutable.SliceOf(items...)
+		before := s
+
+		var seen []int
+		s.UpdateFunc(func(i, v int) int {
+			seen = append(seen, i)
+			return v + 1
+		})
+		want := make([]int, n)
+		for i := range want {
+			want[i] = i*10 + 1
+		}
+		require.Equal(t, want, append([]int{}, collect(s)...), "n=%d: every element updated", n)
+		require.Equal(t, items, append([]int{}, collect(before)...), "n=%d: the copy is unchanged", n)
+		require.Len(t, seen, n, "n=%d: f runs once per element", n)
+		require.True(t, slices.IsSorted(seen), "n=%d: f gets each index in order", n)
+	}
+
+	s := immutable.SliceOf(1, 2, 3)
+	require.Panics(t, func() {
+		s.UpdateFunc(func(i, v int) int {
+			if i == 2 {
+				panic("boom")
+			}
+			return v * 10
+		})
+	})
+	require.Equal(t, []int{1, 2, 3}, collect(s), "a panic in f leaves the Slice unchanged")
+}
+
+// Range must match ranging over s[i:j] with each index offset by i, whether the range sits in the
+// tail, in one leaf, or crosses leaves and levels of the tree.
+func TestSlice_Range(t *testing.T) {
+	t.Parallel()
+	r := testutils.NewRand(t)
+
+	type pair struct {
+		I, V int
+	}
+	for _, n := range []int{0, 1, 31, 32, 33, 64, 65, 100, 1024, 1057, 33*32 + 5} {
+		items := make([]int, n)
+		for i := range items {
+			items[i] = i * 7
+		}
+		s := immutable.SliceOf(items...)
+		check := func(i, j int) {
+			var got []pair
+			for x, v := range s.Range(i, j) {
+				got = append(got, pair{x, v})
+			}
+			var want []pair
+			for x, v := range items[i:j] {
+				want = append(want, pair{i + x, v})
+			}
+			require.Equal(t, want, got, "n=%d: Range(%d, %d)", n, i, j)
+		}
+		if n <= 100 {
+			for i := 0; i <= n; i++ {
+				for j := i; j <= n; j++ {
+					check(i, j)
+				}
+			}
+		} else {
+			for range 300 {
+				i := r.IntN(n + 1)
+				check(i, i+r.IntN(n-i+1))
+			}
+			check(0, n)
+			check(n-1, n)
+		}
+	}
+
+	s := immutable.SliceOf(1, 2, 3, 4)
+	var got []int
+	for _, v := range s.Range(1, 4) {
+		got = append(got, v)
+		if v == 3 {
+			break
+		}
+	}
+	require.Equal(t, []int{2, 3}, got, "the loop stops at break")
+
+	seq := s.Range(0, 2)
+	s.Set(0, 9)
+	require.Equal(t, []int{1, 2}, slices.Collect(func(yield func(int) bool) {
+		for _, v := range seq {
+			if !yield(v) {
+				return
+			}
+		}
+	}), "the iterator reads the Slice as it was when Range was called, and can run twice")
+
+	for _, bad := range [][2]int{{-1, 2}, {0, 5}, {3, 2}} {
+		require.Panics(t, func() {
+			for range s.Range(bad[0], bad[1]) {
+			}
+		}, "Range(%d, %d)", bad[0], bad[1])
+	}
+}
+
+// Decoding writes each element into its place in the array, so it allocates per array growth, and a
+// forged length that promises more elements than arrive fails without a large allocation.
+func TestSlice_DecodeAllocations(t *testing.T) {
+	if raceEnabled {
+		t.Skip("allocation counts are not meaningful under -race")
+	}
+	items := make([]point, 256)
+	for i := range items {
+		items[i] = point{i, -i}
+	}
+	data, err := msgpack.Marshal(immutable.SliceOf(items...))
+	require.NoError(t, err)
+	allocs := testing.AllocsPerRun(20, func() {
+		var s immutable.Slice[point]
+		require.NoError(t, msgpack.Unmarshal(data, &s))
+	})
+	require.Less(t, allocs, 40.0, "decoding 256 elements")
+
+	forged := []byte{0xdd, 0x7f, 0xff, 0xff, 0xff, 0x01} // an array of 2^31-1 elements, holding one
+	var s immutable.Slice[int]
+	require.Error(t, msgpack.Unmarshal(forged, &s))
 }

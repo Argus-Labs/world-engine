@@ -67,6 +67,7 @@ copying, the structure behind Clojure's and Scala's vectors. Code: [vector.go](v
 - **Delete from the end**: shorten the tail, or move the last leaf into the tail, when the deleted
   run starts in the tail or the last leaf.
 - **Delete from the front of a Slice of up to 32 elements**: take a shorter view of the tail.
+- **Range(lo, hi)**: go down to the leaf holding `lo` once, then read leaf by leaf: O(log₃₂ n + k).
 - **Any other insert or delete, sorts**: rebuild. Removing element `i` shifts every later element down
   one position, so every leaf after `i` holds different elements. This is the trie's one weakness:
   the position is the key.
@@ -107,6 +108,11 @@ Code: [map.go](map.go) for the chunks, [mapindex.go](mapindex.go) for the index.
 - **Get**: binary search the keys in each index node on the way down, then within the chunk. O(log n).
 - **Set, Delete**: copy the chunk with the change, re-cut it if a boundary moved, then copy the index
   nodes on the path to it. O(log n) expected.
+- **MaxKey**: follow the last child at every level. O(log n).
+- **Range(lo, hi)**: go down to the chunk holding `lo` once, then step to each next chunk through
+  the path: O(log n + k).
+- **UpdateFunc**: no key changes, so no boundary moves. It copies every chunk into one new array and
+  every index node with the same keys: one pass, no hashing or re-cutting.
 
 **Why sorted.** Iteration and encoding must run in key order so every machine produces the same order
 and bytes. A sorted layout gives that directly, and lets `MapEqual` walk two Maps in one pass.
@@ -178,6 +184,24 @@ Ways around it, none built: a fixed-size array field (`[16]Item` plus a count) f
 lists; inline storage for the first N elements; an edit session that writes nodes it created in place
 (Clojure's transients, .NET's freezable builders, HashiCorp go-immutable-radix's transactions), which
 brings back a second API with an end call.
+
+What the package does instead is bulk edits that rebuild once: `DeleteFunc` and `UpdateFunc` touch
+every element in one pass with about one allocation per chunk, where a loop of `Set` or `Delete`
+calls copies a path per element.
+
+## Which functions exist
+
+The methods mirror Go's `slices` and `maps` where an equivalent exists. A function goes in only when
+it beats what a caller can build from the existing ones in complexity:
+
+- `UpdateFunc`: one O(n) rebuild, where a `Set` per element costs O(n log n).
+- Slice `Range(lo, hi)`: O(log₃₂ n + k), where an `At` per element costs O(k log₃₂ n).
+- Map `MaxKey`: O(log n), where scanning `Keys` to the end costs O(n).
+- Map `Range(lo, hi)`: O(log n + k), where scanning `All` to `lo` costs O(n).
+
+Anything a caller can write at the same cost stays out, even when Go has it: `Min`, `Max`, `Compact`,
+`Concat`, `Replace`, `BinarySearch` (`sort.Search` over `At`), and so on. So do the idioms: removing
+one element by moving the last into its place is a `Set` and a `Delete`, and the README shows it.
 
 ## Rejected designs
 

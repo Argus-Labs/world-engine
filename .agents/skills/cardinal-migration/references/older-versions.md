@@ -42,12 +42,13 @@ before editing (SKILL.md, Before editing). Convert each field, then fix its uses
 `immutable.Slice` hides its storage and is edited like a Go slice, but never writes to
 storage it shares, so an edit reaches the world only through `Set` and `d := c.Items` is a
 free, real copy. Build with
-`immutable.SliceOf(xs...)`. Read with `Len`, `At`, `All`, `Values`, `IndexFunc`. Edit with
-`Set`, `Append`, `Insert`, `Delete`, `DeleteFunc`, `Reset`, `SortStableFunc`, `Reverse`,
+`immutable.SliceOf(xs...)`. Read with `Len`, `At`, `All`, `Values`, `Range`, `IndexFunc`. Edit with
+`Set`, `Append`, `Insert`, `Delete`, `DeleteFunc`, `UpdateFunc`, `Reset`, `SortStableFunc`,
+`Reverse`,
 then `e.Set(c)`. Old derivations map as: `c.Items = c.Items.With(i, x)` becomes
 `c.Items.Set(i, x)`, `Filter(keep)` becomes `DeleteFunc` with the test inverted, `Reversed`
 becomes `Reverse`, `SortedFunc` becomes `SortStableFunc`, and `Sub(i, j)` becomes
-`Delete(j, Len())` then `Delete(0, i)`. The `immutable.Map` function, `Concat`, `Chunk`, `Repeat`, `Replace`,
+`Delete(j, Len())` then `Delete(0, i)`, or `Range(i, j)` to only read it. The `immutable.Map` function, `Concat`, `Chunk`, `Repeat`, `Replace`,
 `Compact` and `Min`/`Max` are gone; use a loop or `slices` on `slices.Collect(s.Values())`.
 `immutable.Map` now names the Map type, so a leftover `immutable.Map(s, f)` call fails with
 a "cannot use generic type immutable.Map … without instantiation" error rather than "undefined".
@@ -55,7 +56,7 @@ A `for i := range c.Items` over the old slice becomes `for i, x := range c.Items
 
 `immutable.Map[K, V]` is the same for a lookup table, edited like a Go map and safe to
 copy the same way: build with `immutable.MapFrom(maps.All(goMap))`, read with `Get`,
-`Has`, `All`, edit with `Set`, `Delete`, `DeleteFunc`, `Clear`, then `e.Set(c)`. A Go map
+`Has`, `All`, `MaxKey`, `Range`, edit with `Set`, `Delete`, `DeleteFunc`, `UpdateFunc`, `Clear`, then `e.Set(c)`. A Go map
 maps as: `v, ok := m[k]` becomes `m.Get(k)`, `m[k] = v` becomes `m.Set(k, v)`, `delete(m, k)`
 becomes `m.Delete(k)`, `clear(m)` becomes `m.Clear()`, and `for k, v := range m` becomes
 `for k, v := range m.All()`, in key order. Setting and deleting keys inside that loop is safe; the

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/immutable"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // These benchmarks model how Cardinal uses the collections: a component is taken out of its column,
@@ -106,6 +107,42 @@ func BenchmarkSlice(b *testing.B) {
 				sinkSlice = s
 			}
 		})
+		b.Run(fmt.Sprintf("UpdateFunc/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				s := stored
+				s.UpdateFunc(func(_ int, it benchItem) benchItem {
+					it.Qty++
+					return it
+				})
+				sinkSlice = s
+			}
+		})
+		b.Run(fmt.Sprintf("DeleteMiddle/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				s := stored
+				s.Delete(n/2, n/2+1)
+				sinkSlice = s
+			}
+		})
+		b.Run(fmt.Sprintf("ReadLast64At/%d", n), func(b *testing.B) {
+			lo := max(0, n-64)
+			for b.Loop() {
+				var sum int64
+				for i := lo; i < n; i++ {
+					sum += stored.At(i).ID
+				}
+				sinkInt = sum
+			}
+		})
+		b.Run(fmt.Sprintf("ReadLast64Range/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				var sum int64
+				for _, it := range stored.Range(max(0, n-64), n) {
+					sum += it.ID
+				}
+				sinkInt = sum
+			}
+		})
 		b.Run(fmt.Sprintf("ReadAll/%d", n), func(b *testing.B) {
 			for b.Loop() {
 				var sum int64
@@ -156,11 +193,47 @@ func BenchmarkMap(b *testing.B) {
 				sinkMap = m
 			}
 		})
+		b.Run(fmt.Sprintf("UpdateFunc/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				m := stored
+				m.UpdateFunc(func(_ int, v benchItem) benchItem {
+					v.Qty++
+					return v
+				})
+				sinkMap = m
+			}
+		})
 		b.Run(fmt.Sprintf("DeleteHalf/%d", n), func(b *testing.B) {
 			for b.Loop() {
 				m := stored
 				m.DeleteFunc(func(k int, _ benchItem) bool { return k%2 == 0 })
 				sinkMap = m
+			}
+		})
+		b.Run(fmt.Sprintf("MaxKey/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				k, _ := stored.MaxKey()
+				sinkInt = int64(k)
+			}
+		})
+		b.Run(fmt.Sprintf("ReadLast64Range/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				var sum int64
+				for _, v := range stored.Range(n-64, n) {
+					sum += v.ID
+				}
+				sinkInt = sum
+			}
+		})
+		b.Run(fmt.Sprintf("ReadLast64Scan/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				var sum int64
+				for k, v := range stored.All() {
+					if k >= n-64 {
+						sum += v.ID
+					}
+				}
+				sinkInt = sum
 			}
 		})
 		b.Run(fmt.Sprintf("GetAll/%d", n), func(b *testing.B) {
@@ -218,4 +291,38 @@ func benchMapInt(n int) (immutable.Map[int, int64], []int) {
 		}
 	})
 	return m, keys
+}
+
+// BenchmarkDecode decodes a Slice and a Map from MessagePack, as a command carrying one arrives or a
+// snapshot restores.
+func BenchmarkDecode(b *testing.B) {
+	for _, n := range benchSizes {
+		sliceBytes, err := msgpack.Marshal(benchSlice(n))
+		if err != nil {
+			b.Fatal(err)
+		}
+		stored, _ := benchMap(n)
+		mapBytes, err := msgpack.Marshal(stored)
+		if err != nil {
+			b.Fatal(err)
+		}
+		b.Run(fmt.Sprintf("Slice/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				var s immutable.Slice[benchItem]
+				if err := msgpack.Unmarshal(sliceBytes, &s); err != nil {
+					b.Fatal(err)
+				}
+				sinkSlice = s
+			}
+		})
+		b.Run(fmt.Sprintf("Map/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				var m immutable.Map[int, benchItem]
+				if err := msgpack.Unmarshal(mapBytes, &m); err != nil {
+					b.Fatal(err)
+				}
+				sinkMap = m
+			}
+		})
+	}
 }
