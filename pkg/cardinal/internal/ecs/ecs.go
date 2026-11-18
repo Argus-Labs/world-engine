@@ -164,5 +164,6 @@ func (w *World) GetSystemEvents[T SystemEvent]() ([]T, error) {
 }
 
 func (w *World) EmitSystemEvent[T SystemEvent](systemEvent T) error {
+	w.state.guardWrite("EmitSystemEvent")
 	return w.systemEvents.enqueue(systemEvent)
 }

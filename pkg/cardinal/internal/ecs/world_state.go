@@ -26,12 +26,17 @@ const voidArchetypeID = 0
 
 // worldState holds the state of the world.
 type worldState struct {
-	components componentManager // Component type manager
-	nextID     EntityID         // Entity ID counter
-	free       []EntityID       // Free entity IDs to reuse
-	entityArch sparseSet
-	archetypes []*archetype // Array of archetypes
-	mu         sync.Mutex
+	components      componentManager // Component type manager
+	nextID          EntityID         // Entity ID counter
+	free            []EntityID       // Free entity IDs to reuse
+	entityArch      sparseSet
+	archetypes      []*archetype // Array of archetypes
+	mu              sync.Mutex
+	observers       []func(Mutation) // Told of every committed change, in registration order
+	readOnly        string           // Who must not write to the world right now; "" allows writes. See ReadOnly.
+	session         string
+	incarnations    map[EntityID]uint64
+	nextIncarnation uint64
 }
 
 // newWorldState creates a new world state.
@@ -52,9 +57,12 @@ func newWorldState() *worldState {
 
 // reset clears all entity data while preserving registered components.
 func (ws *worldState) reset() {
+	ws.guardWrite("Reset")
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 
+	ws.notify(Mutation{Kind: Reset})
+	clear(ws.incarnations)
 	ws.nextID = 0
 	ws.free = ws.free[:0]
 	ws.entityArch.clear()
@@ -69,6 +77,7 @@ func (ws *worldState) reset() {
 
 // newEntity creates a new entity of the void archetype in the world state. Returns the entity ID.
 func (ws *worldState) newEntity() EntityID {
+	ws.guardWrite("Create")
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 
@@ -88,6 +97,7 @@ func (ws *worldState) newEntity() EntityID {
 
 	// Update the entity archetype mapping.
 	ws.entityArch.set(eid, voidArchetypeID)
+	ws.born(eid)
 
 	return eid
 }
@@ -104,6 +114,7 @@ func (ws *worldState) newEntityWithArchetype(components bitmap.Bitmap) EntityID 
 // removeEntity removes an entity from the world state. Returns true if the entity is removed, false
 // if the entity doesn't exist.
 func (ws *worldState) removeEntity(eid EntityID) bool {
+	ws.guardWrite("Destroy")
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 
@@ -111,6 +122,9 @@ func (ws *worldState) removeEntity(eid EntityID) bool {
 	if !exists {
 		return false
 	}
+
+	ws.notify(Mutation{Entity: eid, Kind: Destroyed})
+	delete(ws.incarnations, eid)
 
 	// Remove the entity from the archetype.
 	archetype := ws.archetypes[aid]
@@ -181,6 +195,18 @@ func (ws *worldState) moveEntity(eid EntityID, newComponents bitmap.Bitmap) {
 
 	// Update the archetype mapping.
 	ws.entityArch.set(eid, newAid)
+	if len(ws.observers) != 0 {
+		oldArchetype.components.Range(func(cid uint32) {
+			if !newComponents.Contains(cid) {
+				ws.notify(Mutation{Entity: eid, Component: cid, Kind: ComponentRemoved})
+			}
+		})
+		newComponents.Range(func(cid uint32) {
+			if !oldArchetype.components.Contains(cid) {
+				ws.notify(Mutation{Entity: eid, Component: cid, Kind: ComponentAdded})
+			}
+		})
+	}
 }
 
 // findOrCreateArchetype finds an existing archetype that matches the given components or creates a
@@ -211,6 +237,7 @@ func (ws *worldState) findOrCreateArchetype(components bitmap.Bitmap) archetypeI
 // If the entity's archetype contains the component type, this will update the value. If it doesn't,
 // it will move the entity to a new archetype and set the value there.
 func (ws *worldState) setComponent[T Component](eid EntityID, component T) error {
+	ws.guardWrite("Set")
 	aid, exists := ws.entityArch.get(eid)
 	if !exists {
 		return eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
@@ -247,6 +274,7 @@ func (ws *worldState) setComponent[T Component](eid EntityID, component T) error
 	row, exists := archetype.rows.get(eid)
 	assert.That(exists, "entity should have a row in its archetype")
 	column.set(row, component)
+	ws.notify(Mutation{Entity: eid, Component: cid, Kind: ComponentSet})
 	return nil
 }
 
@@ -285,6 +313,7 @@ func (ws *worldState) getComponent[T Component](eid EntityID) (T, error) {
 // removeComponent removes a component from the given entity. Returns an error if the entity or the
 // component to remove doesn't exist.
 func (ws *worldState) removeComponent[T Component](eid EntityID) error {
+	ws.guardWrite("Remove")
 	var zero T
 
 	aid, exists := ws.entityArch.get(eid)
@@ -365,6 +394,7 @@ const invalidComponentID ComponentID = maxComponentID + 1
 // fromProto rebuilds the worldState from a decoded snapshot. It builds a new state first and
 // commits it at the end. Thus a bad snapshot does not change the live world.
 func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
+	ws.guardWrite("FromProto")
 	if pb == nil {
 		return eris.New("snapshot has no world state")
 	}
@@ -433,7 +463,21 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 
 	// Commit the new state. The component registry and mutex do not change.
 	ws.nextID, ws.free, ws.entityArch, ws.archetypes = next.nextID, next.free, next.entityArch, next.archetypes
+	ws.observeRestore(pb.GetEntities())
 	return nil
+}
+
+// observeRestore tells the observer that the world was replaced, then gives every restored
+// entity a new lifetime.
+func (ws *worldState) observeRestore(entities []*cardinalv1.Entity) {
+	if len(ws.observers) == 0 {
+		return
+	}
+	ws.notify(Mutation{Kind: Reset})
+	clear(ws.incarnations)
+	for _, ent := range entities {
+		ws.born(EntityID(ent.GetId()))
+	}
 }
 
 // restoreEntity creates one entity in the archetype for its component set. It decodes the

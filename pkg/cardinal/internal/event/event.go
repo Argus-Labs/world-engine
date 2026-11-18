@@ -12,9 +12,24 @@ import (
 
 // Event represents an event emitted from a system.
 type Event struct {
-	Kind      Kind   // The event kind
-	Payload   any    // The event payload itself
-	Recipient string // Empty recipient means broadcast to all matching subscribers; non-empty targets a single user
+	Kind      Kind     // The event kind
+	Payload   any      // The event payload itself
+	Recipient string   // Empty recipient means broadcast to all matching subscribers; non-empty targets a single user
+	Audience  Audience // Narrows the recipients of a default event; nil keeps the default delivery
+}
+
+// Audience narrows who receives a default event. It is asked at dispatch, on the tick goroutine
+// and with no lock held, once for each recipient the event would otherwise reach.
+type Audience interface {
+	// Admits reports whether player may receive the event on stream, the open stream it would be
+	// written to. stream is nil when the player is waiting for the event as a command's reply.
+	Admits(player string, stream Stream) bool
+}
+
+// Stream is an open event stream an Audience is asked about. An audience only compares streams
+// for identity. Cardinal's stream subscriber is the one implementation.
+type Stream interface {
+	EventStream()
 }
 
 // Payload is the interface all default event payloads must implement.
@@ -28,6 +43,7 @@ type Kind uint8
 const (
 	KindDefault           Kind = 0 // The default event type
 	KindInterShardCommand Kind = 1 // Inter-shard commands
+	KindSync              Kind = 2 // Sync log items: commits, then reader opens and closes
 )
 
 // Handler is a function called to handle emitted events. ctx carries the dispatching tick's span.

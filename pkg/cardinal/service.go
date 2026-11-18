@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
+	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
 	"github.com/argus-labs/world-engine/pkg/micro"
 	"github.com/argus-labs/world-engine/pkg/telemetry/trace"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
@@ -53,10 +55,10 @@ type service struct {
 var _ cardinalv1connect.CardinalServiceHandler = (*service)(nil)
 
 // newService creates a new direct client-facing Cardinal service.
-func newService(world *World, authMode AuthMode, argusAuthURL string) *service {
+func newService(w *World, authMode AuthMode, argusAuthURL string) *service {
 	return &service{
-		world:        world,
-		log:          world.tel.GetLogger("service"),
+		world:        w,
+		log:          w.tel.GetLogger("service"),
 		authMode:     authMode,
 		argusAuthURL: argusAuthURL,
 		commands:     make(map[string]struct{}),
@@ -122,12 +124,7 @@ func (s *service) init(address string) error {
 		return err
 	}
 
-	s.server = &http.Server{
-		Addr:              address,
-		Handler:           mux,
-		ReadHeaderTimeout: 10 * time.Second,
-		Protocols:         h2cProtocols(),
-	}
+	s.server = newHTTPServer(address, mux)
 
 	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", address)
 	if err != nil {
@@ -142,6 +139,50 @@ func (s *service) init(address string) error {
 
 	return nil
 }
+
+// A client can vanish without closing its connection: a phone leaves coverage, a frozen app keeps
+// its socket. Cancelling its streams does not release their handlers, because each stream's reset
+// has to be written to that same connection (see withStreamWriteDeadline). So the server closes an
+// HTTP/2 connection that stops working, and every handler on it returns.
+const (
+	// connWriteTimeout closes a connection whose pending writes make no progress for this long.
+	// Every byte written restarts it, so a slow reader that keeps reading is never closed by it. It
+	// is twice a stream's own teardown (streamLagLimit + streamTeardownGrace), so a stream that lags
+	// on a stalled connection is ended by its lag limit first, and its end can still reach a client
+	// whose connection recovers.
+	connWriteTimeout = 2 * (streamLagLimit + streamTeardownGrace)
+	// connPingAfter is how long a connection may go without sending the server a frame before the
+	// server pings it. A client that reads sends flow-control updates, so mostly idle connections
+	// are pinged.
+	connPingAfter = 10 * time.Second
+	// connPingTimeout closes a connection that has not answered a ping for this long. The client's
+	// HTTP/2 stack answers, not the game, and the server sends the ping ahead of its queued data, so
+	// this covers several TCP retransmissions on a poor link. A dead idle client is kept connPingAfter +
+	// connPingTimeout after its last frame.
+	connPingTimeout = 20 * time.Second
+)
+
+// newHTTPServer returns the client-facing server for handler, before it serves.
+func newHTTPServer(address string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              address,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		Protocols:         h2cProtocols(),
+		HTTP2: &http.HTTP2Config{
+			WriteByteTimeout: connWriteTimeout,
+			SendPingTimeout:  connPingAfter,
+			PingTimeout:      connPingTimeout,
+		},
+	}
+}
+
+// compressMinBytes is the smallest response the Cardinal service compresses for a client that
+// accepts gzip. Each message is compressed on its own, so gzip's fixed cost of about 20 bytes
+// outweighs what it finds in a small one: on world_sync frames measured under load, gzip made
+// frames under 64 bytes 1.5 times larger and left those of 128 to 255 bytes the same size, while
+// it shrank deltas of a few KiB by a third or more and baselines by three quarters.
+const compressMinBytes = 256
 
 // newMux returns the client-facing handler: the Cardinal service behind authenticate, plus the
 // debug service when enabled.
@@ -158,6 +199,7 @@ func (s *service) newMux(authenticate authn.AuthFunc) (*http.ServeMux, error) {
 			otelInterceptor,
 			validateInterceptor,
 		),
+		connect.WithCompressMinBytes(compressMinBytes),
 	)
 	mux := http.NewServeMux()
 	mux.Handle(cardinalPath, withStreamWriteDeadline(authn.NewMiddleware(authenticate).Wrap(cardinalHandler)))
@@ -220,32 +262,43 @@ func (s *service) registerCommandHandler(name string) {
 // -------------------------------------------------------------------------------------------------
 
 type streamSubscriber struct {
+	player string // Whose stream this is. Set by addSubscriber, before the stream can be found.
 	ctx    context.Context
 	cancel context.CancelCauseFunc // Ends the stream's handler; the cause says why (superseded, lagged).
 	events map[string]struct{}     // Guarded by service.mu.
 	stream *connect.ServerStream[cardinalv1.StartEventStreamResponse]
 	lagged *time.Timer // Armed during each write; ends the stream as lagged when it fires.
 
+	// Counts world_sync subscriptions, so the tick can tell a fresh one from the one its sync
+	// stream was opened for. Guarded by service.mu.
+	syncGeneration uint64
+
 	// Events waiting for the stream's handler, its only writer, which drains them in order.
 	queueMu     sync.Mutex
 	queue       []queuedEvent // Guarded by queueMu.
-	queuedBytes int           // Guarded by queueMu. Counts events until they are written.
+	queuedBytes int           // Guarded by queueMu. Counts events until the writer takes them.
 	queueReady  chan struct{} // Signalled after each enqueue; capacity 1.
 }
 
 type queuedEvent struct {
 	response *cardinalv1.StartEventStreamResponse
 	queuedAt time.Time
-	size     int // Charged against streamQueueBytes until written.
+	size     int // Charged against streamQueueBytes until the writer takes it.
 }
 
 // enqueue hands an event of size bytes to the stream's writer without blocking. A stream already
 // holding streamQueueBytes of unwritten events ends as lagged instead, so a stopped reader cannot
 // grow without bound. A reader that is merely behind a large tick is ended by age, not by this
-// limit: see streamLagLimit.
+// limit: see streamLagLimit. A cancelled stream takes nothing: see dropQueue.
 func (s *streamSubscriber) enqueue(response *cardinalv1.StartEventStreamResponse, size int) error {
 	size += queuedEventOverhead
 	s.queueMu.Lock()
+	select {
+	case <-s.ctx.Done():
+		s.queueMu.Unlock()
+		return nil
+	default:
+	}
 	if s.queuedBytes+size > streamQueueBytes {
 		s.queueMu.Unlock()
 		s.cancel(errStreamLagged)
@@ -262,26 +315,44 @@ func (s *streamSubscriber) enqueue(response *cardinalv1.StartEventStreamResponse
 	return nil
 }
 
-// writeQueued writes every waiting event, oldest first, releasing each one's charge once written.
-// It stops at a failed write, or once the stream is cancelled, leaving the rest unwritten.
-func (s *streamSubscriber) writeQueued() error {
+// dropQueue releases every waiting event; it runs once the stream is cancelled, for any reason.
+// Nothing more is written to the stream, but its handler can stay blocked in a write for as long as
+// its connection lives, so it holds only the event it is writing.
+func (s *streamSubscriber) dropQueue() {
 	s.queueMu.Lock()
-	queued := s.queue
-	s.queue = nil
-	s.queueMu.Unlock()
+	defer s.queueMu.Unlock()
+	s.queue, s.queuedBytes = nil, 0
+}
 
-	for _, evt := range queued {
+// writeQueued writes every waiting event, oldest first, taking one at a time. It stops at a failed
+// write, or once the stream is cancelled.
+func (s *streamSubscriber) writeQueued() error {
+	for {
+		evt, ok := s.dequeue()
+		if !ok {
+			return nil
+		}
 		if s.ctx.Err() != nil { // Superseded, lagged, or closed.
 			return streamEndError(s.ctx)
 		}
 		if err := s.write(evt.response, evt.queuedAt); err != nil {
 			return err
 		}
-		s.queueMu.Lock()
-		s.queuedBytes -= evt.size
-		s.queueMu.Unlock()
 	}
-	return nil
+}
+
+// dequeue takes the oldest waiting event and releases its charge.
+func (s *streamSubscriber) dequeue() (queuedEvent, bool) {
+	s.queueMu.Lock()
+	defer s.queueMu.Unlock()
+	if len(s.queue) == 0 {
+		return queuedEvent{}, false
+	}
+	evt := s.queue[0]
+	s.queue[0] = queuedEvent{} // The queue no longer holds it.
+	s.queue = s.queue[1:]
+	s.queuedBytes -= evt.size
+	return evt, true
 }
 
 // write sends one response; only the stream's handler calls it. A write still pending
@@ -474,6 +545,7 @@ func (s *service) StartEventStream(
 	}
 	subscriber.lagged.Stop()
 	defer subscriber.lagged.Stop()
+	context.AfterFunc(ctx, subscriber.dropQueue)
 	addSubscriptions(subscriber, req.Msg.GetSubscriptions())
 	s.addSubscriber(player.ID, subscriber)
 	defer s.removeSubscriber(player.ID, subscriber)
@@ -564,8 +636,9 @@ func (s *service) updateSubscriptions(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// A cancelled stream stays registered until its handler returns, but it is no longer established.
 	subscriber, ok := s.subscribers[player.ID]
-	if !ok {
+	if !ok || subscriber.ctx.Err() != nil {
 		return connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
 	}
 	update(subscriber, subscriptions)
@@ -580,6 +653,7 @@ func (s *service) addSubscriber(playerID string, subscriber *streamSubscriber) {
 	if previous, ok := s.subscribers[playerID]; ok {
 		previous.cancel(errStreamSuperseded)
 	}
+	subscriber.player = playerID
 	s.subscribers[playerID] = subscriber
 }
 
@@ -597,6 +671,9 @@ func (s *service) removeSubscriber(playerID string, subscriber *streamSubscriber
 func addSubscriptions(subscriber *streamSubscriber, subscriptions []*cardinalv1.EventSubscription) {
 	for _, subscription := range subscriptions {
 		for _, eventName := range subscription.GetEvents() {
+			if _, exists := subscriber.events[eventName]; !exists && eventName == syncstate.EventName {
+				subscriber.syncGeneration++
+			}
 			subscriber.events[eventName] = struct{}{}
 		}
 	}
@@ -648,51 +725,63 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 		Payload: payloadPb,
 	}
 
+	// Read who the event could reach under the lock, and ask its audience only once the lock is
+	// released: an audience runs game code, which must not hold up streams that are subscribing
+	// or leaving.
+	var (
+		subscribers []*streamSubscriber // Streams subscribed to the event
+		recipient   *streamSubscriber   // A targeted event's stream, subscribed or not
+		waiters     []replyWaiter
+	)
 	s.mu.RLock()
-	var subscribers []*streamSubscriber
-	//nolint:nestif // It's fine
+	// A targeted reply resolves only its recipient's waiters. A broadcast is visible to every
+	// player, so it resolves every waiter for the event name.
 	if evt.Recipient != "" {
-		if subscriber, exists := s.subscribers[evt.Recipient]; exists {
-			for subscription := range subscriber.events {
-				if matchesEvent(subscription, eventPb.GetName()) {
-					subscribers = []*streamSubscriber{subscriber}
-					break
-				}
-			}
-		} else {
-			s.log.Debug().
-				Str("recipient", evt.Recipient).
-				Str("event", eventPb.GetName()).
-				Msg("recipient has no open stream")
+		recipient = s.subscribers[evt.Recipient]
+		if recipient != nil && recipient.subscribedTo(eventPb.GetName()) {
+			subscribers = []*streamSubscriber{recipient}
+		}
+		for _, reply := range s.replyWaiters[eventPb.GetName()][evt.Recipient] {
+			waiters = append(waiters, replyWaiter{evt.Recipient, reply})
 		}
 	} else {
 		subscribers = make([]*streamSubscriber, 0, len(s.subscribers))
 		for _, subscriber := range s.subscribers {
-			for subscription := range subscriber.events {
-				if matchesEvent(subscription, eventPb.GetName()) {
-					subscribers = append(subscribers, subscriber)
-					break
-				}
+			if subscriber.subscribedTo(eventPb.GetName()) {
+				subscribers = append(subscribers, subscriber)
+			}
+		}
+		for player, replies := range s.replyWaiters[eventPb.GetName()] {
+			for _, reply := range replies {
+				waiters = append(waiters, replyWaiter{player, reply})
 			}
 		}
 	}
-	// A targeted reply resolves only its recipient's waiters. A broadcast is visible to every
-	// player, so it resolves every waiter for the event name.
-	var waiters []chan *iscv1.Event
-	if evt.Recipient != "" {
-		waiters = append(waiters, s.replyWaiters[eventPb.GetName()][evt.Recipient]...)
-	} else {
-		for _, playerWaiters := range s.replyWaiters[eventPb.GetName()] {
-			waiters = append(waiters, playerWaiters...)
-		}
-	}
 	s.mu.RUnlock()
+
+	if evt.Recipient != "" && (recipient == nil || !admits(evt.Audience, evt.Recipient, recipient)) {
+		subscribers = nil
+		s.log.Debug().
+			Str("recipient", evt.Recipient).
+			Str("event", eventPb.GetName()).
+			Msg("recipient has no open stream")
+	}
+	if evt.Audience != nil {
+		if evt.Recipient == "" {
+			subscribers = slices.DeleteFunc(subscribers, func(subscriber *streamSubscriber) bool {
+				return !evt.Audience.Admits(subscriber.player, subscriber)
+			})
+		}
+		waiters = slices.DeleteFunc(waiters, func(w replyWaiter) bool {
+			return !evt.Audience.Admits(w.player, nil)
+		})
+	}
 	span.SetAttributes(attrEventSubscribers.Int(len(subscribers)), attrEventWaiters.Int(len(waiters)))
 
 	// Send events for SendCommandWithReply channels.
 	for _, waiter := range waiters {
 		select {
-		case waiter <- eventPb:
+		case waiter.reply <- eventPb:
 		default:
 		}
 	}
@@ -726,6 +815,31 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 	return nil
 }
 
+// replyWaiter is one SendCommandWithReply call waiting for an event, and the player who made it.
+type replyWaiter struct {
+	player string
+	reply  chan *iscv1.Event
+}
+
+// admits reports whether audience lets player receive an event on stream. A nil audience admits
+// everyone.
+func admits(audience event.Audience, player string, stream *streamSubscriber) bool {
+	return audience == nil || audience.Admits(player, stream)
+}
+
+// EventStream makes the subscriber the event.Stream audiences are asked about.
+func (*streamSubscriber) EventStream() {}
+
+// subscribedTo reports whether the stream asked for the named event. Requires service.mu.
+func (s *streamSubscriber) subscribedTo(eventName string) bool {
+	for subscription := range s.events {
+		if matchesEvent(subscription, eventName) {
+			return true
+		}
+	}
+	return false
+}
+
 func matchesEvent(subscription string, eventName string) bool {
 	return subscription == eventName ||
 		subscription == "*" ||
@@ -745,7 +859,8 @@ func matchesEvent(subscription string, eventName string) bool {
 // the HTTP/2 server then resets the stream (RST_STREAM) and every blocked or later write on it
 // fails. Over HTTP/1.1 the deadline applies to the connection, so every write on it fails.
 // A client whose whole TCP connection is stalled is not covered: the reset frame itself cannot be
-// written, so only the connection's own failure releases the writes.
+// written, so only the connection's failure releases the writes. The server closes such a
+// connection after connWriteTimeout, or connPingAfter + connPingTimeout once it falls silent.
 
 type streamWriteDeadlineKey struct{}
 

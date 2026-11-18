@@ -1,6 +1,9 @@
 package cardinal
 
-import "github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
+import (
+	"github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
+	syncstate "github.com/argus-labs/world-engine/pkg/cardinal/sync"
+)
 
 // Entity is a runtime handle to an entity in one world. Store ID() in components,
 // commands, and snapshots, then bind that ID with World.Entity when needed.
@@ -50,3 +53,13 @@ func (e Entity) Remove[T ecs.Component]() {
 
 // Destroy removes the entity and all its components. It returns false if absent.
 func (e Entity) Destroy() bool { return e.world != nil && e.world.Destroy(e.id) }
+
+// SyncID returns this entity's current lifetime for spawn and occurrence messages.
+// Sync must be enabled before entities are created. Never retain this handle after destruction.
+func (e Entity) SyncID() syncstate.ID {
+	if e.world == nil {
+		return syncstate.ID{}
+	}
+	session, incarnation := e.world.Identity(e.id)
+	return syncstate.ID{Session: session, Entity: uint32(e.id), Incarnation: incarnation}
+}
