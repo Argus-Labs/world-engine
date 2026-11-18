@@ -776,3 +776,21 @@ func TestSlice_EqualSkipsSharedStorage(t *testing.T) {
 	require.True(t, immutable.Equal(nan, nanCopy))
 	require.False(t, immutable.Equal(nan, immutable.SliceOf(math.NaN())))
 }
+
+// Go may give separately allocated zero-size elements the same address, so that must not count as
+// shared storage: eq still runs for Slices built separately.
+func TestSlice_EqualFuncCallsEqForZeroSizeElements(t *testing.T) {
+	t.Parallel()
+
+	for _, n := range []int{1, 5, 100} {
+		a := immutable.SliceOf(make([]struct{}, n)...)
+		b := immutable.SliceOf(make([]struct{}, n)...)
+		calls := 0
+		require.True(t, a.EqualFunc(b, func(struct{}, struct{}) bool {
+			calls++
+			return true
+		}))
+		require.Equal(t, n, calls, "n=%d: every element compared", n)
+		require.False(t, a.EqualFunc(b, func(struct{}, struct{}) bool { return false }), "n=%d", n)
+	}
+}

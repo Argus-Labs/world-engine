@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/goccy/go-json"
 	"github.com/rotisserie/eris"
@@ -208,9 +209,10 @@ func vnodesEqual[T any](a, b *vnode[T], shift uint, eq func(a, b T) bool) bool {
 	return true
 }
 
-// itemsEqual compares two chunks of the same length.
+// itemsEqual compares two chunks of the same length. The same first address means shared storage,
+// except for a zero-size element type, where Go may give separate allocations the same address.
 func itemsEqual[T any](a, b []T, eq func(a, b T) bool) bool {
-	if len(a) == 0 || &a[0] == &b[0] {
+	if len(a) == 0 || unsafe.Sizeof(a[0]) != 0 && &a[0] == &b[0] {
 		return true
 	}
 	for i := range a {
