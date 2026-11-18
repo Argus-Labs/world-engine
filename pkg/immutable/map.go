@@ -338,7 +338,7 @@ func (m *Map[K, V]) DeleteFunc(del func(K, V) bool) {
 		}
 	}
 	if deleted {
-		*m = mapFromSorted(kept)
+		*m = mapFromSorted(shrink(kept))
 	}
 }
 
@@ -558,12 +558,19 @@ func (m Map[K, V]) EncodeMsgpack(enc *msgpack.Encoder) error {
 	if err := enc.EncodeMapLen(m.n); err != nil {
 		return eris.Wrap(err, "failed to encode immutable map length")
 	}
-	for k, v := range m.All() {
-		if err := enc.Encode(k); err != nil {
-			return eris.Wrap(err, "failed to encode immutable map key")
-		}
-		if err := enc.Encode(v); err != nil {
-			return eris.Wrap(err, "failed to encode immutable map value")
+	// As in Slice.EncodeMsgpack: encode a reused copy by address, one allocation instead of two per
+	// entry, with the same bytes.
+	var e entry[K, V]
+	key, val := reflect.ValueOf(&e.k).Elem(), reflect.ValueOf(&e.v).Elem()
+	for c := range m.allChunks() {
+		for i := range c {
+			e = c[i]
+			if err := enc.EncodeValue(key); err != nil {
+				return eris.Wrap(err, "failed to encode immutable map key")
+			}
+			if err := enc.EncodeValue(val); err != nil {
+				return eris.Wrap(err, "failed to encode immutable map value")
+			}
 		}
 	}
 	return nil

@@ -353,8 +353,18 @@ func (s *Slice[T]) DeleteFunc(del func(T) bool) {
 		}
 	}
 	if deleted {
-		*s = fromItems(kept)
+		*s = fromItems(shrink(kept))
 	}
+}
+
+// shrink returns kept, or a copy of it when it uses less than half its array. The result's chunks
+// are windows onto the array, so without the copy a few survivors of a large DeleteFunc would keep
+// the whole array alive.
+func shrink[T any](kept []T) []T {
+	if cap(kept) > 2*len(kept) {
+		return slices.Clone(kept)
+	}
+	return kept
 }
 
 // UpdateFunc replaces each element v at index i with f(i, v), in order. It rebuilds the Slice once,
@@ -519,9 +529,18 @@ func (s Slice[T]) EncodeMsgpack(enc *msgpack.Encoder) error {
 	if err := enc.EncodeArrayLen(s.n); err != nil {
 		return eris.Wrap(err, "failed to encode immutable slice length")
 	}
-	for item := range s.Values() {
-		if err := enc.Encode(item); err != nil {
-			return eris.Wrap(err, "failed to encode immutable slice element")
+	// Encode(item) boxes each element into an interface, an allocation per element. EncodeValue on
+	// one reused variable reaches the same encoders, so the bytes are the same, and allocates once.
+	// It encodes a copy rather than the element in place, so an encoder with a pointer receiver
+	// cannot write into storage other Slices share.
+	var item T
+	rv := reflect.ValueOf(&item).Elem()
+	for c := range s.chunks() {
+		for i := range c {
+			item = c[i]
+			if err := enc.EncodeValue(rv); err != nil {
+				return eris.Wrap(err, "failed to encode immutable slice element")
+			}
 		}
 	}
 	return nil

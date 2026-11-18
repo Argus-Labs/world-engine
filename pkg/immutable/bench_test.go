@@ -403,3 +403,30 @@ func BenchmarkSort(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkEncode encodes a Slice and a Map to MessagePack, as an event carrying one or a snapshot
+// does.
+func BenchmarkEncode(b *testing.B) {
+	for _, n := range benchSizes {
+		s := benchSlice(n)
+		m, _ := benchMap(n)
+		b.Run(fmt.Sprintf("Slice/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				data, err := msgpack.Marshal(s)
+				if err != nil {
+					b.Fatal(err)
+				}
+				sinkInt += int64(len(data))
+			}
+		})
+		b.Run(fmt.Sprintf("Map/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				data, err := msgpack.Marshal(m)
+				if err != nil {
+					b.Fatal(err)
+				}
+				sinkInt += int64(len(data))
+			}
+		})
+	}
+}
