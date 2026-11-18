@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"maps"
+	"math"
 	"reflect"
 	"slices"
 	"testing"
@@ -711,4 +712,54 @@ func TestMap_Allocations(t *testing.T) {
 	// (about 2000 to 2900). The bound is the structural one: a chunk and two index nodes per key.
 	assert.LessOrEqual(t, loop, 3*1024.0, "1024 new keys: a chunk and the index path to it each")
 	_ = sink
+}
+
+// Shared storage counts as equal without calling eq, as for Slice.
+func TestMap_EqualSkipsSharedStorage(t *testing.T) {
+	t.Parallel()
+
+	model := map[int]int{}
+	for k := range 5000 {
+		model[k*3] = k
+	}
+	big := immutable.MapFrom(maps.All(model))
+	calls := 0
+	eq := func(a, b int) bool {
+		calls++
+		return a == b
+	}
+	equal := func(a, b immutable.Map[int, int]) (bool, int) {
+		calls = 0
+		return a.EqualFunc(b, eq), calls
+	}
+
+	cp := big
+	ok, n := equal(big, cp)
+	require.True(t, ok)
+	require.Zero(t, n, "an unchanged copy shares everything")
+
+	cp.Set(3000, 1000) // same value, new chunk
+	ok, n = equal(big, cp)
+	require.True(t, ok)
+	require.Positive(t, n)
+	require.LessOrEqual(t, n, 128, "only the edited chunk is compared")
+
+	cp.Set(3000, -1)
+	ok, _ = equal(big, cp)
+	require.False(t, ok, "a changed value is found")
+
+	ok, n = equal(big, immutable.MapFrom(maps.All(model)))
+	require.True(t, ok)
+	require.Equal(t, 5000, n, "Maps built separately share nothing, so every value is compared")
+
+	small := immutable.MapFrom(maps.All(map[int]int{1: 1, 2: 2}))
+	smallCopy := small
+	ok, n = equal(small, smallCopy)
+	require.True(t, ok)
+	require.Zero(t, n, "a Map of one chunk shares it")
+
+	nan := immutable.MapFrom(maps.All(map[int]float64{1: math.NaN()}))
+	nanCopy := nan
+	require.True(t, immutable.MapEqual(nan, nanCopy), "a NaN in shared storage compares equal")
+	require.False(t, immutable.MapEqual(nan, immutable.MapFrom(maps.All(map[int]float64{1: math.NaN()}))))
 }

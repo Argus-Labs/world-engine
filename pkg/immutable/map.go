@@ -453,6 +453,9 @@ func keyHash[K Key](k K) uint64 { return maphash.Comparable(hashSeed, k) }
 // -------------------------------------------------------------------------------------------------
 
 // EqualFunc reports whether both maps hold the same keys and eq holds for the values under each.
+// Storage that both share counts as equal without calling eq, as in [reflect.DeepEqual], so comparing
+// a value with an unchanged copy is O(1) and with an edited copy costs about one chunk. A NaN held in
+// shared storage therefore compares equal.
 func (m Map[K, V]) EqualFunc(other Map[K, V], eq func(a, b V) bool) bool {
 	if m.n != other.n || (m.root == nil) != (other.root == nil) {
 		return false
@@ -465,7 +468,8 @@ func (m Map[K, V]) EqualFunc(other Map[K, V], eq func(a, b V) bool) bool {
 }
 
 // MapEqual reports whether a and b hold the same entries. It is a function rather than a method
-// because a method cannot narrow V to comparable; use EqualFunc for other value types.
+// because a method cannot narrow V to comparable; use EqualFunc for other value types. Shared storage
+// counts as equal, as in EqualFunc.
 func MapEqual[K Key, V comparable](a, b Map[K, V]) bool {
 	return a.EqualFunc(b, func(x, y V) bool { return x == y })
 }

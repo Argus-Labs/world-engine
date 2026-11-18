@@ -179,13 +179,42 @@ func (s Slice[T]) ContainsFunc(f func(T) bool) bool {
 }
 
 // EqualFunc reports whether both Slices have the same length and eq holds for every pair of elements
-// at the same index.
+// at the same index. Storage that both share counts as equal without calling eq, as in
+// [reflect.DeepEqual], so comparing a value with an unchanged copy is O(1) and with an edited copy
+// costs about one chunk. A NaN held in shared storage therefore compares equal.
 func (s Slice[T]) EqualFunc(other Slice[T], eq func(a, b T) bool) bool {
 	if s.n != other.n {
 		return false
 	}
-	for i, v := range s.All() {
-		if !eq(v, other.At(i)) {
+	// Equal lengths give the same shape, so the two trees line up node for node.
+	if s.root != nil && !vnodesEqual(s.root, other.root, s.shift, eq) {
+		return false
+	}
+	return itemsEqual(s.tail, other.tail, eq)
+}
+
+func vnodesEqual[T any](a, b *vnode[T], shift uint, eq func(a, b T) bool) bool {
+	if a == b {
+		return true
+	}
+	if shift == 0 {
+		return itemsEqual(a.items, b.items, eq)
+	}
+	for i, kid := range a.kids {
+		if !vnodesEqual(kid, b.kids[i], shift-chunkBits, eq) {
+			return false
+		}
+	}
+	return true
+}
+
+// itemsEqual compares two chunks of the same length.
+func itemsEqual[T any](a, b []T, eq func(a, b T) bool) bool {
+	if len(a) == 0 || &a[0] == &b[0] {
+		return true
+	}
+	for i := range a {
+		if !eq(a[i], b[i]) {
 			return false
 		}
 	}
@@ -193,7 +222,8 @@ func (s Slice[T]) EqualFunc(other Slice[T], eq func(a, b T) bool) bool {
 }
 
 // Equal reports whether a and b hold the same elements in the same order. Like [slices.Equal] it is
-// a function, because a method cannot narrow T to comparable.
+// a function, because a method cannot narrow T to comparable. Shared storage counts as equal, as in
+// EqualFunc.
 func Equal[T comparable](a, b Slice[T]) bool {
 	return a.EqualFunc(b, func(x, y T) bool { return x == y })
 }

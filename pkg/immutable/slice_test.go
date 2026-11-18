@@ -2,6 +2,7 @@ package immutable_test
 
 import (
 	"encoding/json"
+	"math"
 	"reflect"
 	"runtime"
 	"slices"
@@ -720,4 +721,58 @@ func allocatedBytes(f func()) uint64 {
 	f()
 	runtime.ReadMemStats(&after)
 	return after.TotalAlloc - before.TotalAlloc
+}
+
+// Shared storage counts as equal without calling eq, so comparing with a copy costs only what the
+// edits since the copy touched.
+func TestSlice_EqualSkipsSharedStorage(t *testing.T) {
+	t.Parallel()
+
+	items := make([]int, 5000)
+	for i := range items {
+		items[i] = i
+	}
+	big := immutable.SliceOf(items...)
+	calls := 0
+	eq := func(a, b int) bool {
+		calls++
+		return a == b
+	}
+	equal := func(a, b immutable.Slice[int]) (bool, int) {
+		calls = 0
+		return a.EqualFunc(b, eq), calls
+	}
+
+	cp := big
+	ok, n := equal(big, cp)
+	require.True(t, ok)
+	require.Zero(t, n, "an unchanged copy shares everything")
+
+	cp.Set(1000, 1000) // same value, new chunk
+	ok, n = equal(big, cp)
+	require.True(t, ok)
+	require.Equal(t, 32, n, "only the edited chunk is compared")
+
+	cp.Set(4999, -1) // in the tail
+	ok, _ = equal(big, cp)
+	require.False(t, ok, "a change in the tail is found")
+	cp.Set(4999, 4999)
+	ok, n = equal(big, cp)
+	require.True(t, ok)
+	require.Equal(t, 32+5000%32, n, "the edited chunk and the tail")
+
+	ok, n = equal(big, immutable.SliceOf(items...))
+	require.True(t, ok)
+	require.Equal(t, 5000, n, "Slices built separately share nothing, so every element is compared")
+
+	edited := big
+	edited.Set(10, -1)
+	require.False(t, big.EqualFunc(edited, eq))
+	require.False(t, immutable.Equal(big, edited))
+
+	// As with reflect.DeepEqual, a NaN in shared storage compares equal; built separately, it does not.
+	nan := immutable.SliceOf(math.NaN())
+	nanCopy := nan
+	require.True(t, immutable.Equal(nan, nanCopy))
+	require.False(t, immutable.Equal(nan, immutable.SliceOf(math.NaN())))
 }

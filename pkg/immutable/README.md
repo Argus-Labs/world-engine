@@ -116,6 +116,11 @@ a loop copies the tail on every call.
 **Change every element with `UpdateFunc`, not `Set` in a loop.** `UpdateFunc` rebuilds once; each `Set`
 copies a chunk and its path. At 4,096 elements that is about 40 µs against 1.4 ms.
 
+**Comparing with a copy is cheap.** `Equal` and `EqualFunc` skip storage both values share, so
+comparing a component with last tick's copy costs nothing when it is unchanged and about one chunk
+per edit since. Shared storage counts as equal without calling `eq`, as in `reflect.DeepEqual`, so
+a NaN held there compares equal. Map's `MapEqual` and `EqualFunc` work the same way.
+
 **Read part of a Slice with `Range(lo, hi)`.** It goes straight to `lo`, where a loop of `At` calls
 walks down from the root for every element.
 
@@ -513,6 +518,7 @@ n is the number of elements or entries. "How often" says when the worst case act
 | Map `Range(lo, hi)`, reading k entries | O(log n + k) | the same as `Get`, plus k | not seen in practice |
 | Map `Set`, `Delete` | O(log n) | O(n) | needs keys built against the hash seed; see [DESIGN.md](DESIGN.md#why-the-hash-is-seeded) |
 | `DeleteFunc`, `UpdateFunc` | O(n) | O(n) | every call; it is one pass |
+| `Equal`, `EqualFunc`, `MapEqual` with a copy | O(1) unchanged, about one chunk per edit since | O(n) | when the two share nothing, such as values built or decoded separately |
 | `MapFrom` | O(n log n) | O(n log n) | every call; it sorts once |
 | Map decoding | O(n) | O(n log n) | only for input not in key order; this package always encodes in key order |
 

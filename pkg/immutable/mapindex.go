@@ -356,6 +356,9 @@ func walkChunks[K Key, V any](node *mnode[K, V], yield func([]entry[K, V]) bool)
 // nodesEqual compares two index nodes chunk by chunk. Equal key sets give equal trees, so a
 // difference in shape means the Maps differ.
 func nodesEqual[K Key, V any](a, b *mnode[K, V], eq func(a, b V) bool) bool {
+	if a == b {
+		return true
+	}
 	if len(a.keys) != len(b.keys) || (a.kids == nil) != (b.kids == nil) {
 		return false
 	}
@@ -378,6 +381,9 @@ func nodesEqual[K Key, V any](a, b *mnode[K, V], eq func(a, b V) bool) bool {
 func chunksEqual[K Key, V any](a, b []entry[K, V], eq func(a, b V) bool) bool {
 	if len(a) != len(b) {
 		return false
+	}
+	if len(a) == 0 || &a[0] == &b[0] {
+		return true
 	}
 	for j := range a {
 		if a[j].k != b[j].k || !eq(a[j].v, b[j].v) {

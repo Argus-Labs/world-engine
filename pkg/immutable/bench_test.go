@@ -326,3 +326,46 @@ func BenchmarkDecode(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkEqual compares a value with a copy, as a system checking whether a component changed
+// since the last tick does.
+func BenchmarkEqual(b *testing.B) {
+	const n = 4096
+	sameItem := func(a, b benchItem) bool { return a == b }
+	stored := benchSlice(n)
+	edited := stored
+	edited.Set(n-10, benchItem{ID: -1})
+	rebuilt := benchSlice(n)
+	storedMap, _ := benchMap(n)
+	editedMap := storedMap
+	editedMap.Set(n-1, benchItem{ID: -1})
+	rebuiltMap, _ := benchMap(n)
+	for _, c := range []struct {
+		name string
+		a, b immutable.Slice[benchItem]
+	}{{"Slice/Copy", stored, stored}, {"Slice/OneChange", stored, edited}, {"Slice/Rebuilt", stored, rebuilt}} {
+		b.Run(c.name, func(b *testing.B) {
+			for b.Loop() {
+				if c.a.EqualFunc(c.b, sameItem) {
+					sinkInt++
+				}
+			}
+		})
+	}
+	for _, c := range []struct {
+		name string
+		a, b immutable.Map[int, benchItem]
+	}{
+		{"Map/Copy", storedMap, storedMap},
+		{"Map/OneChange", storedMap, editedMap},
+		{"Map/Rebuilt", storedMap, rebuiltMap},
+	} {
+		b.Run(c.name, func(b *testing.B) {
+			for b.Loop() {
+				if c.a.EqualFunc(c.b, sameItem) {
+					sinkInt++
+				}
+			}
+		})
+	}
+}

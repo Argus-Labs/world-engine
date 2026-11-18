@@ -89,6 +89,9 @@ func TestSlice_LayoutDependsOnlyOnContents(t *testing.T) {
 		}
 		for _, c := range copies {
 			require.Equal(t, c.items, slices.Collect(c.s.Values()), "step %d: a copy changed", step)
+			// The copy shares some storage with s and not the rest, so this checks the shortcut
+			// against comparing every element.
+			require.Equal(t, slices.Equal(c.items, model), Equal(c.s, s), "step %d: Equal with a copy", step)
 		}
 	}
 }
@@ -169,6 +172,7 @@ func TestMap_LayoutDependsOnlyOnContents(t *testing.T) {
 		}
 		for _, c := range copies {
 			require.Equal(t, c.model, maps.Collect(c.m.All()), "step %d: a copy changed", step)
+			require.Equal(t, maps.Equal(c.model, model), MapEqual(c.m, m), "step %d: MapEqual with a copy", step)
 		}
 	}
 	require.GreaterOrEqual(t, peak, 3, "the test reached a Map with an index of three levels")
