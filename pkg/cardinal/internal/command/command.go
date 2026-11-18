@@ -4,6 +4,7 @@ import (
 	"context"
 	"maps"
 	"math"
+	"reflect"
 	"slices"
 
 	"github.com/argus-labs/world-engine/pkg/assert"
@@ -85,10 +86,11 @@ const initialCommandBufferCapacity = 128
 // Command IDs are mainly used for quick lookup: World.Commands resolves a name to an ID once and
 // indexes the read-only buffer directly.
 type Manager struct {
-	nextID   ID            // Next available command ID
-	catalog  map[string]ID // Command name -> command ID
-	queues   []Queue       // queue for incoming commands, indexed by command ID
-	commands [][]Command   // read-only commands slice used by ECS systems, indexed by command ID
+	nextID   ID             // Next available command ID
+	catalog  map[string]ID  // Command name -> command ID
+	types    []reflect.Type // payload type, indexed by command ID
+	queues   []Queue        // queue for incoming commands, indexed by command ID
+	commands [][]Command    // read-only commands slice used by ECS systems, indexed by command ID
 }
 
 // NewManager creates a new command manager.
@@ -98,19 +100,25 @@ func NewManager() Manager {
 	return Manager{
 		nextID:   0,
 		catalog:  make(map[string]ID),
+		types:    make([]reflect.Type, 0),
 		queues:   make([]Queue, 0),
 		commands: make([][]Command, 0),
 	}
 }
 
-// Register registers the command type with the command manager.
+// Register registers queue's payload type under name. Registering the same type again returns its
+// existing ID. Reusing a name for another type returns an error.
 func (m *Manager) Register(name string, queue Queue) (ID, error) {
 	if name == "" {
 		return 0, eris.New("command name cannot be empty")
 	}
 
-	// If the command is already registered, return the existing ID.
+	typ := reflect.TypeOf(queue.Zero())
 	if id, exists := m.catalog[name]; exists {
+		if m.types[id] != typ {
+			return 0, eris.Errorf(
+				"command %s already registered with a different type: %v, not %v", name, m.types[id], typ)
+		}
 		return id, nil
 	}
 
@@ -120,6 +128,7 @@ func (m *Manager) Register(name string, queue Queue) (ID, error) {
 
 	id := m.nextID
 	m.catalog[name] = id
+	m.types = append(m.types, typ)
 	m.commands = append(m.commands, make([]Command, 0, initialCommandBufferCapacity))
 	m.queues = append(m.queues, queue)
 
@@ -168,10 +177,18 @@ func (m *Manager) Get(id ID) ([]Command, error) {
 	return m.commands[id], nil
 }
 
-// Lookup returns the ID registered for a command name.
-func (m *Manager) Lookup(name string) (ID, bool) {
-	id, ok := m.catalog[name]
-	return id, ok
+// Lookup returns the ID registered for T. It fails when T's name is unregistered or registered to
+// another type, so a caller never reads another type's commands as T.
+func (m *Manager) Lookup[T Payload]() (ID, error) {
+	var zero T
+	id, exists := m.catalog[zero.Name()]
+	if !exists {
+		return 0, eris.Errorf("command %s is not registered; call RegisterCommand before StartGame", zero.Name())
+	}
+	if m.types[id] != reflect.TypeFor[T]() {
+		return 0, eris.Errorf("command %s is registered as %v, not %T", zero.Name(), m.types[id], zero)
+	}
+	return id, nil
 }
 
 // Drain collects commands from the queues to read-only command buffers. It also returns a list of
