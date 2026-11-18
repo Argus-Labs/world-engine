@@ -487,7 +487,7 @@ for, and cost the same written by hand:
 | Go | Write instead |
 | --- | --- |
 | `slices.Min`, `Max`, `IsSorted`, `Compare` | a loop over `s.Values()` |
-| `slices.BinarySearch(s, v)` | `i := sort.Search(s.Len(), func(i int) bool { return s.At(i) >= v })`, found if `i < s.Len() && s.At(i) == v` |
+| `slices.BinarySearch(s, v)` | `i := sort.Search(s.Len(), func(i int) bool { return cmp.Compare(s.At(i), v) >= 0 })`, found if `i < s.Len() && cmp.Compare(s.At(i), v) == 0`; `cmp.Compare` orders NaN as Go's does |
 | `slices.Compact(s)` | `DeleteFunc` with a closure that remembers the previous element |
 | `slices.Replace(s, i, j, v...)` | `s.Delete(i, j)`, then `s.Insert(i, v...)` |
 | `slices.Concat(a, b)` | `s := a`, then `s.Append(slices.Collect(b.Values())...)` |
@@ -522,8 +522,8 @@ nodes have 32 children.
 
 **Long queues need a head index.** Dropping the front of a Slice and appending is fine at game sizes
 (about 2 µs at 256 elements), but removing the front rebuilds the Slice, so it costs O(n) per pop:
-27 µs at 4,096. Keep a head index next to the Slice and advance it instead, and drop the consumed front
-in one `Delete(0, head)` once it passes half the Slice. A Map keyed by a sequence number also works,
+27 µs at 4,096. Keep a head index next to the Slice and advance it instead. Once the head passes half the
+Slice, drop the consumed front with `Delete(0, head)` and set the head back to 0. A Map keyed by a sequence number also works,
 and removes its smallest key in O(log n).
 
 **Edits allocate.** Reads and copies allocate nothing, but an edit allocates once per node it
