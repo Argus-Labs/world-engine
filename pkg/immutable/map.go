@@ -3,12 +3,12 @@ package immutable
 import (
 	"bytes"
 	"cmp"
+	"hash/maphash"
 	"iter"
 	"reflect"
 	"slices"
 	"strconv"
 	"strings"
-	"unsafe"
 
 	"github.com/goccy/go-json"
 	"github.com/rotisserie/eris"
@@ -50,9 +50,9 @@ type Key interface {
 // The entries are stored in sorted chunks of about 32, and a Map of more than one chunk indexes them
 // with a tree keyed by each chunk's first key. A lookup is a binary search down that tree and then
 // within one chunk; an edit copies one chunk and the path to it, so k edits in an n-entry Map cost
-// about O(k·log n). Where the chunks and the tree's nodes split depends only on the keys, so equal
-// Maps have the same storage layout and [reflect.DeepEqual] compares Maps by their entries however
-// they were built.
+// about O(k·log n). Where the chunks and the tree's nodes split depends only on the keys and a seed
+// drawn when the program starts, so equal Maps have the same storage layout and [reflect.DeepEqual]
+// compares Maps by their entries however they were built.
 //
 // The zero value is an empty Map, and every empty Map is the zero value.
 //
@@ -345,51 +345,17 @@ func mapFromSorted[K Key, V any](entries []entry[K, V]) Map[K, V] {
 	return m
 }
 
-// keyHash hashes k the same way on every machine and build: FNV-1a over a string's bytes, or the
-// integer's value as an int64 or uint64, then the splitmix64 finalizer.
-func keyHash[K Key](k K) uint64 {
-	p := unsafe.Pointer(&k)
-	var x uint64
-	var signed int64
-	switch reflect.TypeFor[K]().Kind() { //nolint:exhaustive // Key admits only integers and strings.
-	case reflect.String:
-		x = 14695981039346656037
-		for _, b := range []byte(*(*string)(p)) {
-			x ^= uint64(b)
-			x *= 1099511628211
-		}
-	case reflect.Int:
-		signed = int64(*(*int)(p))
-		x = uint64(signed) //nolint:gosec // The bits are hashed, never used as a number.
-	case reflect.Int8:
-		signed = int64(*(*int8)(p))
-		x = uint64(signed) //nolint:gosec // As above.
-	case reflect.Int16:
-		signed = int64(*(*int16)(p))
-		x = uint64(signed) //nolint:gosec // As above.
-	case reflect.Int32:
-		signed = int64(*(*int32)(p))
-		x = uint64(signed) //nolint:gosec // As above.
-	case reflect.Int64:
-		x = uint64(*(*int64)(p)) //nolint:gosec // As above.
-	case reflect.Uint:
-		x = uint64(*(*uint)(p))
-	case reflect.Uint8:
-		x = uint64(*(*uint8)(p))
-	case reflect.Uint16:
-		x = uint64(*(*uint16)(p))
-	case reflect.Uint32:
-		x = uint64(*(*uint32)(p))
-	default:
-		x = *(*uint64)(p)
-	}
-	x ^= x >> 30
-	x *= 0xbf58476d1ce4e5b9
-	x ^= x >> 27
-	x *= 0x94d049bb133111eb
-	x ^= x >> 31
-	return x
-}
+// hashSeed is drawn at random when the program starts. The source is public, so with a fixed hash
+// anyone could work out offline which keys never end a chunk, and a Map built from such keys, say
+// player names, would cut every chunk at mapChunkMax by position: then an edit near the front shifts
+// every later boundary and re-cuts the whole Map, O(n) instead of O(log n). Without the seed those
+// keys can't be found. The seed only moves chunk boundaries, which nothing outside the process sees:
+// order, encoding and snapshots follow the keys, and every Map in one process shares the seed, so
+// equal Maps still have equal layouts.
+var hashSeed = maphash.MakeSeed() //nolint:gochecknoglobals // one per process, so equal Maps lay out alike
+
+// keyHash is the seeded hash that places chunk and index boundaries.
+func keyHash[K Key](k K) uint64 { return maphash.Comparable(hashSeed, k) }
 
 // -------------------------------------------------------------------------------------------------
 // Comparing

@@ -22,7 +22,7 @@ type Inventory struct {
 Elements must be values: numbers, strings, bools, structs of those, fixed arrays, `time.Time`,
 another `immutable.Slice`, or an `immutable.Map`. No pointers, interfaces, Go slices or Go maps.
 
-### The one rule: edit in place, then `Set`
+### The one rule: edit, then `Set`
 
 Edit a Slice the way you would a Go slice, then store the component with `Set`.
 
@@ -33,15 +33,17 @@ inv.Items.Set(0, other)
 entity.Set(inv)
 ```
 
-Why this is safe: Cardinal copies every Slice a component holds when `Get` hands it out and when
-`Set` takes it back. So:
+Why this is safe: a Slice never writes to storage once it holds it. An edit copies the small piece
+it changes and points at the copy, so every other holder of the old storage still sees the old
+contents. So:
 
 - An edit without `Set` never reaches the world, a snapshot or another system.
 - An edit after `Set` never reaches what was stored.
+- `Get`, `Set` and plain assignment copy nothing.
 
-Events and commands are copied the same way: `SendTo`, `Broadcast`, `SendToShard` and
-`EmitSystemEvent` copy what you send, and every `SystemEvents` and `Commands` reader gets its own
-copy. Editing a payload after sending it does not change what is sent.
+Events and commands are safe the same way: editing a payload after `SendTo`, `Broadcast`,
+`SendToShard` or `EmitSystemEvent` does not change what is sent, and no `SystemEvents` or `Commands`
+reader can change what another reader sees.
 
 ### API
 
@@ -66,7 +68,7 @@ copy. Editing a payload after sending it does not change what is sent.
 | `slices.EqualFunc`                    | `a.EqualFunc(b, eq)`              |
 | `[]T{a, b}`                           | `immutable.SliceOf(a, b)`         |
 | `slices.Collect(seq)`                 | `immutable.Collect(seq)`          |
-| `slices.Clone(s)`                     | `s.Clone()`                       |
+| `slices.Clone(s)`                     | `c := s`, a free copy             |
 
 `At` and `Set` panic out of range, like indexing a Go slice. To get a plain `[]T` for another API,
 use `slices.Collect(s.Values())`; `SliceOf(xs...)` copies its input, so later changes to `xs` do not
@@ -84,10 +86,8 @@ algorithm a Go release uses. Same world, same bytes.
 **An empty Slice is always the zero value.** Deleting every element, `Reset`, `SliceOf[T]()` and decoding
 `[]` or `null` all give the zero value, so empty Slices are `reflect.DeepEqual`.
 
-**Assignment shares, as with a Go slice.** Inside one system, `other := inv.Items` shares the array.
-An edit through `other` can show up in `inv.Items`, and two copies that both `Append` can overwrite
-each other's new elements. Use `Clone()` when you need a copy that shares nothing. This never affects
-stored state, only your own variables.
+**Assignment is a real copy, and free.** After `other := inv.Items`, an edit to either never shows in
+the other. Unlike a Go slice, two copies that both `Append` never overwrite each other.
 
 **Elements come out by value.** `s.At(i)` returns a copy of the element. To change a field of one
 element, read it, change it, and put it back:
@@ -98,14 +98,13 @@ it.Qty++
 inv.Items.Set(i, it)
 ```
 
-A Slice nested in an element is the exception: `inner := s.At(i)` shares `inner`'s array with the
-element, as a Go slice would, so `inner.Set(...)` changes `s`. To add to a nested Slice, which may
-grow its array, put the element back with `s.Set(i, inner)`.
+A Slice nested in an element is no exception: `inner := s.At(i)` is a copy, so edit `inner` and put
+it back with `s.Set(i, inner)`.
 
-**Every `Get` copies.** `Get` copies every Slice in the component, even when you only read it. Get a
-component once per entity per system and work on that copy; don't call `Get` again inside a loop.
+**Reading is free.** `Get` and reading a Slice allocate nothing. An edit copies about 32 elements and
+a few small tree nodes, however long the Slice is; see [Costs](#costs).
 
-**Map works the same way.** Edit it in place, then `Set`. See [Map](#map).
+**Map works the same way.** Edit it, then `Set`. See [Map](#map).
 
 ### Common mistakes
 
@@ -116,7 +115,8 @@ component once per entity per system and work on that copy; don't call `Get` aga
 | `c.Items.At(i).Qty++` (does not compile)       | read, change, `c.Items.Set(i, it)`      |
 | `Items []Item` in a component                  | `Items immutable.Slice[Item]`           |
 | `immutable.Slice[*Item]`                       | `immutable.Slice[Item]`                 |
-| `entity.Get[C]()` inside an inner loop         | `Get` once, edit the copy, `Set` once   |
+| `entity.Get[C]()` inside an inner loop         | `Get` once, edit, `Set` once            |
+| a long queue: `Append`, then `Delete(0, k)`    | a Map keyed by a sequence number; see [Costs](#costs) |
 
 ### Full example
 
@@ -169,10 +169,10 @@ func (s *InventorySystem) Run(w *cardinal.World) {
 	}
 
 	for e := range w.Contains[struct{ Inv Inventory }]().Iter() {
-		inv := e.Get[Inventory]() // a copy: nothing below reaches the world until Set
+		inv := e.Get[Inventory]() // nothing below reaches the world until Set
 
-		// Clone: copies that share nothing, to see later whether anything changed.
-		oldItems, oldRecent := inv.Items.Clone(), inv.Recent.Clone()
+		// Plain assignment: free copies that the edits below never touch.
+		oldItems, oldRecent := inv.Items, inv.Recent
 
 		for _, p := range pickups {
 			// Stack onto an existing item, or add a new one.
@@ -207,7 +207,7 @@ func (s *InventorySystem) Run(w *cardinal.World) {
 		if sameItems && sameRecent {
 			continue // nothing changed: no Set, no event
 		}
-		e.Set(inv) // the world stores a copy; editing inv after this changes nothing stored
+		e.Set(inv) // editing inv after this changes nothing stored
 
 		total := 0
 		for it := range inv.Items.Values() { // Values
@@ -220,9 +220,9 @@ func (s *InventorySystem) Run(w *cardinal.World) {
 				}
 			}
 		})
-		sorted := ids.Clone()
+		sorted := ids // a free copy: sorting it leaves ids as it is
 		immutable.Sort(&sorted) // Sort
-		newest := inv.Recent.Clone()
+		newest := inv.Recent
 		newest.Reverse() // Reverse
 
 		if immutable.Contains(inv.Recent, "golden-key") { // Contains
@@ -233,7 +233,7 @@ func (s *InventorySystem) Run(w *cardinal.World) {
 			w.Logger().Debug().Int("index", i).Str("id", id).Msg("recent pickup")
 		}
 
-		w.Broadcast(InventoryChanged{IDs: ids, Sorted: sorted, Newest: newest, Total: total}) // copied on send
+		w.Broadcast(InventoryChanged{IDs: ids, Sorted: sorted, Newest: newest, Total: total}) // later edits never change what was sent
 	}
 }
 ```
@@ -277,7 +277,7 @@ type Threat struct {
 Keys are integers, strings, or named types of them (`type PlayerID uint64`). Anything else does not
 compile. Values follow the same rule as Slice elements.
 
-### The rule is the same: edit in place, then `Set`
+### The rule is the same: edit, then `Set`
 
 ```go
 th := boss.Get[Threat]()
@@ -286,7 +286,8 @@ th.Table.Set(player, v+damage)
 boss.Set(th)
 ```
 
-Cardinal copies every Map on `Get`, `Set`, events and commands, exactly as it copies a Slice.
+As with Slice, nothing is written once a Map holds it, so `Get`, `Set`, assignment, events and
+commands copy nothing and stay safe.
 
 ### API
 
@@ -303,35 +304,33 @@ Cardinal copies every Map on `Get`, `Set`, events and commands, exactly as it co
 | `maps.Keys(m)`, `maps.Values(m)`    | `m.Keys()`, `m.Values()`, in key order            |
 | `maps.Equal`, `maps.EqualFunc`      | `immutable.MapEqual(a, b)`, `a.EqualFunc(b, eq)`  |
 | a map literal, `maps.Collect(seq)`  | `immutable.MapFrom(seq)`                          |
-| `maps.Clone(m)`                     | `m.Clone()`                                       |
+| `maps.Clone(m)`                     | `c := m`, a free copy                             |
 
 To build from a Go map, use `immutable.MapFrom(maps.All(goMap))`. The result is the same whatever
 order the Go map yields.
 
 ### Things to know
 
-**Loops run in key order.** Entries are kept sorted by key, never hashed, so `All`, `Keys`, `Values`
-and the encoding always run smallest key first. Two servers running the same world loop in the same
+**Loops run in key order.** Entries are kept sorted by key, so `All`, `Keys`, `Values` and the
+encoding always run smallest key first. Keys are hashed only to decide where storage chunks end,
+never to order them. Two servers running the same world loop in the same
 order, and the same entries give the same bytes. "First" means smallest key; if insertion order
 matters, store it in the value.
 
 **Values come out by value**, as with a Go map of structs, where `m[k].HP++` does not compile either.
 Read, change, `Set`.
 
-**New keys cost more than updates.** Changing an existing key's value is a binary search. Adding or
-removing a key shifts the entries after it, which is cheap at component sizes. To build a large Map
-at once, use `MapFrom`, which sorts once.
+**Every edit costs about the same.** Changing, adding or removing a key copies one chunk of about 32
+entries and a short path, O(log n); see [Costs](#costs). To build a large Map at once, use `MapFrom`,
+which sorts once.
 
 **An empty Map is always the zero value**, however it was emptied.
 
-**Deleting inside a loop is safe; adding is not.** As with a Go map, you can `Delete` the current key
-(or any key) while ranging over `All`, `Keys` or `Values`, and the loop still visits every other entry
-once. Adding a new key with `Set` inside such a loop can skip or repeat entries, so collect the keys
-first: `for _, k := range slices.Collect(m.Keys())`. Changing the value of an existing key is fine.
+**Editing inside a loop is safe.** A loop over `All`, `Keys` or `Values` reads the Map as it was when
+the loop started, so `Set` and `Delete` inside it never skip or repeat entries. The loop does not see
+its own edits.
 
-**Assignment shares, as with Slice.** `other := th.Table` shares storage, so a value changed through
-one can show in the other, though a key added or removed through one may not. Use `Clone()` for a
-copy that shares nothing.
+**Assignment is a real copy, and free**, as with Slice.
 
 **Don't key by entity ID** unless the system that destroys those entities also deletes their keys.
 Entity IDs are reused, so a stale key silently refers to the next entity in that slot. Key long-lived
@@ -344,7 +343,6 @@ data by an ID the game owns, such as a player ID.
 | editing `c.Table` and never calling `Set`      | `entity.Set(c)` after editing           |
 | relying on the order keys were added           | store the order in the value            |
 | `Set` in a loop to build thousands of keys     | `immutable.MapFrom(seq)`                |
-| `Set` of a new key inside `for ... range m.All()` | loop over `slices.Collect(m.Keys())` |
 | `immutable.Map[EntityID, V]` for long-lived data | key by an ID the game owns            |
 
 ### Full example
@@ -395,10 +393,10 @@ func (s *ThreatSystem) Run(w *cardinal.World) {
 	}
 
 	for e := range w.Contains[struct{ Threat Threat }]().Iter() {
-		th := e.Get[Threat]() // a copy: nothing below reaches the world until Set
+		th := e.Get[Threat]() // nothing below reaches the world until Set
 
-		// Clone: copies that share nothing, to see later whether anything changed.
-		oldTable, oldBans := th.Table.Clone(), th.Bans.Clone()
+		// Plain assignment: free copies that the edits below never touch.
+		oldTable, oldBans := th.Table, th.Bans
 
 		for _, h := range hits {
 			if end, banned := th.Bans.Get(h.Attacker); banned && end > now { // Get
@@ -423,7 +421,7 @@ func (s *ThreatSystem) Run(w *cardinal.World) {
 		if sameTable && sameBans {
 			continue // nothing changed: no Set, no event
 		}
-		e.Set(th) // the world stores a copy; editing th after this changes nothing stored
+		e.Set(th) // editing th after this changes nothing stored
 
 		// All runs in key order, so on a tie the smallest player ID wins, on every server.
 		top, best := "", int64(0)
@@ -441,7 +439,44 @@ func (s *ThreatSystem) Run(w *cardinal.World) {
 		}
 		w.Logger().Info().Str("top", top).Int64("total", total).Msg("threat")
 
-		w.Broadcast(TopThreat{Player: top, Table: th.Table}) // copied on send
+		w.Broadcast(TopThreat{Player: top, Table: th.Table}) // later edits never change what was sent
 	}
 }
 ```
+
+## Costs
+
+n is the number of elements or entries. "How often" says when the worst case actually happens.
+
+| Operation | Typical | Worst case | How often |
+| --- | --- | --- | --- |
+| Copy, `Get`, `Set` on the component | free | free | never more |
+| Slice `At`, `Set`, `Append`, delete from the end | O(log₃₂ n): 1 to 4 tree levels up to 1M | the same | fixed by length |
+| Slice `Insert` or `Delete` in the middle, delete from the front of a Slice over 32 elements, sorts | O(n) | O(n) | every call |
+| Map `Get`, `Has` | O(log n) | about 1.7 × log₂ n comparisons | not seen in practice |
+| Map `Set`, `Delete` | O(log n) | O(n) | needs keys built against the hash seed; see below |
+| `DeleteFunc`, `MapFrom`, decoding | O(n) | O(n) | every call; it is one pass |
+
+**Use a Map for long queues and sorted lists, not a Slice.** Removing the front of a Slice shifts
+every position, so it costs O(n) every time. A Map keyed by a sequence number removes its smallest
+key in O(log n).
+
+**Edits allocate.** Reads and copies allocate nothing, but an edit allocates about once. In Go no
+design with safe copies can avoid that: writing in place is only safe when nothing else holds the
+storage, and Go cannot tell whether `d := a` happened. A small, bounded list that must not allocate
+belongs in a fixed-size array field, such as `[16]Item` plus a count.
+
+### Why the Map hash is seeded
+
+A Map decides where its storage chunks end by hashing keys. If that hash were fixed, anyone could
+read it in this repository and pick keys, such as player names, that never end a chunk. A Map of those
+keys cuts every chunk by length instead, and an edit near the front re-cuts the whole Map: O(n) per
+edit instead of O(log n), enough for one player to slow a shard down for everyone.
+
+So the hash is seeded at random when the program starts. Nothing changes for callers: there is no
+constructor, the zero value works, and order, encoding and snapshots follow the keys, never the seed.
+Every Map in a process shares the seed, so equal Maps still have the same layout and
+`reflect.DeepEqual` still compares them by contents.
+
+**Rule for this package: anything that takes a seed draws it at random when the program starts.**
+Never a constant: this repository is public, so a fixed seed is a published one.
