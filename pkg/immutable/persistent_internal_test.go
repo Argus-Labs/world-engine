@@ -89,7 +89,10 @@ func TestSlice_LayoutDependsOnlyOnContents(t *testing.T) {
 			copies = append(copies, saved{s, slices.Clone(model)})[max(0, len(copies)-4):]
 		}
 		for _, c := range copies {
-			require.Equal(t, c.items, slices.Collect(c.s.Values()), "step %d: a copy changed", step)
+			// slices.Equal, not require.Equal: an emptied copy collects to nil while its saved items
+			// are an empty non-nil slice, and both mean empty.
+			got := slices.Collect(c.s.Values())
+			require.True(t, slices.Equal(c.items, got), "step %d: a copy changed: want %v, got %v", step, c.items, got)
 			// The copy shares some storage with s and not the rest, so this checks the shortcut
 			// against comparing every element.
 			require.Equal(t, slices.Equal(c.items, model), Equal(c.s, s), "step %d: Equal with a copy", step)
