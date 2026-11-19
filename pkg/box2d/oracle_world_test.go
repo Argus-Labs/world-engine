@@ -34,6 +34,7 @@ func wboNewWorld(t *testing.T) *box2d.World {
 	def.Gravity = box2d.Vec2{X: 0.0, Y: -10.0}
 	w := box2d.NewWorld(&def)
 	t.Cleanup(w.Destroy)
+
 	return w
 }
 
@@ -49,6 +50,7 @@ func wboGround(t *testing.T, w *box2d.World) (box2d.BodyID, box2d.ShapeID) {
 	groundBox := box2d.MakeBox(50.0, 10.0)
 	sd := box2d.DefaultShapeDef()
 	shapeID := w.CreatePolygonShape(ground, &sd, &groundBox)
+
 	return ground, shapeID
 }
 
@@ -64,6 +66,7 @@ func wboDynamicBox(t *testing.T, w *box2d.World, pos box2d.Vec2) (box2d.BodyID, 
 	box := box2d.MakeBox(0.5, 0.5)
 	sd := box2d.DefaultShapeDef()
 	shapeID := w.CreatePolygonShape(body, &sd, &box)
+
 	return body, shapeID
 }
 
@@ -83,6 +86,7 @@ func wboRestingPreSolveScene(t *testing.T) (*box2d.World, box2d.BodyID) {
 	wboGround(t, w)
 	body, boxShape := wboDynamicBox(t, w, box2d.Vec2{X: 0.0, Y: wboRestingBoxY})
 	w.EnableShapePreSolveEvents(boxShape, true)
+
 	return w, body
 }
 
@@ -124,7 +128,9 @@ func TestOracleDestroyAllBodies(t *testing.T) {
 	w := box2d.NewWorld(&def)
 
 	const bodyCount = 10
+
 	var bodyIDs [bodyCount]box2d.BodyID
+
 	count := 0
 	creating := true
 
@@ -324,10 +330,12 @@ func TestOracleLockedWorldIgnoresCalls(t *testing.T) {
 	preGravityScale := w.BodyGravityScale(body)
 
 	fired := false
+
 	w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
 		if fired {
 			return true
 		}
+
 		fired = true
 
 		// physics_world.c:764-765: reentrant b2World_Step returns early.
@@ -429,6 +437,7 @@ func TestOracleCustomFilterDisablesCollision(t *testing.T) {
 	w.CreatePolygonShape(faller, &fsd, &box)
 
 	calls := 0
+
 	w.SetCustomFilterCallback(func(_, _ box2d.ShapeID, _ any) bool {
 		calls++
 		return false
@@ -467,6 +476,7 @@ func TestOraclePreSolveDisablesContact(t *testing.T) {
 	w.CreatePolygonShape(faller, &sd, &box)
 
 	calls := 0
+
 	w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
 		calls++
 		return false
@@ -494,8 +504,10 @@ func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
 	w, body := wboRestingPreSolveScene(t)
 
 	const disabledSteps = 30
+
 	disable := true
 	calls := 0
+
 	w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
 		calls++
 		return !disable
@@ -508,6 +520,7 @@ func TestOraclePreSolveToggleReEnablesContactWhileResting(t *testing.T) {
 		"box must not move while the contact is disabled")
 
 	disable = false
+
 	wboStep(w, 1)
 	require.Equal(t, disabledSteps+1, calls,
 		"pre-solve must be re-consulted on the first step after the toggle to re-enable the contact")
@@ -534,8 +547,10 @@ func TestOraclePreSolveRecycleZeroDisablesContactWhileResting(t *testing.T) {
 	w.SetContactRecycleDistance(0.0)
 
 	const enabledSteps = 30
+
 	enabled := true
 	calls := 0
+
 	w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
 		calls++
 		return enabled
@@ -551,15 +566,20 @@ func TestOraclePreSolveRecycleZeroDisablesContactWhileResting(t *testing.T) {
 	// The pair still overlaps for several steps after the toggle; the callback
 	// must keep firing across those consecutive overlapping steps, then the
 	// box falls.
-	const checkedSteps = 4
-	const postToggleSteps = 120
+	const (
+		checkedSteps    = 4
+		postToggleSteps = 120
+	)
+
 	mid := calls
+
 	for range checkedSteps {
 		wboStep(w, 1)
 		require.Greater(t, calls, mid,
 			"the callback must keep firing each overlapping step after the toggle to disabled")
 		mid = calls
 	}
+
 	wboStep(w, postToggleSteps-checkedSteps)
 	require.Less(t, w.BodyPosition(body).Y, -5.0,
 		"the disabled contact must let the box fall through the ground")
@@ -576,6 +596,7 @@ func TestOraclePreSolveDisabledContactRefreshesMaterialCallbacks(t *testing.T) {
 
 	frictionCalls := 0
 	restitutionCalls := 0
+
 	w.SetFrictionCallback(func(_ float64, _ uint64, _ float64, _ uint64) float64 {
 		frictionCalls++
 		return 0.0
@@ -591,12 +612,14 @@ func TestOraclePreSolveDisabledContactRefreshesMaterialCallbacks(t *testing.T) {
 	const steps = 10
 	for range steps {
 		prevFriction, prevRestitution := frictionCalls, restitutionCalls
+
 		wboStep(w, 1)
 		require.Greater(t, frictionCalls, prevFriction,
 			"the friction callback must advance every step while the contact is disabled, not freeze after the first")
 		require.Greater(t, restitutionCalls, prevRestitution,
 			"the restitution callback must advance every step while the contact is disabled, not freeze after the first")
 	}
+
 	require.InDelta(t, wboRestingBoxY, w.BodyPosition(body).Y, 0.0,
 		"the disabled contact must not move the box")
 }
@@ -677,13 +700,16 @@ func TestOracleRestitutionCallbackOverride(t *testing.T) {
 	// so require a peak clearly above what restitution 0.05 could produce.
 	bounced := false
 	peak := 0.0
+
 	for range 600 {
 		w.Step(wboDT, wboSubSteps)
 		vy := w.BodyLinearVelocity(ball).Y
 		y := w.BodyPosition(ball).Y
+
 		if vy > 0.1 {
 			bounced = true
 		}
+
 		if bounced {
 			peak = math.Max(peak, y)
 		}
@@ -752,6 +778,7 @@ func TestOracleSleepingSetMergeOnJointCreate(t *testing.T) {
 		circle := box2d.Circle{Center: box2d.Vec2Zero, Radius: 0.5}
 		sd := box2d.DefaultShapeDef()
 		w.CreateCircleShape(body, &sd, &circle)
+
 		return body
 	}
 
@@ -778,6 +805,7 @@ func TestOracleSleepingSetMergeOnJointCreate(t *testing.T) {
 	for range 5 {
 		w.Step(wboDT, wboSubSteps)
 	}
+
 	require.False(t, w.IsBodyAwake(bodyA))
 	require.False(t, w.IsBodyAwake(bodyB))
 
@@ -842,6 +870,7 @@ func TestOracleSleepingSetMergeOnJointCreate(t *testing.T) {
 	}
 
 	w.SetBodyAwake(bodyA, true)
+
 	for _, body := range []box2d.BodyID{bodyA, bodyB, bodyC, bodyD, bodyE} {
 		require.True(t, w.IsBodyAwake(body), "waking one body wakes the merged set")
 	}
@@ -855,6 +884,7 @@ func TestOracleSleepingSetMergeOnJointCreate(t *testing.T) {
 	// pushout (manifold.c b2CollideCircles; contact.c touching flag).
 	bodyF := makeFloater(20.0)
 	bodyG := makeFloater(21.01)
+
 	w.Step(wboDT, wboSubSteps)
 	require.True(t, w.IsBodyAwake(bodyF))
 
@@ -873,6 +903,7 @@ func TestOracleSleepingSetMergeOnJointCreate(t *testing.T) {
 	}
 
 	w.SetBodyAwake(bodyG, true)
+
 	for _, body := range []box2d.BodyID{bodyA, bodyB, bodyC, bodyD, bodyE, bodyF, bodyG} {
 		require.True(t, w.IsBodyAwake(body), "waking one body wakes the merged set")
 	}

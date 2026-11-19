@@ -51,6 +51,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 
 	// Parse the NATS config from environment variables.
 	var err error
+
 	c.natsConfig, err = env.ParseAs[NATSConfig]()
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to parse NATS config")
@@ -89,6 +90,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to connect to NATS server")
 	}
+
 	c.Conn = conn
 
 	c.log.Info().
@@ -108,8 +110,10 @@ func (c *Client) Request(
 	endpoint string,
 	payload proto.Message,
 ) (*microv1.Response, error) {
-	var anyPayload *anypb.Any
-	var err error
+	var (
+		anyPayload *anypb.Any
+		err        error
+	)
 
 	if payload != nil {
 		anyPayload, err = anypb.New(payload)
@@ -244,6 +248,7 @@ func (c *Client) handleError(_ *nats.Conn, sub *nats.Subscription, err error) {
 	if sub != nil {
 		logEvent = logEvent.Str("subject", sub.Subject)
 	}
+
 	logEvent.Msg("NATS subscription error occurred")
 }
 
@@ -267,9 +272,11 @@ func reconnectDelay(attempts int) time.Duration {
 	if attempts < 0 {
 		attempts = 0
 	}
+
 	if attempts >= len(reconnectBackoff) {
 		attempts = len(reconnectBackoff) - 1
 	}
+
 	return time.Duration(reconnectBackoff[attempts]) * time.Millisecond
 }
 

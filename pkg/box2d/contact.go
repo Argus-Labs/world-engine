@@ -161,6 +161,7 @@ func (w *World) getContactFullID(contactID ContactID) *contact {
 	id := int(contactID.index1) - 1
 	c := &w.contacts[id]
 	assert(w.ownsToken(contactID.world0) && c.contactID == id && c.generation == contactID.generation)
+
 	return c
 }
 
@@ -418,11 +419,13 @@ func (w *World) createContact(shapeA, shapeB *shape) {
 		c.edges[0].nextKey = bodyA.headContactKey
 
 		keyA := contactID << 1 // | 0 for edge index 0
+
 		headContactKey := bodyA.headContactKey
 		if headContactKey != NullIndex {
 			headContact := &w.contacts[headContactKey>>1]
 			headContact.edges[headContactKey&1].prevKey = keyA
 		}
+
 		bodyA.headContactKey = keyA
 		bodyA.contactCount++
 	}
@@ -434,11 +437,13 @@ func (w *World) createContact(shapeA, shapeB *shape) {
 		c.edges[1].nextKey = bodyB.headContactKey
 
 		keyB := (contactID << 1) | 1
+
 		headContactKey := bodyB.headContactKey
 		if bodyB.headContactKey != NullIndex {
 			headContact := &w.contacts[headContactKey>>1]
 			headContact.edges[headContactKey&1].prevKey = keyB
 		}
+
 		bodyB.headContactKey = keyB
 		bodyB.contactCount++
 	}
@@ -596,6 +601,7 @@ func (w *World) destroyContact(c *contact, wakeBodies bool) {
 	c.setIndex = NullIndex
 	c.colorIndex = NullIndex
 	c.localIndex = NullIndex
+
 	freeID(&w.contactIDPool, contactID)
 
 	if wakeBodies && touching {
@@ -611,10 +617,12 @@ func (w *World) getContactSim(c *contact) *contactSim {
 		// contact lives in constraint graph
 		assert(0 <= c.colorIndex && c.colorIndex < GraphColorCount)
 		color := &w.constraintGraph.colors[c.colorIndex]
+
 		return &color.contactSims[c.localIndex]
 	}
 
 	set := &w.solverSets[c.setIndex]
+
 	return &set.contactSims[c.localIndex]
 }
 
@@ -716,6 +724,7 @@ func (w *World) updateContact(contactSim *contactSim, shapeA *shape, transformA 
 	// Match old contact ids to new contact ids and copy the
 	// stored impulses to warm start the solver.
 	unmatchedCount := 0
+
 	for i := range pointCount {
 		mp2 := &contactSim.manifold.Points[i]
 
@@ -742,6 +751,7 @@ func (w *World) updateContact(contactSim *contactSim, shapeA *shape, transformA 
 				// clear old impulse
 				mp1.NormalImpulse = 0.0
 				mp1.TangentImpulse = 0.0
+
 				break
 			}
 		}

@@ -53,6 +53,7 @@ func runGoldenWorkerMatrix(t *testing.T, filename string, compute func(workerCou
 			got := compute(workerCount)
 
 			require.Len(t, got, len(want), "scene count")
+
 			for i := range want {
 				require.Equal(t, want[i].Name, got[i].Name)
 				require.Equal(t, want[i].Hashes, got[i].Hashes,
@@ -238,12 +239,14 @@ func installWorkerStressCallbacks(w *box2d.World) {
 		_ = shapeIDB
 		_ = point
 		_ = normal
+
 		return true
 	}, nil)
 
 	w.SetCustomFilterCallback(func(shapeIDA, shapeIDB box2d.ShapeID, ctx any) bool {
 		_ = shapeIDA
 		_ = shapeIDB
+
 		return true
 	}, nil)
 
@@ -257,6 +260,7 @@ func installWorkerStressCallbacks(w *box2d.World) {
 		if restitutionA > restitutionB {
 			return restitutionA
 		}
+
 		return restitutionB
 	})
 }
@@ -290,6 +294,7 @@ func foldWorkerEventStreams(hash uint64, w *box2d.World) uint64 {
 	}
 
 	moveEvents := w.BodyEvents().MoveEvents
+
 	hash = djb2Fold(hash, uint64(len(moveEvents)))
 	for i := range moveEvents {
 		e := &moveEvents[i]
@@ -303,6 +308,7 @@ func foldWorkerEventStreams(hash uint64, w *box2d.World) uint64 {
 	}
 
 	contactEvents := w.ContactEvents()
+
 	hash = djb2Fold(hash, uint64(len(contactEvents.BeginEvents)))
 	for i := range contactEvents.BeginEvents {
 		e := &contactEvents.BeginEvents[i]
@@ -310,6 +316,7 @@ func foldWorkerEventStreams(hash uint64, w *box2d.World) uint64 {
 		foldShapeID(e.ShapeIDB)
 		foldContactID(e.ContactID)
 	}
+
 	hash = djb2Fold(hash, uint64(len(contactEvents.EndEvents)))
 	for i := range contactEvents.EndEvents {
 		e := &contactEvents.EndEvents[i]
@@ -317,6 +324,7 @@ func foldWorkerEventStreams(hash uint64, w *box2d.World) uint64 {
 		foldShapeID(e.ShapeIDB)
 		foldContactID(e.ContactID)
 	}
+
 	hash = djb2Fold(hash, uint64(len(contactEvents.HitEvents)))
 	for i := range contactEvents.HitEvents {
 		e := &contactEvents.HitEvents[i]
@@ -331,12 +339,14 @@ func foldWorkerEventStreams(hash uint64, w *box2d.World) uint64 {
 	}
 
 	sensorEvents := w.SensorEvents()
+
 	hash = djb2Fold(hash, uint64(len(sensorEvents.BeginEvents)))
 	for i := range sensorEvents.BeginEvents {
 		e := &sensorEvents.BeginEvents[i]
 		foldShapeID(e.SensorShapeID)
 		foldShapeID(e.VisitorShapeID)
 	}
+
 	hash = djb2Fold(hash, uint64(len(sensorEvents.EndEvents)))
 	for i := range sensorEvents.EndEvents {
 		e := &sensorEvents.EndEvents[i]
@@ -345,6 +355,7 @@ func foldWorkerEventStreams(hash uint64, w *box2d.World) uint64 {
 	}
 
 	jointEvents := w.JointEvents().JointEvents
+
 	hash = djb2Fold(hash, uint64(len(jointEvents)))
 	for i := range jointEvents {
 		e := &jointEvents[i]
@@ -362,6 +373,7 @@ func foldWorkerEventStreams(hash uint64, w *box2d.World) uint64 {
 func workerStressSignature(workerCount, stepCount int, withCallbacks bool) []uint64 {
 	def := box2d.DefaultWorldDef()
 	def.WorkerCount = workerCount
+
 	w := box2d.NewWorld(&def)
 	defer w.Destroy()
 
@@ -440,6 +452,7 @@ func lightStageColorSignature(workerCount, stepCount int) []uint64 {
 	// Nothing may sleep: the whole point is to keep thousands of constraints
 	// in one awake color for every step of the run.
 	def.EnableSleep = false
+
 	w := box2d.NewWorld(&def)
 	defer w.Destroy()
 
@@ -496,6 +509,7 @@ func TestWorkerStressLightStageColorMatchesSerial(t *testing.T) {
 func taskCountTrace(workerCount, stepCount int) []int {
 	def := box2d.DefaultWorldDef()
 	def.WorkerCount = workerCount
+
 	w := box2d.NewWorld(&def)
 	defer w.Destroy()
 

@@ -100,6 +100,7 @@ func continuousQueryCallback(proxyID int, userData uint64, context any) bool {
 
 	// Skip filtered bodies
 	fastBody := &w.bodies[fastBodySim.bodyID]
+
 	canCollide = w.shouldBodiesCollide(fastBody, b)
 	if !canCollide {
 		return true
@@ -111,6 +112,7 @@ func continuousQueryCallback(proxyID int, userData uint64, context any) bool {
 		if customFilterFcn != nil {
 			idA := ShapeID{index1: int32(s.id + 1), world0: w.worldID, generation: s.generation}
 			idB := ShapeID{index1: int32(fastShape.id + 1), world0: w.worldID, generation: fastShape.generation}
+
 			canCollide = customFilterFcn(idA, idB, w.customFilterContext)
 			if !canCollide {
 				return true
@@ -124,6 +126,7 @@ func continuousQueryCallback(proxyID int, userData uint64, context any) bool {
 		p1 := TransformPoint(transform, s.chainSegment.Segment.Point1)
 		p2 := TransformPoint(transform, s.chainSegment.Segment.Point2)
 		e := Sub(p2, p1)
+
 		e, length := GetLengthAndNormalize(e)
 		if length > LinearSlop {
 			c1 := cc.centroid1
@@ -141,6 +144,7 @@ func continuousQueryCallback(proxyID int, userData uint64, context any) bool {
 	}
 
 	var input TOIInput
+
 	input.ProxyA = makeShapeDistanceProxy(s)
 	input.ProxyB = makeShapeDistanceProxy(fastShape)
 	input.SweepA = makeSweep(bSim)
@@ -176,6 +180,7 @@ func continuousQueryCallback(proxyID int, userData uint64, context any) bool {
 			extent := computeShapeExtent(fastShape, centroid)
 			radius := coreFraction * extent.minExtent
 			input.ProxyB = MakeProxy([]Vec2{centroid}, 1, radius)
+
 			output = TimeOfImpact(&input)
 			if 0.0 < output.Fraction && output.Fraction < cc.fraction {
 				hitFraction = output.Fraction
@@ -217,10 +222,12 @@ func (w *World) solveContinuous(bodySimIndex int, tc *taskContext) {
 	sweep := makeSweep(fastBodySim)
 
 	var xf1 Transform
+
 	xf1.Q = sweep.Q1
 	xf1.P = Sub(sweep.C1, RotateVector(sweep.Q1, sweep.LocalCenter))
 
 	var xf2 Transform
+
 	xf2.Q = sweep.Q2
 	xf2.P = Sub(sweep.C2, RotateVector(sweep.Q2, sweep.LocalCenter))
 
@@ -316,7 +323,9 @@ func (w *World) solveContinuous(bodySimIndex int, tc *taskContext) {
 
 			if !AABBContains(s.fatAABB, aabb) {
 				margin := s.aabbMargin
+
 				var fatAABB AABB
+
 				fatAABB.LowerBound.X = aabb.LowerBound.X - margin
 				fatAABB.LowerBound.Y = aabb.LowerBound.Y - margin
 				fatAABB.UpperBound.X = aabb.UpperBound.X + margin
@@ -345,7 +354,9 @@ func (w *World) solveContinuous(bodySimIndex int, tc *taskContext) {
 
 			if !AABBContains(s.fatAABB, s.aabb) {
 				margin := s.aabbMargin
+
 				var fatAABB AABB
+
 				fatAABB.LowerBound.X = s.aabb.LowerBound.X - margin
 				fatAABB.LowerBound.Y = s.aabb.LowerBound.Y - margin
 				fatAABB.UpperBound.X = s.aabb.UpperBound.X + margin

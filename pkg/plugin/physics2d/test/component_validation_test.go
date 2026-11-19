@@ -17,6 +17,7 @@ import (
 
 func TestValidate_Transform2D_Valid(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.Transform2D{
 		Position: phycomp.Vec2{X: 1, Y: -2.5},
 		Rotation: 3.14,
@@ -31,6 +32,7 @@ func TestValidate_Transform2D_ZeroIsValid(t *testing.T) {
 
 func TestValidate_Transform2D_NaNPosition(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.Transform2D{
 		Position: phycomp.Vec2{X: math.NaN(), Y: 0},
 	}.Validate()
@@ -40,6 +42,7 @@ func TestValidate_Transform2D_NaNPosition(t *testing.T) {
 
 func TestValidate_Transform2D_InfPosition(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.Transform2D{
 		Position: phycomp.Vec2{X: 0, Y: math.Inf(1)},
 	}.Validate()
@@ -49,6 +52,7 @@ func TestValidate_Transform2D_InfPosition(t *testing.T) {
 
 func TestValidate_Transform2D_NaNRotation(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.Transform2D{Rotation: math.NaN()}.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "rotation")
@@ -56,6 +60,7 @@ func TestValidate_Transform2D_NaNRotation(t *testing.T) {
 
 func TestValidate_Transform2D_InfRotation(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.Transform2D{Rotation: math.Inf(-1)}.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "rotation")
@@ -67,6 +72,7 @@ func TestValidate_Transform2D_InfRotation(t *testing.T) {
 
 func TestValidate_Velocity2D_Valid(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.Velocity2D{
 		Linear:  phycomp.Vec2{X: 5, Y: -3},
 		Angular: 1.5,
@@ -81,6 +87,7 @@ func TestValidate_Velocity2D_ZeroIsValid(t *testing.T) {
 
 func TestValidate_Velocity2D_NaNLinear(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.Velocity2D{
 		Linear: phycomp.Vec2{X: math.NaN(), Y: 0},
 	}.Validate()
@@ -90,6 +97,7 @@ func TestValidate_Velocity2D_NaNLinear(t *testing.T) {
 
 func TestValidate_Velocity2D_InfAngular(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.Velocity2D{Angular: math.Inf(1)}.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "angular")
@@ -101,6 +109,7 @@ func TestValidate_Velocity2D_InfAngular(t *testing.T) {
 
 func TestValidate_ColliderShape_ValidCircle(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType:    phycomp.ShapeTypeCircle,
 		Radius:       0.5,
@@ -114,6 +123,7 @@ func TestValidate_ColliderShape_ValidCircle(t *testing.T) {
 
 func TestValidate_ColliderShape_ValidBox(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType:    phycomp.ShapeTypeBox,
 		HalfExtents:  phycomp.Vec2{X: 1, Y: 0.5},
@@ -126,6 +136,7 @@ func TestValidate_ColliderShape_ValidBox(t *testing.T) {
 
 func TestValidate_ColliderShape_ValidPolygon(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType:    phycomp.ShapeTypeConvexPolygon,
 		CategoryBits: 0xFFFF,
@@ -138,6 +149,7 @@ func TestValidate_ColliderShape_ValidPolygon(t *testing.T) {
 
 func TestValidate_ColliderShape_ValidChain(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType:    phycomp.ShapeTypeStaticChain,
 		ChainPoints:  immutable.SliceOf(phycomp.Vec2{X: 0, Y: 0}, phycomp.Vec2{X: 5, Y: 1}),
@@ -149,6 +161,7 @@ func TestValidate_ColliderShape_ValidChain(t *testing.T) {
 
 func TestValidate_ColliderShape_ValidChainLoop(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType: phycomp.ShapeTypeStaticChainLoop,
 		ChainPoints: immutable.SliceOf(
@@ -163,6 +176,7 @@ func TestValidate_ColliderShape_ValidChainLoop(t *testing.T) {
 
 func TestValidate_ColliderShape_ValidEdge(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType:    phycomp.ShapeTypeEdge,
 		EdgeVertices: [2]phycomp.Vec2{{X: 0, Y: 0}, {X: 3, Y: 0}},
@@ -174,6 +188,7 @@ func TestValidate_ColliderShape_ValidEdge(t *testing.T) {
 
 func TestValidate_ColliderShape_InvalidShapeType(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{ShapeType: 99}.Validate()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "shape_type")
@@ -181,6 +196,7 @@ func TestValidate_ColliderShape_InvalidShapeType(t *testing.T) {
 
 func TestValidate_ColliderShape_NaNRadius(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType: phycomp.ShapeTypeCircle,
 		Radius:    math.NaN(),
@@ -191,6 +207,7 @@ func TestValidate_ColliderShape_NaNRadius(t *testing.T) {
 
 func TestValidate_ColliderShape_NaNFriction(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType: phycomp.ShapeTypeCircle,
 		Friction:  math.NaN(),
@@ -201,6 +218,7 @@ func TestValidate_ColliderShape_NaNFriction(t *testing.T) {
 
 func TestValidate_ColliderShape_InfRestitution(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType:   phycomp.ShapeTypeCircle,
 		Restitution: math.Inf(1),
@@ -211,6 +229,7 @@ func TestValidate_ColliderShape_InfRestitution(t *testing.T) {
 
 func TestValidate_ColliderShape_InfDensity(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType: phycomp.ShapeTypeCircle,
 		Density:   math.Inf(-1),
@@ -221,6 +240,7 @@ func TestValidate_ColliderShape_InfDensity(t *testing.T) {
 
 func TestValidate_ColliderShape_NaNLocalOffset(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType:   phycomp.ShapeTypeCircle,
 		LocalOffset: phycomp.Vec2{X: math.NaN(), Y: 0},
@@ -231,6 +251,7 @@ func TestValidate_ColliderShape_NaNLocalOffset(t *testing.T) {
 
 func TestValidate_ColliderShape_InfLocalRotation(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType:     phycomp.ShapeTypeCircle,
 		LocalRotation: math.Inf(1),
@@ -245,6 +266,7 @@ func TestValidate_ColliderShape_InfLocalRotation(t *testing.T) {
 // Vertices field is truncated to the array's slots.
 func TestValidate_ColliderShape_VertexCountPastBound(t *testing.T) {
 	t.Parallel()
+
 	shape := phycomp.ColliderShape{ShapeType: phycomp.ShapeTypeConvexPolygon}.WithVertices(
 		phycomp.Vec2{X: 0, Y: 0}, phycomp.Vec2{X: 1, Y: 0}, phycomp.Vec2{X: 0.5, Y: 1},
 	)
@@ -258,6 +280,7 @@ func TestValidate_ColliderShape_VertexCountPastBound(t *testing.T) {
 
 func TestValidate_ColliderShape_NegativeVertexCount(t *testing.T) {
 	t.Parallel()
+
 	shape := phycomp.ColliderShape{ShapeType: phycomp.ShapeTypeConvexPolygon, VertexCount: -1}
 	err := shape.Validate()
 	require.Error(t, err)
@@ -269,9 +292,11 @@ func TestValidate_ColliderShape_NegativeVertexCount(t *testing.T) {
 // mismatch is what Validate reports.
 func TestWithVertices_ReportsPastBoundInsteadOfPanicking(t *testing.T) {
 	t.Parallel()
+
 	tooMany := make([]phycomp.Vec2, phycomp.MaxPolygonVertices+1)
 
 	var shape phycomp.ColliderShape
+
 	require.NotPanics(t, func() {
 		shape = phycomp.ColliderShape{ShapeType: phycomp.ShapeTypeConvexPolygon}.WithVertices(tooMany...)
 	}, "a bad polygon must not take the shard down with it")
@@ -286,6 +311,7 @@ func TestWithVertices_ReportsPastBoundInsteadOfPanicking(t *testing.T) {
 
 func TestWithVertices_ZeroesTheUnusedTail(t *testing.T) {
 	t.Parallel()
+
 	four := phycomp.ColliderShape{ShapeType: phycomp.ShapeTypeConvexPolygon}.WithVertices(
 		phycomp.Vec2{X: -1, Y: -1}, phycomp.Vec2{X: 1, Y: -1},
 		phycomp.Vec2{X: 1, Y: 1}, phycomp.Vec2{X: -1, Y: 1},
@@ -300,6 +326,7 @@ func TestWithVertices_ZeroesTheUnusedTail(t *testing.T) {
 
 func TestValidate_ColliderShape_NaNVertex(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType: phycomp.ShapeTypeConvexPolygon,
 	}.WithVertices(
@@ -311,6 +338,7 @@ func TestValidate_ColliderShape_NaNVertex(t *testing.T) {
 
 func TestValidate_ColliderShape_NaNChainPoint(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType:   phycomp.ShapeTypeStaticChain,
 		ChainPoints: immutable.SliceOf(phycomp.Vec2{X: 0, Y: 0}, phycomp.Vec2{X: 0, Y: math.Inf(1)}),
@@ -321,6 +349,7 @@ func TestValidate_ColliderShape_NaNChainPoint(t *testing.T) {
 
 func TestValidate_ColliderShape_NaNEdgeVertex(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType:    phycomp.ShapeTypeEdge,
 		EdgeVertices: [2]phycomp.Vec2{{X: math.NaN(), Y: 0}, {X: 1, Y: 0}},
@@ -331,6 +360,7 @@ func TestValidate_ColliderShape_NaNEdgeVertex(t *testing.T) {
 
 func TestValidate_ColliderShape_NaNHalfExtents(t *testing.T) {
 	t.Parallel()
+
 	err := phycomp.ColliderShape{
 		ShapeType:   phycomp.ShapeTypeBox,
 		HalfExtents: phycomp.Vec2{X: math.Inf(1), Y: 1},
@@ -345,6 +375,7 @@ func TestValidate_ColliderShape_NaNHalfExtents(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_Valid(t *testing.T) {
 	t.Parallel()
+
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.ColliderShape{
 		ShapeType:    phycomp.ShapeTypeCircle,
 		Radius:       0.5,
@@ -357,6 +388,7 @@ func TestValidate_PhysicsBody2D_Valid(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_NoShapes(t *testing.T) {
 	t.Parallel()
+
 	pb := phycomp.PhysicsBody2D{BodyType: phycomp.BodyTypeDynamic}
 	err := pb.Validate()
 	require.Error(t, err)
@@ -365,6 +397,7 @@ func TestValidate_PhysicsBody2D_NoShapes(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_InvalidBodyType(t *testing.T) {
 	t.Parallel()
+
 	pb := phycomp.PhysicsBody2D{
 		BodyType: 99,
 		Shapes: immutable.SliceOf(phycomp.ColliderShape{
@@ -381,6 +414,7 @@ func TestValidate_PhysicsBody2D_InvalidBodyType(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_NaNLinearDamping(t *testing.T) {
 	t.Parallel()
+
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.ColliderShape{
 		ShapeType:    phycomp.ShapeTypeCircle,
 		Radius:       0.5,
@@ -395,6 +429,7 @@ func TestValidate_PhysicsBody2D_NaNLinearDamping(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_InfAngularDamping(t *testing.T) {
 	t.Parallel()
+
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.ColliderShape{
 		ShapeType:    phycomp.ShapeTypeCircle,
 		Radius:       0.5,
@@ -409,6 +444,7 @@ func TestValidate_PhysicsBody2D_InfAngularDamping(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_NegativeLinearDamping(t *testing.T) {
 	t.Parallel()
+
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, circleColliderShapes()...)
 	pb.LinearDamping = -0.1
 	err := pb.Validate()
@@ -419,6 +455,7 @@ func TestValidate_PhysicsBody2D_NegativeLinearDamping(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_NegativeAngularDamping(t *testing.T) {
 	t.Parallel()
+
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, circleColliderShapes()...)
 	pb.AngularDamping = -1e-9
 	err := pb.Validate()
@@ -429,6 +466,7 @@ func TestValidate_PhysicsBody2D_NegativeAngularDamping(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_ZeroDampingIsValid(t *testing.T) {
 	t.Parallel()
+
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, circleColliderShapes()...)
 	pb.LinearDamping = 0
 	pb.AngularDamping = 0
@@ -437,6 +475,7 @@ func TestValidate_PhysicsBody2D_ZeroDampingIsValid(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_InfGravityScale(t *testing.T) {
 	t.Parallel()
+
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.ColliderShape{
 		ShapeType:    phycomp.ShapeTypeCircle,
 		Radius:       0.5,
@@ -451,6 +490,7 @@ func TestValidate_PhysicsBody2D_InfGravityScale(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_InvalidShape(t *testing.T) {
 	t.Parallel()
+
 	pb := phycomp.NewPhysicsBody2D(phycomp.BodyTypeDynamic, phycomp.ColliderShape{
 		ShapeType: 99,
 	})
@@ -461,6 +501,7 @@ func TestValidate_PhysicsBody2D_InvalidShape(t *testing.T) {
 
 func TestValidate_PhysicsBody2D_AllBodyTypes(t *testing.T) {
 	t.Parallel()
+
 	shape := phycomp.ColliderShape{
 		ShapeType:    phycomp.ShapeTypeCircle,
 		Radius:       0.5,
@@ -483,6 +524,7 @@ func TestValidate_PhysicsBody2D_AllBodyTypes(t *testing.T) {
 
 func TestNewPhysicsBody2D_Defaults(t *testing.T) {
 	t.Parallel()
+
 	shape := phycomp.ColliderShape{
 		ShapeType:    phycomp.ShapeTypeCircle,
 		Radius:       1,
@@ -504,6 +546,7 @@ func TestNewPhysicsBody2D_Defaults(t *testing.T) {
 
 func TestNewPhysicsBody2D_MultipleShapes(t *testing.T) {
 	t.Parallel()
+
 	shapes := []phycomp.ColliderShape{
 		{ShapeType: phycomp.ShapeTypeCircle, Radius: 0.5, CategoryBits: 0xFFFF, MaskBits: 0xFFFF},
 		{
@@ -528,6 +571,7 @@ func TestUnmarshalPhysicsBody2D_MissingFieldsGetDefaults(t *testing.T) {
 		"body_type": 2,
 		"shapes": [{"shape_type": 1, "radius": 0.5, "category_bits": 65535, "mask_bits": 65535}]
 	}`
+
 	var pb phycomp.PhysicsBody2D
 	require.NoError(t, json.Unmarshal([]byte(data), &pb))
 	require.Equal(t, phycomp.BodyTypeDynamic, pb.BodyType)
@@ -541,6 +585,7 @@ func TestUnmarshalPhysicsBody2D_MissingFieldsGetDefaults(t *testing.T) {
 
 func TestUnmarshalPhysicsBody2D_ExplicitFalsePreserved(t *testing.T) {
 	t.Parallel()
+
 	data := `{
 		"body_type": 2,
 		"active": false,
@@ -549,6 +594,7 @@ func TestUnmarshalPhysicsBody2D_ExplicitFalsePreserved(t *testing.T) {
 		"gravity_scale": 0,
 		"shapes": [{"shape_type": 1, "radius": 0.5, "category_bits": 65535, "mask_bits": 65535}]
 	}`
+
 	var pb phycomp.PhysicsBody2D
 	require.NoError(t, json.Unmarshal([]byte(data), &pb))
 	require.False(t, pb.Active, "explicit false preserved")
@@ -559,6 +605,7 @@ func TestUnmarshalPhysicsBody2D_ExplicitFalsePreserved(t *testing.T) {
 
 func TestUnmarshalPhysicsBody2D_FullPayload(t *testing.T) {
 	t.Parallel()
+
 	data := `{
 		"body_type": 3,
 		"linear_damping": 0.5,
@@ -573,6 +620,7 @@ func TestUnmarshalPhysicsBody2D_FullPayload(t *testing.T) {
 			{"shape_type": 1, "radius": 1.0, "density": 2.0, "friction": 0.5, "category_bits": 1, "mask_bits": 65535}
 		]
 	}`
+
 	var pb phycomp.PhysicsBody2D
 	require.NoError(t, json.Unmarshal([]byte(data), &pb))
 	require.Equal(t, phycomp.BodyTypeKinematic, pb.BodyType)
@@ -599,6 +647,7 @@ func TestPhysicsBody2D_ChainPointsJSONRoundTrips(t *testing.T) {
 		"body_type": 1,
 		"shapes": [{"shape_type": 4, "chain_points": [{"x":0,"y":0},{"x":1,"y":0},{"x":2,"y":1}]}]
 	}`
+
 	var pb phycomp.PhysicsBody2D
 	require.NoError(t, json.Unmarshal([]byte(data), &pb))
 	require.Equal(t, 1, pb.Shapes.Len())
@@ -613,6 +662,7 @@ func TestPhysicsBody2D_ChainPointsJSONRoundTrips(t *testing.T) {
 
 	out, err := json.Marshal(pb)
 	require.NoError(t, err)
+
 	var back phycomp.PhysicsBody2D
 	require.NoError(t, json.Unmarshal(out, &back))
 	require.Equal(t, pb, back, "a body holding chain points survives a JSON round trip")

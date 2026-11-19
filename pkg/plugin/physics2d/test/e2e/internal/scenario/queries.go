@@ -93,6 +93,7 @@ func checkRaycast(c *harness.Ctx, near, far cardinal.EntityID, rayLen, nearWallX
 	if !c.True("raycast finds a wall in its path", hit.Hit, "the ray reported no hit") {
 		return
 	}
+
 	c.True("raycast returns the closest wall, not the furthest", hit.Entity == near,
 		"hit entity %d (the far wall is %d)", hit.Entity, far)
 	c.Int("raycast reports the struck shape slot", hit.ShapeIndex, 0)
@@ -149,6 +150,7 @@ func checkOverlap(c *harness.Ctx, boxes []cardinal.EntityID) {
 		c.True("overlap finds every box inside the query box",
 			c.OverlapHits(all, id), "entity %d was not returned", id)
 	}
+
 	c.Int("overlap returns one hit per shape, with no duplicates", len(all.Hits), len(boxes))
 
 	// Reversed corners are documented as equivalent, per-axis.
@@ -222,6 +224,7 @@ func checkSweep(
 	if !c.True("circle sweep finds the wall in its path", hit.Hit, "the sweep reported no hit") {
 		return
 	}
+
 	c.True("circle sweep returns the wall", hit.Entity == wall,
 		"sweep hit entity %d, want %d", hit.Entity, wall)
 	c.Near("circle sweep fraction accounts for the sweeping radius",
@@ -268,6 +271,7 @@ func checkOverlapNarrowPhase(c *harness.Ctx, plank cardinal.EntityID, plankY flo
 	// The plank runs along the +x/+y diagonal. This probe sits in the opposite
 	// corner of its bounding box, where there is no geometry at all.
 	const probeX, probeDY = 1.4, -1.4
+
 	y := plankY + probeDY
 
 	ray := c.Raycast(probeX, y+0.4, probeX, y-0.4, nil)

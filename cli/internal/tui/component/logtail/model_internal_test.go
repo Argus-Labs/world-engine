@@ -117,6 +117,7 @@ func TestTailModel_StreamEnded_ReturnsNonNilCmd(t *testing.T) {
 // what guarantees it, so assert the bindings carry both key and help text.
 func TestDefaultReloadKeys_CarryKeysAndHelp(t *testing.T) {
 	t.Parallel()
+
 	keys := DefaultReloadKeys()
 
 	assert.Equal(t, []string{"r"}, keys.Reload.Keys())
@@ -128,6 +129,7 @@ func TestDefaultReloadKeys_CarryKeysAndHelp(t *testing.T) {
 // A session with no reload hook must neither advertise the keys nor act on them.
 func TestReloadKeys_SetEnabled(t *testing.T) {
 	t.Parallel()
+
 	keys := DefaultReloadKeys().WithEnabled(false)
 
 	assert.False(t, keys.Reload.Enabled())
@@ -137,6 +139,7 @@ func TestReloadKeys_SetEnabled(t *testing.T) {
 // '?' expands the legend without ending the tail session.
 func TestTailModel_HelpKey_TogglesWithoutQuitting(t *testing.T) {
 	t.Parallel()
+
 	m := New(context.Background(), true, stubExtras())
 	require.Contains(t, plain(m.View()), "? more")
 
@@ -158,6 +161,7 @@ func stubExtras() []ExtraAction {
 			Run:     func(context.Context) (string, error) { return label + "ed", nil },
 		}
 	}
+
 	return []ExtraAction{
 		action("1", "resum"), action("2", "paus"), action("3", "step"), action("4", "reset"),
 	}
@@ -166,6 +170,7 @@ func stubExtras() []ExtraAction {
 // Extra actions run without closing the tail session.
 func TestTailModel_DebugKey_RunsWithoutQuitting(t *testing.T) {
 	t.Parallel()
+
 	m := New(context.Background(), true, stubExtras())
 
 	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("2")})
@@ -187,6 +192,7 @@ func TestTailModel_DebugKey_RunsWithoutQuitting(t *testing.T) {
 // pause one of them by accident.
 func TestTailModel_DebugKeys_DisabledWithoutHooks(t *testing.T) {
 	t.Parallel()
+
 	m := New(context.Background(), true, nil)
 
 	for _, digit := range []string{"1", "2", "3", "4"} {
@@ -198,10 +204,12 @@ func TestTailModel_DebugKeys_DisabledWithoutHooks(t *testing.T) {
 // A failing hook reports rather than ending the session.
 func TestTailModel_DebugResult_PrintsError(t *testing.T) {
 	t.Parallel()
+
 	m := New(context.Background(), true, stubExtras())
 
 	next, cmd := m.Update(actionResultMsg{err: eris.New("world is not paused")})
 	assert.NotNil(t, cmd)
+
 	out, ok := next.(*Model)
 	require.True(t, ok)
 	assert.False(t, out.canceled)
@@ -210,6 +218,7 @@ func TestTailModel_DebugResult_PrintsError(t *testing.T) {
 // Extra actions appear only in the expanded legend.
 func TestTailModel_HelpLines(t *testing.T) {
 	t.Parallel()
+
 	m := New(context.Background(), true, stubExtras())
 
 	short := plain(m.legend.View(m.primaryBindings(), secondaryBindings(m.extras)))

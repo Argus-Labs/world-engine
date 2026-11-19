@@ -81,19 +81,24 @@ func (r *Runtime) StartPlatform(ctx context.Context, step func(string)) error {
 	if step == nil {
 		step = func(string) {}
 	}
+
 	step("Network")
+
 	if err := r.docker.EnsureNetwork(ctx, service.NetworkName(r.project())); err != nil {
 		return err
 	}
+
 	svcs := service.PlatformServices(r.cfg)
 	// Recreate so a changed world.toml (image, env, ports) takes effect; volumes stay.
 	names := make([]string, 0, len(svcs))
 	for _, s := range svcs {
 		names = append(names, s.Name)
 	}
+
 	if err := r.docker.RemoveContainers(ctx, names, true, nil); err != nil {
 		return err
 	}
+
 	return r.docker.StartContainers(ctx, svcs, func(p docker.Progress) {
 		if p.State == docker.StateStarting && p.Err == nil {
 			step(p.Name)
@@ -118,6 +123,7 @@ func (o DeployOpts) ShardIDs() []string {
 	for i, s := range o.Shards {
 		ids[i] = s.ID
 	}
+
 	return ids
 }
 
@@ -130,40 +136,51 @@ func (r *Runtime) Deploy(ctx context.Context, opts DeployOpts) error {
 			opts.OnResult(id, err)
 		}
 	}
+
 	if len(opts.Shards) == 0 {
 		return eris.New("Deploy: at least one shard is required")
 	}
+
 	var firstErr error
+
 	for _, s := range opts.Shards {
 		svcs := r.shardServices(s.ID)
+
 		var err error
 		if len(svcs) == 0 {
 			err = eris.Errorf("shard %q not found in world.toml", s.ID)
 		} else {
 			err = r.recreate(ctx, svcs)
 		}
+
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
+
 		report(s.ID, err)
 	}
+
 	if err := r.RefreshRoutes(ctx); err != nil && firstErr == nil {
 		firstErr = err
 	}
+
 	return firstErr
 }
 
 // DeployServices recreates the path-kind [[services]] (built from source) on their new images.
 func (r *Runtime) DeployServices(ctx context.Context) error {
 	var svcs []service.Service
+
 	for _, gs := range r.cfg.WorldToml.Services {
 		if gs.IsBuiltFromSource() {
 			svcs = append(svcs, service.GameServiceFromConfig(r.cfg, gs))
 		}
 	}
+
 	if len(svcs) == 0 {
 		return nil
 	}
+
 	return r.recreate(ctx, svcs)
 }
 
@@ -172,20 +189,24 @@ func (r *Runtime) recreate(ctx context.Context, svcs []service.Service) error {
 	for _, s := range svcs {
 		names = append(names, s.Name)
 	}
+
 	if err := r.docker.RemoveContainers(ctx, names, true, nil); err != nil {
 		return err
 	}
+
 	return r.docker.StartContainers(ctx, svcs, nil)
 }
 
 // shardServices returns the instance containers of one pool, in world.toml order.
 func (r *Runtime) shardServices(shardID string) []service.Service {
 	var out []service.Service
+
 	for i, sh := range r.cfg.WorldToml.Shards {
 		if sh.ID == shardID {
 			out = append(out, service.CardinalFromShard(r.cfg, sh, service.ShardHostPort(i)))
 		}
 	}
+
 	return out
 }
 
@@ -197,9 +218,11 @@ func (r *Runtime) UndeployShard(ctx context.Context, shardID string) error {
 	if err != nil {
 		return err
 	}
+
 	if err := r.docker.RemoveContainers(ctx, names, true, nil); err != nil {
 		return err
 	}
+
 	return r.RefreshRoutes(ctx)
 }
 
@@ -210,9 +233,11 @@ func (r *Runtime) PruneOrphanedShards(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	if len(names) == 0 {
 		return nil
 	}
+
 	return r.docker.RemoveContainers(ctx, names, true, nil)
 }
 
@@ -222,6 +247,7 @@ func orphanedShard(shards []worldtoml.Shard) func(docker.ContainerSummary) bool 
 	for _, sh := range shards {
 		known[sh.InstanceID] = true
 	}
+
 	return func(c docker.ContainerSummary) bool {
 		return c.Labels[service.RoleLabel] == service.RoleShard && !known[c.Labels[service.InstanceLabel]]
 	}
@@ -238,6 +264,7 @@ func (r *Runtime) Stop(ctx context.Context, progress func(docker.Progress)) erro
 	if err != nil {
 		return err
 	}
+
 	return r.docker.StopContainers(ctx, names, progress)
 }
 
@@ -247,6 +274,7 @@ func (r *Runtime) Purge(ctx context.Context, images bool, progress func(docker.P
 	if err != nil {
 		return err
 	}
+
 	if err := r.docker.RemoveContainers(ctx, names, false, progress); err != nil {
 		return err
 	}
@@ -254,12 +282,15 @@ func (r *Runtime) Purge(ctx context.Context, images bool, progress func(docker.P
 	if err := r.docker.RemoveVolumes(ctx, service.VolumeNames(r.cfg)); err != nil {
 		return err
 	}
+
 	if err := r.docker.RemoveNetwork(ctx, service.NetworkName(r.project())); err != nil {
 		return err
 	}
+
 	if images {
 		return r.docker.PruneCardinalImages(ctx)
 	}
+
 	return nil
 }
 
@@ -285,6 +316,7 @@ func isPlatformRunning(ctx context.Context, lister containerLister, project stri
 	if err != nil {
 		return false, err
 	}
+
 	return natsRunning(cs), nil
 }
 
@@ -298,6 +330,7 @@ func natsRunning(containers []docker.ContainerSummary) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -306,12 +339,14 @@ func (r *Runtime) containerNames(ctx context.Context, keep func(docker.Container
 	if err != nil {
 		return nil, err
 	}
+
 	names := make([]string, 0, len(cs))
 	for _, c := range cs {
 		if keep == nil || keep(c) {
 			names = append(names, c.Name)
 		}
 	}
+
 	return names, nil
 }
 
@@ -324,47 +359,60 @@ func (r *Runtime) Status(ctx context.Context) ([]worldstatus.PoolStatus, error) 
 	if err != nil {
 		return nil, err
 	}
+
 	now := time.Now()
+
 	var out []worldstatus.PoolStatus
+
 	index := map[string]int{}
 	pool := func(shardID string) *worldstatus.PoolStatus {
 		if p, ok := index[shardID]; ok {
 			return &out[p]
 		}
+
 		index[shardID] = len(out)
 		out = append(
 			out,
 			worldstatus.PoolStatus{ShardID: shardID, Image: service.CardinalShardImageName(r.project(), shardID)},
 		)
+
 		return &out[len(out)-1]
 	}
+
 	declared := map[string]int32{}
 	for _, sh := range r.cfg.WorldToml.Shards {
 		declared[sh.ID]++
 		pool(sh.ID)
 	}
+
 	for _, c := range cs {
 		if c.Labels[service.RoleLabel] != service.RoleShard {
 			continue
 		}
+
 		p := pool(c.Labels[service.ShardIDLabel])
+
 		inst := worldstatus.InstanceStatus{Name: c.Labels[service.InstanceLabel], Runtime: c.Name, Phase: c.State}
 		if st, err := r.docker.ContainerState(ctx, c.Name); err == nil {
 			inst.RestartCount = int32(st.RestartCount)
 			if st.Running && !st.StartedAt.IsZero() {
 				inst.Age = humanDuration(now.Sub(st.StartedAt))
 			}
+
 			if port, err := r.docker.CardinalHostPort(ctx, c.Name); err == nil {
 				inst.Ready = st.Running && shardReady(ctx, port)
 			}
 		}
+
 		p.Instances = append(p.Instances, inst)
 	}
+
 	for i := range out {
 		sort.Slice(out[i].Instances, func(a, b int) bool { return out[i].Instances[a].Name < out[i].Instances[b].Name })
 		out[i].PoolSize = max(declared[out[i].ShardID], int32(len(out[i].Instances)))
 		out[i].Phase = poolPhase(out[i])
 	}
+
 	return out, nil
 }
 
@@ -372,12 +420,15 @@ func poolPhase(p worldstatus.PoolStatus) string {
 	if len(p.Instances) == 0 {
 		return "NotDeployed"
 	}
+
 	running := 0
+
 	for _, in := range p.Instances {
 		if in.Phase == docker.ContainerRunning {
 			running++
 		}
 	}
+
 	switch {
 	case running == 0:
 		return "Stopped"
@@ -406,16 +457,21 @@ func humanDuration(d time.Duration) string {
 func shardReady(ctx context.Context, port int) bool {
 	ctx, cancel := context.WithTimeout(ctx, shardProbeTimeout)
 	defer cancel()
+
 	url := "http://127.0.0.1:" + strconv.Itoa(port) + "/"
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return false
 	}
+
 	resp, err := probeClient.Do(req)
 	if err != nil {
 		return false
 	}
+
 	_ = resp.Body.Close()
+
 	return true
 }
 
@@ -444,42 +500,53 @@ func (r *Runtime) WaitForShardsReady(
 	for _, id := range instanceIDs {
 		want[id] = true
 	}
+
 	ports := make([]int, 0, len(r.cfg.WorldToml.Shards))
 	for i, sh := range r.cfg.WorldToml.Shards {
 		if len(want) == 0 || want[sh.InstanceID] {
 			ports = append(ports, r.probeHostPort(i))
 		}
 	}
+
 	expected := len(ports)
 
 	// The probes use the caller's context, not the deadline's: a probe cancelled by the
 	// deadline would report every instance down and overwrite a true count with 0.
 	deadline, cancel := context.WithTimeout(ctx, shardReadyTimeout)
 	defer cancel()
+
 	last := -1
+
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
+
 	for {
 		ready := 0
+
 		for _, port := range ports {
 			if shardReady(ctx, port) {
 				ready++
 			}
 		}
+
 		if ctx.Err() != nil {
 			// Cancelled mid-round: every probe failed at once, so this round says nothing
 			// about the shards. Report the last complete one instead of a false zero.
 			return max(last, 0), expected
 		}
+
 		if ready != last {
 			if onProgress != nil {
 				onProgress(ready, expected)
 			}
+
 			last = ready
 		}
+
 		if ready == expected {
 			return ready, expected
 		}
+
 		select {
 		case <-deadline.Done():
 			return ready, expected
@@ -495,6 +562,7 @@ func (r *Runtime) WaitForShardsReady(
 func (r *Runtime) RefreshRoutes(ctx context.Context) error {
 	org := r.cfg.WorldToml.Organization
 	routes := map[string]*url.URL{}
+
 	add := func(org, instance string, u *url.URL) {
 		routes[edge.RouteKey(r.project(), instance)] = u
 		// The chart routes the org-prefixed path too while organization is set; mirror it.
@@ -505,23 +573,29 @@ func (r *Runtime) RefreshRoutes(ctx context.Context) error {
 	for i, sh := range r.cfg.WorldToml.Shards {
 		add(org, sh.InstanceID, hostURL(service.ShardHostPort(i)))
 	}
+
 	if len(routes) == 0 {
 		cs, err := r.docker.ListProjectContainers(ctx, r.project())
 		if err != nil {
 			return err
 		}
+
 		for _, c := range cs {
 			if c.Labels[service.RoleLabel] != service.RoleShard || c.State != docker.ContainerRunning {
 				continue
 			}
+
 			port, err := r.docker.CardinalHostPort(ctx, c.Name)
 			if err != nil {
 				continue
 			}
+
 			add(c.Labels[service.OrgLabel], c.Labels[service.InstanceLabel], hostURL(port))
 		}
 	}
+
 	r.edge.SetRoutes(routes)
+
 	return nil
 }
 
@@ -535,6 +609,7 @@ func (r *Runtime) ServeEdge(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	return r.ServeEdgeOn(ctx, ln)
 }
 
@@ -545,7 +620,9 @@ func (r *Runtime) ListenEdge(ctx context.Context) (net.Listener, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	r.servesEdge = true
+
 	return ln, nil
 }
 
@@ -571,6 +648,7 @@ func (r *Runtime) CheckLayout(ctx context.Context) error {
 	if r.servesEdge {
 		return nil
 	}
+
 	return checkLayout(ctx, r.docker, r.docker, r.project(), r.cfg.WorldToml.Shards)
 }
 
@@ -585,10 +663,12 @@ func checkLayout(
 	if err != nil {
 		return err
 	}
+
 	ports, err := collectShardPorts(ctx, cs, inspector)
 	if err != nil {
 		return err
 	}
+
 	return layoutMismatch(shards, ports)
 }
 
@@ -600,19 +680,24 @@ func collectShardPorts(
 	inspector shardPortInspector,
 ) (map[string]int, error) {
 	ports := make(map[string]int)
+
 	for _, c := range cs {
 		if c.Labels[service.RoleLabel] != service.RoleShard {
 			continue
 		}
+
 		port, err := inspector.CardinalHostPort(ctx, c.Name)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				return nil, err
 			}
+
 			continue
 		}
+
 		ports[c.Labels[service.InstanceLabel]] = port
 	}
+
 	return ports, nil
 }
 
@@ -622,8 +707,10 @@ func layoutMismatch(shards []worldtoml.Shard, ports map[string]int) error {
 	if len(ports) == 0 {
 		return nil
 	}
+
 	for i, sh := range shards {
 		want := service.ShardHostPort(i)
+
 		got, ok := ports[sh.InstanceID]
 		switch {
 		case !ok:
@@ -636,6 +723,7 @@ func layoutMismatch(shards []worldtoml.Shard, ports map[string]int) error {
 					"stop and start the world again", sh.InstanceID, got, want)
 		}
 	}
+
 	return nil
 }
 
@@ -650,50 +738,64 @@ func (r *Runtime) StreamShardLogs(
 	out chan<- worldstatus.LogLine,
 ) error {
 	defer close(out)
+
 	instances := r.cfg.WorldToml.Shards
+
 	if len(opts.InstanceNames) > 0 {
 		var err error
+
 		instances, err = r.cfg.WorldToml.ResolveInstanceIDs(opts.InstanceNames)
 		if err != nil {
 			return err
 		}
 	}
+
 	if len(opts.ShardIDs) > 0 {
 		keep := map[string]bool{}
 		for _, id := range opts.ShardIDs {
 			keep[id] = true
 		}
+
 		var filtered []worldtoml.Shard
+
 		for _, sh := range instances {
 			if keep[sh.ID] {
 				filtered = append(filtered, sh)
 			}
 		}
+
 		instances = filtered
 	}
 	// Cancelling on the way out stops the sibling streams too, so an early return
 	// cannot leave goroutines blocked writing into entries.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
 	if opts.FollowWindow > 0 {
 		var stop context.CancelFunc
+
 		ctx, stop = context.WithTimeout(ctx, opts.FollowWindow)
 		defer stop()
 	}
+
 	entries := make(chan docker.LogEntry, 256)
 	errCh := make(chan error, len(instances))
 	active := 0
+
 	for _, sh := range instances {
 		name := service.CardinalShardContainerName(r.project(), sh.InstanceID)
 		active++
+
 		go func(name string) {
 			errCh <- r.docker.StreamContainerLogs(ctx, name, int(opts.TailLines), true, entries)
 		}(name)
 	}
+
 	byContainer := map[string]worldtoml.Shard{}
 	for _, sh := range instances {
 		byContainer[service.CardinalShardContainerName(r.project(), sh.InstanceID)] = sh
 	}
+
 	return pumpLogs(ctx, entries, errCh, active, false, func(e docker.LogEntry) {
 		sh := byContainer[e.Container]
 		line := worldstatus.LogLine{ShardID: sh.ID, InstanceName: sh.InstanceID, Source: e.Container, Line: e.Line}
@@ -722,21 +824,27 @@ func pumpLogs(
 			emit(e)
 		case err := <-errCh:
 			active--
+
 			if err == nil {
 				continue
 			}
+
 			if cerrdefs.IsNotFound(err) {
 				if missingIsError {
 					return ErrContainerNotFound
 				}
+
 				continue
 			}
+
 			if ctx.Err() != nil {
 				continue
 			}
+
 			return err
 		}
 	}
+
 	for {
 		select {
 		case e := <-entries:
@@ -752,6 +860,7 @@ func emitLogLine(ctx context.Context, out chan<- worldstatus.LogLine, line world
 	if !e.Timestamp.IsZero() {
 		line.Timestamp = e.Timestamp.Format(time.RFC3339Nano)
 	}
+
 	select {
 	case out <- line:
 	case <-ctx.Done():
@@ -766,12 +875,16 @@ func (r *Runtime) StreamContainerLogs(
 	out chan<- worldstatus.LogLine,
 ) error {
 	defer close(out)
+
 	if opts.FollowWindow > 0 {
 		var cancel context.CancelFunc
+
 		ctx, cancel = context.WithTimeout(ctx, opts.FollowWindow)
 		defer cancel()
 	}
+
 	entries := make(chan docker.LogEntry, 256)
+
 	errCh := make(chan error, 1)
 	go func() { errCh <- r.docker.StreamContainerLogs(ctx, name, int(opts.TailLines), true, entries) }()
 	// Over the TUI a platform container that was never created (a [[service]] added since
@@ -790,9 +903,11 @@ func (r *Runtime) PlatformContainers() []string {
 	if service.NeedsAutoProjectDB(r.cfg.WorldToml) {
 		out = append(out, service.ProjectDBContainerName(r.project()))
 	}
+
 	for _, gs := range r.cfg.WorldToml.Services {
 		out = append(out, service.GameServiceContainerName(r.project(), gs.ID))
 	}
+
 	return out
 }
 

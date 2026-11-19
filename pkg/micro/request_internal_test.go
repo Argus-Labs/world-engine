@@ -40,8 +40,10 @@ func invalidServiceAddress() *microv1.ServiceAddress {
 // newWireRequestMsg marshals a microv1.Request into a *nats.Msg ready for NewRequestFromNATSMsg.
 func newWireRequestMsg(t *testing.T, request *microv1.Request) *nats.Msg {
 	t.Helper()
+
 	data, err := proto.Marshal(request)
 	require.NoError(t, err)
+
 	return &nats.Msg{Data: data}
 }
 
@@ -50,10 +52,12 @@ func TestNewRequestFromNATSMsg_RequestID(t *testing.T) {
 	prng := testutils.NewRand(t)
 	serverAddr := RandServiceAddress(t, prng)
 	happyPayloadAddr := RandServiceAddress(t, prng)
+
 	const requestID = "abc-123"
 
 	t.Run("happy path preserves request_id and payload", func(t *testing.T) {
 		t.Parallel()
+
 		payloadAny, err := anypb.New(happyPayloadAddr)
 		require.NoError(t, err)
 
@@ -89,6 +93,7 @@ func TestNewRequestFromNATSMsg_RequestID(t *testing.T) {
 
 	t.Run("unmarshal failure returns nil req", func(t *testing.T) {
 		t.Parallel()
+
 		msg := &nats.Msg{Data: []byte("not valid protobuf")}
 
 		req, err := NewRequestFromNATSMsg(msg, serverAddr)
@@ -99,6 +104,7 @@ func TestNewRequestFromNATSMsg_RequestID(t *testing.T) {
 
 	t.Run("empty data yields req with no request_id", func(t *testing.T) {
 		t.Parallel()
+
 		msg := &nats.Msg{Data: nil}
 
 		req, err := NewRequestFromNATSMsg(msg, serverAddr)
@@ -135,14 +141,17 @@ func TestNewRequestFromNATSMsg_RequestID(t *testing.T) {
 func TestService_ErrorResponsePreservesRequestID(t *testing.T) {
 	t.Parallel()
 	prng := testutils.NewRand(t)
+
 	const requestID = "abc-123"
 
 	t.Run("validation failure echoes request_id and skips handler", func(t *testing.T) {
 		svc, client := newTestService(t, prng)
 		endpoint := randEndpointName(prng)
+
 		t.Parallel()
 
 		handlerCalled := false
+
 		require.NoError(t, svc.AddEndpoint(endpoint, func(_ context.Context, req *Request) *Response {
 			handlerCalled = true
 			return NewSuccessResponse(req, nil)
@@ -174,6 +183,7 @@ func TestService_ErrorResponsePreservesRequestID(t *testing.T) {
 	t.Run("marshal failure echoes request_id", func(t *testing.T) {
 		svc, client := newTestService(t, prng)
 		endpoint := randEndpointName(prng)
+
 		t.Parallel()
 
 		// Handler returns a hand-crafted response whose payload carries invalid UTF-8 in the
@@ -245,9 +255,11 @@ func TestService_ErrorResponsePreservesRequestID(t *testing.T) {
 	t.Run("unparseable request yields empty request_id", func(t *testing.T) {
 		svc, client := newTestService(t, prng)
 		endpoint := randEndpointName(prng)
+
 		t.Parallel()
 
 		handlerCalled := false
+
 		require.NoError(t, svc.AddEndpoint(endpoint, func(_ context.Context, req *Request) *Response {
 			handlerCalled = true
 			return NewSuccessResponse(req, nil)

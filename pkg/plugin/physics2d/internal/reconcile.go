@@ -42,20 +42,25 @@ func (rt *Runtime) ReconcileFromECS(entries []PhysicsRebuildEntry) error {
 	if err != nil {
 		return err
 	}
+
 	rt.destroyOrphanBodies(sorted)
 	clear(rt.reconcileFailed)
+
 	errs := rt.reconcileErrsScratch[:0]
 	for _, e := range sorted {
 		if err := rt.reconcileOneEntry(e); err != nil {
 			rt.reconcileFailed[e.EntityID] = struct{}{}
+
 			errs = append(errs, err)
 		}
 	}
+
 	joined := errors.Join(errs...)
 	// Drop references to the per-entity errors so the scratch backing array does not pin
 	// their messages past this tick (see Runtime scratch RULE).
 	clear(errs)
 	rt.reconcileErrsScratch = clearScratchTail(errs)
+
 	return joined
 }
 
@@ -73,11 +78,13 @@ func (rt *Runtime) cloneSortAndCheckDuplicateReconcileEntries(
 	slices.SortFunc(sorted, func(a, b PhysicsRebuildEntry) int {
 		return cmp.Compare(a.EntityID, b.EntityID)
 	})
+
 	for i := 1; i < len(sorted); i++ {
 		if sorted[i].EntityID == sorted[i-1].EntityID {
 			return nil, fmt.Errorf("physics2d: duplicate entity_id %d in reconcile entries", sorted[i].EntityID)
 		}
 	}
+
 	return sorted, nil
 }
 
@@ -86,12 +93,15 @@ func (rt *Runtime) cloneSortAndCheckDuplicateReconcileEntries(
 // set allocation.
 func (rt *Runtime) destroyOrphanBodies(sorted []PhysicsRebuildEntry) {
 	var orphans []cardinal.EntityID
+
 	for id := range rt.KnownEntities {
 		if !sortedEntriesContainID(sorted, id) {
 			orphans = append(orphans, id)
 		}
 	}
+
 	slices.SortFunc(orphans, cmp.Compare)
+
 	for _, id := range orphans {
 		rt.DestroyEntityBody(id)
 		delete(rt.KnownEntities, id)
@@ -117,6 +127,7 @@ func sortedEntriesContainID(sorted []PhysicsRebuildEntry, id cardinal.EntityID) 
 			hi = mid
 		}
 	}
+
 	return lo < len(sorted) && sorted[lo].EntityID == id
 }
 
@@ -125,21 +136,28 @@ func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
 	if e.PhysicsBody.Shapes.Len() == 0 {
 		return fmt.Errorf("physics2d: entity %d: collider has no shapes", e.EntityID)
 	}
+
 	prev, hadPrev := rt.Shadow[e.EntityID]
+
 	_, hadBody := rt.KnownEntities[e.EntityID]
 	if !hadBody {
 		if err := rt.createBodyForEntry(e); err != nil {
 			return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
 		}
+
 		return nil
 	}
+
 	if hadPrev && !prev.PhysicsDiffers(e.Transform, e.Velocity, e.PhysicsBody) {
 		return nil
 	}
+
 	if err := rt.reconcileExistingBody(hadPrev, prev, e); err != nil {
 		return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
 	}
+
 	rt.Shadow[e.EntityID] = NewShadowState(e.Transform, e.Velocity, e.PhysicsBody)
+
 	return nil
 }
 
@@ -153,8 +171,10 @@ func (rt *Runtime) createBodyForEntry(e PhysicsRebuildEntry) error {
 	); err != nil {
 		return err
 	}
+
 	rt.KnownEntities[e.EntityID] = struct{}{}
 	rt.Shadow[e.EntityID] = NewShadowState(e.Transform, e.Velocity, e.PhysicsBody)
+
 	return nil
 }
 
@@ -170,6 +190,7 @@ func (rt *Runtime) reconcileExistingBody(
 		delete(rt.KnownEntities, e.EntityID)
 		delete(rt.Shadow, e.EntityID)
 		rt.PruneActiveContactsInvolvingEntity(e.EntityID)
+
 		return rt.createBodyForEntry(e)
 	}
 
@@ -182,6 +203,7 @@ func (rt *Runtime) reconcileExistingBody(
 	if prev.BodyParamsDiffer(e.PhysicsBody) {
 		rt.applyBodyParamsInPlace(e.EntityID, e.PhysicsBody, prev.PhysicsBody.Awake)
 	}
+
 	if prev.TransformDiffers(e.Transform) {
 		rt.World.SetBodyTransform(bodyID,
 			box2d.Vec2{X: e.Transform.Position.X, Y: e.Transform.Position.Y},
@@ -194,6 +216,7 @@ func (rt *Runtime) reconcileExistingBody(
 			rt.World.SetBodyAwake(bodyID, true)
 		}
 	}
+
 	if prev.ShapesDiffer(e.PhysicsBody) {
 		if err := rt.reconcileShapesChange(e.EntityID, prev.PhysicsBody.Shapes, e.PhysicsBody.Shapes); err != nil {
 			return err
@@ -215,6 +238,7 @@ func (rt *Runtime) reconcileExistingBody(
 		rt.World.SetBodyAngularVelocity(bodyID, 0)
 	case e.PhysicsBody.FixedRotation:
 		rt.World.SetBodyAngularVelocity(bodyID, 0)
+
 		if prev.VelocityDiffers(e.Velocity) || leftUntrackedVelocity {
 			rt.World.SetBodyLinearVelocity(bodyID, box2d.Vec2{X: e.Velocity.Linear.X, Y: e.Velocity.Linear.Y})
 		}
@@ -222,6 +246,7 @@ func (rt *Runtime) reconcileExistingBody(
 		rt.World.SetBodyLinearVelocity(bodyID, box2d.Vec2{X: e.Velocity.Linear.X, Y: e.Velocity.Linear.Y})
 		rt.World.SetBodyAngularVelocity(bodyID, e.Velocity.Angular)
 	}
+
 	return nil
 }
 
@@ -241,15 +266,20 @@ func (rt *Runtime) reconcileShapesChange(
 	if ShapesStructuralEqual(prev, live) {
 		return rt.applyMutableShapeFixtures(entityID, prev, live)
 	}
+
 	rt.destroyAllShapesForEntity(entityID)
+
 	if err := rt.AttachColliderFixtures(entityID, live); err != nil {
 		rt.DestroyEntityBody(entityID)
 		delete(rt.KnownEntities, entityID)
 		delete(rt.Shadow, entityID)
 		rt.PruneActiveContactsInvolvingEntity(entityID)
+
 		return err
 	}
+
 	rt.PruneActiveContactsInvolvingEntity(entityID)
+
 	return nil
 }
 
@@ -258,12 +288,15 @@ func validatePhysicsRebuildEntry(e PhysicsRebuildEntry) error {
 	if err := e.Transform.Validate(); err != nil {
 		return fmt.Errorf("physics2d: entity %d transform: %w", e.EntityID, err)
 	}
+
 	if err := e.Velocity.Validate(); err != nil {
 		return fmt.Errorf("physics2d: entity %d velocity: %w", e.EntityID, err)
 	}
+
 	if err := e.PhysicsBody.Validate(); err != nil {
 		return fmt.Errorf("physics2d: entity %d physics_body: %w", e.EntityID, err)
 	}
+
 	return nil
 }
 
@@ -275,6 +308,7 @@ func (rt *Runtime) applyBodyParamsInPlace(entityID cardinal.EntityID, pb compone
 	if !ok {
 		return
 	}
+
 	rt.World.SetBodyType(bodyID, mapBodyType(pb.BodyType))
 	rt.World.SetBodyLinearDamping(bodyID, pb.LinearDamping)
 	rt.World.SetBodyAngularDamping(bodyID, pb.AngularDamping)
@@ -283,10 +317,12 @@ func (rt *Runtime) applyBodyParamsInPlace(entityID cardinal.EntityID, pb compone
 	rt.World.SetBodyBullet(bodyID, pb.Bullet)
 	rt.setFixedRotation(bodyID, pb.FixedRotation)
 	rt.World.EnableBodySleep(bodyID, pb.SleepingAllowed)
+
 	awake := pb.Awake
 	if pb.Awake == prevAwake {
 		awake = true
 	}
+
 	rt.World.SetBodyAwake(bodyID, awake)
 }
 
@@ -319,13 +355,17 @@ func (rt *Runtime) applyMutableShapeFixtures(
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
+
 	slots := rt.Shapes[entityID]
+
 	var densityTouched bool
+
 	for i, sh := range live.All() {
 		prevShape := prev.At(i)
 		if ColliderShapeMutableFieldsEqual(prevShape, sh) {
 			continue
 		}
+
 		if prevShape.Density != sh.Density {
 			densityTouched = true
 		}
@@ -334,6 +374,7 @@ func (rt *Runtime) applyMutableShapeFixtures(
 		if i >= len(slots) || slots[i].IsNull() {
 			continue
 		}
+
 		sid := slots[i]
 		rt.World.SetShapeFriction(sid, sh.Friction)
 		rt.World.SetShapeRestitution(sid, sh.Restitution)
@@ -344,10 +385,12 @@ func (rt *Runtime) applyMutableShapeFixtures(
 			GroupIndex:   int(sh.GroupIndex),
 		})
 	}
+
 	if densityTouched {
 		if bodyID, ok := rt.Bodies[entityID]; ok {
 			rt.World.ApplyBodyMassFromShapes(bodyID)
 		}
 	}
+
 	return nil
 }

@@ -22,33 +22,42 @@ import (
 func encodeCommandPayload(schema map[string]any, payload string) ([]byte, error) {
 	decoder := json.NewDecoder(strings.NewReader(payload))
 	decoder.UseNumber()
+
 	var object map[string]any
 	if err := decoder.Decode(&object); err != nil {
 		return nil, eris.Wrap(err, "failed to parse command object")
 	}
+
 	if object == nil {
 		return nil, eris.New("command payload must be a JSON object")
 	}
+
 	var extra any
 	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
 		return nil, eris.New("command payload must contain exactly one JSON object")
 	}
+
 	compiler := jsonschema.NewCompiler()
 	if err := compiler.AddResource("https://cardinal.local/command.json", schema); err != nil {
 		return nil, eris.Wrap(err, "failed to load command schema")
 	}
+
 	compiled, err := compiler.Compile("https://cardinal.local/command.json")
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to compile command schema")
 	}
+
 	if err := compiled.Validate(object); err != nil {
 		return nil, eris.Wrap(err, "invalid command payload")
 	}
+
 	value, err := commandValue(object, schema, schema)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to build command payload")
 	}
+
 	blob, err := msgpack.Marshal(value)
+
 	return blob, eris.Wrap(err, "failed to encode command MessagePack")
 }
 
@@ -64,21 +73,27 @@ func commandValue(value any, schema, root map[string]any) (any, error) {
 			}
 		}
 	}
+
 	if ref, ok := schema["$ref"].(string); ok {
 		var target any = root
+
 		if !strings.HasPrefix(ref, "#/") {
 			return nil, eris.Errorf("unsupported schema reference %q", ref)
 		}
+
 		for part := range strings.SplitSeq(strings.TrimPrefix(ref, "#/"), "/") {
 			object, _ := target.(map[string]any)
 			target = object[strings.ReplaceAll(strings.ReplaceAll(part, "~1", "/"), "~0", "~")]
 		}
+
 		resolved, ok := target.(map[string]any)
 		if !ok {
 			return nil, eris.Errorf("unknown schema reference %q", ref)
 		}
+
 		return commandValue(value, resolved, root)
 	}
+
 	switch v := value.(type) {
 	case map[string]any:
 		return commandObject(v, schema, root)
@@ -89,6 +104,7 @@ func commandValue(value any, schema, root map[string]any) (any, error) {
 			if err != nil {
 				return nil, eris.Wrapf(err, "array element %d", i)
 			}
+
 			v[i] = converted
 		}
 	case json.Number:
@@ -98,18 +114,21 @@ func commandValue(value any, schema, root map[string]any) (any, error) {
 			decoded, err := base64.StdEncoding.DecodeString(v)
 			return decoded, eris.Wrap(err, "invalid base64 bytes")
 		}
+
 		if schema["format"] == "date-time" {
 			// msgpack encodes a time.Time as the timestamp extension the shard decodes.
 			parsed, err := time.Parse(time.RFC3339Nano, v)
 			return parsed, eris.Wrap(err, "invalid RFC 3339 timestamp")
 		}
 	}
+
 	return value, nil
 }
 
 func commandObject(v, schema, root map[string]any) (any, error) {
 	properties, _ := schema["properties"].(map[string]any)
 	keyFormat, _ := schema["x-msgpack-key-format"].(string)
+
 	keyed := make(map[any]any, len(v))
 	for name, field := range v {
 		child, ok := properties[name].(map[string]any)
@@ -119,25 +138,31 @@ func commandObject(v, schema, root map[string]any) (any, error) {
 				return nil, eris.Errorf("unknown field %q", name)
 			}
 		}
+
 		converted, err := commandValue(field, child, root)
 		if err != nil {
 			return nil, eris.Wrapf(err, "field %q", name)
 		}
+
 		v[name] = converted
 		if keyFormat != "" {
 			key, err := commandNumber(json.Number(name), map[string]any{"format": keyFormat})
 			if err != nil {
 				return nil, eris.Wrapf(err, "map key %q", name)
 			}
+
 			if _, exists := keyed[key]; exists {
 				return nil, eris.Errorf("duplicate numeric map key %q", name)
 			}
+
 			keyed[key] = converted
 		}
 	}
+
 	if keyFormat != "" {
 		return keyed, nil
 	}
+
 	return v, nil
 }
 
@@ -146,28 +171,36 @@ func commandNumber(v json.Number, schema map[string]any) (any, error) {
 		n, err := strconv.ParseFloat(v.String(), 64)
 		return n, eris.Wrap(err, "invalid floating point number")
 	}
+
 	text, err := integerText(v.String())
 	if err != nil {
 		return nil, err
 	}
+
 	if format, ok := schema["format"].(string); ok {
 		if bits, unsigned := integerFormat(format); bits != 0 {
 			if unsigned {
 				n, err := strconv.ParseUint(text, 10, bits)
 				return n, eris.Wrapf(err, "invalid %s integer", format)
 			}
+
 			n, err := strconv.ParseInt(text, 10, bits)
+
 			return n, eris.Wrapf(err, "invalid %s integer", format)
 		}
 	}
+
 	if strings.HasPrefix(text, "-") {
 		n, err := strconv.ParseInt(text, 10, 64)
 		return n, eris.Wrap(err, "integer outside signed 64-bit range")
 	}
+
 	if n, err := strconv.ParseInt(text, 10, 64); err == nil {
 		return n, nil
 	}
+
 	n, err := strconv.ParseUint(text, 10, 64)
+
 	return n, eris.Wrap(err, "integer outside unsigned 64-bit range")
 }
 
@@ -178,10 +211,12 @@ func integerText(s string) (string, error) {
 	if !strings.ContainsAny(s, ".eE") {
 		return s, nil
 	}
+
 	f, _, err := big.ParseFloat(s, 10, 256, big.ToZero)
 	if err != nil || f.Acc() != big.Exact || !f.IsInt() {
 		return "", eris.Errorf("%s is not an integer", s)
 	}
+
 	return f.Text('f', 0), nil
 }
 
@@ -215,6 +250,7 @@ func decodeMessage(blob []byte) (result map[string]any, err error) {
 			err = eris.Wrap(fmt.Errorf("panic: %v", recovered), "failed to decode component MessagePack")
 		}
 	}()
+
 	reader := bytes.NewReader(blob)
 	decoder := msgpack.NewDecoder(reader)
 	// Nested MessagePack maps may have integer keys; render those as JSON object keys.
@@ -223,18 +259,23 @@ func decodeMessage(blob []byte) (result map[string]any, err error) {
 		if err != nil {
 			return nil, eris.Wrap(err, "failed to decode component map")
 		}
+
 		out := make(map[string]any, len(entries))
 		for key, value := range entries {
 			out[fmt.Sprint(key)] = value
 		}
+
 		return out, nil
 	})
+
 	var out map[string]any
 	if err := decoder.Decode(&out); err != nil {
 		return nil, eris.Wrap(err, "failed to decode component MessagePack")
 	}
+
 	if out == nil || reader.Len() != 0 {
 		return nil, eris.New("component payload must contain one MessagePack object")
 	}
+
 	return out, nil
 }

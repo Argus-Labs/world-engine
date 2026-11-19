@@ -28,6 +28,7 @@ func (f *fakeDebugClient) Pause(
 ) (*connect.Response[cardinalv1.PauseResponse], error) {
 	f.calls = append(f.calls, "pause")
 	f.paused = true
+
 	return connect.NewResponse(&cardinalv1.PauseResponse{TickHeight: 7}), nil
 }
 
@@ -38,13 +39,16 @@ func (f *fakeDebugClient) Step(
 	if len(f.stepErrors) > 0 {
 		err := f.stepErrors[0]
 		f.stepErrors = f.stepErrors[1:]
+
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	if f.failWhileRunning && !f.paused {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("world is not paused"))
 	}
+
 	return connect.NewResponse(&cardinalv1.StepResponse{TickHeight: 8}), nil
 }
 
@@ -55,12 +59,14 @@ func (f *fakeDebugClient) Reset(
 	if f.failWhileRunning && !f.paused {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, eris.New("world is not paused"))
 	}
+
 	return connect.NewResponse(&cardinalv1.ResetResponse{}), nil
 }
 
 // A running shard is paused and the step retried, and the message says so.
 func TestStep_AutoPausesWhenRunning(t *testing.T) {
 	t.Parallel()
+
 	fake := &fakeDebugClient{failWhileRunning: true}
 	msg, err := Step(context.Background(), fake, "game")
 
@@ -72,6 +78,7 @@ func TestStep_AutoPausesWhenRunning(t *testing.T) {
 // An already-paused shard steps directly, with no pause and no retry.
 func TestStep_AlreadyPaused_DoesNotPause(t *testing.T) {
 	t.Parallel()
+
 	fake := &fakeDebugClient{failWhileRunning: true, paused: true}
 	msg, err := Step(context.Background(), fake, "game")
 
@@ -82,6 +89,7 @@ func TestStep_AlreadyPaused_DoesNotPause(t *testing.T) {
 
 func TestReset_AutoPausesWhenRunning(t *testing.T) {
 	t.Parallel()
+
 	fake := &fakeDebugClient{failWhileRunning: true}
 	msg, err := Reset(context.Background(), fake, "game")
 
@@ -92,6 +100,7 @@ func TestReset_AutoPausesWhenRunning(t *testing.T) {
 
 func TestReset_AlreadyPaused_DoesNotPause(t *testing.T) {
 	t.Parallel()
+
 	fake := &fakeDebugClient{failWhileRunning: true, paused: true}
 	msg, err := Reset(context.Background(), fake, "game")
 
@@ -102,6 +111,7 @@ func TestReset_AlreadyPaused_DoesNotPause(t *testing.T) {
 
 func TestStep_DoesNotPauseForOtherErrors(t *testing.T) {
 	t.Parallel()
+
 	unavailable := connect.NewError(connect.CodeUnavailable, eris.New("unavailable"))
 	fake := &fakeDebugClient{stepErrors: []error{unavailable}}
 
@@ -114,6 +124,7 @@ func TestStep_DoesNotPauseForOtherErrors(t *testing.T) {
 
 func TestStep_RetryFailureReportsAutoPause(t *testing.T) {
 	t.Parallel()
+
 	notPaused := connect.NewError(connect.CodeFailedPrecondition, eris.New("world is not paused"))
 	unavailable := connect.NewError(connect.CodeUnavailable, eris.New("unavailable"))
 	fake := &fakeDebugClient{stepErrors: []error{notPaused, unavailable}}

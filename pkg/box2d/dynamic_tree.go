@@ -201,6 +201,7 @@ func maxUInt16(a, b uint16) uint16 {
 	if a > b {
 		return a
 	}
+
 	return b
 }
 
@@ -269,6 +270,7 @@ func (tree *DynamicTree) allocateNode() int {
 	tree.freeList = int(node.Parent)
 	*node = defaultTreeNode()
 	tree.nodeCount++
+
 	return nodeIndex
 }
 
@@ -349,6 +351,7 @@ func (tree *DynamicTree) findBestSibling(boxD AABB) int {
 		box1 := nodes[child1].AABB
 		directCost1 := perimeter(AABBUnion(box1, boxD))
 		area1 := 0.0
+
 		if leaf1 {
 			// Child 1 is a leaf
 			// Cost of creating new node and increasing area of node P
@@ -376,6 +379,7 @@ func (tree *DynamicTree) findBestSibling(boxD AABB) int {
 		box2 := nodes[child2].AABB
 		directCost2 := perimeter(AABBUnion(box2, boxD))
 		area2 := 0.0
+
 		if leaf2 {
 			cost2 := directCost2 + inheritedCost
 
@@ -451,6 +455,7 @@ func (tree *DynamicTree) rotateNodes(iA int) {
 
 	iB := int(nodeA.Child1)
 	iC := int(nodeA.Child2)
+
 	assert(0 <= iB && iB < tree.nodeCapacity)
 	assert(0 <= iC && iC < tree.nodeCapacity)
 
@@ -466,6 +471,7 @@ func (tree *DynamicTree) rotateNodes(iA int) {
 		iG := int(nodeC.Child2)
 		nodeF := &nodes[iF]
 		nodeG := &nodes[iG]
+
 		assert(0 <= iF && iF < tree.nodeCapacity)
 		assert(0 <= iG && iG < tree.nodeCapacity)
 
@@ -527,6 +533,7 @@ func (tree *DynamicTree) rotateNodes(iA int) {
 		iE := int(nodeB.Child2)
 		nodeD := &nodes[iD]
 		nodeE := &nodes[iE]
+
 		assert(0 <= iD && iD < tree.nodeCapacity)
 		assert(0 <= iE && iE < tree.nodeCapacity)
 
@@ -604,6 +611,7 @@ func (tree *DynamicTree) rotateNodes(iA int) {
 
 		// Cost of swapping B and F
 		aabbBG := AABBUnion(nodeB.AABB, nodeG.AABB)
+
 		costBF := areaB + perimeter(aabbBG)
 		if costBF < bestCost {
 			bestRotation = rotateBF
@@ -612,6 +620,7 @@ func (tree *DynamicTree) rotateNodes(iA int) {
 
 		// Cost of swapping B and G
 		aabbBF := AABBUnion(nodeB.AABB, nodeF.AABB)
+
 		costBG := areaB + perimeter(aabbBF)
 		if costBG < bestCost {
 			bestRotation = rotateBG
@@ -620,6 +629,7 @@ func (tree *DynamicTree) rotateNodes(iA int) {
 
 		// Cost of swapping C and D
 		aabbCE := AABBUnion(nodeC.AABB, nodeE.AABB)
+
 		costCD := areaC + perimeter(aabbCE)
 		if costCD < bestCost {
 			bestRotation = rotateCD
@@ -628,6 +638,7 @@ func (tree *DynamicTree) rotateNodes(iA int) {
 
 		// Cost of swapping C and E
 		aabbCD := AABBUnion(nodeC.AABB, nodeD.AABB)
+
 		costCE := areaC + perimeter(aabbCD)
 		if costCE < bestCost {
 			bestRotation = rotateCE
@@ -708,6 +719,7 @@ func (tree *DynamicTree) insertLeaf(leaf int, shouldRotate bool) {
 	if tree.root == NullIndex {
 		tree.root = leaf
 		tree.nodes[tree.root].Parent = NullIndex
+
 		return
 	}
 
@@ -778,6 +790,7 @@ func (tree *DynamicTree) removeLeaf(leaf int) {
 
 	parent := int(nodes[leaf].Parent)
 	grandParent := nodes[parent].Parent
+
 	var sibling int32
 	if nodes[parent].Child1 == int32(leaf) {
 		sibling = nodes[parent].Child2
@@ -792,7 +805,9 @@ func (tree *DynamicTree) removeLeaf(leaf int) {
 		} else {
 			nodes[grandParent].Child2 = sibling
 		}
+
 		nodes[sibling].Parent = grandParent
+
 		tree.freeNode(parent)
 
 		// Adjust ancestor bounds.
@@ -864,6 +879,7 @@ func (tree *DynamicTree) MoveProxy(proxyID int, aabb AABB) {
 	if debugAsserts {
 		assert(IsValidAABB(aabb))
 	}
+
 	assert(aabb.UpperBound.X-aabb.LowerBound.X < Huge)
 	assert(aabb.UpperBound.Y-aabb.LowerBound.Y < Huge)
 	assert(0 <= proxyID && proxyID < tree.nodeCapacity)
@@ -885,6 +901,7 @@ func (tree *DynamicTree) EnlargeProxy(proxyID int, aabb AABB) {
 	if debugAsserts {
 		assert(IsValidAABB(aabb))
 	}
+
 	assert(aabb.UpperBound.X-aabb.LowerBound.X < Huge)
 	assert(aabb.UpperBound.Y-aabb.LowerBound.Y < Huge)
 	assert(0 <= proxyID && proxyID < tree.nodeCapacity)
@@ -934,6 +951,7 @@ func (tree *DynamicTree) SetCategoryBits(proxyID int, categoryBits uint64) {
 		node := &nodes[nodeIndex]
 		child1 := node.Child1
 		assert(child1 != NullIndex)
+
 		child2 := node.Child2
 		assert(child2 != NullIndex)
 		node.CategoryBits = nodes[child1].CategoryBits | nodes[child2].CategoryBits
@@ -970,6 +988,7 @@ func (tree *DynamicTree) GetAreaRatio() float64 {
 	rootArea := perimeter(root.AABB)
 
 	totalArea := 0.0
+
 	for i := range tree.nodeCapacity {
 		node := &tree.nodes[i]
 		if !isAllocated(node) || isLeaf(node) || i == tree.root {
@@ -1019,6 +1038,7 @@ func (tree *DynamicTree) computeHeight(nodeID int) int {
 
 	height1 := tree.computeHeight(int(node.Child1))
 	height2 := tree.computeHeight(int(node.Child2))
+
 	return 1 + maxInt(height1, height2)
 }
 
@@ -1043,6 +1063,7 @@ func (tree *DynamicTree) validateStructure(index int) error {
 		if node.Height != 0 {
 			return fmt.Errorf("%w: leaf %d has height %d", errTreeValidation, index, node.Height)
 		}
+
 		return nil
 	}
 
@@ -1052,6 +1073,7 @@ func (tree *DynamicTree) validateStructure(index int) error {
 	if child1 < 0 || child1 >= tree.nodeCapacity {
 		return fmt.Errorf("%w: node %d child1 %d out of range", errTreeValidation, index, child1)
 	}
+
 	if child2 < 0 || child2 >= tree.nodeCapacity {
 		return fmt.Errorf("%w: node %d child2 %d out of range", errTreeValidation, index, child2)
 	}
@@ -1060,6 +1082,7 @@ func (tree *DynamicTree) validateStructure(index int) error {
 		return fmt.Errorf("%w: node %d child1 %d has parent %d", errTreeValidation, index, child1,
 			tree.nodes[child1].Parent)
 	}
+
 	if int(tree.nodes[child2].Parent) != index {
 		return fmt.Errorf("%w: node %d child2 %d has parent %d", errTreeValidation, index, child2,
 			tree.nodes[child2].Parent)
@@ -1089,6 +1112,7 @@ func (tree *DynamicTree) validateMetrics(index int) error {
 		if node.Height != 0 {
 			return fmt.Errorf("%w: leaf %d has height %d", errTreeValidation, index, node.Height)
 		}
+
 		return nil
 	}
 
@@ -1098,12 +1122,14 @@ func (tree *DynamicTree) validateMetrics(index int) error {
 	if child1 < 0 || child1 >= tree.nodeCapacity {
 		return fmt.Errorf("%w: node %d child1 %d out of range", errTreeValidation, index, child1)
 	}
+
 	if child2 < 0 || child2 >= tree.nodeCapacity {
 		return fmt.Errorf("%w: node %d child2 %d out of range", errTreeValidation, index, child2)
 	}
 
 	height1 := tree.nodes[child1].Height
 	height2 := tree.nodes[child2].Height
+
 	height := 1 + maxUInt16(height1, height2)
 	if node.Height != height {
 		return fmt.Errorf("%w: node %d height %d, expected %d", errTreeValidation, index, node.Height, height)
@@ -1112,6 +1138,7 @@ func (tree *DynamicTree) validateMetrics(index int) error {
 	if !AABBContains(node.AABB, tree.nodes[child1].AABB) {
 		return fmt.Errorf("%w: node %d does not contain child1 %d", errTreeValidation, index, child1)
 	}
+
 	if !AABBContains(node.AABB, tree.nodes[child2].AABB) {
 		return fmt.Errorf("%w: node %d does not contain child2 %d", errTreeValidation, index, child2)
 	}
@@ -1146,16 +1173,19 @@ func (tree *DynamicTree) Validate() error {
 	}
 
 	freeCount := 0
+
 	freeIndex := tree.freeList
 	for freeIndex != NullIndex {
 		if freeIndex < 0 || freeIndex >= tree.nodeCapacity {
 			return fmt.Errorf("%w: free list index %d out of range", errTreeValidation, freeIndex)
 		}
+
 		freeIndex = int(tree.nodes[freeIndex].Parent)
 		freeCount++
 	}
 
 	height := tree.GetHeight()
+
 	computedHeight := tree.computeHeight(tree.root)
 	if height != computedHeight {
 		return fmt.Errorf("%w: tree height %d, computed %d", errTreeValidation, height, computedHeight)
@@ -1193,6 +1223,7 @@ func (tree *DynamicTree) Query(aabb AABB, maskBits uint64, callback TreeQueryCal
 	}
 
 	var stack [treeStackSize]int32
+
 	stackCount := 0
 	stack[stackCount] = int32(tree.root)
 	stackCount++
@@ -1238,6 +1269,7 @@ func (tree *DynamicTree) QueryAll(aabb AABB, callback TreeQueryCallbackFcn, cont
 	}
 
 	var stack [treeStackSize]int32
+
 	stackCount := 0
 	stack[stackCount] = int32(tree.root)
 	stackCount++
@@ -1306,6 +1338,7 @@ func (tree *DynamicTree) RayCast(input *RayCastInput, maskBits uint64, callback 
 	segmentAABB := AABB{LowerBound: Min(p1, p2), UpperBound: Max(p1, p2)}
 
 	var stack [treeStackSize]int32
+
 	stackCount := 0
 	stack[stackCount] = int32(tree.root)
 	stackCount++
@@ -1321,6 +1354,7 @@ func (tree *DynamicTree) RayCast(input *RayCastInput, maskBits uint64, callback 
 
 	for stackCount > 0 {
 		stackCount--
+
 		nodeID := stack[stackCount]
 		if nodeID == NullIndex {
 			assert(false)
@@ -1342,6 +1376,7 @@ func (tree *DynamicTree) RayCast(input *RayCastInput, maskBits uint64, callback 
 		c := AABBCenter(nodeAABB)
 		h := AABBExtents(nodeAABB)
 		term1 := absFloat(Dot(v, Sub(p1, c)))
+
 		term2 := Dot(absV, h)
 		if term2 < term1 {
 			continue
@@ -1371,6 +1406,7 @@ func (tree *DynamicTree) RayCast(input *RayCastInput, maskBits uint64, callback 
 			}
 		case stackCount < treeStackSize-1:
 			c1 := AABBCenter(nodes[node.Child1].AABB)
+
 			c2 := AABBCenter(nodes[node.Child2].AABB)
 			if DistanceSquared(c1, p1) < DistanceSquared(c2, p1) {
 				stack[stackCount] = node.Child2
@@ -1445,12 +1481,14 @@ func (tree *DynamicTree) ShapeCast(input *ShapeCastInput, maskBits uint64, callb
 	nodes := tree.nodes
 
 	var stack [treeStackSize]int32
+
 	stackCount := 0
 	stack[stackCount] = int32(tree.root)
 	stackCount++
 
 	for stackCount > 0 {
 		stackCount--
+
 		nodeID := stack[stackCount]
 		if nodeID == NullIndex {
 			assert(false)
@@ -1470,6 +1508,7 @@ func (tree *DynamicTree) ShapeCast(input *ShapeCastInput, maskBits uint64, callb
 		c := AABBCenter(node.AABB)
 		h := Add(AABBExtents(node.AABB), extension)
 		term1 := absFloat(Dot(v, Sub(p1, c)))
+
 		term2 := Dot(absV, h)
 		if term2 < term1 {
 			continue
@@ -1497,6 +1536,7 @@ func (tree *DynamicTree) ShapeCast(input *ShapeCastInput, maskBits uint64, callb
 			}
 		case stackCount < treeStackSize-1:
 			c1 := AABBCenter(nodes[node.Child1].AABB)
+
 			c2 := AABBCenter(nodes[node.Child2].AABB)
 			if DistanceSquared(c1, p1) < DistanceSquared(c2, p1) {
 				stack[stackCount] = node.Child2
@@ -1545,6 +1585,7 @@ func partitionMid(indices []int, centers []Vec2, count int) int {
 	// https://en.wikipedia.org/wiki/Quicksort
 	// https://nicholasvadivelu.com/2021/01/11/array-partition/
 	i1, i2 := 0, count
+
 	if d.X > d.Y {
 		pivot := c.X
 
@@ -1592,6 +1633,7 @@ func partitionMid(indices []int, centers []Vec2, count int) int {
 			}
 		}
 	}
+
 	assert(i1 == i2)
 
 	if i1 > 0 && i1 < count {
@@ -1626,6 +1668,7 @@ func (tree *DynamicTree) buildTree(leafCount int) int {
 	leafCenters := tree.leafCenters
 
 	var stack [treeStackSize]rebuildItem
+
 	top := 0
 
 	stack[0].nodeIndex = tree.allocateNode()
@@ -1643,7 +1686,6 @@ func (tree *DynamicTree) buildTree(leafCount int) int {
 
 		if item.childCount == 2 {
 			// This internal node has both children established
-
 			if top == 0 {
 				// all done
 				break
@@ -1709,6 +1751,7 @@ func (tree *DynamicTree) buildTree(leafCount int) int {
 				childNode.Parent = int32(item.nodeIndex)
 			} else {
 				assert(count > 0)
+
 				if top >= len(stack)-1 {
 					panic("box2d: tree rebuild stack overflow")
 				}
@@ -1762,7 +1805,9 @@ func (tree *DynamicTree) Rebuild(fullBuild bool) int {
 	}
 
 	leafCount := 0
+
 	var stack [treeStackSize]int
+
 	stackCount := 0
 
 	nodeIndex := tree.root

@@ -54,6 +54,7 @@ func (w *World) collideTask(startIndex, endIndex, workerIndex int, ctx *stepCont
 		if !overlap {
 			contactSim.simFlags |= simDisjoint
 			contactSim.simFlags &^= simTouchingFlag
+
 			setBit(&tc.contactStateBitSet, uint32(contactID))
 		} else {
 			wasTouching := contactSim.simFlags&simTouchingFlag != 0
@@ -72,6 +73,7 @@ func (w *World) collideTask(startIndex, endIndex, workerIndex int, ctx *stepCont
 			} else {
 				contactSim.bodySimIndexA = NullIndex
 			}
+
 			contactSim.invMassA = bodySimA.invMass
 			contactSim.invIA = bodySimA.invInertia
 
@@ -80,6 +82,7 @@ func (w *World) collideTask(startIndex, endIndex, workerIndex int, ctx *stepCont
 			} else {
 				contactSim.bodySimIndexB = NullIndex
 			}
+
 			contactSim.invMassB = bodySimB.invMass
 			contactSim.invIB = bodySimB.invInertia
 
@@ -98,14 +101,17 @@ func (w *World) collideTask(startIndex, endIndex, workerIndex int, ctx *stepCont
 				if minCos > ContactRecycleCosAngle {
 					xf := InvMulTransforms(transformA, transformB)
 					xfc := InvMulTransforms(contactSim.cachedTransformA, contactSim.cachedTransformB)
+
 					maxExtentA := 0.0
 					if bodyA.bodyType != StaticBody {
 						maxExtentA = bodySimA.maxExtent
 					}
+
 					maxExtentB := 0.0
 					if bodyB.bodyType != StaticBody {
 						maxExtentB = bodySimB.maxExtent
 					}
+
 					maxExtent := maxFloat(maxExtentA, maxExtentB)
 					distance := Distance(xf.P, xfc.P)
 					qr := InvMulRot(xf.Q, xfc.Q)
@@ -118,6 +124,7 @@ func (w *World) collideTask(startIndex, endIndex, workerIndex int, ctx *stepCont
 					if wasTouching {
 						tolerance = recycleDistance
 					}
+
 					if distance+float64(maxExtent*absFloat(qr.S)) < tolerance {
 						dqA := MulRot(transformA.Q, InvertRot(contactSim.cachedTransformA.Q))
 						dqB := MulRot(transformB.Q, InvertRot(contactSim.cachedTransformB.Q))
@@ -156,14 +163,17 @@ func (w *World) collideTask(startIndex, endIndex, workerIndex int, ctx *stepCont
 			// contact events.
 			if touching && !wasTouching {
 				contactSim.simFlags |= simStartedTouching
+
 				setBit(&tc.contactStateBitSet, uint32(contactID))
 			} else if !touching && wasTouching {
 				contactSim.simFlags |= simStoppedTouching
+
 				setBit(&tc.contactStateBitSet, uint32(contactID))
 			}
 
 			// Caching for contact recycling.
 			contactSim.cachedTransformA = transformA
+
 			contactSim.cachedTransformB = transformB
 			for i := range contactSim.manifold.PointCount {
 				mp := &contactSim.manifold.Points[i]
@@ -188,6 +198,7 @@ func (w *World) addNonTouchingContact(c *contact, contactSim *contactSim) {
 // non-touching array (upstream b2RemoveNonTouchingContact).
 func (w *World) removeNonTouchingContact(setIndex, localIndex int) {
 	set := &w.solverSets[setIndex]
+
 	movedIndex := removeSwap(&set.contactSims, localIndex)
 	if movedIndex != NullIndex {
 		movedContactSim := &set.contactSims[localIndex]
@@ -204,6 +215,7 @@ func (w *World) removeNonTouchingContact(setIndex, localIndex int) {
 func (w *World) collide(ctx *stepContext) {
 	// gather contacts into a single array for easier parallel-for
 	contactCount := 0
+
 	graphColors := &w.constraintGraph.colors
 	for i := range GraphColorCount {
 		contactCount += len(graphColors[i].contactSims)
@@ -219,8 +231,10 @@ func (w *World) collide(ctx *stepContext) {
 	contactSims := w.arena.allocContactPtrs(contactCount)
 
 	contactIndex := 0
+
 	for i := range GraphColorCount {
 		color := &graphColors[i]
+
 		count := len(color.contactSims)
 		for j := range count {
 			contactSims[contactIndex] = &color.contactSims[j]
@@ -248,6 +262,7 @@ func (w *World) collide(ctx *stepContext) {
 	// >= collideWorkers are never written this step and never merged this
 	// step; stale bits or block counts in them are harmless.
 	collideWorkers := forRangeWorkers(contactCount, collideMinRange, w.workerCount)
+
 	contactIDCapacity := getIDCapacity(&w.contactIDPool)
 	for k := range collideWorkers {
 		setBitCountAndClear(&w.taskContexts[k].contactStateBitSet, uint32(contactIDCapacity))
@@ -260,9 +275,11 @@ func (w *World) collide(ctx *stepContext) {
 			w.collideTask(startIndex, endIndex, workerIndex, ctx)
 		})
 	}
+
 	w.taskCount++
 
 	w.arena.freeContactPtrs()
+
 	ctx.contacts = nil
 
 	// Merge the per-worker contact state bits into slot 0 in ascending
@@ -301,6 +318,7 @@ func (w *World) collide(ctx *stepContext) {
 			localIndex := c.localIndex
 
 			var contactSim *contactSim
+
 			if colorIndex != NullIndex {
 				// contact lives in constraint graph
 				assert(0 <= colorIndex && colorIndex < GraphColorCount)
@@ -410,6 +428,7 @@ func (w *World) Step(timeStep float64, subStepCount int) {
 	assert(0 < subStepCount)
 
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -431,6 +450,7 @@ func (w *World) Step(timeStep float64, subStepCount int) {
 		w.endEventArrayIndex = 1 - w.endEventArrayIndex
 		w.sensorEndEvents[w.endEventArrayIndex] = w.sensorEndEvents[w.endEventArrayIndex][:0]
 		w.contactEndEvents[w.endEventArrayIndex] = w.contactEndEvents[w.endEventArrayIndex][:0]
+
 		return
 	}
 
@@ -517,6 +537,7 @@ func (w *World) Step(timeStep float64, subStepCount int) {
 func (w *World) BodyEvents() BodyEvents {
 	w.panicIfPoisoned()
 	assert(!w.locked)
+
 	if w.locked {
 		return BodyEvents{}
 	}
@@ -532,6 +553,7 @@ func (w *World) BodyEvents() BodyEvents {
 func (w *World) SensorEvents() SensorEvents {
 	w.panicIfPoisoned()
 	assert(!w.locked)
+
 	if w.locked {
 		return SensorEvents{}
 	}
@@ -551,6 +573,7 @@ func (w *World) SensorEvents() SensorEvents {
 func (w *World) ContactEvents() ContactEvents {
 	w.panicIfPoisoned()
 	assert(!w.locked)
+
 	if w.locked {
 		return ContactEvents{}
 	}
@@ -571,6 +594,7 @@ func (w *World) ContactEvents() ContactEvents {
 func (w *World) JointEvents() JointEvents {
 	w.panicIfPoisoned()
 	assert(!w.locked)
+
 	if w.locked {
 		return JointEvents{}
 	}

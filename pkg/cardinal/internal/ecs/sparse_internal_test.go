@@ -55,11 +55,13 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 			if len(model) > 0 && prng.Float64() < 0.8 {
 				key = testutils.RandMapKey(prng, model)
 			}
+
 			implValue, implOk := impl.get(key)
 			modelValue, modelOk := model[key]
 
 			// Property: get(k) returns same existence and value as model.
 			assert.Equal(t, modelOk, implOk, "get(%d) existence mismatch", key)
+
 			if implOk {
 				assert.Equal(t, modelValue, implValue, "get(%d) value mismatch", key)
 			}
@@ -80,6 +82,7 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 			// Property: get(k) after remove(k) must not exist (value becomes tombstone).
 			_, ok := impl.get(key)
 			assert.False(t, ok, "remove(%d) then get should not exist", key)
+
 			if int(key) < len(impl) {
 				assert.Equal(t, sparseTombstone, impl[key], "remove(%d) internal value should be tombstone", key)
 			}

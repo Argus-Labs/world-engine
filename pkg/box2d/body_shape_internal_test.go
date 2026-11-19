@@ -14,6 +14,7 @@ import (
 
 func TestCreateManyBodiesMixedTypes(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -27,6 +28,7 @@ func TestCreateManyBodiesMixedTypes(t *testing.T) {
 
 	ids := make([]BodyID, 0, 100)
 	shapeIDs := make([]ShapeID, 0, 100)
+
 	for i := range 100 {
 		switch i % 3 {
 		case 0:
@@ -36,6 +38,7 @@ func TestCreateManyBodiesMixedTypes(t *testing.T) {
 		default:
 			bodyDef.Type = DynamicBody
 		}
+
 		bodyDef.Position = Vec2{X: float64(i), Y: 0.0}
 
 		id := w.CreateBody(&bodyDef)
@@ -43,6 +46,7 @@ func TestCreateManyBodiesMixedTypes(t *testing.T) {
 		tassert.Equal(t, bodyDef.Type, w.BodyType(id))
 
 		var sid ShapeID
+
 		switch i % 4 {
 		case 0:
 			sid = w.CreateCircleShape(id, &shapeDef, &circle)
@@ -53,6 +57,7 @@ func TestCreateManyBodiesMixedTypes(t *testing.T) {
 		default:
 			sid = w.CreateSegmentShape(id, &shapeDef, &segment)
 		}
+
 		require.True(t, w.IsShapeValid(sid))
 		tassert.Equal(t, id, w.ShapeBody(sid))
 
@@ -73,6 +78,7 @@ func TestCreateManyBodiesMixedTypes(t *testing.T) {
 		} else {
 			tassert.Equal(t, awakeSet, b.setIndex, "body %d", i)
 		}
+
 		set := &w.solverSets[b.setIndex]
 		tassert.Equal(t, b.id, set.bodySims[b.localIndex].bodyID, "body %d", i)
 	}
@@ -83,6 +89,7 @@ func TestCreateManyBodiesMixedTypes(t *testing.T) {
 
 	// Shape list getters.
 	buffer := make([]ShapeID, 4)
+
 	for i, id := range ids {
 		tassert.Equal(t, 1, w.BodyShapeCount(id))
 		n := w.BodyShapes(id, buffer)
@@ -93,6 +100,7 @@ func TestCreateManyBodiesMixedTypes(t *testing.T) {
 
 func TestBodyGenerationBumpOnRecreate(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -115,6 +123,7 @@ func TestBodyGenerationBumpOnRecreate(t *testing.T) {
 
 func TestShapeGenerationBumpOnRecreate(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -139,6 +148,7 @@ func TestShapeGenerationBumpOnRecreate(t *testing.T) {
 
 func TestBodyMassFromShapes(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -159,23 +169,27 @@ func TestBodyMassFromShapes(t *testing.T) {
 	// Add a 1x1 box: mass = density * area = 2 * 1.
 	box := MakeBox(0.5, 0.5)
 	w.CreatePolygonShape(id, &shapeDef, &box)
+
 	expectedTotal := expectedCircleMass + 2.0
 	tassert.InDelta(t, expectedTotal, w.BodyMass(id), 1e-12)
 
 	// Mass equals the sum of the shape masses.
 	sum := 0.0
 	b := w.getBodyFullID(id)
+
 	shapeID := b.headShapeID
 	for shapeID != NullIndex {
 		s := &w.shapes[shapeID]
 		sum += computeShapeMass(s).Mass
 		shapeID = s.nextShapeID
 	}
+
 	tassert.InDelta(t, sum, w.BodyMass(id), 1e-12)
 }
 
 func TestBodyCenterOfMassTwoOffsetShapes(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -191,6 +205,7 @@ func TestBodyCenterOfMassTwoOffsetShapes(t *testing.T) {
 	// center of mass is exactly (1, 0).
 	c1 := Circle{Center: Vec2Zero, Radius: 1.0}
 	c2 := Circle{Center: Vec2{X: 2.0, Y: 0.0}, Radius: 1.0}
+
 	w.CreateCircleShape(id, &shapeDef, &c1)
 	w.CreateCircleShape(id, &shapeDef, &c2)
 
@@ -213,6 +228,7 @@ func TestBodyCenterOfMassTwoOffsetShapes(t *testing.T) {
 
 func TestSetBodyMassDataOverride(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -245,6 +261,7 @@ func TestSetBodyMassDataOverride(t *testing.T) {
 
 func TestMotionLocksZeroVelocities(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -272,6 +289,7 @@ func TestMotionLocksZeroVelocities(t *testing.T) {
 
 func TestBodyTransformRoundTrip(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -309,6 +327,7 @@ func TestBodyTransformRoundTrip(t *testing.T) {
 
 func TestBodyVelocitySetGet(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -338,6 +357,7 @@ func TestBodyVelocitySetGet(t *testing.T) {
 
 func TestBodyDampingGravityScaleSleepThreshold(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -375,6 +395,7 @@ func TestBodyDampingGravityScaleSleepThreshold(t *testing.T) {
 
 func TestShapeProxyCounts(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -412,6 +433,7 @@ func TestShapeProxyCounts(t *testing.T) {
 
 func TestShapeAABBMatchesComputed(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -451,6 +473,7 @@ func TestShapeAABBMatchesComputed(t *testing.T) {
 
 func TestDestroyBodyDestroysShapes(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -485,6 +508,7 @@ func TestDestroyBodyDestroysShapes(t *testing.T) {
 
 func TestShapeAccessors(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -549,6 +573,7 @@ func TestShapeAccessors(t *testing.T) {
 
 func TestSetShapeFilterKeepsProxy(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -581,6 +606,7 @@ func TestSetShapeFilterKeepsProxy(t *testing.T) {
 
 func TestSensorShapeBookkeeping(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -610,6 +636,7 @@ func TestSensorShapeBookkeeping(t *testing.T) {
 
 func TestChainCreateDestroy(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -636,6 +663,7 @@ func TestChainCreateDestroy(t *testing.T) {
 	segments := make([]ShapeID, 8)
 	n := w.ChainSegments(chainID, segments)
 	require.Equal(t, 5, n)
+
 	for i := range n {
 		require.True(t, w.IsShapeValid(segments[i]))
 		tassert.Equal(t, ChainSegmentShape, w.ShapeType(segments[i]))
@@ -646,6 +674,7 @@ func TestChainCreateDestroy(t *testing.T) {
 	material := DefaultSurfaceMaterial()
 	material.Friction = 0.9
 	w.SetChainSurfaceMaterial(chainID, material, 0)
+
 	for i := range n {
 		tassert.InDelta(t, 0.9, w.ShapeFriction(segments[i]), 0.0)
 	}
@@ -653,6 +682,7 @@ func TestChainCreateDestroy(t *testing.T) {
 	w.DestroyChain(chainID)
 	tassert.False(t, w.IsChainValid(chainID))
 	tassert.Equal(t, 0, w.Counters().ShapeCount)
+
 	for i := range n {
 		tassert.False(t, w.IsShapeValid(segments[i]))
 	}
@@ -672,6 +702,7 @@ func TestDestroyShapeRejectsChainSegment(t *testing.T) {
 	t.Parallel()
 
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -699,6 +730,7 @@ func TestDestroyShapeRejectsChainSegment(t *testing.T) {
 
 	segments := make([]ShapeID, segCount)
 	require.Equal(t, segCount, w.ChainSegments(chainID, segments))
+
 	for i := range segCount {
 		require.True(t, w.IsShapeValid(segments[i]))
 		require.Equal(t, ChainSegmentShape, w.ShapeType(segments[i]))
@@ -749,6 +781,7 @@ func TestDestroyShapeRejectsChainSegment(t *testing.T) {
 	tassert.False(t, w.IsChainValid(chainID))
 	tassert.Equal(t, 0, w.BodyShapeCount(bodyID))
 	tassert.Equal(t, 0, w.Counters().ShapeCount)
+
 	for i := range segCount {
 		tassert.False(t, w.IsShapeValid(segments[i]), "chain segment %d must be destroyed", i)
 	}
@@ -758,14 +791,17 @@ func TestDestroyShapeRejectsChainSegment(t *testing.T) {
 	// subsequent CreateCircleShape panicked with index out of range [-1].
 	otherBody := w.CreateBody(&bodyDef)
 	shapeDef := DefaultShapeDef()
+
 	circle := Circle{Center: Vec2Zero, Radius: 0.5}
 	for range segCount + 2 {
 		sid := w.CreateCircleShape(otherBody, &shapeDef, &circle)
 		tassert.True(t, w.IsShapeValid(sid))
 	}
+
 	for _, id := range w.shapeIDPool.freeArray {
 		tassert.NotEqual(t, NullIndex, id, "free list must never contain NullIndex")
 	}
+
 	tassert.Equal(t, segCount+2, w.BodyShapeCount(otherBody))
 }
 
@@ -780,6 +816,7 @@ func TestDestroyShapeGuardPreventsRecycledSlotCorruption(t *testing.T) {
 	t.Parallel()
 
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -834,15 +871,18 @@ func TestDestroyShapeGuardPreventsRecycledSlotCorruption(t *testing.T) {
 	// unrelated circle untouched.
 	tassert.NotPanics(t, func() { w.DestroyChain(chainID) })
 	tassert.False(t, w.IsChainValid(chainID))
+
 	for i := range segments {
 		tassert.False(t, w.IsShapeValid(segments[i]), "chain segment %d must be destroyed", i)
 	}
+
 	tassert.True(t, w.IsShapeValid(otherShape), "the unrelated circle must survive DestroyChain")
 	tassert.Equal(t, CircleShape, w.ShapeType(otherShape))
 	tassert.Equal(t, otherBody, w.ShapeBody(otherShape))
 	tassert.Equal(t, 1, w.BodyShapeCount(otherBody), "the circle's body keeps its one shape")
 	tassert.Equal(t, 0, w.BodyShapeCount(groundID), "the chain body loses all its segments")
 	tassert.Equal(t, 1, w.Counters().ShapeCount, "only the circle remains")
+
 	for _, id := range w.shapeIDPool.freeArray {
 		tassert.NotEqual(t, NullIndex, id, "free list must never contain NullIndex")
 	}
@@ -850,6 +890,7 @@ func TestDestroyShapeGuardPreventsRecycledSlotCorruption(t *testing.T) {
 
 func TestApplyForcesAndImpulses(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 

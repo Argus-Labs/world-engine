@@ -52,6 +52,7 @@ func TestWorld_ModelFuzz(t *testing.T) {
 				name: name,
 				fn: func() {
 					tickOrder = append(tickOrder, name)
+
 					if hook == Update {
 						require.NoError(t, world.EmitSystemEvent(testutils.SimpleSystemEvent{Value: 1}))
 					}

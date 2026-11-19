@@ -39,6 +39,7 @@ func TestOracleSetBodyTargetTransform(t *testing.T) {
 		w.CreateCircleShape(body, &sd, &circle)
 		w.SetBodyAwake(body, false)
 		require.False(t, w.IsBodyAwake(body))
+
 		return body
 	}
 
@@ -239,13 +240,16 @@ func TestOracleWakeBodyTouching(t *testing.T) {
 	top, _ := wboDynamicBox(t, w, box2d.Vec2{X: 0.0, Y: 1.5})
 
 	asleep := false
+
 	for range 600 {
 		w.Step(wboDT, wboSubSteps)
+
 		if !w.IsBodyAwake(bottom) && !w.IsBodyAwake(top) {
 			asleep = true
 			break
 		}
 	}
+
 	require.True(t, asleep, "stack must fall asleep first")
 
 	// The top box only touches the bottom box; waking the bottom box wakes
@@ -281,6 +285,7 @@ func TestOracleMaxLinearSpeedClampsImpulse(t *testing.T) {
 		circle := box2d.Circle{Center: box2d.Vec2Zero, Radius: 0.5}
 		sd := box2d.DefaultShapeDef()
 		w.CreateCircleShape(body, &sd, &circle)
+
 		return body
 	}
 
@@ -344,6 +349,7 @@ func TestOracleComputeBodyAABB(t *testing.T) {
 	sd := box2d.DefaultShapeDef()
 	c1 := box2d.Circle{Center: box2d.Vec2{X: 1.0, Y: 0.0}, Radius: 0.5}
 	w.CreateCircleShape(body, &sd, &c1)
+
 	c2 := box2d.Circle{Center: box2d.Vec2{X: -1.0, Y: 0.0}, Radius: 0.25}
 	w.CreateCircleShape(body, &sd, &c2)
 
@@ -574,6 +580,7 @@ func TestOracleGravityScale(t *testing.T) {
 		circle := box2d.Circle{Center: box2d.Vec2Zero, Radius: 0.5}
 		sd := box2d.DefaultShapeDef()
 		w.CreateCircleShape(body, &sd, &circle)
+
 		return body
 	}
 
@@ -664,6 +671,7 @@ func TestOracleMotionLocks(t *testing.T) {
 		circle := box2d.Circle{Center: box2d.Vec2Zero, Radius: 0.5}
 		sd := box2d.DefaultShapeDef()
 		w.CreateCircleShape(body, &sd, &circle)
+
 		return body
 	}
 
@@ -726,6 +734,7 @@ func TestOracleDisableEnableBody(t *testing.T) {
 	for range 10 {
 		w.Step(wboDT, wboSubSteps)
 	}
+
 	require.GreaterOrEqual(t, w.BodyContactCapacity(bodyA), 1)
 
 	// Disable A: contacts destroyed, body frozen, joints to the disabled set.
@@ -743,6 +752,7 @@ func TestOracleDisableEnableBody(t *testing.T) {
 	for range 30 {
 		w.Step(wboDT, wboSubSteps)
 	}
+
 	after := w.BodyPosition(bodyA)
 	require.InDelta(t, posA.X, after.X, 0.0)
 	require.InDelta(t, posA.Y, after.Y, 0.0)
@@ -769,6 +779,7 @@ func TestOracleDisableEnableBody(t *testing.T) {
 	for range 30 {
 		w.Step(wboDT, wboSubSteps)
 	}
+
 	require.True(t, w.IsJointValid(jointGA))
 	require.True(t, w.IsJointValid(jointAB))
 
@@ -869,13 +880,16 @@ func TestOracleSleepEnableFlag(t *testing.T) {
 	require.True(t, w.IsBodySleepEnabled(body))
 
 	asleep := false
+
 	for range 600 {
 		w.Step(wboDT, wboSubSteps)
+
 		if !w.IsBodyAwake(body) {
 			asleep = true
 			break
 		}
 	}
+
 	require.True(t, asleep, "body must sleep once sleep is re-enabled")
 
 	// EnableBodySleep(false) wakes a sleeping body (body.c b2Body_EnableSleep).
@@ -903,6 +917,7 @@ func TestOracleContactAndHitEventToggles(t *testing.T) {
 		sd := box2d.DefaultShapeDef()
 		sd.EnableContactEvents = true
 		shape := w.CreatePolygonShape(body, &sd, &box)
+
 		return body, shape
 	}
 
@@ -917,20 +932,24 @@ func TestOracleContactAndHitEventToggles(t *testing.T) {
 	sawSilentBegin := false
 	sawLoudBegin := false
 	sawHit := false
+
 	var hitSpeed float64
 
 	for range 240 {
 		w.Step(wboDT, wboSubSteps)
+
 		events := w.ContactEvents()
 		for i := range events.BeginEvents {
 			e := &events.BeginEvents[i]
 			if e.ShapeIDA == silentShape || e.ShapeIDB == silentShape {
 				sawSilentBegin = true
 			}
+
 			if e.ShapeIDA == loudShape || e.ShapeIDB == loudShape {
 				sawLoudBegin = true
 			}
 		}
+
 		for i := range events.HitEvents {
 			e := &events.HitEvents[i]
 			if e.ShapeIDA == loudShape || e.ShapeIDB == loudShape {

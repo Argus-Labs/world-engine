@@ -86,6 +86,7 @@ func (ComponentC) UnmarshalWire(b []byte) (any, error) { return gobUnmarshal[Com
 func GobMarshal(v any) []byte {
 	var buf bytes.Buffer
 	mustWrite(gob.NewEncoder(&buf).Encode(v))
+
 	return buf.Bytes()
 }
 
@@ -99,7 +100,9 @@ func mustWrite(err error) {
 
 func gobUnmarshal[T any](b []byte) (T, error) {
 	var v T
+
 	err := gob.NewDecoder(bytes.NewReader(b)).Decode(&v)
+
 	return v, err
 }
 
@@ -199,12 +202,15 @@ func (c SimpleCommand) AppendWire(b []byte) []byte { return append(b, c.MarshalW
 func (c SimpleCommand) MarshalWire() []byte {
 	b, err := msgpack.Marshal(c)
 	mustWrite(err)
+
 	return b
 }
 
 func (SimpleCommand) UnmarshalWire(data []byte) (any, error) {
 	var c SimpleCommand
+
 	err := msgpack.Unmarshal(data, &c)
+
 	return c, err
 }
 
@@ -214,12 +220,15 @@ func (c CommandA) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()
 func (c CommandA) MarshalWire() []byte {
 	b, err := msgpack.Marshal(c)
 	mustWrite(err)
+
 	return b
 }
 
 func (CommandA) UnmarshalWire(data []byte) (any, error) {
 	var c CommandA
+
 	err := msgpack.Unmarshal(data, &c)
+
 	return c, err
 }
 
@@ -229,12 +238,15 @@ func (c CommandB) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()
 func (c CommandB) MarshalWire() []byte {
 	b, err := msgpack.Marshal(c)
 	mustWrite(err)
+
 	return b
 }
 
 func (CommandB) UnmarshalWire(data []byte) (any, error) {
 	var c CommandB
+
 	err := msgpack.Unmarshal(data, &c)
+
 	return c, err
 }
 
@@ -244,12 +256,15 @@ func (c CommandC) AppendWire(b []byte) []byte { return append(b, c.MarshalWire()
 func (c CommandC) MarshalWire() []byte {
 	b, err := msgpack.Marshal(c)
 	mustWrite(err)
+
 	return b
 }
 
 func (CommandC) UnmarshalWire(data []byte) (any, error) {
 	var c CommandC
+
 	err := msgpack.Unmarshal(data, &c)
+
 	return c, err
 }
 
@@ -272,12 +287,15 @@ func (s SimpleEvent) AppendWire(b []byte) []byte { return append(b, s.MarshalWir
 func (s SimpleEvent) MarshalWire() []byte {
 	b, err := msgpack.Marshal(s)
 	mustWrite(err)
+
 	return b
 }
 
 func (SimpleEvent) UnmarshalWire(b []byte) (any, error) {
 	var s SimpleEvent
+
 	err := msgpack.Unmarshal(b, &s)
+
 	return s, err
 }
 
@@ -296,11 +314,14 @@ func (e AnotherEvent) AppendWire(b []byte) []byte { return append(b, e.MarshalWi
 func (e AnotherEvent) MarshalWire() []byte {
 	b, err := msgpack.Marshal(e)
 	mustWrite(err)
+
 	return b
 }
 
 func (AnotherEvent) UnmarshalWire(b []byte) (any, error) {
 	var e AnotherEvent
+
 	err := msgpack.Unmarshal(b, &e)
+
 	return e, err
 }

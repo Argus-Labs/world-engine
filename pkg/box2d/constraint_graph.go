@@ -108,7 +108,9 @@ func (w *World) addContactToGraph(contactSim *contactSim, c *contact) {
 
 			setBitGrow(&color.bodySet, uint32(bodyIDA))
 			setBitGrow(&color.bodySet, uint32(bodyIDB))
+
 			colorIndex = i
+
 			break
 		}
 	case typeA == DynamicBody:
@@ -121,7 +123,9 @@ func (w *World) addContactToGraph(contactSim *contactSim, c *contact) {
 			}
 
 			setBitGrow(&color.bodySet, uint32(bodyIDA))
+
 			colorIndex = i
+
 			break
 		}
 	case typeB == DynamicBody:
@@ -134,7 +138,9 @@ func (w *World) addContactToGraph(contactSim *contactSim, c *contact) {
 			}
 
 			setBitGrow(&color.bodySet, uint32(bodyIDB))
+
 			colorIndex = i
+
 			break
 		}
 	default:
@@ -234,6 +240,7 @@ func assignJointColor(graph *constraintGraph, bodyIDA, bodyIDB int, typeA, typeB
 
 			setBitGrow(&color.bodySet, uint32(bodyIDA))
 			setBitGrow(&color.bodySet, uint32(bodyIDB))
+
 			return i
 		}
 	case typeA == DynamicBody:
@@ -246,6 +253,7 @@ func assignJointColor(graph *constraintGraph, bodyIDA, bodyIDB int, typeA, typeB
 			}
 
 			setBitGrow(&color.bodySet, uint32(bodyIDA))
+
 			return i
 		}
 	case typeB == DynamicBody:
@@ -258,6 +266,7 @@ func assignJointColor(graph *constraintGraph, bodyIDA, bodyIDB int, typeA, typeB
 			}
 
 			setBitGrow(&color.bodySet, uint32(bodyIDB))
+
 			return i
 		}
 	default:
@@ -283,6 +292,7 @@ func (w *World) createJointInGraph(j *joint) *jointSim {
 
 	j.colorIndex = colorIndex
 	j.localIndex = len(graph.colors[colorIndex].jointSims) - 1
+
 	return &graph.colors[colorIndex].jointSims[j.localIndex]
 }
 

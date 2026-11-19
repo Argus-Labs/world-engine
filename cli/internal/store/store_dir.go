@@ -17,6 +17,7 @@ func GetStoreDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return filepath.Join(homeDir, DefaultStoreDirName), nil
 }
 

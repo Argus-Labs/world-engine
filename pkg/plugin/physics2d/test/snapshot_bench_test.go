@@ -42,7 +42,9 @@ const snapshotBenchWarmupTicks = 600
 func snapshotBenchWorld(b *testing.B, rate uint32, bodies, warmup int) *cardinal.World {
 	b.Helper()
 	b.Setenv("LOG_LEVEL", "disabled")
+
 	debug := false
+
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
 		Project:             "bench",
 		ShardID:             "0",
@@ -54,6 +56,7 @@ func snapshotBenchWorld(b *testing.B, rate uint32, bodies, warmup int) *cardinal
 	if err != nil {
 		b.Fatal(err)
 	}
+
 	w.RegisterComponent[harnessTag]()
 	// Zero gravity, together with restingBodiesSystem's spacing, is what makes one tick equal to
 	// the next: nothing accelerates, nothing collides, nothing changes state.
@@ -64,6 +67,7 @@ func snapshotBenchWorld(b *testing.B, rate uint32, bodies, warmup int) *cardinal
 	w.RegisterSystem(restingBodiesSystem(bodies), cardinal.WithPhase(cardinal.Init))
 	initCardinalECS(w)
 	benchTickN(w, warmup)
+
 	return w
 }
 
@@ -78,6 +82,7 @@ func restingBodiesSystem(count int) *restingBodiesFixture {
 		if w.TickHeight() != 0 {
 			return
 		}
+
 		floor := w.Create[spawnArchetype]()
 		floor.Set(harnessTag{Role: "floor"})
 		floor.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: -5}})
@@ -119,25 +124,33 @@ func restingBodiesSystem(count int) *restingBodiesFixture {
 // then decodes the bytes into the message the legacy benchmarks need.
 func worldStateProto(b *testing.B, w *cardinal.World) *cardinalv1.WorldState {
 	b.Helper()
+
 	v := reflect.ValueOf(w).Elem()
+
 	f := v.FieldByName("world")
 	if !f.IsValid() {
 		b.Fatal("cardinal.World: missing embedded ecs world field")
 	}
+
 	inner := reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
+
 	m := inner.MethodByName("EncodeState")
 	if !m.IsValid() {
 		b.Fatal("ecs.World: missing EncodeState method")
 	}
+
 	out := m.Call([]reflect.Value{reflect.ValueOf([]byte(nil))})
+
 	data, ok := reflect.TypeAssert[[]byte](out[0])
 	if !ok {
 		b.Fatalf("EncodeState returned %T, want []byte", out[0].Interface())
 	}
+
 	ws := &cardinalv1.WorldState{}
 	if err := proto.Unmarshal(data, ws); err != nil {
 		b.Fatalf("decode world state: %v", err)
 	}
+
 	return ws
 }
 
@@ -147,6 +160,7 @@ func worldStateProto(b *testing.B, w *cardinal.World) *cardinalv1.WorldState {
 func snapshotBenchEnvelope(b *testing.B, bodies int) *cardinalv1.Snapshot {
 	b.Helper()
 	w := snapshotBenchWorld(b, 1_000_000, bodies, 1)
+
 	return &cardinalv1.Snapshot{
 		TickHeight: 1,
 		Timestamp:  timestamppb.New(time.Unix(0, 0)),
@@ -199,6 +213,7 @@ func BenchmarkSnapshotTick(b *testing.B) {
 				w := snapshotBenchWorld(b, rate, bodies, snapshotBenchWarmupTicks)
 				b.ReportAllocs()
 				b.ResetTimer()
+
 				for i := range b.N {
 					w.Tick(time.Unix(int64(100+i), 0))
 				}
@@ -250,6 +265,7 @@ func (d *legacyDoubleMarshalStorage) Store(_ context.Context, snap *cardinalv1.S
 	if err := proto.Unmarshal(data, &worldState); err != nil {
 		return err
 	}
+
 	out, err := proto.Marshal(&cardinalv1.Snapshot{
 		TickHeight: snap.GetTickHeight(),
 		Timestamp:  snap.GetTimestamp(),
@@ -259,7 +275,9 @@ func (d *legacyDoubleMarshalStorage) Store(_ context.Context, snap *cardinalv1.S
 	if err != nil {
 		return err
 	}
+
 	d.sink = out
+
 	return nil
 }
 
@@ -274,21 +292,27 @@ func (s *singleMarshalStorage) Store(_ context.Context, snap *cardinalv1.Snapsho
 	if err != nil {
 		return err
 	}
+
 	s.sink = data
+
 	return nil
 }
 
 func BenchmarkSnapshotStore(b *testing.B) {
 	ctx := context.Background()
+
 	for _, bodies := range []int{1000, 5000} {
 		snap := snapshotBenchEnvelope(b, bodies)
+
 		encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(snap)
 		if err != nil {
 			b.Fatal(err)
 		}
+
 		snapshotBytes := float64(len(encoded))
 
 		nop := snapshot.NewNopStorage()
+
 		stores := []struct {
 			name  string
 			store func(context.Context, *cardinalv1.Snapshot) error
@@ -306,11 +330,13 @@ func BenchmarkSnapshotStore(b *testing.B) {
 			b.Run(fmt.Sprintf("Bodies_%d/%s", bodies, tc.name), func(b *testing.B) {
 				b.ReportAllocs()
 				b.ResetTimer()
+
 				for range b.N {
 					if err := tc.store(ctx, snap); err != nil {
 						b.Fatal(err)
 					}
 				}
+
 				b.ReportMetric(snapshotBytes, "snapshot_bytes")
 			})
 		}

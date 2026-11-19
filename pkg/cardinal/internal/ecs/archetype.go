@@ -25,6 +25,7 @@ type archetype struct {
 // newArchetype creates an archetype for the given component types.
 func newArchetype(aid archetypeID, components bitmap.Bitmap, columns []abstractColumn) archetype {
 	assert.That(components.Count() == len(columns), "mismatched number of columns and components")
+
 	return archetype{
 		id:         aid,
 		components: components,
@@ -40,6 +41,7 @@ func (a *archetype) exact(components bitmap.Bitmap) bool {
 	if a.compCount != components.Count() {
 		return false
 	}
+
 	return a.contains(components)
 }
 
@@ -49,10 +51,12 @@ func (a *archetype) contains(components bitmap.Bitmap) bool {
 		if required == 0 {
 			continue
 		}
+
 		if i >= len(a.components) || a.components[i]&required != required {
 			return false
 		}
 	}
+
 	return true
 }
 

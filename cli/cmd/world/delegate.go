@@ -28,14 +28,17 @@ func delegateToProjectTool(args []string) {
 	if os.Getenv(envDelegated) != "" {
 		return
 	}
+
 	dir, err := os.Getwd()
 	if err != nil || !projectPinsOtherCLI(dir, version.WorldEngine()) {
 		return
 	}
+
 	goBin, err := exec.LookPath("go")
 	if err != nil {
 		return
 	}
+
 	runGoTool(goBin, append([]string{"go", "tool", "world"}, args...), append(os.Environ(), envDelegated+"=1"))
 }
 
@@ -46,18 +49,23 @@ func projectPinsOtherCLI(dir, running string) bool {
 	if !ok {
 		return false
 	}
+
 	path := filepath.Join(root, "go.mod")
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return false
 	}
+
 	f, err := gomod.Parse(path, data, nil)
 	if err != nil || !slices.ContainsFunc(f.Tool, func(t *gomod.Tool) bool { return t.Path == worldTool }) {
 		return false
 	}
+
 	if slices.ContainsFunc(f.Replace, func(r *gomod.Replace) bool { return r.Old.Path == worldEngineModule }) {
 		return true
 	}
+
 	return !slices.ContainsFunc(f.Require, func(r *gomod.Require) bool {
 		return r.Mod.Path == worldEngineModule && r.Mod.Version == running
 	})

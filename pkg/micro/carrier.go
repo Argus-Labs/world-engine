@@ -25,6 +25,7 @@ func (c headerCarrier) Get(key string) string {
 	if v := c.Values(key); len(v) > 0 {
 		return v[0]
 	}
+
 	return ""
 }
 
@@ -36,12 +37,15 @@ func (c headerCarrier) Values(key string) []string {
 	if v, ok := c[key]; ok {
 		return v
 	}
+
 	var values []string
+
 	for k, v := range c {
 		if strings.EqualFold(k, key) {
 			values = append(values, v...)
 		}
 	}
+
 	return values
 }
 
@@ -54,5 +58,6 @@ func (c headerCarrier) Keys() []string {
 	for k := range c {
 		keys = append(keys, k)
 	}
+
 	return keys
 }

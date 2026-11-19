@@ -16,9 +16,11 @@ func IsValidFloat(a float64) bool {
 	if math.IsNaN(a) {
 		return false
 	}
+
 	if math.IsInf(a, 0) {
 		return false
 	}
+
 	return true
 }
 
@@ -27,9 +29,11 @@ func IsValidVec2(v Vec2) bool {
 	if math.IsNaN(v.X) || math.IsNaN(v.Y) {
 		return false
 	}
+
 	if math.IsInf(v.X, 0) || math.IsInf(v.Y, 0) {
 		return false
 	}
+
 	return true
 }
 
@@ -38,9 +42,11 @@ func IsValidRotation(q Rot) bool {
 	if math.IsNaN(q.S) || math.IsNaN(q.C) {
 		return false
 	}
+
 	if math.IsInf(q.S, 0) || math.IsInf(q.C, 0) {
 		return false
 	}
+
 	return IsNormalizedRot(q)
 }
 
@@ -50,6 +56,7 @@ func IsValidTransform(t Transform) bool {
 	if !IsValidVec2(t.P) {
 		return false
 	}
+
 	return IsValidRotation(t.Q)
 }
 
@@ -91,9 +98,11 @@ func Atan2(y, x float64) float64 {
 	if ay > ax {
 		r = 1.57079637 - r
 	}
+
 	if x < 0 {
 		r = 3.14159274 - r
 	}
+
 	if y < 0 {
 		r = -r
 	}
@@ -110,6 +119,7 @@ func ComputeCosSin(radians float64) CosSin {
 
 	// cosine needs angle in [-pi/2, pi/2]
 	var c float64
+
 	switch {
 	case x < -0.5*Pi:
 		y := x + Pi
@@ -126,6 +136,7 @@ func ComputeCosSin(radians float64) CosSin {
 
 	// sine needs angle in [0, pi]
 	var s float64
+
 	if x < 0.0 {
 		y := x + Pi
 		s = -float64(16.0*y) * (Pi - y) / (float64(5.0*pi2) - float64(float64(4.0*y)*(Pi-y)))
@@ -134,10 +145,12 @@ func ComputeCosSin(radians float64) CosSin {
 	}
 
 	mag := math.Sqrt(dot2(s, s, c, c))
+
 	invMag := 0.0
 	if mag > 0.0 {
 		invMag = 1.0 / mag
 	}
+
 	return CosSin{Cosine: c * invMag, Sine: s * invMag}
 }
 
@@ -151,5 +164,6 @@ func ComputeRotationBetweenUnitVectors(v1, v2 Vec2) Rot {
 		C: Dot(v1, v2),
 		S: Cross(v1, v2),
 	}
+
 	return NormalizeRot(rot)
 }

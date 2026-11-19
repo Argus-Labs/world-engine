@@ -55,6 +55,7 @@ func TestEncodeMsgpack_SameBytesAsEncodingEachElement(t *testing.T) {
 	ints := []int64{0, 1, -1, 127, 128, -32, -33, 255, 256, math.MaxInt32, math.MinInt32, math.MaxInt64, math.MinInt64}
 	floats := []float64{0, math.Copysign(0, -1), 1.5, -2.25, math.NaN(), math.Inf(1), math.Inf(-1), 1e300}
 	items := []encodeItem{{}} // all zero, so the omitempty fields are left out
+
 	for range 300 {
 		i, f := ints[r.IntN(len(ints))], floats[r.IntN(len(floats))]
 		items = append(items, encodeItem{
@@ -112,13 +113,17 @@ func TestEncodeMsgpack_SameBytesAsEncodingEachElement(t *testing.T) {
 
 func requireSameSliceBytes[T any](t *testing.T, name string, set func(*msgpack.Encoder), s immutable.Slice[T]) {
 	t.Helper()
+
 	var want, got bytes.Buffer
+
 	oldEnc := msgpack.NewEncoder(&want)
 	set(oldEnc)
 	require.NoError(t, oldEnc.EncodeArrayLen(s.Len()))
+
 	for v := range s.Values() {
 		require.NoError(t, oldEnc.Encode(v))
 	}
+
 	enc := msgpack.NewEncoder(&got)
 	set(enc)
 	require.NoError(t, enc.Encode(s))
@@ -129,14 +134,18 @@ func requireSameMapBytes[K immutable.Key, V any](
 	t *testing.T, name string, set func(*msgpack.Encoder), m immutable.Map[K, V],
 ) {
 	t.Helper()
+
 	var want, got bytes.Buffer
+
 	oldEnc := msgpack.NewEncoder(&want)
 	set(oldEnc)
 	require.NoError(t, oldEnc.EncodeMapLen(m.Len()))
+
 	for k, v := range m.All() {
 		require.NoError(t, oldEnc.Encode(k))
 		require.NoError(t, oldEnc.Encode(v))
 	}
+
 	enc := msgpack.NewEncoder(&got)
 	set(enc)
 	require.NoError(t, enc.Encode(m))
@@ -148,10 +157,12 @@ func TestEncodeMsgpack_Allocations(t *testing.T) {
 	if raceEnabled {
 		t.Skip("allocation counts are not meaningful under -race")
 	}
+
 	items := make([]point, 4096)
 	for i := range items {
 		items[i] = point{i, -i}
 	}
+
 	s := immutable.SliceOf(items...)
 	m := immutable.MapFrom(func(yield func(int, point) bool) {
 		for i, p := range items {
@@ -160,7 +171,9 @@ func TestEncodeMsgpack_Allocations(t *testing.T) {
 			}
 		}
 	})
+
 	var buf bytes.Buffer
+
 	enc := msgpack.NewEncoder(&buf)
 	encode := func(v any) func() {
 		return func() {
@@ -179,29 +192,38 @@ func TestDeleteFunc_DropsTheLargeArray(t *testing.T) {
 	if raceEnabled {
 		t.Skip("heap measurements are not meaningful under -race")
 	}
+
 	type blob [64]byte
+
 	heap := func() int64 {
 		runtime.GC()
 		runtime.GC()
+
 		var ms runtime.MemStats
 		runtime.ReadMemStats(&ms)
+
 		return int64(ms.HeapAlloc)
 	}
 	keepTen := func(i int) bool { return i >= 10 }
 
 	before := heap()
+
 	items := make([]blob, 4096)
 	for i := range items {
 		items[i][0] = byte(i % 251)
 		items[i][1] = byte(i / 251)
 	}
+
 	s := immutable.SliceOf(items...)
 	n := 0
+
 	s.DeleteFunc(func(blob) bool {
 		n++
 		return keepTen(n - 1)
 	})
+
 	slice := heap() - before
+
 	require.Equal(t, 10, s.Len())
 	runtime.KeepAlive(s)
 	require.Less(t, slice, int64(64<<10), "ten 64-byte elements must not hold the 256 KB array")
@@ -215,7 +237,9 @@ func TestDeleteFunc_DropsTheLargeArray(t *testing.T) {
 		}
 	})
 	m.DeleteFunc(func(k int, _ blob) bool { return keepTen(k) })
+
 	mapped := heap() - before
+
 	require.Equal(t, 10, m.Len())
 	runtime.KeepAlive(m)
 	require.Less(t, mapped, int64(64<<10), "ten entries must not hold the 290 KB array")

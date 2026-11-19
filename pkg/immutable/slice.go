@@ -83,9 +83,11 @@ func (s Slice[T]) Len() int {
 // At returns the element at index i. It panics when i is out of range, like a slice.
 func (s Slice[T]) At(i int) T {
 	s.checkIndex(i)
+
 	if off := s.treeLen(); i >= off {
 		return s.tail[i-off]
 	}
+
 	return s.leafAt(i)[i&chunkMask]
 }
 
@@ -93,11 +95,13 @@ func (s Slice[T]) At(i int) T {
 func (s Slice[T]) All() iter.Seq2[int, T] {
 	return func(yield func(int, T) bool) {
 		i := 0
+
 		for c := range s.chunks() {
 			for _, v := range c {
 				if !yield(i, v) {
 					return
 				}
+
 				i++
 			}
 		}
@@ -146,7 +150,9 @@ func (s Slice[T]) rangeChunks(i, j int, yield func(int, T) bool) {
 	if i < 0 || j > s.n || i > j {
 		panic(rangeError(i, j, s.n))
 	}
+
 	off := s.treeLen()
+
 	for x := i; x < j; {
 		var c []T
 		if x >= off {
@@ -155,10 +161,12 @@ func (s Slice[T]) rangeChunks(i, j int, yield func(int, T) bool) {
 			leafStart := x &^ chunkMask
 			c = s.leafAt(x)[x-leafStart : min(chunkSize, j-leafStart)]
 		}
+
 		for _, v := range c {
 			if !yield(x, v) {
 				return
 			}
+
 			x++
 		}
 	}
@@ -171,6 +179,7 @@ func (s Slice[T]) IndexFunc(f func(T) bool) int {
 			return i
 		}
 	}
+
 	return -1
 }
 
@@ -191,6 +200,7 @@ func (s Slice[T]) EqualFunc(other Slice[T], eq func(a, b T) bool) bool {
 	if s.root != nil && !vnodesEqual(s.root, other.root, s.shift, eq) {
 		return false
 	}
+
 	return itemsEqual(s.tail, other.tail, eq)
 }
 
@@ -198,14 +208,17 @@ func vnodesEqual[T any](a, b *vnode[T], shift uint, eq func(a, b T) bool) bool {
 	if a == b {
 		return true
 	}
+
 	if shift == 0 {
 		return itemsEqual(a.items, b.items, eq)
 	}
+
 	for i, kid := range a.kids {
 		if !vnodesEqual(kid, b.kids[i], shift-chunkBits, eq) {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -215,11 +228,13 @@ func itemsEqual[T any](a, b []T, eq func(a, b T) bool) bool {
 	if len(a) == 0 || unsafe.Sizeof(a[0]) != 0 && &a[0] == &b[0] {
 		return true
 	}
+
 	for i := range a {
 		if !eq(a[i], b[i]) {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -247,12 +262,15 @@ func Contains[T comparable](s Slice[T], v T) bool {
 // Set replaces the element at index i with v. It panics when i is out of range, like a slice.
 func (s *Slice[T]) Set(i int, v T) {
 	s.checkIndex(i)
+
 	if off := s.treeLen(); i >= off {
 		tail := slices.Clone(s.tail)
 		tail[i-off] = v
 		s.tail = tail
+
 		return
 	}
+
 	s.root = setInTree(s.root, s.shift, i, v)
 }
 
@@ -264,6 +282,7 @@ func (s *Slice[T]) Append(items ...T) {
 			s.pushLeaf(leafNode(s.tail))
 			s.tail = nil
 		}
+
 		take := min(chunkSize-len(s.tail), len(items))
 		tail := make([]T, len(s.tail)+take)
 		copy(tail, s.tail)
@@ -280,13 +299,16 @@ func (s *Slice[T]) Insert(i int, items ...T) {
 	if i < 0 || i > s.n {
 		panic(indexError(i, s.n+1))
 	}
+
 	if i == s.n {
 		s.Append(items...)
 		return
 	}
+
 	if len(items) == 0 {
 		return
 	}
+
 	all := s.toItems(len(items))
 	*s = fromItems(slices.Insert(all, i, items...))
 }
@@ -297,48 +319,62 @@ func (s *Slice[T]) Delete(i, j int) {
 	if i < 0 || j > s.n || i > j {
 		panic(rangeError(i, j, s.n))
 	}
+
 	if i == j {
 		return
 	}
+
 	if s.root == nil && i == 0 {
 		// Every element is in the tail, which stays canonical as a later view of the same array.
 		s.tail = s.tail[j:]
+
 		s.n -= j
 		if s.n == 0 {
 			s.tail = nil
 		}
+
 		return
 	}
+
 	if off := s.treeLen(); j == s.n && i > off {
 		// Only the end of the tail goes, and some of it stays: a shorter view of the same tail.
 		s.tail = s.tail[: i-off : i-off]
 		s.n = i
+
 		return
 	}
+
 	if off := s.treeLen(); j == s.n && s.root != nil && i > off-chunkSize {
 		// The tail goes and the cut lands in the last leaf, which becomes the tail.
 		s.tail = s.popLeaf()[: i-(off-chunkSize) : i-(off-chunkSize)]
 		s.n = i
+
 		return
 	}
+
 	kept := make([]T, 0, s.n-(j-i))
 	k := 0
+
 	for c := range s.chunks() {
 		for _, v := range c {
 			if k < i || k >= j {
 				kept = append(kept, v)
 			}
+
 			k++
 		}
 	}
+
 	*s = fromItems(kept)
 }
 
 // DeleteFunc removes every element for which del is true, keeping the rest in order.
 func (s *Slice[T]) DeleteFunc(del func(T) bool) {
 	var kept []T
+
 	k := 0
 	deleted := false
+
 	for c := range s.chunks() {
 		for _, v := range c {
 			switch {
@@ -351,9 +387,11 @@ func (s *Slice[T]) DeleteFunc(del func(T) bool) {
 			case deleted:
 				kept = append(kept, v)
 			}
+
 			k++
 		}
 	}
+
 	if deleted {
 		*s = fromItems(shrink(kept))
 	}
@@ -366,6 +404,7 @@ func shrink[T any](kept []T) []T {
 	if cap(kept) > 2*len(kept) {
 		return slices.Clone(kept)
 	}
+
 	return kept
 }
 
@@ -377,12 +416,14 @@ func (s *Slice[T]) UpdateFunc(f func(i int, v T) T) {
 	if s.n == 0 {
 		return
 	}
+
 	items := make([]T, 0, s.n)
 	for c := range s.chunks() {
 		for _, v := range c {
 			items = append(items, f(len(items), v))
 		}
 	}
+
 	*s = fromItems(items)
 }
 
@@ -392,9 +433,11 @@ func appendFirst[T any](dst []T, s Slice[T], k int) []T {
 		if k <= len(c) {
 			return append(dst, c[:k]...)
 		}
+
 		dst = append(dst, c...)
 		k -= len(c)
 	}
+
 	return dst
 }
 
@@ -412,6 +455,7 @@ func (s *Slice[T]) SortStableFunc(compare func(a, b T) int) {
 	if s.n < 2 {
 		return
 	}
+
 	items := s.toItems(0)
 	sortStable(items, compare)
 	*s = fromItems(items)
@@ -431,14 +475,17 @@ func sortStable[T any](items []T, compare func(a, b T) int) {
 		slices.SortStableFunc(items, compare)
 		return
 	}
+
 	order := make([]int, len(items))
 	for i := range order {
 		order[i] = i
 	}
+
 	slices.SortFunc(order, func(a, b int) int {
 		if c := compare(items[a], items[b]); c != 0 {
 			return c
 		}
+
 		return cmp.Compare(a, b)
 	})
 	// items[j] must become the old items[order[j]]. Follow each cycle of the permutation once,
@@ -447,14 +494,17 @@ func sortStable[T any](items []T, compare func(a, b T) int) {
 		if order[i] < 0 {
 			continue
 		}
+
 		first, j := items[i], i
 		for {
 			k := order[j]
+
 			order[j] = -1
 			if k == i {
 				items[j] = first
 				break
 			}
+
 			items[j] = items[k]
 			j = k
 		}
@@ -473,6 +523,7 @@ func (s *Slice[T]) Reverse() {
 	if s.n < 2 {
 		return
 	}
+
 	items := s.toItems(0)
 	slices.Reverse(items)
 	*s = fromItems(items)
@@ -511,6 +562,7 @@ func (s Slice[T]) MarshalJSON() ([]byte, error) {
 	if s.n == 0 {
 		return []byte("[]"), nil
 	}
+
 	return json.Marshal(s.toItems(0))
 }
 
@@ -522,7 +574,9 @@ func (s *Slice[T]) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &items); err != nil {
 		return err
 	}
+
 	*s = fromItems(items)
+
 	return nil
 }
 
@@ -536,15 +590,19 @@ func (s Slice[T]) EncodeMsgpack(enc *msgpack.Encoder) error {
 	// It encodes a copy rather than the element in place, so an encoder with a pointer receiver
 	// cannot write into storage other Slices share.
 	var item T
+
 	rv := reflect.ValueOf(&item).Elem()
+
 	for c := range s.chunks() {
 		for i := range c {
 			item = c[i]
+
 			if err := enc.EncodeValue(rv); err != nil {
 				return eris.Wrap(err, "failed to encode immutable slice element")
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -561,6 +619,7 @@ func (s *Slice[T]) DecodeMsgpack(dec *msgpack.Decoder) error {
 	items := make([]T, 0, min(max(n, 0), decodePrealloc))
 	for range n {
 		var zero T
+
 		items = append(items, zero)
 		// DecodeValue, not Decode: Decode handles *float32 itself and skips decoders registered with
 		// msgpack.Register, such as cardinal's, which accepts a 64-bit float into a float32.
@@ -568,7 +627,9 @@ func (s *Slice[T]) DecodeMsgpack(dec *msgpack.Decoder) error {
 			return eris.Wrap(err, "failed to decode immutable slice element")
 		}
 	}
+
 	*s = fromItems(items)
+
 	return nil
 }
 
@@ -585,12 +646,15 @@ func SliceElem(t reflect.Type) (reflect.Type, bool) {
 	if t == nil || t.Kind() != reflect.Struct || !strings.HasPrefix(t.Name(), "Slice[") {
 		return nil, false
 	}
+
 	if t.PkgPath() != reflect.TypeFor[Slice[struct{}]]().PkgPath() {
 		return nil, false
 	}
+
 	tail, ok := t.FieldByName("tail")
 	if !ok || tail.Type.Kind() != reflect.Slice {
 		return nil, false
 	}
+
 	return tail.Type.Elem(), true
 }

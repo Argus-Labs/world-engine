@@ -19,6 +19,7 @@ var Seed uint64 //nolint:gochecknoglobals // intentionally global for test repro
 
 func init() { //nolint:gochecknoinits // intentionally using init to set seed
 	Seed = uint64(time.Now().UnixNano())
+
 	if envSeed := os.Getenv("TEST_SEED"); envSeed != "" {
 		parsed, err := strconv.ParseUint(envSeed, 0, 64)
 		if err == nil { // Only set using the env if it's valid
@@ -42,7 +43,9 @@ func NewRand(t *testing.T) *rand.Rand {
 	h := fnv.New64a()
 	_, err := h.Write([]byte(t.Name()))
 	require.NoError(t, err)
+
 	perTest := h.Sum64()
+
 	return rand.New(rand.NewPCG(Seed^perTest, Seed^(perTest<<1))) //nolint:gosec // weak RNG is fine for tests
 }
 
@@ -62,20 +65,24 @@ func nthSmallest[K cmp.Ordered](keys []K, n int) K {
 	lo, hi := 0, len(keys)-1
 	for lo < hi {
 		pivot := keys[lo+(hi-lo)/2]
+
 		i, j := lo, hi
 		for i <= j {
 			for cmp.Less(keys[i], pivot) {
 				i++
 			}
+
 			for cmp.Less(pivot, keys[j]) {
 				j--
 			}
+
 			if i <= j {
 				keys[i], keys[j] = keys[j], keys[i]
 				i++
 				j--
 			}
 		}
+
 		switch {
 		case n <= j:
 			hi = j
@@ -85,6 +92,7 @@ func nthSmallest[K cmp.Ordered](keys []K, n int) K {
 			return keys[n]
 		}
 	}
+
 	return keys[lo]
 }
 
@@ -109,6 +117,7 @@ func RandOpWeights(r *rand.Rand, ops []string) OpWeights {
 	for i := range numEnabled {
 		weights[shuffled[i]] = uint64(1 + r.IntN(100)) //nolint:gosec // not gonna happen
 	}
+
 	return weights
 }
 
@@ -116,6 +125,7 @@ func RandOpWeights(r *rand.Rand, ops []string) OpWeights {
 // the ops in sorted order, not map iteration order, so the same seed picks the same sequence.
 func RandWeightedOp(r *rand.Rand, ops OpWeights) string {
 	names := slices.Sorted(maps.Keys(ops))
+
 	var total uint64
 	for _, op := range names {
 		total += ops[op]
@@ -126,8 +136,10 @@ func RandWeightedOp(r *rand.Rand, ops OpWeights) string {
 		if pick < ops[op] {
 			return op
 		}
+
 		pick -= ops[op]
 	}
+
 	panic("unreachable")
 }
 
@@ -139,9 +151,11 @@ func RandBool(r *rand.Rand) bool {
 // RandString generates a random alphanumeric string of the given length.
 func RandString(r *rand.Rand, length int) string {
 	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
 	b := make([]byte, length)
 	for i := range b {
 		b[i] = chars[r.IntN(len(chars))]
 	}
+
 	return string(b)
 }

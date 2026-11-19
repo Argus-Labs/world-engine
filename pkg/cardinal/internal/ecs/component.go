@@ -87,10 +87,12 @@ func validateComponentName(name string) error {
 func validateComponentType(t reflect.Type) error {
 	var problems []fieldProblem
 	checkComponentField(t, t.Name(), map[reflect.Type]bool{}, &problems)
+
 	errs := make([]error, len(problems))
 	for i, p := range problems {
 		errs[i] = eris.Errorf("%s (%s) %s; %s", p.path, p.typ, p.reason, p.fix)
 	}
+
 	return errors.Join(errs...)
 }
 
@@ -113,8 +115,10 @@ func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]
 	if visiting[t] || knownValueType(t) {
 		return
 	}
+
 	visiting[t] = true
 	defer delete(visiting, t)
+
 	report := func(reason, fix string) {
 		*problems = append(*problems, fieldProblem{path: path, typ: t, reason: reason, fix: fix})
 	}
@@ -124,12 +128,15 @@ func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]
 		checkComponentField(elem, path+"[]", visiting, problems)
 		return
 	}
+
 	if key, value, ok := immutable.MapTypes(t); ok {
 		// Key already limits the key to an integer or string, but a named one can still carry a codec.
 		checkComponentField(key, path+"{key}", visiting, problems)
 		checkComponentField(value, path+"{value}", visiting, problems)
+
 		return
 	}
+
 	if hasCodec(t) {
 		if f, ok := embeddedCodec(t); ok {
 			embedded := fieldProblem{
@@ -142,8 +149,10 @@ func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]
 		} else if reason, fix := codecProblem(t); reason != "" {
 			report(reason, fix)
 		}
+
 		return
 	}
+
 	switch t.Kind() { //nolint:exhaustive // Scalars and strings are stored as they are.
 	case reflect.Array:
 		checkComponentField(t.Elem(), path+"[]", visiting, problems)
@@ -152,6 +161,7 @@ func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]
 			report(reasonNotData, fixNotData)
 			return
 		}
+
 		checkStoredFields(t, path, visiting, problems)
 	case reflect.Slice, reflect.Map, reflect.Pointer, reflect.Interface:
 		// A collection of something that is not data needs that fixed first, so name it instead.
@@ -159,6 +169,7 @@ func checkComponentField(t reflect.Type, path string, visiting map[reflect.Type]
 			report(reasonNotData, fixNotData)
 			return
 		}
+
 		report(reasonSharedMemory, sharedMemoryFix(t.Kind()))
 	case reflect.Chan, reflect.Func, reflect.UnsafePointer:
 		report(reasonNotData, fixNotData)
@@ -190,6 +201,7 @@ func checkStoredFields(t reflect.Type, path string, visiting map[reflect.Type]bo
 // data: a method interface, or anything the walk would report as not data.
 func holdsNotData(t reflect.Type, visiting map[reflect.Type]bool) bool {
 	var inner []fieldProblem
+
 	switch t.Kind() { //nolint:exhaustive // Called only for the kinds below.
 	case reflect.Interface:
 		return t.NumMethod() > 0
@@ -199,6 +211,7 @@ func holdsNotData(t reflect.Type, visiting map[reflect.Type]bool) bool {
 	default:
 		checkComponentField(t.Elem(), "", visiting, &inner)
 	}
+
 	return slices.ContainsFunc(inner, func(p fieldProblem) bool { return p.reason == reasonNotData })
 }
 
@@ -208,6 +221,7 @@ func hasCodec(t reflect.Type) bool {
 	if t.Kind() == reflect.Pointer || t.Kind() == reflect.Interface {
 		return false
 	}
+
 	return schema.EncodesItself(t) || schema.EncodesOnlyByPointer(t) || schema.DecodesItself(t)
 }
 
@@ -221,9 +235,11 @@ func codecProblem(t reflect.Type) (string, string) {
 	case schema.EncodesItself(t) != schema.DecodesItself(t):
 		return reasonOneSidedCodec, fixOneSidedCodec
 	}
+
 	if !plainValue(t) {
 		return reasonCodecShares, fixCodecShares
 	}
+
 	return "", ""
 }
 
@@ -237,16 +253,20 @@ func embeddedCodec(t reflect.Type) (reflect.StructField, bool) {
 	if t.Kind() != reflect.Struct {
 		return reflect.StructField{}, false
 	}
+
 	enc, encodes := schema.EncoderMethod(t)
+
 	dec, decodes := schema.DecoderMethod(t)
 	for f := range t.Fields() {
 		if !f.Anonymous {
 			continue
 		}
+
 		if (encodes && hasMethod(f.Type, enc)) || (decodes && hasMethod(reflect.PointerTo(f.Type), dec)) {
 			return f, true
 		}
 	}
+
 	return reflect.StructField{}, false
 }
 
@@ -256,7 +276,9 @@ func hasMethod(t reflect.Type, name string) bool {
 	if t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
+
 	_, ok := t.MethodByName(name)
+
 	return ok
 }
 
@@ -266,6 +288,7 @@ func plainValue(t reflect.Type) bool {
 	if knownValueType(t) {
 		return true
 	}
+
 	switch t.Kind() { //nolint:exhaustive // Every other kind holds a reference or an address.
 	case reflect.Bool, reflect.String,
 		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
@@ -280,8 +303,10 @@ func plainValue(t reflect.Type) bool {
 				return false
 			}
 		}
+
 		return true
 	}
+
 	return false
 }
 
@@ -293,6 +318,7 @@ func knownValueType(t reflect.Type) bool {
 		reflect.TypeFor[netip.AddrPort](), reflect.TypeFor[netip.Prefix]():
 		return true
 	}
+
 	return false
 }
 
@@ -305,6 +331,7 @@ func sharedMemoryFix(k reflect.Kind) string {
 	case reflect.Pointer:
 		return fixPointer
 	}
+
 	return fixInterface
 }
 
@@ -344,11 +371,13 @@ func hidesState(t reflect.Type) bool {
 	if len(storedFields(t)) > 0 {
 		return false
 	}
+
 	for f := range t.Fields() {
 		if !f.IsExported() && !f.Anonymous {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -357,12 +386,14 @@ func hidesState(t reflect.Type) bool {
 // and stored.
 func storedFields(t reflect.Type) []reflect.StructField {
 	var fields []reflect.StructField
+
 	for f := range t.Fields() {
 		skipped := strings.Split(f.Tag.Get("msgpack"), ",")[0] == "-"
 		if (f.IsExported() || f.Anonymous) && !skipped {
 			fields = append(fields, f)
 		}
 	}
+
 	return fields
 }
 
@@ -373,6 +404,7 @@ func (cm *componentManager) register[T Component](name string) (ComponentID, err
 	if err := validateComponentName(name); err != nil {
 		return 0, err
 	}
+
 	if err := validateComponentType(reflect.TypeFor[T]()); err != nil {
 		return 0, eris.Wrapf(err, "component %s", name)
 	}
@@ -381,6 +413,7 @@ func (cm *componentManager) register[T Component](name string) (ComponentID, err
 		if cm.types[cid] != reflect.TypeFor[T]() {
 			return 0, eris.Errorf("component %s already registered with a different type", name)
 		}
+
 		return cid, nil
 	}
 
@@ -389,6 +422,7 @@ func (cm *componentManager) register[T Component](name string) (ComponentID, err
 	}
 
 	schema.Register[T]()
+
 	cm.catalog[name] = cm.nextID
 	cm.factories = append(cm.factories, newColumnFactory[T]())
 	cm.names = append(cm.names, name)
@@ -417,9 +451,11 @@ func (cm *componentManager) lookup(name string, typ reflect.Type) (ComponentID, 
 	if err != nil {
 		return 0, err
 	}
+
 	if cm.types[cid] != typ {
 		return 0, eris.Wrapf(ErrComponentNotFound, "component %s is registered with a different type", name)
 	}
+
 	return cid, nil
 }
 
@@ -431,6 +467,7 @@ func (w *World) RegisterComponent[T Component]() (ComponentID, error) {
 			return 0, eris.Wrap(err, "component registered callback failed")
 		}
 	}
+
 	return w.state.components.register[T](zero.Name())
 }
 

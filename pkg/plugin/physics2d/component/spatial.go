@@ -25,9 +25,11 @@ func (t Transform2D) Validate() error {
 	if err := validateVec2("transform_2d.position", t.Position); err != nil {
 		return err
 	}
+
 	if !isFinite(t.Rotation) {
 		return errors.New("transform_2d.rotation: must be finite")
 	}
+
 	return nil
 }
 
@@ -49,8 +51,10 @@ func (v Velocity2D) Validate() error {
 	if err := validateVec2("velocity_2d.linear", v.Linear); err != nil {
 		return err
 	}
+
 	if !isFinite(v.Angular) {
 		return errors.New("velocity_2d.angular: must be finite")
 	}
+
 	return nil
 }

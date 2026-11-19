@@ -71,6 +71,7 @@ func (c *Client) PullImages(ctx context.Context, services []service.Service, pro
 			}
 
 			notify(progress, Progress{Name: imageName, State: StatePulled, Current: 100, Total: 100})
+
 			return nil
 		})
 	}
@@ -89,10 +90,12 @@ func (c *Client) PullImageRefs(ctx context.Context, refs []string, progress func
 
 	unique := make(map[string]struct{}, len(refs))
 	g, gctx := errgroup.WithContext(ctx)
+
 	for _, ref := range refs {
 		if _, seen := unique[ref]; seen {
 			continue
 		}
+
 		unique[ref] = struct{}{}
 
 		g.Go(func() error {
@@ -111,9 +114,11 @@ func (c *Client) PullImageRefs(ctx context.Context, refs []string, progress func
 			}
 
 			notify(progress, Progress{Name: ref, State: StatePulled, Current: 100, Total: 100})
+
 			return nil
 		})
 	}
+
 	return g.Wait()
 }
 
@@ -123,10 +128,13 @@ func (c *Client) cachedOrErr(ctx context.Context, ref string, pullErr error) err
 	if pullErr == nil {
 		return nil
 	}
+
 	if _, err := c.client.ImageInspect(ctx, ref); err != nil {
 		return pullErr
 	}
+
 	c.logger.WarnContext(ctx, "pull failed, using cached image", "image", ref, "err", pullErr)
+
 	return nil
 }
 
@@ -135,16 +143,20 @@ func (c *Client) cachedOrErr(ctx context.Context, ref string, pullErr error) err
 // opening progress UI.
 func (c *Client) RefsToPull(ctx context.Context, refs []string) []string {
 	seen := make(map[string]struct{}, len(refs))
+
 	var out []string
+
 	for _, ref := range refs {
 		if _, ok := seen[ref]; ok {
 			continue
 		}
+
 		seen[ref] = struct{}{}
 		if c.needsPull(ctx, ref) {
 			out = append(out, ref)
 		}
 	}
+
 	return out
 }
 
@@ -155,7 +167,9 @@ func (c *Client) needsPull(ctx context.Context, ref string) bool {
 	if strings.HasSuffix(ref, ":latest") {
 		return true
 	}
+
 	_, err := c.client.ImageInspect(ctx, ref)
+
 	return err != nil
 }
 
@@ -165,10 +179,12 @@ func (c *Client) needsPull(ctx context.Context, ref string) bool {
 func (c *Client) ImagesToPull(ctx context.Context, services []service.Service) []string {
 	images := make(map[string]ocispec.Platform)
 	c.filterImages(ctx, images, services...)
+
 	names := make([]string, 0, len(images))
 	for name := range images {
 		names = append(names, name)
 	}
+
 	return names
 }
 
@@ -190,6 +206,7 @@ func (c *Client) filterImages(ctx context.Context, images map[string]ocispec.Pla
 				c.logger.DebugContext(ctx, "checking dependencies", "service", svc.Name)
 				c.filterImages(ctx, images, svc.Dependencies...)
 			}
+
 			continue
 		}
 
@@ -249,6 +266,7 @@ func (c *Client) pullSingleImage(
 	}
 
 	c.logger.InfoContext(ctx, "completed pull for image", "image", imageName)
+
 	return nil
 }
 
@@ -273,6 +291,7 @@ func (c *Client) preparePullOptions(
 	}
 
 	pullOptions.RegistryAuth = base64.URLEncoding.EncodeToString(authBytes)
+
 	return pullOptions, nil
 }
 
@@ -288,8 +307,11 @@ func (c *Client) processPullEvents(
 	onPercent func(int64),
 ) error {
 	decoder := json.NewDecoder(responseBody)
-	var current int64
-	var event pullEvent
+
+	var (
+		current int64
+		event   pullEvent
+	)
 
 	for decoder.More() {
 		select {
@@ -310,10 +332,12 @@ func (c *Client) processPullEvents(
 				if onPercent != nil {
 					onPercent(current)
 				}
+
 				c.logger.DebugContext(ctx, "pull progress", "image", imageName, "percent", current)
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -326,6 +350,7 @@ func checkPullEventError(event pullEvent, imageName string) error {
 	if event.Error != "" {
 		return eris.Errorf("pull error for image %s: %s", imageName, event.Error)
 	}
+
 	return nil
 }
 
@@ -336,5 +361,6 @@ func extractPullPercent(event pullEvent) (int64, bool) {
 	}
 
 	percent := event.ProgressDetail.Current * 100 / event.ProgressDetail.Total
+
 	return percent, true
 }

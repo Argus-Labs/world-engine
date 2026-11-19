@@ -12,6 +12,7 @@ import "math"
 func IsValidRay(input *RayCastInput) bool {
 	isValid := IsValidVec2(input.Origin) && IsValidVec2(input.Translation) &&
 		IsValidFloat(input.MaxFraction) && 0.0 <= input.MaxFraction && input.MaxFraction < Huge
+
 	return isValid
 }
 
@@ -104,6 +105,7 @@ func MakePolygon(hull *Hull, radius float64) Polygon {
 	}
 
 	var shape Polygon
+
 	shape.Count = hull.Count
 	shape.Radius = radius
 
@@ -115,10 +117,12 @@ func MakePolygon(hull *Hull, radius float64) Polygon {
 	// Compute normals. Ensure the edges have non-zero length.
 	for i := range shape.Count {
 		i1 := i
+
 		i2 := 0
 		if i+1 < shape.Count {
 			i2 = i + 1
 		}
+
 		edge := Sub(shape.Vertices[i2], shape.Vertices[i1])
 		assert(Dot(edge, edge) > epsilon*epsilon)
 		shape.Normals[i] = Normalize(CrossVS(edge, 1.0))
@@ -155,6 +159,7 @@ func MakeOffsetRoundedPolygon(hull *Hull, position Vec2, rotation Rot, radius fl
 	transform := Transform{P: position, Q: rotation}
 
 	var shape Polygon
+
 	shape.Count = hull.Count
 	shape.Radius = radius
 
@@ -166,10 +171,12 @@ func MakeOffsetRoundedPolygon(hull *Hull, position Vec2, rotation Rot, radius fl
 	// Compute normals. Ensure the edges have non-zero length.
 	for i := range shape.Count {
 		i1 := i
+
 		i2 := 0
 		if i+1 < shape.Count {
 			i2 = i + 1
 		}
+
 		edge := Sub(shape.Vertices[i2], shape.Vertices[i1])
 		assert(Dot(edge, edge) > epsilon*epsilon)
 		shape.Normals[i] = Normalize(CrossVS(edge, 1.0))
@@ -194,6 +201,7 @@ func MakeBox(halfWidth, halfHeight float64) Polygon {
 	assert(IsValidFloat(halfHeight) && halfHeight > 0.0)
 
 	var shape Polygon
+
 	shape.Count = 4
 	shape.Vertices[0] = Vec2{-halfWidth, -halfHeight}
 	shape.Vertices[1] = Vec2{halfWidth, -halfHeight}
@@ -205,6 +213,7 @@ func MakeBox(halfWidth, halfHeight float64) Polygon {
 	shape.Normals[3] = Vec2{-1.0, 0.0}
 	shape.Radius = 0.0
 	shape.Centroid = Vec2Zero
+
 	return shape
 }
 
@@ -212,8 +221,10 @@ func MakeBox(halfWidth, halfHeight float64) Polygon {
 // (upstream b2MakeRoundedBox). radius is the radius of the rounded extension.
 func MakeRoundedBox(halfWidth, halfHeight, radius float64) Polygon {
 	assert(IsValidFloat(radius) && radius >= 0.0)
+
 	shape := MakeBox(halfWidth, halfHeight)
 	shape.Radius = radius
+
 	return shape
 }
 
@@ -224,6 +235,7 @@ func MakeOffsetBox(halfWidth, halfHeight float64, center Vec2, rotation Rot) Pol
 	xf := Transform{P: center, Q: rotation}
 
 	var shape Polygon
+
 	shape.Count = 4
 	shape.Vertices[0] = TransformPoint(xf, Vec2{-halfWidth, -halfHeight})
 	shape.Vertices[1] = TransformPoint(xf, Vec2{halfWidth, -halfHeight})
@@ -235,6 +247,7 @@ func MakeOffsetBox(halfWidth, halfHeight float64, center Vec2, rotation Rot) Pol
 	shape.Normals[3] = RotateVector(xf.Q, Vec2{-1.0, 0.0})
 	shape.Radius = 0.0
 	shape.Centroid = xf.P
+
 	return shape
 }
 
@@ -242,9 +255,11 @@ func MakeOffsetBox(halfWidth, halfHeight float64, center Vec2, rotation Rot) Pol
 // convex hull (upstream b2MakeOffsetRoundedBox).
 func MakeOffsetRoundedBox(halfWidth, halfHeight float64, center Vec2, rotation Rot, radius float64) Polygon {
 	assert(IsValidFloat(radius) && radius >= 0.0)
+
 	xf := Transform{P: center, Q: rotation}
 
 	var shape Polygon
+
 	shape.Count = 4
 	shape.Vertices[0] = TransformPoint(xf, Vec2{-halfWidth, -halfHeight})
 	shape.Vertices[1] = TransformPoint(xf, Vec2{halfWidth, -halfHeight})
@@ -256,6 +271,7 @@ func MakeOffsetRoundedBox(halfWidth, halfHeight float64, center Vec2, rotation R
 	shape.Normals[3] = RotateVector(xf.Q, Vec2{-1.0, 0.0})
 	shape.Radius = radius
 	shape.Centroid = xf.P
+
 	return shape
 }
 
@@ -280,6 +296,7 @@ func ComputeCircleMass(shape *Circle, density float64) MassData {
 	rr := shape.Radius * shape.Radius
 
 	var massData MassData
+
 	massData.Mass = density * Pi * rr
 	massData.Center = shape.Center
 
@@ -303,6 +320,7 @@ func ComputeCapsuleMass(shape *Capsule, density float64) MassData {
 	boxMass := float64(density * (2.0 * radius * length))
 
 	var massData MassData
+
 	massData.Mass = circleMass + boxMass
 	massData.Center.X = 0.5 * (p1.X + p2.X)
 	massData.Center.Y = 0.5 * (p1.Y + p2.Y)
@@ -366,31 +384,38 @@ func ComputePolygonMass(shape *Polygon, density float64) MassData {
 
 	if shape.Count == 1 {
 		var circle Circle
+
 		circle.Center = shape.Vertices[0]
 		circle.Radius = shape.Radius
+
 		return ComputeCircleMass(&circle, density)
 	}
 
 	if shape.Count == 2 {
 		var capsule Capsule
+
 		capsule.Center1 = shape.Vertices[0]
 		capsule.Center2 = shape.Vertices[1]
 		capsule.Radius = shape.Radius
+
 		return ComputeCapsuleMass(&capsule, density)
 	}
 
 	var vertices [MaxPolygonVertices]Vec2
+
 	count := shape.Count
 	radius := shape.Radius
 
 	if radius > 0.0 {
 		// Approximate mass of rounded polygons by pushing out the vertices.
 		sqrt2 := 1.412
+
 		for i := range count {
 			j := i - 1
 			if i == 0 {
 				j = count - 1
 			}
+
 			n1 := shape.Normals[j]
 			n2 := shape.Normals[i]
 
@@ -468,6 +493,7 @@ func ComputeCircleAABB(shape *Circle, xf Transform) AABB {
 	r := shape.Radius
 
 	aabb := AABB{Vec2{p.X - r, p.Y - r}, Vec2{p.X + r, p.Y + r}}
+
 	return aabb
 }
 
@@ -482,6 +508,7 @@ func ComputeCapsuleAABB(shape *Capsule, xf Transform) AABB {
 	upper := Add(Max(v1, v2), r)
 
 	aabb := AABB{lower, upper}
+
 	return aabb
 }
 
@@ -503,6 +530,7 @@ func ComputePolygonAABB(shape *Polygon, xf Transform) AABB {
 	upper = Add(upper, r)
 
 	aabb := AABB{lower, upper}
+
 	return aabb
 }
 
@@ -516,6 +544,7 @@ func ComputeSegmentAABB(shape *Segment, xf Transform) AABB {
 	upper := Max(v1, v2)
 
 	aabb := AABB{lower, upper}
+
 	return aabb
 }
 
@@ -534,6 +563,7 @@ func PointInCapsule(shape *Capsule, point Vec2) bool {
 	p2 := shape.Center2
 
 	d := Sub(p2, p1)
+
 	dd := Dot(d, d)
 	if dd == 0.0 {
 		// Capsule is really a circle
@@ -557,6 +587,7 @@ func PointInCapsule(shape *Capsule, point Vec2) bool {
 // space (upstream b2PointInPolygon).
 func PointInPolygon(shape *Polygon, point Vec2) bool {
 	var input DistanceInput
+
 	input.ProxyA = MakeProxy(shape.Vertices[:], shape.Count, 0.0)
 	input.ProxyB = MakeProxy([]Vec2{point}, 1, 0.0)
 	input.TransformA = TransformIdentity
@@ -564,6 +595,7 @@ func PointInPolygon(shape *Polygon, point Vec2) bool {
 	input.UseRadii = false
 
 	var cache SimplexCache
+
 	output := ShapeDistance(&input, &cache, nil)
 
 	return output.Distance <= shape.Radius
@@ -592,7 +624,6 @@ func RayCastCircle(shape *Circle, input *RayCastInput) CastOutput {
 	d, length := GetLengthAndNormalize(input.Translation)
 	if length == 0.0 {
 		// zero length ray
-
 		if LengthSquared(s) < rr {
 			// initial overlap
 			output.Point = input.Origin
@@ -624,7 +655,6 @@ func RayCastCircle(shape *Circle, input *RayCastInput) CastOutput {
 
 	if fraction < 0.0 || input.MaxFraction*length < fraction {
 		// intersection is point outside the range of the ray segment
-
 		if LengthSquared(s) < rr {
 			// initial overlap
 			output.Point = input.Origin
@@ -696,6 +726,7 @@ func RayCastCapsule(shape *Capsule, input *RayCastInput) CastOutput {
 		// ray starts inside capsule -> no hit
 		output.Point = input.Origin
 		output.Hit = true
+
 		return output
 	}
 
@@ -732,8 +763,11 @@ func RayCastCapsule(shape *Capsule, input *RayCastInput) CastOutput {
 	// Cramer's rule [a b2]
 	s22 := cross2(a.X, b2.Y, b2.X, a.Y) * invDen
 
-	var s2 float64
-	var b Vec2
+	var (
+		s2 float64
+		b  Vec2
+	)
+
 	if s21 < s22 {
 		s2 = s21
 		b = b1
@@ -766,6 +800,7 @@ func RayCastCapsule(shape *Capsule, input *RayCastInput) CastOutput {
 		output.Point = Add(Lerp(v1, v2, s1/capsuleLength), MulSV(shape.Radius, n))
 		output.Normal = n
 		output.Hit = true
+
 		return output
 	}
 }
@@ -919,6 +954,7 @@ func RayCastPolygon(shape *Polygon, input *RayCastInput) CastOutput {
 	}
 
 	var castInput ShapeCastPairInput
+
 	castInput.ProxyA = MakeProxy(shape.Vertices[:], shape.Count, shape.Radius)
 	castInput.ProxyB = MakeProxy([]Vec2{input.Origin}, 1, 0.0)
 	castInput.TransformA = TransformIdentity
@@ -926,6 +962,7 @@ func RayCastPolygon(shape *Polygon, input *RayCastInput) CastOutput {
 	castInput.TranslationB = input.Translation
 	castInput.MaxFraction = input.MaxFraction
 	castInput.CanEncroach = false
+
 	return ShapeCast(&castInput)
 }
 
@@ -933,6 +970,7 @@ func RayCastPolygon(shape *Polygon, input *RayCastInput) CastOutput {
 // (upstream b2ShapeCastCircle).
 func ShapeCastCircle(shape *Circle, input *ShapeCastInput) CastOutput {
 	var pairInput ShapeCastPairInput
+
 	pairInput.ProxyA = MakeProxy([]Vec2{shape.Center}, 1, shape.Radius)
 	pairInput.ProxyB = input.Proxy
 	pairInput.TransformA = TransformIdentity
@@ -942,6 +980,7 @@ func ShapeCastCircle(shape *Circle, input *ShapeCastInput) CastOutput {
 	pairInput.CanEncroach = input.CanEncroach
 
 	output := ShapeCast(&pairInput)
+
 	return output
 }
 
@@ -949,6 +988,7 @@ func ShapeCastCircle(shape *Circle, input *ShapeCastInput) CastOutput {
 // (upstream b2ShapeCastCapsule).
 func ShapeCastCapsule(shape *Capsule, input *ShapeCastInput) CastOutput {
 	var pairInput ShapeCastPairInput
+
 	pairInput.ProxyA = MakeProxy([]Vec2{shape.Center1, shape.Center2}, 2, shape.Radius)
 	pairInput.ProxyB = input.Proxy
 	pairInput.TransformA = TransformIdentity
@@ -958,6 +998,7 @@ func ShapeCastCapsule(shape *Capsule, input *ShapeCastInput) CastOutput {
 	pairInput.CanEncroach = input.CanEncroach
 
 	output := ShapeCast(&pairInput)
+
 	return output
 }
 
@@ -965,6 +1006,7 @@ func ShapeCastCapsule(shape *Capsule, input *ShapeCastInput) CastOutput {
 // (upstream b2ShapeCastSegment).
 func ShapeCastSegment(shape *Segment, input *ShapeCastInput) CastOutput {
 	var pairInput ShapeCastPairInput
+
 	pairInput.ProxyA = MakeProxy([]Vec2{shape.Point1, shape.Point2}, 2, 0.0)
 	pairInput.ProxyB = input.Proxy
 	pairInput.TransformA = TransformIdentity
@@ -974,6 +1016,7 @@ func ShapeCastSegment(shape *Segment, input *ShapeCastInput) CastOutput {
 	pairInput.CanEncroach = input.CanEncroach
 
 	output := ShapeCast(&pairInput)
+
 	return output
 }
 
@@ -981,6 +1024,7 @@ func ShapeCastSegment(shape *Segment, input *ShapeCastInput) CastOutput {
 // space (upstream b2ShapeCastPolygon).
 func ShapeCastPolygon(shape *Polygon, input *ShapeCastInput) CastOutput {
 	var pairInput ShapeCastPairInput
+
 	pairInput.ProxyA = MakeProxy(shape.Vertices[:], shape.Count, shape.Radius)
 	pairInput.ProxyB = input.Proxy
 	pairInput.TransformA = TransformIdentity
@@ -990,6 +1034,7 @@ func ShapeCastPolygon(shape *Polygon, input *ShapeCastInput) CastOutput {
 	pairInput.CanEncroach = input.CanEncroach
 
 	output := ShapeCast(&pairInput)
+
 	return output
 }
 
@@ -997,6 +1042,7 @@ func ShapeCastPolygon(shape *Polygon, input *ShapeCastInput) CastOutput {
 // b2CollideMoverAndCircle).
 func CollideMoverAndCircle(mover *Capsule, shape *Circle) PlaneResult {
 	var distanceInput DistanceInput
+
 	distanceInput.ProxyA = MakeProxy([]Vec2{shape.Center}, 1, 0.0)
 	distanceInput.ProxyB = MakeProxy([]Vec2{mover.Center1, mover.Center2}, 2, mover.Radius)
 	distanceInput.TransformA = TransformIdentity
@@ -1006,10 +1052,12 @@ func CollideMoverAndCircle(mover *Capsule, shape *Circle) PlaneResult {
 	totalRadius := mover.Radius + shape.Radius
 
 	var cache SimplexCache
+
 	distanceOutput := ShapeDistance(&distanceInput, &cache, nil)
 
 	if distanceOutput.Distance <= totalRadius {
 		plane := Plane{distanceOutput.Normal, totalRadius - distanceOutput.Distance}
+
 		return PlaneResult{
 			Plane: plane,
 			Point: distanceOutput.PointA,
@@ -1024,6 +1072,7 @@ func CollideMoverAndCircle(mover *Capsule, shape *Circle) PlaneResult {
 // b2CollideMoverAndCapsule).
 func CollideMoverAndCapsule(mover *Capsule, shape *Capsule) PlaneResult {
 	var distanceInput DistanceInput
+
 	distanceInput.ProxyA = MakeProxy([]Vec2{shape.Center1, shape.Center2}, 2, 0.0)
 	distanceInput.ProxyB = MakeProxy([]Vec2{mover.Center1, mover.Center2}, 2, mover.Radius)
 	distanceInput.TransformA = TransformIdentity
@@ -1033,10 +1082,12 @@ func CollideMoverAndCapsule(mover *Capsule, shape *Capsule) PlaneResult {
 	totalRadius := mover.Radius + shape.Radius
 
 	var cache SimplexCache
+
 	distanceOutput := ShapeDistance(&distanceInput, &cache, nil)
 
 	if distanceOutput.Distance <= totalRadius {
 		plane := Plane{distanceOutput.Normal, totalRadius - distanceOutput.Distance}
+
 		return PlaneResult{
 			Plane: plane,
 			Point: distanceOutput.PointA,
@@ -1051,6 +1102,7 @@ func CollideMoverAndCapsule(mover *Capsule, shape *Capsule) PlaneResult {
 // (upstream b2CollideMoverAndPolygon).
 func CollideMoverAndPolygon(mover *Capsule, shape *Polygon) PlaneResult {
 	var distanceInput DistanceInput
+
 	distanceInput.ProxyA = MakeProxy(shape.Vertices[:], shape.Count, shape.Radius)
 	distanceInput.ProxyB = MakeProxy([]Vec2{mover.Center1, mover.Center2}, 2, mover.Radius)
 	distanceInput.TransformA = TransformIdentity
@@ -1060,10 +1112,12 @@ func CollideMoverAndPolygon(mover *Capsule, shape *Polygon) PlaneResult {
 	totalRadius := mover.Radius + shape.Radius
 
 	var cache SimplexCache
+
 	distanceOutput := ShapeDistance(&distanceInput, &cache, nil)
 
 	if distanceOutput.Distance <= totalRadius {
 		plane := Plane{distanceOutput.Normal, totalRadius - distanceOutput.Distance}
+
 		return PlaneResult{
 			Plane: plane,
 			Point: distanceOutput.PointA,
@@ -1078,6 +1132,7 @@ func CollideMoverAndPolygon(mover *Capsule, shape *Polygon) PlaneResult {
 // b2CollideMoverAndSegment).
 func CollideMoverAndSegment(mover *Capsule, shape *Segment) PlaneResult {
 	var distanceInput DistanceInput
+
 	distanceInput.ProxyA = MakeProxy([]Vec2{shape.Point1, shape.Point2}, 2, 0.0)
 	distanceInput.ProxyB = MakeProxy([]Vec2{mover.Center1, mover.Center2}, 2, mover.Radius)
 	distanceInput.TransformA = TransformIdentity
@@ -1087,10 +1142,12 @@ func CollideMoverAndSegment(mover *Capsule, shape *Segment) PlaneResult {
 	totalRadius := mover.Radius
 
 	var cache SimplexCache
+
 	distanceOutput := ShapeDistance(&distanceInput, &cache, nil)
 
 	if distanceOutput.Distance <= totalRadius {
 		plane := Plane{distanceOutput.Normal, totalRadius - distanceOutput.Distance}
+
 		return PlaneResult{
 			Plane: plane,
 			Point: distanceOutput.PointA,

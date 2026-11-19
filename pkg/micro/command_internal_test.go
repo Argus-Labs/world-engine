@@ -21,6 +21,7 @@ func TestParseCommandSubject(t *testing.T) {
 
 	gameplay := GetAddress("rampage", "gameplay-usw1-3")
 	platform := GetAddress("rampage", "platform")
+
 	const subject = "rampage.gameplay-usw1-3.isc.plat_result.rampage.platform"
 
 	require.Equal(t, subject, CommandRoute{To: gameplay, Name: "plat_result", From: platform}.Subject())
@@ -55,14 +56,17 @@ func TestCommand_RoundTrip(t *testing.T) {
 	svc, client := newTestService(t, prng)
 	from := GetAddress("rampage", "sender-"+strconv.FormatUint(prng.Uint64(), 36))
 	received := make(chan Command, 8)
+
 	require.NoError(t, svc.AddCommand("greet", func(_ context.Context, cmd Command) error {
 		received <- cmd
+
 		switch string(cmd.Payload) {
 		case "busy":
 			return status.Error(codes.FailedPrecondition, "not now")
 		case "boom":
 			return errors.New("plain error")
 		}
+
 		return nil
 	}))
 
@@ -133,6 +137,7 @@ func TestCommand_RoundTrip(t *testing.T) {
 
 		require.NoError(t, client.SendCommand(ctx, from, svc.Address, "greet", []byte("after-spoof")))
 		assert.Equal(t, []byte("after-spoof"), (<-received).Payload, "handler saw the spoofing command")
+
 		_, err = spoofed.NextMsg(100 * time.Millisecond)
 		require.ErrorIs(t, err, nats.ErrTimeout, "receiver replied onto another service's command subject")
 	}
@@ -159,6 +164,7 @@ func TestCommand_InvalidRejectionCode(t *testing.T) {
 	client := NewTestClient(t)
 	to := RandServiceAddress(t, prng)
 	from := RandServiceAddress(t, prng)
+
 	for _, code := range []string{"0", "17", "x"} {
 		name := "reject-" + code
 		sub, err := client.Subscribe(CommandRoute{To: to, Name: name, From: from}.Subject(), func(msg *nats.Msg) {
@@ -170,10 +176,12 @@ func TestCommand_InvalidRejectionCode(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { _ = sub.Unsubscribe() })
 	}
+
 	require.NoError(t, client.Flush())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
 	for _, code := range []string{"0", "17", "x"} {
 		err := client.SendCommand(ctx, from, to, "reject-"+code, nil)
 		assert.ErrorContains(t, err, `command rejected with invalid code "`+code+`": rejected`)

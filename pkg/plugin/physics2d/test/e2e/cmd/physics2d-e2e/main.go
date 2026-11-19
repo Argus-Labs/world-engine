@@ -37,6 +37,7 @@ func main() {
 			"with -restore, skip the documented Plugin.Reset after FromProto",
 		)
 	)
+
 	flag.Parse()
 
 	// Surface plugin-side problems: the physics pipeline logs reconcile and
@@ -54,22 +55,27 @@ func main() {
 	}
 
 	scenarios := scenario.All()
+
 	if *hostile != "" {
 		if *hostile == "list" {
 			// Names only on stdout so the list can be piped into a loop; the
 			// explanation goes to stderr.
 			fmt.Fprintln(os.Stderr, "crash-prone cases; each runs alone and may "+
 				"terminate the process, which is the result being measured:")
+
 			for _, name := range scenario.HostileNames() {
 				fmt.Println(name)
 			}
+
 			return
 		}
+
 		sc, ok := scenario.Hostile(*hostile)
 		if !ok {
 			fmt.Fprintf(os.Stderr, "unknown -hostile case %q; try -hostile list\n", *hostile)
 			os.Exit(2)
 		}
+
 		scenarios = []harness.Scenario{sc}
 	}
 
@@ -83,6 +89,7 @@ func main() {
 	}
 
 	runner := harness.New(scenarios, cfg)
+
 	world, err := runner.BuildWorld(cfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to build world: %v\n", err)
@@ -99,9 +106,11 @@ func main() {
 			runner.LastTick()+1, float64(runner.LastTick()+1)/harness.TickRate)
 		world.StartGame()
 		runner.Report().Print()
+
 		if _, fail, _ := runner.Report().Totals(); fail > 0 {
 			os.Exit(1)
 		}
+
 		return
 	}
 

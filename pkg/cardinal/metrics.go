@@ -56,6 +56,7 @@ func newWorldMetrics(tickInterval time.Duration) (*worldMetrics, error) {
 	m := &worldMetrics{tickInterval: tickInterval, commandAttrs: make(map[string][]metric.AddOption)}
 
 	var errs, err error
+
 	m.tickDuration, err = meter.Float64Histogram(metricTickDuration, metric.WithUnit("s"),
 		metric.WithDescription("Wall time of each tick: draining commands, running systems, dispatching events "+
 			"and persisting state."),
@@ -79,6 +80,7 @@ func (m *worldMetrics) registerCommand(name string) {
 	if m == nil {
 		return
 	}
+
 	m.commandAttrs[name] = addOptions(attrCommandName.String(name))
 }
 
@@ -87,6 +89,7 @@ func (m *worldMetrics) countCommand(ctx context.Context, name string) {
 	if m == nil {
 		return
 	}
+
 	if attrs, ok := m.commandAttrs[name]; ok {
 		m.tickCommands.Add(ctx, 1, attrs...)
 	}
@@ -97,7 +100,9 @@ func (m *worldMetrics) recordTick(ctx context.Context, elapsed time.Duration) {
 	if m == nil {
 		return
 	}
+
 	m.tickDuration.Record(ctx, elapsed.Seconds())
+
 	if m.tickInterval > 0 && elapsed > m.tickInterval {
 		m.tickOverruns.Add(ctx, 1)
 	}
@@ -108,6 +113,7 @@ func (m *worldMetrics) countEvent(ctx context.Context, attrs []metric.AddOption)
 	if m == nil {
 		return
 	}
+
 	m.eventsSent.Add(ctx, 1, attrs...)
 }
 

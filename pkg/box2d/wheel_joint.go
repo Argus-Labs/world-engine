@@ -197,6 +197,7 @@ func getWheelJointForce(w *World, base *jointSim) Vec2 {
 	axialForce := w.invH * (j.springImpulse + j.lowerImpulse - j.upperImpulse)
 
 	force := Add(MulSV(perpForce, perpA), MulSV(axialForce, axisA))
+
 	return force
 }
 
@@ -261,6 +262,7 @@ func prepareWheelJoint(base *jointSim, ctx *stepContext) {
 	if bodyA.setIndex == awakeSet {
 		j.indexA = localIndexA
 	}
+
 	j.indexB = NullIndex
 	if bodyB.setIndex == awakeSet {
 		j.indexB = localIndexB
@@ -290,6 +292,7 @@ func prepareWheelJoint(base *jointSim, ctx *stepContext) {
 
 	// kp = mA + mB + iA * s1 * s1 + iB * s2 * s2
 	kp := mA + mB + float64(iA*s1*s1) + float64(iB*s2*s2)
+
 	j.perpMass = 0.0
 	if kp > 0.0 {
 		j.perpMass = 1.0 / kp
@@ -301,6 +304,7 @@ func prepareWheelJoint(base *jointSim, ctx *stepContext) {
 
 	// ka = mA + mB + iA * a1 * a1 + iB * a2 * a2
 	ka := mA + mB + float64(iA*a1*a1) + float64(iB*a2*a2)
+
 	j.axialMass = 0.0
 	if ka > 0.0 {
 		j.axialMass = 1.0 / ka
@@ -309,6 +313,7 @@ func prepareWheelJoint(base *jointSim, ctx *stepContext) {
 	j.springSoftness = makeSoft(j.hertz, j.dampingRatio, ctx.h)
 
 	km := iA + iB
+
 	j.motorMass = 0.0
 	if km > 0.0 {
 		j.motorMass = 1.0 / km
@@ -341,6 +346,7 @@ func warmStartWheelJoint(base *jointSim, ctx *stepContext) {
 	if j.indexA != NullIndex {
 		stateA = &ctx.states[j.indexA]
 	}
+
 	stateB := &dummyState
 	if j.indexB != NullIndex {
 		stateB = &ctx.states[j.indexB]
@@ -398,6 +404,7 @@ func solveWheelJoint(base *jointSim, ctx *stepContext, useBias bool) {
 	if j.indexA != NullIndex {
 		stateA = &ctx.states[j.indexA]
 	}
+
 	stateB := &dummyState
 	if j.indexB != NullIndex {
 		stateB = &ctx.states[j.indexB]
@@ -542,6 +549,7 @@ func solveWheelJoint(base *jointSim, ctx *stepContext, useBias bool) {
 		bias := 0.0
 		massScale := 1.0
 		impulseScale := 0.0
+
 		if useBias {
 			c := Dot(perpA, d)
 			bias = base.constraintSoftness.biasRate * c

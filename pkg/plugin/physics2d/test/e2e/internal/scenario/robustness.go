@@ -36,6 +36,7 @@ func Hostile(name string) (harness.Scenario, bool) {
 			return sc, true
 		}
 	}
+
 	return harness.Scenario{}, false
 }
 
@@ -45,7 +46,9 @@ func HostileNames() []string {
 	for _, sc := range hostileCases() {
 		names = append(names, sc.Name)
 	}
+
 	sort.Strings(names)
+
 	return names
 }
 
@@ -103,6 +106,7 @@ func hostileDestroyDuringContact() harness.Scenario {
 		floor cardinal.EntityID
 		ball  cardinal.EntityID
 	}
+
 	return harness.Scenario{
 		Name: "destroy-during-contact",
 		Setup: func(c *harness.Ctx) {
@@ -115,6 +119,7 @@ func hostileDestroyDuringContact() harness.Scenario {
 				if !c.IntAtLeast("the ball is in contact before it is destroyed", touching, 1) {
 					return
 				}
+
 				c.Note("destroying entity %d while it is touching entity %d — "+
 					"the next step drains a ContactEnd for a shape that no longer exists",
 					s.ball, s.floor)
@@ -138,6 +143,7 @@ func hostileBadShape(
 	name, description string, kind physics.BodyType, shape physics.ColliderShape,
 ) harness.Scenario {
 	var victim cardinal.EntityID
+
 	return harness.Scenario{
 		Name: name,
 		Setup: func(c *harness.Ctx) {
@@ -152,6 +158,7 @@ func hostileBadShape(
 			}},
 			{Tick: 20, Do: func(c *harness.Ctx) {
 				c.True("the shard survives "+description, true, "unreachable")
+
 				res := c.Raycast(0, 14, 0, 6, nil)
 				if res.Hit && res.Entity == victim {
 					c.Note("%s was accepted and built a real fixture", description)

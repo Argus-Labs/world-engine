@@ -38,8 +38,10 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 	model := make(map[EntityID]*archetype) // Just track archetype entity ownership
 
 	// List of live entities for random selection.
-	var entities []EntityID
-	var next EntityID
+	var (
+		entities []EntityID
+		next     EntityID
+	)
 
 	for range opsMax {
 		op := testutils.RandWeightedOp(prng, weights)
@@ -47,6 +49,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 		case opNew:
 			eid := next
 			next++
+
 			entities = append(entities, eid)
 			arch := pool[prng.IntN(len(pool))]
 
@@ -62,12 +65,14 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 			if len(entities) == 0 {
 				continue
 			}
+
 			idx := prng.IntN(len(entities))
 			eid := entities[idx]
 			arch := model[eid]
 
 			arch.removeEntity(eid)
 			delete(model, eid)
+
 			entities = slices.Delete(entities, idx, idx+1)
 
 			// Property: entity no longer exists.
@@ -78,6 +83,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 			if len(entities) == 0 {
 				continue
 			}
+
 			eid := entities[prng.IntN(len(entities))]
 			src := model[eid]
 			dst := pool[prng.IntN(len(pool))]
@@ -126,6 +132,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 			if row == sparseTombstone {
 				continue
 			}
+
 			assert.Less(t, row, len(arch.entities), "row %d for entity %d out of bounds", row, eid)
 			assert.Equal(t, EntityID(eid), arch.entities[row], "entities[%d] != %d", row, eid)
 		}
@@ -133,6 +140,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 
 	// Property: entity IDs are globally unique (also catches duplicates within a single archetype).
 	seenGlobal := make(map[EntityID]bool)
+
 	for _, arch := range pool {
 		for _, eid := range arch.entities {
 			assert.False(t, seenGlobal[eid], "duplicate entity %d", eid)
@@ -142,6 +150,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 
 	// Property: all entities in archetypes match the entities list.
 	assert.Len(t, seenGlobal, len(entities), "entity count mismatch")
+
 	for _, eid := range entities {
 		assert.True(t, seenGlobal[eid], "entity %d in list but not in any archetype", eid)
 	}
@@ -150,6 +159,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 	for eid, expectedArch := range model {
 		row, exists := expectedArch.rows.get(eid)
 		assert.True(t, exists, "entity %d should exist in model's archetype", eid)
+
 		if exists {
 			assert.Equal(t, eid, expectedArch.entities[row], "entity %d mismatch in model's archetype", eid)
 		}
@@ -198,6 +208,7 @@ func TestArchetype_MoveExhaustive(t *testing.T) {
 		// Pick and reset archetypes to clean state.
 		src := pool[gen.Index(len(pool))] // Randomize source
 		clearArchetype(src)
+
 		dst := pool[gen.Index(len(pool))] // Randomize destination
 		clearArchetype(dst)
 
@@ -206,6 +217,7 @@ func TestArchetype_MoveExhaustive(t *testing.T) {
 		for eid := range countSrc {
 			src.newEntity(EntityID(eid))
 		}
+
 		countDst := gen.Range(0, 2) // Randomize destination entity count
 		for eid := range countDst {
 			dst.newEntity(EntityID(countSrc + eid)) // Entity IDs are globally unique
@@ -222,6 +234,7 @@ func TestArchetype_MoveExhaustive(t *testing.T) {
 			assert.NotPanics(t, func() {
 				src.moveEntity(dst, eid)
 			}, "self move should be a no-op and must not panic")
+
 			continue
 		}
 
@@ -288,11 +301,13 @@ func newArchetypePool(n int) []*archetype {
 	pool := make([]bitmap.Bitmap, 0, 1<<n)
 	for mask := range 1 << n {
 		components := bitmap.Bitmap{}
+
 		for bit := range uint32(n) {
 			if mask&(1<<bit) != 0 {
 				components.Set(bit)
 			}
 		}
+
 		pool = append(pool, components)
 	}
 
@@ -302,6 +317,7 @@ func newArchetypePool(n int) []*archetype {
 		for i := range components.Count() {
 			columns[i] = newColumnFactory[testutils.SimpleComponent]()()
 		}
+
 		arch := newArchetype(aid, components, columns)
 		archetypes = append(archetypes, &arch)
 	}
@@ -311,6 +327,7 @@ func newArchetypePool(n int) []*archetype {
 
 func clearArchetype(a *archetype) {
 	a.rows.clear()
+
 	a.entities = a.entities[:0]
 	for _, column := range a.columns {
 		for column.len() > 0 {
@@ -337,6 +354,7 @@ func classifyMove(src, dst *archetype, movedRow int) string { //nolint:unused //
 	diff := added + removed // k
 
 	var category string
+
 	switch {
 	case added == 0 && removed == 0:
 		category = "nop"
@@ -371,6 +389,7 @@ func classifyMove(src, dst *archetype, movedRow int) string { //nolint:unused //
 
 func TestArchetype_ContainsBitmapWords(t *testing.T) {
 	t.Parallel()
+
 	cases := []struct {
 		name     string
 		actual   bitmap.Bitmap
@@ -391,6 +410,7 @@ func TestArchetype_ContainsBitmapWords(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			arch := archetype{components: tc.actual, compCount: tc.actual.Count()}
 			actualBefore, requiredBefore := slices.Clone(tc.actual), slices.Clone(tc.required)
 			assert.Equal(t, tc.contains, arch.contains(tc.required))

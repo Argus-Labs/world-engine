@@ -66,6 +66,7 @@ func TestMultiSectionBox_WidensToFitWidestSection(t *testing.T) {
 		{Title: "Build", Body: "a rather long line that forces the whole shared box to widen"},
 	})
 	lines := strings.Split(stripANSI(got), "\n")
+
 	width := len([]rune(lines[0]))
 	for _, l := range lines {
 		require.Equal(t, width, len([]rune(l)), "every line (border, divider, content) must share one box width")
@@ -98,9 +99,11 @@ func TestMultiSectionBoxOpts_ClampsToMaxWidth(t *testing.T) {
 	got, inner := MultiSectionBoxOpts([]Section{{Title: "Cluster", Body: long}}, BoxOpts{MaxWidth: 80})
 
 	require.Equal(t, 80-BoxChrome, inner, "inner width should fill the terminal minus the border chrome")
+
 	for line := range strings.SplitSeq(got, "\n") {
 		require.LessOrEqual(t, lipgloss.Width(line), 80, "no line may exceed MaxWidth")
 	}
+
 	require.Contains(t, stripANSI(got), "…", "over-wide content should be truncated, not overflowed")
 }
 

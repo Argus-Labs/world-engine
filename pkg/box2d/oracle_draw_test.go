@@ -32,24 +32,30 @@ func oracleDrawColors(r *drawRecorder) []box2d.HexColor {
 	for _, record := range r.solidPolygons {
 		colors = append(colors, record.color)
 	}
+
 	for _, record := range r.solidCircles {
 		colors = append(colors, record.color)
 	}
+
 	for _, record := range r.solidCapsules {
 		colors = append(colors, record.color)
 	}
+
 	for _, record := range r.lines {
 		colors = append(colors, record.color)
 	}
+
 	return colors
 }
 
 // oracleDrawShapes renders only the shapes of a world and returns the recorder.
 func oracleDrawShapes(w *box2d.World) *drawRecorder {
 	var recorder drawRecorder
+
 	draw := recorder.debugDraw()
 	draw.DrawShapes = true
 	w.Draw(&draw)
+
 	return &recorder
 }
 
@@ -210,6 +216,7 @@ func TestOracleDrawColorSleepingDynamicIsGray(t *testing.T) {
 	for range 60 {
 		world.Step(1.0/60.0, 4)
 	}
+
 	require.False(t, world.IsBodyAwake(bodyID), "the body must fall asleep for this case")
 
 	colors := oracleDrawColors(oracleDrawShapes(world))
@@ -323,6 +330,7 @@ func TestOracleDrawColorTimeOfImpactIsLime(t *testing.T) {
 	// step, so the wall is reached within a couple of steps; the extra steps
 	// let b2FinalizeBodiesTask publish the flag onto the body.
 	found := false
+
 	for range 6 {
 		world.Step(1.0/60.0, 4)
 
@@ -331,6 +339,7 @@ func TestOracleDrawColorTimeOfImpactIsLime(t *testing.T) {
 				found = true
 			}
 		}
+
 		if found {
 			break
 		}
@@ -367,10 +376,12 @@ func oracleJointDrawWorld(t *testing.T) (*box2d.World, box2d.BodyID, box2d.BodyI
 // oracleDrawJoints renders only the joints of a world.
 func oracleDrawJoints(w *box2d.World, extras bool) *drawRecorder {
 	var recorder drawRecorder
+
 	draw := recorder.debugDraw()
 	draw.DrawJoints = true
 	draw.DrawJointExtras = extras
 	w.Draw(&draw)
+
 	return &recorder
 }
 
@@ -380,6 +391,7 @@ func oracleLineColors(r *drawRecorder) []box2d.HexColor {
 	for _, record := range r.lines {
 		colors = append(colors, record.color)
 	}
+
 	return colors
 }
 
@@ -389,6 +401,7 @@ func oraclePointColors(r *drawRecorder) []box2d.HexColor {
 	for _, record := range r.points {
 		colors = append(colors, record.color)
 	}
+
 	return colors
 }
 
@@ -435,6 +448,7 @@ func TestOracleDrawMotorJoint(t *testing.T) {
 	assert.Equal(t,
 		[]box2d.HexColor{box2d.ColorYellowGreen, box2d.ColorPlum},
 		oraclePointColors(recorder))
+
 	for _, record := range recorder.points {
 		assert.InDelta(t, 8.0, record.size, 0.0)
 	}
@@ -458,9 +472,11 @@ func TestOracleDrawWeldJoint(t *testing.T) {
 	require.Len(t, recorder.polygons, 2)
 	assert.Equal(t, box2d.ColorDarkOrange, recorder.polygons[0].color)
 	assert.Equal(t, box2d.ColorDarkCyan, recorder.polygons[1].color)
+
 	for _, record := range recorder.polygons {
 		assert.Len(t, record.vertices, 4, "b2MakeBox produces a four vertex box")
 	}
+
 	assert.Empty(t, recorder.lines)
 	assert.Empty(t, recorder.points)
 }
@@ -800,11 +816,13 @@ func TestOracleDrawJointGraphColor(t *testing.T) {
 	// move the bodies away from the exact anchors asserted below.
 
 	var plain drawRecorder
+
 	plainDraw := plain.debugDraw()
 	plainDraw.DrawJoints = true
 	world.Draw(&plainDraw)
 
 	var graph drawRecorder
+
 	graphDraw := graph.debugDraw()
 	graphDraw.DrawJoints = true
 	graphDraw.DrawGraphColors = true
@@ -933,6 +951,7 @@ func TestOracleDrawBoundsUsesTheFatAABB(t *testing.T) {
 	shapeID := world.CreateCircleShape(bodyID, &shapeDef, &circle)
 
 	var recorder drawRecorder
+
 	draw := recorder.debugDraw()
 	draw.DrawBounds = true
 	world.Draw(&draw)

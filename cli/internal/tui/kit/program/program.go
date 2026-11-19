@@ -30,5 +30,6 @@ func NewTeaProgram(model tea.Model, opts ...tea.ProgramOption) *tea.Program {
 		opts = append(opts, tea.WithInput(nil))
 		// opts = append(opts, tea.WithoutRenderer())
 	}
+
 	return tea.NewProgram(model, opts...)
 }

@@ -151,6 +151,7 @@ func TestContactIDsAreBoundToTheirOwningWorld(t *testing.T) {
 		data := make([]box2d.ContactData, world.BodyContactCapacity(body))
 		count := world.BodyContactData(body, data)
 		require.Positive(t, count, "scene produced no contacts")
+
 		return data[0].ContactID
 	}
 

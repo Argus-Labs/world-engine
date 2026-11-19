@@ -49,8 +49,10 @@ func Labels(project, role, shardID, instance string) map[string]string {
 	if shardID != "" {
 		l[ShardIDLabel] = shardID
 	}
+
 	if instance != "" {
 		l[InstanceLabel] = instance
 	}
+
 	return l
 }

@@ -73,6 +73,7 @@ func TestIsCanonical(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
+
 			if got := dnslabel.IsCanonical(c.value); got != c.want {
 				t.Errorf("IsCanonical(%q) (len=%d) = %v, want %v", c.value, len(c.value), got, c.want)
 			}

@@ -38,6 +38,7 @@ func newKeyMap(canReload bool) keyMap {
 		Reload: DefaultReloadKeys(),
 	}
 	keys.Reload = keys.Reload.WithEnabled(canReload)
+
 	return keys
 }
 
@@ -90,6 +91,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.legend.SetWidth(msg.Width)
+
 		return m, nil
 
 	case tea.KeyMsg:
@@ -97,13 +99,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case LogLineMsg:
 		line := worldstatus.LogLine(msg)
+
 		label := line.InstanceName
 		if label == "" {
 			label = line.ShardID
 		}
+
 		if label == "" {
 			label = line.Source
 		}
+
 		return m, tea.Println(m.fit(formatShardLine(label, m.labelColor(label), line.Line)))
 
 	case actionResultMsg:
@@ -111,6 +116,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Println(m.fit(style.ForegroundPrint(
 				fmt.Sprintf("✖ %v", msg.err), style.Orange)))
 		}
+
 		return m, tea.Println(m.fit(style.ForegroundPrint("✔ "+msg.text, style.Yellow)))
 
 	case StreamEndedMsg:
@@ -118,9 +124,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Err != nil && !eris.Is(msg.Err, context.Canceled) {
 			cmds = append(cmds, tea.Println(fmt.Sprintf("Error tailing shard logs: %v", msg.Err)))
 		}
+
 		cmds = append(cmds, tea.Println("All log streams ended. Press ENTER to return."))
+
 		return m, tea.Batch(cmds...)
 	}
+
 	return m, nil
 }
 
@@ -145,6 +154,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Reload.PurgeReload):
 		m.reload = true
 		m.purge = true
+
 		return m, tea.Quit
 	case m.legend.HandleToggle(msg, len(m.extras) > 0):
 		return m, nil
@@ -156,6 +166,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, m.run(extra.Run)
 		}
 	}
+
 	return m, nil
 }
 
@@ -164,6 +175,7 @@ func (m *Model) fit(line string) string {
 	if m.width <= 0 {
 		return line
 	}
+
 	return ansi.Hardwrap(line, m.width, false)
 }
 
@@ -172,6 +184,7 @@ func (m *Model) run(action func(context.Context) (string, error)) tea.Cmd {
 	if action == nil {
 		return nil
 	}
+
 	return func() tea.Msg {
 		text, err := action(m.ctx)
 		return actionResultMsg{text: text, err: err}
@@ -195,19 +208,23 @@ func paletteColor(idx int) string {
 		"#87CEEB", // Sky Blue
 		"#32CD32", // Lime Green
 	}
+
 	return colors[idx%len(colors)]
 }
 
 func newLabelColorAssigner() func(label string) string {
 	assigned := map[string]string{}
 	next := 0
+
 	return func(label string) string {
 		if c, ok := assigned[label]; ok {
 			return c
 		}
+
 		c := paletteColor(next)
 		assigned[label] = c
 		next++
+
 		return c
 	}
 }

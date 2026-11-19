@@ -42,7 +42,9 @@ func (s *Spinner) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case spinner.TickMsg:
 		// Update the spinner
 		var cmd tea.Cmd
+
 		s.Spinner, cmd = s.Spinner.Update(msg)
+
 		return s, cmd
 	case LogMsg:
 		// Add the log message to the list of logs and return a spinner tick
@@ -59,6 +61,7 @@ func (s *Spinner) View() string {
 		elapsed := int(time.Since(s.Started).Seconds())
 		return fmt.Sprintf("%s %s (%ds)", s.Spinner.View(), s.text, elapsed)
 	}
+
 	return fmt.Sprintf("%s %s", s.Spinner.View(), s.text)
 }
 

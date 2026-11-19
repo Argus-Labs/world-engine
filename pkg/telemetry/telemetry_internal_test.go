@@ -67,25 +67,30 @@ func (c *fakeCollector) Export(
 ) (*collmetricpb.ExportMetricsServiceResponse, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	for _, rm := range req.GetResourceMetrics() {
 		service := ""
+
 		for _, attr := range rm.GetResource().GetAttributes() {
 			if attr.GetKey() == "service.name" {
 				service = attr.GetValue().GetStringValue()
 			}
 		}
+
 		for _, sm := range rm.GetScopeMetrics() {
 			for _, m := range sm.GetMetrics() {
 				c.metrics = append(c.metrics, service+"/"+m.GetName())
 			}
 		}
 	}
+
 	return &collmetricpb.ExportMetricsServiceResponse{}, nil
 }
 
 func (c *fakeCollector) received() []string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	return slices.Clone(c.metrics)
 }
 
@@ -119,14 +124,19 @@ func (stalledMetricsService) Export(
 // returns the fakeCollector with its host:port.
 func startFakeCollector(t *testing.T, traces colltracepb.TraceServiceServer) (*fakeCollector, string) {
 	t.Helper()
+
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
+
 	collector := &fakeCollector{}
 	server := grpc.NewServer()
 	collmetricpb.RegisterMetricsServiceServer(server, collector)
+
 	colltracepb.RegisterTraceServiceServer(server, traces)
 	go func() { _ = server.Serve(lis) }()
+
 	t.Cleanup(server.Stop)
+
 	return collector, lis.Addr().String()
 }
 
@@ -135,13 +145,18 @@ func startFakeCollector(t *testing.T, traces colltracepb.TraceServiceServer) (*f
 // shutdown that must stay out of Sentry.
 func startStalledMetricsServer(t *testing.T) string {
 	t.Helper()
+
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
+
 	server := grpc.NewServer()
 	collmetricpb.RegisterMetricsServiceServer(server, stalledMetricsService{})
+
 	colltracepb.RegisterTraceServiceServer(server, colltracepb.UnimplementedTraceServiceServer{})
 	go func() { _ = server.Serve(lis) }()
+
 	t.Cleanup(server.Stop)
+
 	return lis.Addr().String()
 }
 
@@ -149,11 +164,14 @@ func startStalledMetricsServer(t *testing.T) string {
 // restores only what changed: re-setting a provider to itself logs a warning.
 func restoreGlobalProviders(t *testing.T) {
 	t.Helper()
+
 	prevMeters, prevTracers := otel.GetMeterProvider(), otel.GetTracerProvider()
+
 	t.Cleanup(func() {
 		if otel.GetMeterProvider() != prevMeters {
 			otel.SetMeterProvider(prevMeters)
 		}
+
 		if otel.GetTracerProvider() != prevTracers {
 			otel.SetTracerProvider(prevTracers)
 		}
@@ -190,6 +208,7 @@ func TestNewExportsMetricsOnlyToMetricsEndpoint(t *testing.T) {
 			for key, value := range tt.envFor(addr) {
 				t.Setenv(key, value)
 			}
+
 			t.Setenv("LOG_LEVEL", "info")
 			t.Setenv("LOG_FORMAT", "json")
 			restoreGlobalProviders(t)
@@ -218,14 +237,17 @@ func TestShutdownFlushesMetricsPastStalledTraceCollector(t *testing.T) {
 
 	tel, err := New(Options{ServiceName: "test"})
 	require.NoError(t, err)
+
 	_, span := otel.Tracer("test").Start(context.Background(), "stalls")
 	span.End()
+
 	counter, err := otel.Meter("test").Int64Counter("test.requests")
 	require.NoError(t, err)
 	counter.Add(context.Background(), 1)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
+
 	require.ErrorIs(t, tel.Shutdown(ctx), context.DeadlineExceeded) // The span flush never completes.
 	require.Equal(t, []string{"test/test.requests"}, collector.received())
 }
@@ -308,7 +330,9 @@ var shutdownErrorCases = []struct {
 // real export error — is still captured by Sentry.
 func TestShutdownSkipsSentryForJoinedCancellation(t *testing.T) {
 	var captured []error
+
 	prev := sentrygo.CurrentHub().Client()
+
 	require.NoError(t, sentrygo.Init(sentrygo.ClientOptions{
 		DisableTelemetryBuffer: true,
 		BeforeSend: func(_ *sentrygo.Event, hint *sentrygo.EventHint) *sentrygo.Event {
@@ -326,6 +350,7 @@ func TestShutdownSkipsSentryForJoinedCancellation(t *testing.T) {
 		if !tc.sentinel {
 			want = 1
 		}
+
 		t.Run(tc.name, func(t *testing.T) {
 			captured = nil
 			tel := Telemetry{posthog: ph, shutdown: func(context.Context) error { return tc.err }}
@@ -342,7 +367,9 @@ func TestShutdownSkipsSentryForJoinedCancellation(t *testing.T) {
 // gRPC status normalization protects against.
 func TestShutdownSkipsSentryForStalledMetricsTimeout(t *testing.T) {
 	var captured []error
+
 	prev := sentrygo.CurrentHub().Client()
+
 	require.NoError(t, sentrygo.Init(sentrygo.ClientOptions{
 		DisableTelemetryBuffer: true,
 		BeforeSend: func(_ *sentrygo.Event, hint *sentrygo.EventHint) *sentrygo.Event {
@@ -367,7 +394,9 @@ func TestShutdownSkipsSentryForStalledMetricsTimeout(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
+
 	_ = tel.Shutdown(ctx)
+
 	require.Empty(t, captured, "pure-timeout shutdown must not reach Sentry")
 }
 
@@ -383,6 +412,7 @@ func TestOnlyContextSentinels(t *testing.T) {
 		sentinel bool
 	}, 0, len(shutdownErrorCases)+3)
 	cases = append(cases, shutdownErrorCases...)
+
 	cases = append(cases,
 		struct {
 			name     string

@@ -16,22 +16,31 @@ const MaxLength = 63
 // or all-invalid input yields "unknown" so a path segment is never empty.
 func Sanitize(value string) string {
 	value = strings.ToLower(strings.TrimSpace(value))
+
 	var b strings.Builder
+
 	lastHyphen := false
+
 	for _, r := range value {
 		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
 			b.WriteRune(r)
+
 			lastHyphen = false
+
 			continue
 		}
+
 		if b.Len() > 0 && !lastHyphen {
 			b.WriteByte('-')
+
 			lastHyphen = true
 		}
 	}
+
 	if result := strings.Trim(b.String(), "-"); result != "" {
 		return result
 	}
+
 	return "unknown"
 }
 

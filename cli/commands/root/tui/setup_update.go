@@ -38,6 +38,7 @@ func (m WorldSetupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		return m.handleResize(msg)
 	}
+
 	return m.updateSteps(msg)
 }
 
@@ -61,6 +62,7 @@ func (m WorldSetupModel) handleNameInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		if m.projectNameInput.Value() == "" {
 			m.projectNameInput.SetValue("starter-game")
 		}
+
 		name := m.projectNameInput.Value()
 		// Match the cardinal-editor: the name must already be dnslabel-canonical so
 		// world.toml's project (and the shard paths derived from it)
@@ -69,6 +71,7 @@ func (m WorldSetupModel) handleNameInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 			m.nameErr = projectNameErrMsg
 			return m, nil
 		}
+
 		m.nameErr = ""
 		m.projectNameInput.Blur()
 		// When --directory was supplied with an invalid basename, the user is
@@ -78,18 +81,23 @@ func (m WorldSetupModel) handleNameInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		if m.targetDir != "" {
 			m.targetDir = filepath.Join(filepath.Dir(filepath.Clean(m.targetDir)), name)
 		}
+
 		return m, m.steps.CompleteStepCmd(nil)
 	}
 
 	// Clear validation error when the user edits the input
 	m.nameErr = ""
+
 	var cmd tea.Cmd
+
 	m.projectNameInput, cmd = m.projectNameInput.Update(msg)
+
 	return m, cmd
 }
 
 func (m WorldSetupModel) handleTemplateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+
 	m.templateList, cmd = m.templateList.Update(msg)
 
 	if msg.Type == tea.KeyEnter {
@@ -97,6 +105,7 @@ func (m WorldSetupModel) handleTemplateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 			if item, ok := selectedItem.(templateItem); ok {
 				m.selectedTemplate = &item.template
 				m.showTemplateList = false
+
 				return m, m.steps.CompleteStepCmd(nil)
 			}
 		}
@@ -122,13 +131,17 @@ func (m WorldSetupModel) handleStepStarted(msg steps.SignalStepStartedMsg) (tea.
 					tea.Quit,
 				)
 			}
+
 			m.selectedTemplate = template
+
 			return m, tea.Sequence(
 				NewLogCmd(style.ChevronIcon.Render()+"Using template: "+m.selectedTemplate.Name),
 				m.steps.CompleteStepCmd(nil),
 			)
 		}
+
 		m.showTemplateList = true
+
 		return m, NewLogCmd(fmt.Sprintf(
 			style.ChevronIcon.Render()+"Loaded %d templates for selection",
 			len(m.templateList.Items()),
@@ -141,6 +154,7 @@ func (m WorldSetupModel) handleStepStarted(msg steps.SignalStepStartedMsg) (tea.
 				tea.Quit,
 			)
 		}
+
 		return m, tea.Sequence(
 			NewLogCmd(style.ChevronIcon.Render()+"Cloning "+m.selectedTemplate.Name+"..."),
 			m.cloneTemplateCmd(),
@@ -152,6 +166,7 @@ func (m WorldSetupModel) handleStepStarted(msg steps.SignalStepStartedMsg) (tea.
 			m.tidyCmd(),
 		)
 	}
+
 	return m, nil
 }
 
@@ -166,6 +181,7 @@ func (m WorldSetupModel) handleStepCompleted(msg steps.SignalStepCompletedMsg) (
 		return m, NewLogCmd(style.ChevronIcon.Render() +
 			"Successfully created a starter game shard in " + m.displayDir())
 	}
+
 	return m, nil
 }
 
@@ -181,6 +197,7 @@ func (m WorldSetupModel) handleCloneFinished(msg CloneFinishedMsg) (tea.Model, t
 		m.logs = append(m.logs, style.CrossIcon.Render()+msg.Err.Error())
 		return m, m.steps.CompleteStepCmd(msg.Err)
 	}
+
 	return m, m.steps.CompleteStepCmd(nil)
 }
 
@@ -191,8 +208,10 @@ func (m WorldSetupModel) handleTidyFinished(msg TidyFinishedMsg) (tea.Model, tea
 			m.logs = append(m.logs, style.ChevronIcon.Render()+
 				"Removed "+m.displayDir()+" — fix the issue above and run setup again with the same name.")
 		}
+
 		return m, m.steps.CompleteStepCmd(msg.Err)
 	}
+
 	return m, m.steps.CompleteStepCmd(nil)
 }
 
@@ -213,12 +232,15 @@ func (m WorldSetupModel) handleResize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd
 	// Width uses msg.Width minus 4 to match the inner content width of
 	// style.Container, which has horizontal padding of 2 on each side.
 	m.templateList.SetSize(msg.Width-4, available)
+
 	return m, nil
 }
 
 func (m WorldSetupModel) updateSteps(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+
 	m.steps, cmd = m.steps.Update(msg)
+
 	return m, cmd
 }
 
@@ -226,6 +248,7 @@ func (m WorldSetupModel) targetDirectory() string {
 	if m.targetDir != "" {
 		return m.targetDir
 	}
+
 	return m.projectNameInput.Value()
 }
 
@@ -233,6 +256,7 @@ func (m WorldSetupModel) displayDir() string {
 	if m.targetDir != "" {
 		return m.targetDir
 	}
+
 	return "./" + m.projectNameInput.Value()
 }
 
@@ -246,6 +270,7 @@ func (m WorldSetupModel) cloneTemplateCmd() tea.Cmd {
 			m.targetDirectory(),
 			m.selectedTemplate.Subdir,
 		)
+
 		return CloneFinishedMsg{Err: err}
 	}
 }
@@ -255,12 +280,14 @@ func (m WorldSetupModel) tidyCmd() tea.Cmd {
 	return func() tea.Msg {
 		projectDir := m.targetDirectory()
 		err := worldscaffold.Tidy(context.Background(), projectDir)
+
 		removed := false
 		if err != nil {
 			// Match the editor: a failed tidy leaves nothing behind so the name is
 			// retryable (the project directory was created by InstantiateTemplate).
 			removed = os.RemoveAll(projectDir) == nil
 		}
+
 		return TidyFinishedMsg{Err: err, Removed: removed}
 	}
 }

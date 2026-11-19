@@ -32,6 +32,7 @@ func SentryInit(sentryDsn string, env string, appVersion string) {
 		log.Err(err).Msg("Cannot initialize sentry. \r\n" +
 			" Please check your INFISICAL_WORLD_CLI_SENTRY_KEY in your GitHub Actions secrets for World CLI repository. \r\n" +
 			" If you are running locally, you can ignore this message.\r\n")
+
 		return
 	}
 
@@ -48,7 +49,9 @@ func SentryFlush() {
 		// Flush buffered events before the program terminates.
 		// Set the timeout to the maximum duration the program can afford to wait.
 		sentry.Flush(5 * time.Second)
+
 		sentryInitialized = false
+
 		if err != nil {
 			// Re-raise the recovered panic so unwinding continues to main()'s top-level
 			// handler, which owns the crash path (non-zero exit code and a stack trace).

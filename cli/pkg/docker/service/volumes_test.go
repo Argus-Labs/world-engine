@@ -54,11 +54,13 @@ func TestVolumeNames(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			cfg := &service.Config{WorldToml: worldtoml.Config{
 				Project:  "demo",
 				Shards:   []worldtoml.Shard{{ID: "game", InstanceID: "game", Path: "shards/game"}},
 				Services: tc.services,
 			}}
+
 			got := service.VolumeNames(cfg)
 			if !slices.Equal(got, tc.want) {
 				t.Fatalf("VolumeNames = %v, want %v", got, tc.want)

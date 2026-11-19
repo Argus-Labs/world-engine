@@ -105,6 +105,7 @@ func newModel(cancel func()) Model {
 		spinner.WithSpinner(spinner.Dot),
 		spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color(style.Yellow))),
 	)
+
 	return Model{
 		sectionByID: make(map[string]int),
 		spinner:     s,
@@ -121,17 +122,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cancel != nil {
 				m.cancel()
 			}
+
 			return m, tea.Quit
 		}
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 	case spinner.TickMsg:
 		var cmd tea.Cmd
+
 		m.spinner, cmd = m.spinner.Update(msg)
+
 		return m, cmd
 	case newSectionMsg:
 		m.sectionByID[msg.id] = len(m.sections)
 		m.sections = append(m.sections, section{id: msg.id, title: msg.title, rows: make(map[string]Row)})
+
 		return m.flushToFit()
 	case rowMsg:
 		// Only a new row can grow the frame, so only that needs a flush check —
@@ -147,6 +152,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case collapseMsg:
 		return m.finish(msg.section, msg.summary, msg.failed).flushToFit()
 	}
+
 	return m, nil
 }
 
@@ -158,10 +164,12 @@ func (m Model) finish(sectionID, summary string, failed bool) Model {
 	if !ok {
 		return m
 	}
+
 	sec := &m.sections[i]
 	sec.finished = true
 	sec.summary = summary
 	sec.failed = failed
+
 	return m
 }
 
@@ -176,12 +184,16 @@ func (m Model) upsert(sectionID, id string, row Row) bool {
 	if !ok || m.sections[i].finished {
 		return false
 	}
+
 	sec := &m.sections[i]
+
 	_, exists := sec.rows[id]
 	if !exists {
 		sec.rowOrder = append(sec.rowOrder, id)
 	}
+
 	sec.rows[id] = row
+
 	return !exists
 }
 
@@ -201,6 +213,7 @@ func (m Model) boxOpts(open bool) style.BoxOpts {
 	if m.width > 0 {
 		opts.MaxWidth = min(m.width, maxBoxWidth)
 	}
+
 	return opts
 }
 
@@ -210,6 +223,7 @@ func (m Model) styleSections(secs []section) []style.Section {
 	for i, sec := range secs {
 		out[i] = style.Section{Title: sec.title, Body: renderSection(sec, m.spinner)}
 	}
+
 	return out
 }
 
@@ -224,6 +238,7 @@ func (m Model) liveHeight() int {
 	for _, sec := range m.sections {
 		h += m.sectionHeight(sec)
 	}
+
 	return h
 }
 
@@ -246,11 +261,13 @@ func (m Model) flushToFit() (Model, tea.Cmd) {
 	for maxFlush < len(m.sections)-1 && m.sections[maxFlush].finished {
 		maxFlush++
 	}
+
 	n, h := 0, m.liveHeight()
 	for n < maxFlush && h > m.height-heightMargin {
 		h -= m.sectionHeight(m.sections[n])
 		n++
 	}
+
 	if n == 0 {
 		return m, nil
 	}
@@ -271,6 +288,7 @@ func (m Model) flushToFit() (Model, tea.Cmd) {
 	for i, sec := range m.sections {
 		m.sectionByID[sec.id] = i
 	}
+
 	return m, tea.Println(rendered)
 }
 
@@ -279,6 +297,7 @@ func renderSection(sec section, sp spinner.Model) string {
 	// length — otherwise mixed label widths give bars different horizontal
 	// offsets, which reads as broken.
 	maxLabel := 0
+
 	for _, id := range sec.rowOrder {
 		if row := sec.rows[id]; row.Progress != nil {
 			if w := lipgloss.Width(row.Label); w > maxLabel {
@@ -293,12 +312,15 @@ func renderSection(sec section, sp spinner.Model) string {
 		if row.Progress != nil {
 			pad := strings.Repeat(" ", maxLabel-lipgloss.Width(row.Label))
 			lines = append(lines, fmt.Sprintf("%s%s  %s", row.Label, pad, style.ProgressBar(*row.Progress)))
+
 			continue
 		}
+
 		line := rowIcon(row.State, sp) + row.Label
 		if row.Detail != "" {
 			line += "  " + row.Detail
 		}
+
 		lines = append(lines, line)
 	}
 
@@ -307,6 +329,7 @@ func renderSection(sec section, sp spinner.Model) string {
 		if sec.failed {
 			icon = style.CrossIcon.Render()
 		}
+
 		lines = append(lines, icon+sec.summary)
 	}
 

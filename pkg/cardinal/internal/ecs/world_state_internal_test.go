@@ -82,6 +82,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			}
 			// Find an entity that has at least one component.
 			eid := testutils.RandMapKey(prng, model)
+
 			existingComponents := model[eid]
 			if len(existingComponents) == 0 {
 				continue
@@ -108,6 +109,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			// Find an entity and a component it doesn't have.
 			eid := testutils.RandMapKey(prng, model)
 			existingComponents := model[eid]
+
 			missing := slices.DeleteFunc(slices.Clone(allComponentNames), func(name string) bool {
 				_, exists := existingComponents[name]
 				return exists
@@ -115,6 +117,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			if len(missing) == 0 {
 				continue // Entity has all components
 			}
+
 			c := randComponentByName(prng, missing[prng.IntN(len(missing))])
 			aidBefore, _ := impl.entityArch.get(eid)
 
@@ -130,6 +133,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			if len(model) == 0 {
 				continue
 			}
+
 			eid := testutils.RandMapKey(prng, model)
 			c := randComponentByName(prng, allComponentNames[prng.IntN(len(allComponentNames))])
 
@@ -144,6 +148,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			if len(model) == 0 {
 				continue
 			}
+
 			eid := testutils.RandMapKey(prng, model)
 			c := randComponentByName(prng, allComponentNames[prng.IntN(len(allComponentNames))])
 			name := c.Name()
@@ -152,6 +157,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			modelValue, modelOk := model[eid][name]
 
 			assert.Equal(t, modelOk, implOk, "getComponent(%d, %s) existence mismatch", eid, name)
+
 			if modelOk {
 				assert.Equal(t, modelValue, implValue, "getComponent(%d, %s) value mismatch", eid, name)
 			}
@@ -166,6 +172,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 		if idx == sparseTombstone {
 			continue
 		}
+
 		eid := EntityID(i)
 
 		aid, exists := impl.entityArch.get(eid)
@@ -175,6 +182,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 		arch := impl.archetypes[aid]
 		row, exists := arch.rows.get(eid)
 		assert.True(t, exists, "entity %d in entityArch but not in archetype %d", eid, aid)
+
 		if exists {
 			assert.Equal(t, eid, arch.entities[row], "bijection broken: arch.entities[%d] != %d", row, eid)
 		}
@@ -182,11 +190,13 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 
 	// Property: no duplicate entities across all archetypes.
 	seenEntities := make(map[EntityID]archetypeID)
+
 	for _, arch := range impl.archetypes {
 		for _, eid := range arch.entities {
 			if prevAid, seen := seenEntities[eid]; seen {
 				t.Errorf("entity %d exists in both archetype %d and %d", eid, prevAid, arch.id)
 			}
+
 			seenEntities[eid] = arch.id
 		}
 	}
@@ -212,8 +222,10 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 }
 
 func getComponentAbstract(t *testing.T, impl *worldState, eid EntityID, name string) (Component, bool) {
-	var res Component
-	var err error
+	var (
+		res Component
+		err error
+	)
 
 	switch name {
 	case testutils.ComponentA{}.Name():
@@ -233,11 +245,13 @@ func getComponentAbstract(t *testing.T, impl *worldState, eid EntityID, name str
 		assert.False(t, eris.Is(err, ErrComponentNotFound), "component isn't registered")
 		return nil, false
 	}
+
 	return res, true
 }
 
 func setComponentAbstract(t *testing.T, impl *worldState, eid EntityID, c Component) {
 	t.Helper()
+
 	var err error
 
 	name := c.Name()
@@ -251,12 +265,15 @@ func setComponentAbstract(t *testing.T, impl *worldState, eid EntityID, c Compon
 	default:
 		panic("unreachable")
 	}
+
 	require.NoError(t, err)
 }
 
 func removeComponentAbstract(t *testing.T, impl *worldState, eid EntityID, name string) {
 	t.Helper()
+
 	var err error
+
 	switch name {
 	case testutils.ComponentA{}.Name():
 		err = impl.removeComponent[testutils.ComponentA](eid)
@@ -267,6 +284,7 @@ func removeComponentAbstract(t *testing.T, impl *worldState, eid EntityID, name 
 	default:
 		panic("unreachable")
 	}
+
 	require.NoError(t, err)
 }
 
@@ -322,6 +340,7 @@ func TestWorldState_EntityFuzz(t *testing.T) {
 			if impl.nextID == 0 {
 				continue
 			}
+
 			eid := EntityID(prng.IntN(int(impl.nextID)))
 			impl.removeEntity(eid) // May return false if already removed.
 
@@ -360,14 +379,18 @@ func TestWorldState_EntityFuzzConcurrent(t *testing.T) {
 
 	ws := newTestWorldState(t)
 
-	var createCount, removeCount atomic.Int64
-	var wg sync.WaitGroup
+	var (
+		createCount, removeCount atomic.Int64
+		wg                       sync.WaitGroup
+	)
+
 	start := make(chan struct{})
 
 	for range numGoroutines {
 		wg.Go(func() {
 			// Initialize prng in each goroutine separately because rand/v2.Rand isn't concurrent-safe.
 			prng := testutils.NewRand(t)
+
 			<-start
 
 			for range opsPerGoroutine {
@@ -379,6 +402,7 @@ func TestWorldState_EntityFuzzConcurrent(t *testing.T) {
 					ws.mu.Lock()
 					nextID := ws.nextID
 					ws.mu.Unlock()
+
 					if nextID > 0 {
 						eid := EntityID(prng.IntN(int(nextID)))
 						ws.removeEntity(eid)
@@ -409,11 +433,13 @@ func assertEntityIDInvariants(t *testing.T, ws *worldState) {
 
 	// Property: live and free are disjoint.
 	liveSet := make(map[EntityID]struct{})
+
 	for i, idx := range ws.entityArch {
 		if idx != sparseTombstone {
 			liveSet[EntityID(i)] = struct{}{}
 		}
 	}
+
 	for _, freeID := range ws.free {
 		_, isLive := liveSet[freeID]
 		assert.False(t, isLive, "entity %d is both live and free", freeID)
@@ -423,6 +449,7 @@ func assertEntityIDInvariants(t *testing.T, ws *worldState) {
 	for liveID := range liveSet {
 		assert.Less(t, liveID, ws.nextID, "live entity %d >= nextID %d", liveID, ws.nextID)
 	}
+
 	for _, freeID := range ws.free {
 		assert.Less(t, freeID, ws.nextID, "free entity %d >= nextID %d", freeID, ws.nextID)
 	}
@@ -462,6 +489,7 @@ func TestWorldState_EntityID_FIFO(t *testing.T) {
 
 func newTestWorldState(t *testing.T) *worldState {
 	t.Helper()
+
 	w := NewWorld()
 	w.OnComponentRegister(func(Component) error { return nil })
 	_, err := w.RegisterComponent[testutils.ComponentA]()
@@ -470,6 +498,7 @@ func newTestWorldState(t *testing.T) *worldState {
 	require.NoError(t, err)
 	_, err = w.RegisterComponent[testutils.ComponentC]()
 	require.NoError(t, err)
+
 	return w.state
 }
 
@@ -494,6 +523,7 @@ func TestWorldState_SerializationSmoke(t *testing.T) {
 		numComponents := prng.IntN(4)
 		names := slices.Clone(allComponentNames)
 		prng.Shuffle(len(names), func(i, j int) { names[i], names[j] = names[j], names[i] })
+
 		for i := range numComponents {
 			c := randComponentByName(prng, names[i])
 			setComponentAbstract(t, ws1, eid, c)
@@ -538,17 +568,21 @@ func assertWorldStateEqual(t *testing.T, ws1, ws2 *worldState) {
 
 	live := func(ws *worldState) map[EntityID]map[string]Component {
 		out := make(map[EntityID]map[string]Component)
+
 		for _, arch := range ws.archetypes {
 			for _, eid := range arch.entities {
 				row, ok := arch.rows.get(eid)
 				require.True(t, ok)
+
 				comps := make(map[string]Component, len(arch.columns))
 				for _, col := range arch.columns {
 					comps[col.name()] = col.getAbstract(row)
 				}
+
 				out[eid] = comps
 			}
 		}
+
 		return out
 	}
 	assert.Equal(t, live(ws1), live(ws2))
@@ -564,21 +598,25 @@ func (wirePos) Name() string { return "wire_pos" }
 // newWireTestWorld registers plain value components.
 func newWireTestWorld(t *testing.T) (*worldState, ComponentID, ComponentID) {
 	t.Helper()
+
 	ws := newWorldState()
 
 	posID, err := ws.components.register[wirePos]("wire_pos")
 	require.NoError(t, err)
 	simpleID, err := ws.components.register[testutils.SimpleComponent](testutils.SimpleComponent{}.Name())
 	require.NoError(t, err)
+
 	return ws, posID, simpleID
 }
 
 func encodeWorld(t *testing.T, ws *worldState) []byte {
 	t.Helper()
+
 	pb, err := ws.toProto()
 	require.NoError(t, err)
 	buf, err := proto.Marshal(pb)
 	require.NoError(t, err)
+
 	return buf
 }
 
@@ -591,6 +629,7 @@ func TestSnapshotEntityMajorLayout(t *testing.T) {
 	var both bitmap.Bitmap
 	both.Set(posID)
 	both.Set(simpleID)
+
 	var onlyPos bitmap.Bitmap
 	onlyPos.Set(posID)
 
@@ -604,6 +643,7 @@ func TestSnapshotEntityMajorLayout(t *testing.T) {
 	require.NoError(t, ws.setComponent(e3, wirePos{Y: 9}))
 	require.NoError(t, ws.setComponent(e3, testutils.SimpleComponent{Value: -1}))
 	require.True(t, ws.removeEntity(e1)) // leaves a free-list hole
+
 	_ = e2
 
 	data := encodeWorld(t, ws)
@@ -638,6 +678,7 @@ func TestSnapshotWireRoundTrip(t *testing.T) {
 	require.NoError(t, ws.setComponent(e0, testutils.SimpleComponent{Value: 11}))
 
 	data := encodeWorld(t, ws)
+
 	var pb cardinalv1.WorldState
 	require.NoError(t, proto.Unmarshal(data, &pb))
 
@@ -651,6 +692,7 @@ func TestSnapshotWireRoundTrip(t *testing.T) {
 	pos, err := restored.getComponent[wirePos](e0)
 	require.NoError(t, err)
 	assert.Equal(t, wirePos{X: 3, Y: 4}, pos)
+
 	simple, err := restored.getComponent[testutils.SimpleComponent](e0)
 	require.NoError(t, err)
 	assert.Equal(t, testutils.SimpleComponent{Value: 11}, simple)
@@ -672,14 +714,17 @@ func TestSnapshotWireRoundTrip(t *testing.T) {
 // after a restore. The snapshot stores only the gaps, so the allocator has to be order-independent.
 func TestSnapshotWireFreeListSurvives(t *testing.T) {
 	t.Parallel()
+
 	ws, _, _ := newWireTestWorld(t)
 	for range 4 { // ids 0..3
 		_ = ws.newEntity()
 	}
+
 	require.True(t, ws.removeEntity(2))
 	require.True(t, ws.removeEntity(0)) // freed after 2, but lower
 
 	data := encodeWorld(t, ws)
+
 	var pb cardinalv1.WorldState
 	require.NoError(t, proto.Unmarshal(data, &pb))
 	restored, _, _ := newWireTestWorld(t)
@@ -699,9 +744,11 @@ func TestSnapshotWireDeterministic(t *testing.T) {
 
 	build := func(reversed bool) []byte {
 		ws, posID, simpleID := newWireTestWorld(t)
+
 		var both bitmap.Bitmap
 		both.Set(posID)
 		both.Set(simpleID)
+
 		var onlyPos bitmap.Bitmap
 		onlyPos.Set(posID)
 
@@ -719,6 +766,7 @@ func TestSnapshotWireDeterministic(t *testing.T) {
 			require.NoError(t, ws.setComponent(a, testutils.SimpleComponent{Value: 5}))
 			require.NoError(t, ws.setComponent(b, wirePos{X: 2}))
 		}
+
 		return encodeWorld(t, ws)
 	}
 
@@ -733,6 +781,7 @@ func TestSnapshotWireDroppedComponent(t *testing.T) {
 	t.Parallel()
 
 	old, posID, _ := newWireTestWorld(t) // registers wire_pos and simple_component
+
 	var only bitmap.Bitmap
 	only.Set(posID)
 	e := old.newEntityWithArchetype(only) // uses wire_pos only
@@ -759,6 +808,7 @@ func TestSnapshotWireDroppedComponentInUse(t *testing.T) {
 	t.Parallel()
 
 	old, posID, simpleID := newWireTestWorld(t)
+
 	var both bitmap.Bitmap
 	both.Set(posID)
 	both.Set(simpleID)
@@ -859,6 +909,7 @@ func TestSnapshotWireRejectsBadInput(t *testing.T) {
 func TestSnapshotWireCorruptionPanics(t *testing.T) {
 	t.Parallel()
 	ws, posID, _ := newWireTestWorld(t)
+
 	var onlyPos bitmap.Bitmap
 	onlyPos.Set(posID)
 	e := ws.newEntityWithArchetype(onlyPos)
@@ -876,6 +927,7 @@ func TestWorldState_ToProtoEncodeFailure(t *testing.T) {
 	ws, _, _ := newWireTestWorld(t)
 	_, err := ws.components.register[unencodablePayload]("unencodable_payload")
 	require.NoError(t, err)
+
 	good := ws.newEntity()
 	require.NoError(t, ws.setComponent(good, wirePos{X: 7}))
 	bad := ws.newEntity()
@@ -884,9 +936,11 @@ func TestWorldState_ToProtoEncodeFailure(t *testing.T) {
 	pb, err := ws.toProto()
 	require.Error(t, err)
 	assert.Nil(t, pb, "failed encoding must not expose a partial graph")
+
 	got, err := ws.getComponent[unencodablePayload](bad)
 	require.NoError(t, err)
 	assert.Equal(t, value, got)
+
 	pos, err := ws.getComponent[wirePos](good)
 	require.NoError(t, err)
 	assert.Equal(t, wirePos{X: 7}, pos)
@@ -904,9 +958,11 @@ func (nestedPayload) Name() string { return "nested_payload" }
 // an edit after Set never reaches what was stored.
 func TestWorldState_GetAndSetCopySlices(t *testing.T) {
 	t.Parallel()
+
 	ws := newWorldState()
 	_, err := ws.components.register[nestedPayload]("nested_payload")
 	require.NoError(t, err)
+
 	e := ws.newEntity()
 	want := nestedPayload{
 		Items:  immutable.SliceOf(1, 2),
@@ -926,11 +982,13 @@ func TestWorldState_GetAndSetCopySlices(t *testing.T) {
 
 	require.NoError(t, ws.setComponent(e, value))
 	edit(&value)
+
 	got, err := ws.getComponent[nestedPayload](e)
 	require.NoError(t, err)
 	assert.Equal(t, want, got, "an edit after Set does not reach the stored component")
 
 	edit(&got)
+
 	again, err := ws.getComponent[nestedPayload](e)
 	require.NoError(t, err)
 	assert.Equal(t, want, again, "an edit after Get does not reach the stored component")
@@ -938,9 +996,11 @@ func TestWorldState_GetAndSetCopySlices(t *testing.T) {
 
 func TestWorldState_ToProtoOwnsPayloads(t *testing.T) {
 	t.Parallel()
+
 	ws := newWorldState()
 	_, err := ws.components.register[nestedPayload]("nested_payload")
 	require.NoError(t, err)
+
 	e := ws.newEntity()
 	value := nestedPayload{
 		Items:  immutable.SliceOf(1, 2),
@@ -949,6 +1009,7 @@ func TestWorldState_ToProtoOwnsPayloads(t *testing.T) {
 	require.NoError(t, ws.setComponent(e, value))
 	pb, err := ws.toProto()
 	require.NoError(t, err)
+
 	frozen := proto.Clone(pb)
 
 	// Change the stored component after encoding; the earlier payload must not follow it.
@@ -959,6 +1020,7 @@ func TestWorldState_ToProtoOwnsPayloads(t *testing.T) {
 	require.NoError(t, ws.setComponent(e, value))
 	live, err := ws.getComponent[nestedPayload](e)
 	require.NoError(t, err)
+
 	const reached = "the change must reach the stored component for this test to mean anything"
 	require.Equal(t, 99, live.Items.At(0), reached)
 	require.Equal(t, 88, live.Groups.At(0).At(0), reached)
@@ -966,6 +1028,7 @@ func TestWorldState_ToProtoOwnsPayloads(t *testing.T) {
 	_, err = ws.toProto() // subsequent encoding must not reuse earlier payload storage
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(frozen, pb))
+
 	restored := newWorldState()
 	_, err = restored.components.register[nestedPayload]("nested_payload")
 	require.NoError(t, err)

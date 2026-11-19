@@ -25,6 +25,7 @@ const rigidLimit = 1e30
 // `iteration` still 0.
 func TestOracleSolvePlanesNoPlanes(t *testing.T) {
 	t.Parallel()
+
 	res := box2d.SolvePlanes(box2d.Vec2{X: 3, Y: -2}, nil)
 	assert.Equal(t, box2d.Vec2{X: 3, Y: -2}, res.Translation, "no planes leave the delta untouched")
 	assert.Equal(t, 0, res.IterationCount, "mover.c:44-47: break fires in the first pass before iteration increments")
@@ -38,6 +39,7 @@ func TestOracleSolvePlanesNoPlanes(t *testing.T) {
 // solver's convergence tolerance (LinearSlop).
 func TestOracleSolvePlanesSingleWall(t *testing.T) {
 	t.Parallel()
+
 	planes := []box2d.CollisionPlane{{
 		Plane:        box2d.Plane{Normal: box2d.Vec2{X: 1, Y: 0}, Offset: 0},
 		PushLimit:    rigidLimit,
@@ -60,6 +62,7 @@ func TestOracleSolvePlanesSingleWall(t *testing.T) {
 // against a 1.0 penetration, the translation only recovers 0.25.
 func TestOracleSolvePlanesPushLimit(t *testing.T) {
 	t.Parallel()
+
 	planes := []box2d.CollisionPlane{{
 		Plane:     box2d.Plane{Normal: box2d.Vec2{X: 1, Y: 0}, Offset: 0},
 		PushLimit: 0.25,
@@ -79,6 +82,7 @@ func TestOracleSolvePlanesPushLimit(t *testing.T) {
 // both final separations sit at ~-LinearSlop.
 func TestOracleSolvePlanesCorner(t *testing.T) {
 	t.Parallel()
+
 	planes := []box2d.CollisionPlane{
 		{Plane: box2d.Plane{Normal: box2d.Vec2{X: 1, Y: 0}, Offset: 0}, PushLimit: rigidLimit},
 		{Plane: box2d.Plane{Normal: box2d.Vec2{X: 0, Y: 1}, Offset: 0}, PushLimit: rigidLimit},
@@ -92,6 +96,7 @@ func TestOracleSolvePlanesCorner(t *testing.T) {
 // entry, so reusing a planes slice does not accumulate across calls.
 func TestOracleSolvePlanesResetsPush(t *testing.T) {
 	t.Parallel()
+
 	planes := []box2d.CollisionPlane{{
 		Plane:     box2d.Plane{Normal: box2d.Vec2{X: 1, Y: 0}, Offset: 0},
 		PushLimit: rigidLimit,
@@ -114,6 +119,7 @@ func TestOracleClipVector(t *testing.T) {
 
 	t.Run("clips into-plane component", func(t *testing.T) {
 		t.Parallel()
+
 		planes := []box2d.CollisionPlane{{Plane: wall, Push: 0.1, ClipVelocity: true}}
 		v := box2d.ClipVector(box2d.Vec2{X: -3, Y: 2}, planes)
 		assert.InDelta(t, 0.0, v.X, 0, "into-plane velocity removed exactly")
@@ -122,6 +128,7 @@ func TestOracleClipVector(t *testing.T) {
 
 	t.Run("outward velocity untouched", func(t *testing.T) {
 		t.Parallel()
+
 		planes := []box2d.CollisionPlane{{Plane: wall, Push: 0.1, ClipVelocity: true}}
 		v := box2d.ClipVector(box2d.Vec2{X: 3, Y: 2}, planes)
 		assert.Equal(t, box2d.Vec2{X: 3, Y: 2}, v, "dot > 0 means min(0, dot) = 0: no change")
@@ -129,6 +136,7 @@ func TestOracleClipVector(t *testing.T) {
 
 	t.Run("zero push skipped", func(t *testing.T) {
 		t.Parallel()
+
 		planes := []box2d.CollisionPlane{{Plane: wall, Push: 0, ClipVelocity: true}}
 		v := box2d.ClipVector(box2d.Vec2{X: -3, Y: 2}, planes)
 		assert.Equal(t, box2d.Vec2{X: -3, Y: 2}, v, "mover.c:63: push == 0 skips the plane")
@@ -136,6 +144,7 @@ func TestOracleClipVector(t *testing.T) {
 
 	t.Run("soft planes skipped", func(t *testing.T) {
 		t.Parallel()
+
 		planes := []box2d.CollisionPlane{{Plane: wall, Push: 0.1, ClipVelocity: false}}
 		v := box2d.ClipVector(box2d.Vec2{X: -3, Y: 2}, planes)
 		assert.Equal(t, box2d.Vec2{X: -3, Y: 2}, v, "mover.c:63: clipVelocity == false skips the plane")
@@ -150,6 +159,7 @@ func TestOracleMoverPipeline(t *testing.T) {
 	t.Parallel()
 
 	def := box2d.DefaultWorldDef()
+
 	w := box2d.NewWorld(&def)
 	defer w.Destroy()
 
@@ -169,12 +179,14 @@ func TestOracleMoverPipeline(t *testing.T) {
 	}
 
 	var planes []box2d.CollisionPlane
+
 	w.CollideMover(&mover, box2d.DefaultQueryFilter(), func(shapeID box2d.ShapeID, pr *box2d.PlaneResult, _ any) bool {
 		planes = append(planes, box2d.CollisionPlane{
 			Plane:        pr.Plane,
 			PushLimit:    rigidLimit,
 			ClipVelocity: true,
 		})
+
 		return true
 	}, nil)
 	require.NotEmpty(t, planes, "an overlapping mover must produce at least one collision plane")

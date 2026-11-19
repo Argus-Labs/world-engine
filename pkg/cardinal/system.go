@@ -148,6 +148,7 @@ func (q Search) GetByID(eid EntityID) (Entity, error) {
 	if err := q.world.MatchArchetype(eid, q.components, q.match); err != nil {
 		return Entity{}, eris.Wrap(err, "failed to get entity")
 	}
+
 	return Entity{world: q.world, id: eid}, nil
 }
 
@@ -188,7 +189,9 @@ func (s SearchResult) Limit(limit uint32) SearchResult {
 		if limit == 0 {
 			return
 		}
+
 		yielded := uint32(0)
+
 		s(func(c Entity) bool {
 			yielded++
 			return yield(c) && yielded < limit
@@ -205,14 +208,18 @@ func (s SearchResult) Single() (Entity, error) {
 		entity Entity
 		err    error
 	}{err: ErrSingleNoResult}
+
 	s(func(c Entity) bool {
 		if result.err == nil {
 			result.err = ErrSingleMultipleResult
 			return false
 		}
+
 		result.entity, result.err = c, nil
+
 		return true
 	})
+
 	return result.entity, result.err
 }
 

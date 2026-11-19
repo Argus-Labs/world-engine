@@ -137,7 +137,9 @@ func (bp *broadPhase) unBufferMove(proxyKey int) {
 				if i != last {
 					bp.moveArray[i] = bp.moveArray[last]
 				}
+
 				bp.moveArray = bp.moveArray[:last]
+
 				break
 			}
 		}
@@ -151,10 +153,12 @@ func (bp *broadPhase) createProxy(proxyType BodyType, aabb AABB, categoryBits ui
 ) int {
 	assert(0 <= proxyType && proxyType < BodyTypeCount)
 	proxyID := bp.trees[proxyType].CreateProxy(aabb, categoryBits, uint64(shapeIndex))
+
 	key := makeProxyKey(proxyID, proxyType)
 	if proxyType != StaticBody || forcePairCreation {
 		bp.bufferMove(key)
 	}
+
 	return key
 }
 
@@ -237,9 +241,11 @@ func pairQueryCallback(proxyID int, userData uint64, context any) bool {
 
 	queryContext, ok := context.(*queryPairContext)
 	assert(ok)
+
 	if !ok {
 		return false
 	}
+
 	bp := &queryContext.world.broadPhase
 
 	proxyKey := makeProxyKey(proxyID, queryContext.queryTreeType)
@@ -279,6 +285,7 @@ func pairQueryCallback(proxyID int, userData uint64, context any) bool {
 		}
 	} else {
 		assert(treeType == DynamicBody)
+
 		moved := containsKey(&bp.moveSet, uint64(proxyKey+1))
 		if moved {
 			// Both proxies are moving. Avoid duplicate pairs.
@@ -287,6 +294,7 @@ func pairQueryCallback(proxyID int, userData uint64, context any) bool {
 	}
 
 	pairKey := shapePairKey(uint32(shapeID), uint32(queryContext.queryShapeIndex))
+
 	pairExists := containsKey(&bp.pairSet, pairKey)
 	if pairExists {
 		// contact exists
@@ -331,6 +339,7 @@ func pairQueryCallback(proxyID int, userData uint64, context any) bool {
 
 	// Does a joint override collision?
 	bodyA := &w.bodies[bodyIDA]
+
 	bodyB := &w.bodies[bodyIDB]
 	if !w.shouldBodiesCollide(bodyA, bodyB) {
 		return true
@@ -342,6 +351,7 @@ func pairQueryCallback(proxyID int, userData uint64, context any) bool {
 		if customFilterFcn != nil {
 			idA := ShapeID{index1: int32(shapeIDA + 1), world0: w.worldID, generation: shapeA.generation}
 			idB := ShapeID{index1: int32(shapeIDB + 1), world0: w.worldID, generation: shapeB.generation}
+
 			shouldCollide := customFilterFcn(idA, idB, queryContext.world.customFilterContext)
 			if !shouldCollide {
 				return true
@@ -502,6 +512,7 @@ func (w *World) updateBroadPhasePairs() {
 	// the pair-find join in this port — the rebuild mutates the trees the
 	// pair queries read.
 	bp.rebuildTrees()
+
 	w.taskCount++
 
 	// Single-threaded work
@@ -515,6 +526,7 @@ func (w *World) updateBroadPhasePairs() {
 	for k := range pairWorkers {
 		start, end := workerRange(moveCount, pairWorkers, k)
 		pairs := bp.queryContexts[k].pairs
+
 		for i := start; i < end; i++ {
 			pairIndex := moveResults[i]
 			for pairIndex != NullIndex {
@@ -549,6 +561,7 @@ func (bp *broadPhase) testOverlap(proxyKeyA, proxyKeyB int) bool {
 
 	aabbA := bp.trees[typeIndexA].GetAABB(proxyIDA)
 	aabbB := bp.trees[typeIndexB].GetAABB(proxyIDB)
+
 	return AABBOverlaps(aabbA, aabbB)
 }
 

@@ -72,6 +72,7 @@ func TestConfigDBDSN(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			if got := configDBDSN(tt.cfg); got != tt.want {
 				t.Fatalf("configDBDSN() = %q, want %q", got, tt.want)
 			}
@@ -118,6 +119,7 @@ func TestProjectDBDSN(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			if got := projectDBDSN(tt.cfg); got != tt.want {
 				t.Fatalf("projectDBDSN() = %q, want %q", got, tt.want)
 			}
@@ -158,6 +160,7 @@ func TestNeedsAutoProjectDB(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			if got := NeedsAutoProjectDB(tt.cfg); got != tt.want {
 				t.Fatalf("NeedsAutoProjectDB() = %v, want %v", got, tt.want)
 			}
@@ -177,6 +180,7 @@ func TestBuildCardinalEnvSharesProjectDB(t *testing.T) {
 			Services: []worldtoml.GameService{{ID: "meta", Path: "services/meta/cmd", DB: true}},
 		},
 	}
+
 	env := buildCardinalEnv(cfg, worldtoml.Shard{ID: "gameplay", InstanceID: "gameplay"})
 	if !slices.Contains(env, "DB_DSN=postgres://postgres:postgres@rampage-db:5432/rampage?sslmode=disable") {
 		t.Fatalf("expected shard DB_DSN to point at the auto project db, got %#v", env)
@@ -196,9 +200,11 @@ func TestCardinalFromShardUsesLogicalIDForImageAndInstanceIDForContainer(t *test
 	if svc.Name != "world-game-2-shard" {
 		t.Fatalf("expected container name %q, got %q", "world-game-2-shard", svc.Name)
 	}
+
 	if svc.Image != "world-game-shard" {
 		t.Fatalf("expected shared image %q, got %q", "world-game-shard", svc.Image)
 	}
+
 	if !slices.Contains(svc.Env, "CARDINAL_SHARD_ID=game-2") {
 		t.Fatalf("expected CARDINAL_SHARD_ID to use instance ID, got %#v", svc.Env)
 	}
@@ -207,12 +213,15 @@ func TestCardinalFromShardUsesLogicalIDForImageAndInstanceIDForContainer(t *test
 	if svc.BuildTarget != "runtime" {
 		t.Fatalf("expected build target runtime, got %q", svc.BuildTarget)
 	}
+
 	if svc.BuildArgs["SOURCE_PATH"] != "." || svc.BuildArgs["SHARD_PATH"] != "shards/game/" {
 		t.Fatalf("unexpected build args: %#v", svc.BuildArgs)
 	}
+
 	if len(svc.Dependencies) != 2 {
 		t.Fatalf("expected golang + base image dependencies, got %#v", svc.Dependencies)
 	}
+
 	if svc.Dependencies[0].Name != GoBuilderImage || svc.Dependencies[1].Name != BaseImage {
 		t.Fatalf("unexpected dependency images: %#v", svc.Dependencies)
 	}
@@ -221,14 +230,18 @@ func TestCardinalFromShardUsesLogicalIDForImageAndInstanceIDForContainer(t *test
 // envMap turns KEY=VALUE pairs into a map, failing on duplicates.
 func envMap(t *testing.T, env []string) map[string]string {
 	t.Helper()
+
 	out := map[string]string{}
+
 	for _, kv := range env {
 		k, v, _ := strings.Cut(kv, "=")
 		if _, dup := out[k]; dup {
 			t.Fatalf("duplicate env %s", k)
 		}
+
 		out[k] = v
 	}
+
 	return out
 }
 
@@ -249,6 +262,7 @@ func TestBuildCardinalEnvContract(t *testing.T) {
 		},
 	}
 	got := envMap(t, buildCardinalEnv(cfg, worldtoml.Shard{ID: "gameplay", InstanceID: "gameplay-2", TickRate: 20}))
+
 	want := map[string]string{
 		"CARDINAL_SHARD_ID":              "gameplay-2",
 		"CARDINAL_PROJECT":               "rampage",
@@ -273,15 +287,18 @@ func TestBuildCardinalEnvOmitsOptionalKeys(t *testing.T) {
 	t.Parallel()
 
 	cfg := &Config{Project: "g", NATSURL: NatsURL("g"), WorldToml: worldtoml.Config{Organization: "o", Project: "g"}}
+
 	got := envMap(t, buildCardinalEnv(cfg, worldtoml.Shard{ID: "a", InstanceID: "a"}))
 	for _, k := range []string{"CARDINAL_TICK_RATE", "OTEL_TRACE_SAMPLE_RATE"} {
 		if _, ok := got[k]; ok {
 			t.Fatalf("%s must be omitted when unset, got %#v", k, got)
 		}
 	}
+
 	if got["CARDINAL_DEBUG"] != "false" || got["DB_DSN"] == "" || got["CARDINAL_MODE"] != "LEADER" {
 		t.Fatalf("unexpected env %#v", got)
 	}
+
 	got = envMap(
 		t,
 		buildCardinalEnv(cfg, worldtoml.Shard{ID: "a", InstanceID: "a", Mode: "FOLLOWER", LogLevel: "debug"}),
@@ -298,24 +315,30 @@ func TestBuildCardinalShardsBindLoopbackPorts(t *testing.T) {
 		Organization: "o", Project: "g",
 		Shards: []worldtoml.Shard{{ID: "gameplay", InstanceID: "gameplay"}, {ID: "gameplay", InstanceID: "gameplay-2"}},
 	}}
+
 	builders := BuildCardinalShards(cfg)
 	if len(builders) != 2 {
 		t.Fatalf("builders = %d", len(builders))
 	}
+
 	for i, want := range []string{"8081", "8082"} {
 		svc := builders[i](cfg)
+
 		b := svc.PortBindings[network.MustParsePort("8080/tcp")]
 		if len(b) != 1 || b[0].HostPort != want || b[0].HostIP.String() != "127.0.0.1" {
 			t.Fatalf("instance %d bindings = %#v", i, b)
 		}
+
 		if svc.NetworkMode != "world-g" || svc.RestartPolicy.Name != "" {
 			t.Fatalf("instance %d host config = %#v", i, svc.HostConfig)
 		}
+
 		if svc.Labels[RoleLabel] != RoleShard || svc.Labels[ShardIDLabel] != "gameplay" ||
 			svc.Labels[ProjectLabel] != "g" {
 			t.Fatalf("instance %d labels = %#v", i, svc.Labels)
 		}
 	}
+
 	if builders[1](cfg).Labels[InstanceLabel] != "gameplay-2" {
 		t.Fatal("instance label")
 	}
@@ -325,18 +348,22 @@ func TestNATSAndProjectDBArePerProject(t *testing.T) {
 	t.Parallel()
 
 	cfg := &Config{Project: "g", WorldToml: worldtoml.Config{Project: "g"}}
+
 	n := NATS(cfg)
 	if n.Name != "g-nats" || n.ReadyURL != "http://127.0.0.1:8222/healthz" || n.Healthcheck != nil ||
 		n.NetworkMode != "world-g" {
 		t.Fatalf("nats = %#v", n)
 	}
+
 	if !slices.Equal(n.Binds, []string{"g-nats-data:/data"}) || !slices.Contains(n.Cmd, "-js") {
 		t.Fatalf("nats store = %#v %#v", n.Binds, n.Cmd)
 	}
+
 	db := ProjectDBService(cfg)
 	if db.Name != "g-db" || db.Healthcheck == nil || db.NetworkMode != "world-g" || db.Labels[RoleLabel] != RoleDB {
 		t.Fatalf("db = %#v", db)
 	}
+
 	if !slices.Equal(db.Binds, []string{"g-db-data:/var/lib/postgresql"}) {
 		t.Fatalf("db binds = %#v", db.Binds)
 	}
@@ -357,6 +384,7 @@ func TestBuildCardinalEnvArgusAuth(t *testing.T) {
 		t.Fatalf("CARDINAL_ARGUS_AUTH_GAME_ID = %q, want o/g (<organization>/<project>)",
 			got["CARDINAL_ARGUS_AUTH_GAME_ID"])
 	}
+
 	if got["CARDINAL_AUTH_MODE"] != "ARGUS" || got["CARDINAL_ARGUS_AUTH_URL"] != "https://api.argus.dev" {
 		t.Fatalf("argus env = %#v", got)
 	}
@@ -367,10 +395,12 @@ func TestBuildCardinalEnvDefaultsToDevAuth(t *testing.T) {
 	t.Parallel()
 
 	cfg := &Config{Project: "g", NATSURL: NatsURL("g"), WorldToml: worldtoml.Config{Organization: "o", Project: "g"}}
+
 	got := envMap(t, buildCardinalEnv(cfg, worldtoml.Shard{ID: "a", InstanceID: "a"}))
 	if got["CARDINAL_AUTH_MODE"] != "DEV" {
 		t.Fatalf("auth mode = %q, want DEV", got["CARDINAL_AUTH_MODE"])
 	}
+
 	if _, ok := got["CARDINAL_ARGUS_AUTH_URL"]; ok {
 		t.Fatalf("DEV must not carry an argus URL: %#v", got)
 	}
@@ -387,6 +417,7 @@ func TestNetworkNameNeverCollidesWithDockerBuiltins(t *testing.T) {
 			t.Fatalf("project %q yields network mode %q, Docker's built-in", project, got)
 		}
 	}
+
 	if got := NetworkName("rampage"); got != "world-rampage" {
 		t.Fatalf("NetworkName(rampage) = %q, want world-rampage", got)
 	}

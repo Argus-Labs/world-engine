@@ -72,20 +72,24 @@ func genScene(r *rand.Rand, n int) []bodySpec {
 	specs := make([]bodySpec, 0, n)
 	for i := range n {
 		kind := specBodyTypes[r.IntN(len(specBodyTypes))]
+
 		shapes := specShapes
 		if kind != physics.BodyTypeDynamic {
 			shapes = append(append([]physics.ShapeType(nil), specShapes...), specLineShapes...)
 		}
+
 		shape := scenario.SampleShape(shapes[r.IntN(len(shapes))])
 		shape.Density = 0.5 + r.Float64()*4
 		shape.Friction = r.Float64()
 		shape.Restitution = r.Float64() * 0.8
 		shape.IsSensor = r.IntN(6) == 0
 		shape.CategoryBits = 1 << r.IntN(64)
+
 		shape.MaskBits = r.Uint64()
 		if r.IntN(2) == 0 {
 			shape.MaskBits |= floorCategory
 		}
+
 		if kind == physics.BodyTypeKinematic {
 			// A kinematic body moves at constant velocity with infinite mass, so one
 			// heading downward can squeeze a dynamic body through the static floor.
@@ -94,6 +98,7 @@ func genScene(r *rand.Rand, n int) []bodySpec {
 			// scripted bodytypes scenario covers kinematic pushing.
 			shape.MaskBits = 0
 		}
+
 		shape.GroupIndex = int32(r.IntN(5) - 2)
 
 		pb := physcomp.NewPhysicsBody2D(kind, shape)
@@ -123,12 +128,14 @@ func genScene(r *rand.Rand, n int) []bodySpec {
 			shape.MaskBits&floorCategory != 0
 		specs = append(specs, s)
 	}
+
 	return specs
 }
 
 // randomScene wraps a generated spec list as a harness scenario.
 func randomScene(name string, specs []bodySpec) harness.Scenario {
 	ids := make([]cardinal.EntityID, len(specs))
+
 	return harness.Scenario{
 		Name: name,
 		Setup: func(c *harness.Ctx) {
@@ -153,6 +160,7 @@ func randomScene(name string, specs []bodySpec) harness.Scenario {
 							"got %+v\nwant %+v", decoded, s.pb)
 					}
 				}
+
 				ids[i] = c.SpawnFull(s.label,
 					physics.Transform2D{Position: physics.Vec2{X: s.x, Y: s.y}},
 					physics.Velocity2D{Linear: physics.Vec2{X: s.vx, Y: s.vy}},
@@ -186,24 +194,31 @@ const sceneSeedEnv = "PHYSICS2D_E2E_SCENE_SEED"
 
 func randomSceneSeedList(t *testing.T) []uint64 {
 	t.Helper()
+
 	if pinned := os.Getenv(sceneSeedEnv); pinned != "" {
 		seed, err := strconv.ParseUint(pinned, 16, 64)
 		require.NoError(t, err, "%s must be a hex scene seed", sceneSeedEnv)
+
 		return []uint64{seed}
 	}
+
 	root := testutils.NewRand(t)
+
 	seeds := make([]uint64, randomSceneSeeds)
 	for i := range seeds {
 		seeds[i] = root.Uint64()
 	}
+
 	return seeds
 }
 
 func TestRandomScenes(t *testing.T) {
 	t.Parallel()
+
 	for _, seed := range randomSceneSeedList(t) {
 		t.Run(fmt.Sprintf("seed_%016x", seed), func(t *testing.T) {
 			t.Parallel()
+
 			specs := genScene(rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15)), randomSceneBodies)
 
 			digest := func(workers int) (int, uint64) {
@@ -211,11 +226,13 @@ func TestRandomScenes(t *testing.T) {
 				runner, world, code := runSuite(t, []harness.Scenario{sc}, e2eConfig(t, workers))
 				require.Zero(t, code, "invariants failed at workers=%d; reproduce with %s=%016x",
 					workers, sceneSeedEnv, seed)
+
 				return runner.Digest(world)
 			}
 			n0, h0 := digest(0)
 			n0b, h0b := digest(0)
 			n4, h4 := digest(4)
+
 			require.Equal(t, n0, n0b)
 			require.Equal(t, h0, h0b, "same seed simulated twice produced different worlds (scene seed %#016x)", seed)
 			require.Equal(t, n0, n4)

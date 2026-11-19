@@ -25,11 +25,13 @@ func Run(
 	}
 
 	prog := program.NewTeaProgram(InitialModel(columns, rows))
+
 	_, err := prog.Run()
 	if err != nil {
 		// Fallback: if Bubble Tea UI fails, print a plain table instead.
 		printPlainTable(columns, rows)
 	}
+
 	return nil
 }
 
@@ -44,6 +46,7 @@ func printPlainTable(columns []string, rows [][]string) {
 		if w >= width {
 			return s
 		}
+
 		return s + strings.Repeat(" ", width-w)
 	}
 
@@ -52,6 +55,7 @@ func printPlainTable(columns []string, rows [][]string) {
 	for i, col := range columns {
 		headerCells[i] = pad(col, widths[i])
 	}
+
 	printer.Headerln(strings.Join(headerCells, "  "))
 
 	// Divider matching total table width.
@@ -59,9 +63,11 @@ func printPlainTable(columns []string, rows [][]string) {
 	for _, w := range widths {
 		totalWidth += w
 	}
+
 	if len(columns) > 1 {
 		totalWidth += (len(columns) - 1) * 2 // two spaces between columns
 	}
+
 	printer.SectionDivider("-", totalWidth)
 
 	// Rows.
@@ -72,8 +78,10 @@ func printPlainTable(columns []string, rows [][]string) {
 			if ci < len(r) {
 				val = r[ci]
 			}
+
 			cells[ci] = pad(val, widths[ci])
 		}
+
 		printer.Infoln(strings.Join(cells, "  "))
 	}
 }

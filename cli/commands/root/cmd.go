@@ -46,6 +46,7 @@ func (c *Cmd) GetEnv() string {
 		if os.Getenv("WORLD_CLI_ENV") != "" {
 			env = os.Getenv("WORLD_CLI_ENV")
 		}
+
 		return env
 	}
 
@@ -54,6 +55,7 @@ func (c *Cmd) GetEnv() string {
 		if os.Getenv("WORLD_CLI_ENV") != "" {
 			return os.Getenv("WORLD_CLI_ENV")
 		}
+
 		return env
 	}
 
@@ -77,6 +79,7 @@ func (c *Cmd) GetVersion() string {
 	}
 
 	version := "unknown version"
+
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return version

@@ -46,9 +46,11 @@ func getNatsLogsHandler(
 	if err != nil {
 		return GetNatsLogsOutput{}, err
 	}
+
 	logs, err := collectContainerLogs(ctx, project, service.NatsContainerName(project), clampTail(args.TailLines))
 	if err != nil {
 		return GetNatsLogsOutput{}, eris.Wrap(err, "failed to fetch NATS logs")
 	}
+
 	return GetNatsLogsOutput{Component: "nats", Logs: logs}, nil
 }

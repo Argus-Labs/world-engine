@@ -25,15 +25,18 @@ func PurgeShard(ctx context.Context, natsURL, project, instanceID string) error 
 	if project == "" || instanceID == "" {
 		return eris.New("PurgeShard: project and instanceID are required")
 	}
+
 	js, done, err := connect(natsURL)
 	if err != nil {
 		return err
 	}
 	defer done()
+
 	bucket := SnapshotBucket(project, instanceID)
 	if err := js.DeleteObjectStore(ctx, bucket); err != nil && !errors.Is(err, jetstream.ErrBucketNotFound) {
 		return eris.Wrapf(err, "delete snapshot bucket %s", bucket)
 	}
+
 	return nil
 }
 
@@ -42,10 +45,12 @@ func connect(natsURL string) (jetstream.JetStream, func(), error) {
 	if err != nil {
 		return nil, nil, eris.Wrapf(err, "connect to NATS at %s", natsURL)
 	}
+
 	js, err := jetstream.New(nc)
 	if err != nil {
 		nc.Close()
 		return nil, nil, eris.Wrap(err, "create jetstream context")
 	}
+
 	return js, nc.Close, nil
 }

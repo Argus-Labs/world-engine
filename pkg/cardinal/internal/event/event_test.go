@@ -33,16 +33,20 @@ func TestEvent_ModelFuzz(t *testing.T) {
 	model := make([]event.Event, 0) // Queue of pending events
 
 	// Slice to capture events dispatched by handlers.
-	var dispatched []event.Event
-	var mu sync.Mutex
+	var (
+		dispatched []event.Event
+		mu         sync.Mutex
+	)
 
 	// Register handlers for kinds 0 to N-1.
 	numKinds := prng.IntN(256) + 1 // 1-256 kinds
 	for i := range numKinds {
 		impl.RegisterHandler(event.Kind(i), func(_ context.Context, e event.Event) error {
 			mu.Lock()
+
 			dispatched = append(dispatched, e)
 			mu.Unlock()
+
 			return nil
 		})
 	}
@@ -100,12 +104,14 @@ func TestEvent_EnqueueChannelFull(t *testing.T) {
 
 	synctest.Test(t, func(t *testing.T) {
 		const channelCapacity = 16
+
 		const totalEvents = channelCapacity * 3 // Well beyond channel capacity
 
 		impl := event.NewManager(channelCapacity)
 
 		// Register a handler for the default kind.
 		var dispatched []event.Event
+
 		impl.RegisterHandler(event.KindDefault, func(_ context.Context, e event.Event) error {
 			dispatched = append(dispatched, e)
 			return nil
@@ -115,10 +121,12 @@ func TestEvent_EnqueueChannelFull(t *testing.T) {
 		// Before fix: this blocks forever after 16 events, causing deadlock.
 		// After fix: this completes without blocking.
 		done := false
+
 		go func() {
 			for i := range totalEvents {
 				impl.Enqueue(event.Event{Kind: event.KindDefault, Payload: i})
 			}
+
 			done = true
 		}()
 

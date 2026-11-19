@@ -22,5 +22,6 @@ func newSetupSteps() steps.Model {
 		steps.NewStep("Initialize game shard with selected template"),
 		steps.NewStep("Tidy template go.mod dependencies"),
 	}
+
 	return s
 }

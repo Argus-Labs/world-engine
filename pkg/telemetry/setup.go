@@ -39,19 +39,25 @@ func setupOpenTelemetry(
 	ctx context.Context,
 	opts Options,
 ) (zerolog.Logger, int, func(context.Context) error, error) {
-	var shutdownFuncs []func(context.Context) error
-	var err error
+	var (
+		shutdownFuncs []func(context.Context) error
+		err           error
+	)
 
 	// Providers shut down concurrently, so an exporter stalled on an unreachable collector cannot
 	// spend the deadline the others need for their final flush.
 	shutdown := func(ctx context.Context) error {
 		errs := make([]error, len(shutdownFuncs))
+
 		var wg sync.WaitGroup
 		for i, fn := range shutdownFuncs {
 			wg.Go(func() { errs[i] = fn(ctx) })
 		}
+
 		wg.Wait()
+
 		shutdownFuncs = nil
+
 		return errors.Join(errs...)
 	}
 
@@ -90,8 +96,10 @@ func setupOpenTelemetry(
 			handleErr(err)
 			return logger, linkLimit, shutdown, err
 		}
+
 		shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
 		otel.SetTracerProvider(tracerProvider)
+
 		linkLimit = providerLinkLimit
 	}
 
@@ -101,6 +109,7 @@ func setupOpenTelemetry(
 			handleErr(err)
 			return logger, linkLimit, shutdown, err
 		}
+
 		shutdownFuncs = append(shutdownFuncs, meterProvider.Shutdown)
 		otel.SetMeterProvider(meterProvider)
 	}
@@ -113,6 +122,7 @@ func newResource(opts Options) (*resource.Resource, error) {
 	if v := resolveServiceVersion(); v != "" {
 		attrs = append(attrs, semconv.ServiceVersion(v))
 	}
+
 	return resource.Merge(resource.Default(),
 		resource.NewWithAttributes(semconv.SchemaURL, attrs...))
 }
@@ -124,6 +134,7 @@ func resolveServiceVersion() string {
 	if v := os.Getenv("OTEL_SERVICE_VERSION"); v != "" {
 		return v
 	}
+
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return ""
@@ -133,11 +144,13 @@ func resolveServiceVersion() string {
 	if v := info.Main.Version; v != "" && v != "(devel)" {
 		return v
 	}
+
 	for _, s := range info.Settings {
 		if s.Key == "vcs.revision" {
 			return s.Value
 		}
 	}
+
 	return ""
 }
 
@@ -154,10 +167,12 @@ func exporterEndpointOptions(endpoint string, insecure bool) []otlptracegrpc.Opt
 	if strings.Contains(endpoint, "://") {
 		return []otlptracegrpc.Option{otlptracegrpc.WithEndpointURL(endpoint)}
 	}
+
 	options := []otlptracegrpc.Option{otlptracegrpc.WithEndpoint(endpoint)}
 	if insecure {
 		options = append(options, otlptracegrpc.WithInsecure())
 	}
+
 	return options
 }
 
@@ -166,10 +181,12 @@ func metricExporterEndpointOptions(endpoint string, insecure bool) []otlpmetricg
 	if strings.Contains(endpoint, "://") {
 		return []otlpmetricgrpc.Option{otlpmetricgrpc.WithEndpointURL(endpoint)}
 	}
+
 	options := []otlpmetricgrpc.Option{otlpmetricgrpc.WithEndpoint(endpoint)}
 	if insecure {
 		options = append(options, otlpmetricgrpc.WithInsecure())
 	}
+
 	return options
 }
 
@@ -182,6 +199,7 @@ func newMeterProvider(ctx context.Context, res *resource.Resource, opts Options)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to create OTLP metric exporter")
 	}
+
 	return metric.NewMeterProvider(
 		metric.WithReader(metric.NewPeriodicReader(exporter)),
 		metric.WithResource(res),
@@ -200,6 +218,7 @@ func newTracerProvider(ctx context.Context, res *resource.Resource, opts Options
 	}
 
 	var sampler trace.Sampler
+
 	switch opts.TraceSampleRate {
 	case 1.0:
 		sampler = trace.AlwaysSample()
@@ -229,6 +248,7 @@ func newLogger(opts Options) zerolog.Logger {
 	}
 
 	var writer io.Writer
+
 	switch opts.LogFormat {
 	case LogFormatPretty:
 		writer = zerolog.ConsoleWriter{

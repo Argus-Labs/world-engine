@@ -44,6 +44,7 @@ func (r *distanceRNG) intn(n int) int {
 
 func goldenProxy(r *distanceRNG) box2d.ShapeProxy {
 	kind := r.intn(4)
+
 	radius := 0.0
 	if r.intn(2) == 1 {
 		radius = r.uniform(0.05, 0.3)
@@ -60,11 +61,13 @@ func goldenProxy(r *distanceRNG) box2d.ShapeProxy {
 			{X: r.uniform(-1, 1), Y: r.uniform(-1, 1)},
 			{X: r.uniform(-1, 1), Y: r.uniform(-1, 1)},
 		}
+
 		return box2d.MakeProxy(points, 2, radius)
 	case 2:
 		// Triangle.
 		s := r.uniform(0.2, 1.0)
 		points := []box2d.Vec2{{X: -s, Y: 0}, {X: s, Y: 0}, {X: 0, Y: s}}
+
 		return box2d.MakeProxy(points, 3, radius)
 	default:
 		// Box.
@@ -73,6 +76,7 @@ func goldenProxy(r *distanceRNG) box2d.ShapeProxy {
 		points := []box2d.Vec2{
 			{X: -hw, Y: -hh}, {X: hw, Y: -hh}, {X: hw, Y: hh}, {X: -hw, Y: hh},
 		}
+
 		return box2d.MakeProxy(points, 4, radius)
 	}
 }
@@ -100,8 +104,11 @@ func goldenSweep(r *distanceRNG) box2d.Sweep {
 func computeGoldenDistance() []goldenCase {
 	rng := &distanceRNG{state: 0x9E3779B97F4A7C15}
 
-	var distBits []float64
-	var toiBits []float64
+	var (
+		distBits []float64
+		toiBits  []float64
+	)
+
 	for i := range 50 {
 		proxyA := goldenProxy(rng)
 		proxyB := goldenProxy(rng)
@@ -113,7 +120,9 @@ func computeGoldenDistance() []goldenCase {
 			TransformB: goldenTransform(rng),
 			UseRadii:   i%2 == 0,
 		}
+
 		var cache box2d.SimplexCache
+
 		distanceOutput := box2d.ShapeDistance(&distanceInput, &cache, nil)
 		distBits = append(distBits,
 			distanceOutput.Distance,
@@ -156,6 +165,7 @@ func TestGoldenDistance(t *testing.T) {
 		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 		require.NoError(t, os.WriteFile(path, append(data, '\n'), 0o644))
 		t.Logf("updated %s", path)
+
 		return
 	}
 

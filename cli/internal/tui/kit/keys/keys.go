@@ -27,7 +27,9 @@ func (l *Legend) HandleToggle(msg tea.KeyMsg, hasSecondary bool) bool {
 	if !key.Matches(msg, l.toggleBinding(hasSecondary)) {
 		return false
 	}
+
 	l.help.ShowAll = !l.help.ShowAll
+
 	return true
 }
 
@@ -36,20 +38,24 @@ func (l *Legend) toggleBinding(hasSecondary bool) key.Binding {
 	if l.help.ShowAll {
 		description = "less"
 	}
+
 	binding := key.NewBinding(
 		key.WithKeys("?", "/"),
 		key.WithHelp("?", description),
 	)
 	binding.SetEnabled(hasSecondary)
+
 	return binding
 }
 
 // View renders primary bindings and, when expanded, secondary bindings.
 func (l *Legend) View(primary, secondary []key.Binding) string {
 	primary = append(primary, l.toggleBinding(len(secondary) > 0))
+
 	view := l.help.ShortHelpView(primary)
 	if l.help.ShowAll && len(secondary) > 0 {
 		view += "\n" + l.help.ShortHelpView(secondary)
 	}
+
 	return view
 }

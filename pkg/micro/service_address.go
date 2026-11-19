@@ -55,6 +55,7 @@ func ParseAddress(address string) (*ServiceAddress, error) {
 	if len(parts) != addressTokens {
 		return nil, eris.Wrapf(ErrInvalidAddress, "address must have %d parts but got %d", addressTokens, len(parts))
 	}
+
 	return &ServiceAddress{
 		Project:   parts[0],
 		ServiceId: parts[1],

@@ -70,9 +70,11 @@ func NewRequestFromNATSMsg(msg *nats.Msg, serviceAddr *microv1.ServiceAddress) (
 		if request.RequestId != nil {
 			req.RequestID = request.GetRequestId()
 		}
+
 		if err := protovalidate.Validate(&request); err != nil {
 			return req, eris.Wrap(err, "request validation failed")
 		}
+
 		req.Payload = request.GetPayload()
 	}
 
@@ -81,8 +83,10 @@ func NewRequestFromNATSMsg(msg *nats.Msg, serviceAddr *microv1.ServiceAddress) (
 
 // NewSuccessResponse creates a successful response with optional payload.
 func NewSuccessResponse(req *Request, payload proto.Message) *Response {
-	var payloadAny *anypb.Any
-	var err error
+	var (
+		payloadAny *anypb.Any
+		err        error
+	)
 
 	if payload != nil {
 		payloadAny, err = anypb.New(payload)

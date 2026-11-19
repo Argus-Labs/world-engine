@@ -23,6 +23,7 @@ func gatherRebuildEntries(dst []internal.PhysicsRebuildEntry,
 	iter cardinal.SearchResult,
 ) []internal.PhysicsRebuildEntry {
 	entries := dst[:0]
+
 	for row := range iter {
 		eid := row.ID()
 		entries = append(entries, internal.PhysicsRebuildEntry{
@@ -32,6 +33,7 @@ func gatherRebuildEntries(dst []internal.PhysicsRebuildEntry,
 			PhysicsBody: row.Get[physicscomp.PhysicsBody2D](),
 		})
 	}
+
 	return entries
 }
 
@@ -54,6 +56,7 @@ func NewInitPhysicsSystem(rt *internal.Runtime) *InitPhysicsSystem {
 
 func (s *InitPhysicsSystem) Run(w *cardinal.World) {
 	rt := s.rt
+
 	ensurePhysicsSingleton(w.Exact[physicsSingletonRow]())
 
 	entries := rt.KeepRebuildEntriesScratch(

@@ -56,6 +56,7 @@ func TestModel_SubmitsTypedValue(t *testing.T) {
 
 func TestModel_AbortWithEsc(t *testing.T) {
 	t.Parallel()
+
 	ti := textinput.New()
 	m := model{input: ti, header: "Enter:", hint: "(esc to quit)"}
 
@@ -66,6 +67,7 @@ func TestModel_AbortWithEsc(t *testing.T) {
 
 func TestModel_ViewShowsPromptAndHint(t *testing.T) {
 	t.Parallel()
+
 	ti := textinput.New()
 	ti.Prompt = ""
 	m := model{input: ti, header: "Enter project name:", hint: "(esc to quit)"}

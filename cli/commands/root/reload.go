@@ -47,13 +47,16 @@ func (c *ReloadCmd) Run(ctx context.Context) error {
 		func(cfg *service.Config, dockerClient *docker.Client) error {
 			// Reload covers shards only; path-kind [[services]] rebuild on `world start`.
 			rt := local.New(dockerClient, cfg)
+
 			running, err := rt.IsRunning(ctx)
 			if err != nil {
 				return err
 			}
+
 			if !running {
 				return eris.New("world is not running — start it with `world start`")
 			}
+
 			return reloadShards(ctx, rt, dockerClient, cfg, c.Instances, c.Purge)
 		},
 	)
@@ -74,6 +77,7 @@ func reloadShards(
 	if err != nil {
 		return err
 	}
+
 	targetIDs := targets.shardIDs
 	// This process does not serve the edge; the one that does built its routes from the
 	// world.toml it started with, so refuse a layout it would misroute.
@@ -93,6 +97,7 @@ func reloadShards(
 	if err := pullBuildDeps(ctx, dash, dockerClient, dockerServices, nil); err != nil {
 		return err
 	}
+
 	if err := buildShardImages(dash.Open("Build"), dockerClient, dockerServices); err != nil {
 		return err
 	}
@@ -134,11 +139,13 @@ func pullBuildDeps(
 				g.Go(func() error {
 					return dockerClient.PullImages(gctx, dockerServices, phasebox.PullProgress(sess))
 				})
+
 				if len(extraImageRefs) > 0 {
 					g.Go(func() error {
 						return dockerClient.PullImageRefs(gctx, extraImageRefs, phasebox.PullProgress(sess))
 					})
 				}
+
 				return g.Wait()
 			},
 			func(elapsed time.Duration) string {
@@ -149,12 +156,14 @@ func pullBuildDeps(
 			return eris.Wrap(err, "pull build dependencies")
 		}
 	}
+
 	return nil
 }
 
 // buildShardImages builds every shard image in box; run pullBuildDeps first.
 func buildShardImages(box *phasebox.Box, dockerClient shardBuilder, dockerServices []service.Service) error {
 	imageNames := docker.CardinalBuildImageNames(dockerServices)
+
 	return box.Run(
 		func(ctx context.Context, sess phasebox.Session) error {
 			return dockerClient.BuildCardinalImages(ctx, dockerServices, phasebox.BuildProgress(sess, imageNames))
@@ -175,6 +184,7 @@ func deployShardImages(
 	purge bool,
 ) error {
 	targetIDs := targets.shardIDs
+
 	deployShards := make([]local.DeployShard, 0, len(targetIDs))
 	for _, id := range targetIDs {
 		deployShards = append(deployShards, local.DeployShard{ID: id})
@@ -183,9 +193,11 @@ func deployShardImages(
 	// Purge each shard independently. Redeploy still runs after purge errors so
 	// a failed wipe does not leave the shard undeployed.
 	var purgeErr error
+
 	if purge {
 		// Instances have separate JetStream state even when they share a shard.
 		instancesByShard := make(map[string][]string, len(targetIDs))
+
 		for _, instanceID := range targets.instanceIDs {
 			shardID := targets.shardIDByInstanceID[instanceID]
 			instancesByShard[shardID] = append(instancesByShard[shardID], instanceID)
@@ -194,11 +206,13 @@ func deployShardImages(
 		purgeErr = dash.Run("Purge",
 			func(ctx context.Context, sess phasebox.Session) error {
 				var errs []error
+
 				for _, shardID := range targetIDs {
 					if err := purgeAndRedeploy(ctx, sess, rt, shardID, instancesByShard[shardID]); err != nil {
 						errs = append(errs, err)
 					}
 				}
+
 				return errorspkg.JoinFailures(errs...)
 			},
 			func(elapsed time.Duration) string {
@@ -231,14 +245,17 @@ func purgeAndRedeploy(
 	shardID string, instanceIDs []string,
 ) error {
 	sess.UpsertRow(shardID, shardID, "undeploying", phasebox.Active)
+
 	if err := rt.UndeployShard(ctx, shardID); err != nil {
 		sess.Fail(shardID, shardID, err)
 		return eris.Wrapf(err, "undeploy shard %s for purge", shardID)
 	}
 
 	var errs []error
+
 	for _, instanceID := range instanceIDs {
 		sess.UpsertRow(shardID, shardID, fmt.Sprintf("wiping state for %s", instanceID), phasebox.Active)
+
 		if err := rt.PurgeShardState(ctx, instanceID); err != nil {
 			errs = append(errs, eris.Wrapf(err, "wipe state for shard %s", instanceID))
 		}
@@ -249,7 +266,9 @@ func purgeAndRedeploy(
 		sess.Fail(shardID, shardID, err)
 		return err
 	}
+
 	sess.UpsertRow(shardID, shardID, "", phasebox.Done)
+
 	return nil
 }
 
@@ -281,6 +300,7 @@ func rollShards(
 	for _, s := range deployShards {
 		sess.UpsertRow(s.ID, s.ID, "recreating containers", phasebox.Active)
 	}
+
 	opts := local.DeployOpts{
 		Shards: deployShards,
 		OnResult: func(shardID string, err error) {
@@ -288,6 +308,7 @@ func rollShards(
 				sess.Fail(shardID, shardID, err)
 				return
 			}
+
 			sess.UpsertRow(shardID, shardID, "", phasebox.Done)
 		},
 	}
@@ -298,16 +319,19 @@ func rollShards(
 	if waitReady {
 		// Deploy recreates every instance in each targeted pool, so wait for the whole pool.
 		waitInstanceIDs := targets.poolInstances(opts.ShardIDs())
+
 		var ready, expected int
 		waitForShardsReadyRow(sess, func(onProgress func(ready, expected int)) {
 			ready, expected = rt.WaitForShardsReady(ctx, waitInstanceIDs, onProgress)
 		})
+
 		if ready < expected {
 			// Returned, not just shown: the row is already Failed, but the summary and the
 			// exit code are what a script or an agent reads, and plain progress has no rows.
 			return &shardsNotReadyError{ready: ready, expected: expected}
 		}
 	}
+
 	return nil
 }
 
@@ -324,19 +348,25 @@ func rollShards(
 // returns would be silently lost and the row would keep rendering its spinner.
 func waitForShardsReadyRow(sess phasebox.Session, waitForReady func(onProgress func(ready, expected int))) {
 	var lastReady, expected int
+
 	progressed := false
+
 	waitForReady(func(ready, exp int) {
 		lastReady, expected = ready, exp
 		progressed = true
+
 		sess.UpsertRow("ready", "Waiting for shards ready", fmt.Sprintf("%d/%d", ready, exp), phasebox.Active)
 	})
+
 	if !progressed {
 		return
 	}
+
 	state, detail := phasebox.Done, fmt.Sprintf("%d/%d", lastReady, expected)
 	if lastReady < expected {
 		state, detail = phasebox.Failed, fmt.Sprintf("timed out (%d/%d ready)", lastReady, expected)
 	}
+
 	sess.UpsertRow("ready", "Waiting for shards ready", detail, state)
 }
 
@@ -367,16 +397,20 @@ func resolveReloadTargets(cfg *service.Config, instanceIDs []string) (reloadTarg
 		instanceIDs:         make([]string, 0, len(instances)),
 		shardIDByInstanceID: make(map[string]string, len(instances)),
 	}
+
 	seenShard := make(map[string]bool, len(instances))
 	for _, instance := range instances {
 		if !seenShard[instance.ID] {
 			seenShard[instance.ID] = true
 			targets.shardIDs = append(targets.shardIDs, instance.ID)
 		}
+
 		targets.instanceIDs = append(targets.instanceIDs, instance.InstanceID)
 		targets.shardIDByInstanceID[instance.InstanceID] = instance.ID
 	}
+
 	targets.poolInstances = cfg.WorldToml.PoolInstances
+
 	return targets, nil
 }
 
@@ -387,6 +421,7 @@ func filterCardinalServicesByID(services []service.Service, cfg *service.Config,
 	for _, id := range targetIDs {
 		want[service.CardinalShardImageName(cfg.Project, id)] = struct{}{}
 	}
+
 	filtered := make([]service.Service, 0, len(targetIDs))
 	for _, s := range services {
 		if _, ok := want[s.Image]; ok &&
@@ -394,5 +429,6 @@ func filterCardinalServicesByID(services []service.Service, cfg *service.Config,
 			filtered = append(filtered, s)
 		}
 	}
+
 	return filtered
 }

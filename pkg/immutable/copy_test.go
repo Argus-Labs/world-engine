@@ -36,6 +36,7 @@ func newWithSlices() withSlices {
 	v.Lists.Set(1, immutable.SliceOf(5))
 	v.Table.Set(1, point{1, 2})
 	v.Groups[1].Tags = immutable.SliceOf("x")
+
 	return v
 }
 
@@ -46,6 +47,7 @@ func editAll(v *withSlices) {
 	v.Groups[1].Tags.Set(0, "edited")
 	inner := v.Nested.At(0)
 	inner.Set(0, -1)
+
 	list, _ := v.Lists.Get(1)
 	list.Set(0, -1)
 	v.Lists.Set(2, immutable.SliceOf(6))
@@ -126,6 +128,7 @@ func TestCopy_OutOfAnInterface(t *testing.T) {
 	t.Parallel()
 
 	var held any = newWithSlices()
+
 	cp, ok := held.(withSlices)
 	require.True(t, ok)
 	editAll(&cp)

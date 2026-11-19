@@ -103,6 +103,7 @@ func TestService_PublishDefaultEvent(t *testing.T) {
 
 		payload := testutils.SimpleEvent{Value: prng.Int()}
 		playerID := testutils.RandString(prng, 8)
+
 		waiter := fixture.svc.addReplyWaiter(playerID, payload.Name())
 		defer fixture.svc.removeReplyWaiter(playerID, payload.Name(), waiter)
 
@@ -192,6 +193,7 @@ func TestService_MountDebugServiceFinalizesIntrospection(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, response.Msg.GetProtoDescriptorSet())
 	require.NotEmpty(t, response.Msg.GetCommands())
+
 	for _, command := range response.Msg.GetCommands() {
 		require.NotNil(t, command.GetJsonSchema())
 		assert.Empty(t, command.GetProtoMessageName())
@@ -211,14 +213,20 @@ func TestService_ShutdownBeforeInitializationCompletes(t *testing.T) {
 // awaitCommands drains fixture's world until its SimpleCommand queue has one command, and returns it.
 func awaitCommands(t *testing.T, fixture *serviceFixture) []command.Command {
 	t.Helper()
+
 	var cmds []command.Command
+
 	require.Eventually(t, func() bool {
 		fixture.world.commands.Drain()
+
 		var err error
+
 		cmds, err = fixture.world.commands.Get(fixture.commandID)
 		require.NoError(t, err)
+
 		return len(cmds) == 1
 	}, 5*time.Second, 10*time.Millisecond)
+
 	return cmds
 }
 
@@ -270,6 +278,7 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool
 		microService, err := micro.NewService(client, address, &tel)
 		require.NoError(t, err)
 		t.Cleanup(func() { _ = microService.Close() })
+
 		svc.microService = microService
 
 		require.NoError(t, microService.AddEndpoint("ping", svc.handlePing))

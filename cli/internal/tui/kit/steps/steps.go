@@ -68,13 +68,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			// Send a signal that all the steps have been finished
 			return m, tea.Sequence(m.SignalStepCompletedCmd(m.index), m.SignalAllStepCompletedCmd())
 		}
+
 		m.index++
 		// Send a signal that the current step has been completed and the next step has started
 		return m, tea.Sequence(m.SignalStepCompletedCmd(m.index-1), m.SignalStepStartedCmd(m.index))
 
 	default:
 		var cmd tea.Cmd
+
 		m.spinner, cmd = m.spinner.Update(msg)
+
 		return m, cmd
 	}
 }
@@ -82,9 +85,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 // View renders the UI based on the data in the model.
 func (m Model) View() string {
 	output := ""
+
 	var outputSb83 strings.Builder
+
 	for i, step := range m.Steps {
 		icon := ""
+
 		switch step.Status {
 		case INCOMPLETE:
 			// If this is the current step, show the spinner
@@ -101,10 +107,13 @@ func (m Model) View() string {
 		}
 
 		fmt.Fprint(&outputSb83, icon, step.Text)
+
 		if i != len(m.Steps)-1 {
 			outputSb83.WriteString("\n")
 		}
 	}
+
 	output += outputSb83.String()
+
 	return style.Container.Render(output)
 }

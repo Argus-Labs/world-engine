@@ -27,14 +27,17 @@ func (c *Client) RemoveVolumes(ctx context.Context, names []string) error {
 
 func removeVolumes(ctx context.Context, cli dockerVolumeClient, names []string) error {
 	var errs []error
+
 	for _, name := range names {
 		if name == "" {
 			continue
 		}
+
 		if _, err := cli.VolumeRemove(ctx, name, client.VolumeRemoveOptions{Force: true}); err != nil &&
 			!cerrdefs.IsNotFound(err) {
 			errs = append(errs, eris.Wrapf(err, "remove volume %s", name))
 		}
 	}
+
 	return errors.Join(errs...)
 }

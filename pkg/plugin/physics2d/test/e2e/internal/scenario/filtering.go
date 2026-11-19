@@ -35,8 +35,11 @@ func Filtering() harness.Scenario {
 		shouldHit   bool
 		why         string
 	}
-	var pairs []*pair
-	var queryWall, groupedWall cardinal.EntityID
+
+	var (
+		pairs                  []*pair
+		queryWall, groupedWall cardinal.EntityID
+	)
 
 	// mover builds a zero-gravity box that slides along its row toward the other
 	// side of the pair. FixedRotation keeps a glancing hit from spinning it out
@@ -45,6 +48,7 @@ func Filtering() harness.Scenario {
 		pb := body(physics.BodyTypeDynamic, withFilter(box(0.5, 0.5), cat, mask, group))
 		pb.GravityScale = 0
 		pb.FixedRotation = true
+
 		return pb
 	}
 
@@ -183,6 +187,7 @@ func Filtering() harness.Scenario {
 						c.Near(p.name+": left body keeps its speed unchanged",
 							c.Speed(p.left), closing, 1e-3)
 					}
+
 					c.Note("%s (%s): left x=%.2f right x=%.2f contacts=%d",
 						p.name, p.why, leftX, rightX, contacts)
 				}

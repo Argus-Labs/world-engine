@@ -10,6 +10,7 @@ func IsValidAABB(a AABB) bool {
 	d := Sub(a.UpperBound, a.LowerBound)
 	valid := d.X >= 0.0 && d.Y >= 0.0
 	valid = valid && IsValidVec2(a.LowerBound) && IsValidVec2(a.UpperBound)
+
 	return valid
 }
 
@@ -112,6 +113,7 @@ func AABBRayCast(a AABB, p1, p2 Vec2) CastOutput {
 	output.Normal = normal
 	output.Point = Lerp(p1, p2, tmin)
 	output.Hit = true
+
 	return output
 }
 
@@ -120,6 +122,7 @@ func AABBRayCast(a AABB, p1, p2 Vec2) CastOutput {
 func perimeter(a AABB) float64 {
 	wx := a.UpperBound.X - a.LowerBound.X
 	wy := a.UpperBound.Y - a.LowerBound.Y
+
 	return 2.0 * (wx + wy)
 }
 
@@ -127,6 +130,7 @@ func perimeter(a AABB) float64 {
 // (upstream b2EnlargeAABB).
 func enlargeAABB(a *AABB, b AABB) bool {
 	changed := false
+
 	if b.LowerBound.X < a.LowerBound.X {
 		a.LowerBound.X = b.LowerBound.X
 		changed = true

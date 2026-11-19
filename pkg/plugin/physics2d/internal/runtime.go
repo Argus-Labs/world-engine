@@ -199,6 +199,7 @@ func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps, workers int) 
 	if fixedDT <= 0 {
 		fixedDT = defaultFixedDT
 	}
+
 	if subSteps <= 0 {
 		subSteps = defaultSubStepCount
 	}
@@ -208,9 +209,11 @@ func NewRuntime(gravity component.Vec2, fixedDT float64, subSteps, workers int) 
 	if workers < 0 {
 		workers = 0
 	}
+
 	if workers > box2d.MaxWorkers {
 		workers = box2d.MaxWorkers
 	}
+
 	return &Runtime{
 		Gravity:              gravity,
 		FixedDT:              fixedDT,
@@ -236,6 +239,7 @@ func (rt *Runtime) Reset() {
 		rt.World.Destroy()
 		rt.World = nil
 	}
+
 	rt.Bodies = make(map[cardinal.EntityID]box2d.BodyID)
 	rt.Shapes = make(map[cardinal.EntityID][]box2d.ShapeID)
 	rt.Chains = make(map[cardinal.EntityID][]box2d.ChainID)
@@ -310,8 +314,10 @@ func (rt *Runtime) ShapeIDsOf(entityID cardinal.EntityID) ([]box2d.ShapeID, bool
 	if !ok {
 		return nil, false
 	}
+
 	out := make([]box2d.ShapeID, len(shapes))
 	copy(out, shapes)
+
 	return out, true
 }
 
@@ -329,6 +335,7 @@ func (rt *Runtime) PruneActiveContactsInvolvingEntity(entityID cardinal.EntityID
 	if len(rt.ActiveContacts) == 0 {
 		return
 	}
+
 	for k, info := range rt.ActiveContacts {
 		if k.EntityA == entityID || k.EntityB == entityID {
 			rt.pendingEndEvents = append(rt.pendingEndEvents, makeContactEvent(ContactLifecycleEnd, k, info))
@@ -363,6 +370,7 @@ func (rt *Runtime) LoadActiveContactsFromComponent(ac component.ActiveContacts) 
 			},
 		}
 	}
+
 	rt.ActiveContactsDirty = false
 }
 
@@ -372,6 +380,7 @@ func (rt *Runtime) ActiveContactsToComponent() component.ActiveContacts {
 	if rt.ActiveContacts == nil {
 		return component.ActiveContacts{}
 	}
+
 	pairs := make([]component.ContactPairEntry, 0, len(rt.ActiveContacts))
 	for key, info := range rt.ActiveContacts {
 		pairs = append(pairs, component.ContactPairEntry{
@@ -388,7 +397,9 @@ func (rt *Runtime) ActiveContactsToComponent() component.ActiveContacts {
 			FilterBGroupIndex:   info.FilterB.GroupIndex,
 		})
 	}
+
 	sortContactPairEntries(pairs)
+
 	return component.ActiveContacts{Pairs: immutable.SliceOf(pairs...)}
 }
 
@@ -418,11 +429,14 @@ func lessContactPairByEndpoints(
 	if aEA != bEA {
 		return aEA < bEA
 	}
+
 	if aSA != bSA {
 		return aSA < bSA
 	}
+
 	if aEB != bEB {
 		return aEB < bEB
 	}
+
 	return aSB < bSB
 }

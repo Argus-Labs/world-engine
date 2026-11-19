@@ -16,11 +16,13 @@ func queryFilterBits(f *query.Filter) (uint64, uint64, bool) {
 	cat := ^uint64(0)
 	mask := ^uint64(0)
 	includeSensors := false
+
 	if f != nil {
 		cat = f.CategoryBits
 		mask = f.MaskBits
 		includeSensors = f.IncludeSensors
 	}
+
 	return cat, mask, includeSensors
 }
 
@@ -52,9 +54,11 @@ func castCallback(shapeID box2d.ShapeID, point, normal box2d.Vec2, fraction floa
 	if !ok {
 		return 0
 	}
+
 	if !c.includeSensors && c.rt.World.IsShapeSensor(shapeID) {
 		return -1 // skip sensors
 	}
+
 	entityID, shapeIndex := c.rt.shapeIdentity(shapeID)
 	c.hit = true
 	c.entityID = entityID
@@ -62,6 +66,7 @@ func castCallback(shapeID box2d.ShapeID, point, normal box2d.Vec2, fraction floa
 	c.point = component.Vec2{X: point.X, Y: point.Y}
 	c.normal = component.Vec2{X: normal.X, Y: normal.Y}
 	c.fraction = fraction
+
 	return fraction // keep searching for closer hits
 }
 
@@ -81,11 +86,14 @@ func overlapCallback(shapeID box2d.ShapeID, ctx any) bool {
 	if !ok {
 		return false
 	}
+
 	if !c.includeSensors && c.rt.World.IsShapeSensor(shapeID) {
 		return true // skip sensor, continue
 	}
+
 	entityID, shapeIndex := c.rt.shapeIdentity(shapeID)
 	c.hits = append(c.hits, query.AABBOverlapHit{Entity: entityID, ShapeIndex: shapeIndex})
+
 	return true // continue
 }
 
@@ -95,6 +103,7 @@ func (rt *Runtime) Raycast(req query.RaycastRequest) query.RaycastResult {
 	if req.Origin.X == req.End.X && req.Origin.Y == req.End.Y {
 		return query.RaycastResult{}
 	}
+
 	cat, mask, includeSensors := queryFilterBits(req.Filter)
 
 	saved := rt.castScratch
@@ -111,6 +120,7 @@ func (rt *Runtime) Raycast(req query.RaycastRequest) query.RaycastResult {
 	if !ctx.hit {
 		return query.RaycastResult{}
 	}
+
 	return query.RaycastResult{
 		Hit:        true,
 		Entity:     ctx.entityID,
@@ -129,12 +139,14 @@ func (rt *Runtime) OverlapAABB(req query.AABBOverlapRequest) query.AABBOverlapRe
 	if req.Min.X == req.Max.X || req.Min.Y == req.Max.Y {
 		return query.AABBOverlapResult{}
 	}
+
 	cat, mask, includeSensors := queryFilterBits(req.Filter)
 
 	minX, maxX := req.Min.X, req.Max.X
 	if minX > maxX {
 		minX, maxX = maxX, minX
 	}
+
 	minY, maxY := req.Min.Y, req.Max.Y
 	if minY > maxY {
 		minY, maxY = maxY, minY
@@ -172,6 +184,7 @@ func (rt *Runtime) OverlapAABB(req query.AABBOverlapRequest) query.AABBOverlapRe
 		if c := cmp.Compare(a.Entity, b.Entity); c != 0 {
 			return c
 		}
+
 		return cmp.Compare(a.ShapeIndex, b.ShapeIndex)
 	})
 	gathered = slices.Compact(gathered)
@@ -181,6 +194,7 @@ func (rt *Runtime) OverlapAABB(req query.AABBOverlapRequest) query.AABBOverlapRe
 	// as [] rather than null.
 	hits := make([]query.AABBOverlapHit, len(gathered))
 	copy(hits, gathered)
+
 	return query.AABBOverlapResult{Hits: hits}
 }
 
@@ -190,21 +204,25 @@ func (rt *Runtime) CircleSweep(req query.CircleSweepRequest) query.CircleSweepRe
 	if req.Radius <= 0 {
 		return query.CircleSweepResult{}
 	}
+
 	if req.Start.X == req.End.X && req.Start.Y == req.End.Y {
 		return query.CircleSweepResult{}
 	}
+
 	cat, mask, includeSensors := queryFilterBits(req.Filter)
 
 	maxFrac := req.MaxFraction
 	if maxFrac <= 0 {
 		maxFrac = 1
 	}
+
 	if maxFrac > 1 {
 		maxFrac = 1
 	}
 
 	// A circle is a single point at the origin with non-zero radius.
 	var proxy box2d.ShapeProxy
+
 	proxy.Points[0] = box2d.Vec2{X: req.Start.X, Y: req.Start.Y}
 	proxy.Count = 1
 	proxy.Radius = req.Radius
@@ -225,6 +243,7 @@ func (rt *Runtime) CircleSweep(req query.CircleSweepRequest) query.CircleSweepRe
 	if !ctx.hit {
 		return query.CircleSweepResult{}
 	}
+
 	return query.CircleSweepResult{
 		Hit:        true,
 		Entity:     ctx.entityID,

@@ -54,6 +54,7 @@ func Stability() harness.Scenario {
 			// Row y=0 — a ten-box stack, each box dropped a hair above the last.
 			s.floor = c.Spawn("stack-floor", 0, groundY,
 				body(physics.BodyTypeStatic, withFriction(box(10, 1), 0.6)))
+
 			for i := range stackCount {
 				y := boxHalf + float64(i)*(2*boxHalf+stackGap)
 				s.stack = append(s.stack, c.Spawn("stack-box", 0, y,
@@ -120,17 +121,21 @@ func Stability() harness.Scenario {
 			{Tick: settleTick, Do: func(c *harness.Ctx) {
 				// The stack: still stacked, still in order, and quiet.
 				var maxSpeed, maxDrift float64
+
 				for i, id := range s.stack {
 					pos := c.Pos(id)
 					wantY := boxHalf + float64(i)*2*boxHalf
 					c.Near("stack box rests at its layer height", pos.Y, wantY, 0.2)
+
 					if d := math.Abs(pos.X); d > maxDrift {
 						maxDrift = d
 					}
+
 					if sp := c.Speed(id); sp > maxSpeed {
 						maxSpeed = sp
 					}
 				}
+
 				c.Less("a settled stack stops moving", maxSpeed, 0.05)
 				c.Less("a settled stack does not walk sideways", maxDrift, 0.3)
 				c.Note("stack of %d after %d ticks: max speed %.4f m/s, max sideways "+

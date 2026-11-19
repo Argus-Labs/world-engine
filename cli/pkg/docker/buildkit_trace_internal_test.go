@@ -22,6 +22,7 @@ func TestDrainBuildResponseQuotesFailedStep(t *testing.T) {
 	defer f.Close()
 
 	err = drainBuildResponse(context.Background(), f, "demo-game-shard")
+
 	want := `build error for demo-game-shard: process "/bin/sh -c CGO_ENABLED=0 go build -o /out/shard ./shards/game" ` +
 		`did not complete successfully: exit code: 1
 # demo/shards/game/system
@@ -44,6 +45,7 @@ func TestBuildOutputTail(t *testing.T) {
 	for i := range maxOutputLines + 5 {
 		fmt.Fprintf(&out, "line %d\n", i)
 	}
+
 	log := protowire.AppendString(protowire.AppendTag(nil, logMsg, protowire.BytesType), out.String())
 	o.add(protowire.AppendBytes(protowire.AppendTag(nil, statusLogs, protowire.BytesType), log))
 
@@ -51,6 +53,7 @@ func TestBuildOutputTail(t *testing.T) {
 	for i := 5; i < maxOutputLines+5; i++ {
 		fmt.Fprintf(&want, "\nline %d", i)
 	}
+
 	if got := o.tail(); got != want.String() {
 		t.Fatalf("want lines 5-24, got %q", got)
 	}

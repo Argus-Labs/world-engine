@@ -24,6 +24,7 @@ func WorldEngine() string {
 	if !ok {
 		return devWorldEngine
 	}
+
 	return worldEngineFrom(info)
 }
 
@@ -35,5 +36,6 @@ func worldEngineFrom(info *debug.BuildInfo) string {
 			return mod.Version
 		}
 	}
+
 	return devWorldEngine
 }

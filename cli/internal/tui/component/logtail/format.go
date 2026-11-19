@@ -35,10 +35,12 @@ var consoleNoColor = lipgloss.DefaultRenderer().ColorProfile() == termenv.Ascii
 // the message) and the timestamp is trimmed to HH:MM:SS(.mmm) by shortTime.
 func formatShardLine(label, labelColor, raw string) string {
 	raw = strings.TrimRight(raw, "\n")
+
 	prefix := "[" + style.ForegroundPrint(label, labelColor) + "] "
 	if rendered, ok := renderZerolog(raw); ok {
 		return prefix + rendered
 	}
+
 	return prefix + raw
 }
 
@@ -50,7 +52,9 @@ func renderZerolog(raw string) (string, bool) {
 	if !strings.HasPrefix(strings.TrimSpace(raw), "{") {
 		return "", false
 	}
+
 	var buf bytes.Buffer
+
 	cw := zerolog.ConsoleWriter{
 		Out:     &buf,
 		NoColor: consoleNoColor,
@@ -72,16 +76,19 @@ func renderZerolog(raw string) (string, bool) {
 			if !ok {
 				s = fmt.Sprintf("%v", i)
 			}
+
 			t := shortTime(s)
 			if t == "" || consoleNoColor {
 				return t
 			}
+
 			return style.ForegroundPrint(t, dimGray)
 		},
 	}
 	if _, err := cw.Write([]byte(raw)); err != nil {
 		return "", false
 	}
+
 	return strings.TrimRight(buf.String(), "\n"), true
 }
 
@@ -99,19 +106,24 @@ func shortTime(t string) string {
 	if len(t) < 19 || t[10] != 'T' {
 		return t
 	}
+
 	hms := t[11:19] // "02:31:07"
-	rest := t[19:]  // "", "Z", ".123Z", ".123456789Z", ".123+07:00", ...
+
+	rest := t[19:] // "", "Z", ".123Z", ".123456789Z", ".123+07:00", ...
 	if len(rest) == 0 || rest[0] != '.' {
 		return hms
 	}
 	// Capture up to 3 fractional digits (millisecond precision).
 	frac := rest[1:]
+
 	n := 0
 	for n < len(frac) && n < 3 && frac[n] >= '0' && frac[n] <= '9' {
 		n++
 	}
+
 	if n == 0 {
 		return hms
 	}
+
 	return hms + "." + frac[:n]
 }

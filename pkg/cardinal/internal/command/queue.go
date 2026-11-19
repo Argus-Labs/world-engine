@@ -33,6 +33,7 @@ type sliceQueue[T Payload] struct {
 // NewQueue creates a new command queue with an initial buffer capacity.
 func NewQueue[T Payload]() Queue {
 	schema.Register[T]()
+
 	return &sliceQueue[T]{
 		commands: make([]Command, 0, initialQueueCapacity),
 	}
@@ -62,6 +63,7 @@ func (q *sliceQueue[T]) Enqueue(ctx context.Context, cmd *iscv1.Command, sender 
 		Span:    trace.SpanContextFromContext(ctx),
 	})
 	q.mu.Unlock()
+
 	return nil
 }
 

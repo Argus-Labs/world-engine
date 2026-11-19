@@ -79,7 +79,9 @@ func (e replyEvent) Name() string {
 
 func (replyEvent) UnmarshalWire(b []byte) (any, error) {
 	var e replyEvent
+
 	err := schema.Deserialize(b, &e)
+
 	return e, err
 }
 
@@ -109,7 +111,9 @@ func (q *tickingReplyQueue) Enqueue(ctx context.Context, cmd *iscv1.Command, sen
 	if err := q.Queue.Enqueue(ctx, cmd, sender); err != nil {
 		return err
 	}
+
 	q.tick()
+
 	return nil
 }
 
@@ -140,6 +144,7 @@ func newSCWRFixture(
 	queueFn func(*World) command.Queue,
 ) (*service, *World) {
 	t.Helper()
+
 	w := &World{
 		world:    ecs.NewWorld(),
 		commands: command.NewManager(),
@@ -155,6 +160,7 @@ func newSCWRFixture(
 	w.events.RegisterHandler(event.KindDefault, svc.publishDefaultEvent)
 	_, err := w.commands.Register(testutils.SimpleCommand{}.Name(), queueFn(w))
 	require.NoError(t, err)
+
 	return svc, w
 }
 
@@ -165,7 +171,9 @@ func TestService_SendCommandWithReply_WaiterRegisteredBeforeEnqueue(t *testing.T
 		t.Parallel()
 		prng := testutils.NewRand(t)
 		replyValue := prng.Int()
+
 		var dispatchErr error
+
 		svc, w := newSCWRFixture(t, prng, func(world *World) command.Queue {
 			return &tickingReplyQueue{
 				Queue: command.NewQueue[testutils.SimpleCommand](),
@@ -191,6 +199,7 @@ func TestService_SendCommandWithReply_WaiterRegisteredBeforeEnqueue(t *testing.T
 
 		ctx, cancel := context.WithTimeout(context.Background(), scwrReplyTimeout)
 		defer cancel()
+
 		resp, err := svc.SendCommandWithReply(
 			scwrAuthCtx(ctx, userID),
 			connect.NewRequest(&cardinalv1.SendCommandWithReplyRequest{
@@ -226,6 +235,7 @@ func TestService_SendCommandWithReply_WaiterRegisteredBeforeEnqueue(t *testing.T
 
 		ctx, cancel := context.WithTimeout(context.Background(), scwrReplyTimeout)
 		defer cancel()
+
 		_, err := svc.SendCommandWithReply(
 			scwrAuthCtx(ctx, userID),
 			connect.NewRequest(&cardinalv1.SendCommandWithReplyRequest{
@@ -240,6 +250,7 @@ func TestService_SendCommandWithReply_WaiterRegisteredBeforeEnqueue(t *testing.T
 		// failed Enqueue; otherwise waiters accumulate on every failing call (a leak).
 		svc.mu.RLock()
 		defer svc.mu.RUnlock()
+
 		assert.Empty(t, svc.replyWaiters, "reply waiter leaked after enqueue failure")
 	})
 }
@@ -257,10 +268,13 @@ func TestService_SendCommandWithReply_ReplyDeliveredUnderHotTickLoop(t *testing.
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	runDone := make(chan error, 1)
 	go func() { runDone <- w.run(ctx) }()
+
 	t.Cleanup(func() {
 		cancel()
+
 		select {
 		case err := <-runDone:
 			if !errors.Is(err, context.Canceled) {
@@ -276,20 +290,25 @@ func TestService_SendCommandWithReply_ReplyDeliveredUnderHotTickLoop(t *testing.
 		losses     atomic.Int64
 		mismatches atomic.Int64
 	)
+
 	totalCalls := scwrStressWorkers * scwrStressCallsPerWorker
 	wg.Add(scwrStressWorkers)
+
 	for worker := range scwrStressWorkers {
 		go func() {
 			defer wg.Done()
+
 			for i := range scwrStressCallsPerWorker {
 				replyID := uint64(worker)*uint64(scwrStressCallsPerWorker) + uint64(i)
 				value := int64(replyID)
 				eventName := scwrEventNamePrefix + strconv.FormatUint(replyID, 10)
+
 				payload, err := schema.Serialize(replyCommand{ReplyID: replyID, Value: value})
 				if err != nil {
 					t.Errorf("serialize command: %v", err)
 					return
 				}
+
 				cmdPb := &iscv1.Command{
 					Name:    scwrCommandName,
 					Address: w.address,
@@ -303,16 +322,20 @@ func TestService_SendCommandWithReply_ReplyDeliveredUnderHotTickLoop(t *testing.
 						EventName: eventName,
 					}),
 				)
+
 				callCancel()
+
 				if callErr != nil {
 					losses.Add(1)
 					continue
 				}
+
 				decoded, derr := replyEvent{}.UnmarshalWire(resp.Msg.GetEvent().GetPayload())
 				if derr != nil {
 					mismatches.Add(1)
 					continue
 				}
+
 				re, ok := decoded.(replyEvent)
 				if !ok || re.ReplyID != replyID || re.Value != value {
 					mismatches.Add(1)
@@ -320,6 +343,7 @@ func TestService_SendCommandWithReply_ReplyDeliveredUnderHotTickLoop(t *testing.
 			}
 		}()
 	}
+
 	wg.Wait()
 
 	require.Zero(t, losses.Load(), "%d/%d replies were lost (context deadline) under the hot "+
@@ -334,6 +358,7 @@ func TestService_SendCommandWithReply_ReplyDeliveredUnderHotTickLoop(t *testing.
 // handler. The service is created but not initialized — the handler is exercised directly.
 func newSCWRWorld(t *testing.T, prng *rand.Rand) *World {
 	t.Helper()
+
 	nopStorage := snapshot.NewNopStorage()
 	w := &World{
 		world:           ecs.NewWorld(),
@@ -353,6 +378,7 @@ func newSCWRWorld(t *testing.T, prng *rand.Rand) *World {
 	w.RegisterCommand[replyCommand]()
 	w.RegisterEvent[replyEvent]()
 	require.NotPanics(t, func() { w.RegisterSystem(&replySystem{}) })
+
 	return w
 }
 
@@ -374,6 +400,7 @@ type scwrResult struct {
 // waiting for its reply.
 func newSCWRRoutingFixture(t *testing.T) (*service, *World, <-chan struct{}) {
 	t.Helper()
+
 	waiting := make(chan struct{})
 	svc, w := newSCWRFixture(t, testutils.NewRand(t), func(*World) command.Queue {
 		return &tickingReplyQueue{
@@ -382,6 +409,7 @@ func newSCWRRoutingFixture(t *testing.T) (*service, *World, <-chan struct{}) {
 		}
 	})
 	w.RegisterEvent[testutils.SimpleEvent]()
+
 	return svc, w, waiting
 }
 
@@ -391,10 +419,13 @@ func scwrStartRequest(
 	t *testing.T, svc *service, w *World, waiting <-chan struct{}, playerID string,
 ) <-chan scwrResult {
 	t.Helper()
+
 	results := make(chan scwrResult, 1)
+
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), scwrReplyTimeout)
 		defer cancel()
+
 		resp, err := svc.SendCommandWithReply(
 			scwrAuthCtx(ctx, playerID),
 			connect.NewRequest(&cardinalv1.SendCommandWithReplyRequest{
@@ -410,14 +441,17 @@ func scwrStartRequest(
 			results <- scwrResult{err: err}
 			return
 		}
+
 		reply, err := testutils.SimpleEvent{}.UnmarshalWire(resp.Msg.GetEvent().GetPayload())
 		results <- scwrResult{reply: reply, err: err}
 	}()
+
 	select {
 	case <-waiting:
 	case res := <-results:
 		require.FailNow(t, "request returned before it was enqueued", "error: %v", res.err)
 	}
+
 	return results
 }
 
@@ -432,6 +466,7 @@ func TestService_SendCommandWithReply_RoutesReplyByRecipient(t *testing.T) {
 
 		w.SendTo("bob", testutils.SimpleEvent{Value: 2})
 		require.NoError(t, w.events.Dispatch(t.Context()))
+
 		bobResult := <-bob
 		require.NoError(t, bobResult.err)
 		assert.Equal(t, testutils.SimpleEvent{Value: 2}, bobResult.reply)
@@ -444,6 +479,7 @@ func TestService_SendCommandWithReply_RoutesReplyByRecipient(t *testing.T) {
 
 		w.SendTo("alice", testutils.SimpleEvent{Value: 1})
 		require.NoError(t, w.events.Dispatch(t.Context()))
+
 		aliceResult := <-alice
 		require.NoError(t, aliceResult.err)
 		assert.Equal(t, testutils.SimpleEvent{Value: 1}, aliceResult.reply)
@@ -451,6 +487,7 @@ func TestService_SendCommandWithReply_RoutesReplyByRecipient(t *testing.T) {
 		// Each request removed its own waiter before returning, leaving no empty map entries behind.
 		svc.mu.RLock()
 		defer svc.mu.RUnlock()
+
 		assert.Empty(t, svc.replyWaiters)
 	})
 
@@ -462,6 +499,7 @@ func TestService_SendCommandWithReply_RoutesReplyByRecipient(t *testing.T) {
 
 		w.Broadcast(testutils.SimpleEvent{Value: 3})
 		require.NoError(t, w.events.Dispatch(t.Context()))
+
 		for _, results := range []<-chan scwrResult{alice, bob} {
 			res := <-results
 			require.NoError(t, res.err)

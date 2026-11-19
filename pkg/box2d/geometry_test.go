@@ -149,6 +149,7 @@ func TestMassCircle(t *testing.T) {
 	t.Parallel()
 
 	const density = 1.5
+
 	circle := box2d.Circle{Center: box2d.Vec2{X: 3, Y: -1}, Radius: 2}
 	md := box2d.ComputeCircleMass(&circle, density)
 
@@ -167,6 +168,7 @@ func TestMassBox(t *testing.T) {
 		halfWidth  = 2.0
 		halfHeight = 1.0
 	)
+
 	w, h := 2*halfWidth, 2*halfHeight
 
 	box := box2d.MakeBox(halfWidth, halfHeight)
@@ -184,6 +186,7 @@ func TestMassBoxOffset(t *testing.T) {
 	t.Parallel()
 
 	const density = 2.0
+
 	center := box2d.Vec2{X: -4, Y: 7}
 	box := box2d.MakeOffsetBox(1, 3, center, box2d.RotIdentity)
 	md := box2d.ComputePolygonMass(&box, density)
@@ -203,6 +206,7 @@ func TestMassCapsule(t *testing.T) {
 		density = 2.0
 		radius  = 0.5
 	)
+
 	capsule := box2d.Capsule{
 		Center1: box2d.Vec2{X: -1, Y: 0},
 		Center2: box2d.Vec2{X: 1, Y: 0},
@@ -234,6 +238,7 @@ func TestMassPolygonDegenerateCounts(t *testing.T) {
 
 	// count == 1 delegates to the circle formula.
 	var one box2d.Polygon
+
 	one.Count = 1
 	one.Radius = 2
 	one.Vertices[0] = box2d.Vec2{X: 1, Y: 1}
@@ -242,6 +247,7 @@ func TestMassPolygonDegenerateCounts(t *testing.T) {
 
 	// count == 2 delegates to the capsule formula.
 	var two box2d.Polygon
+
 	two.Count = 2
 	two.Radius = 0.5
 	two.Vertices[0] = box2d.Vec2{X: -1, Y: 0}
@@ -447,6 +453,7 @@ func TestRayCastCircleShape(t *testing.T) {
 
 	t.Run("hit", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: -3, Y: 0},
 			Translation: box2d.Vec2{X: 6, Y: 0},
@@ -461,6 +468,7 @@ func TestRayCastCircleShape(t *testing.T) {
 
 	t.Run("miss", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: -3, Y: 2},
 			Translation: box2d.Vec2{X: 6, Y: 0},
@@ -473,6 +481,7 @@ func TestRayCastCircleShape(t *testing.T) {
 
 	t.Run("too short", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: -3, Y: 0},
 			Translation: box2d.Vec2{X: 1, Y: 0},
@@ -484,6 +493,7 @@ func TestRayCastCircleShape(t *testing.T) {
 
 	t.Run("starts inside", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 0, Y: 0},
 			Translation: box2d.Vec2{X: 6, Y: 0},
@@ -497,6 +507,7 @@ func TestRayCastCircleShape(t *testing.T) {
 
 	t.Run("zero length ray inside", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 0.5, Y: 0},
 			Translation: box2d.Vec2{},
@@ -519,6 +530,7 @@ func TestRayCastCapsuleShape(t *testing.T) {
 
 	t.Run("hits the flat side", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 0, Y: -3},
 			Translation: box2d.Vec2{X: 0, Y: 6},
@@ -533,6 +545,7 @@ func TestRayCastCapsuleShape(t *testing.T) {
 
 	t.Run("hits an end cap", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: -5, Y: 0},
 			Translation: box2d.Vec2{X: 10, Y: 0},
@@ -548,6 +561,7 @@ func TestRayCastCapsuleShape(t *testing.T) {
 
 	t.Run("miss", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 0, Y: -3},
 			Translation: box2d.Vec2{X: 0, Y: 1},
@@ -559,6 +573,7 @@ func TestRayCastCapsuleShape(t *testing.T) {
 
 	t.Run("starts inside", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 0, Y: 0},
 			Translation: box2d.Vec2{X: 0, Y: 6},
@@ -572,6 +587,7 @@ func TestRayCastCapsuleShape(t *testing.T) {
 
 	t.Run("degenerate capsule is a circle", func(t *testing.T) {
 		t.Parallel()
+
 		degenerate := box2d.Capsule{
 			Center1: box2d.Vec2{},
 			Center2: box2d.Vec2{},
@@ -594,6 +610,7 @@ func TestRayCastSegmentShape(t *testing.T) {
 
 	t.Run("hit from below", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 0, Y: -2},
 			Translation: box2d.Vec2{X: 0, Y: 4},
@@ -608,6 +625,7 @@ func TestRayCastSegmentShape(t *testing.T) {
 
 	t.Run("hit from above two-sided", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 0, Y: 2},
 			Translation: box2d.Vec2{X: 0, Y: -4},
@@ -621,6 +639,7 @@ func TestRayCastSegmentShape(t *testing.T) {
 
 	t.Run("one-sided skips the left side", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 0, Y: 2},
 			Translation: box2d.Vec2{X: 0, Y: -4},
@@ -638,6 +657,7 @@ func TestRayCastSegmentShape(t *testing.T) {
 
 	t.Run("misses past the end", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 5, Y: -2},
 			Translation: box2d.Vec2{X: 0, Y: 4},
@@ -648,6 +668,7 @@ func TestRayCastSegmentShape(t *testing.T) {
 
 	t.Run("parallel misses", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: -5, Y: 0},
 			Translation: box2d.Vec2{X: 10, Y: 0},
@@ -658,6 +679,7 @@ func TestRayCastSegmentShape(t *testing.T) {
 
 	t.Run("zero length segment misses", func(t *testing.T) {
 		t.Parallel()
+
 		degenerate := box2d.Segment{Point1: box2d.Vec2{}, Point2: box2d.Vec2{}}
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 0, Y: -2},
@@ -675,6 +697,7 @@ func TestRayCastPolygonShape(t *testing.T) {
 
 	t.Run("hit", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: -3, Y: 0},
 			Translation: box2d.Vec2{X: 6, Y: 0},
@@ -689,6 +712,7 @@ func TestRayCastPolygonShape(t *testing.T) {
 
 	t.Run("hit from below", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 0, Y: -5},
 			Translation: box2d.Vec2{X: 0, Y: 10},
@@ -703,6 +727,7 @@ func TestRayCastPolygonShape(t *testing.T) {
 
 	t.Run("miss", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: -3, Y: 3},
 			Translation: box2d.Vec2{X: 6, Y: 0},
@@ -713,6 +738,7 @@ func TestRayCastPolygonShape(t *testing.T) {
 
 	t.Run("too short", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: -3, Y: 0},
 			Translation: box2d.Vec2{X: 1, Y: 0},
@@ -723,6 +749,7 @@ func TestRayCastPolygonShape(t *testing.T) {
 
 	t.Run("starts inside", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 0, Y: 0},
 			Translation: box2d.Vec2{X: 6, Y: 0},
@@ -736,6 +763,7 @@ func TestRayCastPolygonShape(t *testing.T) {
 
 	t.Run("offset polygon", func(t *testing.T) {
 		t.Parallel()
+
 		offset := box2d.MakeOffsetBox(1, 1, box2d.Vec2{X: 10, Y: 0}, box2d.RotIdentity)
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 0, Y: 0},
@@ -760,6 +788,7 @@ func TestRayCastAABB(t *testing.T) {
 
 	t.Run("hit along x", func(t *testing.T) {
 		t.Parallel()
+
 		got := box2d.AABBRayCast(aabb, box2d.Vec2{X: -3, Y: 0}, box2d.Vec2{X: 3, Y: 0})
 		require.True(t, got.Hit)
 		assert.InDelta(t, 1.0/3.0, got.Fraction, 1e-15)
@@ -779,24 +808,28 @@ func TestRayCastAABB(t *testing.T) {
 
 	t.Run("parallel miss", func(t *testing.T) {
 		t.Parallel()
+
 		got := box2d.AABBRayCast(aabb, box2d.Vec2{X: -3, Y: 2}, box2d.Vec2{X: 3, Y: 2})
 		assert.False(t, got.Hit)
 	})
 
 	t.Run("diagonal miss", func(t *testing.T) {
 		t.Parallel()
+
 		got := box2d.AABBRayCast(aabb, box2d.Vec2{X: -3, Y: -3}, box2d.Vec2{X: -3, Y: 3})
 		assert.False(t, got.Hit)
 	})
 
 	t.Run("starts inside is a miss", func(t *testing.T) {
 		t.Parallel()
+
 		got := box2d.AABBRayCast(aabb, box2d.Vec2{X: 0, Y: 0}, box2d.Vec2{X: 3, Y: 0})
 		assert.False(t, got.Hit, "upstream rejects rays that start inside")
 	})
 
 	t.Run("stops short", func(t *testing.T) {
 		t.Parallel()
+
 		got := box2d.AABBRayCast(aabb, box2d.Vec2{X: -3, Y: 0}, box2d.Vec2{X: -2, Y: 0})
 		assert.False(t, got.Hit)
 	})

@@ -54,8 +54,10 @@ func SolvePlanes(targetDelta Vec2, planes []CollisionPlane) PlaneSolverResult {
 	tolerance := LinearSlop
 
 	iteration := 0
+
 	for range 20 {
 		totalPush := 0.0
+
 		for planeIndex := range count {
 			plane := &planes[planeIndex]
 
@@ -77,6 +79,7 @@ func SolvePlanes(targetDelta Vec2, planes []CollisionPlane) PlaneSolverResult {
 		if totalPush < tolerance {
 			break
 		}
+
 		iteration++
 	}
 

@@ -40,6 +40,7 @@ func restoreSnapshotEntries() []PhysicsRebuildEntry {
 			CategoryBits: 1, MaskBits: ^uint64(0),
 		})
 	}
+
 	out := []PhysicsRebuildEntry{{
 		EntityID:  1,
 		Transform: component.Transform2D{Position: component.Vec2{Y: -1}},
@@ -62,6 +63,7 @@ func restoreSnapshotEntries() []PhysicsRebuildEntry {
 			},
 		})
 	}
+
 	return out
 }
 
@@ -75,6 +77,7 @@ func restoreBaseline() component.ActiveContacts {
 			FilterBCategoryBits: 1, FilterBMaskBits: ^uint64(0),
 		})
 	}
+
 	return component.ActiveContacts{Pairs: immutable.SliceOf(pairs...)}
 }
 
@@ -82,11 +85,14 @@ func restoreBaseline() component.ActiveContacts {
 // LoadActiveContactsFromComponent, then steps — and returns every crate's exact pose.
 func restoreAndFingerprint(t *testing.T, steps int) string {
 	t.Helper()
+
 	g := component.Vec2{Y: restoreGravity}
+
 	rt := NewRuntime(g, 1.0/60.0, 4, 0)
 	if err := rt.FullRebuildFromECS(g, restoreSnapshotEntries()); err != nil {
 		t.Fatalf("rebuild: %v", err)
 	}
+
 	rt.LoadActiveContactsFromComponent(restoreBaseline())
 
 	for range steps {
@@ -94,26 +100,31 @@ func restoreAndFingerprint(t *testing.T, steps int) string {
 	}
 
 	var fp strings.Builder
+
 	for i := range restoreCrateCount {
 		bodyID := rt.Bodies[restoreCrate0+cardinal.EntityID(i)]
 		p := rt.World.BodyPosition(bodyID)
 		r := rt.World.BodyRotation(bodyID)
 		fmt.Fprintf(&fp, "%.17g,%.17g,%.17g,%.17g;", p.X, p.Y, r.C, r.S)
 	}
+
 	return fp.String()
 }
 
 func TestRestoreIsDeterministicAcrossRepeatedRuns(t *testing.T) {
 	t.Parallel()
+
 	const runs, steps = 24, 900
 
 	seen := map[string]int{}
 	for range runs {
 		seen[restoreAndFingerprint(t, steps)]++
 	}
+
 	if len(seen) != 1 {
 		t.Errorf("%d identical restores produced %d distinct worlds; restore is not deterministic",
 			runs, len(seen))
+
 		for fp, n := range seen {
 			t.Logf("  %2d run(s): %s", n, fp[:min(120, len(fp))])
 		}

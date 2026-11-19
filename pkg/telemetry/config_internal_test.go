@@ -197,17 +197,20 @@ func TestLoadConfig_ResolvesExporterTargetFromEnv(t *testing.T) {
 				"OTEL_EXPORTER_OTLP_TRACES_INSECURE",
 			} {
 				t.Setenv(key, "")
+
 				if _, ok := tt.env[key]; !ok {
 					// t.Setenv registered the restore; clear the variable so the default applies.
 					require.NoError(t, os.Unsetenv(key))
 				}
 			}
+
 			for key, value := range tt.env {
 				t.Setenv(key, value)
 			}
 
 			cfg, err := loadConfig()
 			require.NoError(t, err)
+
 			opts := newDefaultOptions()
 			cfg.applyToOptions(&opts)
 

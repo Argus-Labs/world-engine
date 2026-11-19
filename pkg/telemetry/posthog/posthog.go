@@ -36,6 +36,7 @@ func New(opt Options) (*Client, error) {
 		// PostHog is disabled if APIKey is empty
 		return &Client{isEnabled: false}, nil
 	}
+
 	if opt.DistinctID == "" {
 		return &Client{isEnabled: false}, eris.New("posthog distinctID is required")
 	}
@@ -79,6 +80,7 @@ func (c *Client) Shutdown() error {
 	if !c.isInitialized() {
 		return nil
 	}
+
 	return c.client.Close()
 }
 

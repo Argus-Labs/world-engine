@@ -29,6 +29,7 @@ import (
 // Begin handlers do not all fire spuriously; the flag is cleared.
 func (rt *Runtime) FlushBufferedContacts() {
 	stepHadEmitter := rt.Emitter != nil
+
 	wasSuppressed := rt.SuppressContactsStep
 	defer func() {
 		rt.BufferedContacts = rt.BufferedContacts[:0]
@@ -54,9 +55,12 @@ func (rt *Runtime) FlushBufferedContacts() {
 		if rt.NoPersistedActiveContactsBaseline {
 			rt.NoPersistedActiveContactsBaseline = false
 			rt.adoptLiveContactsWithoutEmit()
+
 			return
 		}
+
 		rt.diffActiveContactsAfterRebuild(em)
+
 		return
 	}
 
@@ -71,8 +75,10 @@ func (rt *Runtime) FlushBufferedContacts() {
 			delete(rt.ActiveContacts, key)
 			rt.ActiveContactsDirty = true
 		}
+
 		flushOneBufferedContact(em, buf)
 	}
+
 	rt.refreshActiveContactsFromLive()
 }
 
@@ -85,6 +91,7 @@ func (rt *Runtime) adoptLiveContactsWithoutEmit() {
 	// Gathering straight into ActiveContacts (which gatherLiveContactsInto clears) replaces it
 	// wholesale, which is exactly the intent here.
 	rt.gatherLiveContactsInto(rt.ActiveContacts)
+
 	if len(rt.ActiveContacts) > 0 {
 		rt.ActiveContactsDirty = true
 	}
@@ -142,6 +149,7 @@ func (rt *Runtime) diffActiveContactsAfterRebuild(em event.ContactEventEmitter) 
 // order-free as well (a keyed lookup, or a total sort of the derived events).
 func (rt *Runtime) gatherLiveContactsInto(dst map[ContactPairKey]ContactPairInfo) {
 	clear(dst)
+
 	w := rt.World
 
 	rt.beginContactGather()
@@ -152,12 +160,15 @@ func (rt *Runtime) gatherLiveContactsInto(dst map[ContactPairKey]ContactPairInfo
 		if capacity == 0 {
 			continue
 		}
+
 		if cap(buf) < capacity {
 			buf = make([]box2d.ContactData, capacity)
 		}
+
 		n := w.BodyContactData(bodyID, buf[:capacity])
 		rt.collectBodyContacts(buf[:n], dst)
 	}
+
 	rt.contactDataScratch = buf
 }
 
@@ -167,6 +178,7 @@ func (rt *Runtime) liveContacts() map[ContactPairKey]ContactPairInfo {
 	if rt.liveContactsScratch == nil {
 		rt.liveContactsScratch = make(map[ContactPairKey]ContactPairInfo)
 	}
+
 	return rt.liveContactsScratch
 }
 
@@ -192,10 +204,13 @@ func (rt *Runtime) markContactSeen(id box2d.ContactID) bool {
 		rt.seenContactsScratch = append(rt.seenContactsScratch,
 			make([]uint32, index+1-len(rt.seenContactsScratch))...)
 	}
+
 	if rt.seenContactsScratch[index] == rt.gatherEpoch {
 		return true
 	}
+
 	rt.seenContactsScratch[index] = rt.gatherEpoch
+
 	return false
 }
 
@@ -203,6 +218,7 @@ func (rt *Runtime) markContactSeen(id box2d.ContactID) bool {
 // skipping pairs already recorded from the other endpoint.
 func (rt *Runtime) collectBodyContacts(contacts []box2d.ContactData, result map[ContactPairKey]ContactPairInfo) {
 	w := rt.World
+
 	for j := range contacts {
 		cd := &contacts[j]
 		if rt.markContactSeen(cd.ContactID) {
@@ -225,12 +241,14 @@ func (rt *Runtime) collectBodyContacts(contacts []box2d.ContactData, result map[
 		if _, seen := result[key]; seen {
 			continue
 		}
+
 		info := ContactPairInfo{
 			IsSensor: w.IsShapeSensor(cd.ShapeIDA) || w.IsShapeSensor(cd.ShapeIDB),
 		}
 
 		fda := toFixtureFilterBits(w.ShapeFilter(cd.ShapeIDA))
 		fdb := toFixtureFilterBits(w.ShapeFilter(cd.ShapeIDB))
+
 		if entityA == key.EntityA && shapeIndexA == key.ShapeIndexA {
 			info.FilterA = fda
 			info.FilterB = fdb
@@ -260,6 +278,7 @@ func normalizeContactPairKey(entityA cardinal.EntityID, shapeIndexA int, entityB
 	if entityA < entityB || (entityA == entityB && shapeIndexA <= shapeIndexB) {
 		return ContactPairKey{EntityA: entityA, ShapeIndexA: shapeIndexA, EntityB: entityB, ShapeIndexB: shapeIndexB}
 	}
+
 	return ContactPairKey{EntityA: entityB, ShapeIndexA: shapeIndexB, EntityB: entityA, ShapeIndexB: shapeIndexA}
 }
 
@@ -281,6 +300,7 @@ func contactInfoNormalizedFromBuffered(buf BufferedContactEvent, key ContactPair
 		info.FilterA = buf.FilterB
 		info.FilterB = buf.FilterA
 	}
+
 	return info
 }
 
@@ -291,13 +311,16 @@ func (rt *Runtime) refreshActiveContactsFromLive() {
 	if rt.World == nil || len(rt.ActiveContacts) == 0 {
 		return
 	}
+
 	live := rt.liveContacts()
 	rt.gatherLiveContactsInto(live)
+
 	for k, prev := range rt.ActiveContacts {
 		li, ok := live[k]
 		if !ok {
 			continue
 		}
+
 		rt.ActiveContacts[k] = li
 		if contactPairInfoPersistedFieldsDiffer(prev, li) {
 			rt.ActiveContactsDirty = true
@@ -334,6 +357,7 @@ func lessBufferedContactEvent(a, b BufferedContactEvent) bool {
 	if a.Kind != b.Kind {
 		return a.Kind < b.Kind
 	}
+
 	return lessContactPairByEndpoints(
 		a.EntityA, a.ShapeIndexA, a.EntityB, a.ShapeIndexB,
 		b.EntityA, b.ShapeIndexA, b.EntityB, b.ShapeIndexB,
@@ -361,8 +385,10 @@ func flushOneBufferedContact(em event.ContactEventEmitter, buf BufferedContactEv
 		case ContactLifecycleEnd:
 			em.EmitTriggerEnd(event.TriggerEndEvent{ContactEventPayload: payload})
 		}
+
 		return
 	}
+
 	switch buf.Kind {
 	case ContactLifecycleBegin:
 		em.EmitContactBegin(event.ContactBeginEvent{ContactEventPayload: payload})
@@ -377,5 +403,6 @@ func (rt *Runtime) SetStepEmitter(emitter event.ContactEventEmitter) {
 	if rt == nil {
 		return
 	}
+
 	rt.Emitter = emitter
 }

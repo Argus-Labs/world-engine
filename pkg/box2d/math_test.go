@@ -25,6 +25,7 @@ func TestAtan2(t *testing.T) {
 			if x == 0 && y == 0 {
 				continue
 			}
+
 			got := box2d.Atan2(y, x)
 			want := math.Atan2(y, x)
 			assert.InDelta(t, want, got, atan2Tol, "Atan2(%v, %v)", y, x)
@@ -44,6 +45,7 @@ func TestComputeCosSin(t *testing.T) {
 	// Bhāskara approximation: absolute error is below ~2e-3 after
 	// normalization.
 	const tol = 2.5e-3
+
 	for r := -30.0; r <= 30.0; r += 0.0137 {
 		cs := box2d.ComputeCosSin(r)
 		assert.InDelta(t, math.Cos(r), cs.Cosine, tol, "cos(%v)", r)
@@ -159,6 +161,7 @@ func TestRotOps(t *testing.T) {
 	for range 1000 {
 		acc = box2d.IntegrateRotation(acc, 0.01)
 	}
+
 	assert.True(t, box2d.IsNormalizedRot(acc))
 
 	// ComputeRotationBetweenUnitVectors.
@@ -280,11 +283,13 @@ func TestSpringDamper(t *testing.T) {
 	// Critically damped spring should converge toward zero position.
 	position := 1.0
 	velocity := 0.0
+
 	const h = 1.0 / 60.0
 	for range 600 {
 		velocity = box2d.SpringDamper(5.0, 1.0, position, velocity, h)
 		position += float64(h * velocity)
 	}
+
 	assert.InDelta(t, 0.0, position, 1e-3)
 	assert.InDelta(t, 0.0, velocity, 1e-2)
 }
@@ -294,7 +299,9 @@ func TestComputeAngularVelocity(t *testing.T) {
 
 	q1 := box2d.MakeRot(0.5)
 	q2 := box2d.MakeRot(0.52)
+
 	const h = 1.0 / 60.0
+
 	omega := box2d.ComputeAngularVelocity(q1, q2, 1.0/h)
 	assert.InDelta(t, 0.02/h, omega, 0.05)
 }

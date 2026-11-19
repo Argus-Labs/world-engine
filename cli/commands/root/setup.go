@@ -16,9 +16,11 @@ func (c *SetupCmd) Run(rootCmd *Cmd) error {
 		"directory": c.Directory,
 		"template":  c.Template,
 	})
+
 	p := program.NewTeaProgram(tui.NewWorldSetupModel(c.Directory, rootCmd.GetEnv(), c.Template))
 	if _, err := p.Run(); err != nil {
 		return err
 	}
+
 	return nil
 }

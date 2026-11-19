@@ -64,6 +64,7 @@ func oracleJointWorld(t *testing.T, gravity box2d.Vec2) *box2d.World {
 	def.Gravity = gravity
 	world := box2d.NewWorld(&def)
 	t.Cleanup(world.Destroy)
+
 	return world
 }
 
@@ -84,6 +85,7 @@ func oracleJointBody(t *testing.T, world *box2d.World, bodyType box2d.BodyType,
 	shapeDef := box2d.DefaultShapeDef()
 	box := box2d.MakeBox(0.25, 0.25)
 	world.CreatePolygonShape(bodyID, &shapeDef, &box)
+
 	return bodyID
 }
 
@@ -114,10 +116,12 @@ func oracleDistanceJoint(world *box2d.World, bodyA, bodyB box2d.BodyID,
 ) box2d.JointID {
 	def := box2d.DefaultDistanceJointDef()
 	def.Base.BodyIDA = bodyA
+
 	def.Base.BodyIDB = bodyB
 	if tune != nil {
 		tune(&def)
 	}
+
 	return world.CreateDistanceJoint(&def)
 }
 
@@ -126,10 +130,12 @@ func oracleRevoluteJoint(world *box2d.World, bodyA, bodyB box2d.BodyID,
 ) box2d.JointID {
 	def := box2d.DefaultRevoluteJointDef()
 	def.Base.BodyIDA = bodyA
+
 	def.Base.BodyIDB = bodyB
 	if tune != nil {
 		tune(&def)
 	}
+
 	return world.CreateRevoluteJoint(&def)
 }
 
@@ -138,10 +144,12 @@ func oraclePrismaticJoint(world *box2d.World, bodyA, bodyB box2d.BodyID,
 ) box2d.JointID {
 	def := box2d.DefaultPrismaticJointDef()
 	def.Base.BodyIDA = bodyA
+
 	def.Base.BodyIDB = bodyB
 	if tune != nil {
 		tune(&def)
 	}
+
 	return world.CreatePrismaticJoint(&def)
 }
 
@@ -150,10 +158,12 @@ func oracleWheelJoint(world *box2d.World, bodyA, bodyB box2d.BodyID,
 ) box2d.JointID {
 	def := box2d.DefaultWheelJointDef()
 	def.Base.BodyIDA = bodyA
+
 	def.Base.BodyIDB = bodyB
 	if tune != nil {
 		tune(&def)
 	}
+
 	return world.CreateWheelJoint(&def)
 }
 
@@ -162,10 +172,12 @@ func oracleWeldJoint(world *box2d.World, bodyA, bodyB box2d.BodyID,
 ) box2d.JointID {
 	def := box2d.DefaultWeldJointDef()
 	def.Base.BodyIDA = bodyA
+
 	def.Base.BodyIDB = bodyB
 	if tune != nil {
 		tune(&def)
 	}
+
 	return world.CreateWeldJoint(&def)
 }
 
@@ -174,10 +186,12 @@ func oracleMotorJoint(world *box2d.World, bodyA, bodyB box2d.BodyID,
 ) box2d.JointID {
 	def := box2d.DefaultMotorJointDef()
 	def.Base.BodyIDA = bodyA
+
 	def.Base.BodyIDB = bodyB
 	if tune != nil {
 		tune(&def)
 	}
+
 	return world.CreateMotorJoint(&def)
 }
 
@@ -185,6 +199,7 @@ func oracleFilterJoint(world *box2d.World, bodyA, bodyB box2d.BodyID) box2d.Join
 	def := box2d.DefaultFilterJointDef()
 	def.Base.BodyIDA = bodyA
 	def.Base.BodyIDB = bodyB
+
 	return world.CreateFilterJoint(&def)
 }
 
@@ -203,6 +218,7 @@ func oracleJointHangingDistance(t *testing.T) (*box2d.World, box2d.JointID) {
 		def.Length = 1.0
 	})
 	oracleJointStep(world, 20)
+
 	return world, jointID
 }
 
@@ -581,6 +597,7 @@ func TestOracleDistanceJointBehavior(t *testing.T) {
 		})
 
 		startLength := world.DistanceJointCurrentLength(jointID)
+
 		const steps = 60
 		oracleJointStep(world, steps)
 
@@ -618,6 +635,7 @@ func oracleRevolutePendulum(t *testing.T, gravity box2d.Vec2,
 			tune(def)
 		}
 	})
+
 	return world, arm, jointID
 }
 
@@ -1121,6 +1139,7 @@ func oracleSlider(t *testing.T, gravity box2d.Vec2,
 	carriage := oracleJointBody(t, world, box2d.DynamicBody, box2d.Vec2Zero, box2d.RotIdentity)
 
 	jointID := oraclePrismaticJoint(world, rail, carriage, tune)
+
 	return world, carriage, jointID
 }
 
@@ -1306,6 +1325,7 @@ func oracleWheelRig(t *testing.T, gravity box2d.Vec2,
 	wheel := oracleJointBody(t, world, box2d.DynamicBody, box2d.Vec2Zero, box2d.RotIdentity)
 
 	jointID := oracleWheelJoint(world, chassis, wheel, tune)
+
 	return world, wheel, jointID
 }
 
@@ -1397,6 +1417,7 @@ func TestOracleWheelJointAccessors(t *testing.T) {
 			})
 
 		oracleJointStep(world, 60)
+
 		axis := box2d.Vec2{X: 1.0, Y: 0.0}
 		require.Greater(t, math.Abs(box2d.Dot(world.JointConstraintForce(jointID), axis)), 0.0)
 
@@ -1592,6 +1613,7 @@ func TestOracleWeldJointAccessors(t *testing.T) {
 			})
 
 			oracleJointStep(world, 240)
+
 			return -world.BodyPosition(block).Y
 		}
 
@@ -1761,6 +1783,7 @@ func TestOracleJointBaseAccessors(t *testing.T) {
 		// joint.c b2Joint_SetLocalFrameA/B store the frame on the joint sim.
 		frameA := box2d.Transform{P: box2d.Vec2{X: 0.25, Y: -0.5}, Q: box2d.MakeRot(0.3)}
 		frameB := box2d.Transform{P: box2d.Vec2{X: -1.0, Y: 0.75}, Q: box2d.MakeRot(-0.2)}
+
 		world.SetJointLocalFrameA(jointID, frameA)
 		world.SetJointLocalFrameB(jointID, frameB)
 
@@ -1918,6 +1941,7 @@ func oracleSeparationWorld(t *testing.T, positionB box2d.Vec2, rotationB box2d.R
 	world := oracleJointWorld(t, box2d.Vec2Zero)
 	bodyA := oracleJointBody(t, world, box2d.StaticBody, box2d.Vec2Zero, box2d.RotIdentity)
 	bodyB := oracleJointBody(t, world, box2d.StaticBody, positionB, rotationB)
+
 	return world, bodyA, bodyB
 }
 
@@ -1926,8 +1950,10 @@ func TestOracleJointLinearSeparation(t *testing.T) {
 
 	// Body B sits three metres below body A, so with identity local frames
 	// dp = pB - pA = (0, -3) and |dp| = 3.
-	const dropY = -3.0
-	const dropLength = 3.0
+	const (
+		dropY      = -3.0
+		dropLength = 3.0
+	)
 
 	t.Run("DistanceRigidUsesRestLengthError", func(t *testing.T) {
 		t.Parallel()
@@ -2205,6 +2231,7 @@ func TestOracleJointReactionEvents(t *testing.T) {
 	pair := func(row float64) (box2d.BodyID, box2d.BodyID) {
 		anchor := oracleJointBody(t, world, box2d.StaticBody, box2d.Vec2{X: 0.0, Y: row}, box2d.RotIdentity)
 		load := oracleJointBody(t, world, box2d.DynamicBody, box2d.Vec2{X: 1.0, Y: row}, box2d.RotIdentity)
+
 		return anchor, load
 	}
 
@@ -2290,6 +2317,7 @@ func TestOracleJointReactionEvents(t *testing.T) {
 		reported[event.JointID] = true
 		require.Equal(t, world.JointUserData(event.JointID), event.UserData)
 	}
+
 	for _, jointID := range jointIDs {
 		require.True(t, reported[jointID], "joint type %v produced no reaction event", world.JointType(jointID))
 	}
@@ -2300,6 +2328,7 @@ func TestOracleJointReactionEvents(t *testing.T) {
 		world.SetJointForceThreshold(jointID, 1.0e6)
 		world.SetJointTorqueThreshold(jointID, 1.0e6)
 	}
+
 	oracleJointStep(world, 1)
 	require.Empty(t, world.JointEvents().JointEvents)
 }
@@ -2361,11 +2390,13 @@ func (r *oracleDrawRecorder) debugDraw() box2d.DebugDraw {
 
 func oracleCountColor(calls []oracleDrawCall, color box2d.HexColor) int {
 	count := 0
+
 	for _, call := range calls {
 		if call.color == color {
 			count++
 		}
 	}
+
 	return count
 }
 
@@ -2389,6 +2420,7 @@ func TestOracleDrawJoint(t *testing.T) {
 		oracleWeldJoint(world, bodyA, bodyB, nil)
 
 		var recorder oracleDrawRecorder
+
 		draw := recorder.debugDraw()
 		world.Draw(&draw)
 
@@ -2435,6 +2467,7 @@ func TestOracleDrawJoint(t *testing.T) {
 		})
 
 		var recorder oracleDrawRecorder
+
 		draw := recorder.debugDraw()
 		world.Draw(&draw)
 
@@ -2479,6 +2512,7 @@ func TestOracleDrawJoint(t *testing.T) {
 		})
 
 		var recorder oracleDrawRecorder
+
 		draw := recorder.debugDraw()
 		world.Draw(&draw)
 
@@ -2509,6 +2543,7 @@ func TestOracleDrawJoint(t *testing.T) {
 		})
 
 		var recorder oracleDrawRecorder
+
 		draw := recorder.debugDraw()
 		world.Draw(&draw)
 
@@ -2564,6 +2599,7 @@ func TestOracleDrawJoint(t *testing.T) {
 		})
 
 		var recorder oracleDrawRecorder
+
 		draw := recorder.debugDraw()
 		world.Draw(&draw)
 
@@ -2607,6 +2643,7 @@ func TestOracleDrawJoint(t *testing.T) {
 		})
 
 		var recorder oracleDrawRecorder
+
 		draw := recorder.debugDraw()
 		world.Draw(&draw)
 
@@ -2646,6 +2683,7 @@ func TestOracleDrawJoint(t *testing.T) {
 		oracleMotorJoint(world, bodyA, bodyB, nil)
 
 		var recorder oracleDrawRecorder
+
 		draw := recorder.debugDraw()
 		world.Draw(&draw)
 
@@ -2670,6 +2708,7 @@ func TestOracleDrawJoint(t *testing.T) {
 		oracleFilterJoint(world, bodyA, bodyB)
 
 		var recorder oracleDrawRecorder
+
 		draw := recorder.debugDraw()
 		world.Draw(&draw)
 
@@ -2692,6 +2731,7 @@ func TestOracleDrawJoint(t *testing.T) {
 		oracleWeldJoint(world, bodyA, bodyB, nil)
 
 		var recorder oracleDrawRecorder
+
 		draw := recorder.debugDraw()
 		draw.DrawJointExtras = true
 		world.Draw(&draw)
@@ -2718,6 +2758,7 @@ func TestOracleDrawJoint(t *testing.T) {
 		oracleRevoluteJoint(world, bodyA, bodyB, nil)
 
 		var recorder oracleDrawRecorder
+
 		draw := recorder.debugDraw()
 		draw.DrawJointExtras = true
 		world.Draw(&draw)
@@ -2739,6 +2780,7 @@ func TestOracleDrawJoint(t *testing.T) {
 		oracleWeldJoint(world, bodyA, bodyB, nil)
 
 		var recorder oracleDrawRecorder
+
 		draw := recorder.debugDraw()
 		draw.DrawGraphColors = true
 		world.Draw(&draw)
@@ -2760,6 +2802,7 @@ func TestOracleDrawJoint(t *testing.T) {
 		oracleWeldJoint(world, bodyA, bodyB, nil)
 
 		var recorder oracleDrawRecorder
+
 		draw := recorder.debugDraw()
 		world.Draw(&draw)
 		require.Len(t, recorder.polygons, 2)

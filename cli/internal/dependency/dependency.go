@@ -55,6 +55,7 @@ func (d Dependency) Check() error {
 	if err != nil {
 		return eris.Wrapf(err, "dependency check for %q failed", d.Name)
 	}
+
 	return nil
 }
 
@@ -63,5 +64,6 @@ func Check(deps ...Dependency) error {
 	for _, dep := range deps {
 		errs = append(errs, dep.Check())
 	}
+
 	return errors.Join(errs...)
 }

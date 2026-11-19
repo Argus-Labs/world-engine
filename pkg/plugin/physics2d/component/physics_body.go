@@ -110,10 +110,12 @@ func (p *PhysicsBody2D) UnmarshalJSON(data []byte) error {
 		FixedRotation   bool            `json:"fixed_rotation"`
 		Shapes          []ColliderShape `json:"shapes"`
 	}
+
 	var aux raw
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
+
 	*p = PhysicsBody2D{
 		BodyType:        aux.BodyType,
 		LinearDamping:   aux.LinearDamping,
@@ -129,15 +131,19 @@ func (p *PhysicsBody2D) UnmarshalJSON(data []byte) error {
 	if aux.GravityScale != nil {
 		p.GravityScale = *aux.GravityScale
 	}
+
 	if aux.Active != nil {
 		p.Active = *aux.Active
 	}
+
 	if aux.Awake != nil {
 		p.Awake = *aux.Awake
 	}
+
 	if aux.SleepingAllowed != nil {
 		p.SleepingAllowed = *aux.SleepingAllowed
 	}
+
 	return nil
 }
 
@@ -151,22 +157,28 @@ func (p PhysicsBody2D) Validate() error {
 	default:
 		return fmt.Errorf("physics_body_2d.body_type: invalid value %d", p.BodyType)
 	}
+
 	if !isFinite(p.LinearDamping) || p.LinearDamping < 0 {
 		return fmt.Errorf("physics_body_2d.linear_damping: must be finite and non-negative, got %v", p.LinearDamping)
 	}
+
 	if !isFinite(p.AngularDamping) || p.AngularDamping < 0 {
 		return fmt.Errorf("physics_body_2d.angular_damping: must be finite and non-negative, got %v", p.AngularDamping)
 	}
+
 	if !isFinite(p.GravityScale) {
 		return fmt.Errorf("physics_body_2d.gravity_scale: must be finite, got %v", p.GravityScale)
 	}
+
 	if p.Shapes.Len() == 0 {
 		return errors.New("physics_body_2d.shapes: at least one ColliderShape is required")
 	}
+
 	for i, shape := range p.Shapes.All() {
 		if err := shape.Validate(); err != nil {
 			return fmt.Errorf("physics_body_2d.shapes[%d]: %w", i, err)
 		}
 	}
+
 	return nil
 }

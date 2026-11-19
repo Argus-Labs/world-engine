@@ -34,6 +34,7 @@ func dirWithToml(t *testing.T, content string) string {
 	dir := t.TempDir()
 	err := os.WriteFile(filepath.Join(dir, worldtoml.FileName), []byte(content), 0o644)
 	require.NoError(t, err)
+
 	return dir
 }
 
@@ -74,14 +75,19 @@ func TestRunDebugAction(t *testing.T) {
 	t.Chdir(dir)
 
 	t.Run("runs on selected instances", func(t *testing.T) {
-		var mu sync.Mutex
-		var called []string
+		var (
+			mu     sync.Mutex
+			called []string
+		)
+
 		action := func(
 			_ context.Context, _ cardinalv1connect.DebugServiceClient, instanceID string,
 		) (string, error) {
 			mu.Lock()
+
 			called = append(called, instanceID)
 			mu.Unlock()
+
 			return "OK", nil
 		}
 
@@ -93,6 +99,7 @@ func TestRunDebugAction(t *testing.T) {
 
 	t.Run("unknown instance prevents every action", func(t *testing.T) {
 		var calls atomic.Int32
+
 		action := func(
 			_ context.Context, _ cardinalv1connect.DebugServiceClient, _ string,
 		) (string, error) {
@@ -108,17 +115,23 @@ func TestRunDebugAction(t *testing.T) {
 	})
 
 	t.Run("partial failure attempts every instance", func(t *testing.T) {
-		var mu sync.Mutex
-		var called []string
+		var (
+			mu     sync.Mutex
+			called []string
+		)
+
 		action := func(
 			_ context.Context, _ cardinalv1connect.DebugServiceClient, instanceID string,
 		) (string, error) {
 			mu.Lock()
+
 			called = append(called, instanceID)
 			mu.Unlock()
+
 			if instanceID == "meta" {
 				return "", eris.New("timeout")
 			}
+
 			return "OK", nil
 		}
 

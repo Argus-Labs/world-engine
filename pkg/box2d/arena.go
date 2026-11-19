@@ -117,6 +117,7 @@ func destroyArena(a *arena) {
 func (a *arena) allocMassData(count int) []MassData {
 	assert(a.massDataCount == 0)
 	a.massDataCount = count
+
 	a.allocation += count
 	if a.allocation > a.maxAllocation {
 		a.maxAllocation = a.allocation
@@ -273,6 +274,7 @@ func (a *arena) allocInts(slot *arenaIntSlot, count int) []int {
 func (a *arena) freeInts(slot *arenaIntSlot) {
 	a.allocation -= slot.count
 	slot.count = 0
+
 	assert(a.allocation >= 0)
 }
 

@@ -22,8 +22,10 @@ func requirePanicMessage(t *testing.T, wantMessage, mustMention string, fn func(
 	t.Helper()
 
 	var recovered any
+
 	func() {
 		defer func() { recovered = recover() }()
+
 		fn()
 	}()
 
@@ -41,6 +43,7 @@ func preconditionWorld(t *testing.T) *box2d.World {
 	def := box2d.DefaultWorldDef()
 	w := box2d.NewWorld(&def)
 	t.Cleanup(w.Destroy)
+
 	return w
 }
 
@@ -56,6 +59,7 @@ func preconditionBody(t *testing.T, w *box2d.World, x float64) box2d.BodyID {
 	circle := box2d.Circle{Center: box2d.Vec2Zero, Radius: 0.25}
 	sd := box2d.DefaultShapeDef()
 	w.CreateCircleShape(bodyID, &sd, &circle)
+
 	return bodyID
 }
 
@@ -66,6 +70,7 @@ func jointBase(t *testing.T, w *box2d.World) box2d.JointDef {
 	base := box2d.DefaultDistanceJointDef().Base
 	base.BodyIDA = preconditionBody(t, w, 0.0)
 	base.BodyIDB = preconditionBody(t, w, 1.0)
+
 	return base
 }
 
@@ -336,6 +341,7 @@ func TestNonFiniteShapeFieldsPanic(t *testing.T) {
 			tc.mutID(&sd)
 
 			circle := box2d.Circle{Center: box2d.Vec2Zero, Radius: 0.5}
+
 			requirePanicMessage(t, tc.want, tc.field, func() {
 				w.CreateCircleShape(bodyID, &sd, &circle)
 			})
@@ -473,6 +479,7 @@ func TestConstructorBuiltDefinitionsDoNotPanic(t *testing.T) {
 
 	require.NotPanics(t, func() {
 		wd := box2d.DefaultWorldDef()
+
 		w := box2d.NewWorld(&wd)
 		defer w.Destroy()
 

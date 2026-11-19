@@ -78,6 +78,7 @@ func InitialModel(columns []string, rows [][]string) *Model {
 	if len(rows) == 1 {
 		height = 1
 	}
+
 	t.SetHeight(height + 2)
 
 	m := &Model{
@@ -85,6 +86,7 @@ func InitialModel(columns []string, rows [][]string) *Model {
 		Rows:    rows,
 		tbl:     t,
 	}
+
 	return m
 }
 
@@ -101,6 +103,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if _, ok := msg.(doneMsg); ok {
 		return m, tea.Quit
 	}
+
 	return m, nil
 }
 
@@ -120,6 +123,7 @@ func computeColumnWidths(columns []string, rows [][]string, maxColWidth int) []i
 	widths := make([]int, len(columns))
 	for ci, title := range columns {
 		maxw := lipgloss.Width(title)
+
 		for _, r := range rows {
 			if ci < len(r) {
 				if tw := lipgloss.Width(r[ci]); tw > maxw {
@@ -127,12 +131,14 @@ func computeColumnWidths(columns []string, rows [][]string, maxColWidth int) []i
 				}
 			}
 		}
+
 		if maxw > maxColWidth {
 			maxw = maxColWidth
 		}
 
 		widths[ci] = maxw
 	}
+
 	return widths
 }
 
@@ -141,8 +147,10 @@ func centerText(s string, width int) string {
 	if w >= width {
 		return s
 	}
+
 	gap := width - w
 	left := gap / 2
 	right := gap - left
+
 	return strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
 }

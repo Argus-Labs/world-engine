@@ -71,6 +71,7 @@ func reloadHandler(
 		return ReloadOutput{}, eris.New(
 			"world_path is required (path to the world project directory containing world.toml)")
 	}
+
 	worldPath = filepath.Clean(worldPath)
 	shardID := strings.TrimSpace(args.ShardID)
 
@@ -83,6 +84,7 @@ func reloadHandler(
 	if err != nil {
 		return ReloadOutput{}, eris.Wrap(err, "build failed (did the new shard code compile?)")
 	}
+
 	rt, release, err := started.open(worldPath)
 	if err != nil {
 		return ReloadOutput{}, eris.Wrap(err, "open world")
@@ -97,16 +99,19 @@ func reloadHandler(
 	if err := requireRunning(running, err); err != nil {
 		return ReloadOutput{}, err
 	}
+
 	if err := reloadShards(ctx, rt, cfg, deployOpts, args.Purge); err != nil {
 		return ReloadOutput{}, err
 	}
 
 	shardIDs := deployOpts.ShardIDs()
+
 	status := fmt.Sprintf("rebuilt and reloaded %d shard(s) for %s/%s",
 		len(shardIDs), cfg.Organization, cfg.Project)
 	if args.Purge {
 		status += " on fresh state (tick reset to 0)"
 	}
+
 	return ReloadOutput{
 		Organization: cfg.Organization,
 		Project:      cfg.Project,
@@ -144,6 +149,7 @@ func reloadShards(
 	if err := rt.CheckLayout(ctx); err != nil {
 		return err
 	}
+
 	if purge {
 		for _, shard := range deployOpts.Shards {
 			if err := rt.UndeployShard(ctx, shard.ID); err != nil {
@@ -164,6 +170,7 @@ func reloadShards(
 	if err := rt.PruneOrphanedShards(ctx); err != nil {
 		return eris.Wrap(err, "failed to prune orphaned shards")
 	}
+
 	if err := rt.Deploy(ctx, deployOpts); err != nil {
 		return eris.Wrap(err, "failed to deploy shards")
 	}
@@ -175,6 +182,7 @@ func reloadShards(
 	if ready, expected := rt.WaitForShardsReady(ctx, reloaded, nil); ready < expected {
 		return eris.Errorf("only %d/%d shard instances came back up; check the shard logs", ready, expected)
 	}
+
 	return nil
 }
 
@@ -187,8 +195,10 @@ func requireRunning(running bool, err error) error {
 	if err != nil {
 		return eris.Wrap(err, "check world state")
 	}
+
 	if !running {
 		return eris.New("world is not running — start it with `world start`")
 	}
+
 	return nil
 }

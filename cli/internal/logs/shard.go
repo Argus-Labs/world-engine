@@ -41,6 +41,7 @@ func TailLogsUntilEnterOrReload(
 		tailCtx, cancel := context.WithCancel(ctx)
 
 		linesCh := make(chan worldstatus.LogLine, 256)
+
 		streamErrCh := make(chan error, 1)
 		go func() {
 			streamErrCh <- openStream(tailCtx, linesCh)
@@ -54,11 +55,13 @@ func TailLogsUntilEnterOrReload(
 		go pumpLogLines(prog, linesCh, streamErrCh)
 
 		final, runErr := prog.Run()
+
 		cancel() // stop this attempt's stream regardless of why we're here
 
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
+
 		if runErr != nil {
 			return eris.Wrap(runErr, "run log tail view")
 		}
@@ -92,5 +95,6 @@ func pumpLogLines(prog *tea.Program, linesCh <-chan worldstatus.LogLine, streamE
 	for line := range linesCh {
 		prog.Send(logtail.LogLineMsg(line))
 	}
+
 	prog.Send(logtail.StreamEndedMsg{Err: <-streamErrCh})
 }

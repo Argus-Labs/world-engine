@@ -38,6 +38,7 @@ func clampTailLines(tail int) int {
 	if tail <= 0 || tail > maxLogTailLines {
 		return maxLogTailLines
 	}
+
 	return tail
 }
 
@@ -50,6 +51,7 @@ func (c *Client) containerExists(ctx context.Context, containerName string) (boo
 		if cerrdefs.IsNotFound(err) {
 			return false, nil
 		}
+
 		return false, eris.Wrapf(err, "Failed to inspect container %s", containerName)
 	}
 
@@ -64,21 +66,27 @@ func (c *Client) removeContainer(ctx context.Context, name string, keepVolumes b
 		if cerrdefs.IsNotFound(err) {
 			return nil
 		}
+
 		return eris.Wrapf(err, "inspect container %s", name)
 	}
+
 	if _, err := c.client.ContainerStop(ctx, name, client.ContainerStopOptions{Signal: "SIGINT"}); err != nil {
 		return eris.Wrapf(err, "stop container %s", name)
 	}
+
 	if _, err := c.client.ContainerRemove(ctx, name, client.ContainerRemoveOptions{}); err != nil {
 		return eris.Wrapf(err, "remove container %s", name)
 	}
+
 	if keepVolumes {
 		return nil
 	}
+
 	for _, m := range res.Container.Mounts {
 		if m.Type != mount.TypeVolume || m.Name == "" {
 			continue
 		}
+
 		if _, err := c.client.VolumeRemove(
 			ctx,
 			m.Name,
@@ -88,6 +96,7 @@ func (c *Client) removeContainer(ctx context.Context, name string, keepVolumes b
 			return eris.Wrapf(err, "remove volume %s", m.Name)
 		}
 	}
+
 	return nil
 }
 
@@ -97,6 +106,7 @@ func (c *Client) InspectContainer(ctx context.Context, containerName string) (co
 	if err != nil {
 		return container.InspectResponse{}, eris.Wrapf(err, "failed to inspect container %s", containerName)
 	}
+
 	return inspect.Container, nil
 }
 
@@ -108,17 +118,22 @@ func (c *Client) CardinalHostPort(ctx context.Context, containerName string) (in
 	if err != nil {
 		return 0, err
 	}
+
 	debugPort := network.MustParsePort(strconv.Itoa(service.CardinalPort) + "/tcp")
+
 	var bindings []network.PortBinding
 	if inspect.NetworkSettings != nil {
 		bindings = inspect.NetworkSettings.Ports[debugPort]
 	}
+
 	if len(bindings) == 0 && inspect.HostConfig != nil {
 		bindings = inspect.HostConfig.PortBindings[debugPort]
 	}
+
 	if len(bindings) == 0 {
 		return 0, eris.Errorf("container %s has no host port for %s", containerName, debugPort)
 	}
+
 	hostPort, err := strconv.Atoi(bindings[0].HostPort)
 	if err != nil {
 		return 0, eris.Wrapf(
@@ -129,6 +144,7 @@ func (c *Client) CardinalHostPort(ctx context.Context, containerName string) (in
 			debugPort,
 		)
 	}
+
 	return hostPort, nil
 }
 
@@ -161,6 +177,7 @@ func (c *Client) GetContainerLogs(
 	if sinceSeconds > maxLogSinceSeconds {
 		sinceSeconds = maxLogSinceSeconds
 	}
+
 	if sinceSeconds > 0 {
 		sinceTime := time.Now().Add(-time.Duration(sinceSeconds) * time.Second)
 		opts.Since = sinceTime.Format(time.RFC3339)
@@ -180,6 +197,7 @@ func (c *Client) GetContainerLogs(
 	if _, err := stdcopy.StdCopy(&buf, &buf, limitedReader); err != nil {
 		return "", eris.Wrapf(err, "failed to read logs for container %s", containerName)
 	}
+
 	return buf.String(), nil
 }
 
@@ -189,6 +207,7 @@ func (c *Client) startContainer(ctx context.Context, svc service.Service) error 
 	if err != nil {
 		return err
 	}
+
 	if !exist {
 		_, err := c.client.ContainerCreate(ctx, client.ContainerCreateOptions{
 			Config:           &svc.Config,
@@ -201,9 +220,11 @@ func (c *Client) startContainer(ctx context.Context, svc service.Service) error 
 			return eris.Wrapf(err, "create container %s", svc.Name)
 		}
 	}
+
 	if _, err := c.client.ContainerStart(ctx, svc.Name, client.ContainerStartOptions{}); err != nil {
 		return eris.Wrapf(err, "start container %s", svc.Name)
 	}
+
 	return nil
 }
 
@@ -213,9 +234,11 @@ func (c *Client) stopContainer(ctx context.Context, name string) error {
 	if err != nil || !exist {
 		return err
 	}
+
 	if _, err := c.client.ContainerStop(ctx, name, client.ContainerStopOptions{Signal: "SIGINT"}); err != nil {
 		return eris.Wrapf(err, "stop container %s", name)
 	}
+
 	return nil
 }
 
@@ -248,12 +271,15 @@ func (c *Client) StreamContainerLogs(
 	// Closing rc does not unblock a demux write already parked in pw.Write, so the
 	// reader end must be closed too or the goroutine and the pipe leak per tail.
 	defer pr.Close()
+
 	go func() {
 		_, err := stdcopy.StdCopy(pw, pw, rc)
 		_ = pw.CloseWithError(err)
 	}()
+
 	sc := bufio.NewScanner(pr)
 	sc.Buffer(make([]byte, 64*1024), maxLogLineBytes)
+
 	for sc.Scan() {
 		entry := LogEntry{Container: name, Line: sc.Text()}
 		if ts, rest, ok := strings.Cut(entry.Line, " "); ok {
@@ -261,14 +287,17 @@ func (c *Client) StreamContainerLogs(
 				entry.Timestamp, entry.Line = t, rest
 			}
 		}
+
 		select {
 		case out <- entry:
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
+
 	if err := sc.Err(); err != nil && ctx.Err() == nil {
 		return eris.Wrapf(err, "read logs for %s", name)
 	}
+
 	return ctx.Err()
 }

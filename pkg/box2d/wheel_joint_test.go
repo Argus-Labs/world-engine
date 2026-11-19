@@ -53,10 +53,12 @@ func buildWheelRig(gravity box2d.Vec2, tune func(*box2d.WheelJointDef)) wheelRig
 	jd.Base.BodyIDA = anchor
 	jd.Base.BodyIDB = wheel
 	jd.Base.LocalFrameA.Q = axisRot
+
 	jd.Base.LocalFrameB.Q = axisRot
 	if tune != nil {
 		tune(&jd)
 	}
+
 	joint := w.CreateWheelJoint(&jd)
 
 	return wheelRig{world: w, anchor: anchor, wheel: wheel, joint: joint}
@@ -71,8 +73,10 @@ func wheelTranslation(rig wheelRig) float64 {
 func TestWheelJointSuspensionSag(t *testing.T) {
 	t.Parallel()
 
-	const hertz = 2.0
-	const gravity = -10.0
+	const (
+		hertz   = 2.0
+		gravity = -10.0
+	)
 
 	rig := buildWheelRig(box2d.Vec2{X: 0.0, Y: gravity}, func(jd *box2d.WheelJointDef) {
 		jd.EnableSpring = true
@@ -88,10 +92,12 @@ func TestWheelJointSuspensionSag(t *testing.T) {
 
 	// The rig must oscillate before it settles: track the extremes.
 	minTranslation := 0.0
+
 	for range 120 {
 		rig.world.Step(wheelTimeStep, 4)
 		minTranslation = math.Min(minTranslation, wheelTranslation(rig))
 	}
+
 	require.Less(t, minTranslation, -wantSag*1.2, "under-damped spring must overshoot the static sag")
 
 	for range 900 {
@@ -113,6 +119,7 @@ func TestWheelJointSuspensionSag(t *testing.T) {
 	for range 1020 {
 		stiff.world.Step(wheelTimeStep, 4)
 	}
+
 	require.Greater(t, wheelTranslation(stiff), translation, "doubling the hertz must reduce the sag")
 }
 
@@ -153,24 +160,30 @@ func TestWheelJointMotor(t *testing.T) {
 
 	// Reverse the motor and check it comes back the other way.
 	rig.world.SetWheelJointMotorSpeed(rig.joint, -motorSpeed)
+
 	for range 120 {
 		rig.world.Step(wheelTimeStep, 4)
 	}
+
 	require.InDelta(t, -motorSpeed, rig.world.BodyAngularVelocity(rig.wheel), 1e-3)
 
 	// A saturated motor cannot exceed the torque budget.
 	rig.world.SetWheelJointMaxMotorTorque(rig.joint, 0.0)
+
 	for range 30 {
 		rig.world.Step(wheelTimeStep, 4)
 	}
+
 	require.InDelta(t, 0.0, rig.world.WheelJointMotorTorque(rig.joint), 1e-9)
 }
 
 func TestWheelJointLimits(t *testing.T) {
 	t.Parallel()
 
-	const lower = -0.2
-	const upper = 0.4
+	const (
+		lower = -0.2
+		upper = 0.4
+	)
 
 	rig := buildWheelRig(box2d.Vec2{X: 0.0, Y: -10.0}, func(jd *box2d.WheelJointDef) {
 		jd.EnableSpring = false
@@ -192,6 +205,7 @@ func TestWheelJointLimits(t *testing.T) {
 
 	// Kick it upward hard: the upper stop must catch it.
 	rig.world.ApplyBodyLinearImpulseToCenter(rig.wheel, box2d.Vec2{X: 0.0, Y: 8.0}, true)
+
 	for range 120 {
 		rig.world.Step(wheelTimeStep, 4)
 		require.LessOrEqual(t, wheelTranslation(rig), upper+0.05, "upper limit breached after impulse")
@@ -268,6 +282,7 @@ func TestWheelJointDeterminism(t *testing.T) {
 		defer rig.world.Destroy()
 
 		var samples []float64
+
 		for range 200 {
 			rig.world.ApplyBodyForceToCenter(rig.wheel, box2d.Vec2{X: 4.0, Y: 0.0}, true)
 			rig.world.Step(wheelTimeStep, 4)
@@ -280,6 +295,7 @@ func TestWheelJointDeterminism(t *testing.T) {
 				rig.world.WheelJointMotorTorque(rig.joint),
 				f.X, f.Y)
 		}
+
 		return samples
 	}
 
@@ -287,6 +303,7 @@ func TestWheelJointDeterminism(t *testing.T) {
 	second := run()
 
 	require.Len(t, second, len(first))
+
 	for i := range first {
 		require.Equal(t, math.Float64bits(first[i]), math.Float64bits(second[i]),
 			"wheel joint scene is not bit-identical at sample %d", i)

@@ -13,6 +13,7 @@ func newSparseSet() sparseSet {
 	for i := range sparseCapacity {
 		s[i] = sparseTombstone
 	}
+
 	return s
 }
 
@@ -41,9 +42,11 @@ func (s *sparseSet) set(key EntityID, value int) {
 
 		newSlice := make(sparseSet, newLen)
 		copy(newSlice, *s)
+
 		for i := oldLen; i < newLen; i++ {
 			newSlice[i] = sparseTombstone
 		}
+
 		*s = newSlice
 	}
 
@@ -61,6 +64,7 @@ func (s *sparseSet) remove(key EntityID) bool {
 	}
 
 	(*s)[key] = sparseTombstone
+
 	return true
 }
 

@@ -15,5 +15,6 @@ func validateVec2(field string, v Vec2) error {
 	if !isFinite(v.X) || !isFinite(v.Y) {
 		return fmt.Errorf("%s: must be finite (got %v, %v)", field, v.X, v.Y)
 	}
+
 	return nil
 }

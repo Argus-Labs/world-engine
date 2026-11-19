@@ -29,13 +29,16 @@ func (c harnessTag) MarshalWire() []byte {
 	if err != nil {
 		panic(err)
 	}
+
 	return b
 }
 
 // UnmarshalWire returns any (decode factory) to satisfy the Cardinal component wire interface.
 func (harnessTag) UnmarshalWire(b []byte) (any, error) {
 	var v harnessTag
+
 	err := json.Unmarshal(b, &v)
+
 	return v, err
 }
 
@@ -116,6 +119,7 @@ func (s *sceneInitSystem) Run(w *cardinal.World) {
 		row.Set(t)
 		row.Set(physics.Velocity2D{})
 		row.Set(pb)
+
 		return id
 	}
 	mustCreateWithVel := func(
@@ -130,6 +134,7 @@ func (s *sceneInitSystem) Run(w *cardinal.World) {
 		row.Set(t)
 		row.Set(v)
 		row.Set(pb)
+
 		return id
 	}
 
@@ -306,12 +311,14 @@ func (s *manualMoveSystem) Run(w *cardinal.World) {
 	if harness.ManualPlayer == 0 {
 		return
 	}
+
 	for row := range w.Exact[spawnArchetype]().Iter() {
 		eid := row.ID()
 		if eid == harness.ManualPlayer {
 			tr := row.Get[physics.Transform2D]()
 			tr.Position.X += 0.05
 			row.Set(tr)
+
 			break
 		}
 	}
@@ -340,12 +347,15 @@ func newVerifySystem(p *physics.Plugin) *verifySystem {
 			if phase == 0 {
 				req.FailNow("Engine() == nil before any crash")
 			}
+
 			if phase >= 1 && tick > tickCrash1+1 && tick <= tickCrash2 {
 				req.FailNow("Engine() == nil after crash1 — FullRebuildFromECS failed")
 			}
+
 			if phase >= 2 && tick > tickCrash2+1 {
 				req.FailNow("Engine() == nil after crash2 — FullRebuildFromECS failed")
 			}
+
 			return
 		}
 
@@ -356,10 +366,12 @@ func newVerifySystem(p *physics.Plugin) *verifySystem {
 			if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Floor) {
 				atomic.AddUint32(&contactBeginCnt, 1)
 			}
+
 			if harness.NewBox != 0 && pairHas(e.EntityA, e.EntityB, harness.Ball, harness.NewBox) && phase == 2 {
 				atomic.StoreUint32(&crash2NewBegin, 1)
 			}
 		}
+
 		for e := range w.SystemEvents[physics.ContactEndEvent]() {
 			if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Floor) {
 				switch phase {
@@ -370,11 +382,13 @@ func newVerifySystem(p *physics.Plugin) *verifySystem {
 				}
 			}
 		}
+
 		for e := range w.SystemEvents[physics.TriggerBeginEvent]() {
 			if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Sensor) {
 				atomic.AddUint32(&triggerBeginCnt, 1)
 			}
 		}
+
 		for e := range w.SystemEvents[physics.TriggerEndEvent]() {
 			if pairHas(e.EntityA, e.EntityB, harness.Ball, harness.Sensor) {
 				switch phase {
@@ -393,10 +407,12 @@ func newVerifySystem(p *physics.Plugin) *verifySystem {
 			case harness.Ball:
 				t := row.Get[physics.Transform2D]()
 				v := row.Get[physics.Velocity2D]()
+
 				if phase == 0 && tick < tickCrash1 {
 					ballPosYHistory = append(ballPosYHistory, t.Position.Y)
 					ballVelYHistory = append(ballVelYHistory, v.Linear.Y)
 				}
+
 				if phase == 1 && tick > tickCrash1+2 && tick < tickCrash2 {
 					postCrash1BallPosY = append(postCrash1BallPosY, t.Position.Y)
 				}
@@ -416,6 +432,7 @@ func newVerifySystem(p *physics.Plugin) *verifySystem {
 					req.InDelta(manualSpawnPos.Y, pos.Y, epsilon,
 						"manual body Y unchanged at tick %d (writeback must not clobber)", tick)
 				}
+
 				if tick == tickContactDeadline && phase == 0 {
 					req.Greater(pos.X, manualSpawnPos.X+2.0,
 						"manual body X advanced by gameplay (writeback did not reset it)")
@@ -431,6 +448,7 @@ func newVerifySystem(p *physics.Plugin) *verifySystem {
 		if tick >= tickTriggerDeadline && tick < tickCrash1 {
 			req.NotZero(atomic.LoadUint32(&triggerBeginCnt), "TriggerBegin ball-sensor by deadline")
 		}
+
 		if tick >= tickContactDeadline && tick < tickCrash1 {
 			req.NotZero(atomic.LoadUint32(&contactBeginCnt), "ContactBegin ball-floor by deadline")
 		}
@@ -458,6 +476,7 @@ func newVerifySystem(p *physics.Plugin) *verifySystem {
 			// At 3 m/s, 120 ticks at 60 Hz = 2s → start 20 + 6 = 26.
 			req.Greater(kinematicPosXHistory[nk-1], 24.0,
 				"kinematic mover ECS X advanced by velocity integration writeback")
+
 			for i := 1; i < nk; i++ {
 				req.GreaterOrEqual(kinematicPosXHistory[i], kinematicPosXHistory[i-1]-epsilon,
 					"kinematic X non-decreasing at sample %d (shadow/writeback consistency)", i)
@@ -480,6 +499,7 @@ func newVerifySystem(p *physics.Plugin) *verifySystem {
 				req.True(w.Entity(harness.Triangle).Destroy(), "Destroy(triangle)")
 			}
 		}
+
 		if tick >= tickDestroyTriangle+2 {
 			assertTriangleGone(p, req)
 		}
@@ -493,11 +513,13 @@ func newVerifySystem(p *physics.Plugin) *verifySystem {
 						tr := row.Get[physics.Transform2D]()
 						tr.Position.X = 10
 						row.Set(tr)
+
 						break
 					}
 				}
 			}
 		}
+
 		if tick >= tickMoveWall+2 && atomic.LoadUint32(&wallMoved) != 0 {
 			assertWallMoved(p, req)
 		}
@@ -518,9 +540,11 @@ func newVerifySystem(p *physics.Plugin) *verifySystem {
 					CategoryBits: 0x0001,
 					MaskBits:     0xFFFF,
 				}))
+
 				harness.NewBox = id
 			}
 		}
+
 		if tick >= tickCreateNewBox+2 && harness.NewBox != 0 {
 			assertNewBoxExists(p, req)
 		}
@@ -530,6 +554,7 @@ func newVerifySystem(p *physics.Plugin) *verifySystem {
 		// lists old pairs → suppressed step diff emits synthetic Ends.
 		if tick == tickCrash1 {
 			atomic.StoreUint32(&crashPhase, 1)
+
 			for row := range w.Exact[spawnArchetype]().Iter() {
 				eid := row.ID()
 				if eid == harness.Ball {
@@ -538,7 +563,9 @@ func newVerifySystem(p *physics.Plugin) *verifySystem {
 					row.Set(tr)
 				}
 			}
+
 			p.Reset()
+
 			return
 		}
 
@@ -547,9 +574,11 @@ func newVerifySystem(p *physics.Plugin) *verifySystem {
 			req.NotZero(atomic.LoadUint32(&crash1EndContact), "synthetic ContactEnd ball-floor after crash1")
 			req.NotZero(atomic.LoadUint32(&crash1EndTrigger), "synthetic TriggerEnd ball-sensor after crash1")
 		}
+
 		if tick >= tickPostCrash1Trigger && phase >= 1 && tick < tickCrash2 {
 			req.GreaterOrEqual(atomic.LoadUint32(&triggerBeginCnt), uint32(2), "TriggerBegin again after crash1")
 		}
+
 		if tick >= tickPostCrash1Contact && phase >= 1 && tick < tickCrash2 {
 			req.GreaterOrEqual(atomic.LoadUint32(&contactBeginCnt), uint32(2), "ContactBegin again after crash1")
 		}
@@ -565,6 +594,7 @@ func newVerifySystem(p *physics.Plugin) *verifySystem {
 		// live has ball–NewBox only → diff emits Ends for stale pairs + Begin for new overlap.
 		if tick == tickCrash2 {
 			atomic.StoreUint32(&crashPhase, 2)
+
 			for row := range w.Exact[spawnArchetype]().Iter() {
 				eid := row.ID()
 				if eid == harness.Ball {
@@ -573,7 +603,9 @@ func newVerifySystem(p *physics.Plugin) *verifySystem {
 					row.Set(tr)
 				}
 			}
+
 			p.Reset()
+
 			return
 		}
 
@@ -614,12 +646,14 @@ func runQueryChecks(p *physics.Plugin, req *require.Assertions) {
 			Max: physics.Vec2{X: -6, Y: 2.5},
 		})
 		found := false
+
 		for _, h := range ov.Hits {
 			if h.Entity == harness.Triangle && h.ShapeIndex == 0 {
 				found = true
 				break
 			}
 		}
+
 		req.True(found, "OverlapAABB triangle region")
 	}
 
@@ -638,14 +672,17 @@ func runQueryChecks(p *physics.Plugin, req *require.Assertions) {
 		Max: physics.Vec2{X: -11, Y: 3},
 	})
 	foundBox := false
+
 	for _, h := range ovComp.Hits {
 		if h.Entity == harness.CompoundBody {
 			req.NotEqual(1, h.ShapeIndex, "unfiltered AABB must not report sensor shape 1")
+
 			if h.ShapeIndex == 0 {
 				foundBox = true
 			}
 		}
 	}
+
 	req.True(foundBox, "compound body box shape in AABB")
 
 	// Explicit IncludeSensors → both box (0) and sensor circle (1) should appear.
@@ -655,18 +692,23 @@ func runQueryChecks(p *physics.Plugin, req *require.Assertions) {
 		Max:    physics.Vec2{X: -11, Y: 3},
 		Filter: &incl,
 	})
+
 	var s0, s1 bool
+
 	for _, h := range ovS.Hits {
 		if h.Entity != harness.CompoundBody {
 			continue
 		}
+
 		if h.ShapeIndex == 0 {
 			s0 = true
 		}
+
 		if h.ShapeIndex == 1 {
 			s1 = true
 		}
 	}
+
 	req.True(s0 && s1, "IncludeSensors AABB both compound shapes")
 }
 
@@ -699,12 +741,14 @@ func assertNewBoxExists(p *physics.Plugin, req *require.Assertions) {
 		Max: physics.Vec2{X: 6, Y: 2},
 	})
 	found := false
+
 	for _, h := range ov.Hits {
 		if h.Entity == harness.NewBox {
 			found = true
 			break
 		}
 	}
+
 	req.True(found, "NewBox in AABB")
 }
 
@@ -781,6 +825,7 @@ func TestPhysics2D_CardinalIntegration(t *testing.T) {
 
 	// Init hook must run before plugin Init so FullRebuildFromECS sees harness entities.
 	w.RegisterSystem(&sceneInitSystem{}, cardinal.WithPhase(cardinal.Init))
+
 	plugin := physics.NewPlugin(physics.Config{
 		Gravity:  physics.Vec2{X: 0, Y: -10},
 		TickRate: 60,
@@ -797,6 +842,7 @@ func TestPhysics2D_CardinalIntegration(t *testing.T) {
 	// Deterministic timestamps; loop count covers all scripted phases including post–crash 2 buffer.
 	for i := range lastTick + 1 {
 		w.Tick(time.Unix(int64(i), 0))
+
 		if t.Failed() {
 			t.Fatalf("failed at cardinal tick loop i=%d", i)
 		}

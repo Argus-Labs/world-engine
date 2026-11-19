@@ -47,6 +47,7 @@ func shapePairKey(k1, k2 uint32) uint64 {
 	if k1 < k2 {
 		return (uint64(k1) << 32) | uint64(k2)
 	}
+
 	return (uint64(k2) << 32) | uint64(k1)
 }
 
@@ -58,12 +59,14 @@ func keyHash(key uint64) uint64 {
 	h ^= h >> 33
 	h *= 0xc4ceb9fe1a85ec53
 	h ^= h >> 33
+
 	return h
 }
 
 func findSlot(set *hashSet, key uint64, hash uint64) uint32 {
 	capacity := set.capacity
 	index := uint32(hash) & (capacity - 1)
+
 	items := set.items
 	for items[index].key != 0 && items[index].key != key {
 		index = (index + 1) & (capacity - 1)
@@ -107,6 +110,7 @@ func containsKey(set *hashSet, key uint64) bool {
 	assert(key != 0)
 	hash := keyHash(key)
 	index := findSlot(set, key, hash)
+
 	return set.items[index].key == key
 }
 
@@ -131,6 +135,7 @@ func addKey(set *hashSet, key uint64) bool {
 	}
 
 	addKeyHaveCapacity(set, key, hash)
+
 	return false
 }
 
@@ -139,6 +144,7 @@ func addKey(set *hashSet, key uint64) bool {
 func removeKey(set *hashSet, key uint64) bool {
 	hash := keyHash(key)
 	i := findSlot(set, key, hash)
+
 	items := set.items
 	if items[i].key == 0 {
 		return false
@@ -150,6 +156,7 @@ func removeKey(set *hashSet, key uint64) bool {
 	set.count--
 
 	j := i
+
 	capacity := set.capacity
 	for {
 		j = (j + 1) & (capacity - 1)

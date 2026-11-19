@@ -33,6 +33,7 @@ func TestFillRandom_FillsImmutableSlices(t *testing.T) {
 	live := []EntityID{7, 8, 9}
 
 	var sawIDs, sawNested, sawPlain bool
+
 	for range 64 {
 		var probe fillProbe
 		fillRandom(prng, reflect.ValueOf(&probe).Elem(), live)
@@ -41,8 +42,10 @@ func TestFillRandom_FillsImmutableSlices(t *testing.T) {
 		for _, row := range probe.Rows.All() {
 			sawNested = sawNested || row.Cells.Len() > 0
 		}
+
 		sawPlain = sawPlain || probe.Plain != 0
 	}
+
 	require.True(t, sawIDs, "Slice[EntityID] was never filled")
 	require.True(t, sawNested, "a Slice inside a Slice element was never filled")
 	require.True(t, sawPlain, "plain fields must still be filled")
@@ -65,6 +68,7 @@ func TestFillRandom_FillsImmutableMaps(t *testing.T) {
 	live := []EntityID{7, 8, 9}
 
 	var sawLiveKey, sawNested bool
+
 	for range 64 {
 		var probe fillMapProbe
 		fillRandom(prng, reflect.ValueOf(&probe).Elem(), live)
@@ -72,12 +76,14 @@ func TestFillRandom_FillsImmutableMaps(t *testing.T) {
 		for k := range probe.Threat.Keys() {
 			sawLiveKey = sawLiveKey || slices.Contains(live, k)
 		}
+
 		for inner := range probe.Nested.Values() {
 			for row := range inner.Values() {
 				sawNested = sawNested || row.Cells.Len() > 0
 			}
 		}
 	}
+
 	require.True(t, sawLiveKey, "Map[EntityID, _] never got a live entity as a key")
 	require.True(t, sawNested, "a Slice inside a Map inside a Map was never filled")
 
@@ -97,12 +103,15 @@ func treeDepth(n fillTree) int {
 	for kid := range n.Kids.Values() {
 		deepest = max(deepest, treeDepth(kid))
 	}
+
 	for kid := range n.Index.Values() {
 		deepest = max(deepest, treeDepth(kid))
 	}
+
 	for _, kid := range n.Plain {
 		deepest = max(deepest, treeDepth(kid))
 	}
+
 	return 1 + deepest
 }
 
@@ -114,11 +123,13 @@ func TestFillRandom_StopsOnRecursiveTypes(t *testing.T) {
 	prng := testutils.NewRand(t)
 
 	deepest := 0
+
 	for range 64 {
 		var tree fillTree
 		fillRandom(prng, reflect.ValueOf(&tree).Elem(), nil)
 		deepest = max(deepest, treeDepth(tree))
 	}
+
 	require.Greater(t, deepest, 2, "a recursive type is filled more than one level deep")
 	require.LessOrEqual(t, deepest, 1+maxFillRepeats+1, "and stops at the limit")
 }

@@ -36,19 +36,24 @@ func (f *fakeContainerClient) ContainerInspect(
 ) (client.ContainerInspectResult, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
 	f.calls++
 	if f.inspectFn != nil {
 		return f.inspectFn()
 	}
+
 	idx := f.calls - 1
+
 	var st *container.State
 	if len(f.states) > 0 {
 		st = f.states[min(idx, len(f.states)-1)]
 	}
+
 	restarts := 0
 	if len(f.restartCounts) > 0 {
 		restarts = f.restartCounts[min(idx, len(f.restartCounts)-1)]
 	}
+
 	return client.ContainerInspectResult{
 		Container: container.InspectResponse{State: st, RestartCount: restarts},
 	}, nil
@@ -107,6 +112,7 @@ func TestWaitForReady(t *testing.T) {
 		waitMax   = 3 * time.Second
 		callerCtx = 10 * time.Second
 	)
+
 	looping := []int{0, crashLoopRestarts} // baseline, then the threshold on the first poll
 	crash := func(code int) string { return fmt.Sprintf("crash-looping: 3 restarts, last exit code %d", code) }
 
@@ -325,6 +331,7 @@ func TestWaitForReady(t *testing.T) {
 				states: tc.states, restartCounts: tc.restartCounts, inspectFn: tc.inspectFn,
 			}
 			svc := service.Service{Name: svcName}
+
 			if tc.readyURLStatus > 0 {
 				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.WriteHeader(tc.readyURLStatus)
@@ -334,9 +341,11 @@ func TestWaitForReady(t *testing.T) {
 			}
 
 			var mu sync.Mutex
+
 			logged := make([]string, 0, 1)
 			logDebug := func(name string) {
 				mu.Lock()
+
 				logged = append(logged, name)
 				mu.Unlock()
 			}
@@ -353,17 +362,22 @@ func TestWaitForReady(t *testing.T) {
 			} else {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tc.wantErrSub)
+
 				if tc.wantNoErrSub != "" {
 					assert.NotContains(t, err.Error(), tc.wantNoErrSub)
 				}
 			}
+
 			require.Len(t, logged, tc.wantLogCount, "logDebug call count")
+
 			if len(logged) > 0 {
 				assert.Equal(t, svcName, logged[0])
 			}
+
 			if tc.wantCalls > 0 {
 				assert.Equal(t, tc.wantCalls, fake.calls, "inspect call count")
 			}
+
 			assert.Less(t, elapsed, tc.maxElapsed)
 		})
 	}
@@ -377,33 +391,42 @@ func TestHTTPReady(t *testing.T) {
 
 	t.Run("2xxIsReady", func(t *testing.T) {
 		t.Parallel()
+
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		}))
 		t.Cleanup(srv.Close)
+
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
+
 		assert.True(t, httpReady(ctx, srv.URL+"/healthz"))
 	})
 
 	t.Run("Non2xxIsNotReady", func(t *testing.T) {
 		t.Parallel()
+
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusServiceUnavailable)
 		}))
 		t.Cleanup(srv.Close)
+
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
+
 		assert.False(t, httpReady(ctx, srv.URL+"/healthz"))
 	})
 
 	t.Run("ServerDownIsNotReady", func(t *testing.T) {
 		t.Parallel()
+
 		srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
 		addr := srv.URL
 		srv.Close() // immediately torn down -> connection refused
+
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
+
 		assert.False(t, httpReady(ctx, addr+"/healthz"))
 	})
 }

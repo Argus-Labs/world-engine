@@ -93,10 +93,13 @@ func buildWeldTowerScene(w *box2d.World) []box2d.BodyID {
 	gsd := box2d.DefaultShapeDef()
 	w.CreatePolygonShape(ground, &gsd, &groundBox)
 
-	const linkCount = 6
-	const halfHeight = 0.5
+	const (
+		linkCount  = 6
+		halfHeight = 0.5
+	)
 
 	prev := ground
+
 	for i := range linkCount {
 		bd := box2d.DefaultBodyDef()
 		bd.Type = box2d.DynamicBody
@@ -110,12 +113,14 @@ func buildWeldTowerScene(w *box2d.World) []box2d.BodyID {
 
 		jd := box2d.DefaultWeldJointDef()
 		jd.Base.BodyIDA = prev
+
 		jd.Base.BodyIDB = link
 		if i == 0 {
 			jd.Base.LocalFrameA.P = box2d.Vec2{X: 0.0, Y: 1.0}
 		} else {
 			jd.Base.LocalFrameA.P = box2d.Vec2{X: 0.0, Y: halfHeight}
 		}
+
 		jd.Base.LocalFrameB.P = box2d.Vec2{X: 0.0, Y: -halfHeight}
 		if i >= 3 {
 			jd.LinearHertz = 5.0
@@ -123,6 +128,7 @@ func buildWeldTowerScene(w *box2d.World) []box2d.BodyID {
 			jd.AngularHertz = 5.0
 			jd.AngularDampingRatio = 0.5
 		}
+
 		w.CreateWeldJoint(&jd)
 
 		bodies = append(bodies, link)
@@ -159,9 +165,11 @@ func TestGoldenJoint2(t *testing.T) {
 	if os.Getenv("BOX2D_UPDATE_GOLDEN") == "1" {
 		data, err := json.MarshalIndent(got, "", "  ")
 		require.NoError(t, err)
+
 		data = append(data, '\n')
 		require.NoError(t, os.WriteFile(path, data, 0o644))
 		t.Logf("golden file updated: %s", path)
+
 		return
 	}
 
@@ -172,6 +180,7 @@ func TestGoldenJoint2(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &want))
 
 	require.Len(t, got, len(want), "scene count")
+
 	for i := range want {
 		require.Equal(t, want[i].Name, got[i].Name)
 		require.Equal(t, want[i].Hashes, got[i].Hashes,

@@ -82,12 +82,14 @@ func TestClient_Request(t *testing.T) {
 			if !assert.NoError(t, err) {
 				return
 			}
+
 			resp := buildResponse(req)
 			b, err := resp.Bytes()
 			//nolint:testifylint // require would FailNow in this NATS callback goroutine, leaving the request to time out.
 			if !assert.NoError(t, err) {
 				return
 			}
+
 			msg.Respond(b)
 		})
 		defer sub.Unsubscribe()
@@ -129,6 +131,7 @@ func TestClient_Request(t *testing.T) {
 
 	t.Run("preserves gRPC status code", func(t *testing.T) {
 		t.Parallel()
+
 		cases := []struct {
 			name    string
 			code    codes.Code
@@ -161,6 +164,7 @@ func TestClient_Request(t *testing.T) {
 
 	t.Run("preserves status details", func(t *testing.T) {
 		t.Parallel()
+
 		detail := &micro.ServiceAddress{Project: "detail-proj", ServiceId: "detail-svc"}
 		st, err := status.New(codes.FailedPrecondition, "state conflict").WithDetails(detail)
 		require.NoError(t, err)
@@ -234,6 +238,7 @@ func TestClient_RequestAndSubscribe(t *testing.T) {
 		require.NotNil(t, msg)
 
 		var response microv1.Response
+
 		err = proto.Unmarshal(msg.Data, &response)
 		require.NoError(t, err)
 		assert.Equal(t, int32(codes.OK), response.GetStatus().GetCode())
@@ -316,5 +321,6 @@ func newTestHandler(
 ) *nats.Subscription {
 	sub, err := client.Subscribe(address, handler)
 	require.NoError(t, err)
+
 	return sub
 }

@@ -17,6 +17,7 @@ func TestIDPool_LIFOResue(t *testing.T) {
 	a := allocID(&pool)
 	b := allocID(&pool)
 	c := allocID(&pool)
+
 	require.Zero(t, a)
 	require.Equal(t, 1, b)
 	require.Equal(t, 2, c)

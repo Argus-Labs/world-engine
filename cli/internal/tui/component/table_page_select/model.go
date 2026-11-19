@@ -52,6 +52,7 @@ func InitialModel(ctx context.Context, prompt string, columns []string, rows [][
 	if defaultIndex < 0 {
 		defaultIndex = 0
 	}
+
 	if defaultIndex >= len(rows) && len(rows) > 0 {
 		defaultIndex = len(rows) - 1
 	}
@@ -61,6 +62,7 @@ func InitialModel(ctx context.Context, prompt string, columns []string, rows [][
 
 	// Build table columns: blank rank header first.
 	tblCols := make([]table.Column, 0, len(columns)+1)
+
 	tblCols = append(tblCols, table.Column{Title: "", Width: widths[0]})
 	for i, c := range columns {
 		tblCols = append(tblCols, table.Column{Title: c, Width: widths[i+1]})
@@ -123,12 +125,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.Cursor--
 				m.refreshTableRows()
 			}
+
 			m.NumericBuf = ""
 		case "down", "j":
 			if m.Cursor < len(m.Rows)-1 {
 				m.Cursor++
 				m.refreshTableRows()
 			}
+
 			m.NumericBuf = ""
 		case "left", "h":
 			m.pageLeft()
@@ -156,9 +160,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.legend.HandleToggle(keyMsg, len(m.ExtraKeys) > 0) {
 				return m, nil
 			}
+
 			if action, ok := m.matchExtraKey(keyMsg); ok {
 				m.HotkeyAction = action
 				m.finalized = true
+
 				return m, tea.Quit
 			}
 			// digits handling.
@@ -171,6 +177,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
+
 	return m, nil
 }
 
@@ -192,8 +199,10 @@ func (m *Model) View() string {
 	} else {
 		s += fmt.Sprintf("\n%s: %s\n", m.Prompt, m.NumericBuf)
 	}
+
 	pg, total := m.currentPageIndex()+1, m.totalPages()
 	s += fmt.Sprintf("\n%s (Pg %d/%d)\n", m.legend.View(m.primaryBindings(), m.secondaryBindings()), pg, total)
+
 	return s
 }
 
@@ -203,6 +212,7 @@ func (m *Model) matchExtraKey(msg tea.KeyMsg) (string, bool) {
 			return extra.Action, true
 		}
 	}
+
 	return "", false
 }
 
@@ -211,11 +221,13 @@ func (m *Model) primaryBindings() []key.Binding {
 	if len(m.ExtraKeys) == 0 {
 		return append(primary, m.legendKeys.Quit)
 	}
+
 	for _, extra := range m.ExtraKeys {
 		if !extra.Secondary {
 			primary = append(primary, extra.Binding)
 		}
 	}
+
 	return primary
 }
 
@@ -223,12 +235,14 @@ func (m *Model) secondaryBindings() []key.Binding {
 	if len(m.ExtraKeys) == 0 {
 		return nil
 	}
+
 	secondary := make([]key.Binding, 0, len(m.ExtraKeys)+1)
 	for _, extra := range m.ExtraKeys {
 		if extra.Secondary {
 			secondary = append(secondary, extra.Binding)
 		}
 	}
+
 	return append(secondary, m.legendKeys.Quit)
 }
 
@@ -237,6 +251,7 @@ func (m *Model) applyNumericBuf() {
 	if len(m.Rows) == 0 {
 		return
 	}
+
 	if m.NumericBuf == "" {
 		return
 	}
@@ -244,13 +259,16 @@ func (m *Model) applyNumericBuf() {
 	for len(m.NumericBuf) > 1 && m.NumericBuf[0] == '0' {
 		m.NumericBuf = m.NumericBuf[1:]
 	}
+
 	if n, err := strconv.Atoi(m.NumericBuf); err == nil {
 		if n < 1 {
 			n = 1
 		}
+
 		if n > len(m.Rows) {
 			n = len(m.Rows)
 		}
+
 		m.Cursor = n - 1
 		m.refreshTableRows()
 	}
@@ -261,18 +279,23 @@ func (m *Model) pageLeft() {
 	if len(m.Rows) == 0 {
 		return
 	}
+
 	within := m.Cursor % m.PageSize
+
 	start := m.currentPageStart()
 	if start == 0 {
 		// Already at first page.
 		m.refreshTableRows()
 		return
 	}
+
 	newStart := max(start-m.PageSize, 0)
+
 	pageLen := minInt(m.PageSize, len(m.Rows)-newStart)
 	if within >= pageLen {
 		within = pageLen - 1
 	}
+
 	m.Cursor = newStart + within
 	m.refreshTableRows()
 }
@@ -282,18 +305,22 @@ func (m *Model) pageRight() {
 	if len(m.Rows) == 0 {
 		return
 	}
+
 	within := m.Cursor % m.PageSize
 	start := m.currentPageStart()
+
 	newStart := start + m.PageSize
 	if newStart >= len(m.Rows) {
 		// Already at last page.
 		m.refreshTableRows()
 		return
 	}
+
 	pageLen := minInt(m.PageSize, len(m.Rows)-newStart)
 	if within >= pageLen {
 		within = pageLen - 1
 	}
+
 	m.Cursor = newStart + within
 	m.refreshTableRows()
 }
@@ -303,6 +330,7 @@ func (m *Model) currentPageStart() int {
 	if m.PageSize <= 0 {
 		return 0
 	}
+
 	return (m.Cursor / m.PageSize) * m.PageSize
 }
 
@@ -311,6 +339,7 @@ func (m *Model) currentPageIndex() int {
 	if m.PageSize <= 0 {
 		return 0
 	}
+
 	return m.Cursor / m.PageSize
 }
 
@@ -319,6 +348,7 @@ func (m *Model) totalPages() int {
 	if len(m.Rows) == 0 {
 		return 1
 	}
+
 	return ((len(m.Rows) - 1) / m.PageSize) + 1
 }
 
@@ -332,17 +362,21 @@ func (m *Model) refreshTableRows() {
 	if m.Cursor < 0 {
 		m.Cursor = 0
 	}
+
 	if m.Cursor >= len(m.Rows) {
 		m.Cursor = len(m.Rows) - 1
 	}
+
 	start := m.currentPageStart()
 	end := minInt(start+m.PageSize, len(m.Rows))
+
 	visible := make([]table.Row, 0, end-start)
 	for i := start; i < end; i++ {
 		row := []string{strconv.Itoa(i + 1)}
 		row = append(row, m.Rows[i]...)
 		visible = append(visible, row)
 	}
+
 	m.tbl.SetRows(visible)
 	// Height = clamp(len(visible), MinTableHeightRows, PageSize) + 2.
 	height := max(len(visible), MinTableHeightRows)
@@ -360,6 +394,7 @@ func computeColumnWidths(columns []string, rows [][]string, maxColWidth int) []i
 
 	for ci, title := range columns {
 		maxw := lipgloss.Width(title) + 1 // min: title + 1
+
 		for _, r := range rows {
 			if ci < len(r) {
 				w := lipgloss.Width(r[ci])
@@ -368,11 +403,14 @@ func computeColumnWidths(columns []string, rows [][]string, maxColWidth int) []i
 				}
 			}
 		}
+
 		if maxw > maxColWidth {
 			maxw = maxColWidth
 		}
+
 		widths[ci+1] = maxw
 	}
+
 	return widths
 }
 
@@ -380,5 +418,6 @@ func minInt(a, b int) int {
 	if a < b {
 		return a
 	}
+
 	return b
 }

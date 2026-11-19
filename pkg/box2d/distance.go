@@ -13,6 +13,7 @@ package box2d
 func GetSweepTransform(sweep *Sweep, time float64) Transform {
 	// https://fgiesen.wordpress.com/2012/08/15/linear-interpolation-past-present-and-future/
 	var xf Transform
+
 	xf.P = Add(MulSV(1.0-time, sweep.C1), MulSV(time, sweep.C2))
 
 	// upstream: (1.0f - time) * sweep->q1.c + time * sweep->q2.c (and .s)
@@ -25,6 +26,7 @@ func GetSweepTransform(sweep *Sweep, time float64) Transform {
 
 	// Shift to origin
 	xf.P = Sub(xf.P, RotateVector(xf.Q, sweep.LocalCenter))
+
 	return xf
 }
 
@@ -96,6 +98,7 @@ func SegmentDistance(p1, q1, p2, q2 Vec2) SegmentDistanceResult {
 	result.Closest1 = MulAdd(p1, result.Fraction1, d1)
 	result.Closest2 = MulAdd(p2, result.Fraction2, d2)
 	result.DistanceSquared = DistanceSquared(result.Closest1, result.Closest2)
+
 	return result
 }
 
@@ -106,10 +109,12 @@ func MakeProxy(points []Vec2, count int, radius float64) ShapeProxy {
 	if count < 0 || count > len(points) {
 		panic("box2d: proxy point count is outside the input slice")
 	}
+
 	var proxy ShapeProxy
 	copy(proxy.Points[:count], points[:count])
 	proxy.Count = count
 	proxy.Radius = radius
+
 	return proxy
 }
 
@@ -121,12 +126,15 @@ func MakeOffsetProxy(points []Vec2, count int, radius float64, position Vec2, ro
 		P: position,
 		Q: rotation,
 	}
+
 	var proxy ShapeProxy
 	for i := range count {
 		proxy.Points[i] = TransformPoint(transform, points[i])
 	}
+
 	proxy.Count = count
 	proxy.Radius = radius
+
 	return proxy
 }
 
@@ -151,6 +159,7 @@ func findSupport(proxy *ShapeProxy, direction Vec2) int {
 	count := proxy.Count
 
 	bestIndex := 0
+
 	bestValue := Dot(points[0], direction)
 	for i := 1; i < count; i++ {
 		value := Dot(points[i], direction)
@@ -240,7 +249,9 @@ func makeSimplexFromCache(cache SimplexCache, proxyA, proxyB *ShapeProxy, s *Sim
 // makeSimplexCache is upstream b2MakeSimplexCache.
 func makeSimplexCache(simplex *Simplex) SimplexCache {
 	var cache SimplexCache
+
 	cache.Count = uint16(simplex.Count)
+
 	vertices := [3]*SimplexVertex{&simplex.V1, &simplex.V2, &simplex.V3}
 	for i := range simplex.Count {
 		cache.IndexA[i] = uint8(vertices[i].IndexA)
@@ -271,6 +282,7 @@ func computeWitnessPoints(s *Simplex, a, b *Vec2) {
 	default:
 		*a = Vec2Zero
 		*b = Vec2Zero
+
 		assert(false)
 	}
 }
@@ -316,6 +328,7 @@ func solveSimplex2(s *Simplex) Vec2 {
 		// a2 <= 0, so we clamp it to 0
 		s.V1.A = 1.0
 		s.Count = 1
+
 		return Neg(w1)
 	}
 
@@ -326,6 +339,7 @@ func solveSimplex2(s *Simplex) Vec2 {
 		s.V2.A = 1.0
 		s.Count = 1
 		s.V1 = s.V2
+
 		return Neg(w2)
 	}
 
@@ -334,6 +348,7 @@ func solveSimplex2(s *Simplex) Vec2 {
 	s.V1.A = d121 * invD12
 	s.V2.A = d122 * invD12
 	s.Count = 2
+
 	return CrossSV(Cross(Add(w1, w2), e12), e12)
 }
 
@@ -384,6 +399,7 @@ func solveSimplex3(s *Simplex) Vec2 {
 	if d122 <= 0.0 && d132 <= 0.0 {
 		s.V1.A = 1.0
 		s.Count = 1
+
 		return Neg(w1)
 	}
 
@@ -393,6 +409,7 @@ func solveSimplex3(s *Simplex) Vec2 {
 		s.V1.A = d121 * invD12
 		s.V2.A = d122 * invD12
 		s.Count = 2
+
 		return CrossSV(Cross(Add(w1, w2), e12), e12)
 	}
 
@@ -403,6 +420,7 @@ func solveSimplex3(s *Simplex) Vec2 {
 		s.V3.A = d132 * invD13
 		s.Count = 2
 		s.V2 = s.V3
+
 		return CrossSV(Cross(Add(w1, w3), e13), e13)
 	}
 
@@ -411,6 +429,7 @@ func solveSimplex3(s *Simplex) Vec2 {
 		s.V2.A = 1.0
 		s.Count = 1
 		s.V1 = s.V2
+
 		return Neg(w2)
 	}
 
@@ -419,6 +438,7 @@ func solveSimplex3(s *Simplex) Vec2 {
 		s.V3.A = 1.0
 		s.Count = 1
 		s.V1 = s.V3
+
 		return Neg(w3)
 	}
 
@@ -429,6 +449,7 @@ func solveSimplex3(s *Simplex) Vec2 {
 		s.V3.A = d232 * invD23
 		s.Count = 2
 		s.V1 = s.V3
+
 		return CrossSV(Cross(Add(w2, w3), e23), e23)
 	}
 
@@ -474,6 +495,7 @@ func ShapeDistance(input *DistanceInput, cache *SimplexCache, simplexes []Simple
 	{
 		transform := InvMulTransforms(input.TransformA, input.TransformB)
 		localProxyB.Count = input.ProxyB.Count
+
 		localProxyB.Radius = input.ProxyB.Radius
 		for i := range localProxyB.Count {
 			localProxyB.Points[i] = TransformPoint(transform, input.ProxyB.Points[i])
@@ -501,6 +523,7 @@ func ShapeDistance(input *DistanceInput, cache *SimplexCache, simplexes []Simple
 
 	// Main iteration loop. All computations are done in frame A.
 	const maxIterations = 20
+
 	iteration := 0
 	for iteration < maxIterations {
 		// Copy simplex so we can identify duplicates.
@@ -512,6 +535,7 @@ func ShapeDistance(input *DistanceInput, cache *SimplexCache, simplexes []Simple
 		}
 
 		var d Vec2
+
 		switch simplex.Count {
 		case 1:
 			d = Neg(simplex.V1.W)
@@ -533,6 +557,7 @@ func ShapeDistance(input *DistanceInput, cache *SimplexCache, simplexes []Simple
 			computeWitnessPoints(&simplex, &localPointA, &localPointB)
 			output.PointA = TransformPoint(input.TransformA, localPointA)
 			output.PointB = TransformPoint(input.TransformA, localPointB)
+
 			return output
 		}
 
@@ -556,6 +581,7 @@ func ShapeDistance(input *DistanceInput, cache *SimplexCache, simplexes []Simple
 			computeWitnessPoints(&simplex, &localPointA, &localPointB)
 			output.PointA = TransformPoint(input.TransformA, localPointA)
 			output.PointB = TransformPoint(input.TransformA, localPointB)
+
 			return output
 		}
 
@@ -576,6 +602,7 @@ func ShapeDistance(input *DistanceInput, cache *SimplexCache, simplexes []Simple
 
 		// Check for duplicate support points. This is the main termination criteria.
 		duplicate := false
+
 		for i := range saveCount {
 			if vertex.IndexA == saveA[i] && vertex.IndexB == saveB[i] {
 				duplicate = true
@@ -605,6 +632,7 @@ func ShapeDistance(input *DistanceInput, cache *SimplexCache, simplexes []Simple
 
 	var localPointA, localPointB Vec2
 	computeWitnessPoints(&simplex, &localPointA, &localPointB)
+
 	output.Normal = normal
 	output.Distance = Distance(localPointA, localPointB)
 	output.PointA = TransformPoint(input.TransformA, localPointA)
@@ -652,6 +680,7 @@ func ShapeCast(input *ShapeCastPairInput) CastOutput {
 	fraction := 0.0
 
 	var distanceInput DistanceInput
+
 	distanceInput.ProxyA = input.ProxyA
 	distanceInput.ProxyB = input.ProxyB
 	distanceInput.TransformA = input.TransformA
@@ -659,9 +688,11 @@ func ShapeCast(input *ShapeCastPairInput) CastOutput {
 	distanceInput.UseRadii = false
 
 	delta2 := input.TranslationB
+
 	var output CastOutput
 
 	iteration := 0
+
 	const maxIterations = 20
 
 	for ; iteration < maxIterations; iteration++ {
@@ -681,15 +712,18 @@ func ShapeCast(input *ShapeCastPairInput) CastOutput {
 					c1 := MulAdd(distanceOutput.PointA, input.ProxyA.Radius, distanceOutput.Normal)
 					c2 := MulAdd(distanceOutput.PointB, -input.ProxyB.Radius, distanceOutput.Normal)
 					output.Point = Lerp(c1, c2, 0.5)
+
 					return output
 				}
 			} else {
 				// Regular hit
 				assert(distanceOutput.Distance > 0.0 && IsNormalized(distanceOutput.Normal))
+
 				output.Fraction = fraction
 				output.Point = MulAdd(distanceOutput.PointA, input.ProxyA.Radius, distanceOutput.Normal)
 				output.Normal = distanceOutput.Normal
 				output.Hit = true
+
 				return output
 			}
 		}
@@ -767,6 +801,7 @@ func makeSeparationFunction(cache SimplexCache, proxyA *ShapeProxy, sweepA *Swee
 		pointB := TransformPoint(xfB, localPointB)
 		f.axis = Normalize(Sub(pointB, pointA))
 		f.localPoint = Vec2Zero
+
 		return f
 	}
 
@@ -790,6 +825,7 @@ func makeSeparationFunction(cache SimplexCache, proxyA *ShapeProxy, sweepA *Swee
 		if s < 0.0 {
 			f.axis = Neg(f.axis)
 		}
+
 		return f
 	}
 
@@ -812,6 +848,7 @@ func makeSeparationFunction(cache SimplexCache, proxyA *ShapeProxy, sweepA *Swee
 	if s < 0.0 {
 		f.axis = Neg(f.axis)
 	}
+
 	return f
 }
 
@@ -837,6 +874,7 @@ func findMinSeparation(f *separationFunction, t float64) (float64, int, int) {
 		pointB := TransformPoint(xfB, localPointB)
 
 		separation := Dot(Sub(pointB, pointA), f.axis)
+
 		return separation, indexA, indexB
 
 	case faceAType:
@@ -852,6 +890,7 @@ func findMinSeparation(f *separationFunction, t float64) (float64, int, int) {
 		pointB := TransformPoint(xfB, localPointB)
 
 		separation := Dot(Sub(pointB, pointA), normal)
+
 		return separation, indexA, indexB
 
 	case faceBType:
@@ -867,6 +906,7 @@ func findMinSeparation(f *separationFunction, t float64) (float64, int, int) {
 		pointA := TransformPoint(xfA, localPointA)
 
 		separation := Dot(Sub(pointA, pointB), normal)
+
 		return separation, indexA, indexB
 
 	default:
@@ -889,6 +929,7 @@ func evaluateSeparation(f *separationFunction, indexA, indexB int, t float64) fl
 		pointB := TransformPoint(xfB, localPointB)
 
 		separation := Dot(Sub(pointB, pointA), f.axis)
+
 		return separation
 
 	case faceAType:
@@ -899,6 +940,7 @@ func evaluateSeparation(f *separationFunction, indexA, indexB int, t float64) fl
 		pointB := TransformPoint(xfB, localPointB)
 
 		separation := Dot(Sub(pointB, pointA), normal)
+
 		return separation
 
 	case faceBType:
@@ -909,6 +951,7 @@ func evaluateSeparation(f *separationFunction, indexA, indexB int, t float64) fl
 		pointA := TransformPoint(xfA, localPointA)
 
 		separation := Dot(Sub(pointA, pointB), normal)
+
 		return separation
 
 	default:
@@ -930,11 +973,13 @@ func TimeOfImpact(input *TOIInput) TOIOutput {
 	requireValidProxyCount(&input.ProxyB, "TOIInput.ProxyB")
 
 	var output TOIOutput
+
 	output.State = TOIStateUnknown
 	output.Fraction = input.MaxFraction
 
 	sweepA := input.SweepA
 	sweepB := input.SweepB
+
 	assert(IsNormalizedRot(sweepA.Q1) && IsNormalizedRot(sweepA.Q2))
 	assert(IsNormalizedRot(sweepB.Q1) && IsNormalizedRot(sweepB.Q2))
 
@@ -954,12 +999,17 @@ func TimeOfImpact(input *TOIInput) TOIOutput {
 	assert(target > tolerance)
 
 	t1 := 0.0
+
 	const kMaxIterations = 20
+
 	distanceIterations := 0
 
 	// Prepare input for distance query.
-	var cache SimplexCache
-	var distanceInput DistanceInput
+	var (
+		cache         SimplexCache
+		distanceInput DistanceInput
+	)
+
 	distanceInput.ProxyA = input.ProxyA
 	distanceInput.ProxyB = input.ProxyB
 	distanceInput.UseRadii = false
@@ -980,6 +1030,7 @@ func TimeOfImpact(input *TOIInput) TOIOutput {
 			// Failure!
 			output.State = TOIStateOverlapped
 			output.Fraction = 0.0
+
 			break
 		}
 
@@ -992,6 +1043,7 @@ func TimeOfImpact(input *TOIInput) TOIOutput {
 			output.Point = Lerp(pA, pB, 0.5)
 			output.Normal = distanceOutput.Normal
 			output.Fraction = t1
+
 			break
 		}
 
@@ -1004,6 +1056,7 @@ func TimeOfImpact(input *TOIInput) TOIOutput {
 		done := false
 		t2 := tMax
 		pushBackIterations := 0
+
 		for {
 			// Find the deepest point at t2. Store the witness point indices.
 			s2, indexA, indexB := findMinSeparation(&fcn, t2)
@@ -1014,6 +1067,7 @@ func TimeOfImpact(input *TOIInput) TOIOutput {
 				output.State = TOIStateSeparated
 				output.Fraction = tMax
 				done = true
+
 				break
 			}
 
@@ -1033,6 +1087,7 @@ func TimeOfImpact(input *TOIInput) TOIOutput {
 				output.State = TOIStateFailed
 				output.Fraction = t1
 				done = true
+
 				break
 			}
 
@@ -1047,12 +1102,14 @@ func TimeOfImpact(input *TOIInput) TOIOutput {
 				output.Normal = distanceOutput.Normal
 				output.Fraction = t1
 				done = true
+
 				break
 			}
 
 			// Compute 1D root of: f(x) - target = 0
 			rootIterationCount := 0
 			a1, a2 := t1, t2
+
 			for {
 				// Use a mix of false position and bisection.
 				var t float64
@@ -1110,6 +1167,7 @@ func TimeOfImpact(input *TOIInput) TOIOutput {
 			output.Point = Lerp(pA, pB, 0.5)
 			output.Normal = distanceOutput.Normal
 			output.Fraction = t1
+
 			break
 		}
 	}

@@ -39,11 +39,13 @@ func New(opts Options) (Telemetry, error) {
 	options := newDefaultOptions()
 	config.applyToOptions(&options)
 	options.apply(opts)
+
 	if err := options.validate(); err != nil {
 		return Telemetry{}, eris.Wrap(err, "invalid otel options")
 	}
 
 	ctx := context.Background()
+
 	logger, maxCommandLinks, shutdown, err := setupOpenTelemetry(ctx, options)
 	if err != nil {
 		return Telemetry{}, eris.Wrap(err, "failed to setup telemetry")
@@ -96,14 +98,17 @@ func onlyContextSentinels(err error) bool {
 	if err == nil {
 		return true
 	}
+
 	if joined, ok := err.(interface{ Unwrap() []error }); ok {
 		for _, e := range joined.Unwrap() {
 			if !onlyContextSentinels(e) {
 				return false
 			}
 		}
+
 		return true
 	}
+
 	if inner, ok := err.(interface{ Unwrap() error }); ok {
 		if u := inner.Unwrap(); u != nil {
 			return onlyContextSentinels(u)
@@ -123,6 +128,7 @@ func isGRPCContextCancellation(err error) bool {
 	if !ok {
 		return false
 	}
+
 	return s.Code() == codes.Canceled || s.Code() == codes.DeadlineExceeded
 }
 
@@ -135,6 +141,7 @@ func (t *Telemetry) Shutdown(ctx context.Context) error {
 		if !onlyContextSentinels(err) {
 			t.CaptureException(ctx, err)
 		}
+
 		outErr = errors.Join(outErr, eris.Wrap(err, "otel shutdown"))
 	}
 
@@ -144,6 +151,7 @@ func (t *Telemetry) Shutdown(ctx context.Context) error {
 	}
 
 	sentry.Shutdown(ctx, 5*time.Second)
+
 	return outErr
 }
 
@@ -193,11 +201,13 @@ func init() { //nolint:gochecknoinits // Its fine
 	if err != nil {
 		// Default to info level and JSON format.
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
 		log.Logger = zerolog.New(os.Stdout). //nolint:reassign // Its fine
 							With().
 							Timestamp().
 							Caller().
 							Logger()
+
 		return
 	}
 
@@ -208,6 +218,7 @@ func init() { //nolint:gochecknoinits // Its fine
 	if err != nil {
 		level = zerolog.InfoLevel
 	}
+
 	zerolog.SetGlobalLevel(level)
 
 	var writer io.Writer = os.Stdout // Default to JSON

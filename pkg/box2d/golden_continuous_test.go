@@ -48,9 +48,11 @@ func TestGoldenContinuous(t *testing.T) {
 	if os.Getenv("BOX2D_UPDATE_GOLDEN") == "1" {
 		data, err := json.MarshalIndent(got, "", "  ")
 		require.NoError(t, err)
+
 		data = append(data, '\n')
 		require.NoError(t, os.WriteFile(path, data, 0o644))
 		t.Logf("golden file updated: %s", path)
+
 		return
 	}
 
@@ -61,6 +63,7 @@ func TestGoldenContinuous(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &want))
 
 	require.Len(t, got, len(want), "scene count")
+
 	for i := range want {
 		require.Equal(t, want[i].Name, got[i].Name)
 		require.Equal(t, want[i].Hashes, got[i].Hashes,

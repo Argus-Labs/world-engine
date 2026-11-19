@@ -55,6 +55,7 @@ func (s *Scenario) LastTick() uint64 {
 			last = st.Tick
 		}
 	}
+
 	return last
 }
 
@@ -198,6 +199,7 @@ func (c *Ctx) SpawnFull(
 	row.Set(v)
 	row.Set(pb)
 	c.events.own(id, c.scenario, label)
+
 	return id
 }
 
@@ -248,6 +250,7 @@ func (c *Ctx) Pos(id cardinal.EntityID) physics.Vec2 {
 	if err != nil {
 		return physics.Vec2{}
 	}
+
 	return c.toLocal(row.Get[physics.Transform2D]().Position)
 }
 
@@ -257,6 +260,7 @@ func (c *Ctx) Rot(id cardinal.EntityID) float64 {
 	if err != nil {
 		return 0
 	}
+
 	return row.Get[physics.Transform2D]().Rotation
 }
 
@@ -266,6 +270,7 @@ func (c *Ctx) Vel(id cardinal.EntityID) physics.Vec2 {
 	if err != nil {
 		return physics.Vec2{}
 	}
+
 	return row.Get[physics.Velocity2D]().Linear
 }
 
@@ -275,6 +280,7 @@ func (c *Ctx) AngVel(id cardinal.EntityID) float64 {
 	if err != nil {
 		return 0
 	}
+
 	return row.Get[physics.Velocity2D]().Angular
 }
 
@@ -290,6 +296,7 @@ func (c *Ctx) Body(id cardinal.EntityID) physics.PhysicsBody2D {
 	if err != nil {
 		return physics.PhysicsBody2D{}
 	}
+
 	return row.Get[physics.PhysicsBody2D]()
 }
 
@@ -299,6 +306,7 @@ func (c *Ctx) SetPos(id cardinal.EntityID, x, y float64) {
 	if err != nil {
 		return
 	}
+
 	t := row.Get[physics.Transform2D]()
 	t.Position = c.toWorld(physics.Vec2{X: x, Y: y})
 	row.Set(t)
@@ -310,6 +318,7 @@ func (c *Ctx) SetRot(id cardinal.EntityID, radians float64) {
 	if err != nil {
 		return
 	}
+
 	t := row.Get[physics.Transform2D]()
 	t.Rotation = radians
 	row.Set(t)
@@ -321,6 +330,7 @@ func (c *Ctx) SetVel(id cardinal.EntityID, vx, vy float64) {
 	if err != nil {
 		return
 	}
+
 	v := row.Get[physics.Velocity2D]()
 	v.Linear = physics.Vec2{X: vx, Y: vy}
 	row.Set(v)
@@ -332,6 +342,7 @@ func (c *Ctx) SetAngVel(id cardinal.EntityID, angular float64) {
 	if err != nil {
 		return
 	}
+
 	v := row.Get[physics.Velocity2D]()
 	v.Angular = angular
 	row.Set(v)
@@ -343,6 +354,7 @@ func (c *Ctx) SetBody(id cardinal.EntityID, pb physics.PhysicsBody2D) {
 	if err != nil {
 		return
 	}
+
 	row.Set(pb)
 }
 
@@ -384,6 +396,7 @@ func (c *Ctx) Raycast(fromX, fromY, toX, toY float64, filter *physics.Filter) ph
 	if res.Hit {
 		res.Point = c.toLocal(res.Point)
 	}
+
 	return res
 }
 
@@ -410,6 +423,7 @@ func (c *Ctx) CircleSweep(
 	if res.Hit {
 		res.Point = c.toLocal(res.Point)
 	}
+
 	return res
 }
 
@@ -420,6 +434,7 @@ func (c *Ctx) OverlapHits(res physics.AABBOverlapResult, id cardinal.EntityID) b
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -430,6 +445,7 @@ func (c *Ctx) OverlapHitsShape(res physics.AABBOverlapResult, id cardinal.Entity
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -445,11 +461,13 @@ func (c *Ctx) Events(kind EventKind) []LoggedEvent {
 // EventsBetween returns this scenario's events of a kind involving exactly a and b.
 func (c *Ctx) EventsBetween(kind EventKind, a, b cardinal.EntityID) []LoggedEvent {
 	var out []LoggedEvent
+
 	for _, e := range c.events.forScenario(c.scenario, kind) {
 		if e.Involves(a, b) {
 			out = append(out, e)
 		}
 	}
+
 	return out
 }
 
@@ -461,22 +479,26 @@ func (c *Ctx) CountBetween(kind EventKind, a, b cardinal.EntityID) int {
 // CountTouching counts this scenario's events of a kind naming the given entity.
 func (c *Ctx) CountTouching(kind EventKind, id cardinal.EntityID) int {
 	n := 0
+
 	for _, e := range c.events.forScenario(c.scenario, kind) {
 		if e.Touches(id) {
 			n++
 		}
 	}
+
 	return n
 }
 
 // EventsOnTick returns this scenario's events of a kind recorded on one tick.
 func (c *Ctx) EventsOnTick(kind EventKind, tick uint64) []LoggedEvent {
 	var out []LoggedEvent
+
 	for _, e := range c.events.forScenario(c.scenario, kind) {
 		if e.Tick == tick {
 			out = append(out, e)
 		}
 	}
+
 	return out
 }
 
@@ -489,11 +511,14 @@ func (c *Ctx) True(check string, got bool, format string, args ...any) bool {
 	if c.tb != nil {
 		c.tb.Helper()
 	}
+
 	if got {
 		c.report.Pass(c.scenario, check, c.tick)
 		return true
 	}
+
 	c.report.Fail(c.scenario, check, c.tick, format, args...)
+
 	return false
 }
 
@@ -502,6 +527,7 @@ func (c *Ctx) False(check string, got bool, format string, args ...any) bool {
 	if c.tb != nil {
 		c.tb.Helper()
 	}
+
 	return c.True(check, !got, format, args...)
 }
 
@@ -510,9 +536,11 @@ func (c *Ctx) Near(check string, got, want, tol float64) bool {
 	if c.tb != nil {
 		c.tb.Helper()
 	}
+
 	if !finite(got) {
 		return c.True(check, false, "got %v (not finite), want %v ±%v", got, want, tol)
 	}
+
 	return c.True(check, math.Abs(got-want) <= tol,
 		"got %.6f, want %.6f ±%.6f (off by %.6f)", got, want, tol, math.Abs(got-want))
 }
@@ -522,8 +550,10 @@ func (c *Ctx) NearVec(check string, got, want physics.Vec2, tol float64) bool {
 	if c.tb != nil {
 		c.tb.Helper()
 	}
+
 	ok := finite(got.X) && finite(got.Y) &&
 		math.Abs(got.X-want.X) <= tol && math.Abs(got.Y-want.Y) <= tol
+
 	return c.True(check, ok, "got (%.6f, %.6f), want (%.6f, %.6f) ±%.6f",
 		got.X, got.Y, want.X, want.Y, tol)
 }
@@ -533,6 +563,7 @@ func (c *Ctx) Greater(check string, got, threshold float64) bool {
 	if c.tb != nil {
 		c.tb.Helper()
 	}
+
 	return c.True(check, finite(got) && got > threshold, "got %.6f, want > %.6f", got, threshold)
 }
 
@@ -541,6 +572,7 @@ func (c *Ctx) GreaterEq(check string, got, threshold float64) bool {
 	if c.tb != nil {
 		c.tb.Helper()
 	}
+
 	return c.True(check, finite(got) && got >= threshold, "got %.6f, want >= %.6f", got, threshold)
 }
 
@@ -549,6 +581,7 @@ func (c *Ctx) Less(check string, got, threshold float64) bool {
 	if c.tb != nil {
 		c.tb.Helper()
 	}
+
 	return c.True(check, finite(got) && got < threshold, "got %.6f, want < %.6f", got, threshold)
 }
 
@@ -557,6 +590,7 @@ func (c *Ctx) LessEq(check string, got, threshold float64) bool {
 	if c.tb != nil {
 		c.tb.Helper()
 	}
+
 	return c.True(check, finite(got) && got <= threshold, "got %.6f, want <= %.6f", got, threshold)
 }
 
@@ -565,6 +599,7 @@ func (c *Ctx) Between(check string, got, lo, hi float64) bool {
 	if c.tb != nil {
 		c.tb.Helper()
 	}
+
 	return c.True(check, finite(got) && got >= lo && got <= hi,
 		"got %.6f, want within [%.6f, %.6f]", got, lo, hi)
 }
@@ -574,6 +609,7 @@ func (c *Ctx) Int(check string, got, want int) bool {
 	if c.tb != nil {
 		c.tb.Helper()
 	}
+
 	return c.True(check, got == want, "got %d, want %d", got, want)
 }
 
@@ -582,6 +618,7 @@ func (c *Ctx) IntAtLeast(check string, got, want int) bool {
 	if c.tb != nil {
 		c.tb.Helper()
 	}
+
 	return c.True(check, got >= want, "got %d, want >= %d", got, want)
 }
 
@@ -590,6 +627,7 @@ func (c *Ctx) Str(check, got, want string) bool {
 	if c.tb != nil {
 		c.tb.Helper()
 	}
+
 	return c.True(check, got == want, "got %q, want %q", got, want)
 }
 
@@ -598,6 +636,7 @@ func (c *Ctx) NoError(check string, err error) bool {
 	if c.tb != nil {
 		c.tb.Helper()
 	}
+
 	return c.True(check, err == nil, "unexpected error: %v", err)
 }
 
@@ -606,6 +645,7 @@ func (c *Ctx) HasError(check string, err error) bool {
 	if c.tb != nil {
 		c.tb.Helper()
 	}
+
 	return c.True(check, err != nil, "expected an error, got nil")
 }
 
@@ -614,6 +654,7 @@ func (c *Ctx) Note(format string, args ...any) {
 	if c.tb != nil {
 		c.tb.Helper()
 	}
+
 	c.report.Note(c.scenario, c.tick, format, args...)
 }
 

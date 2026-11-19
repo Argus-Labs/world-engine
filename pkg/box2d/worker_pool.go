@@ -110,6 +110,7 @@ func newWorkerPool(workerCount int) *workerPool {
 	}
 
 	p.done.Add(workerCount - 1)
+
 	for range workerCount - 1 {
 		go p.workerLoop()
 	}
@@ -149,12 +150,14 @@ func (p *workerPool) workerLoop() {
 			go p.workerLoop()
 			return
 		}
+
 		p.done.Done()
 	}()
 
 	for k := range p.jobs {
 		p.runRange(k)
 	}
+
 	finished = true
 }
 
@@ -173,6 +176,7 @@ func (p *workerPool) runRange(k int) {
 			p.panics[k].val = fmt.Sprintf(
 				"box2d: worker %d exited via runtime.Goexit inside a callback", k)
 		}
+
 		p.wg.Done()
 	}()
 
@@ -180,6 +184,7 @@ func (p *workerPool) runRange(k int) {
 	if startIndex < endIndex {
 		p.fn(k, startIndex, endIndex)
 	}
+
 	completed = true
 }
 
@@ -218,6 +223,7 @@ func (p *workerPool) forRange(n, grain int, fn func(workerIndex, startIndex, end
 	p.fn = fn
 
 	p.wg.Add(jobWorkers)
+
 	for k := 1; k < jobWorkers; k++ {
 		p.jobs <- k
 	}
@@ -246,6 +252,7 @@ func (p *workerPool) forRange(n, grain int, fn func(workerIndex, startIndex, end
 			for j := range p.panics {
 				p.panics[j].val = nil
 			}
+
 			panic(val)
 		}
 	}
@@ -261,6 +268,7 @@ func workerRange(n, workerCount, k int) (int, int) {
 	perWorker := (n + workerCount - 1) / workerCount
 	start := min(k*perWorker, n)
 	end := min(start+perWorker, n)
+
 	return start, end
 }
 
@@ -276,5 +284,6 @@ func forRangeWorkers(n, grain, workerCount int) int {
 	if n <= 0 {
 		return 1
 	}
+
 	return min(max(n/grain, 1), workerCount)
 }

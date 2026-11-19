@@ -399,6 +399,7 @@ func TestOracleArenaCapacityTracksHighWaterMark(t *testing.T) {
 	tassert.Equal(t, 0, getMaxArenaAllocation(&a))
 
 	const small = 4
+
 	data := a.allocMassData(small)
 	require.Len(t, data, small)
 	tassert.Equal(t, small, getArenaAllocation(&a))
@@ -411,6 +412,7 @@ func TestOracleArenaCapacityTracksHighWaterMark(t *testing.T) {
 	tassert.GreaterOrEqual(t, getArenaCapacity(&a), small)
 
 	const large = 37
+
 	data = a.allocMassData(large)
 	require.Len(t, data, large)
 	tassert.GreaterOrEqual(t, getArenaCapacity(&a), large)
@@ -442,6 +444,7 @@ func TestOracleArenaCapacityFromWorldStep(t *testing.T) {
 	t.Parallel()
 
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -450,6 +453,7 @@ func TestOracleArenaCapacityFromWorldStep(t *testing.T) {
 	bodyID := w.CreateBody(&bodyDef)
 
 	shapeDef := DefaultShapeDef()
+
 	circle := Circle{Radius: 0.5}
 	for range 6 {
 		w.CreateCircleShape(bodyID, &shapeDef, &circle)
@@ -478,6 +482,7 @@ func TestOracleValidateIsland(t *testing.T) {
 	t.Parallel()
 
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -547,6 +552,7 @@ func TestOracleTreeFreeListInvariant(t *testing.T) {
 	defer tree.Destroy()
 
 	proxies := make([]int, 0, 24)
+
 	for i := range 24 {
 		x := float64(i)
 		box := AABB{
@@ -601,6 +607,7 @@ func TestOracleTreeValidateRejectsCorruption(t *testing.T) {
 	// buildTree returns a tree with a real internal root and eight leaves.
 	buildTree := func() DynamicTree {
 		tree := NewDynamicTree()
+
 		for i := range 8 {
 			x := float64(float64(i) * 3.0)
 			box := AABB{
@@ -609,6 +616,7 @@ func TestOracleTreeValidateRejectsCorruption(t *testing.T) {
 			}
 			tree.CreateProxy(box, 1, uint64(i))
 		}
+
 		return tree
 	}
 
@@ -621,6 +629,7 @@ func TestOracleTreeValidateRejectsCorruption(t *testing.T) {
 				return i
 			}
 		}
+
 		return NullIndex
 	}
 
@@ -631,6 +640,7 @@ func TestOracleTreeValidateRejectsCorruption(t *testing.T) {
 				return i
 			}
 		}
+
 		return NullIndex
 	}
 
@@ -873,6 +883,7 @@ func TestOracleShapeHelpersDefaultArm(t *testing.T) {
 	tassert.Equal(t, CastOutput{}, rayCastShape(&rayInput, &s, xf))
 
 	var castInput ShapeCastInput
+
 	castInput.Proxy = MakeProxy([]Vec2{{X: 0.0, Y: 0.0}}, 1, 0.1)
 	castInput.Translation = Vec2{X: 20.0, Y: 0.0}
 	castInput.MaxFraction = 1.0
@@ -909,6 +920,7 @@ func TestOracleShapeCastShapeRejectsEmptyProxy(t *testing.T) {
 	s := shape{shapeType: CircleShape, sensorIndex: NullIndex, circle: Circle{Radius: 1.0}}
 
 	var input ShapeCastInput
+
 	input.Proxy.Count = 0
 	input.Translation = Vec2{X: 10.0, Y: 0.0}
 	input.MaxFraction = 1.0

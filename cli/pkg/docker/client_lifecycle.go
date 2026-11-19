@@ -39,6 +39,7 @@ var probeClient = &http.Client{Transport: &http.Transport{DisableKeepAlives: tru
 // for readiness), then shards concurrently. progress may be nil.
 func (c *Client) StartContainers(ctx context.Context, services []service.Service, progress func(Progress)) error {
 	progress = synchronized(progress)
+
 	byRole := map[string][]service.Service{}
 	for _, s := range services {
 		byRole[s.Labels[service.RoleLabel]] = append(byRole[s.Labels[service.RoleLabel]], s)
@@ -46,15 +47,19 @@ func (c *Client) StartContainers(ctx context.Context, services []service.Service
 
 	startAndWait := func(svc service.Service) error {
 		notify(progress, Progress{Name: svc.Name, State: StateStarting})
+
 		if err := c.startContainer(ctx, svc); err != nil {
 			notify(progress, Progress{Name: svc.Name, State: StateStarting, Err: err})
 			return err
 		}
+
 		if err := c.waitForReady(ctx, svc); err != nil {
 			notify(progress, Progress{Name: svc.Name, State: StateStarting, Err: err})
 			return err
 		}
+
 		notify(progress, Progress{Name: svc.Name, State: StateStarted})
+
 		return nil
 	}
 
@@ -70,14 +75,18 @@ func (c *Client) StartContainers(ctx context.Context, services []service.Service
 	for _, svc := range byRole[service.RoleShard] {
 		g.Go(func() error {
 			notify(progress, Progress{Name: svc.Name, State: StateStarting})
+
 			if err := c.startContainer(ctx, svc); err != nil {
 				notify(progress, Progress{Name: svc.Name, State: StateStarting, Err: err})
 				return eris.Wrapf(err, "start %s", svc.Name)
 			}
+
 			notify(progress, Progress{Name: svc.Name, State: StateStarted})
+
 			return nil
 		})
 	}
+
 	return g.Wait()
 }
 
@@ -108,11 +117,15 @@ func waitContainerReady(
 	if err != nil {
 		return eris.Wrapf(err, "inspect %s", svc.Name)
 	}
+
 	base := res.Container.RestartCount
+
 	ticker := time.NewTicker(poll)
 	defer ticker.Stop()
+
 	stable, lastRestarts := 0, 0
 	lastExit, sawExit := 0, false // Docker resets ExitCode to 0 on each policy restart
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -123,29 +136,38 @@ func waitContainerReady(
 			if err != nil {
 				return eris.Wrapf(err, "inspect %s", svc.Name)
 			}
+
 			st := res.Container.State
 			if st == nil {
 				continue
 			}
+
 			restarts := res.Container.RestartCount - base
+
 			if st.Restarting {
 				lastExit, sawExit = st.ExitCode, true
 			}
+
 			if restarts >= crashLoopRestarts {
 				logDebug(svc.Name)
+
 				if sawExit {
 					return eris.Errorf("%s crash-looping: %d restarts, last exit code %d", svc.Name, restarts, lastExit)
 				}
+
 				return eris.Errorf("%s crash-looping: %d restarts", svc.Name, restarts)
 			}
+
 			if st.Status == container.StateExited {
 				logDebug(svc.Name)
 				return eris.Errorf("%s exited with code %d", svc.Name, st.ExitCode)
 			}
+
 			if restarts != lastRestarts || !st.Running || st.Restarting {
 				lastRestarts, stable = restarts, 0
 				continue
 			}
+
 			switch {
 			case st.Health != nil:
 				if st.Health.Status == container.Healthy {
@@ -170,15 +192,19 @@ func waitContainerReady(
 func httpReady(ctx context.Context, url string) bool {
 	ctx, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return false
 	}
+
 	resp, err := probeClient.Do(req)
 	if err != nil {
 		return false
 	}
+
 	_ = resp.Body.Close()
+
 	return resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices
 }
 
@@ -186,6 +212,7 @@ func httpReady(ctx context.Context, url string) bool {
 func (c *Client) logContainerDebugInfo(name string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
 	if st, err := c.ContainerState(ctx, name); err == nil {
 		c.logger.Warn(
 			"container state",
@@ -199,6 +226,7 @@ func (c *Client) logContainerDebugInfo(name string) {
 			st.ExitCode,
 		)
 	}
+
 	if logs, err := c.GetContainerLogs(ctx, name, 10, 0); err == nil && logs != "" {
 		c.logger.Warn("container logs", "container", name, "logs", logs)
 	}
@@ -207,18 +235,23 @@ func (c *Client) logContainerDebugInfo(name string) {
 // StopContainers stops containers concurrently; missing ones are skipped. Volumes stay.
 func (c *Client) StopContainers(ctx context.Context, names []string, progress func(Progress)) error {
 	progress = synchronized(progress)
+
 	var g errgroup.Group
 	for _, name := range names {
 		g.Go(func() error {
 			notify(progress, Progress{Name: name, State: StateStopping})
+
 			if err := c.stopContainer(ctx, name); err != nil {
 				notify(progress, Progress{Name: name, State: StateStopping, Err: err})
 				return err
 			}
+
 			notify(progress, Progress{Name: name, State: StateStopped})
+
 			return nil
 		})
 	}
+
 	return g.Wait()
 }
 
@@ -231,18 +264,23 @@ func (c *Client) RemoveContainers(
 	progress func(Progress),
 ) error {
 	progress = synchronized(progress)
+
 	var g errgroup.Group
 	for _, name := range names {
 		g.Go(func() error {
 			notify(progress, Progress{Name: name, State: StateRemoving})
+
 			if err := c.removeContainer(ctx, name, keepVolumes); err != nil {
 				notify(progress, Progress{Name: name, State: StateRemoving, Err: err})
 				return err
 			}
+
 			notify(progress, Progress{Name: name, State: StateRemoved})
+
 			return nil
 		})
 	}
+
 	return g.Wait()
 }
 
@@ -265,23 +303,29 @@ func (c *Client) ContainerState(ctx context.Context, name string) (ContainerStat
 	if err != nil {
 		return ContainerState{}, eris.Wrapf(err, "inspect %s", name)
 	}
+
 	cont := res.Container
+
 	out := ContainerState{Name: name, RestartCount: cont.RestartCount}
 	if cont.Config != nil {
 		out.Image = cont.Config.Image
 		out.Labels = cont.Config.Labels
 	}
+
 	if st := cont.State; st != nil {
 		out.Running = st.Running
 		out.Status = string(st.Status)
+
 		out.ExitCode = st.ExitCode
 		if st.Health != nil {
 			out.Health = string(st.Health.Status)
 		}
+
 		if t, err := time.Parse(time.RFC3339Nano, st.StartedAt); err == nil {
 			out.StartedAt = t
 		}
 	}
+
 	return out, nil
 }
 
@@ -302,13 +346,16 @@ func (c *Client) ListProjectContainers(ctx context.Context, project string) ([]C
 	if err != nil {
 		return nil, eris.Wrapf(err, "list containers for project %q", project)
 	}
+
 	out := make([]ContainerSummary, 0, len(res.Items))
 	for _, it := range res.Items {
 		name := ""
 		if len(it.Names) > 0 {
 			name = strings.TrimPrefix(it.Names[0], "/")
 		}
+
 		out = append(out, ContainerSummary{Name: name, Image: it.Image, State: string(it.State), Labels: it.Labels})
 	}
+
 	return out, nil
 }

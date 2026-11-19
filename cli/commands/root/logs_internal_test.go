@@ -72,6 +72,7 @@ func TestBuildLogTargets(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			cfg := &service.Config{
 				Project:   "rampage",
 				WorldToml: worldtoml.Config{Project: "rampage", Shards: tt.shards},
@@ -87,6 +88,7 @@ func TestBuildLogTargets(t *testing.T) {
 				require.Equal(t, want.Instance, got[i].Instance, "shard row %d Instance", i)
 				require.False(t, got[i].IsPlatform(), "shard row %d should not be a platform container", i)
 			}
+
 			for i, name := range platforms {
 				row := got[len(tt.wantShard)+i]
 				require.Equal(t, name, row.Instance, "platform row %d Instance", i)

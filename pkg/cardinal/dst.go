@@ -57,6 +57,7 @@ func RunDST(t *testing.T, setup DSTSetupFunc, preTestCommands []Command) {
 
 	prng := testutils.NewRand(t)
 	cfg := newDSTConfig(prng)
+
 	fix := newDSTFixture(t, cfg, setup)
 	for _, cmd := range preTestCommands {
 		require.NoError(t, fix.enqueueCommand(cmd))
@@ -64,10 +65,12 @@ func RunDST(t *testing.T, setup DSTSetupFunc, preTestCommands []Command) {
 
 	// Add the world's commmands as operations in the dst config.
 	cmdNames := fix.world.commands.Names()
+
 	cmdOps := make([]string, 0, len(cmdNames))
 	for _, name := range cmdNames {
 		cmdOps = append(cmdOps, opCommandPrefix+name)
 	}
+
 	cfg.addCommandOps(prng, cmdOps)
 	cfg.log(t)
 
@@ -149,6 +152,7 @@ func newDSTConfig(rng *rand.Rand) dstConfig {
 			opWeights[op] = uint64(1 + rng.IntN(5)) //nolint:gosec // not gonna happen
 		}
 	}
+
 	return dstConfig{
 		Ticks:        *numTicks,
 		OpWeights:    opWeights,
@@ -161,6 +165,7 @@ func (c *dstConfig) addCommandOps(rng *rand.Rand, cmdOps []string) {
 	if len(cmdOps) == 0 {
 		return
 	}
+
 	cmdWeights := testutils.RandOpWeights(rng, cmdOps)
 	maps.Copy(c.OpWeights, cmdWeights)
 }
@@ -190,6 +195,7 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	t.Setenv("LOG_LEVEL", "disabled")
 
 	const dstNamespace = "dst"
+
 	debug := false
 	w, err := NewWorld(WorldOptions{
 		Project:             dstNamespace,
@@ -208,16 +214,19 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	w.events.RegisterHandler(event.KindDefault, func(_ context.Context, evt event.Event) error {
 		assert.Equal(t, event.KindDefault, evt.Kind, "nats: received non-default event kind")
 		assert.NotNil(t, evt.Payload, "nats: received nil payload")
+
 		return nil
 	})
 	w.events.RegisterHandler(event.KindInterShardCommand, func(_ context.Context, evt event.Event) error {
 		assert.Equal(t, event.KindInterShardCommand, evt.Kind, "nats: received wrong event kind")
 		isc, ok := evt.Payload.(command.Command)
 		assert.True(t, ok, "nats: ISC payload is %T, want command.Command", evt.Payload)
+
 		if ok {
 			assert.NotEmpty(t, isc.Name, "nats: inter-shard command has empty name")
 			assert.NotNil(t, isc.Address, "nats: inter-shard command has nil address")
 		}
+
 		return nil
 	})
 
@@ -226,6 +235,7 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	// and an upload goroutine decides which snapshots survive latest-wins by how it interleaves
 	// with the tick loop. memSnapshotStorage also asserts on t, which only this goroutine may do.
 	storage := &memSnapshotStorage{t: t}
+
 	w.snapshotWriter.Stop(context.Background())
 	w.snapshotStorage = storage
 	w.snapshotWriter = snapshot.NewSyncWriter(storage, w.tel.GetLogger("snapshot"))
@@ -248,12 +258,15 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 
 func (f *dstFixture) logWorldState(t *testing.T, label string) { //nolint: unused // Used
 	t.Helper()
+
 	data := f.world.world.EncodeState(nil)
+
 	var ws cardinalv1.WorldState
 	if err := proto.Unmarshal(data, &ws); err != nil {
 		t.Logf("world state (%s): failed to decode: %v", label, err)
 		return
 	}
+
 	t.Logf("world state (%s):", label)
 	t.Logf("  next_entity_id: %d", ws.GetNextId())
 	t.Logf("  components:     %v", ws.GetComponents())
@@ -262,12 +275,15 @@ func (f *dstFixture) logWorldState(t *testing.T, label string) { //nolint: unuse
 
 func (f *dstFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *iscv1.Command {
 	t.Helper()
+
 	val := reflect.New(f.cmdTypes[name]).Elem()
 	fillRandom(rng, val, f.world.world.LiveEntityIDs()) // Recursive so not inlined
 	p, ok := reflect.TypeAssert[command.Payload](val)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
+
 	payload, err := schema.Serialize(p)
 	require.NoError(t, err)
+
 	return &iscv1.Command{
 		Name:    name,
 		Address: f.world.address,
@@ -280,6 +296,7 @@ func (f *dstFixture) enqueueCommand(cmd Command) error {
 	if err != nil {
 		return err
 	}
+
 	return f.world.commands.Enqueue(context.Background(), &iscv1.Command{
 		Name:    cmd.Name(),
 		Address: f.world.address,
@@ -292,9 +309,11 @@ func (f *dstFixture) enqueueCommand(cmd Command) error {
 // encoding that depends on more than the values, fails here for whatever components the game holds.
 func (f *dstFixture) verifySnapshotRoundtrip(t *testing.T) {
 	t.Helper()
+
 	if f.storage.data == nil {
 		return // Nothing stored yet, so restore loaded nothing.
 	}
+
 	snap, err := snapshot.Decode(f.storage.data)
 	require.NoError(t, err)
 	restored, err := f.world.world.ToProto()
@@ -333,7 +352,9 @@ func (f *filler) enter(t reflect.Type) bool {
 	if f.onPath[t] > maxFillRepeats {
 		return false
 	}
+
 	f.onPath[t]++
+
 	return true
 }
 
@@ -341,12 +362,14 @@ func (f *filler) leave(t reflect.Type) { f.onPath[t]-- }
 
 func (f *filler) fill(v reflect.Value) {
 	prng, liveEntityIDs := f.prng, f.live
+
 	t := v.Type()
 	if len(liveEntityIDs) > 0 &&
 		(t == reflect.TypeFor[uint32]() || t == reflect.TypeFor[EntityID]()) &&
 		prng.IntN(10) < 9 {
 		eid := liveEntityIDs[prng.IntN(len(liveEntityIDs))]
 		v.SetUint(uint64(eid))
+
 		return
 	}
 
@@ -361,11 +384,14 @@ func (f *filler) fill(v reflect.Value) {
 		v.SetBool(testutils.RandBool(prng))
 	case reflect.String:
 		const chars = "abcdefghijklmnopqrstuvwxyz"
+
 		n := 1 + prng.IntN(12)
+
 		b := make([]byte, n)
 		for i := range b {
 			b[i] = chars[prng.IntN(len(chars))]
 		}
+
 		v.SetString(string(b))
 	case reflect.Struct:
 		if !f.immutableSlice(v) && !f.immutableMap(v) {
@@ -385,6 +411,7 @@ func (f *filler) structFields(v reflect.Value) {
 		return
 	}
 	defer f.leave(v.Type())
+
 	for _, field := range v.Fields() {
 		if field.CanSet() {
 			f.fill(field)
@@ -397,11 +424,14 @@ func (f *filler) slice(v reflect.Value) {
 		return
 	}
 	defer f.leave(v.Type())
+
 	n := f.prng.IntN(maxFillLen)
+
 	slice := reflect.MakeSlice(v.Type(), n, n)
 	for i := range n {
 		f.fill(slice.Index(i))
 	}
+
 	v.Set(slice)
 }
 
@@ -415,6 +445,7 @@ func (f *filler) slice(v reflect.Value) {
 // setter and no codec.
 func (f *filler) immutableSlice(v reflect.Value) bool {
 	t := v.Type()
+
 	elem, ok := immutable.SliceElem(t)
 	if !ok {
 		return false
@@ -426,12 +457,15 @@ func (f *filler) immutableSlice(v reflect.Value) bool {
 	}
 
 	n := f.prng.IntN(maxFillLen)
+
 	items := reflect.MakeSlice(reflect.SliceOf(elem), n, n)
 	for i := range n {
 		f.fill(items.Index(i))
 	}
+
 	v.Set(reflect.Zero(t))
 	v.Addr().MethodByName("Append").CallSlice([]reflect.Value{items})
+
 	return true
 }
 
@@ -439,22 +473,26 @@ func (f *filler) immutableSlice(v reflect.Value) bool {
 // repeated random key just overwrites, so the Map may end up with fewer entries than drawn.
 func (f *filler) immutableMap(v reflect.Value) bool {
 	t := v.Type()
+
 	keyType, valueType, ok := immutable.MapTypes(t)
 	if !ok {
 		return false
 	}
+
 	if !v.CanSet() {
 		panic("dst: " + t.String() + " is not settable, so it cannot be filled")
 	}
 
 	v.Set(reflect.Zero(t))
 	set := v.Addr().MethodByName("Set")
+
 	for range f.prng.IntN(maxFillLen) {
 		key, value := reflect.New(keyType).Elem(), reflect.New(valueType).Elem()
 		f.fill(key)
 		f.fill(value)
 		set.Call([]reflect.Value{key, value})
 	}
+
 	return true
 }
 
@@ -486,6 +524,7 @@ func (m *memSnapshotStorage) Store(_ context.Context, tick uint64, data []byte) 
 
 	// Ownership of the bytes transferred at Write, so retaining them is allowed.
 	m.data = data
+
 	return nil
 }
 
@@ -493,5 +532,6 @@ func (m *memSnapshotStorage) Load(_ context.Context) ([]byte, error) {
 	if m.data == nil {
 		return nil, snapshot.ErrSnapshotNotFound
 	}
+
 	return slices.Clone(m.data), nil
 }

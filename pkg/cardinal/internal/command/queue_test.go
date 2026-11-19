@@ -40,15 +40,16 @@ func TestQueue_ModelFuzz(t *testing.T) {
 		op := testutils.RandWeightedOp(prng, weights)
 		switch op {
 		case opEnqueue:
-
 			cmd := testutils.SimpleCommand{Value: int(prng.Int32())}
 			payload := cmd.MarshalWire()
 
 			name := cmd.Name()
+
 			corruptName := prng.IntN(10) == 1 // 10% chance to corrupt the command name.
 			if corruptName {
 				name = "wrong-name"
 			}
+
 			sender := command.PlayerSender("value doesn't matter")
 
 			cmdpb := &iscv1.Command{
@@ -67,6 +68,7 @@ func TestQueue_ModelFuzz(t *testing.T) {
 				assert.Equal(t, sizeBefore, impl.Len(), "queue size should not change on error")
 			} else {
 				require.NoError(t, err, "enqueue should succeed for valid command")
+
 				model = append(model, command.Command{
 					Name:    name,
 					Address: &microv1.ServiceAddress{},
@@ -107,6 +109,7 @@ func TestQueue_ModelFuzz(t *testing.T) {
 	var finalResult []command.Command
 	impl.Drain(&finalResult)
 	assert.Len(t, finalResult, len(model), "final drain count mismatch")
+
 	for i := range finalResult {
 		assert.Equal(t, model[i], finalResult[i], "final command[%d] mismatch", i)
 	}

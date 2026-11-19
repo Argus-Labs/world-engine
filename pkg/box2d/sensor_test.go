@@ -111,6 +111,7 @@ func sensorLogWithoutWorldToken(log sensorEventLog) sensorEventLog {
 		out.begins[i].SensorShapeID = sensorStripWorldToken(e.SensorShapeID)
 		out.begins[i].VisitorShapeID = sensorStripWorldToken(e.VisitorShapeID)
 	}
+
 	for i, e := range log.ends {
 		out.ends[i] = e
 		out.ends[i].SensorShapeID = sensorStripWorldToken(e.SensorShapeID)
@@ -189,6 +190,7 @@ func TestSensorBeginEndLifecycle(t *testing.T) {
 		begins += len(log[i].begins)
 		ends += len(log[i].ends)
 	}
+
 	require.Equal(t, 1, begins)
 	require.Equal(t, 1, ends)
 
@@ -290,6 +292,7 @@ func TestSensorOnDynamicBodySweepsStaticShapes(t *testing.T) {
 	w.SetBodyLinearVelocity(sensorBody, box2d.Vec2{X: 5.0, Y: 0.0})
 
 	targets := make([]box2d.ShapeID, 0, 3)
+
 	for i := range 3 {
 		_, id := sensorAddBox(
 			w, box2d.StaticBody, box2d.Vec2{X: float64(i) * 2.0, Y: 0.0}, 0.25, 0.25, false, true,
@@ -299,6 +302,7 @@ func TestSensorOnDynamicBodySweepsStaticShapes(t *testing.T) {
 
 	visited := make([]box2d.ShapeID, 0, 3)
 	closed := make([]box2d.ShapeID, 0, 3)
+
 	for _, log := range sensorRun(w, 300) {
 		for _, e := range log.begins {
 			require.Equal(t, sensorShape, e.SensorShapeID)
@@ -335,6 +339,7 @@ func TestSensorDetectsOtherSensor(t *testing.T) {
 
 	begins := make([]pair, 0, 2)
 	ends := make([]pair, 0, 2)
+
 	for _, log := range sensorRun(w, 200) {
 		for _, e := range log.begins {
 			begins = append(begins, pair{e.SensorShapeID, e.VisitorShapeID})
@@ -456,6 +461,7 @@ func TestSensorDestroyMiddleSensorKeepsOthersWorking(t *testing.T) {
 	w := newSensorWorld(t)
 
 	sensors := make([]box2d.ShapeID, 0, 3)
+
 	for i := range 3 {
 		_, id := sensorAddBox(
 			w, box2d.StaticBody, box2d.Vec2{X: float64(i) * 10.0, Y: 0.0}, 1.0, 1.0, true, true,
@@ -464,6 +470,7 @@ func TestSensorDestroyMiddleSensorKeepsOthersWorking(t *testing.T) {
 	}
 
 	visitors := make([]box2d.ShapeID, 0, 3)
+
 	for i := range 3 {
 		_, id := sensorAddBox(
 			w, box2d.StaticBody, box2d.Vec2{X: float64(i) * 10.0, Y: 0.5}, 0.25, 0.25, false, true,
@@ -493,6 +500,7 @@ func TestSensorDestroyMiddleSensorKeepsOthersWorking(t *testing.T) {
 
 	// Sensor overlap queries still answer for the untouched sensor.
 	require.Equal(t, 1, w.ShapeSensorCapacity(sensors[1]))
+
 	ids := make([]box2d.ShapeID, 1)
 	require.Equal(t, 1, w.ShapeSensorData(sensors[1], ids))
 	require.Equal(t, visitors[1], ids[0])
@@ -511,6 +519,7 @@ func TestSensorMultipleVisitorsSortedDeterministically(t *testing.T) {
 		// Visitors are created in an order that does not match their spatial
 		// layout, so the sorted event order must come from the shape ids.
 		offsets := []float64{1.5, -1.5, 0.75, -0.75, 0.0}
+
 		visitors := make([]box2d.ShapeID, 0, len(offsets))
 		for _, dx := range offsets {
 			_, id := sensorAddBox(
@@ -684,6 +693,7 @@ func TestSensorDeterminismAcrossWorlds(t *testing.T) {
 	for i := range logA {
 		total += len(logA[i].begins) + len(logA[i].ends)
 	}
+
 	require.Positive(t, total, "sensor determinism scene produced no events")
 }
 

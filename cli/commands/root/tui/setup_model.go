@@ -98,6 +98,7 @@ func NewWorldSetupModel(directory, env, templateFlag string) WorldSetupModel {
 
 	// Create template list
 	templates := worldscaffold.GetAvailableTemplates()
+
 	templateItems := make([]list.Item, len(templates))
 	for i, template := range templates {
 		templateItems[i] = templateItem{template: template}
@@ -126,11 +127,13 @@ func NewWorldSetupModel(directory, env, templateFlag string) WorldSetupModel {
 	}
 
 	nameErr := ""
+
 	targetDir := ""
 	if directory != "" {
 		targetDir = directory
 		dirName := filepath.Base(directory)
 		pnInput.SetValue(dirName)
+
 		if !dnslabel.IsCanonical(dirName) {
 			nameErr = projectNameErrMsg
 		}
@@ -164,5 +167,6 @@ func (m WorldSetupModel) Init() tea.Cmd {
 	if name := m.projectNameInput.Value(); name != "" && dnslabel.IsCanonical(name) {
 		return tea.Sequence(textinput.Blink, m.steps.StartCmd(), m.steps.CompleteStepCmd(nil))
 	}
+
 	return tea.Sequence(textinput.Blink, m.steps.StartCmd())
 }

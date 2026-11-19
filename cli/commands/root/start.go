@@ -45,16 +45,19 @@ func (c *StartCmd) Run(ctx context.Context) error {
 	if err != nil {
 		return eris.Wrap(err, "failed to get current directory")
 	}
+
 	worldCfg, err := tomlpkg.LoadDir(cwd)
 	if err != nil {
 		return eris.Wrap(err, "load world.toml")
 	}
+
 	warnConfigDBOverrides(worldCfg)
 
 	err = c.run(ctx, cwd)
 	if err != nil && errorspkg.ShouldPrint(err) {
 		printer.Notificationln("(run `world purge` to clear local state)")
 	}
+
 	return err
 }
 
@@ -62,10 +65,12 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 	return docker.WithClient(cwd, c.Debug, &docker.ClientOptions{Logger: logger.Slog()},
 		func(cfg *service.Config, dockerClient *docker.Client) error {
 			rt := local.New(dockerClient, cfg)
+
 			targets, err := resolveReloadTargets(cfg, nil)
 			if err != nil {
 				return err
 			}
+
 			services := dockerClient.ResolveServices(service.GetServices(cfg, service.CardinalShardsFirst)...)
 			dockerServices := filterCardinalServicesByID(services, cfg, targets.shardIDs)
 
@@ -82,14 +87,17 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 
 			// Build while NATS and Postgres come up; shards deploy only after a good build.
 			buildBox := dash.Open("Build")
+
 			buildDone := make(chan error, 1)
 			go func() { buildDone <- buildShardImages(buildBox, dockerClient, dockerServices) }()
 
 			platformErr := startPlatform(dash, rt, cfg)
+
 			buildErr := <-buildDone
 			if buildErr != nil {
 				buildErr = eris.Wrap(buildErr, "initial shard build")
 			}
+
 			if platformErr != nil || buildErr != nil {
 				// They ran concurrently, so report both: the Build box only says "see error below".
 				return errorspkg.JoinFailures(platformErr, buildErr)
@@ -101,9 +109,12 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 				if committed {
 					return
 				}
+
 				dash.Complete() // stopWorld draws its own box; two live dashboards would fight
+
 				stopCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 				defer cancel()
+
 				if stopErr := stopWorld(stopCtx, rt, cfg); stopErr != nil {
 					printer.Errorf("Stop failed: %v\n", stopErr)
 				}
@@ -115,6 +126,7 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 			if err := deployShardImages(dash, rt, targets, false); err != nil && !errors.As(err, &notReady) {
 				return eris.Wrap(err, "initial shard deploy")
 			}
+
 			if err := deployServices(dash, rt, dockerClient, cfg); err != nil {
 				return eris.Wrap(err, "initial service deploy")
 			}
@@ -123,18 +135,22 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 			// makes a taken port this call's error, not a goroutine's later.
 			edgeCtx, stopEdge := context.WithCancel(ctx)
 			defer stopEdge()
+
 			ln, err := rt.ListenEdge(edgeCtx)
 			if err != nil {
 				return eris.Wrap(err, "start edge")
 			}
+
 			edgeErr := make(chan error, 1)
 			go func() { edgeErr <- rt.ServeEdgeOn(edgeCtx, ln) }()
 
 			committed = true
+
 			dash.Complete()
 			// Its own box: the dashboard's width is frozen by now. 0 width = not a terminal.
 			width, _, _ := term.GetSize(int(os.Stdout.Fd()))
 			printer.Infoln(endpointsBox(endpointList(cfg), width))
+
 			if notReady != nil {
 				printer.Errorf("%v\n", notReady)
 			}
@@ -156,10 +172,13 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 			// Attached semantics: leaving world start stops the world, volumes stay.
 			stopCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()
+
 			stopEdge()
+
 			if stopErr := stopWorld(stopCtx, rt, cfg); stopErr != nil {
 				printer.Errorf("Stop failed: %v\n", stopErr)
 			}
+
 			return err
 		},
 	)
@@ -174,7 +193,9 @@ func startPlatform(dash *phasebox.Dashboard, rt *local.Runtime, cfg *service.Con
 				tracker.Failed(err)
 				return err
 			}
+
 			tracker.Done()
+
 			return nil
 		},
 		func(elapsed time.Duration) string {
@@ -183,6 +204,7 @@ func startPlatform(dash *phasebox.Dashboard, rt *local.Runtime, cfg *service.Con
 	); err != nil {
 		return eris.Wrap(err, "start platform")
 	}
+
 	return nil
 }
 
@@ -194,11 +216,13 @@ func deployServices(
 	cfg *service.Config,
 ) error {
 	var pathKind []service.Service
+
 	for _, svc := range cfg.WorldToml.Services {
 		if svc.IsBuiltFromSource() {
 			pathKind = append(pathKind, service.GameServiceFromConfig(cfg, svc))
 		}
 	}
+
 	if len(pathKind) == 0 {
 		return nil
 	}
@@ -208,6 +232,7 @@ func deployServices(
 			if err := dockerClient.PullImages(ctx, pathKind, phasebox.PullProgress(sess)); err != nil {
 				return eris.Wrap(err, "pull service build dependencies")
 			}
+
 			imageNames := docker.CardinalBuildImageNames(pathKind)
 			if err := dockerClient.BuildCardinalImages(
 				ctx,
@@ -216,11 +241,15 @@ func deployServices(
 			); err != nil {
 				return eris.Wrap(err, "build service images")
 			}
+
 			sess.UpsertRow("deploy", "Starting containers", "", phasebox.Active)
+
 			if err := rt.DeployServices(ctx); err != nil {
 				return eris.Wrap(err, "deploy services")
 			}
+
 			sess.UpsertRow("deploy", "Starting containers", "", phasebox.Done)
+
 			return nil
 		},
 		func(elapsed time.Duration) string {
@@ -243,14 +272,17 @@ func endpointList(cfg *service.Config) []endpoint {
 			"Project DB", fmt.Sprintf("postgres://postgres:postgres@%s/%s", local.DBEndpoint, cfg.WorldToml.Project),
 		})
 	}
+
 	for i, sh := range cfg.WorldToml.Shards {
 		eps = append(eps, endpoint{sh.InstanceID, fmt.Sprintf("127.0.0.1:%d (direct)", service.ShardHostPort(i))})
 	}
+
 	for _, gs := range cfg.WorldToml.Services {
 		for _, port := range gs.Ports {
 			eps = append(eps, endpoint{gs.ID, fmt.Sprintf("localhost:%d", port)})
 		}
 	}
+
 	return eps
 }
 
@@ -263,6 +295,7 @@ func endpointsBox(eps []endpoint, termWidth int) string {
 	for _, e := range eps {
 		pad = max(pad, ansi.StringWidth(e.label)+1) // +1 for the colon
 	}
+
 	lines := make([]string, len(eps))
 	for i, e := range eps {
 		lines[i] = fmt.Sprintf("%-*s %s", pad, e.label+":", e.addr)
@@ -271,20 +304,25 @@ func endpointsBox(eps []endpoint, termWidth int) string {
 	var opts style.BoxOpts
 	if inner := termWidth - style.BoxChrome; termWidth > 0 && inner > 0 {
 		opts.MaxWidth = termWidth
+
 		hang := pad + 1
 		if hang >= inner {
 			hang = 0
 		}
+
 		indent := strings.Repeat(" ", hang)
+
 		for i, line := range lines {
 			if ansi.StringWidth(line) > inner {
 				lines[i] = strings.ReplaceAll(ansi.Wrap(line, inner-hang, "/"), "\n", "\n"+indent)
 			}
 		}
 	}
+
 	out, _ := style.MultiSectionBoxOpts(
 		[]style.Section{{Title: "Endpoints", Body: strings.Join(lines, "\n")}}, opts,
 	)
+
 	return out
 }
 
@@ -296,6 +334,7 @@ func warnConfigDBOverrides(cfg tomlpkg.Config) {
 		if !svc.ConfigDB {
 			continue
 		}
+
 		for _, key := range []string{"POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"} {
 			if _, ok := svc.Env[key]; ok {
 				printer.Notificationf(

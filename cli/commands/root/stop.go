@@ -28,10 +28,12 @@ func (c *StopCmd) Run(ctx context.Context) error {
 	if err := dependency.Check(dependency.Docker, dependency.DockerDaemon); err != nil {
 		return err
 	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		return eris.Wrap(err, "failed to get current directory")
 	}
+
 	err = docker.WithClient(cwd, false, &docker.ClientOptions{Logger: logger.Slog()},
 		func(cfg *service.Config, dockerClient *docker.Client) error {
 			return stopWorld(ctx, local.New(dockerClient, cfg), cfg)
@@ -40,7 +42,9 @@ func (c *StopCmd) Run(ctx context.Context) error {
 	if err != nil {
 		return eris.Wrap(err, "stop world")
 	}
+
 	printer.Notificationln("(database and NATS state kept; `world start` brings the shards back)")
+
 	return nil
 }
 
@@ -56,6 +60,7 @@ func progressForTerminal() phasebox.Progress {
 	if term.IsTerminal(int(os.Stdout.Fd())) {
 		return phasebox.TTY
 	}
+
 	return phasebox.Plain
 }
 
@@ -69,14 +74,18 @@ func runSingleStep(
 ) error {
 	dash := phasebox.Start(ctx, progressForTerminal())
 	defer dash.Complete()
+
 	return dash.Run("World",
 		func(ctx context.Context, sess phasebox.Session) error {
 			sess.UpsertRow(rowID, rowLabel, "", phasebox.Active)
+
 			if opErr := op(ctx); opErr != nil {
 				sess.Fail(rowID, rowLabel, opErr)
 				return opErr
 			}
+
 			sess.UpsertRow(rowID, rowLabel, "", phasebox.Done)
+
 			return nil
 		},
 		func(elapsed time.Duration) string {

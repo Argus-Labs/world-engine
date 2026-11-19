@@ -112,6 +112,7 @@ func TestStartWithEmptyText(t *testing.T) {
 func TestStartMultipleSessions(t *testing.T) {
 	_, cancel1 := context.WithCancel(t.Context())
 	_, cancel2 := context.WithCancel(t.Context())
+
 	defer cancel1()
 	defer cancel2()
 

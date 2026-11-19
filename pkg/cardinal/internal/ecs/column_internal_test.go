@@ -41,6 +41,7 @@ func TestColumn_ModelFuzz(t *testing.T) {
 		switch op {
 		case opExtend:
 			impl.extend()
+
 			model = append(model, testutils.SimpleComponent{})
 
 			// Property: length increases by 1.
@@ -64,6 +65,7 @@ func TestColumn_ModelFuzz(t *testing.T) {
 			if len(model) == 0 {
 				continue
 			}
+
 			row := prng.IntN(len(model))
 
 			implValue := impl.get(row)
@@ -76,6 +78,7 @@ func TestColumn_ModelFuzz(t *testing.T) {
 			if len(model) == 0 {
 				continue
 			}
+
 			row := prng.IntN(len(model))
 
 			impl.remove(row)
@@ -99,6 +102,7 @@ func TestColumn_ModelFuzz(t *testing.T) {
 
 	// Final state check: verify all elements match between impl and model.
 	assert.Equal(t, len(model), impl.len(), "final length mismatch")
+
 	for i, expected := range model {
 		got := impl.get(i)
 		assert.Equal(t, expected, got, "element %d mismatch", i)
@@ -121,6 +125,7 @@ func TestColumn_WireRoundTrip(t *testing.T) {
 	const lengthMax = 1000
 
 	col1 := newColumn[testutils.SimpleComponent]()
+
 	length := 1 + prng.IntN(lengthMax)
 	for i := range length {
 		col1.extend()
@@ -129,6 +134,7 @@ func TestColumn_WireRoundTrip(t *testing.T) {
 
 	// Encode every row, decode into a fresh column.
 	col2 := newColumn[testutils.SimpleComponent]()
+
 	for i := range length {
 		payload, err := col1.encode(i)
 		require.NoError(t, err)
@@ -168,8 +174,10 @@ func (*unencodablePayload) DecodeMsgpack(*msgpack.Decoder) error { return errors
 
 func TestColumn_EncodeFailure(t *testing.T) {
 	t.Parallel()
+
 	col := newColumn[unencodablePayload]()
 	col.extend()
+
 	value := unencodablePayload{Value: 1}
 	col.set(0, value)
 	payload, err := col.encode(0)

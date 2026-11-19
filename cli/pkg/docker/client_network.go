@@ -14,12 +14,15 @@ func (c *Client) EnsureNetwork(ctx context.Context, name string) error {
 	if err == nil {
 		return nil
 	}
+
 	if !cerrdefs.IsNotFound(err) {
 		return eris.Wrapf(err, "inspect network %s", name)
 	}
+
 	if _, err := c.client.NetworkCreate(ctx, name, client.NetworkCreateOptions{Driver: "bridge"}); err != nil {
 		return eris.Wrapf(err, "create network %s", name)
 	}
+
 	return nil
 }
 
@@ -29,5 +32,6 @@ func (c *Client) RemoveNetwork(ctx context.Context, name string) error {
 	if err != nil && !cerrdefs.IsNotFound(err) {
 		return eris.Wrapf(err, "remove network %s", name)
 	}
+
 	return nil
 }

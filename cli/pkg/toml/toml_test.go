@@ -359,6 +359,7 @@ func TestLoad_PoolSizeExpansionInheritsLogLevelAndOTEL(t *testing.T) {
 	cfg, err := toml.Load(strings.NewReader(sample))
 	require.NoError(t, err)
 	require.Len(t, cfg.Shards, 2)
+
 	for _, s := range cfg.Shards {
 		require.Equal(t, "warn", s.LogLevel)
 		require.True(t, s.EnableOTEL)
@@ -489,6 +490,7 @@ func TestLoad_PoolSizeAtMax_Allowed(t *testing.T) {
 	require.Equal(t, "game", cfg.Shards[0].InstanceID)
 	require.Equal(t, "game-2", cfg.Shards[1].InstanceID)
 	require.Equal(t, "game-100", cfg.Shards[99].InstanceID)
+
 	for i := range cfg.Shards {
 		require.Equal(t, 1, cfg.Shards[i].PoolSize, "shard %d", i)
 	}
@@ -504,6 +506,7 @@ func TestLoad_TotalPoolSizeAboveMax_ReturnsError(t *testing.T) {
 
 	var b strings.Builder
 	b.WriteString("organization = \"argus\"\nproject = \"rampage\"\n")
+
 	for i := range 11 {
 		fmt.Fprintf(&b, "[[shards]]\nid = \"s%d\"\npool_size = 100\n", i)
 	}
@@ -1083,6 +1086,7 @@ func TestGameService_IsBuiltFromSource(t *testing.T) {
 // worldTomlFor builds a minimal valid world.toml with one field set to value.
 func worldTomlFor(field, value string) string {
 	org, project, shardID, serviceID := "argus", "rampage", "gameplay", "meta"
+
 	switch field {
 	case "organization":
 		org = value
@@ -1093,6 +1097,7 @@ func worldTomlFor(field, value string) string {
 	case "serviceID":
 		serviceID = value
 	}
+
 	return fmt.Sprintf(`
 	organization = %q
 	project = %q
@@ -1121,11 +1126,13 @@ func TestLoad_CanonicalNames(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.field+"="+c.value, func(t *testing.T) {
 			t.Parallel()
+
 			_, err := toml.Load(strings.NewReader(worldTomlFor(c.field, c.value)))
 			if c.ok {
 				require.NoError(t, err)
 				return
 			}
+
 			require.ErrorContains(t, err, c.field+" contains invalid characters")
 		})
 	}
@@ -1173,6 +1180,7 @@ func TestLoad_AuthRejectsBadSections(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+
 			_, err := toml.Load(strings.NewReader(`
 organization = "argus"
 project = "rampage"
@@ -1235,10 +1243,12 @@ func TestLoad_AuthURLShape(t *testing.T) {
 			t.Errorf("%s: err = %v, want a query/fragment rejection", bad, err)
 		}
 	}
+
 	cfg, err := toml.Load(strings.NewReader(world + "url = \"https://api.argus.dev//\"\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if cfg.Auth.URL != "https://api.argus.dev" {
 		t.Errorf("url = %q, want every trailing slash dropped", cfg.Auth.URL)
 	}
@@ -1252,6 +1262,7 @@ func TestLoad_CanonicalNameTooLong(t *testing.T) {
 	t.Parallel()
 
 	overLen := strings.Repeat("a", 64)
+
 	cases := []struct {
 		field, value, wantErr string
 	}{
@@ -1262,6 +1273,7 @@ func TestLoad_CanonicalNameTooLong(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.field, func(t *testing.T) {
 			t.Parallel()
+
 			_, err := toml.Load(strings.NewReader(worldTomlFor(c.field, c.value)))
 			require.Error(t, err)
 			require.Contains(t, err.Error(), c.wantErr)
@@ -1278,11 +1290,14 @@ func TestLoad_CanonicalNameMaxLengthAccepted(t *testing.T) {
 	t.Parallel()
 
 	maxLen := strings.Repeat("a", 63)
+
 	for _, field := range []string{"project", "shardID", "serviceID"} {
 		t.Run(field, func(t *testing.T) {
 			t.Parallel()
+
 			cfg, err := toml.Load(strings.NewReader(worldTomlFor(field, maxLen)))
 			require.NoError(t, err)
+
 			switch field {
 			case "project":
 				require.Equal(t, maxLen, cfg.Project)
@@ -1304,6 +1319,7 @@ func TestLoad_PoolExpansionExceedsLabelLength(t *testing.T) {
 
 	// 62-char base + "-2" (2 chars) = 64 — over the limit.
 	overBase := strings.Repeat("a", 62)
+
 	const sample = `
 	organization = "argus"
 	project = "rampage"
@@ -1311,6 +1327,7 @@ func TestLoad_PoolExpansionExceedsLabelLength(t *testing.T) {
 	id = "%s"
 	pool_size = 2
 	`
+
 	_, err := toml.Load(strings.NewReader(fmt.Sprintf(sample, overBase)))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "exceeds the 63-character DNS-1123 label limit")
@@ -1324,6 +1341,7 @@ func TestLoad_PoolExpansionAtLabelLengthAccepted(t *testing.T) {
 
 	// 61-char base + "-2" (2 chars) = 63 — exactly at the limit.
 	base := strings.Repeat("a", 61)
+
 	const sample = `
 	organization = "argus"
 	project = "rampage"
@@ -1331,6 +1349,7 @@ func TestLoad_PoolExpansionAtLabelLengthAccepted(t *testing.T) {
 	id = "%s"
 	pool_size = 2
 	`
+
 	cfg, err := toml.Load(strings.NewReader(fmt.Sprintf(sample, base)))
 	require.NoError(t, err)
 	require.Len(t, cfg.Shards, 2)

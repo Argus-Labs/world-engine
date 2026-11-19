@@ -77,6 +77,7 @@ func (c *Client) ResolveServices(builders ...service.Builder) []service.Service 
 	for _, sb := range builders {
 		services = append(services, sb(c.cfg))
 	}
+
 	return services
 }
 
@@ -177,6 +178,7 @@ func hasWorldImagePrefix(tag string, prefixes []string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -185,10 +187,12 @@ func (c *Client) builtImageNames() map[string]struct{} {
 	names := CardinalBuildImageNames(
 		c.ResolveServices(service.GetServices(c.cfg, service.CardinalShardsFirst)...),
 	)
+
 	owned := make(map[string]struct{}, len(names))
 	for _, n := range names {
 		owned[n] = struct{}{}
 	}
+
 	return owned
 }
 
@@ -201,6 +205,8 @@ func ownsBuiltImage(labels map[string]string, project string, owned map[string]s
 	if p, ok := labels[service.ProjectLabel]; ok {
 		return p == project
 	}
+
 	_, ok := owned[labels[service.CardinalImageNameLabel]]
+
 	return ok
 }

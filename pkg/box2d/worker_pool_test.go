@@ -31,6 +31,7 @@ const assertFailedMsg = "box2d: assertion failed"
 // (assertFailedMsg in the box2d_asserts build, nil in release).
 func requireGuardPanicValue(t *testing.T, got any, msg string) {
 	t.Helper()
+
 	if buildWithAsserts {
 		require.Equal(t, assertFailedMsg, got, msg)
 	} else {
@@ -74,16 +75,20 @@ func TestPanicInCallbackPropagatesOriginalValue(t *testing.T) {
 	// Panic on exactly one contact. The CAS keeps it to a single winner even
 	// though the callback runs concurrently on several workers.
 	var fired atomic.Bool
+
 	w.SetPreSolveCallback(func(shapeIDA, shapeIDB box2d.ShapeID, point, normal box2d.Vec2, ctx any) bool {
 		if fired.CompareAndSwap(false, true) {
 			panic(workerBoom{tag: "pre-solve boom"})
 		}
+
 		return true
 	}, nil)
 
 	var recovered any
+
 	func() {
 		defer func() { recovered = recover() }()
+
 		w.Step(stepDT, stepSubSteps)
 	}()
 
@@ -107,9 +112,12 @@ func TestPanicInCallbackPropagatesOriginalValue(t *testing.T) {
 	// Fresh world: the process (and the package state) is healthy.
 	def2 := box2d.DefaultWorldDef()
 	def2.WorkerCount = 4
+
 	w2 := box2d.NewWorld(&def2)
 	defer w2.Destroy()
+
 	buildWorkerScene(w2, 6, 4, 4, 1)
+
 	for range 5 {
 		w2.Step(stepDT, stepSubSteps)
 	}
@@ -147,10 +155,12 @@ func TestStepAfterCallbackPanicFailsLoudly(t *testing.T) {
 			require.True(t, w.IsBodyValid(probeBody))
 
 			var fired atomic.Bool
+
 			w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
 				if fired.CompareAndSwap(false, true) {
 					panic(workerBoom{tag: "poison boom"})
 				}
+
 				return true
 			}, nil)
 
@@ -161,8 +171,10 @@ func TestStepAfterCallbackPanicFailsLoudly(t *testing.T) {
 			// message, not silently no-op (release) or trip a bare assert
 			// (box2d_asserts build).
 			var second any
+
 			func() {
 				defer func() { second = recover() }()
+
 				w.Step(stepDT, stepSubSteps)
 			}()
 			require.NotNil(t, second, "re-stepping a panicked world must panic, not silently no-op")
@@ -195,8 +207,10 @@ func TestStepAfterCallbackPanicFailsLoudly(t *testing.T) {
 				"ComputeBodyAABB":     func() { w.ComputeBodyAABB(probeBody) },
 			} {
 				var got any
+
 				func() {
 					defer func() { got = recover() }()
+
 					call()
 				}()
 				require.NotNilf(t, got, "%s on a poisoned world must panic, not return a zero value", name)
@@ -244,9 +258,11 @@ func TestGoroutineLeakOnWorldDestroy(t *testing.T) {
 	}
 
 	deadline := time.Now().Add(time.Second)
+
 	after := runtime.NumGoroutine()
 	for after-before > 2 && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
+
 		after = runtime.NumGoroutine()
 	}
 
@@ -314,6 +330,7 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			def := box2d.DefaultWorldDef()
 			def.WorkerCount = tc.workers
 			w := box2d.NewWorld(&def)
+
 			var opsInFlight atomic.Int32
 			// Register cleanup after NewWorld so an early failed require still
 			// joins the pool goroutines; the explicit Destroy below remains to
@@ -325,8 +342,10 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 				if opsInFlight.Load() > 0 {
 					return
 				}
+
 				w.Destroy()
 			})
+
 			id := w.ID()
 
 			bodies := buildWorkerStressScene(w)
@@ -336,8 +355,11 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			// to the workers, so the callback's read is race-free without
 			// an atomic; capturing the parent test goroutine here would let
 			// worker 0 satisfy the filter too.
-			var stepG uint64
-			var fired atomic.Bool
+			var (
+				stepG uint64
+				fired atomic.Bool
+			)
+
 			w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
 				// backgroundOnly: skip worker 0 (the Step goroutine) so only a
 				// background pool worker may fire and the self-join path is
@@ -346,9 +368,11 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 				if tc.backgroundOnly && (fired.Load() || goroutineID() == stepG) {
 					return true
 				}
+
 				if fired.CompareAndSwap(false, true) {
 					w.Destroy()
 				}
+
 				return true
 			}, nil)
 
@@ -356,6 +380,7 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 				if tc.backgroundOnly {
 					stepG = goroutineID()
 				}
+
 				w.Step(stepDT, stepSubSteps)
 			}, tc.stepTimeoutMsg)
 			// Check the callback fired before the panic value: if the background
@@ -383,6 +408,7 @@ func TestDestroyFromCallbackGuarded(t *testing.T) {
 			if !buildWithAsserts {
 				mover := sceneMover(bodies)
 				before := w.BodyPosition(mover)
+
 				require.Nil(t, runBounded(t, &opsInFlight, func() { w.Step(stepDT, stepSubSteps) },
 					defaultStepTimeoutMsg),
 					"second Step must not panic when the guard rejected the callback's Destroy")
@@ -410,7 +436,9 @@ func sceneMover(bodies []box2d.BodyID) box2d.BodyID {
 // pass a reuse check. notPanicMsg describes the Step for the NotPanics check.
 func requireStepAdvancesBody(t *testing.T, w *box2d.World, mover box2d.BodyID, step func(), notPanicMsg string) {
 	t.Helper()
+
 	before := w.BodyPosition(mover)
+
 	require.NotPanics(t, step, notPanicMsg)
 	require.NotEqual(t, before, w.BodyPosition(mover),
 		"the second Step must advance a known moving body")
@@ -453,9 +481,12 @@ func TestDestroyGuardRecoveredInCallbackStepsAgain(t *testing.T) {
 			bodies := buildWorkerStressScene(w)
 			mover := sceneMover(bodies)
 
-			var fired atomic.Bool
-			var destroyPanic any
-			var stepG uint64
+			var (
+				fired        atomic.Bool
+				destroyPanic any
+				stepG        uint64
+			)
+
 			w.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
 				// backgroundOnly: skip worker 0 (the Step goroutine) so only a
 				// background pool worker may fire. Check fired first so later
@@ -464,12 +495,15 @@ func TestDestroyGuardRecoveredInCallbackStepsAgain(t *testing.T) {
 				if tc.backgroundOnly && (fired.Load() || goroutineID() == stepG) {
 					return true
 				}
+
 				if fired.CompareAndSwap(false, true) {
 					func() {
 						defer func() { destroyPanic = recover() }()
+
 						w.Destroy()
 					}()
 				}
+
 				return true
 			}, nil)
 
@@ -477,6 +511,7 @@ func TestDestroyGuardRecoveredInCallbackStepsAgain(t *testing.T) {
 				if tc.backgroundOnly {
 					stepG = goroutineID()
 				}
+
 				w.Step(stepDT, stepSubSteps)
 			}, "Step must not panic when the callback recovers the guard's assertion")
 			require.True(t, fired.Load(), tc.firedMsg)
@@ -502,21 +537,27 @@ func TestDestroyGuardRecoveredInCallbackStepsAgain(t *testing.T) {
 // self-join regression is exercised deterministically rather than by CAS luck.
 func goroutineID() uint64 {
 	var buf [64]byte
+
 	n := runtime.Stack(buf[:], false)
 	s := string(buf[:n])
+
 	const prefix = "goroutine "
 	if !strings.HasPrefix(s, prefix) {
 		panic("goroutineID: unexpected runtime.Stack header: " + s)
 	}
+
 	rest := s[len(prefix):]
+
 	end := strings.IndexByte(rest, ' ')
 	if end < 0 {
 		panic("goroutineID: no goroutine id parsed from runtime.Stack header: " + s)
 	}
+
 	id, err := strconv.ParseUint(rest[:end], 10, 64)
 	if err != nil {
 		panic(fmt.Sprintf("goroutineID: parsing goroutine id from runtime.Stack header: %v (header: %s)", err, s))
 	}
+
 	return id
 }
 
@@ -534,25 +575,34 @@ func goroutineID() uint64 {
 // workers alive.
 func runBounded(t *testing.T, inFlight *atomic.Int32, fn func(), msg string) any {
 	t.Helper()
+
 	var panicVal any
+
 	done := make(chan struct{})
+
 	if inFlight != nil {
 		inFlight.Add(1)
 	}
+
 	go func() {
 		defer func() {
 			panicVal = recover()
+
 			if inFlight != nil {
 				inFlight.Add(-1)
 			}
+
 			close(done)
 		}()
+
 		fn()
 	}()
+
 	select {
 	case <-done:
 	case <-time.After(boundedTimeout):
 		t.Fatal(msg)
 	}
+
 	return panicVal
 }

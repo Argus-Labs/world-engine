@@ -12,11 +12,13 @@ import (
 // bodyLines returns the box's content lines, borders stripped.
 func bodyLines(box string) []string {
 	var out []string
+
 	for line := range strings.SplitSeq(ansi.Strip(box), "\n") {
 		if strings.HasPrefix(line, "│") {
 			out = append(out, strings.TrimSuffix(strings.TrimPrefix(line, "│ "), " │"))
 		}
 	}
+
 	return out
 }
 
@@ -26,6 +28,7 @@ func TestEndpointsBox_WrapsToTerminalWidth(t *testing.T) {
 	t.Parallel()
 
 	const width = 40
+
 	eps := []endpoint{
 		{"API", "http://localhost:8080/some-organization/a-long-project-name/<instance>"},
 		{"NATS", "nats://127.0.0.1:4222"},
@@ -33,8 +36,10 @@ func TestEndpointsBox_WrapsToTerminalWidth(t *testing.T) {
 	}
 
 	var content strings.Builder
+
 	for line := range strings.SplitSeq(ansi.Strip(endpointsBox(eps, width)), "\n") {
 		assert.LessOrEqual(t, ansi.StringWidth(line), width, "line overflows the terminal: %q", line)
+
 		if strings.HasPrefix(line, "│") {
 			content.WriteString(strings.Trim(line, "│ "))
 		}
@@ -44,6 +49,7 @@ func TestEndpointsBox_WrapsToTerminalWidth(t *testing.T) {
 	for _, e := range eps {
 		want.WriteString(e.label + ":" + e.addr)
 	}
+
 	squash := func(s string) string { return strings.ReplaceAll(s, " ", "") }
 	assert.Equal(t, squash(want.String()), squash(content.String()))
 }
@@ -65,6 +71,7 @@ func TestEndpointsBox_AlignsAddressColumn(t *testing.T) {
 
 	lines := bodyLines(endpointsBox(eps, 0))
 	require.Len(t, lines, len(eps))
+
 	for i, line := range lines {
 		assert.Equal(t, strings.Index(lines[0], "a1"), strings.Index(line, eps[i].addr),
 			"address column moved on %q", line)

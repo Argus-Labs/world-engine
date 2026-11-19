@@ -14,9 +14,11 @@ import (
 // command it produced, keeping the tea.Model type assertion out of the tests.
 func step(t *testing.T, m Model, msg tea.Msg) (Model, tea.Cmd) {
 	t.Helper()
+
 	next, cmd := m.Update(msg)
 	got, ok := next.(Model)
 	require.True(t, ok, "Update must return a phasebox.Model")
+
 	return got, cmd
 }
 
@@ -26,6 +28,7 @@ func finished(t *testing.T, m Model, id, title string) Model {
 	m, _ = step(t, m, newSectionMsg{id: id, title: title})
 	m, _ = step(t, m, rowMsg{section: id, id: "r", label: "work", state: Done})
 	m, _ = step(t, m, collapseMsg{section: id, summary: "done"})
+
 	return m
 }
 
@@ -68,6 +71,7 @@ func TestBoxHugsContentWhileTheFrameFits(t *testing.T) {
 	for line := range strings.SplitSeq(m.View(), "\n") {
 		widest = max(widest, lipgloss.Width(line))
 	}
+
 	require.Less(t, widest, termWidth, "a box that fits must hug its content, not fill the terminal")
 }
 
@@ -103,6 +107,7 @@ func TestLiveFrameStaysBoundedAcrossManySections(t *testing.T) {
 	)
 
 	m := newModel(nil)
+
 	m, _ = step(t, m, tea.WindowSizeMsg{Width: 80, Height: height})
 	for i := range sections {
 		m = finished(t, m, strconv.Itoa(i), "Section "+strconv.Itoa(i))

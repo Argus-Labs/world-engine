@@ -209,6 +209,7 @@ func (w *World) PrismaticJointTranslation(jointID JointID) float64 {
 	pB := TransformPoint(transformB, js.localFrameB.P)
 	d := Sub(pB, pA)
 	translation := Dot(d, axisA)
+
 	return translation
 }
 
@@ -250,14 +251,17 @@ func (w *World) PrismaticJointSpeed(jointID JointID) float64 {
 	if bodyStateA != nil {
 		vA = bodyStateA.linearVelocity
 	}
+
 	vB := Vec2Zero
 	if bodyStateB != nil {
 		vB = bodyStateB.linearVelocity
 	}
+
 	wA := 0.0
 	if bodyStateA != nil {
 		wA = bodyStateA.angularVelocity
 	}
+
 	wB := 0.0
 	if bodyStateB != nil {
 		wB = bodyStateB.angularVelocity
@@ -265,6 +269,7 @@ func (w *World) PrismaticJointSpeed(jointID JointID) float64 {
 
 	vRel := Sub(Add(vB, CrossSV(wB, rB)), Add(vA, CrossSV(wA, rA)))
 	speed := Dot(d, CrossSV(wA, axisA)) + Dot(axisA, vRel)
+
 	return speed
 }
 
@@ -285,6 +290,7 @@ func getPrismaticJointForce(w *World, base *jointSim) Vec2 {
 	axialForce := invH * (j.motorImpulse + j.lowerImpulse - j.upperImpulse)
 
 	force := Add(MulSV(perpForce, perpA), MulSV(axialForce, axisA))
+
 	return force
 }
 
@@ -379,6 +385,7 @@ func preparePrismaticJoint(base *jointSim, ctx *stepContext) {
 	if bodyA.setIndex == awakeSet {
 		j.indexA = localIndexA
 	}
+
 	j.indexB = NullIndex
 	if bodyB.setIndex == awakeSet {
 		j.indexB = localIndexB
@@ -424,6 +431,7 @@ func warmStartPrismaticJoint(base *jointSim, ctx *stepContext) {
 	if j.indexA != NullIndex {
 		stateA = &ctx.states[j.indexA]
 	}
+
 	stateB := &dummyState
 	if j.indexB != NullIndex {
 		stateB = &ctx.states[j.indexB]
@@ -486,6 +494,7 @@ func solvePrismaticJoint(base *jointSim, ctx *stepContext, useBias bool) {
 	if j.indexA != NullIndex {
 		stateA = &ctx.states[j.indexA]
 	}
+
 	stateB := &dummyState
 	if j.indexB != NullIndex {
 		stateB = &ctx.states[j.indexB]
@@ -516,6 +525,7 @@ func solvePrismaticJoint(base *jointSim, ctx *stepContext, useBias bool) {
 
 	// k = mA + mB + iA * a1 * a1 + iB * a2 * a2
 	k := mA + mB + float64(iA*a1*a1) + float64(iB*a2*a2)
+
 	axialMass := 0.0
 	if k > 0.0 {
 		axialMass = 1.0 / k
@@ -676,8 +686,10 @@ func solvePrismaticJoint(base *jointSim, ctx *stepContext, useBias bool) {
 		bias := Vec2Zero
 		massScale := 1.0
 		impulseScale := 0.0
+
 		if useBias {
 			var c Vec2
+
 			c.X = Dot(perpA, d)
 			c.Y = RotGetAngle(relQ)
 
@@ -690,6 +702,7 @@ func solvePrismaticJoint(base *jointSim, ctx *stepContext, useBias bool) {
 		k11 := mA + mB + float64(iA*s1*s1) + float64(iB*s2*s2)
 		// k12 = iA * s1 + iB * s2
 		k12 := dot2(iA, s1, iB, s2)
+
 		k22 := iA + iB
 		if k22 == 0.0 {
 			// For bodies with fixed rotation.
@@ -699,6 +712,7 @@ func solvePrismaticJoint(base *jointSim, ctx *stepContext, useBias bool) {
 		kMat := Mat22{CX: Vec2{X: k11, Y: k12}, CY: Vec2{X: k12, Y: k22}}
 
 		b := Solve22(kMat, Add(cDot, bias))
+
 		var deltaImpulse Vec2
 		// deltaImpulse.x = -massScale * b.x - impulseScale * impulse.x
 		deltaImpulse.X = cross2(-massScale, b.X, impulseScale, j.impulse.X)

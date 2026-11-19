@@ -67,6 +67,7 @@ type solverSet struct {
 // element was last (upstream b2XxxArray_RemoveSwap from array.h).
 func removeSwap[T any](array *[]T, index int) int {
 	a := *array
+
 	movedIndex := NullIndex
 	if index != len(a)-1 {
 		movedIndex = len(a) - 1
@@ -74,6 +75,7 @@ func removeSwap[T any](array *[]T, index int) int {
 	}
 
 	*array = a[:len(a)-1]
+
 	return movedIndex
 }
 
@@ -86,7 +88,9 @@ func (w *World) destroySolverSet(setIndex int) {
 	set.contactSims = nil
 	set.jointSims = nil
 	set.islandSims = nil
+
 	freeID(&w.solverSetIDPool, setIndex)
+
 	*set = solverSet{}
 	set.setIndex = NullIndex
 }
@@ -251,6 +255,7 @@ func (w *World) trySleepIsland(islandID int) {
 	// this shuffles around bodies in the awake set
 	{
 		disabled := &w.solverSets[disabledSet]
+
 		for i := range isl.bodies {
 			bodyID := isl.bodies[i]
 			b := &w.bodies[bodyID]
@@ -278,6 +283,7 @@ func (w *World) trySleepIsland(islandID int) {
 						moveEvent.FellAsleep = true
 					}
 				}
+
 				b.bodyMoveIndex = NullIndex
 			}
 
@@ -325,6 +331,7 @@ func (w *World) trySleepIsland(islandID int) {
 				// the disabled set.
 				otherEdgeIndex := edgeIndex ^ 1
 				otherBodyID := c.edges[otherEdgeIndex].bodyID
+
 				otherBody := &w.bodies[otherBodyID]
 				if otherBody.setIndex == awakeSet {
 					continue
@@ -441,6 +448,7 @@ func (w *World) trySleepIsland(islandID int) {
 		assert(isl.setIndex == awakeSet)
 
 		islandIndex := isl.localIndex
+
 		sleepSet.islandSims = append(sleepSet.islandSims, islandSim{islandID: islandID})
 
 		movedIslandIndex := removeSwap(&awake.islandSims, islandIndex)
@@ -474,6 +482,7 @@ func (w *World) trySleepIsland(islandID int) {
 func (w *World) mergeSolverSets(setID1, setID2 int) {
 	assert(setID1 >= firstSleepingSet)
 	assert(setID2 >= firstSleepingSet)
+
 	set1 := &w.solverSets[setID1]
 	set2 := &w.solverSets[setID2]
 
@@ -486,6 +495,7 @@ func (w *World) mergeSolverSets(setID1, setID2 int) {
 	// transfer bodies
 	{
 		bodies := w.bodies
+
 		bodyCount := len(set2.bodySims)
 		for i := range bodyCount {
 			simSrc := &set2.bodySims[i]
@@ -593,6 +603,7 @@ func (w *World) transferJoint(targetSet, sourceSet *solverSet, j *joint) {
 
 	// Retrieve source.
 	var sourceSim *jointSim
+
 	if sourceSet.setIndex == awakeSet {
 		assert(0 <= colorIndex && colorIndex < GraphColorCount)
 		color := &w.constraintGraph.colors[colorIndex]
@@ -600,6 +611,7 @@ func (w *World) transferJoint(targetSet, sourceSet *solverSet, j *joint) {
 		sourceSim = &color.jointSims[localIndex]
 	} else {
 		assert(colorIndex == NullIndex)
+
 		sourceSim = &sourceSet.jointSims[localIndex]
 	}
 

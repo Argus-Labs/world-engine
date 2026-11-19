@@ -26,14 +26,17 @@ func resolveProject(project string) (string, error) {
 	if p := strings.TrimSpace(project); p != "" {
 		return p, nil
 	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", eris.Wrap(err, "current directory")
 	}
+
 	cfg, err := worldtoml.LoadDir(cwd)
 	if err != nil {
 		return "", eris.Wrap(err, "project not given and no world.toml in the working directory")
 	}
+
 	return cfg.Project, nil
 }
 
@@ -64,6 +67,7 @@ var started = &worlds{
 // config or two reloads racing over the same containers. Not held across tool calls.
 func (w *worlds) lock(project string) func() {
 	w.mu.Lock()
+
 	m, ok := w.locks[project]
 	if !ok {
 		m = &sync.Mutex{}
@@ -71,6 +75,7 @@ func (w *worlds) lock(project string) func() {
 	}
 	w.mu.Unlock()
 	m.Lock()
+
 	return m.Unlock
 }
 
@@ -89,20 +94,25 @@ func (w *worlds) open(worldPath string) (*local.Runtime, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
+
 	release := w.lock(cfg.Project)
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
 	if rt, ok := w.runtimes[cfg.Project]; ok {
 		*rt.Config() = *cfg
 		return rt, release, nil
 	}
+
 	dc, err := docker.NewClient(cfg, &docker.ClientOptions{Logger: slog.Default()})
 	if err != nil {
 		release()
 		return nil, nil, eris.Wrap(err, "docker client")
 	}
+
 	rt := local.New(dc, cfg)
 	w.runtimes[cfg.Project] = rt
+
 	return rt, release, nil
 }
 
@@ -110,18 +120,24 @@ func (w *worlds) open(worldPath string) (*local.Runtime, func(), error) {
 // synchronous, so a taken port is this call's error.
 func (w *worlds) serveEdge(rt *local.Runtime) error {
 	project := rt.Config().Project
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
 	if _, ok := w.edges[project]; ok {
 		return nil
 	}
+
 	ctx, cancel := context.WithCancel(context.Background())
+
 	ln, err := rt.ListenEdge(ctx)
 	if err != nil {
 		cancel()
 		return err
 	}
+
 	run := &edgeRun{cancel: cancel}
+
 	go func() {
 		_ = rt.ServeEdgeOn(ctx, ln)
 		// Exited on its own (listener closed, accept error): release ownership, unless
@@ -129,14 +145,18 @@ func (w *worlds) serveEdge(rt *local.Runtime) error {
 		// stopEdge, since ServeEdgeOn can return seconds after cancel.
 		done := w.lock(project)
 		defer done()
+
 		w.mu.Lock()
 		defer w.mu.Unlock()
+
 		if w.edges[project] == run {
 			delete(w.edges, project)
 			rt.ReleaseEdge()
 		}
 	}()
+
 	w.edges[project] = run
+
 	return nil
 }
 
@@ -144,9 +164,11 @@ func (w *worlds) serveEdge(rt *local.Runtime) error {
 func (w *worlds) stopEdge(project string) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+
 	if run, ok := w.edges[project]; ok {
 		run.cancel()
 		delete(w.edges, project)
+
 		if rt, ok := w.runtimes[project]; ok {
 			rt.ReleaseEdge()
 		}
@@ -161,23 +183,28 @@ func (w *worlds) reader(project string) (*local.Runtime, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
+
 	release := w.lock(project)
 	w.mu.Lock()
 	rt, ok := w.runtimes[project]
 	w.mu.Unlock()
+
 	if ok {
 		return rt, release, nil
 	}
+
 	cfg := &service.Config{
 		Project:   project,
 		NATSURL:   service.NatsURL(project),
 		WorldToml: worldtoml.Config{Project: project},
 	}
+
 	dc, err := docker.NewClient(cfg, &docker.ClientOptions{Logger: slog.Default()})
 	if err != nil {
 		release()
 		return nil, nil, eris.Wrap(err, "docker client")
 	}
+
 	return local.New(dc, cfg), func() { _ = dc.Close(); release() }, nil
 }
 
@@ -188,10 +215,12 @@ func worldStatus(ctx context.Context, project string) ([]worldstatus.PoolStatus,
 		return nil, err
 	}
 	defer done()
+
 	status, err := rt.Status(ctx)
 	if err != nil {
 		return nil, eris.Wrap(err, "world status request failed")
 	}
+
 	return status, nil
 }
 
@@ -210,6 +239,7 @@ func toShardPools(status []worldstatus.PoolStatus) []ShardPool {
 				Age:          inst.Age,
 			})
 		}
+
 		pools = append(pools, ShardPool{
 			ShardID:   p.ShardID,
 			PoolSize:  p.PoolSize,
@@ -218,6 +248,7 @@ func toShardPools(status []worldstatus.PoolStatus) []ShardPool {
 			Instances: instances,
 		})
 	}
+
 	return pools
 }
 
@@ -230,6 +261,7 @@ func poolFor(status []worldstatus.PoolStatus, shardID string) worldstatus.PoolSt
 			return pool
 		}
 	}
+
 	return worldstatus.PoolStatus{ShardID: shardID}
 }
 
@@ -239,14 +271,17 @@ func poolFor(status []worldstatus.PoolStatus, shardID string) worldstatus.PoolSt
 // resolve to instance "game-5".
 func shardContainers(status []worldstatus.PoolStatus, shardID, instanceName string) []string {
 	var names []string
+
 	for _, inst := range poolFor(status, shardID).Instances {
 		if instanceName != "" && !instanceMatches(inst.Name, shardID, instanceName) {
 			continue
 		}
+
 		if inst.Runtime != "" {
 			names = append(names, inst.Runtime)
 		}
 	}
+
 	return names
 }
 
@@ -255,11 +290,13 @@ func shardContainers(status []worldstatus.PoolStatus, shardID, instanceName stri
 // reduce to the same key as "game-5".
 func normalizeInstanceKey(s string) string {
 	var b strings.Builder
+
 	for _, r := range strings.ToLower(s) {
 		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
 			b.WriteRune(r)
 		}
 	}
+
 	return b.String()
 }
 
@@ -272,21 +309,27 @@ func instanceMatches(instName, shardID, input string) bool {
 	if input == "" {
 		return false
 	}
+
 	if instName == input {
 		return true
 	}
+
 	in := normalizeInstanceKey(input)
 	normInst := normalizeInstanceKey(instName)
 	normShard := normalizeInstanceKey(shardID)
+
 	if in == normInst {
 		return true
 	}
+
 	if instName == shardID {
 		return in == "1" || in == normShard+"1"
 	}
+
 	if idx, ok := strings.CutPrefix(normInst, normShard); ok && idx != "" {
 		return in == idx
 	}
+
 	return false
 }
 
@@ -296,6 +339,7 @@ func shardInstanceNames(status []worldstatus.PoolStatus, shardID string) []strin
 	for _, inst := range poolFor(status, shardID).Instances {
 		names = append(names, inst.Name)
 	}
+
 	return names
 }
 
@@ -314,15 +358,18 @@ func resolveInstanceName(ctx context.Context, project, shardID, instanceName str
 	if instanceName == "" {
 		return shardID, nil
 	}
+
 	status, err := worldStatus(ctx, project)
 	if err != nil {
 		return "", err
 	}
+
 	for _, inst := range poolFor(status, shardID).Instances {
 		if instanceMatches(inst.Name, shardID, instanceName) {
 			return inst.Name, nil
 		}
 	}
+
 	return "", errInstanceNotFound(status, shardID, instanceName)
 }
 
@@ -344,6 +391,7 @@ func collectContainerLogs(ctx context.Context, project, container string, tail i
 		return "", err
 	}
 	defer done()
+
 	return collectContainerLogsFrom(ctx, rt, container, tail)
 }
 
@@ -357,17 +405,20 @@ func collectContainerLogsFrom(
 	tail int32,
 ) (string, error) {
 	out := make(chan worldstatus.LogLine, 256)
+
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- rt.StreamContainerLogs(ctx, container, worldstatus.LogsOpts{
 			TailLines: tail, FollowWindow: logWindow, MissingIsError: true,
 		}, out)
 	}()
+
 	var b strings.Builder
 	for line := range out {
 		b.WriteString(line.Line)
 		b.WriteByte('\n')
 	}
+
 	err := <-errCh
 	switch {
 	case eris.Is(err, local.ErrContainerNotFound):
@@ -378,6 +429,7 @@ func collectContainerLogsFrom(
 		// The stream swallows ctx errors; nothing arrived, so the budget was already spent.
 		return "", eris.Wrapf(ctx.Err(), "logs for %s", container)
 	}
+
 	return b.String(), nil
 }
 
@@ -395,22 +447,28 @@ func deployedShards(ctx context.Context, project string) ([]deployedShard, error
 	if err != nil {
 		return nil, err
 	}
+
 	rt, done, err := started.reader(project)
 	if err != nil {
 		return nil, err
 	}
 	defer done()
+
 	cs, err := rt.Containers(ctx)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to list shard containers")
 	}
+
 	seen := map[string]bool{}
+
 	var out []deployedShard
+
 	for _, c := range cs {
 		id := c.Labels[service.ShardIDLabel]
 		if c.Labels[service.RoleLabel] != service.RoleShard || c.State != docker.ContainerRunning || seen[id] {
 			continue
 		}
+
 		seen[id] = true
 		out = append(
 			out,
@@ -421,6 +479,7 @@ func deployedShards(ctx context.Context, project string) ([]deployedShard, error
 			},
 		)
 	}
+
 	return out, nil
 }
 
@@ -430,18 +489,22 @@ func resolveShardWorld(ctx context.Context, shardID, project string) (string, er
 	if project != "" {
 		return project, nil
 	}
+
 	shards, err := deployedShards(ctx, project)
 	if err != nil {
 		return "", err
 	}
+
 	for _, s := range shards {
 		if s.ShardID == shardID {
 			return s.Project, nil
 		}
 	}
+
 	available := make([]string, 0, len(shards))
 	for _, s := range shards {
 		available = append(available, s.ShardID)
 	}
+
 	return "", eris.Errorf("shard %q is not running; running shards: %v", shardID, available)
 }

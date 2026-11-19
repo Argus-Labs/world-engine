@@ -24,6 +24,7 @@ func SetProject(content, project string) string {
 	if match == nil {
 		return content
 	}
+
 	return content[:match[0]] + fmt.Sprintf("project = %q", project) + content[match[1]:]
 }
 
@@ -37,7 +38,9 @@ func WriteProject(path, project string) error {
 		return eris.Wrap(err, "failed to open project directory")
 	}
 	defer root.Close()
+
 	name := filepath.Base(path)
+
 	data, err := root.ReadFile(name)
 	if err != nil {
 		return eris.Wrap(err, "failed to read world.toml")
@@ -56,5 +59,6 @@ func WriteProject(path, project string) error {
 	if err := root.WriteFile(name, []byte(updated), 0o600); err != nil {
 		return eris.Wrap(err, "failed to write world.toml")
 	}
+
 	return nil
 }

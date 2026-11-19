@@ -78,6 +78,7 @@ func (i *devAuthInterceptor) setAuthHeader(h http.Header) {
 		h.Set("Authorization", "Bearer "+token)
 		return
 	}
+
 	h.Set(devPlayerIDHeader, i.playerID)
 }
 
@@ -87,10 +88,12 @@ func isLocalShardURL(raw string) bool {
 	if err != nil {
 		return false
 	}
+
 	host := u.Hostname()
 	if ip := net.ParseIP(host); ip != nil {
 		return ip.IsLoopback()
 	}
+
 	return strings.EqualFold(host, "localhost")
 }
 
@@ -100,6 +103,7 @@ func (i *devAuthInterceptor) WrapStreamingClient(next connect.StreamingClientFun
 	return func(ctx context.Context, spec connect.Spec) connect.StreamingClientConn {
 		conn := next(ctx, spec)
 		i.setAuthHeader(conn.RequestHeader())
+
 		return conn
 	}
 }
@@ -144,6 +148,7 @@ func resolveShardTarget(
 		if err != nil {
 			return shardTarget{}, err
 		}
+
 		instanceName = resolved
 		shardURL = local.ShardAPIURL(project, instanceName)
 	}
@@ -165,6 +170,7 @@ func ensureDeadline(ctx context.Context, fallback time.Duration) (context.Contex
 	if _, hasDeadline := ctx.Deadline(); hasDeadline {
 		return ctx, func() {}
 	}
+
 	return context.WithTimeout(ctx, fallback)
 }
 
@@ -244,6 +250,7 @@ func strictToolHandler[TArgs any, TResult any](
 				), nil
 			}
 		}
+
 		return inner(ctx, req)
 	}
 }
@@ -257,6 +264,7 @@ func declaredArgNames[T any]() map[string]struct{} {
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
+
 	if t.Kind() != reflect.Struct {
 		return names
 	}
@@ -265,14 +273,17 @@ func declaredArgNames[T any]() map[string]struct{} {
 		if !field.IsExported() {
 			continue
 		}
+
 		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		if name == "" {
 			name = field.Name
 		}
+
 		if name != "-" {
 			names[name] = struct{}{}
 		}
 	}
+
 	return names
 }
 
@@ -297,6 +308,7 @@ func buildWorldShards(
 		cfg        worldtoml.Config
 		deployOpts local.DeployOpts
 	)
+
 	err := docker.WithClient(worldPath, false, &docker.ClientOptions{Logger: slog.Default()},
 		func(sc *service.Config, dockerClient *docker.Client) error {
 			buildServices := dockerClient.ResolveServices(service.BuildCardinalShards(sc)...)
@@ -325,21 +337,25 @@ func buildWorldShards(
 			if withServices {
 				pullServices = append(slices.Clone(buildServices), service.PlatformServices(sc)...)
 			}
+
 			if err := dockerClient.PullImages(ctx, pullServices, nil); err != nil {
 				return eris.Wrap(err, "failed to pull images")
 			}
+
 			if err := dockerClient.BuildCardinalImages(ctx, buildServices, nil); err != nil {
 				return eris.Wrap(err, "failed to build Cardinal images")
 			}
 
 			cfg = sc.WorldToml
 			deployOpts = local.DeployOpts{Shards: deployShardsFromConfig(sc, shardID)}
+
 			return nil
 		},
 	)
 	if err != nil {
 		return worldtoml.Config{}, local.DeployOpts{}, err
 	}
+
 	return cfg, deployOpts, nil
 }
 
@@ -347,17 +363,21 @@ func buildWorldShards(
 // shard ID (deduped — pools expand to multiple entries). An empty shardID includes every shard.
 func deployShardsFromConfig(cfg *service.Config, shardID string) []local.DeployShard {
 	seen := make(map[string]struct{}, len(cfg.WorldToml.Shards))
+
 	shards := make([]local.DeployShard, 0, len(cfg.WorldToml.Shards))
 	for _, s := range cfg.WorldToml.Shards {
 		if shardID != "" && s.ID != shardID {
 			continue
 		}
+
 		if _, ok := seen[s.ID]; ok {
 			continue
 		}
+
 		seen[s.ID] = struct{}{}
 		shards = append(shards, local.DeployShard{ID: s.ID})
 	}
+
 	return shards
 }
 
@@ -366,14 +386,17 @@ func deployShardsFromConfig(cfg *service.Config, shardID string) []local.DeployS
 func filterShardServices(services []service.Service, cfg *service.Config, shardID string) []service.Service {
 	image := service.CardinalShardImageName(cfg.Project, shardID)
 	filtered := make([]service.Service, 0, 1)
+
 	for _, s := range services {
 		if s.Image != image {
 			continue
 		}
+
 		if !slices.ContainsFunc(filtered, func(x service.Service) bool { return x.Image == s.Image }) {
 			filtered = append(filtered, s)
 		}
 	}
+
 	return filtered
 }
 
@@ -384,5 +407,6 @@ func requireShardID(raw string) (string, error) {
 	if shardID == "" {
 		return "", eris.New("shard_id is required")
 	}
+
 	return shardID, nil
 }

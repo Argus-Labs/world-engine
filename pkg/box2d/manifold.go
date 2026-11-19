@@ -92,6 +92,7 @@ func makeID(a, b int) uint16 {
 // 2-vertex rounded polygon representing a capsule.
 func makeCapsule(p1, p2 Vec2, radius float64) Polygon {
 	var shape Polygon
+
 	shape.Vertices[0] = p1
 	shape.Vertices[1] = p2
 	shape.Centroid = Lerp(p1, p2, 0.5)
@@ -147,6 +148,7 @@ func CollideCircles(circleA *Circle, xfA Transform, circleB *Circle, xfB Transfo
 	mp.Separation = separation
 	mp.ID = 0
 	manifold.PointCount = 1
+
 	return manifold
 }
 
@@ -171,7 +173,9 @@ func CollideCapsuleAndCircle(capsuleA *Capsule, xfA Transform, circleB *Circle, 
 	// s1 = dot(p - p1, e)
 	// Upstream if/else-if/else chain; branch order preserved.
 	var pA Vec2
+
 	s1 := Dot(Sub(pB, p1), e)
+
 	s2 := Dot(Sub(p2, pB), e)
 	switch {
 	case s1 < 0.0:
@@ -190,6 +194,7 @@ func CollideCapsuleAndCircle(capsuleA *Capsule, xfA Transform, circleB *Circle, 
 
 	radiusA := capsuleA.Radius
 	radiusB := circleB.Radius
+
 	separation := distance - radiusA - radiusB
 	if separation > SpeculativeDistance {
 		return manifold
@@ -207,6 +212,7 @@ func CollideCapsuleAndCircle(capsuleA *Capsule, xfA Transform, circleB *Circle, 
 	mp.Separation = separation
 	mp.ID = 0
 	manifold.PointCount = 1
+
 	return manifold
 }
 
@@ -214,6 +220,7 @@ func CollideCapsuleAndCircle(capsuleA *Capsule, xfA Transform, circleB *Circle, 
 // and a circle (upstream b2CollidePolygonAndCircle).
 func CollidePolygonAndCircle(polygonA *Polygon, xfA Transform, circleB *Circle, xfB Transform) Manifold {
 	var manifold Manifold
+
 	speculativeDistance := SpeculativeDistance
 
 	xf := InvMulTransforms(xfA, xfB)
@@ -247,10 +254,12 @@ func CollidePolygonAndCircle(polygonA *Polygon, xfA Transform, circleB *Circle, 
 
 	// Vertices of the reference edge.
 	vertIndex1 := normalIndex
+
 	vertIndex2 := 0
 	if vertIndex1+1 < vertexCount {
 		vertIndex2 = vertIndex1 + 1
 	}
+
 	v1 := vertices[vertIndex1]
 	v2 := vertices[vertIndex2]
 
@@ -263,6 +272,7 @@ func CollidePolygonAndCircle(polygonA *Polygon, xfA Transform, circleB *Circle, 
 	case u1 < 0.0 && separation > epsilon:
 		// Circle center is closest to v1 and safely outside the polygon
 		normal := Normalize(Sub(center, v1))
+
 		separation = Dot(Sub(center, v1), normal)
 		if separation > radius+speculativeDistance {
 			return manifold
@@ -283,6 +293,7 @@ func CollidePolygonAndCircle(polygonA *Polygon, xfA Transform, circleB *Circle, 
 	case u2 < 0.0 && separation > epsilon:
 		// Circle center is closest to v2 and safely outside the polygon
 		normal := Normalize(Sub(center, v2))
+
 		separation = Dot(Sub(center, v2), normal)
 		if separation > radius+speculativeDistance {
 			return manifold
@@ -391,6 +402,7 @@ func CollideCapsules(capsuleA *Capsule, xfA Transform, capsuleB *Capsule, xfB Tr
 	distanceSquared := DistanceSquared(closest1, closest2)
 
 	var manifold Manifold
+
 	radiusA := capsuleA.Radius
 	radiusB := capsuleB.Radius
 	radius := radiusA + radiusB
@@ -421,17 +433,21 @@ func CollideCapsules(capsuleA *Capsule, xfA Transform, capsuleB *Capsule, xfB Tr
 		// in that case the algorithm falls back to single point collision
 
 		// find reference edge using SAT
-		var normalA Vec2
-		var separationA float64
+		var (
+			normalA     Vec2
+			separationA float64
+		)
 
 		{
 			normalA = LeftPerp(u1)
 			ss1 := Dot(Sub(p2, p1), normalA)
 			ss2 := Dot(Sub(q2, p1), normalA)
+
 			s1p := ss2
 			if ss1 < ss2 {
 				s1p = ss1
 			}
+
 			s1n := -ss2
 			if -ss1 < -ss2 {
 				s1n = -ss1
@@ -445,16 +461,20 @@ func CollideCapsules(capsuleA *Capsule, xfA Transform, capsuleB *Capsule, xfB Tr
 			}
 		}
 
-		var normalB Vec2
-		var separationB float64
+		var (
+			normalB     Vec2
+			separationB float64
+		)
 		{
 			normalB = LeftPerp(u2)
 			ss1 := Dot(Sub(p1, p2), normalB)
 			ss2 := Dot(Sub(q1, p2), normalB)
+
 			s1p := ss2
 			if ss1 < ss2 {
 				s1p = ss1
 			}
+
 			s1n := -ss2
 			if -ss1 < -ss2 {
 				s1n = -ss1
@@ -560,6 +580,7 @@ func CollideCapsules(capsuleA *Capsule, xfA Transform, capsuleB *Capsule, xfB Tr
 		if f1 == 0.0 {
 			i1 = 0
 		}
+
 		i2 := 1
 		if f2 == 0.0 {
 			i2 = 0
@@ -606,22 +627,28 @@ func clipPolygons(polyA, polyB *Polygon, edgeA, edgeB int, flip bool) Manifold {
 	var manifold Manifold
 
 	// reference polygon
-	var poly1 *Polygon
-	var i11, i12 int
+	var (
+		poly1    *Polygon
+		i11, i12 int
+	)
 
 	// incident polygon
-	var poly2 *Polygon
-	var i21, i22 int
+	var (
+		poly2    *Polygon
+		i21, i22 int
+	)
 
 	if flip {
 		poly1 = polyB
 		poly2 = polyA
+
 		i11 = edgeB
 		if edgeB+1 < polyB.Count {
 			i12 = edgeB + 1
 		} else {
 			i12 = 0
 		}
+
 		i21 = edgeA
 		if edgeA+1 < polyA.Count {
 			i22 = edgeA + 1
@@ -631,12 +658,14 @@ func clipPolygons(polyA, polyB *Polygon, edgeA, edgeB int, flip bool) Manifold {
 	} else {
 		poly1 = polyA
 		poly2 = polyB
+
 		i11 = edgeA
 		if edgeA+1 < polyA.Count {
 			i12 = edgeA + 1
 		} else {
 			i12 = 0
 		}
+
 		i21 = edgeB
 		if edgeB+1 < polyB.Count {
 			i22 = edgeB + 1
@@ -752,6 +781,7 @@ func findMaxSeparation(poly1, poly2 *Polygon) (float64, int) {
 
 	bestIndex := 0
 	maxSeparation := -math.MaxFloat64
+
 	for i := range count1 {
 		// Get poly1 normal in frame2.
 		n := n1s[i]
@@ -759,6 +789,7 @@ func findMaxSeparation(poly1, poly2 *Polygon) (float64, int) {
 
 		// Find the deepest point for normal i.
 		si := math.MaxFloat64
+
 		for j := range count2 {
 			sij := Dot(n, Sub(v2s[j], v1))
 			if sij < si {
@@ -808,9 +839,11 @@ func CollidePolygons(polygonA *Polygon, xfA Transform, polygonB *Polygon, xfB Tr
 	xf := InvMulTransforms(sfA, xfB)
 
 	var localPolyA Polygon
+
 	localPolyA.Count = polygonA.Count
 	localPolyA.Radius = polygonA.Radius
 	localPolyA.Vertices[0] = Vec2Zero
+
 	localPolyA.Normals[0] = polygonA.Normals[0]
 	for i := 1; i < localPolyA.Count; i++ {
 		localPolyA.Vertices[i] = Sub(polygonA.Vertices[i], origin)
@@ -819,7 +852,9 @@ func CollidePolygons(polygonA *Polygon, xfA Transform, polygonB *Polygon, xfB Tr
 
 	// Put polyB in polyA's frame to reduce round-off error
 	var localPolyB Polygon
+
 	localPolyB.Count = polygonB.Count
+
 	localPolyB.Radius = polygonB.Radius
 	for i := range localPolyB.Count {
 		localPolyB.Vertices[i] = TransformPoint(xf, polygonB.Vertices[i])
@@ -847,6 +882,7 @@ func CollidePolygons(polygonA *Polygon, xfA Transform, polygonB *Polygon, xfB Tr
 		normals := localPolyB.Normals[:count]
 		edgeB = 0
 		minDot := math.MaxFloat64
+
 		for i := range count {
 			dot := Dot(searchDirection, normals[i])
 			if dot < minDot {
@@ -864,6 +900,7 @@ func CollidePolygons(polygonA *Polygon, xfA Transform, polygonB *Polygon, xfB Tr
 		normals := localPolyA.Normals[:count]
 		edgeA = 0
 		minDot := math.MaxFloat64
+
 		for i := range count {
 			dot := Dot(searchDirection, normals[i])
 			if dot < minDot {
@@ -882,11 +919,14 @@ func CollidePolygons(polygonA *Polygon, xfA Transform, polygonB *Polygon, xfB Tr
 		// Edges are disjoint. Find closest points between reference edge and incident edge
 		// Reference edge on polygon A
 		i11 := edgeA
+
 		i12 := 0
 		if edgeA+1 < localPolyA.Count {
 			i12 = edgeA + 1
 		}
+
 		i21 := edgeB
+
 		i22 := 0
 		if edgeB+1 < localPolyB.Count {
 			i22 = edgeB + 1
@@ -1049,6 +1089,7 @@ func CollideChainSegmentAndCircle(segmentA *ChainSegment, xfA Transform, circleB
 		// Behind point1?
 		// Is pB in the Voronoi region of the previous edge?
 		prevEdge := Sub(p1, segmentA.Ghost1)
+
 		uPrev := Dot(prevEdge, Sub(pB, p1))
 		if uPrev <= 0.0 {
 			return manifold
@@ -1080,6 +1121,7 @@ func CollideChainSegmentAndCircle(segmentA *ChainSegment, xfA Transform, circleB
 	normal, distance := GetLengthAndNormalize(Sub(pB, pA))
 
 	radius := circleB.Radius
+
 	separation := distance - radius
 	if separation > SpeculativeDistance {
 		return manifold
@@ -1098,6 +1140,7 @@ func CollideChainSegmentAndCircle(segmentA *ChainSegment, xfA Transform, circleB
 	mp.Separation = separation
 	mp.ID = 0
 	manifold.PointCount = 1
+
 	return manifold
 }
 
@@ -1253,9 +1296,11 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 	edge1 := Normalize(Sub(p2, p1))
 
 	var smoothParams chainSegmentParams
+
 	smoothParams.edge1 = edge1
 
 	const convexTol = 0.01
+
 	edge0 := Normalize(Sub(p1, segmentA.Ghost1))
 	smoothParams.normal0 = RightPerp(edge0)
 	smoothParams.convex1 = Cross(edge0, edge1) >= convexTol
@@ -1269,6 +1314,7 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 	behind1 := Dot(normal1, Sub(centroidB, p1)) < 0.0
 	behind0 := true
 	behind2 := true
+
 	if smoothParams.convex1 {
 		behind0 = Dot(smoothParams.normal0, Sub(centroidB, p1)) < 0.0
 	}
@@ -1284,8 +1330,12 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 
 	// Get polygonB in frameA
 	count := polygonB.Count
-	var vertices [MaxPolygonVertices]Vec2
-	var normals [MaxPolygonVertices]Vec2
+
+	var (
+		vertices [MaxPolygonVertices]Vec2
+		normals  [MaxPolygonVertices]Vec2
+	)
+
 	for i := range count {
 		vertices[i] = TransformPoint(xf, polygonB.Vertices[i])
 
@@ -1294,6 +1344,7 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 
 	// Distance doesn't work correctly with partial polygons
 	var input DistanceInput
+
 	input.ProxyA = MakeProxy([]Vec2{segmentA.Segment.Point1, segmentA.Segment.Point2}, 2, 0.0)
 	input.ProxyB = MakeProxy(vertices[:], count, 0.0)
 	input.TransformA = TransformIdentity
@@ -1311,6 +1362,7 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 	if smoothParams.convex1 {
 		n0 = smoothParams.normal0
 	}
+
 	n2 := normal1
 	if smoothParams.convex2 {
 		n2 = smoothParams.normal2
@@ -1324,7 +1376,6 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 	if !behind1 && output.Distance > slopTenth {
 		// The closest features may be two vertices or an edge and a vertex even when there should
 		// be face contact
-
 		if cache.Count == 1 {
 			// vertex-vertex collision
 			pA := output.PointA
@@ -1346,6 +1397,7 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 				cp.Separation = output.Distance - radiusB
 				cp.ID = makeID(int(cache.IndexA[0]), int(cache.IndexB[0]))
 				manifold.PointCount = 1
+
 				return manifold
 			}
 
@@ -1369,6 +1421,7 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 				normalB := Sub(output.PointA, output.PointB)
 				dot1 := Dot(normalB, normals[ib1])
 				dot2 := Dot(normalB, normals[ib2])
+
 				ib := ib2
 				if dot1 > dot2 {
 					ib = ib1
@@ -1413,6 +1466,7 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 					manifold = clipSegments(b1, b2, p1, p2, normalB, radiusB, 0.0, makeID(ib1, 1), makeID(ib2, 0))
 
 					assert(manifold.PointCount == 0 || manifold.PointCount == 2)
+
 					if manifold.PointCount == 2 {
 						manifold.Normal = RotateVector(xfA.Q, Neg(normalB))
 						manifold.Points[0].AnchorA = RotateVector(xfA.Q, manifold.Points[0].AnchorA)
@@ -1423,6 +1477,7 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 						manifold.Points[0].ClipPoint = Add(xfA.P, manifold.Points[0].AnchorA)
 						manifold.Points[1].ClipPoint = Add(xfA.P, manifold.Points[1].AnchorA)
 					}
+
 					return manifold
 				}
 
@@ -1432,6 +1487,7 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 				// Get index of incident polygonB vertex
 				dot1 := Dot(normal1, Sub(vertices[ib1], p1))
 				dot2 := Dot(normal1, Sub(vertices[ib2], p2))
+
 				incidentIndex = ib2
 				if dot1 < dot2 {
 					incidentIndex = ib1
@@ -1517,6 +1573,7 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 
 		if polygonSeparation > edgeSeparation {
 			ia1 := referenceIndex
+
 			ia2 := 0
 			if ia1 < count-1 {
 				ia2 = ia1 + 1
@@ -1546,6 +1603,7 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 			manifold = clipSegments(a1, a2, p1, p2, n, radiusB, 0.0, makeID(ia1, 1), makeID(ia2, 0))
 
 			assert(manifold.PointCount == 0 || manifold.PointCount == 2)
+
 			if manifold.PointCount == 2 {
 				manifold.Normal = RotateVector(xfA.Q, Neg(n))
 				manifold.Points[0].AnchorA = RotateVector(xfA.Q, manifold.Points[0].AnchorA)
@@ -1573,8 +1631,10 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 	// Segment normal
 
 	// Find incident polygon normal: normal adjacent to deepest vertex that is most anti-parallel to segment normal
-	var b1, b2 Vec2
-	var ib1, ib2 int
+	var (
+		b1, b2   Vec2
+		ib1, ib2 int
+	)
 
 	if incidentNormal != -1 {
 		ib1 = incidentNormal
@@ -1588,10 +1648,12 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 		b2 = vertices[ib2]
 	} else {
 		i2 := incidentIndex
+
 		i1 := count - 1
 		if i2 > 0 {
 			i1 = i2 - 1
 		}
+
 		d1 := Dot(normal1, normals[i1])
 		//nolint:gosec // G602: incidentIndex is a polygon vertex index; the no-incident branch returned above.
 		d2 := Dot(normal1, normals[i2])
@@ -1616,6 +1678,7 @@ func CollideChainSegmentAndPolygon(segmentA *ChainSegment, xfA Transform, polygo
 	manifold = clipSegments(p1, p2, b1, b2, normal1, 0.0, radiusB, makeID(0, ib2), makeID(1, ib1))
 
 	assert(manifold.PointCount == 0 || manifold.PointCount == 2)
+
 	if manifold.PointCount == 2 {
 		// There may be no points c
 		manifold.Normal = RotateVector(xfA.Q, manifold.Normal)

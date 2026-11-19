@@ -70,6 +70,7 @@ func loadConfig() (Config, error) {
 	if err := env.Parse(&cfg); err != nil {
 		return cfg, eris.Wrap(err, "failed to parse telemetry config")
 	}
+
 	if _, set := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT"); !set {
 		cfg.Endpoint = defaultEndpoint
 	}
@@ -100,10 +101,12 @@ func (cfg *Config) validate() error {
 		if cfg.TraceSampleRate < 0.0 || cfg.TraceSampleRate > 1.0 {
 			return eris.New("trace sample rate must be between 0.0 and 1.0")
 		}
+
 		if err := target.validate(); err != nil {
 			return err
 		}
 	}
+
 	if err := cfg.metricsExporterTarget().validate(); err != nil {
 		return err
 	}
@@ -129,13 +132,16 @@ func (t exporterTarget) validate() error {
 	if !t.isURL() {
 		return nil
 	}
+
 	u, err := url.Parse(t.Endpoint)
 	if err != nil {
 		return eris.Wrapf(err, "invalid OTLP endpoint URL %q", t.Endpoint)
 	}
+
 	if u.Host == "" {
 		return eris.Errorf("invalid OTLP endpoint URL %q: missing host", t.Endpoint)
 	}
+
 	return nil
 }
 
@@ -151,6 +157,7 @@ func (cfg *Config) tracesExporterTarget() exporterTarget {
 	if cfg.TracesEndpoint != "" {
 		endpoint = cfg.TracesEndpoint
 	}
+
 	return resolveExporterTarget(endpoint, cfg.Insecure, cfg.TracesInsecure)
 }
 
@@ -169,12 +176,15 @@ func resolveExporterTarget(endpoint string, insecure, signalInsecure *bool) expo
 		target.Insecure = !strings.HasPrefix(strings.ToLower(target.Endpoint), "https://")
 		return target
 	}
+
 	if insecure != nil {
 		target.Insecure = *insecure
 	}
+
 	if signalInsecure != nil {
 		target.Insecure = *signalInsecure
 	}
+
 	return target
 }
 
@@ -227,21 +237,27 @@ func (opt *Options) apply(newOpt Options) {
 	if newOpt.ServiceName != "" {
 		opt.ServiceName = newOpt.ServiceName
 	}
+
 	if newOpt.LogLevel != "" {
 		opt.LogLevel = newOpt.LogLevel
 	}
+
 	if newOpt.LogFormat != LogFormatUndefined {
 		opt.LogFormat = newOpt.LogFormat
 	}
+
 	if newOpt.TraceSampleRate != 0.0 {
 		opt.TraceSampleRate = newOpt.TraceSampleRate
 	}
+
 	if newOpt.SentryOptions.Tags != nil {
 		opt.SentryOptions.Tags = newOpt.SentryOptions.Tags
 	}
+
 	if newOpt.PosthogOptions.DistinctID != "" {
 		opt.PosthogOptions.DistinctID = newOpt.PosthogOptions.DistinctID
 	}
+
 	if newOpt.PosthogOptions.BaseProperties != nil {
 		opt.PosthogOptions.BaseProperties = newOpt.PosthogOptions.BaseProperties
 	}
@@ -252,18 +268,22 @@ func (opt *Options) validate() error {
 	if opt.ServiceName == "" {
 		return eris.New("service name cannot be empty")
 	}
+
 	_, err := zerolog.ParseLevel(strings.ToLower(opt.LogLevel))
 	if err != nil {
 		return eris.Errorf("invalid log level: %s (must be 'debug', 'info', 'warn', or 'error')", opt.LogLevel)
 	}
+
 	if opt.LogFormat == LogFormatUndefined {
 		return eris.New("log format must be specified")
 	}
+
 	if opt.Endpoint != "" {
 		if opt.TraceSampleRate < 0.0 || opt.TraceSampleRate > 1.0 {
 			return eris.New("trace sample rate must be between 0.0 and 1.0")
 		}
 	}
+
 	return nil
 }
 

@@ -205,6 +205,7 @@ import (
 
 	data, err := os.ReadFile(filepath.Join(dir, "file.go"))
 	require.NoError(t, err)
+
 	out := string(data)
 
 	// Engine import preserved
@@ -302,6 +303,7 @@ func (s *SetupCloneTestSuite) TestInstantiateTemplate_CleansUpPartialOnFailure()
 	require.NoError(t, err)
 	require.NoError(t, os.MkdirAll(filepath.Join(repoDir, "tmpl"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "tmpl", "main.go"), []byte("package main\n"), 0o600))
+
 	wt, err := repo.Worktree()
 	require.NoError(t, err)
 	_, err = wt.Add(".")
@@ -322,24 +324,30 @@ func (s *SetupCloneTestSuite) TestInstantiateTemplate_CleansUpPartialOnFailure()
 
 func TestWriteAgentSkillsWritesBothLocationsAndKeepsExisting(t *testing.T) {
 	dir := t.TempDir()
+
 	custom := filepath.Join(dir, ".claude", "skills", "world-local-dev", "SKILL.md")
 	if err := os.MkdirAll(filepath.Dir(custom), 0o755); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := os.WriteFile(custom, []byte("mine"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := writeAgentSkills(dir); err != nil {
 		t.Fatal(err)
 	}
+
 	kept, _ := os.ReadFile(custom)
 	if string(kept) != "mine" {
 		t.Fatal("template's own skill was overwritten")
 	}
+
 	agents, err := os.ReadFile(filepath.Join(dir, ".agents", "skills", "world-local-dev", "SKILL.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if !strings.Contains(string(agents), "name: world-local-dev") || !strings.Contains(string(agents), "world start") {
 		t.Fatal("skill content missing")
 	}
@@ -349,12 +357,14 @@ func TestRewriteImports_RejectsSymlinkOutsideProject(t *testing.T) {
 	t.Parallel()
 
 	outside := filepath.Join(t.TempDir(), "outside.go")
+
 	const source = "package main\nimport _ \"github.com/argus-labs/world-engine/pkg/template/example/pkg\"\n"
 	require.NoError(t, os.WriteFile(outside, []byte(source), 0o600))
 	project := t.TempDir()
 	require.NoError(t, os.Symlink(outside, filepath.Join(project, "linked.go")))
 
 	require.Error(t, rewriteImportsIn(project, "example.com/project"))
+
 	data, err := os.ReadFile(outside)
 	require.NoError(t, err)
 	assert.Equal(t, source, string(data))

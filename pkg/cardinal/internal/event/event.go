@@ -48,6 +48,7 @@ type Manager struct {
 // NewManager creates a new event manager with a non-zero channel capacity.
 func NewManager(channelCapacity int) Manager {
 	assert.That(channelCapacity > 0, "channel capacity must be greater than 0")
+
 	return Manager{
 		handlers: make([]Handler, math.MaxUint8+1),
 		channel:  make(chan Event, channelCapacity),
@@ -107,6 +108,7 @@ func (m *Manager) Dispatch(ctx context.Context) error {
 	defer m.mu.Unlock()
 
 	var errs []error
+
 	for _, event := range m.buffer {
 		handler := m.handlers[event.Kind]
 		if err := handler(ctx, event); err != nil {
@@ -120,6 +122,7 @@ func (m *Manager) Dispatch(ctx context.Context) error {
 	if len(errs) > 0 {
 		return eris.Errorf("event dispatch encountered %d error(s): %v", len(errs), errs)
 	}
+
 	return nil
 }
 

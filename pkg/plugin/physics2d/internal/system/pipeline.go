@@ -36,25 +36,31 @@ func loadContactBaseline(
 	rt *internal.Runtime, w *cardinal.World, singleton cardinal.Search,
 ) (cardinal.Entity, bool) {
 	var acRef cardinal.Entity
+
 	singletonFound := false
+
 	for row := range singleton.Iter() {
 		acRef = row
 		singletonFound = true
+
 		break
 	}
 
 	if !singletonFound {
 		w.Logger().Error().
 			Msg("physics2d: physics singleton entity missing; contact dedupe has no persisted baseline")
+
 		if rt.SuppressContactsStep {
 			rt.NoPersistedActiveContactsBaseline = true
 		}
+
 		return acRef, false
 	}
 
 	if rt.ActiveContacts == nil {
 		rt.LoadActiveContactsFromComponent(acRef.Get[physicscomp.ActiveContacts]())
 	}
+
 	return acRef, true
 }
 
@@ -78,6 +84,7 @@ func (s *PhysicsPipelineSystem) Run(w *cardinal.World) {
 	// --- 1. Reconcile (ECS -> Box2D) ---
 	singleton := w.Exact[physicsSingletonRow]()
 	ensurePhysicsSingleton(singleton)
+
 	bodies := w.Contains[physicsBodyRow]()
 	entries := rt.KeepRebuildEntriesScratch(
 		gatherRebuildEntries(rt.RebuildEntriesScratch(), bodies.Iter()))
@@ -86,8 +93,10 @@ func (s *PhysicsPipelineSystem) Run(w *cardinal.World) {
 		if err := rt.FullRebuildFromECS(rt.Gravity, entries); err != nil {
 			w.Logger().Error().Err(err).Msg("physics2d: FullRebuildFromECS failed (nil world recovery)")
 		}
+
 		return
 	}
+
 	if err := rt.ReconcileFromECS(entries); err != nil {
 		w.Logger().Error().Err(err).Msg("physics2d: ReconcileFromECS failed")
 	}
@@ -111,5 +120,6 @@ func (s *PhysicsPipelineSystem) Run(w *cardinal.World) {
 			Entity: row,
 		})
 	}
+
 	rt.WritebackFromStepResults(rt.KeepWritebackScratch(wb))
 }

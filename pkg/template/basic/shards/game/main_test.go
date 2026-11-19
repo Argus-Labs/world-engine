@@ -33,6 +33,7 @@ func TestGraveyardSystem(t *testing.T) {
 	for grave := range w.Exact[system.Grave]().Iter() {
 		graves = append(graves, grave.Get[component.Gravestone]())
 	}
+
 	assert.Equal(t, []component.Gravestone{{Nickname: "bob"}}, graves)
 }
 

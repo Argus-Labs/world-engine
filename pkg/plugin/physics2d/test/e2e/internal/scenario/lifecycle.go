@@ -70,6 +70,7 @@ func Lifecycle() harness.Scenario {
 		pb := body(physics.BodyTypeDynamic, shapes...)
 		pb.GravityScale = 0
 		pb.FixedRotation = true
+
 		return pb
 	}
 
@@ -230,6 +231,7 @@ func Lifecycle() harness.Scenario {
 
 				c.True("appending a shape adds a fixture", hits(c, s.multiShape, 3, 110),
 					"the appended shape is not there")
+
 				res := c.Raycast(3, 114, 3, 106, nil)
 				if res.Hit && res.Entity == s.multiShape {
 					c.Int("an appended shape takes the next slot index", res.ShapeIndex, 1)

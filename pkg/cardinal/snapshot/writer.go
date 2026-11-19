@@ -66,6 +66,7 @@ func (w *SyncWriter) Drain(_ context.Context) error {
 	if w.lastErr == nil {
 		return nil
 	}
+
 	return eris.Wrap(w.lastErr, "the newest snapshot did not reach storage")
 }
 
@@ -106,6 +107,7 @@ var _ Writer = (*AsyncWriter)(nil)
 
 func NewAsyncWriter(storage Storage, tel *telemetry.Telemetry) *AsyncWriter {
 	ctx, cancel := context.WithCancel(context.Background())
+
 	w := &AsyncWriter{
 		storage: storage,
 		tel:     tel,
@@ -116,6 +118,7 @@ func NewAsyncWriter(storage Storage, tel *telemetry.Telemetry) *AsyncWriter {
 		done:    make(chan struct{}),
 	}
 	go w.loop(ctx)
+
 	return w
 }
 
@@ -123,6 +126,7 @@ func (w *AsyncWriter) loop(ctx context.Context) {
 	defer close(w.done)
 
 	var lastErr error
+
 	for {
 		var drainResult chan error
 		select {
@@ -141,6 +145,7 @@ func (w *AsyncWriter) loop(ctx context.Context) {
 			if snap.data == nil {
 				break
 			}
+
 			lastErr = w.store(ctx, snap)
 		}
 
@@ -161,6 +166,7 @@ func (w *AsyncWriter) store(ctx context.Context, snap pendingSnapshot) (err erro
 			err = eris.Errorf("snapshot storage panicked: %v", r)
 			w.logger.Error().Err(err).Uint64("tick_height", snap.tick).
 				Msg("recovered a panic from snapshot storage; the snapshot was not written")
+
 			if w.tel != nil {
 				w.tel.CaptureException(ctx, err)
 			}
@@ -172,6 +178,7 @@ func (w *AsyncWriter) store(ctx context.Context, snap pendingSnapshot) (err erro
 	} else {
 		w.logger.Debug().Uint64("tick_height", snap.tick).Msg("published snapshot")
 	}
+
 	return err
 }
 
@@ -180,6 +187,7 @@ func (w *AsyncWriter) Write(tick uint64, data []byte) {
 	assert.That(!w.stopped, "cannot write after the snapshot writer stopped")
 
 	w.mu.Lock()
+
 	superseded := w.pending
 	if superseded.data != nil {
 		w.dropped++
@@ -224,6 +232,7 @@ func (w *AsyncWriter) Drain(ctx context.Context) error {
 		if err != nil {
 			return eris.Wrap(err, "the newest snapshot did not reach storage")
 		}
+
 		return nil
 	case <-ctx.Done():
 		return eris.Wrap(ctx.Err(), "timed out waiting for pending snapshot writes to reach storage")

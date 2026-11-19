@@ -283,6 +283,7 @@ func TestIsOlderThan(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			got := modfile.IsOlderThan(tt.ver, tt.baseline)
 			assert.Equal(t, tt.want, got)
 		})

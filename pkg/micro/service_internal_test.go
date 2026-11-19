@@ -104,6 +104,7 @@ func TestService_Handler(t *testing.T) {
 
 		// Should get an error response, not a crash.
 		var resp microv1.Response
+
 		err = proto.Unmarshal(msg.Data, &resp)
 		require.NoError(t, err)
 		assert.Equal(t, int32(codes.Internal), resp.GetStatus().GetCode())
@@ -117,6 +118,7 @@ func TestService_Handler(t *testing.T) {
 		endpoint := randEndpointName(rng)
 
 		var receivedReq *Request
+
 		err := svc.AddEndpoint(endpoint, func(_ context.Context, req *Request) *Response {
 			receivedReq = req
 			return NewSuccessResponse(req, nil)
@@ -132,6 +134,7 @@ func TestService_Handler(t *testing.T) {
 		require.NoError(t, err)
 
 		var resp microv1.Response
+
 		err = proto.Unmarshal(msg.Data, &resp)
 		require.NoError(t, err)
 		assert.Equal(t, int32(codes.OK), resp.GetStatus().GetCode())
@@ -193,10 +196,12 @@ func TestService_Handler(t *testing.T) {
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
+
 		_, err = client.Request(ctx, svc.Address, endpoint, testPayload)
 		require.NoError(t, err)
 
 		assert.NotEqual(t, "spoof", <-handled, "handler saw the spoofing request")
+
 		_, err = spoofed.NextMsg(100 * time.Millisecond)
 		require.ErrorIs(t, err, nats.ErrTimeout, "service replied onto another service's command subject")
 	})

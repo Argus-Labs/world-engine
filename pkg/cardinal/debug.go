@@ -44,6 +44,7 @@ func (d *debugModule) publishState(data []byte) {
 	if d == nil {
 		return
 	}
+
 	d.snapshot.Store(&data)
 }
 
@@ -56,9 +57,11 @@ func (d *debugModule) register(kind introspect.Kind, value schema.Serializable) 
 	if d == nil {
 		return nil
 	}
+
 	if err := d.catalog.Register(kind, value); err != nil {
 		return eris.Wrap(err, "failed to register introspection type")
 	}
+
 	return nil
 }
 
@@ -67,9 +70,11 @@ func (d *debugModule) finalizeCatalog() error {
 	if d == nil {
 		return nil
 	}
+
 	if err := d.catalog.Finalize(); err != nil {
 		return eris.Wrap(err, "failed to finalize introspection catalog")
 	}
+
 	return nil
 }
 
@@ -90,11 +95,13 @@ func (d *debugModule) Introspect(
 // buildSchedules converts the ECS system lists to proto messages.
 func (d *debugModule) buildSchedules() []*cardinalv1.SystemSchedule {
 	ecsSchedules := d.world.world.Schedules()
+
 	schedules := make([]*cardinalv1.SystemSchedule, 0, len(ecsSchedules))
 	for _, s := range ecsSchedules {
 		if len(s.Systems) == 0 {
 			continue
 		}
+
 		nodes := make([]*cardinalv1.SystemNode, len(s.Systems))
 		for i, sys := range s.Systems {
 			nodes[i] = &cardinalv1.SystemNode{
@@ -102,11 +109,13 @@ func (d *debugModule) buildSchedules() []*cardinalv1.SystemSchedule {
 				Name: sys.Name,
 			}
 		}
+
 		schedules = append(schedules, &cardinalv1.SystemSchedule{
 			Hook:    phaseToProto(s.Phase),
 			Systems: nodes,
 		})
 	}
+
 	return schedules
 }
 
@@ -121,6 +130,7 @@ func phaseToProto(phase ecs.Phase) cardinalv1.SystemHook {
 	if int(phase) < len(mapping) {
 		return mapping[phase]
 	}
+
 	return cardinalv1.SystemHook_SYSTEM_HOOK_UNSPECIFIED
 }
 
@@ -213,6 +223,7 @@ func (d *debugModule) Step(
 			return nil, connect.NewError(connect.CodeFailedPrecondition,
 				eris.New("world is no longer paused"))
 		}
+
 		return connect.NewResponse(&cardinalv1.StepResponse{
 			TickHeight: tickHeight,
 		}), nil
@@ -243,6 +254,7 @@ func (d *debugModule) Reset(
 			return nil, connect.NewError(connect.CodeFailedPrecondition,
 				eris.New("world is no longer paused"))
 		}
+
 		return connect.NewResponse(&cardinalv1.ResetResponse{}), nil
 	case <-ctx.Done():
 		return nil, connect.NewError(connect.CodeCanceled, ctx.Err())
@@ -267,8 +279,10 @@ func (d *debugModule) GetState(
 		if err != nil {
 			return nil, eris.Wrap(err, "the published snapshot cannot be decoded")
 		}
+
 		resp.Snapshot = snap
 	}
+
 	return connect.NewResponse(resp), nil
 }
 
@@ -277,6 +291,7 @@ func (d *debugModule) isPaused() bool {
 	if d == nil {
 		return false
 	}
+
 	return d.control.isPaused.Load()
 }
 
@@ -285,6 +300,7 @@ func (d *debugModule) setPaused(v bool) {
 	if d == nil {
 		return
 	}
+
 	d.control.isPaused.Store(v)
 }
 
@@ -293,6 +309,7 @@ func (d *debugModule) pauseChan() <-chan chan uint64 {
 	if d == nil {
 		return nil
 	}
+
 	return d.control.pauseCh
 }
 
@@ -301,6 +318,7 @@ func (d *debugModule) resumeChan() <-chan struct{} {
 	if d == nil {
 		return nil
 	}
+
 	return d.control.resumeCh
 }
 
@@ -309,6 +327,7 @@ func (d *debugModule) stepChan() <-chan chan uint64 {
 	if d == nil {
 		return nil
 	}
+
 	return d.control.stepCh
 }
 
@@ -317,5 +336,6 @@ func (d *debugModule) resetChan() <-chan chan struct{} {
 	if d == nil {
 		return nil
 	}
+
 	return d.control.resetCh
 }

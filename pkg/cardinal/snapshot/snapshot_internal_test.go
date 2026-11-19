@@ -87,11 +87,13 @@ func TestDecodeRejects(t *testing.T) {
 	encode := func(snap *cardinalv1.Snapshot) []byte {
 		data, err := proto.Marshal(snap)
 		require.NoError(t, err)
+
 		return data
 	}
 
 	t.Run("malformed wire data", func(t *testing.T) {
 		t.Parallel()
+
 		data := encode(&cardinalv1.Snapshot{
 			WorldState: testWorldState(), Version: CurrentVersion,
 		})
@@ -104,6 +106,7 @@ func TestDecodeRejects(t *testing.T) {
 
 	t.Run("missing world state", func(t *testing.T) {
 		t.Parallel()
+
 		snap, err := Decode(encode(&cardinalv1.Snapshot{Version: CurrentVersion}))
 		assert.Nil(t, snap)
 		require.Error(t, err)
@@ -112,6 +115,7 @@ func TestDecodeRejects(t *testing.T) {
 
 	t.Run("empty component name", func(t *testing.T) {
 		t.Parallel()
+
 		snap, err := Decode(encode(&cardinalv1.Snapshot{
 			WorldState: &cardinalv1.WorldState{Components: []string{""}},
 			Version:    CurrentVersion,
@@ -128,6 +132,7 @@ func TestDecodeRejects(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+
 			snap, err := Decode(encode(&cardinalv1.Snapshot{
 				WorldState: testWorldState(), Version: version,
 			}))
@@ -142,6 +147,7 @@ func TestDecodeRejects(t *testing.T) {
 	// the file differs from today's shape.
 	t.Run("wrong version that also fails the current schema", func(t *testing.T) {
 		t.Parallel()
+
 		snap, err := Decode(encode(&cardinalv1.Snapshot{
 			Version: CurrentVersion + 1, // WorldState omitted: required under the current schema
 		}))
@@ -158,6 +164,7 @@ func TestValidateVersion(t *testing.T) {
 
 	require.NoError(t, ValidateVersion(CurrentVersion))
 	assert.Equal(t, uint32(2), CurrentVersion)
+
 	for _, v := range []uint32{0, 1, CurrentVersion + 1, 99} {
 		err := ValidateVersion(v)
 		require.Error(t, err)

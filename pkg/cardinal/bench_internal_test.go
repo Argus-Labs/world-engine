@@ -20,6 +20,7 @@ func benchGobUnmarshal[T any](b []byte) (any, error) {
 	if err := gob.NewDecoder(bytes.NewReader(b)).Decode(&v); err != nil {
 		return nil, err
 	}
+
 	return v, nil
 }
 
@@ -112,10 +113,12 @@ type arch10 struct {
 func BenchmarkCardinal_Entity_Create(b *testing.B) {
 	b.Run("1 component with archetype creation", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
 			b.StartTimer()
+
 			entity := w.Create[arch1]()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			b.StopTimer()
@@ -124,6 +127,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 
 	b.Run("1 component existing archetype", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -131,6 +135,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			warmup.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 
 			b.StartTimer()
+
 			entity := w.Create[arch1]()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			b.StopTimer()
@@ -139,10 +144,12 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 
 	b.Run("5 components with archetype creation", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
 			b.StartTimer()
+
 			entity := w.Create[arch5]()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
@@ -155,6 +162,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 
 	b.Run("5 components existing archetype", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -166,6 +174,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 			warmup.Set(Inventory{Items: immutable.SliceOf("sword", "potion"), Capacity: 10})
 
 			b.StartTimer()
+
 			entity := w.Create[arch5]()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
@@ -178,10 +187,12 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 
 	b.Run("10 components with archetype creation", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
 			b.StartTimer()
+
 			entity := w.Create[arch10]()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
@@ -200,6 +211,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 
 	b.Run("10 components existing archetype", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -217,6 +229,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 				NetworkSync{PlayerID: "player1", LastUpdate: 0, SyncRate: 30.0, IsDirty: false, Interpolate: true})
 
 			b.StartTimer()
+
 			entity := w.Create[arch10]()
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 			entity.Set(Velocity3D{X: 0.5, Y: 1.0, Z: -0.2})
@@ -237,6 +250,7 @@ func BenchmarkCardinal_Entity_Create(b *testing.B) {
 func BenchmarkCardinal_Entity_Destroy(b *testing.B) {
 	b.Run("1 component", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -244,13 +258,16 @@ func BenchmarkCardinal_Entity_Destroy(b *testing.B) {
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 
 			b.StartTimer()
+
 			_ = entity.Destroy()
+
 			b.StopTimer()
 		}
 	})
 
 	b.Run("5 components", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -262,13 +279,16 @@ func BenchmarkCardinal_Entity_Destroy(b *testing.B) {
 			entity.Set(Inventory{Items: immutable.SliceOf("sword", "potion"), Capacity: 10})
 
 			b.StartTimer()
+
 			_ = entity.Destroy()
+
 			b.StopTimer()
 		}
 	})
 
 	b.Run("10 components", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -286,7 +306,9 @@ func BenchmarkCardinal_Entity_Destroy(b *testing.B) {
 				NetworkSync{PlayerID: "player1", LastUpdate: 0, SyncRate: 30.0, IsDirty: false, Interpolate: true})
 
 			b.StartTimer()
+
 			_ = entity.Destroy()
+
 			b.StopTimer()
 		}
 	})
@@ -295,6 +317,7 @@ func BenchmarkCardinal_Entity_Destroy(b *testing.B) {
 func BenchmarkCardinal_Component_Set(b *testing.B) {
 	b.Run("update existing component", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -310,6 +333,7 @@ func BenchmarkCardinal_Component_Set(b *testing.B) {
 
 	b.Run("add new component", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -327,6 +351,7 @@ func BenchmarkCardinal_Component_Set(b *testing.B) {
 func BenchmarkCardinal_Component_Remove(b *testing.B) {
 	b.Run("remove last component (delete entity)", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -341,6 +366,7 @@ func BenchmarkCardinal_Component_Remove(b *testing.B) {
 
 	b.Run("remove component from 5-component entity", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -361,6 +387,7 @@ func BenchmarkCardinal_Component_Remove(b *testing.B) {
 func BenchmarkCardinal_Component_Get(b *testing.B) {
 	b.Run("get component from 1-component entity", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -368,13 +395,16 @@ func BenchmarkCardinal_Component_Get(b *testing.B) {
 			entity.Set(Position3D{X: 1.0, Y: 2.0, Z: 3.0})
 
 			b.StartTimer()
+
 			_ = entity.Get[Position3D]()
+
 			b.StopTimer()
 		}
 	})
 
 	b.Run("get component from 5-component entity", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -386,7 +416,9 @@ func BenchmarkCardinal_Component_Get(b *testing.B) {
 			entity.Set(Inventory{Items: immutable.SliceOf("sword"), Capacity: 10})
 
 			b.StartTimer()
+
 			_ = entity.Get[Position3D]()
+
 			b.StopTimer()
 		}
 	})
@@ -395,6 +427,7 @@ func BenchmarkCardinal_Component_Get(b *testing.B) {
 func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 	b.Run("Exact/1 component", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -404,16 +437,20 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			}
 
 			search := w.Exact[arch1]()
+
 			b.StartTimer()
+
 			for result := range search.Iter() {
 				_ = result
 			}
+
 			b.StopTimer()
 		}
 	})
 
 	b.Run("Exact/5 components", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -427,16 +464,20 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			}
 
 			search := w.Exact[arch5]()
+
 			b.StartTimer()
+
 			for result := range search.Iter() {
 				_ = result
 			}
+
 			b.StopTimer()
 		}
 	})
 
 	b.Run("Exact/10 components", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -458,16 +499,20 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			}
 
 			search := w.Exact[arch10]()
+
 			b.StartTimer()
+
 			for result := range search.Iter() {
 				_ = result
 			}
+
 			b.StopTimer()
 		}
 	})
 
 	b.Run("Contains/1 from 1 component entities", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -477,16 +522,20 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			}
 
 			search := w.Contains[arch1]()
+
 			b.StartTimer()
+
 			for result := range search.Iter() {
 				_ = result
 			}
+
 			b.StopTimer()
 		}
 	})
 
 	b.Run("Contains/3 from 5 component entities", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -500,16 +549,20 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			}
 
 			search := w.Contains[arch3]()
+
 			b.StartTimer()
+
 			for result := range search.Iter() {
 				_ = result
 			}
+
 			b.StopTimer()
 		}
 	})
 
 	b.Run("Contains/6 from 10 component entities", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -531,10 +584,13 @@ func BenchmarkCardinal_Iteration_Pure(b *testing.B) {
 			}
 
 			search := w.Contains[arch6]()
+
 			b.StartTimer()
+
 			for result := range search.Iter() {
 				_ = result
 			}
+
 			b.StopTimer()
 		}
 	})
@@ -548,6 +604,7 @@ type benchRunSystem struct {
 func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 	b.Run("1 component 100 entities", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -560,12 +617,15 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 
 			w.RegisterSystem(&benchRunSystem{run: func(w *World) {
 				entities := w.Contains[arch1]()
+
 				b.StartTimer()
+
 				for entity := range entities.Iter() {
 					pos := entity.Get[Position3D]()
 					pos.X += 1.0
 					entity.Set(pos)
 				}
+
 				b.StopTimer()
 			}}, WithPhase(Update))
 
@@ -577,6 +637,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 
 	b.Run("5 components 100 entities", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -593,7 +654,9 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 
 			w.RegisterSystem(&benchRunSystem{run: func(w *World) {
 				entities := w.Contains[arch5]()
+
 				b.StartTimer()
+
 				for entity := range entities.Iter() {
 					pos := entity.Get[Position3D]()
 					vel := entity.Get[Velocity3D]()
@@ -601,6 +664,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 					vel.Y = pos.Y * 0.1
 					entity.Set(vel)
 				}
+
 				b.StopTimer()
 			}}, WithPhase(Update))
 
@@ -612,6 +676,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 
 	b.Run("10 components 100 entities", func(b *testing.B) {
 		b.ResetTimer()
+
 		for i := 0; i < b.N; i++ {
 			w := newBenchWorld()
 
@@ -636,7 +701,9 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 
 			w.RegisterSystem(&benchRunSystem{run: func(w *World) {
 				entities := w.Contains[arch10]()
+
 				b.StartTimer()
+
 				for entity := range entities.Iter() {
 					pos := entity.Get[Position3D]()
 					health := entity.Get[Health2]()
@@ -649,6 +716,7 @@ func BenchmarkCardinal_Iteration_GetSet(b *testing.B) {
 					renderer.Visible = health.Current > 50
 					entity.Set(renderer)
 				}
+
 				b.StopTimer()
 			}}, WithPhase(Update))
 
@@ -671,6 +739,7 @@ func newBenchWorld() *World {
 	w.RegisterComponent[NetworkSync]()
 	w.RegisterComponent[Physics]()
 	w.RegisterComponent[Renderer]()
+
 	return w
 }
 

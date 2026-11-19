@@ -45,10 +45,12 @@ func BuildCardinalShards(cfg *Config) []Builder {
 	for i, sc := range cfg.WorldToml.Shards {
 		shardCfg := sc
 		hostPort := ShardHostPort(i)
+
 		services = append(services, func(c *Config) Service {
 			return CardinalFromShard(c, shardCfg, hostPort)
 		})
 	}
+
 	return services
 }
 
@@ -82,6 +84,7 @@ func CardinalFromShard(cfg *Config, shard worldtoml.Shard, hostPort int) Service
 		NetworkMode:  container.NetworkMode(NetworkName(project)),
 	}
 	applySourceBuild(&svc, shard.Path)
+
 	return svc
 }
 
@@ -102,6 +105,7 @@ func buildCardinalEnv(cfg *Config, shard worldtoml.Shard) []string {
 	if logLevel == "" {
 		logLevel = defaultLogLevel
 	}
+
 	env := []string{
 		"CARDINAL_SHARD_ID=" + shard.InstanceID,
 		"CARDINAL_PROJECT=" + cfg.WorldToml.Project,
@@ -121,13 +125,16 @@ func buildCardinalEnv(cfg *Config, shard worldtoml.Shard) []string {
 			"CARDINAL_ARGUS_AUTH_GAME_ID="+cfg.WorldToml.Organization+"/"+cfg.WorldToml.Project,
 		)
 	}
+
 	if shard.TickRate > 0 {
 		env = append(env, fmt.Sprintf("CARDINAL_TICK_RATE=%d", shard.TickRate))
 	}
+
 	mode := shard.Mode
 	if mode == "" {
 		mode = defaultMode
 	}
+
 	env = append(env,
 		"CARDINAL_MODE="+mode,
 		fmt.Sprintf("CARDINAL_DEBUG=%t", cfg.Debug),
@@ -135,6 +142,7 @@ func buildCardinalEnv(cfg *Config, shard worldtoml.Shard) []string {
 		fmt.Sprintf("OTEL_RESOURCE_ATTRIBUTES=shard.id=%s,service.instance.id=%s", shard.ID, shard.InstanceID),
 		localLogFormat,
 	)
+
 	return env
 }
 
@@ -145,6 +153,7 @@ func shardAuthMode(worldToml worldtoml.Config) string {
 	if worldToml.Auth.Mode == "" {
 		return worldtoml.AuthModeDev
 	}
+
 	return worldToml.Auth.Mode
 }
 
@@ -165,6 +174,7 @@ func anyServiceUsesDB(worldToml worldtoml.Config) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -176,6 +186,7 @@ func hasConfigDBService(worldToml worldtoml.Config) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -191,11 +202,13 @@ func ShardDBDSN(worldToml worldtoml.Config) string {
 	if dsn := configDBDSN(worldToml); dsn != "" {
 		return dsn
 	}
+
 	return autoProjectDBDSN(worldToml.Project)
 }
 
 func autoProjectDBDSN(project string) string {
 	addr := net.JoinHostPort(ProjectDBContainerName(project), strconv.Itoa(defaultConfigDBPort))
+
 	return fmt.Sprintf(
 		"postgres://%s:%s@%s/%s?sslmode=disable",
 		configDBUser, configDBPassword, addr, project,
@@ -209,9 +222,11 @@ func projectDBDSN(worldToml worldtoml.Config) string {
 	if dsn := configDBDSN(worldToml); dsn != "" {
 		return dsn
 	}
+
 	if anyServiceUsesDB(worldToml) {
 		return autoProjectDBDSN(worldToml.Project)
 	}
+
 	return ""
 }
 
@@ -227,6 +242,7 @@ func configDBDSN(worldToml worldtoml.Config) string {
 		// any host-published port; validateServices pins a declared config_db port to
 		// 5432, so the host binding and the DSN stay consistent.
 		host := GameServiceContainerName(worldToml.Project, svc.ID)
+
 		return fmt.Sprintf(
 			"postgres://%s:%s@%s/%s?sslmode=disable",
 			configDBUser,
@@ -235,5 +251,6 @@ func configDBDSN(worldToml worldtoml.Config) string {
 			worldToml.Project,
 		)
 	}
+
 	return ""
 }

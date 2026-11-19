@@ -19,12 +19,15 @@ import (
 // chunks, holding the second until release is closed (nil: write both at once).
 func h2cBackend(t *testing.T, release <-chan struct{}) *url.URL {
 	t.Helper()
+
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	p := new(http.Protocols)
 	p.SetUnencryptedHTTP2(true)
+
 	srv := &http.Server{
 		Protocols:         p,
 		ReadHeaderTimeout: time.Second,
@@ -33,22 +36,28 @@ func h2cBackend(t *testing.T, release <-chan struct{}) *url.URL {
 			w.Header().Set("X-Path", r.URL.Path)
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprint(w, "one;")
+
 			if f, ok := w.(http.Flusher); ok {
 				f.Flush()
 			}
+
 			if release != nil {
 				<-release
 			}
+
 			fmt.Fprint(w, "two")
 		}),
 	}
 	go func() { _ = srv.Serve(ln) }()
+
 	t.Cleanup(func() { _ = srv.Close() })
+
 	return &url.URL{Scheme: "http", Host: ln.Addr().String()}
 }
 
 func newEdge(t *testing.T, release <-chan struct{}) (*edge.Edge, *httptest.Server) {
 	t.Helper()
+
 	e := edge.New()
 	e.SetRoutes(map[string]*url.URL{edge.RouteKey("my-game", "gameplay-2"): h2cBackend(t, release)})
 	srv := httptest.NewUnstartedServer(e)
@@ -58,23 +67,28 @@ func newEdge(t *testing.T, release <-chan struct{}) (*edge.Edge, *httptest.Serve
 	srv.Config.Protocols = p
 	srv.Start()
 	t.Cleanup(srv.Close)
+
 	return e, srv
 }
 
 func TestEdgeStripsPrefixAndSpeaksH2CToShard(t *testing.T) {
 	_, srv := newEdge(t, nil)
+
 	resp, err := http.Get(srv.URL + "/my-game/gameplay-2/worldengine.cardinal.v1.CardinalService/Query")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
+
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK || string(body) != "one;two" {
 		t.Fatalf("status=%d body=%q", resp.StatusCode, body)
 	}
+
 	if got := resp.Header.Get("X-Path"); got != "/worldengine.cardinal.v1.CardinalService/Query" {
 		t.Fatalf("backend saw path %q", got)
 	}
+
 	if got := resp.Header.Get("X-Proto"); got != "HTTP/2.0" {
 		t.Fatalf("backend saw %s, want h2c", got)
 	}
@@ -85,11 +99,13 @@ func TestEdgeAcceptsH2CFromClient(t *testing.T) {
 	tr := &http.Transport{Protocols: new(http.Protocols)}
 	tr.Protocols.SetUnencryptedHTTP2(true)
 	client := &http.Client{Transport: tr}
+
 	resp, err := client.Get(srv.URL + "/my-game/gameplay-2/x")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
+
 	if resp.Proto != "HTTP/2.0" || resp.StatusCode != http.StatusOK {
 		t.Fatalf("proto=%s status=%d", resp.Proto, resp.StatusCode)
 	}
@@ -102,6 +118,7 @@ func TestEdgeUnknownRouteIs404(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusNotFound {
 			t.Fatalf("%s: status=%d, want 404", path, resp.StatusCode)
@@ -112,17 +129,22 @@ func TestEdgeUnknownRouteIs404(t *testing.T) {
 func TestEdgeStreamsFlushes(t *testing.T) {
 	release := make(chan struct{})
 	_, srv := newEdge(t, release)
+
 	resp, err := http.Get(srv.URL + "/my-game/gameplay-2/stream")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
+
 	buf := make([]byte, len("one;"))
+
 	n, err := io.ReadFull(resp.Body, buf) // must return before the backend writes "two"
 	if err != nil || string(buf[:n]) != "one;" {
 		t.Fatalf("first read = %q, %v; want the first flushed chunk alone", buf[:n], err)
 	}
+
 	close(release)
+
 	rest, _ := io.ReadAll(resp.Body)
 	if string(rest) != "two" {
 		t.Fatalf("rest = %q", rest)
@@ -132,10 +154,12 @@ func TestEdgeStreamsFlushes(t *testing.T) {
 func TestEdgeRoutesSwapAtomically(t *testing.T) {
 	e, srv := newEdge(t, nil)
 	e.SetRoutes(nil)
+
 	resp, err := http.Get(srv.URL + "/my-game/gameplay-2/x")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("status=%d after clearing routes", resp.StatusCode)
@@ -146,15 +170,19 @@ func TestEdgeRoutesSwapAtomically(t *testing.T) {
 // answer with something the developer can act on rather than a bare 502.
 func TestEdgeDownShardGetsActionable502(t *testing.T) {
 	e := edge.New()
+
 	dead, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	addr := dead.Addr().String()
 	_ = dead.Close() // nothing is listening there now
+
 	e.SetRoutes(map[string]*url.URL{
 		edge.RouteKey("demo", "gameplay-2"): {Scheme: "http", Host: addr},
 	})
+
 	srv := httptest.NewServer(e)
 	defer srv.Close()
 
@@ -163,10 +191,12 @@ func TestEdgeDownShardGetsActionable502(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
+
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusBadGateway {
 		t.Fatalf("status = %d, want 502", resp.StatusCode)
 	}
+
 	if !strings.Contains(string(body), "gameplay-2") || !strings.Contains(string(body), "world logs") {
 		t.Fatalf("body = %q, want the instance name and what to run", body)
 	}
@@ -178,6 +208,7 @@ func TestServeReportsBusyPort(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer ln.Close()
+
 	err = edge.New().Serve(context.Background(), ln.Addr().String())
 	if err == nil || !strings.Contains(err.Error(), "lsof -i :") {
 		t.Fatalf("err = %v, want a busy-port hint", err)
@@ -191,20 +222,26 @@ func TestServeStopsOnContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	addr := probe.Addr().String()
 	_ = probe.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
+
 	done := make(chan error, 1)
 	go func() { done <- edge.New().Serve(ctx, addr) }()
+
 	for range 100 {
 		if c, err := net.DialTimeout("tcp", addr, 50*time.Millisecond); err == nil {
 			_ = c.Close()
 			break
 		}
+
 		time.Sleep(20 * time.Millisecond)
 	}
+
 	cancel()
+
 	select {
 	case err := <-done:
 		if err != nil {

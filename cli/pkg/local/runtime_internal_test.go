@@ -30,6 +30,7 @@ func TestShardAPIURLMatchesChartPath(t *testing.T) {
 func TestPoolPhase(t *testing.T) {
 	run := worldstatus.InstanceStatus{Phase: "running"}
 	exited := worldstatus.InstanceStatus{Phase: "exited"}
+
 	cases := map[string]worldstatus.PoolStatus{
 		"NotDeployed": {PoolSize: 2},
 		"Stopped":     {PoolSize: 1, Instances: []worldstatus.InstanceStatus{exited}},
@@ -56,26 +57,31 @@ func TestPlatformContainersAndShardServices(t *testing.T) {
 	}}
 	r := New(nil, cfg)
 	want := []string{"g-nats", "g-db", "g-meta-service"}
+
 	got := r.PlatformContainers()
 	if len(got) != len(want) {
 		t.Fatalf("platform = %v", got)
 	}
+
 	for i := range want {
 		if got[i] != want[i] {
 			t.Fatalf("platform = %v, want %v", got, want)
 		}
 	}
+
 	a := r.shardServices("a")
 	if len(a) != 2 || a[1].Name != "g-a-2-shard" ||
 		a[1].PortBindings[network.MustParsePort("8080/tcp")][0].HostPort != "8082" {
 		t.Fatalf("shard a services = %+v", a)
 	}
+
 	if b := r.shardServices(
 		"b",
 	); len(b) != 1 ||
 		b[0].PortBindings[network.MustParsePort("8080/tcp")][0].HostPort != "8083" {
 		t.Fatalf("shard b services = %+v", b)
 	}
+
 	if len(r.shardServices("nope")) != 0 {
 		t.Fatal("unknown shard must have no services")
 	}
@@ -86,10 +92,12 @@ func TestRefreshRoutesIsStaticFromWorldToml(t *testing.T) {
 		Organization: "argus", Project: "g",
 		Shards: []worldtoml.Shard{{ID: "a", InstanceID: "a"}, {ID: "a", InstanceID: "a-2"}},
 	}}
+
 	r := New(nil, cfg)
 	if err := r.RefreshRoutes(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+
 	got := r.Routes()
 	// Both prefixes the chart routes: the one clients dial, and the org-prefixed one kept
 	// while the world has an organization.
@@ -100,6 +108,7 @@ func TestRefreshRoutesIsStaticFromWorldToml(t *testing.T) {
 	if len(got) != len(want) {
 		t.Fatalf("routes = %v, want %d entries", got, len(want))
 	}
+
 	for key, host := range want {
 		if got[key] == nil || got[key].Host != host {
 			t.Fatalf("route %q = %v, want host %s", key, got[key], host)
@@ -114,13 +123,17 @@ func TestPumpLogsDrainsWhatProducersLeftBuffered(t *testing.T) {
 	for _, producers := range []int{1, 3} {
 		entries := make(chan docker.LogEntry, 64)
 		errCh := make(chan error, producers)
+
 		for i := range 10 {
 			entries <- docker.LogEntry{Container: "c", Line: strconv.Itoa(i)}
 		}
+
 		for range producers {
 			errCh <- nil
 		}
+
 		var got []string
+
 		err := pumpLogs(context.Background(), entries, errCh, producers, false, func(e docker.LogEntry) {
 			got = append(got, e.Line)
 		})
@@ -132,19 +145,26 @@ func TestPumpLogsDrainsWhatProducersLeftBuffered(t *testing.T) {
 
 func TestPumpLogsSurfacesAProducerError(t *testing.T) {
 	entries := make(chan docker.LogEntry, 1)
+
 	errCh := make(chan error, 2)
 	errCh <- errors.New("boom")
+
 	err := pumpLogs(context.Background(), entries, errCh, 2, false, func(docker.LogEntry) {})
 	if err == nil || err.Error() != "boom" {
 		t.Fatalf("err = %v, want the producer's error", err)
 	}
+
 	notFound := fmt.Errorf("logs for x: %w", cerrdefs.ErrNotFound)
 	errCh <- notFound
+
 	errCh <- nil
+
 	if err := pumpLogs(context.Background(), entries, errCh, 2, false, func(docker.LogEntry) {}); err != nil {
 		t.Fatalf("a missing container is an empty stream, got %v", err)
 	}
+
 	errCh <- notFound
+
 	err = pumpLogs(context.Background(), entries, errCh, 1, true, func(docker.LogEntry) {})
 	if !errors.Is(err, ErrContainerNotFound) {
 		t.Fatalf("with missingIsError a missing container is ErrContainerNotFound, got %v", err)
@@ -152,12 +172,16 @@ func TestPumpLogsSurfacesAProducerError(t *testing.T) {
 	// Still reported once the context is over, unlike other producer errors.
 	done, cancel := context.WithCancel(context.Background())
 	cancel()
+
 	errCh <- notFound
+
 	err = pumpLogs(done, entries, errCh, 1, true, func(docker.LogEntry) {})
 	if !errors.Is(err, ErrContainerNotFound) {
 		t.Fatalf("missing container with ctx over = %v, want ErrContainerNotFound", err)
 	}
+
 	errCh <- errors.New("boom")
+
 	if err := pumpLogs(done, entries, errCh, 1, true, func(docker.LogEntry) {}); err != nil {
 		t.Fatalf("other errors are swallowed once ctx is over, got %v", err)
 	}
@@ -172,17 +196,21 @@ func TestLayoutMismatch(t *testing.T) {
 	if err := layoutMismatch(shards, nil); err != nil {
 		t.Fatalf("nothing deployed yet: %v", err)
 	}
+
 	same := map[string]int{"game": 8081, "game-2": 8082, "chat": 8083}
 	if err := layoutMismatch(shards, same); err != nil {
 		t.Fatalf("unchanged layout: %v", err)
 	}
 	// Before pool_size was raised, chat held 8082; a reload would move it under game-2's route.
 	moved := map[string]int{"game": 8081, "chat": 8082}
+
 	err := layoutMismatch(shards, moved)
 	if err == nil || !strings.Contains(err.Error(), "game-2") {
 		t.Fatalf("err = %v, want the added instance named", err)
 	}
+
 	shifted := map[string]int{"game": 8081, "game-2": 8083, "chat": 8082}
+
 	err = layoutMismatch(shards, shifted)
 	if err == nil || !strings.Contains(err.Error(), "would move") {
 		t.Fatalf("err = %v, want a moved instance refused", err)
@@ -276,6 +304,7 @@ func TestIsPlatformRunning(t *testing.T) {
 	// A daemon failure surfaces as an error so the guard can wrap it rather
 	// than silently treating the world as stopped.
 	listErr := errors.New("cannot connect to docker endpoint")
+
 	running, err = isPlatformRunning(ctx, fakeLister{err: listErr}, "demo")
 	if err == nil || running {
 		t.Fatalf("daemon error: running=%v err=%v, want false/non-nil", running, err)
@@ -288,12 +317,16 @@ func TestIsPlatformRunning(t *testing.T) {
 func deadSocketDockerClient(t *testing.T) *docker.Client {
 	t.Helper()
 	t.Setenv("DOCKER_HOST", "unix:///nonexistent/docker.sock")
+
 	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{Project: "demo"}}
+
 	dc, err := docker.NewClient(cfg, nil)
 	if err != nil {
 		t.Fatalf("docker client: %v", err)
 	}
+
 	t.Cleanup(func() { _ = dc.Close() })
+
 	return dc
 }
 
@@ -302,6 +335,7 @@ func TestReleaseEdge_ClearsServesEdge(t *testing.T) {
 	r := New(nil, &service.Config{Project: "g", WorldToml: worldtoml.Config{Project: "g"}})
 	r.servesEdge = true
 	r.ReleaseEdge()
+
 	if r.servesEdge {
 		t.Fatal("ReleaseEdge must set servesEdge back to false")
 	}
@@ -313,6 +347,7 @@ func TestReleaseEdge_Idempotent(t *testing.T) {
 	r := New(nil, &service.Config{Project: "g", WorldToml: worldtoml.Config{Project: "g"}})
 	r.ReleaseEdge()
 	r.ReleaseEdge()
+
 	if r.servesEdge {
 		t.Fatal("ReleaseEdge must keep servesEdge false")
 	}
@@ -325,6 +360,7 @@ func TestCheckLayout_ShortCircuitsWhileServingEdge(t *testing.T) {
 	// before it is dereferenced; if the guard ever stopped short-circuiting this
 	// test would panic on nil, which is the point.
 	r := New(nil, &service.Config{Project: "g", WorldToml: worldtoml.Config{Project: "g"}})
+
 	r.servesEdge = true
 	if err := r.CheckLayout(context.Background()); err != nil {
 		t.Fatalf("serving edge: CheckLayout = %v, want nil (short-circuit)", err)
@@ -337,11 +373,14 @@ func TestCheckLayout_ShortCircuitsWhileServingEdge(t *testing.T) {
 // Without the fix servesEdge stays true and CheckLayout keeps returning nil here.
 func TestCheckLayout_ResumesGuardAfterReleaseEdge(t *testing.T) {
 	r := New(deadSocketDockerClient(t), &service.Config{Project: "demo", WorldToml: worldtoml.Config{Project: "demo"}})
+
 	r.servesEdge = true
 	if err := r.CheckLayout(context.Background()); err != nil {
 		t.Fatalf("serving edge: CheckLayout = %v, want nil (short-circuit)", err)
 	}
+
 	r.ReleaseEdge()
+
 	if err := r.CheckLayout(context.Background()); err == nil {
 		t.Fatal("after ReleaseEdge: CheckLayout = nil, want a Docker error (guard resumed)")
 	}
@@ -360,6 +399,7 @@ func TestOrphanedShard(t *testing.T) {
 			Labels: service.Labels("p", service.RoleShard, "game", instance),
 		}
 	}
+
 	cases := []struct {
 		name string
 		c    docker.ContainerSummary
@@ -382,6 +422,7 @@ func TestOrphanedShard(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			if got := orphanedShard(shards)(tc.c); got != tc.want {
 				t.Fatalf("orphanedShard = %v, want %v", got, tc.want)
 			}
@@ -391,6 +432,7 @@ func TestOrphanedShard(t *testing.T) {
 
 func TestOrphanedShard_EmptyWorldTomlMatchesEveryShard(t *testing.T) {
 	t.Parallel()
+
 	c := docker.ContainerSummary{Labels: service.Labels("p", service.RoleShard, "game", "game")}
 	if !orphanedShard(nil)(c) {
 		t.Fatal("with no shards declared every shard container is an orphan")
@@ -406,6 +448,7 @@ func (f fakeInspector) CardinalHostPort(_ context.Context, name string) (int, er
 	if err, ok := f.errs[name]; ok {
 		return 0, err
 	}
+
 	return f.ports[name], nil
 }
 
@@ -453,7 +496,9 @@ func TestCollectShardPorts(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			inspector := twoShardInspector(tc.secondErr)
+
 			ports, err := collectShardPorts(context.Background(), twoShardContainers, inspector)
 			if tc.wantCanceled {
 				require.ErrorIs(t, err, context.Canceled)
@@ -501,7 +546,9 @@ func TestCheckLayout_LayoutComparison(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			inspector := fakeInspector{ports: tc.ports}
+
 			err := checkLayout(
 				context.Background(),
 				fakeLister{containers: twoShardContainers},

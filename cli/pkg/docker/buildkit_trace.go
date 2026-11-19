@@ -35,6 +35,7 @@ func (o *buildOutput) add(payload []byte) {
 		if num != statusLogs {
 			return
 		}
+
 		eachBytesField(log, func(n protowire.Number, msg []byte) {
 			if n == logMsg {
 				o.buf.Write(msg)
@@ -50,7 +51,9 @@ func (o *buildOutput) tail() string {
 	if out == "" {
 		return ""
 	}
+
 	lines := strings.Split(out, "\n")
+
 	return "\n" + strings.Join(lines[max(0, len(lines)-maxOutputLines):], "\n")
 }
 
@@ -63,20 +66,26 @@ func eachBytesField(msg []byte, fn func(num protowire.Number, v []byte)) {
 		if n < 0 {
 			return
 		}
+
 		msg = msg[n:]
 		if typ == protowire.BytesType {
 			v, m := protowire.ConsumeBytes(msg)
 			if m < 0 {
 				return
 			}
+
 			fn(num, v)
+
 			msg = msg[m:]
+
 			continue
 		}
+
 		m := protowire.ConsumeFieldValue(num, typ, msg)
 		if m < 0 {
 			return
 		}
+
 		msg = msg[m:]
 	}
 }

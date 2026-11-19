@@ -30,6 +30,7 @@ func TestGameServiceFromConfigImageKind(t *testing.T) {
 	if svc.Name != "rampage-postgres-service" {
 		t.Fatalf("expected container name %q, got %q", "rampage-postgres-service", svc.Name)
 	}
+
 	if svc.Image != "postgres:16" {
 		t.Fatalf("expected image %q, got %q", "postgres:16", svc.Image)
 	}
@@ -47,16 +48,20 @@ func TestGameServiceFromConfigImageKind(t *testing.T) {
 	if !slices.Equal(svc.Binds, wantBinds) {
 		t.Fatalf("expected binds %#v, got %#v", wantBinds, svc.Binds)
 	}
+
 	if svc.Labels[service.ProjectLabel] != "rampage" || svc.Labels[service.RoleLabel] != service.RoleService {
 		t.Fatalf("expected project/service labels, got %#v", svc.Labels)
 	}
+
 	if svc.BuildTarget != "" || svc.Dockerfile != "" {
 		t.Fatalf("image-kind service must be pull-only, got target %q dockerfile %q", svc.BuildTarget, svc.Dockerfile)
 	}
+
 	hc := svc.Healthcheck
 	if hc == nil || !slices.Equal(hc.Test, []string{"CMD-SHELL", "pg_isready -U meta -d meta"}) {
 		t.Fatalf("expected healthcheck test, got %#v", hc)
 	}
+
 	if hc.Interval != 2*time.Second || hc.Timeout != 3*time.Second || hc.Retries != 15 {
 		t.Fatalf("unexpected healthcheck timings: %#v", hc)
 	}
@@ -85,27 +90,34 @@ func TestGameServiceFromConfigPathKind(t *testing.T) {
 	if svc.Image != "rampage-meta-service" {
 		t.Fatalf("expected image %q, got %q", "rampage-meta-service", svc.Image)
 	}
+
 	if svc.BuildTarget != "runtime" {
 		t.Fatalf("expected build target runtime, got %q", svc.BuildTarget)
 	}
+
 	if svc.BuildArgs["SHARD_PATH"] != "services/meta/cmd" || svc.BuildArgs["SOURCE_PATH"] != "." {
 		t.Fatalf("unexpected build args: %#v", svc.BuildArgs)
 	}
+
 	if svc.Labels[service.ProjectLabel] != "rampage" || svc.Labels[service.RoleLabel] != service.RoleService {
 		t.Fatalf("expected project/service labels, got %#v", svc.Labels)
 	}
+
 	if !slices.Contains(
 		svc.Env,
 		"DB_DSN=postgres://meta:meta@rampage-postgres-service:5432/meta?sslmode=disable",
 	) {
 		t.Fatalf("expected user env appended, got %#v", svc.Env)
 	}
+
 	if svc.Healthcheck != nil {
 		t.Fatalf("expected no healthcheck, got %#v", svc.Healthcheck)
 	}
+
 	if len(svc.Binds) != 0 {
 		t.Fatalf("expected no binds, got %#v", svc.Binds)
 	}
+
 	if len(svc.Dependencies) != 2 {
 		t.Fatalf("expected golang + base image dependencies, got %#v", svc.Dependencies)
 	}
@@ -182,6 +194,7 @@ func TestGameServiceFromConfigInjectsDBDSN(t *testing.T) {
 	// db = true with no explicit env: world-cli injects the shared project DB DSN
 	// as the uniform DB_DSN, so world.toml need not hand-wire it.
 	svc := service.GameServiceFromConfig(cfg, cfg.WorldToml.Services[0])
+
 	wantDSN := "DB_DSN=postgres://postgres:postgres@rampage-db:5432/rampage?sslmode=disable"
 	if !slices.Contains(svc.Env, wantDSN) {
 		t.Fatalf("expected injected %q, got %#v", wantDSN, svc.Env)
@@ -208,6 +221,7 @@ func TestGameServiceFromConfigDBDSNOverridable(t *testing.T) {
 	if !slices.Contains(svc.Env, "DB_DSN=postgres://custom@host:5432/db") {
 		t.Fatalf("expected the user override DSN to win, got %#v", svc.Env)
 	}
+
 	if slices.Contains(svc.Env, "DB_DSN=postgres://postgres:postgres@rampage-db:5432/rampage?sslmode=disable") {
 		t.Fatalf("expected no injected default DSN when world.toml sets DB_DSN, got %#v", svc.Env)
 	}
@@ -227,9 +241,11 @@ func TestProjectDBService(t *testing.T) {
 	if svc.Name != "rampage-db" {
 		t.Fatalf("expected container name %q, got %q", "rampage-db", svc.Name)
 	}
+
 	if svc.Image != "postgres:18" {
 		t.Fatalf("expected image %q, got %q", "postgres:18", svc.Image)
 	}
+
 	wantEnv := []string{
 		"POSTGRES_USER=postgres",
 		"POSTGRES_PASSWORD=postgres",
@@ -238,15 +254,19 @@ func TestProjectDBService(t *testing.T) {
 	if !slices.Equal(svc.Env, wantEnv) {
 		t.Fatalf("expected env %#v, got %#v", wantEnv, svc.Env)
 	}
+
 	if svc.Labels[service.ProjectLabel] != "rampage" || svc.Labels[service.RoleLabel] != service.RoleDB {
 		t.Fatalf("expected project/db labels, got %#v", svc.Labels)
 	}
+
 	if svc.BuildTarget != "" {
 		t.Fatalf("project db must be pull-only, got build target %q", svc.BuildTarget)
 	}
+
 	if !slices.Equal(svc.Binds, []string{"rampage-db-data:/var/lib/postgresql"}) {
 		t.Fatalf("expected named volume bind, got %#v", svc.Binds)
 	}
+
 	hc := svc.Healthcheck
 	if hc == nil || !slices.Equal(hc.Test, []string{"CMD-SHELL", "pg_isready -U postgres -d rampage"}) {
 		t.Fatalf("expected pg_isready healthcheck, got %#v", hc)
@@ -262,6 +282,7 @@ func TestBuildGameServicesPrependsAutoProjectDB(t *testing.T) {
 			Services: []worldtoml.GameService{{ID: "meta", Path: "services/meta/cmd", DB: true}},
 		},
 	}
+
 	builders := service.BuildGameServices(cfg)
 	if len(builders) != 2 {
 		t.Fatalf("expected auto db + meta = 2 builders, got %d", len(builders))
@@ -270,6 +291,7 @@ func TestBuildGameServicesPrependsAutoProjectDB(t *testing.T) {
 	if name := builders[0](cfg).Name; name != "rampage-db" {
 		t.Fatalf("expected first service %q (auto project db), got %q", "rampage-db", name)
 	}
+
 	if name := builders[1](cfg).Name; name != "rampage-meta-service" {
 		t.Fatalf("expected second service %q, got %q", "rampage-meta-service", name)
 	}
@@ -287,13 +309,16 @@ func TestBuildGameServicesPreservesDeclarationOrder(t *testing.T) {
 			},
 		},
 	}
+
 	builders := service.BuildGameServices(cfg)[1:] // [0] is the auto project db
 	if len(builders) != 2 {
 		t.Fatalf("expected 2 builders, got %d", len(builders))
 	}
+
 	if name := builders[0](cfg).Name; name != "rampage-postgres-service" {
 		t.Fatalf("expected first service %q, got %q", "rampage-postgres-service", name)
 	}
+
 	if name := builders[1](cfg).Name; name != "rampage-meta-service" {
 		t.Fatalf("expected second service %q, got %q", "rampage-meta-service", name)
 	}
@@ -331,20 +356,24 @@ func TestPlatformServices(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			cfg := &service.Config{
 				Project:   "rampage",
 				WorldToml: worldtoml.Config{Project: "rampage", Services: tc.services},
 			}
 			svcs := service.PlatformServices(cfg)
 			names := make([]string, 0, len(svcs))
+
 			images := make([]string, 0, len(svcs))
 			for _, s := range svcs {
 				names = append(names, s.Name)
 				images = append(images, s.Image)
 			}
+
 			if !slices.Equal(names, tc.want) {
 				t.Fatalf("service.PlatformServices = %v, want %v", names, tc.want)
 			}
+
 			if got := service.PlatformImageRefs(cfg); !slices.Equal(got, images) {
 				t.Fatalf("service.PlatformImageRefs = %v, want the service images %v", got, images)
 			}

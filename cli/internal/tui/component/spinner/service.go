@@ -57,11 +57,13 @@ func Start(
 
 	// Start spinner in background. Caller controls lifecycle via returned session.
 	done := make(chan struct{})
+
 	go func() {
 		_, err := p.Run()
 		if err != nil {
 			logger.Error("failed to run spinner", "error", err)
 		}
+
 		close(done)
 	}()
 
@@ -72,6 +74,7 @@ func (s *session) Update(text string) {
 	if s == nil || s.p == nil {
 		return
 	}
+
 	s.p.Send(LogMsg(text))
 }
 
@@ -79,7 +82,9 @@ func (s *session) Complete() {
 	if s == nil || s.p == nil {
 		return
 	}
+
 	s.p.Send(tea.Quit())
+
 	if s.done != nil {
 		<-s.done
 	}
@@ -94,14 +99,19 @@ func (s *session) Quit() { s.Complete() }
 func Run(ctx context.Context, msg string, fn func(context.Context) error, opts ...Options) error {
 	spinCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
 	sp, err := Start(cancel, msg, opts...)
 	if err != nil {
 		return eris.Wrap(err, "start spinner")
 	}
+
 	opErr := fn(spinCtx)
+
 	sp.Complete()
+
 	if eris.Is(opErr, context.Canceled) {
 		return errorspkg.NewSilent(opErr)
 	}
+
 	return opErr
 }

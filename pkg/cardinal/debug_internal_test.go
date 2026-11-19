@@ -38,6 +38,7 @@ func TestIntrospectAdvertisesReflectionMetadata(t *testing.T) {
 	for _, kind := range []introspect.Kind{introspect.Command, introspect.Component, introspect.Event} {
 		require.NoError(t, d.register(kind, introspectionSample{}))
 	}
+
 	require.NoError(t, d.finalizeCatalog())
 
 	response, err := d.Introspect(context.Background(), (*connect.Request[cardinalv1.IntrospectRequest])(nil))
@@ -55,6 +56,7 @@ func TestIntrospectAdvertisesReflectionMetadata(t *testing.T) {
 		assert.Empty(t, schema.GetProtoMessageName())
 		assert.Empty(t, schema.GetArrayFields())
 	}
+
 	assert.Empty(t, response.Msg.GetProtoDescriptorSet())
 }
 
@@ -80,6 +82,7 @@ func seedSnapshotWorld(t *testing.T, w *World) {
 		e.Set(Health2{Current: 100 - i, Max: 100})
 		e.Set(Inventory{Items: immutable.SliceOf("sword", "potion"), Capacity: 10 + i})
 	}
+
 	e := w.Create[snapshotArchetype]()
 	e.Set(Position3D{X: 42})
 	require.True(t, e.Destroy())
@@ -95,6 +98,7 @@ func TestDebugGetStatePublishesEveryTick(t *testing.T) {
 			context.Background(), connect.NewRequest(&cardinalv1.GetStateRequest{}),
 		)
 		require.NoError(t, err)
+
 		held := resp.Msg.GetSnapshot()
 		frozen, err := proto.MarshalOptions{Deterministic: true}.Marshal(held)
 		require.NoError(t, err)
@@ -109,6 +113,7 @@ func TestDebugGetStatePublishesEveryTick(t *testing.T) {
 			context.Background(), connect.NewRequest(&cardinalv1.GetStateRequest{}),
 		)
 		require.NoError(t, err)
+
 		snap := resp.Msg.GetSnapshot()
 		assert.Equal(t, completed, snap.GetTickHeight())
 		assert.NotEmpty(t, snap.GetWorldState().GetEntities())
@@ -125,7 +130,9 @@ func TestDebugGetStateConcurrentWithTicks(t *testing.T) {
 	seedSnapshotWorld(t, w)
 
 	const readers = 4
+
 	stop := make(chan struct{})
+
 	var wg sync.WaitGroup
 	for range readers {
 		wg.Go(func() {
@@ -135,6 +142,7 @@ func TestDebugGetStateConcurrentWithTicks(t *testing.T) {
 					return
 				default:
 				}
+
 				resp, err := w.debug.GetState(
 					context.Background(), connect.NewRequest(&cardinalv1.GetStateRequest{}),
 				)
@@ -142,6 +150,7 @@ func TestDebugGetStateConcurrentWithTicks(t *testing.T) {
 					t.Errorf("GetState failed: %v", err)
 					return
 				}
+
 				snap := resp.Msg.GetSnapshot()
 				if _, err := proto.Marshal(snap); err != nil {
 					t.Errorf("failed to serialize the published snapshot: %v", err)
@@ -154,6 +163,7 @@ func TestDebugGetStateConcurrentWithTicks(t *testing.T) {
 	for range 100 {
 		w.Tick(time.Now())
 	}
+
 	close(stop)
 	wg.Wait()
 
@@ -179,6 +189,7 @@ func newDebugStateWorld(t *testing.T) *World {
 	w.RegisterComponent[Health2]()
 	w.RegisterComponent[Inventory]()
 	w.world.Init()
+
 	return w
 }
 
@@ -207,6 +218,7 @@ func TestResetClearsSystemEventsThroughShippedPath(t *testing.T) {
 	require.NoError(t, err)
 
 	var observed []testutils.SimpleSystemEvent
+
 	const emitVal = 7
 
 	require.NoError(t, w.world.RegisterSystem("emit-on-init", ecs.Init, func() {
@@ -215,6 +227,7 @@ func TestResetClearsSystemEventsThroughShippedPath(t *testing.T) {
 	require.NoError(t, w.world.RegisterSystem("receive-on-update", ecs.Update, func() {
 		evs, err := w.world.GetSystemEvents[testutils.SimpleSystemEvent]()
 		require.NoError(t, err)
+
 		observed = append(observed, evs...)
 	}))
 
@@ -263,15 +276,18 @@ func TestResetPreservesInitEmittedClientEvents(t *testing.T) {
 	w.RegisterEvent[testutils.SimpleEvent]()
 
 	const emitVal = 42
+
 	require.NotPanics(t, func() {
 		w.RegisterSystem(&broadcastOnInitSystem{value: emitVal}, WithPhase(Init))
 	})
 
 	var observed []testutils.SimpleEvent
+
 	w.events.RegisterHandler(event.KindDefault, func(_ context.Context, e event.Event) error {
 		if payload, ok := e.Payload.(testutils.SimpleEvent); ok {
 			observed = append(observed, payload)
 		}
+
 		return nil
 	})
 

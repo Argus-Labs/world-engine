@@ -68,6 +68,7 @@ func NewS3Storage(opts S3StorageOptions) (*S3Storage, error) {
 
 	// Load AWS config from environment (reads AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION).
 	ctx := context.Background()
+
 	cfg, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to load AWS config")
@@ -126,6 +127,7 @@ func (s *S3Storage) Load(ctx context.Context) ([]byte, error) {
 		if eris.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchKey" {
 			return nil, eris.Wrap(ErrSnapshotNotFound, "no snapshot exists")
 		}
+
 		return nil, eris.Wrap(err, "failed to get snapshot from S3")
 	}
 	defer func() {
@@ -136,6 +138,7 @@ func (s *S3Storage) Load(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to read from S3 object")
 	}
+
 	return data, nil
 }
 
@@ -165,8 +168,10 @@ func (opt *S3StorageOptions) Validate() error {
 	if opt.Address == nil {
 		return eris.New("service address cannot be nil")
 	}
+
 	if opt.Bucket == "" {
 		return eris.New("CARDINAL_S3_BUCKET environment variable is required")
 	}
+
 	return nil
 }

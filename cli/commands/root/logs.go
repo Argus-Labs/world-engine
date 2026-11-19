@@ -47,17 +47,21 @@ func (c *LogsCmd) Run(ctx context.Context) error {
 	return docker.WithClient(cwd, c.Debug, &docker.ClientOptions{Logger: logger.Slog()},
 		func(cfg *service.Config, dockerClient *docker.Client) error {
 			rt := local.New(dockerClient, cfg)
+
 			running, err := rt.IsRunning(ctx)
 			if err != nil {
 				return eris.Wrap(err, "check world status")
 			}
+
 			if !running {
 				return eris.New("world is not running — start it with `world start`")
 			}
+
 			err = runLogSelectionEntry(ctx, rt, cfg, dockerClient)
 			if ctx.Err() != nil {
 				return errorspkg.NewSilent(ctx.Err())
 			}
+
 			return err
 		},
 	)
@@ -75,6 +79,7 @@ func runLogSelectionEntry(
 	onReload := func(rctx context.Context, instanceIDs []string, purge bool) error {
 		return reloadShards(rctx, rt, dockerClient, cfg, instanceIDs, purge)
 	}
+
 	return runShardLogSelectionLoop(ctx, rt, cfg, onReload)
 }
 
@@ -91,13 +96,16 @@ func (t logTarget) IsPlatform() bool { return t.Container != "" }
 // so the most-frequently-tailed items page first.
 func buildLogTargets(rt *local.Runtime, cfg *service.Config) []logTarget {
 	platforms := rt.PlatformContainers()
+
 	out := make([]logTarget, 0, len(cfg.WorldToml.Shards)+len(platforms))
 	for _, s := range cfg.WorldToml.Shards {
 		out = append(out, logTarget{Instance: s.InstanceID})
 	}
+
 	for _, name := range platforms {
 		out = append(out, logTarget{Instance: name, Container: name})
 	}
+
 	return out
 }
 
@@ -130,11 +138,13 @@ func runShardLogSelectionLoop(
 		}
 
 		streamer, reloadFn, extras := dispatchLogTarget(rt, cfg, sel, onReload)
+
 		err = logs.TailLogsUntilEnterOrReload(ctx, streamer, reloadFn, extras)
 		if err != nil {
 			if eris.Is(err, context.Canceled) {
 				return errorspkg.NewSilent(err)
 			}
+
 			return eris.Wrap(err, "tail logs")
 		}
 	}
@@ -154,19 +164,26 @@ func handleReloadHotkey(
 			"Reload not supported for %s — restart with `world stop && world start`\n",
 			sel.Instance,
 		)
+
 		return
 	}
+
 	var instanceIDs []string
+
 	label := "all shards"
+
 	if sel != nil {
 		instanceIDs = []string{sel.Instance}
 		label = sel.Instance
 	}
+
 	action := "Reloading"
 	if purge {
 		action = "Reloading + purging"
 	}
+
 	printer.Infof("↻ %s %s...\n", action, label)
+
 	if rerr := onReload(ctx, instanceIDs, purge); rerr != nil {
 		printer.Errorf("Reload failed: %v\n", rerr)
 	}
@@ -186,14 +203,20 @@ func dispatchLogTarget(
 		streamer := func(ctx context.Context, out chan<- worldstatus.LogLine) error {
 			return rt.StreamContainerLogs(ctx, name, worldstatus.LogsOpts{TailLines: logs.HistoryLines}, out)
 		}
+
 		return streamer, nil, nil
 	}
-	var instanceNames []string
-	var instanceIDsForReload []string
+
+	var (
+		instanceNames        []string
+		instanceIDsForReload []string
+	)
+
 	if sel != nil {
 		instanceNames = []string{sel.Instance}
 		instanceIDsForReload = []string{sel.Instance}
 	}
+
 	streamer := func(ctx context.Context, out chan<- worldstatus.LogLine) error {
 		return rt.StreamShardLogs(ctx, worldstatus.LogsOpts{
 			InstanceNames: instanceNames,
@@ -203,6 +226,7 @@ func dispatchLogTarget(
 	reloadFn := func(rctx context.Context, purge bool) error {
 		return onReload(rctx, instanceIDsForReload, purge)
 	}
+
 	return streamer, reloadFn, debugActions(cfg, sel)
 }
 
@@ -211,6 +235,7 @@ func debugActions(cfg *service.Config, sel *logTarget) []logtail.ExtraAction {
 		// There is no single instance to control when tailing all shards.
 		return nil
 	}
+
 	url := local.ShardAPIURL(cfg.WorldToml.Project, sel.Instance)
 	client := debug.NewClient(url)
 	bind := func(digit, label string, action debug.Action) logtail.ExtraAction {
@@ -221,6 +246,7 @@ func debugActions(cfg *service.Config, sel *logTarget) []logtail.ExtraAction {
 			},
 		}
 	}
+
 	return []logtail.ExtraAction{
 		bind("1", "resume", debug.Resume),
 		bind("2", "pause", debug.Pause),
@@ -234,6 +260,7 @@ func debugActions(cfg *service.Config, sel *logTarget) []logtail.ExtraAction {
 // the same thing in both and the legend cannot drift from what is bound.
 func reloadExtraKeys() []tablepageselect.ExtraKey {
 	keys := logtail.DefaultReloadKeys()
+
 	return []tablepageselect.ExtraKey{
 		{Binding: keys.Reload, Action: hotkeyReload},
 		{Binding: keys.PurgeReload, Action: hotkeyPurgeReload, Secondary: true},
@@ -260,9 +287,11 @@ func selectLogTarget(
 	if includeAll {
 		rows = append(rows, []string{"All shards"})
 	}
+
 	for _, t := range targets {
 		rows = append(rows, []string{t.Instance})
 	}
+
 	return tablepageselect.RunWithHotkeys(
 		ctx,
 		"Select instance to view logs",

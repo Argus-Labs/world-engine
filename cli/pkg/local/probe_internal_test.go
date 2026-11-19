@@ -10,6 +10,7 @@ import (
 func TestShardReadyRejectsAcceptOnlyListener(t *testing.T) {
 	ln, port := startDeadListener(t)
 	defer ln.Close()
+
 	if shardReady(context.Background(), port) {
 		t.Fatal("accept-then-close must not count as ready")
 	}
@@ -18,6 +19,7 @@ func TestShardReadyRejectsAcceptOnlyListener(t *testing.T) {
 func TestShardReadyAcceptsRealServer(t *testing.T) {
 	srv, port := startServingListener(t)
 	defer srv.Close()
+
 	if !shardReady(context.Background(), port) {
 		t.Fatal("a serving shard must count as ready even when it answers 404")
 	}

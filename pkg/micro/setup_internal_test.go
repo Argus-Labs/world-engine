@@ -39,9 +39,11 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	TestNATS.Shutdown()
+
 	if err := os.RemoveAll(tempDir); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to remove temp dir: %v\n", err)
 	}
+
 	os.Exit(code)
 }
 

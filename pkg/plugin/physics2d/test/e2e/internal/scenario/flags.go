@@ -62,6 +62,7 @@ func Flags() harness.Scenario {
 	zeroG := func(shapes ...physics.ColliderShape) physics.PhysicsBody2D {
 		pb := body(physics.BodyTypeDynamic, shapes...)
 		pb.GravityScale = 0
+
 		return pb
 	}
 
@@ -124,6 +125,7 @@ func Flags() harness.Scenario {
 				pb := body(kind, box(0.02, 1))
 				pb.GravityScale = 0
 				pb.SleepingAllowed = false
+
 				return pb
 			}
 
@@ -305,6 +307,7 @@ func Flags() harness.Scenario {
 					c.Near("body "+c.Label(id)+" ends up resting on the floor",
 						c.Pos(id).Y, 0.5, 0.15)
 				}
+
 				c.Greater("GravityScale=-1 body is still climbing", c.Pos(s.gravityUp).Y, spawnY+5)
 				c.Near("GravityScale=0 body never moved", c.Pos(s.gravity0).Y, spawnY, 1e-9)
 			}},

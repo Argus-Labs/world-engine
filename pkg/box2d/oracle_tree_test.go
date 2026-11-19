@@ -103,6 +103,7 @@ func TestOracleTreeRayCast(t *testing.T) {
 			// parallel sub-tests run, so a shared tree would already be gone.
 			tree := box2d.NewDynamicTree()
 			defer tree.Destroy()
+
 			proxyID := tree.CreateProxy(a, 1, 0)
 
 			input := box2d.RayCastInput{
@@ -112,6 +113,7 @@ func TestOracleTreeRayCast(t *testing.T) {
 			}
 
 			hit := oracleTreeRayHit{proxyID: -1}
+
 			tree.RayCast(&input, 1, func(_ *box2d.RayCastInput, id int, _ uint64, _ any) float64 {
 				hit.proxyID = id
 				return 0.0
@@ -185,6 +187,7 @@ func TestOracleTreeQuery(t *testing.T) {
 	assert.GreaterOrEqual(t, stats.LeafVisits, 1)
 
 	var list []int
+
 	allStats := tree.QueryAll(queryA, func(proxyID int, _ uint64, _ any) bool {
 		list = append(list, proxyID)
 		return true
@@ -295,10 +298,14 @@ func TestOracleTreeGridHeight(t *testing.T) {
 	tree := box2d.NewDynamicTree()
 	defer tree.Destroy()
 
-	const columnCount = 20
-	const rowCount = 20
+	const (
+		columnCount = 20
+		rowCount    = 20
+	)
+
 	for i := range columnCount {
 		x := float64(1.0 * float64(i))
+
 		for j := range rowCount {
 			y := float64(1.0 * float64(j))
 			a := box2d.AABB{
@@ -330,6 +337,7 @@ func TestOracleTreeGridMovement(t *testing.T) {
 	proxyIDs := make([]int, 0, gridCount*gridCount)
 	for i := range gridCount {
 		x := float64(1.0 * float64(i))
+
 		for j := range gridCount {
 			y := float64(1.0 * float64(j))
 			a := box2d.AABB{
@@ -348,6 +356,7 @@ func TestOracleTreeGridMovement(t *testing.T) {
 	assert.Less(t, float64(height1), 2.0*minHeight)
 
 	offset := box2d.Vec2{X: 10.0, Y: 20.0}
+
 	for _, proxyID := range proxyIDs {
 		a := tree.GetAABB(proxyID)
 		a.LowerBound = box2d.Add(a.LowerBound, offset)
@@ -377,6 +386,7 @@ func TestOracleTreeRebuildPartialVersusFull(t *testing.T) {
 	build := func() (box2d.DynamicTree, []int) {
 		tree := box2d.NewDynamicTree()
 		ids := make([]int, 0, 64)
+
 		for i := range 64 {
 			x := float64(float64(i%8) * 3.0)
 			y := float64(float64(i/8) * 3.0)
@@ -386,6 +396,7 @@ func TestOracleTreeRebuildPartialVersusFull(t *testing.T) {
 			}
 			ids = append(ids, tree.CreateProxy(a, 1, uint64(i)))
 		}
+
 		return tree, ids
 	}
 
@@ -403,6 +414,7 @@ func TestOracleTreeRebuildPartialVersusFull(t *testing.T) {
 			a.UpperBound = box2d.Vec2{X: a.UpperBound.X + 1.0, Y: a.UpperBound.Y + 1.0}
 			tree.EnlargeProxy(ids[index], a)
 		}
+
 		require.Error(t, tree.ValidateNoEnlarged(), "EnlargeProxy must flag nodes")
 
 		leafCount := tree.Rebuild(false)
@@ -482,6 +494,7 @@ func TestOracleTreeQueryMaskBits(t *testing.T) {
 	defer tree.Destroy()
 
 	ids := make([]int, 0, 3)
+
 	bits := []uint64{0x1, 0x2, 0x4}
 	for i, categoryBits := range bits {
 		x := float64(float64(i) * 4.0)
@@ -499,10 +512,12 @@ func TestOracleTreeQueryMaskBits(t *testing.T) {
 
 	collect := func(maskBits uint64) []int {
 		var visited []int
+
 		tree.Query(everything, maskBits, func(proxyID int, _ uint64, _ any) bool {
 			visited = append(visited, proxyID)
 			return true
 		}, nil)
+
 		return visited
 	}
 
@@ -545,6 +560,7 @@ func TestOracleTreeQueryEarlyOut(t *testing.T) {
 	}
 
 	queryVisits := 0
+
 	tree.Query(everything, 1, func(_ int, _ uint64, _ any) bool {
 		queryVisits++
 		return false
@@ -552,6 +568,7 @@ func TestOracleTreeQueryEarlyOut(t *testing.T) {
 	assert.Equal(t, 1, queryVisits, "Query stops on the first false callback")
 
 	allVisits := 0
+
 	tree.QueryAll(everything, func(_ int, _ uint64, _ any) bool {
 		allVisits++
 		return false
@@ -592,6 +609,7 @@ func TestOracleTreeRayCastClipsMaxFraction(t *testing.T) {
 
 	// Returning 1 keeps the full ray: every box on the line is visited.
 	var all []int
+
 	tree.RayCast(&input, 1, func(_ *box2d.RayCastInput, proxyID int, _ uint64, _ any) float64 {
 		all = append(all, proxyID)
 		return 1.0
@@ -600,6 +618,7 @@ func TestOracleTreeRayCastClipsMaxFraction(t *testing.T) {
 
 	// Returning 0 from the first hit terminates the cast immediately.
 	stopped := 0
+
 	tree.RayCast(&input, 1, func(_ *box2d.RayCastInput, _ int, _ uint64, _ any) float64 {
 		stopped++
 		return 0.0
@@ -609,7 +628,9 @@ func TestOracleTreeRayCastClipsMaxFraction(t *testing.T) {
 	// A maxFraction of 0.25 covers x in [0, 2.5], so only the near box is on
 	// the ray. This is pure slab clipping, no callback feedback involved.
 	input.MaxFraction = 0.25
+
 	var clipped []int
+
 	tree.RayCast(&input, 1, func(_ *box2d.RayCastInput, proxyID int, _ uint64, _ any) float64 {
 		clipped = append(clipped, proxyID)
 		return 1.0
@@ -636,11 +657,13 @@ func TestOracleTreeShapeCastMaskAndEarlyOut(t *testing.T) {
 	}, 0x2, 1)
 
 	var input box2d.ShapeCastInput
+
 	input.Proxy = box2d.MakeProxy([]box2d.Vec2{{X: 0.0, Y: 0.0}}, 1, 0.25)
 	input.Translation = box2d.Vec2{X: 10.0, Y: 0.0}
 	input.MaxFraction = 1.0
 
 	var masked []int
+
 	tree.ShapeCast(&input, 0x1, func(_ *box2d.ShapeCastInput, proxyID int, _ uint64, _ any) float64 {
 		masked = append(masked, proxyID)
 		return 1.0
@@ -648,6 +671,7 @@ func TestOracleTreeShapeCastMaskAndEarlyOut(t *testing.T) {
 	assert.Equal(t, []int{hit}, masked, "only the 0x1 category proxy passes the mask")
 
 	var none []int
+
 	tree.ShapeCast(&input, 0x4, func(_ *box2d.ShapeCastInput, proxyID int, _ uint64, _ any) float64 {
 		none = append(none, proxyID)
 		return 1.0
@@ -655,6 +679,7 @@ func TestOracleTreeShapeCastMaskAndEarlyOut(t *testing.T) {
 	assert.Empty(t, none, "an unused category bit matches nothing")
 
 	stopped := 0
+
 	tree.ShapeCast(&input, 0x3, func(_ *box2d.ShapeCastInput, _ int, _ uint64, _ any) float64 {
 		stopped++
 		return 0.0
@@ -698,6 +723,7 @@ func TestOracleTreeAreaRatioAndRootBounds(t *testing.T) {
 	// the zero AABB in that case.
 	empty := box2d.NewDynamicTree()
 	defer empty.Destroy()
+
 	emptyBounds := empty.GetRootBounds()
 	assert.InDelta(t, 0.0, emptyBounds.LowerBound.X, 0.0)
 	assert.InDelta(t, 0.0, emptyBounds.UpperBound.X, 0.0)
@@ -714,6 +740,7 @@ func TestOracleTreeDestroyProxyEmptiesTree(t *testing.T) {
 	defer tree.Destroy()
 
 	ids := make([]int, 0, 5)
+
 	for i := range 5 {
 		x := float64(float64(i) * 2.0)
 		a := box2d.AABB{

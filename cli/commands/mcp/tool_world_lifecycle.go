@@ -114,6 +114,7 @@ func worldLifecycleHandler(
 	if op == lifecycleOpStart {
 		timeout = lifecycleStartTimeout
 	}
+
 	ctx, cancel := ensureDeadline(ctx, timeout)
 	defer cancel()
 
@@ -123,6 +124,7 @@ func worldLifecycleHandler(
 			"world_path is required (path to the world project directory containing world.toml)",
 		)
 	}
+
 	worldPath = filepath.Clean(worldPath)
 
 	// Build before taking the project: compiling can take minutes and touches no
@@ -139,19 +141,23 @@ func worldLifecycleHandler(
 			return WorldLifecycleOutput{}, eris.Wrap(err, "build failed (did the shard code compile?)")
 		}
 	}
+
 	rt, release, err := started.open(worldPath)
 	if err != nil {
 		return WorldLifecycleOutput{}, eris.Wrap(err, "open world")
 	}
 	defer release()
+
 	args.Organization, args.Project = rt.Config().WorldToml.Organization, rt.Config().Project
 
 	switch op {
 	case lifecycleOpStop:
 		started.stopEdge(args.Project)
+
 		if err := rt.Stop(ctx, nil); err != nil {
 			return WorldLifecycleOutput{}, eris.Wrap(err, "failed to stop world")
 		}
+
 		return WorldLifecycleOutput{
 			Operation: op,
 			Status:    "containers stopped (database and NATS state preserved; start again to resume)",
@@ -159,9 +165,11 @@ func worldLifecycleHandler(
 
 	case lifecycleOpPurge:
 		started.stopEdge(args.Project)
+
 		if err := rt.Purge(ctx, false, nil); err != nil {
 			return WorldLifecycleOutput{}, eris.Wrap(err, "failed to purge world")
 		}
+
 		return WorldLifecycleOutput{
 			Operation: op,
 			Purged:    true,
@@ -183,6 +191,7 @@ func startWorld(
 ) (WorldLifecycleOutput, error) {
 	if args.Purge {
 		started.stopEdge(cfg.Project)
+
 		if err := rt.Purge(ctx, false, nil); err != nil {
 			return WorldLifecycleOutput{}, eris.Wrap(err, "failed to purge world before start")
 		}
@@ -195,21 +204,27 @@ func startWorld(
 			return WorldLifecycleOutput{}, eris.Wrap(err, "failed to prune orphaned shards"+startFailureAdvice)
 		}
 	}
+
 	if err := rt.StartPlatform(ctx, nil); err != nil {
 		return WorldLifecycleOutput{}, eris.Wrap(err, "failed to start platform"+startFailureAdvice)
 	}
+
 	if err := rt.Deploy(ctx, deployOpts); err != nil {
 		return WorldLifecycleOutput{}, eris.Wrap(err, "failed to deploy shards"+startFailureAdvice)
 	}
+
 	if err := rt.DeployServices(ctx); err != nil {
 		return WorldLifecycleOutput{}, eris.Wrap(err, "failed to deploy services"+startFailureAdvice)
 	}
+
 	if err := started.serveEdge(rt); err != nil {
 		return WorldLifecycleOutput{}, eris.Wrap(err, "failed to start the edge proxy")
 	}
+
 	ready, expected := rt.WaitForShardsReady(ctx, nil, nil) // a start brings up every instance
 
 	shardIDs := deployOpts.ShardIDs()
+
 	status := fmt.Sprintf("started %d shard(s) for %s/%s on Docker; API at %s/%s/<instance>",
 		len(shardIDs), cfg.Organization, cfg.Project, local.APIEndpoint, cfg.Project)
 	if args.Purge {
@@ -221,6 +236,7 @@ func startWorld(
 		status += fmt.Sprintf("; WARNING only %d/%d instances are accepting connections — check `get_shard_logs`",
 			ready, expected)
 	}
+
 	return WorldLifecycleOutput{
 		Operation:    lifecycleOpStart,
 		Purged:       args.Purge,

@@ -62,6 +62,7 @@ func TestCommand_ModelFuzz(t *testing.T) {
 			if testutils.RandBool(prng) {
 				sender = command.ShardSender(&microv1.ServiceAddress{ServiceId: testutils.RandString(prng, 8)})
 			}
+
 			cmdpb := &iscv1.Command{
 				Name:    payload.Name(),
 				Address: &microv1.ServiceAddress{},
@@ -141,6 +142,7 @@ func registerCommand[T command.Payload](
 	t.Helper()
 
 	var zero T
+
 	name := zero.Name()
 
 	id, err := impl.Register(name, command.NewQueue[T]())
@@ -201,7 +203,9 @@ func (m *modelManager) enqueue(name string, cmd command.Command) error {
 	if _, exists := m.catalog[name]; !exists {
 		return eris.Errorf("unregistered command: %s", name)
 	}
+
 	m.queued[name] = append(m.queued[name], cmd)
+
 	return nil
 }
 
@@ -209,6 +213,7 @@ func (m *modelManager) get(name string) ([]command.Command, error) {
 	if _, exists := m.catalog[name]; !exists {
 		return nil, eris.Errorf("unregistered command: %s", name)
 	}
+
 	return m.commands[name], nil
 }
 
@@ -223,6 +228,7 @@ func (m *modelManager) drain() []command.Command {
 	for _, cmds := range m.commands {
 		all = append(all, cmds...)
 	}
+
 	return all
 }
 
@@ -261,6 +267,7 @@ func TestCommand_RegisterModelFuzz(t *testing.T) {
 		if prevName, seen := seenIDs[id]; seen {
 			t.Errorf("ID %d is mapped by both %q and %q", id, prevName, name)
 		}
+
 		seenIDs[id] = name
 	}
 
@@ -313,8 +320,11 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 	_, err = impl.Register(testutils.CommandB{}.Name(), command.NewQueue[testutils.CommandB]())
 	require.NoError(t, err)
 
-	var wg sync.WaitGroup
-	var mu sync.Mutex
+	var (
+		wg sync.WaitGroup
+		mu sync.Mutex
+	)
+
 	start := make(chan struct{})
 	expected := make([]command.Command, 0, numGoroutines*commandsPerRoutine)
 
@@ -322,6 +332,7 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 		wg.Go(func() {
 			// Initialize prng in each goroutine separately because rand/v2.Rand isn't concurrent-safe.
 			prng := testutils.NewRand(t)
+
 			<-start
 
 			for i := range commandsPerRoutine {
@@ -350,6 +361,7 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 				}
 
 				mu.Lock()
+
 				expected = append(expected, command.Command{
 					Name:    payload.Name(),
 					Address: &microv1.ServiceAddress{},

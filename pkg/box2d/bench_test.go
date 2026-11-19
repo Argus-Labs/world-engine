@@ -284,6 +284,7 @@ func buildBenchQueryScene() *box2d.World {
 	world := newBenchWorld(1)
 
 	cols := int(math.Ceil(math.Sqrt(float64(benchQueryShapeCount))))
+
 	const spacing = 3.0
 
 	shapeDef := box2d.DefaultShapeDef()

@@ -122,6 +122,7 @@ func getStateHandler(
 	}
 
 	snapshot := res.Msg.GetSnapshot()
+
 	result, err := flattenWorldState(snapshot.GetWorldState(), limit, filter, descriptors)
 	if err != nil {
 		return GetStateOutput{}, eris.Wrap(err, "failed to flatten world state")
@@ -141,6 +142,7 @@ func getStateHandler(
 	if ts := snapshot.GetTimestamp(); ts != nil {
 		out.Timestamp = ts.AsTime().Format(time.RFC3339)
 	}
+
 	return out, nil
 }
 
@@ -171,6 +173,7 @@ func compileStateFilter(args GetStateInput) (stateFilter, error) {
 	if f.match == "" {
 		f.match = matchContains
 	}
+
 	if f.match != matchContains && f.match != matchExact {
 		return stateFilter{}, eris.Errorf("match must be %q or %q, got %q", matchContains, matchExact, f.match)
 	}
@@ -183,9 +186,11 @@ func compileStateFilter(args GetStateInput) (stateFilter, error) {
 		if err != nil {
 			return stateFilter{}, eris.Wrap(err, "failed to parse where clause")
 		}
+
 		f.where = program
 		f.whereNeeds = whereFieldReads(args.Where)
 	}
+
 	return f, nil
 }
 
@@ -197,12 +202,14 @@ func whereFieldReads(where string) []string {
 	if err != nil {
 		return nil
 	}
+
 	v := &fieldReadVisitor{names: map[string]struct{}{}}
 	ast.Walk(&tree.Node, v)
 
 	delete(v.names, "_id") // the entity ID is always present
 	names := slices.Collect(maps.Keys(v.names))
 	slices.Sort(names) // deterministic evaluation order
+
 	return names
 }
 
@@ -216,6 +223,7 @@ func (v *fieldReadVisitor) Visit(node *ast.Node) {
 	if !ok {
 		return
 	}
+
 	if ident, ok := member.Node.(*ast.IdentifierNode); ok {
 		v.names[ident.Value] = struct{}{}
 	}
@@ -226,12 +234,15 @@ func (f stateFilter) matchesComponents(names []string) bool {
 	if len(f.find) == 0 {
 		return true
 	}
+
 	found := 0
+
 	for _, name := range names {
 		if _, ok := f.find[name]; ok {
 			found++
 		}
 	}
+
 	if found != len(f.find) {
 		return false // entity is missing at least one requested component
 	}
@@ -245,11 +256,13 @@ func (f stateFilter) matchesWhere(id uint32, components map[string]any) (bool, e
 	if f.where == nil {
 		return true, nil
 	}
+
 	for _, name := range f.whereNeeds {
 		if _, ok := components[name]; !ok {
 			return false, nil // can't satisfy a field read on a component it doesn't have
 		}
 	}
+
 	env := make(map[string]any, len(components)+1)
 	maps.Copy(env, components)
 	env["_id"] = id
@@ -258,10 +271,12 @@ func (f stateFilter) matchesWhere(id uint32, components map[string]any) (bool, e
 	if err != nil {
 		return false, eris.Wrap(err, "failed to run where clause")
 	}
+
 	matched, ok := output.(bool)
 	if !ok {
 		return false, eris.New("where clause must evaluate to a boolean")
 	}
+
 	return matched, nil
 }
 
@@ -292,6 +307,7 @@ func flattenWorldState(
 		if err != nil {
 			return flattenResult{}, err
 		}
+
 		if !filter.matchesComponents(names) {
 			continue
 		}
@@ -313,16 +329,20 @@ func flattenWorldState(
 		if err != nil {
 			return flattenResult{}, err
 		}
+
 		if !ok {
 			continue
 		}
 
 		result.matched++
+
 		if atLimit {
 			continue // keep counting so the caller learns the real match count
 		}
+
 		result.entities = append(result.entities, EntityState{ID: entity.GetId(), Components: components})
 	}
+
 	return result, nil
 }
 
@@ -334,8 +354,10 @@ func componentNames(table []string, indices []uint32) ([]string, error) {
 			return nil, eris.Errorf("snapshot entity references component %d, but the name table has %d entries",
 				idx, len(table))
 		}
+
 		names[i] = table[idx]
 	}
+
 	return names, nil
 }
 
@@ -347,13 +369,16 @@ func entityComponents(names []string, payloads [][]byte, descriptors componentDe
 		if i >= len(payloads) {
 			break // fewer payloads than components; nothing stored for the rest
 		}
+
 		var value any = payloads[i]
 		if _, ok := descriptors[name]; ok {
 			if decoded, err := decodeMessage(payloads[i]); err == nil {
 				value = decoded
 			}
 		}
+
 		components[name] = value
 	}
+
 	return components
 }

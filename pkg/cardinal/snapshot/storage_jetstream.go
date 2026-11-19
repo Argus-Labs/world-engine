@@ -39,6 +39,7 @@ func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error
 	if opts.NATSConfig != nil {
 		clientOpts = append(clientOpts, micro.WithNATSConfig(*opts.NATSConfig))
 	}
+
 	client, err := micro.NewClient(clientOpts...)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to create micro client")
@@ -62,6 +63,7 @@ func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error
 		Bucket:   bucketName,
 		MaxBytes: int64(opts.SnapshotStorageMaxBytes), // Required by some NATS providers like Synadia Cloud
 	}
+
 	os, err := js.CreateObjectStore(ctx, osConfig)
 	if err != nil {
 		if eris.Is(err, jetstream.ErrBucketExists) {
@@ -84,6 +86,7 @@ func (j *JetStreamStorage) Store(ctx context.Context, _ uint64, data []byte) err
 	if _, err := j.os.PutBytes(ctx, defaultObjectName, data); err != nil {
 		return eris.Wrap(err, "failed to store snapshot in ObjectStore")
 	}
+
 	return nil
 }
 
@@ -94,6 +97,7 @@ func (j *JetStreamStorage) Load(ctx context.Context) ([]byte, error) {
 		if eris.Is(err, jetstream.ErrObjectNotFound) {
 			return nil, eris.Wrap(ErrSnapshotNotFound, "no snapshot exists")
 		}
+
 		return nil, eris.Wrap(err, "failed to get snapshot from ObjectStore")
 	}
 	defer func() {
@@ -104,6 +108,7 @@ func (j *JetStreamStorage) Load(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to read from object")
 	}
+
 	return data, nil
 }
 

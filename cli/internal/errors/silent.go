@@ -27,6 +27,7 @@ func NewSilent(err error) error {
 	if err == nil {
 		return nil
 	}
+
 	return &SilentError{err: err}
 }
 
@@ -39,6 +40,7 @@ func IsSilent(err error) bool {
 	}
 
 	var silentErr *SilentError
+
 	return errors.As(err, &silentErr)
 }
 
@@ -60,8 +62,11 @@ func isSilentOrCancel(err error) bool {
 // real error is discarded in that form — pass failures as separate arguments
 // to preserve them.
 func JoinFailures(errs ...error) error {
-	var failures []error
-	var canceled error
+	var (
+		failures []error
+		canceled error
+	)
+
 	for _, err := range errs {
 		switch {
 		case err == nil:
@@ -73,8 +78,10 @@ func JoinFailures(errs ...error) error {
 			failures = append(failures, err)
 		}
 	}
+
 	if len(failures) > 0 {
 		return errors.Join(failures...)
 	}
+
 	return canceled
 }

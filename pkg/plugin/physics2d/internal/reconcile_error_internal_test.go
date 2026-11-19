@@ -53,6 +53,7 @@ func rebuildEntriesFromECS(entities ...cardinal.Entity) []PhysicsRebuildEntry {
 			PhysicsBody: e.Get[component.PhysicsBody2D](),
 		})
 	}
+
 	return out
 }
 
@@ -62,6 +63,7 @@ func writebackEntries(entities ...cardinal.Entity) []WritebackEntry {
 	for _, e := range entities {
 		out = append(out, WritebackEntry{Entity: e})
 	}
+
 	return out
 }
 
@@ -89,6 +91,7 @@ func spawnBoxAt(w *cardinal.World, pos component.Vec2) cardinal.Entity {
 	e.Set(component.Transform2D{Position: pos})
 	e.Set(component.Velocity2D{})
 	e.Set(boxBody())
+
 	return e
 }
 
@@ -119,6 +122,7 @@ func TestReconcileErrorDoesNotSkipLaterEntities(t *testing.T) {
 	})
 
 	var entA, entB cardinal.Entity
+
 	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
 		// Spawn A (lower ID) and B (higher ID) at {50, 0}, in explicit creation order.
 		entA = spawnBoxAt(w, component.Vec2{X: 50, Y: 0})
@@ -164,6 +168,7 @@ func TestReconcileErrorDoesNotSkipLaterEntities(t *testing.T) {
 		// B's teleport must stick through writeback.
 		transformB := entB.Get[component.Transform2D]()
 		requireXY(t, "B transform after writeback", transformB.Position.X, transformB.Position.Y, 100, 100)
+
 		shadowB := rt.Shadow[idB]
 		requireXY(t, "B shadow after writeback", shadowB.Transform.Position.X, shadowB.Transform.Position.Y, 100, 100)
 
@@ -226,8 +231,10 @@ func TestReconcileContinuesPastMultipleErrors(t *testing.T) {
 	// Both failed entities must be in reconcileFailed; entity 2 must not.
 	_, failed1 := rt.reconcileFailed[cardinal.EntityID(1)]
 	require.True(t, failed1, "entity 1 should be in reconcileFailed")
+
 	_, failed3 := rt.reconcileFailed[cardinal.EntityID(3)]
 	require.True(t, failed3, "entity 3 should be in reconcileFailed")
+
 	_, failed2 := rt.reconcileFailed[cardinal.EntityID(2)]
 	require.False(t, failed2, "entity 2 should not be in reconcileFailed")
 
@@ -294,6 +301,7 @@ func TestReconcileFailureFreezesECSWhileBodyFalls(t *testing.T) {
 	})
 
 	var entA cardinal.Entity
+
 	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
 		entA = seedSingleBox(w)
 	}})
@@ -323,6 +331,7 @@ func TestReconcileFailureFreezesECSWhileBodyFalls(t *testing.T) {
 		// The Box2D body kept falling under gravity; A is still flagged failed.
 		bodyY := rt.World.BodyPosition(rt.Bodies[idA]).Y
 		require.Less(t, bodyY, 0.0, "A's Box2D body should have fallen under gravity")
+
 		_, failed := rt.reconcileFailed[idA]
 		require.True(t, failed, "A should still be in reconcileFailed while damping is invalid")
 
@@ -359,6 +368,7 @@ func TestReconcileFailureRetainsInvalidMotion(t *testing.T) {
 	})
 
 	var entA cardinal.Entity
+
 	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
 		entA = seedSingleBox(w)
 	}})
@@ -412,6 +422,7 @@ func TestReconcileFailedClearedByRebuildAndReset(t *testing.T) {
 	})
 
 	var entA cardinal.Entity
+
 	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
 		entA = seedSingleBox(w)
 	}})

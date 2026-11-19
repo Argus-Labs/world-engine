@@ -77,8 +77,10 @@ func (w *World) Schedules() []ScheduleInfo {
 				Name: sys.name,
 			}
 		}
+
 		schedules[phase] = ScheduleInfo{Phase: Phase(phase), Systems: systems}
 	}
+
 	return schedules
 }
 
@@ -89,12 +91,15 @@ func (w *World) LiveEntityIDs() []EntityID {
 	defer w.state.mu.Unlock()
 
 	ids := make([]EntityID, 0)
+
 	for i, aid := range w.state.entityArch {
 		if aid == sparseTombstone {
 			continue
 		}
+
 		ids = append(ids, EntityID(i))
 	}
+
 	return ids
 }
 
@@ -117,6 +122,7 @@ func (w *World) FromProto(pb *cardinalv1.WorldState) error {
 	if err := w.state.fromProto(pb); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -127,10 +133,12 @@ func (w *World) EncodeState(buf []byte) []byte {
 	if err != nil {
 		panic(err)
 	}
+
 	data, err := proto.MarshalOptions{}.MarshalAppend(buf, state)
 	if err != nil {
 		panic(err)
 	}
+
 	return data
 }
 
@@ -142,6 +150,7 @@ func (w *World) EncodeState(buf []byte) []byte {
 // It fails the test with a descriptive message on the first violation found.
 func (w *World) CheckWorld(t *testing.T) {
 	t.Helper()
+
 	ws := w.state
 
 	// Invariant: void archetype (index 0) always exists, has no components, and no columns.
@@ -153,6 +162,7 @@ func (w *World) CheckWorld(t *testing.T) {
 
 	// Collect all live entities from archetypes (ground truth).
 	liveEntities := make(map[EntityID]int)
+
 	for aid, arch := range ws.archetypes {
 		// Invariant: archetype ID matches its index in the array.
 		require.Equal(t, aid, arch.id, "archetype at index %d has id %d", aid, arch.id)
@@ -215,6 +225,7 @@ func (w *World) CheckWorld(t *testing.T) {
 		if val == sparseTombstone {
 			continue
 		}
+
 		eid := EntityID(i)
 		_, exists := liveEntities[eid]
 		require.True(t, exists,
