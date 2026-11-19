@@ -150,6 +150,7 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 			// resp.Status. Mirror it onto the outer span, matching the child "handler.execute" span.
 			appStatus := resp.Status.GetCode()
 			span.SetAttributes(attribute.Int("status.code", int(appStatus)))
+
 			if appStatus != int32(codes.OK) {
 				span.SetStatus(otelcodes.Error, resp.Status.GetMessage())
 			} else {

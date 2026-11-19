@@ -319,14 +319,17 @@ func newTestService(t *testing.T, prng *rand.Rand) (*Service, *Client) {
 // mutates global OTel state.
 func newRecordingTracer(t *testing.T) *tracetest.InMemoryExporter {
 	t.Helper()
+
 	exporter := tracetest.NewInMemoryExporter()
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
 	previous := otel.GetTracerProvider()
+
 	otel.SetTracerProvider(provider)
 	t.Cleanup(func() {
 		otel.SetTracerProvider(previous)
 		require.NoError(t, provider.Shutdown(context.Background()))
 	})
+
 	return exporter
 }
 
@@ -337,6 +340,7 @@ func spansByName(exporter *tracetest.InMemoryExporter) map[string]tracetest.Span
 	for _, s := range exporter.GetSpans() {
 		byName[s.Name] = s
 	}
+
 	return byName
 }
 
@@ -361,6 +365,7 @@ func TestService_HandlerSpanStatus(t *testing.T) {
 
 	t.Run("app-level failure sets both spans to Error", func(t *testing.T) {
 		exporter.Reset()
+
 		rng := testutils.NewRand(t)
 		svc, client := newTestService(t, rng)
 		endpoint := randEndpointName(rng)
@@ -401,6 +406,7 @@ func TestService_HandlerSpanStatus(t *testing.T) {
 
 	t.Run("happy path sets both spans to Ok", func(t *testing.T) {
 		exporter.Reset()
+
 		rng := testutils.NewRand(t)
 		svc, client := newTestService(t, rng)
 		endpoint := randEndpointName(rng)
