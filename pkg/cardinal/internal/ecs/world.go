@@ -126,6 +126,7 @@ func (w *World) FromProto(pb *cardinalv1.WorldState) error {
 	}
 
 	w.systemEvents.clear()
+
 	return nil
 }
 

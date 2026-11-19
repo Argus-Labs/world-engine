@@ -83,6 +83,7 @@ func TestWorldMethods_SystemEvents(t *testing.T) {
 // draining them.
 func TestWorldMethods_SystemEvents_ReplacingWorldClearsInitBuffer(t *testing.T) {
 	t.Parallel()
+
 	cases := []struct {
 		name    string
 		replace func(t *testing.T, w *World)
@@ -97,6 +98,7 @@ func TestWorldMethods_SystemEvents_ReplacingWorldClearsInitBuffer(t *testing.T) 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			w := NewWorld()
 			_, err := w.RegisterSystemEvent[testutils.SimpleSystemEvent]()
 			require.NoError(t, err)

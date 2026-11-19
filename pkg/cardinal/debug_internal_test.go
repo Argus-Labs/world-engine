@@ -198,17 +198,22 @@ func newDebugStateWorld(t *testing.T) *World {
 // slice. Shared by the reset and restore shipped-path system-event tests.
 func registerEmitReceiveSystems(t *testing.T, w *World) *[]testutils.SimpleSystemEvent {
 	t.Helper()
+
 	_, err := w.world.RegisterSystemEvent[testutils.SimpleSystemEvent]()
 	require.NoError(t, err)
+
 	var observed []testutils.SimpleSystemEvent
+
 	require.NoError(t, w.world.RegisterSystem("emit-on-init", ecs.Init, func() {
 		require.NoError(t, w.world.EmitSystemEvent(testutils.SimpleSystemEvent{Value: 7}))
 	}))
 	require.NoError(t, w.world.RegisterSystem("receive-on-update", ecs.Update, func() {
 		evs, err := w.world.GetSystemEvents[testutils.SimpleSystemEvent]()
 		require.NoError(t, err)
+
 		observed = append(observed, evs...)
 	}))
+
 	return &observed
 }
 
@@ -422,16 +427,20 @@ func TestRestorePreservesInitEmittedClientEvents(t *testing.T) {
 	restarted.useSyncSnapshotStorage(storage)
 
 	restarted.RegisterEvent[testutils.SimpleEvent]()
+
 	const emitVal = 42
+
 	require.NotPanics(t, func() {
 		restarted.RegisterSystem(&broadcastOnInitSystem{value: emitVal}, WithHook(Init))
 	})
 
 	var observed []testutils.SimpleEvent
+
 	restarted.events.RegisterHandler(event.KindDefault, func(_ context.Context, e event.Event) error {
 		if payload, ok := e.Payload.(testutils.SimpleEvent); ok {
 			observed = append(observed, payload)
 		}
+
 		return nil
 	})
 
