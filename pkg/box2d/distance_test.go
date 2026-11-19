@@ -32,6 +32,7 @@ func TestSegmentDistance(t *testing.T) {
 
 	t.Run("perpendicular", func(t *testing.T) {
 		t.Parallel()
+
 		r := box2d.SegmentDistance(
 			box2d.Vec2{X: 0, Y: 0}, box2d.Vec2{X: 1, Y: 0},
 			box2d.Vec2{X: 0.5, Y: 1}, box2d.Vec2{X: 0.5, Y: 2})
@@ -44,6 +45,7 @@ func TestSegmentDistance(t *testing.T) {
 
 	t.Run("parallel", func(t *testing.T) {
 		t.Parallel()
+
 		r := box2d.SegmentDistance(
 			box2d.Vec2{X: 0, Y: 0}, box2d.Vec2{X: 1, Y: 0},
 			box2d.Vec2{X: 0, Y: 1}, box2d.Vec2{X: 1, Y: 1})
@@ -54,6 +56,7 @@ func TestSegmentDistance(t *testing.T) {
 
 	t.Run("collinear separated", func(t *testing.T) {
 		t.Parallel()
+
 		r := box2d.SegmentDistance(
 			box2d.Vec2{X: 0, Y: 0}, box2d.Vec2{X: 1, Y: 0},
 			box2d.Vec2{X: 2, Y: 0}, box2d.Vec2{X: 3, Y: 0})
@@ -66,6 +69,7 @@ func TestSegmentDistance(t *testing.T) {
 
 	t.Run("endpoint closest", func(t *testing.T) {
 		t.Parallel()
+
 		r := box2d.SegmentDistance(
 			box2d.Vec2{X: 0, Y: 0}, box2d.Vec2{X: 1, Y: 0},
 			box2d.Vec2{X: 2, Y: 1}, box2d.Vec2{X: 3, Y: 2})
@@ -78,6 +82,7 @@ func TestSegmentDistance(t *testing.T) {
 
 	t.Run("both degenerate", func(t *testing.T) {
 		t.Parallel()
+
 		r := box2d.SegmentDistance(
 			box2d.Vec2{X: 1, Y: 2}, box2d.Vec2{X: 1, Y: 2},
 			box2d.Vec2{X: 4, Y: 6}, box2d.Vec2{X: 4, Y: 6})
@@ -88,6 +93,7 @@ func TestSegmentDistance(t *testing.T) {
 
 	t.Run("segment2 degenerate", func(t *testing.T) {
 		t.Parallel()
+
 		r := box2d.SegmentDistance(
 			box2d.Vec2{X: 0, Y: 0}, box2d.Vec2{X: 2, Y: 0},
 			box2d.Vec2{X: 1, Y: 5}, box2d.Vec2{X: 1, Y: 5})
@@ -103,6 +109,7 @@ func TestShapeDistance(t *testing.T) {
 
 	t.Run("separated circles use radii", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.DistanceInput{
 			ProxyA:     box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.5),
 			ProxyB:     box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.25),
@@ -110,7 +117,9 @@ func TestShapeDistance(t *testing.T) {
 			TransformB: box2d.Transform{P: box2d.Vec2{X: 3, Y: 0}, Q: box2d.RotIdentity},
 			UseRadii:   true,
 		}
+
 		var cache box2d.SimplexCache
+
 		out := box2d.ShapeDistance(&input, &cache, nil)
 
 		// distance = centerDist - r1 - r2 for point proxies with radii applied.
@@ -122,6 +131,7 @@ func TestShapeDistance(t *testing.T) {
 
 	t.Run("box vs box face", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.DistanceInput{
 			ProxyA:     box2d.MakeProxy(boxPoints(0.5, 0.5), 4, 0.0),
 			ProxyB:     box2d.MakeProxy(boxPoints(0.5, 0.5), 4, 0.0),
@@ -129,7 +139,9 @@ func TestShapeDistance(t *testing.T) {
 			TransformB: box2d.Transform{P: box2d.Vec2{X: 2, Y: 0}, Q: box2d.RotIdentity},
 			UseRadii:   false,
 		}
+
 		var cache box2d.SimplexCache
+
 		out := box2d.ShapeDistance(&input, &cache, nil)
 
 		requireBitEqual(t, 1.0, out.Distance)
@@ -140,6 +152,7 @@ func TestShapeDistance(t *testing.T) {
 
 	t.Run("overlapping boxes", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.DistanceInput{
 			ProxyA:     box2d.MakeProxy(boxPoints(0.5, 0.5), 4, 0.0),
 			ProxyB:     box2d.MakeProxy(boxPoints(0.5, 0.5), 4, 0.0),
@@ -147,7 +160,9 @@ func TestShapeDistance(t *testing.T) {
 			TransformB: box2d.Transform{P: box2d.Vec2{X: 0.5, Y: 0.25}, Q: box2d.RotIdentity},
 			UseRadii:   false,
 		}
+
 		var cache box2d.SimplexCache
+
 		out := box2d.ShapeDistance(&input, &cache, nil)
 
 		requireBitEqual(t, 0.0, out.Distance)
@@ -155,6 +170,7 @@ func TestShapeDistance(t *testing.T) {
 
 	t.Run("warm start is identical", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.DistanceInput{
 			ProxyA:     box2d.MakeProxy(boxPoints(0.5, 0.5), 4, 0.0),
 			ProxyB:     box2d.MakeProxy(boxPoints(0.4, 0.3), 4, 0.0),
@@ -162,7 +178,9 @@ func TestShapeDistance(t *testing.T) {
 			TransformB: box2d.Transform{P: box2d.Vec2{X: 1.7, Y: 0.6}, Q: box2d.MakeRot(0.3)},
 			UseRadii:   false,
 		}
+
 		var cache box2d.SimplexCache
+
 		cold := box2d.ShapeDistance(&input, &cache, nil)
 		require.Positive(t, cold.Distance)
 
@@ -181,6 +199,7 @@ func TestShapeCast(t *testing.T) {
 
 	t.Run("circle proxy into box", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.ShapeCastPairInput{
 			ProxyA:       box2d.MakeProxy(boxPoints(0.5, 0.5), 4, 0.0),
 			ProxyB:       box2d.MakeProxy([]box2d.Vec2{{X: 2, Y: 0}}, 1, 0.25),
@@ -205,6 +224,7 @@ func TestShapeCast(t *testing.T) {
 
 	t.Run("miss receding", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.ShapeCastPairInput{
 			ProxyA:       box2d.MakeProxy(boxPoints(0.5, 0.5), 4, 0.0),
 			ProxyB:       box2d.MakeProxy([]box2d.Vec2{{X: 2, Y: 0}}, 1, 0.25),
@@ -220,6 +240,7 @@ func TestShapeCast(t *testing.T) {
 
 	t.Run("miss beyond max fraction", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.ShapeCastPairInput{
 			ProxyA:       box2d.MakeProxy(boxPoints(0.5, 0.5), 4, 0.0),
 			ProxyB:       box2d.MakeProxy([]box2d.Vec2{{X: 5, Y: 0}}, 1, 0.25),
@@ -235,6 +256,7 @@ func TestShapeCast(t *testing.T) {
 
 	t.Run("initial overlap", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.ShapeCastPairInput{
 			ProxyA:       box2d.MakeProxy(boxPoints(0.5, 0.5), 4, 0.0),
 			ProxyB:       box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.25),
@@ -251,6 +273,7 @@ func TestShapeCast(t *testing.T) {
 
 	t.Run("can encroach", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.ShapeCastPairInput{
 			ProxyA:       box2d.MakeProxy(boxPoints(0.5, 0.5), 4, 0.0),
 			ProxyB:       box2d.MakeProxy([]box2d.Vec2{{X: 0.74, Y: 0}}, 1, 0.25),
@@ -281,6 +304,7 @@ func TestTimeOfImpact(t *testing.T) {
 
 	t.Run("head-on bullet vs static box", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.TOIInput{
 			ProxyA: box2d.MakeProxy(boxPoints(0.5, 0.5), 4, 0.0),
 			ProxyB: box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.0),
@@ -307,6 +331,7 @@ func TestTimeOfImpact(t *testing.T) {
 
 	t.Run("rotating translating boxes", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.TOIInput{
 			ProxyA: box2d.MakeProxy(boxPoints(2.0, 0.1), 4, 0.0),
 			ProxyB: box2d.MakeProxy(boxPoints(0.25, 0.05), 4, 0.0),
@@ -328,6 +353,7 @@ func TestTimeOfImpact(t *testing.T) {
 
 	t.Run("no collision", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.TOIInput{
 			ProxyA: box2d.MakeProxy(boxPoints(0.5, 0.5), 4, 0.0),
 			ProxyB: box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.0),
@@ -348,6 +374,7 @@ func TestTimeOfImpact(t *testing.T) {
 
 	t.Run("touching start", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.TOIInput{
 			ProxyA: box2d.MakeProxy(boxPoints(0.5, 0.5), 4, 0.0),
 			ProxyB: box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.0),
@@ -368,6 +395,7 @@ func TestTimeOfImpact(t *testing.T) {
 
 	t.Run("overlapped start", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.TOIInput{
 			ProxyA: box2d.MakeProxy(boxPoints(0.5, 0.5), 4, 0.0),
 			ProxyB: box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.0),
@@ -400,6 +428,7 @@ func TestGetSweepTransform(t *testing.T) {
 
 	t.Run("alpha 0", func(t *testing.T) {
 		t.Parallel()
+
 		xf := box2d.GetSweepTransform(&sweep, 0.0)
 		require.Equal(t, box2d.RotIdentity, xf.Q)
 		require.Equal(t, box2d.Vec2{X: 0.5, Y: 1}, xf.P)
@@ -407,6 +436,7 @@ func TestGetSweepTransform(t *testing.T) {
 
 	t.Run("alpha 1", func(t *testing.T) {
 		t.Parallel()
+
 		xf := box2d.GetSweepTransform(&sweep, 1.0)
 		// q2 rotates localCenter (0.5, 0) to approximately (0, 0.5).
 		require.InDelta(t, 0.0, box2d.RelativeAngle(sweep.Q2, xf.Q), 1e-6)
@@ -416,6 +446,7 @@ func TestGetSweepTransform(t *testing.T) {
 
 	t.Run("alpha 0.5", func(t *testing.T) {
 		t.Parallel()
+
 		xf := box2d.GetSweepTransform(&sweep, 0.5)
 		require.True(t, box2d.IsNormalizedRot(xf.Q))
 		// Midpoint rotation is 45 degrees; center lerp is (2, 3).
@@ -455,6 +486,7 @@ func TestShapeCastPolygonRayConsistency(t *testing.T) {
 
 	t.Run("rounded polygon matches ray cast exactly", func(t *testing.T) {
 		t.Parallel()
+
 		rounded := box2d.MakeRoundedBox(0.5, 0.5, 0.25)
 		ray := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 2, Y: 0.1},
@@ -479,6 +511,7 @@ func TestShapeCastPolygonRayConsistency(t *testing.T) {
 
 	t.Run("zero radius point cast fraction", func(t *testing.T) {
 		t.Parallel()
+
 		square := box2d.MakeSquare(0.5)
 		ray := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 2, Y: 0},
@@ -515,6 +548,7 @@ func TestShapeCastPolygonRayConsistency(t *testing.T) {
 		out := box2d.RayCastPolygon(&rounded, &ray)
 
 		require.True(t, out.Hit)
+
 		target := 0.25 - box2d.LinearSlop
 		expected := (1.5 - target) / 2.0
 		require.InDelta(t, expected, out.Fraction, 1e-9)
@@ -535,6 +569,7 @@ func TestShapeCastShapesAgainstProxy(t *testing.T) {
 
 	t.Run("circle", func(t *testing.T) {
 		t.Parallel()
+
 		circle := box2d.Circle{Center: box2d.Vec2{}, Radius: 0.5}
 		out := box2d.ShapeCastCircle(&circle, &input)
 		require.True(t, out.Hit)
@@ -544,6 +579,7 @@ func TestShapeCastShapesAgainstProxy(t *testing.T) {
 
 	t.Run("capsule", func(t *testing.T) {
 		t.Parallel()
+
 		capsule := box2d.Capsule{
 			Center1: box2d.Vec2{X: 0, Y: -0.5},
 			Center2: box2d.Vec2{X: 0, Y: 0.5},
@@ -556,6 +592,7 @@ func TestShapeCastShapesAgainstProxy(t *testing.T) {
 
 	t.Run("segment", func(t *testing.T) {
 		t.Parallel()
+
 		segment := box2d.Segment{
 			Point1: box2d.Vec2{X: 0, Y: -1},
 			Point2: box2d.Vec2{X: 0, Y: 1},
@@ -567,6 +604,7 @@ func TestShapeCastShapesAgainstProxy(t *testing.T) {
 
 	t.Run("polygon", func(t *testing.T) {
 		t.Parallel()
+
 		square := box2d.MakeSquare(0.5)
 		out := box2d.ShapeCastPolygon(&square, &input)
 		require.True(t, out.Hit)
@@ -585,6 +623,7 @@ func TestCollideMover(t *testing.T) {
 
 	t.Run("circle hit", func(t *testing.T) {
 		t.Parallel()
+
 		circle := box2d.Circle{Center: box2d.Vec2{X: 0, Y: -0.1}, Radius: 0.2}
 		result := box2d.CollideMoverAndCircle(&mover, &circle)
 		require.True(t, result.Hit)
@@ -594,6 +633,7 @@ func TestCollideMover(t *testing.T) {
 
 	t.Run("circle miss", func(t *testing.T) {
 		t.Parallel()
+
 		circle := box2d.Circle{Center: box2d.Vec2{X: 0, Y: -1.0}, Radius: 0.2}
 		result := box2d.CollideMoverAndCircle(&mover, &circle)
 		require.False(t, result.Hit)
@@ -601,6 +641,7 @@ func TestCollideMover(t *testing.T) {
 
 	t.Run("capsule hit", func(t *testing.T) {
 		t.Parallel()
+
 		capsule := box2d.Capsule{
 			Center1: box2d.Vec2{X: -1, Y: -0.1},
 			Center2: box2d.Vec2{X: 1, Y: -0.1},
@@ -623,6 +664,7 @@ func TestCollideMover(t *testing.T) {
 
 	t.Run("polygon miss", func(t *testing.T) {
 		t.Parallel()
+
 		floor := box2d.MakeOffsetBox(2.0, 0.1, box2d.Vec2{X: 0, Y: -0.5}, box2d.RotIdentity)
 		result := box2d.CollideMoverAndPolygon(&mover, &floor)
 		require.False(t, result.Hit)
@@ -630,6 +672,7 @@ func TestCollideMover(t *testing.T) {
 
 	t.Run("segment hit", func(t *testing.T) {
 		t.Parallel()
+
 		segment := box2d.Segment{
 			Point1: box2d.Vec2{X: -1, Y: 0.1},
 			Point2: box2d.Vec2{X: 1, Y: 0.1},

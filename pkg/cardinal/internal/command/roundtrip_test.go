@@ -57,6 +57,7 @@ func (plainCommand) Name() string { return "plain" }
 
 func TestQueueRejectsMalformedPayload(t *testing.T) {
 	t.Parallel()
+
 	q := command.NewQueue[plainCommand]()
 	// BIN8 instead of an array: the decoder must return an error rather than panic or enqueue.
 	err := q.Enqueue(context.Background(), &iscv1.Command{

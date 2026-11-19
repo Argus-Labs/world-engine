@@ -24,12 +24,15 @@ var guardRestPos = Vec2{X: 0.0, Y: 0.04}
 
 func findContactSimForBody(w *World, bodyID BodyID) *contactSim {
 	b := w.getBodyFullID(bodyID)
+
 	key := b.headContactKey
 	if key == NullIndex {
 		return nil
 	}
+
 	contactID := key >> 1
 	c := &w.contacts[contactID]
+
 	return w.getContactSim(c)
 }
 
@@ -41,6 +44,7 @@ func dynamicCachedRotation(sim *contactSim, w *World, dynamicBodyID BodyID) Rot 
 	if shapeA.bodyID == w.getBodyFullID(dynamicBodyID).id {
 		return sim.cachedTransformA.Q
 	}
+
 	return sim.cachedTransformB.Q
 }
 
@@ -55,6 +59,7 @@ func recycleWorld(t *testing.T) *World {
 	def.EnableSleep = false
 	w := NewWorld(&def)
 	t.Cleanup(w.Destroy)
+
 	return w
 }
 
@@ -72,6 +77,7 @@ func createBoxBody(t *testing.T, w *World, halfExtent Vec2, pos Vec2, enableEven
 	sd := DefaultShapeDef()
 	sd.EnableContactEvents = enableEvents
 	shape := w.CreatePolygonShape(body, &sd, &box)
+
 	return body, shape
 }
 
@@ -112,6 +118,7 @@ func recycleGuardTestWorld(t *testing.T) (*World, BodyID) {
 	t.Helper()
 	w, body, _, _ := recycleTestWorld(t, Vec2{X: 0.05, Y: 0.05}, guardRestPos, false)
 	w.SetContactRecycleDistance(enlargedRecycleDistance)
+
 	return w, body
 }
 
@@ -121,9 +128,11 @@ func recycleGuardTestWorld(t *testing.T) (*World, BodyID) {
 // MakeRot for the expected cache value.
 func rotateAndStep(t *testing.T, w *World, body BodyID, angle float64) (*contactSim, Rot) {
 	t.Helper()
+
 	rot := MakeRot(angle)
 	w.SetBodyTransform(body, guardRestPos, rot)
 	sim := stepFindNotNil(t, w, body, "contact must still exist after rotation to %.1f deg", angle*180.0/Pi)
+
 	return sim, rot
 }
 
@@ -134,15 +143,18 @@ func rotateAndStep(t *testing.T, w *World, body BodyID, angle float64) (*contact
 // set by the test.
 func requireCachedRot(t *testing.T, sim *contactSim, w *World, body BodyID, expected Rot, msgAndArgs ...any) {
 	t.Helper()
+
 	cached := dynamicCachedRotation(sim, w, body)
 	require.Equal(t, expected, cached, msgAndArgs...)
 }
 
 func requireShapeIDPair(t *testing.T, idA, idB, ground, body ShapeID, msg string) {
 	t.Helper()
+
 	if (idA == ground && idB == body) || (idA == body && idB == ground) {
 		return
 	}
+
 	require.Failf(t, msg, "expected shape-id pair {ground=%v, body=%v}, got {a=%v, b=%v}", ground, body, idA, idB)
 }
 
@@ -151,6 +163,7 @@ func stepFindNotNil(t *testing.T, w *World, body BodyID, msgAndArgs ...any) *con
 	stepWorld(w, 1)
 	sim := findContactSimForBody(w, body)
 	require.NotNil(t, sim, msgAndArgs...)
+
 	return sim
 }
 
@@ -161,6 +174,7 @@ func stepAndFindContact(t *testing.T, w *World, body BodyID) *contactSim {
 	sim := stepFindNotNil(t, w, body, "contact must exist after first step")
 	require.NotEqual(t, uint32(0), sim.simFlags&simRelativeTransformValid,
 		"cached relative transform must be valid after first step")
+
 	return sim
 }
 
@@ -175,6 +189,7 @@ func stepAndFindContact(t *testing.T, w *World, body BodyID) *contactSim {
 // the regression pass without the guard.
 func requireDistanceMetricPasses(t *testing.T, w *World, sim *contactSim, msg string) {
 	t.Helper()
+
 	shapeA := &w.shapes[sim.shapeIDA]
 	shapeB := &w.shapes[sim.shapeIDB]
 	bodyA := &w.bodies[shapeA.bodyID]
@@ -185,22 +200,27 @@ func requireDistanceMetricPasses(t *testing.T, w *World, sim *contactSim, msg st
 	transformB := bodySimB.transform
 	xf := InvMulTransforms(transformA, transformB)
 	xfc := InvMulTransforms(sim.cachedTransformA, sim.cachedTransformB)
+
 	maxExtentA := 0.0
 	if bodyA.bodyType != StaticBody {
 		maxExtentA = bodySimA.maxExtent
 	}
+
 	maxExtentB := 0.0
 	if bodyB.bodyType != StaticBody {
 		maxExtentB = bodySimB.maxExtent
 	}
+
 	maxExtent := maxFloat(maxExtentA, maxExtentB)
 	distance := Distance(xf.P, xfc.P)
 	qr := InvMulRot(xf.Q, xfc.Q)
 	recycleDistance := w.contactRecycleDistance
+
 	tolerance := minFloat(recycleDistance, SpeculativeDistance)
 	if sim.simFlags&simTouchingFlag != 0 {
 		tolerance = recycleDistance
 	}
+
 	wouldRecycle := distance+float64(maxExtent*absFloat(qr.S)) < tolerance
 	require.True(t, wouldRecycle, "%s: distance/sine predicate must pass so recycling would happen without the guard", msg)
 }
@@ -434,6 +454,7 @@ func setupRecycleEventWorld(t *testing.T, halfExtent Vec2, pos Vec2, recycleDist
 	w.SetContactRecycleDistance(recycleDistance)
 
 	sim := stepAndFindContact(t, w, body)
+
 	return w, body, groundShape, bodyShape, sim
 }
 
@@ -497,6 +518,7 @@ func TestContactRecycleRotationGuardEndEventDefaultDistance(t *testing.T) {
 		plankHalfHeight = 0.5
 		initialMargin   = 0.001
 	)
+
 	plankY := plankHalfHeight + SpeculativeDistance - initialMargin
 	runRecycleEndEvent(t, Vec2{X: 0.01, Y: plankHalfHeight}, Vec2{X: 0.0, Y: plankY}, 175.0*Pi/180.0, ContactRecycleDistance)
 }
@@ -574,6 +596,7 @@ func TestContactRecycleSpinningBody(t *testing.T) {
 	// rotation (the static ground contributes 1.0); the guard trips when that
 	// cosine drops to ContactRecycleCosAngle.
 	prevCosBody := 1.0
+
 	for step := 1; step <= spinSteps; step++ {
 		// Before stepping, the cache still holds the pre-rotation value;
 		// the distance/sine gate must pass so a refresh can only come from
@@ -596,9 +619,12 @@ func TestContactRecycleSpinningBody(t *testing.T) {
 				"pre-step cosine must reach the threshold at the refresh step (step %d)", step)
 			require.Greater(t, prevCosBody, ContactRecycleCosAngle,
 				"previous step must still be above the threshold (first crossing, step %d)", step)
+
 			return
 		}
+
 		prevCosBody = cosBody
 	}
+
 	t.Fatal("cache was never refreshed away from 0 degrees within the spin step budget")
 }

@@ -24,9 +24,11 @@ func (payload) Name() string { return "payload" }
 
 func TestSerializeRoundTrip(t *testing.T) {
 	t.Parallel()
+
 	want := payload{ID: 18446744073709551615, Ints: []int{-19, 37}, Metadata: map[string]int{"score": 81}}
 	data, err := schema.Serialize(want)
 	require.NoError(t, err)
+
 	var got payload
 	require.NoError(t, schema.Deserialize(data, &got))
 	require.Equal(t, want, got)
@@ -40,6 +42,7 @@ func TestSerializeRoundTrip(t *testing.T) {
 
 func TestDeserializeRejectsMalformedInput(t *testing.T) {
 	t.Parallel()
+
 	for _, data := range [][]byte{
 		nil,
 		{0x81, 0xa2, 'i', 'd'}, // Truncated value.
@@ -52,6 +55,7 @@ func TestDeserializeRejectsMalformedInput(t *testing.T) {
 		require.ErrorContains(t, schema.Deserialize(data, &got), "failed to deserialize")
 		require.Equal(t, payload{ID: 93, Ints: []int{11}, Metadata: map[string]int{"keep": 42}}, got)
 	}
+
 	for _, target := range []any{nil, payload{}, (*payload)(nil)} {
 		require.ErrorContains(t, schema.Deserialize([]byte{0x80}, target), "non-nil pointer")
 	}
@@ -64,7 +68,8 @@ func TestDeserializeRejectsDeepNesting(t *testing.T) {
 	nested := func(depth int) []byte {
 		data := []byte{0x82, 0xa2, 'i', 'd', 0x07, 0xa4, 'j', 'u', 'n', 'k'}
 		data = append(data, bytes.Repeat([]byte{0x91}, depth-2)...) // fixarray of one item
-		return append(data, 0x90)                                   // empty fixarray
+
+		return append(data, 0x90) // empty fixarray
 	}
 
 	var got payload
@@ -88,11 +93,13 @@ func (mapPayload) Name() string { return "map_payload" }
 
 func TestSerializeEncodesMapsInStableOrder(t *testing.T) {
 	t.Parallel()
+
 	want := mapPayload{
 		Scores: map[string]int{},
 		Nested: map[int32]map[string]bool{},
 		Inner:  &payload{ID: 1, Metadata: map[string]int{}},
 	}
+
 	for i := range 32 {
 		key := strconv.Itoa(i)
 		want.Scores[key] = i
@@ -102,6 +109,7 @@ func TestSerializeEncodesMapsInStableOrder(t *testing.T) {
 
 	first, err := schema.Serialize(want)
 	require.NoError(t, err)
+
 	for range 20 {
 		again, err := schema.Serialize(want)
 		require.NoError(t, err)
@@ -121,6 +129,7 @@ func (i inventory) Total() int {
 	for _, n := range i {
 		total += n
 	}
+
 	return total
 }
 
@@ -139,6 +148,7 @@ func (namedMapPayload) Name() string { return "named_map_payload" }
 
 func TestSerializeKeepsOwnMapCodec(t *testing.T) {
 	t.Parallel()
+
 	p := &namedMapPayload{Items: inventory{}, Own: ownCodecMap{"a": 1}}
 	for i := range 32 {
 		p.Items[strconv.Itoa(i)] = i
@@ -147,6 +157,7 @@ func TestSerializeKeepsOwnMapCodec(t *testing.T) {
 	first, err := schema.Serialize(p) // through a pointer, so Own is addressable
 	require.NoError(t, err)
 	assert.Contains(t, string(first), "own codec")
+
 	for range 20 {
 		again, err := schema.Serialize(p)
 		require.NoError(t, err)
@@ -187,8 +198,10 @@ func TestDeserializeWidensFloat32(t *testing.T) {
 		"Table":  map[string]float64{"y": 5.25},
 	})
 	require.NoError(t, err)
+
 	var got floatPayload
 	require.NoError(t, schema.Deserialize(data, &got))
+
 	ptr := float32(2.75)
 	require.Equal(t, floatPayload{
 		Plain:  2.25,
@@ -210,8 +223,10 @@ func TestDeserializeWidensFloat32(t *testing.T) {
 func TestSerializeKeepsFloat32Width(t *testing.T) {
 	t.Parallel()
 	schema.Register[floatPayload]()
+
 	data, err := schema.Serialize(floatPayload{Plain: 1.5, Named: 2.5})
 	require.NoError(t, err)
+
 	var raw map[string]any
 	require.NoError(t, msgpack.Unmarshal(data, &raw))
 	assert.IsType(t, float32(0), raw["Plain"])
@@ -226,10 +241,13 @@ func (p *percent) DecodeMsgpack(d *msgpack.Decoder) error {
 	if err != nil {
 		return err
 	}
+
 	if f < 0 {
 		return errors.New("negative percent")
 	}
+
 	*p = percent(f)
+
 	return nil
 }
 
@@ -240,8 +258,10 @@ func (percentPayload) Name() string { return "percent_payload" }
 func TestRegisterKeepsCustomFloat32Decoder(t *testing.T) {
 	t.Parallel()
 	schema.Register[percentPayload]()
+
 	data, err := msgpack.Marshal(map[string]any{"Share": float32(-1)})
 	require.NoError(t, err)
+
 	var got percentPayload
 	require.ErrorContains(t, schema.Deserialize(data, &got), "negative percent")
 }
@@ -252,6 +272,7 @@ func (unsupportedPayload) Name() string { return "unsupported" }
 
 func TestSerializeReportsUnsupportedType(t *testing.T) {
 	t.Parallel()
+
 	_, err := schema.Serialize(unsupportedPayload{Channel: make(chan int)})
 	require.ErrorContains(t, err, "failed to serialize")
 }

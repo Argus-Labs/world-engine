@@ -26,6 +26,7 @@ func promoteTouchingContacts(t *testing.T, w *World) {
 	t.Helper()
 
 	awake := &w.solverSets[awakeSet]
+
 	i := 0
 	for i < len(awake.contactSims) {
 		cSim := &awake.contactSims[i]
@@ -96,6 +97,7 @@ func addDynamicCircle(w *World, x, y float64, shapeDef *ShapeDef) (BodyID, Shape
 	bodyID := w.CreateBody(&bodyDef)
 	circle := Circle{Center: Vec2Zero, Radius: 0.5}
 	shapeID := w.CreateCircleShape(bodyID, shapeDef, &circle)
+
 	return bodyID, shapeID
 }
 
@@ -118,6 +120,7 @@ func TestContactRegistersCoverAllShapeTypePairs(t *testing.T) {
 				tassert.Nil(t, entry.fcn, "types %d/%d", typeA, typeB)
 				tassert.False(t, entry.primary, "types %d/%d", typeA, typeB)
 				tassert.False(t, canCollide(typeA, typeB), "types %d/%d", typeA, typeB)
+
 				continue
 			}
 
@@ -144,6 +147,7 @@ func TestContactRegistersCoverAllShapeTypePairs(t *testing.T) {
 
 func TestUpdateBroadPhasePairsCreatesContact(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -188,6 +192,7 @@ func TestUpdateBroadPhasePairsCreatesContact(t *testing.T) {
 	// Edges are linked into both body contact lists.
 	bodyA := w.getBodyFullID(bodyIDA)
 	bodyB := w.getBodyFullID(bodyIDB)
+
 	tassert.Equal(t, 1, bodyA.contactCount)
 	tassert.Equal(t, 1, bodyB.contactCount)
 	tassert.Equal(t, 0, bodyA.headContactKey) // (contactID << 1) | 0
@@ -221,6 +226,7 @@ func TestUpdateBroadPhasePairsCreatesContact(t *testing.T) {
 
 func TestCreateContactFlipsNonPrimaryPair(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -254,6 +260,7 @@ func TestCreateContactFlipsNonPrimaryPair(t *testing.T) {
 func TestUpdateBroadPhasePairsFiltering(t *testing.T) {
 	t.Run("DisjointMaskBits", func(t *testing.T) {
 		def := DefaultWorldDef()
+
 		w := NewWorld(&def)
 		defer w.Destroy()
 
@@ -275,6 +282,7 @@ func TestUpdateBroadPhasePairsFiltering(t *testing.T) {
 
 	t.Run("SameNegativeGroup", func(t *testing.T) {
 		def := DefaultWorldDef()
+
 		w := NewWorld(&def)
 		defer w.Destroy()
 
@@ -291,6 +299,7 @@ func TestUpdateBroadPhasePairsFiltering(t *testing.T) {
 
 	t.Run("SensorShapesSkipped", func(t *testing.T) {
 		def := DefaultWorldDef()
+
 		w := NewWorld(&def)
 		defer w.Destroy()
 
@@ -314,6 +323,7 @@ func TestUpdateBroadPhasePairsFiltering(t *testing.T) {
 
 	t.Run("SegmentVsSegmentCannotCollide", func(t *testing.T) {
 		def := DefaultWorldDef()
+
 		w := NewWorld(&def)
 		defer w.Destroy()
 
@@ -340,6 +350,7 @@ func TestUpdateBroadPhasePairsFiltering(t *testing.T) {
 
 func TestPromoteTouchingContactsGraphAndIslandMerge(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -364,6 +375,7 @@ func TestPromoteTouchingContactsGraphAndIslandMerge(t *testing.T) {
 	bodyA := w.getBodyFullID(bodyIDA)
 	bodyB := w.getBodyFullID(bodyIDB)
 	bodyC := w.getBodyFullID(bodyIDC)
+
 	require.NotEqual(t, NullIndex, bodyA.islandID)
 	tassert.Equal(t, bodyA.islandID, bodyB.islandID)
 	tassert.Equal(t, bodyA.islandID, bodyC.islandID)
@@ -386,6 +398,7 @@ func TestPromoteTouchingContactsGraphAndIslandMerge(t *testing.T) {
 	// every contact lives in the constraint graph with sane indices.
 	awake := &w.solverSets[awakeSet]
 	tassert.Empty(t, awake.contactSims)
+
 	for i, link := range isl.contacts {
 		c := &w.contacts[link.contactID]
 		tassert.Equal(t, isl.islandID, c.islandID, "contact %d", i)
@@ -424,6 +437,7 @@ func TestPromoteTouchingContactsGraphAndIslandMerge(t *testing.T) {
 
 func TestAddContactToGraphStaticBody(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -475,6 +489,7 @@ func TestAddContactToGraphStaticBody(t *testing.T) {
 
 func TestUpdateContactTouchingMixingAndSeparation(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -538,6 +553,7 @@ func TestUpdateContactTouchingMixingAndSeparation(t *testing.T) {
 
 func TestUpdateContactBoxBoxTwoPoints(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -571,6 +587,7 @@ func TestUpdateContactBoxBoxTwoPoints(t *testing.T) {
 
 func TestContactDataAccessors(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -603,6 +620,7 @@ func TestContactDataAccessors(t *testing.T) {
 
 	// b2Shape_GetContactData
 	require.Equal(t, 1, w.ShapeContactCapacity(shapeIDB))
+
 	buffer2 := make([]ContactData, 4)
 	n = w.ShapeContactData(shapeIDB, buffer2)
 	require.Equal(t, 1, n)
@@ -611,6 +629,7 @@ func TestContactDataAccessors(t *testing.T) {
 
 func TestDemoteContactUnlinksIslandAndGraph(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -624,6 +643,7 @@ func TestDemoteContactUnlinksIslandAndGraph(t *testing.T) {
 	c := &w.contacts[0]
 	islandID := c.islandID
 	colorIndex := c.colorIndex
+
 	require.NotEqual(t, NullIndex, islandID)
 	require.NotEqual(t, NullIndex, colorIndex)
 	colorLen := len(w.constraintGraph.colors[colorIndex].contactSims)
@@ -642,6 +662,7 @@ func TestDemoteContactUnlinksIslandAndGraph(t *testing.T) {
 	// Contact is out of the island; the island tracks the removal.
 	tassert.Equal(t, NullIndex, c.islandID)
 	tassert.Equal(t, NullIndex, c.islandIndex)
+
 	isl := &w.islands[islandID]
 	tassert.Empty(t, isl.contacts)
 	tassert.Equal(t, 1, isl.constraintRemoveCount)
@@ -649,6 +670,7 @@ func TestDemoteContactUnlinksIslandAndGraph(t *testing.T) {
 	// Graph color released the sim and the body set bits.
 	color := &w.constraintGraph.colors[colorIndex]
 	tassert.Len(t, color.contactSims, colorLen-1)
+
 	if colorIndex != overflowIndex {
 		tassert.False(t, getBit(&color.bodySet, uint32(c.edges[0].bodyID)))
 		tassert.False(t, getBit(&color.bodySet, uint32(c.edges[1].bodyID)))
@@ -657,6 +679,7 @@ func TestDemoteContactUnlinksIslandAndGraph(t *testing.T) {
 	// Contact sim is back in the awake set as non-touching.
 	tassert.Equal(t, awakeSet, c.setIndex)
 	tassert.Equal(t, NullIndex, c.colorIndex)
+
 	awake := &w.solverSets[awakeSet]
 	require.Len(t, awake.contactSims, 1)
 	tassert.Equal(t, c.contactID, awake.contactSims[c.localIndex].contactID)
@@ -665,6 +688,7 @@ func TestDemoteContactUnlinksIslandAndGraph(t *testing.T) {
 
 func TestDestroyContactTouchingEmitsEndEventAndUnlinks(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -716,6 +740,7 @@ func TestDestroyContactTouchingEmitsEndEventAndUnlinks(t *testing.T) {
 
 func TestDestroyBodyDestroysContacts(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -749,6 +774,7 @@ func TestDestroyBodyDestroysContacts(t *testing.T) {
 	isl := &w.islands[bodyA.islandID]
 	tassert.Empty(t, isl.contacts)
 	tassert.Equal(t, 2, isl.constraintRemoveCount)
+
 	for i, bodyID := range isl.bodies {
 		tassert.Equal(t, i, w.bodies[bodyID].islandIndex)
 	}
@@ -756,6 +782,7 @@ func TestDestroyBodyDestroysContacts(t *testing.T) {
 
 func TestSleepWakeMovesTouchingContactThroughGraph(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -769,6 +796,7 @@ func TestSleepWakeMovesTouchingContactThroughGraph(t *testing.T) {
 	c := &w.contacts[0]
 	bodyA := w.getBodyFullID(bodyIDA)
 	islandID := bodyA.islandID
+
 	require.NotEqual(t, NullIndex, c.colorIndex)
 
 	// Put the island to sleep: the touching contact moves from the graph to
@@ -779,6 +807,7 @@ func TestSleepWakeMovesTouchingContactThroughGraph(t *testing.T) {
 	require.GreaterOrEqual(t, sleepSetID, firstSleepingSet)
 	tassert.Equal(t, sleepSetID, c.setIndex)
 	tassert.Equal(t, NullIndex, c.colorIndex)
+
 	sleepSet := &w.solverSets[sleepSetID]
 	require.Len(t, sleepSet.contactSims, 1)
 	tassert.Equal(t, c.contactID, sleepSet.contactSims[c.localIndex].contactID)
@@ -796,6 +825,7 @@ func TestSleepWakeMovesTouchingContactThroughGraph(t *testing.T) {
 
 func TestDestroyContactWakesSleepingBodies(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -849,9 +879,12 @@ func buildDeterminismScene(w *World) {
 
 func TestDeterminismTwoWorldsIdenticalState(t *testing.T) {
 	def1 := DefaultWorldDef()
+
 	w1 := NewWorld(&def1)
 	defer w1.Destroy()
+
 	def2 := DefaultWorldDef()
+
 	w2 := NewWorld(&def2)
 	defer w2.Destroy()
 
@@ -885,6 +918,7 @@ func TestDeterminismTwoWorldsIdenticalState(t *testing.T) {
 
 	// Solver sets match: same non-touching contacts and islands.
 	require.Len(t, w2.solverSets, len(w1.solverSets))
+
 	for i := range w1.solverSets {
 		require.Equal(t, w1.solverSets[i].contactSims, w2.solverSets[i].contactSims, "set %d", i)
 		require.Equal(t, w1.solverSets[i].islandSims, w2.solverSets[i].islandSims, "set %d", i)

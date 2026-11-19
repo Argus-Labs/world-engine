@@ -43,6 +43,7 @@ func NewCatalog() *Catalog {
 	for i := range c.registered {
 		c.registered[i] = make(map[string]schema.Serializable)
 	}
+
 	return c
 }
 
@@ -51,13 +52,16 @@ func (c *Catalog) Register(kind Kind, value schema.Serializable) error {
 	if c.finalized {
 		return eris.New("introspection catalog is finalized")
 	}
+
 	if kind > Event {
 		return eris.Errorf("unknown introspection kind: %d", kind)
 	}
+
 	name := value.Name()
 	if _, exists := c.registered[kind][name]; !exists {
 		c.registered[kind][name] = value
 	}
+
 	return nil
 }
 
@@ -66,23 +70,30 @@ func (c *Catalog) Finalize() error {
 	if c.finalized {
 		return nil
 	}
+
 	var types [3][]*cardinalv1.TypeSchema
+
 	for kind, registered := range c.registered {
 		names := make([]string, 0, len(registered))
 		for name := range registered {
 			names = append(names, name)
 		}
+
 		slices.Sort(names)
+
 		for _, name := range names {
 			s, err := reflectSchema(registered[name])
 			if err != nil {
 				return eris.Wrap(err, "failed to inspect "+name)
 			}
+
 			types[kind] = append(types[kind], &cardinalv1.TypeSchema{Name: name, JsonSchema: s})
 		}
 	}
+
 	c.types = types
 	c.finalized = true
+
 	return nil
 }
 
@@ -99,23 +110,29 @@ func (c *Catalog) Events() []*cardinalv1.TypeSchema { return c.types[Event] }
 // Definitions are local to each payload; references must resolve against that payload's root.
 func reflectSchema(value any) (*structpb.Struct, error) {
 	b := schemaBuilder{definitions: make(jsonschema.Definitions), seen: make(map[reflect.Type]string)}
+
 	s := b.reflectType(reflect.TypeOf(value))
 	if b.err != nil {
 		return nil, eris.Wrap(b.err, "failed to reflect MessagePack schema")
 	}
+
 	s.Definitions = b.definitions
+
 	data, err := json.Marshal(s)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to marshal JSON schema")
 	}
+
 	var fields map[string]any
 	if err := json.Unmarshal(data, &fields); err != nil {
 		return nil, eris.Wrap(err, "failed to decode JSON schema")
 	}
+
 	out, err := structpb.NewStruct(fields)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to create JSON schema struct")
 	}
+
 	return out, nil
 }
 
@@ -135,12 +152,15 @@ func (b *schemaBuilder) reflectType(t reflect.Type) *jsonschema.Schema {
 	if t == nil {
 		return &jsonschema.Schema{}
 	}
+
 	if t.Kind() == reflect.Pointer {
 		return nullable(b.reflectType(t.Elem()))
 	}
+
 	if s, ok := b.codecSchema(t); ok {
 		return s
 	}
+
 	switch t.Kind() { //nolint:exhaustive // Unsupported payload kinds produce an error below.
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return &jsonschema.Schema{Type: integerType, Format: "int" + strconv.Itoa(t.Bits())}
@@ -158,28 +178,34 @@ func (b *schemaBuilder) reflectType(t reflect.Type) *jsonschema.Schema {
 		if name, ok := b.seen[t]; ok {
 			return &jsonschema.Schema{Ref: "#/$defs/" + name}
 		}
+
 		name := "type" + strconv.Itoa(len(b.seen))
 		b.seen[t] = name
 		s := &jsonschema.Schema{
 			Type: "object", Properties: orderedmap.New[string, *jsonschema.Schema](),
 			AdditionalProperties: jsonschema.FalseSchema,
 		}
+
 		b.definitions[name] = s
 		for _, f := range wireFields(t) {
 			s.Properties.Set(f.name, b.reflectType(f.typ))
 		}
+
 		return &jsonschema.Schema{Ref: "#/$defs/" + name}
 	case reflect.Array:
 		// The domain codec encodes byte arrays as MessagePack binary, just like []byte.
 		if t.Elem().Kind() == reflect.Uint8 {
 			return &jsonschema.Schema{Type: stringType, ContentEncoding: "base64"}
 		}
+
 		n := uint64(t.Len()) //nolint:gosec // Array lengths cannot be negative.
+
 		return &jsonschema.Schema{Type: arrayType, Items: b.reflectType(t.Elem()), MinItems: &n, MaxItems: &n}
 	case reflect.Slice:
 		if t.Elem().Kind() == reflect.Uint8 {
 			return nullable(&jsonschema.Schema{Type: stringType, ContentEncoding: "base64"})
 		}
+
 		return nullable(&jsonschema.Schema{Type: arrayType, Items: b.reflectType(t.Elem())})
 	case reflect.Map:
 		return nullable(b.mapSchema(t.Key(), t.Elem()))
@@ -195,14 +221,17 @@ func (b *schemaBuilder) codecSchema(t reflect.Type) (*jsonschema.Schema, bool) {
 	if elem, ok := immutable.SliceElem(t); ok {
 		return &jsonschema.Schema{Type: arrayType, Items: b.reflectType(elem)}, true
 	}
+
 	if key, value, ok := immutable.MapTypes(t); ok {
 		// Unlike a Go map, a Map is never nil: empty encodes as an empty map.
 		return b.mapSchema(key, value), true
 	}
+
 	if t == reflect.TypeFor[time.Time]() {
 		// It encodes as a MessagePack timestamp, which JSON carries as RFC 3339.
 		return &jsonschema.Schema{Type: stringType, Format: "date-time"}, true
 	}
+
 	return nil, false
 }
 
@@ -215,8 +244,10 @@ func (b *schemaBuilder) mapSchema(key, value reflect.Type) *jsonschema.Schema {
 		if k.Type != integerType {
 			b.err = eris.Errorf("unsupported MessagePack map key %s", key)
 		}
+
 		s.Extras = map[string]any{"x-msgpack-key-format": k.Format}
 	}
+
 	return s
 }
 
@@ -234,21 +265,27 @@ type wireField struct {
 // skips conflicting fields. JSON tags do not participate in MessagePack naming.
 func wireFields(t reflect.Type) []wireField {
 	var fields []wireField
+
 	seen := make(map[string]bool)
+
 	for f := range t.Fields() {
 		tags := strings.Split(f.Tag.Get("msgpack"), ",")
 		if tags[0] == "-" || (f.PkgPath != "" && !f.Anonymous) {
 			continue
 		}
+
 		name := tags[0]
 		if name == "" {
 			name = f.Name
 		}
+
 		ft := f.Type
 		for ft.Kind() == reflect.Pointer {
 			ft = ft.Elem()
 		}
+
 		_, immutableSlice := immutable.SliceElem(ft)
+
 		_, _, immutableMap := immutable.MapTypes(ft)
 		if f.Anonymous && ft.Kind() == reflect.Struct && !immutableSlice && !immutableMap &&
 			!slices.Contains(tags[1:], "noinline") {
@@ -258,9 +295,11 @@ func wireFields(t reflect.Type) []wireField {
 				continue
 			}
 		}
+
 		fields = append(fields, wireField{name: name, typ: f.Type})
 		seen[name] = true
 	}
+
 	return fields
 }
 
@@ -271,6 +310,7 @@ func appendUnshadowed(fields, nested []wireField, seen map[string]bool) []wireFi
 			seen[child.name] = true
 		}
 	}
+
 	return fields
 }
 
@@ -280,5 +320,6 @@ func canInline(fields []wireField, seen map[string]bool, explicit bool) bool {
 			return false
 		}
 	}
+
 	return true
 }

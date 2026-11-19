@@ -72,12 +72,14 @@ func makeChainScene(t *testing.T) (*World, BodyID, BodyID, BodyID) {
 		box := MakeBox(0.5, 0.5)
 		sd := DefaultShapeDef()
 		w.CreatePolygonShape(id, &sd, &box)
+
 		return id
 	}
 
 	a := mk(-1.0)
 	b := mk(0.0)
 	c := mk(1.0)
+
 	return w, a, b, c
 }
 
@@ -136,6 +138,7 @@ func TestSplitIslandInternal(t *testing.T) {
 			require.True(t, linksBody, "island contact must reference the island body")
 			require.Equal(t, ids[i], w.contacts[link.contactID].islandID)
 		}
+
 		require.Equal(t, 0, isl.constraintRemoveCount)
 	}
 
@@ -220,8 +223,10 @@ func TestPreparedConstraintSoftness(t *testing.T) {
 
 	staticSeen := 0
 	dynamicSeen := 0
+
 	for colorIndex := range GraphColorCount {
 		color := &w.constraintGraph.colors[colorIndex]
+
 		count := len(color.contactSims)
 		if count == 0 {
 			continue
@@ -229,15 +234,18 @@ func TestPreparedConstraintSoftness(t *testing.T) {
 
 		constraints := make([]contactConstraint, count)
 		color.constraints = constraints
+
 		w.prepareContactsColor(&ctx, colorIndex, 0, count)
 
 		for i := range count {
 			constraint := &constraints[i]
 			if constraint.indexA == 0 || constraint.indexB == 0 {
 				staticSeen++
+
 				tassert.Equal(t, ctx.staticSoftness, constraint.softness)
 			} else {
 				dynamicSeen++
+
 				tassert.Equal(t, ctx.contactSoftness, constraint.softness)
 			}
 		}

@@ -83,6 +83,7 @@ func buildOracleShapeScene(t *testing.T) *oracleShapeScene {
 	makeBody := func(position box2d.Vec2) box2d.BodyID {
 		bodyDef := box2d.DefaultBodyDef()
 		bodyDef.Position = position
+
 		return world.CreateBody(&bodyDef)
 	}
 
@@ -607,6 +608,7 @@ func TestOracleChainSurfaceMaterials(t *testing.T) {
 	chainID := world.CreateChain(bodyID, &chainDef)
 
 	assert.Equal(t, len(points), world.ChainSurfaceMaterialCount(chainID))
+
 	for i := range points {
 		assert.InDelta(t, 0.1*float64(i+1), world.ChainSurfaceMaterial(chainID, i).Friction, 1e-12)
 	}
@@ -665,9 +667,11 @@ func TestOracleChainSingleMaterialFansOut(t *testing.T) {
 	segmentCount := world.ChainSegmentCount(chainID)
 	segments := make([]box2d.ShapeID, segmentCount)
 	require.Equal(t, segmentCount, world.ChainSegments(chainID, segments))
+
 	for _, segment := range segments {
 		assert.InDelta(t, 0.7, world.ShapeRestitution(segment), 1e-12)
 	}
+
 	assert.InDelta(t, 0.7, world.ChainSurfaceMaterial(chainID, 0).Restitution, 1e-12)
 }
 
@@ -698,6 +702,7 @@ func TestOracleApplyShapeWind(t *testing.T) {
 	bodyID := world.CreateBody(&bodyDef)
 
 	const radius = 0.5
+
 	shapeDef := box2d.DefaultShapeDef()
 	circle := box2d.Circle{Radius: radius}
 	shapeID := world.CreateCircleShape(bodyID, &shapeDef, &circle)
@@ -709,8 +714,11 @@ func TestOracleApplyShapeWind(t *testing.T) {
 	world.Step(timeStep, 4)
 
 	// C constants, restated here rather than read from the port.
-	const airDensity = 1.2250
-	const projectedArea = 2.0 * radius
+	const (
+		airDensity    = 1.2250
+		projectedArea = 2.0 * radius
+	)
+
 	wantForce := 0.5 * airDensity * projectedArea * windSpeed * windSpeed
 
 	mass := world.BodyMass(bodyID)
@@ -788,6 +796,7 @@ func TestOracleApplyShapeWindOnCapsuleAndPolygon(t *testing.T) {
 					Center2: box2d.Vec2{X: 0.0, Y: 0.5},
 					Radius:  0.2,
 				}
+
 				return w.CreateCapsuleShape(bodyID, &shapeDef, &capsule)
 			},
 		},
@@ -796,6 +805,7 @@ func TestOracleApplyShapeWindOnCapsuleAndPolygon(t *testing.T) {
 			build: func(w *box2d.World, bodyID box2d.BodyID) box2d.ShapeID {
 				shapeDef := box2d.DefaultShapeDef()
 				box := box2d.MakeBox(0.5, 1.0)
+
 				return w.CreatePolygonShape(bodyID, &shapeDef, &box)
 			},
 		},
@@ -833,10 +843,12 @@ func TestOracleApplyShapeWindOnCapsuleAndPolygon(t *testing.T) {
 // the callback saw, keyed by shape id order of arrival.
 func oracleCollectPlanes(w *box2d.World, mover *box2d.Capsule) []box2d.PlaneResult {
 	var planes []box2d.PlaneResult
+
 	w.CollideMover(mover, box2d.DefaultQueryFilter(), func(_ box2d.ShapeID, plane *box2d.PlaneResult, _ any) bool {
 		planes = append(planes, *plane)
 		return true
 	}, nil)
+
 	return planes
 }
 
@@ -1046,10 +1058,12 @@ func TestOracleCollideMoverRespectsFilter(t *testing.T) {
 
 	count := func(filter box2d.QueryFilter) int {
 		hits := 0
+
 		world.CollideMover(&mover, filter, func(_ box2d.ShapeID, _ *box2d.PlaneResult, _ any) bool {
 			hits++
 			return true
 		}, nil)
+
 		return hits
 	}
 
@@ -1076,6 +1090,7 @@ func TestOracleCollideMoverEarlyOut(t *testing.T) {
 
 	// Three overlapping circles all touching the mover.
 	shapeDef := box2d.DefaultShapeDef()
+
 	for i := range 3 {
 		bodyDef := box2d.DefaultBodyDef()
 		bodyDef.Position = box2d.Vec2{X: 0.0, Y: float64(i) * 0.2}
@@ -1093,6 +1108,7 @@ func TestOracleCollideMoverEarlyOut(t *testing.T) {
 	require.Len(t, oracleCollectPlanes(world, &mover), 3)
 
 	stopped := 0
+
 	world.CollideMover(&mover, box2d.DefaultQueryFilter(),
 		func(_ box2d.ShapeID, _ *box2d.PlaneResult, _ any) bool {
 			stopped++
@@ -1120,6 +1136,7 @@ func TestOracleCastMover(t *testing.T) {
 		worldDef.Gravity = box2d.Vec2{}
 		world := box2d.NewWorld(&worldDef)
 		t.Cleanup(world.Destroy)
+
 		return world
 	}
 
@@ -1308,8 +1325,10 @@ func TestOracleExplodeFalloffScale(t *testing.T) {
 		return box2d.Length(world.BodyLinearVelocity(bodyID))
 	}
 
-	const explosionRadius = 2.0
-	const falloff = 2.0
+	const (
+		explosionRadius = 2.0
+		falloff         = 2.0
+	)
 
 	// Surface distance 1.5, inside the radius: scale is 1.
 	inside := speedAt(t, 2.0, explosionRadius, falloff)
@@ -1354,6 +1373,7 @@ func TestOracleSensorCustomFiltering(t *testing.T) {
 		t.Cleanup(world.Destroy)
 
 		calls := 0
+
 		world.SetCustomFilterCallback(func(_, _ box2d.ShapeID, _ any) bool {
 			calls++
 			return allow
@@ -1429,6 +1449,7 @@ func TestOracleWorldQueryEarlyOuts(t *testing.T) {
 	t.Cleanup(world.Destroy)
 
 	shapeDef := box2d.DefaultShapeDef()
+
 	for i := range 5 {
 		bodyDef := box2d.DefaultBodyDef()
 		bodyDef.Position = box2d.Vec2{X: float64(i) * 0.1, Y: 0.0}
@@ -1443,6 +1464,7 @@ func TestOracleWorldQueryEarlyOuts(t *testing.T) {
 	}
 
 	all := 0
+
 	world.OverlapAABB(everything, box2d.DefaultQueryFilter(), func(_ box2d.ShapeID, _ any) bool {
 		all++
 		return true
@@ -1450,6 +1472,7 @@ func TestOracleWorldQueryEarlyOuts(t *testing.T) {
 	require.Equal(t, 5, all)
 
 	stopped := 0
+
 	world.OverlapAABB(everything, box2d.DefaultQueryFilter(), func(_ box2d.ShapeID, _ any) bool {
 		stopped++
 		return false
@@ -1459,6 +1482,7 @@ func TestOracleWorldQueryEarlyOuts(t *testing.T) {
 	proxy := box2d.MakeProxy([]box2d.Vec2{{X: 0.0, Y: 0.0}}, 1, 1.0)
 
 	shapeAll := 0
+
 	world.OverlapShape(&proxy, box2d.DefaultQueryFilter(), func(_ box2d.ShapeID, _ any) bool {
 		shapeAll++
 		return true
@@ -1466,6 +1490,7 @@ func TestOracleWorldQueryEarlyOuts(t *testing.T) {
 	require.Equal(t, 5, shapeAll)
 
 	shapeStopped := 0
+
 	world.OverlapShape(&proxy, box2d.DefaultQueryFilter(), func(_ box2d.ShapeID, _ any) bool {
 		shapeStopped++
 		return false
@@ -1487,6 +1512,7 @@ func TestOracleCastRayZeroFractionStops(t *testing.T) {
 	t.Cleanup(world.Destroy)
 
 	shapeDef := box2d.DefaultShapeDef()
+
 	for i := range 4 {
 		bodyDef := box2d.DefaultBodyDef()
 		bodyDef.Position = box2d.Vec2{X: 2.0 * float64(i+1), Y: 0.0}
@@ -1499,6 +1525,7 @@ func TestOracleCastRayZeroFractionStops(t *testing.T) {
 	translation := box2d.Vec2{X: 20.0, Y: 0.0}
 
 	all := 0
+
 	world.CastRay(origin, translation, box2d.DefaultQueryFilter(),
 		func(_ box2d.ShapeID, _ box2d.Vec2, _ box2d.Vec2, _ float64, _ any) float64 {
 			all++
@@ -1507,6 +1534,7 @@ func TestOracleCastRayZeroFractionStops(t *testing.T) {
 	assert.Equal(t, 4, all)
 
 	stopped := 0
+
 	world.CastRay(origin, translation, box2d.DefaultQueryFilter(),
 		func(_ box2d.ShapeID, _ box2d.Vec2, _ box2d.Vec2, _ float64, _ any) float64 {
 			stopped++
@@ -1579,6 +1607,7 @@ func TestOracleShapeAPIIsInertWhileTheWorldIsLocked(t *testing.T) {
 	typeBefore := world.ShapeType(shapeID)
 
 	calls := 0
+
 	world.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
 		calls++
 
@@ -1599,14 +1628,17 @@ func TestOracleShapeAPIIsInertWhileTheWorldIsLocked(t *testing.T) {
 
 		circle := box2d.Circle{Radius: 0.25}
 		world.SetShapeCircle(shapeID, &circle)
+
 		capsule := box2d.Capsule{
 			Center1: box2d.Vec2{X: -0.4, Y: 0.0},
 			Center2: box2d.Vec2{X: 0.4, Y: 0.0},
 			Radius:  0.2,
 		}
 		world.SetShapeCapsule(shapeID, &capsule)
+
 		segment := box2d.Segment{Point1: box2d.Vec2{X: -1.0}, Point2: box2d.Vec2{X: 1.0}}
 		world.SetShapeSegment(shapeID, &segment)
+
 		other := box2d.MakeBox(2.0, 2.0)
 		world.SetShapePolygon(shapeID, &other)
 
@@ -1631,10 +1663,12 @@ func TestOracleShapeAPIIsInertWhileTheWorldIsLocked(t *testing.T) {
 
 	for range 30 {
 		world.Step(1.0/60.0, 4)
+
 		if calls > 0 {
 			break
 		}
 	}
+
 	require.Positive(t, calls, "the scene must produce a pre-solve callback")
 
 	// Nothing changed, and both the shape and the chain survived.
@@ -1696,6 +1730,7 @@ func TestOracleWorldQueryIsInertWhileTheWorldIsLocked(t *testing.T) {
 	}
 
 	calls := 0
+
 	world.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
 		calls++
 
@@ -1748,10 +1783,12 @@ func TestOracleWorldQueryIsInertWhileTheWorldIsLocked(t *testing.T) {
 
 	for range 30 {
 		world.Step(1.0/60.0, 4)
+
 		if calls > 0 {
 			break
 		}
 	}
+
 	require.Positive(t, calls, "the scene must produce a pre-solve callback")
 }
 
@@ -1771,11 +1808,13 @@ func TestOracleCastShapeByShapeType(t *testing.T) {
 	castAt := func(origin, translation box2d.Vec2) map[box2d.ShapeID]float64 {
 		proxy := box2d.MakeProxy([]box2d.Vec2{origin}, 1, 0.1)
 		hits := map[box2d.ShapeID]float64{}
+
 		w.CastShape(&proxy, translation, box2d.DefaultQueryFilter(),
 			func(shapeID box2d.ShapeID, _, _ box2d.Vec2, fraction float64, _ any) float64 {
 				hits[shapeID] = fraction
 				return 1.0
 			}, nil)
+
 		return hits
 	}
 
@@ -1871,13 +1910,16 @@ func TestOracleShapeContactAndSensorData(t *testing.T) {
 	require.Positive(t, count)
 
 	found := false
+
 	for _, data := range contacts[:count] {
 		if (data.ShapeIDA == boxShapeID && data.ShapeIDB == groundShapeID) ||
 			(data.ShapeIDA == groundShapeID && data.ShapeIDB == boxShapeID) {
 			found = true
+
 			assert.Positive(t, data.Manifold.PointCount)
 		}
 	}
+
 	assert.True(t, found, "the resting box must report its contact with the ground")
 
 	// A short output array truncates rather than overflowing.

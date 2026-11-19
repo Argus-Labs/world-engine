@@ -38,6 +38,7 @@ func normalizeAndValidateString(s *string, fieldName string) error {
 	}
 
 	*s = normalized
+
 	return nil
 }
 
@@ -56,6 +57,7 @@ func normalizeAndValidateCanonicalName(s *string, fieldName string) error {
 				fieldName, dnslabel.MaxLength,
 			))
 		}
+
 		if v != "" && !dnslabel.IsCanonical(v) {
 			return eris.New(fmt.Sprintf(
 				"%s contains invalid characters. Only lowercase alphanumeric characters and hyphens are allowed (e.g. my-game)",
@@ -63,6 +65,7 @@ func normalizeAndValidateCanonicalName(s *string, fieldName string) error {
 			))
 		}
 	}
+
 	return normalizeAndValidateString(s, fieldName)
 }
 
@@ -117,6 +120,7 @@ func validateAuth(auth *Auth) error {
 	if auth.URL == "" {
 		return eris.Errorf("world.toml: [auth].url is required when mode = %q", AuthModeArgus)
 	}
+
 	u, err := url.Parse(auth.URL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return eris.Errorf("world.toml: [auth].url must be an http or https URL (got %q)", auth.URL)
@@ -125,6 +129,8 @@ func validateAuth(auth *Auth) error {
 	if u.RawQuery != "" || u.ForceQuery || u.Fragment != "" {
 		return eris.Errorf("world.toml: [auth].url must not carry a query or fragment (got %q)", auth.URL)
 	}
+
 	auth.URL = strings.TrimRight(auth.URL, "/")
+
 	return nil
 }

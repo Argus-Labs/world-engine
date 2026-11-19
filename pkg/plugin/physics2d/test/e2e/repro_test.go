@@ -16,6 +16,7 @@ func reproConfig(t *testing.T) harness.Config {
 	t.Helper()
 	cfg := e2eConfig(t, 0)
 	cfg.Gravity = physics.Vec2{}
+
 	return cfg
 }
 
@@ -48,16 +49,23 @@ func runRepro(t *testing.T, sc harness.Scenario) {
 // the reconciler velocity switch are affected.
 func TestReproManualReleaseVelocityDrop(t *testing.T) {
 	t.Parallel()
-	const releaseTick, checkTick = uint64(20), uint64(60)
-	const vx = 7.0
+
+	const (
+		releaseTick, checkTick = uint64(20), uint64(60)
+		vx                     = 7.0
+	)
+
 	wantX := vx * float64(checkTick-releaseTick) / 60.0
+
 	var s struct{ released, releasedFR, control cardinal.EntityID }
+
 	box := func() physics.PhysicsBody2D {
 		pb := physcomp.NewPhysicsBody2D(physcomp.BodyTypeManual, physics.ColliderShape{
 			ShapeType:   physics.ShapeTypeBox,
 			HalfExtents: physics.Vec2{X: 0.5, Y: 0.5},
 		})
 		pb.GravityScale = 0
+
 		return pb
 	}
 	sc := harness.Scenario{
@@ -72,6 +80,7 @@ func TestReproManualReleaseVelocityDrop(t *testing.T) {
 			{Tick: releaseTick, Do: func(c *harness.Ctx) {
 				c.EditBody(s.released, func(pb *physics.PhysicsBody2D) { pb.BodyType = physics.BodyTypeDynamic })
 				c.EditBody(s.releasedFR, func(pb *physics.PhysicsBody2D) { pb.BodyType = physics.BodyTypeDynamic })
+
 				ctrl := box()
 				ctrl.BodyType = physics.BodyTypeDynamic
 				// FullRebuild-equivalent: born Dynamic with {7,0}.
@@ -101,15 +110,22 @@ func TestReproManualReleaseVelocityDrop(t *testing.T) {
 // kinematic linear velocity, so both must cover the same ground.
 func TestReproManualReleaseKinematic(t *testing.T) {
 	t.Parallel()
-	const releaseTick, checkTick = uint64(20), uint64(60)
-	const vx = 5.0
+
+	const (
+		releaseTick, checkTick = uint64(20), uint64(60)
+		vx                     = 5.0
+	)
+
 	wantX := vx * float64(checkTick-releaseTick) / 60.0
+
 	var s struct{ released, control cardinal.EntityID }
+
 	mk := func() physics.PhysicsBody2D {
 		pb := physcomp.NewPhysicsBody2D(physcomp.BodyTypeManual, physics.ColliderShape{
 			ShapeType:   physics.ShapeTypeBox,
 			HalfExtents: physics.Vec2{X: 0.5, Y: 0.5},
 		})
+
 		return pb
 	}
 	sc := harness.Scenario{
@@ -120,6 +136,7 @@ func TestReproManualReleaseKinematic(t *testing.T) {
 		Steps: []harness.Step{
 			{Tick: releaseTick, Do: func(c *harness.Ctx) {
 				c.EditBody(s.released, func(pb *physics.PhysicsBody2D) { pb.BodyType = physics.BodyTypeKinematic })
+
 				ctrl := mk()
 				ctrl.BodyType = physics.BodyTypeKinematic
 				// FullRebuild-equivalent: born Kinematic with {5,0}.
@@ -145,16 +162,22 @@ func TestReproManualReleaseKinematic(t *testing.T) {
 // constant so rotation is linear in time.
 func TestReproManualReleaseAngular(t *testing.T) {
 	t.Parallel()
+
 	const releaseTick, checkTick = uint64(20), uint64(60)
+
 	const av = 1.0 // rad/s
+
 	wantRot := av * float64(checkTick-releaseTick) / 60.0
+
 	var s struct{ released, control cardinal.EntityID }
+
 	mk := func() physics.PhysicsBody2D {
 		pb := physcomp.NewPhysicsBody2D(physcomp.BodyTypeManual, physics.ColliderShape{
 			ShapeType: physics.ShapeTypeCircle,
 			Radius:    0.5,
 		})
 		pb.SleepingAllowed = false // isolate the angular push from solver sleep
+
 		return pb
 	}
 	sc := harness.Scenario{
@@ -165,6 +188,7 @@ func TestReproManualReleaseAngular(t *testing.T) {
 		Steps: []harness.Step{
 			{Tick: releaseTick, Do: func(c *harness.Ctx) {
 				c.EditBody(s.released, func(pb *physics.PhysicsBody2D) { pb.BodyType = physics.BodyTypeDynamic })
+
 				ctrl := mk()
 				ctrl.BodyType = physics.BodyTypeDynamic
 				s.control = c.SpawnSpinning("control", 0, 5, av, ctrl) // FullRebuild-equivalent: born Dynamic with av
@@ -190,15 +214,22 @@ func TestReproManualReleaseAngular(t *testing.T) {
 // {0,0} after the incremental release while the control's is {vx,0}.
 func TestReproManualReleaseParityVsRebuild(t *testing.T) {
 	t.Parallel()
-	const releaseTick, readTick, resetTick, recheckTick = uint64(20), uint64(25), uint64(30), uint64(35)
-	const vx = 7.0
+
+	const (
+		releaseTick, readTick, resetTick, recheckTick = uint64(20), uint64(25), uint64(30), uint64(35)
+		vx                                            = 7.0
+	)
+
 	var s struct{ released, control cardinal.EntityID }
+
 	engVelX := func(c *harness.Ctx, id cardinal.EntityID) float64 {
 		bodyID, ok := c.Plugin().BodyID(id)
 		if !c.True("body has a Box2D id", ok, "entity %d has no engine body", id) {
 			return 0
 		}
+
 		v := c.Plugin().Engine().BodyLinearVelocity(bodyID)
+
 		return v.X
 	}
 	mk := func() physics.PhysicsBody2D {
@@ -207,6 +238,7 @@ func TestReproManualReleaseParityVsRebuild(t *testing.T) {
 			HalfExtents: physics.Vec2{X: 0.5, Y: 0.5},
 		})
 		pb.SleepingAllowed = false
+
 		return pb
 	}
 	sc := harness.Scenario{
@@ -217,6 +249,7 @@ func TestReproManualReleaseParityVsRebuild(t *testing.T) {
 		Steps: []harness.Step{
 			{Tick: releaseTick, Do: func(c *harness.Ctx) {
 				c.EditBody(s.released, func(pb *physics.PhysicsBody2D) { pb.BodyType = physics.BodyTypeDynamic })
+
 				ctrl := mk()
 				ctrl.BodyType = physics.BodyTypeDynamic
 				// FullRebuild-equivalent: born Dynamic with {7,0}.
@@ -258,14 +291,20 @@ func TestReproManualReleaseParityVsRebuild(t *testing.T) {
 // path); the two must agree both before and after a forced full rebuild.
 func TestReproStaticReleaseParityVsRebuild(t *testing.T) {
 	t.Parallel()
-	const releaseTick, readTick, resetTick, recheckTick = uint64(20), uint64(25), uint64(30), uint64(35)
-	const vx = 7.0
+
+	const (
+		releaseTick, readTick, resetTick, recheckTick = uint64(20), uint64(25), uint64(30), uint64(35)
+		vx                                            = 7.0
+	)
+
 	var s struct{ released, control cardinal.EntityID }
+
 	engVelX := func(c *harness.Ctx, id cardinal.EntityID) float64 {
 		bodyID, ok := c.Plugin().BodyID(id)
 		if !c.True("body has a Box2D id", ok, "entity %d has no engine body", id) {
 			return 0
 		}
+
 		return c.Plugin().Engine().BodyLinearVelocity(bodyID).X
 	}
 	mk := func(bt physics.BodyType) physics.PhysicsBody2D {
@@ -274,6 +313,7 @@ func TestReproStaticReleaseParityVsRebuild(t *testing.T) {
 			HalfExtents: physics.Vec2{X: 0.5, Y: 0.5},
 		})
 		pb.SleepingAllowed = false
+
 		return pb
 	}
 	sc := harness.Scenario{

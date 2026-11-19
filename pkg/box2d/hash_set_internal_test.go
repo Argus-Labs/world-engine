@@ -75,10 +75,12 @@ func TestHashSet_CollisionHeavyKeys(t *testing.T) {
 	}
 
 	removed := 0
+
 	for i := 0; i < n; i += 2 {
 		for j := i + 1; j < n; j += 2 {
 			key := shapePairKey(uint32(i), uint32(j))
 			tassert.True(t, removeKey(&set, key))
+
 			removed++
 		}
 	}
@@ -119,6 +121,7 @@ func TestHashSet_Determinism(t *testing.T) {
 	for _, key := range keys {
 		addKey(&setA, key)
 	}
+
 	for _, key := range keys {
 		addKey(&setB, key)
 	}

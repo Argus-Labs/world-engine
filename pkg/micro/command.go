@@ -80,22 +80,27 @@ func (r CommandRoute) Subject() string {
 // ParseCommandSubject reads a command's route from its subject.
 func ParseCommandSubject(subject string) (CommandRoute, error) {
 	tokens := strings.Split(subject, ".")
+
 	const endpoint, name = addressTokens, addressTokens + 1
 	if len(tokens) != commandSubjectTokens || tokens[endpoint] != commandEndpoint ||
 		!commandName.MatchString(tokens[name]) {
 		return CommandRoute{}, eris.Errorf("not a command subject: %q", subject)
 	}
+
 	to, err := ParseAddress(strings.Join(tokens[:addressTokens], "."))
 	if err != nil {
 		return CommandRoute{}, eris.Wrap(err, "invalid receiver address")
 	}
+
 	from, err := ParseAddress(strings.Join(tokens[name+1:], "."))
 	if err != nil {
 		return CommandRoute{}, eris.Wrap(err, "invalid sender address")
 	}
+
 	if err := protovalidate.Validate(from); err != nil {
 		return CommandRoute{}, eris.Wrap(err, "invalid sender address")
 	}
+
 	return CommandRoute{To: to, Name: tokens[name], From: from}, nil
 }
 
@@ -105,6 +110,7 @@ func (c *Client) SendCommand(ctx context.Context, from, to *ServiceAddress, name
 	if !commandName.MatchString(name) {
 		return eris.Errorf("invalid command name %q", name)
 	}
+
 	route := CommandRoute{To: to, Name: name, From: from}
 	msg := &nats.Msg{Subject: route.Subject(), Data: payload, Header: nats.Header{}}
 	otel.GetTextMapPropagator().Inject(ctx, headerCarrier(msg.Header))
@@ -113,14 +119,17 @@ func (c *Client) SendCommand(ctx context.Context, from, to *ServiceAddress, name
 	if err != nil {
 		return eris.Wrap(err, "failed to send command")
 	}
+
 	if code := reply.Header.Get(natsmicro.ErrorCodeHeader); code != "" {
 		n, err := strconv.ParseUint(code, 10, 32)
 		if err != nil || n == uint64(codes.OK) || n > uint64(codes.Unauthenticated) {
 			return eris.Errorf("command rejected with invalid code %q: %s",
 				code, reply.Header.Get(natsmicro.ErrorHeader))
 		}
+
 		return status.Error(codes.Code(n), reply.Header.Get(natsmicro.ErrorHeader))
 	}
+
 	return nil
 }
 
@@ -129,6 +138,7 @@ func (s *Service) AddCommand(name string, handler CommandHandler) error {
 	if !commandName.MatchString(name) {
 		return eris.Errorf("invalid command name %q", name)
 	}
+
 	key := commandEndpoint + "." + name
 	if _, ok := s.endpoints[key]; ok {
 		return eris.Wrap(ErrEndpointAlreadyExists, key)
@@ -136,18 +146,23 @@ func (s *Service) AddCommand(name string, handler CommandHandler) error {
 
 	sub, err := s.client.Subscribe(Endpoint(s.Address, key+".>"), func(msg *nats.Msg) {
 		defer s.tel.RecoverAndFlush(true)
+
 		ctx := otel.GetTextMapPropagator().Extract(context.Background(), headerCarrier(msg.Header))
+
 		ctx, span := trace.New(ctx, "handler."+key,
 			oteltrace.WithSpanKind(oteltrace.SpanKindConsumer),
 			oteltrace.WithAttributes(attribute.String("nats.subject", msg.Subject)))
 		defer span.End()
+
 		log := s.tel.GetLoggerWithTrace(ctx, "service.handler").With().Str("endpoint", key).Logger()
 
 		if replyOutsideInbox(msg) {
 			span.SetStatus(otelcodes.Error, "reply subject outside the inbox namespace")
 			log.Error().Str("reply", msg.Reply).Msg("command dropped: reply subject outside the inbox namespace")
+
 			return
 		}
+
 		reply := nats.NewMsg(msg.Reply)
 		if err := s.handleCommand(ctx, name, msg, handler); err != nil {
 			st := status.Convert(err)
@@ -157,9 +172,11 @@ func (s *Service) AddCommand(name string, handler CommandHandler) error {
 			reply.Header.Set(natsmicro.ErrorCodeHeader, strconv.FormatUint(uint64(st.Code()), 10))
 			reply.Header.Set(natsmicro.ErrorHeader, st.Message())
 		}
+
 		if msg.Reply == "" {
 			return // Published without waiting for a reply
 		}
+
 		if err := msg.RespondMsg(reply); err != nil {
 			log.Error().Err(err).Msg("failed to send command reply over NATS")
 		}
@@ -169,6 +186,7 @@ func (s *Service) AddCommand(name string, handler CommandHandler) error {
 	}
 
 	s.endpoints[key] = sub
+
 	return nil
 }
 
@@ -177,8 +195,10 @@ func (s *Service) handleCommand(ctx context.Context, name string, msg *nats.Msg,
 	if err != nil {
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
+
 	if route.Name != name {
 		return status.Errorf(codes.InvalidArgument, "command %q arrived on the %q subscription", route.Name, name)
 	}
+
 	return handler(ctx, Command{Name: name, From: route.From, Payload: msg.Data})
 }

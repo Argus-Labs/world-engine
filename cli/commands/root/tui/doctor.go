@@ -44,6 +44,7 @@ func (m WorldDoctorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.result = msg
 		return m, tea.Quit
 	}
+
 	return m, nil
 }
 
@@ -53,5 +54,6 @@ func (m WorldDoctorModel) View() string {
 	out := style.Container.Render("--- World CLI Doctor ---") + "\n\n"
 	out += "Checking dependencies...\n"
 	out += list + "\n" + help + "\n"
+
 	return out
 }

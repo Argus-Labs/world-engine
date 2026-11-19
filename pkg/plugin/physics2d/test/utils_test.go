@@ -28,18 +28,21 @@ func makeWorldWorkers(t *testing.T, gravity physics.Vec2, workers int) (*cardina
 	t.Helper()
 	w := newWorld(t)
 	w.RegisterComponent[harnessTag]()
+
 	p := physics.NewPlugin(physics.Config{
 		Gravity:  gravity,
 		TickRate: 60,
 		Workers:  workers,
 	})
 	w.RegisterPlugin(p)
+
 	return w, p
 }
 
 // newWorld creates a Cardinal world at 60 Hz with no plugin installed.
 func newWorld(t *testing.T) *cardinal.World {
 	t.Helper()
+
 	debug := true
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
 		Project:             "wb-test",
@@ -50,6 +53,7 @@ func newWorld(t *testing.T) *cardinal.World {
 		Debug:               &debug,
 	})
 	require.NoError(t, err)
+
 	return w
 }
 
@@ -62,13 +66,16 @@ func newRigid(bodyType physics.BodyType, shapes ...physics.ColliderShape) physic
 func newRigidNoGravity(bodyType physics.BodyType, shapes ...physics.ColliderShape) physics.PhysicsBody2D {
 	r := phycomp.NewPhysicsBody2D(bodyType, shapes...)
 	r.GravityScale = 0
+
 	return r
 }
 
 func tickN(t *testing.T, w *cardinal.World, n int) {
 	t.Helper()
+
 	for i := range n {
 		w.Tick(time.Unix(int64(i), 0))
+
 		if t.Failed() {
 			t.Fatalf("failed at tick %d", i)
 		}
@@ -108,14 +115,18 @@ func pairHas(a, b, x, y cardinal.EntityID) bool {
 // cardinal/internal/ecs, so we call Init via reflection on Cardinal's embedded *ecs.World.
 func initCardinalECS(w *cardinal.World) {
 	v := reflect.ValueOf(w).Elem()
+
 	f := v.FieldByName("world")
 	if !f.IsValid() {
 		panic("cardinal.World: missing embedded ecs world field")
 	}
+
 	inner := reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
+
 	m := inner.MethodByName("Init")
 	if !m.IsValid() {
 		panic("ecs.World: missing Init method")
 	}
+
 	m.Call(nil)
 }

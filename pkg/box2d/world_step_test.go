@@ -26,6 +26,7 @@ func newTestWorld(t *testing.T) *box2d.World {
 	def.Gravity = box2d.Vec2{X: 0.0, Y: -10.0}
 	w := box2d.NewWorld(&def)
 	t.Cleanup(w.Destroy)
+
 	return w
 }
 
@@ -69,6 +70,7 @@ func TestHelloWorld(t *testing.T) {
 	// Analytic resting height: ground top (y=0) + half height (1).
 	pos := w.BodyPosition(body)
 	vel := w.BodyLinearVelocity(body)
+
 	require.InDelta(t, 1.0, pos.Y, 2.0*box2d.LinearSlop, "resting height")
 	require.InDelta(t, 0.0, pos.X, 2.0*box2d.LinearSlop, "no lateral drift")
 	require.Less(t, math.Abs(vel.X), 0.01)
@@ -77,14 +79,18 @@ func TestHelloWorld(t *testing.T) {
 
 	// With sleep enabled the body must fall asleep.
 	require.True(t, w.IsSleepingEnabled())
+
 	asleep := false
+
 	for range 120 {
 		w.Step(stepDT, stepSubSteps)
+
 		if !w.IsBodyAwake(body) {
 			asleep = true
 			break
 		}
 	}
+
 	require.True(t, asleep, "body must fall asleep after settling")
 
 	// Wake on impulse.
@@ -117,6 +123,7 @@ func dropBall(t *testing.T, restitution float64) float64 {
 
 	bounced := false
 	peak := 0.0
+
 	for range 600 {
 		w.Step(stepDT, stepSubSteps)
 		v := w.BodyLinearVelocity(ball)
@@ -141,6 +148,7 @@ func dropBall(t *testing.T, restitution float64) float64 {
 	if !bounced {
 		return w.BodyPosition(ball).Y
 	}
+
 	return peak
 }
 
@@ -201,11 +209,13 @@ func inclineSlide(t *testing.T, friction float64) float64 {
 	for range 30 {
 		w.Step(stepDT, stepSubSteps)
 	}
+
 	start := w.BodyPosition(boxBody)
 
 	for range 120 {
 		w.Step(stepDT, stepSubSteps)
 	}
+
 	end := w.BodyPosition(boxBody)
 
 	return box2d.Distance(start, end)
@@ -228,6 +238,7 @@ func TestStack(t *testing.T) {
 	createGround(t, w)
 
 	const count = 5
+
 	bodies := make([]box2d.BodyID, count)
 	for i := range count {
 		bd := box2d.DefaultBodyDef()
@@ -253,20 +264,25 @@ func TestStack(t *testing.T) {
 
 	// The stack must go to sleep.
 	asleep := false
+
 	for range 500 {
 		w.Step(stepDT, stepSubSteps)
+
 		allAsleep := true
+
 		for i := range count {
 			if w.IsBodyAwake(bodies[i]) {
 				allAsleep = false
 				break
 			}
 		}
+
 		if allAsleep {
 			asleep = true
 			break
 		}
 	}
+
 	require.True(t, asleep, "stack must fall asleep")
 }
 
@@ -276,10 +292,14 @@ func TestPyramid(t *testing.T) {
 	createGround(t, w)
 
 	const rows = 6
-	var bodies []box2d.BodyID
-	var expected []box2d.Vec2
+
+	var (
+		bodies   []box2d.BodyID
+		expected []box2d.Vec2
+	)
 
 	h := 0.5
+
 	shift := 1.0 * h
 	for i := range rows {
 		y := float64((2.0*float64(i)+1.0)*h) + float64(0.02*float64(i))
@@ -340,6 +360,7 @@ func TestContactEvents(t *testing.T) {
 	sawBegin := false
 	sawEnd := false
 	sawHit := false
+
 	for range 300 {
 		w.Step(stepDT, stepSubSteps)
 		events := w.ContactEvents()
@@ -360,6 +381,7 @@ func TestContactEvents(t *testing.T) {
 
 		for _, e := range events.HitEvents {
 			sawHit = true
+
 			require.Greater(t, e.ApproachSpeed, w.HitEventThreshold())
 			ids := []box2d.ShapeID{e.ShapeIDA, e.ShapeIDB}
 			require.Contains(t, ids, groundShape)
@@ -397,23 +419,28 @@ func TestBodyMoveEvents(t *testing.T) {
 	w.Step(stepDT, stepSubSteps)
 	events := w.BodyEvents()
 	require.Len(t, events.MoveEvents, 2, "both awake bodies report move events")
+
 	seen := map[box2d.BodyID]bool{}
 	for _, e := range events.MoveEvents {
 		seen[e.BodyID] = true
 		require.False(t, e.FellAsleep)
 	}
+
 	require.True(t, seen[body])
 	require.True(t, seen[body2])
 
 	// Step until asleep and require the fellAsleep flag on the transition.
 	fellAsleep := map[box2d.BodyID]bool{}
+
 	for range 600 {
 		w.Step(stepDT, stepSubSteps)
+
 		for _, e := range w.BodyEvents().MoveEvents {
 			if e.FellAsleep {
 				fellAsleep[e.BodyID] = true
 			}
 		}
+
 		if !w.IsBodyAwake(body) && !w.IsBodyAwake(body2) {
 			break
 		}
@@ -444,6 +471,7 @@ func TestIslandSplitAndSelectiveWake(t *testing.T) {
 		box := box2d.MakeBox(0.5, 0.5)
 		sd := box2d.DefaultShapeDef()
 		w.CreatePolygonShape(body, &sd, &box)
+
 		return body
 	}
 
@@ -455,6 +483,7 @@ func TestIslandSplitAndSelectiveWake(t *testing.T) {
 	for range 30 {
 		w.Step(stepDT, stepSubSteps)
 	}
+
 	require.Equal(t, 1, w.Counters().IslandCount, "chain forms one island")
 
 	// Teleport the middle body far away (but still above the ground). The
@@ -466,10 +495,12 @@ func TestIslandSplitAndSelectiveWake(t *testing.T) {
 	// sleep, leaving three single-body islands.
 	for range 600 {
 		w.Step(stepDT, stepSubSteps)
+
 		if !w.IsBodyAwake(a) && !w.IsBodyAwake(b) && !w.IsBodyAwake(c) {
 			break
 		}
 	}
+
 	require.False(t, w.IsBodyAwake(a))
 	require.False(t, w.IsBodyAwake(b))
 	require.False(t, w.IsBodyAwake(c))
@@ -636,6 +667,7 @@ func TestStaleBodyMoveIndexNotDereferencedOnAwakeSetExit(t *testing.T) {
 	t.Parallel()
 
 	def := box2d.DefaultWorldDef()
+
 	w := box2d.NewWorld(&def)
 	defer w.Destroy()
 
@@ -647,6 +679,7 @@ func TestStaleBodyMoveIndexNotDereferencedOnAwakeSetExit(t *testing.T) {
 		sd := box2d.DefaultShapeDef()
 		circle := box2d.Circle{Radius: 0.5}
 		w.CreateCircleShape(body, &sd, &circle)
+
 		return body
 	}
 
@@ -681,6 +714,7 @@ func TestFellAsleepReportedAfterAwakeSetRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	def := box2d.DefaultWorldDef()
+
 	w := box2d.NewWorld(&def)
 	defer w.Destroy()
 

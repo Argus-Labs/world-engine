@@ -141,8 +141,10 @@ func goldenFloat(v float64) string { return strconv.FormatFloat(v, 'g', 17, 64) 
 
 func goldenParse(t *testing.T, s, what string) float64 {
 	t.Helper()
+
 	v, err := strconv.ParseFloat(s, 64)
 	require.NoErrorf(t, err, "malformed float in fixture field %s: %q", what, s)
+
 	return v
 }
 
@@ -197,12 +199,15 @@ func runGoldenScenarioWorkers(t *testing.T, sc goldenScenario, workers int) gold
 		for e := range w.SystemEvents[physics.ContactBeginEvent]() {
 			trace.Events = append(trace.Events, goldenEventOf(tick, "contact_begin", false, e.ContactEventPayload))
 		}
+
 		for e := range w.SystemEvents[physics.ContactEndEvent]() {
 			trace.Events = append(trace.Events, goldenEventOf(tick, "contact_end", false, e.ContactEventPayload))
 		}
+
 		for e := range w.SystemEvents[physics.TriggerBeginEvent]() {
 			trace.Events = append(trace.Events, goldenEventOf(tick, "trigger_begin", true, e.ContactEventPayload))
 		}
+
 		for e := range w.SystemEvents[physics.TriggerEndEvent]() {
 			trace.Events = append(trace.Events, goldenEventOf(tick, "trigger_end", true, e.ContactEventPayload))
 		}
@@ -210,6 +215,7 @@ func runGoldenScenarioWorkers(t *testing.T, sc goldenScenario, workers int) gold
 		// Body state: reduced cadence plus the final tick.
 		if tick%goldenSampleEvery == 0 || tick == lastTick {
 			bodies := []goldenBody{}
+
 			for row := range w.Exact[spawnArchetype]().Iter() {
 				eid := row.ID()
 				tr := row.Get[physics.Transform2D]()
@@ -225,6 +231,7 @@ func runGoldenScenarioWorkers(t *testing.T, sc goldenScenario, workers int) gold
 					AngVel:   goldenFloat(vel.Angular),
 				})
 			}
+
 			slices.SortFunc(bodies, func(a, b goldenBody) int { return cmp.Compare(a.Entity, b.Entity) })
 			trace.Frames = append(trace.Frames, goldenFrame{Tick: tick, Bodies: bodies})
 		}
@@ -236,6 +243,7 @@ func runGoldenScenarioWorkers(t *testing.T, sc goldenScenario, workers int) gold
 				if q.Hits == nil {
 					q.Hits = []goldenQueryHit{}
 				}
+
 				trace.Queries = append(trace.Queries, q)
 			}
 		}
@@ -300,12 +308,15 @@ func goldenOverlap(name string, r physics.AABBOverlapResult) goldenQuery {
 	for _, h := range r.Hits {
 		hits = append(hits, goldenQueryHit{Entity: uint32(h.Entity), ShapeIndex: h.ShapeIndex})
 	}
+
 	slices.SortFunc(hits, func(a, b goldenQueryHit) int {
 		if c := cmp.Compare(a.Entity, b.Entity); c != 0 {
 			return c
 		}
+
 		return cmp.Compare(a.ShapeIndex, b.ShapeIndex)
 	})
+
 	return goldenQuery{
 		Name:     name,
 		Hit:      len(hits) > 0,
@@ -336,6 +347,7 @@ func goldenSpawn(w *cardinal.World, entities func() []goldenEntity) {
 		if w.TickHeight() != 0 {
 			return
 		}
+
 		for _, e := range entities() {
 			row := w.Create[spawnArchetype]()
 			row.Set(harnessTag{Role: e.role})
@@ -380,6 +392,7 @@ func goldenFallingCirclesFloor() goldenScenario {
 						MaskBits:     0xFFFF,
 					}),
 				}}
+
 				for i := range 8 {
 					f := float64(i)
 					out = append(out, goldenEntity{
@@ -396,6 +409,7 @@ func goldenFallingCirclesFloor() goldenScenario {
 						}),
 					})
 				}
+
 				return out
 			})
 		},
@@ -421,6 +435,7 @@ func goldenBoxStack() goldenScenario {
 						MaskBits:     0xFFFF,
 					}),
 				}}
+
 				for i := range 5 {
 					f := float64(i)
 					out = append(out, goldenEntity{
@@ -439,6 +454,7 @@ func goldenBoxStack() goldenScenario {
 						}),
 					})
 				}
+
 				return out
 			})
 		},
@@ -469,6 +485,7 @@ func goldenCapsuleChainGround() goldenScenario {
 						MaskBits:     0xFFFF,
 					}),
 				}}
+
 				for i := range 4 {
 					f := float64(i)
 					out = append(out, goldenEntity{
@@ -487,6 +504,7 @@ func goldenCapsuleChainGround() goldenScenario {
 						}),
 					})
 				}
+
 				for i := range 2 {
 					f := float64(i)
 					out = append(out, goldenEntity{
@@ -505,6 +523,7 @@ func goldenCapsuleChainGround() goldenScenario {
 						)),
 					})
 				}
+
 				return out
 			})
 		},
@@ -574,6 +593,7 @@ func goldenFilterMatrix() goldenScenario {
 		catC = 0x0004
 		catX = 0x0008 // category nothing masks against
 	)
+
 	floor := func(role string, x float64, cat, mask uint64, group int32) goldenEntity {
 		return goldenEntity{
 			role: role,
@@ -603,6 +623,7 @@ func goldenFilterMatrix() goldenScenario {
 			}),
 		}
 	}
+
 	return goldenScenario{
 		name:      "filter_matrix",
 		gravity:   physics.Vec2{X: 0, Y: -10},
@@ -700,6 +721,7 @@ func goldenQueriesOverTime() goldenScenario {
 				End:    physics.Vec2{X: 12, Y: 3},
 				Radius: 0.4,
 			})
+
 			return []goldenQuery{
 				goldenRaycast("ray_horizontal", ray),
 				goldenOverlap("overlap_left_box", ov),
@@ -722,27 +744,33 @@ func TestGoldenTrace(t *testing.T) {
 	if !update {
 		t.Parallel()
 	}
+
 	for _, sc := range goldenScenarios() {
 		t.Run(sc.name, func(t *testing.T) {
 			if !update {
 				t.Parallel()
 			}
+
 			got := runGoldenScenario(t, sc)
 			path := filepath.Join("testdata", "golden_"+sc.name+".json")
 
 			if update {
 				require.NoError(t, os.MkdirAll("testdata", 0o750))
+
 				blob, err := json.MarshalIndent(got, "", "  ")
 				require.NoError(t, err)
+
 				blob = append(blob, '\n')
 				require.NoError(t, os.WriteFile(path, blob, 0o600))
 				t.Logf("wrote %s: %d bytes, %d frames, %d events, %d queries",
 					path, len(blob), len(got.Frames), len(got.Events), len(got.Queries))
+
 				return
 			}
 
 			raw, err := os.ReadFile(path)
 			require.NoErrorf(t, err, "missing golden fixture %s; regenerate with %s=1", path, goldenUpdateEnv)
+
 			var want goldenTrace
 			require.NoError(t, json.Unmarshal(raw, &want))
 			compareGoldenTrace(t, want, got)
@@ -762,10 +790,12 @@ func compareGoldenTrace(t *testing.T, want, got goldenTrace) {
 	require.Equal(t, want.Events, got.Events, "contact/trigger event sequence")
 
 	require.Len(t, got.Frames, len(want.Frames), "number of recorded frames")
+
 	for i := range want.Frames {
 		wf, gf := want.Frames[i], got.Frames[i]
 		require.Equalf(t, wf.Tick, gf.Tick, "frame %d tick", i)
 		require.Lenf(t, gf.Bodies, len(wf.Bodies), "frame tick %d body count", wf.Tick)
+
 		for j := range wf.Bodies {
 			wb, gb := wf.Bodies[j], gf.Bodies[j]
 			where := "tick " + strconv.Itoa(wf.Tick) + " body " + strconv.Itoa(int(wb.Entity)) + " (" + wb.Role + ")"
@@ -781,6 +811,7 @@ func compareGoldenTrace(t *testing.T, want, got goldenTrace) {
 	}
 
 	require.Len(t, got.Queries, len(want.Queries), "number of recorded queries")
+
 	for i := range want.Queries {
 		wq, gq := want.Queries[i], got.Queries[i]
 		where := "query " + wq.Name + " at tick " + strconv.Itoa(wq.Tick)
@@ -800,9 +831,11 @@ func compareGoldenTrace(t *testing.T, want, got goldenTrace) {
 
 func goldenInDelta(t *testing.T, want, got, where string) {
 	t.Helper()
+
 	if want == got {
 		return // exact bit-for-bit match, the common case
 	}
+
 	require.InDelta(t, goldenParse(t, want, where), goldenParse(t, got, where), goldenDelta, where)
 }
 

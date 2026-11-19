@@ -109,6 +109,7 @@ func Sensors() harness.Scenario {
 			if x < visitorStop {
 				x = visitorStop
 			}
+
 			c.SetPos(s.visitor, x, 20)
 
 			// The sleeping-sensor visitor waits until the sensor body has had
@@ -118,6 +119,7 @@ func Sensors() harness.Scenario {
 				if sx < visitorStop {
 					sx = visitorStop
 				}
+
 				c.SetPos(s.sleepVisit, sx, 60.5)
 			}
 		},
@@ -176,6 +178,7 @@ func Sensors() harness.Scenario {
 						gate[0].Payload.EntityA, gate[0].Payload.EntityB, s.compound)
 					c.Int("the trigger event names the sensor's shape slot", idx, 1)
 				}
+
 				c.Int("the compound body's solid slot raises no contact with the visitor",
 					c.CountBetween(harness.ContactBegin, s.visitor, s.compound), 0)
 

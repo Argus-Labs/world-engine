@@ -15,11 +15,14 @@ func ensurePhysicsSingleton(singleton cardinal.Search) {
 	if err == nil {
 		return
 	}
+
 	if errors.Is(err, cardinal.ErrSingleMultipleResult) {
 		panic(eris.New("physics2d: more than one physics singleton entity (PhysicsSingletonTag)"))
 	}
+
 	if !errors.Is(err, cardinal.ErrSingleNoResult) {
 		panic(eris.Wrap(err, "physics2d: singleton.Iter().Single()"))
 	}
+
 	singleton.Create()
 }

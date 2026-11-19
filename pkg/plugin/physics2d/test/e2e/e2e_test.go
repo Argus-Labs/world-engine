@@ -30,6 +30,7 @@ const hostileEnv = "PHYSICS2D_E2E_HOSTILE_CASE"
 // in the test log at the scenario's own line.
 func e2eConfig(t *testing.T, workers int) harness.Config {
 	t.Helper()
+
 	return harness.Config{
 		Gravity:      physics.Vec2{X: 0, Y: -10},
 		SubStepCount: 4,
@@ -43,9 +44,11 @@ func e2eConfig(t *testing.T, workers int) harness.Config {
 // code the CLI would have produced (0 means every check passed).
 func runSuite(t *testing.T, scenarios []harness.Scenario, cfg harness.Config) (*harness.Runner, *cardinal.World, int) {
 	t.Helper()
+
 	runner := harness.New(scenarios, cfg)
 	world, err := runner.BuildWorld(cfg)
 	require.NoError(t, err, "build world")
+
 	return runner, world, runner.Run(world)
 }
 
@@ -53,6 +56,7 @@ func runSuite(t *testing.T, scenarios []harness.Scenario, cfg harness.Config) (*
 // `-run TestScenarios/flags` works and a failure names the scenario and its line.
 func TestScenarios(t *testing.T) {
 	t.Parallel()
+
 	for _, sc := range scenario.All() {
 		t.Run(sc.Name, func(t *testing.T) {
 			t.Parallel()
@@ -68,6 +72,7 @@ func TestScenarios(t *testing.T) {
 // with and without the documented Plugin.Reset after FromProto.
 func TestRestore(t *testing.T) {
 	t.Parallel()
+
 	for _, tc := range []struct {
 		name  string
 		reset bool
@@ -88,6 +93,7 @@ func TestRestore(t *testing.T) {
 // PreUpdate check still sees the nil world the pipeline is about to rebuild.
 func TestWorldWatchdogFlagsUnannouncedReset(t *testing.T) {
 	t.Parallel()
+
 	sc := harness.Scenario{
 		Name: "reset-no-expect",
 		Setup: func(c *harness.Ctx) {
@@ -109,18 +115,23 @@ func TestWorldWatchdogFlagsUnannouncedReset(t *testing.T) {
 	runner := harness.New([]harness.Scenario{sc}, cfg)
 	world, err := runner.BuildWorld(cfg)
 	require.NoError(t, err, "build world")
+
 	code := runner.Run(world)
 	require.NotZero(t, code, "the watchdog must fail an unannounced Plugin.Reset")
 
 	var watchdog harness.Result
+
 	found := false
+
 	for _, f := range runner.Report().Failures() {
 		if f.Check == "the Box2D world stays alive" {
 			watchdog = f
 			found = true
+
 			break
 		}
 	}
+
 	require.True(t, found,
 		"expected a 'the Box2D world stays alive' failure; got %+v", runner.Report().Failures())
 	// Reset ran on tick 10's Update, so tick 11's PreUpdate is where it shows.
@@ -136,6 +147,7 @@ func TestWorldWatchdogFlagsUnannouncedReset(t *testing.T) {
 // elsewhere.
 func TestWorldWatchdogAcceptsAnnouncedReset(t *testing.T) {
 	t.Parallel()
+
 	sc := harness.Scenario{
 		Name: "reset-with-expect",
 		Setup: func(c *harness.Ctx) {
@@ -153,6 +165,7 @@ func TestWorldWatchdogAcceptsAnnouncedReset(t *testing.T) {
 	}
 	runner, _, code := runSuite(t, []harness.Scenario{sc}, e2eConfig(t, 0))
 	require.Zero(t, code, "the watchdog must not flag an announced Plugin.Reset")
+
 	for _, f := range runner.Report().Failures() {
 		require.NotEqual(t, "the Box2D world stays alive", f.Check,
 			"watchdog wrongly flagged an announced reset: %+v", f)
@@ -165,6 +178,7 @@ func TestWorldWatchdogAcceptsAnnouncedReset(t *testing.T) {
 // unannounced Reset passed as a cold start.
 func TestWorldWatchdogFlagsChainedUnannouncedReset(t *testing.T) {
 	t.Parallel()
+
 	sc := harness.Scenario{
 		Name: "chained-reset",
 		Setup: func(c *harness.Ctx) {
@@ -189,19 +203,24 @@ func TestWorldWatchdogFlagsChainedUnannouncedReset(t *testing.T) {
 	runner := harness.New([]harness.Scenario{sc}, cfg)
 	world, err := runner.BuildWorld(cfg)
 	require.NoError(t, err, "build world")
+
 	code := runner.Run(world)
 	require.NotZero(t, code,
 		"the watchdog must fail the chained unannounced Plugin.Reset on tick 11")
 
 	var watchdog harness.Result
+
 	found := false
+
 	for _, f := range runner.Report().Failures() {
 		if f.Check == "the Box2D world stays alive" {
 			watchdog = f
 			found = true
+
 			break
 		}
 	}
+
 	require.True(t, found,
 		"expected a 'the Box2D world stays alive' failure; got %+v", runner.Report().Failures())
 	// The unannounced Reset ran on tick 11's Update, so tick 12's PreUpdate is
@@ -219,9 +238,11 @@ func TestWorldWatchdogFlagsChainedUnannouncedReset(t *testing.T) {
 // throughput knob.
 func TestDigestIsWorkerInvariant(t *testing.T) {
 	t.Parallel()
+
 	digest := func(workers int) (int, uint64) {
 		runner, world, code := runSuite(t, scenario.All(), e2eConfig(t, workers))
 		require.Zero(t, code, "suite failed at workers=%d", workers)
+
 		return runner.Digest(world)
 	}
 	bodies, hash := digest(0)
@@ -266,6 +287,7 @@ func TestHostile(t *testing.T) {
 			if errors.As(err, &exit) && exit.ExitCode() == 2 {
 				t.Fatalf("FATAL: the case took the process down:\n%s", text)
 			}
+
 			if strings.Contains(text, "was rejected") {
 				t.Log("rejected cleanly, error logged every tick")
 			} else {
@@ -277,9 +299,12 @@ func TestHostile(t *testing.T) {
 					t.Fatalf("known failure now passes; remove it from knownFailures. "+
 						"The documented reason was: %s", reason)
 				}
+
 				t.Logf("known failure, still failing as documented: %s", reason)
+
 				return
 			}
+
 			require.NoError(t, err, "case failed:\n%s", text)
 		})
 	}
@@ -292,6 +317,7 @@ func TestHostileChild(t *testing.T) {
 	if name == "" {
 		t.Skip("driven by TestHostile")
 	}
+
 	sc, ok := scenario.Hostile(name)
 	require.True(t, ok, "unknown hostile case %q", name)
 	_, _, code := runSuite(t, []harness.Scenario{sc}, e2eConfig(t, 0))

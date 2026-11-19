@@ -38,6 +38,7 @@ type weldJoint struct {
 // means rigid (upstream b2WeldJoint_SetLinearHertz).
 func (w *World) SetWeldJointLinearHertz(jointID JointID, hertz float64) {
 	assert(IsValidFloat(hertz) && hertz >= 0.0)
+
 	j := w.getJointSimCheckType(jointID, WeldJoint)
 	j.weldJoint.linearHertz = hertz
 }
@@ -53,6 +54,7 @@ func (w *World) WeldJointLinearHertz(jointID JointID) float64 {
 // non-dimensional (upstream b2WeldJoint_SetLinearDampingRatio).
 func (w *World) SetWeldJointLinearDampingRatio(jointID JointID, dampingRatio float64) {
 	assert(IsValidFloat(dampingRatio) && dampingRatio >= 0.0)
+
 	j := w.getJointSimCheckType(jointID, WeldJoint)
 	j.weldJoint.linearDampingRatio = dampingRatio
 }
@@ -68,6 +70,7 @@ func (w *World) WeldJointLinearDampingRatio(jointID JointID) float64 {
 // Zero means rigid (upstream b2WeldJoint_SetAngularHertz).
 func (w *World) SetWeldJointAngularHertz(jointID JointID, hertz float64) {
 	assert(IsValidFloat(hertz) && hertz >= 0.0)
+
 	j := w.getJointSimCheckType(jointID, WeldJoint)
 	j.weldJoint.angularHertz = hertz
 }
@@ -83,6 +86,7 @@ func (w *World) WeldJointAngularHertz(jointID JointID) float64 {
 // non-dimensional (upstream b2WeldJoint_SetAngularDampingRatio).
 func (w *World) SetWeldJointAngularDampingRatio(jointID JointID, dampingRatio float64) {
 	assert(IsValidFloat(dampingRatio) && dampingRatio >= 0.0)
+
 	j := w.getJointSimCheckType(jointID, WeldJoint)
 	j.weldJoint.angularDampingRatio = dampingRatio
 }
@@ -160,6 +164,7 @@ func prepareWeldJoint(base *jointSim, ctx *stepContext) {
 	if bodyA.setIndex == awakeSet {
 		j.indexA = localIndexA
 	}
+
 	j.indexB = NullIndex
 	if bodyB.setIndex == awakeSet {
 		j.indexB = localIndexB
@@ -177,6 +182,7 @@ func prepareWeldJoint(base *jointSim, ctx *stepContext) {
 	j.deltaCenter = Sub(bodySimB.center, bodySimA.center)
 
 	ka := iA + iB
+
 	j.axialMass = 0.0
 	if ka > 0.0 {
 		j.axialMass = 1.0 / ka
@@ -216,6 +222,7 @@ func warmStartWeldJoint(base *jointSim, ctx *stepContext) {
 	if j.indexA != NullIndex {
 		stateA = &ctx.states[j.indexA]
 	}
+
 	stateB := &dummyState
 	if j.indexB != NullIndex {
 		stateB = &ctx.states[j.indexB]
@@ -255,6 +262,7 @@ func solveWeldJoint(base *jointSim, ctx *stepContext, useBias bool) {
 	if j.indexA != NullIndex {
 		stateA = &ctx.states[j.indexA]
 	}
+
 	stateB := &dummyState
 	if j.indexB != NullIndex {
 		stateB = &ctx.states[j.indexB]
@@ -275,6 +283,7 @@ func solveWeldJoint(base *jointSim, ctx *stepContext, useBias bool) {
 		bias := 0.0
 		massScale := 1.0
 		impulseScale := 0.0
+
 		if useBias || j.angularHertz > 0.0 {
 			c := jointAngle
 			bias = j.angularSpring.biasRate * c
@@ -301,6 +310,7 @@ func solveWeldJoint(base *jointSim, ctx *stepContext, useBias bool) {
 		bias := Vec2Zero
 		massScale := 1.0
 		impulseScale := 0.0
+
 		if useBias || j.linearHertz > 0.0 {
 			dcA := stateA.deltaPosition
 			dcB := stateB.deltaPosition

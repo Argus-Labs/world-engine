@@ -121,6 +121,7 @@ func TestExplodeOutwardDirection(t *testing.T) {
 		{X: 0.0, Y: 2.0},
 		{X: 0.0, Y: -2.0},
 	}
+
 	bodyIDs := make([]box2d.BodyID, 0, len(offsets))
 	for _, offset := range offsets {
 		bodyIDs = append(bodyIDs, addExplodeCircle(t, world, box2d.DynamicBody, offset, box2d.DefaultCategoryBits))
@@ -201,6 +202,7 @@ func TestExplodeFalloffBand(t *testing.T) {
 	world.Explode(&def)
 
 	const expectedScale = 0.75
+
 	fullSpeed := def.ImpulsePerLength * (2.0 * explodeCircleRadius) / explodeCircleMass()
 
 	assert.InDelta(t, expectedScale*fullSpeed, world.BodyLinearVelocity(inBand).X, 1e-12)

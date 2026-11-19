@@ -135,6 +135,7 @@ func TestLightStageColorSceneEngagesMultipleWorkers(t *testing.T) {
 
 	def := DefaultWorldDef()
 	def.EnableSleep = false
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 

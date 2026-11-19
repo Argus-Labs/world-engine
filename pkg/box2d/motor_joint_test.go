@@ -24,6 +24,7 @@ func motorTestWorld(gravity box2d.Vec2) *box2d.World {
 	def := box2d.DefaultWorldDef()
 	def.Gravity = gravity
 	def.EnableSleep = false
+
 	return box2d.NewWorld(&def)
 }
 
@@ -45,6 +46,7 @@ func motorTestBoxBody(w *box2d.World, pos box2d.Vec2, halfExtent float64) box2d.
 	sd := box2d.DefaultShapeDef()
 	sd.Density = 1.0
 	w.CreatePolygonShape(bodyID, &sd, &box)
+
 	return bodyID
 }
 
@@ -61,6 +63,7 @@ func motorTestJoint(w *box2d.World, ground, body box2d.BodyID, hertz, maxForce, 
 	def.AngularHertz = hertz
 	def.AngularDampingRatio = 1.0
 	def.MaxSpringTorque = maxTorque
+
 	return w.CreateMotorJoint(&def)
 }
 
@@ -71,6 +74,7 @@ func motorTargetError(w *box2d.World, body box2d.BodyID, target box2d.Transform)
 	q := w.BodyRotation(body)
 	posError := box2d.Length(box2d.Sub(p, target.P))
 	angleError := math.Abs(box2d.RelativeAngle(target.Q, q))
+
 	return posError, angleError
 }
 
@@ -123,8 +127,10 @@ func TestMotorJointMaxSpringForceClamp(t *testing.T) {
 	t.Parallel()
 
 	// A body of mass 1 needs 10 N to hold station against this gravity.
-	const strongForce = 500.0
-	const weakForce = 1.0
+	const (
+		strongForce = 500.0
+		weakForce   = 1.0
+	)
 
 	drop := func(maxForce float64) float64 {
 		w := motorTestWorld(box2d.Vec2{X: 0.0, Y: -10.0})
@@ -138,6 +144,7 @@ func TestMotorJointMaxSpringForceClamp(t *testing.T) {
 		for range 120 {
 			w.Step(motorTimeStep, 4)
 		}
+
 		return w.BodyPosition(body).Y
 	}
 
@@ -175,6 +182,7 @@ func TestMotorJointMaxSpringTorqueClamp(t *testing.T) {
 		for range 120 {
 			w.Step(motorTimeStep, 4)
 		}
+
 		return math.Abs(box2d.RotGetAngle(w.BodyRotation(body)))
 	}
 
@@ -249,6 +257,7 @@ func TestMotorJointSpringHertzStrength(t *testing.T) {
 		for range 20 {
 			w.Step(motorTimeStep, 4)
 		}
+
 		return math.Abs(w.BodyPosition(body).X)
 	}
 
@@ -364,6 +373,7 @@ func TestMotorJointDestroyMidSimulation(t *testing.T) {
 	for range 30 {
 		w.Step(motorTimeStep, 4)
 	}
+
 	held := w.BodyPosition(body).Y
 	require.Less(t, math.Abs(held), 0.05, "motor should hold the body before the joint is destroyed")
 
@@ -372,6 +382,7 @@ func TestMotorJointDestroyMidSimulation(t *testing.T) {
 	for range 60 {
 		w.Step(motorTimeStep, 4)
 	}
+
 	require.Less(t, w.BodyPosition(body).Y, held-0.4, "the body must fall once the motor is gone")
 }
 
@@ -411,10 +422,12 @@ func TestMotorJointDeterminism(t *testing.T) {
 
 		bodies := buildMotorDeterminismScene(w)
 		hashes := make([]uint64, 0, 200)
+
 		for range 200 {
 			w.Step(motorTimeStep, 4)
 			hashes = append(hashes, hashWorldState(w, bodies))
 		}
+
 		return hashes
 	}
 

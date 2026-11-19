@@ -281,6 +281,7 @@ type World struct {
 func defaultFrictionCallback(frictionA float64, materialA uint64, frictionB float64, materialB uint64) float64 {
 	_ = materialA
 	_ = materialB
+
 	return math.Sqrt(frictionA * frictionB)
 }
 
@@ -288,6 +289,7 @@ func defaultFrictionCallback(frictionA float64, materialA uint64, frictionB floa
 func defaultRestitutionCallback(restitutionA float64, materialA uint64, restitutionB float64, materialB uint64) float64 {
 	_ = materialA
 	_ = materialB
+
 	return maxFloat(restitutionA, restitutionB)
 }
 
@@ -323,6 +325,7 @@ func NewWorld(def *WorldDef) *World {
 
 	// add empty static, active, and disabled body sets
 	w.solverSetIDPool = createIDPool()
+
 	var set solverSet
 
 	// static set
@@ -466,6 +469,7 @@ func (w *World) Destroy() {
 	for i := range w.taskContexts {
 		destroyTaskContext(&w.taskContexts[i])
 	}
+
 	w.taskContexts = nil
 	destroyBitSet(&w.debugBodySet)
 	destroyBitSet(&w.debugJointSet)
@@ -513,6 +517,7 @@ func (w *World) Destroy() {
 		w.islands[i].contacts = nil
 		w.islands[i].joints = nil
 	}
+
 	w.islands = nil
 
 	// Destroy solver sets
@@ -745,6 +750,7 @@ func (w *World) IsContactValid(id ContactID) bool {
 // the world level (upstream b2World_EnableSleeping).
 func (w *World) EnableSleeping(flag bool) {
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -777,6 +783,7 @@ func (w *World) IsSleepingEnabled() bool {
 // provides no performance gain (upstream b2World_EnableWarmStarting).
 func (w *World) EnableWarmStarting(flag bool) {
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -804,6 +811,7 @@ func (w *World) AwakeBodyCount() int {
 // (upstream b2World_EnableContinuous).
 func (w *World) EnableContinuous(flag bool) {
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -821,6 +829,7 @@ func (w *World) IsContinuousEnabled() bool {
 // meters per second (upstream b2World_SetRestitutionThreshold).
 func (w *World) SetRestitutionThreshold(value float64) {
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -838,6 +847,7 @@ func (w *World) RestitutionThreshold() float64 {
 // second (upstream b2World_SetHitEventThreshold).
 func (w *World) SetHitEventThreshold(value float64) {
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -860,6 +870,7 @@ func (w *World) HitEventThreshold() float64 {
 // Note: advanced feature.
 func (w *World) SetContactTuning(hertz, dampingRatio, pushSpeed float64) {
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -884,6 +895,7 @@ func (w *World) SetContactTuning(hertz, dampingRatio, pushSpeed float64) {
 // manifold; see PreSolveFcn.
 func (w *World) SetContactRecycleDistance(recycleDistance float64) {
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -903,6 +915,7 @@ func (w *World) SetMaximumLinearSpeed(maximumLinearSpeed float64) {
 	assert(IsValidFloat(maximumLinearSpeed) && maximumLinearSpeed > 0.0)
 
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -925,6 +938,7 @@ func (w *World) Profile() Profile {
 // Counters returns world counters and sizes (upstream b2World_GetCounters).
 func (w *World) Counters() Counters {
 	var s Counters
+
 	s.BodyCount = getIDCount(&w.bodyIDPool)
 	s.ShapeCount = getIDCount(&w.shapeIDPool)
 	s.ContactCount = getIDCount(&w.contactIDPool)
@@ -945,6 +959,7 @@ func (w *World) Counters() Counters {
 	for i := range GraphColorCount {
 		s.ColorCounts[i] = len(w.constraintGraph.colors[i].contactSims) + len(w.constraintGraph.colors[i].jointSims)
 	}
+
 	return s
 }
 
@@ -964,6 +979,7 @@ func (w *World) UserData() uint64 {
 // (upstream b2World_SetFrictionCallback).
 func (w *World) SetFrictionCallback(callback FrictionCallback) {
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -980,6 +996,7 @@ func (w *World) SetFrictionCallback(callback FrictionCallback) {
 // (upstream b2World_SetRestitutionCallback).
 func (w *World) SetRestitutionCallback(callback RestitutionCallback) {
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -1023,6 +1040,7 @@ func (w *World) Gravity() Vec2 {
 // (upstream b2World_RebuildStaticTree).
 func (w *World) RebuildStaticTree() {
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}

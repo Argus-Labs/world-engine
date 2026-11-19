@@ -37,10 +37,13 @@ func synchronized(fn func(Progress)) func(Progress) {
 	if fn == nil {
 		return nil
 	}
+
 	var mu sync.Mutex
+
 	return func(p Progress) {
 		mu.Lock()
 		defer mu.Unlock()
+
 		fn(p)
 	}
 }
@@ -50,6 +53,7 @@ func notify(fn func(Progress), p Progress) {
 	if fn == nil {
 		return
 	}
+
 	fn(p)
 }
 
@@ -61,5 +65,6 @@ func itemErr(gctx context.Context, err error) error {
 	if gctx.Err() != nil {
 		return gctx.Err()
 	}
+
 	return err
 }

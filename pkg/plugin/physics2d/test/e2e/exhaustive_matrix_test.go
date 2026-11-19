@@ -66,8 +66,10 @@ func (m matrixCombo) label() string {
 		if v {
 			return 1
 		}
+
 		return 0
 	}
+
 	return fmt.Sprintf("%s/%s/active%d-awake%d-sleep%d-bullet%d-fixed%d",
 		kindName[m.kind], shapeName[m.shape], b(m.active), b(m.awake), b(m.sleep), b(m.bullet), b(m.fixedRot))
 }
@@ -79,6 +81,7 @@ func (m matrixCombo) body() physics.PhysicsBody2D {
 	pb.SleepingAllowed = m.sleep
 	pb.Bullet = m.bullet
 	pb.FixedRotation = m.fixedRot
+
 	return pb
 }
 
@@ -103,6 +106,7 @@ func (m matrixCombo) knownDivergence() (string, bool) {
 			"say static or kinematic only; TestRandomScenes shows why the rule exists " +
 			"(a dynamic edge body falls through a 10 m static floor)", true
 	}
+
 	return "", false
 }
 
@@ -114,6 +118,7 @@ func (m matrixCombo) expectAwake() bool {
 
 func allMatrixCombos() []matrixCombo {
 	var combos []matrixCombo
+
 	g := testutils.NewGen()
 	for !g.Done() {
 		combos = append(combos, matrixCombo{
@@ -126,6 +131,7 @@ func allMatrixCombos() []matrixCombo {
 			fixedRot: g.Bool(),
 		})
 	}
+
 	return combos
 }
 
@@ -133,24 +139,30 @@ func allMatrixCombos() []matrixCombo {
 // after creation, once after a Plugin.Reset rebuild.
 func matrixScene(combos []matrixCombo) harness.Scenario {
 	ids := make([]cardinal.EntityID, len(combos))
+
 	const (
 		perRow  = 32
 		spacing = 4.0
 	)
+
 	checkEngine := func(c *harness.Ctx, phase string) {
 		eng := c.Plugin().Engine()
+
 		for i, m := range combos {
 			label := phase + ": " + m.label()
 			bodyID, ok := c.Plugin().BodyID(ids[i])
+
 			want, detail := m.expectBody(), "has body=%v, documented rule says %v"
 			if reason, known := m.knownDivergence(); known {
 				want = true
 				detail = "has body=%v, want %v: the known divergence is gone (" + reason +
 					"), so remove it from knownDivergence"
 			}
+
 			if !c.True(label+": body existence", ok == want, detail, ok, want) || !ok {
 				continue
 			}
+
 			c.True(label+": body type reached the engine", eng.BodyType(bodyID) == engineKind[m.kind],
 				"engine type %v, want %v", eng.BodyType(bodyID), engineKind[m.kind])
 			c.True(label+": Active reached the engine", eng.IsBodyEnabled(bodyID) == m.active,
@@ -161,6 +173,7 @@ func matrixScene(combos []matrixCombo) harness.Scenario {
 				"engine bullet=%v, want %v", eng.IsBodyBullet(bodyID), m.bullet)
 			c.True(label+": FixedRotation reached the engine", eng.BodyMotionLocks(bodyID).AngularZ == m.fixedRot,
 				"engine angular lock=%v, want %v", eng.BodyMotionLocks(bodyID).AngularZ, m.fixedRot)
+
 			if m.kind != physics.BodyTypeStatic {
 				// Static bodies are never awake in Box2D, whatever the flag says.
 				c.True(label+": Awake follows Box2D's creation rule", eng.IsBodyAwake(bodyID) == m.expectAwake(),
@@ -182,11 +195,13 @@ func matrixScene(combos []matrixCombo) harness.Scenario {
 			}
 		}
 	}
+
 	return harness.Scenario{
 		Name: "matrix",
 		Setup: func(c *harness.Ctx) {
 			for i, m := range combos {
 				pb := m.body()
+
 				raw, err := msgpack.Marshal(pb)
 				if c.NoError("wire encodes: "+m.label(), err) {
 					var decoded physics.PhysicsBody2D
@@ -195,6 +210,7 @@ func matrixScene(combos []matrixCombo) harness.Scenario {
 							"got %+v\nwant %+v", decoded, pb)
 					}
 				}
+
 				ids[i] = c.Spawn(m.label(), float64(i%perRow)*spacing, float64(i/perRow)*spacing, pb)
 			}
 		},
@@ -212,6 +228,7 @@ func matrixScene(combos []matrixCombo) harness.Scenario {
 
 func TestExhaustiveBodyMatrix(t *testing.T) {
 	t.Parallel()
+
 	combos := allMatrixCombos()
 	require.Len(t, combos, len(matrixKinds)*len(matrixShapes)*32, "generator did not walk every combination")
 

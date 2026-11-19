@@ -29,11 +29,14 @@ func (f *fakeLogReader) StreamContainerLogs(
 	out chan<- worldstatus.LogLine,
 ) error {
 	defer close(out)
+
 	f.streamed = name
+
 	f.streamOpts = opts
 	for _, line := range f.logs {
 		out <- worldstatus.LogLine{Source: name, Line: line}
 	}
+
 	return f.streamErr
 }
 
@@ -81,9 +84,12 @@ func TestCollectContainerLogsFrom(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			fake := &fakeLogReader{logs: tc.logs, streamErr: tc.streamErr}
+
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+
 			if tc.ctxOver {
 				cancel()
 			}
@@ -94,16 +100,21 @@ func TestCollectContainerLogsFrom(t *testing.T) {
 			assert.Equal(t, int32(42), fake.streamOpts.TailLines)
 			assert.Equal(t, logWindow, fake.streamOpts.FollowWindow)
 			assert.True(t, fake.streamOpts.MissingIsError, "one-shot fetch must ask for the not-found error")
+
 			if len(tc.wantErrSub) == 0 {
 				require.NoError(t, err)
 				assert.Equal(t, tc.wantLogs, logs)
+
 				return
 			}
+
 			require.Error(t, err)
 			assert.Empty(t, logs)
+
 			for _, sub := range tc.wantErrSub {
 				assert.Contains(t, err.Error(), sub)
 			}
+
 			assert.Equal(t, tc.wantNotFnd, errors.Is(err, local.ErrContainerNotFound))
 		})
 	}
@@ -119,9 +130,11 @@ func TestCollectShardLogs(t *testing.T) {
 			if err, ok := m[name]; ok {
 				return "", err
 			}
+
 			return name + " log\n", nil
 		}
 	}
+
 	cases := []struct {
 		name       string
 		containers []string
@@ -174,18 +187,23 @@ func TestCollectShardLogs(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
+
 			if tc.ctxOver {
 				cancel()
 			}
+
 			got, err := collectShardLogs(ctx, tc.containers, fetchFrom(tc.errs))
 			if tc.wantErr != nil {
 				require.Error(t, err)
 				assert.True(t, errors.Is(err, tc.wantErr), "err = %v", err)
 				assert.Empty(t, got)
+
 				return
 			}
+
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})
@@ -194,8 +212,10 @@ func TestCollectShardLogs(t *testing.T) {
 
 func TestCollectShardLogs_BudgetSpentMidWayListsTheRest(t *testing.T) {
 	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	fetch := func(name string) (string, error) {
 		cancel() // the first fetch uses up the budget
 		return name + " log\n", nil

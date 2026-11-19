@@ -33,6 +33,7 @@ func (w *World) RegisterSystem(name string, phase Phase, fn func()) error {
 	default:
 		return eris.Errorf("invalid system phase %d", phase)
 	}
+
 	return nil
 }
 

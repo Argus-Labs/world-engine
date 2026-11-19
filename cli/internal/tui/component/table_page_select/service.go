@@ -39,11 +39,13 @@ func RunWithHotkeys(
 	model.ExtraKeys = extraKeys
 
 	prog := program.NewTeaProgram(model)
+
 	m, err := prog.Run()
 	if err != nil {
 		if errors.Is(err, tea.ErrInterrupted) || errors.Is(err, tea.ErrProgramKilled) {
 			return -1, "", context.Canceled // SIGINT without a TTY; same exit as ctrl+c in the picker
 		}
+
 		return -1, "", eris.Wrap(err, "failed to run paginated select UI")
 	}
 
@@ -55,11 +57,14 @@ func RunWithHotkeys(
 	if !ok {
 		return -1, "", eris.New("failed to cast paginated select model")
 	}
+
 	if out.Canceled {
 		return -1, "", context.Canceled
 	}
+
 	if out.Aborted {
 		return -1, "", errorspkg.NewSilent(eris.New("selection aborted"))
 	}
+
 	return out.Cursor, out.HotkeyAction, nil
 }

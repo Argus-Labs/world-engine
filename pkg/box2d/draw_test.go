@@ -172,6 +172,7 @@ func TestDrawShapesByType(t *testing.T) {
 	world := buildDrawWorld(t)
 
 	var recorder drawRecorder
+
 	draw := recorder.debugDraw()
 	draw.DrawShapes = true
 	world.Draw(&draw)
@@ -214,6 +215,7 @@ func TestDrawShapesDisabled(t *testing.T) {
 	world := buildDrawWorld(t)
 
 	var recorder drawRecorder
+
 	draw := recorder.debugDraw()
 	world.Draw(&draw)
 
@@ -232,6 +234,7 @@ func TestDrawBoundsCulling(t *testing.T) {
 	world := buildDrawWorld(t)
 
 	var culled drawRecorder
+
 	culledDraw := culled.debugDraw()
 	culledDraw.DrawShapes = true
 	culledDraw.DrawingBounds = drawSceneBounds
@@ -244,6 +247,7 @@ func TestDrawBoundsCulling(t *testing.T) {
 	// The default drawing bounds keep the upstream FLT_MAX magnitude, so
 	// nothing is culled.
 	var all drawRecorder
+
 	allDraw := all.debugDraw()
 	allDraw.DrawShapes = true
 	world.Draw(&allDraw)
@@ -262,12 +266,14 @@ func TestDrawBoundsFlag(t *testing.T) {
 	world := buildDrawWorld(t)
 
 	var recorder drawRecorder
+
 	draw := recorder.debugDraw()
 	draw.DrawBounds = true
 	draw.DrawingBounds = drawSceneBounds
 	world.Draw(&draw)
 
 	require.Len(t, recorder.polygons, drawSceneNearShapes)
+
 	for _, record := range recorder.polygons {
 		assert.Len(t, record.vertices, 4)
 		assert.Equal(t, box2d.ColorGold, record.color)
@@ -282,6 +288,7 @@ func TestDrawMass(t *testing.T) {
 	world := buildDrawWorld(t)
 
 	var recorder drawRecorder
+
 	draw := recorder.debugDraw()
 	draw.DrawMass = true
 	draw.DrawingBounds = drawSceneBounds
@@ -308,6 +315,7 @@ func TestDrawBodyNames(t *testing.T) {
 	world := buildDrawWorld(t)
 
 	var recorder drawRecorder
+
 	draw := recorder.debugDraw()
 	draw.DrawBodyNames = true
 	draw.DrawingBounds = drawSceneBounds
@@ -330,6 +338,7 @@ func TestDrawIslands(t *testing.T) {
 	world := buildDrawWorld(t)
 
 	var recorder drawRecorder
+
 	draw := recorder.debugDraw()
 	draw.DrawIslands = true
 	draw.DrawingBounds = drawSceneBounds
@@ -338,6 +347,7 @@ func TestDrawIslands(t *testing.T) {
 	// The ball and the pill are not touching, so they are separate islands.
 	// Static bodies have no island.
 	require.Len(t, recorder.polygons, 2)
+
 	for _, record := range recorder.polygons {
 		assert.Len(t, record.vertices, 4)
 		assert.Equal(t, box2d.ColorOrangeRed, record.color)
@@ -386,6 +396,7 @@ func TestDrawContactPoints(t *testing.T) {
 	world := buildContactDrawWorld(t)
 
 	var none drawRecorder
+
 	noneDraw := none.debugDraw()
 	noneDraw.ContactDrawType = box2d.DrawContactsNone
 	world.Draw(&noneDraw)
@@ -400,6 +411,7 @@ func TestDrawContactPoints(t *testing.T) {
 
 	for _, drawType := range drawTypes {
 		var recorder drawRecorder
+
 		draw := recorder.debugDraw()
 		draw.ContactDrawType = drawType
 		world.Draw(&draw)
@@ -417,6 +429,7 @@ func TestDrawContactNormals(t *testing.T) {
 	world := buildContactDrawWorld(t)
 
 	var recorder drawRecorder
+
 	draw := recorder.debugDraw()
 	draw.ContactDrawType = box2d.DrawContactsClip
 	draw.DrawContactNormals = true
@@ -439,6 +452,7 @@ func TestDrawContactForces(t *testing.T) {
 	world := buildContactDrawWorld(t)
 
 	var recorder drawRecorder
+
 	draw := recorder.debugDraw()
 	draw.ContactDrawType = box2d.DrawContactsClip
 	draw.DrawContactForces = true
@@ -457,14 +471,17 @@ func TestDrawContactForces(t *testing.T) {
 
 	impulseLines := 0
 	frictionLines := 0
+
 	for _, record := range recorder.lines {
 		if record.color == box2d.ColorMagenta {
 			impulseLines++
 		}
+
 		if record.color == box2d.ColorYellow {
 			frictionLines++
 		}
 	}
+
 	assert.Equal(t, pointCount, impulseLines)
 	assert.Equal(t, pointCount, frictionLines)
 }
@@ -477,11 +494,13 @@ func TestDrawGraphColors(t *testing.T) {
 	world := buildContactDrawWorld(t)
 
 	var plain drawRecorder
+
 	plainDraw := plain.debugDraw()
 	plainDraw.ContactDrawType = box2d.DrawContactsClip
 	world.Draw(&plainDraw)
 
 	var graph drawRecorder
+
 	graphDraw := graph.debugDraw()
 	graphDraw.ContactDrawType = box2d.DrawContactsClip
 	graphDraw.DrawGraphColors = true
@@ -493,13 +512,16 @@ func TestDrawGraphColors(t *testing.T) {
 	// A resting contact lives in a constraint graph color, so the graph
 	// palette must replace the add/persist/speculative colors.
 	differs := false
+
 	for i, record := range graph.points {
 		// The graph point size is 5 for a normal color, 7.5 for overflow.
 		assert.True(t, record.size == 5.0 || record.size == 7.5, "unexpected graph color point size")
+
 		if record.color != plain.points[i].color {
 			differs = true
 		}
 	}
+
 	assert.True(t, differs, "DrawGraphColors must change at least one contact point color")
 }
 
@@ -513,6 +535,7 @@ func TestDrawEmptyWorld(t *testing.T) {
 	t.Cleanup(world.Destroy)
 
 	var recorder drawRecorder
+
 	draw := recorder.debugDraw()
 	draw.DrawShapes = true
 	draw.DrawBounds = true
@@ -536,12 +559,14 @@ func TestDrawJoints(t *testing.T) {
 	t.Parallel()
 
 	def := box2d.DefaultWorldDef()
+
 	w := box2d.NewWorld(&def)
 	defer w.Destroy()
 
 	ground := func() box2d.BodyID {
 		bd := box2d.DefaultBodyDef()
 		bd.Position = box2d.Vec2{X: 0, Y: 0}
+
 		return w.CreateBody(&bd)
 	}()
 
@@ -553,6 +578,7 @@ func TestDrawJoints(t *testing.T) {
 		sd := box2d.DefaultShapeDef()
 		poly := box2d.MakeBox(0.25, 0.25)
 		w.CreatePolygonShape(body, &sd, &poly)
+
 		return body
 	}
 
@@ -573,26 +599,32 @@ func TestDrawJoints(t *testing.T) {
 	w.Step(1.0/60.0, 4)
 
 	var base drawRecorder
+
 	drawBase := base.debugDraw()
 	drawBase.DrawJoints = true
 	w.Draw(&drawBase)
+
 	baseTotal := len(base.lines) + len(base.points) + len(base.circles) +
 		len(base.solidCircles) + len(base.transforms) + len(base.strings)
 	require.Positive(t, baseTotal, "DrawJoints must emit primitives for revolute+distance joints")
 
 	var off drawRecorder
+
 	drawOff := off.debugDraw()
 	drawOff.DrawJoints = false
 	w.Draw(&drawOff)
+
 	offTotal := len(off.lines) + len(off.points) + len(off.circles) +
 		len(off.solidCircles) + len(off.transforms) + len(off.strings)
 	require.Zero(t, offTotal, "no joint primitives when DrawJoints is off")
 
 	var extras drawRecorder
+
 	drawExtras := extras.debugDraw()
 	drawExtras.DrawJoints = true
 	drawExtras.DrawJointExtras = true
 	w.Draw(&drawExtras)
+
 	extrasTotal := len(extras.lines) + len(extras.points) + len(extras.circles) +
 		len(extras.solidCircles) + len(extras.transforms) + len(extras.strings)
 	require.GreaterOrEqual(t, extrasTotal, baseTotal, "extras must not reduce joint drawing output")

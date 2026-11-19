@@ -11,6 +11,7 @@ func TestWorldEngineFrom(t *testing.T) {
 	t.Parallel()
 
 	engine := func(v string) *debug.Module { return &debug.Module{Path: worldEngineModule, Version: v} }
+
 	tests := []struct {
 		name string
 		info *debug.BuildInfo

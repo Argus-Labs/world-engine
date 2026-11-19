@@ -28,6 +28,7 @@ func BuildProgress(sess Session, imageNames []string) func(docker.Progress) {
 	for _, name := range imageNames {
 		sess.UpsertRow(name, name, "queued", Pending)
 	}
+
 	return func(p docker.Progress) {
 		switch {
 		case p.Err != nil:

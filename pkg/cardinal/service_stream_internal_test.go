@@ -41,6 +41,7 @@ func TestEventStream_ReplacementSupersedesOldStream(t *testing.T) {
 
 	a := h.open(t, "player-1", "*")
 	b := h.open(t, "player-1", simple)
+
 	a.read()
 	b.read()
 
@@ -63,6 +64,7 @@ func TestEventStream_RapidSequentialReplacement(t *testing.T) {
 	h := newStreamHarness(t)
 
 	const n = 25
+
 	streams := make([]*clientStream, n)
 	for i := range streams {
 		streams[i] = h.open(t, "player-1", "*")
@@ -72,6 +74,7 @@ func TestEventStream_RapidSequentialReplacement(t *testing.T) {
 	for _, stream := range streams[:n-1] {
 		requireSuperseded(t, stream)
 	}
+
 	h.publish(t, testutils.SimpleEvent{Value: 7}, "player-1")
 	assert.Equal(t, []string{"simple_event:7"}, streams[n-1].next(t, 1))
 }
@@ -81,16 +84,23 @@ func TestEventStream_ConcurrentReplacementLeavesOneStream(t *testing.T) {
 	h := newStreamHarness(t)
 
 	const n = 16
+
 	streams := make([]*clientStream, n)
+
 	var wg sync.WaitGroup
+
 	errs := make([]error, n)
+
 	for i := range streams {
 		wg.Go(func() { streams[i], errs[i] = h.tryOpen("player-1", "*") })
 	}
+
 	wg.Wait()
+
 	for _, err := range errs {
 		require.NoError(t, err)
 	}
+
 	for _, stream := range streams {
 		stream.read()
 	}
@@ -98,19 +108,23 @@ func TestEventStream_ConcurrentReplacementLeavesOneStream(t *testing.T) {
 	h.publish(t, testutils.SimpleEvent{Value: 9}, "player-1")
 
 	var superseded, delivered int
+
 	for _, stream := range streams {
 		select {
 		case msg := <-stream.messages:
 			assert.Equal(t, "simple_event:9", describe(msg))
+
 			delivered++
 		case <-stream.done:
 			assert.Equal(t, connect.CodeAborted, connect.CodeOf(stream.err))
 			assert.Contains(t, stream.err.Error(), "superseded")
+
 			superseded++
 		case <-time.After(5 * time.Second):
 			t.Fatal("stream neither received the event nor ended")
 		}
 	}
+
 	assert.Equal(t, 1, delivered)
 	assert.Equal(t, n-1, superseded)
 }
@@ -124,9 +138,12 @@ func TestEventStream_SubscriptionRPCsRaceReplacement(t *testing.T) {
 	another := testutils.AnotherEvent{}.Name()
 
 	stop := make(chan struct{})
-	var unexpected sync.Map
-	var calls, accepted atomic.Int64
-	var spammers sync.WaitGroup
+
+	var (
+		unexpected      sync.Map
+		calls, accepted atomic.Int64
+		spammers        sync.WaitGroup
+	)
 	for i := range 4 {
 		spammers.Go(func() {
 			for {
@@ -135,13 +152,16 @@ func TestEventStream_SubscriptionRPCsRaceReplacement(t *testing.T) {
 					return
 				default:
 				}
+
 				var err error
 				if i%2 == 0 {
 					err = h.trySubscribe("player-1", another)
 				} else {
 					err = h.tryUnsubscribe("player-1", another)
 				}
+
 				calls.Add(1)
+
 				switch {
 				case err == nil:
 					accepted.Add(1)
@@ -155,12 +175,14 @@ func TestEventStream_SubscriptionRPCsRaceReplacement(t *testing.T) {
 	for i := range 40 {
 		stream := h.open(t, "player-1", simple)
 		stream.read()
+
 		if i%3 == 0 {
 			// Close the newest stream too, so the player sometimes has no stream at all.
 			stream.cancel()
 			<-stream.done
 		}
 	}
+
 	close(stop)
 	spammers.Wait()
 
@@ -183,15 +205,18 @@ func TestEventStream_TickSendsWhileStreamsClose(t *testing.T) {
 	h := newStreamHarness(t)
 
 	stop := make(chan struct{})
+
 	stopped := make(chan struct{})
 	go func() {
 		defer close(stopped)
+
 		for {
 			select {
 			case <-stop:
 				return
 			default:
 			}
+
 			_ = h.fixture.svc.publishDefaultEvent(context.Background(), event.Event{
 				Kind: event.KindDefault, Payload: testutils.SimpleEvent{Value: 1}, Recipient: "player-1",
 			})
@@ -205,6 +230,7 @@ func TestEventStream_TickSendsWhileStreamsClose(t *testing.T) {
 		stream.cancel()
 		<-stream.done
 	}
+
 	close(stop)
 	<-stopped
 
@@ -224,9 +250,12 @@ func TestEventStream_StoppedReaderTornDownAfterReplacement(t *testing.T) {
 	subscriber := h.subscriber(t, "player-1")
 	payload := testutils.AnotherEvent{Data: incompressible(64 << 10)}
 	sends := make([]time.Duration, 0, 200)
+
 	for range 200 { // 12.5 MiB: more than the transport buffers, less than the queue bound.
 		start := time.Now()
+
 		h.publish(t, payload, "player-1")
+
 		sends = append(sends, time.Since(start))
 	}
 	// A blocked send lasts until the stream is replaced (seconds, before the writer queue). The
@@ -241,6 +270,7 @@ func TestEventStream_StoppedReaderTornDownAfterReplacement(t *testing.T) {
 
 	replacement := h.open(t, "player-1", "*")
 	replacedAt := time.Now()
+
 	replacement.read()
 
 	exitedAt := h.awaitHandlerExit(t, stalled.id, 5*time.Second)
@@ -264,11 +294,14 @@ func TestEventStream_QueueOverflowEndsStoppedStreamAsLagged(t *testing.T) {
 	other.read()
 
 	const eventBytes = 64 << 10
+
 	payload := testutils.AnotherEvent{Data: incompressible(eventBytes)}
 	start := time.Now()
+
 	for range 200 { // 12.5 MiB: more than the transport buffers, less than the queue bound.
 		h.publish(t, payload, "player-1")
 	}
+
 	require.Eventually(t, func() bool { return queuedBytes(subscriber) > 0 }, 5*time.Second, time.Millisecond,
 		"the stopped reader's writer never fell behind")
 	time.Sleep(300 * time.Millisecond)
@@ -279,6 +312,7 @@ func TestEventStream_QueueOverflowEndsStoppedStreamAsLagged(t *testing.T) {
 	for ; subscriber.ctx.Err() == nil && published < 1024; published++ { // 64 MiB at most.
 		h.publish(t, payload, "player-1")
 	}
+
 	took := time.Since(start)
 	t.Logf("stream ended as lagged after %d more events, %v after the first", published, took)
 
@@ -290,6 +324,7 @@ func TestEventStream_QueueOverflowEndsStoppedStreamAsLagged(t *testing.T) {
 	// A reader that resumes drains what its transport buffered, then sees the stream's end.
 	for stalled.stream.Receive() {
 	}
+
 	requireStoppedReaderEnd(t, stalled.stream.Err())
 
 	h.publish(t, testutils.SimpleEvent{Value: 8}, "")
@@ -311,6 +346,7 @@ func TestEventStream_LargeTickBurstReachesReadingClient(t *testing.T) {
 	// More than the 1024-event bound this queue used to have. Under -race a loaded host writes
 	// about 2 ms per event, so a much larger burst would end by streamLagLimit instead.
 	const burst = 1280
+
 	want := make([]string, burst)
 	for i := range burst {
 		h.fixture.world.events.Enqueue(event.Event{
@@ -318,6 +354,7 @@ func TestEventStream_LargeTickBurstReachesReadingClient(t *testing.T) {
 		})
 		want[i] = "simple_event:" + strconv.Itoa(i)
 	}
+
 	h.fixture.world.dispatchEvents(context.Background())
 
 	require.Equal(t, want, stream.next(t, burst))
@@ -331,6 +368,7 @@ func TestEventStream_OrderPreservedUnderLoad(t *testing.T) {
 
 	both := h.open(t, "player-1", "*")
 	both.read()
+
 	broadcasts := h.open(t, "player-2", "*")
 	broadcasts.read()
 
@@ -338,21 +376,27 @@ func TestEventStream_OrderPreservedUnderLoad(t *testing.T) {
 	const bursts, perBurst = 10, 512
 	for b := range bursts {
 		var wantBoth, wantBroadcasts []string
+
 		for i := range perBurst {
 			value := b*perBurst + i
+
 			recipient := "" // Even values are broadcast, odd values go to player-1 only.
 			if value%2 == 1 {
 				recipient = "player-1"
 			}
+
 			h.publish(t, testutils.SimpleEvent{Value: value}, recipient)
+
 			wantBoth = append(wantBoth, "simple_event:"+strconv.Itoa(value))
 			if recipient == "" {
 				wantBroadcasts = append(wantBroadcasts, "simple_event:"+strconv.Itoa(value))
 			}
 		}
+
 		require.Equal(t, wantBoth, both.next(t, perBurst))
 		require.Equal(t, wantBroadcasts, broadcasts.next(t, perBurst/2))
 	}
+
 	both.requireOpen(t)
 	broadcasts.requireOpen(t)
 }
@@ -371,10 +415,13 @@ func TestEventStream_StoppedReaderDoesNotStallTick(t *testing.T) {
 
 	time.Sleep(500 * time.Millisecond)
 	stopperReader.stop()
+
 	stoppedAt := time.Now()
 
 	exitedAt := h.awaitHandlerExit(t, stopper.id, 2*streamLagLimit)
+
 	time.Sleep(time.Second) // Keep ticking after the stopped stream is gone.
+
 	samples := ticks.stop()
 	arrivals := healthy.times()
 
@@ -396,8 +443,10 @@ func TestEventStream_StoppedReaderDoesNotStallTick(t *testing.T) {
 
 	// A reader that resumes drains what its transport buffered, then sees the stream's end.
 	<-stopperReader.done
+
 	for stopper.stream.Receive() {
 	}
+
 	requireStoppedReaderEnd(t, stopper.stream.Err())
 }
 
@@ -415,6 +464,7 @@ func TestEventStream_OverflowEndsReadingStreamAsLagged(t *testing.T) {
 	for published := 0; subscriber.ctx.Err() == nil && published < 1024; published++ { // 64 MiB at most.
 		h.publish(t, payload, "player-1")
 	}
+
 	require.ErrorIs(t, context.Cause(subscriber.ctx), errStreamLagged)
 
 	select {
@@ -422,6 +472,7 @@ func TestEventStream_OverflowEndsReadingStreamAsLagged(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		require.FailNow(t, "lagged stream did not end")
 	}
+
 	err := stream.stream.Err()
 	assert.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
 	assert.ErrorContains(t, err, "lagged")
@@ -439,6 +490,7 @@ func TestEventStream_StoppedReaderStallMeasurement(t *testing.T) {
 	if os.Getenv("CARDINAL_STREAM_STALL_MEASURE") == "" {
 		t.Skip("set CARDINAL_STREAM_STALL_MEASURE=1 to measure stopped-reader tick stalls")
 	}
+
 	h := newStreamHarness(t)
 
 	const (
@@ -454,18 +506,22 @@ func TestEventStream_StoppedReaderStallMeasurement(t *testing.T) {
 
 	time.Sleep(readingFor)
 	stopperReader.stop()
+
 	stoppedAt := time.Now()
 
 	exitedAt := h.awaitHandlerExit(t, stopper.id, time.Minute)
 	replacement := recordArrivals(h.open(t, "stopper", "*"))
 	replacedAt := time.Now()
+
 	time.Sleep(afterFor)
+
 	samples := ticks.stop()
 	arrivals := healthy.times()
 
 	before := tookBetween(samples, time.Time{}, stoppedAt)
 	stopped := tookBetween(samples, stoppedAt, replacedAt)
 	after := tookBetween(samples, replacedAt, time.Now())
+
 	t.Logf("tick rate %v, %d KiB broadcast per tick, 2 subscribers", testTickRate, payloadBytes>>10)
 	t.Logf("both reading: dispatch p50 %v, max %v; healthy max inter-arrival %v",
 		percentile(before, 50), percentile(before, 100), maxGap(arrivals, time.Time{}, stoppedAt))
@@ -500,6 +556,7 @@ func newStreamHarness(t *testing.T) *streamHarness {
 	h := &streamHarness{fixture: fixture, exits: make(map[string]time.Time)}
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mux.ServeHTTP(w, r)
+
 		if id := r.Header.Get(testStreamIDHeader); id != "" {
 			h.exitsMu.Lock()
 			h.exits[id] = time.Now()
@@ -522,6 +579,7 @@ func newStreamHarness(t *testing.T) *streamHarness {
 
 	h.ctx, h.cancel = context.WithCancel(context.Background())
 	t.Cleanup(h.cancel) // Runs first: ends every client stream before the server closes.
+
 	return h
 }
 
@@ -533,8 +591,10 @@ func (h *streamHarness) subscriptions(events ...string) []*cardinalv1.EventSubsc
 // registering the stream.
 func (h *streamHarness) open(t *testing.T, player string, events ...string) *clientStream {
 	t.Helper()
+
 	stream, err := h.tryOpen(player, events...)
 	require.NoError(t, err)
+
 	return stream
 }
 
@@ -542,6 +602,7 @@ func (h *streamHarness) tryOpen(player string, events ...string) (*clientStream,
 	ctx, cancel := context.WithCancel(h.ctx)
 	req := connect.NewRequest(&cardinalv1.StartEventStreamRequest{Subscriptions: h.subscriptions(events...)})
 	req.Header().Set(devPlayerIDHeader, player)
+
 	id := strconv.FormatInt(h.nextID.Add(1), 10)
 	req.Header().Set(testStreamIDHeader, id)
 
@@ -550,14 +611,17 @@ func (h *streamHarness) tryOpen(player string, events ...string) (*clientStream,
 		cancel()
 		return nil, err
 	}
+
 	if !stream.Receive() {
 		cancel()
 		return nil, errors.Join(errors.New("stream closed before its initial message"), stream.Err())
 	}
+
 	if stream.Msg().GetEvent() != nil {
 		cancel()
 		return nil, errors.New("initial message must be empty")
 	}
+
 	return &clientStream{
 		id:       id,
 		ctx:      ctx,
@@ -579,6 +643,7 @@ func (h *streamHarness) trySubscribe(player string, events ...string) error {
 	req := connect.NewRequest(&cardinalv1.SubscribeEventsRequest{Subscriptions: h.subscriptions(events...)})
 	req.Header().Set(devPlayerIDHeader, player)
 	_, err := h.client.SubscribeEvents(h.ctx, req)
+
 	return err
 }
 
@@ -586,6 +651,7 @@ func (h *streamHarness) tryUnsubscribe(player string, events ...string) error {
 	req := connect.NewRequest(&cardinalv1.UnsubscribeEventsRequest{Subscriptions: h.subscriptions(events...)})
 	req.Header().Set(devPlayerIDHeader, player)
 	_, err := h.client.UnsubscribeEvents(h.ctx, req)
+
 	return err
 }
 
@@ -597,14 +663,20 @@ func (h *streamHarness) subscribe(t *testing.T, player string, events ...string)
 // awaitHandlerExit returns when the server's handler for stream id returned.
 func (h *streamHarness) awaitHandlerExit(t *testing.T, id string, within time.Duration) time.Time {
 	t.Helper()
+
 	var exited time.Time
+
 	require.Eventually(t, func() bool {
 		h.exitsMu.Lock()
 		defer h.exitsMu.Unlock()
+
 		var ok bool
+
 		exited, ok = h.exits[id]
+
 		return ok
 	}, within, time.Millisecond, "handler for stream %s never returned", id)
+
 	return exited
 }
 
@@ -622,12 +694,14 @@ type clientStream struct {
 func (c *clientStream) read() {
 	go func() {
 		defer close(c.done)
+
 		for c.stream.Receive() {
 			select {
 			case c.messages <- c.stream.Msg():
 			case <-c.ctx.Done():
 			}
 		}
+
 		c.err = c.stream.Err()
 	}()
 }
@@ -635,6 +709,7 @@ func (c *clientStream) read() {
 // next returns the next n events, described as "name:value".
 func (c *clientStream) next(t *testing.T, n int) []string {
 	t.Helper()
+
 	var got []string
 	for len(got) < n {
 		select {
@@ -648,11 +723,13 @@ func (c *clientStream) next(t *testing.T, n int) []string {
 			require.FailNow(t, "timed out waiting for events", "got %v", got)
 		}
 	}
+
 	return got
 }
 
 func (c *clientStream) requireOpen(t *testing.T) {
 	t.Helper()
+
 	select {
 	case <-c.done:
 		require.FailNow(t, "stream ended", "%v", c.err)
@@ -662,11 +739,13 @@ func (c *clientStream) requireOpen(t *testing.T) {
 
 func requireSuperseded(t *testing.T, c *clientStream) {
 	t.Helper()
+
 	select {
 	case <-c.done:
 	case <-time.After(5 * time.Second):
 		require.FailNow(t, "superseded stream did not end")
 	}
+
 	require.Error(t, c.err)
 	assert.Equal(t, connect.CodeAborted, connect.CodeOf(c.err))
 	assert.Contains(t, c.err.Error(), "superseded")
@@ -681,12 +760,14 @@ func describe(msg *cardinalv1.StartEventStreamResponse) string {
 		if err != nil {
 			return evt.GetName() + ":" + err.Error()
 		}
+
 		return evt.GetName() + ":" + strconv.Itoa(value.(testutils.SimpleEvent).Value)
 	case testutils.AnotherEvent{}.Name():
 		value, _ := testutils.AnotherEvent{}.UnmarshalWire(evt.GetPayload())
 		if data := value.(testutils.AnotherEvent).Data; len(data) <= 32 {
 			return evt.GetName() + ":" + data
 		}
+
 		return evt.GetName() + ":<" + strconv.Itoa(len(evt.GetPayload())) + " bytes>"
 	default:
 		return evt.GetName() + ":?"
@@ -699,10 +780,12 @@ func describe(msg *cardinalv1.StartEventStreamResponse) string {
 // ended, the status fits in what is left of the window.
 func requireStoppedReaderEnd(t *testing.T, err error) {
 	t.Helper()
+
 	if connect.CodeOf(err) == connect.CodeUnavailable {
 		require.ErrorContains(t, err, "lagged")
 		return
 	}
+
 	require.Equal(t, connect.CodeInternal, connect.CodeOf(err), "%v", err)
 	require.ErrorContains(t, err, "INTERNAL_ERROR")
 }
@@ -711,16 +794,20 @@ func requireStoppedReaderEnd(t *testing.T, err error) {
 func queuedBytes(subscriber *streamSubscriber) int {
 	subscriber.queueMu.Lock()
 	defer subscriber.queueMu.Unlock()
+
 	return subscriber.queuedBytes
 }
 
 // subscriber returns player's registered stream.
 func (h *streamHarness) subscriber(t *testing.T, player string) *streamSubscriber {
 	t.Helper()
+
 	h.fixture.svc.mu.RLock()
 	defer h.fixture.svc.mu.RUnlock()
+
 	subscriber, ok := h.fixture.svc.subscribers[player]
 	require.True(t, ok, "%s has no stream", player)
+
 	return subscriber
 }
 
@@ -743,7 +830,9 @@ type tickRecorder struct {
 func startTicks(t *testing.T, h *streamHarness, payload event.Payload) *tickRecorder {
 	t.Helper()
 	h.fixture.world.events.RegisterHandler(event.KindDefault, h.fixture.svc.publishDefaultEvent)
+
 	r := &tickRecorder{quit: make(chan struct{}), stopped: make(chan struct{})}
+
 	t.Cleanup(func() {
 		select {
 		case <-r.quit:
@@ -751,17 +840,22 @@ func startTicks(t *testing.T, h *streamHarness, payload event.Payload) *tickReco
 			r.stop()
 		}
 	})
+
 	go func() {
 		defer close(r.stopped)
+
 		next := time.Now()
+
 		for {
 			select {
 			case <-r.quit:
 				return
 			case <-time.After(time.Until(next)):
 			}
+
 			next = next.Add(testTickRate)
 			start := time.Now()
+
 			h.fixture.world.events.Enqueue(event.Event{Kind: event.KindDefault, Payload: payload})
 			h.fixture.world.dispatchEvents(context.Background())
 			r.mu.Lock()
@@ -769,6 +863,7 @@ func startTicks(t *testing.T, h *streamHarness, payload event.Payload) *tickReco
 			r.mu.Unlock()
 		}
 	}()
+
 	return r
 }
 
@@ -776,16 +871,19 @@ func startTicks(t *testing.T, h *streamHarness, payload event.Payload) *tickReco
 func (r *tickRecorder) stop() []tickSample {
 	close(r.quit)
 	<-r.stopped
+
 	return r.samples
 }
 
 func tookBetween(samples []tickSample, from, to time.Time) []time.Duration {
 	var took []time.Duration
+
 	for _, s := range samples {
 		if s.start.After(from) && s.start.Before(to) {
 			took = append(took, s.took)
 		}
 	}
+
 	return took
 }
 
@@ -799,9 +897,11 @@ type arrivalRecorder struct {
 
 func recordArrivals(c *clientStream) *arrivalRecorder {
 	r := &arrivalRecorder{done: make(chan struct{})}
+
 	r.reading.Store(true)
 	go func() {
 		defer close(r.done)
+
 		for r.reading.Load() && c.stream.Receive() {
 			if c.stream.Msg().GetEvent() != nil {
 				r.mu.Lock()
@@ -810,6 +910,7 @@ func recordArrivals(c *clientStream) *arrivalRecorder {
 			}
 		}
 	}()
+
 	return r
 }
 
@@ -819,11 +920,13 @@ func (r *arrivalRecorder) stop() { r.reading.Store(false) }
 func (r *arrivalRecorder) times() []time.Time {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
 	return slices.Clone(r.arrivals)
 }
 
 func (r *arrivalRecorder) requireReading(t *testing.T) {
 	t.Helper()
+
 	select {
 	case <-r.done:
 		require.FailNow(t, "stream ended")
@@ -836,24 +939,30 @@ func (r *arrivalRecorder) requireReading(t *testing.T) {
 func incompressible(n int) string {
 	b := make([]byte, n)
 	_, _ = cryptorand.Read(b)
+
 	return string(b)
 }
 
 func maxGap(times []time.Time, from, to time.Time) time.Duration {
 	var gap time.Duration
+
 	prev := from
 	for _, at := range times {
 		if at.Before(from) {
 			continue
 		}
+
 		if at.After(to) {
 			break
 		}
+
 		if !prev.IsZero() && at.Sub(prev) > gap {
 			gap = at.Sub(prev)
 		}
+
 		prev = at
 	}
+
 	return gap
 }
 
@@ -861,7 +970,9 @@ func percentile(durations []time.Duration, p int) time.Duration {
 	if len(durations) == 0 {
 		return 0
 	}
+
 	sorted := slices.Clone(durations)
 	slices.Sort(sorted)
+
 	return sorted[(len(sorted)-1)*p/100]
 }

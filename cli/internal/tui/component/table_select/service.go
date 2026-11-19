@@ -28,6 +28,7 @@ func Run(
 	}
 
 	prog := program.NewTeaProgram(InitialModel(ctx, prompt, columns, rows, defaultIndex))
+
 	m, err := prog.Run()
 	if err != nil {
 		return -1, eris.Wrap(err, "failed to run numeric select UI")
@@ -41,8 +42,10 @@ func Run(
 	if !ok {
 		return -1, eris.New("failed to cast numeric select model")
 	}
+
 	if model.Aborted {
 		return -1, errorspkg.NewSilent(eris.New("selection aborted"))
 	}
+
 	return model.Cursor, nil
 }

@@ -25,6 +25,7 @@ func checkVerboseFlag() bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -37,8 +38,10 @@ func failureMessages(err error) []string {
 		for _, inner := range joined.Unwrap() {
 			msgs = append(msgs, failureMessages(inner)...)
 		}
+
 		return msgs
 	}
+
 	return []string{err.Error()}
 }
 
@@ -53,6 +56,7 @@ func main() {
 	// Deferred first so it runs last, after the Sentry and PostHog flushes below; os.Exit skips whatever
 	// defers remain, so anything that must flush has to be registered after this line, not before.
 	exitCode := 0
+
 	defer func() {
 		// A panic must not be laundered into a clean exit. exitCode is set only where a command RETURNS
 		// an error, so on a panic it is still 0 — and os.Exit runs during unwinding, terminating the
@@ -62,6 +66,7 @@ func main() {
 		if r := recover(); r != nil {
 			panic(r)
 		}
+
 		os.Exit(exitCode)
 	}()
 
@@ -74,10 +79,12 @@ func main() {
 
 	// Sentry initialization
 	telemetry.SentryInit(root.SentryDsn, env, version)
+
 	defer telemetry.SentryFlush()
 
 	// Posthog Initialization
 	telemetry.PosthogInit(root.PosthogAPIKey)
+
 	defer telemetry.PosthogClose()
 
 	// Capture event post installation
@@ -85,6 +92,7 @@ func main() {
 		telemetry.PosthogCaptureEvent(telemetry.PostInstallationEvent, map[string]any{
 			"version": version,
 		})
+
 		return
 	}
 
@@ -118,6 +126,7 @@ func main() {
 
 	realCtx := contextWithSigterm(context.Background())
 	ctx.BindTo(realCtx, (*context.Context)(nil))
+
 	err := ctx.Run()
 	if err != nil {
 		if logger.Verbose() {
@@ -132,6 +141,7 @@ func main() {
 				printer.Errorln(msg)
 			}
 		}
+
 		exitCode = 1
 	}
 	// print log stack

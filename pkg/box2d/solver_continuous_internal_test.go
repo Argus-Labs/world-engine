@@ -18,6 +18,7 @@ func TestSpeedCapSetsFlag(t *testing.T) {
 	def := DefaultWorldDef()
 	def.Gravity = Vec2Zero
 	def.MaximumLinearSpeed = 10.0
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -53,6 +54,7 @@ func TestSpeedCapSetsFlag(t *testing.T) {
 func TestContinuousSetsHadTimeOfImpact(t *testing.T) {
 	def := DefaultWorldDef()
 	def.Gravity = Vec2Zero
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -76,14 +78,17 @@ func TestContinuousSetsHadTimeOfImpact(t *testing.T) {
 	// The TOI happens on the step whose sweep crosses the wall. Watch the
 	// body flags across a few steps.
 	sawTOI := false
+
 	for range 10 {
 		w.Step(1.0/60.0, 4)
+
 		b := w.getBodyFullID(bodyID)
 		if b.flags&hadTimeOfImpact != 0 {
 			sawTOI = true
 			break
 		}
 	}
+
 	tassert.True(t, sawTOI, "fast body sweeping into a wall must record hadTimeOfImpact")
 
 	// The body must have been stopped by the TOI + contact, not tunneled.
@@ -97,11 +102,13 @@ func TestContinuousSetsHadTimeOfImpact(t *testing.T) {
 func TestBulletBodiesFillOrderIsDeterministic(t *testing.T) {
 	def := DefaultWorldDef()
 	def.Gravity = Vec2Zero
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
 	// Several bullets, all fast, no contacts.
 	const count = 8
+
 	ids := make([]BodyID, 0, count)
 	for i := range count {
 		bd := DefaultBodyDef()
@@ -124,10 +131,12 @@ func TestBulletBodiesFillOrderIsDeterministic(t *testing.T) {
 	// i.e. solveContinuous ran and advanced the sweep origin).
 	awake := &w.solverSets[awakeSet]
 	require.Len(t, awake.bodySims, count)
+
 	for i := range awake.bodySims {
 		sim := &awake.bodySims[i]
 		tassert.Equal(t, sim.center, sim.center0, "bullet sim %d must be advanced by the continuous solve", i)
 		tassert.NotZero(t, sim.flags&isBullet)
 	}
+
 	_ = ids
 }

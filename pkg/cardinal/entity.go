@@ -24,6 +24,7 @@ func (e Entity) Get[T ecs.Component]() T {
 	if err != nil {
 		panic(err)
 	}
+
 	return component
 }
 

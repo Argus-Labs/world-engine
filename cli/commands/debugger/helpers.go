@@ -26,6 +26,7 @@ func resolveTargets(dir string, instanceIDs []string) ([]debugTarget, error) {
 		if err != nil {
 			return nil, eris.Wrap(err, "failed to get current directory")
 		}
+
 		dir = wd
 	}
 
@@ -46,6 +47,7 @@ func resolveTargets(dir string, instanceIDs []string) ([]debugTarget, error) {
 			url:        local.ShardAPIURL(cfg.Project, instance.InstanceID),
 		})
 	}
+
 	return targets, nil
 }
 
@@ -65,20 +67,27 @@ func runDebugAction(ctx context.Context, instanceIDs []string, verb string, acti
 			msgs[i], errs[i] = action(ctx, debug.NewClient(target.url), target.instanceID)
 		})
 	}
+
 	wg.Wait()
 
 	failures := 0
+
 	for i, target := range targets {
 		if errs[i] != nil {
 			failures++
+
 			printer.Errorf("Failed to %s instance %q (%s): %v\n",
 				verb, target.instanceID, target.url, errs[i])
+
 			continue
 		}
+
 		printer.Successf("%s\n", msgs[i])
 	}
+
 	if failures > 0 {
 		return eris.Errorf("%d of %d instance(s) failed to %s", failures, len(targets), verb)
 	}
+
 	return nil
 }

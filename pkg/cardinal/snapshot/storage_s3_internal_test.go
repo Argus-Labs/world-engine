@@ -34,11 +34,13 @@ func (f *fakeS3) Do(req *http.Request) (*http.Response, error) {
 				return nil, err
 			}
 		}
+
 		f.puts = append(f.puts, buf.Bytes())
 	case http.MethodGet:
 		resp.Body = io.NopCloser(bytes.NewReader(f.get))
 		resp.ContentLength = int64(len(f.get))
 	}
+
 	return resp, nil
 }
 
@@ -58,6 +60,7 @@ func newFakeS3Storage(t *testing.T) (*S3Storage, *fakeS3) {
 		}),
 		RetryMaxAttempts: 1,
 	})
+
 	return &S3Storage{client: client, bucket: "bucket", key: "org/project/0/snapshot"}, fake
 }
 
@@ -65,6 +68,7 @@ func newFakeS3Storage(t *testing.T) (*S3Storage, *fakeS3) {
 // exactly the slice handed in, and a second Store writes the new bytes.
 func TestS3StorageStoresBytesVerbatim(t *testing.T) {
 	t.Parallel()
+
 	ctx := context.Background()
 
 	store, fake := newFakeS3Storage(t)
@@ -82,6 +86,7 @@ func TestS3StorageStoresBytesVerbatim(t *testing.T) {
 // TestS3StorageLoadsBytesVerbatim: Load returns exactly what the bucket holds.
 func TestS3StorageLoadsBytesVerbatim(t *testing.T) {
 	t.Parallel()
+
 	ctx := context.Background()
 
 	store, fake := newFakeS3Storage(t)

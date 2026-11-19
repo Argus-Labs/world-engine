@@ -38,10 +38,12 @@ type Serializable interface {
 // Serialize encodes a payload as MessagePack. Equal payloads encode to equal bytes, maps included.
 func Serialize(s Serializable) ([]byte, error) {
 	prepare(reflect.TypeOf(s))
+
 	data, err := msgpack.Marshal(s)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to serialize")
 	}
+
 	return data, nil
 }
 
@@ -59,14 +61,18 @@ func Deserialize(data []byte, v any) (err error) {
 	if target.Kind() != reflect.Pointer || target.IsNil() {
 		return eris.New("failed to deserialize: target must be a non-nil pointer")
 	}
+
 	if err := checkNesting(data); err != nil {
 		return eris.Wrap(err, "failed to deserialize")
 	}
+
 	fresh := reflect.New(target.Elem().Type())
 	if err := msgpack.Unmarshal(data, fresh.Interface()); err != nil {
 		return eris.Wrap(err, "failed to deserialize")
 	}
+
 	target.Elem().Set(fresh.Elem())
+
 	return nil
 }
 
@@ -74,6 +80,7 @@ func Deserialize(data []byte, v any) (err error) {
 // its own stack instead of recursing, so the check itself cannot overflow.
 func checkNesting(data []byte) error {
 	d := msgpack.NewDecoder(bytes.NewReader(data))
+
 	left := []int{1} // values still to read in each open array or map, outermost first
 	for len(left) > 0 {
 		top := len(left) - 1
@@ -81,13 +88,16 @@ func checkNesting(data []byte) error {
 			left = left[:top]
 			continue
 		}
+
 		left[top]--
 
 		c, err := d.PeekCode()
 		if err != nil {
 			return err
 		}
+
 		var n int
+
 		switch {
 		case msgpcode.IsFixedArray(c) || c == msgpcode.Array16 || c == msgpcode.Array32:
 			n, err = d.DecodeArrayLen()
@@ -99,16 +109,21 @@ func checkNesting(data []byte) error {
 			if err := d.Skip(); err != nil {
 				return err
 			}
+
 			continue
 		}
+
 		if err != nil {
 			return err
 		}
+
 		if len(left) > maxNestingDepth {
 			return eris.Errorf("nesting exceeds %d levels", maxNestingDepth)
 		}
+
 		left = append(left, n)
 	}
+
 	return nil
 }
 
@@ -130,8 +145,10 @@ func prepare(t reflect.Type) {
 	if _, ok := prepared.Load(t); ok {
 		return
 	}
+
 	preparedMu.Lock()
 	defer preparedMu.Unlock()
+
 	if _, ok := prepared.Load(t); !ok {
 		registerTypes(t, make(map[reflect.Type]bool))
 		prepared.Store(t, struct{}{})
@@ -147,6 +164,7 @@ func registerTypes(t reflect.Type, seen map[reflect.Type]bool) {
 	if t == nil || seen[t] {
 		return
 	}
+
 	seen[t] = true
 	switch t.Kind() { //nolint:exhaustive // Other kinds hold no float32 or map.
 	case reflect.Float32:
@@ -160,6 +178,7 @@ func registerTypes(t reflect.Type, seen map[reflect.Type]bool) {
 		if !EncodesItself(t) && !EncodesItself(reflect.PointerTo(t)) {
 			msgpack.Register(reflect.Zero(t).Interface(), encodeSortedMap, nil)
 		}
+
 		registerTypes(t.Key(), seen)
 		registerTypes(t.Elem(), seen)
 	case reflect.Struct:
@@ -176,32 +195,43 @@ func encodeSortedMap(e *msgpack.Encoder, v reflect.Value) error {
 	if v.IsNil() {
 		return e.EncodeNil()
 	}
+
 	type entry struct {
 		key   msgpack.RawMessage
 		value reflect.Value
 	}
+
 	entries := make([]entry, 0, v.Len())
+
 	var buf bytes.Buffer
+
 	keys := msgpack.NewEncoder(&buf)
 	for iter := v.MapRange(); iter.Next(); {
 		buf.Reset()
+
 		if err := keys.EncodeValue(iter.Key()); err != nil {
 			return err
 		}
+
 		entries = append(entries, entry{key: bytes.Clone(buf.Bytes()), value: iter.Value()})
 	}
+
 	slices.SortFunc(entries, func(a, b entry) int { return bytes.Compare(a.key, b.key) })
+
 	if err := e.EncodeMapLen(len(entries)); err != nil {
 		return err
 	}
+
 	for _, en := range entries {
 		if err := e.Encode(en.key); err != nil {
 			return err
 		}
+
 		if err := e.EncodeValue(en.value); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -230,6 +260,7 @@ func EncoderMethod(t reflect.Type) (string, bool) {
 	case t.Implements(reflect.TypeFor[encoding.TextMarshaler]()):
 		return "MarshalText", true
 	}
+
 	return "", false
 }
 
@@ -248,6 +279,7 @@ func DecoderMethod(t reflect.Type) (string, bool) {
 			return "UnmarshalText", true
 		}
 	}
+
 	return "", false
 }
 
@@ -265,9 +297,12 @@ func decodeFloat32(d *msgpack.Decoder, v reflect.Value) error {
 	if err != nil {
 		return err
 	}
+
 	if math.Abs(f) > math.MaxFloat32 && !math.IsInf(f, 0) {
 		return eris.Errorf("%v overflows float32", f)
 	}
+
 	v.SetFloat(f)
+
 	return nil
 }

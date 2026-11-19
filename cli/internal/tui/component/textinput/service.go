@@ -26,12 +26,15 @@ func Confirm(prompt string, defaultValue string) (bool, error) {
 	if !term.IsTerminal(int(os.Stderr.Fd())) {
 		return false, nil
 	}
+
 	ti := textinput.New()
 	ti.Prompt = ""
+
 	ti.PlaceholderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
 	if defaultValue != "" {
 		ti.Placeholder = defaultValue
 	}
+
 	ti.Width = DefaultWidth
 	ti.SetValue("")
 	ti.Focus()
@@ -49,17 +52,22 @@ func Confirm(prompt string, defaultValue string) (bool, error) {
 	}
 
 	p := program.NewTeaProgram(model{input: ti, header: header, hint: DefaultHint, validator: validator})
+
 	m, err := p.Run()
 	if err != nil {
 		return false, err
 	}
+
 	mm, ok := m.(model)
 	if !ok {
 		return false, eris.New("invalid model")
 	}
+
 	printer.MoveCursorUp(1)
+
 	if mm.aborted {
 		return false, errorspkg.NewSilent(eris.New("input canceled"))
 	}
+
 	return mm.finalValue == "y", nil
 }

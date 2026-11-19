@@ -35,6 +35,7 @@ func Contacts() harness.Scenario {
 		ballGroup  int32
 		floorGroup int32
 	}
+
 	s.ballCat, s.floorCat = 0x100, 0x200
 	s.ballGroup, s.floorGroup = 3, -2
 
@@ -87,6 +88,7 @@ func Contacts() harness.Scenario {
 				if !c.IntAtLeast("landing raises ContactBegin", len(begins), 1) {
 					return
 				}
+
 				e := begins[0]
 
 				ballIdx, ballOK := e.ShapeIndexFor(s.ball)
@@ -113,6 +115,7 @@ func Contacts() harness.Scenario {
 					c.True("event reports the ball's group index",
 						bf.GroupIndex == s.ballGroup, "got %d, want %d", bf.GroupIndex, s.ballGroup)
 				}
+
 				if ff, ok := e.FilterFor(s.floor); ok {
 					c.True("event reports the floor's category bits",
 						ff.CategoryBits == s.floorCat, "got %#x, want %#x", ff.CategoryBits, s.floorCat)

@@ -385,6 +385,7 @@ func islandFindParent(parents []int, node int) int {
 // (upstream b2IslandUnion).
 func islandUnion(parents, ranks []int, node1, node2 int, contactCounts, jointCounts []int) {
 	root1 := islandFindParent(parents, node1)
+
 	root2 := islandFindParent(parents, node2)
 	if root1 != root2 {
 		switch {
@@ -438,6 +439,7 @@ func (w *World) splitIsland(baseID int) {
 	parents := alloc.allocInts(&alloc.splitParents, baseBodyCount)
 	contactCounts := alloc.allocInts(&alloc.splitContactCounts, baseBodyCount)
 	jointCounts := alloc.allocInts(&alloc.splitJointCounts, baseBodyCount)
+
 	ranks := alloc.allocInts(&alloc.splitRanks, baseBodyCount)
 	for i := range baseBodyCount {
 		parents[i] = i
@@ -467,6 +469,7 @@ func (w *World) splitIsland(baseID int) {
 			if islandIndexA != NullIndex {
 				islandIndex = islandIndexA
 			}
+
 			root := islandFindParent(parents, islandIndex)
 			contactCounts[root]++
 		}
@@ -491,6 +494,7 @@ func (w *World) splitIsland(baseID int) {
 			if islandIndexA != NullIndex {
 				islandIndex = islandIndexA
 			}
+
 			root := islandFindParent(parents, islandIndex)
 			jointCounts[root]++
 		}
@@ -501,6 +505,7 @@ func (w *World) splitIsland(baseID int) {
 
 	// Flatten all parent indices and count connected components.
 	componentCount := 0
+
 	for i := range baseBodyCount {
 		parents[i] = islandFindParent(parents, i)
 		if parents[i] == i {
@@ -511,9 +516,11 @@ func (w *World) splitIsland(baseID int) {
 	// Early return — island is still fully connected, no split needed.
 	if componentCount == 1 {
 		baseIsland.constraintRemoveCount = 0
+
 		alloc.freeInts(&alloc.splitJointCounts)
 		alloc.freeInts(&alloc.splitContactCounts)
 		alloc.freeInts(&alloc.splitParents)
+
 		return
 	}
 
@@ -593,6 +600,7 @@ func (w *World) splitIsland(baseID int) {
 		// Static bodies don't have an island id.
 		bodyA := &w.bodies[link.bodyIDA]
 		bodyB := &w.bodies[link.bodyIDB]
+
 		targetIslandID := bodyB.islandID
 		if bodyA.islandID != NullIndex {
 			targetIslandID = bodyA.islandID
@@ -613,6 +621,7 @@ func (w *World) splitIsland(baseID int) {
 		// Static bodies don't have an island id.
 		bodyA := &w.bodies[link.bodyIDA]
 		bodyB := &w.bodies[link.bodyIDB]
+
 		targetIslandID := bodyB.islandID
 		if bodyA.islandID != NullIndex {
 			targetIslandID = bodyA.islandID

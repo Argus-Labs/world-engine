@@ -31,6 +31,7 @@ func ValidateVersion(version uint32) error {
 	if version == CurrentVersion {
 		return nil
 	}
+
 	return eris.Wrapf(ErrUnsupportedVersion, "expected version %d, got %d", CurrentVersion, version)
 }
 
@@ -65,6 +66,7 @@ func Encode(tick uint64, timestamp time.Time, state *cardinalv1.WorldState) ([]b
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to encode snapshot")
 	}
+
 	return data, nil
 }
 
@@ -77,12 +79,15 @@ func Decode(data []byte) (*cardinalv1.Snapshot, error) {
 	if err := proto.Unmarshal(data, snapshot); err != nil {
 		return nil, eris.Wrap(err, "failed to unmarshal snapshot")
 	}
+
 	if err := ValidateVersion(snapshot.GetVersion()); err != nil {
 		return nil, err
 	}
+
 	if err := protovalidate.Validate(snapshot); err != nil {
 		return nil, eris.Wrap(err, "failed to validate snapshot")
 	}
+
 	return snapshot, nil
 }
 

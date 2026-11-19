@@ -94,6 +94,7 @@ func colliderShapeDeepEqual(a, b component.ColliderShape) bool {
 		a.GroupIndex != b.GroupIndex {
 		return false
 	}
+
 	return polygonVerticesEqual(a, b) &&
 		immutable.Equal(a.ChainPoints, b.ChainPoints) &&
 		a.EdgeVertices == b.EdgeVertices
@@ -108,11 +109,13 @@ func polygonVerticesEqual(a, b component.ColliderShape) bool {
 	if a.VertexCount != b.VertexCount {
 		return false
 	}
+
 	for i := range min(a.VertexCount, component.MaxPolygonVertices) {
 		if !vec2Equal(a.Vertices[i], b.Vertices[i]) {
 			return false
 		}
 	}
+
 	return true
 }
 

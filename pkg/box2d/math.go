@@ -68,6 +68,7 @@ func minInt(a, b int) int {
 	if a < b {
 		return a
 	}
+
 	return b
 }
 
@@ -76,6 +77,7 @@ func maxInt(a, b int) int {
 	if a > b {
 		return a
 	}
+
 	return b
 }
 
@@ -86,6 +88,7 @@ func absInt(a int) int {
 	if a < 0 {
 		return -a
 	}
+
 	return a
 }
 
@@ -96,9 +99,11 @@ func clampInt(a, lower, upper int) int {
 	if a < lower {
 		return lower
 	}
+
 	if a > upper {
 		return upper
 	}
+
 	return a
 }
 
@@ -117,6 +122,7 @@ func minFloat(a, b float64) float64 {
 	if a < b {
 		return a
 	}
+
 	return b
 }
 
@@ -125,6 +131,7 @@ func maxFloat(a, b float64) float64 {
 	if a > b {
 		return a
 	}
+
 	return b
 }
 
@@ -133,6 +140,7 @@ func absFloat(a float64) float64 {
 	if a < 0 {
 		return -a
 	}
+
 	return a
 }
 
@@ -141,9 +149,11 @@ func clampFloat(a, lower, upper float64) float64 {
 	if a < lower {
 		return lower
 	}
+
 	if a > upper {
 		return upper
 	}
+
 	return a
 }
 
@@ -247,6 +257,7 @@ func Length(v Vec2) float64 {
 func Distance(a, b Vec2) float64 {
 	dx := subF(b.X, a.X)
 	dy := subF(b.Y, a.Y)
+
 	return math.Sqrt(dot2(dx, dx, dy, dy))
 }
 
@@ -259,6 +270,7 @@ func Normalize(v Vec2) Vec2 {
 	}
 
 	invLength := 1.0 / length
+
 	return Vec2{invLength * v.X, invLength * v.Y}
 }
 
@@ -277,16 +289,19 @@ func GetLengthAndNormalize(v Vec2) (Vec2, float64) {
 	}
 
 	invLength := 1.0 / length
+
 	return Vec2{invLength * v.X, invLength * v.Y}, length
 }
 
 // NormalizeRot normalizes a rotation.
 func NormalizeRot(q Rot) Rot {
 	mag := math.Sqrt(dot2(q.S, q.S, q.C, q.C))
+
 	invMag := 0.0
 	if mag > 0.0 {
 		invMag = 1.0 / mag
 	}
+
 	return Rot{q.C * invMag, q.S * invMag}
 }
 
@@ -299,10 +314,12 @@ func IntegrateRotation(q1 Rot, deltaAngle float64) Rot {
 	// s2 = s1 + omega * h * c1
 	q2 := Rot{q1.C - float64(deltaAngle*q1.S), mulAdd(deltaAngle, q1.C, q1.S)}
 	mag := math.Sqrt(dot2(q2.S, q2.S, q2.C, q2.C))
+
 	invMag := 0.0
 	if mag > 0.0 {
 		invMag = 1.0 / mag
 	}
+
 	return Rot{q2.C * invMag, q2.S * invMag}
 }
 
@@ -315,6 +332,7 @@ func LengthSquared(v Vec2) float64 {
 func DistanceSquared(a, b Vec2) float64 {
 	cx := subF(b.X, a.X)
 	cy := subF(b.Y, a.Y)
+
 	return dot2(cx, cx, cy, cy)
 }
 
@@ -351,10 +369,12 @@ func NLerp(q1, q2 Rot, t float64) Rot {
 	}
 
 	mag := math.Sqrt(dot2(q.S, q.S, q.C, q.C))
+
 	invMag := 0.0
 	if mag > 0.0 {
 		invMag = 1.0 / mag
 	}
+
 	return Rot{q.C * invMag, q.S * invMag}
 }
 
@@ -407,6 +427,7 @@ func RelativeAngle(a, b Rot) float64 {
 	// cos(b - a) = bc * ac + bs * as
 	s := cross2(a.C, b.S, a.S, b.C)
 	c := dot2(a.C, b.C, a.S, b.S)
+
 	return Atan2(s, c)
 }
 
@@ -430,6 +451,7 @@ func InvRotateVector(q Rot, v Vec2) Vec2 {
 func TransformPoint(t Transform, p Vec2) Vec2 {
 	x := cross2(t.Q.C, p.X, t.Q.S, p.Y) + t.P.X
 	y := dot2(t.Q.S, p.X, t.Q.C, p.Y) + t.P.Y
+
 	return Vec2{x, y}
 }
 
@@ -437,6 +459,7 @@ func TransformPoint(t Transform, p Vec2) Vec2 {
 func InvTransformPoint(t Transform, p Vec2) Vec2 {
 	vx := p.X - t.P.X
 	vy := p.Y - t.P.Y
+
 	return Vec2{dot2(t.Q.C, vx, t.Q.S, vy), cross2(t.Q.C, vy, t.Q.S, vx)}
 }
 
@@ -476,6 +499,7 @@ func MulMV(a Mat22, v Vec2) Vec2 {
 // GetInverse22 returns the inverse of a 2-by-2 matrix.
 func GetInverse22(m Mat22) Mat22 {
 	a, b, c, d := m.CX.X, m.CY.X, m.CX.Y, m.CY.Y
+
 	det := cross2(a, d, b, c)
 	if det != 0.0 {
 		det = 1.0 / det
@@ -491,10 +515,12 @@ func GetInverse22(m Mat22) Mat22 {
 // efficient than computing the inverse in one-shot cases.
 func Solve22(m Mat22, b Vec2) Vec2 {
 	a11, a12, a21, a22 := m.CX.X, m.CY.X, m.CX.Y, m.CY.Y
+
 	det := cross2(a11, a22, a12, a21)
 	if det != 0.0 {
 		det = 1.0 / det
 	}
+
 	return Vec2{
 		det * cross2(a22, b.X, a12, b.Y),
 		det * cross2(a11, b.Y, a21, b.X),
@@ -508,6 +534,7 @@ func AABBContains(a, b AABB) bool {
 	s = s && a.LowerBound.Y <= b.LowerBound.Y
 	s = s && b.UpperBound.X <= a.UpperBound.X
 	s = s && b.UpperBound.Y <= a.UpperBound.Y
+
 	return s
 }
 
@@ -524,10 +551,12 @@ func AABBExtents(a AABB) Vec2 {
 // AABBUnion returns the union of two AABBs.
 func AABBUnion(a, b AABB) AABB {
 	var c AABB
+
 	c.LowerBound.X = minFloat(a.LowerBound.X, b.LowerBound.X)
 	c.LowerBound.Y = minFloat(a.LowerBound.Y, b.LowerBound.Y)
 	c.UpperBound.X = maxFloat(a.UpperBound.X, b.UpperBound.X)
 	c.UpperBound.Y = maxFloat(a.UpperBound.Y, b.UpperBound.Y)
+
 	return c
 }
 
@@ -540,6 +569,7 @@ func AABBOverlaps(a, b AABB) bool {
 // MakeAABB computes the bounding box of an array of points inflated by radius.
 func MakeAABB(points []Vec2, radius float64) AABB {
 	assert(len(points) > 0)
+
 	a := AABB{points[0], points[0]}
 	for i := 1; i < len(points); i++ {
 		a.LowerBound = Min(a.LowerBound, points[i])
@@ -549,6 +579,7 @@ func MakeAABB(points []Vec2, radius float64) AABB {
 	r := Vec2{radius, radius}
 	a.LowerBound = Sub(a.LowerBound, r)
 	a.UpperBound = Add(a.UpperBound, r)
+
 	return a
 }
 
@@ -566,5 +597,6 @@ func SpringDamper(hertz, dampingRatio, position, velocity, timeStep float64) flo
 	omegaH := omega * timeStep
 	num := velocity - float64(float64(omega*omegaH)*position)
 	den := 1.0 + float64(float64(2.0*dampingRatio)*omegaH) + float64(omegaH*omegaH)
+
 	return num / den
 }

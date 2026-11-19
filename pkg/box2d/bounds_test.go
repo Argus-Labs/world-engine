@@ -43,6 +43,7 @@ const (
 func badPolygon(count int) box2d.Polygon {
 	polygon := box2d.MakeBox(0.5, 0.5)
 	polygon.Count = count
+
 	return polygon
 }
 
@@ -75,6 +76,7 @@ func TestComputePolygonMassRejectsInvalidCount(t *testing.T) {
 			t.Parallel()
 
 			polygon := badPolygon(tc.count)
+
 			requirePanicMessage(t, wantPolygonCountPanic, "Polygon.Count", func() {
 				box2d.ComputePolygonMass(&polygon, 1.0)
 			})
@@ -121,7 +123,9 @@ func TestCollideChainSegmentAndPolygonRejectsInvalidCount(t *testing.T) {
 
 			segment := testChainSegment()
 			polygon := badPolygon(tc.count)
+
 			var cache box2d.SimplexCache
+
 			requirePanicMessage(t, wantPolygonCountPanic, "Polygon.Count", func() {
 				box2d.CollideChainSegmentAndPolygon(&segment, box2d.TransformIdentity,
 					&polygon, box2d.TransformIdentity, &cache)
@@ -138,7 +142,9 @@ func TestCollideChainSegmentAndPolygonAcceptsValidPolygon(t *testing.T) {
 	// A box resting on the colliding side of the chain segment still produces
 	// the two-point manifold it produced before the precondition was added.
 	box := box2d.MakeOffsetBox(0.5, 0.5, box2d.Vec2{X: 0.0, Y: -0.4}, box2d.MakeRot(0.0))
+
 	var cache box2d.SimplexCache
+
 	manifold := box2d.CollideChainSegmentAndPolygon(&segment, box2d.TransformIdentity,
 		&box, box2d.TransformIdentity, &cache)
 	require.Equal(t, 2, manifold.PointCount)
@@ -150,7 +156,9 @@ func TestCollideChainSegmentAndPolygonAcceptsValidPolygon(t *testing.T) {
 		Center2: box2d.Vec2{X: 0.25, Y: -0.4},
 		Radius:  0.25,
 	}
+
 	var capsuleCache box2d.SimplexCache
+
 	require.NotPanics(t, func() {
 		box2d.CollideChainSegmentAndCapsule(&segment, box2d.TransformIdentity,
 			&capsule, box2d.TransformIdentity, &capsuleCache)
@@ -174,6 +182,7 @@ func TestShapeDistanceRejectsInvalidCacheCount(t *testing.T) {
 
 			input := shapeDistanceInput()
 			cache := box2d.SimplexCache{Count: tc.count}
+
 			requirePanicMessage(t, wantSimplexCacheCountPanic, "SimplexCache.Count", func() {
 				box2d.ShapeDistance(&input, &cache, nil)
 			})
@@ -186,13 +195,16 @@ func TestShapeDistanceAcceptsValidCacheCount(t *testing.T) {
 
 	// A zero cache is the documented first-call value and must keep working.
 	input := shapeDistanceInput()
+
 	var cache box2d.SimplexCache
+
 	output := box2d.ShapeDistance(&input, &cache, nil)
 	require.InDelta(t, 1.0, output.Distance, 1e-9)
 
 	// So must a cache warm started by the previous call, and every count a GJK
 	// simplex can legally report.
 	require.LessOrEqual(t, cache.Count, uint16(3))
+
 	warmInput := shapeDistanceInput()
 	warmOutput := box2d.ShapeDistance(&warmInput, &cache, nil)
 	require.InDelta(t, output.Distance, warmOutput.Distance, 0.0)
@@ -212,11 +224,13 @@ func shapeDistanceInput() box2d.DistanceInput {
 	boxB := box2d.MakeBox(0.5, 0.5)
 
 	var input box2d.DistanceInput
+
 	input.ProxyA = box2d.MakeProxy(boxA.Vertices[:], boxA.Count, 0.0)
 	input.ProxyB = box2d.MakeProxy(boxB.Vertices[:], boxB.Count, 0.0)
 	input.TransformA = box2d.TransformIdentity
 	input.TransformB = box2d.Transform{P: box2d.Vec2{X: 2.0, Y: 0.0}, Q: box2d.MakeRot(0.0)}
 	input.UseRadii = false
+
 	return input
 }
 
@@ -245,6 +259,7 @@ func TestCreatePolygonShapeRejectsInvalidCount(t *testing.T) {
 
 			sd := box2d.DefaultShapeDef()
 			polygon := badPolygon(tc.count)
+
 			requirePanicMessage(t, wantPolygonShapeCountPanic, "Polygon.Count", func() {
 				w.CreatePolygonShape(bodyID, &sd, &polygon)
 			})
@@ -265,6 +280,7 @@ func TestSetShapePolygonRejectsInvalidCount(t *testing.T) {
 	shapeID := w.CreatePolygonShape(bodyID, &sd, &box)
 
 	polygon := badPolygon(box2d.MaxPolygonVertices + 1)
+
 	requirePanicMessage(t, wantPolygonShapeCountPanic, "Polygon.Count", func() {
 		w.SetShapePolygon(shapeID, &polygon)
 	})
@@ -301,6 +317,7 @@ func TestPolygonShapeCreationAcceptsValidPolygons(t *testing.T) {
 		rot := box2d.MakeRot(angle)
 		octagonPoints = append(octagonPoints, box2d.Vec2{X: rot.C, Y: rot.S})
 	}
+
 	octagonHull := box2d.ComputeHull(octagonPoints)
 	octagon := box2d.MakePolygon(&octagonHull, 0.0)
 	require.Equal(t, box2d.MaxPolygonVertices, octagon.Count)
@@ -337,6 +354,7 @@ func TestProxyCountIsValidated(t *testing.T) {
 
 	t.Run("ShapeDistance oversized", func(t *testing.T) {
 		t.Parallel()
+
 		in := box2d.DistanceInput{
 			ProxyA:     validProxy(0),
 			ProxyB:     validProxy(5),
@@ -345,7 +363,9 @@ func TestProxyCountIsValidated(t *testing.T) {
 			UseRadii:   false,
 		}
 		in.ProxyA.Count = box2d.MaxPolygonVertices + 1
+
 		var cache box2d.SimplexCache
+
 		requirePanicMessage(t, wantA, "MakeProxy", func() {
 			box2d.ShapeDistance(&in, &cache, nil)
 		})
@@ -353,6 +373,7 @@ func TestProxyCountIsValidated(t *testing.T) {
 
 	t.Run("ShapeDistance zero", func(t *testing.T) {
 		t.Parallel()
+
 		in := box2d.DistanceInput{
 			ProxyA:     validProxy(0),
 			ProxyB:     validProxy(5),
@@ -360,7 +381,9 @@ func TestProxyCountIsValidated(t *testing.T) {
 			TransformB: box2d.TransformIdentity,
 		}
 		in.ProxyA.Count = 0
+
 		var cache box2d.SimplexCache
+
 		requirePanicMessage(t, wantA, "MakeProxy", func() {
 			box2d.ShapeDistance(&in, &cache, nil)
 		})
@@ -368,6 +391,7 @@ func TestProxyCountIsValidated(t *testing.T) {
 
 	t.Run("ShapeCast oversized", func(t *testing.T) {
 		t.Parallel()
+
 		in := box2d.ShapeCastPairInput{
 			ProxyA:       validProxy(0),
 			ProxyB:       validProxy(5),
@@ -377,6 +401,7 @@ func TestProxyCountIsValidated(t *testing.T) {
 			MaxFraction:  1,
 		}
 		in.ProxyB.Count = 99
+
 		requirePanicMessage(t,
 			"box2d: ShapeCastPairInput.ProxyB.Count is invalid: "+
 				"must be between 1 and MaxPolygonVertices; build proxies with MakeProxy",
@@ -385,6 +410,7 @@ func TestProxyCountIsValidated(t *testing.T) {
 
 	t.Run("TimeOfImpact oversized", func(t *testing.T) {
 		t.Parallel()
+
 		in := box2d.TOIInput{
 			ProxyA:      validProxy(0),
 			ProxyB:      validProxy(5),
@@ -393,6 +419,7 @@ func TestProxyCountIsValidated(t *testing.T) {
 			MaxFraction: 1,
 		}
 		in.ProxyA.Count = box2d.MaxPolygonVertices + 3
+
 		requirePanicMessage(t,
 			"box2d: TOIInput.ProxyA.Count is invalid: "+
 				"must be between 1 and MaxPolygonVertices; build proxies with MakeProxy",
@@ -418,8 +445,10 @@ func TestSimplexCacheIndicesAreValidated(t *testing.T) {
 
 	t.Run("IndexA past ProxyA", func(t *testing.T) {
 		t.Parallel()
+
 		in := newInput()
 		cache := box2d.SimplexCache{Count: 1, IndexA: [3]uint8{7}, IndexB: [3]uint8{0}}
+
 		requirePanicMessage(t,
 			"box2d: SimplexCache.IndexA is invalid: must index a point of ProxyA; "+
 				"pass the cache from the previous call on the same shapes",
@@ -428,8 +457,10 @@ func TestSimplexCacheIndicesAreValidated(t *testing.T) {
 
 	t.Run("IndexB past ProxyB", func(t *testing.T) {
 		t.Parallel()
+
 		in := newInput()
 		cache := box2d.SimplexCache{Count: 1, IndexA: [3]uint8{0}, IndexB: [3]uint8{5}}
+
 		requirePanicMessage(t,
 			"box2d: SimplexCache.IndexB is invalid: must index a point of ProxyB; "+
 				"pass the cache from the previous call on the same shapes",
@@ -438,8 +469,11 @@ func TestSimplexCacheIndicesAreValidated(t *testing.T) {
 
 	t.Run("warm start round trip still works", func(t *testing.T) {
 		t.Parallel()
+
 		in := newInput()
+
 		var cache box2d.SimplexCache
+
 		first := box2d.ShapeDistance(&in, &cache, nil)
 		require.InDelta(t, 4.0, first.Distance, 1e-12)
 

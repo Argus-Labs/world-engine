@@ -10,7 +10,9 @@ type DoctorCmd struct{}
 
 func (c *DoctorCmd) Run() error {
 	telemetry.PosthogCaptureEvent("doctor-command", nil)
+
 	p := program.NewTeaProgram(tui.NewWorldDoctorModel())
 	_, err := p.Run()
+
 	return err
 }

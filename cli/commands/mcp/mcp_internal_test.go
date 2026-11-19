@@ -31,6 +31,7 @@ import (
 
 func TestBuildMCPServer_RegistersAllTools(t *testing.T) {
 	t.Parallel()
+
 	srv := NewServer()
 	require.NotNil(t, srv)
 }
@@ -40,6 +41,7 @@ func TestBuildMCPServer_RegistersAllTools(t *testing.T) {
 // callers that don't target a specific pod.
 func TestResolveInstanceName_EmptyDefaultsToShardID(t *testing.T) {
 	t.Parallel()
+
 	got, err := resolveInstanceName(context.Background(), "", "game", "")
 	require.NoError(t, err)
 	assert.Equal(t, "game", got)
@@ -47,6 +49,7 @@ func TestResolveInstanceName_EmptyDefaultsToShardID(t *testing.T) {
 
 func TestPingHandler(t *testing.T) {
 	t.Parallel()
+
 	result, err := pingHandler(context.Background(), mcp.CallToolRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -63,6 +66,7 @@ func TestPingHandler(t *testing.T) {
 
 func TestSendCommandInput_Validate_Valid(t *testing.T) {
 	t.Parallel()
+
 	input := SendCommandInput{
 		ShardID:     "game",
 		CommandName: "create-player",
@@ -79,6 +83,7 @@ func TestSendCommandInput_Validate_Valid(t *testing.T) {
 
 func TestSendCommandInput_Validate_MissingShardID(t *testing.T) {
 	t.Parallel()
+
 	input := SendCommandInput{CommandName: "create-player"}
 
 	err := input.validate()
@@ -88,6 +93,7 @@ func TestSendCommandInput_Validate_MissingShardID(t *testing.T) {
 
 func TestSendCommandInput_Validate_MissingCommandName(t *testing.T) {
 	t.Parallel()
+
 	input := SendCommandInput{ShardID: "game"}
 
 	err := input.validate()
@@ -97,6 +103,7 @@ func TestSendCommandInput_Validate_MissingCommandName(t *testing.T) {
 
 func TestSendCommandInput_Validate_NilPayload(t *testing.T) {
 	t.Parallel()
+
 	input := SendCommandInput{
 		ShardID:     "game",
 		CommandName: "create-player",
@@ -110,6 +117,7 @@ func TestSendCommandInput_Validate_NilPayload(t *testing.T) {
 
 func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
 	t.Parallel()
+
 	input := SendCommandInput{
 		ShardID:     "game",
 		CommandName: "create-player",
@@ -130,6 +138,7 @@ func TestSendCommandInput_Validate_CustomDefaults(t *testing.T) {
 
 func TestEnsureDeadline_AppliesFallbackWhenNoDeadline(t *testing.T) {
 	t.Parallel()
+
 	fallback := 5 * time.Second
 
 	newCtx, cancel := ensureDeadline(context.Background(), fallback)
@@ -142,6 +151,7 @@ func TestEnsureDeadline_AppliesFallbackWhenNoDeadline(t *testing.T) {
 
 func TestEnsureDeadline_PreservesExistingDeadline(t *testing.T) {
 	t.Parallel()
+
 	ctx, existingCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer existingCancel()
 
@@ -157,6 +167,7 @@ func TestEnsureDeadline_PreservesExistingDeadline(t *testing.T) {
 
 func TestEnsureDeadline_ReturnedCancelIsNoOpWhenDeadlineExists(t *testing.T) {
 	t.Parallel()
+
 	ctx, existingCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer existingCancel()
 
@@ -184,6 +195,7 @@ func TestClampTail(t *testing.T) {
 
 func TestToShardPools(t *testing.T) {
 	t.Parallel()
+
 	status := []worldstatus.PoolStatus{{
 		ShardID:  "gameplay",
 		PoolSize: 2,
@@ -215,6 +227,7 @@ func TestToShardPools(t *testing.T) {
 
 func TestShardContainers(t *testing.T) {
 	t.Parallel()
+
 	status := []worldstatus.PoolStatus{
 		{ShardID: "gameplay", Instances: []worldstatus.InstanceStatus{
 			{Name: "gameplay", Runtime: "pod-a"},
@@ -233,6 +246,7 @@ func TestShardContainers(t *testing.T) {
 
 func TestShardContainers_InstanceVariants(t *testing.T) {
 	t.Parallel()
+
 	status := []worldstatus.PoolStatus{{
 		ShardID: "game",
 		Instances: []worldstatus.InstanceStatus{
@@ -260,6 +274,7 @@ func TestShardContainers_InstanceVariants(t *testing.T) {
 // pod for the requested shard rather than silently routing to the wrong one.
 func TestShardContainers_ScopedToShardPool(t *testing.T) {
 	t.Parallel()
+
 	status := []worldstatus.PoolStatus{
 		{ShardID: "game", Instances: []worldstatus.InstanceStatus{
 			{Name: "game", Runtime: "pod-game"},
@@ -289,6 +304,7 @@ func TestShardContainers_ScopedToShardPool(t *testing.T) {
 // against a world the developer happens to have running.
 func TestResolveInstanceName_UnknownReturnsError(t *testing.T) {
 	t.Setenv("DOCKER_HOST", "unix://"+filepath.Join(t.TempDir(), "nonexistent.sock"))
+
 	_, err := resolveInstanceName(context.Background(), "demo", "game", "lobby")
 	assert.Error(t, err)
 }
@@ -300,8 +316,10 @@ func TestResolveInstanceName_UnknownReturnsError(t *testing.T) {
 // noFilter is the filter produced by a get_state call with no find/match/where.
 func noFilter(t *testing.T) stateFilter {
 	t.Helper()
+
 	f, err := compileStateFilter(GetStateInput{})
 	require.NoError(t, err)
+
 	return f
 }
 
@@ -309,6 +327,7 @@ func noFilter(t *testing.T) stateFilter {
 // fixtures use, standing in for what a shard advertises through introspect.
 func stateDescriptors(t *testing.T) componentDescriptors {
 	t.Helper()
+
 	return componentDescriptors{
 		"Health":   testObjectSchema("HP", map[string]any{"type": "integer"}),
 		"Position": testObjectSchema("X", map[string]any{"type": "integer"}),
@@ -318,16 +337,20 @@ func stateDescriptors(t *testing.T) componentDescriptors {
 // componentBlob encodes a component value as the MessagePack bytes a snapshot payload stores.
 func componentBlob(t *testing.T, descriptors componentDescriptors, name string, value int) []byte {
 	t.Helper()
+
 	field := map[string]string{"Health": "HP", "Position": "X"}[name]
 	blob, err := encodeCommandPayload(descriptors[name], fmt.Sprintf("{%q: %d}", field, value))
 	require.NoError(t, err)
+
 	return blob
 }
 
 // sampleWorld has Health+Position entities (7, 9) and a Health-only entity (11).
 func sampleWorld(t *testing.T, descriptors componentDescriptors) *cardinalv1.WorldState {
 	t.Helper()
+
 	blob := func(name string, value int) []byte { return componentBlob(t, descriptors, name, value) }
+
 	return &cardinalv1.WorldState{
 		NextId:     12,
 		Components: []string{"Health", "Position"},
@@ -508,6 +531,7 @@ func TestFlattenWorldState_WhereNonBooleanIsAnError(t *testing.T) {
 
 func TestCompileStateFilter_RejectsUnknownMatch(t *testing.T) {
 	t.Parallel()
+
 	_, err := compileStateFilter(GetStateInput{Find: []string{"Health"}, Match: "startswith"})
 
 	require.Error(t, err)
@@ -516,6 +540,7 @@ func TestCompileStateFilter_RejectsUnknownMatch(t *testing.T) {
 
 func TestCompileStateFilter_DefaultsMatchToContains(t *testing.T) {
 	t.Parallel()
+
 	f, err := compileStateFilter(GetStateInput{Find: []string{"Health"}})
 
 	require.NoError(t, err)
@@ -524,6 +549,7 @@ func TestCompileStateFilter_DefaultsMatchToContains(t *testing.T) {
 
 func TestCompileStateFilter_RejectsUnparsableWhere(t *testing.T) {
 	t.Parallel()
+
 	_, err := compileStateFilter(GetStateInput{Where: "Health.HP >"})
 
 	require.Error(t, err)
@@ -532,6 +558,7 @@ func TestCompileStateFilter_RejectsUnparsableWhere(t *testing.T) {
 
 func TestFlattenWorldState_RejectsComponentIndexOutsideNameTable(t *testing.T) {
 	t.Parallel()
+
 	ws := &cardinalv1.WorldState{
 		Components: []string{"Health"},
 		Entities:   []*cardinalv1.Entity{{Id: 1, Components: []uint32{1}, Payloads: [][]byte{nil}}},
@@ -599,6 +626,7 @@ func TestFlattenWorldState_WhereWithLimitStillCountsEveryMatch(t *testing.T) {
 
 func TestDebugControlHandler_MissingShardID(t *testing.T) {
 	t.Parallel()
+
 	_, err := debugControlHandler(context.Background(), mcp.CallToolRequest{}, DebugControlInput{
 		Operation: debugOpPause,
 	})
@@ -608,6 +636,7 @@ func TestDebugControlHandler_MissingShardID(t *testing.T) {
 
 func TestDebugControlHandler_InvalidOperation(t *testing.T) {
 	t.Parallel()
+
 	_, err := debugControlHandler(context.Background(), mcp.CallToolRequest{}, DebugControlInput{
 		ShardID:   "game",
 		Operation: "halt",
@@ -620,6 +649,7 @@ func TestDebugControlHandler_InvalidOperation(t *testing.T) {
 // other invalid values.
 func TestDebugControlHandler_EmptyOperation(t *testing.T) {
 	t.Parallel()
+
 	_, err := debugControlHandler(context.Background(), mcp.CallToolRequest{}, DebugControlInput{
 		ShardID: "game",
 	})
@@ -643,6 +673,7 @@ func TestDebugStatusMessage(t *testing.T) {
 // can never tear a world down without a source tree to rebuild from.
 func TestReloadHandler_EmptyWorldPath(t *testing.T) {
 	t.Parallel()
+
 	_, err := reloadHandler(context.Background(), mcp.CallToolRequest{}, ReloadInput{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "world_path is required")
@@ -660,6 +691,7 @@ func TestRequireRunning_RunningWorldPasses(t *testing.T) {
 
 func TestRequireRunning_StoppedWorldRefused(t *testing.T) {
 	t.Parallel()
+
 	err := requireRunning(false, nil)
 	require.Error(t, err)
 	assert.Equal(t, "world is not running — start it with `world start`", err.Error())
@@ -667,6 +699,7 @@ func TestRequireRunning_StoppedWorldRefused(t *testing.T) {
 
 func TestRequireRunning_DaemonErrorIsWrapped(t *testing.T) {
 	t.Parallel()
+
 	cause := eris.New("cannot connect to docker endpoint")
 	err := requireRunning(false, cause)
 	require.Error(t, err)
@@ -678,6 +711,7 @@ func TestRequireRunning_DaemonErrorIsWrapped(t *testing.T) {
 // pool replicas that share an ID.
 func TestDeployShardsFromConfig_DedupesByID(t *testing.T) {
 	t.Parallel()
+
 	cfg := &service.Config{
 		Project: "acme-demo",
 		WorldToml: worldtoml.Config{
@@ -693,6 +727,7 @@ func TestDeployShardsFromConfig_DedupesByID(t *testing.T) {
 // A shard_id narrows the Deploy payload to that pool; an empty one includes all.
 func TestDeployShardsFromConfig_FiltersByShardID(t *testing.T) {
 	t.Parallel()
+
 	cfg := &service.Config{
 		Project: "acme-demo",
 		WorldToml: worldtoml.Config{
@@ -730,6 +765,7 @@ func (f *fakeReloadRuntime) Deploy(_ context.Context, opts local.DeployOpts) err
 	for _, s := range opts.Shards {
 		f.events = append(f.events, "deploy:"+s.ID)
 	}
+
 	return nil
 }
 func (f *fakeReloadRuntime) WaitForShardsReady(_ context.Context, instanceIDs []string, _ func(int, int)) (int, int) {
@@ -743,6 +779,7 @@ func (f *fakeReloadRuntime) WaitForShardsReady(_ context.Context, instanceIDs []
 // (lobby), and — with purge — wipe both replicas' state before redeploying.
 func TestReloadShards_WaitScopeMatchesDeployScopeAndPurgeWipesAllReplicas(t *testing.T) {
 	t.Parallel()
+
 	cfg := worldtoml.Config{
 		Project: "demo",
 		Shards: []worldtoml.Shard{
@@ -757,6 +794,7 @@ func TestReloadShards_WaitScopeMatchesDeployScopeAndPurgeWipesAllReplicas(t *tes
 
 	t.Run("Purge", func(t *testing.T) {
 		t.Parallel()
+
 		fake := &fakeReloadRuntime{waitReady: 2, waitExpected: 2}
 		require.NoError(t, reloadShards(context.Background(), fake, cfg, deployOpts, true))
 		// The full ordered event sequence: undeploy the live shard, wipe both
@@ -774,6 +812,7 @@ func TestReloadShards_WaitScopeMatchesDeployScopeAndPurgeWipesAllReplicas(t *tes
 
 	t.Run("NoPurge", func(t *testing.T) {
 		t.Parallel()
+
 		fake := &fakeReloadRuntime{waitReady: 2, waitExpected: 2}
 		require.NoError(t, reloadShards(context.Background(), fake, cfg, deployOpts, false))
 		// Without purge, no undeploy or state wipe is recorded, and the wait
@@ -786,6 +825,7 @@ func TestReloadShards_WaitScopeMatchesDeployScopeAndPurgeWipesAllReplicas(t *tes
 
 	t.Run("Shortfall", func(t *testing.T) {
 		t.Parallel()
+
 		fake := &fakeReloadRuntime{waitReady: 1, waitExpected: 2}
 		err := reloadShards(context.Background(), fake, cfg, deployOpts, false)
 		require.Error(t, err)
@@ -799,6 +839,7 @@ func TestReloadShards_WaitScopeMatchesDeployScopeAndPurgeWipesAllReplicas(t *tes
 
 func TestWorldLifecycleHandler_InvalidOperation(t *testing.T) {
 	t.Parallel()
+
 	_, err := worldLifecycleHandler(
 		context.Background(),
 		mcp.CallToolRequest{},
@@ -810,6 +851,7 @@ func TestWorldLifecycleHandler_InvalidOperation(t *testing.T) {
 
 func TestWorldLifecycleHandler_EmptyOperation(t *testing.T) {
 	t.Parallel()
+
 	_, err := worldLifecycleHandler(context.Background(), mcp.CallToolRequest{}, WorldLifecycleInput{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "operation must be one of")
@@ -820,6 +862,7 @@ func TestWorldLifecycleHandler_EmptyOperation(t *testing.T) {
 // silently ignored.
 func TestWorldLifecycleHandler_PurgeOnlyValidWithStart(t *testing.T) {
 	t.Parallel()
+
 	for _, op := range []string{lifecycleOpStop, lifecycleOpPurge} {
 		_, err := worldLifecycleHandler(context.Background(), mcp.CallToolRequest{}, WorldLifecycleInput{
 			Operation: op,
@@ -834,6 +877,7 @@ func TestWorldLifecycleHandler_PurgeOnlyValidWithStart(t *testing.T) {
 // before any Docker work.
 func TestWorldLifecycleHandler_StartRequiresWorldPath(t *testing.T) {
 	t.Parallel()
+
 	_, err := worldLifecycleHandler(context.Background(), mcp.CallToolRequest{}, WorldLifecycleInput{
 		Operation: lifecycleOpStart,
 	})
@@ -846,6 +890,7 @@ func TestWorldLifecycleHandler_StartRequiresWorldPath(t *testing.T) {
 // unpublished parameter unusable rather than merely undocumented.
 func TestDescribeWorld_PublishesProjectInItsInputSchema(t *testing.T) {
 	t.Parallel()
+
 	srv := server.NewMCPServer("test", "0")
 	registerDescribeWorldTool(srv)
 
@@ -940,11 +985,13 @@ func TestSendCommandInput_BindArguments_PreservesLargeInt64Payload(t *testing.T)
 
 	var req mcp.CallToolRequest
 	require.NoError(t, json.Unmarshal(frame, &req))
+
 	var in SendCommandInput
 	require.NoError(t, req.BindArguments(&in))
 	assert.JSONEq(t, payloadJSON, in.Payload, "payload string must survive mcp-go transport intact")
 
 	md := testObjectSchema("ID", map[string]any{"type": "integer"})
+
 	require.NoError(t, in.validate()) // Validation leaves this nonempty payload unchanged.
 
 	wire, err := encodeCommandPayload(md, in.Payload)
@@ -958,22 +1005,30 @@ func TestSendCommandInput_BindArguments_PreservesLargeInt64Payload(t *testing.T)
 // rewrites the runtime's config under a status read. Other projects are not held up.
 func TestWorldsLockSerializesPerProject(t *testing.T) {
 	w := &worlds{locks: map[string]*sync.Mutex{}}
-	var inside, overlaps int32
-	var wg sync.WaitGroup
+
+	var (
+		inside, overlaps int32
+		wg               sync.WaitGroup
+	)
 	for range 8 {
 		wg.Go(func() {
 			release := w.lock("game")
 			defer release()
+
 			if n := atomic.AddInt32(&inside, 1); n != 1 {
 				atomic.AddInt32(&overlaps, 1)
 			}
+
 			time.Sleep(time.Millisecond)
 			atomic.AddInt32(&inside, -1)
 		})
 	}
+
 	other := w.lock("other")
+
 	wg.Wait()
 	other()
+
 	if overlaps != 0 {
 		t.Fatalf("%d tool calls overlapped on one project", overlaps)
 	}
@@ -987,10 +1042,13 @@ func TestWorldsLockSerializesPerProject(t *testing.T) {
 // so a later MCP start re-binds the edge quickly.
 func TestStopEdge_ReleasesEdgeOwnershipOfCachedRuntime(t *testing.T) {
 	t.Setenv("DOCKER_HOST", "unix:///nonexistent/docker.sock")
+
 	cfg := &service.Config{Project: "demo-edge", WorldToml: worldtoml.Config{Project: "demo-edge"}}
 	dc, err := docker.NewClient(cfg, &docker.ClientOptions{Logger: slog.Default()})
 	require.NoError(t, err)
+
 	defer dc.Close()
+
 	rt := local.New(dc, cfg)
 
 	w := &worlds{
@@ -1003,9 +1061,11 @@ func TestStopEdge_ReleasesEdgeOwnershipOfCachedRuntime(t *testing.T) {
 	// may already hold 8080, and skipping there would silently drop the only
 	// end-to-end coverage of stopEdge. SetEdgeAddr keeps the full serveEdge path.
 	rt.SetEdgeAddr("127.0.0.1:0")
+
 	if err := w.serveEdge(rt); err != nil {
 		t.Fatalf("serveEdge: %v", err)
 	}
+
 	t.Cleanup(func() { w.stopEdge("demo-edge") })
 
 	// While this process owns the edge, CheckLayout is a no-op (it refreshes its own

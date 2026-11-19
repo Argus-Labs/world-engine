@@ -27,6 +27,7 @@ func TestReconnectDelay(t *testing.T) {
 
 	t.Run("last attempt uses last backoff value", func(t *testing.T) {
 		t.Parallel()
+
 		lastIdx := len(reconnectBackoff) - 1
 		assert.Equal(t, 20000*time.Millisecond, reconnectDelay(lastIdx))
 	})
@@ -100,6 +101,7 @@ func TestClient_ReconnectsAfterServerRestart(t *testing.T) {
 	// Restart the NATS server on the same port.
 	opts.Port = addr.(*net.TCPAddr).Port
 	srv = test.RunServer(opts)
+
 	t.Cleanup(func() { srv.Shutdown() })
 
 	// Wait for the client to reconnect.
@@ -113,9 +115,12 @@ func TestClient_ReconnectsAfterServerRestart(t *testing.T) {
 
 	// Verify request-reply works again after reconnection.
 	var reconnectedMsg *nats.Msg
+
 	require.Eventually(t, func() bool {
 		var reqErr error
+
 		reconnectedMsg, reqErr = client.Conn.Request("test.ping", []byte("ping"), 2*time.Second)
+
 		return reqErr == nil
 	}, 5*time.Second, 200*time.Millisecond, "request-reply should work after reconnect")
 

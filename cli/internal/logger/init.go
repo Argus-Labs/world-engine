@@ -31,18 +31,21 @@ type syncBuffer struct {
 func (sb *syncBuffer) Write(p []byte) (int, error) {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
+
 	return sb.buf.Write(p)
 }
 
 func (sb *syncBuffer) String() string {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
+
 	return sb.buf.String()
 }
 
 func (sb *syncBuffer) Reset() {
 	sb.mu.Lock()
 	defer sb.mu.Unlock()
+
 	sb.buf.Reset()
 }
 
@@ -69,6 +72,7 @@ func init() {
 	zerolog.CallerSkipFrameCount = DefaultCallerSkipFrameCount
 
 	var writers zerolog.LevelWriter
+
 	consoleWriter := zerolog.ConsoleWriter{
 		Out:        logBuffer,
 		NoColor:    NoColor,
@@ -99,6 +103,7 @@ func (h zerologHandler) Enabled(_ context.Context, _ slog.Level) bool {
 
 func (h zerologHandler) Handle(_ context.Context, r slog.Record) error {
 	var evt *zerolog.Event
+
 	switch {
 	case r.Level >= slog.LevelError:
 		evt = log.Error()
@@ -109,21 +114,25 @@ func (h zerologHandler) Handle(_ context.Context, r slog.Record) error {
 	default:
 		evt = log.Debug()
 	}
+
 	evt = evt.Timestamp()
 	for _, a := range h.attrs {
 		evt = evt.Interface(a.Key, a.Value.Any())
 	}
+
 	r.Attrs(func(a slog.Attr) bool {
 		evt = evt.Interface(a.Key, a.Value.Any())
 		return true
 	})
 	evt.Msg(r.Message)
+
 	return nil
 }
 
 func (h zerologHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	merged := make([]slog.Attr, len(h.attrs), len(h.attrs)+len(attrs))
 	copy(merged, h.attrs)
+
 	return zerologHandler{attrs: append(merged, attrs...)}
 }
 

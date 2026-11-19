@@ -152,6 +152,7 @@ func (p *Plugin) Register(w *cardinal.World) {
 	if tickRate <= 0 {
 		tickRate = 60
 	}
+
 	fixedDT := 1.0 / tickRate
 
 	rt := internal.NewRuntime(p.config.Gravity, fixedDT, p.config.SubStepCount, p.config.Workers)
@@ -206,6 +207,7 @@ func (p *Plugin) Engine() *box2d.World {
 	if p.rt == nil {
 		return nil
 	}
+
 	return p.rt.World
 }
 
@@ -220,6 +222,7 @@ func (p *Plugin) BodyID(entityID cardinal.EntityID) (box2d.BodyID, bool) {
 	if p.rt == nil || !p.rt.WorldExists() {
 		return box2d.BodyID{}, false
 	}
+
 	return p.rt.BodyIDOf(entityID)
 }
 
@@ -234,6 +237,7 @@ func (p *Plugin) ShapeIDs(entityID cardinal.EntityID) ([]box2d.ShapeID, bool) {
 	if p.rt == nil || !p.rt.WorldExists() {
 		return nil, false
 	}
+
 	return p.rt.ShapeIDsOf(entityID)
 }
 
@@ -245,6 +249,7 @@ func (p *Plugin) Reset() {
 	if p.rt == nil {
 		return
 	}
+
 	p.rt.Reset()
 }
 
@@ -256,6 +261,7 @@ func (p *Plugin) Raycast(req RaycastRequest) RaycastResult {
 	if p.rt == nil || !p.rt.WorldExists() {
 		return RaycastResult{}
 	}
+
 	return p.rt.Raycast(req)
 }
 
@@ -264,6 +270,7 @@ func (p *Plugin) OverlapAABB(req AABBOverlapRequest) AABBOverlapResult {
 	if p.rt == nil || !p.rt.WorldExists() {
 		return AABBOverlapResult{}
 	}
+
 	return p.rt.OverlapAABB(req)
 }
 
@@ -272,5 +279,6 @@ func (p *Plugin) CircleSweep(req CircleSweepRequest) CircleSweepResult {
 	if p.rt == nil || !p.rt.WorldExists() {
 		return CircleSweepResult{}
 	}
+
 	return p.rt.CircleSweep(req)
 }

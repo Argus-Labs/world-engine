@@ -13,6 +13,7 @@ func TestNewWorld_ArgusAuthGameID(t *testing.T) {
 	t.Setenv("CARDINAL_SHARD_ID", "gameplay-usw1-3")
 	t.Setenv("CARDINAL_AUTH_MODE", "ARGUS")
 	t.Setenv("CARDINAL_ARGUS_AUTH_URL", "https://auth.example")
+
 	opts := WorldOptions{TickRate: 1, SnapshotRate: 1}
 
 	_, err := NewWorld(opts)

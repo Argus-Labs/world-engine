@@ -21,8 +21,10 @@ func FindModuleRoot(startDir string) (string, bool) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
 	cmd := exec.CommandContext(ctx, "go", "env", "GOMOD")
 	cmd.Dir = startDir
+
 	modPathBytes, err := cmd.Output()
 	if err != nil {
 		return "", false
@@ -32,12 +34,15 @@ func FindModuleRoot(startDir string) (string, bool) {
 	if modPath == "" || modPath == "N/A" || modPath == "off" {
 		return "", false
 	}
+
 	if filepath.Clean(modPath) == filepath.Clean(os.DevNull) {
 		return "", false
 	}
+
 	if filepath.Base(modPath) != "go.mod" {
 		return "", false
 	}
+
 	if _, err := os.Stat(modPath); err != nil {
 		return "", false
 	}
@@ -71,6 +76,7 @@ func ModuleReplace(moduleRoot, modulePath string) (string, bool, error) {
 			return r.New.Version, true, nil
 		}
 	}
+
 	return "", false, nil
 }
 

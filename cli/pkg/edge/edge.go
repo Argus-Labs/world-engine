@@ -35,6 +35,7 @@ type Edge struct {
 func New() *Edge {
 	t := &http.Transport{Protocols: new(http.Protocols)}
 	t.Protocols.SetUnencryptedHTTP2(true) // leaving HTTP1 unset forces h2c, which is what shards speak
+
 	e := &Edge{}
 	e.SetRoutes(nil)
 	// One proxy for every request: the backend and stripped path ride on the request
@@ -47,6 +48,7 @@ func New() *Edge {
 			if !ok {
 				return // only ServeHTTP reaches this proxy, and it always sets the route
 			}
+
 			pr.SetURL(route.backend)
 			// RawPath is cleared deliberately: the stripped path comes from the decoded
 			// URL, and ConnectRPC procedure paths carry no percent-encoding.
@@ -61,6 +63,7 @@ func New() *Edge {
 			if route, ok := r.Context().Value(routeKey{}).(*resolvedRoute); ok {
 				instance = route.instance
 			}
+
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.Header().Set("X-Content-Type-Options", "nosniff")
 			w.WriteHeader(http.StatusBadGateway)
@@ -69,6 +72,7 @@ func New() *Edge {
 			fmt.Fprintf(w, "%s is not reachable; it may be starting or crashed — try `world logs`\n", instance)
 		},
 	}
+
 	return e
 }
 
@@ -96,6 +100,7 @@ func (e *Edge) SetRoutes(r map[string]*url.URL) {
 	if r == nil {
 		r = map[string]*url.URL{}
 	}
+
 	e.routes.Store(&r)
 }
 
@@ -104,6 +109,7 @@ func (e *Edge) Routes() map[string]*url.URL {
 	cur := *e.routes.Load()
 	out := make(map[string]*url.URL, len(cur))
 	maps.Copy(out, cur)
+
 	return out
 }
 
@@ -119,12 +125,14 @@ func (e *Edge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
 	if len(seg) == 5 {
 		if backend, ok := routes[seg[1]+"/"+seg[2]+"/"+seg[3]]; ok {
 			e.serve(w, r, backend, "/"+seg[4], seg[3])
 			return
 		}
 	}
+
 	http.NotFound(w, r)
 }
 
@@ -139,6 +147,7 @@ func (e *Edge) Serve(ctx context.Context, addr string) error {
 	if err != nil {
 		return err
 	}
+
 	return e.ServeListener(ctx, ln)
 }
 
@@ -148,6 +157,7 @@ func (e *Edge) Listen(ctx context.Context, addr string) (net.Listener, error) {
 	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", addr)
 	if err != nil {
 		_, port, _ := net.SplitHostPort(addr)
+
 		return nil, fmt.Errorf(
 			"edge cannot listen on %s (something else holds port %s; try `lsof -i :%s`): %w",
 			addr,
@@ -156,6 +166,7 @@ func (e *Edge) Listen(ctx context.Context, addr string) (net.Listener, error) {
 			err,
 		)
 	}
+
 	return ln, nil
 }
 
@@ -171,18 +182,23 @@ func (e *Edge) ServeListener(ctx context.Context, ln net.Listener) error {
 		// A stray TLS hello or port scan on 8080 would otherwise log over the running TUI.
 		ErrorLog: slog.NewLogLogger(slog.DiscardHandler, slog.LevelError),
 	}
+
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Serve(ln) }()
+
 	select {
 	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+
 		_ = srv.Shutdown(shutdownCtx)
+
 		return nil
 	case err := <-errCh:
 		if errors.Is(err, http.ErrServerClosed) {
 			return nil
 		}
+
 		return err
 	}
 }

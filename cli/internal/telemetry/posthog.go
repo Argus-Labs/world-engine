@@ -80,6 +80,7 @@ func getTimestampFilePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return filepath.Join(storeDir, timestampFile), nil
 }
 
@@ -106,6 +107,7 @@ func PosthogCaptureEvent(event string, properties map[string]any) {
 	if !posthogInitialized {
 		return
 	}
+
 	if event == RunningEvent && isSameDay(lastLoggedTime, time.Now()) {
 		return // skip duplicate daily RunningEvent
 	}
@@ -135,6 +137,7 @@ func PosthogClose() {
 		if err != nil {
 			log.Err(err).Msg("Cannot close posthog client")
 		}
+
 		posthogInitialized = false
 	}
 }

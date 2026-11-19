@@ -33,6 +33,7 @@ func benchSlice(n int) immutable.Slice[benchItem] {
 	for i := range items {
 		items[i] = benchItem{ID: int64(i)}
 	}
+
 	return immutable.SliceOf(items...)
 }
 
@@ -45,6 +46,7 @@ func benchMap(n int) (immutable.Map[int, benchItem], []int) {
 			}
 		}
 	})
+
 	return m, keys
 }
 
@@ -66,6 +68,7 @@ func BenchmarkSlice(b *testing.B) {
 				for i := range n {
 					s.Append(benchItem{ID: int64(i)})
 				}
+
 				sinkSlice = s
 			}
 		})
@@ -82,6 +85,7 @@ func BenchmarkSlice(b *testing.B) {
 				for i := range n {
 					s.Set(i, benchItem{Qty: 1})
 				}
+
 				sinkSlice = s
 			}
 		})
@@ -127,11 +131,13 @@ func BenchmarkSlice(b *testing.B) {
 		})
 		b.Run(fmt.Sprintf("ReadLast64At/%d", n), func(b *testing.B) {
 			lo := max(0, n-64)
+
 			for b.Loop() {
 				var sum int64
 				for i := lo; i < n; i++ {
 					sum += stored.At(i).ID
 				}
+
 				sinkInt = sum
 			}
 		})
@@ -141,6 +147,7 @@ func BenchmarkSlice(b *testing.B) {
 				for _, it := range stored.Range(max(0, n-64), n) {
 					sum += it.ID
 				}
+
 				sinkInt = sum
 			}
 		})
@@ -150,6 +157,7 @@ func BenchmarkSlice(b *testing.B) {
 				for _, it := range stored.All() {
 					sum += it.ID
 				}
+
 				sinkInt = sum
 			}
 		})
@@ -180,6 +188,7 @@ func BenchmarkMap(b *testing.B) {
 				for _, k := range keys {
 					m.Set(k, benchItem{})
 				}
+
 				sinkMap = m
 			}
 		})
@@ -191,6 +200,7 @@ func BenchmarkMap(b *testing.B) {
 					v.Qty++
 					m.Set(k, v)
 				}
+
 				sinkMap = m
 			}
 		})
@@ -223,27 +233,32 @@ func BenchmarkMap(b *testing.B) {
 				for _, v := range stored.Range(n-64, n) {
 					sum += v.ID
 				}
+
 				sinkInt = sum
 			}
 		})
 		b.Run(fmt.Sprintf("ReadLast64Scan/%d", n), func(b *testing.B) {
 			for b.Loop() {
 				var sum int64
+
 				for k, v := range stored.All() {
 					if k >= n-64 {
 						sum += v.ID
 					}
 				}
+
 				sinkInt = sum
 			}
 		})
 		b.Run(fmt.Sprintf("GetAll/%d", n), func(b *testing.B) {
 			for b.Loop() {
 				var sum int64
+
 				for _, k := range keys {
 					v, _ := stored.Get(k)
 					sum += v.ID
 				}
+
 				sinkInt = sum
 			}
 		})
@@ -261,11 +276,13 @@ type benchComponent struct {
 // copy only the component struct; the collections share storage that no edit writes to.
 func BenchmarkTick(b *testing.B) {
 	const entities = 1000
+
 	col := make([]benchComponent, entities)
 	for i := range col {
 		stats, _ := benchMapInt(16)
 		col[i] = benchComponent{Log: benchSlice(16), Stats: stats}
 	}
+
 	b.Run("InPlace", func(b *testing.B) {
 		for b.Loop() {
 			for e := range col {
@@ -291,6 +308,7 @@ func benchMapInt(n int) (immutable.Map[int, int64], []int) {
 			}
 		}
 	})
+
 	return m, keys
 }
 
@@ -302,17 +320,21 @@ func BenchmarkDecode(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
+
 		stored, _ := benchMap(n)
+
 		mapBytes, err := msgpack.Marshal(stored)
 		if err != nil {
 			b.Fatal(err)
 		}
+
 		b.Run(fmt.Sprintf("Slice/%d", n), func(b *testing.B) {
 			for b.Loop() {
 				var s immutable.Slice[benchItem]
 				if err := msgpack.Unmarshal(sliceBytes, &s); err != nil {
 					b.Fatal(err)
 				}
+
 				sinkSlice = s
 			}
 		})
@@ -322,6 +344,7 @@ func BenchmarkDecode(b *testing.B) {
 				if err := msgpack.Unmarshal(mapBytes, &m); err != nil {
 					b.Fatal(err)
 				}
+
 				sinkMap = m
 			}
 		})
@@ -332,6 +355,7 @@ func BenchmarkDecode(b *testing.B) {
 // since the last tick does.
 func BenchmarkEqual(b *testing.B) {
 	const n = 4096
+
 	sameItem := func(a, b benchItem) bool { return a == b }
 	stored := benchSlice(n)
 	edited := stored
@@ -341,6 +365,7 @@ func BenchmarkEqual(b *testing.B) {
 	editedMap := storedMap
 	editedMap.Set(n-1, benchItem{ID: -1})
 	rebuiltMap, _ := benchMap(n)
+
 	for _, c := range []struct {
 		name string
 		a, b immutable.Slice[benchItem]
@@ -353,6 +378,7 @@ func BenchmarkEqual(b *testing.B) {
 			}
 		})
 	}
+
 	for _, c := range []struct {
 		name string
 		a, b immutable.Map[int, benchItem]
@@ -376,10 +402,12 @@ func BenchmarkEqual(b *testing.B) {
 func BenchmarkSort(b *testing.B) {
 	for _, n := range benchSizes {
 		r := rand.New(rand.NewPCG(3, 4))
+
 		items := make([]benchItem, n)
 		for i := range items {
 			items[i] = benchItem{ID: int64(i), Qty: int64(r.IntN(max(1, n/8)))}
 		}
+
 		stored := immutable.SliceOf(items...)
 		byQty := func(a, b benchItem) int { return cmp.Compare(a.Qty, b.Qty) }
 		b.Run(fmt.Sprintf("Slice/%d", n), func(b *testing.B) {
@@ -416,6 +444,7 @@ func BenchmarkEncode(b *testing.B) {
 				if err != nil {
 					b.Fatal(err)
 				}
+
 				sinkInt += int64(len(data))
 			}
 		})
@@ -425,6 +454,7 @@ func BenchmarkEncode(b *testing.B) {
 				if err != nil {
 					b.Fatal(err)
 				}
+
 				sinkInt += int64(len(data))
 			}
 		})

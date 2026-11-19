@@ -39,14 +39,17 @@ func (t *flushRequiredTransport) Configure(sentry.ClientOptions) {}
 func (t *flushRequiredTransport) SendEvent(event *sentry.Event) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
 	t.pending = append(t.pending, event)
 }
 
 func (t *flushRequiredTransport) Flush(time.Duration) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
 	t.delivered = append(t.delivered, t.pending...)
 	t.pending = nil
+
 	return true
 }
 
@@ -61,8 +64,10 @@ func (t *flushRequiredTransport) Close() {
 func (t *flushRequiredTransport) Delivered() []*sentry.Event {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
 	copied := make([]*sentry.Event, len(t.delivered))
 	copy(copied, t.delivered)
+
 	return copied
 }
 
@@ -73,6 +78,7 @@ func (t *flushRequiredTransport) Delivered() []*sentry.Event {
 // no integration drops the event.
 func bindTestSentry(t *testing.T, transport sentry.Transport) func() {
 	t.Helper()
+
 	err := sentry.Init(sentry.ClientOptions{
 		// A syntactically valid DSN is required for NewClient to succeed; no HTTP
 		// traffic occurs because the transport is injected.
@@ -83,6 +89,7 @@ func bindTestSentry(t *testing.T, transport sentry.Transport) func() {
 		Transport:        transport,
 	})
 	require.NoError(t, err)
+
 	return func() {
 		// Unbind so no later test observes this client or its buffered events.
 		sentry.CurrentHub().BindClient(nil)
@@ -96,6 +103,7 @@ func bindTestSentry(t *testing.T, transport sentry.Transport) func() {
 func withPanicUnwind(outer, inner func(), value any) {
 	defer outer()
 	defer inner()
+
 	panic(value)
 }
 
@@ -103,6 +111,7 @@ func TestSentryFlush_NoPanicInFlight_FlushesAndResetsWithoutRePanicking(t *testi
 	// No client is bound on purpose: hub.Recover/hub.Flush are no-ops, so this
 	// isolates SentryFlush's control flow on the happy path (reset, no re-panic).
 	prev := sentryInitialized
+
 	sentryInitialized = true
 	defer func() { sentryInitialized = prev }()
 
@@ -117,10 +126,12 @@ func TestSentryFlush_ReRaisesPanicSoOuterHandlerSeesIt(t *testing.T) {
 	// handler) saw recover()==nil and ran os.Exit(0), laundering a crash into a
 	// successful exit. After the fix, the outer handler MUST observe the panic.
 	prev := sentryInitialized
+
 	sentryInitialized = true
 	defer func() { sentryInitialized = prev }()
 
 	var caught any
+
 	withPanicUnwind(
 		func() { caught = recover() }, // outer defer: runs LAST (mimics main handler)
 		SentryFlush,                   // inner defer: runs FIRST (mimics deferred SentryFlush)
@@ -141,14 +152,17 @@ func TestSentryFlush_CapturesAndFlushesBeforeRaisingSoEventIsDelivered(t *testin
 	// as "delivered" on Flush, so any regression that re-panics before flushing
 	// leaves Delivered() empty and fails this test.
 	transport := &flushRequiredTransport{}
+
 	cleanup := bindTestSentry(t, transport)
 	defer cleanup()
 
 	prev := sentryInitialized
+
 	sentryInitialized = true
 	defer func() { sentryInitialized = prev }()
 
 	var caught any
+
 	withPanicUnwind(
 		func() { caught = recover() },
 		SentryFlush,
@@ -156,6 +170,7 @@ func TestSentryFlush_CapturesAndFlushesBeforeRaisingSoEventIsDelivered(t *testin
 	)
 
 	require.NotNil(t, caught)
+
 	delivered := transport.Delivered()
 	require.Len(t, delivered, 1, "exactly one fatal event must be delivered before the re-panic")
 	assert.Equal(t, sentry.LevelFatal, delivered[0].Level, "Recover must tag the event as fatal")
@@ -168,10 +183,12 @@ func TestSentryFlush_WhenNotInitialized_DoesNotConsumePanic(t *testing.T) {
 	// the outer handler. This is the (already correct, unchanged) Sentry-OFF path
 	// the bug report documents as exiting 2 with a full stack trace.
 	prev := sentryInitialized
+
 	sentryInitialized = false
 	defer func() { sentryInitialized = prev }()
 
 	var caught any
+
 	withPanicUnwind(
 		func() { caught = recover() },
 		SentryFlush,

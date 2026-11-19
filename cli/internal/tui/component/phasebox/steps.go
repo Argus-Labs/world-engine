@@ -24,6 +24,7 @@ func (t *StepTracker) Next(label string) {
 	if t.id != "" {
 		t.sess.UpsertRow(t.id, t.label, "", Done)
 	}
+
 	t.n++
 	t.id = strconv.Itoa(t.n)
 	t.label = label
@@ -36,6 +37,7 @@ func (t *StepTracker) Done() {
 	if t.id == "" {
 		return
 	}
+
 	t.sess.UpsertRow(t.id, t.label, "", Done)
 }
 
@@ -45,5 +47,6 @@ func (t *StepTracker) Failed(err error) {
 	if t.id == "" {
 		return
 	}
+
 	t.sess.Fail(t.id, t.label, err)
 }

@@ -22,19 +22,23 @@ import (
 // cannot drift on the listener contract.
 func startDeadListener(t *testing.T) (net.Listener, int) {
 	t.Helper()
+
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
+
 	go func() {
 		for {
 			c, err := ln.Accept()
 			if err != nil {
 				return
 			}
+
 			_ = c.Close()
 		}
 	}()
+
 	return ln, ln.Addr().(*net.TCPAddr).Port
 }
 
@@ -43,7 +47,9 @@ func startDeadListener(t *testing.T) (net.Listener, int) {
 // Returns the server (close to stop) and the bound port.
 func startServingListener(t *testing.T) (*httptest.Server, int) {
 	t.Helper()
+
 	srv := httptest.NewServer(http.NotFoundHandler())
+
 	return srv, srv.Listener.Addr().(*net.TCPAddr).Port
 }
 
@@ -68,13 +74,16 @@ func poolShardConfig() *service.Config {
 // already hold.
 func withFreePorts(t *testing.T, r *Runtime, fn func()) {
 	t.Helper()
+
 	deadLn, p0 := startDeadListener(t)
 	defer deadLn.Close()
+
 	srv, p1 := startServingListener(t)
 	defer srv.Close()
 
 	ports := [2]int{p0, p1}
 	r.probeHostPort = func(i int) int { return ports[i] }
+
 	fn()
 }
 
@@ -119,13 +128,16 @@ func TestWaitForShardsReadyWaitScope(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cancel()
+
 				var lastReady, lastExpected int
+
 				ready, expected := r.WaitForShardsReady(ctx, tt.instanceIDs,
 					func(ready, expected int) {
 						lastReady, lastExpected = ready, expected
 					})
 				assert.Equal(t, tt.wantExpected, expected, "expected")
 				assert.Equal(t, tt.wantReady, ready, "ready")
+
 				if tt.checkProgress {
 					assert.Equal(t, tt.wantReady, lastReady, "onProgress ready")
 					assert.Equal(t, tt.wantExpected, lastExpected, "onProgress expected")
@@ -142,14 +154,17 @@ func TestWaitForShardsReadyWaitScope(t *testing.T) {
 func TestWaitForShardsReadyAllReadyReturnsImmediately(t *testing.T) {
 	srv1, p0 := startServingListener(t)
 	defer srv1.Close()
+
 	srv2, p1 := startServingListener(t)
 	defer srv2.Close()
 
 	r := New(nil, poolShardConfig())
 	ports := [2]int{p0, p1}
 	r.probeHostPort = func(i int) int { return ports[i] }
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
 	ready, expected := r.WaitForShardsReady(ctx, []string{"game", "game-2"}, nil)
 	assert.Equal(t, 2, expected)
 	assert.Equal(t, 2, ready)

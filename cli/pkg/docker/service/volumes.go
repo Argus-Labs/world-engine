@@ -9,10 +9,12 @@ package service
 func VolumeNames(cfg *Config) []string {
 	project := cfg.WorldToml.Project
 	names := []string{NatsVolumeName(project), ProjectDBVolumeName(project)}
+
 	for _, gs := range cfg.WorldToml.Services {
 		if gs.Volume != "" {
 			names = append(names, GameServiceContainerName(project, gs.ID))
 		}
 	}
+
 	return names
 }

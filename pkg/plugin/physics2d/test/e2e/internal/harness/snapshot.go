@@ -57,7 +57,9 @@ func (c Capture) Labels() []string {
 	for k := range c.Rows {
 		out = append(out, k)
 	}
+
 	sort.Strings(out)
+
 	return out
 }
 
@@ -77,6 +79,7 @@ type postCaptureState struct {
 // struct keeps that tick's state even as later ticks overwrite the field.
 func capture(probes, singleton cardinal.Search, into *Capture) {
 	rows := make(map[string]CaptureRow, len(into.Rows))
+
 	for row := range probes.Iter() {
 		eid := row.ID()
 		p := row.Get[probe.Probe]()
@@ -89,6 +92,7 @@ func capture(probes, singleton cardinal.Search, into *Capture) {
 	}
 
 	var pairs []physics.ContactPairEntry
+
 	count := 0
 	for row := range singleton.Iter() {
 		count++
@@ -133,10 +137,12 @@ func RegisterPostCapture(w *cardinal.World, into *Capture) {
 // world-engine module. See InitECS for why this shim exists at all.
 func innerWorld(w *cardinal.World) reflect.Value {
 	v := reflect.ValueOf(w).Elem()
+
 	f := v.FieldByName("world")
 	if !f.IsValid() {
 		panic("cardinal.World: no 'world' field; the snapshot shim needs updating")
 	}
+
 	return reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
 }
 
@@ -147,6 +153,7 @@ func DecodeSnapshot(raw []byte) (any, error) {
 	if err := proto.Unmarshal(raw, &msg); err != nil {
 		return nil, err
 	}
+
 	return &msg, nil
 }
 
@@ -157,7 +164,9 @@ func SnapshotWorld(w *cardinal.World) (any, error) {
 	if !m.IsValid() {
 		panic("ecs.World: no EncodeState method; the snapshot shim needs updating")
 	}
+
 	out := m.Call([]reflect.Value{reflect.ValueOf([]byte(nil))})
+
 	data, ok := reflect.TypeAssert[[]byte](out[0])
 	if !ok {
 		return nil, fmt.Errorf("EncodeState returned %T, want []byte", out[0].Interface())
@@ -175,10 +184,12 @@ func RestoreWorld(w *cardinal.World, state any) error {
 	if !m.IsValid() {
 		panic("ecs.World: no FromProto method; the snapshot shim needs updating")
 	}
+
 	out := m.Call([]reflect.Value{reflect.ValueOf(state)})
 	if err, _ := reflect.TypeAssert[error](out[0]); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -206,23 +217,28 @@ func CompareCaptures(want, got Capture, tol float64) []Diff {
 
 	for _, label := range want.Labels() {
 		w := want.Rows[label]
+
 		g, ok := got.Rows[label]
 		if !ok {
 			diffs = append(diffs, Diff{label, "<body>", missing, present})
 			continue
 		}
+
 		diffs = append(diffs, compareRow(label, w, g, tol)...)
 	}
+
 	for _, label := range got.Labels() {
 		if _, ok := want.Rows[label]; !ok {
 			diffs = append(diffs, Diff{label, "<body>", present, missing})
 		}
 	}
+
 	return diffs
 }
 
 func compareRow(label string, w, g CaptureRow, tol float64) []Diff {
 	var diffs []Diff
+
 	add := func(field string, got, want any) {
 		diffs = append(diffs, Diff{label, field, fmt.Sprint(got), fmt.Sprint(want)})
 	}
@@ -247,6 +263,7 @@ func compareRow(label string, w, g CaptureRow, tol float64) []Diff {
 	if g.Body.BodyType != w.Body.BodyType {
 		add("Body.BodyType", g.Body.BodyType, w.Body.BodyType)
 	}
+
 	num("Body.LinearDamping", g.Body.LinearDamping, w.Body.LinearDamping)
 	num("Body.AngularDamping", g.Body.AngularDamping, w.Body.AngularDamping)
 	num("Body.GravityScale", g.Body.GravityScale, w.Body.GravityScale)
@@ -260,14 +277,17 @@ func compareRow(label string, w, g CaptureRow, tol float64) []Diff {
 		add("Body.Shapes<len>", g.Body.Shapes.Len(), w.Body.Shapes.Len())
 		return diffs
 	}
+
 	for i, want := range w.Body.Shapes.All() {
 		diffs = append(diffs, compareShape(label, i, want, g.Body.Shapes.At(i), tol)...)
 	}
+
 	return diffs
 }
 
 func compareShape(label string, i int, w, g physics.ColliderShape, tol float64) []Diff {
 	var diffs []Diff
+
 	field := func(name string) string { return fmt.Sprintf("Body.Shapes[%d].%s", i, name) }
 	add := func(name string, got, want any) {
 		diffs = append(diffs, Diff{label, field(name), fmt.Sprint(got), fmt.Sprint(want)})
@@ -286,9 +306,11 @@ func compareShape(label string, i int, w, g physics.ColliderShape, tol float64) 
 	if g.ShapeType != w.ShapeType {
 		add("ShapeType", g.ShapeType, w.ShapeType)
 	}
+
 	if g.IsSensor != w.IsSensor {
 		add("IsSensor", g.IsSensor, w.IsSensor)
 	}
+
 	pt("LocalOffset", g.LocalOffset, w.LocalOffset)
 	num("LocalRotation", g.LocalRotation, w.LocalRotation)
 	num("Radius", g.Radius, w.Radius)
@@ -302,9 +324,11 @@ func compareShape(label string, i int, w, g physics.ColliderShape, tol float64) 
 	if g.CategoryBits != w.CategoryBits {
 		add("CategoryBits", fmt.Sprintf("%#x", g.CategoryBits), fmt.Sprintf("%#x", w.CategoryBits))
 	}
+
 	if g.MaskBits != w.MaskBits {
 		add("MaskBits", fmt.Sprintf("%#x", g.MaskBits), fmt.Sprintf("%#x", w.MaskBits))
 	}
+
 	if g.GroupIndex != w.GroupIndex {
 		add("GroupIndex", g.GroupIndex, w.GroupIndex)
 	}
@@ -317,6 +341,7 @@ func compareShape(label string, i int, w, g physics.ColliderShape, tol float64) 
 	for k := range w.Vertices {
 		pt(fmt.Sprintf("Vertices[%d]", k), g.Vertices[k], w.Vertices[k])
 	}
+
 	if g.ChainPoints.Len() != w.ChainPoints.Len() {
 		add("ChainPoints<len>", g.ChainPoints.Len(), w.ChainPoints.Len())
 	} else {
@@ -324,9 +349,11 @@ func compareShape(label string, i int, w, g physics.ColliderShape, tol float64) 
 			pt(fmt.Sprintf("ChainPoints[%d]", k), g.ChainPoints.At(k), want)
 		}
 	}
+
 	for k := range w.EdgeVertices {
 		pt(fmt.Sprintf("EdgeVertices[%d]", k), g.EdgeVertices[k], w.EdgeVertices[k])
 	}
+
 	return diffs
 }
 

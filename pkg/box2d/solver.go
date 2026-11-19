@@ -296,6 +296,7 @@ func (w *World) solveJointsColor(ctx *stepContext, colorIndex int, useBias bool,
 func (w *World) prepareJointsColorRange(ctx *stepContext, colorIndex, startIndex, endIndex int) {
 	color := &ctx.graph.colors[colorIndex]
 	assert(0 <= startIndex && startIndex <= endIndex && endIndex <= len(color.jointSims))
+
 	for i := startIndex; i < endIndex; i++ {
 		w.prepareJoint(&color.jointSims[i], ctx)
 	}
@@ -307,6 +308,7 @@ func (w *World) prepareJointsColorRange(ctx *stepContext, colorIndex, startIndex
 func (w *World) warmStartJointsColorRange(ctx *stepContext, colorIndex, startIndex, endIndex int) {
 	color := &ctx.graph.colors[colorIndex]
 	assert(0 <= startIndex && startIndex <= endIndex && endIndex <= len(color.jointSims))
+
 	for i := startIndex; i < endIndex; i++ {
 		w.warmStartJoint(&color.jointSims[i], ctx)
 	}
@@ -325,6 +327,7 @@ func (w *World) warmStartColorTask(ctx *stepContext, colorIndex, startIndex, end
 	if startIndex < jointCount {
 		w.warmStartJointsColorRange(ctx, colorIndex, startIndex, min(endIndex, jointCount))
 	}
+
 	if endIndex > jointCount {
 		w.warmStartContactsColor(ctx, colorIndex, max(startIndex, jointCount)-jointCount, endIndex-jointCount)
 	}
@@ -339,6 +342,7 @@ func (w *World) solveColorTask(ctx *stepContext, colorIndex int, useBias bool, w
 	if startIndex < jointCount {
 		w.solveJointsColor(ctx, colorIndex, useBias, workerIndex, startIndex, min(endIndex, jointCount))
 	}
+
 	if endIndex > jointCount {
 		w.solveContactsColor(ctx, colorIndex, useBias, max(startIndex, jointCount)-jointCount, endIndex-jointCount)
 	}
@@ -693,6 +697,7 @@ func (w *World) finalizeBodiesTask(startIndex, endIndex, workerIndex int, ctx *s
 		// Update shapes AABBs
 		transform := sim.transform
 		isFastBody := sim.flags&isFast != 0
+
 		shapeID := b.headShapeID
 		for shapeID != NullIndex {
 			s := &w.shapes[shapeID]
@@ -717,7 +722,9 @@ func (w *World) finalizeBodiesTask(startIndex, endIndex, workerIndex int, ctx *s
 
 				if !AABBContains(s.fatAABB, aabb) {
 					margin := s.aabbMargin
+
 					var fatAABB AABB
+
 					fatAABB.LowerBound.X = aabb.LowerBound.X - margin
 					fatAABB.LowerBound.Y = aabb.LowerBound.Y - margin
 					fatAABB.UpperBound.X = aabb.UpperBound.X + margin
@@ -745,6 +752,7 @@ func (w *World) solve(ctx *stepContext) {
 
 	// Are there any awake bodies?
 	awake := &w.solverSets[awakeSet]
+
 	awakeBodyCount := len(awake.bodySims)
 	if awakeBodyCount == 0 {
 		// Nothing to simulate. (The tree rebuild already ran inline in
@@ -752,6 +760,7 @@ func (w *World) solve(ctx *stepContext) {
 		if debugAsserts {
 			assert(w.broadPhase.validateNoEnlarged() == nil)
 		}
+
 		return
 	}
 
@@ -785,6 +794,7 @@ func (w *World) solve(ctx *stepContext) {
 
 		// count colors with work; the overflow color is handled separately
 		activeColorCount := 0
+
 		var activeColorIndices [GraphColorCount]int
 		for i := range GraphColorCount - 1 {
 			occupancyCount := len(graph.colors[i].contactSims) + len(graph.colors[i].jointSims)
@@ -797,6 +807,7 @@ func (w *World) solve(ctx *stepContext) {
 					forRangeWorkers(occupancyCount, solverColorGrain, w.workerCount))
 			}
 		}
+
 		ctx.activeColorCount = activeColorCount
 
 		// prepare for move events (upstream b2BodyMoveEventArray_Resize).
@@ -817,11 +828,13 @@ func (w *World) solve(ctx *stepContext) {
 
 		constraints := w.arena.allocContactConstraints(totalContactCount)
 		base := 0
+
 		for i := range GraphColorCount {
 			count := len(graph.colors[i].contactSims)
 			graph.colors[i].constraints = constraints[base : base+count]
 			base += count
 		}
+
 		assert(base == totalContactCount)
 
 		// Clear the joint event bit set (upstream sizes it per worker before
@@ -847,6 +860,7 @@ func (w *World) solve(ctx *stepContext) {
 			w.splitIsland(w.splitIslandID)
 			w.taskCount++
 		}
+
 		w.splitIslandID = NullIndex
 
 		// Dispatch plumbing, built once per solve so the per-color dispatch
@@ -903,11 +917,13 @@ func (w *World) solve(ctx *stepContext) {
 		// -- b2_stagePrepareJoints ----------------------------------------
 		for i := range activeColorCount {
 			colorIndex := activeColorIndices[i]
+
 			jointCount := len(graph.colors[colorIndex].jointSims)
 			if w.pool == nil {
 				w.prepareJointsColorRange(ctx, colorIndex, 0, jointCount)
 			} else {
 				ctx.dispatchColorIndex = colorIndex
+
 				w.pool.forRange(jointCount, solverLightColorGrain, prepareJointsFn)
 			}
 		}
@@ -915,11 +931,13 @@ func (w *World) solve(ctx *stepContext) {
 		// -- b2_stagePrepareContacts --------------------------------------
 		for i := range activeColorCount {
 			colorIndex := activeColorIndices[i]
+
 			contactCount := len(graph.colors[colorIndex].contactSims)
 			if w.pool == nil {
 				w.prepareContactsColor(ctx, colorIndex, 0, contactCount)
 			} else {
 				ctx.dispatchColorIndex = colorIndex
+
 				w.pool.forRange(contactCount, solverLightColorGrain, prepareContactsFn)
 			}
 		}
@@ -963,17 +981,20 @@ func (w *World) solve(ctx *stepContext) {
 				colorIndex := activeColorIndices[i]
 				// joint blocks precede contact blocks within a color stage
 				color := &graph.colors[colorIndex]
+
 				itemCount := len(color.jointSims) + len(color.contactSims)
 				if w.pool == nil {
 					w.warmStartColorTask(ctx, colorIndex, 0, itemCount)
 				} else {
 					ctx.dispatchColorIndex = colorIndex
+
 					w.pool.forRange(itemCount, solverLightColorGrain, warmStartColorFn)
 				}
 			}
 
 			// -- b2_stageSolve --------------------------------------------
 			useBias := true
+
 			for range solverIterations {
 				// Overflow constraints have lower priority
 				{
@@ -981,6 +1002,7 @@ func (w *World) solve(ctx *stepContext) {
 					for j := range overflowColor.jointSims {
 						w.solveJoint(&overflowColor.jointSims[j], ctx, useBias)
 					}
+
 					w.solveContactsColor(ctx, overflowIndex, useBias, 0, len(overflowColor.contactSims))
 				}
 
@@ -989,12 +1011,14 @@ func (w *World) solve(ctx *stepContext) {
 					// b2SolveJointsTask: color joints carry the joint event
 					// bookkeeping.
 					color := &graph.colors[colorIndex]
+
 					itemCount := len(color.jointSims) + len(color.contactSims)
 					if w.pool == nil {
 						w.solveColorTask(ctx, colorIndex, useBias, 0, 0, itemCount)
 					} else {
 						ctx.dispatchColorIndex = colorIndex
 						ctx.dispatchUseBias = useBias
+
 						w.pool.forRange(itemCount, solverColorGrain, solveColorFn)
 					}
 				}
@@ -1009,12 +1033,14 @@ func (w *World) solve(ctx *stepContext) {
 
 			// -- b2_stageRelax --------------------------------------------
 			useBias = false
+
 			for range solverRelaxIterations {
 				{
 					overflowColor := &graph.colors[overflowIndex]
 					for j := range overflowColor.jointSims {
 						w.solveJoint(&overflowColor.jointSims[j], ctx, useBias)
 					}
+
 					w.solveContactsColor(ctx, overflowIndex, useBias, 0, len(overflowColor.contactSims))
 				}
 
@@ -1023,12 +1049,14 @@ func (w *World) solve(ctx *stepContext) {
 					// b2SolveJointsTask (relax): useBias is false so no joint
 					// event bookkeeping happens.
 					color := &graph.colors[colorIndex]
+
 					itemCount := len(color.jointSims) + len(color.contactSims)
 					if w.pool == nil {
 						w.solveColorTask(ctx, colorIndex, useBias, 0, 0, itemCount)
 					} else {
 						ctx.dispatchColorIndex = colorIndex
 						ctx.dispatchUseBias = useBias
+
 						w.pool.forRange(itemCount, solverColorGrain, solveColorFn)
 					}
 				}
@@ -1039,26 +1067,32 @@ func (w *World) solve(ctx *stepContext) {
 		// Note: upstream mixes joint blocks into the restitution stages but
 		// only graph contact blocks are executed for restitution.
 		w.applyRestitutionColor(ctx, overflowIndex, 0, len(graph.colors[overflowIndex].contactSims))
+
 		for i := range activeColorCount {
 			colorIndex := activeColorIndices[i]
+
 			contactCount := len(graph.colors[colorIndex].contactSims)
 			if w.pool == nil {
 				w.applyRestitutionColor(ctx, colorIndex, 0, contactCount)
 			} else {
 				ctx.dispatchColorIndex = colorIndex
+
 				w.pool.forRange(contactCount, solverLightColorGrain, restitutionFn)
 			}
 		}
 
 		// -- b2_stageStoreImpulses ----------------------------------------
 		w.storeImpulsesColor(ctx, overflowIndex, 0, len(graph.colors[overflowIndex].contactSims))
+
 		for i := range activeColorCount {
 			colorIndex := activeColorIndices[i]
+
 			contactCount := len(graph.colors[colorIndex].contactSims)
 			if w.pool == nil {
 				w.storeImpulsesColor(ctx, colorIndex, 0, contactCount)
 			} else {
 				ctx.dispatchColorIndex = colorIndex
+
 				w.pool.forRange(contactCount, solverLightColorGrain, storeImpulsesFn)
 			}
 		}
@@ -1070,6 +1104,7 @@ func (w *World) solve(ctx *stepContext) {
 		for i := range GraphColorCount {
 			graph.colors[i].constraints = nil
 		}
+
 		w.arena.freeContactConstraints()
 
 		// Prepare the enlarged body and island bit sets, sensor hit and bullet
@@ -1079,6 +1114,7 @@ func (w *World) solve(ctx *stepContext) {
 		// Slots >= finalizeWorkers are never written this step and never
 		// merged this step, so stale content in them is harmless.
 		awakeIslandCount := len(awake.islandSims)
+
 		for k := range finalizeWorkers {
 			tc := &w.taskContexts[k]
 			tc.sensorHits = tc.sensorHits[:0]
@@ -1096,6 +1132,7 @@ func (w *World) solve(ctx *stepContext) {
 		} else {
 			w.pool.forRange(awakeBodyCount, solverBodyGrain, finalizeFn)
 		}
+
 		w.taskCount++
 	}
 
@@ -1114,6 +1151,7 @@ func (w *World) solve(ctx *stepContext) {
 		for k := 1; k < maxColorWorkers; k++ {
 			inPlaceUnion(jointStateBitSet, &w.taskContexts[k].jointStateBitSet)
 		}
+
 		for k := range jointStateBitSet.blockCount {
 			word := jointStateBitSet.bits[k]
 			for word != 0 {
@@ -1147,6 +1185,7 @@ func (w *World) solve(ctx *stepContext) {
 		threshold := w.hitEventThreshold
 		for i := range GraphColorCount {
 			color := &w.constraintGraph.colors[i]
+
 			contactCount := len(color.contactSims)
 			for j := range contactCount {
 				contactSim := &color.contactSims[j]
@@ -1155,9 +1194,11 @@ func (w *World) solve(ctx *stepContext) {
 				}
 
 				var event ContactHitEvent
+
 				event.ApproachSpeed = threshold
 
 				hit := false
+
 				pointCount := contactSim.manifold.PointCount
 				for k := range pointCount {
 					mp := &contactSim.manifold.Points[k]
@@ -1309,6 +1350,7 @@ func (w *World) solve(ctx *stepContext) {
 		for i := range ctx.bulletBodyCount {
 			w.solveContinuous(ctx.bulletBodies[i], &w.taskContexts[0])
 		}
+
 		w.taskCount++
 
 		// Serially enlarge broad-phase proxies for bullet shapes
@@ -1358,6 +1400,7 @@ func (w *World) solve(ctx *stepContext) {
 
 	// Need to free this even if no bullets got processed.
 	w.arena.freeBulletBodies()
+
 	ctx.bulletBodies = nil
 	ctx.bulletBodyCount = 0
 
@@ -1394,17 +1437,21 @@ func (w *World) solve(ctx *stepContext) {
 		assert(w.splitIslandID == NullIndex)
 		splitIslandID := NullIndex
 		splitSleepTime := 0.0
+
 		for k := range finalizeWorkers {
 			tc := &w.taskContexts[k]
 			if tc.splitIslandID == NullIndex {
 				continue
 			}
+
 			assert(tc.splitSleepTime > 0.0)
+
 			if tc.splitSleepTime > splitSleepTime {
 				splitIslandID = tc.splitIslandID
 				splitSleepTime = tc.splitSleepTime
 			}
 		}
+
 		if splitIslandID != NullIndex {
 			w.splitIslandID = splitIslandID
 		}
@@ -1423,6 +1470,7 @@ func (w *World) solve(ctx *stepContext) {
 		// Need to process in reverse because this moves islands to sleeping
 		// solver sets.
 		islandSims := awake.islandSims
+
 		count := len(awake.islandSims)
 		for islandIndex := count - 1; islandIndex >= 0; islandIndex-- {
 			if getBit(awakeIslandBitSet, uint32(islandIndex)) {

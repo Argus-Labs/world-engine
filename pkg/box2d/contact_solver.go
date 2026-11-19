@@ -137,6 +137,7 @@ func (w *World) prepareContactsColor(ctx *stepContext, colorIndex, startIndex, e
 		wA := 0.0
 		mA := contactSim.invMassA
 		iA := contactSim.invIA
+
 		if indexA != NullIndex {
 			stateA := &awakeStates[indexA]
 			vA = stateA.linearVelocity
@@ -147,6 +148,7 @@ func (w *World) prepareContactsColor(ctx *stepContext, colorIndex, startIndex, e
 		wB := 0.0
 		mB := contactSim.invMassB
 		iB := contactSim.invIB
+
 		if indexB != NullIndex {
 			stateB := &awakeStates[indexB]
 			vB = stateB.linearVelocity
@@ -180,6 +182,7 @@ func (w *World) prepareContactsColor(ctx *stepContext, colorIndex, startIndex, e
 		// One bounds check each instead of one per iteration below.
 		mps := manifold.Points[:pointCount]
 		cps := constraint.points[:pointCount]
+
 		for j := range mps {
 			mp := &mps[j]
 			cp := &cps[j]
@@ -253,6 +256,7 @@ func (w *World) warmStartContactsColor(ctx *stepContext, colorIndex, startIndex,
 		if indexA != NullIndex {
 			stateA = &states[indexA]
 		}
+
 		stateB := &dummyState
 		if indexB != NullIndex {
 			stateB = &states[indexB]
@@ -347,6 +351,7 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 		if indexA != NullIndex {
 			stateA = &states[indexA]
 		}
+
 		vA := stateA.linearVelocity
 		wA := stateA.angularVelocity
 		dqA := stateA.deltaRotation
@@ -355,6 +360,7 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 		if indexB != NullIndex {
 			stateB = &states[indexB]
 		}
+
 		vB := stateB.linearVelocity
 		wB := stateB.angularVelocity
 		dqB := stateB.deltaRotation
@@ -389,6 +395,7 @@ func (w *World) solveContactsColor(ctx *stepContext, colorIndex int, useBias boo
 			velocityBias := 0.0
 			massScale := 1.0
 			impulseScale := 0.0
+
 			switch {
 			case s > 0.0:
 				// speculative bias
@@ -525,6 +532,7 @@ func (w *World) applyRestitutionColor(ctx *stepContext, colorIndex, startIndex, 
 		if indexA != NullIndex {
 			stateA = &states[indexA]
 		}
+
 		vA := stateA.linearVelocity
 		wA := stateA.angularVelocity
 
@@ -532,6 +540,7 @@ func (w *World) applyRestitutionColor(ctx *stepContext, colorIndex, startIndex, 
 		if indexB != NullIndex {
 			stateB = &states[indexB]
 		}
+
 		vB := stateB.linearVelocity
 		wB := stateB.angularVelocity
 
@@ -616,6 +625,7 @@ func (w *World) storeImpulsesColor(ctx *stepContext, colorIndex, startIndex, end
 		// One bounds check each instead of one per iteration below.
 		mps := manifold.Points[:pointCount]
 		cps := constraint.points[:pointCount]
+
 		for j := range mps {
 			mp := &mps[j]
 			cp := &cps[j]

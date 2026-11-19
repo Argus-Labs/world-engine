@@ -18,11 +18,14 @@ import (
 // slots (box in slot 0, circle in slot 1) and returns a pointer to the assigned entity id.
 func spawnTwoShapeBody(t *testing.T, w *cardinal.World) *cardinal.EntityID {
 	t.Helper()
+
 	entityID := new(cardinal.EntityID)
+
 	w.RegisterSystem(&spawnTwoShapeBodySystem{run: func(w *cardinal.World) {
 		if w.TickHeight() != 0 {
 			return
 		}
+
 		row := w.Create[spawnArchetype]()
 		id := row.ID()
 		row.Set(harnessTag{Role: "lookup"})
@@ -45,8 +48,10 @@ func spawnTwoShapeBody(t *testing.T, w *cardinal.World) *cardinal.EntityID {
 				MaskBits:     0xFFFF,
 			},
 		))
+
 		*entityID = id
 	}}, cardinal.WithPhase(cardinal.Init))
+
 	return entityID
 }
 
@@ -72,6 +77,7 @@ func TestLookup_BodyAndShapeIDsForSpawnedEntity(t *testing.T) {
 	shapeIDs, ok := p.ShapeIDs(*entityID)
 	require.True(t, ok, "spawned entity should have shape ids")
 	require.Len(t, shapeIDs, 2, "one shape id per collider slot")
+
 	for slot, shapeID := range shapeIDs {
 		require.Equal(t, bodyID, engine.ShapeBody(shapeID), "slot %d belongs to the entity body", slot)
 		require.Equal(t, slot, int(uint32(engine.ShapeUserData(shapeID))),
@@ -105,6 +111,7 @@ func TestLookup_UnknownAndDestroyedEntity(t *testing.T) {
 
 	// Destroyed entity: reconcile drops the body on the tick after Destroy.
 	tickN(t, w, 5)
+
 	_, ok = p.BodyID(*entityID)
 	require.False(t, ok, "destroyed entity should no longer resolve to a body")
 	shapeIDs, ok = p.ShapeIDs(*entityID)

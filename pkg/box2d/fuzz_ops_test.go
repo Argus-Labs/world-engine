@@ -397,6 +397,7 @@ func (o *opWorld) createJoint(s opSource) {
 	}
 
 	indexA := srcIntn(s, len(o.bodies))
+
 	indexB := srcIntn(s, len(o.bodies))
 	if indexA == indexB {
 		indexB = (indexB + 1) % len(o.bodies)
@@ -822,6 +823,7 @@ func FuzzWorldOps(f *testing.F) {
 
 		serial := newOpWorld(1)
 		defer serial.world.Destroy()
+
 		parallel := newOpWorld(4)
 		defer parallel.world.Destroy()
 

@@ -23,7 +23,9 @@ type CheckResult struct {
 func CheckCmd(deps ...Dependency) tea.Cmd {
 	return func() tea.Msg {
 		statuses := make([]Status, 0, len(deps))
+
 		var errs error
+
 		for _, dep := range deps {
 			err := dep.Check()
 			statuses = append(statuses, Status{
@@ -32,6 +34,7 @@ func CheckCmd(deps ...Dependency) tea.Cmd {
 			})
 			errs = errors.Join(errs, err)
 		}
+
 		return CheckResult{Statuses: statuses, Err: errs}
 	}
 }

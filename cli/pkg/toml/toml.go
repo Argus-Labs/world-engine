@@ -21,6 +21,7 @@ func LoadFile(path string) (Config, error) {
 		return Config{}, eris.Wrapf(err, "open %s", path)
 	}
 	defer func() { _ = f.Close() }()
+
 	return Load(f)
 }
 
@@ -31,6 +32,7 @@ func LoadDir(dir string) (Config, error) {
 
 func Load(r io.Reader) (Config, error) {
 	var cfg Config
+
 	dec := toml.NewDecoder(r)
 
 	// Decode and capture metadata so we could detect unknown/unused keys if desired.
@@ -44,6 +46,7 @@ func Load(r io.Reader) (Config, error) {
 		for _, k := range u {
 			keys = append(keys, k.String())
 		}
+
 		log.Warn().Msgf("ignored unknown config keys: %s", strings.Join(keys, ", "))
 	}
 
@@ -79,6 +82,7 @@ func validate(cfg *Config) error {
 	}
 
 	seen := make(map[string]bool)
+
 	for i := range cfg.Shards {
 		// Raw empty ID means the key is missing entirely
 		if cfg.Shards[i].ID == "" {
@@ -99,6 +103,7 @@ func validate(cfg *Config) error {
 		if cfg.Shards[i].Path == "" {
 			cfg.Shards[i].Path = fmt.Sprintf("shards/%s/", cfg.Shards[i].ID)
 		}
+
 		seen[cfg.Shards[i].ID] = true
 
 		// Default pool_size: any non-positive value (zero or negative) means
@@ -158,16 +163,19 @@ func validate(cfg *Config) error {
 					"shards[%d].resources.requests.cpu and .memory must each be >= 1 (got cpu=%d, memory=%d)",
 					i, r.Requests.CPU, r.Requests.Memory))
 			}
+
 			if r.Limits.CPU < 1 || r.Limits.Memory < 1 {
 				return eris.New(fmt.Sprintf(
 					"shards[%d].resources.limits.cpu and .memory must each be >= 1 (got cpu=%d, memory=%d)",
 					i, r.Limits.CPU, r.Limits.Memory))
 			}
+
 			if r.Limits.CPU < r.Requests.CPU {
 				return eris.New(fmt.Sprintf(
 					"shards[%d].resources.limits.cpu (%d) must be >= requests.cpu (%d)",
 					i, r.Limits.CPU, r.Requests.CPU))
 			}
+
 			if r.Limits.Memory < r.Requests.Memory {
 				return eris.New(fmt.Sprintf(
 					"shards[%d].resources.limits.memory (%d) must be >= requests.memory (%d)",
@@ -183,6 +191,7 @@ func validate(cfg *Config) error {
 	if err != nil {
 		return err
 	}
+
 	cfg.Shards = expanded
 
 	if err := validateServices(cfg); err != nil {
@@ -197,6 +206,7 @@ func validate(cfg *Config) error {
 func validateServices(cfg *Config) error {
 	seen := make(map[string]bool)
 	configDBSeen := false
+
 	for i := range cfg.Services {
 		svc := &cfg.Services[i]
 		if svc.ID == "" {
@@ -210,6 +220,7 @@ func validateServices(cfg *Config) error {
 		if seen[svc.ID] {
 			return eris.New(fmt.Sprintf("duplicate service id %q at index %d", svc.ID, i))
 		}
+
 		seen[svc.ID] = true
 
 		// Exactly one of image (pulled) or path (built from source) must be set.
@@ -237,7 +248,9 @@ func validateServices(cfg *Config) error {
 					),
 				)
 			}
+
 			configDBSeen = true
+
 			if len(svc.Ports) > 1 {
 				return eris.New(
 					fmt.Sprintf(
@@ -303,6 +316,7 @@ func validateServices(cfg *Config) error {
 			return eris.New(fmt.Sprintf("services[%d] (%s) volume must be an absolute container path", i, svc.ID))
 		}
 	}
+
 	return nil
 }
 
@@ -318,14 +332,17 @@ func expandPools(shards []Shard) ([]Shard, error) {
 		return nil, eris.Errorf("total expanded shard instances %d exceeds maximum of %d; "+
 			"reduce pool_size across shards", total, maxExpandedInstances)
 	}
+
 	expanded := make([]Shard, 0, total)
 	// final instance ID -> shard ID that produced it. Lets us name both
 	// sides when a pool_size expansion collides with another shard's instance ID.
 	source := make(map[string]string, total)
+
 	for _, s := range shards {
 		baseID := s.ID
 		for r := 1; r <= s.PoolSize; r++ {
 			entry := s
+
 			instanceID := baseID
 			if r > 1 {
 				instanceID = fmt.Sprintf("%s-%d", baseID, r)
@@ -341,7 +358,9 @@ func expandPools(shards []Shard) ([]Shard, error) {
 					instanceID, dnslabel.MaxLength, baseID, s.PoolSize,
 				))
 			}
+
 			entry.PoolSize = 1
+
 			entry.InstanceID = instanceID
 			if prev, ok := source[entry.InstanceID]; ok {
 				return nil, eris.New(fmt.Sprintf(
@@ -349,9 +368,11 @@ func expandPools(shards []Shard) ([]Shard, error) {
 					entry.InstanceID, prev, baseID,
 				))
 			}
+
 			source[entry.InstanceID] = baseID
 			expanded = append(expanded, entry)
 		}
 	}
+
 	return expanded, nil
 }

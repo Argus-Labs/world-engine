@@ -53,10 +53,12 @@ func buildPrismaticRig(gravity box2d.Vec2, tune func(*box2d.PrismaticJointDef)) 
 	jd.Base.BodyIDA = anchor
 	jd.Base.BodyIDB = elevator
 	jd.Base.LocalFrameA.Q = axisRot
+
 	jd.Base.LocalFrameB.Q = axisRot
 	if tune != nil {
 		tune(&jd)
 	}
+
 	joint := w.CreatePrismaticJoint(&jd)
 
 	return prismaticRig{world: w, anchor: anchor, elevator: elevator, joint: joint}
@@ -87,8 +89,10 @@ func TestPrismaticJointAxisConstraint(t *testing.T) {
 func TestPrismaticJointLimits(t *testing.T) {
 	t.Parallel()
 
-	const lower = -1.0
-	const upper = 0.25
+	const (
+		lower = -1.0
+		upper = 0.25
+	)
 
 	rig := buildPrismaticRig(box2d.Vec2{X: 0.0, Y: -10.0}, func(jd *box2d.PrismaticJointDef) {
 		jd.EnableLimit = true
@@ -203,11 +207,13 @@ func TestPrismaticJointSpeedReadableWhileWorldLocked(t *testing.T) {
 	rig.world.CreatePolygonShape(ground, &gsd, &groundBox)
 
 	called := 0
+
 	rig.world.SetPreSolveCallback(func(_, _ box2d.ShapeID, _, _ box2d.Vec2, _ any) bool {
 		called++
 		// The panic this guards against fired here, on the first field
 		// access behind the nil jointSim.
 		require.False(t, math.IsNaN(rig.world.PrismaticJointSpeed(rig.joint)))
+
 		return true
 	}, nil)
 
@@ -330,6 +336,7 @@ func TestPrismaticJointDeterminism(t *testing.T) {
 		defer rig.world.Destroy()
 
 		var samples []float64
+
 		for range 200 {
 			rig.world.ApplyBodyForceToCenter(rig.elevator, box2d.Vec2{X: 7.0, Y: 0.0}, true)
 			rig.world.Step(prismaticTimeStep, 4)
@@ -341,6 +348,7 @@ func TestPrismaticJointDeterminism(t *testing.T) {
 				rig.world.PrismaticJointTranslation(rig.joint),
 				rig.world.PrismaticJointSpeed(rig.joint))
 		}
+
 		return samples
 	}
 
@@ -348,6 +356,7 @@ func TestPrismaticJointDeterminism(t *testing.T) {
 	second := run()
 
 	require.Len(t, second, len(first))
+
 	for i := range first {
 		require.Equal(t, math.Float64bits(first[i]), math.Float64bits(second[i]),
 			"prismatic joint scene is not bit-identical at sample %d", i)

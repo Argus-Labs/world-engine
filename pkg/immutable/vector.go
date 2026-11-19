@@ -43,6 +43,7 @@ func branchNode[T any](kids ...*vnode[T]) *vnode[T] {
 		arr  [chunkSize]*vnode[T]
 	})
 	b.node.kids = append(b.arr[:0], kids...)
+
 	return &b.node
 }
 
@@ -55,6 +56,7 @@ func (s Slice[T]) leafAt(i int) []T {
 	for shift := s.shift; shift > 0; shift -= chunkBits {
 		node = node.kids[(i>>shift)&chunkMask]
 	}
+
 	return node.items
 }
 
@@ -68,11 +70,14 @@ func setInTree[T any](node *vnode[T], shift uint, i int, v T) *vnode[T] {
 		l.arr = [chunkSize]T(node.items)
 		l.arr[i&chunkMask] = v
 		l.node.items = l.arr[:]
+
 		return &l.node
 	}
+
 	b := branchNode(node.kids...)
 	k := (i >> shift) & chunkMask
 	b.kids[k] = setInTree(node.kids[k], shift-chunkBits, i, v)
+
 	return b
 }
 
@@ -95,14 +100,17 @@ func (s *Slice[T]) pushLeaf(leaf *vnode[T]) {
 func (s *Slice[T]) popLeaf() []T {
 	last := s.treeLen() - 1
 	items := s.leafAt(last)
+
 	s.root = withoutLastLeaf(s.root, s.shift, last)
 	for s.root != nil && s.shift > 0 && len(s.root.kids) == 1 {
 		s.root = s.root.kids[0]
 		s.shift -= chunkBits
 	}
+
 	if s.root == nil {
 		s.shift = 0
 	}
+
 	return items
 }
 
@@ -112,15 +120,19 @@ func withoutLastLeaf[T any](node *vnode[T], shift uint, last int) *vnode[T] {
 	if shift == 0 {
 		return nil
 	}
+
 	k := (last >> shift) & chunkMask
+
 	kid := withoutLastLeaf(node.kids[k], shift-chunkBits, last)
 	if kid == nil && k == 0 {
 		return nil
 	}
+
 	b := branchNode(node.kids[:k]...)
 	if kid != nil {
 		b.kids = append(b.kids, kid)
 	}
+
 	return b
 }
 
@@ -129,6 +141,7 @@ func pathTo[T any](shift uint, leaf *vnode[T]) *vnode[T] {
 	if shift == 0 {
 		return leaf
 	}
+
 	return branchNode(pathTo(shift-chunkBits, leaf))
 }
 
@@ -136,12 +149,15 @@ func pathTo[T any](shift uint, leaf *vnode[T]) *vnode[T] {
 // tree's elements.
 func pushInto[T any](node *vnode[T], shift uint, at int, leaf *vnode[T]) *vnode[T] {
 	k := (at >> shift) & chunkMask
+
 	b := branchNode(node.kids...)
 	if k == len(node.kids) {
 		b.kids = append(b.kids, pathTo(shift-chunkBits, leaf))
 		return b
 	}
+
 	b.kids[k] = pushInto(node.kids[k], shift-chunkBits, at, leaf)
+
 	return b
 }
 
@@ -153,25 +169,32 @@ func fromItems[T any](items []T) Slice[T] {
 	if n == 0 {
 		return Slice[T]{}
 	}
+
 	tailLen := (n-1)&chunkMask + 1
 	s := Slice[T]{tail: items[n-tailLen : n : n], n: n}
+
 	treeLen := n - tailLen
 	if treeLen == 0 {
 		return s
 	}
+
 	level := make([]*vnode[T], 0, treeLen/chunkSize)
 	for i := 0; i < treeLen; i += chunkSize {
 		level = append(level, leafNode(items[i:i+chunkSize:i+chunkSize]))
 	}
+
 	for len(level) > 1 {
 		up := make([]*vnode[T], 0, (len(level)+chunkMask)/chunkSize)
 		for i := 0; i < len(level); i += chunkSize {
 			up = append(up, branchNode(level[i:min(i+chunkSize, len(level))]...))
 		}
+
 		level = up
 		s.shift += chunkBits
 	}
+
 	s.root = level[0]
+
 	return s
 }
 
@@ -181,6 +204,7 @@ func (s Slice[T]) chunks() iter.Seq[[]T] {
 		if s.root != nil && !forwardLeaves(s.root, s.shift, yield) {
 			return
 		}
+
 		if len(s.tail) > 0 {
 			yield(s.tail)
 		}
@@ -191,11 +215,13 @@ func forwardLeaves[T any](node *vnode[T], shift uint, yield func([]T) bool) bool
 	if shift == 0 {
 		return yield(node.items)
 	}
+
 	for _, kid := range node.kids {
 		if !forwardLeaves(kid, shift-chunkBits, yield) {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -205,6 +231,7 @@ func (s Slice[T]) backwardChunks() iter.Seq[[]T] {
 		if len(s.tail) > 0 && !yield(s.tail) {
 			return
 		}
+
 		if s.root != nil {
 			backwardLeaves(s.root, s.shift, yield)
 		}
@@ -215,11 +242,13 @@ func backwardLeaves[T any](node *vnode[T], shift uint, yield func([]T) bool) boo
 	if shift == 0 {
 		return yield(node.items)
 	}
+
 	for _, kid := range slices.Backward(node.kids) {
 		if !backwardLeaves(kid, shift-chunkBits, yield) {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -229,5 +258,6 @@ func (s Slice[T]) toItems(extra int) []T {
 	for c := range s.chunks() {
 		items = append(items, c...)
 	}
+
 	return items
 }

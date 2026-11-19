@@ -52,6 +52,7 @@ const e2eCommandTimeout = 2 * time.Second
 //	go test ./pkg/cardinal/... -e2e.run -e2e.duration=2m
 func RunE2E(t *testing.T, setup E2ESetupFunc) {
 	t.Helper()
+
 	if !*e2eRun {
 		t.Skip("skipping e2e test; use -e2e.run to enable")
 	}
@@ -67,6 +68,7 @@ func RunE2E(t *testing.T, setup E2ESetupFunc) {
 
 	// Start the world's run loop in a background goroutine.
 	ctx, cancel := context.WithCancel(context.Background())
+
 	runErr := make(chan error, 1)
 	go func() {
 		runErr <- fix.world.run(ctx)
@@ -76,13 +78,17 @@ func RunE2E(t *testing.T, setup E2ESetupFunc) {
 		stopWorldOnce sync.Once
 		stopWorldErr  error
 	)
+
 	stopWorld := func() error {
 		stopWorldOnce.Do(func() {
 			cancel()
+
 			stopWorldErr = <-runErr
 		})
+
 		return stopWorldErr
 	}
+
 	t.Cleanup(func() {
 		err := stopWorld()
 		if err != nil && !errors.Is(err, context.Canceled) {
@@ -94,6 +100,7 @@ func RunE2E(t *testing.T, setup E2ESetupFunc) {
 	// loop in the background, so this harness does not directly drive or count ticks; runtime jitter
 	// (scheduler/NATS/GC) can make elapsed time and tick count diverge.
 	deadline := time.After(cfg.Duration)
+
 sendLoop:
 	for {
 		select {
@@ -103,6 +110,7 @@ sendLoop:
 			if err != nil && !errors.Is(err, context.Canceled) {
 				t.Fatalf("world.run returned unexpected error: %v", err)
 			}
+
 			break sendLoop
 		default:
 			if len(cfg.CommandWeights) == 0 {
@@ -110,6 +118,7 @@ sendLoop:
 				time.Sleep(10 * time.Millisecond)
 				continue
 			}
+
 			name := testutils.RandWeightedOp(prng, cfg.CommandWeights)
 			cmd := fix.randCommand(t, prng, name)
 			fix.sendCommand(t, "e2e-"+testutils.RandString(prng, 8), cmd)
@@ -144,6 +153,7 @@ func (c *e2eConfig) addCommandOps(rng *rand.Rand, cmdOps []string) {
 	if len(cmdOps) == 0 {
 		return
 	}
+
 	c.CommandWeights = testutils.RandOpWeights(rng, cmdOps)
 }
 
@@ -173,6 +183,7 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 	// Start a dedicated in-memory NATS server for this test.
 	natsServer, natsCleanup := newE2ENATS(t)
 	t.Cleanup(natsCleanup)
+
 	natsURL := natsServer.ClientURL()
 
 	// Force all implicit micro.NewClient calls (service/snapshot) to use test NATS.
@@ -186,6 +197,7 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 	} else {
 		w.options.NATSConfig.URL = natsURL
 	}
+
 	w.options.AuthMode = AuthModeDev
 	w.service = newService(w, w.options.AuthMode, w.options.ArgusAuthURL)
 	w.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
@@ -195,6 +207,7 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
+
 		require.NoError(t, w.service.shutdown(ctx))
 	})
 
@@ -205,10 +218,12 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 		assert.Equal(t, event.KindInterShardCommand, evt.Kind, "nats: received wrong event kind")
 		isc, ok := evt.Payload.(command.Command)
 		assert.True(t, ok, "nats: ISC payload is %T, want command.Command", evt.Payload)
+
 		if ok {
 			assert.NotEmpty(t, isc.Name, "nats: inter-shard command has empty name")
 			assert.NotNil(t, isc.Address, "nats: inter-shard command has nil address")
 		}
+
 		return nil
 	})
 
@@ -234,12 +249,15 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 
 func (f *e2eFixture) randCommand(t *testing.T, rng *rand.Rand, name string) *iscv1.Command {
 	t.Helper()
+
 	val := reflect.New(f.cmdTypes[name]).Elem()
 	fillRandom(rng, val, f.world.world.LiveEntityIDs())
 	p, ok := reflect.TypeAssert[command.Payload](val)
 	require.True(t, ok, "type assertion to command.Payload failed for %q", name)
+
 	payload, err := schema.Serialize(p)
 	require.NoError(t, err)
+
 	return &iscv1.Command{
 		Name:    name,
 		Address: f.world.address,
@@ -253,6 +271,7 @@ func (f *e2eFixture) sendCommand(t *testing.T, player string, cmd *iscv1.Command
 	// 2s absorbs normal scheduling/reconnect jitter while still failing fast on deadlocks.
 	ctx, cancel := context.WithTimeout(context.Background(), e2eCommandTimeout)
 	defer cancel()
+
 	req := connect.NewRequest(&cardinalv1.SendCommandRequest{Command: cmd})
 	req.Header().Set(devPlayerIDHeader, player)
 	_, err := f.client.SendCommand(ctx, req)
@@ -278,5 +297,6 @@ func newE2ENATS(t *testing.T) (*server.Server, func()) {
 		JetStream:             true,
 		StoreDir:              tempDir,
 	})
+
 	return srv, srv.Shutdown
 }

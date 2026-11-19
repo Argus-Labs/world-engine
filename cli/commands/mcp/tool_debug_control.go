@@ -65,6 +65,7 @@ func debugControlHandler(
 	if err != nil {
 		return DebugControlOutput{}, err
 	}
+
 	op := strings.ToLower(strings.TrimSpace(args.Operation))
 	switch op {
 	case debugOpPause, debugOpResume, debugOpStep, debugOpReset:
@@ -86,12 +87,14 @@ func debugControlHandler(
 	}
 
 	var tickHeight uint64
+
 	switch op {
 	case debugOpPause:
 		res, err := client.Pause(ctx, connect.NewRequest(&cardinalv1.PauseRequest{}))
 		if err != nil {
 			return DebugControlOutput{}, eris.Wrapf(err, "failed to pause shard %q", shardID)
 		}
+
 		tickHeight = res.Msg.GetTickHeight()
 	case debugOpResume:
 		if _, err := client.Resume(ctx, connect.NewRequest(&cardinalv1.ResumeRequest{})); err != nil {
@@ -102,6 +105,7 @@ func debugControlHandler(
 		if err != nil {
 			return DebugControlOutput{}, eris.Wrapf(err, "failed to step shard %q", shardID)
 		}
+
 		tickHeight = res.Msg.GetTickHeight()
 	// debugOpReset. Default to satisfy Qodana error
 	default:

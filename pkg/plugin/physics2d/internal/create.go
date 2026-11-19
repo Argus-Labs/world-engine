@@ -21,15 +21,19 @@ func (rt *Runtime) CreateBody(
 	if rt.World == nil {
 		return errors.New("physics2d: world does not exist")
 	}
+
 	if _, exists := rt.Bodies[entityID]; exists {
 		return errors.New("physics2d: CreateBody failed (entity already has a body)")
 	}
+
 	if err := transform.Validate(); err != nil {
 		return fmt.Errorf("physics2d: transform: %w", err)
 	}
+
 	if err := velocity.Validate(); err != nil {
 		return fmt.Errorf("physics2d: velocity: %w", err)
 	}
+
 	if err := pb.Validate(); err != nil {
 		return fmt.Errorf("physics2d: physics_body: %w", err)
 	}
@@ -65,6 +69,7 @@ func (rt *Runtime) CreateBody(
 	def.IsEnabled = pb.Active
 
 	rt.Bodies[entityID] = rt.World.CreateBody(&def)
+
 	return nil
 }
 
@@ -75,16 +80,19 @@ func (rt *Runtime) AttachColliderFixtures(entityID cardinal.EntityID, shapes Sha
 	if shapes.Len() == 0 {
 		return errors.New("physics2d: collider has no shapes")
 	}
+
 	for i, sh := range shapes.All() {
 		if err := sh.Validate(); err != nil {
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
+
 	for i, sh := range shapes.All() {
 		if err := rt.attachShape(entityID, i, sh); err != nil {
 			return fmt.Errorf("physics2d: shapes[%d]: %w", i, err)
 		}
 	}
+
 	return nil
 }
 
@@ -99,10 +107,12 @@ func (rt *Runtime) CreateBodyWithCollider(
 	if err := rt.CreateBody(entityID, transform, velocity, pb); err != nil {
 		return err
 	}
+
 	if err := rt.AttachColliderFixtures(entityID, pb.Shapes); err != nil {
 		rt.DestroyEntityBody(entityID)
 		return err
 	}
+
 	return nil
 }
 
@@ -114,6 +124,7 @@ func (rt *Runtime) DestroyEntityBody(entityID cardinal.EntityID) {
 	if !ok || rt.World == nil {
 		return
 	}
+
 	rt.World.DestroyBody(bodyID)
 	delete(rt.Bodies, entityID)
 	delete(rt.Shapes, entityID)
@@ -150,6 +161,7 @@ func makeShapeDef(shapeIndex int, sh component.ColliderShape) box2d.ShapeDef {
 	def.Filter.CategoryBits = sh.CategoryBits
 	def.Filter.MaskBits = sh.MaskBits
 	def.Filter.GroupIndex = int(sh.GroupIndex)
+
 	return def
 }
 
@@ -160,6 +172,7 @@ func (rt *Runtime) registerShape(entityID cardinal.EntityID, shapeIndex int, sid
 	for len(slots) <= shapeIndex {
 		slots = append(slots, box2d.ShapeID{})
 	}
+
 	slots[shapeIndex] = sid
 	rt.Shapes[entityID] = slots
 }
@@ -198,15 +211,18 @@ func (rt *Runtime) attachShape(
 		if len(src) < 3 {
 			return errors.New("AddPolygonShape failed")
 		}
+
 		verts := make([]box2d.Vec2, len(src))
 		for i := range src {
 			v := shapePointToBodySpace(src[i], sh.LocalOffset, sh.LocalRotation)
 			verts[i] = box2d.Vec2{X: v.X, Y: v.Y}
 		}
+
 		hull := box2d.ComputeHull(verts)
 		if hull.Count == 0 {
 			return errors.New("AddPolygonShape failed") // degenerate polygon
 		}
+
 		def := makeShapeDef(shapeIndex, sh)
 		polygon := box2d.MakePolygon(&hull, 0)
 		rt.registerShape(entityID, shapeIndex, rt.World.CreatePolygonShape(bodyID, &def, &polygon))
@@ -217,6 +233,7 @@ func (rt *Runtime) attachShape(
 			v := shapePointToBodySpace(p, sh.LocalOffset, sh.LocalRotation)
 			pts = append(pts, box2d.Vec2{X: v.X, Y: v.Y})
 		}
+
 		def := box2d.DefaultChainDef()
 		def.UserData = uint64(uint32(shapeIndex)) //nolint:gosec // shape index is small and non-negative
 		def.Points = pts
@@ -268,6 +285,7 @@ func shapePointToBodySpace(p, offset component.Vec2, localRot float64) component
 	c, s := math.Cos(localRot), math.Sin(localRot)
 	rx := p.X*c - p.Y*s
 	ry := p.X*s + p.Y*c
+
 	return component.Vec2{X: rx + offset.X, Y: ry + offset.Y}
 }
 
@@ -280,19 +298,23 @@ func (rt *Runtime) destroyAllShapesForEntity(entityID cardinal.EntityID) {
 	if !ok {
 		return
 	}
+
 	for _, chainID := range rt.Chains[entityID] {
 		rt.World.DestroyChain(chainID)
 	}
+
 	delete(rt.Chains, entityID)
 
 	count := rt.World.BodyShapeCount(bodyID)
 	if count > 0 {
 		sids := make([]box2d.ShapeID, count)
+
 		got := rt.World.BodyShapes(bodyID, sids)
 		for i := range got {
 			rt.World.DestroyShape(sids[i], false)
 		}
 	}
+
 	delete(rt.Shapes, entityID)
 
 	// Recalculate mass after removing all shapes.

@@ -64,13 +64,16 @@ func Start(ctx context.Context, progress Progress) *Dashboard {
 	}
 
 	dctx, cancel := context.WithCancel(ctx)
+
 	p := program.NewTeaProgram(newModel(cancel), tea.WithContext(dctx))
 	go func() {
 		if _, err := p.Run(); err != nil {
 			logger.Error("failed to run phasebox dashboard", "error", err)
 		}
+
 		close(done)
 	}()
+
 	return &Dashboard{p: p, done: done, ctx: dctx}
 }
 
@@ -97,6 +100,7 @@ func (d *Dashboard) Complete() {
 func (d *Dashboard) Open(title string) *Box {
 	id := strconv.FormatInt(d.nextID.Add(1), 10)
 	d.send(newSectionMsg{id: id, title: title})
+
 	return &Box{d: d, id: id, title: title}
 }
 
@@ -125,6 +129,7 @@ func (b *Box) Run(
 	elapsed := time.Since(started)
 
 	var summary string
+
 	switch {
 	case opErr == nil:
 		summary = summarize(elapsed)
@@ -133,18 +138,22 @@ func (b *Box) Run(
 	default:
 		summary = fmt.Sprintf("failed (%s) — see error below", elapsed.Round(time.Second))
 	}
+
 	b.d.send(collapseMsg{section: b.id, summary: summary, failed: opErr != nil})
+
 	if b.d.plain != nil {
 		icon := style.TickIcon.Render()
 		if opErr != nil {
 			icon = style.CrossIcon.Render()
 		}
+
 		fmt.Fprintf(b.d.plain, "%s: %s%s\n", b.title, icon, summary)
 	}
 
 	if isCanceled(opErr) {
 		return errorspkg.NewSilent(opErr)
 	}
+
 	return opErr
 }
 
@@ -169,6 +178,7 @@ func (s *sectionSession) Fail(id, label string, err error) {
 	if isCanceled(err) {
 		detail = "canceled"
 	}
+
 	s.d.send(rowMsg{section: s.section, id: id, label: label, detail: detail, state: Failed})
 }
 

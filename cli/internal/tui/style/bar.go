@@ -26,8 +26,10 @@ func ProgressBar(percent int) string {
 	case percent > 100:
 		percent = 100
 	}
+
 	filled := percent * progressBarWidth / 100
 	bar := progressBarFilled.Render(strings.Repeat("█", filled)) +
 		progressBarEmpty.Render(strings.Repeat("░", progressBarWidth-filled))
+
 	return fmt.Sprintf("%s %3d%%", bar, percent)
 }

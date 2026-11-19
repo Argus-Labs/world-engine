@@ -72,6 +72,7 @@ func TestBitSet_WordBoundaries(t *testing.T) {
 	setBit(&bs, 255)
 
 	tassert.Equal(t, 8, countSetBits(&bs))
+
 	for i := range uint32(256) {
 		switch i {
 		case 0, 63, 64, 127, 128, 191, 192, 255:

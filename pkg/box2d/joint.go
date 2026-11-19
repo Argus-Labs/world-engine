@@ -119,6 +119,7 @@ type jointPair struct {
 // (upstream static b2DefaultJointDef).
 func defaultJointDef() JointDef {
 	var def JointDef
+
 	def.LocalFrameA.Q = RotIdentity
 	def.LocalFrameB.Q = RotIdentity
 	// Keep the upstream FLT_MAX magnitude even though this port computes in
@@ -129,6 +130,7 @@ func defaultJointDef() JointDef {
 	def.ConstraintHertz = 60.0
 	def.ConstraintDampingRatio = 2.0
 	def.DrawScale = GetLengthUnitsPerMeter()
+
 	return def
 }
 
@@ -136,12 +138,14 @@ func defaultJointDef() JointDef {
 // (upstream b2DefaultDistanceJointDef).
 func DefaultDistanceJointDef() DistanceJointDef {
 	var def DistanceJointDef
+
 	def.Base = defaultJointDef()
 	def.LowerSpringForce = -math.MaxFloat32
 	def.UpperSpringForce = math.MaxFloat32
 	def.Length = 1.0
 	def.MaxLength = Huge
 	def.initialized = true
+
 	return def
 }
 
@@ -149,8 +153,10 @@ func DefaultDistanceJointDef() DistanceJointDef {
 // (upstream b2DefaultMotorJointDef).
 func DefaultMotorJointDef() MotorJointDef {
 	var def MotorJointDef
+
 	def.Base = defaultJointDef()
 	def.initialized = true
+
 	return def
 }
 
@@ -158,8 +164,10 @@ func DefaultMotorJointDef() MotorJointDef {
 // (upstream b2DefaultFilterJointDef).
 func DefaultFilterJointDef() FilterJointDef {
 	var def FilterJointDef
+
 	def.Base = defaultJointDef()
 	def.initialized = true
+
 	return def
 }
 
@@ -167,8 +175,10 @@ func DefaultFilterJointDef() FilterJointDef {
 // (upstream b2DefaultPrismaticJointDef).
 func DefaultPrismaticJointDef() PrismaticJointDef {
 	var def PrismaticJointDef
+
 	def.Base = defaultJointDef()
 	def.initialized = true
+
 	return def
 }
 
@@ -176,8 +186,10 @@ func DefaultPrismaticJointDef() PrismaticJointDef {
 // (upstream b2DefaultRevoluteJointDef).
 func DefaultRevoluteJointDef() RevoluteJointDef {
 	var def RevoluteJointDef
+
 	def.Base = defaultJointDef()
 	def.initialized = true
+
 	return def
 }
 
@@ -185,8 +197,10 @@ func DefaultRevoluteJointDef() RevoluteJointDef {
 // (upstream b2DefaultWeldJointDef).
 func DefaultWeldJointDef() WeldJointDef {
 	var def WeldJointDef
+
 	def.Base = defaultJointDef()
 	def.initialized = true
+
 	return def
 }
 
@@ -194,11 +208,13 @@ func DefaultWeldJointDef() WeldJointDef {
 // (upstream b2DefaultWheelJointDef).
 func DefaultWheelJointDef() WheelJointDef {
 	var def WheelJointDef
+
 	def.Base = defaultJointDef()
 	def.EnableSpring = true
 	def.Hertz = 1.0
 	def.DampingRatio = 0.7
 	def.initialized = true
+
 	return def
 }
 
@@ -218,6 +234,7 @@ func (w *World) getJointFullID(jointID JointID) *joint {
 	id := int(jointID.index1) - 1
 	j := &w.joints[id]
 	assert(w.ownsToken(jointID.world0) && j.jointID == id && j.generation == jointID.generation)
+
 	return j
 }
 
@@ -227,10 +244,12 @@ func (w *World) getJointSim(j *joint) *jointSim {
 	if j.setIndex == awakeSet {
 		assert(0 <= j.colorIndex && j.colorIndex < GraphColorCount)
 		color := &w.constraintGraph.colors[j.colorIndex]
+
 		return &color.jointSims[j.localIndex]
 	}
 
 	set := &w.solverSets[j.setIndex]
+
 	return &set.jointSims[j.localIndex]
 }
 
@@ -248,6 +267,7 @@ func (w *World) getJointSim(j *joint) *jointSim {
 // prismatic_joint.go).
 func (w *World) getJointSimCheckType(jointID JointID, jointType JointType) *jointSim {
 	assert(!w.locked)
+
 	if w.locked {
 		return nil
 	}
@@ -256,6 +276,7 @@ func (w *World) getJointSimCheckType(jointID JointID, jointType JointType) *join
 	assert(j.jointType == jointType)
 	js := w.getJointSim(j)
 	assert(js.jointType == jointType)
+
 	return js
 }
 
@@ -263,8 +284,10 @@ func (w *World) getJointSimCheckType(jointID JointID, jointType JointType) *join
 // used when a joint disables collision between the attached bodies
 // (upstream static b2DestroyContactsBetweenBodies).
 func (w *World) destroyContactsBetweenBodies(bodyA, bodyB *body) {
-	var contactKey int
-	var otherBodyID int
+	var (
+		contactKey  int
+		otherBodyID int
+	)
 
 	// use the smaller of the two contact lists
 	if bodyA.contactCount < bodyB.contactCount {
@@ -308,6 +331,7 @@ func (w *World) createJointInternal(def *JointDef, jointType JointType) jointPai
 		assert(IsValidTransform(def.LocalFrameA))
 		assert(IsValidTransform(def.LocalFrameB))
 	}
+
 	assert(w.worldID == def.BodyIDA.world0)
 	assert(w.worldID == def.BodyIDB.world0)
 	assert(def.BodyIDA != def.BodyIDB)
@@ -344,11 +368,13 @@ func (w *World) createJointInternal(def *JointDef, jointType JointType) jointPai
 	j.edges[0].nextKey = bodyA.headJointKey
 
 	keyA := jointID << 1 // | 0 for edge index 0
+
 	if bodyA.headJointKey != NullIndex {
 		jointA := &w.joints[bodyA.headJointKey>>1]
 		edgeA := &jointA.edges[bodyA.headJointKey&1]
 		edgeA.prevKey = keyA
 	}
+
 	bodyA.headJointKey = keyA
 	bodyA.jointCount++
 
@@ -358,11 +384,13 @@ func (w *World) createJointInternal(def *JointDef, jointType JointType) jointPai
 	j.edges[1].nextKey = bodyB.headJointKey
 
 	keyB := (jointID << 1) | 1
+
 	if bodyB.headJointKey != NullIndex {
 		jointB := &w.joints[bodyB.headJointKey>>1]
 		edgeB := &jointB.edges[bodyB.headJointKey&1]
 		edgeB.prevKey = keyB
 	}
+
 	bodyB.headJointKey = keyB
 	bodyB.jointCount++
 
@@ -489,6 +517,7 @@ func (w *World) CreateDistanceJoint(def *DistanceJointDef) JointID {
 	requireInitialized(def.initialized, "DistanceJointDef", "DefaultDistanceJointDef")
 
 	assert(!w.locked)
+
 	if w.locked {
 		return JointID{}
 	}
@@ -526,6 +555,7 @@ func (w *World) CreateMotorJoint(def *MotorJointDef) JointID {
 	requireInitialized(def.initialized, "MotorJointDef", "DefaultMotorJointDef")
 
 	assert(!w.locked)
+
 	if w.locked {
 		return JointID{}
 	}
@@ -555,6 +585,7 @@ func (w *World) CreateFilterJoint(def *FilterJointDef) JointID {
 	requireInitialized(def.initialized, "FilterJointDef", "DefaultFilterJointDef")
 
 	assert(!w.locked)
+
 	if w.locked {
 		return JointID{}
 	}
@@ -573,6 +604,7 @@ func (w *World) CreatePrismaticJoint(def *PrismaticJointDef) JointID {
 	assert(def.LowerTranslation <= def.UpperTranslation)
 
 	assert(!w.locked)
+
 	if w.locked {
 		return JointID{}
 	}
@@ -603,6 +635,7 @@ func (w *World) CreateRevoluteJoint(def *RevoluteJointDef) JointID {
 	assert(def.LowerAngle <= def.UpperAngle)
 
 	assert(!w.locked)
+
 	if w.locked {
 		return JointID{}
 	}
@@ -632,6 +665,7 @@ func (w *World) CreateWeldJoint(def *WeldJointDef) JointID {
 	requireInitialized(def.initialized, "WeldJointDef", "DefaultWeldJointDef")
 
 	assert(!w.locked)
+
 	if w.locked {
 		return JointID{}
 	}
@@ -657,6 +691,7 @@ func (w *World) CreateWheelJoint(def *WheelJointDef) JointID {
 	assert(def.LowerTranslation <= def.UpperTranslation)
 
 	assert(!w.locked)
+
 	if w.locked {
 		return JointID{}
 	}
@@ -757,6 +792,7 @@ func (w *World) destroyJointInternal(j *joint, wakeBodies bool) {
 		w.removeJointFromGraph(j.edges[0].bodyID, j.edges[1].bodyID, j.colorIndex, localIndex)
 	} else {
 		set := &w.solverSets[setIndex]
+
 		movedIndex := removeSwap(&set.jointSims, localIndex)
 		if movedIndex != NullIndex {
 			// Fix moved joint
@@ -787,6 +823,7 @@ func (w *World) destroyJointInternal(j *joint, wakeBodies bool) {
 // (upstream b2DestroyJoint).
 func (w *World) DestroyJoint(jointID JointID, wakeAttached bool) {
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -841,6 +878,7 @@ func (w *World) SetJointLocalFrameA(jointID JointID, localFrame Transform) {
 func (w *World) JointLocalFrameA(jointID JointID) Transform {
 	j := w.getJointFullID(jointID)
 	js := w.getJointSim(j)
+
 	return js.localFrameA
 }
 
@@ -861,6 +899,7 @@ func (w *World) SetJointLocalFrameB(jointID JointID, localFrame Transform) {
 func (w *World) JointLocalFrameB(jointID JointID) Transform {
 	j := w.getJointFullID(jointID)
 	js := w.getJointSim(j)
+
 	return js.localFrameB
 }
 
@@ -871,6 +910,7 @@ func (w *World) JointLocalFrameB(jointID JointID) Transform {
 // disabling collision destroys the existing contacts between the bodies.
 func (w *World) SetJointCollideConnected(jointID JointID, shouldCollide bool) {
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -895,6 +935,7 @@ func (w *World) SetJointCollideConnected(jointID JointID, shouldCollide bool) {
 		if shapeCountA < shapeCountB {
 			shapeID = bodyA.headShapeID
 		}
+
 		for shapeID != NullIndex {
 			s := &w.shapes[shapeID]
 
@@ -934,6 +975,7 @@ func (w *World) JointUserData(jointID JointID) uint64 {
 // (upstream b2Joint_WakeBodies).
 func (w *World) WakeJointBodies(jointID JointID) {
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -1146,11 +1188,13 @@ func drawWeldJoint(draw *DebugDraw, base *jointSim, transformA, transformB Trans
 	for i := range 4 {
 		points[i] = TransformPoint(frameA, box.Vertices[i])
 	}
+
 	draw.DrawPolygonFcn(points[:4], ColorDarkOrange, draw.Context)
 
 	for i := range 4 {
 		points[i] = TransformPoint(frameB, box.Vertices[i])
 	}
+
 	draw.DrawPolygonFcn(points[:4], ColorDarkCyan, draw.Context)
 }
 
@@ -1186,6 +1230,7 @@ func (w *World) JointLinearSeparation(jointID JointID) float64 {
 	case DistanceJoint:
 		dj := &base.distanceJoint
 		length := Length(dp)
+
 		if dj.enableSpring {
 			if dj.enableLimit {
 				if length < dj.minLength {
@@ -1344,6 +1389,7 @@ func (w *World) SetJointConstraintTuning(jointID JointID, hertz, dampingRatio fl
 func (w *World) JointConstraintTuning(jointID JointID) (float64, float64) {
 	j := w.getJointFullID(jointID)
 	base := w.getJointSim(j)
+
 	return base.constraintHertz, base.constraintDampingRatio
 }
 
@@ -1362,6 +1408,7 @@ func (w *World) SetJointForceThreshold(jointID JointID, threshold float64) {
 func (w *World) JointForceThreshold(jointID JointID) float64 {
 	j := w.getJointFullID(jointID)
 	base := w.getJointSim(j)
+
 	return base.forceThreshold
 }
 
@@ -1380,6 +1427,7 @@ func (w *World) SetJointTorqueThreshold(jointID JointID, threshold float64) {
 func (w *World) JointTorqueThreshold(jointID JointID) float64 {
 	j := w.getJointFullID(jointID)
 	base := w.getJointSim(j)
+
 	return base.torqueThreshold
 }
 

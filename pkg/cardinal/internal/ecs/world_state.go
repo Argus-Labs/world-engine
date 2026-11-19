@@ -79,6 +79,7 @@ func (ws *worldState) newEntity() EntityID {
 		eid = ws.nextID
 		ws.nextID++
 	}
+
 	assert.That(eid != invalidEntityID, "max number of entities exceeded")
 
 	// New entities are assigned to the void archetype, which doesn't contain any components.
@@ -98,6 +99,7 @@ func (ws *worldState) newEntity() EntityID {
 func (ws *worldState) newEntityWithArchetype(components bitmap.Bitmap) EntityID {
 	eid := ws.newEntity()
 	ws.moveEntity(eid, components)
+
 	return eid
 }
 
@@ -136,6 +138,7 @@ func (ws *worldState) pushFree(eid EntityID) {
 		if ws.free[parent] <= ws.free[i] {
 			break
 		}
+
 		ws.free[parent], ws.free[i] = ws.free[i], ws.free[parent]
 		i = parent
 	}
@@ -147,17 +150,21 @@ func (ws *worldState) popFree() EntityID {
 	last := len(ws.free) - 1
 	ws.free[0] = ws.free[last]
 	ws.free = ws.free[:last]
+
 	for i := 0; ; {
 		left, right, lowest := 2*i+1, 2*i+2, i
 		if left < len(ws.free) && ws.free[left] < ws.free[lowest] {
 			lowest = left
 		}
+
 		if right < len(ws.free) && ws.free[right] < ws.free[lowest] {
 			lowest = right
 		}
+
 		if lowest == i {
 			return smallest
 		}
+
 		ws.free[i], ws.free[lowest] = ws.free[lowest], ws.free[i]
 		i = lowest
 	}
@@ -215,6 +222,7 @@ func (ws *worldState) setComponent[T Component](eid EntityID, component T) error
 	if !exists {
 		return eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
 	}
+
 	archetype := ws.archetypes[aid]
 
 	// Resolve the component ID with a type-aware lookup so a name-only collision (an unregistered
@@ -236,6 +244,7 @@ func (ws *worldState) setComponent[T Component](eid EntityID, component T) error
 		// Update the archetype and row variable with the new archetype.
 		newAid, newExists := ws.entityArch.get(eid)
 		assert.That(newExists, "entity should exist after moveEntity")
+
 		archetype = ws.archetypes[newAid]
 	}
 
@@ -247,6 +256,7 @@ func (ws *worldState) setComponent[T Component](eid EntityID, component T) error
 	row, exists := archetype.rows.get(eid)
 	assert.That(exists, "entity should have a row in its archetype")
 	column.set(row, component)
+
 	return nil
 }
 
@@ -259,6 +269,7 @@ func (ws *worldState) getComponent[T Component](eid EntityID) (T, error) {
 	if !exists {
 		return zero, eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
 	}
+
 	archetype := ws.archetypes[aid]
 
 	cid, err := ws.components.getID(zero.Name())
@@ -272,6 +283,7 @@ func (ws *worldState) getComponent[T Component](eid EntityID) (T, error) {
 
 	// Get the column from the archetype directly.
 	index := archetype.components.CountTo(cid)
+
 	column, ok := archetype.columns[index].(*column[T])
 	if !ok {
 		return zero, eris.Wrapf(ErrComponentNotFound, "component %s is registered with a different type", zero.Name())
@@ -279,6 +291,7 @@ func (ws *worldState) getComponent[T Component](eid EntityID) (T, error) {
 
 	row, exists := archetype.rows.get(eid)
 	assert.That(exists, "entity should have a row in its archetype")
+
 	return column.get(row), nil
 }
 
@@ -291,6 +304,7 @@ func (ws *worldState) removeComponent[T Component](eid EntityID) error {
 	if !exists {
 		return eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
 	}
+
 	archetype := ws.archetypes[aid]
 
 	cid, err := ws.components.getID(zero.Name())
@@ -315,6 +329,7 @@ func (ws *worldState) removeComponent[T Component](eid EntityID) error {
 
 	// A remove component is basically a move, so just move the entity to the correct archetype.
 	ws.moveEntity(eid, newComponents)
+
 	return nil
 }
 
@@ -334,24 +349,32 @@ func (ws *worldState) toProto() (*cardinalv1.WorldState, error) {
 		if !ok {
 			continue
 		}
+
 		arch := ws.archetypes[aid]
+
 		row, ok := arch.rows.get(eid)
 		if !ok {
 			panic(fmt.Sprintf("snapshot: entity %d has an archetype but no row", eid))
 		}
+
 		entity := &cardinalv1.Entity{Id: uint32(eid)}
+
 		arch.components.Range(func(cid uint32) {
 			entity.Components = append(entity.Components, cid)
 		})
+
 		for _, col := range arch.columns {
 			payload, err := col.encode(row)
 			if err != nil {
 				return nil, eris.Wrapf(err, "failed to snapshot entity %d", eid)
 			}
+
 			entity.Payloads = append(entity.Payloads, payload)
 		}
+
 		state.Entities = append(state.Entities, entity)
 	}
+
 	return state, nil
 }
 
@@ -375,16 +398,20 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 	// prevent a restore.
 	table := pb.GetComponents()
 	tableCIDs := make([]ComponentID, len(table))
+
 	var seen bitmap.Bitmap
+
 	for i, name := range table {
 		cid, err := ws.components.getID(name)
 		if err != nil {
 			tableCIDs[i] = invalidComponentID
 			continue
 		}
+
 		if seen.Contains(cid) {
 			return eris.Errorf("snapshot name table repeats component %q", name)
 		}
+
 		seen.Set(cid)
 		tableCIDs[i] = cid
 	}
@@ -393,6 +420,7 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 	if freeCount < 0 {
 		return eris.Errorf("snapshot has %d entities but next_id is only %d", len(pb.GetEntities()), nextID)
 	}
+
 	if freeCount > maxRestoreFreeIDs {
 		return eris.Errorf("snapshot implies %d free entity ids, above the %d restore limit",
 			freeCount, maxRestoreFreeIDs)
@@ -410,29 +438,35 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 
 	// The entities are in ascending order. The gaps between them are the free IDs.
 	prev := int64(-1)
+
 	for _, ent := range pb.GetEntities() {
 		eid := int64(ent.GetId())
 		if eid <= prev {
 			return eris.Errorf("snapshot entities not strictly ascending at id %d", eid)
 		}
+
 		if eid >= int64(nextID) {
 			return eris.Errorf("snapshot entity %d is not below next_id %d", eid, nextID)
 		}
+
 		for gap := prev + 1; gap < eid; gap++ {
 			next.free = append(next.free, EntityID(gap))
 		}
+
 		prev = eid
 
 		if err := next.restoreEntity(EntityID(eid), ent, table, tableCIDs); err != nil { //nolint:gosec // bounded
 			return err
 		}
 	}
+
 	for gap := prev + 1; gap < int64(nextID); gap++ {
 		next.free = append(next.free, EntityID(gap))
 	}
 
 	// Commit the new state. The component registry and mutex do not change.
 	ws.nextID, ws.free, ws.entityArch, ws.archetypes = next.nextID, next.free, next.entityArch, next.archetypes
+
 	return nil
 }
 
@@ -442,6 +476,7 @@ func (ws *worldState) restoreEntity(
 	eid EntityID, ent *cardinalv1.Entity, table []string, tableCIDs []ComponentID,
 ) error {
 	idxs := ent.GetComponents()
+
 	payloads := ent.GetPayloads()
 	if len(idxs) != len(payloads) {
 		return eris.Errorf("snapshot entity %d has %d component indices but %d payloads",
@@ -449,18 +484,22 @@ func (ws *worldState) restoreEntity(
 	}
 
 	var comps bitmap.Bitmap
+
 	last := int64(-1)
 	for _, idx := range idxs {
 		if int64(idx) <= last {
 			return eris.Errorf("snapshot entity %d component indices not strictly ascending", eid)
 		}
+
 		if int(idx) >= len(tableCIDs) {
 			return eris.Errorf("snapshot entity %d component index %d outside the name table", eid, idx)
 		}
+
 		if tableCIDs[idx] == invalidComponentID {
 			return eris.Errorf("snapshot entity %d holds component %q, which this build does not register",
 				eid, table[idx])
 		}
+
 		last = int64(idx)
 		comps.Set(tableCIDs[idx])
 	}
@@ -472,13 +511,16 @@ func (ws *worldState) restoreEntity(
 
 	row, ok := arch.rows.get(eid)
 	assert.That(ok, "entity was just created in this archetype")
+
 	for k, idx := range idxs {
 		cid := tableCIDs[idx]
+
 		col := arch.columns[arch.components.CountTo(cid)]
 		if err := col.decode(row, payloads[k]); err != nil {
 			return eris.Wrapf(err, "failed to restore entity %d", eid)
 		}
 	}
+
 	return nil
 }
 
@@ -493,6 +535,7 @@ func (ws *worldState) newArchetype(aid archetypeID, components bitmap.Bitmap) *a
 
 	// Initialize the columns with the column factories.
 	index := 0
+
 	components.Range(func(cid uint32) {
 		factory := ws.components.factories[cid]
 		columns[index] = factory()
@@ -501,6 +544,7 @@ func (ws *worldState) newArchetype(aid archetypeID, components bitmap.Bitmap) *a
 	assert.That(index == count, "not all columns are created")
 
 	arch := newArchetype(aid, components, columns)
+
 	return &arch
 }
 
@@ -511,5 +555,6 @@ func (ws *worldState) archExact(components bitmap.Bitmap) (archetypeID, bool) {
 			return aid, true
 		}
 	}
+
 	return 0, false
 }

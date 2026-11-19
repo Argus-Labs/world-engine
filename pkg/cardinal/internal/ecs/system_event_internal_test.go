@@ -44,6 +44,7 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 		name := seidToString(SystemEventID(id))
 		_, err := impl.register[modelFuzzSystemEvent](name)
 		require.NoError(t, err)
+
 		model[name] = []modelFuzzSystemEvent{}
 	}
 
@@ -61,6 +62,7 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 
 			err := impl.enqueue(systemEvent)
 			require.NoError(t, err)
+
 			model[name] = append(model[name], systemEvent)
 
 		case opGet:
@@ -68,16 +70,19 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 
 			implSysEvents, err := impl.get[modelFuzzSystemEvent](name)
 			require.NoError(t, err)
+
 			modelSysEvents := model[name]
 
 			// Property: get returns system-events in same order as enqueued.
 			assert.Len(t, implSysEvents, len(modelSysEvents), "get(%s) length mismatch", name)
+
 			for i := range modelSysEvents {
 				assert.Equal(t, modelSysEvents[i], implSysEvents[i], "get(%s)[%d] mismatch", name, i)
 			}
 
 		case opClear:
 			impl.clear()
+
 			for name := range model {
 				model[name] = []modelFuzzSystemEvent{}
 			}
@@ -96,10 +101,12 @@ func TestSystemEvent_ModelFuzz(t *testing.T) {
 
 	// Final state check: verify all system-events match between impl and model.
 	assert.Len(t, impl.catalog, len(model), "catalog length mismatch")
+
 	for name, modelEvents := range model {
 		implEvents, err := impl.get[modelFuzzSystemEvent](name)
 		require.NoError(t, err)
 		assert.Len(t, implEvents, len(modelEvents), "final state: %s length mismatch", name)
+
 		for i := range modelEvents {
 			assert.Equal(t, modelEvents[i], implEvents[i], "final state: %s[%d] mismatch", name, i)
 		}
@@ -126,12 +133,15 @@ func (s modelFuzzSystemEvent) MarshalWire() []byte {
 	if err := gob.NewEncoder(&b).Encode(s); err != nil {
 		panic(err)
 	}
+
 	return b.Bytes()
 }
 
 func (modelFuzzSystemEvent) UnmarshalWire(b []byte) (any, error) {
 	var v modelFuzzSystemEvent
+
 	err := gob.NewDecoder(bytes.NewReader(b)).Decode(&v)
+
 	return v, err
 }
 
@@ -170,6 +180,7 @@ func TestSystemEvent_RegisterModelFuzz(t *testing.T) {
 		if prevName, seen := seenIDs[id]; seen {
 			t.Errorf("ID %d is mapped by both %q and %q", id, prevName, name)
 		}
+
 		seenIDs[id] = name
 	}
 
@@ -180,6 +191,7 @@ func TestSystemEvent_RegisterModelFuzz(t *testing.T) {
 
 	// Final state check: catalog matches model.
 	assert.Len(t, impl.catalog, len(model), "catalog length mismatch")
+
 	for name, modelID := range model {
 		implID, exists := impl.catalog[name]
 		require.True(t, exists, "system event %q should be registered", name)
@@ -189,6 +201,7 @@ func TestSystemEvent_RegisterModelFuzz(t *testing.T) {
 	// Simple test to confirm that registering the same name repeatedly is a no-op.
 	t.Run("registration idempotence", func(t *testing.T) {
 		t.Parallel()
+
 		sem := newSystemEventManager()
 		name1 := seidToString(123)
 		name2 := seidToString(124)
@@ -214,6 +227,7 @@ func seidToString(id SystemEventID) string {
 
 func TestSystemEvent_TypedRegistrationPreservesQueue(t *testing.T) {
 	t.Parallel()
+
 	s := newSystemEventManager()
 
 	_, err := s.register[modelFuzzSystemEvent]("")
@@ -230,6 +244,7 @@ func TestSystemEvent_TypedRegistrationPreservesQueue(t *testing.T) {
 	duplicateID, err := s.register[modelFuzzSystemEvent]("first")
 	require.NoError(t, err)
 	require.Equal(t, SystemEventID(0), duplicateID)
+
 	secondID, err := s.register[modelFuzzSystemEvent]("second")
 	require.NoError(t, err)
 	require.Equal(t, SystemEventID(1), secondID)
@@ -237,6 +252,7 @@ func TestSystemEvent_TypedRegistrationPreservesQueue(t *testing.T) {
 	events, err := s.get[modelFuzzSystemEvent]("first")
 	require.NoError(t, err)
 	assert.Equal(t, []modelFuzzSystemEvent{{EventName: "first", Counter: 42, Enabled: true}}, events)
+
 	otherEvents, err := s.get[modelFuzzSystemEvent]("second")
 	require.NoError(t, err)
 	assert.Empty(t, otherEvents)
@@ -257,6 +273,7 @@ type conflictingSystemEvent struct {
 
 func TestWorld_RegisterSystemEventRejectsNameCollision(t *testing.T) {
 	t.Parallel()
+
 	w := NewWorld()
 	id, err := w.RegisterSystemEvent[testutils.SimpleSystemEvent]()
 	require.NoError(t, err)
@@ -266,6 +283,7 @@ func TestWorld_RegisterSystemEventRejectsNameCollision(t *testing.T) {
 	id, err = w.RegisterSystemEvent[testutils.SimpleSystemEvent]()
 	require.NoError(t, err)
 	require.Equal(t, SystemEventID(0), id)
+
 	_, err = w.RegisterSystemEvent[conflictingSystemEvent]()
 	require.ErrorContains(t, err, "system event simple_system_event already registered with a different type")
 

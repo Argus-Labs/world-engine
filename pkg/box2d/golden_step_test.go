@@ -43,6 +43,7 @@ func djb2Fold(hash uint64, value uint64) uint64 {
 		b := byte(value >> (8 * i))
 		hash = hash*33 + uint64(b)
 	}
+
 	return hash
 }
 
@@ -50,6 +51,7 @@ func djb2Fold(hash uint64, value uint64) uint64 {
 // body creation order plus the contact and island counts.
 func hashWorldState(w *box2d.World, bodies []box2d.BodyID) uint64 {
 	hash := uint64(5381)
+
 	for _, body := range bodies {
 		p := w.BodyPosition(body)
 		q := w.BodyRotation(body)
@@ -68,6 +70,7 @@ func hashWorldState(w *box2d.World, bodies []box2d.BodyID) uint64 {
 	counters := w.Counters()
 	hash = djb2Fold(hash, uint64(counters.ContactCount))
 	hash = djb2Fold(hash, uint64(counters.IslandCount))
+
 	return hash
 }
 
@@ -83,6 +86,7 @@ func buildPyramidScene(w *box2d.World) []box2d.BodyID {
 	w.CreatePolygonShape(ground, &gsd, &groundBox)
 
 	const rows = 6
+
 	h := 0.5
 	for i := range rows {
 		y := float64((2.0*float64(i)+1.0)*h) + float64(0.02*float64(i))
@@ -166,8 +170,10 @@ func computeGoldenScenes(scenes []goldenSceneDef, stepCount, workerCount int) []
 		bodies := scene.build(w)
 
 		var hashes []goldenStepHash
+
 		for step := 1; step <= stepCount; step++ {
 			w.Step(1.0/60.0, 4)
+
 			if step%30 == 0 || step == stepCount {
 				hash := hashWorldState(w, bodies)
 				hashes = append(hashes, goldenStepHash{Step: step, Hash: fmt.Sprintf("%016x", hash)})
@@ -175,6 +181,7 @@ func computeGoldenScenes(scenes []goldenSceneDef, stepCount, workerCount int) []
 		}
 
 		w.Destroy()
+
 		out = append(out, goldenStepScene{Name: scene.name, Hashes: hashes})
 	}
 
@@ -205,9 +212,11 @@ func TestGoldenStep(t *testing.T) {
 	if os.Getenv("BOX2D_UPDATE_GOLDEN") == "1" {
 		data, err := json.MarshalIndent(got, "", "  ")
 		require.NoError(t, err)
+
 		data = append(data, '\n')
 		require.NoError(t, os.WriteFile(path, data, 0o644))
 		t.Logf("golden file updated: %s", path)
+
 		return
 	}
 
@@ -218,6 +227,7 @@ func TestGoldenStep(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &want))
 
 	require.Len(t, got, len(want), "scene count")
+
 	for i := range want {
 		require.Equal(t, want[i].Name, got[i].Name)
 		require.Equal(t, want[i].Hashes, got[i].Hashes, "scene %s step hashes differ — solver determinism broken", want[i].Name)

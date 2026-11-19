@@ -21,6 +21,7 @@ import (
 
 func TestRegisterSystem_RunsCallerOwnedInstance(t *testing.T) {
 	t.Parallel()
+
 	w := &World{world: ecs.NewWorld()}
 	count := 7
 	system := &privateStateSystem{dependency: &count, scratch: []int{3}}
@@ -40,15 +41,19 @@ func TestRegisterSystem_RunsCallerOwnedInstance(t *testing.T) {
 // tick, entities, and commands of the world it is handed, not state captured at registration.
 func TestRegisterSystem_RunReceivesItsWorld(t *testing.T) {
 	t.Parallel()
+
 	first, second := newCommandWorld(t), newCommandWorld(t)
 	for _, w := range []*World{first, second} {
 		w.RegisterComponent[testutils.ComponentA]()
 	}
+
 	system := &worldProbeSystem{}
 	first.RegisterSystem(system)
 	second.RegisterSystem(system)
+
 	first.currentTick.height = 10
 	second.currentTick.height = 20
+
 	first.Create[entityTestArchetype]().Set(testutils.ComponentA{X: 1})
 	second.Create[entityTestArchetype]().Set(testutils.ComponentA{X: 2})
 	second.Create[entityTestArchetype]().Set(testutils.ComponentA{X: 3})
@@ -73,6 +78,7 @@ func TestRegisterSystem_RunReceivesItsWorld(t *testing.T) {
 
 func TestRegisterSystem_AllowsDistinctInstancesOfSameType(t *testing.T) {
 	t.Parallel()
+
 	w := &World{world: ecs.NewWorld()}
 	firstCount, secondCount := 10, 20
 	w.RegisterSystem(&privateStateSystem{dependency: &firstCount})
@@ -89,15 +95,20 @@ func TestRegisterSystem_AllowsDistinctInstancesOfSameType(t *testing.T) {
 // Value systems are still accepted.
 func TestRegisterSystem_RejectsNil(t *testing.T) {
 	t.Parallel()
+
 	w := &World{world: ecs.NewWorld()}
+
 	require.Panics(t, func() { w.RegisterSystem(nil) })
+
 	var typedNil *privateStateSystem
+
 	require.Panics(t, func() { w.RegisterSystem(typedNil) })
 	require.NotPanics(t, func() { w.RegisterSystem(registeringSystem{}) })
 }
 
 func TestRegisterSystem_InitHook(t *testing.T) {
 	t.Parallel()
+
 	w := &World{world: ecs.NewWorld()}
 	count := 0
 	system := &privateStateSystem{dependency: &count}
@@ -115,6 +126,7 @@ func TestRegisterSystem_InitHook(t *testing.T) {
 // can register once the world is running, including a system registering from inside Run.
 func TestRegister_RejectsAfterStart(t *testing.T) {
 	t.Parallel()
+
 	registrations := map[string]func(w *World){
 		"component":    func(w *World) { w.RegisterComponent[testutils.ComponentA]() },
 		"command":      func(w *World) { w.RegisterCommand[testutils.SimpleCommand]() },
@@ -126,6 +138,7 @@ func TestRegister_RejectsAfterStart(t *testing.T) {
 	for kind, register := range registrations {
 		t.Run(kind+" after start", func(t *testing.T) {
 			t.Parallel()
+
 			w := &World{world: ecs.NewWorld()}
 			w.init()
 			require.PanicsWithError(t, ErrWorldStarted.Error(), func() { register(w) })
@@ -134,6 +147,7 @@ func TestRegister_RejectsAfterStart(t *testing.T) {
 
 	t.Run("inside an init system", func(t *testing.T) {
 		t.Parallel()
+
 		w := &World{world: ecs.NewWorld()}
 		w.RegisterSystem(registeringSystem{}, WithPhase(Init))
 		require.PanicsWithError(t, ErrWorldStarted.Error(), w.init)
@@ -141,6 +155,7 @@ func TestRegister_RejectsAfterStart(t *testing.T) {
 
 	t.Run("inside an update system", func(t *testing.T) {
 		t.Parallel()
+
 		w := &World{world: ecs.NewWorld()}
 		w.RegisterSystem(registeringSystem{})
 		w.init()
@@ -174,12 +189,15 @@ func (s *worldProbeSystem) Run(w *World) {
 	for entity := range w.Contains[entityTestArchetype]().Iter() {
 		run.contains = append(run.contains, entity.Get[testutils.ComponentA]().X)
 	}
+
 	for entity := range w.Exact[entityTestArchetype]().Iter() {
 		run.exact = append(run.exact, entity.Get[testutils.ComponentA]().X)
 	}
+
 	for cmd := range w.Commands[testutils.SimpleCommand]() {
 		run.commands = append(run.commands, cmd.Payload.Value)
 	}
+
 	s.worlds = append(s.worlds, w)
 	s.runs = append(s.runs, run)
 }
@@ -213,10 +231,12 @@ func TestCommands_Smoke(t *testing.T) {
 
 		count := prng.IntN(100)
 		model := make([]testutils.SimpleCommand, count)
+
 		senders := make([]command.Sender, count)
 		for i := range count {
 			// Bounded to avoid JSON float64 precision loss.
 			model[i] = testutils.SimpleCommand{Value: prng.IntN(1_000_000)}
+
 			senders[i] = command.PlayerSender(testutils.RandString(prng, 8))
 			if testutils.RandBool(prng) {
 				senders[i] = command.ShardSender(RandServiceAddress(prng))
@@ -226,6 +246,7 @@ func TestCommands_Smoke(t *testing.T) {
 		for i, cmd := range model {
 			enqueueCommandFrom(t, w, cmd, senders[i])
 		}
+
 		w.commands.Drain()
 
 		var results []CommandContext[testutils.SimpleCommand]
@@ -234,6 +255,7 @@ func TestCommands_Smoke(t *testing.T) {
 		}
 
 		assert.Len(t, results, len(model), "completeness: expected %d commands, got %d", len(model), len(results))
+
 		for i, result := range results {
 			assert.Equal(t, model[i], result.Payload, "round-trip integrity: payload mismatch at index %d", i)
 			assert.Equal(t, senders[i], result.sender, "round-trip integrity: sender mismatch at index %d", i)
@@ -250,6 +272,7 @@ func TestCommands_Smoke(t *testing.T) {
 		for range w.Commands[testutils.SimpleCommand]() {
 			count++
 		}
+
 		assert.Equal(t, 0, count)
 	})
 
@@ -261,6 +284,7 @@ func TestCommands_Smoke(t *testing.T) {
 		for i := range 10 {
 			enqueueCommand(t, w, testutils.SimpleCommand{Value: i}, "player")
 		}
+
 		w.commands.Drain()
 
 		count := 0
@@ -268,6 +292,7 @@ func TestCommands_Smoke(t *testing.T) {
 			count++
 			break
 		}
+
 		assert.Equal(t, 1, count)
 	})
 
@@ -284,6 +309,7 @@ func TestCommands_Smoke(t *testing.T) {
 		for range w.Commands[testutils.SimpleCommand]() {
 			count++
 		}
+
 		assert.Equal(t, 1, count)
 	})
 
@@ -291,6 +317,7 @@ func TestCommands_Smoke(t *testing.T) {
 		t.Parallel()
 
 		w := &World{world: ecs.NewWorld(), commands: command.NewManager()}
+
 		require.Panics(t, func() { w.Commands[testutils.SimpleCommand]() })
 	})
 }
@@ -351,6 +378,7 @@ func TestEvents_Smoke(t *testing.T) {
 		w := newEventWorld(t)
 
 		count := prng.IntN(100)
+
 		model := make([]testutils.SimpleEvent, count)
 		for i := range count {
 			model[i] = testutils.SimpleEvent{Value: prng.Int()}
@@ -362,6 +390,7 @@ func TestEvents_Smoke(t *testing.T) {
 
 		collected := dispatchEvents(t, w)
 		assert.Len(t, collected, len(model), "completeness: expected %d events, got %d", len(model), len(collected))
+
 		for i, evt := range collected {
 			payload, ok := evt.Payload.(testutils.SimpleEvent)
 			assert.True(t, ok, "event payload type mismatch at index %d", i)
@@ -400,7 +429,9 @@ func TestEvents_Smoke(t *testing.T) {
 
 	t.Run("unregistered event panics", func(t *testing.T) {
 		t.Parallel()
+
 		w := &World{events: event.NewManager(1024)}
+
 		require.Panics(t, func() { w.Broadcast(testutils.SimpleEvent{Value: 1}) })
 		require.Panics(t, func() { w.SendTo("player", testutils.SimpleEvent{Value: 1}) })
 	})
@@ -421,6 +452,7 @@ func dispatchEvents(t *testing.T, w *World) []event.Event {
 	t.Helper()
 
 	var collected []event.Event
+
 	w.events.RegisterHandler(event.KindDefault, func(_ context.Context, evt event.Event) error {
 		collected = append(collected, evt)
 		return nil
@@ -447,6 +479,7 @@ func TestSystemEvents_Smoke(t *testing.T) {
 		w := newSystemEventWorld(t)
 
 		count := prng.IntN(10_000)
+
 		model := make([]testutils.SimpleSystemEvent, count)
 		for i := range count {
 			model[i] = testutils.SimpleSystemEvent{Value: prng.Int()}
@@ -462,6 +495,7 @@ func TestSystemEvents_Smoke(t *testing.T) {
 		}
 
 		assert.Len(t, results, len(model), "completeness: expected %d events, got %d", len(model), len(results))
+
 		for i, result := range results {
 			assert.Equal(t, model[i], result, "round-trip integrity: event mismatch at index %d", i)
 		}
@@ -476,6 +510,7 @@ func TestSystemEvents_Smoke(t *testing.T) {
 		for range w.SystemEvents[testutils.SimpleSystemEvent]() {
 			count++
 		}
+
 		assert.Equal(t, 0, count)
 	})
 
@@ -493,6 +528,7 @@ func TestSystemEvents_Smoke(t *testing.T) {
 			count++
 			break
 		}
+
 		assert.Equal(t, 1, count)
 	})
 
@@ -503,10 +539,12 @@ func TestSystemEvents_Smoke(t *testing.T) {
 		require.NotPanics(t, func() { w.RegisterSystemEvent[testutils.SimpleSystemEvent]() })
 
 		w.EmitSystemEvent(testutils.SimpleSystemEvent{Value: 1})
+
 		count := 0
 		for range w.SystemEvents[testutils.SimpleSystemEvent]() {
 			count++
 		}
+
 		assert.Equal(t, 1, count)
 	})
 
@@ -514,6 +552,7 @@ func TestSystemEvents_Smoke(t *testing.T) {
 		t.Parallel()
 
 		w := &World{world: ecs.NewWorld()}
+
 		require.Panics(t, func() { w.EmitSystemEvent(testutils.SimpleSystemEvent{Value: 1}) })
 		require.Panics(t, func() { w.SystemEvents[testutils.SimpleSystemEvent]() })
 	})
@@ -548,6 +587,7 @@ func TestSearch_Smoke(t *testing.T) {
 
 		// Create random movers and singles; only movers should appear in Iter.
 		var expectedIDs []EntityID
+
 		for range prng.IntN(100) {
 			if testutils.RandBool(prng) {
 				eid := fixture.Movers.Create()
@@ -561,6 +601,7 @@ func TestSearch_Smoke(t *testing.T) {
 		for eid := range fixture.Movers.Iter() {
 			moverIDs = append(moverIDs, eid.ID())
 		}
+
 		assert.Equal(t, expectedIDs, moverIDs)
 	})
 
@@ -571,6 +612,7 @@ func TestSearch_Smoke(t *testing.T) {
 
 		// Create random singles and movers; only singles should appear in Iter.
 		var expectedIDs []EntityID
+
 		for range prng.IntN(100) {
 			if testutils.RandBool(prng) {
 				eid := fixture.Singles.Create()
@@ -584,6 +626,7 @@ func TestSearch_Smoke(t *testing.T) {
 		for eid := range fixture.Singles.Iter() {
 			singleIDs = append(singleIDs, eid.ID())
 		}
+
 		assert.Equal(t, expectedIDs, singleIDs)
 	})
 
@@ -645,6 +688,7 @@ func TestSearch_Smoke(t *testing.T) {
 
 		// Remove changes the archetype, so the entity no longer matches Movers.
 		mover.Remove[testutils.ComponentA]()
+
 		_, err := fixture.Movers.GetByID(eid)
 		require.ErrorIs(t, err, ecs.ErrArchetypeMismatch)
 	})
@@ -688,12 +732,14 @@ func TestSearch_Smoke(t *testing.T) {
 		}) {
 			results = append(results, eid.ID())
 		}
+
 		assert.Equal(t, expectedIDs, results)
 
 		var nilPredicateResults []EntityID
 		for eid := range fixture.Movers.Iter().Filter(nil) {
 			nilPredicateResults = append(nilPredicateResults, eid.ID())
 		}
+
 		assert.Equal(t, allIDs, nilPredicateResults)
 	})
 
@@ -703,6 +749,7 @@ func TestSearch_Smoke(t *testing.T) {
 		fixture := newSearchFixture(t)
 
 		count := prng.IntN(100) + 1
+
 		expectedIDs := make([]EntityID, 0, count)
 		for range count {
 			eid := fixture.Movers.Create()
@@ -710,16 +757,19 @@ func TestSearch_Smoke(t *testing.T) {
 		}
 
 		limit := uint32(prng.IntN(count) + 1)
+
 		var results []EntityID
 		for eid := range fixture.Movers.Iter().Limit(limit) {
 			results = append(results, eid.ID())
 		}
+
 		assert.Equal(t, expectedIDs[:limit], results)
 
 		var overLimitResults []EntityID
 		for eid := range fixture.Movers.Iter().Limit(uint32(count + 10)) {
 			overLimitResults = append(overLimitResults, eid.ID())
 		}
+
 		assert.Equal(t, expectedIDs, overLimitResults)
 	})
 
@@ -770,9 +820,11 @@ type searchFixture struct {
 
 func newSearchFixture(t *testing.T) *searchFixture {
 	t.Helper()
+
 	w := &World{world: ecs.NewWorld()}
 	w.RegisterComponent[testutils.ComponentA]()
 	w.RegisterComponent[testutils.ComponentB]()
+
 	return &searchFixture{
 		Movers:  w.Contains[moverArchetype](),
 		Singles: w.Exact[struct{ A testutils.ComponentA }](),

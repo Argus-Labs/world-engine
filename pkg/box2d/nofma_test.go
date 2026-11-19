@@ -76,6 +76,7 @@ func TestNoFusedMultiplyAdd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolving default.pgo path: %v", err)
 	}
+
 	if _, statErr := os.Stat(pgoProfile); statErr != nil {
 		t.Fatalf("committed PGO profile missing (%v): the doc.go and CI claims "+
 			"that the FMA scan covers PGO-shaped codegen depend on this file", statErr)
@@ -89,13 +90,16 @@ func TestNoFusedMultiplyAdd(t *testing.T) {
 	// not, so an edited source file can never hit a cached object.
 	for _, build := range slices.Clip(builds) {
 		args := make([]string, 0, len(build.args)+1)
+
 		args = append(args, build.args[0], "-pgo="+pgoProfile)
 		for _, arg := range build.args[1:] {
 			if arg == "-a" {
 				continue
 			}
+
 			args = append(args, arg)
 		}
+
 		builds = append(builds, struct {
 			what string
 			args []string
@@ -123,6 +127,7 @@ func assertNoFMA(t *testing.T, label string, env, args []string) {
 	require.NoError(t, err, "compiling %s failed:\n%s", label, out)
 
 	var offenders []string
+
 	for line := range strings.SplitSeq(string(out), "\n") {
 		if fmaMnemonic.MatchString(line) {
 			offenders = append(offenders, strings.TrimSpace(line))

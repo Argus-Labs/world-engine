@@ -38,6 +38,7 @@ func TestInitialModel_BuildsTable(t *testing.T) {
 
 func TestModel_QuitsOnTick(t *testing.T) {
 	t.Parallel()
+
 	m := InitialModel([]string{"A"}, [][]string{{"x"}})
 
 	cmd := m.Init()
@@ -75,9 +76,11 @@ func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 	stdoutMu.Lock()
 	defer stdoutMu.Unlock()
+
 	orig := os.Stdout
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
+
 	os.Stdout = w //nolint:reassign // capturing stdout in tests
 
 	fn()
@@ -86,12 +89,12 @@ func captureStdout(t *testing.T, fn func()) string {
 	os.Stdout = orig //nolint:reassign // restore stdout
 	buf, _ := io.ReadAll(r)
 	_ = r.Close()
+
 	return string(buf)
 }
 
 func Test_printPlainTable_PrintsHeaderDividerAndRows(t *testing.T) {
 	// Cannot run in parallel due to stdout capture
-
 	columns := []string{"Name", "Type"}
 	rows := [][]string{{"one", "alpha"}, {"two", "beta"}}
 
@@ -104,13 +107,16 @@ func Test_printPlainTable_PrintsHeaderDividerAndRows(t *testing.T) {
 
 	// Verify divider length matches computeColumnWidths logic.
 	widths := computeColumnWidths(columns, rows, MaxColumnWidth)
+
 	totalWidth := 0
 	for _, w := range widths {
 		totalWidth += w
 	}
+
 	if len(columns) > 1 {
 		totalWidth += (len(columns) - 1) * 2
 	}
+
 	divider := strings.Repeat("-", totalWidth)
 	// Find a line that equals the divider.
 	hasDivider := slices.Contains(strings.Split(plainOut, "\n"), divider)
@@ -128,7 +134,6 @@ func Test_printPlainTable_PrintsHeaderDividerAndRows(t *testing.T) {
 
 func Test_printPlainTable_AllowsMissingCells(t *testing.T) {
 	// Cannot run in parallel due to stdout capture
-
 	columns := []string{"ID", "Description", "Owner"}
 	rows := [][]string{{"1", "short"}, {"2"}}
 

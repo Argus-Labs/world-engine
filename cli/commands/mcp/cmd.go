@@ -36,6 +36,7 @@ func (c *Cmd) Run() error {
 		if eris.Is(err, context.Canceled) {
 			return errorspkg.NewSilent(err)
 		}
+
 		return eris.Wrap(err, "Failed to serve MCP over stdio")
 	}
 

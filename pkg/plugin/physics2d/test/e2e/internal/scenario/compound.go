@@ -94,6 +94,7 @@ func Compound() harness.Scenario {
 					atOffset(withDensity(box(0.5, 0.5), rightDensity), 1, 0),
 				)
 				pb.GravityScale = 0
+
 				return pb
 			}
 			s.lopsided = c.SpawnSpinning("lopsided-spinner", 0, 40, spinRate, spinner(1, 20))
@@ -107,12 +108,14 @@ func Compound() harness.Scenario {
 				// not — be.
 				probe := func(name string, x, y float64, wantSlot int, wantHit bool) {
 					res := c.Raycast(x, y+2, x, y-2, nil)
+
 					hit := res.Hit && res.Entity == s.shelf
 					if !c.True("compound: "+name, hit == wantHit,
 						"ray down x=%.2f: hit=%v (entity %d), want hit=%v",
 						x, res.Hit, res.Entity, wantHit) {
 						return
 					}
+
 					if wantHit {
 						c.Int("compound: "+name+" reports its own slot", res.ShapeIndex, wantSlot)
 					}
@@ -162,6 +165,7 @@ func Compound() harness.Scenario {
 					dropperIdx, _ := hits[0].ShapeIndexFor(s.dropper)
 					c.Int("compound: the single-shape body reports slot 0", dropperIdx, 0)
 				}
+
 				c.Near("compound: the ball rests on slot 1", c.Pos(s.dropper).Y, 31, 0.15)
 			}},
 			{Tick: comTick, Do: func(c *harness.Ctx) {

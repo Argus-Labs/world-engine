@@ -54,6 +54,7 @@ func (s *eventStore) label(id cardinal.EntityID) string {
 	if o, ok := s.owners[id]; ok {
 		return o.label
 	}
+
 	return fmt.Sprintf("entity#%d", id)
 }
 
@@ -62,20 +63,24 @@ func (s *eventStore) record(kind EventKind, tick uint64, p physics.ContactEventP
 	if !ok {
 		o, ok = s.owners[p.EntityB]
 	}
+
 	if !ok {
 		return // Not a harness body; nothing owns it.
 	}
+
 	s.events[o.scenario] = append(s.events[o.scenario], LoggedEvent{Kind: kind, Tick: tick, Payload: p})
 }
 
 func (s *eventStore) forScenario(scenario string, kind EventKind) []LoggedEvent {
 	all := s.events[scenario]
+
 	out := make([]LoggedEvent, 0, len(all))
 	for _, e := range all {
 		if e.Kind == kind {
 			out = append(out, e)
 		}
 	}
+
 	return out
 }
 
@@ -130,19 +135,24 @@ func New(scenarios []Scenario, cfg Config) *Runner {
 		events:      newEventStore(),
 		nanReported: map[cardinal.EntityID]bool{},
 	}
+
 	for i := range scenarios {
 		s := scenarios[i]
 		s.lane = float64(i) * LaneWidth
+
 		r.scenarios = append(r.scenarios, &s)
 		if last := s.LastTick(); last > r.lastTick {
 			r.lastTick = last
 		}
 	}
+
 	r.lastTick += TailTicks + cfg.ExtraTicks
+
 	r.digest = cfg.Digest
 	if cfg.TB != nil {
 		r.report.BindTB(cfg.TB)
 	}
+
 	return r
 }
 
@@ -208,10 +218,12 @@ type stepState struct {
 func (s *setupState) Run(w *cardinal.World) {
 	r := s.runner
 	probes := w.Contains[ProbeRow]()
+
 	for _, s := range r.scenarios {
 		if s.Setup == nil {
 			continue
 		}
+
 		s.Setup(r.ctx(s, probes, 0))
 	}
 }
@@ -220,10 +232,12 @@ func (s *preStepState) Run(w *cardinal.World) {
 	r := s.runner
 	tick := w.TickHeight()
 	probes := w.Contains[ProbeRow]()
+
 	for _, s := range r.scenarios {
 		if s.EachTick == nil {
 			continue
 		}
+
 		s.EachTick(r.ctx(s, probes, tick))
 	}
 }
@@ -239,12 +253,15 @@ func (s *stepState) Run(w *cardinal.World) {
 	for e := range w.SystemEvents[physics.ContactBeginEvent]() {
 		r.events.record(ContactBegin, tick, e.ContactEventPayload)
 	}
+
 	for e := range w.SystemEvents[physics.ContactEndEvent]() {
 		r.events.record(ContactEnd, tick, e.ContactEventPayload)
 	}
+
 	for e := range w.SystemEvents[physics.TriggerBeginEvent]() {
 		r.events.record(TriggerBegin, tick, e.ContactEventPayload)
 	}
+
 	for e := range w.SystemEvents[physics.TriggerEndEvent]() {
 		r.events.record(TriggerEnd, tick, e.ContactEventPayload)
 	}
@@ -257,6 +274,7 @@ func (s *stepState) Run(w *cardinal.World) {
 			if s.Steps[i].Tick != tick || s.Steps[i].Do == nil {
 				continue
 			}
+
 			s.Steps[i].Do(r.ctx(s, probes, tick))
 		}
 	}
@@ -271,9 +289,11 @@ func (r *Runner) watchNaN(probes cardinal.Search, tick uint64) {
 		if r.nanReported[eid] {
 			continue
 		}
+
 		t := row.Get[physics.Transform2D]()
 		v := row.Get[physics.Velocity2D]()
 		bad := ""
+
 		switch {
 		case !finite(t.Position.X) || !finite(t.Position.Y):
 			bad = fmt.Sprintf("position=(%v, %v)", t.Position.X, t.Position.Y)
@@ -284,9 +304,11 @@ func (r *Runner) watchNaN(probes cardinal.Search, tick uint64) {
 		case !finite(v.Angular):
 			bad = fmt.Sprintf("angular=%v", v.Angular)
 		}
+
 		if bad == "" {
 			continue
 		}
+
 		r.nanReported[eid] = true
 		p := row.Get[probe.Probe]()
 		r.report.Fail(p.Scenario, "no NaN/Inf in simulated state", tick,
@@ -316,6 +338,7 @@ func (r *Runner) watchWorld(tick uint64) {
 		r.worldSeen = true
 		return
 	}
+
 	if r.worldSeen && !allowed {
 		r.report.Fail("runtime", "the Box2D world stays alive", tick,
 			"Plugin.Engine() went nil after a world had been created")
@@ -331,6 +354,7 @@ func (r *Runner) watchWorld(tick uint64) {
 // plugin, then the Update-hook step system.
 func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 	debug := false
+
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
 		Project:             "physics-test",
 		ShardID:             "0",
@@ -376,6 +400,7 @@ func (r *Runner) BuildWorld(cfg Config) (*cardinal.World, error) {
 	if cfg.PostCapture != nil {
 		RegisterPostCapture(w, cfg.PostCapture)
 	}
+
 	return w, nil
 }
 
@@ -397,11 +422,13 @@ func (r *Runner) Ticked() int { return r.ticked }
 // overlap as new" apart from "the rebuilt world kept its dedupe baseline".
 func (r *Runner) EventsUpTo(scenario string, kind EventKind, tick uint64) int {
 	n := 0
+
 	for _, e := range r.events.forScenario(scenario, kind) {
 		if e.Tick <= tick {
 			n++
 		}
 	}
+
 	return n
 }
 
@@ -428,9 +455,11 @@ func (r *Runner) Run(w *cardinal.World) int {
 	if !r.report.Bound() {
 		r.report.Print()
 	}
+
 	if _, fail, _ := r.report.Totals(); fail > 0 {
 		return 1
 	}
+
 	return 0
 }
 
@@ -449,6 +478,7 @@ type digestState struct {
 // and so must runs that differ only in Config.Workers.
 func (r *Runner) Digest(w *cardinal.World) (int, uint64) {
 	var rows []digestState
+
 	collect := func(w *cardinal.World) {
 		for row := range w.Contains[ProbeRow]().Iter() {
 			eid := row.ID()
@@ -471,6 +501,7 @@ func (r *Runner) Digest(w *cardinal.World) (int, uint64) {
 		fmt.Fprintf(h, "%s|%v|%v|%v|%v|%v|%v\n",
 			row.key, row.px, row.py, row.rot, row.vx, row.vy, row.av)
 	}
+
 	return len(rows), h.Sum64()
 }
 
@@ -503,15 +534,19 @@ func runOnce(w *cardinal.World, fn func(w *cardinal.World)) {
 // reflection — the same approach the plugin's own integration tests use.
 func InitECS(w *cardinal.World) {
 	v := reflect.ValueOf(w).Elem()
+
 	f := v.FieldByName("world")
 	if !f.IsValid() {
 		panic("cardinal.World: no 'world' field; the headless init shim needs updating")
 	}
+
 	inner := reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
+
 	m := inner.MethodByName("Init")
 	if !m.IsValid() {
 		panic("ecs.World: no Init method; the headless init shim needs updating")
 	}
+
 	m.Call(nil)
 }
 
@@ -519,6 +554,7 @@ func (s *digestCollectorState) Run(w *cardinal.World) {
 	if s.done {
 		return
 	}
+
 	s.done = true
 	s.collect(w)
 }

@@ -810,6 +810,7 @@ func TestOracleCore_AssertTiers(t *testing.T) {
 	} else {
 		tassert.NotPanics(t, func() { assert(false) }, "assert is a no-op when debugAsserts is false")
 	}
+
 	tassert.NotPanics(t, func() { assert(true) }, "assert accepts a true condition")
 
 	tassert.NotPanics(t, func() { requireInitialized(true, "WorldDef", "DefaultWorldDef") },

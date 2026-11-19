@@ -34,24 +34,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if val == "" {
 				val = m.input.Placeholder
 			}
+
 			if m.validator != nil {
 				ok, normalized, msg := m.validator(val)
 				if !ok {
 					m.errorMsg = msg
 					return m, nil
 				}
+
 				val = normalized
 			}
+
 			m.finalized = true
 			m.finalValue = val
+
 			return m, tea.Quit
 		case "esc", "ctrl+c":
 			m.aborted = true
 			return m, tea.Quit
 		}
 	}
+
 	var cmd tea.Cmd
+
 	m.input, cmd = m.input.Update(msg)
+
 	return m, cmd
 }
 
@@ -66,6 +73,7 @@ func (m model) View() string {
 		if idx := strings.LastIndex(m.header, ":"); idx != -1 {
 			prompt = m.header[:idx+1]
 		}
+
 		if m.finalized {
 			view += prompt + " " + m.finalValue + "\n\n"
 		} else {
@@ -76,11 +84,14 @@ func (m model) View() string {
 			}
 		}
 	}
+
 	if !m.finalized && m.errorMsg != "" {
 		view += string(logsymbols.Error) + " Error: " + m.errorMsg + "\n"
 	}
+
 	if m.hint != "" {
 		view += m.hint
 	}
+
 	return view
 }

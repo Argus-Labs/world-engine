@@ -21,7 +21,9 @@ import (
 // (0 = serial); results are byte-identical for every value, so it is a throughput knob only.
 func benchWorld(b *testing.B, gravity physics.Vec2, workers int) (*cardinal.World, *physics.Plugin) {
 	b.Helper()
+
 	debug := true
+
 	w, err := cardinal.NewWorld(cardinal.WorldOptions{
 		Project:             "bench",
 		ShardID:             "0",
@@ -33,13 +35,16 @@ func benchWorld(b *testing.B, gravity physics.Vec2, workers int) (*cardinal.Worl
 	if err != nil {
 		b.Fatal(err)
 	}
+
 	w.RegisterComponent[harnessTag]()
+
 	plugin := physics.NewPlugin(physics.Config{
 		Gravity:  gravity,
 		TickRate: 60,
 		Workers:  workers,
 	})
 	w.RegisterPlugin(plugin)
+
 	return w, plugin
 }
 
@@ -127,6 +132,7 @@ func stepBenchScene(b *testing.B, n, workers int) {
 	benchTickN(w, 10)
 
 	b.ResetTimer()
+
 	for i := range b.N {
 		w.Tick(time.Unix(int64(100+i), 0))
 	}
@@ -148,6 +154,7 @@ func BenchmarkRaycast(b *testing.B) {
 			benchTickN(w, 2) // rebuild + settle
 
 			b.ResetTimer()
+
 			for range b.N {
 				p.Raycast(physics.RaycastRequest{
 					Origin: physics.Vec2{X: -500, Y: 0},
@@ -179,6 +186,7 @@ func BenchmarkOverlapAABB(b *testing.B) {
 			benchTickN(w, 2)
 
 			b.ResetTimer()
+
 			for range b.N {
 				p.OverlapAABB(physics.AABBOverlapRequest{
 					Min: physics.Vec2{X: -10, Y: -10},
@@ -210,6 +218,7 @@ func BenchmarkCircleSweep(b *testing.B) {
 			benchTickN(w, 2)
 
 			b.ResetTimer()
+
 			for range b.N {
 				p.CircleSweep(physics.CircleSweepRequest{
 					Start:  physics.Vec2{X: -500, Y: 0},
@@ -232,8 +241,10 @@ func gridSpawnSystem(count int) *gridSpawnFixture {
 		if w.TickHeight() != 0 {
 			return
 		}
+
 		cols := int(math.Ceil(math.Sqrt(float64(count))))
 		spacing := 3.0
+
 		for i := range count {
 			col := i % cols
 			rowIdx := i / cols

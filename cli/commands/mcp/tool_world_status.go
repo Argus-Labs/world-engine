@@ -46,5 +46,6 @@ func getWorldStartStatusHandler(
 	if err != nil {
 		return GetWorldStartStatusOutput{}, err
 	}
+
 	return GetWorldStartStatusOutput{Pools: toShardPools(status)}, nil
 }

@@ -63,5 +63,6 @@ func inspectShardHandler(
 	for _, pool := range pools {
 		available = append(available, pool.ShardID)
 	}
+
 	return InspectShardOutput{}, eris.Errorf("shard %q not found; available shards: %v", shardID, available)
 }

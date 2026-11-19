@@ -41,14 +41,18 @@ func RecoverAndFlush(repanic bool) {
 	if !isInitialized() {
 		return
 	}
+
 	if r := recover(); r != nil {
 		sentrygo.CurrentHub().Recover(r)
 		sentrygo.Flush(5 * time.Second)
+
 		if repanic {
 			panic(r)
 		}
+
 		return
 	}
+
 	sentrygo.Flush(5 * time.Second)
 }
 
@@ -57,12 +61,14 @@ func CaptureException(ctx context.Context, err error) {
 	if !isInitialized() || err == nil {
 		return
 	}
+
 	sentrygo.WithScope(func(scope *sentrygo.Scope) {
 		// Extract OTel trace context
 		if spanCtx := trace.SpanContextFromContext(ctx); spanCtx.IsValid() {
 			scope.SetTag("trace_id", spanCtx.TraceID().String())
 			scope.SetTag("span_id", spanCtx.SpanID().String())
 		}
+
 		sentrygo.CaptureException(err)
 	})
 }
@@ -72,15 +78,18 @@ func Shutdown(ctx context.Context, timeout time.Duration) {
 	if !isInitialized() {
 		return
 	}
+
 	t := timeout
 	if dl, ok := ctx.Deadline(); ok {
 		if until := time.Until(dl); until > 0 && until < t {
 			t = until
 		}
 	}
+
 	if t <= 0 {
 		t = 1 * time.Second
 	}
+
 	sentrygo.Flush(t)
 }
 

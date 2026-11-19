@@ -27,6 +27,7 @@ func TestCollideCircles(t *testing.T) {
 
 	t.Run("overlapping", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollideCircles(&circleA, xf(0, 0, 0), &circleB, xf(0.9, 0, 0))
 		require.Equal(t, 1, m.PointCount)
 		requireVec(t, box2d.Vec2{X: 1, Y: 0}, m.Normal, 1e-12)
@@ -38,12 +39,14 @@ func TestCollideCircles(t *testing.T) {
 
 	t.Run("separated beyond speculative", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollideCircles(&circleA, xf(0, 0, 0), &circleB, xf(2, 0, 0))
 		require.Equal(t, 0, m.PointCount)
 	})
 
 	t.Run("speculative margin", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollideCircles(&circleA, xf(0, 0, 0), &circleB, xf(1.01, 0, 0))
 		require.Equal(t, 1, m.PointCount)
 		require.InDelta(t, 0.01, m.Points[0].Separation, 1e-12)
@@ -63,6 +66,7 @@ func TestCollideCapsuleAndCircle(t *testing.T) {
 
 	t.Run("interior region", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollideCapsuleAndCircle(&capsuleA, xf(0, 0, 0), &circleB, xf(0, 0.45, 0))
 		require.Equal(t, 1, m.PointCount)
 		requireVec(t, box2d.Vec2{X: 0, Y: 1}, m.Normal, 1e-12)
@@ -71,6 +75,7 @@ func TestCollideCapsuleAndCircle(t *testing.T) {
 
 	t.Run("endpoint region", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollideCapsuleAndCircle(&capsuleA, xf(0, 0, 0), &circleB, xf(1.0, 0, 0))
 		require.Equal(t, 1, m.PointCount)
 		requireVec(t, box2d.Vec2{X: 1, Y: 0}, m.Normal, 1e-12)
@@ -79,6 +84,7 @@ func TestCollideCapsuleAndCircle(t *testing.T) {
 
 	t.Run("separated beyond speculative", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollideCapsuleAndCircle(&capsuleA, xf(0, 0, 0), &circleB, xf(0, 2, 0))
 		require.Equal(t, 0, m.PointCount)
 	})
@@ -92,6 +98,7 @@ func TestCollidePolygonAndCircle(t *testing.T) {
 
 	t.Run("face region", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollidePolygonAndCircle(&boxA, xf(0, 0, 0), &circleB, xf(0, 0.7, 0))
 		require.Equal(t, 1, m.PointCount)
 		requireVec(t, box2d.Vec2{X: 0, Y: 1}, m.Normal, 1e-12)
@@ -100,8 +107,10 @@ func TestCollidePolygonAndCircle(t *testing.T) {
 
 	t.Run("vertex region", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollidePolygonAndCircle(&boxA, xf(0, 0, 0), &circleB, xf(0.65, 0.65, 0))
 		require.Equal(t, 1, m.PointCount)
+
 		s := math.Sqrt(2.0) / 2.0
 		requireVec(t, box2d.Vec2{X: s, Y: s}, m.Normal, 1e-12)
 		require.InDelta(t, math.Sqrt(0.045)-0.25, m.Points[0].Separation, 1e-12)
@@ -109,6 +118,7 @@ func TestCollidePolygonAndCircle(t *testing.T) {
 
 	t.Run("separated beyond speculative", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollidePolygonAndCircle(&boxA, xf(0, 0, 0), &circleB, xf(0, 1, 0))
 		require.Equal(t, 0, m.PointCount)
 	})
@@ -125,6 +135,7 @@ func TestCollideCapsules(t *testing.T) {
 
 	t.Run("parallel overlap gives two points", func(t *testing.T) {
 		t.Parallel()
+
 		capsuleB := capsuleA
 		m := box2d.CollideCapsules(&capsuleA, xf(0, 0, 0), &capsuleB, xf(0, 0.35, 0))
 		require.Equal(t, 2, m.PointCount)
@@ -138,6 +149,7 @@ func TestCollideCapsules(t *testing.T) {
 
 	t.Run("perpendicular T gives one point", func(t *testing.T) {
 		t.Parallel()
+
 		capsuleB := box2d.Capsule{
 			Center1: box2d.Vec2{X: 0, Y: -0.5},
 			Center2: box2d.Vec2{X: 0, Y: 0.5},
@@ -154,6 +166,7 @@ func TestCollideCapsules(t *testing.T) {
 
 	t.Run("separated beyond speculative", func(t *testing.T) {
 		t.Parallel()
+
 		capsuleB := capsuleA
 		m := box2d.CollideCapsules(&capsuleA, xf(0, 0, 0), &capsuleB, xf(0, 1, 0))
 		require.Equal(t, 0, m.PointCount)
@@ -161,9 +174,11 @@ func TestCollideCapsules(t *testing.T) {
 
 	t.Run("id stability under perturbation", func(t *testing.T) {
 		t.Parallel()
+
 		capsuleB := capsuleA
 		m1 := box2d.CollideCapsules(&capsuleA, xf(0, 0, 0), &capsuleB, xf(0, 0.35, 0))
 		m2 := box2d.CollideCapsules(&capsuleA, xf(0, 0, 0), &capsuleB, xf(0.02, 0.349, 0.001))
+
 		require.Equal(t, 2, m1.PointCount)
 		require.Equal(t, 2, m2.PointCount)
 		require.Equal(t, m1.Points[0].ID, m2.Points[0].ID)
@@ -179,6 +194,7 @@ func TestCollidePolygons(t *testing.T) {
 
 	t.Run("face overlap gives two points", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollidePolygons(&boxA, xf(0, 0, 0), &boxB, xf(0, 0.98, 0))
 		require.Equal(t, 2, m.PointCount)
 		requireVec(t, box2d.Vec2{X: 0, Y: 1}, m.Normal, 1e-12)
@@ -188,6 +204,7 @@ func TestCollidePolygons(t *testing.T) {
 
 	t.Run("speculative margin gives positive separation", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollidePolygons(&boxA, xf(0, 0, 0), &boxB, xf(0, 1.01, 0))
 		require.Equal(t, 2, m.PointCount)
 		require.InDelta(t, 0.01, m.Points[0].Separation, 1e-12)
@@ -198,15 +215,18 @@ func TestCollidePolygons(t *testing.T) {
 
 	t.Run("separated beyond speculative", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollidePolygons(&boxA, xf(0, 0, 0), &boxB, xf(0, 1.05, 0))
 		require.Equal(t, 0, m.PointCount)
 	})
 
 	t.Run("face ids stable across small slide", func(t *testing.T) {
 		t.Parallel()
+
 		m1 := box2d.CollidePolygons(&boxA, xf(0, 0, 0), &boxB, xf(0, 0.98, 0))
 		m2 := box2d.CollidePolygons(&boxA, xf(0, 0, 0), &boxB, xf(0.05, 0.98, 0))
 		m3 := box2d.CollidePolygons(&boxA, xf(0, 0, 0), &boxB, xf(0.05, 0.98, 0.001))
+
 		require.Equal(t, 2, m1.PointCount)
 		require.Equal(t, 2, m2.PointCount)
 		require.Equal(t, 2, m3.PointCount)
@@ -218,6 +238,7 @@ func TestCollidePolygons(t *testing.T) {
 
 	t.Run("rounded polygons", func(t *testing.T) {
 		t.Parallel()
+
 		roundedA := box2d.MakeRoundedBox(0.5, 0.5, 0.1)
 		roundedB := box2d.MakeRoundedBox(0.5, 0.5, 0.1)
 		m := box2d.CollidePolygons(&roundedA, xf(0, 0, 0), &roundedB, xf(0, 1.15, 0))
@@ -232,6 +253,7 @@ func TestCollidePolygons(t *testing.T) {
 		// Corner of B near the top-right corner of A along the diagonal.
 		m := box2d.CollidePolygons(&boxA, xf(0, 0, 0), &boxB, xf(1.005, 1.005, 0))
 		require.Equal(t, 1, m.PointCount)
+
 		s := math.Sqrt(2.0) / 2.0
 		requireVec(t, box2d.Vec2{X: s, Y: s}, m.Normal, 1e-9)
 		require.InDelta(t, math.Sqrt(2.0*0.005*0.005), m.Points[0].Separation, 1e-12)
@@ -246,6 +268,7 @@ func TestCollideSegmentAndCircle(t *testing.T) {
 
 	t.Run("overlapping", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollideSegmentAndCircle(&segmentA, xf(0, 0, 0), &circleB, xf(0, 0.2, 0))
 		require.Equal(t, 1, m.PointCount)
 		requireVec(t, box2d.Vec2{X: 0, Y: 1}, m.Normal, 1e-12)
@@ -254,6 +277,7 @@ func TestCollideSegmentAndCircle(t *testing.T) {
 
 	t.Run("separated beyond speculative", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollideSegmentAndCircle(&segmentA, xf(0, 0, 0), &circleB, xf(0, 1, 0))
 		require.Equal(t, 0, m.PointCount)
 	})
@@ -271,6 +295,7 @@ func TestCollideSegmentAndCapsule(t *testing.T) {
 
 	t.Run("parallel overlap gives two points", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollideSegmentAndCapsule(&segmentA, xf(0, 0, 0), &capsuleB, xf(0, 0.15, 0))
 		require.Equal(t, 2, m.PointCount)
 		requireVec(t, box2d.Vec2{X: 0, Y: 1}, m.Normal, 1e-12)
@@ -280,6 +305,7 @@ func TestCollideSegmentAndCapsule(t *testing.T) {
 
 	t.Run("separated beyond speculative", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollideSegmentAndCapsule(&segmentA, xf(0, 0, 0), &capsuleB, xf(0, 1, 0))
 		require.Equal(t, 0, m.PointCount)
 	})
@@ -310,6 +336,7 @@ func TestCollideSegmentAndPolygon(t *testing.T) {
 
 	t.Run("overlapping", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollideSegmentAndPolygon(&segmentA, xf(0, 0, 0), &boxB, xf(0, 0.45, 0))
 		require.Equal(t, 2, m.PointCount)
 		requireVec(t, box2d.Vec2{X: 0, Y: 1}, m.Normal, 1e-12)
@@ -319,6 +346,7 @@ func TestCollideSegmentAndPolygon(t *testing.T) {
 
 	t.Run("separated beyond speculative", func(t *testing.T) {
 		t.Parallel()
+
 		m := box2d.CollideSegmentAndPolygon(&segmentA, xf(0, 0, 0), &boxB, xf(0, 1, 0))
 		require.Equal(t, 0, m.PointCount)
 	})
@@ -337,6 +365,7 @@ func TestCollideChainSegmentAndCircle(t *testing.T) {
 
 	t.Run("interior contact on collision side", func(t *testing.T) {
 		t.Parallel()
+
 		circleB := box2d.Circle{Center: box2d.Vec2{}, Radius: 0.25}
 		m := box2d.CollideChainSegmentAndCircle(&collinear, xf(0, 0, 0), &circleB, xf(0, -0.2, 0))
 		require.Equal(t, 1, m.PointCount)
@@ -346,6 +375,7 @@ func TestCollideChainSegmentAndCircle(t *testing.T) {
 
 	t.Run("wrong side is rejected", func(t *testing.T) {
 		t.Parallel()
+
 		circleB := box2d.Circle{Center: box2d.Vec2{}, Radius: 0.25}
 		m := box2d.CollideChainSegmentAndCircle(&collinear, xf(0, 0, 0), &circleB, xf(0, 0.2, 0))
 		require.Equal(t, 0, m.PointCount)
@@ -389,7 +419,9 @@ func TestCollideChainSegmentAndCapsule(t *testing.T) {
 
 	t.Run("parallel overlap below", func(t *testing.T) {
 		t.Parallel()
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndCapsule(&chain, xf(0, 0, 0), &capsuleB, xf(0, -0.15, 0), &cache)
 		require.Equal(t, 2, m.PointCount)
 		requireVec(t, box2d.Vec2{X: 0, Y: -1}, m.Normal, 1e-12)
@@ -399,7 +431,9 @@ func TestCollideChainSegmentAndCapsule(t *testing.T) {
 
 	t.Run("wrong side is rejected", func(t *testing.T) {
 		t.Parallel()
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndCapsule(&chain, xf(0, 0, 0), &capsuleB, xf(0, 0.5, 0), &cache)
 		require.Equal(t, 0, m.PointCount)
 	})
@@ -417,7 +451,9 @@ func TestCollideChainSegmentAndPolygon(t *testing.T) {
 
 	t.Run("face contact below", func(t *testing.T) {
 		t.Parallel()
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&chain, xf(0, 0, 0), &boxB, xf(0, -0.4, 0), &cache)
 		require.Equal(t, 2, m.PointCount)
 		requireVec(t, box2d.Vec2{X: 0, Y: -1}, m.Normal, 1e-12)
@@ -427,14 +463,18 @@ func TestCollideChainSegmentAndPolygon(t *testing.T) {
 
 	t.Run("one-sided rejection above", func(t *testing.T) {
 		t.Parallel()
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&chain, xf(0, 0, 0), &boxB, xf(0, 0.4, 0), &cache)
 		require.Equal(t, 0, m.PointCount)
 	})
 
 	t.Run("speculative margin below", func(t *testing.T) {
 		t.Parallel()
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&chain, xf(0, 0, 0), &boxB, xf(0, -0.51, 0), &cache)
 		require.Equal(t, 2, m.PointCount)
 		require.InDelta(t, 0.01, m.Points[0].Separation, 1e-12)
@@ -445,9 +485,12 @@ func TestCollideChainSegmentAndPolygon(t *testing.T) {
 
 	t.Run("face ids stable across small slide", func(t *testing.T) {
 		t.Parallel()
+
 		var cache1, cache2 box2d.SimplexCache
+
 		m1 := box2d.CollideChainSegmentAndPolygon(&chain, xf(0, 0, 0), &boxB, xf(0, -0.4, 0), &cache1)
 		m2 := box2d.CollideChainSegmentAndPolygon(&chain, xf(0, 0, 0), &boxB, xf(0.05, -0.4, 0), &cache2)
+
 		require.Equal(t, 2, m1.PointCount)
 		require.Equal(t, 2, m2.PointCount)
 		require.Equal(t, m1.Points[0].ID, m2.Points[0].ID)
@@ -456,7 +499,9 @@ func TestCollideChainSegmentAndPolygon(t *testing.T) {
 
 	t.Run("separated beyond speculative", func(t *testing.T) {
 		t.Parallel()
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&chain, xf(0, 0, 0), &boxB, xf(0, -1.0, 0), &cache)
 		require.Equal(t, 0, m.PointCount)
 	})

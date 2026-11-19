@@ -38,6 +38,7 @@ func threeInstanceConfig() *service.Config {
 // instance), so a crashed sibling went unnoticed and the command exited 0.
 func TestResolveReloadTargets_WaitInstanceIDsCoversAllPoolInstances(t *testing.T) {
 	t.Parallel()
+
 	cfg := threeInstanceConfig()
 	targets, err := resolveReloadTargets(cfg, []string{"game-2"})
 	require.NoError(t, err)
@@ -52,6 +53,7 @@ func TestResolveReloadTargets_WaitInstanceIDsCoversAllPoolInstances(t *testing.T
 // instance — the same behavior as before the fix, since shardIDs is every pool.
 func TestResolveReloadTargets_EmptyInstanceIDsWaitsAll(t *testing.T) {
 	t.Parallel()
+
 	cfg := threeInstanceConfig()
 	targets, err := resolveReloadTargets(cfg, nil)
 	require.NoError(t, err)
@@ -63,6 +65,7 @@ func TestResolveReloadTargets_EmptyInstanceIDsWaitsAll(t *testing.T) {
 // instances, not just the named ones.
 func TestResolveReloadTargets_MultiplePoolsWaitAll(t *testing.T) {
 	t.Parallel()
+
 	cfg := threeInstanceConfig()
 	cfg.WorldToml.Shards = append(cfg.WorldToml.Shards, worldtoml.Shard{ID: "lobby", InstanceID: "lobby-2"})
 	targets, err := resolveReloadTargets(cfg, []string{"game-2", "lobby"})
@@ -77,6 +80,7 @@ func TestResolveReloadTargets_MultiplePoolsWaitAll(t *testing.T) {
 // waitInstanceIDs as naming just one — the expansion is idempotent.
 func TestResolveReloadTargets_NamingAllInstancesMatchesNamingOne(t *testing.T) {
 	t.Parallel()
+
 	cfg := threeInstanceConfig()
 	one, err := resolveReloadTargets(cfg, []string{"game-2"})
 	require.NoError(t, err)
@@ -122,6 +126,7 @@ func (f *fakeShardRoller) WaitForShardsReady(_ context.Context, instanceIDs []st
 // back, so rollShards returns nil.
 func TestRollShards(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name         string
 		waitReady    int
@@ -134,7 +139,9 @@ func TestRollShards(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			ctx := context.Background()
+
 			dash := phasebox.Start(ctx, phasebox.Plain)
 			defer dash.Complete()
 
@@ -147,6 +154,7 @@ func TestRollShards(t *testing.T) {
 			require.NoError(t, err)
 
 			fake := &fakeShardRoller{waitReady: tt.waitReady, waitExpected: tt.waitExpected}
+
 			err = dash.Run("Shards",
 				func(ctx context.Context, sess phasebox.Session) error {
 					return rollShards(ctx, sess, fake, targets, []local.DeployShard{{ID: "game"}}, true)
@@ -155,6 +163,7 @@ func TestRollShards(t *testing.T) {
 			)
 			if tt.wantNotReady {
 				require.Error(t, err)
+
 				var notReady *shardsNotReadyError
 				require.ErrorAs(t, err, &notReady)
 				assert.Equal(t, tt.waitReady, notReady.ready)

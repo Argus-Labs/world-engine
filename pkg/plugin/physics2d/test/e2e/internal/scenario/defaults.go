@@ -157,6 +157,7 @@ func checkJSONDefaults(c *harness.Ctx) {
 	if !c.NoError("wire: MessagePack encoding succeeds", err) {
 		return
 	}
+
 	var got physics.PhysicsBody2D
 	if !c.NoError("wire: MessagePack decoding succeeds", msgpack.Unmarshal(raw, &got)) {
 		return
@@ -183,6 +184,7 @@ func checkJSONDefaults(c *harness.Ctx) {
 	if !c.Int("wire round-trip preserves shape count", got.Shapes.Len(), original.Shapes.Len()) {
 		return
 	}
+
 	o, g := original.Shapes.At(0), got.Shapes.At(0)
 	c.True("wire round-trip preserves ShapeType", g.ShapeType == o.ShapeType,
 		"got %d, want %d", g.ShapeType, o.ShapeType)
@@ -272,13 +274,16 @@ func decodeBody(payload string) physics.PhysicsBody2D {
 	if err := json.Unmarshal([]byte(payload), &pb); err != nil {
 		panic("scenario/defaults: bad JSON literal: " + err.Error())
 	}
+
 	return pb
 }
 
 // decodeBodyInto decodes a payload and records the decode itself as a check.
 func decodeBodyInto(c *harness.Ctx, check, payload string) physics.PhysicsBody2D {
 	var pb physics.PhysicsBody2D
+
 	err := json.Unmarshal([]byte(payload), &pb)
 	c.NoError(check, err)
+
 	return pb
 }

@@ -34,9 +34,11 @@ func explosionCallback(proxyID int, userData uint64, context any) bool {
 
 	explosion, ok := context.(*explosionContext)
 	assert(ok)
+
 	if !ok {
 		return false
 	}
+
 	world := explosion.world
 
 	s := &world.shapes[shapeID]
@@ -47,6 +49,7 @@ func explosionCallback(proxyID int, userData uint64, context any) bool {
 	transform := world.getBodyTransformQuick(b)
 
 	var input DistanceInput
+
 	input.ProxyA = makeShapeDistanceProxy(s)
 	input.ProxyB = MakeProxy([]Vec2{explosion.position}, 1, 0.0)
 	input.TransformA = transform
@@ -54,9 +57,11 @@ func explosionCallback(proxyID int, userData uint64, context any) bool {
 	input.UseRadii = true
 
 	var cache SimplexCache
+
 	output := ShapeDistance(&input, &cache, nil)
 
 	radius := explosion.radius
+
 	falloff := explosion.falloff
 	if output.Distance > radius+falloff {
 		return true
@@ -83,6 +88,7 @@ func explosionCallback(proxyID int, userData uint64, context any) bool {
 
 	localLine := InvRotateVector(transform.Q, LeftPerp(direction))
 	perimeter := getShapeProjectedPerimeter(s, localLine)
+
 	scale := 1.0
 	if output.Distance > radius && falloff > 0.0 {
 		scale = clampFloat((radius+falloff-output.Distance)/falloff, 0.0, 1.0)
@@ -118,11 +124,13 @@ func (w *World) Explode(explosionDef *ExplosionDef) {
 	if debugAsserts {
 		assert(IsValidVec2(position))
 	}
+
 	assert(IsValidFloat(radius) && radius >= 0.0)
 	assert(IsValidFloat(falloff) && falloff >= 0.0)
 	assert(IsValidFloat(impulsePerLength))
 
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -136,6 +144,7 @@ func (w *World) Explode(explosionDef *ExplosionDef) {
 	}
 
 	var aabb AABB
+
 	aabb.LowerBound.X = position.X - (radius + falloff)
 	aabb.LowerBound.Y = position.Y - (radius + falloff)
 	aabb.UpperBound.X = position.X + (radius + falloff)

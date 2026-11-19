@@ -86,10 +86,12 @@ func NewTestWorld(t testing.TB, setup func(w *World)) *TestWorld {
 	t.Helper()
 
 	tel := telemetry.Telemetry{Logger: zerolog.New(zerolog.NewTestWriter(t))}
+
 	metrics, err := newWorldMetrics(0)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	storage := snapshot.NewNopStorage()
 	w := &World{
 		world:    ecs.NewWorld(),
@@ -119,6 +121,7 @@ func NewTestWorld(t testing.TB, setup func(w *World)) *TestWorld {
 		assert.That(ok, "event payload is %T, want event.Payload", evt.Payload)
 		evt.Payload = roundTrip(payload)
 		tw.events = append(tw.events, evt)
+
 		return nil
 	})
 	w.events.RegisterHandler(event.KindInterShardCommand, func(_ context.Context, evt event.Event) error {
@@ -126,6 +129,7 @@ func NewTestWorld(t testing.TB, setup func(w *World)) *TestWorld {
 		assert.That(ok, "inter-shard command payload is %T, want command.Command", evt.Payload)
 		cmd.Payload = roundTrip(cmd.Payload)
 		tw.shardCommands = append(tw.shardCommands, cmd)
+
 		return nil
 	})
 
@@ -133,6 +137,7 @@ func NewTestWorld(t testing.TB, setup func(w *World)) *TestWorld {
 
 	w.currentTick.timestamp = tw.now()
 	w.init()
+
 	return tw
 }
 
@@ -142,13 +147,17 @@ func roundTrip[T schema.Serializable](p T) T {
 	if err != nil {
 		panic(fmt.Sprintf("encode %s: %v", p.Name(), err))
 	}
+
 	decoded := reflect.New(reflect.TypeOf(p))
+
 	err = schema.Deserialize(data, decoded.Interface())
 	if err != nil {
 		panic(fmt.Sprintf("decode %s: %v", p.Name(), err))
 	}
+
 	typed, ok := reflect.TypeAssert[T](decoded.Elem())
 	assert.That(ok, "decode %s returned %T, want %T", p.Name(), decoded, p)
+
 	return typed
 }
 
@@ -157,10 +166,12 @@ func roundTrip[T schema.Serializable](p T) T {
 // not registered in setup.
 func (w *TestWorld) Command(player string, cmd Command) {
 	w.tb.Helper()
+
 	payload, err := schema.Serialize(cmd)
 	if err != nil {
 		w.tb.Fatalf("cardinal: encode Command %s: %v", cmd.Name(), err)
 	}
+
 	err = w.commands.Enqueue(context.Background(), &iscv1.Command{
 		Name:    cmd.Name(),
 		Address: w.address,
@@ -177,6 +188,7 @@ func (w *TestWorld) Command(player string, cmd Command) {
 func (w *TestWorld) RunSystem(s System) {
 	w.runStep(func() {
 		defer w.world.ClearSystemEvents()
+
 		name := fmt.Sprintf("%T", s)
 		w.runSystem(s, name, oteltrace.WithAttributes(attrSystemName.String(name)))
 	})
@@ -197,11 +209,13 @@ func (w *TestWorld) StartGame() {
 // Events returns the events of type T that the last step dispatched, in the order they were sent.
 func (w *TestWorld) Events[T Event]() []Sent[T] {
 	var sent []Sent[T]
+
 	for _, evt := range w.events {
 		if payload, ok := evt.Payload.(T); ok {
 			sent = append(sent, Sent[T]{Recipient: evt.Recipient, Payload: payload})
 		}
 	}
+
 	return sent
 }
 
@@ -214,17 +228,20 @@ func (w *TestWorld) Emitted[T ecs.SystemEvent]() []T {
 			emitted = append(emitted, typed)
 		}
 	}
+
 	return emitted
 }
 
 // ShardCommands returns the commands of type T that the last step sent with SendToShard, in order.
 func (w *TestWorld) ShardCommands[T Command]() []ShardCommand[T] {
 	var sent []ShardCommand[T]
+
 	for _, cmd := range w.shardCommands {
 		payload, ok := cmd.Payload.(T)
 		if !ok {
 			continue
 		}
+
 		sent = append(sent, ShardCommand[T]{
 			To: OtherWorld{
 				Project: cmd.Address.GetProject(),
@@ -233,6 +250,7 @@ func (w *TestWorld) ShardCommands[T Command]() []ShardCommand[T] {
 			Payload: payload,
 		})
 	}
+
 	return sent
 }
 
@@ -243,8 +261,10 @@ func (w *TestWorld) runStep(run func()) {
 	w.step(w.now(), func() {
 		w.systemEventTap = func(systemEvent ecs.SystemEvent) { w.emitted = append(w.emitted, systemEvent) }
 		defer func() { w.systemEventTap = nil }()
+
 		run()
 	})
+
 	if w.digests != nil {
 		w.digests = append(w.digests, w.digest())
 	}
@@ -276,10 +296,12 @@ func RequireDeterministic(t testing.TB, setup func(w *World), script func(w *Tes
 			t.Fatalf("cardinal: RequireDeterministic: step %d differs between runs in %s", step, diff)
 		}
 	}
+
 	if len(first.steps) != len(second.steps) {
 		t.Fatalf("cardinal: RequireDeterministic: the first run made %d steps, the second %d",
 			len(first.steps)-1, len(second.steps)-1)
 	}
+
 	if diff := first.end.diff(second.end); diff != "" {
 		t.Fatalf("cardinal: RequireDeterministic: the runs differ in %s when the script returns", diff)
 	}
@@ -298,6 +320,7 @@ func recordRun(t testing.TB, setup func(w *World), script func(w *TestWorld)) re
 	w := NewTestWorld(t, setup)
 	w.digests = []stepDigest{w.digest()}
 	script(w)
+
 	return recordedRun{steps: w.digests, end: w.digest()}
 }
 
@@ -313,12 +336,15 @@ func (w *TestWorld) digest() stepDigest {
 		assert.That(ok, "event payload is %T, want schema.Serializable", evt.Payload)
 		events = appendPayload(appendString(events, evt.Recipient), payload)
 	}
+
 	for _, cmd := range w.shardCommands {
 		shardCommands = appendPayload(appendString(shardCommands, micro.String(cmd.Address)), cmd.Payload)
 	}
+
 	for _, systemEvent := range w.emitted {
 		emitted = appendPayload(emitted, systemEvent)
 	}
+
 	return stepDigest{
 		state:         sha256.Sum256(w.world.EncodeState(nil)),
 		events:        sha256.Sum256(events),
@@ -333,15 +359,19 @@ func (d stepDigest) diff(other stepDigest) string {
 	if d.state != other.state {
 		parts = append(parts, "world state")
 	}
+
 	if d.events != other.events {
 		parts = append(parts, "events")
 	}
+
 	if d.shardCommands != other.shardCommands {
 		parts = append(parts, "shard commands")
 	}
+
 	if d.emitted != other.emitted {
 		parts = append(parts, "emitted system events")
 	}
+
 	return strings.Join(parts, ", ")
 }
 
@@ -355,7 +385,9 @@ func appendPayload(b []byte, p schema.Serializable) []byte {
 	if err != nil {
 		panic(fmt.Sprintf("encode %s: %v", p.Name(), err))
 	}
+
 	b = appendString(b, p.Name())
 	b = binary.AppendUvarint(b, uint64(len(payload)))
+
 	return append(b, payload...)
 }

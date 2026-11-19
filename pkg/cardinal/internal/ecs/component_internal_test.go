@@ -59,6 +59,7 @@ func TestComponent_RegisterModelFuzz(t *testing.T) {
 			} else {
 				// Property: new registration succeeds and assigns next ID.
 				require.NoError(t, implErr)
+
 				model[name] = implID
 			}
 
@@ -76,6 +77,7 @@ func TestComponent_RegisterModelFuzz(t *testing.T) {
 
 			// Property: getID returns same existence and value as model.
 			assert.Equal(t, modelExists, implErr == nil, "getID(%s) existence mismatch", name)
+
 			if modelExists {
 				assert.Equal(t, modelID, implID, "getID(%s) ID mismatch", name)
 			}
@@ -93,6 +95,7 @@ func TestComponent_RegisterModelFuzz(t *testing.T) {
 		if prevName, seen := seenIDs[id]; seen {
 			t.Errorf("ID %d is mapped by both %q and %q", id, prevName, name)
 		}
+
 		seenIDs[id] = name
 	}
 
@@ -103,6 +106,7 @@ func TestComponent_RegisterModelFuzz(t *testing.T) {
 
 	// Final state check: every model entry exists in impl with matching ID.
 	assert.Len(t, impl.catalog, len(model), "catalog length mismatch")
+
 	for name, modelID := range model {
 		implID, err := impl.getID(name)
 		require.NoError(t, err, "component %q in model but not in impl", name)
@@ -171,6 +175,7 @@ func TestComponent_NameValidationFuzz(t *testing.T) {
 			invalid++
 		}
 	}
+
 	assert.Equal(t, opsMax, valid+invalid)
 }
 
@@ -191,18 +196,24 @@ func assertNameProperties(name string) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
 func randValidComponentName(prng *rand.Rand) string {
-	const firstChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
-	const restChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+	const (
+		firstChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
+		restChars  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+	)
+
 	length := prng.IntN(100) + 1 // 1-100 characters
 	b := make([]byte, length)
+
 	b[0] = firstChars[prng.IntN(len(firstChars))]
 	for i := 1; i < length; i++ {
 		b[i] = restChars[prng.IntN(len(restChars))]
 	}
+
 	return string(b)
 }
 
@@ -212,6 +223,7 @@ type conflictingComponent struct {
 
 func TestWorld_HasComponent(t *testing.T) {
 	t.Parallel()
+
 	w := NewWorld()
 	eid := w.Create()
 	assert.False(t, w.Has[testutils.ComponentA](eid), "unregistered component")
@@ -233,16 +245,19 @@ func TestWorld_HasComponent(t *testing.T) {
 
 func TestWorld_RegisterComponentRejectsNameCollision(t *testing.T) {
 	t.Parallel()
+
 	w := NewWorld()
 	id, err := w.RegisterComponent[testutils.SimpleComponent]()
 	require.NoError(t, err)
 	require.Equal(t, ComponentID(0), id)
+
 	eid := w.Create()
 	require.NoError(t, w.Set(eid, testutils.SimpleComponent{Value: 42}))
 
 	id, err = w.RegisterComponent[testutils.SimpleComponent]()
 	require.NoError(t, err)
 	require.Equal(t, ComponentID(0), id)
+
 	_, err = w.RegisterComponent[conflictingComponent]()
 	require.ErrorContains(t, err, "component simple_component already registered with a different type")
 	assert.False(t, w.Has[conflictingComponent](eid), "a shared name does not register a different Go type")
@@ -259,9 +274,11 @@ func TestWorld_RegisterComponentRejectsNameCollision(t *testing.T) {
 
 func TestWorld_ConflictingComponentAccessPreservesData(t *testing.T) {
 	t.Parallel()
+
 	w := NewWorld()
 	_, err := w.RegisterComponent[testutils.SimpleComponent]()
 	require.NoError(t, err)
+
 	eid := w.Create()
 	require.NoError(t, w.Set(eid, testutils.SimpleComponent{Value: 42}))
 
@@ -340,6 +357,7 @@ func (f fixedPoint) EncodeMsgpack(e *msgpack.Encoder) error { return e.EncodeInt
 func (f *fixedPoint) DecodeMsgpack(d *msgpack.Decoder) error {
 	raw, err := d.DecodeInt64()
 	f.raw = raw
+
 	return err
 }
 
@@ -350,6 +368,7 @@ func (p *pointerEncoder) EncodeMsgpack(e *msgpack.Encoder) error { return e.Enco
 func (p *pointerEncoder) DecodeMsgpack(d *msgpack.Decoder) error {
 	raw, err := d.DecodeInt64()
 	p.raw = raw
+
 	return err
 }
 
@@ -407,9 +426,11 @@ func (b buff) EncodeMsgpack(e *msgpack.Encoder) error {
 	if err := e.EncodeArrayLen(2); err != nil {
 		return err
 	}
+
 	if err := e.EncodeInt(b.UnixNano()); err != nil {
 		return err
 	}
+
 	return e.EncodeInt(int64(b.Stacks))
 }
 
@@ -417,12 +438,15 @@ func (b *buff) DecodeMsgpack(d *msgpack.Decoder) error {
 	if _, err := d.DecodeArrayLen(); err != nil {
 		return err
 	}
+
 	nanos, err := d.DecodeInt64()
 	if err != nil {
 		return err
 	}
+
 	b.Time = time.Unix(0, nanos).UTC()
 	b.Stacks, err = d.DecodeInt()
+
 	return err
 }
 
@@ -439,6 +463,7 @@ func (b *buffByPointer) EncodeMsgpack(e *msgpack.Encoder) error { return e.Encod
 func (b *buffByPointer) DecodeMsgpack(d *msgpack.Decoder) error {
 	stacks, err := d.DecodeInt()
 	b.Stacks = stacks
+
 	return err
 }
 
@@ -454,6 +479,7 @@ func (s sliceWithOwnCodec) EncodeMsgpack(e *msgpack.Encoder) error { return e.En
 func (s *sliceWithOwnCodec) DecodeMsgpack(d *msgpack.Decoder) error {
 	n, err := d.DecodeInt()
 	s.N = n
+
 	return err
 }
 
@@ -547,6 +573,7 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 		codecShares = "encodes itself but holds a reference"
 		unexported  = "is embedded with an unexported type"
 	)
+
 	cases := []struct {
 		name string
 		typ  reflect.Type
@@ -693,12 +720,15 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			err := validateComponentType(tc.typ)
 			require.Error(t, err)
 			joined, ok := err.(interface{ Unwrap() []error })
 			require.True(t, ok, "errors are joined, one per field")
+
 			errs := joined.Unwrap()
 			require.Len(t, errs, len(tc.want), "got: %v", err)
+
 			for i, want := range tc.want {
 				assert.Contains(t, errs[i].Error(), want)
 			}
@@ -708,6 +738,7 @@ func TestComponent_ValidateTypeRefusesUnstorableFields(t *testing.T) {
 
 func TestWorld_RegisterComponentRejectsUnstorableFields(t *testing.T) {
 	t.Parallel()
+
 	w := NewWorld()
 
 	_, err := w.RegisterComponent[mapComponent]()
@@ -719,6 +750,7 @@ func TestWorld_RegisterComponentRejectsUnstorableFields(t *testing.T) {
 	// A refused type takes no ID, so the next valid one still gets the first.
 	_, lookupErr := w.state.components.getID("map_component")
 	require.ErrorIs(t, lookupErr, ErrComponentNotFound)
+
 	id, err := w.RegisterComponent[testutils.SimpleComponent]()
 	require.NoError(t, err)
 	assert.Equal(t, ComponentID(0), id)
@@ -726,15 +758,18 @@ func TestWorld_RegisterComponentRejectsUnstorableFields(t *testing.T) {
 
 func TestWorldState_CodecTypesRoundTripThroughSnapshot(t *testing.T) {
 	t.Parallel()
+
 	ws := newWorldState()
 	_, err := ws.components.register[codecComponent]("codec_component")
 	require.NoError(t, err)
+
 	e := ws.newEntity()
 	value := codecComponent{Speed: fixedPoint{raw: -1234}, Peer: netip.MustParseAddr("2001:db8::1")}
 	require.NoError(t, ws.setComponent(e, value))
 
 	pb, err := ws.toProto()
 	require.NoError(t, err)
+
 	restored := newWorldState()
 	_, err = restored.components.register[codecComponent]("codec_component")
 	require.NoError(t, err)
@@ -746,18 +781,23 @@ func TestWorldState_CodecTypesRoundTripThroughSnapshot(t *testing.T) {
 
 func TestWorldState_MapsRoundTripThroughSnapshot(t *testing.T) {
 	t.Parallel()
+
 	ws := newWorldState()
 	_, err := ws.components.register[mapsComponent]("maps_component")
 	require.NoError(t, err)
+
 	e := ws.newEntity()
+
 	var value mapsComponent
 	value.Memory.Set(9, valuePoint{X: 1})
 	value.Memory.Set(2, valuePoint{Y: 3})
+
 	var inner immutable.Map[int8, int]
 	inner.Set(-1, 1)
 	value.Nested.Set("b", inner)
 	value.Nested.Set("a", immutable.Map[int8, int]{})
 	value.Lists.Set(1, immutable.SliceOf("x", "y"))
+
 	var history immutable.Map[string, int]
 	history.Set("k", 4)
 	value.History = immutable.SliceOf(history)
@@ -765,6 +805,7 @@ func TestWorldState_MapsRoundTripThroughSnapshot(t *testing.T) {
 
 	pb, err := ws.toProto()
 	require.NoError(t, err)
+
 	restored := newWorldState()
 	_, err = restored.components.register[mapsComponent]("maps_component")
 	require.NoError(t, err)
@@ -780,15 +821,18 @@ func TestWorldState_MapsRoundTripThroughSnapshot(t *testing.T) {
 
 func TestWorldState_OwnCodecOverEmbeddedCodecRoundTripsThroughSnapshot(t *testing.T) {
 	t.Parallel()
+
 	ws := newWorldState()
 	_, err := ws.components.register[buff]("buff")
 	require.NoError(t, err)
+
 	e := ws.newEntity()
 	value := buff{Time: time.Unix(1_700_000_000, 0).UTC(), Stacks: 7}
 	require.NoError(t, ws.setComponent(e, value))
 
 	pb, err := ws.toProto()
 	require.NoError(t, err)
+
 	restored := newWorldState()
 	_, err = restored.components.register[buff]("buff")
 	require.NoError(t, err)

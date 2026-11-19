@@ -75,6 +75,7 @@ func newNode[K Key, V any](children []mchild[K, V]) *mnode[K, V] {
 			node.kids[i] = c.kid
 		}
 	}
+
 	return node
 }
 
@@ -82,6 +83,7 @@ func newNode[K Key, V any](children []mchild[K, V]) *mnode[K, V] {
 func (node *mnode[K, V]) with(i int, c mchild[K, V]) *mnode[K, V] {
 	b := allocNode[K, V](len(node.keys), node.kids == nil)
 	copy(b.keys, node.keys)
+
 	if node.kids == nil {
 		copy(b.chunks, node.chunks)
 		b.chunks[i] = c.chunk
@@ -89,6 +91,7 @@ func (node *mnode[K, V]) with(i int, c mchild[K, V]) *mnode[K, V] {
 		copy(b.kids, node.kids)
 		b.kids[i] = c.kid
 	}
+
 	return b
 }
 
@@ -104,6 +107,7 @@ func allocNode[K Key, V any](n int, lowest bool) *mnode[K, V] {
 			chunks [idxMax / 4][]entry[K, V]
 		})
 		b.node.keys, b.node.chunks = b.keys[:n], b.chunks[:n]
+
 		return &b.node
 	case lowest && n <= idxMax/2:
 		b := new(struct {
@@ -112,6 +116,7 @@ func allocNode[K Key, V any](n int, lowest bool) *mnode[K, V] {
 			chunks [idxMax / 2][]entry[K, V]
 		})
 		b.node.keys, b.node.chunks = b.keys[:n], b.chunks[:n]
+
 		return &b.node
 	case lowest:
 		b := new(struct {
@@ -120,6 +125,7 @@ func allocNode[K Key, V any](n int, lowest bool) *mnode[K, V] {
 			chunks [idxMax][]entry[K, V]
 		})
 		b.node.keys, b.node.chunks = b.keys[:n], b.chunks[:n]
+
 		return &b.node
 	case n <= idxMax/4:
 		b := new(struct {
@@ -128,6 +134,7 @@ func allocNode[K Key, V any](n int, lowest bool) *mnode[K, V] {
 			kids [idxMax / 4]*mnode[K, V]
 		})
 		b.node.keys, b.node.kids = b.keys[:n], b.kids[:n]
+
 		return &b.node
 	case n <= idxMax/2:
 		b := new(struct {
@@ -136,6 +143,7 @@ func allocNode[K Key, V any](n int, lowest bool) *mnode[K, V] {
 			kids [idxMax / 2]*mnode[K, V]
 		})
 		b.node.keys, b.node.kids = b.keys[:n], b.kids[:n]
+
 		return &b.node
 	default:
 		b := new(struct {
@@ -144,6 +152,7 @@ func allocNode[K Key, V any](n int, lowest bool) *mnode[K, V] {
 			kids [idxMax]*mnode[K, V]
 		})
 		b.node.keys, b.node.kids = b.keys[:n], b.kids[:n]
+
 		return &b.node
 	}
 }
@@ -157,8 +166,10 @@ func (node *mnode[K, V]) appendChildren(dst []mchild[K, V], from, to int) []mchi
 		} else {
 			c.kid = node.kids[i]
 		}
+
 		dst = append(dst, c)
 	}
+
 	return dst
 }
 
@@ -169,13 +180,17 @@ func (m Map[K, V]) locate(k K, p *mpath[K, V]) []entry[K, V] {
 		i := lastAtMost(node.keys, k)
 		p.f[d] = mframe[K, V]{node, i}
 		d++
+
 		if node.kids == nil {
 			break
 		}
+
 		node = node.kids[i]
 	}
+
 	p.h = d
 	slices.Reverse(p.f[:d])
+
 	return node.chunks[p.f[0].i]
 }
 
@@ -185,6 +200,7 @@ func (m *Map[K, V]) replaceAbove(p *mpath[K, V], level int, c mchild[K, V]) {
 	for l := level; l < p.h; l++ {
 		c = mchild[K, V]{kid: p.f[l].node.with(p.f[l].i, c)}
 	}
+
 	m.root = c.kid
 }
 
@@ -194,15 +210,18 @@ func advance[K Key, V any](cur *[maxDepth]mframe[K, V], level, h int) bool {
 	for top < h && cur[top].i == len(cur[top].node.keys)-1 {
 		top++
 	}
+
 	if top == h {
 		return false
 	}
+
 	cur[top].i++
 	for top > level {
 		next := cur[top].node.kids[cur[top].i]
 		top--
 		cur[top] = mframe[K, V]{next, 0}
 	}
+
 	return true
 }
 
@@ -210,7 +229,9 @@ func advance[K Key, V any](cur *[maxDepth]mframe[K, V], level, h int) bool {
 // above. edited is a new array that rechunkTree takes ownership of.
 func (m *Map[K, V]) rechunkTree(p *mpath[K, V], edited []entry[K, V]) {
 	cur := p.f
+
 	var buf [4]mchild[K, V]
+
 	rep := buf[:0]
 
 	// Level 0: cut the entries into chunks, continuing into the chunks after until a cut lands where
@@ -224,11 +245,14 @@ func (m *Map[K, V]) rechunkTree(p *mpath[K, V], edited []entry[K, V]) {
 				start = scan + 1
 			}
 		}
+
 		if start == len(edited) || !advance(&cur, 0, p.h) {
 			break
 		}
+
 		edited = append(edited, cur[0].node.chunks[cur[0].i]...)
 	}
+
 	if start < len(edited) {
 		rep = append(rep, mchild[K, V]{k: edited[start].k, chunk: edited[start:len(edited):len(edited)]})
 	}
@@ -237,6 +261,7 @@ func (m *Map[K, V]) rechunkTree(p *mpath[K, V], edited []entry[K, V]) {
 		m.replaceAbove(p, 0, rep[0])
 		return
 	}
+
 	m.recutIndex(p, &cur, rep)
 }
 
@@ -251,8 +276,11 @@ func keepsCuts[K Key, V any](p *mpath[K, V], cur *[maxDepth]mframe[K, V], level 
 // level of the index in turn. Its buffers are large, so it is kept off the common path, where one
 // chunk replaces one with the same first key.
 func (m *Map[K, V]) recutIndex(p *mpath[K, V], cur *[maxDepth]mframe[K, V], rep []mchild[K, V]) {
-	var repBuf [8]mchild[K, V]
-	var listBuf [2*idxMax + 8]mchild[K, V]
+	var (
+		repBuf  [8]mchild[K, V]
+		listBuf [2*idxMax + 8]mchild[K, V]
+	)
+
 	list := listBuf[:0]
 	// Each level: replace the run of items the level below rewrote, from p.f[L] to cur[L], with rep,
 	// and re-cut the nodes around them the same way endsChunk cuts entries.
@@ -261,26 +289,31 @@ func (m *Map[K, V]) recutIndex(p *mpath[K, V], cur *[maxDepth]mframe[K, V], rep 
 			m.replaceAbove(p, level, rep[0])
 			return
 		}
+
 		a, b := p.f[level], cur[level]
 		list = a.node.appendChildren(list[:0], 0, a.i)
 		list = append(list, rep...)
 		list = b.node.appendChildren(list, b.i+1, len(b.node.keys))
 		rep = repBuf[:0]
+
 		start, scan := 0, 0
 		for {
 			rep, start = appendCuts(rep, list, start, scan, level+1)
 			if start == len(list) || level+1 == p.h || !advance(cur, level+1, p.h) {
 				break
 			}
+
 			scan = len(list)
 			next := cur[level+1].node.kids[cur[level+1].i]
 			list = next.appendChildren(list, 0, len(next.keys))
 			cur[level] = mframe[K, V]{next, len(next.keys) - 1}
 		}
+
 		if start < len(list) {
 			rep = append(rep, mchild[K, V]{k: list[start].k, kid: newNode(list[start:])})
 		}
 	}
+
 	m.setTop(rep, p.h)
 }
 
@@ -294,6 +327,7 @@ func appendCuts[K Key, V any](dst, list []mchild[K, V], start, scan, level int) 
 			start = scan + 1
 		}
 	}
+
 	return dst, start
 }
 
@@ -306,8 +340,10 @@ func (m *Map[K, V]) setTop(level []mchild[K, V], l int) {
 		if start < len(level) {
 			up = append(up, mchild[K, V]{k: level[start].k, kid: newNode(level[start:])})
 		}
+
 		level = up
 	}
+
 	top := level[0]
 	for top.kid != nil && len(top.kid.keys) == 1 {
 		if top.kid.kids == nil {
@@ -316,6 +352,7 @@ func (m *Map[K, V]) setTop(level []mchild[K, V], l int) {
 			top = mchild[K, V]{kid: top.kid.kids[0]}
 		}
 	}
+
 	m.one, m.root = top.chunk, top.kid
 }
 
@@ -329,9 +366,11 @@ func cutEntries[K Key, V any](dst []mchild[K, V], entries []entry[K, V]) []mchil
 			start = i + 1
 		}
 	}
+
 	if start < len(entries) {
 		dst = append(dst, mchild[K, V]{k: entries[start].k, chunk: entries[start:len(entries):len(entries)]})
 	}
+
 	return dst
 }
 
@@ -343,13 +382,16 @@ func walkChunks[K Key, V any](node *mnode[K, V], yield func([]entry[K, V]) bool)
 				return false
 			}
 		}
+
 		return true
 	}
+
 	for _, kid := range node.kids {
 		if !walkChunks(kid, yield) {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -359,22 +401,27 @@ func nodesEqual[K Key, V any](a, b *mnode[K, V], eq func(a, b V) bool) bool {
 	if a == b {
 		return true
 	}
+
 	if len(a.keys) != len(b.keys) || (a.kids == nil) != (b.kids == nil) {
 		return false
 	}
+
 	if a.kids == nil {
 		for i, c := range a.chunks {
 			if !chunksEqual(c, b.chunks[i], eq) {
 				return false
 			}
 		}
+
 		return true
 	}
+
 	for i, kid := range a.kids {
 		if !nodesEqual(kid, b.kids[i], eq) {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -382,14 +429,17 @@ func chunksEqual[K Key, V any](a, b []entry[K, V], eq func(a, b V) bool) bool {
 	if len(a) != len(b) {
 		return false
 	}
+
 	if len(a) == 0 || &a[0] == &b[0] {
 		return true
 	}
+
 	for j := range a {
 		if a[j].k != b[j].k || !eq(a[j].v, b[j].v) {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -404,5 +454,6 @@ func lastAtMost[K Key](keys []K, k K) int {
 			hi = mid
 		}
 	}
+
 	return lo - 1
 }

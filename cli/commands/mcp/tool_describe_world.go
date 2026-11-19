@@ -55,13 +55,16 @@ func describeWorldHandler(
 	}
 
 	type worldKey struct{ org, project string }
+
 	order := make([]worldKey, 0)
 	byWorld := make(map[worldKey][]string)
+
 	for _, s := range shards {
 		k := worldKey{s.Organization, s.Project}
 		if _, ok := byWorld[k]; !ok {
 			order = append(order, k)
 		}
+
 		byWorld[k] = append(byWorld[k], s.ShardID)
 	}
 
@@ -69,5 +72,6 @@ func describeWorldHandler(
 	for _, k := range order {
 		worlds = append(worlds, DescribedWorld{Organization: k.org, Project: k.project, Shards: byWorld[k]})
 	}
+
 	return DescribeWorldOutput{Worlds: worlds}, nil
 }

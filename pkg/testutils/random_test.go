@@ -21,12 +21,15 @@ func TestRandWeightedOp_SameSeedSamePicks(t *testing.T) {
 	for i := range 20 {
 		ops[fmt.Sprintf("op%02d", i)] = uint64(i + 1)
 	}
+
 	picks := func() []string {
 		r := rand.New(rand.NewPCG(1, 2))
+
 		out := make([]string, 1000)
 		for i := range out {
 			out[i] = testutils.RandWeightedOp(r, ops)
 		}
+
 		return out
 	}
 
@@ -41,12 +44,15 @@ func TestRandMapKey_SameSeedSamePicks(t *testing.T) {
 	for i := range 20 {
 		m[fmt.Sprintf("key%02d", i)] = struct{}{}
 	}
+
 	picks := func() []string {
 		r := rand.New(rand.NewPCG(1, 2))
+
 		out := make([]string, 1000)
 		for i := range out {
 			out[i] = testutils.RandMapKey(r, m)
 		}
+
 		return out
 	}
 
@@ -58,11 +64,13 @@ func TestRandMapKey_PicksNthSmallestKey(t *testing.T) {
 	t.Parallel()
 
 	r := rand.New(rand.NewPCG(3, 4))
+
 	for size := 1; size <= 300; size++ {
 		m := make(map[int]struct{}, size)
 		for len(m) < size {
 			m[r.IntN(10_000)-5_000] = struct{}{}
 		}
+
 		sorted := slices.Sorted(maps.Keys(m))
 
 		seed := r.Uint64()
@@ -79,6 +87,7 @@ func TestRandMapKey_NaNKeysReplay(t *testing.T) {
 	// NaN != NaN, so a pick is recorded as its value, or -1 for NaN.
 	picks := func() []float64 {
 		r := rand.New(rand.NewPCG(1, 2))
+
 		out := make([]float64, 50)
 		for i := range out {
 			out[i] = testutils.RandMapKey(r, m)
@@ -86,11 +95,13 @@ func TestRandMapKey_NaNKeysReplay(t *testing.T) {
 				out[i] = -1
 			}
 		}
+
 		return out
 	}
 
 	first := picks()
 	assert.Subset(t, first, []float64{-1, 1, 2}, "50 picks should reach every kind of key")
+
 	for range 100 {
 		require.Equal(t, first, picks())
 	}

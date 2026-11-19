@@ -16,6 +16,7 @@ func bind(k, desc string) key.Binding {
 
 func TestLegend_ViewLines(t *testing.T) {
 	t.Parallel()
+
 	legend := NewLegend()
 	primary := []key.Binding{bind("a", "alpha")}
 	secondary := []key.Binding{bind("b", "beta")}
@@ -38,6 +39,7 @@ func TestLegend_ViewLines(t *testing.T) {
 
 func TestLegend_HandleToggleDisabledWithoutSecondaryBindings(t *testing.T) {
 	t.Parallel()
+
 	legend := NewLegend()
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("?")}
 	assert.False(t, legend.HandleToggle(msg, false))

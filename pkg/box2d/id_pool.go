@@ -25,11 +25,13 @@ func allocID(pool *idPool) int {
 	if count > 0 {
 		id := pool.freeArray[count-1]
 		pool.freeArray = pool.freeArray[:count-1]
+
 		return id
 	}
 
 	id := pool.nextIndex
 	pool.nextIndex++
+
 	return id
 }
 
@@ -39,12 +41,14 @@ func freeID(pool *idPool, id int) {
 
 	if cap(pool.freeArray) == len(pool.freeArray) {
 		oldCap := cap(pool.freeArray)
+
 		newCap := oldCap
 		if newCap < 2 {
 			newCap = 2
 		} else {
 			newCap += newCap / 2
 		}
+
 		newData := make([]int, len(pool.freeArray), newCap)
 		copy(newData, pool.freeArray)
 		pool.freeArray = newData

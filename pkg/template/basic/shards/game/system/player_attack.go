@@ -26,7 +26,9 @@ func (s *AttackPlayerSystem) Run(w *cardinal.World) {
 		if !ok {
 			continue // Only players attack; another shard has no one to send PlayerDeath to.
 		}
+
 		command := cmd.Payload
+
 		for player := range players.Iter() {
 			entity := player.ID()
 			tag := player.Get[component.PlayerTag]()

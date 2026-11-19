@@ -41,6 +41,7 @@ func TestMap_ZeroValueIsEmpty(t *testing.T) {
 	v, ok := m.Get("a")
 	assert.False(t, ok)
 	assert.Zero(t, v)
+
 	for range m.All() {
 		t.Fatal("the zero Map has no entries")
 	}
@@ -70,6 +71,7 @@ func TestMap_ReadsAndKeyOrder(t *testing.T) {
 			break
 		}
 	}
+
 	assert.Equal(t, []int{1, 2}, seen, "All stops when the loop does")
 }
 
@@ -116,7 +118,9 @@ func TestMap_DeleteFuncVisitsInKeyOrder(t *testing.T) {
 	t.Parallel()
 
 	m := mapOf(map[string]int{"c": 3, "a": 1, "d": 4, "b": 2})
+
 	var seen []string
+
 	m.DeleteFunc(func(k string, _ int) bool {
 		seen = append(seen, k)
 		return k == "b"
@@ -129,7 +133,9 @@ func TestMap_UpdateFunc(t *testing.T) {
 
 	m := mapOf(map[string]int{"c": 3, "a": 1, "d": 4, "b": 2})
 	before := m
+
 	var seen []string
+
 	m.UpdateFunc(func(k string, v int) int {
 		seen = append(seen, k)
 		return v * 10
@@ -163,6 +169,7 @@ func TestMap_UpdateFunc(t *testing.T) {
 			if k == "c" {
 				panic("boom")
 			}
+
 			return 0
 		})
 	})
@@ -174,6 +181,7 @@ func TestMap_MaxKeyAndRange(t *testing.T) {
 	t.Parallel()
 
 	var empty immutable.Map[string, int]
+
 	_, ok := empty.MaxKey()
 	require.False(t, ok, "an empty Map has no largest key")
 	require.Empty(t, maps.Collect(empty.Range("a", "z")))
@@ -187,6 +195,7 @@ func TestMap_MaxKeyAndRange(t *testing.T) {
 	for k := range m.Range("b", "e") {
 		keys = append(keys, k)
 	}
+
 	require.Equal(t, []string{"b", "c", "d"}, keys, "lo is included, hi is not, in key order")
 	require.Equal(t, map[string]int{"a": 1, "b": 2}, maps.Collect(m.Range("", "bb")), "bounds need not be keys")
 	require.Empty(t, maps.Collect(m.Range("d", "d")), "lo == hi yields nothing")
@@ -199,6 +208,7 @@ func TestMap_MaxKeyAndRange(t *testing.T) {
 			break
 		}
 	}
+
 	require.Equal(t, []string{"a", "b"}, keys, "the loop stops at break")
 
 	seq := m.Range("a", "c")
@@ -214,6 +224,7 @@ func TestMap_EmptyIsZeroValue(t *testing.T) {
 	one := func() immutable.Map[string, int] {
 		var m immutable.Map[string, int]
 		m.Set("a", 1)
+
 		return m
 	}
 	deleted, filtered, cleared := one(), one(), one()
@@ -245,6 +256,7 @@ func TestMap_CopiesShareNothing(t *testing.T) {
 	cp.Set("a", 9)
 	cp.Set("c", 3)
 	cp.Delete("b")
+
 	keys, vals := entries(m)
 	require.Equal(t, []string{"a", "b"}, keys, "edits through an assigned copy do not reach the original")
 	require.Equal(t, []int{1, 2}, vals)
@@ -262,6 +274,7 @@ func TestMap_CopiesShareNothing(t *testing.T) {
 		for _, k := range []int{0, 2, 4, 6, 8} {
 			orig.Set(k, k)
 		}
+
 		other := orig
 		edit(&other)
 		require.Equal(t, []int{0, 2, 4, 6, 8}, slices.Collect(orig.Keys()), name)
@@ -279,6 +292,7 @@ func TestMap_RangeAndDelete(t *testing.T) {
 	for id, at := range map[int]int{0: 1000, 3: 5, 4: 6, 7: 1000, 9: 2} {
 		buffs.Set(id, at)
 	}
+
 	var visited []int
 	for id, at := range buffs.All() {
 		visited = append(visited, id)
@@ -286,7 +300,9 @@ func TestMap_RangeAndDelete(t *testing.T) {
 			buffs.Delete(id)
 		}
 	}
+
 	require.Equal(t, []int{0, 3, 4, 7, 9}, visited, "every buff is visited once, with no extra entry")
+
 	keys, _ := entries(buffs)
 	require.Equal(t, []int{0, 7}, keys, "only the expired buffs are removed")
 }
@@ -328,6 +344,7 @@ func TestMap_EqualFunc(t *testing.T) {
 	one := func() immutable.Map[int, memory] {
 		var m immutable.Map[int, memory]
 		m.Set(1, memory{Seen: immutable.SliceOf("x")})
+
 		return m
 	}
 	eq := func(x, y memory) bool { return x.Affinity == y.Affinity && immutable.Equal(x.Seen, y.Seen) }
@@ -347,8 +364,11 @@ func TestMap_ModelMatchesGoMap(t *testing.T) {
 	r := testutils.NewRand(t)
 
 	var m immutable.Map[int, int]
+
 	model := map[int]int{}
+
 	var copies []immutable.Map[int, int]
+
 	for step := range 3000 {
 		k, v := r.IntN(40), r.IntN(1000)
 		switch op := r.IntN(13); {
@@ -357,6 +377,7 @@ func TestMap_ModelMatchesGoMap(t *testing.T) {
 			model[k] = v
 		case op == 11:
 			m.UpdateFunc(func(k, v int) int { return v + k%7 })
+
 			for k, v := range model {
 				model[k] = v + k%7
 			}
@@ -376,6 +397,7 @@ func TestMap_ModelMatchesGoMap(t *testing.T) {
 			mod := 2 + r.IntN(4)
 			del := func(k, v int) bool { return k%mod == 0 || v < 300 }
 			want := slices.Collect(m.Keys())
+
 			var visited []int
 			for k, v := range m.All() {
 				visited = append(visited, k)
@@ -383,6 +405,7 @@ func TestMap_ModelMatchesGoMap(t *testing.T) {
 					m.Delete(k)
 				}
 			}
+
 			maps.DeleteFunc(model, del)
 			require.Equal(t, want, visited, "step %d: deleting the current key visits every key once", step)
 		case op == 10:
@@ -402,6 +425,7 @@ func TestMap_ModelMatchesGoMap(t *testing.T) {
 		wantKeys := slices.Sorted(maps.Keys(model))
 		require.Equal(t, len(wantKeys), m.Len(), "step %d", step)
 		require.True(t, slices.Equal(wantKeys, keys), "keys at step %d", step)
+
 		for j, k := range wantKeys {
 			require.Equal(t, model[k], vals[j], "value for %d at step %d", k, step)
 			require.True(t, m.Has(k), "Has(%d) at step %d", k, step)
@@ -410,6 +434,7 @@ func TestMap_ModelMatchesGoMap(t *testing.T) {
 		if r.IntN(10) == 0 {
 			copies = append(copies, m)[max(0, len(copies)-4):]
 		}
+
 		for i, c := range copies {
 			requireValidMap(t, c, fmt.Sprintf("copy %d at step %d", i, step))
 		}
@@ -420,14 +445,18 @@ func TestMap_ModelMatchesGoMap(t *testing.T) {
 // each one found by Get, and a MessagePack round trip that gives back the same entries.
 func requireValidMap[K immutable.Key, V any](t *testing.T, m immutable.Map[K, V], msg string) {
 	t.Helper()
+
 	keys, vals := entries(m)
 	ascending := slices.IsSorted(keys) && len(slices.Compact(slices.Clone(keys))) == len(keys)
 	require.True(t, ascending, "%s: keys %v are not strictly ascending", msg, keys)
+
 	for _, k := range keys {
 		require.True(t, m.Has(k), "%s: Has(%v)", msg, k)
 	}
+
 	data, err := msgpack.Marshal(m)
 	require.NoError(t, err, msg)
+
 	var back immutable.Map[K, V]
 	require.NoError(t, msgpack.Unmarshal(data, &back), "%s: the encoding restores", msg)
 	backKeys, backVals := entries(back)
@@ -445,23 +474,29 @@ func TestMap_EncodingIgnoresInsertOrder(t *testing.T) {
 	for i := range 50 {
 		want[string(rune('a'+i%26))+string(rune('a'+i/26))] = memory{Affinity: i, Seen: immutable.SliceOf("p")}
 	}
+
 	keys := slices.Collect(maps.Keys(want))
 
 	var firstPack, firstJSON []byte
+
 	for range 20 {
 		r.Shuffle(len(keys), func(i, j int) { keys[i], keys[j] = keys[j], keys[i] })
+
 		var m immutable.Map[string, memory]
 		for _, k := range keys {
 			m.Set(k, want[k])
 		}
+
 		pack, err := msgpack.Marshal(m)
 		require.NoError(t, err)
 		js, err := m.MarshalJSON()
 		require.NoError(t, err)
+
 		if firstPack == nil {
 			firstPack, firstJSON = pack, js
 			continue
 		}
+
 		require.Equal(t, firstPack, pack)
 		require.True(t, bytes.Equal(firstJSON, js), "JSON: %s vs %s", firstJSON, js)
 	}
@@ -476,6 +511,7 @@ func TestMap_MessagePackRoundTrip(t *testing.T) {
 		Empty   immutable.Map[string, int] `msgpack:",omitempty"`
 		Zero    immutable.Map[string, int]
 	}
+
 	var want holder
 	want.Players.Set(7, memory{Affinity: 3, Seen: immutable.SliceOf("a", "b")})
 	want.Players.Set(2, memory{Affinity: -1})
@@ -492,6 +528,7 @@ func TestMap_MessagePackRoundTrip(t *testing.T) {
 	require.NoError(t, msgpack.Unmarshal(data, &wire))
 	assert.NotContains(t, wire, "Empty", "omitempty leaves an empty Map out")
 	assert.Equal(t, msgpack.RawMessage{0x80}, wire["Zero"], "the zero value is an empty map, not nil")
+
 	var players map[uint64]map[string]any
 	require.NoError(t, msgpack.Unmarshal(wire["Players"], &players))
 	assert.Equal(t, []uint64{2, 7}, slices.Sorted(maps.Keys(players)))
@@ -505,6 +542,7 @@ func TestMap_MessagePackDecodeSortsAndRejectsDuplicates(t *testing.T) {
 		require.NoError(t, err)
 		// Rewrite the array header as a map header of half the length: fixarray 0x9N -> fixmap 0x8N.
 		data[0] = 0x80 | byte(len(pairs)/2)
+
 		return data
 	}
 
@@ -544,6 +582,7 @@ func TestMap_JSON(t *testing.T) {
 			assert.JSONEq(t, `{"-2":"minus two","3":"three","10":"ten"}`, string(data))
 			assert.True(t, bytes.HasPrefix(data, []byte(`{"-2"`)) && bytes.HasSuffix(data, []byte(`"10":"ten"}`)),
 				"entries are in key order: %s", data)
+
 			var backInts immutable.Map[int16, string]
 			require.NoError(t, lib.unmarshal(data, &backInts))
 			assert.True(t, immutable.MapEqual(ints, backInts))
@@ -551,6 +590,7 @@ func TestMap_JSON(t *testing.T) {
 			data, err = lib.marshal(strs)
 			require.NoError(t, err)
 			assert.JSONEq(t, `{"a":[],"b":[1]}`, string(data))
+
 			var backStrs immutable.Map[string, immutable.Slice[int]]
 			require.NoError(t, lib.unmarshal(data, &backStrs))
 			assert.True(t, reflect.DeepEqual(strs, backStrs))
@@ -604,6 +644,7 @@ func TestMapTypes(t *testing.T) {
 	assert.Equal(t, reflect.TypeFor[memory](), v)
 
 	type Map[K comparable, V any] struct{ keys []K } //nolint:unused // Only its type is inspected.
+
 	for _, typ := range []reflect.Type{
 		nil,
 		reflect.TypeFor[map[int]int](),
@@ -627,12 +668,15 @@ func FuzzMap_DecodeMsgpack(f *testing.F) {
 		if msgpack.Unmarshal(data, &m) != nil {
 			return
 		}
+
 		keys, _ := entries(m)
 		for i := 1; i < len(keys); i++ {
 			require.Less(t, keys[i-1], keys[i], "decoded keys are strictly ascending")
 		}
+
 		again, err := msgpack.Marshal(m)
 		require.NoError(t, err)
+
 		var back immutable.Map[int, immutable.Slice[string]]
 		require.NoError(t, msgpack.Unmarshal(again, &back))
 		require.True(t, reflect.DeepEqual(m, back))
@@ -643,19 +687,25 @@ func TestMap_Allocations(t *testing.T) {
 	if raceEnabled {
 		t.Skip("allocation counts are not meaningful under -race")
 	}
+
 	m := immutable.MapFrom(maps.All(map[int]int{1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8}))
+
 	var sink int
 
 	reads := testing.AllocsPerRun(100, func() {
 		v, _ := m.Get(5)
+
 		sink += v + m.Len()
 		if m.Has(3) {
 			sink++
 		}
+
 		for k, v := range m.All() {
 			sink += k + v
 		}
+
 		maxKey, _ := m.MaxKey()
+
 		sink += maxKey
 		for k, v := range m.Range(2, 6) {
 			sink += k + v
@@ -683,6 +733,7 @@ func TestMap_Allocations(t *testing.T) {
 			}
 		}
 	})
+
 	assert.LessOrEqual(t, testing.AllocsPerRun(20, func() {
 		d := big
 		d.UpdateFunc(func(_, v int) int { return v + 1 })
@@ -696,8 +747,11 @@ func TestMap_Allocations(t *testing.T) {
 	}), 80.0, "decoding 4096 entries allocates per array growth and node, not per entry")
 
 	forged := []byte{0xdf, 0x7f, 0xff, 0xff, 0xff, 0x01, 0x01} // a map of 2^31-1 entries, holding one
+
 	var d immutable.Map[int, int]
+
 	allocated := allocatedBytes(func() { err = msgpack.Unmarshal(forged, &d) })
+
 	require.Error(t, err)
 	assert.Less(t, allocated, uint64(1<<20), "a forged length must not size the allocation")
 
@@ -706,11 +760,13 @@ func TestMap_Allocations(t *testing.T) {
 		for k := range 1024 {
 			b.Set(k, k)
 		}
+
 		sink += b.Len()
 	})
 	// The seeded hash moves chunk boundaries from run to run, so the count varies with the seed
 	// (about 2000 to 2900). The bound is the structural one: a chunk and two index nodes per key.
 	assert.LessOrEqual(t, loop, 3*1024.0, "1024 new keys: a chunk and the index path to it each")
+
 	_ = sink
 }
 
@@ -722,6 +778,7 @@ func TestMap_EqualSkipsSharedStorage(t *testing.T) {
 	for k := range 5000 {
 		model[k*3] = k
 	}
+
 	big := immutable.MapFrom(maps.All(model))
 	calls := 0
 	eq := func(a, b int) bool {

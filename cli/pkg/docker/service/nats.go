@@ -36,10 +36,12 @@ func NATS(cfg *Config) Service {
 	project := cfg.WorldToml.Project
 	ports := []int{DefaultNatsClientPort, DefaultNatsMonitorPort}
 	bindings := network.PortMap{}
+
 	for _, p := range ports {
 		tcp := network.MustParsePort(strconv.Itoa(p) + "/tcp")
 		bindings[tcp] = loopbackBinding(p)
 	}
+
 	return Service{
 		Name:         NatsContainerName(project),
 		Image:        DefaultNatsImage + version.Nats,

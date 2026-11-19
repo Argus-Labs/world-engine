@@ -72,6 +72,7 @@ func h2cProtocols() *http.Protocols {
 	p := new(http.Protocols)
 	p.SetHTTP1(true)
 	p.SetUnencryptedHTTP2(true)
+
 	return p
 }
 
@@ -80,15 +81,19 @@ func (s *service) init(address string) error {
 	if cfg := s.world.options.NATSConfig; cfg != nil {
 		clientOpts = append(clientOpts, micro.WithNATSConfig(*cfg))
 	}
+
 	client, err := micro.NewClient(clientOpts...)
 	if err != nil {
 		return eris.Wrap(err, "failed to initialize micro client")
 	}
+
 	s.client = client
+
 	microService, err := micro.NewService(client, s.world.address, &s.world.tel)
 	if err != nil {
 		return eris.Wrap(err, "failed to create micro service")
 	}
+
 	s.microService = microService
 	s.interShard = newInterShard(s.world.address, client, &s.world.commands, s.log)
 
@@ -97,17 +102,20 @@ func (s *service) init(address string) error {
 	if err = s.microService.AddEndpoint("ping", s.handlePing); err != nil {
 		return eris.Wrap(err, "failed to register ping handler")
 	}
+
 	if err := s.interShard.start(s.microService, s.commands); err != nil {
 		return err
 	}
 
 	var authenticate func(context.Context, *http.Request) (any, error)
+
 	switch s.authMode {
 	case AuthModeArgus:
 		authenticator, err := NewArgusAuthenticator(s.argusAuthURL, s.world.options.ArgusAuthGameID)
 		if err != nil {
 			return eris.Wrap(err, "failed to create argus authenticator")
 		}
+
 		s.argusAuth = authenticator
 		authenticate = authenticator.Authenticate
 	case AuthModeDev:
@@ -117,6 +125,7 @@ func (s *service) init(address string) error {
 	default:
 		return eris.Errorf("invalid service auth mode: %s", s.authMode)
 	}
+
 	mux, err := s.newMux(authenticate)
 	if err != nil {
 		return err
@@ -150,6 +159,7 @@ func (s *service) newMux(authenticate authn.AuthFunc) (*http.ServeMux, error) {
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to create otel interceptor")
 	}
+
 	validateInterceptor := validate.NewInterceptor()
 
 	cardinalPath, cardinalHandler := cardinalv1connect.NewCardinalServiceHandler(
@@ -165,6 +175,7 @@ func (s *service) newMux(authenticate authn.AuthFunc) (*http.ServeMux, error) {
 	if err := s.mountDebugService(mux, otelInterceptor, validateInterceptor); err != nil {
 		return nil, err
 	}
+
 	return mux, nil
 }
 
@@ -172,15 +183,18 @@ func (s *service) mountDebugService(mux *http.ServeMux, interceptors ...connect.
 	if s.world.debug == nil {
 		return nil
 	}
+
 	if err := s.world.debug.finalizeCatalog(); err != nil {
 		return eris.Wrap(err, "failed to finalize introspection catalog")
 	}
+
 	debugPath, debugHandler := cardinalv1connect.NewDebugServiceHandler(
 		s.world.debug,
 		connect.WithInterceptors(interceptors...),
 	)
 	mux.Handle(debugPath, debugHandler)
 	s.log.Info().Msg("DebugService mounted on client-facing port (dev)")
+
 	return nil
 }
 
@@ -191,19 +205,23 @@ func (s *service) shutdown(ctx context.Context) error {
 	if s.argusAuth != nil {
 		defer s.argusAuth.Close()
 	}
+
 	if s.interShard != nil {
 		s.interShard.stop(ctx)
 	}
+
 	if s.server != nil {
 		if err := s.server.Shutdown(ctx); err != nil {
 			return eris.Wrap(err, "failed to shutdown service server")
 		}
 	}
+
 	if s.microService != nil {
 		if err := s.microService.Close(); err != nil {
 			return eris.Wrap(err, "failed to close micro service")
 		}
 	}
+
 	if s.client != nil {
 		s.client.Close()
 	}
@@ -245,12 +263,15 @@ type queuedEvent struct {
 // limit: see streamLagLimit.
 func (s *streamSubscriber) enqueue(response *cardinalv1.StartEventStreamResponse, size int) error {
 	size += queuedEventOverhead
+
 	s.queueMu.Lock()
 	if s.queuedBytes+size > streamQueueBytes {
 		s.queueMu.Unlock()
 		s.cancel(errStreamLagged)
+
 		return errStreamLagged
 	}
+
 	s.queue = append(s.queue, queuedEvent{response: response, queuedAt: time.Now(), size: size})
 	s.queuedBytes += size
 	s.queueMu.Unlock()
@@ -259,6 +280,7 @@ func (s *streamSubscriber) enqueue(response *cardinalv1.StartEventStreamResponse
 	case s.queueReady <- struct{}{}:
 	default: // The writer is already signalled.
 	}
+
 	return nil
 }
 
@@ -274,13 +296,16 @@ func (s *streamSubscriber) writeQueued() error {
 		if s.ctx.Err() != nil { // Superseded, lagged, or closed.
 			return streamEndError(s.ctx)
 		}
+
 		if err := s.write(evt.response, evt.queuedAt); err != nil {
 			return err
 		}
+
 		s.queueMu.Lock()
 		s.queuedBytes -= evt.size
 		s.queueMu.Unlock()
 	}
+
 	return nil
 }
 
@@ -290,12 +315,15 @@ func (s *streamSubscriber) writeQueued() error {
 func (s *streamSubscriber) write(response *cardinalv1.StartEventStreamResponse, queuedAt time.Time) error {
 	s.lagged.Reset(streamLagLimit - time.Since(queuedAt))
 	defer s.lagged.Stop()
+
 	if err := s.stream.Send(response); err != nil {
 		if s.ctx.Err() != nil {
 			return streamEndError(s.ctx)
 		}
+
 		return err
 	}
+
 	return nil
 }
 
@@ -378,7 +406,9 @@ func (s *service) addReplyWaiter(playerID, eventName string) chan *iscv1.Event {
 		byPlayer = make(map[string][]chan *iscv1.Event)
 		s.replyWaiters[eventName] = byPlayer
 	}
+
 	byPlayer[playerID] = append(byPlayer[playerID], waiter)
+
 	return waiter
 }
 
@@ -387,6 +417,7 @@ func (s *service) removeReplyWaiter(playerID, eventName string, waiter chan *isc
 	defer s.mu.Unlock()
 
 	byPlayer := s.replyWaiters[eventName]
+
 	waiters := byPlayer[playerID]
 	for i, current := range waiters {
 		if current == waiter {
@@ -394,9 +425,11 @@ func (s *service) removeReplyWaiter(playerID, eventName string, waiter chan *isc
 			break
 		}
 	}
+
 	if len(byPlayer[playerID]) == 0 {
 		delete(byPlayer, playerID)
 	}
+
 	if len(byPlayer) == 0 {
 		delete(s.replyWaiters, eventName)
 	}
@@ -472,9 +505,12 @@ func (s *service) StartEventStream(
 		lagged:     time.AfterFunc(streamLagLimit, func() { cancel(errStreamLagged) }),
 		queueReady: make(chan struct{}, 1),
 	}
+
 	subscriber.lagged.Stop()
 	defer subscriber.lagged.Stop()
+
 	addSubscriptions(subscriber, req.Msg.GetSubscriptions())
+
 	s.addSubscriber(player.ID, subscriber)
 	defer s.removeSubscriber(player.ID, subscriber)
 
@@ -484,6 +520,7 @@ func (s *service) StartEventStream(
 		if ctx.Err() != nil {
 			return err
 		}
+
 		return connect.NewError(connect.CodeInternal, eris.Wrap(err, "failed to send initial empty event to client"))
 	}
 
@@ -529,6 +566,7 @@ func (s *service) SubscribeEvents(
 	if err := s.updateSubscriptions(ctx, req.Msg.GetSubscriptions(), addSubscriptions); err != nil {
 		return nil, err
 	}
+
 	return connect.NewResponse(&cardinalv1.SubscribeEventsResponse{}), nil
 }
 
@@ -539,6 +577,7 @@ func (s *service) UnsubscribeEvents(
 	if err := s.updateSubscriptions(ctx, req.Msg.GetSubscriptions(), removeSubscriptions); err != nil {
 		return nil, err
 	}
+
 	return connect.NewResponse(&cardinalv1.UnsubscribeEventsResponse{}), nil
 }
 
@@ -568,7 +607,9 @@ func (s *service) updateSubscriptions(
 	if !ok {
 		return connect.NewError(connect.CodeFailedPrecondition, eris.New("client has no established stream"))
 	}
+
 	update(subscriber, subscriptions)
+
 	return nil
 }
 
@@ -580,6 +621,7 @@ func (s *service) addSubscriber(playerID string, subscriber *streamSubscriber) {
 	if previous, ok := s.subscribers[playerID]; ok {
 		previous.cancel(errStreamSuperseded)
 	}
+
 	s.subscribers[playerID] = subscriber
 }
 
@@ -616,6 +658,7 @@ func countSubscriptions(subscriptions []*cardinalv1.EventSubscription) int {
 	for _, subscription := range subscriptions {
 		n += len(subscription.GetEvents())
 	}
+
 	return n
 }
 
@@ -640,6 +683,7 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 	if err != nil {
 		err = eris.Wrapf(err, "failed to encode event %q", payload.Name())
 		span.SetError(err)
+
 		return err
 	}
 
@@ -649,6 +693,7 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 	}
 
 	s.mu.RLock()
+
 	var subscribers []*streamSubscriber
 	//nolint:nestif // It's fine
 	if evt.Recipient != "" {
@@ -686,6 +731,7 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 			waiters = append(waiters, playerWaiters...)
 		}
 	}
+
 	s.mu.RUnlock()
 	span.SetAttributes(attrEventSubscribers.Int(len(subscribers)), attrEventWaiters.Int(len(waiters)))
 
@@ -701,6 +747,7 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 	// lagged and is recorded on the span, and delivery to the others continues.
 	eventSize := proto.Size(eventPb)
 	sendFailures := 0
+
 	for _, subscriber := range subscribers {
 		select {
 		case <-subscriber.ctx.Done():
@@ -714,11 +761,14 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 		}, eventSize)
 		if err != nil {
 			sendFailures++
+
 			span.RecordError(err)
 			s.log.Warn().Err(err).Str("event", eventPb.GetName()).Msg("ended a lagging event stream")
 		}
 	}
+
 	span.SetAttributes(attrEventSendFailures.Int(sendFailures))
+
 	if sendFailures > 0 {
 		span.SetStatus(otelcodes.Error, "some subscriber sends failed")
 	}
@@ -756,8 +806,10 @@ func withStreamWriteDeadline(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+
 		deadline := &streamWriteDeadline{controller: http.NewResponseController(w)}
 		defer deadline.handlerDone()
+
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), streamWriteDeadlineKey{}, deadline)))
 	})
 }
@@ -784,6 +836,7 @@ func (d *streamWriteDeadline) expireAfter(grace time.Duration) {
 	if d.done || d.timer != nil {
 		return
 	}
+
 	d.timer = time.AfterFunc(grace, d.expire)
 }
 
@@ -828,6 +881,7 @@ func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event)
 	if !ok {
 		return eris.Errorf("invalid inter shard command %v", evt.Payload)
 	}
+
 	assert.That(isc.Address != nil, "inter shard command has nil address")
 	assert.That(s.interShard != nil, "inter shard command published before the service started")
 
@@ -835,7 +889,9 @@ func (s *service) publishInterShardCommand(ctx context.Context, evt event.Event)
 	if err != nil {
 		return eris.Wrapf(err, "failed to encode inter shard command %q", isc.Payload.Name())
 	}
+
 	s.interShard.enqueue(ctx, isc.Address, isc.Payload.Name(), payload)
+
 	return nil
 }
 
@@ -896,10 +952,12 @@ func PlayerFromContext(ctx context.Context) *Player {
 	if info == nil {
 		return nil
 	}
+
 	player, ok := info.(*Player)
 	if !ok {
 		return nil
 	}
+
 	return player
 }
 
@@ -956,9 +1014,11 @@ func (a *ArgusAuthenticator) Authenticate(ctx context.Context, req *http.Request
 	if err != nil {
 		return nil, authn.Errorf("invalid JWT: %v", err)
 	}
+
 	if !token.Valid {
 		return nil, authn.Errorf("JWT token is invalid")
 	}
+
 	if strings.TrimSpace(claims.Subject) == "" {
 		return nil, authn.Errorf("JWT subject is required")
 	}
@@ -1012,11 +1072,13 @@ func newArgusAuthenticator(argusAuthURL, gameID string, opts refreshOptions) (*A
 	if opts.refreshInterval > 0 {
 		override.RefreshInterval = opts.refreshInterval
 	}
+
 	if opts.refreshUnknownKIDEvery > 0 {
 		override.RefreshUnknownKID = rate.NewLimiter(rate.Every(opts.refreshUnknownKIDEvery), 1)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+
 	keyfn, err := keyfunc.NewDefaultOverrideCtx(ctx, []string{jwksURL}, override)
 	if err != nil {
 		cancel()

@@ -24,6 +24,7 @@ func (x *xorshift64) next() uint64 {
 	x.state ^= x.state << 13
 	x.state ^= x.state >> 7
 	x.state ^= x.state << 17
+
 	return x.state
 }
 
@@ -70,6 +71,7 @@ func spawnBulletCircle(w *box2d.World, pos, vel box2d.Vec2, radius float64, bull
 	sd.Density = 1.0
 	sd.Filter.GroupIndex = -1
 	w.CreateCircleShape(body, &sd, &circle)
+
 	return body
 }
 
@@ -79,8 +81,10 @@ func spawnBulletCircle(w *box2d.World, pos, vel box2d.Vec2, radius float64, bull
 // them may end up past the wall's center plane: each must come to rest on the
 // near side or in contact with the wall.
 func TestBulletNoTunnelThroughThinWall(t *testing.T) {
-	const bulletCount = 10000
-	const radius = 0.05
+	const (
+		bulletCount = 10000
+		radius      = 0.05
+	)
 
 	// One lane per bullet, 1 m apart, so projectiles never interact.
 	w := makeWallWorld(t, float64(0.5*float64(bulletCount))+10.0)
@@ -90,6 +94,7 @@ func TestBulletNoTunnelThroughThinWall(t *testing.T) {
 
 	bodies := make([]box2d.BodyID, 0, bulletCount)
 	starts := make([]box2d.Vec2, 0, bulletCount)
+
 	vels := make([]box2d.Vec2, 0, bulletCount)
 	for i := range bulletCount {
 		lane := float64(i) - float64(0.5*float64(bulletCount))
@@ -111,6 +116,7 @@ func TestBulletNoTunnelThroughThinWall(t *testing.T) {
 	}
 
 	tunneled := 0
+
 	for i, body := range bodies {
 		p := w.BodyPosition(body)
 		if p.X >= 0.0 {
@@ -120,6 +126,7 @@ func TestBulletNoTunnelThroughThinWall(t *testing.T) {
 			}
 		}
 	}
+
 	require.Zero(t, tunneled, "bullet bodies must never pass the wall center plane")
 }
 
@@ -128,8 +135,10 @@ func TestBulletNoTunnelThroughThinWall(t *testing.T) {
 // (upstream runs b2SolveContinuous for all fast bodies against the static
 // tree).
 func TestFastNonBulletNoTunnelThroughStatic(t *testing.T) {
-	const count = 200
-	const radius = 0.05
+	const (
+		count  = 200
+		radius = 0.05
+	)
 
 	w := makeWallWorld(t, float64(0.5*float64(count))+10.0)
 	defer w.Destroy()
@@ -159,11 +168,14 @@ func TestFastNonBulletNoTunnelThroughStatic(t *testing.T) {
 // most projectiles. This proves the machinery in the other tests is doing the
 // work rather than the discrete solver getting lucky.
 func TestDisabledContinuousDoesTunnel(t *testing.T) {
-	const count = 100
-	const radius = 0.05
+	const (
+		count  = 100
+		radius = 0.05
+	)
 
 	w := makeWallWorld(t, float64(0.5*float64(count))+10.0)
 	defer w.Destroy()
+
 	w.EnableContinuous(false)
 
 	rng := xorshift64{state: 0x9E3779B97F4A7C15}
@@ -187,11 +199,13 @@ func TestDisabledContinuousDoesTunnel(t *testing.T) {
 	}
 
 	tunneled := 0
+
 	for _, body := range bodies {
 		if w.BodyPosition(body).X > 1.0 {
 			tunneled++
 		}
 	}
+
 	require.Greater(t, tunneled, count/2,
 		"with continuous disabled the thin wall must be porous to fast bodies")
 }
@@ -269,6 +283,7 @@ func TestSpeedCapClampsVelocity(t *testing.T) {
 	def := box2d.DefaultWorldDef()
 	def.Gravity = box2d.Vec2Zero
 	def.MaximumLinearSpeed = 10.0
+
 	w := box2d.NewWorld(&def)
 	defer w.Destroy()
 
@@ -299,6 +314,7 @@ func TestSpeedCapClampsVelocity(t *testing.T) {
 func TestBulletSlidesAlongChainWithoutSnagging(t *testing.T) {
 	def := box2d.DefaultWorldDef()
 	def.Gravity = box2d.Vec2{X: 0.0, Y: -10.0}
+
 	w := box2d.NewWorld(&def)
 	defer w.Destroy()
 
@@ -323,6 +339,7 @@ func TestBulletSlidesAlongChainWithoutSnagging(t *testing.T) {
 	w.CreateChain(ground, &cd)
 
 	const radius = 0.25
+
 	bd := box2d.DefaultBodyDef()
 	bd.Type = box2d.DynamicBody
 	bd.Position = box2d.Vec2{X: -10.0, Y: radius}
@@ -409,10 +426,12 @@ func buildBulletStormScene(w *box2d.World, count int) []box2d.BodyID {
 // continuous stage reproducible.
 func TestContinuousDeterminism(t *testing.T) {
 	def1 := box2d.DefaultWorldDef()
+
 	w1 := box2d.NewWorld(&def1)
 	defer w1.Destroy()
 
 	def2 := box2d.DefaultWorldDef()
+
 	w2 := box2d.NewWorld(&def2)
 	defer w2.Destroy()
 
@@ -444,5 +463,6 @@ func absDelta(v float64) float64 {
 	if v < 0.0 {
 		return -v
 	}
+
 	return v
 }

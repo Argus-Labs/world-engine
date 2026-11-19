@@ -36,10 +36,13 @@ func (f *fakeVolumeClient) VolumeRemove(
 	} else if _, ok := f.existing[volumeID]; !ok {
 		rerr = cerrdefs.ErrNotFound
 	}
+
 	if rerr == nil {
 		delete(f.existing, volumeID)
 	}
+
 	f.removed = append(f.removed, fakeVolumeRemoveCall{name: volumeID, force: opts.Force, err: rerr})
+
 	return client.VolumeRemoveResult{}, rerr
 }
 
@@ -48,6 +51,7 @@ func (f *fakeVolumeClient) removedNames() []string {
 	for _, c := range f.removed {
 		out = append(out, c.name)
 	}
+
 	return out
 }
 
@@ -65,10 +69,12 @@ func TestRemoveVolumes_RemovesEveryNamedVolumeWithForce(t *testing.T) {
 	}))
 
 	require.Len(t, fake.removed, 3)
+
 	for _, call := range fake.removed {
 		assert.True(t, call.force, "volume %q must be removed with Force", call.name)
 		assert.NoError(t, call.err)
 	}
+
 	assert.Empty(t, fake.existing)
 }
 
@@ -107,6 +113,7 @@ func TestRemoveVolumes_RealErrorIsReturned(t *testing.T) {
 			if name == "rampage-nats-data" {
 				return boom
 			}
+
 			return nil
 		},
 	}
@@ -136,6 +143,7 @@ func TestRemoveVolumes_AttemptsAllAndJoinsErrors(t *testing.T) {
 			case "rampage-meta-service":
 				return stuckMeta
 			}
+
 			return nil
 		},
 	}

@@ -44,19 +44,23 @@ func buildQueryWorld(t *testing.T) (*box2d.World, []box2d.ShapeID) {
 
 	for i := range queryShapeCount {
 		bodyDef := box2d.DefaultBodyDef()
+
 		bodyDef.Position = box2d.Vec2{X: querySpacing * float64(i), Y: 0.0}
 		if i%4 == 1 {
 			bodyDef.Type = box2d.DynamicBody
 		}
+
 		bodyID := world.CreateBody(&bodyDef)
 
 		shapeDef := box2d.DefaultShapeDef()
+
 		shapeDef.Filter.CategoryBits = queryCategoryA
 		if i%2 == 1 {
 			shapeDef.Filter.CategoryBits = queryCategoryB
 		}
 
 		var shapeID box2d.ShapeID
+
 		switch i % 4 {
 		case 0:
 			circle := box2d.Circle{Center: box2d.Vec2{}, Radius: 0.5}
@@ -96,6 +100,7 @@ func indexOfShape(t *testing.T, shapeIDs []box2d.ShapeID, id box2d.ShapeID) int 
 	}
 
 	t.Fatalf("unknown shape id %+v", id)
+
 	return -1
 }
 
@@ -117,11 +122,13 @@ func (c *collector) overlap(shapeID box2d.ShapeID, _ any) bool {
 
 func (c *collector) cast(shapeID box2d.ShapeID, _, _ box2d.Vec2, fraction float64, _ any) float64 {
 	c.indices = append(c.indices, indexOfShape(c.t, c.shapeIDs, shapeID))
+
 	c.fractions = append(c.fractions, fraction)
 	if c.clip {
 		// Clip the ray to the reported hit.
 		return fraction
 	}
+
 	return c.ret
 }
 
@@ -434,6 +441,7 @@ func TestWorldQueryCollideMover(t *testing.T) {
 	fcn := func(shapeID box2d.ShapeID, plane *box2d.PlaneResult, _ any) bool {
 		hitIndices = append(hitIndices, indexOfShape(t, shapeIDs, shapeID))
 		planes = append(planes, *plane)
+
 		return true
 	}
 
@@ -453,6 +461,7 @@ func TestWorldQueryCollideMover(t *testing.T) {
 		Radius:  0.3,
 	}
 	count := 0
+
 	world.CollideMover(&far, box2d.DefaultQueryFilter(), func(box2d.ShapeID, *box2d.PlaneResult, any) bool {
 		count++
 		return true

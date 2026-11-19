@@ -33,6 +33,7 @@ type goldenManifoldCase struct {
 // patterns of clipPoint, anchorA, anchorB, and separation.
 func manifoldBits(m box2d.Manifold) []string {
 	bits := []string{fmt.Sprintf("count:%d", m.PointCount)}
+
 	bits = append(bits, f64bits(m.Normal.X, m.Normal.Y)...)
 	for i := 0; i < m.PointCount; i++ {
 		p := m.Points[i]
@@ -44,12 +45,14 @@ func manifoldBits(m box2d.Manifold) []string {
 			p.Separation,
 		)...)
 	}
+
 	return bits
 }
 
 //nolint:maintidx // straight-line table of golden configurations.
 func computeGoldenManifolds() []goldenManifoldCase {
 	var cases []goldenManifoldCase
+
 	add := func(name string, m box2d.Manifold) {
 		cases = append(cases, goldenManifoldCase{Name: name, Bits: manifoldBits(m)})
 	}
@@ -183,6 +186,7 @@ func TestGoldenManifold(t *testing.T) {
 		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 		require.NoError(t, os.WriteFile(path, append(data, '\n'), 0o644))
 		t.Logf("updated %s", path)
+
 		return
 	}
 

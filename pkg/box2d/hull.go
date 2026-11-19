@@ -9,6 +9,7 @@ import "math"
 // slice, so count is len(ps).
 func recurseHull(p1, p2 Vec2, ps []Vec2) Hull {
 	var hull Hull
+
 	hull.Count = 0
 
 	count := len(ps)
@@ -21,9 +22,11 @@ func recurseHull(p1, p2 Vec2, ps []Vec2) Hull {
 
 	// discard points left of e and find point furthest to the right of e
 	var rightPoints [MaxPolygonVertices]Vec2
+
 	rightCount := 0
 
 	bestIndex := 0
+
 	bestDistance := Cross(Sub(ps[bestIndex], p1), e)
 	if bestDistance > 0.0 {
 		rightPoints[rightCount] = ps[bestIndex]
@@ -91,6 +94,7 @@ func recurseHull(p1, p2 Vec2, ps []Vec2) Hull {
 //   - returns an empty hull if it fails
 func ComputeHull(points []Vec2) Hull {
 	var hull Hull
+
 	hull.Count = 0
 
 	count := len(points)
@@ -109,9 +113,11 @@ func ComputeHull(points []Vec2) Hull {
 	// Perform aggressive point welding. First point always remains.
 	// Also compute the bounding box for later.
 	var ps [MaxPolygonVertices]Vec2
+
 	n := 0
 	linearSlop := LinearSlop
 	tolSqr := 16.0 * linearSlop * linearSlop
+
 	for i := range count {
 		aabb.LowerBound = Min(aabb.LowerBound, points[i])
 		aabb.UpperBound = Max(aabb.UpperBound, points[i])
@@ -119,6 +125,7 @@ func ComputeHull(points []Vec2) Hull {
 		vi := points[i]
 
 		unique := true
+
 		for j := range i {
 			vj := points[j]
 
@@ -143,6 +150,7 @@ func ComputeHull(points []Vec2) Hull {
 	// Find an extreme point as the first point on the hull
 	c := AABBCenter(aabb)
 	f1 := 0
+
 	dsq1 := DistanceSquared(c, ps[f1])
 	for i := 1; i < n; i++ {
 		dsq := DistanceSquared(c, ps[i])
@@ -159,6 +167,7 @@ func ComputeHull(points []Vec2) Hull {
 	n--
 
 	f2 := 0
+
 	dsq2 := DistanceSquared(p1, ps[f2])
 	for i := 1; i < n; i++ {
 		dsq := DistanceSquared(p1, ps[i])
@@ -176,9 +185,11 @@ func ComputeHull(points []Vec2) Hull {
 
 	// split the points into points that are left and right of the line p1-p2.
 	var rightPoints [MaxPolygonVertices - 2]Vec2
+
 	rightCount := 0
 
 	var leftPoints [MaxPolygonVertices - 2]Vec2
+
 	leftCount := 0
 
 	e := Normalize(Sub(p2, p1))
@@ -247,6 +258,7 @@ func ComputeHull(points []Vec2) Hull {
 				for j := i2; j < hull.Count-1; j++ {
 					hull.Points[j] = hull.Points[j+1]
 				}
+
 				hull.Count--
 
 				// continue searching for collinear points
@@ -280,10 +292,12 @@ func ValidateHull(hull *Hull) bool {
 	for i := range hull.Count {
 		// create an edge vector
 		i1 := i
+
 		i2 := 0
 		if i < hull.Count-1 {
 			i2 = i1 + 1
 		}
+
 		p := hull.Points[i1]
 		e := Normalize(Sub(hull.Points[i2], p))
 
@@ -302,6 +316,7 @@ func ValidateHull(hull *Hull) bool {
 
 	// test for collinear points
 	linearSlop := LinearSlop
+
 	for i := range hull.Count {
 		i1 := i
 		i2 := (i + 1) % hull.Count

@@ -74,6 +74,7 @@ func (s *interShard) start(svc *micro.Service, commands map[string]struct{}) err
 			return eris.Wrapf(err, "failed to register %s command handler", name)
 		}
 	}
+
 	return nil
 }
 
@@ -85,10 +86,12 @@ func (s *interShard) handle(ctx context.Context, cmd micro.Command) error {
 	}
 
 	oteltrace.SpanFromContext(ctx).SetAttributes(attrCommandName.String(cmd.Name))
+
 	received := &iscv1.Command{Name: cmd.Name, Address: s.address, Payload: cmd.Payload}
 	if err := s.inbox.Enqueue(ctx, received, command.ShardSender(cmd.From)); err != nil {
 		return status.Error(codes.InvalidArgument, eris.Wrap(err, "failed to enqueue command").Error())
 	}
+
 	return nil
 }
 
@@ -105,23 +108,29 @@ func (s *interShard) drain() {
 	if len(s.queued) == 0 {
 		return
 	}
+
 	batches := make(map[string][]queuedCommand)
+
 	for _, c := range s.queued {
 		target := micro.String(c.to)
 		batches[target] = append(batches[target], c)
 	}
+
 	s.queued = nil
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	for target, batch := range batches {
 		q, ok := s.senders[target]
 		if !ok {
 			q = &targetQueue{}
 			s.senders[target] = q
+
 			s.running.Add(1)
 			go s.sendLoop(target, q)
 		}
+
 		q.pending = append(q.pending, batch)
 	}
 }
@@ -131,13 +140,16 @@ func (s *interShard) drain() {
 // starts a new sender after this one has sent everything, which keeps order to the target.
 func (s *interShard) sendLoop(target string, q *targetQueue) {
 	defer s.running.Done()
+
 	for {
 		s.mu.Lock()
 		if len(q.pending) == 0 {
 			delete(s.senders, target)
 			s.mu.Unlock()
+
 			return
 		}
+
 		batch := q.pending[0]
 		q.pending[0] = nil
 		q.pending = q.pending[1:]
@@ -153,6 +165,7 @@ func (s *interShard) send(c queuedCommand) {
 	// The NATS client injects this span into the request headers, so the receiving shard's handler
 	// span (and the tick that drains the command there) joins the sending tick's trace.
 	ctx := oteltrace.ContextWithSpanContext(context.Background(), c.parent)
+
 	ctx, span := trace.New(ctx, spanInterShardSend, oteltrace.WithAttributes(
 		attrCommandName.String(c.name), attrCommandTarget.String(micro.String(c.to))))
 	defer span.End()
@@ -171,10 +184,12 @@ func (s *interShard) send(c queuedCommand) {
 // that did not finish and are dropped. Call it once, after the tick loop has stopped.
 func (s *interShard) stop(ctx context.Context) {
 	done := make(chan struct{})
+
 	go func() {
 		s.running.Wait()
 		close(done)
 	}()
+
 	select {
 	case <-done:
 	case <-ctx.Done():

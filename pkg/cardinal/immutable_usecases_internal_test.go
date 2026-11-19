@@ -216,6 +216,7 @@ func ucFind(w *World, who uint8) Entity {
 			return e
 		}
 	}
+
 	panic(fmt.Sprintf("player %d was not spawned", who%ucPlayers))
 }
 
@@ -223,6 +224,7 @@ func ucRecipient(who uint8) string { return "p" + strconv.Itoa(int(who%ucPlayers
 
 func ucAppendLog(l *ucLog, tick uint64, what string) {
 	l.Entries.Append(ucAction{Tick: tick, What: what})
+
 	if n := l.Entries.Len(); n > ucLogCap {
 		l.Entries.Delete(0, n-ucLogCap)
 	}
@@ -231,9 +233,11 @@ func ucAppendLog(l *ucLog, tick uint64, what string) {
 func ucAddToStack(s ucStack, n int32, from string) ucStack {
 	s.Count += n
 	s.From.Append(from)
+
 	if k := s.From.Len(); k > ucFromCap {
 		s.From.Delete(0, k-ucFromCap)
 	}
+
 	return s
 }
 
@@ -251,8 +255,10 @@ type ucInventorySystem struct{}
 
 func (*ucInventorySystem) Run(w *World) {
 	var changed [ucPlayers]bool
+
 	for cmd := range w.Commands[ucPickup]() {
 		e := ucFind(w, cmd.Payload.Who)
+
 		inv := e.Get[ucInventory]()
 		for id, n := range cmd.Payload.Items.All() {
 			s, _ := inv.Items.Get(id)
@@ -260,17 +266,22 @@ func (*ucInventorySystem) Run(w *World) {
 				inv.Items.Delete(id)
 				continue
 			}
+
 			inv.Items.Set(id, ucAddToStack(s, n, cmd.Payload.From))
 		}
+
 		e.Set(inv)
+
 		changed[cmd.Payload.Who%ucPlayers] = true
 		// This reader's copy. The pickup log system reads the same command later this tick.
 		cmd.Payload.Items.Clear()
 	}
+
 	for who, ok := range changed {
 		if !ok {
 			continue
 		}
+
 		inv := ucFind(w, uint8(who)).Get[ucInventory]()
 		w.Broadcast(ucInventoryChanged{Who: uint8(who), Items: inv.Items})
 		// Edits after Broadcast, through Slices nested in the values, must not reach the event.
@@ -279,6 +290,7 @@ func (*ucInventorySystem) Run(w *World) {
 			s.Count = -1
 			inv.Items.Set(id, s)
 		}
+
 		inv.Items.Set(ucNoItem, ucStack{Count: 1})
 	}
 }
@@ -296,11 +308,14 @@ func (*ucAbilitySystem) Run(w *World) {
 				cd.ReadyAt.Delete(ability)
 			}
 		}
+
 		e.Set(cd)
 	}
+
 	for cmd := range w.Commands[ucCast]() {
 		p := cmd.Payload
 		e := ucFind(w, p.Who)
+
 		cd, l := e.Get[ucCooldowns](), e.Get[ucLog]()
 		if cd.ReadyAt.Has(p.Ability) {
 			ucAppendLog(&l, tick, "blocked "+p.Ability)
@@ -309,8 +324,10 @@ func (*ucAbilitySystem) Run(w *World) {
 			ucAppendLog(&l, tick, "cast "+p.Ability)
 			w.SendTo(ucRecipient(p.Who), ucCastResult{Ability: p.Ability, ReadyAt: cd.ReadyAt})
 		}
+
 		e.Set(cd)
 		e.Set(l)
+
 		for k := range cd.ReadyAt.Keys() {
 			cd.ReadyAt.Set(k, 0) // after SendTo and Set, so it must reach neither
 		}
@@ -326,17 +343,22 @@ func (*ucQuestSystem) Run(w *World) {
 		p := cmd.Payload
 		e := ucFind(w, p.Who)
 		q := e.Get[ucQuests]()
+
 		steps, _ := q.Steps.Get(p.Quest)
 		for v := range p.Steps.Values() {
 			steps.Append(v)
 		}
+
 		if steps.Len() < ucQuestAt {
 			q.Steps.Set(p.Quest, steps)
 			e.Set(q)
+
 			continue
 		}
+
 		q.Steps.Delete(p.Quest)
 		e.Set(q)
+
 		done := ucQuestFinished{Who: p.Who % ucPlayers, Quest: p.Quest, Steps: steps}
 		w.EmitSystemEvent(done)
 		done.Steps.Set(0, 0xEE) // the emitter keeps editing its own value
@@ -381,13 +403,16 @@ func (*ucSkillSystem) Run(w *World) {
 		e := ucFind(w, p.Who)
 		sk := e.Get[ucSkills]()
 		branch, _ := sk.Tree.Get(p.Branch)
+
 		ranks, _ := branch.Get(p.Skill)
 		for r := range p.Ranks.Values() {
 			ranks.Append(r)
 		}
+
 		if n := ranks.Len(); n > ucRankCap {
 			ranks.Delete(0, n-ucRankCap)
 		}
+
 		branch.Set(p.Skill, ranks)
 		sk.Tree.Set(p.Branch, branch)
 		e.Set(sk)
@@ -406,19 +431,24 @@ func (*ucPartySystem) Run(w *World) {
 			e.Set(p)
 		}
 	}
+
 	for cmd := range w.Commands[ucJoin]() {
 		e := ucFind(w, cmd.Payload.Who)
 		p := e.Get[ucParty]()
+
 		i := p.Members.IndexFunc(func(m ucMember) bool { return m.Name == cmd.Payload.Member })
 		if i < 0 {
 			p.Members.Append(ucMember{Name: cmd.Payload.Member})
 			i = p.Members.Len() - 1
 		}
+
 		m := p.Members.At(i)
 		m.Roles.Append(cmd.Payload.Role)
+
 		if n := m.Roles.Len(); n > ucRoleCap {
 			m.Roles.Delete(0, n-ucRoleCap)
 		}
+
 		p.Members.Set(i, m)
 		e.Set(p)
 		// Edits after Set, including through the Slice nested in a member, must not reach the world.
@@ -456,11 +486,13 @@ func ucPeek(w *World) {
 			cmd.Payload.Items.Set(id, -1000)
 		}
 	}
+
 	for cmd := range w.Commands[ucProgress]() {
 		if cmd.Payload.Steps.Len() > 0 {
 			cmd.Payload.Steps.Set(0, 0xEE)
 		}
 	}
+
 	for e := range w.Contains[ucRow]().Iter() {
 		inv := e.Get[ucInventory]()
 		for id, s := range inv.Items.All() {
@@ -468,18 +500,21 @@ func ucPeek(w *World) {
 			s.Count = -7
 			inv.Items.Set(id, s)
 		}
+
 		inv.Items.Set(ucNoItem, ucStack{Count: 1})
 
 		l := e.Get[ucLog]()
 		if l.Entries.Len() > 0 {
 			l.Entries.Set(0, ucAction{What: "peek"})
 		}
+
 		l.Entries.Reverse()
 
 		cd := e.Get[ucCooldowns]()
 		for k := range cd.ReadyAt.Keys() {
 			cd.ReadyAt.Set(k, 0)
 		}
+
 		cd.ReadyAt.Set("peek", 1)
 
 		q := e.Get[ucQuests]()
@@ -487,6 +522,7 @@ func ucPeek(w *World) {
 			if steps.Len() > 0 {
 				steps.Set(0, 0xEE)
 			}
+
 			steps.Append(0xEE)
 			q.Steps.Set(name, steps)
 		}
@@ -497,8 +533,10 @@ func ucPeek(w *World) {
 				if ranks.Len() > 0 {
 					ranks.Set(0, -1)
 				}
+
 				branch.Set(s, ranks)
 			}
+
 			branch.Set("peek", immutable.SliceOf[int32](1))
 			sk.Tree.Set(b, branch)
 		}
@@ -570,6 +608,7 @@ func newUCModel() *ucModel {
 	for i := range m.players {
 		m.players[i] = newUCModelPlayer()
 	}
+
 	return m
 }
 
@@ -594,20 +633,24 @@ func (m *ucModel) step(tick uint64, in ucInputs) ucModelEvents {
 				delete(p.Items, id)
 				continue
 			}
+
 			p.Items[id] = ucModelAdd(p.Items[id], n, c.From)
 		}
+
 		ev.Inventories[c.Who%ucPlayers] = maps.Clone(p.Items)
 	}
 
 	for i := range m.players {
 		maps.DeleteFunc(m.players[i].ReadyAt, func(_ string, at uint64) bool { return at <= tick })
 	}
+
 	for _, c := range in.casts {
 		p := &m.players[c.Who%ucPlayers]
 		if _, ok := p.ReadyAt[c.Ability]; ok {
 			ucModelLog(p, tick, "blocked "+c.Ability)
 			continue
 		}
+
 		p.ReadyAt[c.Ability] = tick + uint64(c.Cooldown) + 1
 		ucModelLog(p, tick, "cast "+c.Ability)
 		ev.Casts = append(ev.Casts, ucModelCast{ucRecipient(c.Who), c.Ability, maps.Clone(p.ReadyAt)})
@@ -615,14 +658,17 @@ func (m *ucModel) step(tick uint64, in ucInputs) ucModelEvents {
 
 	for _, c := range in.progress {
 		p := &m.players[c.Who%ucPlayers]
+
 		steps := append(slices.Clone(p.Quests[c.Quest]), slices.Collect(c.Steps.Values())...)
 		if len(steps) < ucQuestAt {
 			p.Quests[c.Quest] = steps
 			continue
 		}
+
 		delete(p.Quests, c.Quest)
 		ev.Quests = append(ev.Quests, ucModelQuest{c.Who % ucPlayers, c.Quest, steps})
 	}
+
 	for _, q := range ev.Quests {
 		p := &m.players[q.Who]
 		p.Items[ucReward] = ucModelAdd(
@@ -638,6 +684,7 @@ func (m *ucModel) step(tick uint64, in ucInputs) ucModelEvents {
 		if p.Tree[c.Branch] == nil {
 			p.Tree[c.Branch] = map[string][]int32{}
 		}
+
 		ranks := append(slices.Clone(p.Tree[c.Branch][c.Skill]), slices.Collect(c.Ranks.Values())...)
 		p.Tree[c.Branch][c.Skill] = lastN(ranks, ucRankCap)
 	}
@@ -647,20 +694,24 @@ func (m *ucModel) step(tick uint64, in ucInputs) ucModelEvents {
 			m.players[i].Members = nil
 		}
 	}
+
 	for _, c := range in.joins {
 		p := &m.players[c.Who%ucPlayers]
 		p.Members = slices.Clone(p.Members)
+
 		i := slices.IndexFunc(p.Members, func(m ucModelMember) bool { return m.Name == c.Member })
 		if i < 0 {
 			p.Members = append(p.Members, ucModelMember{Name: c.Member})
 			i = len(p.Members) - 1
 		}
+
 		p.Members[i].Roles = lastN(append(slices.Clone(p.Members[i].Roles), c.Role), ucRoleCap)
 	}
 
 	for _, c := range in.pickups {
 		ucModelLog(&m.players[c.Who%ucPlayers], tick, fmt.Sprintf("picked %d from %s", c.Items.Len(), c.From))
 	}
+
 	return ev
 }
 
@@ -673,6 +724,7 @@ func ucGoMap[K immutable.Key, V, W any](m immutable.Map[K, V], conv func(V) W) m
 	for k, v := range m.All() {
 		out[k] = conv(v)
 	}
+
 	return out
 }
 
@@ -688,6 +740,7 @@ func ucGoMembers(members immutable.Slice[ucMember]) []ucModelMember {
 	for m := range members.Values() {
 		out = append(out, ucModelMember{m.Name, ucGoSlice(m.Roles)})
 	}
+
 	return out
 }
 
@@ -695,7 +748,9 @@ func ucSame[T any](v T) T { return v }
 
 func ucReadPlayers(t *testing.T, w *World) [ucPlayers]ucModelPlayer {
 	t.Helper()
+
 	var got [ucPlayers]ucModelPlayer
+
 	n := 0
 	for e := range w.Contains[ucRow]().Iter() {
 		n++
@@ -713,7 +768,9 @@ func ucReadPlayers(t *testing.T, w *World) [ucPlayers]ucModelPlayer {
 			Members: ucGoMembers(e.Get[ucParty]().Members),
 		}
 	}
+
 	require.Equal(t, ucPlayers, n, "players")
+
 	return got
 }
 
@@ -722,17 +779,20 @@ func ucReadEvents(w *TestWorld) ucModelEvents {
 	for _, sent := range w.Events[ucInventoryChanged]() {
 		got.Inventories[sent.Payload.Who] = ucGoItems(sent.Payload.Items)
 	}
+
 	for _, sent := range w.Events[ucCastResult]() {
 		got.Casts = append(got.Casts, ucModelCast{
 			sent.Recipient, sent.Payload.Ability, ucGoMap(sent.Payload.ReadyAt, ucSame[uint64]),
 		})
 	}
+
 	for _, sent := range w.Events[ucQuestDone]() {
 		got.Quests = append(
 			got.Quests,
 			ucModelQuest{sent.Payload.Who, sent.Payload.Quest, ucGoSlice(sent.Payload.Steps)},
 		)
 	}
+
 	return got
 }
 
@@ -754,16 +814,20 @@ func ucPick(rng *rand.Rand, options ...string) string { return options[rng.IntN(
 // every Map is built from a Go map, whose order differs between runs.
 func ucRandomInputs(rng *rand.Rand) ucInputs {
 	var in ucInputs
+
 	who := func() uint8 { return uint8(rng.IntN(ucPlayers + 1)) }
+
 	for range rng.IntN(3) {
 		items := map[ucItemID]int32{}
 		for range rng.IntN(4) {
 			items[ucItemID(rng.IntN(6))] = int32(rng.IntN(9) - 3)
 		}
+
 		in.pickups = append(in.pickups, ucPickup{
 			Who: who(), From: ucPick(rng, "chest", "boss", "shop"), Items: immutable.MapFrom(maps.All(items)),
 		})
 	}
+
 	for range rng.IntN(3) {
 		in.casts = append(in.casts, ucCast{
 			Who:      who(),
@@ -771,27 +835,33 @@ func ucRandomInputs(rng *rand.Rand) ucInputs {
 			Cooldown: uint8(rng.IntN(4)),
 		})
 	}
+
 	for range rng.IntN(3) {
 		var steps immutable.Slice[uint8]
 		for range rng.IntN(4) {
 			steps.Append(uint8(rng.IntN(200)))
 		}
+
 		in.progress = append(in.progress, ucProgress{Who: who(), Quest: ucPick(rng, "q1", "q2", "q3"), Steps: steps})
 	}
+
 	for range rng.IntN(2) {
 		var ranks immutable.Slice[int32]
 		for range rng.IntN(4) {
 			ranks.Append(int32(rng.IntN(10)))
 		}
+
 		in.learn = append(in.learn, ucLearn{
 			Who: who(), Branch: ucPick(rng, "war", "magic"), Skill: ucPick(rng, "a", "b", "c"), Ranks: ranks,
 		})
 	}
+
 	for range rng.IntN(2) {
 		in.joins = append(in.joins, ucJoin{
 			Who: who(), Member: ucPick(rng, "ann", "ben", "cid", "dee"), Role: ucPick(rng, "tank", "heal", "dps"),
 		})
 	}
+
 	return in
 }
 
@@ -799,15 +869,19 @@ func (in ucInputs) send(w *TestWorld) {
 	for _, c := range in.pickups {
 		w.Command("client", c)
 	}
+
 	for _, c := range in.casts {
 		w.Command("client", c)
 	}
+
 	for _, c := range in.progress {
 		w.Command("client", c)
 	}
+
 	for _, c := range in.learn {
 		w.Command("client", c)
 	}
+
 	for _, c := range in.joins {
 		w.Command("client", c)
 	}
@@ -821,6 +895,7 @@ func ucNewWorld(t *testing.T) *TestWorld {
 	t.Helper()
 	w := NewTestWorld(t, ucRegister)
 	w.useSyncSnapshotStorage(&memSnapshotStorage{t: t})
+
 	return w
 }
 
@@ -830,12 +905,14 @@ func ucNewWorld(t *testing.T) *TestWorld {
 // every tick after.
 func TestImmutableUseCases_MatchModelAcrossRestores(t *testing.T) {
 	t.Parallel()
+
 	const ticks, restoreEvery = 80, 10
 
 	rng := rand.New(rand.NewPCG(1, 2))
 	model := newUCModel()
 	live := ucNewWorld(t)
 	worlds := []*TestWorld{live}
+
 	var sawQuest, sawRemoval, sawBlocked bool
 
 	for step := range ticks {
@@ -850,16 +927,20 @@ func TestImmutableUseCases_MatchModelAcrossRestores(t *testing.T) {
 		}
 
 		in := ucRandomInputs(rng)
+
 		var stacks int
 		for _, p := range model.players {
 			stacks += len(p.Items)
 		}
+
 		want := model.step(live.TickHeight(), in)
 		sawQuest = sawQuest || len(want.Quests) > 0
+
 		sawBlocked = sawBlocked || len(in.casts) > len(want.Casts)
 		for _, p := range model.players {
 			stacks -= len(p.Items)
 		}
+
 		sawRemoval = sawRemoval || stacks > 0
 
 		for i, w := range worlds {

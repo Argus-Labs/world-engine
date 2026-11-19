@@ -20,6 +20,7 @@ func spawnBallAndFloor(w *cardinal.World, x float64, ballID *cardinal.EntityID) 
 		if w.TickHeight() != 0 {
 			return
 		}
+
 		floor := w.Create[spawnArchetype]()
 		floor.Set(harnessTag{Role: "floor"})
 		floor.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: 0}})
@@ -33,6 +34,7 @@ func spawnBallAndFloor(w *cardinal.World, x float64, ballID *cardinal.EntityID) 
 		ball.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: 5}})
 		ball.Set(physics.Velocity2D{})
 		ball.Set(newRigid(physics.BodyTypeDynamic, circleColliderShapes()...))
+
 		*ballID = id
 	}}, cardinal.WithPhase(cardinal.Init))
 }
@@ -59,8 +61,11 @@ func TestMultiInstance_IndependentWorlds(t *testing.T) {
 	wA, pA := makeWorld(t, physics.Vec2{X: 0, Y: -10})
 	wB, pB := makeWorld(t, physics.Vec2{X: 0, Y: 0})
 
-	var ballA, ballB cardinal.EntityID
-	var yA, yB float64
+	var (
+		ballA, ballB cardinal.EntityID
+		yA, yB       float64
+	)
+
 	spawnBallAndFloor(wA, 0, &ballA)
 	spawnBallAndFloor(wB, 100, &ballB)
 	trackBallY(wA, &yA)

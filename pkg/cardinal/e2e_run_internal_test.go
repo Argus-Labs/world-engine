@@ -27,23 +27,28 @@ func TestRunLoopPanicPreservesCompletedSnapshot(t *testing.T) {
 			w := newTestWorld(t)
 			if async {
 				w.snapshotWriter.Stop(context.Background())
+
 				w.snapshotWriter = snapshot.NewAsyncWriter(w.snapshotStorage, &w.tel)
 				defer w.snapshotWriter.Stop(context.Background())
 			}
+
 			w.options.TickRate = 1000
 			w.RegisterComponent[snapshotBalance]()
 			w.RegisterSystem(snapshotSystemFunc(func(w *World) {
 				if w.TickHeight() == 0 {
 					w.Create[snapshotAccount]().Set(snapshotBalance{Coins: 100})
 					w.Create[snapshotAccount]()
+
 					return
 				}
+
 				w.Entity(0).Set(snapshotBalance{Coins: 90})
 				panic("transfer interrupted before recipient credit")
 			}))
 
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
+
 			require.PanicsWithValue(t, "transfer interrupted before recipient credit", func() {
 				_ = w.run(ctx)
 			})
@@ -68,22 +73,27 @@ func TestRunLoopShutdownPersistsUnsnapshottedTick(t *testing.T) {
 			w := newTestWorld(t)
 			if async {
 				w.snapshotWriter.Stop(context.Background())
+
 				w.snapshotWriter = snapshot.NewAsyncWriter(w.snapshotStorage, &w.tel)
 				defer w.snapshotWriter.Stop(context.Background())
 			}
+
 			w.options.SnapshotRate = 100
 			w.RegisterComponent[snapshotBalance]()
 			w.RegisterSystem(snapshotSystemFunc(func(w *World) {
 				if w.TickHeight() == 0 {
 					w.Create[snapshotAccount]()
 				}
+
 				w.Entity(0).Set(snapshotBalance{Coins: 100 + int(w.TickHeight())})
 			}))
 
 			// Only tick 0 is a scheduled snapshot; shutdown must also save completed tick 2.
 			runSnapshotTicks(t, w, 3)
+
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
+
 			require.NoError(t, w.snapshotWriter.Drain(ctx))
 
 			restored := newTestWorld(t)
@@ -125,10 +135,13 @@ func newTestWorld(t *testing.T) *World {
 func runSnapshotTicks(t *testing.T, w *World, ticks int) {
 	t.Helper()
 	w.debug.setPaused(true)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	runErr := make(chan error, 1)
 	go func() { runErr <- w.run(ctx) }()
+
 	for range ticks {
 		reply := make(chan uint64, 1)
 		select {
@@ -138,6 +151,7 @@ func runSnapshotTicks(t *testing.T, w *World, ticks int) {
 			t.Fatalf("run stopped before stepping: %v", err)
 		}
 	}
+
 	cancel()
 	require.ErrorIs(t, <-runErr, context.Canceled)
 }
@@ -148,6 +162,7 @@ func runSnapshotTicks(t *testing.T, w *World, ticks int) {
 func TestRestoreDriftsTickHeightPerRestart(t *testing.T) {
 	w := newTestWorld(t)
 	storage := w.snapshotStorage
+
 	const zeroTickRestarts = 4
 	for range zeroTickRestarts {
 		w = newTestWorld(t)
@@ -155,6 +170,7 @@ func TestRestoreDriftsTickHeightPerRestart(t *testing.T) {
 		runSnapshotTicks(t, w, 0)
 		require.NoError(t, w.restore(context.Background()))
 	}
+
 	assert.Equal(t, uint64(0), w.currentTick.height,
 		"4 zero-tick restarts should leave height at 0, but it drifted to %d", w.currentTick.height)
 }
@@ -210,18 +226,21 @@ func TestRunLoopRestartPreservesHeight(t *testing.T) {
 	w1.useSyncSnapshotStorage(storage)
 
 	ctx, cancel := context.WithCancel(context.Background())
+
 	runErr := make(chan error, 1)
 	go func() { runErr <- w1.run(ctx) }()
 
 	// Pause deterministically (loop is selecting on pauseCh while not paused).
 	pauseReply := make(chan uint64, 1)
 	w1.debug.control.pauseCh <- pauseReply
+
 	require.Equal(t, uint64(0), <-pauseReply, "pause should report the pre-tick height 0")
 
 	// Step exactly 5 times.
 	for i := range 5 {
 		stepReply := make(chan uint64, 1)
 		w1.debug.control.stepCh <- stepReply
+
 		h := <-stepReply
 		require.Equal(t, uint64(i+1), h, "step %d should report height %d", i+1, i+1)
 	}
@@ -259,11 +278,13 @@ func TestRunLoopZeroTicksStaysAtZero(t *testing.T) {
 	w1.useSyncSnapshotStorage(storage)
 
 	ctx, cancel := context.WithCancel(context.Background())
+
 	runErr := make(chan error, 1)
 	go func() { runErr <- w1.run(ctx) }()
 
 	pauseReply := make(chan uint64, 1)
 	w1.debug.control.pauseCh <- pauseReply
+
 	require.Equal(t, uint64(0), <-pauseReply)
 
 	// Shut down immediately (zero steps).
@@ -294,6 +315,7 @@ func TestRunLoopZeroTicksStaysAtZero(t *testing.T) {
 func TestCrashMidTickRestoresCorrectly(t *testing.T) {
 	w := newTestWorld(t) // SnapshotRate=1
 	w.init()
+
 	for range 3 {
 		w.Tick(time.Now())
 	}
@@ -316,7 +338,9 @@ func TestRepeatRestartHeightStable(t *testing.T) {
 	w := newTestWorld(t)
 	runSnapshotTicks(t, w, 3)
 	storage := w.snapshotStorage
+
 	const want uint64 = 3
+
 	for r := range 4 {
 		w = newTestWorld(t)
 		w.useSyncSnapshotStorage(storage)

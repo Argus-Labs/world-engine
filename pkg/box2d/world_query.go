@@ -76,9 +76,11 @@ func treeQueryCallback(proxyID int, userData uint64, context any) bool {
 
 	worldContext, ok := context.(*worldQueryContext)
 	assert(ok)
+
 	if !ok {
 		return false
 	}
+
 	world := worldContext.world
 
 	s := &world.shapes[shapeID]
@@ -89,6 +91,7 @@ func treeQueryCallback(proxyID int, userData uint64, context any) bool {
 
 	id := ShapeID{index1: int32(shapeID + 1), world0: world.worldID, generation: s.generation}
 	result := worldContext.fcn(id, worldContext.userContext)
+
 	return result
 }
 
@@ -99,6 +102,7 @@ func (w *World) OverlapAABB(aabb AABB, filter QueryFilter, fcn OverlapResultFcn,
 
 	w.panicIfPoisoned()
 	assert(!w.locked)
+
 	if w.locked {
 		return treeStats
 	}
@@ -148,9 +152,11 @@ func treeOverlapCallback(proxyID int, userData uint64, context any) bool {
 
 	worldContext, ok := context.(*worldOverlapContext)
 	assert(ok)
+
 	if !ok {
 		return false
 	}
+
 	world := worldContext.world
 
 	s := &world.shapes[shapeID]
@@ -163,6 +169,7 @@ func treeOverlapCallback(proxyID int, userData uint64, context any) bool {
 	transform := world.getBodyTransformQuick(b)
 
 	var input DistanceInput
+
 	input.ProxyA = *worldContext.proxy
 	input.ProxyB = makeShapeDistanceProxy(s)
 	input.TransformA = TransformIdentity
@@ -170,6 +177,7 @@ func treeOverlapCallback(proxyID int, userData uint64, context any) bool {
 	input.UseRadii = true
 
 	var cache SimplexCache
+
 	output := ShapeDistance(&input, &cache, nil)
 
 	tolerance := 0.1 * LinearSlop
@@ -179,6 +187,7 @@ func treeOverlapCallback(proxyID int, userData uint64, context any) bool {
 
 	id := ShapeID{index1: int32(s.id + 1), world0: world.worldID, generation: s.generation}
 	result := worldContext.fcn(id, worldContext.userContext)
+
 	return result
 }
 
@@ -189,6 +198,7 @@ func (w *World) OverlapShape(proxy *ShapeProxy, filter QueryFilter, fcn OverlapR
 
 	w.panicIfPoisoned()
 	assert(!w.locked)
+
 	if w.locked {
 		return treeStats
 	}
@@ -237,9 +247,11 @@ func rayCastCallback(input *RayCastInput, proxyID int, userData uint64, context 
 
 	worldContext, ok := context.(*worldRayCastContext)
 	assert(ok)
+
 	if !ok {
 		return 0.0
 	}
+
 	world := worldContext.world
 
 	s := &world.shapes[shapeID]
@@ -283,6 +295,7 @@ func (w *World) CastRay(origin, translation Vec2, filter QueryFilter, fcn CastRe
 
 	w.panicIfPoisoned()
 	assert(!w.locked)
+
 	if w.locked {
 		return treeStats
 	}
@@ -334,6 +347,7 @@ func rayCastClosestFcn(shapeID ShapeID, point, normal Vec2, fraction float64, co
 
 	rayResult, ok := context.(*RayResult)
 	assert(ok)
+
 	if !ok {
 		return -1.0
 	}
@@ -343,6 +357,7 @@ func rayCastClosestFcn(shapeID ShapeID, point, normal Vec2, fraction float64, co
 	rayResult.Normal = normal
 	rayResult.Fraction = fraction
 	rayResult.Hit = true
+
 	return fraction
 }
 
@@ -355,6 +370,7 @@ func (w *World) CastRayClosest(origin, translation Vec2, filter QueryFilter) Ray
 
 	w.panicIfPoisoned()
 	assert(!w.locked)
+
 	if w.locked {
 		return result
 	}
@@ -414,9 +430,11 @@ func shapeCastCallback(input *ShapeCastInput, proxyID int, userData uint64, cont
 
 	worldContext, ok := context.(*worldRayCastContext)
 	assert(ok)
+
 	if !ok {
 		return 0.0
 	}
+
 	world := worldContext.world
 
 	s := &world.shapes[shapeID]
@@ -455,6 +473,7 @@ func (w *World) CastShape(proxy *ShapeProxy, translation Vec2, filter QueryFilte
 
 	w.panicIfPoisoned()
 	assert(!w.locked)
+
 	if w.locked {
 		return treeStats
 	}
@@ -516,9 +535,11 @@ func moverCastCallback(input *ShapeCastInput, proxyID int, userData uint64, cont
 
 	worldContext, ok := context.(*worldMoverCastContext)
 	assert(ok)
+
 	if !ok {
 		return 0.0
 	}
+
 	world := worldContext.world
 
 	s := &world.shapes[shapeID]
@@ -537,6 +558,7 @@ func moverCastCallback(input *ShapeCastInput, proxyID int, userData uint64, cont
 	}
 
 	worldContext.fraction = output.Fraction
+
 	return output.Fraction
 }
 
@@ -547,10 +569,12 @@ func (w *World) CastMover(mover *Capsule, translation Vec2, filter QueryFilter) 
 	if debugAsserts {
 		assert(IsValidVec2(translation))
 	}
+
 	assert(mover.Radius > 2.0*LinearSlop)
 
 	w.panicIfPoisoned()
 	assert(!w.locked)
+
 	if w.locked {
 		return 1.0
 	}
@@ -618,9 +642,11 @@ func treeCollideCallback(proxyID int, userData uint64, context any) bool {
 
 	worldContext, ok := context.(*worldMoverContext)
 	assert(ok)
+
 	if !ok {
 		return false
 	}
+
 	world := worldContext.world
 
 	s := &world.shapes[shapeID]
@@ -656,6 +682,7 @@ func treeCollideCallback(proxyID int, userData uint64, context any) bool {
 func (w *World) CollideMover(mover *Capsule, filter QueryFilter, fcn PlaneResultFcn, context any) {
 	w.panicIfPoisoned()
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -663,6 +690,7 @@ func (w *World) CollideMover(mover *Capsule, filter QueryFilter, fcn PlaneResult
 	r := Vec2{X: mover.Radius, Y: mover.Radius}
 
 	var aabb AABB
+
 	aabb.LowerBound = Sub(Min(mover.Center1, mover.Center2), r)
 	aabb.UpperBound = Add(Max(mover.Center1, mover.Center2), r)
 

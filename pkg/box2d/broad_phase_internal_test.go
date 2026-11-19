@@ -41,6 +41,7 @@ func TestBroadPhase_BufferMoveDeduplicates(t *testing.T) {
 	t.Parallel()
 
 	var bp broadPhase
+
 	createBroadPhase(&bp)
 	defer destroyBroadPhase(&bp)
 
@@ -61,6 +62,7 @@ func TestBroadPhase_UnBufferMove(t *testing.T) {
 	t.Parallel()
 
 	var bp broadPhase
+
 	createBroadPhase(&bp)
 	defer destroyBroadPhase(&bp)
 
@@ -95,6 +97,7 @@ func TestBroadPhase_CreateProxyPerBodyType(t *testing.T) {
 	t.Parallel()
 
 	var bp broadPhase
+
 	createBroadPhase(&bp)
 	defer destroyBroadPhase(&bp)
 
@@ -132,6 +135,7 @@ func TestBroadPhase_MoveEnlargeAndDestroy(t *testing.T) {
 	t.Parallel()
 
 	var bp broadPhase
+
 	createBroadPhase(&bp)
 	defer destroyBroadPhase(&bp)
 
@@ -185,6 +189,7 @@ func TestBroadPhase_CreateAndDestroyLifecycle(t *testing.T) {
 
 	tassert.Equal(t, 16, getSetCapacity(&bp.moveSet))
 	tassert.Equal(t, 32, getSetCapacity(&bp.pairSet))
+
 	for i := range BodyTypeCount {
 		tassert.Equalf(t, NullIndex, bp.trees[i].root, "tree %d root", i)
 		tassert.Equalf(t, 16, bp.trees[i].nodeCapacity, "tree %d capacity", i)
@@ -203,6 +208,7 @@ func TestBroadPhase_PairSetTracksShapePairs(t *testing.T) {
 	t.Parallel()
 
 	var bp broadPhase
+
 	createBroadPhase(&bp)
 	defer destroyBroadPhase(&bp)
 

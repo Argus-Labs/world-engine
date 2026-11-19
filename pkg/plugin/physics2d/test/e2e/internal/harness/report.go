@@ -71,6 +71,7 @@ func (r *Report) tally(scenario string) *scenarioTally {
 		r.byScenario[scenario] = t
 		r.order = append(r.order, scenario)
 	}
+
 	return t
 }
 
@@ -78,23 +79,28 @@ func (r *Report) paint(code, s string) string {
 	if !r.color {
 		return s
 	}
+
 	return "\x1b[" + code + "m" + s + "\x1b[0m"
 }
 
 // Pass records a satisfied assertion.
 func (r *Report) Pass(scenario, check string, tick uint64) {
 	r.tally(scenario).pass++
+
 	r.results = append(r.results, Result{
 		Scenario: scenario, Check: check, Tick: tick, Outcome: OutcomePass,
 	})
 	if !r.verbose {
 		return
 	}
+
 	if r.tb != nil {
 		r.tb.Helper()
 		r.tb.Logf("PASS t=%-4d %s", tick, check)
+
 		return
 	}
+
 	fmt.Printf("%s %-14s t=%-4d %s\n", r.paint("32", "PASS"), scenario, tick, check)
 }
 
@@ -103,14 +109,17 @@ func (r *Report) Pass(scenario, check string, tick uint64) {
 func (r *Report) Fail(scenario, check string, tick uint64, format string, args ...any) {
 	detail := fmt.Sprintf(format, args...)
 	r.tally(scenario).fail++
+
 	r.results = append(r.results, Result{
 		Scenario: scenario, Check: check, Detail: detail, Tick: tick, Outcome: OutcomeFail,
 	})
 	if r.tb != nil {
 		r.tb.Helper()
 		r.tb.Errorf("[%s] t=%d %s\n    %s", scenario, tick, check, detail)
+
 		return
 	}
+
 	fmt.Printf("%s %-14s t=%-4d %s\n       -> %s\n",
 		r.paint("31;1", "FAIL"), scenario, tick, check, detail)
 }
@@ -120,12 +129,15 @@ func (r *Report) Fail(scenario, check string, tick uint64, format string, args .
 // tunnelled) where a hard threshold would only produce flaky failures.
 func (r *Report) Note(scenario string, tick uint64, format string, args ...any) {
 	line := fmt.Sprintf("%-14s t=%-4d %s", scenario, tick, fmt.Sprintf(format, args...))
+
 	r.notes = append(r.notes, line)
 	if r.tb != nil {
 		r.tb.Helper()
 		r.tb.Logf("NOTE t=%-4d %s", tick, fmt.Sprintf(format, args...))
+
 		return
 	}
+
 	fmt.Printf("%s %s\n", r.paint("36", "NOTE"), line)
 }
 
@@ -137,17 +149,20 @@ func (r *Report) Totals() (int, int, int) {
 		fail += t.fail
 		skip += t.skip
 	}
+
 	return pass, fail, skip
 }
 
 // Failures returns every failed assertion in the order they were recorded.
 func (r *Report) Failures() []Result {
 	out := make([]Result, 0, 8)
+
 	for _, res := range r.results {
 		if res.Outcome == OutcomeFail {
 			out = append(out, res)
 		}
 	}
+
 	return out
 }
 
@@ -163,16 +178,20 @@ func (r *Report) Print() {
 
 	names := append([]string(nil), r.order...)
 	sort.Strings(names)
+
 	for _, name := range names {
 		t := r.byScenario[name]
+
 		status := r.paint("32", "ok")
 		if t.fail > 0 {
 			status = r.paint("31;1", "FAILED")
 		} else if t.pass == 0 {
 			status = r.paint("33", "no checks")
 		}
+
 		fmt.Printf("%-22s %6d %6d %6d   %s\n", name, t.pass, t.fail, t.skip, status)
 	}
+
 	fmt.Println(strings.Repeat("-", 78))
 
 	pass, fail, skip := r.Totals()
@@ -181,12 +200,14 @@ func (r *Report) Print() {
 	if failures := r.Failures(); len(failures) > 0 {
 		fmt.Println()
 		fmt.Println(r.paint("31;1", fmt.Sprintf("%d FAILING CHECK(S):", len(failures))))
+
 		for i, f := range failures {
 			fmt.Printf("  %2d. [%s] t=%d %s\n      %s\n", i+1, f.Scenario, f.Tick, f.Check, f.Detail)
 		}
 	}
 
 	fmt.Println()
+
 	if fail == 0 {
 		fmt.Println(r.paint("32;1", "RESULT: all checks passed"))
 	} else {

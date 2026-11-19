@@ -16,9 +16,11 @@ import (
 // captureStdout captures [os.Stdout] output produced by fn and returns it as a string.
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
+
 	orig := os.Stdout
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
+
 	os.Stdout = w //nolint:reassign // need to capture stdout
 
 	fn()
@@ -27,6 +29,7 @@ func captureStdout(t *testing.T, fn func()) string {
 	os.Stdout = orig //nolint:reassign // need to capture stdout
 	buf, _ := io.ReadAll(r)
 	_ = r.Close()
+
 	return string(buf)
 }
 
@@ -42,8 +45,10 @@ func TestError_WritesToBuffer(t *testing.T) {
 
 func TestErrors_LogErrors(t *testing.T) {
 	logBuffer.Reset()
+
 	err := errors.New("boom")
 	Errors(err)
+
 	out := logBuffer.String()
 	assert.Contains(t, out, "boom")
 }
@@ -55,12 +60,14 @@ func TestPrintLogs_NoOutputWhenNotVerboseOrEmpty(t *testing.T) {
 	// Verbose off: no output
 	SetVerboseMode(false)
 	logBuffer.Reset()
+
 	out := captureStdout(t, func() { PrintLogs() })
 	assert.Empty(t, out)
 
 	// Verbose on but buffer empty: no output
 	SetVerboseMode(true)
 	logBuffer.Reset()
+
 	out = captureStdout(t, func() { PrintLogs() })
 	assert.Empty(t, out)
 }
@@ -68,6 +75,7 @@ func TestPrintLogs_NoOutputWhenNotVerboseOrEmpty(t *testing.T) {
 func TestPrintLogs_PrintsBufferedLogsWhenVerbose(t *testing.T) {
 	prev := Verbose()
 	defer SetVerboseMode(prev)
+
 	SetVerboseMode(true)
 
 	logBuffer.Reset()
@@ -125,6 +133,7 @@ func TestZerologHandler_Handle_RoutesLevels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logBuffer.Reset()
+
 			rec := slog.NewRecord(time.Now(), tt.level, tt.msg, 0)
 			err := h.Handle(context.Background(), rec)
 			require.NoError(t, err)
@@ -135,6 +144,7 @@ func TestZerologHandler_Handle_RoutesLevels(t *testing.T) {
 
 func TestZerologHandler_Handle_IncludesRecordAttrs(t *testing.T) {
 	logBuffer.Reset()
+
 	h := zerologHandler{}
 
 	rec := slog.NewRecord(time.Now(), slog.LevelInfo, "with-attrs", 0)
@@ -150,6 +160,7 @@ func TestZerologHandler_Handle_IncludesRecordAttrs(t *testing.T) {
 
 func TestZerologHandler_WithAttrs_MergesAttributes(t *testing.T) {
 	logBuffer.Reset()
+
 	base := zerologHandler{}
 	child := base.WithAttrs([]slog.Attr{slog.String("env", "test")}).(zerologHandler)
 
@@ -163,6 +174,7 @@ func TestZerologHandler_WithAttrs_MergesAttributes(t *testing.T) {
 
 func TestZerologHandler_WithAttrs_Chains(t *testing.T) {
 	logBuffer.Reset()
+
 	h := zerologHandler{}
 	h1 := h.WithAttrs([]slog.Attr{slog.String("a", "1")}).(zerologHandler)
 	h2 := h1.WithAttrs([]slog.Attr{slog.String("b", "2")}).(zerologHandler)
@@ -187,9 +199,11 @@ func TestSlog_ReturnsNonNilLogger(t *testing.T) {
 func TestSlog_Integration_WritesToBuffer(t *testing.T) {
 	prev := Verbose()
 	defer SetVerboseMode(prev)
+
 	SetVerboseMode(true)
 
 	logBuffer.Reset()
+
 	l := Slog()
 	l.InfoContext(context.Background(), "slog-integration", "key", "val")
 
@@ -201,9 +215,11 @@ func TestSlog_Integration_WritesToBuffer(t *testing.T) {
 func TestSlog_Integration_SilentWhenNotVerbose(t *testing.T) {
 	prev := Verbose()
 	defer SetVerboseMode(prev)
+
 	SetVerboseMode(false)
 
 	logBuffer.Reset()
+
 	l := Slog()
 	l.InfoContext(context.Background(), "should-not-appear")
 

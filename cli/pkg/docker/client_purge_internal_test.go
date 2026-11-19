@@ -46,16 +46,20 @@ type fakeRemoveCall struct {
 func (f *fakeImageClient) ImageList(_ context.Context, opts client.ImageListOptions) (client.ImageListResult, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
 	if f.listFn != nil {
 		return f.listFn(opts)
 	}
+
 	out := make([]image.Summary, 0, len(f.images))
 	for _, img := range f.images {
 		if !fakeImageMatchesFilters(img, opts.Filters) {
 			continue
 		}
+
 		out = append(out, img)
 	}
+
 	return client.ImageListResult{Items: out}, nil
 }
 
@@ -68,6 +72,7 @@ func (f *fakeImageClient) ImageRemove(
 	defer f.mu.Unlock()
 
 	var rerr error
+
 	switch {
 	case f.removeFn != nil:
 		rerr = f.removeFn(imageRef, opts)
@@ -86,6 +91,7 @@ func (f *fakeImageClient) ImageRemove(
 		prune:    opts.PruneChildren,
 		err:      rerr,
 	})
+
 	return client.ImageRemoveResult{}, rerr
 }
 
@@ -93,21 +99,26 @@ func fakeImageMatchesFilters(img image.Summary, filters client.Filters) bool {
 	if len(filters) == 0 {
 		return true
 	}
+
 	for term, values := range filters {
 		if term != "label" {
 			continue
 		}
+
 		matched := false
+
 		for v := range values {
 			if fakeLabelMatches(img.Labels, v) {
 				matched = true
 				break
 			}
 		}
+
 		if !matched {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -115,7 +126,9 @@ func fakeLabelMatches(labels map[string]string, want string) bool {
 	if k, v, ok := strings.Cut(want, "="); ok {
 		return labels[k] == v
 	}
+
 	_, ok := labels[want]
+
 	return ok
 }
 
@@ -125,6 +138,7 @@ func fakeRepoTagCount(images []image.Summary, id string) int {
 			return len(img.RepoTags)
 		}
 	}
+
 	return 0
 }
 
@@ -176,6 +190,7 @@ func TestPruneCardinalImages_ForcesRemovalOfEveryLabeledImage(t *testing.T) {
 	require.NoError(t, prune(fake))
 
 	require.Len(t, fake.removed, 2, "both labeled images must be removed")
+
 	for _, call := range fake.removed {
 		assert.True(t, call.force, "labeled image %q must be removed with Force (the fix)", call.imageRef)
 		assert.True(t, call.prune, "PruneChildren must remain set for %q", call.imageRef)
@@ -193,6 +208,7 @@ func TestPruneCardinalImages_RemovesStaleMultiTaggedID(t *testing.T) {
 	t.Parallel()
 
 	const staleID = "sha256:stalelastbuild"
+
 	fake := &fakeImageClient{
 		images: []image.Summary{
 			cardinalImage(
@@ -247,6 +263,7 @@ func TestPruneCardinalImages_BestEffortLogsAndContinues(t *testing.T) {
 			if imageRef == "sha256:a" {
 				return errors.New("daemon unavailable")
 			}
+
 			return nil
 		},
 	}
@@ -290,6 +307,7 @@ func TestPruneCardinalImages_NATSKeepsCurrentAndPrunesOld(t *testing.T) {
 	for _, c := range fake.removed {
 		removed = append(removed, c.imageRef)
 	}
+
 	assert.Equal(t, []string{"nats:2.10.0"}, removed, "only the non-current NATS tag must be removed")
 }
 
@@ -303,6 +321,7 @@ func TestPruneCardinalImages_CardinalListErrorPropagates(t *testing.T) {
 			if _, ok := opts.Filters["label"]; ok {
 				return client.ImageListResult{}, errors.New("cardinal list failed")
 			}
+
 			return client.ImageListResult{}, nil
 		},
 	}
@@ -322,6 +341,7 @@ func TestPruneCardinalImages_NATSListErrorPropagates(t *testing.T) {
 			if _, ok := opts.Filters["label"]; ok {
 				return client.ImageListResult{}, nil // Cardinal pass: no images, no error.
 			}
+
 			return client.ImageListResult{}, errors.New("nats list failed")
 		},
 	}

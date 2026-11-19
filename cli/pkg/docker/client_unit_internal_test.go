@@ -56,9 +56,11 @@ id = "matchmaking"
 	if cfg.RootDir != tmp {
 		t.Fatalf("expected RootDir %q, got %q", tmp, cfg.RootDir)
 	}
+
 	if !cfg.Debug {
 		t.Fatalf("expected Debug to be true")
 	}
+
 	if cfg.Project != "rampage" {
 		t.Fatalf("expected Project %q, got %q", "rampage", cfg.Project)
 	}
@@ -86,13 +88,16 @@ func TestPreparePullOptions_NoAuth(t *testing.T) {
 	t.Parallel()
 
 	c := &Client{cfg: &service.Config{}, logger: slog.New(slog.DiscardHandler)}
+
 	opts, err := c.preparePullOptions(ocispec.Platform{OS: "linux", Architecture: "amd64"}, nil)
 	if err != nil {
 		t.Fatalf("preparePullOptions returned error: %v", err)
 	}
+
 	if len(opts.Platforms) != 1 || opts.Platforms[0].OS != "linux" || opts.Platforms[0].Architecture != "amd64" {
 		t.Fatalf("expected platform linux/amd64, got %+v", opts.Platforms)
 	}
+
 	if opts.RegistryAuth != "" {
 		t.Fatalf("expected empty RegistryAuth when authConfig is nil")
 	}
@@ -111,6 +116,7 @@ func TestPreparePullOptions_WithAuth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("preparePullOptions with auth returned error: %v", err)
 	}
+
 	if opts.RegistryAuth == "" {
 		t.Fatalf("expected non-empty RegistryAuth when authConfig is provided")
 	}
@@ -156,6 +162,7 @@ func TestExtractPullPercent(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected extractPullPercent to return ok=true")
 	}
+
 	if percent != 50 {
 		t.Fatalf("expected percent to be 50, got %d", percent)
 	}
@@ -164,6 +171,7 @@ func TestExtractPullPercent(t *testing.T) {
 	eventNoProgress := pullEvent{
 		Status: "done",
 	}
+
 	_, ok = extractPullPercent(eventNoProgress)
 	if ok {
 		t.Fatalf("expected extractPullPercent to return ok=false for event without progressDetail")
@@ -176,6 +184,7 @@ func TestIsCardinalService(t *testing.T) {
 	// A real shard, as CardinalFromShard builds it: the build pipeline selects on the
 	// build target, so the fixture has to carry one.
 	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{Project: "demo"}}
+
 	shard := service.CardinalFromShard(cfg, worldtoml.Shard{ID: "game", InstanceID: "game", Path: "shards/game"}, 8081)
 	if !IsCardinalService(shard) {
 		t.Fatalf("expected a shard to be built: %#v", shard)
@@ -197,10 +206,12 @@ func TestCardinalBuildImageNamesDedupesInOrder(t *testing.T) {
 	}
 
 	names := CardinalBuildImageNames(services)
+
 	want := []string{"world-game-shard", "world-chat-shard"}
 	if len(names) != len(want) {
 		t.Fatalf("expected %d image names, got %d: %#v", len(want), len(names), names)
 	}
+
 	for i := range want {
 		if names[i] != want[i] {
 			t.Fatalf("expected image %d to be %q, got %q", i, want[i], names[i])
@@ -250,9 +261,11 @@ func TestIsCardinalService_IncludesPathKindGameServices(t *testing.T) {
 	if !IsCardinalService(built) {
 		t.Fatalf("path-kind service must be built: %#v", built)
 	}
+
 	if IsCardinalService(pulled) {
 		t.Fatalf("image-kind service must not be built: %#v", pulled)
 	}
+
 	if names := CardinalBuildImageNames(
 		[]service.Service{built, pulled},
 	); len(names) != 1 ||
@@ -296,6 +309,7 @@ func TestOwnsBuiltImage(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+
 			if got := ownsBuiltImage(tc.labels, "demo", owned); got != tc.want {
 				t.Fatalf("ownsBuiltImage(%v) = %v, want %v", tc.labels, got, tc.want)
 			}
@@ -309,12 +323,14 @@ func TestItemErrReportsFalloutAsCanceled(t *testing.T) {
 	t.Parallel()
 
 	own := errors.New("exit code: 1")
+
 	gctx, cancel := context.WithCancelCause(context.Background())
 	if got := itemErr(gctx, own); !errors.Is(got, own) {
 		t.Fatalf("live group: want the item's own error, got %v", got)
 	}
 
 	cancel(errors.New("sibling failed"))
+
 	if got := itemErr(gctx, own); !errors.Is(got, context.Canceled) {
 		t.Fatalf("canceled group: want context.Canceled, got %v", got)
 	}

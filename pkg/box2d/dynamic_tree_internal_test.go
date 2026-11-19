@@ -22,6 +22,7 @@ func (r *treeRand) next() uint32 {
 	x ^= x >> 17
 	x ^= x << 5
 	r.state = x
+
 	return x
 }
 
@@ -39,6 +40,7 @@ func (r *treeRand) aabb() AABB {
 	cy := r.float(-50.0, 50.0)
 	ex := r.float(0.2, 3.0)
 	ey := r.float(0.2, 3.0)
+
 	return AABB{
 		LowerBound: Vec2{X: cx - ex, Y: cy - ey},
 		UpperBound: Vec2{X: cx + ex, Y: cy + ey},
@@ -152,6 +154,7 @@ func TestDynamicTree_DeterministicNodeLayout(t *testing.T) {
 		box := queryRand.aabb()
 
 		var seenA, seenB []int
+
 		treeA.Query(box, DefaultMaskBits, func(proxyID int, _ uint64, _ any) bool {
 			seenA = append(seenA, proxyID)
 			return true
@@ -178,6 +181,7 @@ func TestDynamicTree_DeterministicAfterRebuild(t *testing.T) {
 
 	require.Equal(t, treeA.root, treeB.root)
 	require.Len(t, treeB.nodes, len(treeA.nodes))
+
 	for i := range treeA.nodes {
 		tassert.Equalf(t, treeA.nodes[i], treeB.nodes[i], "node %d after rebuild", i)
 	}
@@ -187,6 +191,7 @@ func TestDynamicTree_DeterministicAfterRebuild(t *testing.T) {
 	require.NoError(t, treeA.ValidateNoEnlarged())
 
 	require.Equal(t, treeA.root, treeB.root)
+
 	for i := range treeA.nodes {
 		tassert.Equalf(t, treeA.nodes[i], treeB.nodes[i], "node %d after full rebuild", i)
 	}
@@ -222,6 +227,7 @@ func TestDynamicTree_FreeListReusesNodes(t *testing.T) {
 	for i := range 100 {
 		tree.CreateProxy(rnd.aabb(), DefaultCategoryBits, uint64(i)+3)
 	}
+
 	tassert.Greater(t, tree.nodeCapacity, 16)
 	require.NoError(t, tree.Validate())
 	tassert.Equal(t, 101, tree.proxyCount)
@@ -231,10 +237,12 @@ func TestDynamicTree_ValidateDetectsCorruption(t *testing.T) {
 	t.Parallel()
 
 	rnd := &treeRand{state: 0x2222}
+
 	tree := NewDynamicTree()
 	for i := range 32 {
 		tree.CreateProxy(rnd.aabb(), DefaultCategoryBits, uint64(i))
 	}
+
 	require.NoError(t, tree.Validate())
 
 	root := tree.root
@@ -285,8 +293,10 @@ func TestDynamicTree_PartitionMid(t *testing.T) {
 	centers := []Vec2{{X: 9.0, Y: 0.0}, {X: 0.0, Y: 0.1}, {X: 10.0, Y: 0.0}, {X: 1.0, Y: 0.2}}
 	pivot := partitionMid(indices, centers, 4)
 	tassert.Equal(t, 2, pivot)
+
 	for i := range 4 {
 		want := Vec2{X: 9.0, Y: 0.0}
+
 		switch indices[i] {
 		case 10:
 			want = Vec2{X: 9.0, Y: 0.0}
@@ -297,11 +307,14 @@ func TestDynamicTree_PartitionMid(t *testing.T) {
 		case 13:
 			want = Vec2{X: 1.0, Y: 0.2}
 		}
+
 		tassert.Equalf(t, want, centers[i], "slot %d kept its center", i)
 	}
+
 	for i := range pivot {
 		tassert.Lessf(t, centers[i].X, 5.0, "left slot %d", i)
 	}
+
 	for i := pivot; i < 4; i++ {
 		tassert.GreaterOrEqualf(t, centers[i].X, 5.0, "right slot %d", i)
 	}

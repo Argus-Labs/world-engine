@@ -154,6 +154,7 @@ func (suite *TablePageSelectTestSuite) TestExtraKeyReturnsAction() {
 
 	ret, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
 	m = ret.(*Model)
+
 	suite.NotNil(cmd)
 	suite.True(m.finalized)
 	suite.Equal("reload", m.HotkeyAction)

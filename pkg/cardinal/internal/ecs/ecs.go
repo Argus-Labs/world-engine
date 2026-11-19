@@ -55,17 +55,21 @@ func (w *World) Has[T Component](eid EntityID) bool {
 	if !exists {
 		return false
 	}
+
 	var zero T
+
 	cid, registered := w.state.components.catalog[zero.Name()]
 	if !registered {
 		return false
 	}
+
 	arch := w.state.archetypes[aid]
 	if !arch.components.Contains(cid) {
 		return false
 	}
 	// Check the concrete type without copying the component or constructing an absence error.
 	_, matches := arch.columns[arch.components.CountTo(cid)].(*column[T])
+
 	return matches
 }
 
@@ -115,6 +119,7 @@ func (w *World) IterEntities( //nolint:gocognit // it's fine
 	default:
 		return eris.Wrapf(ErrInvalidMatch, "%v", match)
 	}
+
 	return nil
 }
 
@@ -125,6 +130,7 @@ func (w *World) MatchArchetype(eid EntityID, components bitmap.Bitmap, match Sea
 	}
 
 	arch := w.state.archetypes[aid]
+
 	switch match {
 	case MatchExact:
 		if !arch.exact(components) {
@@ -139,6 +145,7 @@ func (w *World) MatchArchetype(eid EntityID, components bitmap.Bitmap, match Sea
 	default:
 		return eris.Wrapf(ErrInvalidMatch, "%v", match)
 	}
+
 	return nil
 }
 

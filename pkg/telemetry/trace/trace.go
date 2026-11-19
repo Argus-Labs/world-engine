@@ -31,7 +31,8 @@ func New(ctx context.Context, name string, opts ...oteltrace.SpanStartOption) (c
 	}
 	// Callers own the returned span and end it with End or EndWithErr.
 	ctx, span := otel.Tracer(tracerName).Start(ctx, name, opts...) //nolint:spancheck // ended by caller
-	return ctx, Trace{span}                                        //nolint:spancheck // ended by caller
+
+	return ctx, Trace{span} //nolint:spancheck // ended by caller
 }
 
 // SetError declares that this span resulted in an error. A nil err is a no-op.
@@ -39,6 +40,7 @@ func (t Trace) SetError(err error) {
 	if err == nil {
 		return
 	}
+
 	t.RecordError(err)
 	t.SetStatus(codes.Error, err.Error())
 }

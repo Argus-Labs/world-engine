@@ -39,6 +39,7 @@ func InitialModel(ctx context.Context, prompt string, columns []string, rows [][
 	if defaultIndex < 0 {
 		defaultIndex = 0
 	}
+
 	if defaultIndex >= len(rows) && len(rows) > 0 {
 		defaultIndex = len(rows) - 1
 	}
@@ -48,6 +49,7 @@ func InitialModel(ctx context.Context, prompt string, columns []string, rows [][
 
 	// Build table columns: blank rank header first
 	tblCols := make([]table.Column, 0, len(columns)+1)
+
 	tblCols = append(tblCols, table.Column{Title: "", Width: widths[0]})
 	for i, c := range columns {
 		tblCols = append(tblCols, table.Column{Title: c, Width: widths[i+1]})
@@ -98,6 +100,7 @@ func InitialModel(ctx context.Context, prompt string, columns []string, rows [][
 		Ctx:     ctx,
 		tbl:     t,
 	}
+
 	return m
 }
 
@@ -119,12 +122,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.Cursor > 0 {
 				m.Cursor--
 			}
+
 			m.tbl.SetCursor(m.Cursor)
 			m.NumericBuf = ""
 		case "down", "j":
 			if m.Cursor < len(m.Rows)-1 {
 				m.Cursor++
 			}
+
 			m.tbl.SetCursor(m.Cursor)
 			m.NumericBuf = ""
 		case "enter":
@@ -151,6 +156,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
+
 	return m, nil
 }
 
@@ -172,7 +178,9 @@ func (m *Model) View() string {
 	} else {
 		s += fmt.Sprintf("\n%s: %s\n", m.Prompt, m.NumericBuf)
 	}
+
 	s += "\n(Type a number, up/down arrows, esc to quit)\n"
+
 	return s
 }
 
@@ -182,6 +190,7 @@ func (m *Model) applyNumericBuf() {
 	if len(m.Rows) == 0 {
 		return
 	}
+
 	if m.NumericBuf == "" {
 		return
 	}
@@ -189,13 +198,16 @@ func (m *Model) applyNumericBuf() {
 	for len(m.NumericBuf) > 1 && m.NumericBuf[0] == '0' {
 		m.NumericBuf = m.NumericBuf[1:]
 	}
+
 	if n, err := strconv.Atoi(m.NumericBuf); err == nil {
 		if n < 1 {
 			n = 1
 		}
+
 		if n > len(m.Rows) {
 			n = len(m.Rows)
 		}
+
 		m.Cursor = n - 1
 	}
 }
@@ -209,6 +221,7 @@ func computeColumnWidths(columns []string, rows [][]string, maxColWidth int) []i
 
 	for ci, title := range columns {
 		maxw := lipgloss.Width(title) + 1 // min: title + 1
+
 		for _, r := range rows {
 			if ci < len(r) {
 				w := lipgloss.Width(r[ci])
@@ -217,10 +230,13 @@ func computeColumnWidths(columns []string, rows [][]string, maxColWidth int) []i
 				}
 			}
 		}
+
 		if maxw > maxColWidth {
 			maxw = maxColWidth
 		}
+
 		widths[ci+1] = maxw
 	}
+
 	return widths
 }

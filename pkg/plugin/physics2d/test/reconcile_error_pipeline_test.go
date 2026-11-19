@@ -52,6 +52,7 @@ func TestReconcileErrorDoesNotSkipLaterEntities_Pipeline(t *testing.T) {
 		if w.TickHeight() != 0 {
 			return
 		}
+
 		spawn := func(x float64) cardinal.EntityID {
 			row := w.Create[spawnArchetype]()
 			id := row.ID()
@@ -59,6 +60,7 @@ func TestReconcileErrorDoesNotSkipLaterEntities_Pipeline(t *testing.T) {
 			row.Set(physics.Transform2D{Position: physics.Vec2{X: x, Y: 50}})
 			row.Set(physics.Velocity2D{})
 			row.Set(newRigid(physics.BodyTypeDynamic, boxShape))
+
 			return id
 		}
 		idA = spawn(0)
@@ -75,7 +77,9 @@ func TestReconcileErrorDoesNotSkipLaterEntities_Pipeline(t *testing.T) {
 					return row.Get[physics.Transform2D]()
 				}
 			}
+
 			req.FailNowf("entity not found", "entity %d", id)
+
 			return physics.Transform2D{}
 		}
 		setBody := func(id cardinal.EntityID, shapes ...physics.ColliderShape) {
@@ -97,6 +101,7 @@ func TestReconcileErrorDoesNotSkipLaterEntities_Pipeline(t *testing.T) {
 					row.Set(physics.Transform2D{Position: physics.Vec2{X: 200, Y: 200}})
 				}
 			}
+
 			brokeA = true
 		}
 
@@ -104,12 +109,14 @@ func TestReconcileErrorDoesNotSkipLaterEntities_Pipeline(t *testing.T) {
 			trA := read(idA)
 			req.InDelta(50, trA.Position.X, epsilon, "A ECS X frozen at pending teleport: %v", trA)
 			req.InDelta(7, trA.Position.Y, epsilon, "A ECS Y frozen at pending teleport (writeback skipped A): %v", trA)
+
 			trB := read(idB)
 			req.InDelta(200, trB.Position.X, epsilon, "B ECS X teleported (loop continued past A failure): %v", trB)
 			req.Less(trB.Position.Y, 200.0, "B ECS Y fell from teleport (writeback ran for B): %v", trB)
 
 			// Repair A: valid collider again, keep the pending teleport.
 			setBody(idA, boxShape)
+
 			repairedA = true
 			verifiedFail = true
 		}
@@ -118,6 +125,7 @@ func TestReconcileErrorDoesNotSkipLaterEntities_Pipeline(t *testing.T) {
 			trA := read(idA)
 			req.InDelta(50, trA.Position.X, epsilon, "A ECS X at teleport X after repair: %v", trA)
 			req.Less(trA.Position.Y, 7.0, "A ECS Y fell after repair (writeback resumed for A): %v", trA)
+
 			verifiedResume = true
 		}
 	}}, cardinal.WithPhase(cardinal.PostUpdate))

@@ -54,6 +54,7 @@ func (rt *Runtime) Step() {
 	if rt == nil || rt.World == nil {
 		return
 	}
+
 	rt.wakePersistedContactEntities()
 	rt.World.Step(rt.FixedDT, rt.SubStepCount)
 	rt.bufferContactEventsFromWorld()
@@ -73,17 +74,21 @@ func (rt *Runtime) wakePersistedContactEntities() {
 	if !rt.SuppressContactsStep || len(rt.ActiveContacts) == 0 {
 		return
 	}
+
 	ids := rt.wakeOrderScratch[:0]
 	for key := range rt.ActiveContacts {
 		ids = append(ids, key.EntityA, key.EntityB)
 	}
+
 	slices.SortFunc(ids, cmp.Compare)
+
 	ids = slices.Compact(ids)
 	for _, id := range ids {
 		if bodyID, ok := rt.Bodies[id]; ok {
 			rt.World.SetBodyAwake(bodyID, true)
 		}
 	}
+
 	rt.wakeOrderScratch = ids
 }
 
@@ -98,6 +103,7 @@ func (rt *Runtime) bufferContactEventsFromWorld() {
 		rt.pendingEndEvents = rt.pendingEndEvents[:0]
 		return
 	}
+
 	rt.BufferedContacts = rt.BufferedContacts[:0]
 
 	// Ends synthesized while reconciling (bodies or fixtures destroyed while touching)
@@ -118,11 +124,13 @@ func (rt *Runtime) bufferContactEventsFromWorld() {
 	// -- Begin events (contact) --
 	for i := range contacts.BeginEvents {
 		ev := &contacts.BeginEvents[i]
+
 		buf := rt.makeBufferedEvent(ContactLifecycleBegin, ev.ShapeIDA, ev.ShapeIDB)
 		if w.IsContactValid(ev.ContactID) {
 			cd := w.ContactData(ev.ContactID)
 			applyManifold(&buf, &cd.Manifold)
 		}
+
 		rt.BufferedContacts = append(rt.BufferedContacts, buf)
 	}
 
@@ -134,6 +142,7 @@ func (rt *Runtime) bufferContactEventsFromWorld() {
 		if !w.IsShapeValid(ev.ShapeIDA) || !w.IsShapeValid(ev.ShapeIDB) {
 			continue
 		}
+
 		rt.BufferedContacts = append(rt.BufferedContacts,
 			rt.makeBufferedEvent(ContactLifecycleEnd, ev.ShapeIDA, ev.ShapeIDB))
 	}
@@ -152,6 +161,7 @@ func (rt *Runtime) bufferContactEventsFromWorld() {
 		if !w.IsShapeValid(ev.SensorShapeID) || !w.IsShapeValid(ev.VisitorShapeID) {
 			continue
 		}
+
 		rt.BufferedContacts = append(rt.BufferedContacts,
 			rt.makeBufferedEvent(ContactLifecycleEnd, ev.SensorShapeID, ev.VisitorShapeID))
 	}
@@ -168,6 +178,7 @@ func (rt *Runtime) makeBufferedEvent(
 	entityB, shapeIndexB := rt.shapeIdentity(sidB)
 	filterA := w.ShapeFilter(sidA)
 	filterB := w.ShapeFilter(sidB)
+
 	return BufferedContactEvent{
 		Kind:            kind,
 		FilterA:         toFixtureFilterBits(filterA),
@@ -186,6 +197,7 @@ func applyManifold(buf *BufferedContactEvent, m *box2d.Manifold) {
 	if m.PointCount == 0 {
 		return
 	}
+
 	buf.Normal = component.Vec2{X: m.Normal.X, Y: m.Normal.Y}
 	buf.NormalValid = true
 	buf.Point = component.Vec2{X: m.Points[0].ClipPoint.X, Y: m.Points[0].ClipPoint.Y}
@@ -200,6 +212,7 @@ func (rt *Runtime) shapeIdentity(sid box2d.ShapeID) (cardinal.EntityID, int) {
 	bodyID := w.ShapeBody(sid)
 	entityID := cardinal.EntityID(uint32(w.BodyUserData(bodyID))) //nolint:gosec // packed from uint32 entity id
 	shapeIndex := int(uint32(w.ShapeUserData(sid)))               //nolint:gosec // packed from small shape index
+
 	return entityID, shapeIndex
 }
 

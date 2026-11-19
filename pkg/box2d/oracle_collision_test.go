@@ -181,13 +181,17 @@ func TestOracleAABBRayCast(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			out := box2d.AABBRayCast(tc.box, tc.p1, tc.p2)
 			require.Equal(t, tc.hit, out.Hit)
+
 			if !tc.hit {
 				return
 			}
+
 			require.InDelta(t, tc.fraction, out.Fraction, 1e-6)
 			requireVec(t, tc.normal, out.Normal, 1e-6)
+
 			if tc.hasPoint {
 				requireVec(t, tc.point, out.Point, 1e-6)
 			}
@@ -254,8 +258,11 @@ func TestOracleShapeMass(t *testing.T) {
 		mdUpper := box2d.ComputePolygonMass(&r, 1.0)
 
 		const n = 4
+
 		var points []box2d.Vec2
+
 		d := math.Pi / (n - 1.0)
+
 		angle := -0.5 * math.Pi
 		for range n {
 			// float64(...) forces product rounding so the package's no-FMA
@@ -266,6 +273,7 @@ func TestOracleShapeMass(t *testing.T) {
 			})
 			angle += d
 		}
+
 		angle = 0.5 * math.Pi
 		for range n {
 			points = append(points, box2d.Vec2{
@@ -274,6 +282,7 @@ func TestOracleShapeMass(t *testing.T) {
 			})
 			angle += d
 		}
+
 		hull := box2d.ComputeHull(points)
 		ac := box2d.MakePolygon(&hull, 0.0)
 		mdLower := box2d.ComputePolygonMass(&ac, 1.0)
@@ -322,6 +331,7 @@ func TestOracleShapeMass(t *testing.T) {
 		// The C constant is 1.412f (~1.41199994); using 1.412 exactly is
 		// within the 1e-6 relative tolerance below.
 		const w, radius = 0.5, 0.25
+
 		rb := box2d.MakeRoundedBox(w, w, radius)
 		md := box2d.ComputePolygonMass(&rb, 1.0)
 
@@ -420,6 +430,7 @@ func TestOracleShapeAABBs(t *testing.T) {
 		requireVec(t, box2d.Vec2{X: 0.6, Y: 0.6}, got.UpperBound, 1e-6)
 
 		const d = 1.0e7
+
 		far := box2d.ComputePolygonAABB(&rb, xf(d, d, 0))
 		require.LessOrEqual(t, far.LowerBound.X, d-0.6+1e-6)
 		require.LessOrEqual(t, far.LowerBound.Y, d-0.6+1e-6)
@@ -440,6 +451,7 @@ func TestOraclePointInShapes(t *testing.T) {
 
 	t.Run("circle", func(t *testing.T) {
 		t.Parallel()
+
 		circle := box2d.Circle{Center: box2d.Vec2{X: 1, Y: 0}, Radius: 1}
 		require.True(t, box2d.PointInCircle(&circle, p1))
 		require.False(t, box2d.PointInCircle(&circle, p2))
@@ -447,6 +459,7 @@ func TestOraclePointInShapes(t *testing.T) {
 
 	t.Run("polygon", func(t *testing.T) {
 		t.Parallel()
+
 		b := box2d.MakeBox(1, 1)
 		require.True(t, box2d.PointInPolygon(&b, p1))
 		require.False(t, box2d.PointInPolygon(&b, p2))
@@ -526,6 +539,7 @@ func TestOracleRayCastCircleBranches(t *testing.T) {
 
 	t.Run("zero length ray outside misses", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 3, Y: 0},
 			Translation: box2d.Vec2{},
@@ -636,6 +650,7 @@ func TestOracleRayCastCapsuleBranches(t *testing.T) {
 
 	t.Run("start inside capsule", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: 0, Y: 0},
 			Translation: box2d.Vec2{X: 2, Y: 0},
@@ -788,6 +803,7 @@ func TestOracleRayCastSegmentBranches(t *testing.T) {
 
 	t.Run("parallel ray misses", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: -1, Y: 2},
 			Translation: box2d.Vec2{X: 0, Y: -4},
@@ -811,6 +827,7 @@ func TestOracleRayCastSegmentBranches(t *testing.T) {
 
 	t.Run("out of fraction range misses", func(t *testing.T) {
 		t.Parallel()
+
 		input := box2d.RayCastInput{
 			Origin:      box2d.Vec2{X: -4, Y: 0},
 			Translation: box2d.Vec2{X: 2, Y: 0},
@@ -822,6 +839,7 @@ func TestOracleRayCastSegmentBranches(t *testing.T) {
 
 	t.Run("zero length segment misses", func(t *testing.T) {
 		t.Parallel()
+
 		degenerate := box2d.Segment{
 			Point1: box2d.Vec2{X: 0, Y: 0},
 			Point2: box2d.Vec2{X: 0, Y: 0},
@@ -1004,6 +1022,7 @@ func TestOracleSegmentDistanceTable(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			res := box2d.SegmentDistance(tc.p1, tc.q1, tc.p2, tc.q2)
 			require.InDelta(t, tc.f1, res.Fraction1, 1e-9, "fraction1")
 			require.InDelta(t, tc.f2, res.Fraction2, 1e-9, "fraction2")
@@ -1055,6 +1074,7 @@ func TestOracleShapeDistance(t *testing.T) {
 		// Upstream ShapeDistanceTest: gap between the box face x=1 and the
 		// segment x=2 is exactly 1.
 		var input box2d.DistanceInput
+
 		input.ProxyA = box2d.MakeProxy(boxVerts, 4, 0)
 		input.ProxyB = box2d.MakeProxy(segVerts, 2, 0)
 		input.TransformA = box2d.TransformIdentity
@@ -1062,6 +1082,7 @@ func TestOracleShapeDistance(t *testing.T) {
 		input.UseRadii = false
 
 		var cache box2d.SimplexCache
+
 		out := box2d.ShapeDistance(&input, &cache, nil)
 		require.InDelta(t, 1.0, out.Distance, 1e-9)
 		requireVec(t, box2d.Vec2{X: 1, Y: 0}, out.Normal, 1e-9)
@@ -1074,6 +1095,7 @@ func TestOracleShapeDistance(t *testing.T) {
 		// Two points 3 apart with radii 0.5 and 0.25: distance 2.25,
 		// pointA = (0.5,0), pointB = (2.75,0).
 		var input box2d.DistanceInput
+
 		input.ProxyA = box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.5)
 		input.ProxyB = box2d.MakeProxy([]box2d.Vec2{{X: 3, Y: 0}}, 1, 0.25)
 		input.TransformA = box2d.TransformIdentity
@@ -1081,6 +1103,7 @@ func TestOracleShapeDistance(t *testing.T) {
 		input.UseRadii = true
 
 		var cache box2d.SimplexCache
+
 		out := box2d.ShapeDistance(&input, &cache, nil)
 		require.InDelta(t, 2.25, out.Distance, 1e-9)
 		requireVec(t, box2d.Vec2{X: 1, Y: 0}, out.Normal, 1e-9)
@@ -1093,6 +1116,7 @@ func TestOracleShapeDistance(t *testing.T) {
 		// GJK encloses the origin (3-simplex): distance 0 and identical
 		// witness points (distance.c:424 overlap exit).
 		var input box2d.DistanceInput
+
 		input.ProxyA = box2d.MakeProxy(boxVerts, 4, 0)
 		input.ProxyB = box2d.MakeProxy(boxVerts, 4, 0)
 		input.TransformA = box2d.TransformIdentity
@@ -1100,6 +1124,7 @@ func TestOracleShapeDistance(t *testing.T) {
 		input.UseRadii = false
 
 		var cache box2d.SimplexCache
+
 		out := box2d.ShapeDistance(&input, &cache, nil)
 		require.InDelta(t, 0.0, out.Distance, 0)
 		requireVec(t, out.PointA, out.PointB, 1e-12)
@@ -1107,7 +1132,9 @@ func TestOracleShapeDistance(t *testing.T) {
 
 	t.Run("point deep inside box overlaps", func(t *testing.T) {
 		t.Parallel()
+
 		var input box2d.DistanceInput
+
 		input.ProxyA = box2d.MakeProxy(boxVerts, 4, 0)
 		input.ProxyB = box2d.MakeProxy([]box2d.Vec2{{X: 0.1, Y: -0.2}}, 1, 0)
 		input.TransformA = box2d.TransformIdentity
@@ -1115,6 +1142,7 @@ func TestOracleShapeDistance(t *testing.T) {
 		input.UseRadii = false
 
 		var cache box2d.SimplexCache
+
 		out := box2d.ShapeDistance(&input, &cache, nil)
 		require.InDelta(t, 0.0, out.Distance, 0)
 	})
@@ -1124,6 +1152,7 @@ func TestOracleShapeDistance(t *testing.T) {
 		// Box rotated 45deg has its corner at x = sqrt(2); segment at x=2:
 		// distance = 2 - sqrt(2).
 		var input box2d.DistanceInput
+
 		input.ProxyA = box2d.MakeProxy(boxVerts, 4, 0)
 		input.ProxyB = box2d.MakeProxy(segVerts, 2, 0)
 		input.TransformA = xf(0, 0, 0.25*math.Pi)
@@ -1131,6 +1160,7 @@ func TestOracleShapeDistance(t *testing.T) {
 		input.UseRadii = false
 
 		var cache box2d.SimplexCache
+
 		out := box2d.ShapeDistance(&input, &cache, nil)
 		require.InDelta(t, 2.0-math.Sqrt2, out.Distance, 1e-9)
 	})
@@ -1149,6 +1179,7 @@ func TestOracleShapeDistance(t *testing.T) {
 		}
 
 		var input box2d.DistanceInput
+
 		input.ProxyA = box2d.MakeProxy(boxVerts, 4, 0)
 		input.ProxyB = box2d.MakeProxy(segVerts, 2, 0)
 		input.TransformA = box2d.TransformIdentity
@@ -1156,6 +1187,7 @@ func TestOracleShapeDistance(t *testing.T) {
 		input.UseRadii = false
 
 		var cache box2d.SimplexCache
+
 		simplexes := make([]box2d.Simplex, 8)
 		out := box2d.ShapeDistance(&input, &cache, simplexes)
 		require.Equal(t, wantSimplexes, out.SimplexCount)
@@ -1185,6 +1217,7 @@ func TestOracleShapeCast(t *testing.T) {
 		// dot((-2,0),(1,0)) = -2, so one advancement lands at
 		// fraction = (1 - 0.005)/2 = 0.4975.
 		var input box2d.ShapeCastPairInput
+
 		input.ProxyA = box2d.MakeProxy(boxVerts, 4, 0)
 		input.ProxyB = box2d.MakeProxy(segVerts, 2, 0)
 		input.TransformA = box2d.TransformIdentity
@@ -1205,6 +1238,7 @@ func TestOracleShapeCast(t *testing.T) {
 		// fraction = (2 - 0.895)/2 = 0.5525; the hit point sits on A's
 		// perimeter at (0.5, 0).
 		var input box2d.ShapeCastPairInput
+
 		input.ProxyA = box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.5)
 		input.ProxyB = box2d.MakeProxy([]box2d.Vec2{{X: 2, Y: 0}}, 1, 0.4)
 		input.TransformA = box2d.TransformIdentity
@@ -1225,6 +1259,7 @@ func TestOracleShapeCast(t *testing.T) {
 		// zero fraction at the midpoint of the two perimeter points
 		// c1 = (0.5,0), c2 = (0.2,0) -> (0.35,0).
 		var input box2d.ShapeCastPairInput
+
 		input.ProxyA = box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.5)
 		input.ProxyB = box2d.MakeProxy([]box2d.Vec2{{X: 0.6, Y: 0}}, 1, 0.4)
 		input.TransformA = box2d.TransformIdentity
@@ -1244,6 +1279,7 @@ func TestOracleShapeCast(t *testing.T) {
 		// 0.6 - 0.005 = 0.595; one advancement of (0.595-0.6)/(-2) gives
 		// fraction = 0.0025 (distance.c:611 canEncroach branch).
 		var input box2d.ShapeCastPairInput
+
 		input.ProxyA = box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.5)
 		input.ProxyB = box2d.MakeProxy([]box2d.Vec2{{X: 0.6, Y: 0}}, 1, 0.4)
 		input.TransformA = box2d.TransformIdentity
@@ -1261,6 +1297,7 @@ func TestOracleShapeCast(t *testing.T) {
 		t.Parallel()
 		// denominator = dot(translation, normal) >= 0 is a miss.
 		var input box2d.ShapeCastPairInput
+
 		input.ProxyA = box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.5)
 		input.ProxyB = box2d.MakeProxy([]box2d.Vec2{{X: 2, Y: 0}}, 1, 0.4)
 		input.TransformA = box2d.TransformIdentity
@@ -1276,6 +1313,7 @@ func TestOracleShapeCast(t *testing.T) {
 		t.Parallel()
 		// First advancement 0.5525 already exceeds maxFraction 0.25.
 		var input box2d.ShapeCastPairInput
+
 		input.ProxyA = box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.5)
 		input.ProxyB = box2d.MakeProxy([]box2d.Vec2{{X: 2, Y: 0}}, 1, 0.4)
 		input.TransformA = box2d.TransformIdentity
@@ -1339,6 +1377,7 @@ func TestOracleTimeOfImpact(t *testing.T) {
 		// exact separation root: gap(t) = 1 - 2t = linearSlop at
 		// t = 0.4975 (distance.c:1140 with target = linearSlop).
 		var input box2d.TOIInput
+
 		input.ProxyA = box2d.MakeProxy(boxVerts, 4, 0)
 		input.ProxyB = box2d.MakeProxy(segVerts, 2, 0)
 		input.SweepA = oracleStaticSweep()
@@ -1356,6 +1395,7 @@ func TestOracleTimeOfImpact(t *testing.T) {
 		// B moves parallel to A staying 1 away: s2 at t=1 stays above
 		// target+tolerance, so the state is separated with fraction tMax.
 		var input box2d.TOIInput
+
 		input.ProxyA = box2d.MakeProxy(boxVerts, 4, 0)
 		input.ProxyB = box2d.MakeProxy(segVerts, 2, 0)
 		input.SweepA = oracleStaticSweep()
@@ -1371,6 +1411,7 @@ func TestOracleTimeOfImpact(t *testing.T) {
 		t.Parallel()
 		// Initial overlap gives up on CCD: state overlapped, fraction 0.
 		var input box2d.TOIInput
+
 		input.ProxyA = box2d.MakeProxy(boxVerts, 4, 0)
 		input.ProxyB = box2d.MakeProxy(boxVerts, 4, 0)
 		input.SweepA = oracleStaticSweep()
@@ -1390,6 +1431,7 @@ func TestOracleTimeOfImpact(t *testing.T) {
 		// target = 0.5 - 0.005 = 0.495, gap(t) = 2 - 2t, root at
 		// t = (2 - 0.495)/2 = 0.7525.
 		var input box2d.TOIInput
+
 		input.ProxyA = box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.25)
 		input.ProxyB = box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.25)
 		input.SweepA = oracleStaticSweep()
@@ -1408,6 +1450,7 @@ func TestOracleTimeOfImpact(t *testing.T) {
 		// c(t): target = 0.25 - 0.005 = 0.245 with radius 0.25 on A:
 		// gap(t) = 1.5 - 2t, root at t = (1.5-0.245)/2 = 0.6275.
 		var input box2d.TOIInput
+
 		input.ProxyA = box2d.MakeProxy([]box2d.Vec2{{X: 0, Y: 0}}, 1, 0.25)
 		input.ProxyB = box2d.MakeProxy([]box2d.Vec2{
 			{X: -0.5, Y: -0.5}, {X: 0.5, Y: -0.5}, {X: 0.5, Y: 0.5}, {X: -0.5, Y: 0.5},
@@ -1430,6 +1473,7 @@ func TestOracleTimeOfImpact(t *testing.T) {
 		// [(2 - 1 - 0.283 - 0.005)/2, (2 - 1 - 0.2 - 0.005)/2]
 		// = [0.356, 0.3975].
 		var input box2d.TOIInput
+
 		input.ProxyA = box2d.MakeProxy(boxVerts, 4, 0)
 		input.ProxyB = box2d.MakeProxy([]box2d.Vec2{
 			{X: -0.2, Y: -0.2}, {X: 0.2, Y: -0.2}, {X: 0.2, Y: 0.2}, {X: -0.2, Y: 0.2},
@@ -1454,6 +1498,7 @@ func TestOracleTimeOfImpact(t *testing.T) {
 		// the s2 > target - tolerance advance branch and the outer loop
 		// declares a hit at fraction 1.
 		var input box2d.TOIInput
+
 		input.ProxyA = box2d.MakeProxy(boxVerts, 4, 0)
 		input.ProxyB = box2d.MakeProxy(segVerts, 2, 0)
 		input.SweepA = oracleStaticSweep()
@@ -1475,14 +1520,17 @@ func TestOracleHullEdgeCases(t *testing.T) {
 
 	t.Run("too few or too many points fail", func(t *testing.T) {
 		t.Parallel()
+
 		h := box2d.ComputeHull([]box2d.Vec2{{X: 0, Y: 0}, {X: 1, Y: 0}})
 		require.Equal(t, 0, h.Count)
 
 		var many []box2d.Vec2
+
 		for i := range 9 {
 			angle := 2.0 * math.Pi * float64(i) / 9.0
 			many = append(many, box2d.Vec2{X: math.Cos(angle), Y: math.Sin(angle)})
 		}
+
 		h = box2d.ComputeHull(many)
 		require.Equal(t, 0, h.Count)
 	})
@@ -1499,6 +1547,7 @@ func TestOracleHullEdgeCases(t *testing.T) {
 
 	t.Run("collinear points fail", func(t *testing.T) {
 		t.Parallel()
+
 		h := box2d.ComputeHull([]box2d.Vec2{
 			{X: 0, Y: 0}, {X: 1, Y: 0}, {X: 2, Y: 0}, {X: 3, Y: 0},
 		})
@@ -1507,6 +1556,7 @@ func TestOracleHullEdgeCases(t *testing.T) {
 
 	t.Run("interior points are dropped", func(t *testing.T) {
 		t.Parallel()
+
 		h := box2d.ComputeHull([]box2d.Vec2{
 			{X: -1, Y: -1}, {X: 1, Y: -1}, {X: 1, Y: 1}, {X: -1, Y: 1},
 			{X: 0, Y: 0}, {X: 0.5, Y: 0.25},
@@ -1517,7 +1567,9 @@ func TestOracleHullEdgeCases(t *testing.T) {
 
 	t.Run("validate rejects bad counts", func(t *testing.T) {
 		t.Parallel()
+
 		var h box2d.Hull
+
 		h.Count = 2
 		require.False(t, box2d.ValidateHull(&h))
 		h.Count = box2d.MaxPolygonVertices + 1
@@ -1529,6 +1581,7 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		// hull.c:273 convexity: every point must be strictly behind every
 		// edge; a clockwise square fails.
 		var h box2d.Hull
+
 		h.Count = 4
 		h.Points[0] = box2d.Vec2{X: -1, Y: -1}
 		h.Points[1] = box2d.Vec2{X: -1, Y: 1}
@@ -1543,6 +1596,7 @@ func TestOracleHullEdgeCases(t *testing.T) {
 		// (0,0)-(1,0)... off the long edge, so the collinearity check at
 		// hull.c:273 rejects it.
 		var h box2d.Hull
+
 		h.Count = 3
 		h.Points[0] = box2d.Vec2{X: 0, Y: 0}
 		h.Points[1] = box2d.Vec2{X: 1, Y: 0}
@@ -1578,6 +1632,7 @@ func TestOracleMakeOffsetRoundedPolygon(t *testing.T) {
 	// like an upstream debug build, so only the release build can reach it.
 	if !buildWithAsserts {
 		var bad box2d.Hull
+
 		fallback := box2d.MakeOffsetRoundedPolygon(&bad, box2d.Vec2{X: 9, Y: 9}, box2d.RotIdentity, 0.5)
 		require.Equal(t, 4, fallback.Count)
 		require.InDelta(t, 0.0, fallback.Radius, 0)
@@ -1648,6 +1703,7 @@ func TestOracleCollideCapsuleAndCircleManifold(t *testing.T) {
 		circle := box2d.Circle{Center: box2d.Vec2{}, Radius: 0.25}
 		m := box2d.CollideCapsuleAndCircle(&capsule, box2d.TransformIdentity, &circle, xf(-0.8, 0.1, 0))
 		require.Equal(t, 1, m.PointCount)
+
 		d := math.Sqrt(0.1)
 		require.InDelta(t, d-0.5, m.Points[0].Separation, 1e-9)
 		requireVec(t, box2d.Vec2{X: -0.3 / d, Y: 0.1 / d}, m.Normal, 1e-9)
@@ -1655,6 +1711,7 @@ func TestOracleCollideCapsuleAndCircleManifold(t *testing.T) {
 
 	t.Run("far circle misses", func(t *testing.T) {
 		t.Parallel()
+
 		circle := box2d.Circle{Center: box2d.Vec2{}, Radius: 0.25}
 		m := box2d.CollideCapsuleAndCircle(&capsule, box2d.TransformIdentity, &circle, xf(0, 1, 0))
 		require.Equal(t, 0, m.PointCount)
@@ -1704,6 +1761,7 @@ func TestOracleCollidePolygonAndCircleManifold(t *testing.T) {
 
 	t.Run("far circle misses", func(t *testing.T) {
 		t.Parallel()
+
 		circle := box2d.Circle{Center: box2d.Vec2{}, Radius: 0.25}
 		m := box2d.CollidePolygonAndCircle(&b, box2d.TransformIdentity, &circle, xf(2, 0, 0))
 		require.Equal(t, 0, m.PointCount)
@@ -1833,6 +1891,7 @@ func TestOracleCollideCapsulesManifold(t *testing.T) {
 
 	t.Run("far apart misses", func(t *testing.T) {
 		t.Parallel()
+
 		a := box2d.Capsule{Center1: box2d.Vec2{X: -1, Y: 0}, Center2: box2d.Vec2{X: 1, Y: 0}, Radius: 0.2}
 		b := box2d.Capsule{Center1: box2d.Vec2{X: -1, Y: 1}, Center2: box2d.Vec2{X: 1, Y: 1}, Radius: 0.2}
 		m := box2d.CollideCapsules(&a, box2d.TransformIdentity, &b, box2d.TransformIdentity)
@@ -1882,9 +1941,11 @@ func TestOracleCollidePolygonsManifold(t *testing.T) {
 		origin := box2d.CollidePolygons(&boxA, box2d.TransformIdentity, &boxB, xf(0.9, 0, 0))
 
 		const d = 1.0e7
+
 		far := box2d.CollidePolygons(&boxA, xf(d, d, 0), &boxB, xf(d+0.9, d, 0))
 		require.Equal(t, origin.PointCount, far.PointCount)
 		requireVec(t, origin.Normal, far.Normal, 1e-4)
+
 		for i := range far.PointCount {
 			require.InDelta(t, origin.Points[i].Separation, far.Points[i].Separation, 1e-4)
 		}
@@ -1908,6 +1969,7 @@ func TestOracleCollidePolygonsManifold(t *testing.T) {
 
 	t.Run("beyond speculative distance misses", func(t *testing.T) {
 		t.Parallel()
+
 		boxA := box2d.MakeBox(0.5, 0.5)
 		boxB := box2d.MakeBox(0.5, 0.5)
 		m := box2d.CollidePolygons(&boxA, box2d.TransformIdentity, &boxB, xf(1.05, 0, 0))
@@ -2010,6 +2072,7 @@ func TestOracleCollideChainSegmentAndCircleVoronoi(t *testing.T) {
 		circle := box2d.Circle{Center: box2d.Vec2{}, Radius: 0.25}
 		m := box2d.CollideChainSegmentAndCircle(&chain, box2d.TransformIdentity, &circle, xf(-1.05, -0.15, 0))
 		require.Equal(t, 1, m.PointCount)
+
 		d := math.Sqrt(0.025)
 		require.InDelta(t, d-0.25, m.Points[0].Separation, 1e-9)
 		requireVec(t, box2d.Vec2{X: -0.05 / d, Y: -0.15 / d}, m.Normal, 1e-9)
@@ -2027,6 +2090,7 @@ func TestOracleCollideChainSegmentAndCircleVoronoi(t *testing.T) {
 		circle := box2d.Circle{Center: box2d.Vec2{}, Radius: 0.25}
 		m := box2d.CollideChainSegmentAndCircle(&chain, box2d.TransformIdentity, &circle, xf(1.05, -0.1, 0))
 		require.Equal(t, 1, m.PointCount)
+
 		d := math.Sqrt(0.0125)
 		require.InDelta(t, d-0.25, m.Points[0].Separation, 1e-9)
 	})
@@ -2075,7 +2139,9 @@ func TestOracleCollideChainSegmentAndPolygonBranches(t *testing.T) {
 		// the box top edge: separations -0.1, normal (0,-1), anchors at
 		// y = 0.05, ids makeID(0,3)=3 and makeID(1,2)=258.
 		b := box2d.MakeSquare(0.4)
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&collinear, box2d.TransformIdentity, &b, xf(0, -0.3, 0), &cache)
 		require.Equal(t, 2, m.PointCount)
 		requireVec(t, box2d.Vec2{X: 0, Y: -1}, m.Normal, 1e-9)
@@ -2092,7 +2158,9 @@ func TestOracleCollideChainSegmentAndPolygonBranches(t *testing.T) {
 		// Box wider than the segment: b2ClipSegments (manifold.c:1184) hits
 		// both lerp branches and clips the contact to x = -1 and x = 1.
 		wide := box2d.MakeBox(2, 0.2)
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&collinear, box2d.TransformIdentity, &wide, xf(0, -0.1, 0), &cache)
 		require.Equal(t, 2, m.PointCount)
 		requireVec(t, box2d.Vec2{X: 0, Y: -1}, m.Normal, 1e-9)
@@ -2104,16 +2172,22 @@ func TestOracleCollideChainSegmentAndPolygonBranches(t *testing.T) {
 
 	t.Run("box behind segment is culled", func(t *testing.T) {
 		t.Parallel()
+
 		b := box2d.MakeSquare(0.4)
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&collinear, box2d.TransformIdentity, &b, xf(0, 0.5, 0), &cache)
 		require.Equal(t, 0, m.PointCount)
 	})
 
 	t.Run("box too far below misses", func(t *testing.T) {
 		t.Parallel()
+
 		b := box2d.MakeSquare(0.4)
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&collinear, box2d.TransformIdentity, &b, xf(0, -1, 0), &cache)
 		require.Equal(t, 0, m.PointCount)
 	})
@@ -2125,7 +2199,9 @@ func TestOracleCollideChainSegmentAndPolygonBranches(t *testing.T) {
 		// manifold.c:1319), then the segment-normal clip is disjoint
 		// (box corner region starts at x=2.01 > upper1=2): no points.
 		b := box2d.MakeSquare(0.1)
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&collinear, box2d.TransformIdentity, &b, xf(1.11, -0.11, 0), &cache)
 		require.Equal(t, 0, m.PointCount)
 	})
@@ -2139,7 +2215,9 @@ func TestOracleCollideChainSegmentAndPolygonBranches(t *testing.T) {
 		chain := collinear
 		chain.Ghost2 = box2d.Vec2{X: 2, Y: 1}
 		b := box2d.MakeSquare(0.1)
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&chain, box2d.TransformIdentity, &b, xf(1.11, -0.11, 0), &cache)
 		require.Equal(t, 1, m.PointCount)
 		requireVec(t, box2d.Vec2{X: invSqrt2, Y: -invSqrt2}, m.Normal, 1e-6)
@@ -2156,7 +2234,9 @@ func TestOracleCollideChainSegmentAndPolygonBranches(t *testing.T) {
 		chain := collinear
 		chain.Ghost2 = box2d.Vec2{X: 2, Y: 1}
 		b := box2d.MakeSquare(0.1)
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&chain, box2d.TransformIdentity, &b, xf(1.116, -0.104, 0), &cache)
 		require.Equal(t, 0, m.PointCount)
 	})
@@ -2169,7 +2249,9 @@ func TestOracleCollideChainSegmentAndPolygonBranches(t *testing.T) {
 		chain := collinear
 		chain.Ghost1 = box2d.Vec2{X: -2, Y: 1}
 		b := box2d.MakeSquare(0.1)
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&chain, box2d.TransformIdentity, &b, xf(-1.11, -0.11, 0), &cache)
 		require.Equal(t, 1, m.PointCount)
 		requireVec(t, box2d.Vec2{X: -invSqrt2, Y: -invSqrt2}, m.Normal, 1e-6)
@@ -2186,6 +2268,7 @@ func TestOracleCollideChainSegmentAndPolygonBranches(t *testing.T) {
 		// segment normal: points at (-0.3,-0.155) and (0,-0.005) with
 		// separations 0.31 and 0.01, ids makeID(0,2)=2, makeID(1,1)=257.
 		var diamond box2d.Polygon
+
 		diamond.Count = 4
 		diamond.Radius = 0
 		diamond.Vertices[0] = box2d.Vec2{X: 0.3, Y: -0.31}
@@ -2199,6 +2282,7 @@ func TestOracleCollideChainSegmentAndPolygonBranches(t *testing.T) {
 		diamond.Centroid = box2d.Vec2{X: 0, Y: -0.31}
 
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&collinear, box2d.TransformIdentity, &diamond, box2d.TransformIdentity, &cache)
 		require.Equal(t, 2, m.PointCount)
 		requireVec(t, box2d.Vec2{X: 0, Y: -1}, m.Normal, 1e-9)
@@ -2229,7 +2313,9 @@ func TestOracleCollideChainSegmentAndPolygonBranches(t *testing.T) {
 		chain := collinear
 		chain.Ghost2 = box2d.Vec2{X: 2, Y: 1}
 		face := box2d.MakeOffsetBox(0.3, 0.1, box2d.Vec2{X: 1.15, Y: -0.11}, box2d.MakeRot(0.02))
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&chain, box2d.TransformIdentity, &face, box2d.TransformIdentity, &cache)
 		require.Equal(t, 2, m.PointCount)
 		requireVec(t, box2d.Vec2{X: math.Sin(0.02), Y: -math.Cos(0.02)}, m.Normal, 5e-4)
@@ -2250,7 +2336,9 @@ func TestOracleCollideChainSegmentAndPolygonBranches(t *testing.T) {
 		chain := collinear
 		chain.Ghost1 = box2d.Vec2{X: -2, Y: 1}
 		face := box2d.MakeOffsetBox(0.3, 0.1, box2d.Vec2{X: -1.15, Y: -0.11}, box2d.MakeRot(-0.02))
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&chain, box2d.TransformIdentity, &face, box2d.TransformIdentity, &cache)
 		require.Equal(t, 2, m.PointCount)
 		requireVec(t, box2d.Vec2{X: -math.Sin(0.02), Y: -math.Cos(0.02)}, m.Normal, 5e-4)
@@ -2269,7 +2357,9 @@ func TestOracleCollideChainSegmentAndPolygonBranches(t *testing.T) {
 		chain := collinear
 		chain.Ghost2 = box2d.Vec2{X: 2, Y: 0.012}
 		face := box2d.MakeOffsetBox(0.3, 0.1, box2d.Vec2{X: 1.15, Y: -0.11}, box2d.MakeRot(0.03))
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndPolygon(&chain, box2d.TransformIdentity, &face, box2d.TransformIdentity, &cache)
 		require.Equal(t, 0, m.PointCount)
 	})
@@ -2284,7 +2374,9 @@ func TestOracleCollideChainSegmentAndPolygonBranches(t *testing.T) {
 			Center2: box2d.Vec2{X: 0.4, Y: -0.05},
 			Radius:  0.15,
 		}
+
 		var cache box2d.SimplexCache
+
 		m := box2d.CollideChainSegmentAndCapsule(&collinear, box2d.TransformIdentity, &capsule, box2d.TransformIdentity, &cache)
 		require.Equal(t, 2, m.PointCount)
 		requireVec(t, box2d.Vec2{X: 0, Y: -1}, m.Normal, 1e-9)
@@ -2435,6 +2527,7 @@ func oracleChainFloorWorld(t *testing.T) *box2d.World {
 		{X: 4, Y: 0}, {X: 2, Y: 0}, {X: -2, Y: 0}, {X: -4, Y: 0},
 	}
 	w.CreateChain(ground, &cd)
+
 	return w
 }
 
@@ -2463,6 +2556,7 @@ func TestOracleChainSegmentCapsuleWorldContact(t *testing.T) {
 	// Resting height: chain surface y=0 plus the capsule radius.
 	pos := w.BodyPosition(body)
 	vel := w.BodyLinearVelocity(body)
+
 	require.InDelta(t, 0.25, pos.Y, 0.015, "capsule rests on the chain")
 	require.Less(t, math.Abs(vel.Y), 0.05)
 }
@@ -2487,6 +2581,7 @@ func TestOracleChainSegmentPolygonWorldContact(t *testing.T) {
 
 	pos := w.BodyPosition(body)
 	vel := w.BodyLinearVelocity(body)
+
 	require.InDelta(t, 0.25, pos.Y, 0.015, "box rests on the chain")
 	require.Less(t, math.Abs(vel.Y), 0.05)
 }

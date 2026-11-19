@@ -100,6 +100,7 @@ func sensorQueryCallback(proxyID int, userData uint64, context any) bool {
 
 	queryContext, ok := context.(*sensorQueryContext)
 	assert(ok)
+
 	if !ok {
 		return false
 	}
@@ -138,6 +139,7 @@ func sensorQueryCallback(proxyID int, userData uint64, context any) bool {
 				world0:     world.worldID,
 				generation: sensorShape.generation,
 			}
+
 			idB := ShapeID{
 				index1:     int32(shapeID + 1),
 				world0:     world.worldID,
@@ -152,6 +154,7 @@ func sensorQueryCallback(proxyID int, userData uint64, context any) bool {
 	otherTransform := world.getBodyTransform(otherShape.bodyID)
 
 	var input DistanceInput
+
 	input.ProxyA = makeShapeDistanceProxy(sensorShape)
 	input.ProxyB = makeShapeDistanceProxy(otherShape)
 	input.TransformA = queryContext.transform
@@ -159,6 +162,7 @@ func sensorQueryCallback(proxyID int, userData uint64, context any) bool {
 	input.UseRadii = true
 
 	var cache SimplexCache
+
 	output := ShapeDistance(&input, &cache, nil)
 
 	overlaps := output.Distance < 10.0*epsilon
@@ -241,6 +245,7 @@ func (w *World) sensorTask(startIndex, endIndex, workerIndex int) {
 		// Remove duplicates from overlaps2 (sorted). Duplicates are possible
 		// due to the hit events appended earlier.
 		uniqueCount := 0
+
 		overlapData := sen.overlaps2
 		for i := range overlapData {
 			if uniqueCount == 0 || overlapData[i].shapeID != overlapData[uniqueCount-1].shapeID {
@@ -248,9 +253,11 @@ func (w *World) sensorTask(startIndex, endIndex, workerIndex int) {
 				uniqueCount++
 			}
 		}
+
 		sen.overlaps2 = overlapData[:uniqueCount]
 
 		count1 := len(sen.overlaps1)
+
 		count2 := len(sen.overlaps2)
 		if count1 != count2 {
 			// something changed
@@ -330,19 +337,23 @@ func (w *World) publishSensorEvents(sensorIndex int) {
 			if r1.shapeID < r2.shapeID {
 				// end
 				w.pushSensorEndEvent(sensorID, r1)
+
 				index1++
 			} else {
 				// begin
 				w.pushSensorBeginEvent(sensorID, r2)
+
 				index2++
 			}
 		case r1.generation < r2.generation:
 			// end
 			w.pushSensorEndEvent(sensorID, r1)
+
 			index1++
 		case r1.generation > r2.generation:
 			// begin
 			w.pushSensorBeginEvent(sensorID, r2)
+
 			index2++
 		default:
 			// persisted

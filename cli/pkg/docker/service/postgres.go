@@ -17,6 +17,7 @@ func ProjectDBService(cfg *Config) Service {
 	project := cfg.WorldToml.Project
 	name := ProjectDBContainerName(project)
 	tcp := network.MustParsePort(strconv.Itoa(defaultConfigDBPort) + "/tcp")
+
 	return Service{
 		Name:  name,
 		Image: projectDBImage,

@@ -41,9 +41,11 @@ func TestPoolWorkerRangeProperties(t *testing.T) {
 					t.Fatalf("workerRange(%d, %d, %d) start=%d, want %d (contiguous ascending)",
 						n, workerCount, k, start, prevEnd)
 				}
+
 				if end < start || end > n {
 					t.Fatalf("workerRange(%d, %d, %d) = [%d, %d): invalid range", n, workerCount, k, start, end)
 				}
+
 				if start == end {
 					sawEmpty = true
 				} else if sawEmpty {
@@ -100,6 +102,7 @@ func TestPoolForRangeWorkersProperties(t *testing.T) {
 // production dispatches never share state between workers.
 func forRangeProbe(p *workerPool, n, grain int) map[int]bool {
 	var mu sync.Mutex
+
 	seen := make(map[int]bool)
 
 	p.forRange(n, grain, func(workerIndex, startIndex, endIndex int) {
@@ -177,6 +180,7 @@ func TestGoexitSelfHealRespawnsWorker(t *testing.T) {
 		recovered any
 		seen      map[int]bool
 	}
+
 	resultCh := make(chan outcome, 1)
 
 	go func() {
@@ -199,7 +203,9 @@ func TestGoexitSelfHealRespawnsWorker(t *testing.T) {
 		// Second dispatch on the SAME pool: it only completes if the respawned
 		// worker goroutine serves, which is exactly the self-heal contract.
 		var mu sync.Mutex
+
 		result.seen = make(map[int]bool)
+
 		pool.forRange(400, 100, func(workerIndex, startIndex, endIndex int) {
 			mu.Lock()
 			result.seen[workerIndex] = true
@@ -224,10 +230,12 @@ func TestGoexitSelfHealRespawnsWorker(t *testing.T) {
 	}
 
 	closed := make(chan struct{})
+
 	go func() {
 		pool.close()
 		close(closed)
 	}()
+
 	select {
 	case <-closed:
 	case <-time.After(30 * time.Second):
@@ -237,8 +245,10 @@ func TestGoexitSelfHealRespawnsWorker(t *testing.T) {
 	// A fresh parallel world stays healthy end to end.
 	def := DefaultWorldDef()
 	def.WorkerCount = 4
+
 	w := NewWorld(&def)
 	defer w.Destroy()
+
 	for range 3 {
 		w.Step(1.0/60.0, 4)
 	}

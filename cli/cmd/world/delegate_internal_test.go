@@ -13,6 +13,7 @@ func TestProjectPinsOtherCLI(t *testing.T) {
 	t.Parallel()
 
 	const tool = "\ntool github.com/argus-labs/world-engine/cli/cmd/world\n"
+
 	tests := []struct {
 		name  string
 		goMod string // "" writes no go.mod
@@ -40,10 +41,12 @@ func TestProjectPinsOtherCLI(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			dir := t.TempDir()
 			if tt.goMod != "" {
 				require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(tt.goMod), 0o600))
 			}
+
 			sub := filepath.Join(dir, "shards", "game")
 			require.NoError(t, os.MkdirAll(sub, 0o755))
 

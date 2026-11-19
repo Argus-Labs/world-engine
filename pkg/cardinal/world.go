@@ -64,9 +64,11 @@ func NewWorld(opts WorldOptions) (*World, error) {
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to load world options env vars")
 	}
+
 	options := newDefaultWorldOptions()
 	options.apply(envs.toOptions())
 	options.apply(opts)
+
 	if err := options.validate(); err != nil {
 		return nil, eris.Wrap(err, "invalid world options")
 	}
@@ -127,6 +129,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		if err != nil {
 			return nil, eris.Wrap(err, "failed to create jetstream snapshot storage")
 		}
+
 		world.snapshotStorage = snapshotJS
 	case snapshot.StorageTypeS3:
 		snapshotS3, err := snapshot.NewS3Storage(snapshot.S3StorageOptions{
@@ -136,6 +139,7 @@ func NewWorld(opts WorldOptions) (*World, error) {
 		if err != nil {
 			return nil, eris.Wrap(err, "failed to create S3 snapshot storage")
 		}
+
 		world.snapshotStorage = snapshotS3
 	case snapshot.StorageTypeNop:
 		world.snapshotStorage = snapshot.NewNopStorage()
@@ -188,6 +192,7 @@ func (w *World) run(ctx context.Context) error {
 	if err := w.restore(ctx); err != nil {
 		return eris.Wrap(err, "failed to restore state from snapshot")
 	}
+
 	logger := w.tel.GetLogger("shard")
 	logger.Info().Msg("starting core shard loop")
 
@@ -207,6 +212,7 @@ func (w *World) run(ctx context.Context) error {
 			}
 		case replyCh := <-w.debug.pauseChan():
 			w.debug.setPaused(true)
+
 			replyCh <- w.currentTick.height
 		case <-w.debug.resumeChan():
 			if w.debug.isPaused() {
@@ -217,14 +223,18 @@ func (w *World) run(ctx context.Context) error {
 				close(replyCh)
 				continue
 			}
+
 			w.Tick(time.Now())
+
 			replyCh <- w.currentTick.height
 		case replyCh := <-w.debug.resetChan():
 			if !w.debug.isPaused() {
 				close(replyCh)
 				continue
 			}
+
 			w.reset()
+
 			replyCh <- struct{}{}
 		case <-ctx.Done():
 			// Capture only on normal shutdown, between ticks. A defer would also capture
@@ -234,6 +244,7 @@ func (w *World) run(ctx context.Context) error {
 				label := w.currentTick.height - 1
 				w.snapshotWriter.Write(label, w.encodeSnapshot(label, time.Now()))
 			}
+
 			return ctx.Err()
 		}
 	}
@@ -247,8 +258,10 @@ func (w *World) init() {
 	defer span.End()
 
 	prevCtx := w.traceCtx
+
 	w.traceCtx = ctx
 	defer func() { w.traceCtx = prevCtx }()
+
 	w.started = true // Closes registration before the first system runs; never reopened by reset.
 	w.world.Init()
 }
@@ -278,14 +291,18 @@ func (w *World) step(timestamp time.Time, run func()) {
 	// exported, so a link to it would dangle; skipping it also skips the zero SpanContext of an
 	// untraced caller. Nil when no command qualifies, so an untraced tick pays no allocation here.
 	maxCommandLinks := w.tel.MaxCommandLinks()
+
 	var links []oteltrace.Link
+
 	for _, cmd := range commands {
 		if !cmd.Span.IsSampled() {
 			continue
 		}
+
 		if len(links) == maxCommandLinks {
 			break
 		}
+
 		links = append(links, oteltrace.Link{SpanContext: cmd.Span, Attributes: []attribute.KeyValue{
 			attrCommandName.String(cmd.Name), attrCommandSender.String(cmd.Sender.ID())}})
 	}
@@ -296,7 +313,9 @@ func (w *World) step(timestamp time.Time, run func()) {
 			attrTickCommands.Int(len(commands))),
 		oteltrace.WithLinks(links...))
 	defer span.End()
+
 	prevCtx := w.traceCtx
+
 	w.traceCtx = ctx
 	defer func() { w.traceCtx = prevCtx }()
 
@@ -342,10 +361,12 @@ func (w *World) step(timestamp time.Time, run func()) {
 func (w *World) dispatchEvents(ctx context.Context) {
 	ctx, span := trace.New(ctx, spanEventDispatch)
 	defer span.End()
+
 	if err := w.events.Dispatch(ctx); err != nil {
 		span.SetError(err)
 		w.tel.Logger.Warn().Err(err).Msg("errors encountered dispatching events")
 	}
+
 	w.service.drainInterShardCommands()
 }
 
@@ -361,10 +382,12 @@ func (w *World) encodeSnapshot(tick uint64, timestamp time.Time) []byte {
 	if err != nil {
 		panic(err)
 	}
+
 	data, err := snapshot.Encode(tick, timestamp, state)
 	if err != nil {
 		panic(err)
 	}
+
 	return data
 }
 
@@ -375,12 +398,14 @@ func (w *World) restore(ctx context.Context) (err error) {
 	logger := w.tel.GetLogger("snapshot")
 
 	logger.Debug().Msg("restoring from snapshot")
+
 	data, err := w.snapshotStorage.Load(ctx)
 	if err != nil {
 		if eris.Is(err, snapshot.ErrSnapshotNotFound) {
 			logger.Debug().Msg("no snapshot found")
 			return nil
 		}
+
 		return eris.Wrap(err, "failed to load snapshot")
 	}
 
@@ -399,6 +424,7 @@ func (w *World) restore(ctx context.Context) (err error) {
 
 	// Publish the restored state for GetState; a no-op when the debug service is disabled.
 	w.debug.publishState(data)
+
 	return nil
 }
 
@@ -415,6 +441,7 @@ func (w *World) shutdown() {
 		w.tel.Logger.Error().Err(err).
 			Msg("snapshot writes did not finish before shutdown; the last snapshot of this run may be lost")
 	}
+
 	w.snapshotWriter.Stop(ctx)
 
 	// Drain queued commands and events.
@@ -460,6 +487,7 @@ func (w *World) useSyncSnapshotStorage(store snapshot.Storage) {
 	if w.snapshotWriter != nil {
 		w.snapshotWriter.Stop(context.Background())
 	}
+
 	w.snapshotStorage = store
 	w.snapshotWriter = snapshot.NewSyncWriter(store, w.tel.GetLogger("snapshot"))
 }
@@ -479,6 +507,7 @@ func (w *World) RegisterPlugin(plugin Plugin) {
 	if w.started {
 		panic(ErrWorldStarted)
 	}
+
 	plugin.Register(w)
 }
 
@@ -498,10 +527,12 @@ func (w *World) RegisterSystem(s System, opts ...SystemOption) {
 	if v := reflect.ValueOf(s); s == nil || (v.Kind() == reflect.Pointer && v.IsNil()) {
 		panic(eris.Errorf("system %T is nil; register a constructed instance", s))
 	}
+
 	cfg := systemConfig{phase: Update}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
+
 	name := fmt.Sprintf("%T", s)
 	phaseName := phaseToProto(cfg.phase).String()
 
@@ -521,10 +552,12 @@ func (w *World) RegisterSystem(s System, opts ...SystemOption) {
 func (w *World) runSystem(s System, name string, attrs oteltrace.SpanStartEventOption) {
 	if tickCtx := w.traceCtx; oteltrace.SpanFromContext(tickCtx).IsRecording() {
 		ctx, span := trace.New(tickCtx, name, attrs)
+
 		w.traceCtx = ctx
 		defer func() { w.traceCtx = tickCtx }()
 		defer span.End()
 	}
+
 	s.Run(w)
 }
 
@@ -572,15 +605,19 @@ func (w *World) RegisterCommand[T Command]() {
 	if w.started {
 		panic(ErrWorldStarted)
 	}
+
 	var zero T
+
 	name := zero.Name()
 
 	if _, err := w.commands.Register(name, command.NewQueue[T]()); err != nil {
 		panic(eris.Wrapf(err, "failed to register command %s", name))
 	}
+
 	if err := w.debug.register(introspect.Command, zero); err != nil {
 		panic(eris.Wrapf(err, "failed to register command to debug module %s", name))
 	}
+
 	w.service.registerCommandHandler(name)
 	w.metrics.registerCommand(name)
 }
@@ -591,10 +628,12 @@ func (w *World) RegisterCommand[T Command]() {
 // release builds instead of reading another command's queue.
 func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 	var zero T
+
 	id, ok := w.commands.Lookup(zero.Name())
 	if !ok {
 		panic(eris.Errorf("command %s is not registered; call RegisterCommand before StartGame", zero.Name()))
 	}
+
 	commands, err := w.commands.Get(id)
 	assert.That(err == nil, "command %s has no queue", zero.Name())
 
@@ -604,6 +643,7 @@ func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 			// semantics, no pointer: Serializable is satisfied by the value type.
 			payload, isT := cmd.Payload.(T)
 			assert.That(isT, "mismatched command type passed to command context")
+
 			if !yield(CommandContext[T]{Payload: payload, sender: cmd.Sender}) {
 				return
 			}
@@ -648,13 +688,16 @@ func (w *World) RegisterEvent[T Event]() {
 	if w.started {
 		panic(ErrWorldStarted)
 	}
+
 	var zero T
 	if err := w.debug.register(introspect.Event, zero); err != nil {
 		panic(eris.Wrapf(err, "failed to register event to debug module %s", zero.Name()))
 	}
+
 	if w.eventTypes == nil {
 		w.eventTypes = make(map[reflect.Type][]metric.AddOption)
 	}
+
 	w.eventTypes[reflect.TypeFor[T]()] = addOptions(attrEventType.String(fmt.Sprintf("%T", zero)))
 }
 
@@ -667,6 +710,7 @@ func (w *World) registeredEvent[T Event]() []metric.AddOption {
 	if !ok {
 		panic(eris.Errorf("event %T is not registered; call RegisterEvent before StartGame", *new(T)))
 	}
+
 	return attrs
 }
 
@@ -693,6 +737,7 @@ func (w *World) Broadcast[T Event](evt T) {
 //	}
 func (w *World) SendTo[T Event](recipient string, evt T) {
 	assert.That(recipient != "", "recipient must not be empty (use Broadcast for fan-out)")
+
 	attrs := w.registeredEvent[T]()
 	w.events.Enqueue(event.Event{
 		Kind:      event.KindDefault,
@@ -733,6 +778,7 @@ func (w *World) RegisterSystemEvent[T ecs.SystemEvent]() {
 	if w.started {
 		panic(ErrWorldStarted)
 	}
+
 	var zero T
 	if _, err := w.world.RegisterSystemEvent[T](); err != nil {
 		panic(eris.Wrapf(err, "failed to register system event %s", zero.Name()))
@@ -765,6 +811,7 @@ func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
 		panic(eris.Wrapf(err, "system event %T is not registered; call RegisterSystemEvent before StartGame",
 			systemEvent))
 	}
+
 	if w.systemEventTap != nil {
 		w.systemEventTap(systemEvent)
 	}
@@ -797,6 +844,7 @@ func (w *World) RegisterComponent[T ecs.Component]() {
 	if w.started {
 		panic(ErrWorldStarted)
 	}
+
 	if _, err := w.world.RegisterComponent[T](); err != nil {
 		panic(eris.Wrapf(err, "failed to register component %T", *new(T)))
 	}
@@ -810,29 +858,37 @@ func (w *World) archetype[T any]() (bitmap.Bitmap, error) {
 	if components, ok := w.archetypes[typ]; ok {
 		return components, nil
 	}
+
 	if typ.Kind() != reflect.Struct {
 		return nil, eris.Errorf("entity archetype must be a struct, got %v", typ)
 	}
+
 	var components bitmap.Bitmap
 	// Ranging over typ.Fields() heap-allocates on every call, cache hits included
 	// (TestEntity_SteadyStateAllocations).
 	for i := range typ.NumField() { //nolint:modernize // see above
 		field := typ.Field(i)
+
 		component, ok := reflect.TypeAssert[ecs.Component](reflect.Zero(field.Type))
 		if !ok || field.Type.Kind() != reflect.Struct {
 			return nil, eris.Errorf("field %s of archetype %v must be a component struct, got %v",
 				field.Name, typ, field.Type)
 		}
+
 		id, err := w.world.ComponentIDOf(component)
 		if err != nil {
 			return nil, eris.Wrapf(err, "cannot resolve component field %s of archetype %v", field.Name, typ)
 		}
+
 		components.Set(id)
 	}
+
 	if w.archetypes == nil {
 		w.archetypes = make(map[reflect.Type]bitmap.Bitmap)
 	}
+
 	w.archetypes[typ] = components
+
 	return components, nil
 }
 
@@ -854,6 +910,7 @@ func (w *World) Create[T any]() Entity {
 	if err != nil {
 		panic(err)
 	}
+
 	return w.Entity(w.world.CreateWithArchetype(components))
 }
 
@@ -880,5 +937,6 @@ func (w *World) search[T any](match ecs.SearchMatch) Search {
 	if err != nil {
 		panic(err)
 	}
+
 	return Search{world: w.world, components: components, match: match}
 }

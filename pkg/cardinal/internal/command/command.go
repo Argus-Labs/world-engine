@@ -51,6 +51,7 @@ func (s Sender) Player() (string, bool) {
 	if s.shard {
 		return "", false
 	}
+
 	return s.id, s.id != ""
 }
 
@@ -59,6 +60,7 @@ func (s Sender) Shard() (string, bool) {
 	if !s.shard {
 		return "", false
 	}
+
 	return s.id, true
 }
 
@@ -145,10 +147,12 @@ func (m *Manager) Enqueue(ctx context.Context, command *iscv1.Command, sender Se
 	// If this is determined to be a bottleneck in the future, do what callers of Get do and store the
 	// ID of the command in the caller, so we can do a direct index with Enqueue(id, command).
 	name := command.GetName()
+
 	id, exists := m.catalog[name]
 	if !exists {
 		return eris.Errorf("unregistered command: %s", name)
 	}
+
 	return m.queues[id].Enqueue(ctx, command, sender)
 }
 
@@ -160,6 +164,7 @@ func (m *Manager) Get(id ID) ([]Command, error) {
 	if id >= m.nextID {
 		return nil, eris.Errorf("unregistered command id: %d", id)
 	}
+
 	return m.commands[id], nil
 }
 
@@ -183,6 +188,7 @@ func (m *Manager) Drain() []Command {
 		queue.Drain(&m.commands[id])
 		all = append(all, m.commands[id]...)
 	}
+
 	return all
 }
 
@@ -208,5 +214,6 @@ func (m *Manager) Names() []string {
 func (m *Manager) Zero(name string) Payload {
 	id, exists := m.catalog[name]
 	assert.That(exists, "command doesn't exist")
+
 	return m.queues[id].Zero()
 }

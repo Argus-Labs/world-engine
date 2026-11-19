@@ -15,10 +15,12 @@ import (
 // for counter-clockwise winding.
 func signedArea(h box2d.Hull) float64 {
 	total := 0.0
+
 	for i := 0; i < h.Count; i++ {
 		j := (i + 1) % h.Count
 		total += box2d.Cross(h.Points[i], h.Points[j])
 	}
+
 	return total
 }
 
@@ -111,28 +113,33 @@ func TestHullDegenerateInput(t *testing.T) {
 
 	t.Run("no points", func(t *testing.T) {
 		t.Parallel()
+
 		hull := box2d.ComputeHull(nil)
 		assert.Zero(t, hull.Count)
 	})
 
 	t.Run("two points", func(t *testing.T) {
 		t.Parallel()
+
 		hull := box2d.ComputeHull([]box2d.Vec2{{X: 0, Y: 0}, {X: 1, Y: 1}})
 		assert.Zero(t, hull.Count)
 	})
 
 	t.Run("too many points", func(t *testing.T) {
 		t.Parallel()
+
 		points := make([]box2d.Vec2, box2d.MaxPolygonVertices+1)
 		for i := range points {
 			points[i] = box2d.Vec2{X: float64(i), Y: float64(i * i)}
 		}
+
 		hull := box2d.ComputeHull(points)
 		assert.Zero(t, hull.Count)
 	})
 
 	t.Run("all points welded together", func(t *testing.T) {
 		t.Parallel()
+
 		hull := box2d.ComputeHull([]box2d.Vec2{
 			{X: 0, Y: 0}, {X: 1e-4, Y: 0}, {X: 0, Y: 1e-4},
 		})
@@ -145,6 +152,7 @@ func TestHullValidate(t *testing.T) {
 
 	t.Run("good hull", func(t *testing.T) {
 		t.Parallel()
+
 		hull := box2d.ComputeHull([]box2d.Vec2{
 			{X: -1, Y: -1}, {X: 1, Y: -1}, {X: 1, Y: 1}, {X: -1, Y: 1},
 		})
@@ -153,6 +161,7 @@ func TestHullValidate(t *testing.T) {
 
 	t.Run("too few points", func(t *testing.T) {
 		t.Parallel()
+
 		hull := box2d.Hull{Count: 2}
 		hull.Points[0] = box2d.Vec2{X: 0, Y: 0}
 		hull.Points[1] = box2d.Vec2{X: 1, Y: 0}
@@ -161,12 +170,14 @@ func TestHullValidate(t *testing.T) {
 
 	t.Run("too many points", func(t *testing.T) {
 		t.Parallel()
+
 		hull := box2d.Hull{Count: box2d.MaxPolygonVertices + 1}
 		assert.False(t, box2d.ValidateHull(&hull))
 	})
 
 	t.Run("clockwise winding", func(t *testing.T) {
 		t.Parallel()
+
 		hull := box2d.Hull{Count: 4}
 		hull.Points[0] = box2d.Vec2{X: -1, Y: -1}
 		hull.Points[1] = box2d.Vec2{X: -1, Y: 1}
@@ -177,6 +188,7 @@ func TestHullValidate(t *testing.T) {
 
 	t.Run("collinear points", func(t *testing.T) {
 		t.Parallel()
+
 		hull := box2d.Hull{Count: 4}
 		hull.Points[0] = box2d.Vec2{X: -1, Y: -1}
 		hull.Points[1] = box2d.Vec2{X: 0, Y: -1}
@@ -187,6 +199,7 @@ func TestHullValidate(t *testing.T) {
 
 	t.Run("non-convex", func(t *testing.T) {
 		t.Parallel()
+
 		hull := box2d.Hull{Count: 4}
 		hull.Points[0] = box2d.Vec2{X: -1, Y: -1}
 		hull.Points[1] = box2d.Vec2{X: 1, Y: -1}

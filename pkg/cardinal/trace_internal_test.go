@@ -26,14 +26,17 @@ import (
 // test and returns it. Tests that call it must not run in parallel.
 func newRecordingTracer(t *testing.T) *tracetest.InMemoryExporter {
 	t.Helper()
+
 	exporter := tracetest.NewInMemoryExporter()
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
 	previous := otel.GetTracerProvider()
+
 	otel.SetTracerProvider(provider)
 	t.Cleanup(func() {
 		otel.SetTracerProvider(previous)
 		require.NoError(t, provider.Shutdown(context.Background()))
 	})
+
 	return exporter
 }
 
@@ -42,6 +45,7 @@ func spansByName(exporter *tracetest.InMemoryExporter) map[string]tracetest.Span
 	for _, s := range exporter.GetSpans() {
 		byName[s.Name] = s
 	}
+
 	return byName
 }
 
@@ -92,6 +96,7 @@ func TestTickEmitsSpans(t *testing.T) {
 		require.True(t, ok, "missing span %s", name)
 		require.Equal(t, tick.SpanContext.SpanID(), child.Parent.SpanID(), "%s is a child of the tick", name)
 	}
+
 	require.Contains(t, byName[systemSpan].Attributes, attrSystemName.String(systemSpan))
 	require.Contains(t, byName[systemSpan].Attributes, attrSystemHook.String("SYSTEM_HOOK_POST_UPDATE"))
 	require.Contains(t, byName[spanPersistState].Attributes, attrSnapshotDue.Bool(true))
@@ -123,7 +128,9 @@ func TestSystemContextNestsGameSpansAndLogs(t *testing.T) {
 		Debug:               &off,
 	})
 	require.NoError(t, err)
+
 	var logs bytes.Buffer
+
 	w.tel.Logger = zerolog.New(&logs)
 	exporter := newRecordingTracer(t)
 
@@ -135,10 +142,12 @@ func TestSystemContextNestsGameSpansAndLogs(t *testing.T) {
 	w.Tick(time.Now())
 
 	byName := spansByName(exporter)
+
 	tick, gameSystem, game := byName[spanTick], byName["*cardinal.gameSpanSystem"], byName["game.pathfind"]
 	for _, name := range []string{"*cardinal.gameSpanSystem", "*cardinal.tracedSystem"} {
 		require.Equal(t, tick.SpanContext.SpanID(), byName[name].Parent.SpanID(), "%s is a child of the tick", name)
 	}
+
 	require.Equal(t, gameSystem.SpanContext.SpanID(), game.Parent.SpanID(), "game span nests under its system")
 	require.Equal(t, tick.SpanContext.TraceID(), game.SpanContext.TraceID())
 
@@ -269,6 +278,7 @@ func TestTickSkipsLinksToUnsampledRequests(t *testing.T) {
 func TestInterShardCommandPropagatesTrace(t *testing.T) {
 	// telemetry.New installs this in production; service fixtures skip it.
 	previousPropagator := otel.GetTextMapPropagator()
+
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 	t.Cleanup(func() { otel.SetTextMapPropagator(previousPropagator) })
 	prng := testutils.NewRand(t)
@@ -289,10 +299,14 @@ func TestInterShardCommandPropagatesTrace(t *testing.T) {
 	fixtureA.svc.drainInterShardCommands() // what the tick does after dispatch
 
 	cmds := awaitCommands(t, fixtureB)
+
 	var send tracetest.SpanStub
+
 	require.Eventually(t, func() bool {
 		var ok bool
+
 		send, ok = spansByName(exporter)[spanInterShardSend]
+
 		return ok
 	}, 5*time.Second, 10*time.Millisecond, "missing inter-shard send span")
 	require.Contains(t, send.Attributes, attrCommandTarget.String(micro.String(fixtureB.world.address)))
@@ -321,10 +335,12 @@ func TestEventPublishSpanRecordsError(t *testing.T) {
 	publish, ok := spansByName(exporter)[spanEventPublish]
 	require.True(t, ok, "publish span was not ended")
 	require.Contains(t, publish.Attributes, attrEventName.String(testutils.SimpleEvent{}.Name()))
+
 	eventNames := make([]string, 0, len(publish.Events))
 	for _, e := range publish.Events {
 		eventNames = append(eventNames, e.Name)
 	}
+
 	require.Contains(t, eventNames, "exception")
 }
 
@@ -352,6 +368,7 @@ func TestTickCapsCommandLinks(t *testing.T) {
 	w.init()
 
 	total := 128 + 5
+
 	requestCtx, requestSpan := otel.Tracer("test").Start(context.Background(), "request")
 	for i := range total {
 		require.NoError(t, w.commands.Enqueue(requestCtx, &iscv1.Command{
@@ -360,6 +377,7 @@ func TestTickCapsCommandLinks(t *testing.T) {
 			Payload: testutils.SimpleCommand{Value: i}.MarshalWire(),
 		}, command.PlayerSender("player-1")))
 	}
+
 	requestSpan.End()
 	exporter.Reset()
 
@@ -378,7 +396,9 @@ func TestTickCapsCommandLinks(t *testing.T) {
 // must already be installed so the spans carry sampled SpanContexts.
 func enqueueDistinctSampledCommands(t *testing.T, w *World, n int) []oteltrace.SpanContext {
 	t.Helper()
+
 	tr := otel.Tracer("test")
+
 	scs := make([]oteltrace.SpanContext, n)
 	for i := range n {
 		ctx, span := tr.Start(context.Background(), "request")
@@ -391,16 +411,19 @@ func enqueueDistinctSampledCommands(t *testing.T, w *World, n int) []oteltrace.S
 		}, command.PlayerSender("player-1")))
 		span.End()
 	}
+
 	return scs
 }
 
 // keptLinkSpanIDs returns the set of SpanIDs the tick span linked to.
 func keptLinkSpanIDs(t *testing.T, span tracetest.SpanStub) map[oteltrace.SpanID]struct{} {
 	t.Helper()
+
 	ids := make(map[oteltrace.SpanID]struct{}, len(span.Links))
 	for _, l := range span.Links {
 		ids[l.SpanContext.SpanID()] = struct{}{}
 	}
+
 	return ids
 }
 
@@ -413,7 +436,8 @@ func keptLinkSpanIDs(t *testing.T, span tracetest.SpanStub) map[oteltrace.SpanID
 // This is the combined regime from the bug report: linkLimit < 128 AND numCommands > 128, the only
 // regime where the old hardcoded cap changed the kept set versus a no-cap baseline.
 func TestTickCapMatchesEnvLinkLimitBelowDefault(t *testing.T) {
-	const linkLimit = 64    // OTEL_SPAN_LINK_COUNT_LIMIT, below the former hardcoded cap of 128.
+	const linkLimit = 64 // OTEL_SPAN_LINK_COUNT_LIMIT, below the former hardcoded cap of 128.
+
 	const numCommands = 200 // > 128, so the former hardcoded cap would have fired.
 
 	t.Setenv("OTEL_SPAN_LINK_COUNT_LIMIT", "64")
@@ -438,6 +462,7 @@ func TestTickCapMatchesEnvLinkLimitBelowDefault(t *testing.T) {
 	w.RegisterCommand[testutils.SimpleCommand]()
 	w.init()
 	scs := enqueueDistinctSampledCommands(t, w, numCommands)
+
 	exporter.Reset()
 
 	w.Tick(time.Now())
@@ -459,6 +484,7 @@ func TestTickCapMatchesEnvLinkLimitBelowDefault(t *testing.T) {
 		_, ok := kept[scs[i].SpanID()]
 		require.True(t, ok, "command #%d (within cap) should be linked", i)
 	}
+
 	for i := linkLimit; i < numCommands; i++ {
 		_, ok := kept[scs[i].SpanID()]
 		require.False(t, ok, "command #%d (past cap) should not be linked", i)
@@ -469,7 +495,8 @@ func TestTickCapMatchesEnvLinkLimitBelowDefault(t *testing.T) {
 // default. Before the fix, the hardcoded cap of 128 would have kept only 128 of these 200 links;
 // after the fix the cap is 256, all 200 sampled commands are linked and none are dropped.
 func TestTickCapMatchesEnvLinkLimitAboveDefault(t *testing.T) {
-	const linkLimit = 256   // OTEL_SPAN_LINK_COUNT_LIMIT, above the default 128.
+	const linkLimit = 256 // OTEL_SPAN_LINK_COUNT_LIMIT, above the default 128.
+
 	const numCommands = 200 // < linkLimit, so the cap does not fire.
 
 	t.Setenv("OTEL_SPAN_LINK_COUNT_LIMIT", "256")
@@ -494,6 +521,7 @@ func TestTickCapMatchesEnvLinkLimitAboveDefault(t *testing.T) {
 	w.RegisterCommand[testutils.SimpleCommand]()
 	w.init()
 	scs := enqueueDistinctSampledCommands(t, w, numCommands)
+
 	exporter.Reset()
 
 	w.Tick(time.Now())

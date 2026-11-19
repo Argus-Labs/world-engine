@@ -108,24 +108,28 @@ func BodyTypes() harness.Scenario {
 			if steps > manualPoseTicks {
 				steps = manualPoseTicks
 			}
+
 			c.SetPos(s.manualPose, manualPoseStartX+steps*manualPoseStep, 5)
 
 			sweepX := sweeperStartX - tick*manualSpeed
 			if sweepX < sweeperStopX {
 				sweepX = sweeperStopX
 			}
+
 			c.SetPos(s.sweeper, sweepX, 0.5)
 
 			dozerX := dozerStartX - tick*manualSpeed
 			if dozerX < dozerStopX {
 				dozerX = dozerStopX
 			}
+
 			c.SetPos(s.dozer, dozerX, 0.5)
 
 			ghostX := ghostStartX - tick*manualSpeed
 			if ghostX < ghostStopX {
 				ghostX = ghostStopX
 			}
+
 			c.SetPos(s.ghost, ghostX, 1.5)
 		},
 		Steps: []harness.Step{

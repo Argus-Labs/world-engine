@@ -22,9 +22,11 @@ func stripANSI(s string) string {
 // captureStdout captures [os.Stdout] output produced by fn and returns it as a string.
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
+
 	orig := os.Stdout
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
+
 	os.Stdout = w //nolint:reassign // capturing stdout in tests
 
 	fn()
@@ -33,6 +35,7 @@ func captureStdout(t *testing.T, fn func()) string {
 	os.Stdout = orig //nolint:reassign // restore stdout
 	buf, _ := io.ReadAll(r)
 	_ = r.Close()
+
 	return string(buf)
 }
 

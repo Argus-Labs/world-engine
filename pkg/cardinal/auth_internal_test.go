@@ -171,6 +171,7 @@ func TestArgusAuthenticatorAcceptsNewKeyAfterRotation(t *testing.T) {
 	require.NoError(t, err)
 	pubB, privB, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
+
 	keyA := ed25519JWK("key-a", pubA)
 	keyB := ed25519JWK("key-b", pubB)
 
@@ -188,6 +189,7 @@ func TestArgusAuthenticatorAcceptsNewKeyAfterRotation(t *testing.T) {
 	// Rotate: publish key-b alongside key-a (standard overlap window). Before the fix the
 	// frozen key set never learned about key-b, so this token failed with "key not found".
 	server.setKeys(keyA, keyB)
+
 	tokB := signGameTokenWithKID(t, privB, "key-b", gameClaims("player-b"))
 	player, err = authenticator.Authenticate(context.Background(), requestWithBearer(t, tokB))
 	require.NoError(t, err)
@@ -202,6 +204,7 @@ func TestArgusAuthenticatorRejectsRetiredKeyAfterRotation(t *testing.T) {
 	require.NoError(t, err)
 	pubB, privB, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
+
 	keyA := ed25519JWK("key-a", pubA)
 	keyB := ed25519JWK("key-b", pubB)
 
@@ -221,6 +224,7 @@ func TestArgusAuthenticatorRejectsRetiredKeyAfterRotation(t *testing.T) {
 	// Retire key-a: publish key-b only. A key-b token forces a re-fetch that replaces the local
 	// key set with whatever the JWKS serves (now just key-b).
 	server.setKeys(keyB)
+
 	tokB := signGameTokenWithKID(t, privB, "key-b", gameClaims("player-b"))
 	player, err = authenticator.Authenticate(context.Background(), requestWithBearer(t, tokB))
 	require.NoError(t, err)
@@ -242,6 +246,7 @@ func TestArgusAuthenticatorPeriodicRefreshRetiresKeys(t *testing.T) {
 	require.NoError(t, err)
 	pubB, _, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
+
 	keyA := ed25519JWK("key-a", pubA)
 	keyB := ed25519JWK("key-b", pubB)
 
@@ -317,6 +322,7 @@ func requireUnauthenticated(t *testing.T, err error) {
 // newAuthTestServer serves a JWKS with publicKey as "test-key", followed by extraKeys.
 func newAuthTestServer(t *testing.T, publicKey ed25519.PublicKey, extraKeys ...map[string]string) *httptest.Server {
 	t.Helper()
+
 	keys := append([]map[string]string{{
 		"kty": "OKP",
 		"crv": "Ed25519",
@@ -330,9 +336,11 @@ func newAuthTestServer(t *testing.T, publicKey ed25519.PublicKey, extraKeys ...m
 			http.NotFound(w, req)
 			return
 		}
+
 		_ = json.NewEncoder(w).Encode(map[string]any{"keys": keys})
 	}))
 	t.Cleanup(server.Close)
+
 	return server
 }
 
@@ -343,17 +351,21 @@ func signGameToken(t *testing.T, privateKey ed25519.PrivateKey, claims jwt.Regis
 
 func signGameTokenWithKID(t *testing.T, privateKey ed25519.PrivateKey, kid string, claims jwt.RegisteredClaims) string {
 	t.Helper()
+
 	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)
 	token.Header["kid"] = kid
 	signed, err := token.SignedString(privateKey)
 	require.NoError(t, err)
+
 	return signed
 }
 
 func requestWithBearer(t *testing.T, token string) *http.Request {
 	t.Helper()
+
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
+
 	return req
 }
 
@@ -390,14 +402,17 @@ type mutableJWKSServer struct {
 
 func newMutableJWKSServer(t *testing.T, keys ...map[string]string) *mutableJWKSServer {
 	t.Helper()
+
 	server := &mutableJWKSServer{keys: keys}
 	server.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		server.mu.Lock()
 		snapshot := append([]map[string]string(nil), server.keys...)
 		server.mu.Unlock()
+
 		_ = json.NewEncoder(w).Encode(map[string]any{"keys": snapshot})
 	}))
 	t.Cleanup(server.Close)
+
 	return server
 }
 

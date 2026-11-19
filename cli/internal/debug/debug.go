@@ -41,6 +41,7 @@ func Pause(
 	if err != nil {
 		return "", err
 	}
+
 	return fmt.Sprintf("Paused instance %q at tick %d", instanceID, resp.Msg.GetTickHeight()), nil
 }
 
@@ -51,6 +52,7 @@ func Resume(
 	if _, err := client.Resume(ctx, connect.NewRequest(&cardinalv1.ResumeRequest{})); err != nil {
 		return "", err
 	}
+
 	return fmt.Sprintf("Resumed instance %q", instanceID), nil
 }
 
@@ -59,20 +61,26 @@ func Step(
 	ctx context.Context, client cardinalv1connect.DebugServiceClient, instanceID string,
 ) (string, error) {
 	var resp *connect.Response[cardinalv1.StepResponse]
+
 	autoPaused, err := runWithAutoPause(ctx, client, instanceID, func() error {
 		var err error
+
 		resp, err = client.Step(ctx, connect.NewRequest(&cardinalv1.StepRequest{}))
+
 		return err
 	})
 	if err != nil {
 		if autoPaused {
 			return "", eris.Wrapf(err, "instance %q was paused, but step failed", instanceID)
 		}
+
 		return "", err
 	}
+
 	if autoPaused {
 		return fmt.Sprintf("Paused and stepped instance %q to tick %d", instanceID, resp.Msg.GetTickHeight()), nil
 	}
+
 	return fmt.Sprintf("Stepped instance %q to tick %d", instanceID, resp.Msg.GetTickHeight()), nil
 }
 
@@ -88,11 +96,14 @@ func Reset(
 		if autoPaused {
 			return "", eris.Wrapf(err, "instance %q was paused, but reset failed", instanceID)
 		}
+
 		return "", err
 	}
+
 	if autoPaused {
 		return fmt.Sprintf("Paused and reset instance %q", instanceID), nil
 	}
+
 	return fmt.Sprintf("Reset instance %q", instanceID), nil
 }
 
@@ -108,11 +119,14 @@ func runWithAutoPause(
 	if err == nil {
 		return false, nil
 	}
+
 	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		return false, err
 	}
+
 	if _, err := client.Pause(ctx, connect.NewRequest(&cardinalv1.PauseRequest{})); err != nil {
 		return false, eris.Wrapf(err, "pause instance %q first", instanceID)
 	}
+
 	return true, action()
 }

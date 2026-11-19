@@ -82,6 +82,7 @@ func (w *World) getShape(shapeID ShapeID) *shape {
 	id := int(shapeID.index1) - 1
 	s := &w.shapes[id]
 	assert(w.ownsToken(shapeID.world0) && s.id == id && s.generation == shapeID.generation)
+
 	return s
 }
 
@@ -91,6 +92,7 @@ func (w *World) getChainShape(chainID ChainID) *chainShape {
 	id := int(chainID.index1) - 1
 	chain := &w.chainShapes[id]
 	assert(w.ownsToken(chainID.world0) && chain.id == id && chain.generation == chainID.generation)
+
 	return chain
 }
 
@@ -110,6 +112,7 @@ func computeShapeMargin(s *shape) float64 {
 	case PolygonShape:
 		poly := &s.polygon
 		maxExtentSqr := 0.0
+
 		count := poly.Count
 		for i := range count {
 			distanceSqr := DistanceSquared(poly.Vertices[i], poly.Centroid)
@@ -150,7 +153,9 @@ func updateShapeAABBs(s *shape, transform Transform, proxyType BodyType) {
 	if proxyType == StaticBody {
 		margin = speculativeDistance
 	}
+
 	var fatAABB AABB
+
 	fatAABB.LowerBound.X = aabb.LowerBound.X - margin
 	fatAABB.LowerBound.Y = aabb.LowerBound.Y - margin
 	fatAABB.UpperBound.X = aabb.UpperBound.X + margin
@@ -317,6 +322,7 @@ func (w *World) CreatePolygonShape(bodyID BodyID, def *ShapeDef, polygon *Polygo
 	requireValidPolygonShapeCount(polygon)
 
 	assert(IsValidFloat(polygon.Radius) && polygon.Radius >= 0.0)
+
 	return w.createShape(bodyID, def, polygon, PolygonShape)
 }
 
@@ -410,6 +416,7 @@ func (w *World) destroyShapeInternal(s *shape, b *body, wakeBodies bool) {
 
 	// Return shape to free list.
 	freeID(&w.shapeIDPool, shapeID)
+
 	s.id = NullIndex
 
 	w.validateSolverSets()
@@ -520,6 +527,7 @@ func (w *World) CreateChain(bodyID BodyID, def *ChainDef) ChainID {
 			if materialCount != 1 {
 				materialIndex = i
 			}
+
 			shapeDef.Material = def.Materials[materialIndex]
 
 			s := w.createShapeInternal(b, transform, &shapeDef, &cs, ChainSegmentShape)
@@ -537,6 +545,7 @@ func (w *World) CreateChain(bodyID BodyID, def *ChainDef) ChainID {
 			if materialCount != 1 {
 				materialIndex = n - 2
 			}
+
 			shapeDef.Material = def.Materials[materialIndex]
 
 			s := w.createShapeInternal(b, transform, &shapeDef, &cs, ChainSegmentShape)
@@ -554,6 +563,7 @@ func (w *World) CreateChain(bodyID BodyID, def *ChainDef) ChainID {
 			if materialCount != 1 {
 				materialIndex = n - 1
 			}
+
 			shapeDef.Material = def.Materials[materialIndex]
 
 			s := w.createShapeInternal(b, transform, &shapeDef, &cs, ChainSegmentShape)
@@ -576,6 +586,7 @@ func (w *World) CreateChain(bodyID BodyID, def *ChainDef) ChainID {
 			if materialCount != 1 {
 				materialIndex = i + 1
 			}
+
 			shapeDef.Material = def.Materials[materialIndex]
 
 			s := w.createShapeInternal(b, transform, &shapeDef, &cs, ChainSegmentShape)
@@ -613,10 +624,12 @@ func (w *World) DestroyChain(chainID ChainID) {
 	// Remove the chain from the body's singly linked list.
 	chainIDPtr := &b.headChainID
 	found := false
+
 	for *chainIDPtr != NullIndex {
 		if *chainIDPtr == chain.id {
 			*chainIDPtr = chain.nextChainID
 			found = true
+
 			break
 		}
 
@@ -624,6 +637,7 @@ func (w *World) DestroyChain(chainID ChainID) {
 	}
 
 	assert(found)
+
 	if !found {
 		return
 	}
@@ -649,12 +663,14 @@ func (w *World) DestroyChain(chainID ChainID) {
 // (upstream b2Chain_GetSegmentCount).
 func (w *World) ChainSegmentCount(chainID ChainID) int {
 	w.panicIfPoisoned()
+
 	if w.locked {
 		assert(false)
 		return 0
 	}
 
 	chain := w.getChainShape(chainID)
+
 	return len(chain.shapeIndices)
 }
 
@@ -663,6 +679,7 @@ func (w *World) ChainSegmentCount(chainID ChainID) int {
 // (upstream b2Chain_GetSegments).
 func (w *World) ChainSegments(chainID ChainID, segmentArray []ShapeID) int {
 	w.panicIfPoisoned()
+
 	if w.locked {
 		assert(false)
 		return 0
@@ -729,6 +746,7 @@ func getShapeProjectedPerimeter(s *shape, line Vec2) float64 {
 	case CapsuleShape:
 		axis := Sub(s.capsule.Center2, s.capsule.Center1)
 		projectedLength := absFloat(Dot(axis, line))
+
 		return mulAdd(2.0, s.capsule.Radius, projectedLength)
 
 	case CircleShape:
@@ -738,8 +756,10 @@ func getShapeProjectedPerimeter(s *shape, line Vec2) float64 {
 		points := s.polygon.Vertices
 		count := s.polygon.Count
 		assert(count > 0)
+
 		value := Dot(points[0], line)
 		lower := value
+
 		upper := value
 		for i := 1; i < count; i++ {
 			value = Dot(points[i], line)
@@ -752,11 +772,13 @@ func getShapeProjectedPerimeter(s *shape, line Vec2) float64 {
 	case SegmentShape:
 		value1 := Dot(s.segment.Point1, line)
 		value2 := Dot(s.segment.Point2, line)
+
 		return absFloat(value2 - value1)
 
 	case ChainSegmentShape:
 		value1 := Dot(s.chainSegment.Segment.Point1, line)
 		value2 := Dot(s.chainSegment.Segment.Point2, line)
+
 		return absFloat(value2 - value1)
 
 	default:
@@ -803,6 +825,7 @@ func computeShapeExtent(s *shape, localCenter Vec2) shapeExtent {
 		poly := &s.polygon
 		minExtent := Huge
 		maxExtentSqr := 0.0
+
 		count := poly.Count
 		for i := range count {
 			v := poly.Vertices[i]
@@ -860,6 +883,7 @@ func rayCastShape(input *RayCastInput, s *shape, transform Transform) CastOutput
 
 	output.Point = TransformPoint(transform, output.Point)
 	output.Normal = RotateVector(transform.Q, output.Normal)
+
 	return output
 }
 
@@ -914,6 +938,7 @@ func shapeCastShape(input *ShapeCastInput, s *shape, transform Transform) CastOu
 
 	output.Point = TransformPoint(transform, output.Point)
 	output.Normal = RotateVector(transform.Q, output.Normal)
+
 	return output
 }
 
@@ -948,6 +973,7 @@ func collideMover(mover *Capsule, s *shape, transform Transform) PlaneResult {
 	}
 
 	result.Plane.Normal = RotateVector(transform.Q, result.Plane.Normal)
+
 	return result
 }
 
@@ -1053,6 +1079,7 @@ func (w *World) ShapeRayCast(shapeID ShapeID, input *RayCastInput) CastOutput {
 
 	// input in local coordinates
 	var localInput RayCastInput
+
 	localInput.Origin = InvTransformPoint(transform, input.Origin)
 	localInput.Translation = InvRotateVector(transform.Q, input.Translation)
 	localInput.MaxFraction = input.MaxFraction
@@ -1127,6 +1154,7 @@ func (w *World) SetShapeFriction(shapeID ShapeID, friction float64) {
 	assert(IsValidFloat(friction) && friction >= 0.0)
 
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -1148,6 +1176,7 @@ func (w *World) SetShapeRestitution(shapeID ShapeID, restitution float64) {
 	assert(IsValidFloat(restitution) && restitution >= 0.0)
 
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -1167,6 +1196,7 @@ func (w *World) ShapeRestitution(shapeID ShapeID) float64 {
 // (upstream b2Shape_SetUserMaterial).
 func (w *World) SetShapeUserMaterial(shapeID ShapeID, material uint64) {
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -1226,6 +1256,7 @@ func (w *World) resetProxy(s *shape, wakeBodies, destroyProxy bool) {
 	}
 
 	transform := w.getBodyTransformQuick(b)
+
 	if s.proxyKey != NullIndex {
 		proxyType := proxyKeyType(s.proxyKey)
 		updateShapeAABBs(s, transform, proxyType)
@@ -1368,6 +1399,7 @@ func (w *World) ShapeType(shapeID ShapeID) ShapeType {
 func (w *World) ShapeCircle(shapeID ShapeID) Circle {
 	s := w.getShape(shapeID)
 	assert(s.shapeType == CircleShape)
+
 	return s.circle
 }
 
@@ -1376,6 +1408,7 @@ func (w *World) ShapeCircle(shapeID ShapeID) Circle {
 func (w *World) ShapeSegment(shapeID ShapeID) Segment {
 	s := w.getShape(shapeID)
 	assert(s.shapeType == SegmentShape)
+
 	return s.segment
 }
 
@@ -1385,6 +1418,7 @@ func (w *World) ShapeSegment(shapeID ShapeID) Segment {
 func (w *World) ShapeChainSegment(shapeID ShapeID) ChainSegment {
 	s := w.getShape(shapeID)
 	assert(s.shapeType == ChainSegmentShape)
+
 	return s.chainSegment
 }
 
@@ -1393,6 +1427,7 @@ func (w *World) ShapeChainSegment(shapeID ShapeID) ChainSegment {
 func (w *World) ShapeCapsule(shapeID ShapeID) Capsule {
 	s := w.getShape(shapeID)
 	assert(s.shapeType == CapsuleShape)
+
 	return s.capsule
 }
 
@@ -1401,6 +1436,7 @@ func (w *World) ShapeCapsule(shapeID ShapeID) Capsule {
 func (w *World) ShapePolygon(shapeID ShapeID) Polygon {
 	s := w.getShape(shapeID)
 	assert(s.shapeType == PolygonShape)
+
 	return s.polygon
 }
 
@@ -1548,6 +1584,7 @@ func (w *World) SetChainSurfaceMaterial(chainID ChainID, material SurfaceMateria
 func (w *World) ChainSurfaceMaterial(chainID ChainID, segmentIndex int) SurfaceMaterial {
 	chain := w.getChainShape(chainID)
 	assert(0 <= segmentIndex && segmentIndex < len(chain.materials))
+
 	return chain.materials[segmentIndex]
 }
 
@@ -1556,6 +1593,7 @@ func (w *World) ChainSurfaceMaterial(chainID ChainID, segmentIndex int) SurfaceM
 // (upstream b2Shape_GetContactCapacity).
 func (w *World) ShapeContactCapacity(shapeID ShapeID) int {
 	w.panicIfPoisoned()
+
 	if w.locked {
 		assert(false)
 		return 0
@@ -1577,6 +1615,7 @@ func (w *World) ShapeContactCapacity(shapeID ShapeID) int {
 // of elements stored (upstream b2Shape_GetContactData).
 func (w *World) ShapeContactData(shapeID ShapeID, contactData []ContactData) int {
 	w.panicIfPoisoned()
+
 	if w.locked {
 		assert(false)
 		return 0
@@ -1589,6 +1628,7 @@ func (w *World) ShapeContactData(shapeID ShapeID, contactData []ContactData) int
 
 	b := &w.bodies[s.bodyID]
 	contactKey := b.headContactKey
+
 	index := 0
 	for contactKey != NullIndex && index < len(contactData) {
 		contactID := contactKey >> 1
@@ -1637,6 +1677,7 @@ func (w *World) ShapeContactData(shapeID ShapeID, contactData []ContactData) int
 // shape is not a sensor (upstream b2Shape_GetSensorCapacity).
 func (w *World) ShapeSensorCapacity(shapeID ShapeID) int {
 	w.panicIfPoisoned()
+
 	if w.locked {
 		assert(false)
 		return 0
@@ -1648,6 +1689,7 @@ func (w *World) ShapeSensorCapacity(shapeID ShapeID) int {
 	}
 
 	sen := &w.sensors[s.sensorIndex]
+
 	return len(sen.overlaps2)
 }
 
@@ -1657,6 +1699,7 @@ func (w *World) ShapeSensorCapacity(shapeID ShapeID) int {
 // overlap (upstream b2Shape_GetSensorData).
 func (w *World) ShapeSensorData(shapeID ShapeID, visitorIDs []ShapeID) int {
 	w.panicIfPoisoned()
+
 	if w.locked {
 		assert(false)
 		return 0
@@ -1670,6 +1713,7 @@ func (w *World) ShapeSensorData(shapeID ShapeID, visitorIDs []ShapeID) int {
 	sen := &w.sensors[s.sensorIndex]
 
 	count := minInt(len(sen.overlaps2), len(visitorIDs))
+
 	refs := sen.overlaps2
 	for i := range count {
 		visitorIDs[i] = ShapeID{
@@ -1704,6 +1748,7 @@ func (w *World) ShapeClosestPoint(shapeID ShapeID, target Vec2) Vec2 {
 	transform := w.getBodyTransformQuick(b)
 
 	var input DistanceInput
+
 	input.ProxyA = makeShapeDistanceProxy(s)
 	input.ProxyB = MakeProxy([]Vec2{target}, 1, 0.0)
 	input.TransformA = transform

@@ -45,6 +45,7 @@ func (g *Gen) Done() bool {
 		g.started = true
 		return false
 	}
+
 	i := g.pMax
 	for i > 0 {
 		i--
@@ -52,20 +53,25 @@ func (g *Gen) Done() bool {
 			g.v[i].value++
 			g.pMax = i + 1
 			g.p = 0
+
 			return false
 		}
 	}
+
 	return true
 }
 
 func (g *Gen) gen(bound uint32) uint32 {
 	assert.That(g.p < len(g.v), "exhaustigen: exceeded maximum depth of 32")
+
 	if g.p == g.pMax {
 		g.v[g.p] = struct{ value, bound uint32 }{value: 0, bound: 0}
 		g.pMax++
 	}
+
 	g.p++
 	g.v[g.p-1].bound = bound
+
 	return g.v[g.p-1].value
 }
 
@@ -96,6 +102,7 @@ func Shuffle[T any](g *Gen, slice []T) {
 	if len(slice) <= 1 {
 		return
 	}
+
 	for i := range len(slice) - 1 {
 		j := g.Range(i, len(slice)-1)
 		slice[i], slice[j] = slice[j], slice[i]

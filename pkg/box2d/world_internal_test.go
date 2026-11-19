@@ -58,6 +58,7 @@ func TestWorldDestroyInvalidatesID(t *testing.T) {
 
 func TestWorldSettersAndGetters(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -92,6 +93,7 @@ func TestWorldSettersAndGetters(t *testing.T) {
 
 func TestWorldIDValidationRejectsGarbage(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -149,6 +151,7 @@ func sleepWakeCycle(t *testing.T, w *World, id BodyID) {
 
 func TestWakeSleepTransfer(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -170,6 +173,7 @@ func TestWakeSleepTransfer(t *testing.T) {
 
 func TestCreateSleepingBodyOwnSet(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -191,6 +195,7 @@ func TestCreateSleepingBodyOwnSet(t *testing.T) {
 
 func TestDisableEnableBody(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -223,6 +228,7 @@ func TestDisableEnableBody(t *testing.T) {
 
 func TestEnableSleepingFalseWakesAll(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -249,6 +255,7 @@ func buildDeterministicScene(w *World) []BodyID {
 	segment := Segment{Point1: Vec2{X: -1.0, Y: 0.0}, Point2: Vec2{X: 1.0, Y: 0.0}}
 
 	ids := make([]BodyID, 0, 60)
+
 	for i := range 60 {
 		switch i % 3 {
 		case 0:
@@ -279,6 +286,7 @@ func buildDeterministicScene(w *World) []BodyID {
 	// Destroy every 7th body, then recreate a dynamic body in its place.
 	for i := 3; i < len(ids); i += 7 {
 		w.DestroyBody(ids[i])
+
 		bodyDef.Type = DynamicBody
 		bodyDef.Position = Vec2{X: -float64(i), Y: 3.0}
 		ids[i] = w.CreateBody(&bodyDef)
@@ -291,6 +299,7 @@ func buildDeterministicScene(w *World) []BodyID {
 			w.SetBodyAwake(ids[i], false)
 		}
 	}
+
 	for i := 2; i < len(ids); i += 12 {
 		if w.BodyType(ids[i]) != StaticBody {
 			w.SetBodyAwake(ids[i], true)
@@ -302,10 +311,12 @@ func buildDeterministicScene(w *World) []BodyID {
 
 func TestDeterministicBodyArrays(t *testing.T) {
 	def1 := DefaultWorldDef()
+
 	w1 := NewWorld(&def1)
 	defer w1.Destroy()
 
 	def2 := DefaultWorldDef()
+
 	w2 := NewWorld(&def2)
 	defer w2.Destroy()
 
@@ -320,6 +331,7 @@ func TestDeterministicBodyArrays(t *testing.T) {
 	// per-world part rather than dropping the field from the comparison.
 	require.Len(t, ids2, len(ids1))
 	require.NotEqual(t, w1.worldID, w2.worldID)
+
 	for i := range ids1 {
 		tassert.Equal(t, ids1[i].index1, ids2[i].index1, "body %d index", i)
 		tassert.Equal(t, ids1[i].generation, ids2[i].generation, "body %d generation", i)
@@ -332,6 +344,7 @@ func TestDeterministicBodyArrays(t *testing.T) {
 
 	// Identical solver set layout: same sims in the same order.
 	require.Len(t, w2.solverSets, len(w1.solverSets))
+
 	for i := range w1.solverSets {
 		tassert.Equal(t, w1.solverSets[i].setIndex, w2.solverSets[i].setIndex, "set %d", i)
 		tassert.Equal(t, w1.solverSets[i].bodySims, w2.solverSets[i].bodySims, "set %d bodySims", i)
@@ -349,6 +362,7 @@ func TestDeterministicBodyArrays(t *testing.T) {
 
 func TestCountersMatchScene(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -363,12 +377,14 @@ func TestCountersMatchScene(t *testing.T) {
 	// Every enabled dynamic/kinematic body has exactly one island (no
 	// contacts or joints exist to merge them).
 	islands := 0
+
 	for i := range w.bodies {
 		b := &w.bodies[i]
 		if b.id != NullIndex && b.islandID != NullIndex {
 			islands++
 		}
 	}
+
 	tassert.Equal(t, islands, counters.IslandCount)
 
 	tassert.GreaterOrEqual(t, counters.TreeHeight, 0)

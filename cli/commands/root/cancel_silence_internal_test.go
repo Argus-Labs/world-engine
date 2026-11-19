@@ -19,10 +19,12 @@ import (
 func deadSocketSetup(t *testing.T) (*local.Runtime, *docker.Client, *service.Config) {
 	t.Helper()
 	t.Setenv("DOCKER_HOST", "unix:///nonexistent/docker.sock")
+
 	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{Project: "demo"}}
 	dc, err := docker.NewClient(cfg, nil)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = dc.Close() })
+
 	return local.New(dc, cfg), dc, cfg
 }
 

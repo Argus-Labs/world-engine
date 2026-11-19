@@ -22,12 +22,15 @@ func (c clashingTransform) MarshalWire() []byte {
 	if err != nil {
 		panic(err)
 	}
+
 	return b
 }
 
 func (clashingTransform) UnmarshalWire(b []byte) (any, error) {
 	var v clashingTransform
+
 	err := json.Unmarshal(b, &v)
+
 	return v, err
 }
 
@@ -43,6 +46,7 @@ func TestRegister_RejectedRegistrationLeavesInstanceUnregistered(t *testing.T) {
 
 	clashing := newWorld(t)
 	clashing.RegisterComponent[clashingTransform]()
+
 	err := recoverPanic(func() { clashing.RegisterPlugin(p) })
 	require.ErrorContains(t, err, "component transform_2d already registered with a different type")
 
@@ -63,6 +67,8 @@ func recoverPanic(fn func()) (err error) {
 			}
 		}
 	}()
+
 	fn()
+
 	return nil
 }

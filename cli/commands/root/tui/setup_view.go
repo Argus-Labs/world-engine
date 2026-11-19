@@ -20,13 +20,16 @@ func (m WorldSetupModel) View() string {
 		output += m.templateList.View() + "\n\n"
 	} else if m.projectNameInput.Focused() {
 		output += style.QuestionIcon.Render() + "What is your game shard name? "
+
 		output += m.projectNameInput.View() + "\n"
 		if m.nameErr != "" {
 			output += style.CrossIcon.Render() + m.nameErr + "\n"
 		}
+
 		output += "\n"
 	}
 
 	output += strings.Join(m.logs, "\n")
+
 	return output
 }

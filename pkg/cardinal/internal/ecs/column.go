@@ -37,6 +37,7 @@ const columnCapacity = 16
 // newColumn creates a new column with the specified type.
 func newColumn[T Component]() column[T] {
 	var zero T
+
 	return column[T]{
 		compName:   zero.Name(),
 		components: make([]T, 0, columnCapacity),
@@ -72,6 +73,7 @@ func (c *column[T]) extend() {
 	}
 
 	var zero T
+
 	c.components = append(c.components, zero)
 }
 
@@ -123,10 +125,12 @@ func (c *column[T]) remove(row int) {
 // encode returns an owned MessagePack encoding of one component.
 func (c *column[T]) encode(row int) ([]byte, error) {
 	assert.That(row < len(c.components), "component doesn't exist")
+
 	data, err := schema.Serialize(c.components[row])
 	if err != nil {
 		return nil, eris.Wrapf(err, "failed to serialize component %q", c.compName)
 	}
+
 	return data, nil
 }
 
@@ -137,5 +141,6 @@ func (c *column[T]) decode(row int, data []byte) error {
 	if err := schema.Deserialize(data, &c.components[row]); err != nil {
 		return eris.Wrapf(err, "failed to deserialize component %q", c.compName)
 	}
+
 	return nil
 }

@@ -22,6 +22,7 @@ func weldTestWorld(gravity box2d.Vec2) *box2d.World {
 	def := box2d.DefaultWorldDef()
 	def.Gravity = gravity
 	def.EnableSleep = false
+
 	return box2d.NewWorld(&def)
 }
 
@@ -40,6 +41,7 @@ func weldTestBoxBody(w *box2d.World, pos box2d.Vec2) box2d.BodyID {
 	sd := box2d.DefaultShapeDef()
 	sd.Density = 1.0
 	w.CreatePolygonShape(bodyID, &sd, &box)
+
 	return bodyID
 }
 
@@ -72,6 +74,7 @@ func TestWeldJointRigidHoldsRelativeTransform(t *testing.T) {
 
 	maxPositionDrift := 0.0
 	maxAngleDrift := 0.0
+
 	for range 300 {
 		w.Step(weldTimeStep, 4)
 
@@ -106,6 +109,7 @@ func TestWeldJointSoftOscillatesThenSettles(t *testing.T) {
 	w.CreateWeldJoint(&def)
 
 	const totalSteps = 900
+
 	heights := make([]float64, 0, totalSteps)
 	for range totalSteps {
 		w.Step(weldTimeStep, 4)
@@ -116,6 +120,7 @@ func TestWeldJointSoftOscillatesThenSettles(t *testing.T) {
 	// on.
 	settled := heights[len(heights)-1]
 	crossings := 0
+
 	for i := 1; i < 300; i++ {
 		if (heights[i-1]-settled)*(heights[i]-settled) < 0.0 {
 			crossings++
@@ -160,6 +165,7 @@ func TestWeldJointRigidSagsLessThanSoft(t *testing.T) {
 		for range 600 {
 			w.Step(weldTimeStep, 4)
 		}
+
 		return math.Abs(w.BodyPosition(body).Y)
 	}
 
@@ -265,6 +271,7 @@ func TestWeldJointDestroyMidSimulation(t *testing.T) {
 	for range 60 {
 		w.Step(weldTimeStep, 4)
 	}
+
 	held := w.BodyPosition(body).Y
 	require.Less(t, math.Abs(held), 1.0e-3, "the weld must hold the body before it is destroyed")
 
@@ -273,12 +280,14 @@ func TestWeldJointDestroyMidSimulation(t *testing.T) {
 	for range 60 {
 		w.Step(weldTimeStep, 4)
 	}
+
 	require.Less(t, w.BodyPosition(body).Y, held-0.4, "the body must fall once the weld is gone")
 
 	// The world stays consistent afterwards.
 	for range 60 {
 		w.Step(weldTimeStep, 4)
 	}
+
 	require.True(t, box2d.IsValidVec2(w.BodyPosition(body)))
 }
 
@@ -289,18 +298,22 @@ func buildWeldDeterminismScene(w *box2d.World) []box2d.BodyID {
 	anchor := w.CreateBody(&anchorDef)
 
 	var bodies []box2d.BodyID
+
 	prev := anchor
+
 	for i := range 4 {
 		body := weldTestBoxBody(w, box2d.Vec2{X: float64(i) + 1.0, Y: 0.0})
 
 		def := box2d.DefaultWeldJointDef()
 		def.Base.BodyIDA = prev
+
 		def.Base.BodyIDB = body
 		if i == 0 {
 			def.Base.LocalFrameA.P = box2d.Vec2{X: 1.0, Y: 0.0}
 		} else {
 			def.Base.LocalFrameA.P = box2d.Vec2{X: 0.5, Y: 0.0}
 		}
+
 		def.Base.LocalFrameB.P = box2d.Vec2{X: -0.5, Y: 0.0}
 		if i == 3 {
 			def.LinearHertz = 3.0
@@ -308,6 +321,7 @@ func buildWeldDeterminismScene(w *box2d.World) []box2d.BodyID {
 			def.AngularHertz = 3.0
 			def.AngularDampingRatio = 0.5
 		}
+
 		w.CreateWeldJoint(&def)
 
 		bodies = append(bodies, body)
@@ -326,10 +340,12 @@ func TestWeldJointDeterminism(t *testing.T) {
 
 		bodies := buildWeldDeterminismScene(w)
 		hashes := make([]uint64, 0, 200)
+
 		for range 200 {
 			w.Step(weldTimeStep, 4)
 			hashes = append(hashes, hashWorldState(w, bodies))
 		}
+
 		return hashes
 	}
 

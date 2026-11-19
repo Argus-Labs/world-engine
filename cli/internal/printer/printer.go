@@ -116,6 +116,7 @@ func NewLine(numberOfLines int) {
 	if numberOfLines <= 0 {
 		return
 	}
+
 	fmt.Print(strings.Repeat("\n", numberOfLines))
 }
 
@@ -140,6 +141,7 @@ func SectionDivider(symbol string, length int) {
 	if length <= 0 {
 		length = 1
 	}
+
 	fmt.Println(strings.Repeat(symbol, length))
 }
 

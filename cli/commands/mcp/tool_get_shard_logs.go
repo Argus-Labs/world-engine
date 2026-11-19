@@ -29,34 +29,44 @@ func collectShardLogs(
 	fetch func(name string) (string, error),
 ) (string, error) {
 	var b strings.Builder
+
 	fetched := 0
+
 	var lastErr error
+
 	for i, name := range containers {
 		if ctx.Err() != nil {
 			fmt.Fprintf(&b, "(skipped, time budget spent: %s)\n", strings.Join(containers[i:], ", "))
 			break
 		}
+
 		logs, err := fetch(name)
 		switch {
 		case err == nil:
 			fetched++
+
 			if len(containers) > 1 {
 				fmt.Fprintf(&b, "=== %s ===\n", name)
 			}
+
 			b.WriteString(logs)
 		case eris.Is(err, local.ErrContainerNotFound):
 			lastErr = err
+
 			fmt.Fprintf(&b, "=== %s ===\n(container not found; removed since the status check)\n", name)
 		default:
 			return "", err
 		}
 	}
+
 	if fetched == 0 {
 		if lastErr != nil {
 			return "", lastErr
 		}
+
 		return "", eris.Wrap(ctx.Err(), "fetching shard logs")
 	}
+
 	return b.String(), nil
 }
 
@@ -66,9 +76,11 @@ func clampTail(n int) int32 {
 	if tail <= 0 {
 		return defaultLogTailLines
 	}
+
 	if tail > maxLogTailLines {
 		return maxLogTailLines
 	}
+
 	return tail
 }
 
@@ -110,6 +122,7 @@ func getShardLogsHandler(
 	if err != nil {
 		return GetShardLogsOutput{}, err
 	}
+
 	tail := clampTail(args.TailLines)
 
 	ctx, cancel := ensureDeadline(ctx, defaultCommandTimeout)
@@ -121,11 +134,13 @@ func getShardLogsHandler(
 	}
 
 	instanceName := strings.TrimSpace(args.InstanceName)
+
 	containers := shardContainers(status, shardID, instanceName)
 	if len(containers) == 0 {
 		if instanceName != "" {
 			return GetShardLogsOutput{}, errInstanceNotFound(status, shardID, instanceName)
 		}
+
 		return GetShardLogsOutput{}, eris.Errorf("no container found for shard %q", shardID)
 	}
 

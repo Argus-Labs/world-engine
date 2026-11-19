@@ -59,11 +59,13 @@ func (c *BuildCmd) Run(ctx context.Context) error {
 
 				wantImage := service.CardinalShardImageName(cfg.Project, c.Shard)
 				filtered := make([]service.Service, 0, 1)
+
 				for _, s := range dockerServices {
 					if s.Image == wantImage {
 						filtered = append(filtered, s)
 					}
 				}
+
 				dockerServices = filtered
 			}
 
@@ -98,8 +100,10 @@ func buildShards(
 	if err := pullBuildDeps(ctx, dash, b, buildServices, nil); err != nil {
 		return err
 	}
+
 	if err := buildShardImages(dash.Open("Build"), b, dockerServices); err != nil {
 		return eris.Wrap(err, "Failed to build Cardinal images")
 	}
+
 	return nil
 }

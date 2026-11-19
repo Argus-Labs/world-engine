@@ -78,6 +78,7 @@ func TestTestWorld_EncodesOutputsAsPublishingDoes(t *testing.T) {
 	t.Parallel()
 
 	lobby := cardinal.OtherWorld{Project: "proj", ShardID: "lobby"}
+
 	for _, tc := range []struct {
 		name string
 		send func(w *cardinal.World)
@@ -92,6 +93,7 @@ func TestTestWorld_EncodesOutputsAsPublishingDoes(t *testing.T) {
 			defer func() {
 				assert.Contains(t, fmt.Sprint(recover()), "encode unencodable: failed to serialize")
 			}()
+
 			w.RunSystem(systemFunc(tc.send))
 		})
 	}
@@ -104,10 +106,12 @@ func TestTestWorld_OutputsAreWhatAReceiverGets(t *testing.T) {
 	w := cardinal.NewTestWorld(t, func(w *cardinal.World) { w.RegisterEvent[list]() })
 
 	values := []int{1}
+
 	w.RunSystem(systemFunc(func(w *cardinal.World) {
 		w.Broadcast(list{Values: values})
 		w.SendToShard(lobby, list{Values: values})
 	}))
+
 	values[0] = 2
 
 	assert.Equal(t, []cardinal.Sent[list]{{Payload: list{Values: []int{1}}}}, w.Events[list]())
@@ -155,6 +159,7 @@ func TestTestWorld_TickRunsHooksInOrderOnTheTestClock(t *testing.T) {
 	t.Parallel()
 
 	var log []observation
+
 	w := cardinal.NewTestWorld(t, func(w *cardinal.World) {
 		// Registered out of hook order: Tick orders by hook, not by registration.
 		w.RegisterSystem(&observe{hook: "post", log: &log}, cardinal.WithPhase(cardinal.PostUpdate))
@@ -197,6 +202,7 @@ func TestTestWorld_Misuse(t *testing.T) {
 
 	t.Run("unregistered command", func(t *testing.T) {
 		t.Parallel()
+
 		tb := &fakeTB{}
 		w := cardinal.NewTestWorld(tb, func(*cardinal.World) {})
 
@@ -207,6 +213,7 @@ func TestTestWorld_Misuse(t *testing.T) {
 
 	t.Run("StartGame", func(t *testing.T) {
 		t.Parallel()
+
 		tb := &fakeTB{}
 		w := cardinal.NewTestWorld(tb, func(*cardinal.World) {})
 
@@ -220,6 +227,7 @@ func TestRequireDeterministic_PassesAScriptThatReplays(t *testing.T) {
 	t.Parallel()
 
 	lobby := cardinal.OtherWorld{Project: "proj", ShardID: "lobby"}
+
 	cardinal.RequireDeterministic(t, func(w *cardinal.World) {
 		w.RegisterComponent[testutils.ComponentA]()
 		w.RegisterComponent[testutils.ComponentB]()
@@ -248,6 +256,7 @@ func TestRequireDeterministic_NamesTheFirstStepThatDiffers(t *testing.T) {
 	t.Parallel()
 
 	lobby := cardinal.OtherWorld{Project: "proj", ShardID: "lobby"}
+
 	tests := []struct {
 		differs string
 		system  func(w *cardinal.World, built int)
@@ -266,9 +275,11 @@ func TestRequireDeterministic_NamesTheFirstStepThatDiffers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.differs, func(t *testing.T) {
 			t.Parallel()
+
 			built := 0
 			setup := func(w *cardinal.World) {
 				built++
+
 				w.RegisterComponent[testutils.ComponentA]()
 				w.RegisterComponent[testutils.ComponentB]()
 				w.RegisterEvent[testutils.SimpleEvent]()
@@ -314,6 +325,7 @@ func TestRequireDeterministic_ComparesTheWorldWhenTheScriptReturns(t *testing.T)
 	built := 0
 	setup := func(w *cardinal.World) {
 		built++
+
 		w.RegisterComponent[testutils.ComponentA]()
 		w.RegisterComponent[testutils.ComponentB]()
 		w.RegisterSystem(systemFunc(func(w *cardinal.World) {
@@ -419,6 +431,7 @@ func (hit) UnmarshalWire(b []byte) (any, error) {
 	if n <= 0 {
 		return hit{}, errors.New("hit: malformed wire bytes")
 	}
+
 	return hit{Damage: int(v)}, nil
 }
 
@@ -441,19 +454,23 @@ func (l list) MarshalWire() []byte {
 	for _, v := range l.Values {
 		b = binary.AppendVarint(b, int64(v))
 	}
+
 	return b
 }
 
 func (list) UnmarshalWire(b []byte) (any, error) {
 	var l list
+
 	for len(b) > 0 {
 		v, n := binary.Varint(b)
 		if n <= 0 {
 			return list{}, errors.New("list: malformed wire bytes")
 		}
+
 		l.Values = append(l.Values, int(v))
 		b = b[n:]
 	}
+
 	return l, nil
 }
 
@@ -487,11 +504,13 @@ func (*fakeTB) Logf(string, ...any) {}
 
 func (f *fakeTB) Fatal(args ...any) {
 	f.failure = fmt.Sprint(args...)
+
 	runtime.Goexit()
 }
 
 func (f *fakeTB) Fatalf(format string, args ...any) {
 	f.failure = fmt.Sprintf(format, args...)
+
 	runtime.Goexit()
 }
 
@@ -501,8 +520,11 @@ func (f *fakeTB) run(fn func()) string {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
+
 		fn()
 	}()
+
 	<-done
+
 	return f.failure
 }

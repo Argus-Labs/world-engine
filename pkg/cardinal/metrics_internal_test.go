@@ -20,14 +20,17 @@ import (
 // after it records into the returned reader. Tests that call it must not run in parallel.
 func newRecordingMeter(t *testing.T) *sdkmetric.ManualReader {
 	t.Helper()
+
 	reader := sdkmetric.NewManualReader()
 	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
 	previous := otel.GetMeterProvider()
+
 	otel.SetMeterProvider(provider)
 	t.Cleanup(func() {
 		otel.SetMeterProvider(previous)
 		require.NoError(t, provider.Shutdown(context.Background()))
 	})
+
 	return reader
 }
 
@@ -40,9 +43,12 @@ type collectedMetrics struct {
 
 func collect(t *testing.T, reader *sdkmetric.ManualReader) collectedMetrics {
 	t.Helper()
+
 	var rm metricdata.ResourceMetrics
 	require.NoError(t, reader.Collect(context.Background(), &rm))
+
 	got := collectedMetrics{sums: map[string]map[attribute.Distinct]int64{}, histograms: map[string]uint64{}}
+
 	for _, sm := range rm.ScopeMetrics {
 		for _, m := range sm.Metrics {
 			switch data := m.Data.(type) {
@@ -58,6 +64,7 @@ func collect(t *testing.T, reader *sdkmetric.ManualReader) collectedMetrics {
 			}
 		}
 	}
+
 	return got
 }
 
@@ -76,6 +83,7 @@ func (s *slowFirstTickSystem) Run(w *World) {
 	if s.runs == 0 {
 		time.Sleep(s.delay)
 	}
+
 	s.runs++
 	w.Broadcast(testutils.SimpleEvent{Value: s.runs})
 }
@@ -127,9 +135,11 @@ func TestTickRecordsMetrics(t *testing.T) {
 // tick handles, allocates nothing once the command is registered.
 func TestCountingAllocatesNothing(t *testing.T) {
 	newRecordingMeter(t)
+
 	m, err := newWorldMetrics(0)
 	require.NoError(t, err)
 	m.registerCommand("simple_command")
+
 	event := addOptions(attrEventType.String("testutils.SimpleEvent"))
 	ctx := context.Background()
 

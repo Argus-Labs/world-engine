@@ -17,9 +17,11 @@ type entityTestArchetype struct {
 
 func newEntityTestWorld(t *testing.T) *World {
 	t.Helper()
+
 	w := &World{world: ecs.NewWorld()}
 	w.RegisterComponent[testutils.ComponentA]()
 	w.RegisterComponent[testutils.ComponentB]()
+
 	return w
 }
 
@@ -93,16 +95,21 @@ func TestEntity_QueryHandlesRemainBound(t *testing.T) {
 	first := entities.Create()
 	second := entities.Create()
 	secondID := second.ID()
+
 	first.Set(testutils.ComponentA{X: 1})
 	second.Set(testutils.ComponentA{X: 2})
+
 	var handles []Entity
+
 	for entity := range entities.Iter() {
 		// Nested lookups must not change the outer entity's binding.
 		other, err := entities.GetByID(secondID)
 		require.NoError(t, err)
 		assert.Equal(t, testutils.ComponentA{X: 2}, other.Get[testutils.ComponentA]())
+
 		handles = append(handles, entity)
 	}
+
 	require.Len(t, handles, 2)
 	assert.Equal(t, first, handles[0])
 	assert.Equal(t, second, handles[1])
@@ -118,6 +125,7 @@ func TestEntity_QueryHandlesRemainBound(t *testing.T) {
 
 func TestEntity_ZeroAndMissingHandles(t *testing.T) {
 	t.Parallel()
+
 	w := newEntityTestWorld(t)
 	for _, entity := range []Entity{{}, w.Entity(999)} {
 		assert.False(t, entity.Alive())
@@ -131,7 +139,9 @@ func TestEntity_ZeroAndMissingHandles(t *testing.T) {
 
 func TestEntity_RegisterComponent(t *testing.T) {
 	t.Parallel()
+
 	w := &World{world: ecs.NewWorld()}
+
 	require.Panics(t, func() { w.Create[entityTestArchetype]() })
 	w.RegisterComponent[testutils.ComponentA]()
 	w.RegisterComponent[testutils.ComponentA]()
@@ -142,6 +152,7 @@ func TestEntity_RegisterComponent(t *testing.T) {
 	require.Panics(t, func() { w.Create[struct{ A int }]() })
 	require.Panics(t, func() { w.Create[struct{ A *testutils.ComponentA }]() })
 	require.Panics(t, func() { w.Create[struct{ A testutils.ComponentB }]() })
+
 	empty := w.Create[struct{}]()
 	assert.True(t, empty.Alive())
 	assert.False(t, empty.Has[testutils.ComponentA]())
@@ -150,7 +161,9 @@ func TestEntity_RegisterComponent(t *testing.T) {
 // Contains and Exact resolve explicitly registered components on first use.
 func TestSearch_RequiresExplicitRegistration(t *testing.T) {
 	t.Parallel()
+
 	w := &World{world: ecs.NewWorld()}
+
 	require.Panics(t, func() { w.Contains[entityTestArchetype]() })
 	require.Panics(t, func() { w.Exact[entityTestArchetype]() })
 	w.RegisterComponent[testutils.ComponentA]()
@@ -168,11 +181,13 @@ func TestSearch_RequiresExplicitRegistration(t *testing.T) {
 
 func TestSearch_RejectsNonArchetypes(t *testing.T) {
 	t.Parallel()
+
 	w := &World{world: ecs.NewWorld()}
 	w.RegisterComponent[testutils.ComponentA]()
 	require.Panics(t, func() { w.Contains[int]() })
 	require.Panics(t, func() { w.Contains[struct{ A int }]() })
 	require.Panics(t, func() { w.Contains[struct{ A *testutils.ComponentA }]() })
+
 	entity := w.Contains[struct{ testutils.ComponentA }]().Create()
 	entity.Set(testutils.ComponentA{X: 17})
 	require.Equal(t, testutils.ComponentA{X: 17}, entity.Get[testutils.ComponentA]())
@@ -182,6 +197,7 @@ type collidingComponent struct{ testutils.ComponentA }
 
 func TestSearch_RejectsComponentNameCollision(t *testing.T) {
 	t.Parallel()
+
 	w := &World{world: ecs.NewWorld()}
 	w.RegisterComponent[testutils.ComponentA]()
 	w.Contains[struct{ testutils.ComponentA }]()
@@ -197,6 +213,7 @@ func TestSearch_LimitZeroDoesNotVisitEntities(t *testing.T) {
 	t.Parallel()
 	w := newEntityTestWorld(t)
 	w.Create[entityTestArchetype]()
+
 	visits := 0
 	results := w.Contains[entityTestArchetype]().Iter().Filter(func(_ Entity) bool {
 		visits++

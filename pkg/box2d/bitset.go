@@ -13,6 +13,7 @@ type bitSet struct {
 
 func createBitSet(bitCapacity uint32) bitSet {
 	blockCapacity := (bitCapacity + 64 - 1) / 64
+
 	return bitSet{
 		bits:          make([]uint64, blockCapacity),
 		blockCapacity: blockCapacity,
@@ -30,6 +31,7 @@ func setBitCountAndClear(bitSet *bitSet, bitCount uint32) {
 	blockCount := (bitCount + 64 - 1) / 64
 	if bitSet.blockCapacity < blockCount {
 		destroyBitSet(bitSet)
+
 		newBitCapacity := bitCount + (bitCount >> 1)
 		*bitSet = createBitSet(newBitCapacity)
 	}
@@ -42,6 +44,7 @@ func setBitCountAndClear(bitSet *bitSet, bitCount uint32) {
 
 func growBitSet(bitSet *bitSet, blockCount uint32) {
 	assert(blockCount > bitSet.blockCount)
+
 	if blockCount > bitSet.blockCapacity {
 		bitSet.blockCapacity = blockCount + blockCount/2
 		newBits := make([]uint64, bitSet.blockCapacity)
@@ -54,6 +57,7 @@ func growBitSet(bitSet *bitSet, blockCount uint32) {
 
 func inPlaceUnion(setA, setB *bitSet) {
 	assert(setA.blockCount == setB.blockCount)
+
 	blockCount := setA.blockCount
 	for i := range blockCount {
 		setA.bits[i] |= setB.bits[i]
@@ -71,6 +75,7 @@ func setBitGrow(bitSet *bitSet, bitIndex uint32) {
 	if blockIndex >= bitSet.blockCount {
 		growBitSet(bitSet, blockIndex+1)
 	}
+
 	bitSet.bits[blockIndex] |= uint64(1) << (bitIndex % 64)
 }
 
@@ -79,6 +84,7 @@ func clearBit(bitSet *bitSet, bitIndex uint32) {
 	if blockIndex >= bitSet.blockCount {
 		return
 	}
+
 	bitSet.bits[blockIndex] &^= uint64(1) << (bitIndex % 64)
 }
 
@@ -87,6 +93,7 @@ func getBit(bitSet *bitSet, bitIndex uint32) bool {
 	if blockIndex >= bitSet.blockCount {
 		return false
 	}
+
 	return (bitSet.bits[blockIndex] & (uint64(1) << (bitIndex % 64))) != 0
 }
 
@@ -96,10 +103,12 @@ func getBitSetBytes(bitSet *bitSet) int {
 
 func countSetBits(bitSet *bitSet) int {
 	popCount := 0
+
 	blockCount := bitSet.blockCount
 	for i := range blockCount {
 		popCount += popCount64(bitSet.bits[i])
 	}
+
 	return popCount
 }
 

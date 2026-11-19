@@ -98,6 +98,7 @@ func introspectShardTypes(
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to introspect shard types")
 	}
+
 	return res.Msg, nil
 }
 
@@ -116,9 +117,11 @@ func fetchCommandSchema(
 			if ts.GetJsonSchema() == nil {
 				return nil, eris.Errorf("command %q has no JSON Schema", commandName)
 			}
+
 			return ts.GetJsonSchema().AsMap(), nil
 		}
 	}
+
 	return nil, eris.Errorf("command %q not found on shard", commandName)
 }
 
@@ -141,8 +144,10 @@ func fetchComponentDescriptors(
 		if ts.GetJsonSchema() == nil {
 			continue
 		}
+
 		descriptors[ts.GetName()] = ts.GetJsonSchema().AsMap()
 	}
+
 	return descriptors, nil
 }
 
@@ -154,11 +159,13 @@ func convertTypeSchemas(schemas []*cardinalv1.TypeSchema) []NamedSchema {
 		if ts.GetJsonSchema() == nil {
 			schemaMap = map[string]any{"error": "type has no JSON Schema"}
 		}
+
 		result = append(result, NamedSchema{
 			Name:        ts.GetName(),
 			Schema:      schemaMap,
 			ArrayFields: ts.GetArrayFields(),
 		})
 	}
+
 	return result
 }

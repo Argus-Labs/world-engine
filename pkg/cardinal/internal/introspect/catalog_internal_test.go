@@ -41,6 +41,7 @@ func (mapped) Name() string { return "mapped" }
 // An immutable.Map is described like a Go map, except that it is never null.
 func TestCatalogDescribesImmutableMap(t *testing.T) {
 	t.Parallel()
+
 	c := NewCatalog()
 	require.NoError(t, c.Register(Command, mapped{}))
 	require.NoError(t, c.Finalize())
@@ -51,6 +52,7 @@ func TestCatalogDescribesImmutableMap(t *testing.T) {
 	assert.Equal(t, "object", byName["type"])
 	assert.NotContains(t, byName, "x-msgpack-key-format")
 	assert.Equal(t, "array", byName["additionalProperties"].(map[string]any)["type"])
+
 	byID := properties["ByID"].(map[string]any)
 	assert.Equal(t, "object", byID["type"])
 	assert.Equal(t, "uint16", byID["x-msgpack-key-format"])
@@ -59,15 +61,18 @@ func TestCatalogDescribesImmutableMap(t *testing.T) {
 
 func TestCatalogLifecycle(t *testing.T) {
 	t.Parallel()
+
 	c := NewCatalog()
 	for _, kind := range []Kind{Command, Component, Event} {
 		require.NoError(t, c.Register(kind, named("z")))
 		require.NoError(t, c.Register(kind, named("a")))
 		require.NoError(t, c.Register(kind, named("a")))
 	}
+
 	require.NoError(t, c.Finalize())
 	require.NoError(t, c.Finalize())
 	require.ErrorContains(t, c.Register(Command, sample{}), "finalized")
+
 	for _, types := range [][]string{
 		{c.Commands()[0].GetName(), c.Commands()[1].GetName()},
 		{c.Components()[0].GetName(), c.Components()[1].GetName()},
@@ -75,19 +80,23 @@ func TestCatalogLifecycle(t *testing.T) {
 	} {
 		assert.Equal(t, []string{"a", "z"}, types)
 	}
+
 	assert.Equal(t, "string", c.Commands()[0].GetJsonSchema().AsMap()["type"])
 }
 
 func resolve(t *testing.T, root, node map[string]any) map[string]any {
 	t.Helper()
+
 	if ref, ok := node["$ref"].(string); ok {
 		return root["$defs"].(map[string]any)[strings.TrimPrefix(ref, "#/$defs/")].(map[string]any)
 	}
+
 	return node
 }
 
 func TestCatalogMatchesMessagePack(t *testing.T) {
 	t.Parallel()
+
 	v := sample{Renamed: 7, Skipped: 99, Default: "text", Grid: [2][3]int{{1, 2, 3}, {4, 5, 6}},
 		Nested: immutable.SliceOf(immutable.SliceOf([2]int{8, 9})),
 		Bytes:  [2]byte{1, 2}, ByteList: immutable.SliceOf(byte(3), byte(4)),
@@ -99,20 +108,25 @@ func TestCatalogMatchesMessagePack(t *testing.T) {
 	properties := resolve(t, root, root)["properties"].(map[string]any)
 	data, err := schema.Serialize(v)
 	require.NoError(t, err)
+
 	var wire map[string]any
 	require.NoError(t, msgpack.Unmarshal(data, &wire))
 	assert.Len(t, properties, len(wire))
+
 	for key := range wire {
 		assert.Contains(t, properties, key)
 	}
+
 	assert.Contains(t, properties, "wire")
 	assert.NotContains(t, properties, "other")
 	assert.NotContains(t, properties, "Skipped")
 	assert.Contains(t, properties, "Default")
 	assert.Equal(t, false, resolve(t, root, root)["additionalProperties"])
+
 	counts := properties["Counts"].(map[string]any)["anyOf"].([]any)[0].(map[string]any)
 	assert.Equal(t, "uint64", counts["x-msgpack-key-format"])
 	assert.Equal(t, "int8", counts["additionalProperties"].(map[string]any)["format"])
+
 	grid := properties["Grid"].(map[string]any)
 	assert.InDelta(t, 2, grid["minItems"], 0)
 	assert.InDelta(t, 2, grid["maxItems"], 0)
@@ -120,11 +134,13 @@ func TestCatalogMatchesMessagePack(t *testing.T) {
 	assert.InDelta(t, 3, row["minItems"], 0)
 	assert.Len(t, wire["Grid"], 2)
 	assert.Len(t, wire["Grid"].([]any)[0], 3)
+
 	nested := properties["Nested"].(map[string]any)
 	for range 2 {
 		assert.Equal(t, "array", nested["type"])
 		nested = nested["items"].(map[string]any)
 	}
+
 	assert.InDelta(t, 2, nested["maxItems"], 0)
 	assert.Equal(t, []any{[]any{[]any{int8(8), int8(9)}}}, wire["Nested"])
 	assert.Equal(t, []byte{1, 2}, wire["Bytes"])
@@ -138,6 +154,7 @@ func TestCatalogMatchesMessagePack(t *testing.T) {
 	pointer := objectMap["additionalProperties"].(map[string]any)["anyOf"].([]any)
 	assert.Equal(t, resolve(t, root, root), resolve(t, root, pointer[0].(map[string]any)))
 	assert.Equal(t, "null", pointer[1].(map[string]any)["type"])
+
 	children := wire["Objects"].([]any)[0].(map[string]any)
 	assert.Nil(t, children["absent"])
 	assert.Equal(t, int8(10), children["child"].(map[string]any)["wire"])
@@ -151,6 +168,7 @@ func (timestamped) Name() string { return "timestamped" }
 
 func TestCatalogDescribesTimestampAsString(t *testing.T) {
 	t.Parallel()
+
 	c := NewCatalog()
 	require.NoError(t, c.Register(Command, timestamped{}))
 	require.NoError(t, c.Finalize())
@@ -185,6 +203,7 @@ func (embeddedConflict) Name() string { return "conflict" }
 
 func TestCatalogEmbeddingMatchesMessagePack(t *testing.T) {
 	t.Parallel()
+
 	for _, value := range []schema.Serializable{
 		embeddedRenamed{Embedded{Value: 1}},
 		embeddedNoInline{Embedded{Value: 2}},
@@ -192,6 +211,7 @@ func TestCatalogEmbeddingMatchesMessagePack(t *testing.T) {
 	} {
 		t.Run(value.Name(), func(t *testing.T) {
 			t.Parallel()
+
 			c := NewCatalog()
 			require.NoError(t, c.Register(Command, value))
 			require.NoError(t, c.Finalize())
@@ -199,9 +219,11 @@ func TestCatalogEmbeddingMatchesMessagePack(t *testing.T) {
 			properties := resolve(t, root, root)["properties"].(map[string]any)
 			data, err := schema.Serialize(value)
 			require.NoError(t, err)
+
 			var wire map[string]any
 			require.NoError(t, msgpack.Unmarshal(data, &wire))
 			assert.Len(t, properties, len(wire))
+
 			for key := range wire {
 				assert.Contains(t, properties, key)
 			}

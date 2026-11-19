@@ -217,6 +217,7 @@ func TestOracleMathTest_RotationBetweenUnitVectors(t *testing.T) {
 				// would be violated. Skip it like upstream intends.
 				continue
 			}
+
 			r := box2d.ComputeRotationBetweenUnitVectors(v, u)
 			w := box2d.RotateVector(r, v)
 
@@ -1105,6 +1106,7 @@ func TestOracleConstants_CReference(t *testing.T) {
 // restores the default before returning.
 func TestOracleLengthUnits_CReference(t *testing.T) {
 	original := box2d.GetLengthUnitsPerMeter()
+
 	t.Cleanup(func() {
 		box2d.SetLengthUnitsPerMeter(original)
 	})

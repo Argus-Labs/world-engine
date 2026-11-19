@@ -108,6 +108,7 @@ func (w *World) DistanceJointCurrentLength(jointID JointID) float64 {
 	base := w.getJointSimCheckType(jointID, DistanceJoint)
 
 	assert(!w.locked)
+
 	if w.locked {
 		return 0.0
 	}
@@ -118,6 +119,7 @@ func (w *World) DistanceJointCurrentLength(jointID JointID) float64 {
 	pA := TransformPoint(transformA, base.localFrameA.P)
 	pB := TransformPoint(transformB, base.localFrameB.P)
 	d := Sub(pB, pA)
+
 	return Length(d)
 }
 
@@ -139,6 +141,7 @@ func (w *World) IsDistanceJointSpringEnabled(jointID JointID) bool {
 // (upstream b2DistanceJoint_SetSpringForceRange).
 func (w *World) SetDistanceJointSpringForceRange(jointID JointID, lowerForce, upperForce float64) {
 	assert(lowerForce <= upperForce)
+
 	base := w.getJointSimCheckType(jointID, DistanceJoint)
 	base.distanceJoint.lowerSpringForce = lowerForce
 	base.distanceJoint.upperSpringForce = upperForce
@@ -244,6 +247,7 @@ func getDistanceJointForce(w *World, base *jointSim) Vec2 {
 	d := Sub(pB, pA)
 	axis := Normalize(d)
 	force := (j.impulse + j.lowerImpulse - j.upperImpulse + j.motorImpulse) * w.invH
+
 	return MulSV(force, axis)
 }
 
@@ -301,6 +305,7 @@ func prepareDistanceJoint(base *jointSim, ctx *stepContext) {
 	if bodyA.setIndex == awakeSet {
 		j.indexA = localIndexA
 	}
+
 	j.indexB = NullIndex
 	if bodyB.setIndex == awakeSet {
 		j.indexB = localIndexB
@@ -321,6 +326,7 @@ func prepareDistanceJoint(base *jointSim, ctx *stepContext) {
 	crB := Cross(rB, axis)
 	// k = mA + mB + iA * crA * crA + iB * crB * crB
 	k := mA + mB + float64(iA*crA*crA) + float64(iB*crB*crB)
+
 	j.axialMass = 0.0
 	if k > 0.0 {
 		j.axialMass = 1.0 / k
@@ -349,10 +355,12 @@ func warmStartDistanceJoint(base *jointSim, ctx *stepContext) {
 	dummyState := identityBodyState
 
 	j := &base.distanceJoint
+
 	stateA := &dummyState
 	if j.indexA != NullIndex {
 		stateA = &ctx.states[j.indexA]
 	}
+
 	stateB := &dummyState
 	if j.indexB != NullIndex {
 		stateB = &ctx.states[j.indexB]
@@ -394,10 +402,12 @@ func solveDistanceJoint(base *jointSim, ctx *stepContext, useBias bool) {
 	dummyState := identityBodyState
 
 	j := &base.distanceJoint
+
 	stateA := &dummyState
 	if j.indexA != NullIndex {
 		stateA = &ctx.states[j.indexA]
 	}
+
 	stateB := &dummyState
 	if j.indexB != NullIndex {
 		stateB = &ctx.states[j.indexB]
@@ -476,6 +486,7 @@ func solveDistanceJoint(base *jointSim, ctx *stepContext, useBias bool) {
 				bias := 0.0
 				massCoeff := 1.0
 				impulseCoeff := 0.0
+
 				if c > 0.0 {
 					// speculative
 					bias = c * ctx.invH
@@ -508,6 +519,7 @@ func solveDistanceJoint(base *jointSim, ctx *stepContext, useBias bool) {
 				bias := 0.0
 				massScale := 1.0
 				impulseScale := 0.0
+
 				if c > 0.0 {
 					// speculative
 					bias = c * ctx.invH
@@ -540,6 +552,7 @@ func solveDistanceJoint(base *jointSim, ctx *stepContext, useBias bool) {
 		bias := 0.0
 		massScale := 1.0
 		impulseScale := 0.0
+
 		if useBias {
 			bias = base.constraintSoftness.biasRate * c
 			massScale = base.constraintSoftness.massScale

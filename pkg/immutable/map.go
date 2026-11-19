@@ -90,13 +90,16 @@ func MapFrom[K Key, V any](seq iter.Seq2[K, V]) Map[K, V] {
 	}
 	// Stable, so of the entries sharing a key the one seq yielded last is still last.
 	sortStable(entries, func(a, b entry[K, V]) int { return cmp.Compare(a.k, b.k) })
+
 	kept := entries[:0]
 	for i, e := range entries {
 		if i+1 < len(entries) && entries[i+1].k == e.k {
 			continue
 		}
+
 		kept = append(kept, e)
 	}
+
 	return mapFromSorted(kept)
 }
 
@@ -115,7 +118,9 @@ func (m Map[K, V]) Get(k K) (V, bool) {
 	if chunk, i, ok := m.find(k); ok {
 		return chunk[i].v, true
 	}
+
 	var zero V
+
 	return zero, false
 }
 
@@ -170,12 +175,15 @@ func (m Map[K, V]) MaxKey() (K, bool) {
 			var zero K
 			return zero, false
 		}
+
 		node := m.root
 		for node.kids != nil {
 			node = node.kids[len(node.kids)-1]
 		}
+
 		chunk = node.chunks[len(node.chunks)-1]
 	}
+
 	return chunk[len(chunk)-1].k, true
 }
 
@@ -187,11 +195,14 @@ func (m Map[K, V]) Range(lo, hi K) iter.Seq2[K, V] {
 		if m.n == 0 || lo >= hi {
 			return
 		}
+
 		var p mpath[K, V]
+
 		chunk := m.one
 		if chunk == nil {
 			chunk = m.locate(lo, &p)
 		}
+
 		i, _ := searchEntries(chunk, lo)
 		for {
 			for _, e := range chunk[i:] {
@@ -199,9 +210,11 @@ func (m Map[K, V]) Range(lo, hi K) iter.Seq2[K, V] {
 					return
 				}
 			}
+
 			if m.one != nil || !advance(&p.f, 0, p.h) {
 				return
 			}
+
 			chunk, i = p.f[0].node.chunks[p.f[0].i], 0
 		}
 	}
@@ -214,13 +227,17 @@ func (m Map[K, V]) find(k K) ([]entry[K, V], int, bool) {
 		if m.root == nil {
 			return nil, 0, false
 		}
+
 		node := m.root
 		for node.kids != nil {
 			node = node.kids[lastAtMost(node.keys, k)]
 		}
+
 		chunk = node.chunks[lastAtMost(node.keys, k)]
 	}
+
 	i, found := searchEntries(chunk, k)
+
 	return chunk, i, found
 }
 
@@ -235,6 +252,7 @@ func searchEntries[K Key, V any](entries []entry[K, V], k K) (int, bool) {
 			hi = mid
 		}
 	}
+
 	return lo, lo < len(entries) && entries[lo].k == k
 }
 
@@ -260,22 +278,28 @@ func (m *Map[K, V]) Set(k K, v V) {
 		*m = mapFromSorted([]entry[K, V]{{k, v}})
 		return
 	}
+
 	var p mpath[K, V]
+
 	old := m.one
 	if old == nil {
 		old = m.locate(k, &p)
 	}
+
 	i, found := searchEntries(old, k)
 	if found {
 		edited := slices.Clone(old)
+
 		edited[i].v = v
 		if m.one != nil {
 			m.one = edited
 		} else {
 			m.replaceAbove(&p, 0, mchild[K, V]{chunk: edited})
 		}
+
 		return
 	}
+
 	edited := make([]entry[K, V], 0, len(old)+1)
 	edited = append(append(append(edited, old[:i]...), entry[K, V]{k, v}), old[i:]...)
 	m.rechunk(&p, edited)
@@ -287,19 +311,24 @@ func (m *Map[K, V]) Delete(k K) {
 	if m.n == 0 {
 		return
 	}
+
 	var p mpath[K, V]
+
 	old := m.one
 	if old == nil {
 		old = m.locate(k, &p)
 	}
+
 	i, found := searchEntries(old, k)
 	if !found {
 		return
 	}
+
 	if m.n == 1 {
 		*m = Map[K, V]{}
 		return
 	}
+
 	edited := make([]entry[K, V], 0, len(old)-1)
 	edited = append(append(edited, old[:i]...), old[i+1:]...)
 	m.rechunk(&p, edited)
@@ -314,6 +343,7 @@ func (m *Map[K, V]) rechunk(p *mpath[K, V], edited []entry[K, V]) {
 		m.rechunkTree(p, edited)
 		return
 	}
+
 	var buf [4]mchild[K, V]
 	m.setTop(cutEntries(buf[:0], edited), 0)
 }
@@ -322,7 +352,9 @@ func (m *Map[K, V]) rechunk(p *mpath[K, V], edited []entry[K, V]) {
 // entry, in key order, and the whole pass costs O(n) however many entries go.
 func (m *Map[K, V]) DeleteFunc(del func(K, V) bool) {
 	var kept []entry[K, V]
+
 	seen, deleted := 0, false
+
 	for c := range m.allChunks() {
 		for _, e := range c {
 			switch {
@@ -334,9 +366,11 @@ func (m *Map[K, V]) DeleteFunc(del func(K, V) bool) {
 			case deleted:
 				kept = append(kept, e)
 			}
+
 			seen++
 		}
 	}
+
 	if deleted {
 		*m = mapFromSorted(shrink(kept))
 	}
@@ -351,11 +385,13 @@ func (m *Map[K, V]) UpdateFunc(f func(k K, v V) V) {
 	if m.n == 0 {
 		return
 	}
+
 	all := make([]entry[K, V], 0, m.n)
 	if m.one != nil {
 		m.one = updateChunk(&all, m.one, f)
 		return
 	}
+
 	m.root = updateNode(&all, m.root, f)
 }
 
@@ -367,6 +403,7 @@ func updateChunk[K Key, V any](all *[]entry[K, V], c []entry[K, V], f func(K, V)
 	for _, e := range c {
 		*all = append(*all, entry[K, V]{e.k, f(e.k, e.v)})
 	}
+
 	return (*all)[start:len(*all):len(*all)]
 }
 
@@ -374,6 +411,7 @@ func updateChunk[K Key, V any](all *[]entry[K, V], c []entry[K, V], f func(K, V)
 func updateNode[K Key, V any](all *[]entry[K, V], node *mnode[K, V], f func(K, V) V) *mnode[K, V] {
 	b := allocNode[K, V](len(node.keys), node.kids == nil)
 	copy(b.keys, node.keys)
+
 	if node.kids == nil {
 		for i, c := range node.chunks {
 			b.chunks[i] = updateChunk(all, c, f)
@@ -383,6 +421,7 @@ func updateNode[K Key, V any](all *[]entry[K, V], node *mnode[K, V], f func(K, V
 			b.kids[i] = updateNode(all, kid, f)
 		}
 	}
+
 	return b
 }
 
@@ -392,9 +431,11 @@ func appendFirstEntries[K Key, V any](dst []entry[K, V], m Map[K, V], k int) []e
 		if k <= len(c) {
 			return append(dst, c[:k]...)
 		}
+
 		dst = append(dst, c...)
 		k -= len(c)
 	}
+
 	return dst
 }
 
@@ -430,9 +471,12 @@ func mapFromSorted[K Key, V any](entries []entry[K, V]) Map[K, V] {
 	if len(entries) == 0 {
 		return Map[K, V]{}
 	}
+
 	var buf [4]mchild[K, V]
+
 	m := Map[K, V]{n: len(entries)}
 	m.setTop(cutEntries(buf[:0], entries), 0)
+
 	return m
 }
 
@@ -464,6 +508,7 @@ func (m Map[K, V]) EqualFunc(other Map[K, V], eq func(a, b V) bool) bool {
 	if m.root == nil {
 		return chunksEqual(m.one, other.one, eq)
 	}
+
 	return nodesEqual(m.root, other.root, eq)
 }
 
@@ -489,25 +534,33 @@ func MapEqual[K Key, V comparable](a, b Map[K, V]) bool {
 func (m Map[K, V]) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteByte('{')
+
 	i := 0
 	for k, v := range m.All() {
 		if i > 0 {
 			buf.WriteByte(',')
 		}
+
 		i++
+
 		key, err := json.Marshal(keyText(k))
 		if err != nil {
 			return nil, eris.Wrap(err, "failed to encode immutable map key")
 		}
+
 		buf.Write(key)
 		buf.WriteByte(':')
+
 		val, err := json.Marshal(v)
 		if err != nil {
 			return nil, eris.Wrap(err, "failed to encode immutable map value")
 		}
+
 		buf.Write(val)
 	}
+
 	buf.WriteByte('}')
+
 	return buf.Bytes(), nil
 }
 
@@ -519,37 +572,47 @@ func (m *Map[K, V]) UnmarshalJSON(data []byte) error {
 		*m = Map[K, V]{}
 		return nil
 	}
+
 	dec := json.NewDecoder(bytes.NewReader(data))
 	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
 		return eris.New("immutable map: expected a JSON object")
 	}
+
 	var entries []entry[K, V]
+
 	for dec.More() {
 		tok, err := dec.Token()
 		if err != nil {
 			return eris.Wrap(err, "failed to decode immutable map key")
 		}
+
 		text, ok := tok.(string)
 		if !ok {
 			return eris.Errorf("immutable map: expected a string key, got %v", tok)
 		}
+
 		k, err := parseKey[K](text)
 		if err != nil {
 			return err
 		}
+
 		entries = append(entries, entry[K, V]{k: k})
 		if err := dec.Decode(&entries[len(entries)-1].v); err != nil {
 			return eris.Wrapf(err, "failed to decode immutable map value for key %q", text)
 		}
 	}
+
 	if _, err := dec.Token(); err != nil {
 		return eris.Wrap(err, "failed to decode immutable map end")
 	}
+
 	decoded, err := sortedMap(entries)
 	if err != nil {
 		return err
 	}
+
 	*m = decoded
+
 	return nil
 }
 
@@ -561,18 +624,23 @@ func (m Map[K, V]) EncodeMsgpack(enc *msgpack.Encoder) error {
 	// As in Slice.EncodeMsgpack: encode a reused copy by address, one allocation instead of two per
 	// entry, with the same bytes.
 	var e entry[K, V]
+
 	key, val := reflect.ValueOf(&e.k).Elem(), reflect.ValueOf(&e.v).Elem()
+
 	for c := range m.allChunks() {
 		for i := range c {
 			e = c[i]
+
 			if err := enc.EncodeValue(key); err != nil {
 				return eris.Wrap(err, "failed to encode immutable map key")
 			}
+
 			if err := enc.EncodeValue(val); err != nil {
 				return eris.Wrap(err, "failed to encode immutable map value")
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -585,9 +653,11 @@ func (m *Map[K, V]) DecodeMsgpack(dec *msgpack.Decoder) error {
 	if err != nil {
 		return eris.Wrap(err, "failed to decode immutable map length")
 	}
+
 	entries := make([]entry[K, V], 0, min(max(n, 0), decodePrealloc))
 	for range n {
 		entries = append(entries, entry[K, V]{})
+
 		e := &entries[len(entries)-1]
 		if err := dec.Decode(&e.k); err != nil {
 			return eris.Wrap(err, "failed to decode immutable map key")
@@ -598,11 +668,14 @@ func (m *Map[K, V]) DecodeMsgpack(dec *msgpack.Decoder) error {
 			return eris.Wrap(err, "failed to decode immutable map value")
 		}
 	}
+
 	decoded, err := sortedMap(entries)
 	if err != nil {
 		return err
 	}
+
 	*m = decoded
+
 	return nil
 }
 
@@ -615,15 +688,19 @@ func MapTypes(t reflect.Type) (reflect.Type, reflect.Type, bool) {
 	if t == nil || t.Kind() != reflect.Struct || !strings.HasPrefix(t.Name(), "Map[") {
 		return nil, nil, false
 	}
+
 	if t.PkgPath() != reflect.TypeFor[Map[int, struct{}]]().PkgPath() {
 		return nil, nil, false
 	}
+
 	one, ok := t.FieldByName("one")
 	if !ok || one.Type.Kind() != reflect.Slice || one.Type.Elem().Kind() != reflect.Struct ||
 		one.Type.Elem().NumField() != 2 {
 		return nil, nil, false
 	}
+
 	e := one.Type.Elem()
+
 	return e.Field(0).Type, e.Field(1).Type, true
 }
 
@@ -635,6 +712,7 @@ func sortedMap[K Key, V any](entries []entry[K, V]) (Map[K, V], error) {
 	for i := 1; i < len(entries) && sorted; i++ {
 		sorted = entries[i-1].k < entries[i].k
 	}
+
 	if !sorted {
 		slices.SortFunc(entries, func(a, b entry[K, V]) int { return cmp.Compare(a.k, b.k) })
 		// Only sorting can bring duplicates together; input that passed the strict < check has none.
@@ -644,6 +722,7 @@ func sortedMap[K Key, V any](entries []entry[K, V]) (Map[K, V], error) {
 			}
 		}
 	}
+
 	return mapFromSorted(entries), nil
 }
 
@@ -664,6 +743,7 @@ func keyText[K Key](k K) string {
 // exactly one spelling and "5" and "05" cannot both name it.
 func parseKey[K Key](text string) (K, error) {
 	var k K
+
 	v := reflect.ValueOf(&k).Elem()
 	switch v.Kind() { //nolint:exhaustive // Key admits only integers and strings.
 	case reflect.String:
@@ -674,13 +754,16 @@ func parseKey[K Key](text string) (K, error) {
 		if err != nil || strconv.FormatInt(n, 10) != text {
 			return k, eris.Errorf("immutable map: key %q is not a %s", text, v.Type())
 		}
+
 		v.SetInt(n)
 	default:
 		n, err := strconv.ParseUint(text, 10, v.Type().Bits())
 		if err != nil || strconv.FormatUint(n, 10) != text {
 			return k, eris.Errorf("immutable map: key %q is not a %s", text, v.Type())
 		}
+
 		v.SetUint(n)
 	}
+
 	return k, nil
 }

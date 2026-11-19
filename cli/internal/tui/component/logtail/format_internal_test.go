@@ -69,10 +69,12 @@ func TestFormatShardLine_JSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			got := ansi.Strip(formatShardLine("gameplay", "#00FF00", tt.raw))
 			for _, want := range tt.wantParts {
 				require.Contains(t, got, want, "missing %q in %q", want, got)
 			}
+
 			for _, notWant := range tt.notParts {
 				require.NotContains(t, got, notWant, "unexpected %q in %q", notWant, got)
 			}
@@ -82,6 +84,7 @@ func TestFormatShardLine_JSON(t *testing.T) {
 
 func TestFormatShardLine_NonJSON_PassesThrough(t *testing.T) {
 	t.Parallel()
+
 	raw := "to reproduce: TEST_SEED=0x18b496a8d6c33373"
 	got := ansi.Strip(formatShardLine("gameplay", "#00FF00", raw))
 	require.Equal(t, "[gameplay] "+raw, got)
@@ -89,6 +92,7 @@ func TestFormatShardLine_NonJSON_PassesThrough(t *testing.T) {
 
 func TestFormatShardLine_StripsTrailingNewline(t *testing.T) {
 	t.Parallel()
+
 	got := ansi.Strip(formatShardLine("gameplay", "#00FF00", "plain text\n"))
 	require.Equal(t, "[gameplay] plain text", got)
 }

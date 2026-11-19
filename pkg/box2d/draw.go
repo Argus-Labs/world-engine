@@ -94,9 +94,11 @@ func drawQueryCallback(proxyID int, userData uint64, context any) bool {
 
 	ctx, ok := context.(*drawContext)
 	assert(ok)
+
 	if !ok {
 		return false
 	}
+
 	world := ctx.world
 	draw := ctx.draw
 
@@ -190,6 +192,7 @@ const (
 func (w *World) Draw(draw *DebugDraw) {
 	w.panicIfPoisoned()
 	assert(!w.locked)
+
 	if w.locked {
 		return
 	}
@@ -268,6 +271,7 @@ func (w *World) drawBody(draw *DebugDraw, bodyID int) {
 				jointKey = j.edges[edgeIndex].nextKey
 				continue
 			}
+
 			setBit(&w.debugJointSet, uint32(jointID))
 
 			w.drawJoint(draw, j)
@@ -299,6 +303,7 @@ func (w *World) drawBodyContacts(draw *DebugDraw, b *body) {
 		if getBit(&w.debugContactSet, uint32(contactID)) {
 			continue
 		}
+
 		setBit(&w.debugContactSet, uint32(contactID))
 
 		sim := w.getContactSim(c)
@@ -312,6 +317,7 @@ func (w *World) drawBodyContacts(draw *DebugDraw, b *body) {
 			mp := &sim.manifold.Points[j]
 
 			p := mp.ClipPoint
+
 			switch draw.ContactDrawType {
 			case DrawContactsAnchorA:
 				p = Add(simA.center, mp.AnchorA)
@@ -331,6 +337,7 @@ func (w *World) drawBodyContacts(draw *DebugDraw, b *body) {
 				if c.colorIndex == overflowIndex {
 					pointSize = 7.5
 				}
+
 				draw.DrawPointFcn(p, pointSize, graphColorPalette[c.colorIndex], draw.Context)
 			case mp.Separation > LinearSlop:
 				// Speculative
@@ -407,6 +414,7 @@ func (w *World) drawBodyIsland(draw *DebugDraw, b *body) {
 
 	for _, islandBodyID := range isl.bodies {
 		islandBody := &w.bodies[islandBodyID]
+
 		shapeID := islandBody.headShapeID
 		for shapeID != NullIndex {
 			s := &w.shapes[shapeID]

@@ -57,6 +57,7 @@ func TestDefaultJointDefs(t *testing.T) {
 // jointTestBody creates a dynamic circle body for joint bookkeeping tests.
 func jointTestBody(t *testing.T, w *World, pos Vec2) BodyID {
 	t.Helper()
+
 	bd := DefaultBodyDef()
 	bd.Type = DynamicBody
 	bd.Position = pos
@@ -65,11 +66,13 @@ func jointTestBody(t *testing.T, w *World, pos Vec2) BodyID {
 	circle := Circle{Center: Vec2Zero, Radius: 0.25}
 	sd := DefaultShapeDef()
 	w.CreateCircleShape(bodyID, &sd, &circle)
+
 	return bodyID
 }
 
 func TestJointCreateDestroyBookkeeping(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -95,6 +98,7 @@ func TestJointCreateDestroyBookkeeping(t *testing.T) {
 	// Body edge lists.
 	bodyA := w.getBodyFullID(bodyIDA)
 	bodyB := w.getBodyFullID(bodyIDB)
+
 	require.Equal(t, 1, bodyA.jointCount)
 	require.Equal(t, 1, bodyB.jointCount)
 	require.Equal(t, rawID<<1, bodyA.headJointKey) // | 0 for edge index 0
@@ -133,6 +137,7 @@ func TestJointCreateDestroyBookkeeping(t *testing.T) {
 
 func TestJointStaticAndDisabledPlacement(t *testing.T) {
 	def := DefaultWorldDef()
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -174,6 +179,7 @@ func TestJointStaticAndDisabledPlacement(t *testing.T) {
 func TestJointSleepTransferAndSleepingSetMerge(t *testing.T) {
 	def := DefaultWorldDef()
 	def.Gravity = Vec2Zero
+
 	w := NewWorld(&def)
 	defer w.Destroy()
 
@@ -187,6 +193,7 @@ func TestJointSleepTransferAndSleepingSetMerge(t *testing.T) {
 
 	bodyA := w.getBodyFullID(bodyIDA)
 	bodyB := w.getBodyFullID(bodyIDB)
+
 	require.GreaterOrEqual(t, bodyA.setIndex, firstSleepingSet)
 	require.GreaterOrEqual(t, bodyB.setIndex, firstSleepingSet)
 	require.NotEqual(t, bodyA.setIndex, bodyB.setIndex)
@@ -223,6 +230,7 @@ func TestJointSleepTransferAndSleepingSetMerge(t *testing.T) {
 	for range 60 {
 		w.Step(1.0/60.0, 4)
 	}
+
 	require.GreaterOrEqual(t, j.setIndex, firstSleepingSet)
 	require.Equal(t, bodyA.setIndex, j.setIndex)
 	require.Equal(t, bodyB.setIndex, j.setIndex)

@@ -48,6 +48,7 @@ func base(shapeType physics.ShapeType) physics.ColliderShape {
 func circle(radius float64) physics.ColliderShape {
 	s := base(physics.ShapeTypeCircle)
 	s.Radius = radius
+
 	return s
 }
 
@@ -55,6 +56,7 @@ func circle(radius float64) physics.ColliderShape {
 func box(halfWidth, halfHeight float64) physics.ColliderShape {
 	s := base(physics.ShapeTypeBox)
 	s.HalfExtents = vec(halfWidth, halfHeight)
+
 	return s
 }
 
@@ -71,6 +73,7 @@ func capsule(c1, c2 physics.Vec2, radius float64) physics.ColliderShape {
 	s.CapsuleCenter1 = c1
 	s.CapsuleCenter2 = c2
 	s.Radius = radius
+
 	return s
 }
 
@@ -78,6 +81,7 @@ func capsule(c1, c2 physics.Vec2, radius float64) physics.ColliderShape {
 func chain(points ...physics.Vec2) physics.ColliderShape {
 	s := base(physics.ShapeTypeStaticChain)
 	s.ChainPoints = immutable.SliceOf(points...)
+
 	return s
 }
 
@@ -85,6 +89,7 @@ func chain(points ...physics.Vec2) physics.ColliderShape {
 func chainLoop(points ...physics.Vec2) physics.ColliderShape {
 	s := base(physics.ShapeTypeStaticChainLoop)
 	s.ChainPoints = immutable.SliceOf(points...)
+
 	return s
 }
 
@@ -92,6 +97,7 @@ func chainLoop(points ...physics.Vec2) physics.ColliderShape {
 func edge(a, b physics.Vec2) physics.ColliderShape {
 	s := base(physics.ShapeTypeEdge)
 	s.EdgeVertices = [2]physics.Vec2{a, b}
+
 	return s
 }
 
@@ -118,6 +124,7 @@ func withFilter(s physics.ColliderShape, category, mask uint64, group int32) phy
 	s.CategoryBits = category
 	s.MaskBits = mask
 	s.GroupIndex = group
+
 	return s
 }
 

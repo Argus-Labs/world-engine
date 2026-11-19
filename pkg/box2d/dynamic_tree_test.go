@@ -22,6 +22,7 @@ func newXorshift32(seed uint32) *xorshift32 {
 	if seed == 0 {
 		seed = 0x9e3779b9
 	}
+
 	return &xorshift32{state: seed}
 }
 
@@ -31,6 +32,7 @@ func (r *xorshift32) next() uint32 {
 	x ^= x >> 17
 	x ^= x << 5
 	r.state = x
+
 	return x
 }
 
@@ -55,6 +57,7 @@ func randomAABB(r *xorshift32) box2d.AABB {
 	cy := r.float(-100.0, 100.0)
 	ex := r.float(0.1, 4.0)
 	ey := r.float(0.1, 4.0)
+
 	return box2d.AABB{
 		LowerBound: box2d.Vec2{X: cx - ex, Y: cy - ey},
 		UpperBound: box2d.Vec2{X: cx + ex, Y: cy + ey},
@@ -72,10 +75,12 @@ func hugeAABB() box2d.AABB {
 // collectQuery returns the proxy ids visited by a query, in enumeration order.
 func collectQuery(tree *box2d.DynamicTree, aabb box2d.AABB) []int {
 	var found []int
+
 	tree.Query(aabb, box2d.DefaultMaskBits, func(proxyID int, _ uint64, _ any) bool {
 		found = append(found, proxyID)
 		return true
 	}, nil)
+
 	return found
 }
 
@@ -94,8 +99,10 @@ func TestDynamicTree_ValidateAfterRandomOperations(t *testing.T) {
 	live := make([]treeProxy, 0, 128)
 	nextUserData := uint64(1)
 
-	const batchCount = 40
-	const batchSize = 25
+	const (
+		batchCount = 40
+		batchSize  = 25
+	)
 
 	for batch := range batchCount {
 		for range batchSize {
@@ -105,6 +112,7 @@ func TestDynamicTree_ValidateAfterRandomOperations(t *testing.T) {
 				aabb := randomAABB(rnd)
 				id := tree.CreateProxy(aabb, box2d.DefaultCategoryBits, nextUserData)
 				nextUserData++
+
 				live = append(live, treeProxy{id: id, aabb: aabb})
 			case op == 1:
 				i := rnd.intn(len(live))
@@ -139,6 +147,7 @@ func TestDynamicTree_ValidateAfterRandomOperations(t *testing.T) {
 		for _, p := range live {
 			expected[p.id] = struct{}{}
 		}
+
 		for _, id := range leaves {
 			_, ok := expected[id]
 			require.Truef(t, ok, "batch %d: query returned unknown proxy %d", batch, id)
@@ -147,6 +156,7 @@ func TestDynamicTree_ValidateAfterRandomOperations(t *testing.T) {
 		// Height bounds: a binary tree over n leaves has height in
 		// [ceil(log2(n)), n-1].
 		n := len(live)
+
 		height := tree.GetHeight()
 		if n <= 1 {
 			require.Equalf(t, 0, height, "batch %d height", batch)
@@ -166,12 +176,15 @@ func TestDynamicTree_QueryMatchesBruteForce(t *testing.T) {
 	tree := box2d.NewDynamicTree()
 
 	const proxyCount = 200
+
 	boxes := make([]box2d.AABB, proxyCount)
+
 	ids := make([]int, proxyCount)
 	for i := range proxyCount {
 		boxes[i] = randomAABB(rnd)
 		ids[i] = tree.CreateProxy(boxes[i], box2d.DefaultCategoryBits, uint64(i))
 	}
+
 	require.NoError(t, tree.Validate())
 
 	for q := range 50 {
@@ -191,6 +204,7 @@ func TestDynamicTree_QueryMatchesBruteForce(t *testing.T) {
 		}
 
 		expectedSet := make(map[int]struct{})
+
 		for i := range proxyCount {
 			if box2d.AABBOverlaps(boxes[i], queryBox) {
 				expectedSet[ids[i]] = struct{}{}
@@ -216,6 +230,7 @@ func TestDynamicTree_QueryMaskBitsFilter(t *testing.T) {
 
 	// QueryAll ignores category bits entirely.
 	var all []int
+
 	tree.QueryAll(unit, func(proxyID int, _ uint64, _ any) bool {
 		all = append(all, proxyID)
 		return true
@@ -231,10 +246,12 @@ func TestDynamicTree_QueryMaskBitsFilter(t *testing.T) {
 // collectQuery2 runs a masked query and returns the visited proxy ids.
 func collectQuery2(tree *box2d.DynamicTree, aabb box2d.AABB, maskBits uint64) []int {
 	var found []int
+
 	tree.Query(aabb, maskBits, func(proxyID int, _ uint64, _ any) bool {
 		found = append(found, proxyID)
 		return true
 	}, nil)
+
 	return found
 }
 
@@ -242,6 +259,7 @@ func TestDynamicTree_QueryEarlyTermination(t *testing.T) {
 	t.Parallel()
 
 	rnd := newXorshift32(0x51ce51ce)
+
 	tree := box2d.NewDynamicTree()
 	for i := range 50 {
 		tree.CreateProxy(randomAABB(rnd), box2d.DefaultCategoryBits, uint64(i))
@@ -264,12 +282,14 @@ func TestDynamicTree_RayCastMatchesBruteForce(t *testing.T) {
 	tree := box2d.NewDynamicTree()
 
 	const proxyCount = 150
+
 	boxes := make(map[int]box2d.AABB, proxyCount)
 	for i := range proxyCount {
 		aabb := randomAABB(rnd)
 		id := tree.CreateProxy(aabb, box2d.DefaultCategoryBits, uint64(i))
 		boxes[id] = aabb
 	}
+
 	require.NoError(t, tree.Validate())
 
 	for c := range 30 {
@@ -282,9 +302,11 @@ func TestDynamicTree_RayCastMatchesBruteForce(t *testing.T) {
 		}
 
 		hits := make(map[int]struct{})
+
 		tree.RayCast(&input, box2d.DefaultMaskBits,
 			func(sub *box2d.RayCastInput, proxyID int, _ uint64, _ any) float64 {
 				p2 := box2d.MulAdd(sub.Origin, sub.MaxFraction, sub.Translation)
+
 				out := box2d.AABBRayCast(boxes[proxyID], sub.Origin, p2)
 				if out.Hit {
 					hits[proxyID] = struct{}{}
@@ -295,6 +317,7 @@ func TestDynamicTree_RayCastMatchesBruteForce(t *testing.T) {
 
 		p2 := box2d.MulAdd(input.Origin, input.MaxFraction, input.Translation)
 		expected := make(map[int]struct{})
+
 		for id, aabb := range boxes {
 			if box2d.AABBRayCast(aabb, input.Origin, p2).Hit {
 				expected[id] = struct{}{}
@@ -309,6 +332,7 @@ func TestDynamicTree_RayCastEarlyTermination(t *testing.T) {
 	t.Parallel()
 
 	tree := box2d.NewDynamicTree()
+
 	for i := range 20 {
 		x := float64(i)
 		aabb := box2d.AABB{
@@ -351,6 +375,7 @@ func TestDynamicTree_ShapeCastFindsOverlaps(t *testing.T) {
 
 	tree := box2d.NewDynamicTree()
 	ids := make([]int, 0, 10)
+
 	for i := range 10 {
 		x := 2.0 * float64(i)
 		aabb := box2d.AABB{
@@ -361,6 +386,7 @@ func TestDynamicTree_ShapeCastFindsOverlaps(t *testing.T) {
 	}
 
 	var proxy box2d.ShapeProxy
+
 	proxy.Points[0] = box2d.Vec2{X: -3.0, Y: 0.0}
 	proxy.Count = 1
 	proxy.Radius = 0.25
@@ -402,6 +428,7 @@ func TestDynamicTree_RebuildPreservesLeaves(t *testing.T) {
 	tree := box2d.NewDynamicTree()
 
 	const proxyCount = 200
+
 	boxes := make(map[int]box2d.AABB, proxyCount)
 	for i := range proxyCount {
 		aabb := randomAABB(rnd)
@@ -409,6 +436,7 @@ func TestDynamicTree_RebuildPreservesLeaves(t *testing.T) {
 	}
 
 	queries := make([]box2d.AABB, 40)
+
 	before := make([]map[int]struct{}, len(queries))
 	for i := range queries {
 		queries[i] = randomAABB(rnd)
@@ -425,6 +453,7 @@ func TestDynamicTree_RebuildPreservesLeaves(t *testing.T) {
 	// The leaf set is unchanged: same ids, same boxes.
 	leaves := collectQuery(&tree, hugeAABB())
 	require.Len(t, leaves, proxyCount)
+
 	for _, id := range leaves {
 		aabb, ok := boxes[id]
 		require.Truef(t, ok, "rebuild introduced unknown proxy %d", id)
@@ -452,6 +481,7 @@ func TestDynamicTree_RebuildAfterEnlarge(t *testing.T) {
 	tree := box2d.NewDynamicTree()
 
 	const proxyCount = 60
+
 	ids := make([]int, 0, proxyCount)
 	for i := range proxyCount {
 		ids = append(ids, tree.CreateProxy(randomAABB(rnd), box2d.DefaultCategoryBits, uint64(i)))
@@ -548,11 +578,13 @@ func TestDynamicTree_AreaRatioAndDestroy(t *testing.T) {
 	for i := range 64 {
 		ids = append(ids, tree.CreateProxy(randomAABB(rnd), box2d.DefaultCategoryBits, uint64(i)))
 	}
+
 	assert.Positive(t, tree.GetAreaRatio())
 
 	for _, id := range ids {
 		tree.DestroyProxy(id)
 	}
+
 	assert.Equal(t, 0, tree.GetProxyCount())
 	require.NoError(t, tree.Validate())
 
@@ -568,6 +600,7 @@ func fatten(a box2d.AABB) box2d.AABB {
 	extents := box2d.AABBExtents(a)
 	minExtent := math.Min(extents.X, extents.Y)
 	margin := math.Min(box2d.MaxAABBMargin, box2d.AABBMarginFraction*minExtent)
+
 	return box2d.AABB{
 		LowerBound: box2d.Vec2{X: a.LowerBound.X - margin, Y: a.LowerBound.Y - margin},
 		UpperBound: box2d.Vec2{X: a.UpperBound.X + margin, Y: a.UpperBound.Y + margin},
@@ -580,5 +613,6 @@ func setOf(ids []int) map[int]struct{} {
 	for _, id := range ids {
 		set[id] = struct{}{}
 	}
+
 	return set
 }

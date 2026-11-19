@@ -99,6 +99,7 @@ func (s ColliderShape) WithVertices(vertices ...Vec2) ColliderShape {
 	s.Vertices = [MaxPolygonVertices]Vec2{}
 	copy(s.Vertices[:], vertices) // copies MaxPolygonVertices at most; the count below records the rest
 	s.VertexCount = len(vertices)
+
 	return s
 }
 
@@ -108,6 +109,7 @@ func (s ColliderShape) PolygonVertices() []Vec2 {
 	if s.VertexCount < 0 || s.VertexCount > MaxPolygonVertices {
 		return nil
 	}
+
 	return s.Vertices[:s.VertexCount]
 }
 
@@ -117,15 +119,18 @@ func (s ColliderShape) Validate() error {
 	if err := s.validateScalars(); err != nil {
 		return err
 	}
+
 	if err := s.validateGeometry(); err != nil {
 		return err
 	}
+
 	switch s.ShapeType {
 	case ShapeTypeCircle, ShapeTypeBox, ShapeTypeConvexPolygon, ShapeTypeStaticChain,
 		ShapeTypeStaticChainLoop, ShapeTypeEdge, ShapeTypeCapsule:
 	default:
 		return fmt.Errorf("shape_type: unknown value %d", s.ShapeType)
 	}
+
 	return nil
 }
 
@@ -134,18 +139,23 @@ func (s ColliderShape) validateScalars() error {
 	if !isFinite(s.LocalRotation) {
 		return errors.New("local_rotation: must be finite")
 	}
+
 	if !isFinite(s.Friction) {
 		return fmt.Errorf("friction: must be finite, got %v", s.Friction)
 	}
+
 	if !isFinite(s.Restitution) {
 		return fmt.Errorf("restitution: must be finite, got %v", s.Restitution)
 	}
+
 	if !isFinite(s.Density) {
 		return fmt.Errorf("density: must be finite, got %v", s.Density)
 	}
+
 	if !isFinite(s.Radius) {
 		return fmt.Errorf("radius: must be finite, got %v", s.Radius)
 	}
+
 	return nil
 }
 
@@ -156,15 +166,19 @@ func (s ColliderShape) validateGeometry() error {
 	if err := validateVec2("local_offset", s.LocalOffset); err != nil {
 		return err
 	}
+
 	if err := validateVec2("half_extents", s.HalfExtents); err != nil {
 		return err
 	}
+
 	if err := validateVec2("capsule_center1", s.CapsuleCenter1); err != nil {
 		return err
 	}
+
 	if err := validateVec2("capsule_center2", s.CapsuleCenter2); err != nil {
 		return err
 	}
+
 	if s.VertexCount < 0 || s.VertexCount > MaxPolygonVertices {
 		return fmt.Errorf("vertex_count: must be between 0 and %d, got %d",
 			MaxPolygonVertices, s.VertexCount)
@@ -176,15 +190,18 @@ func (s ColliderShape) validateGeometry() error {
 			return err
 		}
 	}
+
 	for i, v := range s.ChainPoints.All() {
 		if err := validateVec2(fmt.Sprintf("chain_points[%d]", i), v); err != nil {
 			return err
 		}
 	}
+
 	for i, v := range s.EdgeVertices {
 		if err := validateVec2(fmt.Sprintf("edge_vertices[%d]", i), v); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }

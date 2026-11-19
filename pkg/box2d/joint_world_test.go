@@ -21,6 +21,7 @@ const jointTimeStep = 1.0 / 60.0
 func jointTestWorld(gravity box2d.Vec2) *box2d.World {
 	def := box2d.DefaultWorldDef()
 	def.Gravity = gravity
+
 	return box2d.NewWorld(&def)
 }
 
@@ -34,6 +35,7 @@ func jointTestCircleBody(w *box2d.World, pos box2d.Vec2) box2d.BodyID {
 	circle := box2d.Circle{Center: box2d.Vec2Zero, Radius: 0.25}
 	sd := box2d.DefaultShapeDef()
 	w.CreateCircleShape(bodyID, &sd, &circle)
+
 	return bodyID
 }
 
@@ -41,6 +43,7 @@ func jointTestCircleBody(w *box2d.World, pos box2d.Vec2) box2d.BodyID {
 func jointTestStaticBody(w *box2d.World, pos box2d.Vec2) box2d.BodyID {
 	bd := box2d.DefaultBodyDef()
 	bd.Position = pos
+
 	return w.CreateBody(&bd)
 }
 
@@ -57,11 +60,14 @@ func TestJointCRUDAllTypes(t *testing.T) {
 		base.BodyIDA = bodyA
 		base.BodyIDB = bodyB
 		base.UserData = userData
+
 		return base
 	}
 
-	var jointIDs []box2d.JointID
-	var wantTypes []box2d.JointType
+	var (
+		jointIDs  []box2d.JointID
+		wantTypes []box2d.JointType
+	)
 
 	{
 		def := box2d.DefaultDistanceJointDef()
@@ -271,16 +277,19 @@ func TestDistanceJointSpring(t *testing.T) {
 
 	// The spring must overshoot below the rest length (oscillation) ...
 	minLength := 1.5
+
 	for range 120 {
 		w.Step(jointTimeStep, 4)
 		minLength = math.Min(minLength, w.DistanceJointCurrentLength(jointID))
 	}
+
 	require.Less(t, minLength, 0.99)
 
 	// ... and settle near the rest length.
 	for range 600 {
 		w.Step(jointTimeStep, 4)
 	}
+
 	require.InDelta(t, 1.0, w.DistanceJointCurrentLength(jointID), 0.02)
 	require.Less(t, box2d.Length(w.BodyLinearVelocity(body)), 0.05)
 }
@@ -309,6 +318,7 @@ func TestDistanceJointLimit(t *testing.T) {
 	require.InDelta(t, 1.2, w.DistanceJointMaxLength(jointID), 0)
 
 	maxLength := 0.0
+
 	for range 240 {
 		w.Step(jointTimeStep, 4)
 		maxLength = math.Max(maxLength, w.DistanceJointCurrentLength(jointID))
@@ -363,6 +373,7 @@ func jointTestPendulum(w *box2d.World, def *box2d.RevoluteJointDef, bobPos box2d
 	def.Base.LocalFrameA.P = box2d.Vec2Zero
 	def.Base.LocalFrameB.P = box2d.Vec2{X: -bobPos.X, Y: -bobPos.Y}
 	jointID := w.CreateRevoluteJoint(def)
+
 	return bob, jointID
 }
 
@@ -378,12 +389,14 @@ func TestRevoluteJointPendulum(t *testing.T) {
 	maxSpeed := math.Sqrt(20.0) + 0.5
 
 	swungDown := false
+
 	for range 300 {
 		w.Step(jointTimeStep, 4)
 
 		p := w.BodyPosition(bob)
 		require.InDelta(t, 1.0, box2d.Length(p), 0.02, "pendulum bob left the circle")
 		require.Less(t, box2d.Length(w.BodyLinearVelocity(bob)), maxSpeed, "pendulum gained energy")
+
 		if p.Y < -0.5 {
 			swungDown = true
 		}
@@ -459,6 +472,7 @@ func TestRevoluteJointReactions(t *testing.T) {
 
 	force := w.JointConstraintForce(jointID)
 	torque := w.JointConstraintTorque(jointID)
+
 	require.True(t, box2d.IsValidVec2(force))
 	require.True(t, box2d.IsValidFloat(torque))
 
@@ -527,6 +541,7 @@ func TestJointedPairSleepsAndWakes(t *testing.T) {
 	for range 30 {
 		w.Step(jointTimeStep, 4)
 	}
+
 	require.InDelta(t, 1.0, w.DistanceJointCurrentLength(jointID), 1e-3)
 }
 
@@ -548,6 +563,7 @@ func TestSetBodyTypeDynamicToStaticMidContact(t *testing.T) {
 	for range 120 {
 		w.Step(jointTimeStep, 4)
 	}
+
 	require.Positive(t, w.BodyContactCapacity(box))
 
 	w.SetBodyType(box, box2d.StaticBody)
@@ -560,10 +576,12 @@ func TestSetBodyTypeDynamicToStaticMidContact(t *testing.T) {
 	// The now-static circle does not move and another body rests on it
 	// (proves the proxy moved to the static tree).
 	posBefore := w.BodyPosition(box)
+
 	ball := jointTestCircleBody(w, box2d.Vec2{X: 0.0, Y: 1.5})
 	for range 180 {
 		w.Step(jointTimeStep, 4)
 	}
+
 	require.Equal(t, posBefore, w.BodyPosition(box))
 	require.Greater(t, w.BodyPosition(ball).Y, posBefore.Y+0.4)
 }
@@ -582,6 +600,7 @@ func TestSetBodyTypeStaticToDynamicFalls(t *testing.T) {
 	for range 30 {
 		w.Step(jointTimeStep, 4)
 	}
+
 	require.InDelta(t, 5.0, w.BodyPosition(body).Y, 0)
 
 	w.SetBodyType(body, box2d.DynamicBody)
@@ -591,6 +610,7 @@ func TestSetBodyTypeStaticToDynamicFalls(t *testing.T) {
 	for range 30 {
 		w.Step(jointTimeStep, 4)
 	}
+
 	require.Less(t, w.BodyPosition(body).Y, 4.0)
 }
 
@@ -615,9 +635,11 @@ func TestSetBodyTypeKinematic(t *testing.T) {
 
 	// Back to dynamic: gravity applies again.
 	w.SetBodyType(body, box2d.DynamicBody)
+
 	for range 30 {
 		w.Step(jointTimeStep, 4)
 	}
+
 	require.Less(t, w.BodyPosition(body).Y, 2.0)
 }
 
@@ -648,9 +670,11 @@ func TestSetBodyTypeWithJointBothDirections(t *testing.T) {
 	// static -> dynamic: both bodies fall, the joint keeps holding.
 	w.SetBodyType(anchor, box2d.DynamicBody)
 	require.True(t, w.IsJointValid(jointID))
+
 	for range 60 {
 		w.Step(jointTimeStep, 4)
 	}
+
 	require.Less(t, w.BodyPosition(anchor).Y, -1.0)
 	require.Less(t, w.JointLinearSeparation(jointID), 0.01)
 	dist := box2d.Distance(w.BodyPosition(anchor), w.BodyPosition(bob))
@@ -659,10 +683,12 @@ func TestSetBodyTypeWithJointBothDirections(t *testing.T) {
 	// dynamic -> static: the anchor freezes and the pendulum still solves.
 	w.SetBodyType(anchor, box2d.StaticBody)
 	require.True(t, w.IsJointValid(jointID))
+
 	frozen := w.BodyPosition(anchor)
 	for range 60 {
 		w.Step(jointTimeStep, 4)
 	}
+
 	require.Equal(t, frozen, w.BodyPosition(anchor))
 	require.Less(t, w.JointLinearSeparation(jointID), 0.01)
 }
@@ -712,6 +738,7 @@ func jointTestMixedScene(w *box2d.World, steps int) []box2d.BodyID {
 			w.SetBodyType(pairA, box2d.DynamicBody)
 		default:
 		}
+
 		w.Step(jointTimeStep, 4)
 	}
 
@@ -723,6 +750,7 @@ func TestSetBodyTypeDeterminism(t *testing.T) {
 
 	w1 := jointTestWorld(box2d.Vec2{X: 0.0, Y: -10.0})
 	defer w1.Destroy()
+
 	w2 := jointTestWorld(box2d.Vec2{X: 0.0, Y: -10.0})
 	defer w2.Destroy()
 
@@ -730,6 +758,7 @@ func TestSetBodyTypeDeterminism(t *testing.T) {
 	bodies2 := jointTestMixedScene(w2, steps)
 
 	require.Equal(t, hashWorldState(w1, bodies1), hashWorldState(w2, bodies2))
+
 	for i := range bodies1 {
 		p1 := w1.BodyPosition(bodies1[i])
 		p2 := w2.BodyPosition(bodies2[i])
@@ -759,6 +788,7 @@ func jointTestDeterminismScene(w *box2d.World) []box2d.BodyID {
 	swingA := jointTestCircleBody(w, box2d.Vec2{X: 4.0, Y: 2.0})
 	swingB := jointTestCircleBody(w, box2d.Vec2{X: 5.0, Y: 2.0})
 	w.SetBodyLinearVelocity(swingB, box2d.Vec2{X: 0.0, Y: 2.0})
+
 	dd := box2d.DefaultDistanceJointDef()
 	dd.Base.BodyIDA = swingA
 	dd.Base.BodyIDB = swingB
@@ -782,6 +812,7 @@ func jointTestDeterminismScene(w *box2d.World) []box2d.BodyID {
 func TestJointDeterminism(t *testing.T) {
 	w1 := jointTestWorld(box2d.Vec2{X: 0.0, Y: -10.0})
 	defer w1.Destroy()
+
 	w2 := jointTestWorld(box2d.Vec2{X: 0.0, Y: -10.0})
 	defer w2.Destroy()
 

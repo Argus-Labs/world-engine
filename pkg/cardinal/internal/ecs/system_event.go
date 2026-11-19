@@ -45,6 +45,7 @@ func (s *systemEventManager) register[T SystemEvent](name string) (SystemEventID
 		if _, ok := s.events[seid].(*systemEventQueue[T]); !ok {
 			return 0, eris.Errorf("system event %s already registered with a different type", name)
 		}
+
 		return seid, nil
 	}
 
@@ -84,6 +85,7 @@ func (s *systemEventManager) enqueue[T SystemEvent](systemEvent T) error {
 	assert.That(ok, "unexpected system event type %s", name)
 
 	queue.enqueue(systemEvent)
+
 	return nil
 }
 
@@ -127,6 +129,7 @@ type systemEventQueue[T SystemEvent] struct {
 // newSystemEventQueue creates a new queue with the specified event type.
 func newSystemEventQueue[T SystemEvent]() systemEventQueue[T] {
 	const initialEventBufferCapacity = 128
+
 	return systemEventQueue[T]{
 		events: make([]T, 0, initialEventBufferCapacity),
 	}

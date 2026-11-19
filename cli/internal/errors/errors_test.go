@@ -33,6 +33,7 @@ func TestShouldPrint_CancelSuppressed(t *testing.T) {
 	t.Parallel()
 
 	canceled := eris.Wrap(context.Canceled, `list containers for project "demo"`)
+
 	cases := []struct {
 		name string
 		err  error

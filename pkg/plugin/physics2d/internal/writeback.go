@@ -38,6 +38,7 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 	for i := range entries {
 		e := &entries[i]
 		id := e.Entity.ID()
+
 		bodyID, ok := rt.Bodies[id]
 		if !ok {
 			continue
@@ -69,6 +70,7 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 
 		e.Entity.Set(t)
 		e.Entity.Set(v)
+
 		if pb.Active && pb.Awake != awake {
 			pb.Awake = awake
 			e.Entity.Set(pb)
@@ -77,10 +79,12 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 		// Update shadow so ReconcileFromECS sees no diff for these fields next tick.
 		if shadow, exists := rt.Shadow[id]; exists {
 			shadow.Transform = t
+
 			shadow.Velocity = v
 			if pb.Active {
 				shadow.PhysicsBody.Awake = awake
 			}
+
 			rt.Shadow[id] = shadow
 		}
 	}

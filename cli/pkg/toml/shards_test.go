@@ -14,6 +14,7 @@ import (
 // them: pools expanded, InstanceID set on every replica.
 func pooled(t *testing.T) toml.Config {
 	t.Helper()
+
 	cfg, err := toml.Load(strings.NewReader(`
 organization = "org"
 project = "proj"
@@ -26,6 +27,7 @@ pool_size = 2
 id = "chat"
 `))
 	require.NoError(t, err)
+
 	return cfg
 }
 
@@ -34,6 +36,7 @@ func instances(shards []toml.Shard) []string {
 	for _, s := range shards {
 		out = append(out, s.InstanceID)
 	}
+
 	return out
 }
 

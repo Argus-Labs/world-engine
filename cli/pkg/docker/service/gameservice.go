@@ -35,12 +35,15 @@ func BuildGameServices(cfg *Config) []Builder {
 	if NeedsAutoProjectDB(cfg.WorldToml) {
 		services = append(services, ProjectDBService)
 	}
+
 	for _, sc := range cfg.WorldToml.Services {
 		svcCfg := sc
+
 		services = append(services, func(c *Config) Service {
 			return GameServiceFromConfig(c, svcCfg)
 		})
 	}
+
 	return services
 }
 
@@ -52,11 +55,13 @@ func PlatformServices(cfg *Config) []Service {
 	if NeedsAutoProjectDB(cfg.WorldToml) {
 		svcs = append(svcs, ProjectDBService(cfg))
 	}
+
 	for _, gs := range cfg.WorldToml.Services {
 		if !gs.IsBuiltFromSource() {
 			svcs = append(svcs, GameServiceFromConfig(cfg, gs))
 		}
 	}
+
 	return svcs
 }
 
@@ -64,10 +69,12 @@ func PlatformServices(cfg *Config) []Service {
 // Docker does not pull on ContainerCreate, so these are pulled before StartPlatform.
 func PlatformImageRefs(cfg *Config) []string {
 	svcs := PlatformServices(cfg)
+
 	refs := make([]string, 0, len(svcs))
 	for _, s := range svcs {
 		refs = append(refs, s.Image)
 	}
+
 	return refs
 }
 
@@ -82,6 +89,7 @@ func GameServiceFromConfig(cfg *Config, svc worldtoml.GameService) Service {
 	} else {
 		out.Image = svc.Image
 	}
+
 	return out
 }
 
@@ -104,10 +112,12 @@ func buildBaseGameService(cfg *Config, svc worldtoml.GameService) Service {
 		out.ExposedPorts = getExposedPorts(svc.Ports)
 		out.PortBindings = newPortMap(svc.Ports)
 	}
+
 	if svc.Volume != "" {
 		// Volume name == container name so purge's implicit volume delete cleans it up.
 		out.Binds = []string{fmt.Sprintf("%s:%s", containerName, svc.Volume)}
 	}
+
 	if len(svc.Healthcheck) > 0 {
 		out.Healthcheck = &container.HealthConfig{
 			Test:     svc.Healthcheck,
@@ -140,6 +150,7 @@ func buildGameServiceEnv(cfg *Config, svc worldtoml.GameService) []string {
 	// svc.Env (world.toml) overwrites the world-cli seed above, so world.toml
 	// wins for NATS_URL.
 	maps.Copy(merged, svc.Env)
+
 	if svc.DB {
 		if dsn := projectDBDSN(cfg.WorldToml); dsn != "" {
 			// A world.toml DB_DSN wins, so only fill it in when absent.
@@ -148,6 +159,7 @@ func buildGameServiceEnv(cfg *Config, svc worldtoml.GameService) []string {
 			}
 		}
 	}
+
 	if svc.ConfigDB {
 		merged["POSTGRES_USER"] = configDBUser
 		merged["POSTGRES_PASSWORD"] = configDBPassword
@@ -158,10 +170,13 @@ func buildGameServiceEnv(cfg *Config, svc worldtoml.GameService) []string {
 	for k := range merged {
 		keys = append(keys, k)
 	}
+
 	slices.Sort(keys)
+
 	env := make([]string, 0, len(merged))
 	for _, k := range keys {
 		env = append(env, fmt.Sprintf("%s=%s", k, merged[k]))
 	}
+
 	return env
 }

@@ -19,16 +19,20 @@ import (
 // terminal, and returns the final model.
 func headless(t *testing.T, fn func(d *Dashboard)) Model {
 	t.Helper()
+
 	p := tea.NewProgram(newModel(nil),
 		tea.WithInput(nil), tea.WithOutput(io.Discard), tea.WithoutRenderer(), tea.WithoutSignalHandler())
 	go func() {
 		fn(&Dashboard{p: p, ctx: context.Background()})
 		p.Quit()
 	}()
+
 	final, err := p.Run()
 	require.NoError(t, err)
+
 	m, ok := final.(Model)
 	require.True(t, ok)
+
 	return m
 }
 
@@ -38,11 +42,13 @@ func TestFailureShowsStatusNotErrorText(t *testing.T) {
 	t.Parallel()
 
 	const errText = "build error for game-shard: exit code: 1"
+
 	m := headless(t, func(d *Dashboard) {
 		_ = d.Run("Build",
 			func(_ context.Context, sess Session) error {
 				sess.Fail("a", "game-shard", errors.New(errText))
 				sess.Fail("b", "lobby-shard", fmt.Errorf("build: %w", context.Canceled))
+
 				return errors.New(errText)
 			},
 			func(time.Duration) string { return "built" },
@@ -60,6 +66,7 @@ func TestCanceledRunIsSilent(t *testing.T) {
 	t.Parallel()
 
 	var runErr error
+
 	m := headless(t, func(d *Dashboard) {
 		runErr = d.Run("Build",
 			func(context.Context, Session) error { return fmt.Errorf("build: %w", context.Canceled) },
@@ -77,7 +84,9 @@ func TestPlainPrintsSummaries(t *testing.T) {
 	t.Parallel()
 
 	var out bytes.Buffer
+
 	d := Start(context.Background(), Plain)
+
 	d.plain = &out
 	defer d.Complete()
 
@@ -85,6 +94,7 @@ func TestPlainPrintsSummaries(t *testing.T) {
 		func(_ context.Context, sess Session) error {
 			sess.UpsertRow("a", "game-shard", "building…", Active)
 			sess.Fail("a", "game-shard", errors.New("exit code: 1"))
+
 			return errors.New("exit code: 1")
 		},
 		func(time.Duration) string { return "built" },

@@ -171,6 +171,7 @@ func (w *World) SetRevoluteJointLimits(jointID JointID, lower, upper float64) {
 	// clamped stored pair and is treated as a no-op instead of clearing the
 	// limit impulses and the reported constraint torque.
 	normalizedLower := clampFloat(minFloat(lower, upper), -0.99*Pi, 0.99*Pi)
+
 	normalizedUpper := clampFloat(maxFloat(lower, upper), -0.99*Pi, 0.99*Pi)
 	if normalizedLower != j.revoluteJoint.lowerAngle || normalizedUpper != j.revoluteJoint.upperAngle {
 		j.revoluteJoint.lowerAngle = normalizedLower
@@ -285,6 +286,7 @@ func prepareRevoluteJoint(base *jointSim, ctx *stepContext) {
 	if bodyA.setIndex == awakeSet {
 		j.indexA = localIndexA
 	}
+
 	j.indexB = NullIndex
 	if bodyB.setIndex == awakeSet {
 		j.indexB = localIndexB
@@ -305,6 +307,7 @@ func prepareRevoluteJoint(base *jointSim, ctx *stepContext) {
 	j.deltaCenter = Sub(bodySimB.center, bodySimA.center)
 
 	k := iA + iB
+
 	j.axialMass = 0.0
 	if k > 0.0 {
 		j.axialMass = 1.0 / k
@@ -334,10 +337,12 @@ func warmStartRevoluteJoint(base *jointSim, ctx *stepContext) {
 	dummyState := identityBodyState
 
 	j := &base.revoluteJoint
+
 	stateA := &dummyState
 	if j.indexA != NullIndex {
 		stateA = &ctx.states[j.indexA]
 	}
+
 	stateB := &dummyState
 	if j.indexB != NullIndex {
 		stateB = &ctx.states[j.indexB]
@@ -379,6 +384,7 @@ func solveRevoluteJoint(base *jointSim, ctx *stepContext, useBias bool) {
 	if j.indexA != NullIndex {
 		stateA = &ctx.states[j.indexA]
 	}
+
 	stateB := &dummyState
 	if j.indexB != NullIndex {
 		stateB = &ctx.states[j.indexB]
@@ -438,6 +444,7 @@ func solveRevoluteJoint(base *jointSim, ctx *stepContext, useBias bool) {
 			bias := 0.0
 			massScale := 1.0
 			impulseScale := 0.0
+
 			if c > 0.0 {
 				// speculation
 				bias = c * ctx.invH
@@ -467,6 +474,7 @@ func solveRevoluteJoint(base *jointSim, ctx *stepContext, useBias bool) {
 			bias := 0.0
 			massScale := 1.0
 			impulseScale := 0.0
+
 			if c > 0.0 {
 				// speculation
 				bias = c * ctx.invH
@@ -506,6 +514,7 @@ func solveRevoluteJoint(base *jointSim, ctx *stepContext, useBias bool) {
 		bias := Vec2Zero
 		massScale := 1.0
 		impulseScale := 0.0
+
 		if useBias {
 			dcA := stateA.deltaPosition
 			dcB := stateB.deltaPosition

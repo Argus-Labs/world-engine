@@ -17,13 +17,16 @@ func (c *DocsCmd) Run() error {
 	telemetry.PosthogCaptureEvent("docs-command", nil)
 	// Ask for confirmation before opening browser
 	prompt := "Open " + docsURL + " in your browser?"
+
 	confirmed, err := textinput.Confirm(prompt, "y")
 	if err != nil {
 		return eris.Wrap(err, "failed to confirm")
 	}
+
 	if !confirmed {
 		printer.Notificationf("Please visit this URL to view the docs: %s", docsURL)
 		printer.NewLine(1)
+
 		return nil
 	}
 
@@ -32,5 +35,6 @@ func (c *DocsCmd) Run() error {
 	if err != nil {
 		return eris.Wrap(err, "failed to open browser")
 	}
+
 	return nil
 }

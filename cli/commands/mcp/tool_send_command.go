@@ -68,6 +68,7 @@ func sendCommandHandler(
 	if err := args.validate(); err != nil {
 		return SendCommandOutput{}, eris.Wrap(err, "failed to validate send command input")
 	}
+
 	ctx, cancel := ensureDeadline(ctx, defaultCommandTimeout)
 	defer cancel()
 
@@ -94,6 +95,7 @@ func sendCommandHandler(
 	if err != nil {
 		return SendCommandOutput{}, eris.Wrap(err, "failed to fetch command schema")
 	}
+
 	payloadBytes, err := encodeCommandPayload(commandSchema, args.Payload)
 	if err != nil {
 		return SendCommandOutput{}, eris.Wrapf(err, "failed to encode payload for command %q", args.CommandName)
@@ -149,6 +151,7 @@ func (s *SendCommandInput) validate() error {
 	if err != nil {
 		return err
 	}
+
 	s.ShardID = shardID
 	if s.CommandName == "" {
 		return eris.New("command_name is required")
@@ -157,9 +160,11 @@ func (s *SendCommandInput) validate() error {
 	if s.PlayerID == "" {
 		s.PlayerID = defaultDevPlayerID
 	}
+
 	if s.Payload == "" {
 		s.Payload = "{}"
 	}
+
 	return nil
 }
 
@@ -169,6 +174,7 @@ func authHint(err error) error {
 	if connect.CodeOf(err) != connect.CodeUnauthenticated || os.Getenv(argusTokenEnv) != "" {
 		return err
 	}
+
 	return eris.Wrapf(
 		err,
 		"this world authenticates players with Argus Auth; export %s=<token> or set [auth] mode = %q in world.toml and start the world again",

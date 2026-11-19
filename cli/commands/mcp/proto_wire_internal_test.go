@@ -23,6 +23,7 @@ func testObjectSchema(field string, schema map[string]any) map[string]any {
 
 func TestEncodeCommandPayloadPreservesLargeIntegers(t *testing.T) {
 	t.Parallel()
+
 	for _, tc := range []struct {
 		text string
 		want any
@@ -35,6 +36,7 @@ func TestEncodeCommandPayloadPreservesLargeIntegers(t *testing.T) {
 	} {
 		t.Run(tc.text, func(t *testing.T) {
 			t.Parallel()
+
 			blob, err := encodeCommandPayload(
 				testObjectSchema("N", map[string]any{"type": "integer"}),
 				`{"N":`+tc.text+`}`,
@@ -49,6 +51,7 @@ func TestEncodeCommandPayloadPreservesLargeIntegers(t *testing.T) {
 
 func TestEncodeCommandPayloadNestedArraysAndBytes(t *testing.T) {
 	t.Parallel()
+
 	schema := map[string]any{
 		"$ref": "#/$defs/Cmd",
 		"$defs": map[string]any{
@@ -67,6 +70,7 @@ func TestEncodeCommandPayloadNestedArraysAndBytes(t *testing.T) {
 	}
 	blob, err := encodeCommandPayload(schema, `{"cells":[[{"X":9007199254740993}],[{"X":2}]],"bytes":"AQID"}`)
 	require.NoError(t, err)
+
 	var target struct {
 		Cells [][]struct{ X int64 } `msgpack:"cells"`
 		Bytes []byte                `msgpack:"bytes"`
@@ -76,27 +80,33 @@ func TestEncodeCommandPayloadNestedArraysAndBytes(t *testing.T) {
 	assert.Equal(t, int64(9007199254740993), target.Cells[0][0].X)
 	assert.Equal(t, int64(2), target.Cells[1][0].X)
 	assert.Equal(t, []byte{1, 2, 3}, target.Bytes)
+
 	_, err = encodeCommandPayload(schema, `{"cells":[[{"nope":1}]]}`)
 	require.Error(t, err)
 }
 
 func TestEncodeCommandPayloadRejectsInvalidInput(t *testing.T) {
 	t.Parallel()
+
 	schema := testObjectSchema("N", map[string]any{"type": "integer", "minimum": -128, "maximum": 127})
+
 	for _, payload := range []string{
 		`{"Unknown":1}`, `{"N":"1"}`, `{"N":true}`, `{"N":1.5}`, `{"N":128}`, `{"N":-129}`,
 		`null`, `[]`, `1`, `{`, `{} {}`, `{} trailing`,
 	} {
 		t.Run(payload, func(t *testing.T) {
 			t.Parallel()
+
 			_, err := encodeCommandPayload(schema, payload)
 			require.Error(t, err)
 		})
 	}
+
 	for _, number := range []string{"18446744073709551616", "-9223372036854775809"} {
 		_, err := encodeCommandPayload(testObjectSchema("N", map[string]any{"type": "integer"}), `{"N":`+number+`}`)
 		require.Error(t, err)
 	}
+
 	blob, err := encodeCommandPayload(schema, `{}`)
 	require.NoError(t, err)
 	decoded, err := decodeMessage(blob)
@@ -106,12 +116,14 @@ func TestEncodeCommandPayloadRejectsInvalidInput(t *testing.T) {
 
 func TestConvertTypeSchemasPreservesJSONSchema(t *testing.T) {
 	t.Parallel()
+
 	schema := map[string]any{
 		"$ref":  "#/$defs/Cmd",
 		"$defs": map[string]any{"Cmd": testObjectSchema("N", map[string]any{"type": "integer"})},
 	}
 	metadata, err := structpb.NewStruct(schema)
 	require.NoError(t, err)
+
 	out := convertTypeSchemas([]*cardinalv1.TypeSchema{{Name: "cmd", JsonSchema: metadata}})
 	require.Len(t, out, 1)
 	assert.Equal(t, schema, out[0].Schema)
@@ -123,6 +135,7 @@ func TestConvertTypeSchemasPreservesJSONSchema(t *testing.T) {
 
 func TestEncodeCommandPayloadNativeIntegerRanges(t *testing.T) {
 	t.Parallel()
+
 	for _, tc := range []struct{ format, valid, invalid string }{
 		{"int8", "127", "128"}, {"uint8", "255", "256"},
 		{"int16", "32767", "32768"}, {"uint16", "65535", "65536"},
@@ -132,6 +145,7 @@ func TestEncodeCommandPayloadNativeIntegerRanges(t *testing.T) {
 	} {
 		t.Run(tc.format, func(t *testing.T) {
 			t.Parallel()
+
 			schema := testObjectSchema("N", map[string]any{"type": "integer", "format": tc.format})
 			_, err := encodeCommandPayload(schema, `{"N":`+tc.valid+`}`)
 			require.NoError(t, err)
@@ -143,6 +157,7 @@ func TestEncodeCommandPayloadNativeIntegerRanges(t *testing.T) {
 
 func TestEncodeCommandPayloadIntegralNumberForms(t *testing.T) {
 	t.Parallel()
+
 	for _, tc := range []struct {
 		format, number string
 		want           any
@@ -155,10 +170,12 @@ func TestEncodeCommandPayloadIntegralNumberForms(t *testing.T) {
 		schema := testObjectSchema("N", map[string]any{"type": "integer", "format": tc.format})
 		blob, err := encodeCommandPayload(schema, `{"N":`+tc.number+`}`)
 		require.NoError(t, err, tc.number)
+
 		var target struct{ N any }
 		require.NoError(t, msgpack.Unmarshal(blob, &target))
 		assert.EqualValues(t, tc.want, target.N, tc.number)
 	}
+
 	for _, number := range []string{"1.28e2", "1e400", "1.0000000000000000000000000000000000000000000000000000000000000000000000000000001"} {
 		schema := testObjectSchema("N", map[string]any{"type": "integer", "format": "int8"})
 		_, err := encodeCommandPayload(schema, `{"N":`+number+`}`)
@@ -168,12 +185,14 @@ func TestEncodeCommandPayloadIntegralNumberForms(t *testing.T) {
 
 func TestCommandAndStateImmutableSlice(t *testing.T) {
 	t.Parallel()
+
 	schema := testObjectSchema(
 		"Nums",
 		map[string]any{"type": "array", "items": map[string]any{"type": "integer", "format": "int64"}},
 	)
 	blob, err := encodeCommandPayload(schema, `{"Nums":[9007199254740993,9223372036854775807]}`)
 	require.NoError(t, err)
+
 	var target struct{ Nums immutable.Slice[int64] }
 	require.NoError(t, msgpack.Unmarshal(blob, &target))
 	require.Equal(t, 2, target.Nums.Len())
@@ -181,6 +200,7 @@ func TestCommandAndStateImmutableSlice(t *testing.T) {
 	assert.Equal(t, int64(9223372036854775807), target.Nums.At(1))
 	state, err := msgpack.Marshal(target)
 	require.NoError(t, err)
+
 	components := entityComponents([]string{"Numbers"}, [][]byte{state}, componentDescriptors{"Numbers": schema})
 	filter, err := compileStateFilter(GetStateInput{Where: "Numbers.Nums[0] == 9007199254740993"})
 	require.NoError(t, err)
@@ -191,6 +211,7 @@ func TestCommandAndStateImmutableSlice(t *testing.T) {
 
 func TestEncodeCommandPayloadScalarTypes(t *testing.T) {
 	t.Parallel()
+
 	schema := map[string]any{
 		"type": "object", "additionalProperties": false,
 		"properties": map[string]any{
@@ -202,16 +223,19 @@ func TestEncodeCommandPayloadScalarTypes(t *testing.T) {
 	for _, payload := range []string{`{"Name":"hi","Enabled":true,"Ratio":1.5}`, `{"Ratio":null}`} {
 		blob, err := encodeCommandPayload(schema, payload)
 		require.NoError(t, err)
+
 		var target struct {
 			Name    string
 			Enabled bool
 			Ratio   *float64
 		}
 		require.NoError(t, msgpack.Unmarshal(blob, &target))
+
 		if payload == `{"Ratio":null}` {
 			require.Nil(t, target.Ratio)
 			continue
 		}
+
 		require.NotNil(t, target.Ratio)
 		assert.Equal(t, 1.5, *target.Ratio)
 		assert.Equal(t, "hi", target.Name)
@@ -221,12 +245,14 @@ func TestEncodeCommandPayloadScalarTypes(t *testing.T) {
 
 func TestCommandAndStateIntegerMapKeys(t *testing.T) {
 	t.Parallel()
+
 	schema := testObjectSchema("Counts", map[string]any{
 		"type": "object", "x-msgpack-key-format": "uint64",
 		"additionalProperties": map[string]any{"type": "integer", "format": "int8"},
 	})
 	blob, err := encodeCommandPayload(schema, `{"Counts":{"18446744073709551615":-7}}`)
 	require.NoError(t, err)
+
 	var target struct{ Counts map[uint64]int8 }
 	require.NoError(t, msgpack.Unmarshal(blob, &target))
 	assert.Equal(t, map[uint64]int8{^uint64(0): -7}, target.Counts)
@@ -235,6 +261,7 @@ func TestCommandAndStateIntegerMapKeys(t *testing.T) {
 	decoded, err := decodeMessage(state)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{"18446744073709551615": int8(-7)}, decoded["Counts"])
+
 	for _, payload := range []string{`{"Counts":{"-1":0}}`, `{"Counts":{"1":128}}`, `{"Counts":{"1":0,"01":1}}`} {
 		_, err = encodeCommandPayload(schema, payload)
 		require.Error(t, err)
@@ -243,20 +270,25 @@ func TestCommandAndStateIntegerMapKeys(t *testing.T) {
 
 func TestCommandAndStateTimestamp(t *testing.T) {
 	t.Parallel()
+
 	schema := testObjectSchema("At", map[string]any{"type": "string", "format": "date-time"})
 	blob, err := encodeCommandPayload(schema, `{"At":"2026-11-03T04:05:06.789+07:00"}`)
 	require.NoError(t, err)
+
 	var target struct{ At time.Time }
 	require.NoError(t, msgpack.Unmarshal(blob, &target))
+
 	want := time.Date(2026, 11, 2, 21, 5, 6, 789_000_000, time.UTC)
 	assert.True(t, want.Equal(target.At), "got %v", target.At)
 	state, err := msgpack.Marshal(target)
 	require.NoError(t, err)
 	decoded, err := decodeMessage(state)
 	require.NoError(t, err)
+
 	at, ok := decoded["At"].(time.Time)
 	require.True(t, ok, "got %T", decoded["At"])
 	assert.True(t, want.Equal(at), "got %v", at)
+
 	_, err = encodeCommandPayload(schema, `{"At":"yesterday"}`)
 	require.ErrorContains(t, err, "invalid RFC 3339 timestamp")
 }

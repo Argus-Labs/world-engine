@@ -11,7 +11,9 @@ type perfArchetype struct {
 // steady-state measurements.
 func newPerfEntityState(t testing.TB) (*World, Search) {
 	t.Helper()
+
 	w := newBenchWorld()
+
 	return w, w.Contains[perfArchetype]()
 }
 
@@ -19,11 +21,14 @@ func BenchmarkEntityOperations(b *testing.B) {
 	b.Run("AddRemove", func(b *testing.B) {
 		_, entities := newPerfEntityState(b)
 		entity := entities.Create()
+
 		b.ReportAllocs()
+
 		for b.Loop() {
 			entity.Remove[Velocity3D]()
 			entity.Set(Velocity3D{X: 1})
 		}
+
 		if !entity.Has[Velocity3D]() {
 			b.Fatal("component was not restored")
 		}
@@ -34,6 +39,7 @@ func BenchmarkEntityOperations(b *testing.B) {
 		id := entity.ID()
 		entity.Set(Position3D{X: 1})
 		b.ReportAllocs()
+
 		for b.Loop() {
 			found, err := entities.Iter().Filter(func(e Entity) bool {
 				return e.Get[Position3D]().X == 1
@@ -47,11 +53,15 @@ func BenchmarkEntityOperations(b *testing.B) {
 		_, entities := newPerfEntityState(b)
 		entity := entities.Create()
 		entity.Set(Position3D{X: 1})
+
 		var value Position3D
+
 		b.ReportAllocs()
+
 		for b.Loop() {
 			value = entity.Get[Position3D]()
 		}
+
 		if value.X != 1 {
 			b.Fatal("unexpected component value")
 		}
@@ -59,10 +69,13 @@ func BenchmarkEntityOperations(b *testing.B) {
 	b.Run("Set", func(b *testing.B) {
 		_, entities := newPerfEntityState(b)
 		entity := entities.Create()
+
 		b.ReportAllocs()
+
 		for b.Loop() {
 			entity.Set(Position3D{X: 1})
 		}
+
 		if entity.Get[Position3D]().X != 1 {
 			b.Fatal("component was not written")
 		}
@@ -70,7 +83,9 @@ func BenchmarkEntityOperations(b *testing.B) {
 	b.Run("HasPresent", func(b *testing.B) {
 		_, entities := newPerfEntityState(b)
 		entity := entities.Create()
+
 		b.ReportAllocs()
+
 		for b.Loop() {
 			if !entity.Has[Position3D]() {
 				b.Fatal("missing component")
@@ -80,7 +95,9 @@ func BenchmarkEntityOperations(b *testing.B) {
 	b.Run("HasAbsent", func(b *testing.B) {
 		_, entities := newPerfEntityState(b)
 		entity := entities.Create()
+
 		b.ReportAllocs()
+
 		for b.Loop() {
 			if entity.Has[Inventory]() {
 				b.Fatal("unexpected component")
@@ -90,7 +107,9 @@ func BenchmarkEntityOperations(b *testing.B) {
 	b.Run("HasUnregistered", func(b *testing.B) {
 		_, entities := newPerfEntityState(b)
 		entity := entities.Create()
+
 		b.ReportAllocs()
+
 		for b.Loop() {
 			if entity.Has[NetworkSync]() {
 				b.Fatal("unexpected component")
@@ -100,7 +119,9 @@ func BenchmarkEntityOperations(b *testing.B) {
 	b.Run("HasMissingEntity", func(b *testing.B) {
 		w, _ := newPerfEntityState(b)
 		entity := w.Entity(999)
+
 		b.ReportAllocs()
+
 		for b.Loop() {
 			if entity.Has[Position3D]() {
 				b.Fatal("unexpected entity")
@@ -113,6 +134,7 @@ func BenchmarkEntityOperations(b *testing.B) {
 		id := entity.ID()
 		entity.Set(Position3D{X: 1})
 		b.ReportAllocs()
+
 		for b.Loop() {
 			found, err := entities.GetByID(id)
 			if err != nil || found.Get[Position3D]().X != 1 {
@@ -125,6 +147,7 @@ func BenchmarkEntityOperations(b *testing.B) {
 		warmup := entities.Create()
 		warmup.Destroy()
 		b.ReportAllocs()
+
 		for b.Loop() {
 			entity := entities.Create()
 			if !entity.Destroy() {
@@ -137,6 +160,7 @@ func BenchmarkEntityOperations(b *testing.B) {
 		warmup := entities.Create()
 		warmup.Destroy()
 		b.ReportAllocs()
+
 		for b.Loop() {
 			entity := w.Create[perfArchetype]()
 			if !entity.Destroy() {
@@ -151,12 +175,15 @@ func benchmarkEntityIteration[T any](b *testing.B) {
 	for range 100 {
 		entities.Create()
 	}
+
 	b.ReportAllocs()
+
 	for b.Loop() {
 		var sum EntityID
 		for id := range entities.Iter() {
 			sum += id.ID()
 		}
+
 		if sum != 4950 {
 			b.Fatal("iteration missed an entity")
 		}
@@ -173,6 +200,7 @@ func BenchmarkEntityIteration(b *testing.B) {
 // caches an archetype on its first Contains call.
 func BenchmarkEntityRegistration(b *testing.B) {
 	b.ReportAllocs()
+
 	for b.Loop() {
 		newPerfEntityState(b)
 	}
@@ -185,7 +213,9 @@ func TestEntity_SteadyStateAllocations(t *testing.T) {
 	entity := entities.Create()
 	id := entity.ID()
 	entity.Set(Position3D{X: 42})
+
 	missing := w.Entity(999)
+
 	cases := []struct {
 		name string
 		run  func() bool
@@ -206,12 +236,15 @@ func TestEntity_SteadyStateAllocations(t *testing.T) {
 		}},
 		{"Iterate", func() bool {
 			count := 0
+
 			for found := range entities.Iter() {
 				if found.Get[Position3D]().X != 42 {
 					return false
 				}
+
 				count++
 			}
+
 			return count == 1
 		}},
 		{"GenericCreateDestroy", func() bool {
@@ -223,9 +256,11 @@ func TestEntity_SteadyStateAllocations(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ok := true
 			allocs := testing.AllocsPerRun(100, func() { ok = tc.run() && ok })
+
 			if !ok {
 				t.Fatal("operation returned an unexpected result")
 			}
+
 			if allocs != 0 {
 				t.Fatalf("expected zero steady-state allocations, got %g per operation", allocs)
 			}
@@ -245,9 +280,11 @@ func TestEntity_QueryCompositionAllocations(t *testing.T) {
 		}).Limit(1).Single()
 		ok = ok && err == nil && found.ID() == id
 	})
+
 	if !ok {
 		t.Fatal("query returned an unexpected result")
 	}
+
 	if allocs > 4 {
 		t.Fatalf("query composition exceeded its four-allocation budget: %g", allocs)
 	}

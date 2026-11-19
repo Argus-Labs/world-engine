@@ -53,13 +53,16 @@ func loopbackBinding(hostPort int) []network.PortBinding {
 
 func getExposedPorts(ports []int) network.PortSet {
 	exposedPorts := make(network.PortSet)
+
 	for _, port := range ports {
 		if port < 1 || port > 65535 {
 			panic(fmt.Sprintf("invalid port %d: must be between 1 and 65535", port))
 		}
+
 		tcpPort := network.MustParsePort(strconv.Itoa(port) + "/tcp")
 		exposedPorts[tcpPort] = struct{}{}
 	}
+
 	return exposedPorts
 }
 
@@ -71,6 +74,7 @@ func GetServices(cfg *Config, order Order) []Builder {
 	shards := BuildCardinalShards(cfg)
 	gameServices := BuildGameServices(cfg)
 	out := make([]Builder, 0, len(shards)+len(gameServices)+1)
+
 	switch order {
 	case CardinalShardsFirst:
 		out = append(out, shards...)
@@ -83,19 +87,23 @@ func GetServices(cfg *Config, order Order) []Builder {
 	default:
 		panic(fmt.Sprintf("unknown Order %d", order))
 	}
+
 	return out
 }
 
 func newPortMap(ports []int) network.PortMap {
 	portMap := make(network.PortMap)
+
 	for _, port := range ports {
 		if port < 1 || port > 65535 {
 			panic(fmt.Sprintf("invalid port %d: must be between 1 and 65535", port))
 		}
+
 		tcpPort := network.MustParsePort(strconv.Itoa(port) + "/tcp")
 		// Loopback like every other published port: a config_db would otherwise put
 		// Postgres with default credentials on the LAN.
 		portMap[tcpPort] = loopbackBinding(port)
 	}
+
 	return portMap
 }

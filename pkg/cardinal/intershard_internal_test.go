@@ -33,8 +33,10 @@ func TestInterShard_StopSendsDrainedInOrder(t *testing.T) {
 		for i := range perTick {
 			enqueueSimple(link, fixtureB.world.address, tick*perTick+i)
 		}
+
 		link.drain()
 	}
+
 	link.stop(context.Background())
 
 	// stop returned only after B accepted every send, so one drain sees them all.
@@ -42,6 +44,7 @@ func TestInterShard_StopSendsDrainedInOrder(t *testing.T) {
 	cmds, err := fixtureB.world.commands.Get(fixtureB.commandID)
 	require.NoError(t, err)
 	require.Len(t, cmds, ticks*perTick)
+
 	for i, cmd := range cmds {
 		assert.Equal(t, testutils.SimpleCommand{Value: i}, cmd.Payload)
 	}
@@ -68,22 +71,28 @@ func TestInterShard_HungTargetIsolated(t *testing.T) {
 			case entered <- struct{}{}:
 			default:
 			}
+
 			<-release
+
 			return nil
 		}))
 	require.NoError(t, hungClient.Flush())
 
 	link := newInterShard(fixtureA.world.address, fixtureA.client, &fixtureA.world.commands, zerolog.Nop())
+
 	t.Cleanup(func() {
 		close(release)
 		link.stop(context.Background())
+
 		_ = hung.Close()
 	})
 
 	for tick := range 3 {
 		enqueueSimple(link, hungAddress, tick)
 		enqueueSimple(link, fixtureB.world.address, tick)
+
 		start := time.Now()
+
 		link.drain()
 		assert.Less(t, time.Since(start), 500*time.Millisecond, "drain waited on a send")
 	}
@@ -94,14 +103,19 @@ func TestInterShard_HungTargetIsolated(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("hung target never received a command")
 	}
+
 	var got []command.Command
+
 	require.Eventually(t, func() bool {
 		fixtureB.world.commands.Drain()
 		cmds, err := fixtureB.world.commands.Get(fixtureB.commandID)
 		require.NoError(t, err)
+
 		got = append(got, cmds...)
+
 		return len(got) == 3
 	}, 5*time.Second, 10*time.Millisecond)
+
 	for i, cmd := range got {
 		assert.Equal(t, testutils.SimpleCommand{Value: i}, cmd.Payload)
 	}
@@ -116,17 +130,20 @@ func TestInterShard_SenderExitsWhenIdle(t *testing.T) {
 	fixtureA := newServiceFixture(t, prng, true)
 	fixtureB := newServiceFixture(t, prng, true)
 	link := newInterShard(fixtureA.world.address, fixtureA.client, &fixtureA.world.commands, zerolog.Nop())
+
 	t.Cleanup(func() { link.stop(context.Background()) })
 
 	senders := func() int {
 		link.mu.Lock()
 		defer link.mu.Unlock()
+
 		return len(link.senders)
 	}
 
 	for round := range 2 {
 		enqueueSimple(link, fixtureB.world.address, round)
 		link.drain()
+
 		cmds := awaitCommands(t, fixtureB)
 		assert.Equal(t, testutils.SimpleCommand{Value: round}, cmds[0].Payload)
 		require.Eventually(t, func() bool { return senders() == 0 }, 5*time.Second, 10*time.Millisecond)

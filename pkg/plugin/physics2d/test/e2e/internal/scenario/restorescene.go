@@ -38,6 +38,7 @@ func buildRestoreScene(c *harness.Ctx) {
 	// --- Live contacts: a settled stack, so ActiveContacts has something in it.
 	c.Spawn("floor", 0, groundY,
 		body(physics.BodyTypeStatic, withFriction(box(20, 1), 0.55)))
+
 	for i := range 3 {
 		c.Spawn(stackLabel(i), 0, 0.5+float64(i), body(physics.BodyTypeDynamic,
 			withRestitution(withFriction(box(0.5, 0.5), 0.44), 0.11)))

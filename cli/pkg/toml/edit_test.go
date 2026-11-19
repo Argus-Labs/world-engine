@@ -41,8 +41,10 @@ func TestSetProject_ReplacesValue(t *testing.T) {
 func TestSetProject_ReplacesOnlyFirstAssignment(t *testing.T) {
 	t.Parallel()
 
-	const src = "project = \"first\"\nproject = \"second\"\n"
-	const want = "project = \"my-game\"\nproject = \"second\"\n"
+	const (
+		src  = "project = \"first\"\nproject = \"second\"\n"
+		want = "project = \"my-game\"\nproject = \"second\"\n"
+	)
 
 	assert.Equal(t, want, toml.SetProject(src, "my-game"))
 }
@@ -79,6 +81,7 @@ func TestWriteProject_SetsProject(t *testing.T) {
 
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
+
 	out := string(data)
 
 	assert.Contains(t, out, `project = "starter-game"`)
@@ -105,6 +108,7 @@ func TestWriteProject_RejectsMissingProject(t *testing.T) {
 	t.Parallel()
 
 	const noProject = "organization = \"org\"\n\n[[shards]]\nid = \"game\"\n"
+
 	dir := t.TempDir()
 	path := filepath.Join(dir, toml.FileName)
 	require.NoError(t, os.WriteFile(path, []byte(noProject), 0o600))
@@ -123,6 +127,7 @@ func TestWriteProject_RejectsSymlinkOutsideProject(t *testing.T) {
 	require.NoError(t, os.Symlink(outside, link))
 
 	require.Error(t, toml.WriteProject(link, "changed"))
+
 	data, err := os.ReadFile(outside)
 	require.NoError(t, err)
 	assert.Equal(t, templateWorldTOML, string(data))

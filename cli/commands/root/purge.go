@@ -28,13 +28,16 @@ func (c *PurgeCmd) Run(ctx context.Context) error {
 	if err := dependency.Check(dependency.Docker, dependency.DockerDaemon); err != nil {
 		return err
 	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		return eris.Wrap(err, "failed to get current directory")
 	}
+
 	err = docker.WithClient(cwd, false, &docker.ClientOptions{Logger: logger.Slog()},
 		func(cfg *service.Config, dockerClient *docker.Client) error {
 			rt := local.New(dockerClient, cfg)
+
 			return runSingleStep(
 				ctx,
 				cfg.WorldToml.Project,
@@ -48,6 +51,8 @@ func (c *PurgeCmd) Run(ctx context.Context) error {
 	if err != nil {
 		return eris.Wrap(err, "purge world")
 	}
+
 	printer.Notificationln("(all state wiped)")
+
 	return nil
 }

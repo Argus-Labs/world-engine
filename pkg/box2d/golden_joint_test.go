@@ -34,10 +34,13 @@ func buildPendulumChainScene(w *box2d.World) []box2d.BodyID {
 	gd.Position = box2d.Vec2{X: 0.0, Y: 4.0}
 	anchor := w.CreateBody(&gd)
 
-	const linkCount = 5
-	const halfLength = 0.5
+	const (
+		linkCount  = 5
+		halfLength = 0.5
+	)
 
 	prev := anchor
+
 	for i := range linkCount {
 		bd := box2d.DefaultBodyDef()
 		bd.Type = box2d.DynamicBody
@@ -51,12 +54,14 @@ func buildPendulumChainScene(w *box2d.World) []box2d.BodyID {
 
 		jd := box2d.DefaultRevoluteJointDef()
 		jd.Base.BodyIDA = prev
+
 		jd.Base.BodyIDB = link
 		if i == 0 {
 			jd.Base.LocalFrameA.P = box2d.Vec2Zero
 		} else {
 			jd.Base.LocalFrameA.P = box2d.Vec2{X: halfLength, Y: 0.0}
 		}
+
 		jd.Base.LocalFrameB.P = box2d.Vec2{X: -halfLength, Y: 0.0}
 		w.CreateRevoluteJoint(&jd)
 
@@ -85,6 +90,7 @@ func buildSpringDistanceScene(w *box2d.World) []box2d.BodyID {
 	anchor := w.CreateBody(&ad)
 
 	prev := anchor
+
 	for i := range 3 {
 		bd := box2d.DefaultBodyDef()
 		bd.Type = box2d.DynamicBody
@@ -134,6 +140,7 @@ func buildSpringDistanceScene(w *box2d.World) []box2d.BodyID {
 	w.CreateDistanceJoint(&jd)
 
 	bodies = append(bodies, pairA, pairB)
+
 	return bodies
 }
 
@@ -160,9 +167,11 @@ func TestGoldenJoint(t *testing.T) {
 	if os.Getenv("BOX2D_UPDATE_GOLDEN") == "1" {
 		data, err := json.MarshalIndent(got, "", "  ")
 		require.NoError(t, err)
+
 		data = append(data, '\n')
 		require.NoError(t, os.WriteFile(path, data, 0o644))
 		t.Logf("golden file updated: %s", path)
+
 		return
 	}
 
@@ -173,6 +182,7 @@ func TestGoldenJoint(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &want))
 
 	require.Len(t, got, len(want), "scene count")
+
 	for i := range want {
 		require.Equal(t, want[i].Name, got[i].Name)
 		require.Equal(t, want[i].Hashes, got[i].Hashes, "scene %s step hashes differ — joint determinism broken", want[i].Name)

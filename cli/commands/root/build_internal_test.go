@@ -33,28 +33,36 @@ type fakeShardBuilder struct {
 func (f *fakeShardBuilder) ImagesToPull(_ context.Context, _ []service.Service) []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
 	f.calls = append(f.calls, "ImagesToPull")
+
 	return f.imagesToPull
 }
 
 func (f *fakeShardBuilder) RefsToPull(_ context.Context, _ []string) []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
 	f.calls = append(f.calls, "RefsToPull")
+
 	return f.refsToPull
 }
 
 func (f *fakeShardBuilder) PullImages(_ context.Context, _ []service.Service, _ func(docker.Progress)) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
 	f.calls = append(f.calls, "PullImages")
+
 	return f.pullErr
 }
 
 func (f *fakeShardBuilder) PullImageRefs(_ context.Context, _ []string, _ func(docker.Progress)) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
 	f.calls = append(f.calls, "PullImageRefs")
+
 	return f.pullRefsErr
 }
 
@@ -65,15 +73,19 @@ func (f *fakeShardBuilder) BuildCardinalImages(
 ) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
 	f.calls = append(f.calls, "BuildCardinalImages")
+
 	return f.buildErr
 }
 
 func (f *fakeShardBuilder) callOrder() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
 	out := make([]string, len(f.calls))
 	copy(out, f.calls)
+
 	return out
 }
 
@@ -81,6 +93,7 @@ func (f *fakeShardBuilder) callOrder() []string {
 // matching what BuildCmd.Run produces for a single-shard world.toml.
 func testShardServices() []service.Service {
 	cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{Project: "demo"}}
+
 	return []service.Service{
 		service.CardinalFromShard(
 			cfg,
@@ -99,6 +112,7 @@ func TestBuildShards_ColdCachePullsBeforeBuild(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
+
 	dash := phasebox.Start(ctx, phasebox.Plain)
 	defer dash.Complete()
 
@@ -114,6 +128,7 @@ func TestBuildShards_ColdCachePullsBeforeBuild(t *testing.T) {
 	calls := fake.callOrder()
 	pullIdx := slices.Index(calls, "PullImages")
 	buildIdx := slices.Index(calls, "BuildCardinalImages")
+
 	require.GreaterOrEqual(t, pullIdx, 0, "pull must run on a cold cache")
 	require.GreaterOrEqual(t, buildIdx, 0, "build must run")
 	assert.Less(t, pullIdx, buildIdx, "pull must precede build (cold cache)")
@@ -128,6 +143,7 @@ func TestBuildShards_WarmCacheSkipsPullStillBuilds(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
+
 	dash := phasebox.Start(ctx, phasebox.Plain)
 	defer dash.Complete()
 
@@ -151,6 +167,7 @@ func TestBuildShards_PullErrorPreventsBuild(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
+
 	dash := phasebox.Start(ctx, phasebox.Plain)
 	defer dash.Complete()
 
@@ -177,6 +194,7 @@ func TestBuildShards_BuildErrorPropagates(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
+
 	dash := phasebox.Start(ctx, phasebox.Plain)
 	defer dash.Complete()
 
@@ -200,6 +218,7 @@ func TestBuildShards_NoExtraImageRefs(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
+
 	dash := phasebox.Start(ctx, phasebox.Plain)
 	defer dash.Complete()
 

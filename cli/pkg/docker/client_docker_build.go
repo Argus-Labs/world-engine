@@ -56,17 +56,21 @@ func defaultBuildIgnores() []string {
 // built for services, preserving first-seen service order.
 func CardinalBuildImageNames(services []service.Service) []string {
 	names := make([]string, 0, len(services))
+
 	seen := make(map[string]struct{}, len(services))
 	for _, svc := range services {
 		if !IsCardinalService(svc) {
 			continue
 		}
+
 		if _, ok := seen[svc.Image]; ok {
 			continue
 		}
+
 		seen[svc.Image] = struct{}{}
 		names = append(names, svc.Image)
 	}
+
 	return names
 }
 
@@ -104,7 +108,9 @@ func (c *Client) BuildCardinalImages(
 
 	// Group by image tag so pooled replicas ("game", "game-2", ...) build once.
 	builds := make(map[string]*shardBuild)
+
 	var order []string
+
 	for _, s := range services {
 		if !IsCardinalService(s) {
 			continue
@@ -126,6 +132,7 @@ func (c *Client) BuildCardinalImages(
 			builds[s.Image] = b
 			order = append(order, s.Image)
 		}
+
 		b.containers = append(b.containers, s.Name)
 	}
 
@@ -141,6 +148,7 @@ func (c *Client) BuildCardinalImages(
 	if err != nil {
 		return eris.Wrap(err, "failed to read .dockerignore")
 	}
+
 	ignorePatterns := slices.Concat(defaultBuildIgnores(), userIgnores)
 
 	// Every image builds from the project root with the same Dockerfile; SHARD_PATH picks
@@ -158,12 +166,15 @@ func (c *Client) BuildCardinalImages(
 		for _, image := range order {
 			notify(progress, Progress{Name: image, State: StateBuilding, Err: itemErr(ctx, err)})
 		}
+
 		return err
 	}
 
 	g, gctx := errgroup.WithContext(ctx)
+
 	for _, image := range order {
 		build := builds[image]
+
 		g.Go(func() error {
 			notify(progress, Progress{Name: build.image, State: StateBuilding})
 
@@ -174,6 +185,7 @@ func (c *Client) BuildCardinalImages(
 			}
 
 			notify(progress, Progress{Name: build.image, State: StateBuilt})
+
 			return nil
 		})
 	}
@@ -244,6 +256,7 @@ func (c *Client) buildSingleCardinalWithDocker(
 	}
 
 	c.logger.InfoContext(ctx, "built and tagged shard image", "tag", sb.image)
+
 	return nil
 }
 
@@ -255,9 +268,11 @@ func (c *Client) readDockerignore(ctx context.Context, rootDir string) ([]string
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil
 		}
+
 		return nil, err
 	}
 	defer closeAndLog(ctx, c.logger, ".dockerignore", f)
+
 	return ignorefile.ReadAll(f)
 }
 
@@ -279,16 +294,20 @@ func bufferedBuildContext(
 	defer func() { _ = src.Close() }()
 
 	var buf bytes.Buffer
+
 	gz, err := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
 	if err != nil {
 		return nil, err
 	}
+
 	if _, err := io.Copy(gz, ctxReader{ctx, src}); err != nil {
 		return nil, err
 	}
+
 	if err := gz.Close(); err != nil {
 		return nil, err
 	}
+
 	return buf.Bytes(), nil
 }
 
@@ -303,6 +322,7 @@ func (c ctxReader) Read(p []byte) (int, error) {
 	if err := c.ctx.Err(); err != nil {
 		return 0, err
 	}
+
 	return c.r.Read(p)
 }
 
@@ -325,18 +345,22 @@ func tarWithEmbeddedDockerfile(
 	}
 
 	pr, pw := io.Pipe()
+
 	go func() {
 		defer src.Close()
+
 		tw := tar.NewWriter(pw)
 
 		err := writeBuildContextTar(tw, src, dfContent, dfName)
 		if cerr := tw.Close(); err == nil {
 			err = cerr
 		}
+
 		if err != nil {
 			pw.CloseWithError(err)
 			return
 		}
+
 		_ = pw.Close()
 	}()
 
@@ -358,6 +382,7 @@ func writeBuildContextTar(tw *tar.Writer, src io.Reader, dfContent []byte, dfNam
 	}); err != nil {
 		return err
 	}
+
 	if _, err := tw.Write(dfContent); err != nil {
 		return err
 	}
@@ -368,15 +393,19 @@ func writeBuildContextTar(tw *tar.Writer, src io.Reader, dfContent []byte, dfNam
 		if errors.Is(err, io.EOF) {
 			return nil
 		}
+
 		if err != nil {
 			return err
 		}
+
 		if hdr.Name == dfName {
 			continue
 		}
+
 		if err := tw.WriteHeader(hdr); err != nil {
 			return err
 		}
+
 		if _, err := io.CopyN(tw, tr, hdr.Size); err != nil {
 			return err
 		}
@@ -400,6 +429,7 @@ type buildErrorDetail struct {
 
 func drainBuildResponse(ctx context.Context, body io.Reader, imageName string) error {
 	var output buildOutput
+
 	decoder := json.NewDecoder(body)
 	for decoder.More() {
 		select {
@@ -413,6 +443,7 @@ func drainBuildResponse(ctx context.Context, body io.Reader, imageName string) e
 			if errors.Is(err, io.EOF) {
 				return nil
 			}
+
 			return eris.Wrapf(err, "decode build event for %s", imageName)
 		}
 
@@ -421,15 +452,19 @@ func drainBuildResponse(ctx context.Context, body io.Reader, imageName string) e
 			if json.Unmarshal(event.Aux, &payload) == nil {
 				output.add(payload)
 			}
+
 			continue
 		}
+
 		if event.ErrorDetail != nil && event.ErrorDetail.Message != "" {
 			return eris.Errorf("build error for %s: %s%s", imageName, event.ErrorDetail.Message, output.tail())
 		}
+
 		if event.Error != "" {
 			return eris.Errorf("build error for %s: %s%s", imageName, event.Error, output.tail())
 		}
 	}
+
 	return nil
 }
 

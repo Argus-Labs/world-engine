@@ -54,6 +54,7 @@ func (s *Service) Logger() *zerolog.Logger {
 		Str("project", s.Address.GetProject()).
 		Str("service_id", s.Address.GetServiceId()).
 		Logger()
+
 	return &logger
 }
 
@@ -103,6 +104,7 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 			span.SetStatus(otelcodes.Error, "reply subject outside the inbox namespace")
 			requestLogger.Error().Str("reply", msg.Reply).
 				Msg("request dropped: reply subject outside the inbox namespace")
+
 			return
 		}
 
@@ -141,6 +143,7 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 			// is definitely wrong. This marshal should not fail.
 			errRespBz, err := errResp.Bytes()
 			assert.That(err == nil, "failed to marshal error response")
+
 			replyBz = errRespBz // Set response payload to the error response
 		} else {
 			span.SetStatus(otelcodes.Ok, "")
@@ -159,6 +162,7 @@ func (s *Service) AddEndpoint(name string, handler Handler) error {
 	}
 
 	s.endpoints[name] = sub
+
 	return nil
 }
 
@@ -184,8 +188,10 @@ func handleNATSMessage(
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(otelcodes.Error, err.Error())
+
 		return req, nil, eris.Wrap(err, "failed to parse request")
 	}
+
 	span.SetAttributes(attribute.String("request.id", req.RequestID))
 
 	// Enhanced request logging with more context.
@@ -201,6 +207,7 @@ func handleNATSMessage(
 
 	// Record application status in span.
 	span.SetAttributes(attribute.Int("status.code", int(statusCode)))
+
 	if statusCode != int32(codes.OK) {
 		span.RecordError(eris.New(statusMessage))
 		span.SetStatus(otelcodes.Error, statusMessage)
@@ -215,6 +222,7 @@ func handleNATSMessage(
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(otelcodes.Error, err.Error())
+
 		return req, nil, eris.Wrap(err, "failed to marshal response")
 	}
 
@@ -224,6 +232,7 @@ func handleNATSMessage(
 // Close closes all the endpoints registered with the service.
 func (s *Service) Close() error {
 	var errs []error
+
 	for _, sub := range s.endpoints {
 		if err := sub.Unsubscribe(); err != nil {
 			if !eris.Is(err, nats.ErrConnectionClosed) {
@@ -232,6 +241,7 @@ func (s *Service) Close() error {
 			}
 		}
 	}
+
 	return errors.Join(errs...)
 }
 

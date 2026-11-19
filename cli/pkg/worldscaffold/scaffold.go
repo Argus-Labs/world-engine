@@ -48,11 +48,13 @@ func Scaffold(ctx context.Context, tmpl GameTemplate, targetDir string) error {
 	if err := InstantiateTemplate(ctx, tmpl.URL, version.WorldEngine(), targetDir, tmpl.Subdir); err != nil {
 		return err
 	}
+
 	if err := Tidy(ctx, targetDir); err != nil {
 		// InstantiateTemplate created targetDir; drop it so a retry starts clean.
 		removeAll(ctx, targetDir)
 		return err
 	}
+
 	return nil
 }
 
@@ -67,6 +69,7 @@ func InstantiateTemplate(ctx context.Context, url, version, targetDir, subdir st
 			return eris.Errorf("Project named '%s' already exists in this directory, "+
 				"please change the directory or use another name", targetDir)
 		}
+
 		return eris.Wrap(err, "failed to create project directory")
 	}
 
@@ -74,6 +77,7 @@ func InstantiateTemplate(ctx context.Context, url, version, targetDir, subdir st
 		removeAll(ctx, targetDir)
 		return err
 	}
+
 	return nil
 }
 
@@ -103,6 +107,7 @@ func instantiate(ctx context.Context, url, version, targetDir, subdir string) er
 		SingleBranch:  true,
 		ReferenceName: plumbing.NewTagReferenceName(version),
 	}
+
 	_, err = gogit.PlainCloneContext(ctx, tempDir, false, cloneOpts)
 	if err != nil {
 		if eris.Is(err, plumbing.ErrReferenceNotFound) || errors.As(err, &gogit.NoMatchingRefSpecError{}) {
@@ -110,6 +115,7 @@ func instantiate(ctx context.Context, url, version, targetDir, subdir string) er
 			_, err = gogit.PlainCloneContext(ctx, tempDir, false, cloneOpts)
 		}
 	}
+
 	if err != nil {
 		return eris.Wrapf(err, "failed to clone repository from %s", url)
 	}
@@ -136,6 +142,7 @@ func instantiate(ctx context.Context, url, version, targetDir, subdir string) er
 	if err := createGoModIn(targetDir, projectName, version); err != nil {
 		return eris.Wrap(err, "failed to create go.mod")
 	}
+
 	if err := rewriteImportsIn(targetDir, moduleNameFromGoMod(targetDir, projectName)); err != nil {
 		return eris.Wrap(err, "failed to rewrite imports")
 	}
@@ -155,13 +162,16 @@ func writeAgentSkills(dir string) error {
 		if _, err := os.Stat(path); err == nil {
 			continue
 		}
+
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			return eris.Wrapf(err, "failed to create %s", filepath.Dir(path))
 		}
+
 		if err := os.WriteFile(path, []byte(localDevSkill), 0o600); err != nil {
 			return eris.Wrapf(err, "failed to write %s", path)
 		}
 	}
+
 	return nil
 }
 
@@ -211,6 +221,7 @@ func createGoModIn(dir, moduleName, worldEngineVersion string) error {
 	if err := os.WriteFile(goModPath, []byte(content), 0o600); err != nil {
 		return eris.Wrap(err, "failed to write go.mod")
 	}
+
 	return nil
 }
 
@@ -223,9 +234,11 @@ func moduleNameFromGoMod(dir, fallback string) string {
 	if err != nil {
 		return fallback
 	}
+
 	if mod := modfile.ModulePath(data); mod != "" {
 		return mod
 	}
+
 	return fallback
 }
 
@@ -238,6 +251,7 @@ func rewriteImportsIn(dir, moduleName string) error {
 		return eris.Wrap(err, "failed to open project directory")
 	}
 	defer root.Close()
+
 	re := regexp.MustCompile(`"` + regexp.QuoteMeta(worldEngineExamplePrefix) + `([^/]+)/([^"]+)"`)
 
 	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -249,6 +263,7 @@ func rewriteImportsIn(dir, moduleName string) error {
 			if info.Name() == ".git" {
 				return filepath.SkipDir
 			}
+
 			return nil
 		}
 
@@ -260,6 +275,7 @@ func rewriteImportsIn(dir, moduleName string) error {
 		if err != nil {
 			return err
 		}
+
 		data, err := root.ReadFile(rel)
 		if err != nil {
 			return eris.Wrapf(err, "failed to read %s", path)
@@ -282,6 +298,7 @@ func rewriteImportsIn(dir, moduleName string) error {
 		if err := root.WriteFile(rel, []byte(replaced), info.Mode()); err != nil {
 			return eris.Wrapf(err, "failed to write %s", path)
 		}
+
 		return nil
 	})
 }
@@ -320,6 +337,7 @@ func Tidy(ctx context.Context, projectDir string) error {
 		if retryOut, retryErr := goCommand(ctx, absDir, "mod", "tidy").CombinedOutput(); retryErr != nil {
 			return prettifyGoToolError(string(retryOut))
 		}
+
 		return nil
 	}
 
@@ -333,6 +351,7 @@ func goCommand(ctx context.Context, dir string, args ...string) *exec.Cmd {
 	cmd.Dir = dir
 	cmd.Env = os.Environ()
 	hideConsoleWindow(cmd)
+
 	return cmd
 }
 
@@ -348,5 +367,6 @@ func prettifyGoToolError(output string) error {
 	if idx := strings.IndexByte(output, '\n'); idx > 0 {
 		output = output[:idx]
 	}
+
 	return eris.Errorf("go mod tidy failed: %s", output)
 }

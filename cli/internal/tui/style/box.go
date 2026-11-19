@@ -85,9 +85,11 @@ func MultiSectionBoxOpts(sections []Section, opts BoxOpts) (string, int) {
 			}
 		}
 	}
+
 	if opts.MaxWidth > 0 {
 		innerWidth = min(innerWidth, opts.MaxWidth-BoxChrome)
 	}
+
 	innerWidth = max(innerWidth, minInnerWidth)
 	dashSpan := innerWidth + 2 // +2: the 1-space padding either side of content
 
@@ -99,10 +101,12 @@ func MultiSectionBoxOpts(sections []Section, opts BoxOpts) (string, int) {
 		default:
 			lines = append(lines, borderLine("├", "┤", s.Title, dashSpan))
 		}
+
 		for line := range strings.SplitSeq(s.Body, "\n") {
 			lines = append(lines, contentLine(line, innerWidth))
 		}
 	}
+
 	if !opts.Open {
 		lines = append(lines, borderColor.Render("╰"+strings.Repeat("─", dashSpan)+"╯"))
 	}
@@ -118,17 +122,21 @@ func borderLine(left, right, title string, dashSpan int) string {
 	if title == "" {
 		return borderColor.Render(left + strings.Repeat("─", dashSpan) + right)
 	}
+
 	const before = 1
 	// Clamp the title to what's left after the leading dash and one trailing
 	// dash, so a long title narrows itself instead of overflowing the box.
 	if room := dashSpan - before - 1 - 2; room > 0 && lipgloss.Width(title) > room {
 		title = ansi.Truncate(title, room, "…")
 	}
+
 	label := " " + title + " "
+
 	after := dashSpan - before - lipgloss.Width(label)
 	if after < 1 {
 		return borderColor.Render(left + strings.Repeat("─", dashSpan) + right)
 	}
+
 	return borderColor.Render(left+strings.Repeat("─", before)) +
 		titleColor.Render(label) +
 		borderColor.Render(strings.Repeat("─", after)+right)
@@ -144,6 +152,8 @@ func contentLine(line string, innerWidth int) string {
 	if lipgloss.Width(line) > innerWidth {
 		line = ansi.Truncate(line, innerWidth, "…")
 	}
+
 	pad := max(innerWidth-lipgloss.Width(line), 0)
+
 	return borderColor.Render("│") + " " + line + strings.Repeat(" ", pad) + " " + borderColor.Render("│")
 }

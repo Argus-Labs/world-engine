@@ -30,6 +30,7 @@ func DefaultReloadKeys() ReloadKeys {
 func (k ReloadKeys) WithEnabled(enabled bool) ReloadKeys {
 	k.Reload.SetEnabled(enabled)
 	k.PurgeReload.SetEnabled(enabled)
+
 	return k
 }
 
@@ -44,5 +45,6 @@ func secondaryBindings(actions []ExtraAction) []key.Binding {
 	for _, action := range actions {
 		bindings = append(bindings, action.Binding)
 	}
+
 	return bindings
 }

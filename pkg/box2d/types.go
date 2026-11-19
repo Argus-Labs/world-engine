@@ -1378,7 +1378,9 @@ type DebugDraw struct {
 // (upstream b2DefaultWorldDef).
 func DefaultWorldDef() WorldDef {
 	lengthUnits := GetLengthUnitsPerMeter()
+
 	var def WorldDef
+
 	def.Gravity.X = 0.0
 	def.Gravity.Y = -10.0
 	def.HitEventThreshold = 1.0 * lengthUnits
@@ -1392,12 +1394,14 @@ func DefaultWorldDef() WorldDef {
 	def.EnableSleep = true
 	def.EnableContinuous = true
 	def.initialized = true
+
 	return def
 }
 
 // DefaultBodyDef initializes a body definition (upstream b2DefaultBodyDef).
 func DefaultBodyDef() BodyDef {
 	var def BodyDef
+
 	def.Type = StaticBody
 	def.Rotation = RotIdentity
 	def.SleepThreshold = 0.05 * GetLengthUnitsPerMeter()
@@ -1406,6 +1410,7 @@ func DefaultBodyDef() BodyDef {
 	def.IsAwake = true
 	def.IsEnabled = true
 	def.initialized = true
+
 	return def
 }
 
@@ -1430,12 +1435,14 @@ func DefaultQueryFilter() QueryFilter {
 // DefaultShapeDef initializes a shape definition (upstream b2DefaultShapeDef).
 func DefaultShapeDef() ShapeDef {
 	var def ShapeDef
+
 	def.Material.Friction = 0.6
 	def.Density = 1.0
 	def.Filter = DefaultFilter()
 	def.UpdateBodyMass = true
 	def.InvokeContactCreation = true
 	def.initialized = true
+
 	return def
 }
 
@@ -1454,9 +1461,11 @@ func DefaultSurfaceMaterial() SurfaceMaterial {
 // caller cannot mutate a package-level value.
 func DefaultChainDef() ChainDef {
 	var def ChainDef
+
 	def.Materials = []SurfaceMaterial{{Friction: 0.6}}
 	def.Filter = DefaultFilter()
 	def.initialized = true
+
 	return def
 }
 

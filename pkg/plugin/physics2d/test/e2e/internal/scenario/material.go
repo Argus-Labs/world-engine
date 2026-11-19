@@ -28,6 +28,7 @@ func Material() harness.Scenario {
 		evenB      cardinal.EntityID
 		apex       map[cardinal.EntityID]float64
 	}
+
 	s.apex = map[cardinal.EntityID]float64{}
 
 	const (
@@ -45,6 +46,7 @@ func Material() harness.Scenario {
 	zeroG := func(shapes ...physics.ColliderShape) physics.PhysicsBody2D {
 		pb := body(physics.BodyTypeDynamic, shapes...)
 		pb.GravityScale = 0
+
 		return pb
 	}
 
@@ -95,6 +97,7 @@ func Material() harness.Scenario {
 			if c.Tick() < firstImpact {
 				return
 			}
+
 			for _, id := range []cardinal.EntityID{s.deadBall, s.bouncyBall} {
 				if y := c.Pos(id).Y; y > s.apex[id] {
 					s.apex[id] = y

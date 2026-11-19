@@ -248,6 +248,7 @@ func prepareMotorJoint(base *jointSim, ctx *stepContext) {
 	if bodyA.setIndex == awakeSet {
 		j.indexA = localIndexA
 	}
+
 	j.indexB = NullIndex
 	if bodyB.setIndex == awakeSet {
 		j.indexB = localIndexB
@@ -281,6 +282,7 @@ func prepareMotorJoint(base *jointSim, ctx *stepContext) {
 	j.linearMass = GetInverse22(kl)
 
 	ka := iA + iB
+
 	j.angularMass = 0.0
 	if ka > 0.0 {
 		j.angularMass = 1.0 / ka
@@ -312,6 +314,7 @@ func warmStartMotorJoint(base *jointSim, ctx *stepContext) {
 	if j.indexA != NullIndex {
 		stateA = &ctx.states[j.indexA]
 	}
+
 	stateB := &dummyState
 	if j.indexB != NullIndex {
 		stateB = &ctx.states[j.indexB]
@@ -355,6 +358,7 @@ func solveMotorJoint(base *jointSim, ctx *stepContext) {
 	if j.indexA != NullIndex {
 		stateA = &ctx.states[j.indexA]
 	}
+
 	stateB := &dummyState
 	if j.indexB != NullIndex {
 		stateB = &ctx.states[j.indexB]
@@ -435,6 +439,7 @@ func solveMotorJoint(base *jointSim, ctx *stepContext) {
 		b := MulMV(j.linearMass, cDot)
 
 		oldImpulse := j.linearSpringImpulse
+
 		var impulse Vec2
 		// impulse.x = -massScale * b.x - impulseScale * oldImpulse.x
 		impulse.X = cross2(-massScale, b.X, impulseScale, oldImpulse.X)
