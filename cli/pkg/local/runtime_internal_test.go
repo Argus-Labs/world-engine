@@ -581,14 +581,17 @@ func TestWaitForShardsReady_CanceledContextReturnsZeroWithoutProgress(t *testing
 	cancel()
 
 	var progressCalls int
+
 	ready, expected := r.WaitForShardsReady(ctx, nil, func(_, _ int) { progressCalls++ })
 
 	if ready != 0 {
 		t.Fatalf("canceled context: ready = %d, want 0", ready)
 	}
+
 	if expected != len(cfg.WorldToml.Shards) {
 		t.Fatalf("expected = %d, want %d", expected, len(cfg.WorldToml.Shards))
 	}
+
 	if progressCalls != 0 {
 		t.Fatalf("onProgress called %d times, want 0 (cancel before first tick)", progressCalls)
 	}
@@ -621,6 +624,7 @@ func TestWaitForShardsReady_CallerCanceledReturnsLastCount(t *testing.T) {
 		defer cancel()
 
 		var lastReady, lastExpected int
+
 		ready, expected := r.WaitForShardsReady(ctx, nil, func(ready, expected int) {
 			lastReady, lastExpected = ready, expected
 			if ready == 1 && expected == len(cfg.WorldToml.Shards) {
@@ -631,9 +635,11 @@ func TestWaitForShardsReady_CallerCanceledReturnsLastCount(t *testing.T) {
 		if ready != 1 {
 			t.Fatalf("partial count must survive the caller context canceling: ready = %d, want 1", ready)
 		}
+
 		if expected != len(cfg.WorldToml.Shards) {
 			t.Fatalf("expected = %d, want %d", expected, len(cfg.WorldToml.Shards))
 		}
+
 		if lastReady != 1 || lastExpected != len(cfg.WorldToml.Shards) {
 			t.Fatalf("onProgress did not observe partial progress: last = %d/%d, want 1/%d",
 				lastReady, lastExpected, len(cfg.WorldToml.Shards))

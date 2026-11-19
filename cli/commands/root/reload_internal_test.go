@@ -120,6 +120,7 @@ func (f *fakeShardRoller) WaitForShardsReady(ctx context.Context, instanceIDs []
 	if ready, expected, ok := canceledShardCounts(ctx, f.waitExpected); ok {
 		return ready, expected
 	}
+
 	return f.waitReady, f.waitExpected
 }
 
@@ -131,6 +132,7 @@ func canceledShardCounts(ctx context.Context, expected int) (int, int, bool) {
 	if ctx.Err() != nil {
 		return 0, expected, true
 	}
+
 	return 0, 0, false
 }
 
@@ -163,8 +165,10 @@ func TestRollShards(t *testing.T) {
 			if tt.preCanceled {
 				cctx, cancel := context.WithCancel(ctx)
 				cancel()
+
 				ctx = cctx
 			}
+
 			dash := phasebox.Start(ctx, phasebox.Plain)
 			defer dash.Complete()
 
@@ -184,10 +188,12 @@ func TestRollShards(t *testing.T) {
 				},
 				func(time.Duration) string { return "reloaded" },
 			)
+
 			switch {
 			case tt.wantCanceled:
 				require.Error(t, err)
 				assert.ErrorIs(t, err, context.Canceled, "cancel must pass context.Canceled through the section")
+
 				var notReady *shardsNotReadyError
 				assert.False(t, errors.As(err, &notReady), "cancel must not be a shardsNotReadyError")
 			case tt.wantNotReady:
@@ -248,9 +254,11 @@ func (f *fakeSession) Fail(id, label string, err error) {
 // lastRow returns the last upserted row, failing the test if none was recorded.
 func (f *fakeSession) lastRow(t *testing.T) fakeRow {
 	t.Helper()
+
 	if !f.seen {
 		t.Fatal("no rows upserted")
 	}
+
 	return f.last
 }
 
@@ -270,10 +278,13 @@ func (f *fakeReadinessWaiter) WaitForShardsReady(
 	if ready, expected, ok := canceledShardCounts(ctx, f.expected); ok {
 		return ready, expected
 	}
+
 	onProgress(f.ready, f.expected)
+
 	if f.onProgressHook != nil {
 		f.onProgressHook()
 	}
+
 	return f.ready, f.expected
 }
 
@@ -314,12 +325,14 @@ func TestWaitForShardsReadyRow_TimeoutShowsTimedOut(t *testing.T) {
 		{"expiredDeadline", func(t *testing.T) context.Context {
 			ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
 			t.Cleanup(cancel)
+
 			return ctx
 		}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
+
 			sess := &fakeSession{}
 			waitForShardsReadyRow(c.ctx(t), sess, func(onProgress func(ready, expected int)) {
 				onProgress(0, 2)
@@ -432,6 +445,7 @@ func TestWaitForShardsReadyResult_NotReadyCountsArePrintable(t *testing.T) {
 		{"expiredDeadline", func(t *testing.T) context.Context {
 			ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
 			t.Cleanup(cancel)
+
 			return ctx
 		}},
 	}
@@ -443,6 +457,7 @@ func TestWaitForShardsReadyResult_NotReadyCountsArePrintable(t *testing.T) {
 			err := waitForShardsReadyResult(c.ctx(t), &fakeSession{}, waiter, nil)
 
 			require.Error(t, err)
+
 			var notReady *shardsNotReadyError
 			require.ErrorAs(t, err, &notReady, "unready shards are a real failure")
 			assert.Equal(t, 0, notReady.ready)
@@ -522,13 +537,19 @@ func TestWaitForShardsReadyResult_CancelThroughPlainSectionIsCanceled(t *testing
 	orig := os.Stdout
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
+
 	defer r.Close() // closing the writer and reading EOF leaves the reader descriptor open otherwise.
-	os.Stdout = w   //nolint:reassign // capturing stdout in tests
+
+	os.Stdout = w //nolint:reassign // capturing stdout in tests
 	dash := phasebox.Start(ctx, phasebox.Plain)
 	os.Stdout = orig //nolint:reassign // restore stdout
+
 	defer dash.Complete()
+
 	var out bytes.Buffer
+
 	copyErr := make(chan error, 1)
+
 	go func() {
 		_, err := io.Copy(&out, r)
 		copyErr <- err
@@ -540,12 +561,14 @@ func TestWaitForShardsReadyResult_CancelThroughPlainSectionIsCanceled(t *testing
 		},
 		func(time.Duration) string { return "done" },
 	)
+
 	require.NoError(t, w.Close())
 	require.NoError(t, <-copyErr)
 
 	require.Error(t, runErr)
 	assert.True(t, errorspkg.IsSilent(runErr), "cancel through section must be silent, not a shard failure")
 	assert.ErrorIs(t, runErr, context.Canceled, "section must classify cancel as canceled")
+
 	var notReady *shardsNotReadyError
 	assert.False(t, errors.As(runErr, &notReady), "must not be a shardsNotReadyError")
 	assert.Contains(t, out.String(), "canceled", "plain summary must say canceled")

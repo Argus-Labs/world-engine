@@ -322,6 +322,7 @@ func rollShards(
 		waitInstanceIDs := targets.poolInstances(opts.ShardIDs())
 		return waitForShardsReadyResult(ctx, sess, rt, waitInstanceIDs)
 	}
+
 	return nil
 }
 
@@ -347,9 +348,11 @@ func waitForShardsReadyResult(
 	waitForShardsReadyRow(ctx, sess, func(onProgress func(ready, expected int)) {
 		ready, expected = waiter.WaitForShardsReady(ctx, instanceIDs, onProgress)
 	})
+
 	if errors.Is(ctx.Err(), context.Canceled) {
 		return ctx.Err()
 	}
+
 	if ready < expected {
 		// Returned, not just shown: the row, if any, is already Failed, but the
 		// summary and the exit code are what a script or an agent reads, and plain
@@ -381,20 +384,24 @@ func waitForShardsReadyRow(
 	waitForReady(func(ready, exp int) {
 		lastReady, expected = ready, exp
 		progressed = true
+
 		sess.UpsertRow("ready", "Waiting for shards to be ready", fmt.Sprintf("%d/%d", ready, exp), phasebox.Active)
 	})
 
 	if !progressed {
 		return
 	}
+
 	if errors.Is(ctx.Err(), context.Canceled) {
 		sess.Fail("ready", "Waiting for shards to be ready", ctx.Err())
 		return
 	}
+
 	state, detail := phasebox.Done, fmt.Sprintf("%d/%d", lastReady, expected)
 	if lastReady < expected {
 		state, detail = phasebox.Failed, fmt.Sprintf("timed out (%d/%d ready)", lastReady, expected)
 	}
+
 	sess.UpsertRow("ready", "Waiting for shards to be ready", detail, state)
 }
 
