@@ -45,6 +45,7 @@ func Dormant() harness.Scenario {
 		pb.FixedRotation = true
 		pb.SleepingAllowed = false
 		pb.Active = active
+
 		return pb
 	}
 

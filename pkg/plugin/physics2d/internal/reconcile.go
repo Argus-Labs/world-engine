@@ -241,6 +241,7 @@ func (rt *Runtime) reconcileExistingBody(
 	// reasoning as leftUntrackedVelocity, for a body whose velocity Box2D stopped tracking
 	// because it was disabled rather than because its type was untracked.
 	enabledThisTick := !prev.PhysicsBody.Active && e.PhysicsBody.Active
+
 	forcePush := leftUntrackedVelocity || enabledThisTick
 	switch {
 	case e.PhysicsBody.BodyType == component.BodyTypeManual:

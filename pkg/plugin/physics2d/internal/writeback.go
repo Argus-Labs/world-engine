@@ -79,6 +79,7 @@ func (rt *Runtime) WritebackFromStepResults(entries []WritebackEntry) {
 		if pb.Active {
 			e.Entity.Set(v)
 		}
+
 		if pb.Active && pb.Awake != awake {
 			pb.Awake = awake
 			e.Entity.Set(pb)

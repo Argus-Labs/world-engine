@@ -51,6 +51,7 @@ func TestDisabledVelocitySurvivesDisableEnable_Pipeline(t *testing.T) {
 		if w.TickHeight() != 0 {
 			return
 		}
+
 		pb := newRigidNoGravity(physics.BodyTypeDynamic, boxShape)
 		pb.SleepingAllowed = false // keep it awake throughout, no sleep interaction
 		row := w.Create[spawnArchetype]()
@@ -59,7 +60,7 @@ func TestDisabledVelocitySurvivesDisableEnable_Pipeline(t *testing.T) {
 		row.Set(physics.Transform2D{Position: physics.Vec2{X: 0, Y: 0}})
 		row.Set(physics.Velocity2D{Linear: physics.Vec2{X: 8, Y: 0}})
 		row.Set(pb)
-	}}, cardinal.WithHook(cardinal.Init))
+	}}, cardinal.WithPhase(cardinal.Init))
 
 	w.RegisterSystem(&disabledVelDriver{run: func(w *cardinal.World) {
 		req := require.New(t)
@@ -71,7 +72,9 @@ func TestDisabledVelocitySurvivesDisableEnable_Pipeline(t *testing.T) {
 					return row.Get[physics.Transform2D](), row.Get[physics.Velocity2D]()
 				}
 			}
+
 			req.FailNowf("entity not found", "entity %d", id)
+
 			return physics.Transform2D{}, physics.Velocity2D{}
 		}
 		setActive := func(id cardinal.EntityID, active bool) {
@@ -80,6 +83,7 @@ func TestDisabledVelocitySurvivesDisableEnable_Pipeline(t *testing.T) {
 					pb := row.Get[physics.PhysicsBody2D]()
 					pb.Active = active
 					row.Set(pb)
+
 					return
 				}
 			}
@@ -87,7 +91,9 @@ func TestDisabledVelocitySurvivesDisableEnable_Pipeline(t *testing.T) {
 		engineVel := func(id cardinal.EntityID) physics.Vec2 {
 			bid, ok := p.BodyID(id)
 			req.True(ok, "entity %d has no physics body", id)
+
 			lv := p.Engine().BodyLinearVelocity(bid)
+
 			return physics.Vec2{X: lv.X, Y: lv.Y}
 		}
 
@@ -97,6 +103,7 @@ func TestDisabledVelocitySurvivesDisableEnable_Pipeline(t *testing.T) {
 			frozenX = tr.Position.X
 			req.Greater(frozenX, 0.5, "body should have moved before disable: %v", tr)
 			setActive(id, false)
+
 			disabled = true
 		}
 
@@ -107,6 +114,7 @@ func TestDisabledVelocitySurvivesDisableEnable_Pipeline(t *testing.T) {
 			req.InDelta(frozenX, tr.Position.X, epsilon, "position must be frozen while disabled: %v", tr)
 			req.Zero(engineVel(id).X, "engine velocity reads zero for a disabled body")
 			setActive(id, true)
+
 			verifiedFrozen = true
 		}
 
@@ -117,9 +125,10 @@ func TestDisabledVelocitySurvivesDisableEnable_Pipeline(t *testing.T) {
 			req.InDelta(8, engineVel(id).X, epsilon, "engine velocity must be applied on re-enable")
 			req.Greater(tr.Position.X, frozenX+1.0,
 				"body must resume moving after re-enable, frozen at %.4f now %.4f", frozenX, tr.Position.X)
+
 			verifiedResumed = true
 		}
-	}}, cardinal.WithHook(cardinal.PostUpdate))
+	}}, cardinal.WithPhase(cardinal.PostUpdate))
 
 	initCardinalECS(w)
 	tickN(t, w, lastTick+1)

@@ -53,6 +53,7 @@ func requireVel(t *testing.T, phase string, got, want component.Velocity2D) {
 func spawnBoxWithVelocity(w *cardinal.World, vel component.Velocity2D) cardinal.Entity {
 	e := spawnBoxAt(w, component.Vec2{})
 	e.Set(vel)
+
 	return e
 }
 
@@ -64,6 +65,7 @@ func spawnPhysics(
 	e.Set(tf)
 	e.Set(vel)
 	e.Set(pb)
+
 	return e
 }
 
@@ -76,6 +78,7 @@ func kinematicBox() component.PhysicsBody2D {
 func fixedRotationBox() component.PhysicsBody2D {
 	pb := boxBody()
 	pb.FixedRotation = true
+
 	return pb
 }
 
@@ -108,6 +111,7 @@ func TestDisabledVelocity_LinearSurvivesDisableEditAndReenable(t *testing.T) {
 	})
 
 	var ent cardinal.Entity
+
 	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
 		ent = spawnBoxWithVelocity(w, velocity2D(8, 0, 0))
 	}})
@@ -127,6 +131,7 @@ func TestDisabledVelocity_LinearSurvivesDisableEditAndReenable(t *testing.T) {
 			velocity2D(engineLinearVel(rt, id).X, engineLinearVel(rt, id).Y, 0),
 			velocity2D(8, 0, 0),
 		)
+
 		pos1 := ent.Get[component.Transform2D]().Position
 		requireXY(t, "tick1 pos", pos1.X, pos1.Y, 8*dt, 0)
 		requireVel(t, "tick1 shadow vel", rt.Shadow[id].Velocity, velocity2D(8, 0, 0))
@@ -158,6 +163,7 @@ func TestDisabledVelocity_LinearSurvivesDisableEditAndReenable(t *testing.T) {
 		requireVel(t, "tick4 ECS vel after reenable", ent.Get[component.Velocity2D](), velocity2D(5, 0, 0))
 		requireVel(t, "tick4 engine vel after reenable",
 			velocity2D(engineLinearVel(rt, id).X, engineLinearVel(rt, id).Y, 0), velocity2D(5, 0, 0))
+
 		pos4 := ent.Get[component.Transform2D]().Position
 		requireXY(t, "tick4 pos advanced after reenable", pos4.X, pos4.Y, pos1.X+5*dt, 0)
 
@@ -188,6 +194,7 @@ func TestDisabledVelocity_HeldAtDisableMomentResumesOnReenable(t *testing.T) {
 	})
 
 	var ent cardinal.Entity
+
 	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
 		ent = spawnBoxWithVelocity(w, velocity2D(8, 0, 0))
 	}})
@@ -222,6 +229,7 @@ func TestDisabledVelocity_HeldAtDisableMomentResumesOnReenable(t *testing.T) {
 			velocity2D(engineLinearVel(rt, id).X, engineLinearVel(rt, id).Y, 0),
 			velocity2D(8, 0, 0),
 		)
+
 		pos4 := ent.Get[component.Transform2D]().Position
 		requireXY(t, "tick4 pos advanced on resume", pos4.X, pos4.Y, pos1.X+8*dt, 0)
 
@@ -254,6 +262,7 @@ func TestDisabledVelocity_BodyCreatedDisabledWithVelocityAppliesOnReenable(t *te
 	})
 
 	var ent cardinal.Entity
+
 	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
 		ent = spawnPhysics(w,
 			component.Transform2D{},
@@ -317,6 +326,7 @@ func TestDisabledVelocity_AngularSurvivesDisable(t *testing.T) {
 	})
 
 	var ent cardinal.Entity
+
 	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
 		ent = spawnBoxWithVelocity(w, velocity2D(0, 0, 3))
 	}})
@@ -367,6 +377,7 @@ func TestDisabledVelocity_KinematicSurvivesDisable(t *testing.T) {
 	})
 
 	var ent cardinal.Entity
+
 	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
 		ent = spawnPhysics(w, component.Transform2D{}, velocity2D(5, 0, 0), kinematicBox())
 	}})
@@ -422,6 +433,7 @@ func TestDisabledVelocity_FixedRotationLinearSurvives(t *testing.T) {
 	})
 
 	var ent cardinal.Entity
+
 	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
 		ent = spawnPhysics(w, component.Transform2D{}, velocity2D(5, 0, 0), fixedRotationBox())
 	}})
@@ -480,6 +492,7 @@ func TestDisabledVelocity_ControlTransformTeleportSticksWhileDisabled(t *testing
 	})
 
 	var ent cardinal.Entity
+
 	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
 		ent = spawnBoxAt(w, component.Vec2{})
 	}})
@@ -495,6 +508,7 @@ func TestDisabledVelocity_ControlTransformTeleportSticksWhileDisabled(t *testing
 		// Engine followed the teleport and holds it.
 		pos := ent.Get[component.Transform2D]().Position
 		requireXY(t, "ECS transform after teleport+disable", pos.X, pos.Y, 50, 3)
+
 		ePos := rt.World.BodyPosition(rt.Bodies[ent.ID()])
 		requireXY(t, "engine transform after teleport+disable", ePos.X, ePos.Y, 50, 3)
 
@@ -502,6 +516,7 @@ func TestDisabledVelocity_ControlTransformTeleportSticksWhileDisabled(t *testing
 		tickPipeline(t, rt, ent)
 		pos = ent.Get[component.Transform2D]().Position
 		requireXY(t, "ECS transform held while disabled", pos.X, pos.Y, 50, 3)
+
 		ePos = rt.World.BodyPosition(rt.Bodies[ent.ID()])
 		requireXY(t, "engine transform held while disabled", ePos.X, ePos.Y, 50, 3)
 	}})
@@ -522,6 +537,7 @@ func TestDisabledVelocity_DisableTickDoesNotStompVelocity(t *testing.T) {
 	})
 
 	var ent cardinal.Entity
+
 	w.RunSystem(&runOnceSystem{func(w *cardinal.World) {
 		ent = spawnBoxWithVelocity(w, velocity2D(8, 2, 1))
 	}})
@@ -533,6 +549,7 @@ func TestDisabledVelocity_DisableTickDoesNotStompVelocity(t *testing.T) {
 
 		// One active tick so the body has a live, moving state.
 		tickPipeline(t, rt, ent)
+
 		authored := velocity2D(8, 2, 1)
 		requireVel(t, "active tick ECS vel", ent.Get[component.Velocity2D](), authored)
 
