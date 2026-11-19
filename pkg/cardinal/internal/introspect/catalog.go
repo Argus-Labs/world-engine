@@ -1,6 +1,7 @@
 package introspect
 
 import (
+	"net/netip"
 	"reflect"
 	"slices"
 	"strconv"
@@ -230,6 +231,11 @@ func (b *schemaBuilder) codecSchema(t reflect.Type) (*jsonschema.Schema, bool) {
 	if t == reflect.TypeFor[time.Time]() {
 		// It encodes as a MessagePack timestamp, which JSON carries as RFC 3339.
 		return &jsonschema.Schema{Type: stringType, Format: "date-time"}, true
+	}
+
+	if t == reflect.TypeFor[netip.Addr]() {
+		// It encodes as its MarshalBinary bytes, which the CLI derives from the text form.
+		return &jsonschema.Schema{Type: stringType, Format: "ip"}, true
 	}
 
 	return nil, false
