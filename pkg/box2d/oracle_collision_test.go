@@ -1578,10 +1578,12 @@ func TestOracleHullEdgeCases(t *testing.T) {
 			tc := &cases[i]
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
+
 				first, second := tc.retained, tc.discarded
 				if tc.discardFirst {
 					first, second = tc.discarded, tc.retained
 				}
+
 				h := box2d.ComputeHull([]box2d.Vec2{first, second, tc.anchors[0], tc.anchors[1]})
 				require.Equal(t, 3, h.Count)
 				require.True(t, box2d.ValidateHull(&h))
