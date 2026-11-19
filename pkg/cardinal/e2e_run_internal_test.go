@@ -350,3 +350,72 @@ func TestRepeatRestartHeightStable(t *testing.T) {
 			"after restart %d (no new ticks), height should stay %d, got %d", r+1, want, w.currentTick.height)
 	}
 }
+
+// TestRunLoopDebugResetSurvivesCleanRestart verifies that a debug Reset is durable without a later
+// tick: a world stopped cleanly right after Reset restarts in the reset state at height 0, not from
+// the pre-reset snapshot. Its shutdown writes nothing at height 0, so the Reset must persist itself.
+func TestRunLoopDebugResetSurvivesCleanRestart(t *testing.T) {
+	for _, async := range []bool{false, true} {
+		for _, ticksAfterReset := range []int{0, 1} {
+			t.Run(fmt.Sprintf("async=%t/ticks_after_reset=%d", async, ticksAfterReset), func(t *testing.T) {
+				w := newTestWorld(t)
+				if async {
+					w.snapshotWriter.Stop(context.Background())
+
+					w.snapshotWriter = snapshot.NewAsyncWriter(w.snapshotStorage, &w.tel)
+					defer w.snapshotWriter.Stop(context.Background())
+				}
+
+				w.RegisterComponent[snapshotBalance]()
+				// Created outside any system, so only the pre-reset snapshot holds it.
+				w.Create[snapshotAccount]().Set(snapshotBalance{Coins: 123})
+				w.debug.setPaused(true)
+
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+
+				runCtx, stop := context.WithCancel(ctx)
+				defer stop()
+
+				runErr := make(chan error, 1)
+				go func() { runErr <- w.run(runCtx) }()
+
+				step := func() uint64 {
+					reply := make(chan uint64, 1)
+					w.debug.control.stepCh <- reply
+
+					return <-reply
+				}
+
+				require.Equal(t, uint64(1), step(), "tick 0 snapshots the pre-reset entity")
+
+				resetReply := make(chan struct{}, 1)
+				w.debug.control.resetCh <- resetReply
+
+				_, ok := <-resetReply
+				require.True(t, ok, "reset should succeed while paused")
+
+				for range ticksAfterReset {
+					step()
+				}
+
+				stop()
+				require.ErrorIs(t, <-runErr, context.Canceled)
+				require.NoError(t, w.snapshotWriter.Drain(ctx))
+
+				restored := newTestWorld(t)
+				restored.RegisterComponent[snapshotBalance]()
+				restored.useSyncSnapshotStorage(w.snapshotStorage)
+				restored.init()
+				require.NoError(t, restored.restore(ctx))
+				assert.False(t, restored.Entity(0).Alive(), "the reset removed the entity; restart must not restore it")
+				assert.Equal(t, uint64(ticksAfterReset), restored.TickHeight(),
+					"restart must resume at the height the reset world reached")
+
+				published, err := snapshot.Decode(*restored.debug.snapshot.Load())
+				require.NoError(t, err)
+				assert.Equal(t, uint64(0), published.GetTickHeight(), "GetState labels reset state 0, as Reset does")
+			})
+		}
+	}
+}
