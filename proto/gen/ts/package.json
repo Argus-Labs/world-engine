@@ -12,27 +12,18 @@
     "./buf/*": "./buf/*.ts",
     "./cosmos/*.js": "./cosmos/*.ts",
     "./cosmos/*": "./cosmos/*.ts",
-    "./gateway/*.js": "./gateway/*.ts",
-    "./gateway/*": "./gateway/*.ts",
     "./google/*.js": "./google/*.ts",
     "./google/*": "./google/*.ts",
-    "./isc/*.js": "./isc/*.ts",
-    "./isc/*": "./isc/*.ts",
-    "./micro/*.js": "./micro/*.ts",
-    "./micro/*": "./micro/*.ts",
-    "./registry/*.js": "./registry/*.ts",
-    "./registry/*": "./registry/*.ts"
+    "./worldengine/*.js": "./worldengine/*.ts",
+    "./worldengine/*": "./worldengine/*.ts"
   },
   "publishConfig": {
     "exports": {
       ".": "./index.js",
       "./buf/*": "./buf/*",
       "./cosmos/*": "./cosmos/*",
-      "./gateway/*": "./gateway/*",
       "./google/*": "./google/*",
-      "./isc/*": "./isc/*",
-      "./micro/*": "./micro/*",
-      "./registry": "./registry/*"
+      "./worldengine/*": "./worldengine/*"
     },
     "access": "public"
   },
