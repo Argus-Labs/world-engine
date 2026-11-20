@@ -1,6 +1,7 @@
 package cardinal
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -81,4 +82,28 @@ func TestNewWorld_TickRateEnvOverridesOptions(t *testing.T) {
 			require.ErrorContains(t, err, `parse error on field "TickRate"`, env)
 		}
 	})
+}
+
+// TestNewWorld_RejectsTickRateWithZeroInterval checks that a rate whose tick interval truncates to
+// 0 ns fails at startup instead of panicking the ticker, whether it comes from the environment or
+// WorldOptions.
+func TestNewWorld_RejectsTickRateWithZeroInterval(t *testing.T) {
+	t.Setenv("CARDINAL_PROJECT", "rampage")
+	t.Setenv("CARDINAL_SHARD_ID", "game")
+
+	t.Setenv("CARDINAL_TICK_RATE", "1000000000")
+
+	w, err := NewWorld(WorldOptions{TickRate: 1, SnapshotRate: 1})
+	require.NoError(t, err)
+	require.Equal(t, time.Nanosecond, w.options.tickInterval())
+
+	t.Setenv("CARDINAL_TICK_RATE", "1000000001")
+
+	_, err = NewWorld(WorldOptions{TickRate: 1, SnapshotRate: 1})
+	require.ErrorContains(t, err, "tick rate 1.000000001e+09 is too high")
+
+	t.Setenv("CARDINAL_TICK_RATE", "")
+
+	_, err = NewWorld(WorldOptions{TickRate: math.Inf(1), SnapshotRate: 1})
+	require.ErrorContains(t, err, "is too high")
 }

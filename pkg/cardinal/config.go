@@ -112,6 +112,11 @@ func (opt *WorldOptions) validate() error {
 		return eris.New("tick rate must be greater than 0")
 	}
 
+	// The ticker needs a positive interval, and above 1e9 Hz the interval truncates to 0 ns.
+	if opt.tickInterval() <= 0 {
+		return eris.Errorf("tick rate %v is too high: the most is %d ticks per second", opt.TickRate, time.Second)
+	}
+
 	if !opt.SnapshotStorageType.IsValid() {
 		return eris.New("snapshot storage type must be specified")
 	}
