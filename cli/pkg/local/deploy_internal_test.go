@@ -50,6 +50,7 @@ func TestDeployRecreatesOnlyItsOwnProjectsContainer(t *testing.T) {
 			if tc.existingProject != "" {
 				labels[service.ProjectLabel] = tc.existingProject
 			}
+
 			daemon := newFakeDaemon(t, map[string]map[string]string{name: labels})
 
 			cfg := &service.Config{Project: "demo", WorldToml: worldtoml.Config{
@@ -64,12 +65,14 @@ func TestDeployRecreatesOnlyItsOwnProjectsContainer(t *testing.T) {
 			err = New(dc, cfg).Deploy(context.Background(), DeployOpts{Shards: []DeployShard{{ID: "game-api"}}})
 
 			project, stopped := daemon.state(name)
+
 			if tc.wantErr {
 				assert.ErrorContains(t, err, tc.existingProject)
 				assert.False(t, stopped, "Deploy stopped another project's container")
 			} else {
 				require.NoError(t, err)
 			}
+
 			assert.Equal(t, tc.wantProject, project)
 		})
 	}
@@ -93,6 +96,7 @@ func newFakeDaemon(t *testing.T, containers map[string]map[string]string) *fakeD
 	t.Setenv("DOCKER_API_VERSION", "1.47")
 	t.Setenv("DOCKER_TLS_VERIFY", "")
 	t.Setenv("DOCKER_CERT_PATH", "")
+
 	return d
 }
 
@@ -101,16 +105,19 @@ func newFakeDaemon(t *testing.T, containers map[string]map[string]string) *fakeD
 func (d *fakeDaemon) state(name string) (string, bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+
 	return d.containers[name][service.ProjectLabel], d.stopped[name]
 }
 
 func (d *fakeDaemon) serve(w http.ResponseWriter, r *http.Request) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+
 	w.Header().Set("Content-Type", "application/json")
 
 	// Paths arrive as /v1.47/containers/<name>/<action>.
 	_, path, _ := strings.Cut(r.URL.Path, "/containers/")
+
 	name, action, _ := strings.Cut(path, "/")
 	switch {
 	case r.Method == http.MethodGet && action == "json":
@@ -118,8 +125,10 @@ func (d *fakeDaemon) serve(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte(`{"message":"No such container"}`))
+
 			return
 		}
+
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"Id":     name,
 			"Name":   "/" + name,
@@ -128,6 +137,7 @@ func (d *fakeDaemon) serve(w http.ResponseWriter, r *http.Request) {
 		})
 	case r.Method == http.MethodPost && action == "stop":
 		d.stopped[name] = true
+
 		w.WriteHeader(http.StatusNotModified)
 	case r.Method == http.MethodDelete && action == "":
 		delete(d.containers, name)
@@ -139,7 +149,9 @@ func (d *fakeDaemon) serve(w http.ResponseWriter, r *http.Request) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			d.t.Errorf("decode create body: %v", err)
 		}
+
 		d.containers[r.URL.Query().Get("name")] = body.Labels
+
 		w.WriteHeader(http.StatusCreated)
 		_, _ = w.Write([]byte(`{"Id":"created","Warnings":[]}`))
 	case r.Method == http.MethodPost && action == "start":
