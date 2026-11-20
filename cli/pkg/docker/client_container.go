@@ -59,7 +59,11 @@ func (c *Client) containerExists(ctx context.Context, containerName string) (boo
 }
 
 // removeContainer stops and removes a container; with keepVolumes false its named
-// volumes go too. A missing container is a no-op.
+// volumes go too. A missing container is a no-op. A container labelled with another
+// project is an error: names join project and id with hyphens, so project "demo"
+// shard "game-api" and project "demo-game" shard "api" share a name. Stop and remove
+// target the inspected container's ID, not the name, so a container that takes the
+// name after the ownership check is never touched.
 func (c *Client) removeContainer(ctx context.Context, name string, keepVolumes bool) error {
 	res, err := c.client.ContainerInspect(ctx, name, client.ContainerInspectOptions{})
 	if err != nil {
@@ -70,11 +74,30 @@ func (c *Client) removeContainer(ctx context.Context, name string, keepVolumes b
 		return eris.Wrapf(err, "inspect container %s", name)
 	}
 
-	if _, err := c.client.ContainerStop(ctx, name, client.ContainerStopOptions{Signal: "SIGINT"}); err != nil {
+	if cfg := res.Container.Config; cfg != nil {
+		project := c.cfg.WorldToml.Project
+		if owner, ok := cfg.Labels[service.ProjectLabel]; ok && owner != project {
+			return eris.Errorf(
+				"container %s belongs to project %q, not %q; rename a shard or service in world.toml so the names differ",
+				name,
+				owner,
+				project,
+			)
+		}
+	}
+
+	// A container that disappears after the inspect is already gone, which is the goal.
+	id := res.Container.ID
+	if _, err := c.client.ContainerStop(
+		ctx,
+		id,
+		client.ContainerStopOptions{Signal: "SIGINT"},
+	); err != nil && !cerrdefs.IsNotFound(err) {
 		return eris.Wrapf(err, "stop container %s", name)
 	}
 
-	if _, err := c.client.ContainerRemove(ctx, name, client.ContainerRemoveOptions{}); err != nil {
+	if _, err := c.client.ContainerRemove(ctx, id, client.ContainerRemoveOptions{}); err != nil &&
+		!cerrdefs.IsNotFound(err) {
 		return eris.Wrapf(err, "remove container %s", name)
 	}
 
@@ -201,15 +224,23 @@ func (c *Client) GetContainerLogs(
 	return buf.String(), nil
 }
 
-// startContainer creates the container if missing, then starts it.
-func (c *Client) startContainer(ctx context.Context, svc service.Service) error {
-	exist, err := c.containerExists(ctx, svc.Name)
-	if err != nil {
-		return err
+// startContainer creates the container if missing, then starts it. With fresh set it always
+// creates the container and starts it by the new ID, so a container that took the name since it
+// was removed is never started: the create fails on the name instead.
+func (c *Client) startContainer(ctx context.Context, svc service.Service, fresh bool) error {
+	ref := svc.Name
+
+	exist := false
+
+	if !fresh {
+		var err error
+		if exist, err = c.containerExists(ctx, svc.Name); err != nil {
+			return err
+		}
 	}
 
 	if !exist {
-		_, err := c.client.ContainerCreate(ctx, client.ContainerCreateOptions{
+		res, err := c.client.ContainerCreate(ctx, client.ContainerCreateOptions{
 			Config:           &svc.Config,
 			HostConfig:       &svc.HostConfig,
 			NetworkingConfig: &svc.NetworkingConfig,
@@ -217,11 +248,21 @@ func (c *Client) startContainer(ctx context.Context, svc service.Service) error 
 			Name:             svc.Name,
 		})
 		if err != nil {
+			if fresh && cerrdefs.IsConflict(err) {
+				return eris.Wrapf(
+					err,
+					"create container %s: another container took the name during the recreate",
+					svc.Name,
+				)
+			}
+
 			return eris.Wrapf(err, "create container %s", svc.Name)
 		}
+
+		ref = res.ID
 	}
 
-	if _, err := c.client.ContainerStart(ctx, svc.Name, client.ContainerStartOptions{}); err != nil {
+	if _, err := c.client.ContainerStart(ctx, ref, client.ContainerStartOptions{}); err != nil {
 		return eris.Wrapf(err, "start container %s", svc.Name)
 	}
 

@@ -116,7 +116,7 @@ func TestWaitForReady_CrashLoopRealDaemon(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), tc.maxWait)
 			defer cancel()
 			startAt := time.Now()
-			require.NoError(t, dc.startContainer(ctx, svc), "start container")
+			require.NoError(t, dc.startContainer(ctx, svc, false), "start container")
 			t.Logf("startContainer took %s", time.Since(startAt))
 
 			start := time.Now()
