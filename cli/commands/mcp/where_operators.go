@@ -3,6 +3,7 @@ package mcp
 import (
 	"math"
 	"math/big"
+	"reflect"
 
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm/runtime"
@@ -83,14 +84,17 @@ func modulo(a, b any) (any, error) {
 	return narrow(new(big.Int).Rem(x, y)), nil
 }
 
-// in matches array elements with the exact ==; other containers defer to expr.
+// in matches slice and array elements with the exact ==, walking them as expr does; that covers
+// typed slices such as the []int a range like -1..1 builds. Other containers defer to expr.
 func in(needle, haystack any) (any, error) {
-	items, ok := haystack.([]any)
-	if !ok {
+	items := reflect.ValueOf(haystack)
+	if kind := items.Kind(); kind != reflect.Slice && kind != reflect.Array {
 		return runtime.In(needle, haystack), nil
 	}
 
-	for _, item := range items {
+	for i := range items.Len() {
+		item := items.Index(i).Interface()
+
 		x, y, wide := wideInts(item, needle)
 		if wide && x.Cmp(y) == 0 || !wide && runtime.Equal(item, needle) {
 			return true, nil

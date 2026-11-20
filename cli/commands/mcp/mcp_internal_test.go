@@ -785,6 +785,7 @@ func TestFlattenWorldState_WhereEvaluatesUint64AboveMaxInt64Exactly(t *testing.T
 		{where: "Balance.Amount % 10 == 5", want: []uint32{3}},
 		{where: "Balance.Amount % 10 == 8", want: []uint32{2}},
 		{where: "Balance.Amount in [-1]", want: nil},
+		{where: "Balance.Amount in -1..1", want: nil},
 		{where: "-1 in Balance.History", want: nil},
 		{where: "Balance.Amount in Balance.History", want: []uint32{1, 2, 3}},
 		{where: "Balance.Limits.Max > 0", want: []uint32{1, 2, 3}},
