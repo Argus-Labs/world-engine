@@ -55,6 +55,12 @@ func (ws *worldState) reset() {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 
+	// Mark every discarded archetype changed, so a search in progress revalidates the IDs it copied
+	// from them against the reset world instead of yielding dead entities.
+	for _, arch := range ws.archetypes {
+		arch.version++
+	}
+
 	ws.nextID = 0
 	ws.free = ws.free[:0]
 	ws.entityArch.clear()

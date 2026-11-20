@@ -202,6 +202,18 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 			},
 			want: nil, // Filled in below with the first entity the search yielded.
 		},
+		{
+			// Reset replaces every archetype, so no ID copied before it may be yielded after it.
+			name:    "reset mid-search yields no entity from before it",
+			matches: []SearchMatch{MatchExact, MatchContains, MatchAll},
+			setup:   func(w fixture) { createN(w, w.onlyA, 4) },
+			mutate: func(_ *testing.T, w fixture, _ EntityID, first bool) {
+				if first {
+					w.Reset()
+				}
+			},
+			want: nil, // Filled in below with the first entity the search yielded.
+		},
 	}
 
 	for _, tc := range cases {
