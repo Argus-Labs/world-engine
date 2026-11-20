@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"math"
 	"os/signal"
 	"reflect"
 	"syscall"
@@ -33,6 +34,11 @@ import (
 )
 
 const addressService = ":8080"
+
+// labelBeforeTickZero labels a snapshot of state from before tick 0 completes, such as the state a
+// debug Reset leaves. A label names the last completed tick and restore adds 1, so this label (0-1
+// as a uint64) restores to height 0.
+const labelBeforeTickZero uint64 = math.MaxUint64
 
 // World contains the game state and is the main Cardinal API.
 type World struct {
@@ -235,6 +241,11 @@ func (w *World) run(ctx context.Context) error {
 
 			w.reset()
 
+			// Persist the reset state now. Shutdown writes nothing at height 0, so a world stopped
+			// before its next tick would otherwise restart from the pre-reset snapshot.
+			data := w.encodeSnapshot(labelBeforeTickZero, w.currentTick.timestamp)
+			w.snapshotWriter.Write(labelBeforeTickZero, data)
+
 			replyCh <- struct{}{}
 		case <-ctx.Done():
 			// Capture only on normal shutdown, between ticks. A defer would also capture
@@ -419,10 +430,15 @@ func (w *World) restore(ctx context.Context) (err error) {
 		return eris.Wrap(err, "failed to restore world from snapshot")
 	}
 
-	// Update the tick only after a successful restore.
+	// Update the tick only after a successful restore. labelBeforeTickZero wraps to height 0.
 	w.currentTick.height = snap.GetTickHeight() + 1
 
-	// Publish the restored state for GetState; a no-op when the debug service is disabled.
+	// Publish the restored state for GetState; a no-op when the debug service is disabled. Reset
+	// state is published under label 0, as reset does.
+	if w.debug != nil && snap.GetTickHeight() == labelBeforeTickZero {
+		data = w.encodeSnapshot(0, w.currentTick.timestamp)
+	}
+
 	w.debug.publishState(data)
 
 	return nil
