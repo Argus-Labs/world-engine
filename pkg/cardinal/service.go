@@ -360,6 +360,12 @@ func (s *service) SendCommandWithReply(
 	ctx context.Context,
 	req *connect.Request[cardinalv1.SendCommandWithReplyRequest],
 ) (*connect.Response[cardinalv1.SendCommandWithReplyResponse], error) {
+	select {
+	case <-ctx.Done():
+		return nil, connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "context cancelled"))
+	default:
+	}
+
 	player := PlayerFromContext(ctx)
 	assert.That(player != nil, "player should exist in authenticated request context")
 

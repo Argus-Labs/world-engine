@@ -1,8 +1,6 @@
 package system
 
 import (
-	"time"
-
 	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/command"
 	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/component"
 	"github.com/argus-labs/world-engine/pkg/template/multi-shard/shards/chat/event"
@@ -16,7 +14,7 @@ func (s *UserChatSystem) Run(w *cardinal.World) {
 	for cmd := range w.Commands[command.UserChat]() {
 		command := cmd.Payload
 
-		timestamp := time.Now()
+		timestamp := w.Timestamp()
 
 		chat := w.Create[ChatRow]()
 
