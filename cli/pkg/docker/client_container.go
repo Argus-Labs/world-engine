@@ -61,7 +61,9 @@ func (c *Client) containerExists(ctx context.Context, containerName string) (boo
 // removeContainer stops and removes a container; with keepVolumes false its named
 // volumes go too. A missing container is a no-op. A container labelled with another
 // project is an error: names join project and id with hyphens, so project "demo"
-// shard "game-api" and project "demo-game" shard "api" share a name.
+// shard "game-api" and project "demo-game" shard "api" share a name. Stop and remove
+// target the inspected container's ID, not the name, so a container that takes the
+// name after the ownership check is never touched.
 func (c *Client) removeContainer(ctx context.Context, name string, keepVolumes bool) error {
 	res, err := c.client.ContainerInspect(ctx, name, client.ContainerInspectOptions{})
 	if err != nil {
@@ -84,11 +86,18 @@ func (c *Client) removeContainer(ctx context.Context, name string, keepVolumes b
 		}
 	}
 
-	if _, err := c.client.ContainerStop(ctx, name, client.ContainerStopOptions{Signal: "SIGINT"}); err != nil {
+	// A container that disappears after the inspect is already gone, which is the goal.
+	id := res.Container.ID
+	if _, err := c.client.ContainerStop(
+		ctx,
+		id,
+		client.ContainerStopOptions{Signal: "SIGINT"},
+	); err != nil && !cerrdefs.IsNotFound(err) {
 		return eris.Wrapf(err, "stop container %s", name)
 	}
 
-	if _, err := c.client.ContainerRemove(ctx, name, client.ContainerRemoveOptions{}); err != nil {
+	if _, err := c.client.ContainerRemove(ctx, id, client.ContainerRemoveOptions{}); err != nil &&
+		!cerrdefs.IsNotFound(err) {
 		return eris.Wrapf(err, "remove container %s", name)
 	}
 
