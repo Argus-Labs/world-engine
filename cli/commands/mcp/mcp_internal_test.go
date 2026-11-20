@@ -482,6 +482,7 @@ func entityIDs(entities []EntityState) []uint32 {
 	for _, e := range entities {
 		ids = append(ids, e.ID)
 	}
+
 	return ids
 }
 
@@ -502,6 +503,7 @@ func TestFlattenWorldState_WhereGuardsAndOptionalAccessFollowTheEvaluator(t *tes
 	for _, tt := range tests {
 		t.Run(tt.where, func(t *testing.T) {
 			t.Parallel()
+
 			filter, err := compileStateFilter(GetStateInput{Where: tt.where})
 			require.NoError(t, err)
 
@@ -528,6 +530,7 @@ func TestFlattenWorldState_WhereFailingOnMissingComponentDoesNotMatch(t *testing
 	for _, tt := range tests {
 		t.Run(tt.where, func(t *testing.T) {
 			t.Parallel()
+
 			filter, err := compileStateFilter(GetStateInput{Where: tt.where})
 			require.NoError(t, err)
 
