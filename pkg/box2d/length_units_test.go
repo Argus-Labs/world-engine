@@ -76,7 +76,7 @@ func TestLengthScaledDerivedExpressionsAreBitIdentical(t *testing.T) {
 	requireSameBits(t, "0.1*LinearSlop", 0.1*0.005, 0.1*slop)
 	// hull.go: collinearity and welding tolerances.
 	requireSameBits(t, "2.0*LinearSlop", 2.0*0.005, 2.0*slop)
-	requireSameBits(t, "16.0*LinearSlop*LinearSlop", 16.0*0.005*0.005, 16.0*slop*slop)
+	requireSameBits(t, "0.25*LinearSlop*LinearSlop", 0.25*0.005*0.005, 0.25*slop*slop)
 }
 
 // TestSetLengthUnitsPerMeterScalesDerivedQuantities checks the whole point of
