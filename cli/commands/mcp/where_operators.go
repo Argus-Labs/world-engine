@@ -13,9 +13,9 @@ import (
 // expr casts integer operands to int before comparing or computing on them, so a uint64 above
 // [math.MaxInt64] wraps negative: MaxUint64 > 0 is false and MaxUint64 == -1 is true. The where
 // clause overloads every operator that makes that cast. Comparisons, % and in work on exact big
-// integers when one operand is such a uint64, or an earlier result too large for one, and the other
-// is an integer; + - * do so whenever both operands are integers, since they can overflow int
-// themselves. Everything else defers to expr's own implementation. Division and ** already convert
+// integers when one operand is outside int's range, like that uint64 or an earlier result too large
+// for one, and the other is an integer; + - * do so whenever both operands are integers, since they
+// can overflow int themselves. Everything else defers to expr's own implementation. Division and ** already convert
 // to float64.
 
 // exactIntOperators returns the expr options that install the overloads.
@@ -122,10 +122,18 @@ func bigInts(a, b any) (*big.Int, *big.Int, bool) {
 	return x, y, okX && okY
 }
 
+// isWide reports whether expr's int cast would change v. Only these kinds can exceed int, and
+// int64 and uint32 only where int is 32 bits.
 func isWide(v any) bool {
 	switch n := v.(type) {
+	case int64:
+		return int64(int(n)) != n
+	case uint:
+		return n > math.MaxInt
+	case uint32:
+		return uint64(n) > math.MaxInt
 	case uint64:
-		return n > math.MaxInt64
+		return n > math.MaxInt
 	case *big.Int:
 		return true
 	}
@@ -162,11 +170,11 @@ func bigInt(v any) (*big.Int, bool) {
 	return nil, false
 }
 
-// narrow returns z as an int or uint64 when one holds it. Larger results stay big, so a later
+// narrow returns z as an int or uint64 when one holds it. Other results stay big, so a later
 // operator still sees them exactly; one that isn't overloaded fails on them instead of wrapping.
 func narrow(z *big.Int) any {
 	switch {
-	case z.IsInt64():
+	case z.IsInt64() && int64(int(z.Int64())) == z.Int64():
 		return int(z.Int64())
 	case z.IsUint64():
 		return z.Uint64()

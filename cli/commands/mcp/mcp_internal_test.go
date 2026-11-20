@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/expr-lang/expr"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/rotisserie/eris"
@@ -676,6 +678,19 @@ func TestCompileStateFilter_RejectsMismatchedOperandTypes(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "mismatched types int and string")
+}
+
+func TestExactIntOperators_HandleUintOutsideIntRange(t *testing.T) {
+	t.Parallel()
+
+	// Snapshots decode to sized integers, but a plain uint can exceed int as well.
+	program, err := expr.Compile("U > 0 && U != -1 && U % 2 == 1", append(exactIntOperators(), expr.AsBool())...)
+	require.NoError(t, err)
+
+	out, err := expr.Run(program, map[string]any{"U": uint(math.MaxUint)})
+
+	require.NoError(t, err)
+	assert.Equal(t, true, out)
 }
 
 func TestFlattenWorldState_RejectsComponentIndexOutsideNameTable(t *testing.T) {
