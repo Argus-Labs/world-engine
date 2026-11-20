@@ -18,6 +18,7 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/argus-labs/world-engine/pkg/micro"
 	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
@@ -729,6 +730,68 @@ func TestFlattenWorldState_WhereWithLimitStillCountsEveryMatch(t *testing.T) {
 	require.Len(t, got.entities, 1)
 	assert.Equal(t, 3, got.matched)
 	assert.Equal(t, 3, got.total)
+}
+
+func TestFlattenWorldState_WhereComparesUint64AboveMaxInt64ByValue(t *testing.T) {
+	t.Parallel()
+
+	const maxUint64 = ^uint64(0)
+	// Entities 1, 2, 3 hold 42, 2^63 and MaxUint64 at the top level, in a nested map and in an array.
+	world := &cardinalv1.WorldState{Components: []string{"Balance"}}
+
+	for i, amount := range []uint64{42, 1 << 63, maxUint64} {
+		blob, err := msgpack.Marshal(map[string]any{
+			"Amount": amount, "Limits": map[string]any{"Max": amount}, "History": []uint64{amount},
+		})
+		require.NoError(t, err)
+
+		world.Entities = append(world.Entities, &cardinalv1.Entity{
+			Id: uint32(i + 1), Components: []uint32{0}, Payloads: [][]byte{blob},
+		})
+	}
+
+	descriptors := componentDescriptors{"Balance": testObjectSchema("Amount", map[string]any{"type": "integer"})}
+
+	tests := []struct {
+		where string
+		want  []uint32
+	}{
+		{where: "Balance.Amount == 42", want: []uint32{1}},
+		{where: "Balance.Amount > 0", want: []uint32{1, 2, 3}},
+		{where: "Balance.Amount < 0", want: nil},
+		{where: "Balance.Amount == -1", want: nil},
+		{where: "Balance.Amount >= 9223372036854775807", want: []uint32{2, 3}},
+		{where: "Balance.Limits.Max > 0", want: []uint32{1, 2, 3}},
+		{where: "Balance.History[0] > 0", want: []uint32{1, 2, 3}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.where, func(t *testing.T) {
+			t.Parallel()
+
+			filter, err := compileStateFilter(GetStateInput{Where: tt.where})
+			require.NoError(t, err)
+
+			got, err := flattenWorldState(world, -1, filter, descriptors)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, entityIDs(got.entities))
+		})
+	}
+
+	t.Run("matches return the exact uint64", func(t *testing.T) {
+		t.Parallel()
+
+		filter, err := compileStateFilter(GetStateInput{Where: "_id == 3 && Balance.Amount > 0"})
+		require.NoError(t, err)
+
+		got, err := flattenWorldState(world, -1, filter, descriptors)
+
+		require.NoError(t, err)
+		require.Len(t, got.entities, 1)
+		assert.Equal(t, map[string]any{
+			"Amount": maxUint64, "Limits": map[string]any{"Max": maxUint64}, "History": []any{maxUint64},
+		}, got.entities[0].Components["Balance"])
+	})
 }
 
 // -------------------------------------------------------------------------------------------------
