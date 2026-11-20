@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"strings"
@@ -48,6 +49,7 @@ type service struct {
 	commands     map[string]struct{}
 	subscribers  map[string]*streamSubscriber
 	replyWaiters map[string]map[string][]chan *iscv1.Event // event name -> player ID -> waiters
+	closed       bool                                      // Guarded by mu. Set by closeStreams.
 	mu           sync.RWMutex
 }
 
@@ -200,12 +202,23 @@ func (s *service) mountDebugService(mux *http.ServeMux, interceptors ...connect.
 }
 
 func (s *service) shutdown(ctx context.Context) error {
-	// Before server.Shutdown: an open event stream holds it until ctx expires, and its error returns early.
-	// Defer argusAuth.Close so it runs on every return path, including when an active request
-	// stream exhausts the shutdown deadline and server.Shutdown returns early.
 	if s.argusAuth != nil {
 		defer s.argusAuth.Close()
 	}
+
+	var errs []error
+
+	// The tick loop has stopped, so stop acknowledging commands from other shards that no tick will
+	// process. Commands this shard sends do not use these endpoints.
+	if s.microService != nil {
+		if err := s.microService.Close(); err != nil {
+			errs = append(errs, eris.Wrap(err, "failed to close micro service"))
+		}
+	}
+
+	// server.Shutdown waits for every handler, and an event stream's handler runs until its client
+	// hangs up. End them before interShard.stop, which may spend the whole budget on a hung shard.
+	s.closeStreams()
 
 	if s.interShard != nil {
 		s.interShard.stop(ctx)
@@ -213,13 +226,7 @@ func (s *service) shutdown(ctx context.Context) error {
 
 	if s.server != nil {
 		if err := s.server.Shutdown(ctx); err != nil {
-			return eris.Wrap(err, "failed to shutdown service server")
-		}
-	}
-
-	if s.microService != nil {
-		if err := s.microService.Close(); err != nil {
-			return eris.Wrap(err, "failed to close micro service")
+			errs = append(errs, eris.Wrap(err, "failed to shutdown service server"))
 		}
 	}
 
@@ -227,7 +234,18 @@ func (s *service) shutdown(ctx context.Context) error {
 		s.client.Close()
 	}
 
-	return nil
+	return errors.Join(errs...)
+}
+
+// closeStreams ends every event stream, including any registered after it returns.
+func (s *service) closeStreams() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.closed = true
+	for _, subscriber := range s.subscribers {
+		subscriber.cancel(errStreamShutdown)
+	}
 }
 
 func (s *service) registerCommandHandler(name string) {
@@ -455,6 +473,10 @@ var errStreamSuperseded = eris.New("event stream superseded by a newer stream fo
 // CodeUnavailable and may reconnect.
 var errStreamLagged = eris.New("event stream lagged: the client is not reading events fast enough")
 
+// errStreamShutdown is the cancel cause of every event stream when the service shuts down. Clients
+// see it as CodeUnavailable and may reconnect.
+var errStreamShutdown = eris.New("event stream closed: the service is shutting down")
+
 // streamTeardownGrace is how long a cancelled stream may stay blocked writing before its response
 // is forced closed. See withStreamWriteDeadline.
 const streamTeardownGrace = time.Second
@@ -559,6 +581,8 @@ func streamEndError(ctx context.Context) error {
 		return connect.NewError(connect.CodeAborted, cause)
 	case eris.Is(cause, errStreamLagged):
 		return connect.NewError(connect.CodeUnavailable, cause)
+	case eris.Is(cause, errStreamShutdown):
+		return connect.NewError(connect.CodeUnavailable, cause)
 	case !eris.Is(ctx.Err(), context.Canceled):
 		return connect.NewError(connect.CodeCanceled, eris.Wrap(ctx.Err(), "stream cancelled"))
 	default:
@@ -624,6 +648,10 @@ func (s *service) updateSubscriptions(
 func (s *service) addSubscriber(playerID string, subscriber *streamSubscriber) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.closed {
+		subscriber.cancel(errStreamShutdown)
+	}
 
 	if previous, ok := s.subscribers[playerID]; ok {
 		previous.cancel(errStreamSuperseded)
