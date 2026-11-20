@@ -331,7 +331,7 @@ func TestDeserializeRejectsOutOfRangeIntegers(t *testing.T) {
 		{"Wide", uint64(math.MaxInt64) + 1},
 		{"Level", 256},
 		{"ByKey", map[int]int{65536: 0}},
-		{"ByKey", map[int]int{0: math.MaxInt32 + 1}},
+		{"ByKey", map[int]int64{0: math.MaxInt32 + 1}},
 		{"List", []int{math.MinInt16 - 1}},
 		{"Pair", []int{0, 65536}},
 		{"Frozen", []int{-1}},
@@ -350,12 +350,12 @@ func TestDeserializeRejectsOutOfRangeIntegers(t *testing.T) {
 		"Small":  255,
 		"Tiny":   -128,
 		"Big":    uint64(math.MaxUint64),
-		"Wide":   math.MinInt64,
+		"Wide":   int64(math.MinInt64),
 		"Level":  255,
-		"ByKey":  map[int]int{65535: math.MinInt32},
+		"ByKey":  map[int]int32{65535: math.MinInt32},
 		"List":   []int{math.MaxInt16},
 		"Pair":   []int{0, math.MaxUint16},
-		"Frozen": []int{math.MaxUint32},
+		"Frozen": []uint32{math.MaxUint32},
 	})
 	require.NoError(t, err)
 
@@ -372,6 +372,30 @@ func TestDeserializeRejectsOutOfRangeIntegers(t *testing.T) {
 		Pair:   [2]uint16{0, math.MaxUint16},
 		Frozen: immutable.SliceOf[uint32](math.MaxUint32),
 	}, got)
+}
+
+type mapKeyPayload struct{ ByKey immutable.Map[uint8, string] }
+
+func (mapKeyPayload) Name() string { return "map_key_payload" }
+
+// immutable.Map decodes its own keys, so the range check must reach them as it reaches Go map keys.
+func TestDeserializeRejectsOutOfRangeImmutableMapKeys(t *testing.T) {
+	t.Parallel()
+
+	for _, key := range []int{256, -1} {
+		data, err := msgpack.Marshal(map[string]any{"ByKey": map[int]string{key: "x"}})
+		require.NoError(t, err)
+
+		var got mapKeyPayload
+		require.ErrorContains(t, schema.Deserialize(data, &got), "out of range", "key %d", key)
+	}
+
+	data, err := msgpack.Marshal(map[string]any{"ByKey": map[int]string{0: "min", 255: "max"}})
+	require.NoError(t, err)
+
+	var got mapKeyPayload
+	require.NoError(t, schema.Deserialize(data, &got))
+	require.Equal(t, map[uint8]string{0: "min", 255: "max"}, maps.Collect(got.ByKey.All()))
 }
 
 type unsupportedPayload struct{ Channel chan int }

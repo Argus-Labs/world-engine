@@ -659,11 +659,13 @@ func (m *Map[K, V]) DecodeMsgpack(dec *msgpack.Decoder) error {
 		entries = append(entries, entry[K, V]{})
 
 		e := &entries[len(entries)-1]
-		if err := dec.Decode(&e.k); err != nil {
+		// DecodeValue, not Decode: Decode handles basic types such as *float32 and *uint8 itself and
+		// skips decoders registered with msgpack.Register, such as cardinal's, which accepts a 64-bit
+		// float into a float32 and rejects out-of-range integers.
+		if err := dec.DecodeValue(reflect.ValueOf(&e.k).Elem()); err != nil {
 			return eris.Wrap(err, "failed to decode immutable map key")
 		}
-		// DecodeValue, not Decode: Decode handles *float32 itself and skips decoders registered with
-		// msgpack.Register, such as cardinal's, which accepts a 64-bit float into a float32.
+
 		if err := dec.DecodeValue(reflect.ValueOf(&e.v).Elem()); err != nil {
 			return eris.Wrap(err, "failed to decode immutable map value")
 		}
