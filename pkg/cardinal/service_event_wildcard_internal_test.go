@@ -36,6 +36,7 @@ func TestEventStream_SubscriptionWildcards(t *testing.T) {
 		{">", []string{"chat.message", "chat.thread.reply"}},
 		{"*", []string{"chat.message", "chat.thread.reply"}},
 	}
+
 	streams := make([]*clientStream, len(cases))
 	for i, c := range cases {
 		streams[i] = h.open(t, "player-"+strconv.Itoa(i), c.subscription, marker)
@@ -57,7 +58,9 @@ func TestEventStream_SubscriptionWildcards(t *testing.T) {
 // eventsBefore returns the names of the events a stream delivers before the marker event.
 func eventsBefore(t *testing.T, c *clientStream, marker string) []string {
 	t.Helper()
+
 	var names []string
+
 	for {
 		select {
 		case msg := <-c.messages:
