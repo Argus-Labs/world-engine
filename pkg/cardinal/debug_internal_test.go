@@ -343,12 +343,14 @@ func TestResetRunsInitOnColdStartClock(t *testing.T) {
 	require.NotNil(t, w.debug)
 
 	clock := &clockOnInitSystem{}
-	w.RegisterSystem(clock, WithHook(Init))
+	w.RegisterSystem(clock, WithPhase(Init))
 
 	w.init() // cold start
+
 	for i := range 3 {
 		w.Tick(time.Unix(int64(i+1), 0))
 	}
+
 	w.reset()
 
 	require.Len(t, clock.observed, 2)
