@@ -97,7 +97,9 @@ func TestSlice_LayoutDependsOnlyOnContents(t *testing.T) {
 			}
 
 			slices.Reverse(back)
-			require.Equal(t, model, back, "step %d: Backward", step)
+			// slices.Equal, not require.Equal: an emptied model can be an empty non-nil slice while back
+			// stays nil, and both mean empty.
+			require.True(t, slices.Equal(model, back), "step %d: Backward: want %v, got %v", step, model, back)
 		}
 
 		if r.IntN(20) == 0 {
