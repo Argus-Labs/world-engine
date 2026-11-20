@@ -290,6 +290,7 @@ func TestCommand_NamesSorted(t *testing.T) {
 	t.Parallel()
 
 	m := command.NewManager()
+
 	queue := command.NewQueue[testutils.SimpleCommand]()
 	for _, name := range []string{"c", "a", "b"} {
 		_, err := m.Register(name, queue)

@@ -119,6 +119,7 @@ func (m *Manager) Register(name string, queue Queue) (ID, error) {
 			return 0, eris.Errorf(
 				"command %s already registered with a different type: %v, not %v", name, m.types[id], typ)
 		}
+
 		return id, nil
 	}
 
@@ -181,13 +182,16 @@ func (m *Manager) Get(id ID) ([]Command, error) {
 // another type, so a caller never reads another type's commands as T.
 func (m *Manager) Lookup[T Payload]() (ID, error) {
 	var zero T
+
 	id, exists := m.catalog[zero.Name()]
 	if !exists {
 		return 0, eris.Errorf("command %s is not registered; call RegisterCommand before StartGame", zero.Name())
 	}
+
 	if m.types[id] != reflect.TypeFor[T]() {
 		return 0, eris.Errorf("command %s is registered as %v, not %T", zero.Name(), m.types[id], zero)
 	}
+
 	return id, nil
 }
 

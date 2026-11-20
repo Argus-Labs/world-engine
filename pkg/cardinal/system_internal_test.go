@@ -337,6 +337,7 @@ func TestCommands_Smoke(t *testing.T) {
 		for cmd := range w.Commands[testutils.SimpleCommand]() {
 			values = append(values, cmd.Payload.Value)
 		}
+
 		assert.Equal(t, []int{42}, values)
 	})
 }
