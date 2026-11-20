@@ -16,7 +16,7 @@ const MinEpochFrequency = 10
 type WorldOptions struct {
 	Project             string               // Project that groups related shards
 	ShardID             string               // Unique ID of the world instance within the project
-	TickRate            float64              // Number of ticks each second
+	TickRate            float64              // Number of ticks each second; CARDINAL_TICK_RATE overrides it
 	SnapshotStorageType snapshot.StorageType // Snapshot storage type
 	SnapshotRate        uint32               // Number of ticks between snapshots
 	Debug               *bool                // Enables the debug server
@@ -112,6 +112,11 @@ func (opt *WorldOptions) validate() error {
 		return eris.New("tick rate must be greater than 0")
 	}
 
+	// The ticker needs a positive interval, and above 1e9 Hz the interval truncates to 0 ns.
+	if opt.tickInterval() <= 0 {
+		return eris.Errorf("tick rate %v is too high: the most is %d ticks per second", opt.TickRate, time.Second)
+	}
+
 	if !opt.SnapshotStorageType.IsValid() {
 		return eris.New("snapshot storage type must be specified")
 	}
@@ -165,6 +170,12 @@ type worldOptionsEnv struct {
 
 	// Unique ID of the world instance within the project.
 	ShardID string `env:"CARDINAL_SHARD_ID"`
+
+	// Number of ticks each second, which the World CLI sets from world.toml's tick_rate. Unlike the
+	// other variables, it overrides WorldOptions.TickRate: tick_rate is the deployment's setting, and
+	// the compiled rate is the default a shard falls back to when tick_rate is unset. It is a whole
+	// number, as in world.toml: 0 counts as unset, and a negative or fractional value fails to parse.
+	TickRate uint32 `env:"CARDINAL_TICK_RATE"`
 
 	// Snapshot storage type ("NOP", "JETSTREAM", or "S3").
 	SnapshotStorageTypeStr string `env:"CARDINAL_SNAPSHOT_STORAGE_TYPE" envDefault:"NOP"`

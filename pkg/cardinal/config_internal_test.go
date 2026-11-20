@@ -1,7 +1,9 @@
 package cardinal
 
 import (
+	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -41,4 +43,67 @@ func TestNewWorld_RejectsInvalidAddress(t *testing.T) {
 		_, err := NewWorld(opts)
 		require.ErrorContains(t, err, "invalid project or shard ID", "%s.%s", opts.Project, opts.ShardID)
 	}
+}
+
+// TestNewWorld_TickRateEnvOverridesOptions checks that CARDINAL_TICK_RATE, which the World CLI sets
+// from world.toml's tick_rate, paces the world even when the code compiles in another rate, and
+// that the compiled rate applies when the variable is unset.
+func TestNewWorld_TickRateEnvOverridesOptions(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		env          string
+		compiledRate float64
+		want         time.Duration
+	}{
+		{name: "unset keeps compiled rate", env: "", compiledRate: 1, want: time.Second},
+		{name: "zero counts as unset", env: "0", compiledRate: 1, want: time.Second},
+		{name: "env overrides compiled rate", env: "20", compiledRate: 1, want: 50 * time.Millisecond},
+		{name: "env alone sets rate", env: "20", compiledRate: 0, want: 50 * time.Millisecond},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("CARDINAL_PROJECT", "rampage")
+			t.Setenv("CARDINAL_SHARD_ID", "game")
+			t.Setenv("CARDINAL_TICK_RATE", tc.env)
+
+			w, err := NewWorld(WorldOptions{TickRate: tc.compiledRate, SnapshotRate: 1})
+			require.NoError(t, err)
+			require.Equal(t, tc.want, w.options.tickInterval())
+		})
+	}
+
+	t.Run("malformed env fails startup", func(t *testing.T) {
+		t.Setenv("CARDINAL_PROJECT", "rampage")
+		t.Setenv("CARDINAL_SHARD_ID", "game")
+
+		for _, env := range []string{"-1", "0.5"} {
+			t.Setenv("CARDINAL_TICK_RATE", env)
+
+			_, err := NewWorld(WorldOptions{TickRate: 1, SnapshotRate: 1})
+			require.ErrorContains(t, err, `parse error on field "TickRate"`, env)
+		}
+	})
+}
+
+// TestNewWorld_RejectsTickRateWithZeroInterval checks that a rate whose tick interval truncates to
+// 0 ns fails at startup instead of panicking the ticker, whether it comes from the environment or
+// WorldOptions.
+func TestNewWorld_RejectsTickRateWithZeroInterval(t *testing.T) {
+	t.Setenv("CARDINAL_PROJECT", "rampage")
+	t.Setenv("CARDINAL_SHARD_ID", "game")
+
+	t.Setenv("CARDINAL_TICK_RATE", "1000000000")
+
+	w, err := NewWorld(WorldOptions{TickRate: 1, SnapshotRate: 1})
+	require.NoError(t, err)
+	require.Equal(t, time.Nanosecond, w.options.tickInterval())
+
+	t.Setenv("CARDINAL_TICK_RATE", "1000000001")
+
+	_, err = NewWorld(WorldOptions{TickRate: 1, SnapshotRate: 1})
+	require.ErrorContains(t, err, "tick rate 1.000000001e+09 is too high")
+
+	t.Setenv("CARDINAL_TICK_RATE", "")
+
+	_, err = NewWorld(WorldOptions{TickRate: math.Inf(1), SnapshotRate: 1})
+	require.ErrorContains(t, err, "is too high")
 }
