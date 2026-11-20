@@ -9,13 +9,13 @@ option go_package = "github.com/argus-labs/world-engine/proto/gen/go/worldengine
 
 // Event represents a game event emitted by Cardinal.
 message Event {
-  // The event name.
+  // The event name, in the `<group>.<event>` format if the event belongs to a group.
   string name = 1 [
     (buf.validate.field).required = true,
     (buf.validate.field).string = {
       min_len: 1
       max_len: 128
-      pattern: "^[a-zA-Z0-9_-]+$"
+      pattern: "^[a-zA-Z0-9_-]+([.][a-zA-Z0-9_-]+)*$"
     }
   ];
 

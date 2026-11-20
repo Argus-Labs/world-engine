@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/isc/v1/event.proto.
  */
 export const file_worldengine_isc_v1_event: GenFile = /*@__PURE__*/
-  fileDesc("Ch53b3JsZGVuZ2luZS9pc2MvdjEvZXZlbnQucHJvdG8SEndvcmxkZW5naW5lLmlzYy52MSJPCgVFdmVudBItCgRuYW1lGAEgASgJQh+6SBzIAQFyFxABGIABMhBeW2EtekEtWjAtOV8tXSskEhcKB3BheWxvYWQYAiABKAxCBrpIA8gBAUJlWkhnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9pc2MvdjE7aXNjdjGqAhhXb3JsZEVuZ2luZS5Qcm90by5Jc2MuVjFiBnByb3RvMw", [file_buf_validate_validate]);
+  fileDesc("Ch53b3JsZGVuZ2luZS9pc2MvdjEvZXZlbnQucHJvdG8SEndvcmxkZW5naW5lLmlzYy52MSJjCgVFdmVudBJBCgRuYW1lGAEgASgJQjO6SDDIAQFyKxABGIABMiReW2EtekEtWjAtOV8tXSsoWy5dW2EtekEtWjAtOV8tXSspKiQSFwoHcGF5bG9hZBgCIAEoDEIGukgDyAEBQmVaSGdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2lzYy92MTtpc2N2MaoCGFdvcmxkRW5naW5lLlByb3RvLklzYy5WMWIGcHJvdG8z", [file_buf_validate_validate]);
 
 /**
  * Event represents a game event emitted by Cardinal.
@@ -20,7 +20,7 @@ export const file_worldengine_isc_v1_event: GenFile = /*@__PURE__*/
  */
 export type Event = Message<"worldengine.isc.v1.Event"> & {
   /**
-   * The event name.
+   * The event name, in the `<group>.<event>` format if the event belongs to a group.
    *
    * @generated from field: string name = 1;
    */

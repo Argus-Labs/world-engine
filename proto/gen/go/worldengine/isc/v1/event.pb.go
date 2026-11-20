@@ -25,7 +25,7 @@ const (
 // Event represents a game event emitted by Cardinal.
 type Event struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The event name.
+	// The event name, in the `<group>.<event>` format if the event belongs to a group.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// The event payload serialized by the event type's wire codec.
 	Payload       []byte `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
@@ -81,9 +81,9 @@ var File_worldengine_isc_v1_event_proto protoreflect.FileDescriptor
 
 const file_worldengine_isc_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1eworldengine/isc/v1/event.proto\x12\x12worldengine.isc.v1\x1a\x1bbuf/validate/validate.proto\"^\n" +
-	"\x05Event\x123\n" +
-	"\x04name\x18\x01 \x01(\tB\x1f\xbaH\x1c\xc8\x01\x01r\x17\x10\x01\x18\x80\x012\x10^[a-zA-Z0-9_-]+$R\x04name\x12 \n" +
+	"\x1eworldengine/isc/v1/event.proto\x12\x12worldengine.isc.v1\x1a\x1bbuf/validate/validate.proto\"r\n" +
+	"\x05Event\x12G\n" +
+	"\x04name\x18\x01 \x01(\tB3\xbaH0\xc8\x01\x01r+\x10\x01\x18\x80\x012$^[a-zA-Z0-9_-]+([.][a-zA-Z0-9_-]+)*$R\x04name\x12 \n" +
 	"\apayload\x18\x02 \x01(\fB\x06\xbaH\x03\xc8\x01\x01R\apayloadBeZHgithub.com/argus-labs/world-engine/proto/gen/go/worldengine/isc/v1;iscv1\xaa\x02\x18WorldEngine.Proto.Isc.V1b\x06proto3"
 
 var (
