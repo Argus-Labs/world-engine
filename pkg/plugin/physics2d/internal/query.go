@@ -244,12 +244,14 @@ func (rt *Runtime) CircleSweep(req query.CircleSweepRequest) query.CircleSweepRe
 		return query.CircleSweepResult{}
 	}
 
+	// Box2D measured the fraction along the translation shortened by maxFrac; map it
+	// back onto the caller's Start->End segment.
 	return query.CircleSweepResult{
 		Hit:        true,
 		Entity:     ctx.entityID,
 		ShapeIndex: ctx.shapeIndex,
 		Point:      ctx.point,
 		Normal:     ctx.normal,
-		Fraction:   ctx.fraction,
+		Fraction:   ctx.fraction * maxFrac,
 	}
 }
