@@ -55,11 +55,7 @@ func (ws *worldState) reset() {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 
-	// Mark every discarded archetype changed, so a search in progress revalidates the IDs it copied
-	// from them against the reset world instead of yielding dead entities.
-	for _, arch := range ws.archetypes {
-		arch.version++
-	}
+	ws.invalidateArchetypes()
 
 	ws.nextID = 0
 	ws.free = ws.free[:0]
@@ -67,6 +63,15 @@ func (ws *worldState) reset() {
 	ws.archetypes = ws.archetypes[:1] // Keep the void archetype slot
 	// Reset the void archetype to avoid stale data.
 	ws.archetypes[voidArchetypeID] = ws.newArchetype(voidArchetypeID, bitmap.Bitmap{})
+}
+
+// invalidateArchetypes marks every current archetype changed before they are replaced, so a search
+// in progress revalidates the IDs it copied from them against the new state instead of yielding
+// dead entities. Reset and a committed restore both call it.
+func (ws *worldState) invalidateArchetypes() {
+	for _, arch := range ws.archetypes {
+		arch.version++
+	}
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -471,6 +476,7 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 	}
 
 	// Commit the new state. The component registry and mutex do not change.
+	ws.invalidateArchetypes()
 	ws.nextID, ws.free, ws.entityArch, ws.archetypes = next.nextID, next.free, next.entityArch, next.archetypes
 
 	return nil

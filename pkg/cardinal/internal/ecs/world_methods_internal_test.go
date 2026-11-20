@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
+	cardinalv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/cardinal/v1"
 	"github.com/kelindar/bitmap"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -210,6 +211,18 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 			mutate: func(_ *testing.T, w fixture, _ EntityID, first bool) {
 				if first {
 					w.Reset()
+				}
+			},
+			want: nil, // Filled in below with the first entity the search yielded.
+		},
+		{
+			// A restore replaces every archetype too, here with an empty world's.
+			name:    "restore mid-search yields no entity from before it",
+			matches: []SearchMatch{MatchExact, MatchContains, MatchAll},
+			setup:   func(w fixture) { createN(w, w.onlyA, 4) },
+			mutate: func(t *testing.T, w fixture, _ EntityID, first bool) {
+				if first {
+					require.NoError(t, w.FromProto(&cardinalv1.WorldState{}))
 				}
 			},
 			want: nil, // Filled in below with the first entity the search yielded.
