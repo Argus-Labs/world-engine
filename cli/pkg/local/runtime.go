@@ -90,16 +90,7 @@ func (r *Runtime) StartPlatform(ctx context.Context, step func(string)) error {
 
 	svcs := service.PlatformServices(r.cfg)
 	// Recreate so a changed world.toml (image, env, ports) takes effect; volumes stay.
-	names := make([]string, 0, len(svcs))
-	for _, s := range svcs {
-		names = append(names, s.Name)
-	}
-
-	if err := r.docker.RemoveContainers(ctx, names, true, nil); err != nil {
-		return err
-	}
-
-	return r.docker.StartContainers(ctx, svcs, func(p docker.Progress) {
+	return r.docker.RecreateContainers(ctx, svcs, func(p docker.Progress) {
 		if p.State == docker.StateStarting && p.Err == nil {
 			step(p.Name)
 		}
@@ -185,16 +176,7 @@ func (r *Runtime) DeployServices(ctx context.Context) error {
 }
 
 func (r *Runtime) recreate(ctx context.Context, svcs []service.Service) error {
-	names := make([]string, 0, len(svcs))
-	for _, s := range svcs {
-		names = append(names, s.Name)
-	}
-
-	if err := r.docker.RemoveContainers(ctx, names, true, nil); err != nil {
-		return err
-	}
-
-	return r.docker.StartContainers(ctx, svcs, nil)
+	return r.docker.RecreateContainers(ctx, svcs, nil)
 }
 
 // shardServices returns the instance containers of one pool, in world.toml order.

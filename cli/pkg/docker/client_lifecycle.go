@@ -38,6 +38,34 @@ var probeClient = &http.Client{Transport: &http.Transport{DisableKeepAlives: tru
 // NATS, then the project DB, then [[services]] in declaration order (each waiting
 // for readiness), then shards concurrently. progress may be nil.
 func (c *Client) StartContainers(ctx context.Context, services []service.Service, progress func(Progress)) error {
+	return c.startContainers(ctx, services, progress, false)
+}
+
+// RecreateContainers replaces containers: it removes each one it owns, keeping volumes (see
+// removeContainer), then creates and starts a fresh container per service, in StartContainers'
+// order. It never adopts a container it did not create: if another container takes a name between
+// the remove and the create, the create fails rather than starting that container.
+func (c *Client) RecreateContainers(ctx context.Context, services []service.Service, progress func(Progress)) error {
+	names := make([]string, 0, len(services))
+	for _, s := range services {
+		names = append(names, s.Name)
+	}
+
+	if err := c.RemoveContainers(ctx, names, true, nil); err != nil {
+		return err
+	}
+
+	return c.startContainers(ctx, services, progress, true)
+}
+
+// startContainers starts services in dependency order. With fresh set, each container is created
+// anew instead of reused by name.
+func (c *Client) startContainers(
+	ctx context.Context,
+	services []service.Service,
+	progress func(Progress),
+	fresh bool,
+) error {
 	progress = synchronized(progress)
 
 	byRole := map[string][]service.Service{}
@@ -48,7 +76,7 @@ func (c *Client) StartContainers(ctx context.Context, services []service.Service
 	startAndWait := func(svc service.Service) error {
 		notify(progress, Progress{Name: svc.Name, State: StateStarting})
 
-		if err := c.startContainer(ctx, svc); err != nil {
+		if err := c.startContainer(ctx, svc, fresh); err != nil {
 			notify(progress, Progress{Name: svc.Name, State: StateStarting, Err: err})
 			return err
 		}
@@ -76,7 +104,7 @@ func (c *Client) StartContainers(ctx context.Context, services []service.Service
 		g.Go(func() error {
 			notify(progress, Progress{Name: svc.Name, State: StateStarting})
 
-			if err := c.startContainer(ctx, svc); err != nil {
+			if err := c.startContainer(ctx, svc, fresh); err != nil {
 				notify(progress, Progress{Name: svc.Name, State: StateStarting, Err: err})
 				return eris.Wrapf(err, "start %s", svc.Name)
 			}

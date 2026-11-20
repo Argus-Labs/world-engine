@@ -224,15 +224,23 @@ func (c *Client) GetContainerLogs(
 	return buf.String(), nil
 }
 
-// startContainer creates the container if missing, then starts it.
-func (c *Client) startContainer(ctx context.Context, svc service.Service) error {
-	exist, err := c.containerExists(ctx, svc.Name)
-	if err != nil {
-		return err
+// startContainer creates the container if missing, then starts it. With fresh set it always
+// creates the container and starts it by the new ID, so a container that took the name since it
+// was removed is never started: the create fails on the name instead.
+func (c *Client) startContainer(ctx context.Context, svc service.Service, fresh bool) error {
+	ref := svc.Name
+
+	exist := false
+
+	if !fresh {
+		var err error
+		if exist, err = c.containerExists(ctx, svc.Name); err != nil {
+			return err
+		}
 	}
 
 	if !exist {
-		_, err := c.client.ContainerCreate(ctx, client.ContainerCreateOptions{
+		res, err := c.client.ContainerCreate(ctx, client.ContainerCreateOptions{
 			Config:           &svc.Config,
 			HostConfig:       &svc.HostConfig,
 			NetworkingConfig: &svc.NetworkingConfig,
@@ -240,11 +248,21 @@ func (c *Client) startContainer(ctx context.Context, svc service.Service) error 
 			Name:             svc.Name,
 		})
 		if err != nil {
+			if fresh && cerrdefs.IsConflict(err) {
+				return eris.Wrapf(
+					err,
+					"create container %s: another container took the name during the recreate",
+					svc.Name,
+				)
+			}
+
 			return eris.Wrapf(err, "create container %s", svc.Name)
 		}
+
+		ref = res.ID
 	}
 
-	if _, err := c.client.ContainerStart(ctx, svc.Name, client.ContainerStartOptions{}); err != nil {
+	if _, err := c.client.ContainerStart(ctx, ref, client.ContainerStartOptions{}); err != nil {
 		return eris.Wrapf(err, "start container %s", svc.Name)
 	}
 

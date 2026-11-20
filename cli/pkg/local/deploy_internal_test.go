@@ -70,6 +70,12 @@ func TestDeployRecreatesOnlyItsOwnProjectsContainer(t *testing.T) {
 				assert.Equal(t, []string{oldID}, daemon.stopped, "Deploy must stop the inspected container by ID")
 				assert.Equal(t, []string{oldID}, daemon.removed, "Deploy must remove the inspected container by ID")
 				assert.NotEqual(t, oldID, current.id, "Deploy did not recreate the container")
+				assert.Equal(
+					t,
+					[]string{current.id},
+					daemon.started,
+					"Deploy must start the container it created, by ID",
+				)
 			}
 
 			assert.Equal(t, tc.wantProject, current.labels[service.ProjectLabel])
@@ -79,7 +85,7 @@ func TestDeployRecreatesOnlyItsOwnProjectsContainer(t *testing.T) {
 
 // Another project's container can take the name between the ownership check and
 // the stop. Deploy must stop and remove only the container it inspected, never the
-// newcomer that now answers to the name.
+// newcomer that now answers to the name, and must fail rather than start it.
 func TestDeployKeepsContainerThatTakesTheNameAfterInspect(t *testing.T) {
 	name := service.CardinalShardContainerName("demo", "game-api")
 
@@ -94,8 +100,10 @@ func TestDeployKeepsContainerThatTakesTheNameAfterInspect(t *testing.T) {
 		otherID = daemon.add(name, map[string]string{service.ProjectLabel: "demo-game"})
 	}
 
-	_ = deployDemo(t)
+	err := deployDemo(t)
+	require.ErrorContains(t, err, "another container took the name")
 
+	assert.Empty(t, daemon.started, "Deploy started a container it did not create")
 	assert.Equal(t, []string{ownID}, daemon.stopped, "Deploy must stop the inspected container by ID")
 	assert.Equal(t, []string{ownID}, daemon.removed, "Deploy must remove the inspected container by ID")
 
@@ -156,6 +164,7 @@ type fakeDaemon struct {
 	containers   []fakeContainer
 	stopped      []string // the ID or name in each stop request
 	removed      []string // the ID or name in each remove request
+	started      []string // the ID of each container started
 	afterInspect func()   // runs, under the lock, after each container inspect
 }
 
@@ -286,6 +295,23 @@ func (d *fakeDaemon) serve(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 		_, _ = fmt.Fprintf(w, `{"Id":%q,"Warnings":[]}`, id)
 	case r.Method == http.MethodPost && action == "start":
+		c, ok := d.find(ref)
+		if !ok {
+			d.notFound(w)
+
+			return
+		}
+
+		// Deploy only ever starts its own project's containers.
+		if owner := c.labels[service.ProjectLabel]; owner != "demo" {
+			d.t.Errorf("Deploy started container %s of project %q", ref, owner)
+			w.WriteHeader(http.StatusInternalServerError)
+
+			return
+		}
+
+		d.started = append(d.started, c.id)
+
 		w.WriteHeader(http.StatusNoContent)
 	default:
 		d.t.Errorf("unexpected Docker request %s %s", r.Method, r.URL.Path)
