@@ -87,7 +87,7 @@ func TestService_ShutdownRejectsCommandsWhileWaitingForRequests(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- h.fixture.svc.shutdown(ctx) }()
 
-	requireStreamUnavailable(t, h.ended) // Streams end just before server shutdown starts waiting.
+	requireStreamUnavailable(t, h.ended) // Streams end once the ISC endpoints have closed.
 
 	select {
 	case err := <-done:

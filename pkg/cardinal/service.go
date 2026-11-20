@@ -216,13 +216,13 @@ func (s *service) shutdown(ctx context.Context) error {
 		}
 	}
 
+	// server.Shutdown waits for every handler, and an event stream's handler runs until its client
+	// hangs up. End them before interShard.stop, which may spend the whole budget on a hung shard.
+	s.closeStreams()
+
 	if s.interShard != nil {
 		s.interShard.stop(ctx)
 	}
-
-	// server.Shutdown waits for every handler, and an event stream's handler runs until its client
-	// hangs up.
-	s.closeStreams()
 
 	if s.server != nil {
 		if err := s.server.Shutdown(ctx); err != nil {
