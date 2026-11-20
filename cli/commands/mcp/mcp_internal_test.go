@@ -555,6 +555,23 @@ func TestFlattenWorldState_WhereErrorOnPresentComponentIsAnError(t *testing.T) {
 	assert.Contains(t, err.Error(), "where clause")
 }
 
+// The suppression keys on the entity lacking a read component, not on which operation failed: entity
+// 11 has Health but no Position, so its failing Health comparison drops it rather than erroring. The
+// where description promises exactly this.
+func TestFlattenWorldState_WhereErrorOnEntityMissingAReadComponentDoesNotMatch(t *testing.T) {
+	t.Parallel()
+	descriptors := stateDescriptors(t)
+	filter, err := compileStateFilter(GetStateInput{
+		Where: `_id == 11 && (Position == nil || Position.X > 0) && Health.HP > "x"`,
+	})
+	require.NoError(t, err)
+
+	got, err := flattenWorldState(sampleWorld(t, descriptors), -1, filter, descriptors)
+
+	require.NoError(t, err)
+	assert.Empty(t, got.entities)
+}
+
 func TestWhereFieldReads_CollectsMemberRootsOnly(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, []string{"Health"}, whereFieldReads("Health.HP > 50"))
