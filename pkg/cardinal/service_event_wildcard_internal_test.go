@@ -55,6 +55,36 @@ func TestEventStream_SubscriptionWildcards(t *testing.T) {
 	}
 }
 
+// A '*' or '>' inside a token is not a wildcard, and neither is a '>' before the last token. Such
+// malformed filters match nothing beyond their literal name, rather than whatever the NATS matcher
+// makes of them.
+func TestMatchesEvent_MalformedTokenFilters(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		subscription string
+		event        string
+		want         bool
+	}{
+		{"chat.*", "chat.message", true},
+		{"*.message", "chat.message", true},
+		{"chat.*.reply", "chat.thread.reply", true},
+		{"*.>", "chat.thread.reply", true},
+		{"*", "chat.message", true},
+		{"chat.*suffix", "chat.message", false},
+		{"chat.m*", "chat.message", false},
+		{"chat.*>", "chat.message", false},
+		{"*.>.reply", "chat.thread.reply", false},
+		{"*.>.reply", "chat.message", false},
+		{"chat..*", "chat.message", false},
+		{"chat.*.", "chat.thread.reply", false},
+		{"chat.*suffix", "chat.*suffix", true}, // An exact name still matches itself.
+	}
+	for _, c := range cases {
+		assert.Equal(t, c.want, matchesEvent(c.subscription, c.event), "%q vs %q", c.subscription, c.event)
+	}
+}
+
 // eventsBefore returns the names of the events a stream delivers before the marker event.
 func eventsBefore(t *testing.T, c *clientStream, marker string) []string {
 	t.Helper()

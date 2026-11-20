@@ -790,7 +790,30 @@ func matchesEvent(subscription string, eventName string) bool {
 		(strings.HasSuffix(subscription, ".>") && strings.HasPrefix(eventName, strings.TrimSuffix(subscription, ">"))) ||
 		// A token-scoped '*' matches exactly one token, as in NATS: "chat.*" matches "chat.message"
 		// but not "chat.thread.reply". A bare '*' above still matches every event.
-		(strings.Contains(subscription, "*") && natsserver.SubjectMatchesFilter(eventName, subscription))
+		(strings.Contains(subscription, "*") && isTokenFilter(subscription) &&
+			natsserver.SubjectMatchesFilter(eventName, subscription))
+}
+
+// isTokenFilter reports whether subscription is a well-formed NATS filter: no empty tokens, '*' only
+// as a whole token, and '>' only as the whole final token. The NATS matcher reads just the first
+// byte of a wildcard token, so a malformed filter such as "chat.*suffix" would match "chat.message".
+func isTokenFilter(subscription string) bool {
+	tokens := strings.Split(subscription, ".")
+	for i, token := range tokens {
+		switch {
+		case token == "":
+			return false
+		case token == "*":
+		case token == ">":
+			if i != len(tokens)-1 {
+				return false
+			}
+		case strings.ContainsAny(token, "*>"):
+			return false
+		}
+	}
+
+	return true
 }
 
 // -------------------------------------------------------------------------------------------------
