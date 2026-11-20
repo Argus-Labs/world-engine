@@ -323,11 +323,13 @@ func decodeInteger(d *msgpack.Decoder, v reflect.Value) error {
 	if err != nil {
 		return err
 	}
+
 	if c == msgpcode.Uint64 { // the only integer encoding that can exceed math.MaxInt64
 		n, err := d.DecodeUint64()
 		if err != nil {
 			return err
 		}
+
 		switch {
 		case v.CanUint() && !v.OverflowUint(n):
 			v.SetUint(n)
@@ -336,12 +338,15 @@ func decodeInteger(d *msgpack.Decoder, v reflect.Value) error {
 		default:
 			return eris.Errorf("%d is out of range for %s", n, v.Type())
 		}
+
 		return nil
 	}
+
 	n, err := d.DecodeInt64()
 	if err != nil {
 		return err
 	}
+
 	switch {
 	case v.CanInt() && !v.OverflowInt(n):
 		v.SetInt(n)
@@ -350,5 +355,6 @@ func decodeInteger(d *msgpack.Decoder, v reflect.Value) error {
 	default:
 		return eris.Errorf("%d is out of range for %s", n, v.Type())
 	}
+
 	return nil
 }

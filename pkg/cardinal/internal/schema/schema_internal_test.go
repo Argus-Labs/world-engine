@@ -141,11 +141,13 @@ func TestSerializeAfterDeserializeEncodesMapsInStableOrder(t *testing.T) {
 	// Decode the type before anything has serialized or registered it.
 	data, err := msgpack.Marshal(map[string]any{"Scores": scores})
 	require.NoError(t, err)
+
 	var got decodedFirstPayload
 	require.NoError(t, schema.Deserialize(data, &got))
 
 	first, err := schema.Serialize(got)
 	require.NoError(t, err)
+
 	for range 20 {
 		again, err := schema.Serialize(got)
 		require.NoError(t, err)
@@ -316,6 +318,7 @@ func (intPayload) Name() string { return "int_payload" }
 
 func TestDeserializeRejectsOutOfRangeIntegers(t *testing.T) {
 	t.Parallel()
+
 	for _, tc := range []struct {
 		field string
 		value any
@@ -335,6 +338,7 @@ func TestDeserializeRejectsOutOfRangeIntegers(t *testing.T) {
 	} {
 		data, err := msgpack.Marshal(map[string]any{tc.field: tc.value})
 		require.NoError(t, err)
+
 		kept := intPayload{Small: 7}
 		err = schema.Deserialize(data, &kept)
 		require.ErrorContains(t, err, "out of range", "%s = %v", tc.field, tc.value)
@@ -354,6 +358,7 @@ func TestDeserializeRejectsOutOfRangeIntegers(t *testing.T) {
 		"Frozen": []int{math.MaxUint32},
 	})
 	require.NoError(t, err)
+
 	var got intPayload
 	require.NoError(t, schema.Deserialize(data, &got))
 	require.Equal(t, intPayload{
