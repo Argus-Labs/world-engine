@@ -73,8 +73,10 @@ func TestNewWorld_TickRateEnvOverridesOptions(t *testing.T) {
 	t.Run("malformed env fails startup", func(t *testing.T) {
 		t.Setenv("CARDINAL_PROJECT", "rampage")
 		t.Setenv("CARDINAL_SHARD_ID", "game")
+
 		for _, env := range []string{"-1", "0.5"} {
 			t.Setenv("CARDINAL_TICK_RATE", env)
+
 			_, err := NewWorld(WorldOptions{TickRate: 1, SnapshotRate: 1})
 			require.ErrorContains(t, err, `parse error on field "TickRate"`, env)
 		}
