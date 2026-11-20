@@ -32,6 +32,10 @@ type flushRequiredTransport struct {
 	mu        sync.Mutex
 	pending   []*sentry.Event
 	delivered []*sentry.Event
+	// onFlush, when non-nil, is invoked inside Flush so a test can observe the
+	// call (e.g. record ordering relative to other sinks) without a second fake
+	// transport.
+	onFlush func()
 }
 
 func (t *flushRequiredTransport) Configure(sentry.ClientOptions) {}
@@ -49,7 +53,9 @@ func (t *flushRequiredTransport) Flush(time.Duration) bool {
 
 	t.delivered = append(t.delivered, t.pending...)
 	t.pending = nil
-
+	if t.onFlush != nil {
+		t.onFlush()
+	}
 	return true
 }
 
