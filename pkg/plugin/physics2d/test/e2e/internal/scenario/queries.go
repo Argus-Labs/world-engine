@@ -239,6 +239,18 @@ func checkSweep(
 	c.True("MaxFraction of 1 sweeps the whole segment", full.Hit,
 		"the full-length sweep found nothing")
 
+	// MaxFraction shortens the search, not the segment the fraction measures.
+	reach := wantFraction + 0.05
+
+	bounded := c.CircleSweep(0, 30, rayLen, 30, radius, reach, nil)
+	if c.True("MaxFraction past the wall still finds it", bounded.Hit && bounded.Entity == wall,
+		"a sweep capped at %.3f reported hit=%v on entity %d, want %d", reach, bounded.Hit, bounded.Entity, wall) {
+		c.Near("a capped sweep's fraction is along the whole segment",
+			bounded.Fraction, wantFraction, 2e-3)
+		c.True("a capped sweep's fraction stays within MaxFraction", bounded.Fraction <= reach,
+			"fraction %.4f is past MaxFraction %.3f", bounded.Fraction, reach)
+	}
+
 	noRadius := c.CircleSweep(0, 30, rayLen, 30, 0, 0, nil)
 	c.False("a zero-radius sweep never hits", noRadius.Hit,
 		"a zero-radius sweep reported a hit on entity %d", noRadius.Entity)
