@@ -668,6 +668,16 @@ func TestCompileStateFilter_RejectsUnparsableWhere(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to parse where clause")
 }
 
+func TestCompileStateFilter_RejectsMismatchedOperandTypes(t *testing.T) {
+	t.Parallel()
+
+	// The exact-integer overloads accept operands of any type, so this must fail the plain check.
+	_, err := compileStateFilter(GetStateInput{Where: `1 < "a"`})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mismatched types int and string")
+}
+
 func TestFlattenWorldState_RejectsComponentIndexOutsideNameTable(t *testing.T) {
 	t.Parallel()
 
@@ -732,16 +742,17 @@ func TestFlattenWorldState_WhereWithLimitStillCountsEveryMatch(t *testing.T) {
 	assert.Equal(t, 3, got.total)
 }
 
-func TestFlattenWorldState_WhereComparesUint64AboveMaxInt64ByValue(t *testing.T) {
+func TestFlattenWorldState_WhereEvaluatesUint64AboveMaxInt64Exactly(t *testing.T) {
 	t.Parallel()
 
 	const maxUint64 = ^uint64(0)
 	// Entities 1, 2, 3 hold 42, 2^63 and MaxUint64 at the top level, in a nested map and in an array.
+	// Prev is one less, since expr can't parse an integer literal above MaxInt64.
 	world := &cardinalv1.WorldState{Components: []string{"Balance"}}
 
 	for i, amount := range []uint64{42, 1 << 63, maxUint64} {
 		blob, err := msgpack.Marshal(map[string]any{
-			"Amount": amount, "Limits": map[string]any{"Max": amount}, "History": []uint64{amount},
+			"Amount": amount, "Prev": amount - 1, "Limits": map[string]any{"Max": amount}, "History": []uint64{amount},
 		})
 		require.NoError(t, err)
 
@@ -760,7 +771,22 @@ func TestFlattenWorldState_WhereComparesUint64AboveMaxInt64ByValue(t *testing.T)
 		{where: "Balance.Amount > 0", want: []uint32{1, 2, 3}},
 		{where: "Balance.Amount < 0", want: nil},
 		{where: "Balance.Amount == -1", want: nil},
-		{where: "Balance.Amount >= 9223372036854775807", want: []uint32{2, 3}},
+		{where: "Balance.Amount != -1", want: []uint32{1, 2, 3}},
+		{where: "Balance.Amount > _id", want: []uint32{1, 2, 3}},
+		{where: "Balance.Amount == 9223372036854775807", want: nil},
+		{where: "Balance.Amount > 9223372036854775807", want: []uint32{2, 3}},
+		{where: "Balance.Amount <= 9223372036854775807", want: []uint32{1}},
+		{where: "Balance.Amount == Balance.Prev", want: nil},
+		{where: "Balance.Amount > Balance.Prev", want: []uint32{1, 2, 3}},
+		{where: "Balance.Amount - 1 == Balance.Prev", want: []uint32{1, 2, 3}},
+		{where: "Balance.Prev + 1 == Balance.Amount", want: []uint32{1, 2, 3}},
+		{where: "Balance.Amount + 1 > Balance.Amount", want: []uint32{1, 2, 3}},
+		{where: "Balance.Amount * 2 > Balance.Amount", want: []uint32{1, 2, 3}},
+		{where: "Balance.Amount % 10 == 5", want: []uint32{3}},
+		{where: "Balance.Amount % 10 == 8", want: []uint32{2}},
+		{where: "Balance.Amount in [-1]", want: nil},
+		{where: "-1 in Balance.History", want: nil},
+		{where: "Balance.Amount in Balance.History", want: []uint32{1, 2, 3}},
 		{where: "Balance.Limits.Max > 0", want: []uint32{1, 2, 3}},
 		{where: "Balance.History[0] > 0", want: []uint32{1, 2, 3}},
 	}
@@ -778,6 +804,18 @@ func TestFlattenWorldState_WhereComparesUint64AboveMaxInt64ByValue(t *testing.T)
 		})
 	}
 
+	t.Run("modulo by zero is an error", func(t *testing.T) {
+		t.Parallel()
+
+		filter, err := compileStateFilter(GetStateInput{Where: "_id == 3 && Balance.Amount % 0 == 0"})
+		require.NoError(t, err)
+
+		_, err = flattenWorldState(world, -1, filter, descriptors)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "divide by zero")
+	})
+
 	t.Run("matches return the exact uint64", func(t *testing.T) {
 		t.Parallel()
 
@@ -789,7 +827,8 @@ func TestFlattenWorldState_WhereComparesUint64AboveMaxInt64ByValue(t *testing.T)
 		require.NoError(t, err)
 		require.Len(t, got.entities, 1)
 		assert.Equal(t, map[string]any{
-			"Amount": maxUint64, "Limits": map[string]any{"Max": maxUint64}, "History": []any{maxUint64},
+			"Amount": maxUint64, "Prev": maxUint64 - 1,
+			"Limits": map[string]any{"Max": maxUint64}, "History": []any{maxUint64},
 		}, got.entities[0].Components["Balance"])
 	})
 }

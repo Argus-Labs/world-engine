@@ -3,7 +3,6 @@ package mcp
 import (
 	"context"
 	"maps"
-	"math"
 	"slices"
 	"time"
 
@@ -184,7 +183,13 @@ func compileStateFilter(args GetStateInput) (stateFilter, error) {
 		// Compiled as a bool expression, same as the engine's search filter. The
 		// component types aren't known until an entity is in hand, so a non-bool
 		// result can still slip through to evaluation time.
-		program, err := expr.Compile(args.Where, expr.AsBool())
+		if _, err := expr.Compile(args.Where, expr.AsBool()); err != nil {
+			return stateFilter{}, eris.Wrap(err, "failed to parse where clause")
+		}
+
+		// The overloads take operands of any type, so they're compiled in only after the plain
+		// check above has rejected mismatches such as '1 < "a"'.
+		program, err := expr.Compile(args.Where, append(exactIntOperators(), expr.AsBool())...)
 		if err != nil {
 			return stateFilter{}, eris.Wrap(err, "failed to parse where clause")
 		}
@@ -260,10 +265,7 @@ func (f stateFilter) matchesWhere(id uint32, components map[string]any) (bool, e
 	}
 
 	env := make(map[string]any, len(components)+1)
-	for name, value := range components {
-		env[name], _ = exprValue(value)
-	}
-
+	maps.Copy(env, components)
 	env["_id"] = id
 
 	// Evaluate first: expr skips reads that a guard ('Position == nil || ...') or optional access
@@ -285,57 +287,6 @@ func (f stateFilter) matchesWhere(id uint32, components map[string]any) (bool, e
 	}
 
 	return matched, nil
-}
-
-// exprValue returns a decoded value as the where clause should see it, and whether it differs.
-// expr compares and computes on integers as int, so a uint64 above [math.MaxInt64] would wrap
-// negative (MaxUint64 == -1). It becomes the nearest float64 instead, so it compares as the large
-// positive number it is. That comparison is only as precise as float64, which rounds at this size:
-// it can compare equal to an int within 2^9 of [math.MaxInt64], or to another such uint64
-// less than 2^11 away. expr rejects integer literals above [math.MaxInt64], so no literal names
-// these values exactly anyway. Maps and slices are copied only when something inside them changes,
-// because the output shares the originals and keeps the exact values.
-func exprValue(value any) (any, bool) {
-	switch v := value.(type) {
-	case uint64:
-		if v > math.MaxInt64 {
-			return float64(v), true
-		}
-	case map[string]any:
-		var out map[string]any
-
-		for key, item := range v {
-			if converted, changed := exprValue(item); changed {
-				if out == nil {
-					out = maps.Clone(v)
-				}
-
-				out[key] = converted
-			}
-		}
-
-		if out != nil {
-			return out, true
-		}
-	case []any:
-		var out []any
-
-		for i, item := range v {
-			if converted, changed := exprValue(item); changed {
-				if out == nil {
-					out = slices.Clone(v)
-				}
-
-				out[i] = converted
-			}
-		}
-
-		if out != nil {
-			return out, true
-		}
-	}
-
-	return value, false
 }
 
 // flattenResult is what one pass over the snapshot produced.
