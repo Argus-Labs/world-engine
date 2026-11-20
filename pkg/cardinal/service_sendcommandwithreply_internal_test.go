@@ -558,7 +558,9 @@ func scwrSendThroughMux(
 	t *testing.T, eventName string,
 ) (*connect.Response[cardinalv1.SendCommandWithReplyResponse], error) {
 	t.Helper()
+
 	const player = "alice"
+
 	svc, w := newSCWRFixture(t, testutils.NewRand(t), func(world *World) command.Queue {
 		return &tickingReplyQueue{
 			Queue: command.NewQueue[testutils.SimpleCommand](),
@@ -574,12 +576,14 @@ func scwrSendThroughMux(
 	})
 	mux, err := svc.newMux(authenticatorDev{}.authenticate)
 	require.NoError(t, err)
+
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	client := cardinalv1connect.NewCardinalServiceClient(server.Client(), server.URL)
 
 	ctx, cancel := context.WithTimeout(t.Context(), scwrReplyTimeout)
 	defer cancel()
+
 	req := connect.NewRequest(&cardinalv1.SendCommandWithReplyRequest{
 		Command: &iscv1.Command{
 			Name:    testutils.SimpleCommand{}.Name(),
@@ -589,5 +593,6 @@ func scwrSendThroughMux(
 		EventName: eventName,
 	})
 	req.Header().Set(devPlayerIDHeader, player)
+
 	return client.SendCommandWithReply(ctx, req)
 }
