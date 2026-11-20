@@ -258,8 +258,8 @@ func newServiceFixture(t *testing.T, prng *rand.Rand, registerNATSEndpoints bool
 
 	// RegisterCommand is what makes the service accept SimpleCommand from clients.
 	w.RegisterCommand[testutils.SimpleCommand]()
-	cmdID, ok := w.commands.Lookup(testutils.SimpleCommand{}.Name())
-	require.True(t, ok)
+	cmdID, err := w.commands.Lookup[testutils.SimpleCommand]()
+	require.NoError(t, err)
 
 	fixture := &serviceFixture{
 		svc:       svc,

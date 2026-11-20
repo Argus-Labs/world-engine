@@ -320,7 +320,32 @@ func TestCommands_Smoke(t *testing.T) {
 
 		require.Panics(t, func() { w.Commands[testutils.SimpleCommand]() })
 	})
+
+	// A type that shares a registered command's name is not that command. Both checks run before
+	// any payload is read, so they hold in release builds, where assert.That is compiled out.
+	t.Run("type sharing a registered name panics", func(t *testing.T) {
+		t.Parallel()
+
+		w := newCommandWorld(t)
+		enqueueCommand(t, w, testutils.SimpleCommand{Value: 42}, "player")
+		w.commands.Drain()
+
+		require.Panics(t, func() { w.RegisterCommand[impostorCommand]() })
+		require.Panics(t, func() { w.Commands[impostorCommand]() })
+
+		var values []int
+		for cmd := range w.Commands[testutils.SimpleCommand]() {
+			values = append(values, cmd.Payload.Value)
+		}
+
+		assert.Equal(t, []int{42}, values)
+	})
 }
+
+// impostorCommand is a different payload type that shares SimpleCommand's name.
+type impostorCommand struct{ Value int }
+
+func (impostorCommand) Name() string { return testutils.SimpleCommand{}.Name() }
 
 // newCommandWorld returns a world with the command manager and service wired, and SimpleCommand
 // registered.

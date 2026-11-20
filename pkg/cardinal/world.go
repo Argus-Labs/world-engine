@@ -645,9 +645,9 @@ func (w *World) RegisterCommand[T Command]() {
 func (w *World) Commands[T Command]() iter.Seq[CommandContext[T]] {
 	var zero T
 
-	id, ok := w.commands.Lookup(zero.Name())
-	if !ok {
-		panic(eris.Errorf("command %s is not registered; call RegisterCommand before StartGame", zero.Name()))
+	id, err := w.commands.Lookup[T]()
+	if err != nil {
+		panic(err)
 	}
 
 	commands, err := w.commands.Get(id)

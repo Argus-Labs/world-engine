@@ -246,11 +246,12 @@ func TestCommand_RegisterModelFuzz(t *testing.T) {
 	const opsMax = 1 << 15 // 32_768 iterations
 
 	impl := command.NewManager()
-	model := make(map[string]command.ID) // name -> ID
+	model := make(map[string]command.ID)                 // name -> ID
+	queue := command.NewQueue[testutils.SimpleCommand]() // Only its payload type is read here.
 
 	for range opsMax {
 		name := testutils.RandString(prng, 50)
-		implID, err := impl.Register(name, nil)
+		implID, err := impl.Register(name, queue)
 		require.NoError(t, err)
 
 		if modelID, exists := model[name]; exists {
@@ -289,12 +290,36 @@ func TestCommand_NamesSorted(t *testing.T) {
 	t.Parallel()
 
 	m := command.NewManager()
+
+	queue := command.NewQueue[testutils.SimpleCommand]()
 	for _, name := range []string{"c", "a", "b"} {
-		_, err := m.Register(name, nil)
+		_, err := m.Register(name, queue)
 		require.NoError(t, err)
 	}
 
 	assert.Equal(t, []string{"a", "b", "c"}, m.Names())
+}
+
+// impostorCommand is a different payload type that shares SimpleCommand's name.
+type impostorCommand struct{ Value int }
+
+func (impostorCommand) Name() string { return testutils.SimpleCommand{}.Name() }
+
+func TestCommand_RegisterRejectsNameCollision(t *testing.T) {
+	t.Parallel()
+
+	m := command.NewManager()
+	name := testutils.SimpleCommand{}.Name()
+	id, err := m.Register(name, command.NewQueue[testutils.SimpleCommand]())
+	require.NoError(t, err)
+
+	again, err := m.Register(name, command.NewQueue[testutils.SimpleCommand]())
+	require.NoError(t, err)
+	assert.Equal(t, id, again, "registering the same type again returns its ID")
+
+	_, err = m.Register(name, command.NewQueue[impostorCommand]())
+	require.ErrorContains(t, err, "command simple_command already registered with a different type")
+	assert.Equal(t, testutils.SimpleCommand{}, m.Zero(name), "the name keeps its registered type")
 }
 
 // -------------------------------------------------------------------------------------------------
