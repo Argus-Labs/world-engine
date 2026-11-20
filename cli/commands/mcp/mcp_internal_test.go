@@ -572,6 +572,21 @@ func TestFlattenWorldState_WhereErrorOnEntityMissingAReadComponentDoesNotMatch(t
 	assert.Empty(t, got.entities)
 }
 
+// Field reads are recognized by their member root, not the component it resolves to. A local alias
+// is a root no entity has, so an error behind it drops every entity instead of surfacing, as the
+// where description says.
+func TestFlattenWorldState_WhereErrorBehindALocalAliasDoesNotMatch(t *testing.T) {
+	t.Parallel()
+	descriptors := stateDescriptors(t)
+	filter, err := compileStateFilter(GetStateInput{Where: `let h = Health; h.HP > "x"`})
+	require.NoError(t, err)
+
+	got, err := flattenWorldState(sampleWorld(t, descriptors), -1, filter, descriptors)
+
+	require.NoError(t, err)
+	assert.Empty(t, got.entities)
+}
+
 func TestWhereFieldReads_CollectsMemberRootsOnly(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, []string{"Health"}, whereFieldReads("Health.HP > 50"))

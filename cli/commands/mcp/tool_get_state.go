@@ -35,7 +35,7 @@ type GetStateInput struct {
 	InstanceName string   `json:"instance_name,omitempty" jsonschema_description:"Specific pool instance; accepts variants like 'game-5', 'game 5', 'game5', or '5'. Defaults to the shard's first instance."`
 	Find         []string `json:"find,omitempty"          jsonschema_description:"Component names to filter on (e.g. ['Health','Position']). Names are the component's registered Name(), not the Go type. Omit to return every entity."`
 	Match        string   `json:"match,omitempty"         jsonschema_description:"How find is applied: 'contains' (entity has at least these components — the default) or 'exact' (entity has exactly these and nothing else)."`
-	Where        string   `json:"where,omitempty"         jsonschema_description:"expr-lang boolean expression filtering entities, e.g. 'Health.HP > 50'. Component names are the variables and '_id' is the entity ID. Fields use the MessagePack field names advertised by introspect. A missing component is nil, so guards like 'Position == nil || Position.X > 0' and optional access like 'Position?.X == nil' evaluate as written; if evaluation fails for an entity that lacks any component the expression reads fields from, the entity doesn't match, whichever operation failed; other evaluation errors are returned."`
+	Where        string   `json:"where,omitempty"         jsonschema_description:"expr-lang boolean expression filtering entities, e.g. 'Health.HP > 50'. Component names are the variables and '_id' is the entity ID. Fields use the MessagePack field names advertised by introspect. A missing component is nil, so guards like 'Position == nil || Position.X > 0' and optional access like 'Position?.X == nil' evaluate as written; field reads are recognized by the identifier they start from ('Health' in 'Health.HP'), and if evaluation fails while any such identifier is not a component on the entity, the entity doesn't match, whichever operation failed. That includes local aliases: in 'let h = Health; h.HP > 0' the read starts from 'h', which no entity has, so every evaluation error drops the entity. Other evaluation errors are returned."`
 	MaxEntities  int      `json:"max_entities,omitempty"  jsonschema_description:"Maximum entities to return (default 100). Use a negative value to return every match."`
 	Organization string   `json:"organization,omitempty"  jsonschema_description:"Ignored: since the organization left a shard's address, project alone identifies the world"`
 	Project      string   `json:"project,omitempty"       jsonschema_description:"Project (auto-derived from the running containers when omitted)"`
@@ -151,10 +151,11 @@ type stateFilter struct {
 	find  map[string]struct{} // requested component names; empty matches every entity
 	match string
 	where *vm.Program // nil when no where expression was given
-	// Components the where expression reads fields from (e.g. "Health" in 'Health.HP > 50'). When
+	// Identifiers the where expression reads fields from (e.g. "Health" in 'Health.HP > 50'). When
 	// evaluation fails for an entity missing one, the failure is a non-match rather than an error,
 	// even if the failing operation is elsewhere: expr's errors don't say which read caused them.
-	// Bare references ('Health == nil') aren't collected.
+	// These are member roots, not resolved components, so a local alias ('let h = Health; h.HP')
+	// counts as a missing "h". Bare references ('Health == nil') aren't collected.
 	whereReads []string
 }
 
