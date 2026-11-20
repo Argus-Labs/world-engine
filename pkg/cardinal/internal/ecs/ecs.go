@@ -92,12 +92,14 @@ func (w *World) IterEntities(
 	// archetype's entity slice and appends it to another, so walking the live slices would skip
 	// entities or visit them twice.
 	archetypes := w.state.archetypes
+
 	switch match {
 	case MatchExact:
 		aid, exists := w.state.archExact(components)
 		if !exists {
 			return nil
 		}
+
 		archetypes = archetypes[aid : aid+1]
 	case MatchContains, MatchAll:
 	default:
@@ -108,16 +110,20 @@ func (w *World) IterEntities(
 	if !ok {
 		snapshot = new(searchSnapshot)
 	}
+
 	ids, segments := snapshot.ids[:0], snapshot.segments[:0]
+
 	for _, arch := range archetypes {
 		if match == MatchContains && !arch.contains(components) {
 			continue
 		}
+
 		ids = append(ids, arch.entities...)
 		segments = append(segments, searchSegment{arch: arch, version: arch.version, end: len(ids)})
 	}
 
 	start := 0
+
 search:
 	for _, segment := range segments {
 		for _, eid := range ids[start:segment.end] {
@@ -125,10 +131,12 @@ search:
 			if segment.arch.version != segment.version && w.MatchArchetype(eid, components, match) != nil {
 				continue
 			}
+
 			if !yield(eid) {
 				break search
 			}
 		}
+
 		start = segment.end
 	}
 

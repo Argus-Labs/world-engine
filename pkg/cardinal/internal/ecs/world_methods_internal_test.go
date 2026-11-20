@@ -114,6 +114,7 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 
 		onlyA, onlyB, both bitmap.Bitmap
 	}
+
 	createN := func(w fixture, components bitmap.Bitmap, n int) {
 		for range n {
 			w.CreateWithArchetype(components)
@@ -192,6 +193,7 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 				if !first {
 					return
 				}
+
 				for other := range EntityID(4) {
 					if other != eid {
 						require.True(t, w.Destroy(other))
@@ -206,6 +208,7 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 		for _, match := range tc.matches {
 			t.Run(fmt.Sprintf("%s/%s", tc.name, match), func(t *testing.T) {
 				t.Parallel()
+
 				w := fixture{World: NewWorld()}
 				a, err := w.RegisterComponent[testutils.ComponentA]()
 				require.NoError(t, err)
@@ -221,11 +224,14 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 				if match == MatchAll {
 					query = bitmap.Bitmap{}
 				}
+
 				var visited []EntityID
+
 				require.NoError(t, w.IterEntities(query, match, func(eid EntityID) bool {
 					require.NoError(t, w.MatchArchetype(eid, query, match), "yielded entity %d no longer matches", eid)
 					visited = append(visited, eid)
 					tc.mutate(t, w, eid, len(visited) == 1)
+
 					return true
 				}))
 
@@ -233,6 +239,7 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 				if want == nil {
 					want = visited[:1]
 				}
+
 				assert.ElementsMatch(t, want, visited, "each matching entity must be visited exactly once")
 				w.CheckWorld(t)
 			})
@@ -244,30 +251,37 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 // one stopped early, doesn't disturb the entities either search visits.
 func TestWorldMethods_IterEntitiesNested(t *testing.T) {
 	t.Parallel()
+
 	w := NewWorld()
 	a, err := w.RegisterComponent[testutils.ComponentA]()
 	require.NoError(t, err)
 	b, err := w.RegisterComponent[testutils.ComponentB]()
 	require.NoError(t, err)
+
 	var onlyA, onlyB bitmap.Bitmap
 	onlyA.Set(a)
 	onlyB.Set(b)
+
 	for range 3 {
 		w.CreateWithArchetype(onlyA) // 0, 1, 2
 	}
+
 	for range 2 {
 		w.CreateWithArchetype(onlyB) // 3, 4
 	}
 
 	// Stop a search over every entity early, so a reused buffer is large enough for both searches.
 	require.NoError(t, w.IterEntities(bitmap.Bitmap{}, MatchAll, func(EntityID) bool { return false }))
+
 	var outer, inner []EntityID
+
 	require.NoError(t, w.IterEntities(onlyA, MatchContains, func(eid EntityID) bool {
 		outer = append(outer, eid)
 		require.NoError(t, w.IterEntities(onlyB, MatchContains, func(eid EntityID) bool {
 			inner = append(inner, eid)
 			return true
 		}))
+
 		return true
 	}))
 
