@@ -19,7 +19,9 @@ import (
 //
 // Active controls whether the body participates in the simulation at all. An inactive body
 // has no contacts, no collisions, and is effectively removed from Box2D without destroying it.
-// Set Active=false to temporarily disable an entity's physics (e.g. a dormant trap).
+// Set Active=false to temporarily disable an entity's physics (e.g. a dormant trap). While
+// inactive the body's Velocity2D is not overwritten by post-step writeback, so an authored or
+// held velocity survives the disable and is re-applied when the body is re-enabled.
 //
 // Awake controls whether the body is currently awake in the simulation. Setting Awake=true
 // wakes a sleeping body; Box2D may put it back to sleep on subsequent ticks if nothing
@@ -64,8 +66,10 @@ import (
 //
 // # Post-step writeback
 //
-// Writeback applies to dynamic and kinematic bodies: position, rotation, velocity and Awake.
-// Static and manual bodies are not written back.
+// Writeback applies to dynamic and kinematic bodies: position, rotation, and Awake. Velocity
+// is written back only while the body is active; a disabled body's engine velocity reads zero
+// as a disablement artifact, so it is not mirrored, and the reconciler re-applies the surviving
+// Velocity2D on re-enable. Static and manual bodies are not written back.
 type PhysicsBody2D struct {
 	BodyType        BodyType `json:"body_type"`
 	LinearDamping   float64  `json:"linear_damping"`
