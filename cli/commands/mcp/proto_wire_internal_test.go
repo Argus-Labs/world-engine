@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"net/netip"
 	"testing"
 	"time"
 
@@ -291,6 +292,31 @@ func TestCommandAndStateTimestamp(t *testing.T) {
 
 	_, err = encodeCommandPayload(schema, `{"At":"yesterday"}`)
 	require.ErrorContains(t, err, "invalid RFC 3339 timestamp")
+}
+
+func TestCommandIPAddress(t *testing.T) {
+	t.Parallel()
+
+	schema := testObjectSchema("IP", map[string]any{"type": "string", "format": "ip"})
+
+	for _, text := range []string{"192.0.2.1", "2001:db8::1", "fe80::1%eth0", "::ffff:192.0.2.1", ""} {
+		t.Run(text, func(t *testing.T) {
+			t.Parallel()
+
+			blob, err := encodeCommandPayload(schema, `{"IP":"`+text+`"}`)
+			require.NoError(t, err)
+
+			var target struct{ IP netip.Addr }
+			require.NoError(t, msgpack.Unmarshal(blob, &target))
+
+			var want netip.Addr
+			require.NoError(t, want.UnmarshalText([]byte(text)))
+			assert.Equal(t, want, target.IP)
+		})
+	}
+
+	_, err := encodeCommandPayload(schema, `{"IP":"192.0.2.256"}`)
+	require.ErrorContains(t, err, "invalid IP address")
 }
 
 func TestMalformedMessagePackStateStaysRaw(t *testing.T) {

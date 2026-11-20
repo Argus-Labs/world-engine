@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -119,6 +120,18 @@ func commandValue(value any, schema, root map[string]any) (any, error) {
 			// msgpack encodes a time.Time as the timestamp extension the shard decodes.
 			parsed, err := time.Parse(time.RFC3339Nano, v)
 			return parsed, eris.Wrap(err, "invalid RFC 3339 timestamp")
+		}
+
+		if schema["format"] == "ip" {
+			// msgpack encodes a netip.Addr as its MarshalBinary bytes, not its text. "" is the zero Addr.
+			var addr netip.Addr
+			if err := addr.UnmarshalText([]byte(v)); err != nil {
+				return nil, eris.Wrap(err, "invalid IP address")
+			}
+
+			wire, err := addr.MarshalBinary()
+
+			return wire, eris.Wrap(err, "failed to encode IP address")
 		}
 	}
 

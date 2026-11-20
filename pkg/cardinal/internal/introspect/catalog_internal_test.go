@@ -1,6 +1,7 @@
 package introspect
 
 import (
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -229,4 +230,23 @@ func TestCatalogEmbeddingMatchesMessagePack(t *testing.T) {
 			}
 		})
 	}
+}
+
+type addressed struct {
+	IP netip.Addr
+}
+
+func (addressed) Name() string { return "addressed" }
+
+// A [netip.Addr] encodes as its MarshalBinary bytes, not its private fields, so it is described by
+// the text form the MCP CLI converts to those bytes.
+func TestCatalogDescribesAddrAsString(t *testing.T) {
+	t.Parallel()
+
+	c := NewCatalog()
+	require.NoError(t, c.Register(Command, addressed{}))
+	require.NoError(t, c.Finalize())
+	root := c.Commands()[0].GetJsonSchema().AsMap()
+	properties := resolve(t, root, root)["properties"].(map[string]any)
+	assert.Equal(t, map[string]any{"type": "string", "format": "ip"}, properties["IP"])
 }
