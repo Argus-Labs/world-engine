@@ -48,11 +48,12 @@ type Runtime struct {
 	Bodies map[cardinal.EntityID]box2d.BodyID
 
 	// Shapes maps entity ids to per-collider-slot Box2D shape ids: slot i corresponds to
-	// ColliderShape index i. Chain slots hold a null ShapeID (chains are tracked in Chains)
-	// so per-shape mutable setters skip them, matching the CGO bridge behavior.
+	// ColliderShape index i. Chain slots hold a null ShapeID (chains are tracked in Chains),
+	// matching the CGO bridge behavior.
 	Shapes map[cardinal.EntityID][]box2d.ShapeID
 
-	// Chains maps entity ids to the chain shapes created for chain-type collider slots.
+	// Chains maps entity ids to the chain shapes created for chain-type collider slots, in
+	// slot order: the k-th chain-type slot owns entry k.
 	Chains map[cardinal.EntityID][]box2d.ChainID
 
 	// Gravity is the world gravity vector applied on world creation and on rebuild.
