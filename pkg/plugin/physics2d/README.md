@@ -14,12 +14,16 @@ if err != nil {
 }
 physics := physics2d.NewPlugin(physics2d.Config{
     Gravity:      physics2d.Vec2{X: 0, Y: -9.8},
-    TickRate:     60, // match WorldOptions.TickRate
     SubStepCount: 4,
 })
 w.RegisterPlugin(physics)
 w.StartGame()
 ```
+
+Each tick steps the simulation by one tick of the world's clock, `1 / w.TickRate()`, which
+includes a deployment's `tick_rate` override, so bodies cover the same distance per second at
+any rate. `Config.TickRate` applies only to a world without a tick rate: a
+`cardinal.TestWorld` or `cardinal.RunDST`.
 
 `RegisterPlugin` registers the physics components and the plugin's `Init` and `PreUpdate`
 systems. Systems in one hook run in registration order, so a game system that must run

@@ -592,6 +592,12 @@ func (w *World) Timestamp() time.Time {
 	return w.currentTick.timestamp
 }
 
+// TickRate returns the number of ticks the world runs each second, after CARDINAL_TICK_RATE
+// overrides WorldOptions.TickRate. It is 0 in a TestWorld or RunDST, whose clocks are synthetic.
+func (w *World) TickRate() float64 {
+	return w.options.TickRate
+}
+
 // Context returns the trace context of the running system. Spans started from it nest under the
 // system's span in the tick's trace:
 //
