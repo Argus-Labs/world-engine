@@ -54,8 +54,9 @@ Generated clients have separate projects:
 
 - `moon run proto-csharp:build` or `proto-csharp:pack` builds or packages the C#
   client. Requires the .NET SDK. Debug variants use `build-debug` and `pack-debug`.
-- `moon run proto-ts:build` type-checks the TypeScript client. Requires Node/npm
-  and a prior `npm install` in `proto/gen/ts`.
+- `moon run proto-ts:build` type-checks the TypeScript client, and
+  `proto-ts:test` emits it as JavaScript and imports it in Node ESM. Both require
+  Node/npm and a prior `npm install` in `proto/gen/ts`.
 
 Moon replaces both Taskfiles. Task names use hyphens, for example `test:ci`
 becomes `world-engine:test-ci`. C# `rebuild` cleans before building, and `update`

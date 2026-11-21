@@ -10,3 +10,9 @@ tasks:
     options:
       runInCI: true
     command: 'npm run build'
+
+  test:
+    description: 'Emit the TypeScript client as JavaScript and import it in Node ESM (run npm install first)'
+    options:
+      runInCI: true
+    command: 'npm test'

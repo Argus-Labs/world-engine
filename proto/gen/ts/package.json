@@ -4,7 +4,8 @@
   "description": "Generated TypeScript protobuf definitions for Argus Labs World Engine",
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit"
+    "build": "tsc --noEmit",
+    "test": "node --test esm.test.mjs"
   },
   "exports": {
     ".": "./index.ts",
@@ -31,7 +32,8 @@
     "**/*.ts",
     "**/*.js",
     "**/*.d.ts",
-    "!node_modules"
+    "!node_modules",
+    "!dist"
   ],
   "keywords": [
     "protobuf",
