@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -68,6 +69,7 @@ func TestNewWorld_TickRateEnvOverridesOptions(t *testing.T) {
 			w, err := NewWorld(WorldOptions{TickRate: tc.compiledRate, SnapshotRate: 1})
 			require.NoError(t, err)
 			require.Equal(t, tc.want, w.options.tickInterval())
+			require.InDelta(t, 1/tc.want.Seconds(), w.TickRate(), 1e-9, "TickRate reports the running rate")
 		})
 	}
 
@@ -82,6 +84,18 @@ func TestNewWorld_TickRateEnvOverridesOptions(t *testing.T) {
 			require.ErrorContains(t, err, `parse error on field "TickRate"`, env)
 		}
 	})
+}
+
+// TestRunDST_ReportsNoTickRate checks that a DST world reports no tick rate, as a TestWorld does, even
+// with CARDINAL_TICK_RATE set, so plugins paced by World.TickRate keep their defaults on its synthetic
+// one-second clock.
+func TestRunDST_ReportsNoTickRate(t *testing.T) {
+	t.Setenv("CARDINAL_TICK_RATE", "30")
+
+	rate := -1.0
+
+	newDSTFixture(t, newDSTConfig(testutils.NewRand(t)), func(w *World) { rate = w.TickRate() })
+	require.Zero(t, rate)
 }
 
 // TestNewWorld_RejectsTickRateWithZeroInterval checks that a rate whose tick interval truncates to

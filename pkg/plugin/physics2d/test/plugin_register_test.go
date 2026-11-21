@@ -3,8 +3,10 @@ package physics2d_test
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"testing"
 
+	"github.com/argus-labs/world-engine/pkg/cardinal"
 	physics "github.com/argus-labs/world-engine/pkg/plugin/physics2d"
 	"github.com/stretchr/testify/require"
 )
@@ -56,6 +58,39 @@ func TestRegister_RejectedRegistrationLeavesInstanceUnregistered(t *testing.T) {
 	tickN(t, fresh, 1)
 	require.NotNil(t, p.Engine(), "the plugin must be live on the world that accepted it")
 }
+
+// TestRegister_StepsAtWorldTickRate: physics time must follow the world's tick rate after a
+// deployment's CARDINAL_TICK_RATE overrides the compiled 60 Hz, so one second of ticks moves a
+// 6 m/s body 6 m at any deployed rate.
+func TestRegister_StepsAtWorldTickRate(t *testing.T) {
+	for _, rate := range []int{30, 60, 120} {
+		t.Run(strconv.Itoa(rate)+"Hz", func(t *testing.T) {
+			t.Setenv("CARDINAL_TICK_RATE", strconv.Itoa(rate))
+
+			// The world and the plugin both compile in 60 Hz.
+			w, _ := makeWorld(t, physics.Vec2{})
+
+			var id cardinal.EntityID
+
+			w.RegisterSystem(&spawnMoverSystem{run: func(w *cardinal.World) {
+				row := w.Create[spawnArchetype]()
+				row.Set(physics.Velocity2D{Linear: physics.Vec2{X: 6}})
+				row.Set(newRigid(physics.BodyTypeKinematic, circleColliderShapes()...))
+				id = row.ID()
+			}}, cardinal.WithPhase(cardinal.Init))
+
+			initCardinalECS(w)
+			tickN(t, w, rate)
+
+			got := w.Entity(id).Get[physics.Transform2D]().Position.X
+			require.InDelta(t, 6, got, 1e-9, "position after %d ticks at %d Hz", rate, rate)
+		})
+	}
+}
+
+type spawnMoverSystem struct{ run func(w *cardinal.World) }
+
+func (s *spawnMoverSystem) Run(w *cardinal.World) { s.run(w) }
 
 // recoverPanic runs fn and returns the value it panicked with as an error, or nil when it returned.
 func recoverPanic(fn func()) (err error) {
