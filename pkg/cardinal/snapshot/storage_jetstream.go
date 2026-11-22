@@ -31,9 +31,14 @@ func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error
 
 	// Just parse the env here for now.
 	// TODO: remove storage max bytes option or make it explicit.
-	if err := env.Parse(&opts); err != nil {
+	// Parse into a fresh value: env.Parse recurses into non-nil struct pointers, so parsing opts
+	// would overwrite the caller's NATSConfig with NATS_* values.
+	envOpts, err := env.ParseAs[JetStreamStorageOptions]()
+	if err != nil {
 		return nil, eris.Wrap(err, "failed to parse env")
 	}
+
+	opts.SnapshotStorageMaxBytes = envOpts.SnapshotStorageMaxBytes
 
 	clientOpts := []micro.ClientOption{micro.WithLogger(opts.Logger)}
 	if opts.NATSConfig != nil {
