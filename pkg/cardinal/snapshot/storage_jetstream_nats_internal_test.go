@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/micro"
@@ -28,6 +29,9 @@ func TestJetStreamStorageUsesExplicitNATSConfig(t *testing.T) {
 	storeEnvSnapshot(t, address, "env server snapshot")
 
 	t.Run("explicit config wins over env", func(t *testing.T) {
+		// Connecting fails if this env credentials file leaks into the explicit config.
+		t.Setenv("NATS_CREDENTIALS_FILE", filepath.Join(t.TempDir(), "missing.creds"))
+
 		cfg := &micro.NATSConfig{Name: "explicit-client", URL: explicitServer.ClientURL()}
 		want := *cfg
 
