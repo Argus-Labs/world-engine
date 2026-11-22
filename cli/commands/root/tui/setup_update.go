@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/rotisserie/eris"
 
 	"github.com/argus-labs/world-engine/cli/internal/tui/kit/steps"
 	"github.com/argus-labs/world-engine/cli/internal/tui/style"
@@ -126,6 +127,8 @@ func (m WorldSetupModel) handleStepStarted(msg steps.SignalStepStartedMsg) (tea.
 		if m.templateFlag != "" {
 			template, err := worldscaffold.GetTemplateByName(m.templateFlag)
 			if err != nil {
+				m.err = err
+
 				return m, tea.Sequence(
 					NewLogCmd(style.CrossIcon.Render()+err.Error()),
 					tea.Quit,
@@ -149,6 +152,8 @@ func (m WorldSetupModel) handleStepStarted(msg steps.SignalStepStartedMsg) (tea.
 
 	case stepClone:
 		if m.selectedTemplate == nil {
+			m.err = eris.New("no template selected")
+
 			return m, tea.Sequence(
 				NewLogCmd(style.CrossIcon.Render()+"No template selected"),
 				tea.Quit,
@@ -186,6 +191,8 @@ func (m WorldSetupModel) handleStepCompleted(msg steps.SignalStepCompletedMsg) (
 }
 
 func (m WorldSetupModel) handleStepError(msg steps.SignalStepErrorMsg) (tea.Model, tea.Cmd) {
+	m.err = msg.Err
+
 	return m, tea.Sequence(
 		NewLogCmd(style.CrossIcon.Render()+"Error: "+msg.Err.Error()),
 		tea.Quit,

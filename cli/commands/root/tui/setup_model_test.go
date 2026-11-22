@@ -2,6 +2,7 @@
 package tui
 
 import (
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argus-labs/world-engine/cli/internal/tui/kit/steps"
 	"github.com/argus-labs/world-engine/cli/pkg/dnslabel"
 )
 
@@ -211,4 +213,47 @@ func TestHandleNameInputKey_NoDirDoesNotSetTargetDir(t *testing.T) {
 		"targetDirectory() should fall back to the input value")
 	require.Equal(t, "./my-game", mm.displayDir(),
 		"displayDir() should fall back to ./<input value>")
+}
+
+// Every quit that leaves no project must set Err so `world setup` exits
+// non-zero; finishing all steps or pressing Ctrl+C must leave it nil.
+func TestWorldSetupModel_ErrOnlyForFailedQuits(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		template string
+		msg      tea.Msg
+		wantErr  string // empty: Err must be nil
+	}{
+		{
+			"unknown template flag", "no-such-template",
+			steps.SignalStepStartedMsg{Index: int(stepTemplate)}, "unknown template",
+		},
+		{
+			"clone without a template", "",
+			steps.SignalStepStartedMsg{Index: int(stepClone)}, "no template selected",
+		},
+		{
+			"failed step", "",
+			steps.SignalStepErrorMsg{Index: int(stepClone), Err: errors.New("clone failed")}, "clone failed",
+		},
+		{"all steps completed", "", steps.SignalAllStepCompletedMsg{}, ""},
+		{"ctrl+c", "", tea.KeyMsg{Type: tea.KeyCtrlC}, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			next, _ := NewWorldSetupModel("/tmp/my-game", "DEV", tc.template).Update(tc.msg)
+			mm, ok := next.(WorldSetupModel)
+			require.True(t, ok, "Update should return a WorldSetupModel")
+
+			if tc.wantErr == "" {
+				require.NoError(t, mm.Err())
+			} else {
+				require.ErrorContains(t, mm.Err(), tc.wantErr)
+			}
+		})
+	}
 }

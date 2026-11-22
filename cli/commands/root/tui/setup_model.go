@@ -83,6 +83,7 @@ type WorldSetupModel struct {
 	templateFlag     string // Template name from --template flag (validated when step starts)
 	showTemplateList bool
 	templateErr      error
+	err              error  // Why the wizard quit without creating a project
 	nameErr          string // Inline validation error for the project name input
 	env              string
 }
@@ -169,4 +170,14 @@ func (m WorldSetupModel) Init() tea.Cmd {
 	}
 
 	return tea.Sequence(textinput.Blink, m.steps.StartCmd())
+}
+
+// Err returns why the wizard quit without creating a project. It is nil after a
+// successful setup and after the user cancels.
+func (m WorldSetupModel) Err() error {
+	if m.templateErr != nil {
+		return m.templateErr
+	}
+
+	return m.err
 }
