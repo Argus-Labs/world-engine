@@ -120,6 +120,12 @@ func (ws *worldState) archetypeOf(eid EntityID) (archetypeID, bool) {
 	return archetypeID(slot.archetype), true
 }
 
+// setArchetype records the archetype of the entity at index.
+func (ws *worldState) setArchetype(index uint32, aid archetypeID) {
+	assert.That(aid >= 0 && aid <= math.MaxInt32, "archetype ID out of range")
+	ws.slots[index].archetype = int32(aid) //nolint:gosec // asserted above
+}
+
 // newEntity creates a new entity of the void archetype in the world state. Returns the entity ID.
 func (ws *worldState) newEntity() EntityID {
 	ws.mu.Lock()
@@ -246,7 +252,7 @@ func (ws *worldState) moveEntity(eid EntityID, newComponents bitmap.Bitmap) {
 	oldArchetype.moveEntity(newArchetype, eid)
 
 	// Update the archetype mapping.
-	ws.slots[eid.Index()].archetype = int32(newAid) //nolint:gosec // archetype count stays far below 2^31
+	ws.setArchetype(eid.Index(), newAid)
 }
 
 // findOrCreateArchetype finds an existing archetype that matches the given components or creates a
@@ -594,7 +600,7 @@ func (ws *worldState) restoreEntity(
 	aid := ws.findOrCreateArchetype(comps)
 	arch := ws.archetypes[aid]
 	arch.newEntity(eid)
-	ws.slots[eid.Index()].archetype = int32(aid) //nolint:gosec // archetype count stays far below 2^31
+	ws.setArchetype(eid.Index(), aid)
 
 	row, ok := arch.rows.get(eid.Index())
 	assert.That(ok, "entity was just created in this archetype")
