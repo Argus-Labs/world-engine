@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file worldengine/cardinal/v1/snapshot.proto.
  */
 export const file_worldengine_cardinal_v1_snapshot: GenFile = /*@__PURE__*/
-  fileDesc("CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEioQEKCFNuYXBzaG90EhMKC3RpY2tfaGVpZ2h0GAEgASgEEi0KCXRpbWVzdGFtcBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASQAoLd29ybGRfc3RhdGUYAyABKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Xb3JsZFN0YXRlQga6SAPIAQESDwoHdmVyc2lvbhgEIAEoDSJ4CgpXb3JsZFN0YXRlEg8KB25leHRfaWQYASABKA0SIAoKY29tcG9uZW50cxgCIAMoCUIMukgJkgEGIgRyAhABEjEKCGVudGl0aWVzGAMgAygLMh8ud29ybGRlbmdpbmUuY2FyZGluYWwudjEuRW50aXR5SgQIBBAFIjoKBkVudGl0eRIKCgJpZBgBIAEoDRISCgpjb21wb25lbnRzGAIgAygNEhAKCHBheWxvYWRzGAMgAygMQnRaUmdpdGh1Yi5jb20vYXJndXMtbGFicy93b3JsZC1lbmdpbmUvcHJvdG8vZ2VuL2dvL3dvcmxkZW5naW5lL2NhcmRpbmFsL3YxO2NhcmRpbmFsdjGqAh1Xb3JsZEVuZ2luZS5Qcm90by5DYXJkaW5hbC5WMWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CiZ3b3JsZGVuZ2luZS9jYXJkaW5hbC92MS9zbmFwc2hvdC5wcm90bxIXd29ybGRlbmdpbmUuY2FyZGluYWwudjEioQEKCFNuYXBzaG90EhMKC3RpY2tfaGVpZ2h0GAEgASgEEi0KCXRpbWVzdGFtcBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASQAoLd29ybGRfc3RhdGUYAyABKAsyIy53b3JsZGVuZ2luZS5jYXJkaW5hbC52MS5Xb3JsZFN0YXRlQga6SAPIAQESDwoHdmVyc2lvbhgEIAEoDSKNAQoKV29ybGRTdGF0ZRIPCgduZXh0X2lkGAEgASgNEiAKCmNvbXBvbmVudHMYAiADKAlCDLpICZIBBiIEcgIQARIxCghlbnRpdGllcxgDIAMoCzIfLndvcmxkZW5naW5lLmNhcmRpbmFsLnYxLkVudGl0eRITCgtnZW5lcmF0aW9ucxgFIAMoDUoECAQQBSI6CgZFbnRpdHkSCgoCaWQYASABKAQSEgoKY29tcG9uZW50cxgCIAMoDRIQCghwYXlsb2FkcxgDIAMoDEJ0WlJnaXRodWIuY29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3JsZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdpbmUuUHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * Snapshot represents a point-in-time capture of shard state.
@@ -55,15 +55,15 @@ export const SnapshotSchema: GenMessage<Snapshot> = /*@__PURE__*/
  * layout (archetypes, index tables, numeric component IDs), so nothing in the file depends on
  * registration order or creation order — and the producer can stream it in one ascending scan.
  *
- * Order is part of the format: the name table is sorted, entity ids ascend, and each entity's
+ * Order is part of the format: the name table is sorted, entity indices ascend, and each entity's
  * component indices ascend. Identical worlds produce identical bytes.
  *
  * @generated from message worldengine.cardinal.v1.WorldState
  */
 export type WorldState = Message<"worldengine.cardinal.v1.WorldState"> & {
   /**
-   * Entity ID counter: the next never-used ID. The free list is not stored — it is every ID below
-   * next_id that has no entity entry.
+   * Entity index counter: the next never-used index. The free list is not stored: it is every index
+   * below next_id that has no entity entry and a non-zero generation.
    *
    * @generated from field: uint32 next_id = 1;
    */
@@ -79,12 +79,21 @@ export type WorldState = Message<"worldengine.cardinal.v1.WorldState"> & {
   components: string[];
 
   /**
-   * Every live entity exactly once, strictly ascending by id. An entity with no components still
+   * Every live entity exactly once, strictly ascending by index. An entity with no components still
    * appears here (empty components/payloads), so nothing vanishes on restore.
    *
    * @generated from field: repeated worldengine.cardinal.v1.Entity entities = 3;
    */
   entities: Entity[];
+
+  /**
+   * The current generation of every index below next_id, one entry per index. A live entity's id
+   * carries the same generation. A free index holds the generation its next entity gets, and 0 marks
+   * an index retired after its generation wrapped, which is never reused.
+   *
+   * @generated from field: repeated uint32 generations = 5;
+   */
+  generations: number[];
 };
 
 /**
@@ -101,9 +110,11 @@ export const WorldStateSchema: GenMessage<WorldState> = /*@__PURE__*/
  */
 export type Entity = Message<"worldengine.cardinal.v1.Entity"> & {
   /**
-   * @generated from field: uint32 id = 1;
+   * Entity ID: the index in the low 32 bits and the generation in the high 32 bits.
+   *
+   * @generated from field: uint64 id = 1;
    */
-  id: number;
+  id: bigint;
 
   /**
    * Indices into WorldState.components, strictly ascending.
