@@ -52,7 +52,7 @@ func main() {
 	var cli root.Cmd
 
 	// A failed command has to leave a non-zero status: scripts and CI read the exit code, and until now a
-	// command could print its error and still exit 0 — a failed `world sdk generate` reported success.
+	// command could print its error and still exit 0, so a failed command reported success.
 	// Deferred first so it runs last, after the Sentry and PostHog flushes below; os.Exit skips whatever
 	// defers remain, so anything that must flush has to be registered after this line, not before.
 	exitCode := 0
