@@ -1,7 +1,10 @@
 package root
 
 import (
+	"github.com/rotisserie/eris"
+
 	"github.com/argus-labs/world-engine/cli/commands/root/tui"
+	errorspkg "github.com/argus-labs/world-engine/cli/internal/errors"
 	"github.com/argus-labs/world-engine/cli/internal/telemetry"
 	"github.com/argus-labs/world-engine/cli/internal/tui/kit/program"
 )
@@ -12,7 +15,17 @@ func (c *DoctorCmd) Run() error {
 	telemetry.PosthogCaptureEvent("doctor-command", nil)
 
 	p := program.NewTeaProgram(tui.NewWorldDoctorModel())
-	_, err := p.Run()
 
-	return err
+	final, err := p.Run()
+	if err != nil {
+		return err
+	}
+
+	m, ok := final.(tui.WorldDoctorModel)
+	if !ok {
+		return eris.New("invalid doctor model")
+	}
+
+	// The doctor has already rendered the failed checks; returning them only sets the exit code.
+	return errorspkg.NewSilent(m.Err())
 }

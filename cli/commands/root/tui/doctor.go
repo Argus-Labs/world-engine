@@ -48,6 +48,12 @@ func (m WorldDoctorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// Err returns the failed dependency checks. It is nil when every check passed
+// and when the user quit before the checks finished.
+func (m WorldDoctorModel) Err() error {
+	return m.result.Err
+}
+
 // View renders the model to the screen.
 func (m WorldDoctorModel) View() string {
 	list, help := dependency.FormatStatuses(m.result.Statuses)
