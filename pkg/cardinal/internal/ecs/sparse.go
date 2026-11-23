@@ -67,10 +67,3 @@ func (s *sparseSet) remove(key uint32) bool {
 
 	return true
 }
-
-// clear clears all entries by filling the existing backing slice with tombstones.
-func (s *sparseSet) clear() {
-	for i := range *s {
-		(*s)[i] = sparseTombstone
-	}
-}

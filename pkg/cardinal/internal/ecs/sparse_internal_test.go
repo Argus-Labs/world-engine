@@ -24,11 +24,10 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 		opSet    = "set"
 		opGet    = "get"
 		opRemove = "remove"
-		opClear  = "clear"
 	)
 
 	// Randomize operation weights.
-	operations := []string{opSet, opGet, opRemove, opClear}
+	operations := []string{opSet, opGet, opRemove}
 	weights := testutils.RandOpWeights(prng, operations)
 
 	impl := newSparseSet()
@@ -85,15 +84,6 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 
 			if int(key) < len(impl) {
 				assert.Equal(t, sparseTombstone, impl[key], "remove(%d) internal value should be tombstone", key)
-			}
-
-		case opClear:
-			impl.clear()
-			clear(model)
-
-			// Property: after clear, length of backing slice is unchanged but all values are tombstones.
-			for i := range len(impl) {
-				assert.Equal(t, sparseTombstone, impl[i], "clear: index %d should be tombstone", i)
 			}
 
 		default:

@@ -326,7 +326,7 @@ func newArchetypePool(n int) []*archetype {
 }
 
 func clearArchetype(a *archetype) {
-	a.rows.clear()
+	a.rows = newSparseSet()
 
 	a.entities = a.entities[:0]
 	for _, column := range a.columns {
