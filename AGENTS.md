@@ -25,6 +25,7 @@ moon run world-engine:lint        # Run the pinned linter on pkg/
 moon run world-engine:test        # Run Go tests under pkg/
 moon run world-engine:test-ci     # Run pkg/ tests with coverage and JUnit reports
 moon run world-engine:test-release # Run pkg/immutable tests with assertions compiled out
+moon run world-engine:proto-gen   # Regenerate Go, TypeScript and C# protos with buf
 moon run cli:build                # Build the World CLI under cli/
 moon run cli:lint                 # Lint cli/ with cli/.golangci.yaml
 moon run cli:test                 # Run World CLI unit tests

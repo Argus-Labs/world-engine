@@ -52,6 +52,10 @@ Go's own compilation and test caches remain enabled.
 
 Generated clients have separate projects:
 
+- `moon run world-engine:proto-gen` regenerates the Go, TypeScript and C# clients from
+  `proto/` using `buf.gen.yaml`. It needs Buf and the local `protoc-gen-go` and
+  `protoc-gen-connect-go` (versions pinned in `.agents/setup`). The TypeScript and C#
+  generators run remotely on buf.build, so it needs network access.
 - `moon run proto-csharp:build` or `proto-csharp:pack` builds or packages the C#
   client. Requires the .NET SDK. Debug variants use `build-debug` and `pack-debug`.
 - `moon run proto-ts:build` type-checks the TypeScript client. Requires Node/npm

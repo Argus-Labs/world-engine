@@ -43,6 +43,9 @@ tasks:
       runInCI: true
     description: 'Build all Go packages'
     command: 'go build ./pkg/...'
+  proto-gen:
+    description: 'Regenerate the Go, TypeScript and C# clients from proto/ with buf.gen.yaml'
+    command: 'buf generate'
   clean:
     description: 'Remove Go test reports and build/test caches'
     script: |
