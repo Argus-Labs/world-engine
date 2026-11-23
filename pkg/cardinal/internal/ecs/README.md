@@ -47,7 +47,7 @@ World
    - Generations start at 1, so the zero ID is never valid
    - Freed indices are reused smallest first (a min-heap), so IDs depend only on the operations, not
      on the order entities were freed. Replays and restores produce the same IDs
-   - An index whose generation wraps after 2^32 - 1 reuses is retired, never reused, so an old ID
+   - An index whose generation would wrap to zero is retired, never reused, so an old ID
      can never alias a new entity
    - A snapshot stores every index's generation. Restore rebuilds the free indices from them, so IDs
      taken before a snapshot are still valid (or still stale) after restore

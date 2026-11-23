@@ -36,7 +36,7 @@ const (
 	// firstGeneration is the generation of an index's first entity. Zero is never a live generation.
 	firstGeneration = 1
 	// retiredGeneration marks an index whose generation wrapped. It is never reused, so an old ID
-	// cannot come back after 2^32 reuses.
+	// can never come back.
 	retiredGeneration = 0
 )
 
@@ -552,8 +552,12 @@ func freeIndices(slots []entitySlot, capacity int64) []uint32 {
 func (ws *worldState) restoreEntity(
 	eid EntityID, ent *cardinalv1.Entity, table []string, tableCIDs []ComponentID,
 ) error {
-	if generation := ws.slots[eid.Index()].generation; eid.Generation() == retiredGeneration ||
-		eid.Generation() != generation {
+	generation := ws.slots[eid.Index()].generation
+	if generation == retiredGeneration {
+		return eris.Errorf("snapshot entity %d is at retired index %d", eid, eid.Index())
+	}
+
+	if eid.Generation() != generation {
 		return eris.Errorf("snapshot entity %d has generation %d, but index %d has generation %d",
 			eid, eid.Generation(), eid.Index(), generation)
 	}

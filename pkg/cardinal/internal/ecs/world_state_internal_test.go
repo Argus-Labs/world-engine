@@ -1081,6 +1081,20 @@ func TestSnapshotWireRejectsBadInput(t *testing.T) {
 	}
 }
 
+// A live entity at a retired index gets its own error rather than a generation mismatch.
+func TestSnapshotWireRetiredIndexError(t *testing.T) {
+	t.Parallel()
+	ws, _, _ := newWireTestWorld(t)
+
+	err := ws.fromProto(&cardinalv1.WorldState{
+		NextId:      1,
+		Generations: []uint32{retiredGeneration},
+		Entities:    []*cardinalv1.Entity{{Id: wireID(0, retiredGeneration)}},
+	})
+
+	require.ErrorContains(t, err, "is at retired index 0")
+}
+
 // An entity whose archetype has no row is an internal corruption, not a valid snapshot.
 func TestSnapshotWireCorruptionPanics(t *testing.T) {
 	t.Parallel()

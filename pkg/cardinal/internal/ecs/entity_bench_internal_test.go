@@ -56,7 +56,10 @@ func BenchmarkEntity_DestroyCreate(b *testing.B) {
 
 	for i := 0; b.Loop(); i++ {
 		slot := i % len(ids)
-		w.Destroy(ids[slot])
+		if !w.Destroy(ids[slot]) {
+			b.Fatal("destroy failed")
+		}
+
 		ids[slot] = w.Create()
 	}
 }
