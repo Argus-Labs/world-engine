@@ -2,6 +2,7 @@ package tui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/rotisserie/eris"
 
 	"github.com/argus-labs/world-engine/cli/internal/dependency"
 	"github.com/argus-labs/world-engine/cli/internal/tui/style"
@@ -12,7 +13,8 @@ import (
 //////////////////////
 
 type WorldDoctorModel struct {
-	result dependency.CheckResult
+	result  dependency.CheckResult
+	checked bool // The checks finished and result holds their outcome
 }
 
 func NewWorldDoctorModel() WorldDoctorModel {
@@ -42,15 +44,21 @@ func (m WorldDoctorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case dependency.CheckResult:
 		m.result = msg
+		m.checked = true
+
 		return m, tea.Quit
 	}
 
 	return m, nil
 }
 
-// Err returns the failed dependency checks. It is nil when every check passed
-// and when the user quit before the checks finished.
+// Err returns why the doctor did not pass: the failed dependency checks, or an
+// interruption before the checks finished. It is nil only when every check passed.
 func (m WorldDoctorModel) Err() error {
+	if !m.checked {
+		return eris.New("dependency checks interrupted")
+	}
+
 	return m.result.Err
 }
 

@@ -26,6 +26,6 @@ func (c *DoctorCmd) Run() error {
 		return eris.New("invalid doctor model")
 	}
 
-	// The doctor has already rendered the failed checks; returning them only sets the exit code.
+	// The doctor has already rendered its result; returning the error only sets the exit code.
 	return errorspkg.NewSilent(m.Err())
 }
