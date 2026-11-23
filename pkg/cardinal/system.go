@@ -12,10 +12,12 @@ import (
 	"github.com/rotisserie/eris"
 )
 
-// EntityID identifies an entity in this world. It is reused as soon as the entity is destroyed, so
-// an ID kept past that point refers to whichever entity is created next in its place. To refer to
-// something across ticks, in a component field, a Map key or a client, use an ID the game owns, or
-// remove the stored ID in the system that destroys the entity.
+// EntityID identifies an entity in this world. It pairs the entity's index with a generation that
+// advances when the entity is destroyed, so an ID kept past that point, in a component field, a Map
+// key, a command or a client, stops resolving instead of referring to a later entity that reuses the
+// index: lookups report the entity as not found, exactly as for a destroyed one. The zero ID never
+// refers to an entity. Store the full 64-bit value; converting it to a narrower integer drops the
+// generation.
 type EntityID = ecs.EntityID
 
 // System is a unit of game logic that runs once per tick phase. Run receives the world it was

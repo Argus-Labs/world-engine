@@ -34,15 +34,19 @@ func TestRunLoopPanicPreservesCompletedSnapshot(t *testing.T) {
 
 			w.options.TickRate = 1000
 			w.RegisterComponent[snapshotBalance]()
+
+			var sender, recipient EntityID
+
 			w.RegisterSystem(snapshotSystemFunc(func(w *World) {
 				if w.TickHeight() == 0 {
-					w.Create[snapshotAccount]().Set(snapshotBalance{Coins: 100})
-					w.Create[snapshotAccount]()
+					account := w.Create[snapshotAccount]()
+					account.Set(snapshotBalance{Coins: 100})
+					sender, recipient = account.ID(), w.Create[snapshotAccount]().ID()
 
 					return
 				}
 
-				w.Entity(0).Set(snapshotBalance{Coins: 90})
+				w.Entity(sender).Set(snapshotBalance{Coins: 90})
 				panic("transfer interrupted before recipient credit")
 			}))
 
@@ -61,8 +65,8 @@ func TestRunLoopPanicPreservesCompletedSnapshot(t *testing.T) {
 			restored.init()
 			require.NoError(t, restored.restore(ctx))
 			assert.Equal(t, uint64(1), restored.TickHeight())
-			assert.Equal(t, 100, restored.Entity(0).Get[snapshotBalance]().Coins)
-			assert.Equal(t, 0, restored.Entity(1).Get[snapshotBalance]().Coins)
+			assert.Equal(t, 100, restored.Entity(sender).Get[snapshotBalance]().Coins)
+			assert.Equal(t, 0, restored.Entity(recipient).Get[snapshotBalance]().Coins)
 		})
 	}
 }
@@ -80,12 +84,15 @@ func TestRunLoopShutdownPersistsUnsnapshottedTick(t *testing.T) {
 
 			w.options.SnapshotRate = 100
 			w.RegisterComponent[snapshotBalance]()
+
+			var account EntityID
+
 			w.RegisterSystem(snapshotSystemFunc(func(w *World) {
 				if w.TickHeight() == 0 {
-					w.Create[snapshotAccount]()
+					account = w.Create[snapshotAccount]().ID()
 				}
 
-				w.Entity(0).Set(snapshotBalance{Coins: 100 + int(w.TickHeight())})
+				w.Entity(account).Set(snapshotBalance{Coins: 100 + int(w.TickHeight())})
 			}))
 
 			// Only tick 0 is a scheduled snapshot; shutdown must also save completed tick 2.
@@ -102,7 +109,7 @@ func TestRunLoopShutdownPersistsUnsnapshottedTick(t *testing.T) {
 			restored.init()
 			require.NoError(t, restored.restore(ctx))
 			assert.Equal(t, uint64(3), restored.TickHeight())
-			assert.Equal(t, 102, restored.Entity(0).Get[snapshotBalance]().Coins)
+			assert.Equal(t, 102, restored.Entity(account).Get[snapshotBalance]().Coins)
 		})
 	}
 }
@@ -368,7 +375,8 @@ func TestRunLoopDebugResetSurvivesCleanRestart(t *testing.T) {
 
 				w.RegisterComponent[snapshotBalance]()
 				// Created outside any system, so only the pre-reset snapshot holds it.
-				w.Create[snapshotAccount]().Set(snapshotBalance{Coins: 123})
+				account := w.Create[snapshotAccount]()
+				account.Set(snapshotBalance{Coins: 123})
 				w.debug.setPaused(true)
 
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -408,7 +416,11 @@ func TestRunLoopDebugResetSurvivesCleanRestart(t *testing.T) {
 				restored.useSyncSnapshotStorage(w.snapshotStorage)
 				restored.init()
 				require.NoError(t, restored.restore(ctx))
-				assert.False(t, restored.Entity(0).Alive(), "the reset removed the entity; restart must not restore it")
+				assert.False(
+					t,
+					restored.Entity(account.ID()).Alive(),
+					"the reset removed the entity; restart must not restore it",
+				)
 				assert.Equal(t, uint64(ticksAfterReset), restored.TickHeight(),
 					"restart must resume at the height the reset world reached")
 

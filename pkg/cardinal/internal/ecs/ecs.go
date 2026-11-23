@@ -24,9 +24,10 @@ func (w *World) Destroy(eid EntityID) bool {
 	return w.state.removeEntity(eid)
 }
 
-// Alive checks if an entity exists in the world.
+// Alive checks if an entity exists in the world. An ID kept after its entity was destroyed is not
+// alive, even once a new entity reuses its index.
 func (w *World) Alive(eid EntityID) bool {
-	_, exists := w.state.entityArch.get(eid)
+	_, exists := w.state.archetypeOf(eid)
 	return exists
 }
 
@@ -51,7 +52,7 @@ func (w *World) Remove[T Component](eid EntityID) error {
 // Has checks if an entity has a specific component type.
 // Returns false if either the entity doesn't exist or doesn't have the component.
 func (w *World) Has[T Component](eid EntityID) bool {
-	aid, exists := w.state.entityArch.get(eid)
+	aid, exists := w.state.archetypeOf(eid)
 	if !exists {
 		return false
 	}
@@ -78,7 +79,7 @@ func (w *World) Has[T Component](eid EntityID) bool {
 // It visits the entities that match when it is called, each at most once, so yield may add or
 // remove components and create or destroy entities. It skips an entity that an earlier yield
 // destroyed or changed so it no longer matches. Entities that start matching during the iteration
-// are not visited, unless one reuses the ID of a matching entity destroyed before it was reached.
+// are not visited.
 //
 // We intentionally keep this as a callback-based iterator instead of returning [iter.Seq] because
 // the additional closure/layer on hot query paths adds measurable allocations in cardinal
@@ -161,7 +162,7 @@ type searchSegment struct {
 }
 
 func (w *World) MatchArchetype(eid EntityID, components bitmap.Bitmap, match SearchMatch) error {
-	aid, exists := w.state.entityArch.get(eid)
+	aid, exists := w.state.archetypeOf(eid)
 	if !exists {
 		return ErrEntityNotFound
 	}

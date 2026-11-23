@@ -371,9 +371,10 @@ its own edits.
 
 **Assignment is a real copy, and free**, as with Slice.
 
-**Don't key by entity ID** unless the system that destroys those entities also deletes their keys.
-Entity IDs are reused, so a stale key silently refers to the next entity in that slot. Key long-lived
-data by an ID the game owns, such as a player ID.
+**Delete entity-ID keys when the entity is destroyed.** A stale key never refers to a different
+entity, because entity IDs carry a generation, but the Map keeps it until something deletes it. Have
+the system that destroys those entities delete their keys, or key long-lived data by an ID the game
+owns, such as a player ID.
 
 ### Common mistakes
 
@@ -382,7 +383,7 @@ data by an ID the game owns, such as a player ID.
 | editing `c.Table` and never calling `Set`      | `entity.Set(c)` after editing           |
 | relying on the order keys were added           | store the order in the value            |
 | `Set` in a loop to build thousands of keys     | `immutable.MapFrom(seq)`                |
-| `immutable.Map[EntityID, V]` for long-lived data | key by an ID the game owns            |
+| keeping `EntityID` keys after destroying the entity | delete them in the destroying system |
 
 ### Full example
 

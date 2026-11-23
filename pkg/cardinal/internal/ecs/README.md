@@ -12,11 +12,8 @@ World
 │   ├── Component Registry (map[string]ComponentTypeID)
 │   └── Column Factory ([]func() any)
 │
-├── EntityManager
-│   ├── Active Entities ([]EntityID)
-│   ├── Sparse Index ([]int)
-│   ├── Recycled IDs ([]EntityID)
-│   └── Entity -> Archetype Map (map[EntityID]*archetype)
+├── Entity Table ([]entitySlot, one per index: archetype + generation)
+│   └── Free Indices ([]uint32, min-heap)
 │
 └── Archetypes ([]archetype)
     └── archetype
@@ -41,12 +38,20 @@ World
    - Manages entity lifecycle and component operations
    - Maintains archetype organization
 
-2. **Entities (`EntityManager`)**:
-   - Lightweight numeric identifiers (EntityID)
-   - Uses a sparse set pattern for efficient ID management
-   - O(1) operations for creation, deletion, and lookups
-   - Supports ID recycling for memory efficiency
-   - Maximum of 2^31-1 entities for bitmap compatibility
+2. **Entities (entity table)**:
+   - `EntityID` is a `uint64`: the index in the low 32 bits and the generation in the high 32 bits
+   - The entity table holds one entry per index: the entity's archetype and the index's current
+     generation. A lookup checks both, so it is one read from one slice
+   - Destroying an entity advances its index's generation. An ID kept past that point resolves as
+     not found, like a destroyed entity, even after a new entity reuses the index
+   - Generations start at 1, so the zero ID is never valid
+   - Freed indices are reused smallest first (a min-heap), so IDs depend only on the operations, not
+     on the order entities were freed. Replays and restores produce the same IDs
+   - An index whose generation wraps after 2^32 - 1 reuses is retired, never reused, so an old ID
+     can never alias a new entity
+   - A snapshot stores every index's generation. Restore rebuilds the free indices from them, so IDs
+     taken before a snapshot are still valid (or still stale) after restore
+   - A world reset restarts generations, so a reset world issues the same IDs as a new one
 
 3. **Components**:
    - Pure data containers attachable to entities

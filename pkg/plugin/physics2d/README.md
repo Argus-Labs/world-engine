@@ -251,7 +251,8 @@ func ContainsPoint(physics *physics2d.Plugin, id cardinal.EntityID, p box2d.Vec2
 The plugin stuffs identity into Box2D userdata (see
 [internal/create.go](internal/create.go)):
 
-- **Body userdata** = entity ID: `cardinal.EntityID(uint32(w.BodyUserData(bodyID)))`.
+- **Body userdata** = the full 64-bit entity ID: `cardinal.EntityID(w.BodyUserData(bodyID))`.
+  Do not narrow it to `uint32`, which drops the generation.
 - **Shape userdata** = shape slot index (the index into
   `PhysicsBody2D.Shapes`): `int(uint32(w.ShapeUserData(shapeID)))`.
 
@@ -280,7 +281,7 @@ func OverlapAll(physics *physics2d.Plugin, minX, minY, maxX, maxY float64) []car
     }
     w.OverlapAABB(aabb, box2d.DefaultQueryFilter(), func(shapeID box2d.ShapeID, _ any) bool {
         bodyID := w.ShapeBody(shapeID)
-        out = append(out, cardinal.EntityID(uint32(w.BodyUserData(bodyID))))
+        out = append(out, cardinal.EntityID(w.BodyUserData(bodyID)))
         return true // keep going
     }, nil)
     return out

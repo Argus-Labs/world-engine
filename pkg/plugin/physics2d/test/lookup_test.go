@@ -70,7 +70,7 @@ func TestLookup_BodyAndShapeIDsForSpawnedEntity(t *testing.T) {
 
 	bodyID, ok := p.BodyID(*entityID)
 	require.True(t, ok, "spawned entity should have a body")
-	require.Equal(t, *entityID, cardinal.EntityID(uint32(engine.BodyUserData(bodyID))),
+	require.Equal(t, *entityID, cardinal.EntityID(engine.BodyUserData(bodyID)),
 		"body userdata should carry the entity id")
 	require.Equal(t, 2, engine.BodyShapeCount(bodyID))
 

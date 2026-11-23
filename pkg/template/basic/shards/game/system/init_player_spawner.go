@@ -18,6 +18,6 @@ func (s *PlayerSpawnerSystem) Run(w *cardinal.World) {
 		entity.Set(component.PlayerTag{Nickname: name})
 		entity.Set(component.Health{HP: 100})
 
-		w.Logger().Info().Uint32("entity", uint32(entity.ID())).Msgf("Created player %s", name)
+		w.Logger().Info().Uint64("entity", uint64(entity.ID())).Msgf("Created player %s", name)
 	}
 }

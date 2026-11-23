@@ -42,7 +42,7 @@ func (s *AttackPlayerSystem) Run(w *cardinal.World) {
 				player.Set(component.Health{HP: newHealth})
 
 				w.Logger().Info().
-					Uint32("entity", uint32(entity)).
+					Uint64("entity", uint64(entity)).
 					Msgf("Player %s received %d damage", command.Target, command.Damage)
 			} else {
 				player.Destroy()
@@ -51,7 +51,7 @@ func (s *AttackPlayerSystem) Run(w *cardinal.World) {
 
 				w.EmitSystemEvent(systemevent.PlayerDeath{Nickname: tag.Nickname})
 
-				w.Logger().Info().Uint32("entity", uint32(entity)).Msgf("Player %s died", command.Target)
+				w.Logger().Info().Uint64("entity", uint64(entity)).Msgf("Player %s died", command.Target)
 			}
 		}
 	}

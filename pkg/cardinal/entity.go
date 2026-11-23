@@ -4,8 +4,9 @@ import "github.com/argus-labs/world-engine/pkg/cardinal/internal/ecs"
 
 // Entity is a runtime handle to an entity in one world. Store ID() in components,
 // commands, and snapshots, then bind that ID with World.Entity when needed.
-// Like EntityID, a handle must not be retained after destruction or a world reset:
-// numeric IDs can be reused. Entity methods must run on the world's system goroutine.
+// A handle kept after its entity is destroyed is not alive, even if a new entity reuses
+// the index. A world reset restarts IDs, so do not keep handles across one.
+// Entity methods must run on the world's system goroutine.
 type Entity struct {
 	world *ecs.World
 	id    EntityID

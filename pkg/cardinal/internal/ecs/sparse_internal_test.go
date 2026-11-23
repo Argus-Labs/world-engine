@@ -32,11 +32,11 @@ func TestSparseSet_ModelFuzz(t *testing.T) {
 	weights := testutils.RandOpWeights(prng, operations)
 
 	impl := newSparseSet()
-	model := make(map[EntityID]int, sparseCapacity)
+	model := make(map[uint32]int, sparseCapacity)
 
 	// Check the impl against the model by running the same operations on both.
 	for range opsMax {
-		key := EntityID(prng.IntN(eidMax))
+		key := uint32(prng.IntN(eidMax))
 
 		op := testutils.RandWeightedOp(prng, weights)
 		switch op {

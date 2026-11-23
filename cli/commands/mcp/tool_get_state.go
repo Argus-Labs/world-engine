@@ -58,7 +58,7 @@ type GetStateOutput struct {
 
 // EntityState is one entity from the snapshot with its decoded components.
 type EntityState struct {
-	ID         uint32         `json:"id"         jsonschema_description:"Entity ID"`
+	ID         uint64         `json:"id"         jsonschema_description:"Entity ID: the index in the low 32 bits and the generation in the high 32 bits"`
 	Components map[string]any `json:"components" jsonschema_description:"Component data keyed by component name"`
 }
 
@@ -253,7 +253,7 @@ func (f stateFilter) matchesComponents(names []string) bool {
 
 // matchesWhere evaluates the where expression against one entity. The
 // environment mirrors the engine's: component names as variables plus "_id".
-func (f stateFilter) matchesWhere(id uint32, components map[string]any) (bool, error) {
+func (f stateFilter) matchesWhere(id uint64, components map[string]any) (bool, error) {
 	if f.where == nil {
 		return true, nil
 	}

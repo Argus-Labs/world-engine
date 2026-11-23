@@ -48,7 +48,7 @@ func (s *MovePlayerSystem) Run(w *cardinal.World) {
 			name := tag.ArgusAuthName
 
 			w.Logger().Info().
-				Uint32("entity", uint32(entity)).
+				Uint64("entity", uint64(entity)).
 				Msgf("Player %s (id: %s) moved to %d, %d", name, tag.ArgusAuthID, command.X, command.Y)
 		}
 	}

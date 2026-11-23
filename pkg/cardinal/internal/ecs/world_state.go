@@ -12,14 +12,42 @@ import (
 	"github.com/rotisserie/eris"
 )
 
-// EntityID is a unique identifier for an entity.
-type EntityID uint32
+// EntityID identifies an entity. The low 32 bits are its index, the slot that holds it, and the high
+// 32 bits are that slot's generation when the entity was created. Destroying an entity advances its
+// slot's generation, so the ID stops resolving even after a new entity reuses the slot. Generations
+// start at 1, so the zero ID never refers to an entity.
+type EntityID uint64
 
-// maxEntityID is the maximum entity ID that can be created.
-const maxEntityID = math.MaxUint32 - 1
+// newEntityID packs an index and a generation into an EntityID.
+func newEntityID(index, generation uint32) EntityID {
+	return EntityID(generation)<<32 | EntityID(index)
+}
 
-// invalidEntityID is a sentinel id for errors or when we have exceeded the maximum entities count.
-const invalidEntityID = maxEntityID + 1
+// Index returns the slot that holds the entity. A destroyed entity's slot is reused by a later one.
+func (e EntityID) Index() uint32 { return uint32(e) } //nolint:gosec // the low 32 bits are the index
+
+// Generation returns how many times the entity's slot had been reused, plus one, when it was created.
+func (e EntityID) Generation() uint32 { return uint32(e >> 32) }
+
+// maxEntityIndex is the largest index an entity can have.
+const maxEntityIndex = math.MaxUint32 - 1
+
+const (
+	// firstGeneration is the generation of an index's first entity. Zero is never a live generation.
+	firstGeneration = 1
+	// retiredGeneration marks an index whose generation wrapped. It is never reused, so an old ID
+	// cannot come back after 2^32 reuses.
+	retiredGeneration = 0
+)
+
+// noArchetype is the entitySlot archetype of an index that holds no entity.
+const noArchetype = -1
+
+// entitySlot is the entity table entry for one index.
+type entitySlot struct {
+	archetype  int32  // Archetype of the entity at this index, or noArchetype
+	generation uint32 // Generation of the entity at this index, or of the next one created here
+}
 
 // voidArchetype is an archetype without components.
 const voidArchetypeID = 0
@@ -27,10 +55,9 @@ const voidArchetypeID = 0
 // worldState holds the state of the world.
 type worldState struct {
 	components componentManager // Component type manager
-	nextID     EntityID         // Entity ID counter
-	free       []EntityID       // Free entity IDs to reuse
-	entityArch sparseSet
-	archetypes []*archetype // Array of archetypes
+	slots      []entitySlot     // Entity table, one entry per index ever used
+	free       []uint32         // Free indices to reuse
+	archetypes []*archetype     // Array of archetypes
 	mu         sync.Mutex
 }
 
@@ -38,9 +65,8 @@ type worldState struct {
 func newWorldState() *worldState {
 	ws := worldState{
 		components: newComponentManager(),
-		nextID:     0,
-		free:       make([]EntityID, 0),
-		entityArch: newSparseSet(),
+		slots:      make([]entitySlot, 0, sparseCapacity),
+		free:       make([]uint32, 0),
 		archetypes: make([]*archetype, 1),
 	}
 
@@ -50,16 +76,16 @@ func newWorldState() *worldState {
 	return &ws
 }
 
-// reset clears all entity data while preserving registered components.
+// reset clears all entity data while preserving registered components. Generations restart too, so
+// the world hands out the same IDs as a new one.
 func (ws *worldState) reset() {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 
 	ws.invalidateArchetypes()
 
-	ws.nextID = 0
+	ws.slots = ws.slots[:0]
 	ws.free = ws.free[:0]
-	ws.entityArch.clear()
 	ws.archetypes = ws.archetypes[:1] // Keep the void archetype slot
 	// Reset the void archetype to avoid stale data.
 	ws.archetypes[voidArchetypeID] = ws.newArchetype(voidArchetypeID, bitmap.Bitmap{})
@@ -78,20 +104,37 @@ func (ws *worldState) invalidateArchetypes() {
 // Entity operations
 // -------------------------------------------------------------------------------------------------
 
+// archetypeOf returns the archetype of a live entity. It returns false for a destroyed entity and
+// for an ID whose generation is not its index's current one.
+func (ws *worldState) archetypeOf(eid EntityID) (archetypeID, bool) {
+	index := eid.Index()
+	if uint64(index) >= uint64(len(ws.slots)) {
+		return 0, false
+	}
+
+	slot := ws.slots[index]
+	if slot.archetype == noArchetype || slot.generation != eid.Generation() {
+		return 0, false
+	}
+
+	return archetypeID(slot.archetype), true
+}
+
 // newEntity creates a new entity of the void archetype in the world state. Returns the entity ID.
 func (ws *worldState) newEntity() EntityID {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 
-	var eid EntityID
-	if len(ws.free) > 0 { // Reuse the smallest free id (see pushFree)
-		eid = ws.popFree()
-	} else { // Else get the next ID
-		eid = ws.nextID
-		ws.nextID++
+	var index uint32
+	if len(ws.free) > 0 { // Reuse the smallest free index (see pushFree)
+		index = ws.popFree()
+	} else { // Else take the next index
+		assert.That(len(ws.slots) <= maxEntityIndex, "max number of entities exceeded")
+		index = uint32(len(ws.slots)) //nolint:gosec // bounded by maxEntityIndex
+		ws.slots = append(ws.slots, entitySlot{archetype: noArchetype, generation: firstGeneration})
 	}
 
-	assert.That(eid != invalidEntityID, "max number of entities exceeded")
+	eid := newEntityID(index, ws.slots[index].generation)
 
 	// New entities are assigned to the void archetype, which doesn't contain any components.
 	voidArchetype := ws.archetypes[voidArchetypeID]
@@ -99,7 +142,7 @@ func (ws *worldState) newEntity() EntityID {
 	voidArchetype.newEntity(eid)
 
 	// Update the entity archetype mapping.
-	ws.entityArch.set(eid, voidArchetypeID)
+	ws.slots[index].archetype = voidArchetypeID
 
 	return eid
 }
@@ -120,7 +163,7 @@ func (ws *worldState) removeEntity(eid EntityID) bool {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 
-	aid, exists := ws.entityArch.get(eid)
+	aid, exists := ws.archetypeOf(eid)
 	if !exists {
 		return false
 	}
@@ -129,21 +172,26 @@ func (ws *worldState) removeEntity(eid EntityID) bool {
 	archetype := ws.archetypes[aid]
 	archetype.removeEntity(eid)
 
-	// Remove the removed entity ID from the map.
-	ok := ws.entityArch.remove(eid)
-	assert.That(ok, "entity isn't removed from sparse set")
+	// Advance the generation so this ID no longer resolves. An index whose generation wraps is
+	// retired rather than freed.
+	slot := &ws.slots[eid.Index()]
+	slot.archetype = noArchetype
+	slot.generation++
 
-	ws.pushFree(eid)
+	if slot.generation != retiredGeneration {
+		ws.pushFree(eid.Index())
+	}
 
 	return true
 }
 
-// free is a min-heap, so newEntity always reuses the smallest id. A snapshot stores only the gaps
-// and restore rebuilds them ascending, so reuse order must not depend on the order ids were freed.
-// A heap rather than a sorted slice: inserting kept the list readable but cost an O(n) memmove per
-// removal, which is milliseconds a tick once a shrunken world leaves a large free list behind.
-func (ws *worldState) pushFree(eid EntityID) {
-	ws.free = append(ws.free, eid)
+// free is a min-heap, so newEntity always reuses the smallest index. A snapshot stores only the
+// generations and restore rebuilds the free indices ascending, so reuse order must not depend on
+// the order indices were freed. A heap rather than a sorted slice: inserting kept the list readable
+// but cost an O(n) memmove per removal, which is milliseconds a tick once a shrunken world leaves a
+// large free list behind.
+func (ws *worldState) pushFree(index uint32) {
+	ws.free = append(ws.free, index)
 	for i := len(ws.free) - 1; i > 0; {
 		parent := (i - 1) / 2
 		if ws.free[parent] <= ws.free[i] {
@@ -155,8 +203,8 @@ func (ws *worldState) pushFree(eid EntityID) {
 	}
 }
 
-// popFree removes and returns the smallest free id. The caller must check that free is non-empty.
-func (ws *worldState) popFree() EntityID {
+// popFree removes and returns the smallest free index. The caller must check that free is non-empty.
+func (ws *worldState) popFree() uint32 {
 	smallest := ws.free[0]
 	last := len(ws.free) - 1
 	ws.free[0] = ws.free[last]
@@ -187,7 +235,7 @@ func (ws *worldState) moveEntity(eid EntityID, newComponents bitmap.Bitmap) {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 
-	oldAid, exists := ws.entityArch.get(eid)
+	oldAid, exists := ws.archetypeOf(eid)
 	assert.That(exists, "entity doesn't exist. caller should've checked")
 
 	newAid := ws.findOrCreateArchetype(newComponents)
@@ -198,7 +246,7 @@ func (ws *worldState) moveEntity(eid EntityID, newComponents bitmap.Bitmap) {
 	oldArchetype.moveEntity(newArchetype, eid)
 
 	// Update the archetype mapping.
-	ws.entityArch.set(eid, newAid)
+	ws.slots[eid.Index()].archetype = int32(newAid) //nolint:gosec // archetype count stays far below 2^31
 }
 
 // findOrCreateArchetype finds an existing archetype that matches the given components or creates a
@@ -229,7 +277,7 @@ func (ws *worldState) findOrCreateArchetype(components bitmap.Bitmap) archetypeI
 // If the entity's archetype contains the component type, this will update the value. If it doesn't,
 // it will move the entity to a new archetype and set the value there.
 func (ws *worldState) setComponent[T Component](eid EntityID, component T) error {
-	aid, exists := ws.entityArch.get(eid)
+	aid, exists := ws.archetypeOf(eid)
 	if !exists {
 		return eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
 	}
@@ -253,7 +301,7 @@ func (ws *worldState) setComponent[T Component](eid EntityID, component T) error
 		ws.moveEntity(eid, newComponents)
 
 		// Update the archetype and row variable with the new archetype.
-		newAid, newExists := ws.entityArch.get(eid)
+		newAid, newExists := ws.archetypeOf(eid)
 		assert.That(newExists, "entity should exist after moveEntity")
 
 		archetype = ws.archetypes[newAid]
@@ -264,7 +312,7 @@ func (ws *worldState) setComponent[T Component](eid EntityID, component T) error
 	column, ok := archetype.columns[index].(*column[T])
 	assert.That(ok, "unexpected column type")
 
-	row, exists := archetype.rows.get(eid)
+	row, exists := archetype.rows.get(eid.Index())
 	assert.That(exists, "entity should have a row in its archetype")
 	column.set(row, component)
 
@@ -276,7 +324,7 @@ func (ws *worldState) setComponent[T Component](eid EntityID, component T) error
 func (ws *worldState) getComponent[T Component](eid EntityID) (T, error) {
 	var zero T
 
-	aid, exists := ws.entityArch.get(eid)
+	aid, exists := ws.archetypeOf(eid)
 	if !exists {
 		return zero, eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
 	}
@@ -300,7 +348,7 @@ func (ws *worldState) getComponent[T Component](eid EntityID) (T, error) {
 		return zero, eris.Wrapf(ErrComponentNotFound, "component %s is registered with a different type", zero.Name())
 	}
 
-	row, exists := archetype.rows.get(eid)
+	row, exists := archetype.rows.get(eid.Index())
 	assert.That(exists, "entity should have a row in its archetype")
 
 	return column.get(row), nil
@@ -311,7 +359,7 @@ func (ws *worldState) getComponent[T Component](eid EntityID) (T, error) {
 func (ws *worldState) removeComponent[T Component](eid EntityID) error {
 	var zero T
 
-	aid, exists := ws.entityArch.get(eid)
+	aid, exists := ws.archetypeOf(eid)
 	if !exists {
 		return eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
 	}
@@ -352,23 +400,25 @@ func (ws *worldState) removeComponent[T Component](eid EntityID) error {
 // The tick owns the world throughout capture. No live component data is retained by the result.
 func (ws *worldState) toProto() (*cardinalv1.WorldState, error) {
 	state := &cardinalv1.WorldState{
-		NextId:     uint32(ws.nextID),
-		Components: append([]string(nil), ws.components.names...),
+		NextId:      uint32(len(ws.slots)), //nolint:gosec // bounded by maxEntityIndex
+		Components:  append([]string(nil), ws.components.names...),
+		Generations: make([]uint32, len(ws.slots)),
 	}
-	for eid := EntityID(0); eid < ws.nextID; eid++ {
-		aid, ok := ws.entityArch.get(eid)
-		if !ok {
+	for index, slot := range ws.slots {
+		state.Generations[index] = slot.generation
+		if slot.archetype == noArchetype {
 			continue
 		}
 
-		arch := ws.archetypes[aid]
+		eid := newEntityID(uint32(index), slot.generation)
+		arch := ws.archetypes[slot.archetype]
 
-		row, ok := arch.rows.get(eid)
+		row, ok := arch.rows.get(eid.Index())
 		if !ok {
 			panic(fmt.Sprintf("snapshot: entity %d has an archetype but no row", eid))
 		}
 
-		entity := &cardinalv1.Entity{Id: uint32(eid)}
+		entity := &cardinalv1.Entity{Id: uint64(eid)}
 
 		arch.components.Range(func(cid uint32) {
 			entity.Components = append(entity.Components, cid)
@@ -403,7 +453,7 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 		return eris.New("snapshot has no world state")
 	}
 
-	nextID := EntityID(pb.GetNextId())
+	nextIndex := pb.GetNextId()
 
 	// An unknown name is an error only if an entity uses it. Thus a removed component does not
 	// prevent a restore.
@@ -427,9 +477,9 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 		tableCIDs[i] = cid
 	}
 
-	freeCount := int64(nextID) - int64(len(pb.GetEntities()))
+	freeCount := int64(nextIndex) - int64(len(pb.GetEntities()))
 	if freeCount < 0 {
-		return eris.Errorf("snapshot has %d entities but next_id is only %d", len(pb.GetEntities()), nextID)
+		return eris.Errorf("snapshot has %d entities but next_id is only %d", len(pb.GetEntities()), nextIndex)
 	}
 
 	if freeCount > maxRestoreFreeIDs {
@@ -437,56 +487,77 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 			freeCount, maxRestoreFreeIDs)
 	}
 
+	generations := pb.GetGenerations()
+	if int64(len(generations)) != int64(nextIndex) {
+		return eris.Errorf("snapshot has %d generations but next_id is %d", len(generations), nextIndex)
+	}
+
 	// A restore does not register components. Thus the new state uses the live component registry.
 	next := &worldState{
 		components: ws.components,
-		nextID:     nextID,
-		entityArch: newSparseSet(),
+		slots:      make([]entitySlot, nextIndex),
 		archetypes: make([]*archetype, 1),
 	}
 	next.archetypes[voidArchetypeID] = next.newArchetype(voidArchetypeID, bitmap.Bitmap{})
-	next.free = make([]EntityID, 0, freeCount)
 
-	// The entities are in ascending order. The gaps between them are the free IDs.
+	for index, generation := range generations {
+		next.slots[index] = entitySlot{archetype: noArchetype, generation: generation}
+	}
+
 	prev := int64(-1)
 
 	for _, ent := range pb.GetEntities() {
-		eid := int64(ent.GetId())
-		if eid <= prev {
-			return eris.Errorf("snapshot entities not strictly ascending at id %d", eid)
+		eid := EntityID(ent.GetId())
+
+		index := int64(eid.Index())
+		if index <= prev {
+			return eris.Errorf("snapshot entities not strictly ascending at index %d", index)
 		}
 
-		if eid >= int64(nextID) {
-			return eris.Errorf("snapshot entity %d is not below next_id %d", eid, nextID)
+		if index >= int64(nextIndex) {
+			return eris.Errorf("snapshot entity index %d is not below next_id %d", index, nextIndex)
 		}
 
-		for gap := prev + 1; gap < eid; gap++ {
-			next.free = append(next.free, EntityID(gap))
-		}
+		prev = index
 
-		prev = eid
-
-		if err := next.restoreEntity(EntityID(eid), ent, table, tableCIDs); err != nil { //nolint:gosec // bounded
+		if err := next.restoreEntity(eid, ent, table, tableCIDs); err != nil {
 			return err
 		}
 	}
 
-	for gap := prev + 1; gap < int64(nextID); gap++ {
-		next.free = append(next.free, EntityID(gap))
-	}
+	next.free = freeIndices(next.slots, freeCount)
 
 	// Commit the new state. The component registry and mutex do not change.
 	ws.invalidateArchetypes()
-	ws.nextID, ws.free, ws.entityArch, ws.archetypes = next.nextID, next.free, next.entityArch, next.archetypes
+	ws.slots, ws.free, ws.archetypes = next.slots, next.free, next.archetypes
 
 	return nil
 }
 
+// freeIndices returns the unretired indices without an entity, ascending, which is a valid min-heap.
+func freeIndices(slots []entitySlot, capacity int64) []uint32 {
+	free := make([]uint32, 0, capacity)
+
+	for index, slot := range slots {
+		if slot.archetype == noArchetype && slot.generation != retiredGeneration {
+			free = append(free, uint32(index))
+		}
+	}
+
+	return free
+}
+
 // restoreEntity creates one entity in the archetype for its component set. It decodes the
-// payloads into that archetype.
+// payloads into that archetype. The caller has checked that the entity's index is in the table.
 func (ws *worldState) restoreEntity(
 	eid EntityID, ent *cardinalv1.Entity, table []string, tableCIDs []ComponentID,
 ) error {
+	if generation := ws.slots[eid.Index()].generation; eid.Generation() == retiredGeneration ||
+		eid.Generation() != generation {
+		return eris.Errorf("snapshot entity %d has generation %d, but index %d has generation %d",
+			eid, eid.Generation(), eid.Index(), generation)
+	}
+
 	idxs := ent.GetComponents()
 
 	payloads := ent.GetPayloads()
@@ -519,9 +590,9 @@ func (ws *worldState) restoreEntity(
 	aid := ws.findOrCreateArchetype(comps)
 	arch := ws.archetypes[aid]
 	arch.newEntity(eid)
-	ws.entityArch.set(eid, aid)
+	ws.slots[eid.Index()].archetype = int32(aid) //nolint:gosec // archetype count stays far below 2^31
 
-	row, ok := arch.rows.get(eid)
+	row, ok := arch.rows.get(eid.Index())
 	assert.That(ok, "entity was just created in this archetype")
 
 	for k, idx := range idxs {

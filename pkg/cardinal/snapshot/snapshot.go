@@ -16,7 +16,11 @@ import (
 // CurrentVersion is the snapshot format this build writes and the only one it reads. Bump it
 // whenever the envelope or the world state inside it stops being readable by the previous layout,
 // and see ValidateVersion for what a bump obliges you to write first.
-const CurrentVersion uint32 = 2
+//
+// Version 3 made entity IDs generational: Entity.id became a 64-bit index and generation, and
+// WorldState gained per-index generations. A version 2 file is refused, because the IDs stored in
+// its component payloads have no generation and would all read back as stale.
+const CurrentVersion uint32 = 3
 
 var (
 	ErrSnapshotNotFound = errors.New("snapshot not found")
