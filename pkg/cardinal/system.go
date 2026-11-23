@@ -17,7 +17,8 @@ import (
 // key, a command or a client, stops resolving instead of referring to a later entity that reuses the
 // index: lookups report the entity as not found, exactly as for a destroyed one. The zero ID never
 // refers to an entity. Store the full 64-bit value; converting it to a narrower integer drops the
-// generation.
+// generation. A stored ID is not removed with its entity, so delete Map keys and other references in
+// the system that destroys the entity.
 type EntityID = ecs.EntityID
 
 // System is a unit of game logic that runs once per tick phase. Run receives the world it was
