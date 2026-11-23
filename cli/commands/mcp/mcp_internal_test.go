@@ -345,6 +345,14 @@ func componentBlob(t *testing.T, descriptors componentDescriptors, name string, 
 	return blob
 }
 
+// IDs of the sample world's entities as get_state reports them: indices 7, 9 and 11, each at
+// generation 1, so the generation sits in the high 32 bits as in a real world.
+const (
+	entity7  = "4294967303"
+	entity9  = "4294967305"
+	entity11 = "4294967307"
+)
+
 // sampleWorld has Health+Position entities (7, 9) and a Health-only entity (11).
 func sampleWorld(t *testing.T, descriptors componentDescriptors) *cardinalv1.WorldState {
 	t.Helper()
@@ -355,9 +363,9 @@ func sampleWorld(t *testing.T, descriptors componentDescriptors) *cardinalv1.Wor
 		NextId:     12,
 		Components: []string{"Health", "Position"},
 		Entities: []*cardinalv1.Entity{
-			{Id: 7, Components: []uint32{0, 1}, Payloads: [][]byte{blob("Health", 10), blob("Position", 1)}},
-			{Id: 9, Components: []uint32{0, 1}, Payloads: [][]byte{blob("Health", 80), blob("Position", 2)}},
-			{Id: 11, Components: []uint32{0}, Payloads: [][]byte{blob("Health", 55)}},
+			{Id: 1<<32 | 7, Components: []uint32{0, 1}, Payloads: [][]byte{blob("Health", 10), blob("Position", 1)}},
+			{Id: 1<<32 | 9, Components: []uint32{0, 1}, Payloads: [][]byte{blob("Health", 80), blob("Position", 2)}},
+			{Id: 1<<32 | 11, Components: []uint32{0}, Payloads: [][]byte{blob("Health", 55)}},
 		},
 	}
 }
@@ -371,7 +379,7 @@ func TestFlattenWorldState_FlattensEntities(t *testing.T) {
 	require.Len(t, got.entities, 3)
 	assert.Equal(t, 3, got.total)
 	assert.Equal(t, 3, got.matched)
-	assert.Equal(t, uint64(7), got.entities[0].ID)
+	assert.Equal(t, entity7, got.entities[0].ID)
 	assert.Equal(t, map[string]any{"HP": int64(10)}, got.entities[0].Components["Health"])
 	assert.Equal(t, map[string]any{"X": int64(1)}, got.entities[0].Components["Position"])
 }
@@ -423,7 +431,7 @@ func TestFlattenWorldState_FindExactRejectsExtraComponents(t *testing.T) {
 	require.NoError(t, err)
 	// Only the Health-only archetype qualifies; Health+Position has an extra.
 	require.Len(t, got.entities, 1)
-	assert.Equal(t, uint64(11), got.entities[0].ID)
+	assert.Equal(t, entity11, got.entities[0].ID)
 	assert.Equal(t, 1, got.matched)
 	assert.Equal(t, 3, got.total)
 }
@@ -438,8 +446,8 @@ func TestFlattenWorldState_WhereFiltersOnComponentField(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, got.entities, 2)
-	assert.Equal(t, uint64(9), got.entities[0].ID)
-	assert.Equal(t, uint64(11), got.entities[1].ID)
+	assert.Equal(t, entity9, got.entities[0].ID)
+	assert.Equal(t, entity11, got.entities[1].ID)
 	assert.Equal(t, 2, got.matched)
 	assert.Equal(t, 3, got.total)
 }
@@ -455,8 +463,8 @@ func TestFlattenWorldState_WhereSkipsEntitiesMissingReadComponent(t *testing.T) 
 
 	require.NoError(t, err)
 	require.Len(t, got.entities, 2)
-	assert.Equal(t, uint64(7), got.entities[0].ID)
-	assert.Equal(t, uint64(9), got.entities[1].ID)
+	assert.Equal(t, entity7, got.entities[0].ID)
+	assert.Equal(t, entity9, got.entities[1].ID)
 	assert.Equal(t, 2, got.matched)
 	assert.Equal(t, 3, got.total)
 }
@@ -472,13 +480,13 @@ func TestFlattenWorldState_WhereBareNilCheckMatchesAbsence(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, got.entities, 1)
-	assert.Equal(t, uint64(11), got.entities[0].ID)
+	assert.Equal(t, entity11, got.entities[0].ID)
 	assert.Equal(t, 1, got.matched)
 }
 
 // entityIDs lists the IDs of flattened entities in order, or nil when there are none.
-func entityIDs(entities []EntityState) []uint64 {
-	var ids []uint64
+func entityIDs(entities []EntityState) []string {
+	var ids []string
 	for _, e := range entities {
 		ids = append(ids, e.ID)
 	}
@@ -493,12 +501,12 @@ func TestFlattenWorldState_WhereGuardsAndOptionalAccessFollowTheEvaluator(t *tes
 	// is nil-safe, so 11 matches wherever the expression evaluates true for it.
 	tests := []struct {
 		where string
-		want  []uint64
+		want  []string
 	}{
-		{where: "Position == nil || Position.X > 0", want: []uint64{7, 9, 11}},
-		{where: "_id == 11 || Position.X > 0", want: []uint64{7, 9, 11}},
-		{where: "Position?.X == nil", want: []uint64{11}},
-		{where: "Position != nil && Position.X > 1", want: []uint64{9}},
+		{where: "Position == nil || Position.X > 0", want: []string{entity7, entity9, entity11}},
+		{where: `_id == "` + entity11 + `" || Position.X > 0`, want: []string{entity7, entity9, entity11}},
+		{where: "Position?.X == nil", want: []string{entity11}},
+		{where: "Position != nil && Position.X > 1", want: []string{entity9}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.where, func(t *testing.T) {
@@ -522,10 +530,10 @@ func TestFlattenWorldState_WhereFailingOnMissingComponentDoesNotMatch(t *testing
 	// doesn't match, and the call still succeeds.
 	tests := []struct {
 		where string
-		want  []uint64
+		want  []string
 	}{
-		{where: "Position?.X > 0", want: []uint64{7, 9}}, // nil > 0 for entity 11
-		{where: "Bogus.Y == 1", want: nil},               // no entity has Bogus
+		{where: "Position?.X > 0", want: []string{entity7, entity9}}, // nil > 0 for entity 11
+		{where: "Bogus.Y == 1", want: nil},                           // no entity has Bogus
 	}
 	for _, tt := range tests {
 		t.Run(tt.where, func(t *testing.T) {
@@ -562,7 +570,7 @@ func TestFlattenWorldState_WhereErrorOnEntityMissingAReadComponentDoesNotMatch(t
 	t.Parallel()
 	descriptors := stateDescriptors(t)
 	filter, err := compileStateFilter(GetStateInput{
-		Where: `_id == 11 && (Position == nil || Position.X > 0) && Health.HP > "x"`,
+		Where: `_id == "` + entity11 + `" && (Position == nil || Position.X > 0) && Health.HP > "x"`,
 	})
 	require.NoError(t, err)
 
@@ -599,14 +607,14 @@ func TestWhereFieldReads_CollectsMemberRootsOnly(t *testing.T) {
 func TestFlattenWorldState_WhereCanUseEntityID(t *testing.T) {
 	t.Parallel()
 	descriptors := stateDescriptors(t)
-	filter, err := compileStateFilter(GetStateInput{Where: "_id == 11"})
+	filter, err := compileStateFilter(GetStateInput{Where: `_id == "` + entity11 + `"`})
 	require.NoError(t, err)
 
 	got, err := flattenWorldState(sampleWorld(t, descriptors), -1, filter, descriptors)
 
 	require.NoError(t, err)
 	require.Len(t, got.entities, 1)
-	assert.Equal(t, uint64(11), got.entities[0].ID)
+	assert.Equal(t, entity11, got.entities[0].ID)
 }
 
 func TestFlattenWorldState_WhereAndFindCombine(t *testing.T) {
@@ -623,7 +631,7 @@ func TestFlattenWorldState_WhereAndFindCombine(t *testing.T) {
 	require.NoError(t, err)
 	// Entity 11 passes where but lacks Position; entity 9 passes both.
 	require.Len(t, got.entities, 1)
-	assert.Equal(t, uint64(9), got.entities[0].ID)
+	assert.Equal(t, entity9, got.entities[0].ID)
 }
 
 func TestFlattenWorldState_WhereNonBooleanIsAnError(t *testing.T) {
