@@ -138,6 +138,13 @@ func (ws *worldState) newEntity() EntityID {
 	} else { // Else take the next index
 		assert.That(len(ws.entityArch) <= maxEntityIndex, "max number of entities exceeded")
 		index = uint32(len(ws.entityArch)) //nolint:gosec // bounded by maxEntityIndex
+
+		if len(ws.entityArch) == cap(ws.entityArch) { // Grow by doubling, as main did
+			grown := make([]entityRecord, len(ws.entityArch), max(2*cap(ws.entityArch), 1))
+			copy(grown, ws.entityArch)
+			ws.entityArch = grown
+		}
+
 		ws.entityArch = append(ws.entityArch, entityRecord{archetype: noArchetype, generation: firstGeneration})
 	}
 
