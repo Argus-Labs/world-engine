@@ -162,7 +162,6 @@ func TestEntity_StaleIDInComponentAfterReuse(t *testing.T) {
 
 	replacement := w.Create[entityTestArchetype]()
 	replacement.Set(testutils.ComponentA{X: 2})
-	require.Equal(t, target.ID().Index(), replacement.ID().Index(), "the replacement reuses the index")
 
 	assertStale := func(t *testing.T, w *World) {
 		t.Helper()

@@ -197,7 +197,7 @@ func (w *World) CheckWorld(t *testing.T) {
 		// Invariant: rows sparseSet is a bijection between entities and row indices [0, len).
 		rowsSeen := make(map[int]EntityID, len(arch.entities))
 		for _, eid := range arch.entities {
-			row, exists := arch.rows.get(eid.Index())
+			row, exists := arch.rows.get(eid.index())
 			require.True(t, exists,
 				"archetype %d: entity %d has no row entry", aid, eid)
 			require.Less(t, row, len(arch.entities),
@@ -219,13 +219,13 @@ func (w *World) CheckWorld(t *testing.T) {
 
 	// Invariant: the entity table matches archetype membership, including the generation.
 	for eid, expectedAid := range liveEntities {
-		require.Less(t, int(eid.Index()), len(ws.entityArch), "entity %d index beyond the entity table", eid)
-		record := ws.entityArch[eid.Index()]
+		require.Less(t, int(eid.index()), len(ws.entityArch), "entity %d index beyond the entity table", eid)
+		record := ws.entityArch[eid.index()]
 		require.Equal(t, expectedAid, int(record.archetype),
 			"entity %d: entity table archetype=%d but in archetype %d", eid, record.archetype, expectedAid)
-		require.Equal(t, record.generation, eid.Generation(),
+		require.Equal(t, record.generation, eid.generation(),
 			"entity %d: entity table generation=%d", eid, record.generation)
-		require.NotEqual(t, uint32(retiredGeneration), eid.Generation(), "entity %d has the retired generation", eid)
+		require.NotEqual(t, uint32(retiredGeneration), eid.generation(), "entity %d has the retired generation", eid)
 	}
 
 	// Invariant: every occupied entry in the entity table corresponds to a live entity.

@@ -181,7 +181,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 		assert.Less(t, aid, len(impl.archetypes), "entity %d maps to invalid archetype %d", eid, aid)
 
 		arch := impl.archetypes[aid]
-		row, exists := arch.rows.get(eid.Index())
+		row, exists := arch.rows.get(eid.index())
 		assert.True(t, exists, "entity %d in the entity table but not in archetype %d", eid, aid)
 
 		if exists {
@@ -486,7 +486,7 @@ func TestWorldState_EntityID_StaleAfterReuse(t *testing.T) {
 	require.True(t, ws.removeEntity(old))
 
 	reused := ws.newEntity()
-	require.Equal(t, old.Index(), reused.Index(), "the new entity takes the freed index")
+	require.Equal(t, old.index(), reused.index(), "the new entity takes the freed index")
 	require.NotEqual(t, old, reused)
 	require.NoError(t, ws.setComponent(reused, testutils.ComponentA{X: 2}))
 
@@ -511,11 +511,11 @@ func TestWorldState_EntityID_RetiredOnWrap(t *testing.T) {
 	ws := newTestWorldState(t)
 
 	e := ws.newEntity()
-	ws.entityArch[e.Index()].generation = math.MaxUint32 // As if the index had been reused 2^32-2 times.
-	e = newEntityID(e.Index(), math.MaxUint32)
+	ws.entityArch[e.index()].generation = math.MaxUint32 // As if the index had been reused 2^32-2 times.
+	e = newEntityID(e.index(), math.MaxUint32)
 
 	require.True(t, ws.removeEntity(e))
-	assert.Equal(t, uint32(retiredGeneration), ws.entityArch[e.Index()].generation)
+	assert.Equal(t, uint32(retiredGeneration), ws.entityArch[e.index()].generation)
 	assert.Empty(t, ws.free, "a retired index is not freed")
 
 	next := ws.newEntity()
@@ -672,7 +672,7 @@ func assertWorldStateEqual(t *testing.T, ws1, ws2 *worldState) {
 
 		for _, arch := range ws.archetypes {
 			for _, eid := range arch.entities {
-				row, ok := arch.rows.get(eid.Index())
+				row, ok := arch.rows.get(eid.index())
 				require.True(t, ok)
 
 				comps := make(map[string]Component, len(arch.columns))

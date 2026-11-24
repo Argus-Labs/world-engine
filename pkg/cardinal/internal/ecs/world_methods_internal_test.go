@@ -166,7 +166,7 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 				if first {
 					require.True(t, w.Destroy(eid))
 					respawned := w.CreateWithArchetype(w.onlyA)
-					require.Equal(t, eid.Index(), respawned.Index())
+					require.Equal(t, eid.index(), respawned.index())
 					require.NotEqual(t, eid, respawned, "the respawn gets a new generation")
 				}
 			},

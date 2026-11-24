@@ -57,7 +57,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 			model[eid] = arch
 
 			// Property: entity exists and bijection holds.
-			row, exists := arch.rows.get(eid.Index())
+			row, exists := arch.rows.get(eid.index())
 			assert.True(t, exists)
 			assert.Equal(t, eid, arch.entities[row])
 
@@ -76,7 +76,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 			entities = slices.Delete(entities, idx, idx+1)
 
 			// Property: entity no longer exists.
-			_, exists := arch.rows.get(eid.Index())
+			_, exists := arch.rows.get(eid.index())
 			assert.False(t, exists)
 
 		case opMove:
@@ -92,7 +92,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 
 			if src == dst {
 				// Property: self move is a no-op and the model remains unchanged.
-				row, exists := src.rows.get(eid.Index())
+				row, exists := src.rows.get(eid.index())
 				assert.True(t, exists)
 				assert.Equal(t, eid, src.entities[row])
 				assert.Same(t, src, model[eid])
@@ -100,11 +100,11 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 				model[eid] = dst
 
 				// Property: entity no longer exists in source.
-				_, exists := src.rows.get(eid.Index())
+				_, exists := src.rows.get(eid.index())
 				assert.False(t, exists)
 
 				// Property: entity exists in destination and bijection holds.
-				row, exists := dst.rows.get(eid.Index())
+				row, exists := dst.rows.get(eid.index())
 				assert.True(t, exists)
 				assert.Equal(t, eid, dst.entities[row])
 			}
@@ -121,7 +121,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 		// Forward: entities[i] -> rows
 		// Property: rows.get(entities[i]) == i
 		for i, eid := range arch.entities {
-			row, exists := arch.rows.get(eid.Index())
+			row, exists := arch.rows.get(eid.index())
 			// Property: rows.get(entities[i]) must exist.
 			assert.True(t, exists, "entity %d at index %d not found in rows", eid, i)
 			assert.Equal(t, i, row, "entity %d at index %d has row %d", eid, i, row)
@@ -157,7 +157,7 @@ func TestArchetype_ModelFuzz(t *testing.T) {
 
 	// Final state check: archetype entity ownership matches model.
 	for eid, expectedArch := range model {
-		row, exists := expectedArch.rows.get(eid.Index())
+		row, exists := expectedArch.rows.get(eid.index())
 		assert.True(t, exists, "entity %d should exist in model's archetype", eid)
 
 		if exists {
@@ -255,11 +255,11 @@ func TestArchetype_MoveExhaustive(t *testing.T) {
 		src.moveEntity(dst, eid)
 
 		// Property: entity no longer exists in source.
-		_, exists := src.rows.get(eid.Index())
+		_, exists := src.rows.get(eid.index())
 		assert.False(t, exists, "entity %d should not exist in source after move", eid)
 
 		// Property: entity exists in destination and bijection holds.
-		dstRow, exists := dst.rows.get(eid.Index())
+		dstRow, exists := dst.rows.get(eid.index())
 		assert.True(t, exists, "entity %d should exist in destination after move", eid)
 		assert.Equal(t, eid, dst.entities[dstRow], "bijection broken: dst.entities[%d] != %d", dstRow, eid)
 
@@ -271,14 +271,14 @@ func TestArchetype_MoveExhaustive(t *testing.T) {
 
 		// Property: bijection holds for all remaining entities in source.
 		for i, e := range src.entities {
-			r, ok := src.rows.get(e.Index())
+			r, ok := src.rows.get(e.index())
 			assert.True(t, ok, "entity %d should exist in source rows", e)
 			assert.Equal(t, i, r, "bijection broken in source: rows[%d] = %d, expected %d", e, r, i)
 		}
 
 		// Property: bijection holds for all entities in destination.
 		for i, e := range dst.entities {
-			r, ok := dst.rows.get(e.Index())
+			r, ok := dst.rows.get(e.index())
 			assert.True(t, ok, "entity %d should exist in destination rows", e)
 			assert.Equal(t, i, r, "bijection broken in destination: rows[%d] = %d, expected %d", e, r, i)
 		}

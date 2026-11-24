@@ -243,12 +243,12 @@ func benchmarkEntityIteration[T any](b *testing.B) {
 	b.ReportAllocs()
 
 	for b.Loop() {
-		var sum uint32
-		for id := range entities.Iter() {
-			sum += id.ID().Index()
+		count := 0
+		for range entities.Iter() {
+			count++
 		}
 
-		if sum != 4950 {
+		if count != 100 {
 			b.Fatal("iteration missed an entity")
 		}
 	}

@@ -23,12 +23,12 @@ func newEntityID(index, generation uint32) EntityID {
 	return EntityID(generation)<<32 | EntityID(index)
 }
 
-// Index returns the entity's index in the entity table. A destroyed entity's index is reused by a
+// index returns the entity's index in the entity table. A destroyed entity's index is reused by a
 // later one.
-func (e EntityID) Index() uint32 { return uint32(e) } //nolint:gosec // the low 32 bits are the index
+func (e EntityID) index() uint32 { return uint32(e) } //nolint:gosec // the low 32 bits are the index
 
-// Generation returns how many times the entity's index had been reused, plus one, when it was created.
-func (e EntityID) Generation() uint32 { return uint32(e >> 32) }
+// generation returns how many times the entity's index had been reused, plus one, when it was created.
+func (e EntityID) generation() uint32 { return uint32(e >> 32) }
 
 // maxEntityIndex is the largest index an entity can have.
 const maxEntityIndex = math.MaxUint32 - 1
@@ -108,13 +108,13 @@ func (ws *worldState) invalidateArchetypes() {
 // archetypeOf returns the archetype of a live entity. It returns false for a destroyed entity and
 // for an ID whose generation is not its index's current one.
 func (ws *worldState) archetypeOf(eid EntityID) (archetypeID, bool) {
-	index := eid.Index()
+	index := eid.index()
 	if int(index) >= len(ws.entityArch) {
 		return 0, false
 	}
 
 	record := ws.entityArch[index]
-	if record.archetype == noArchetype || record.generation != eid.Generation() {
+	if record.archetype == noArchetype || record.generation != eid.generation() {
 		return 0, false
 	}
 
@@ -188,12 +188,12 @@ func (ws *worldState) removeEntity(eid EntityID) bool {
 
 	// Advance the generation so this ID no longer resolves. An index whose generation wraps is
 	// retired rather than freed.
-	record := &ws.entityArch[eid.Index()]
+	record := &ws.entityArch[eid.index()]
 	record.archetype = noArchetype
 	record.generation++
 
 	if record.generation != retiredGeneration {
-		ws.pushFree(eid.Index())
+		ws.pushFree(eid.index())
 	}
 
 	return true
@@ -260,7 +260,7 @@ func (ws *worldState) moveEntity(eid EntityID, newComponents bitmap.Bitmap) {
 	oldArchetype.moveEntity(newArchetype, eid)
 
 	// Update the archetype mapping.
-	ws.setArchetype(eid.Index(), newAid)
+	ws.setArchetype(eid.index(), newAid)
 }
 
 // findOrCreateArchetype finds an existing archetype that matches the given components or creates a
@@ -326,7 +326,7 @@ func (ws *worldState) setComponent[T Component](eid EntityID, component T) error
 	column, ok := archetype.columns[index].(*column[T])
 	assert.That(ok, "unexpected column type")
 
-	row, exists := archetype.rows.get(eid.Index())
+	row, exists := archetype.rows.get(eid.index())
 	assert.That(exists, "entity should have a row in its archetype")
 	column.set(row, component)
 
@@ -362,7 +362,7 @@ func (ws *worldState) getComponent[T Component](eid EntityID) (T, error) {
 		return zero, eris.Wrapf(ErrComponentNotFound, "component %s is registered with a different type", zero.Name())
 	}
 
-	row, exists := archetype.rows.get(eid.Index())
+	row, exists := archetype.rows.get(eid.index())
 	assert.That(exists, "entity should have a row in its archetype")
 
 	return column.get(row), nil
@@ -427,7 +427,7 @@ func (ws *worldState) toProto() (*cardinalv1.WorldState, error) {
 		eid := newEntityID(uint32(index), record.generation)
 		arch := ws.archetypes[record.archetype]
 
-		row, ok := arch.rows.get(eid.Index())
+		row, ok := arch.rows.get(eid.index())
 		if !ok {
 			panic(fmt.Sprintf("snapshot: entity %d has an archetype but no row", eid))
 		}
@@ -523,7 +523,7 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 	for _, ent := range pb.GetEntities() {
 		eid := EntityID(ent.GetId())
 
-		index := int64(eid.Index())
+		index := int64(eid.index())
 		if index <= prev {
 			return eris.Errorf("snapshot entities not strictly ascending at index %d", index)
 		}
@@ -566,14 +566,14 @@ func freeIndices(entityArch []entityRecord, capacity int64) []uint32 {
 func (ws *worldState) restoreEntity(
 	eid EntityID, ent *cardinalv1.Entity, table []string, tableCIDs []ComponentID,
 ) error {
-	generation := ws.entityArch[eid.Index()].generation
+	generation := ws.entityArch[eid.index()].generation
 	if generation == retiredGeneration {
-		return eris.Errorf("snapshot entity %d is at retired index %d", eid, eid.Index())
+		return eris.Errorf("snapshot entity %d is at retired index %d", eid, eid.index())
 	}
 
-	if eid.Generation() != generation {
+	if eid.generation() != generation {
 		return eris.Errorf("snapshot entity %d has generation %d, but index %d has generation %d",
-			eid, eid.Generation(), eid.Index(), generation)
+			eid, eid.generation(), eid.index(), generation)
 	}
 
 	idxs := ent.GetComponents()
@@ -608,9 +608,9 @@ func (ws *worldState) restoreEntity(
 	aid := ws.findOrCreateArchetype(comps)
 	arch := ws.archetypes[aid]
 	arch.newEntity(eid)
-	ws.setArchetype(eid.Index(), aid)
+	ws.setArchetype(eid.index(), aid)
 
-	row, ok := arch.rows.get(eid.Index())
+	row, ok := arch.rows.get(eid.index())
 	assert.That(ok, "entity was just created in this archetype")
 
 	for k, idx := range idxs {
