@@ -30,6 +30,9 @@ func (e EntityID) index() uint32 { return uint32(e) } //nolint:gosec // the low 
 // generation returns how many times the entity's index had been reused, plus one, when it was created.
 func (e EntityID) generation() uint32 { return uint32(e >> 32) }
 
+// String formats the ID as its index and generation, such as 7v1 for index 7 at generation 1.
+func (e EntityID) String() string { return fmt.Sprintf("%dv%d", e.index(), e.generation()) }
+
 // maxEntityIndex is the largest index an entity can have.
 const maxEntityIndex = math.MaxUint32 - 1
 
@@ -293,7 +296,7 @@ func (ws *worldState) findOrCreateArchetype(components bitmap.Bitmap) archetypeI
 func (ws *worldState) setComponent[T Component](eid EntityID, component T) error {
 	aid, exists := ws.archetypeOf(eid)
 	if !exists {
-		return eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
+		return eris.Wrapf(ErrEntityNotFound, "entity %v", eid)
 	}
 
 	archetype := ws.archetypes[aid]
@@ -340,7 +343,7 @@ func (ws *worldState) getComponent[T Component](eid EntityID) (T, error) {
 
 	aid, exists := ws.archetypeOf(eid)
 	if !exists {
-		return zero, eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
+		return zero, eris.Wrapf(ErrEntityNotFound, "entity %v", eid)
 	}
 
 	archetype := ws.archetypes[aid]
@@ -351,7 +354,7 @@ func (ws *worldState) getComponent[T Component](eid EntityID) (T, error) {
 	}
 
 	if !archetype.components.Contains(cid) {
-		return zero, eris.Errorf("entity %d doesn't contain component %s", eid, zero.Name())
+		return zero, eris.Errorf("entity %v doesn't contain component %s", eid, zero.Name())
 	}
 
 	// Get the column from the archetype directly.
@@ -375,7 +378,7 @@ func (ws *worldState) removeComponent[T Component](eid EntityID) error {
 
 	aid, exists := ws.archetypeOf(eid)
 	if !exists {
-		return eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
+		return eris.Wrapf(ErrEntityNotFound, "entity %v", eid)
 	}
 
 	archetype := ws.archetypes[aid]
@@ -429,7 +432,7 @@ func (ws *worldState) toProto() (*cardinalv1.WorldState, error) {
 
 		row, ok := arch.rows.get(eid.index())
 		if !ok {
-			panic(fmt.Sprintf("snapshot: entity %d has an archetype but no row", eid))
+			panic(fmt.Sprintf("snapshot: entity %v has an archetype but no row", eid))
 		}
 
 		entity := &cardinalv1.Entity{Id: uint64(eid)}
@@ -441,7 +444,7 @@ func (ws *worldState) toProto() (*cardinalv1.WorldState, error) {
 		for _, col := range arch.columns {
 			payload, err := col.encode(row)
 			if err != nil {
-				return nil, eris.Wrapf(err, "failed to snapshot entity %d", eid)
+				return nil, eris.Wrapf(err, "failed to snapshot entity %v", eid)
 			}
 
 			entity.Payloads = append(entity.Payloads, payload)
@@ -568,11 +571,11 @@ func (ws *worldState) restoreEntity(
 ) error {
 	generation := ws.entityArch[eid.index()].generation
 	if generation == retiredGeneration {
-		return eris.Errorf("snapshot entity %d is at retired index %d", eid, eid.index())
+		return eris.Errorf("snapshot entity %v is at retired index %d", eid, eid.index())
 	}
 
 	if eid.generation() != generation {
-		return eris.Errorf("snapshot entity %d has generation %d, but index %d has generation %d",
+		return eris.Errorf("snapshot entity %v has generation %d, but index %d has generation %d",
 			eid, eid.generation(), eid.index(), generation)
 	}
 
@@ -580,7 +583,7 @@ func (ws *worldState) restoreEntity(
 
 	payloads := ent.GetPayloads()
 	if len(idxs) != len(payloads) {
-		return eris.Errorf("snapshot entity %d has %d component indices but %d payloads",
+		return eris.Errorf("snapshot entity %v has %d component indices but %d payloads",
 			eid, len(idxs), len(payloads))
 	}
 
@@ -589,15 +592,15 @@ func (ws *worldState) restoreEntity(
 	last := int64(-1)
 	for _, idx := range idxs {
 		if int64(idx) <= last {
-			return eris.Errorf("snapshot entity %d component indices not strictly ascending", eid)
+			return eris.Errorf("snapshot entity %v component indices not strictly ascending", eid)
 		}
 
 		if int(idx) >= len(tableCIDs) {
-			return eris.Errorf("snapshot entity %d component index %d outside the name table", eid, idx)
+			return eris.Errorf("snapshot entity %v component index %d outside the name table", eid, idx)
 		}
 
 		if tableCIDs[idx] == invalidComponentID {
-			return eris.Errorf("snapshot entity %d holds component %q, which this build does not register",
+			return eris.Errorf("snapshot entity %v holds component %q, which this build does not register",
 				eid, table[idx])
 		}
 
@@ -618,7 +621,7 @@ func (ws *worldState) restoreEntity(
 
 		col := arch.columns[arch.components.CountTo(cid)]
 		if err := col.decode(row, payloads[k]); err != nil {
-			return eris.Wrapf(err, "failed to restore entity %d", eid)
+			return eris.Wrapf(err, "failed to restore entity %v", eid)
 		}
 	}
 

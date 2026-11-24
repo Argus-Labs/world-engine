@@ -81,7 +81,7 @@ func (rt *Runtime) cloneSortAndCheckDuplicateReconcileEntries(
 
 	for i := 1; i < len(sorted); i++ {
 		if sorted[i].EntityID == sorted[i-1].EntityID {
-			return nil, fmt.Errorf("physics2d: duplicate entity_id %d in reconcile entries", sorted[i].EntityID)
+			return nil, fmt.Errorf("physics2d: duplicate entity_id %v in reconcile entries", sorted[i].EntityID)
 		}
 	}
 
@@ -134,7 +134,7 @@ func sortedEntriesContainID(sorted []PhysicsRebuildEntry, id cardinal.EntityID) 
 // reconcileOneEntry creates a body if missing, no-ops if shadow matches live ECS, else patches the existing body.
 func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
 	if e.PhysicsBody.Shapes.Len() == 0 {
-		return fmt.Errorf("physics2d: entity %d: collider has no shapes", e.EntityID)
+		return fmt.Errorf("physics2d: entity %v: collider has no shapes", e.EntityID)
 	}
 
 	prev, hadPrev := rt.Shadow[e.EntityID]
@@ -142,7 +142,7 @@ func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
 	_, hadBody := rt.KnownEntities[e.EntityID]
 	if !hadBody {
 		if err := rt.createBodyForEntry(e); err != nil {
-			return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
+			return fmt.Errorf("physics2d: entity %v: %w", e.EntityID, err)
 		}
 
 		return nil
@@ -153,7 +153,7 @@ func (rt *Runtime) reconcileOneEntry(e PhysicsRebuildEntry) error {
 	}
 
 	if err := rt.reconcileExistingBody(hadPrev, prev, e); err != nil {
-		return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
+		return fmt.Errorf("physics2d: entity %v: %w", e.EntityID, err)
 	}
 
 	rt.Shadow[e.EntityID] = NewShadowState(e.Transform, e.Velocity, e.PhysicsBody)
@@ -286,15 +286,15 @@ func (rt *Runtime) reconcileShapesChange(
 // validatePhysicsRebuildEntry runs component Validate on each field for an existing-body update path.
 func validatePhysicsRebuildEntry(e PhysicsRebuildEntry) error {
 	if err := e.Transform.Validate(); err != nil {
-		return fmt.Errorf("physics2d: entity %d transform: %w", e.EntityID, err)
+		return fmt.Errorf("physics2d: entity %v transform: %w", e.EntityID, err)
 	}
 
 	if err := e.Velocity.Validate(); err != nil {
-		return fmt.Errorf("physics2d: entity %d velocity: %w", e.EntityID, err)
+		return fmt.Errorf("physics2d: entity %v velocity: %w", e.EntityID, err)
 	}
 
 	if err := e.PhysicsBody.Validate(); err != nil {
-		return fmt.Errorf("physics2d: entity %d physics_body: %w", e.EntityID, err)
+		return fmt.Errorf("physics2d: entity %v physics_body: %w", e.EntityID, err)
 	}
 
 	return nil

@@ -240,8 +240,8 @@ func TestReconcileContinuesPastMultipleErrors(t *testing.T) {
 
 	// The aggregate error must mention both failed entities (colon-delimited so the
 	// assertion cannot also pass for entity 10 / 30).
-	require.Contains(t, err.Error(), "entity 1:", "error should mention entity 1: %v", err)
-	require.Contains(t, err.Error(), "entity 3:", "error should mention entity 3: %v", err)
+	require.Contains(t, err.Error(), "entity 1v0:", "error should mention entity 1: %v", err)
+	require.Contains(t, err.Error(), "entity 3v0:", "error should mention entity 3: %v", err)
 }
 
 // TestReconcileCreatePathErrorIncludesEntityID verifies that a create-path failure (a new entity
@@ -495,7 +495,7 @@ func TestReconcileFailedRetainedOnDuplicateIDReturn(t *testing.T) {
 			PhysicsBody: boxBody()},
 	})
 	require.Error(t, dupErr, "duplicate IDs should be rejected")
-	require.Contains(t, dupErr.Error(), "duplicate entity_id 1")
+	require.Contains(t, dupErr.Error(), "duplicate entity_id 1v0")
 
 	_, failedAfter := rt.reconcileFailed[cardinal.EntityID(1)]
 	require.True(t, failedAfter, "entity 1 should remain in reconcileFailed after the duplicate-ID return")

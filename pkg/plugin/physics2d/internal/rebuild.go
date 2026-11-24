@@ -43,7 +43,7 @@ func (rt *Runtime) FullRebuildFromECS(gravity component.Vec2, entries []PhysicsR
 
 	for i := 1; i < len(sorted); i++ {
 		if sorted[i].EntityID == sorted[i-1].EntityID {
-			return fmt.Errorf("physics2d: duplicate entity_id %d in rebuild entries", sorted[i].EntityID)
+			return fmt.Errorf("physics2d: duplicate entity_id %v in rebuild entries", sorted[i].EntityID)
 		}
 	}
 
@@ -109,7 +109,7 @@ func (rt *Runtime) FullRebuildFromECS(gravity component.Vec2, entries []PhysicsR
 			clear(newKnown)
 			clear(newShadow)
 
-			return fmt.Errorf("physics2d: entity %d: %w", e.EntityID, err)
+			return fmt.Errorf("physics2d: entity %v: %w", e.EntityID, err)
 		}
 
 		newKnown[e.EntityID] = struct{}{}

@@ -445,6 +445,13 @@ func randEntityID(prng *rand.Rand, ws *worldState) EntityID {
 // -------------------------------------------------------------------------------------------------
 
 // Freed indices are reused smallest first, each with its generation advanced.
+func TestEntityID_String(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "7v1", newEntityID(7, firstGeneration).String())
+	assert.Equal(t, "0v0", EntityID(0).String())
+}
+
 func TestWorldState_EntityID_Reuse(t *testing.T) {
 	t.Parallel()
 
