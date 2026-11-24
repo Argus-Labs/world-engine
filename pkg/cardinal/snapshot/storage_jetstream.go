@@ -17,13 +17,18 @@ const defaultObjectName = "snapshot"
 
 // JetStreamStorage implements SnapshotStorage using NATS JetStream ObjectStore.
 type JetStreamStorage struct {
-	os jetstream.ObjectStore
+	client *micro.Client // Connection owned by this storage
+	os     jetstream.ObjectStore
 }
 
-var _ Storage = (*JetStreamStorage)(nil)
+var (
+	_ Storage   = (*JetStreamStorage)(nil)
+	_ io.Closer = (*JetStreamStorage)(nil)
+)
 
 // NewJetStreamStorage creates a new JetStream ObjectStore-based snapshot storage.
 // It creates its own NATS client using the default configuration from environment variables.
+// Call Close to release that connection.
 func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, eris.Wrap(err, "invalid options passed")
@@ -45,6 +50,17 @@ func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error
 		return nil, eris.Wrap(err, "failed to create micro client")
 	}
 
+	os, err := openObjectStore(client, opts)
+	if err != nil {
+		client.Close()
+		return nil, err
+	}
+
+	return &JetStreamStorage{client: client, os: os}, nil
+}
+
+// openObjectStore creates the shard's snapshot bucket, or opens it if it already exists.
+func openObjectStore(client *micro.Client, opts JetStreamStorageOptions) (jetstream.ObjectStore, error) {
 	js, err := jetstream.New(client.Conn)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to create JetStream client")
@@ -78,7 +94,7 @@ func NewJetStreamStorage(opts JetStreamStorageOptions) (*JetStreamStorage, error
 		}
 	}
 
-	return &JetStreamStorage{os: os}, nil
+	return os, nil
 }
 
 // Store writes the snapshot bytes to the ObjectStore, overwriting the previous snapshot.
@@ -110,6 +126,12 @@ func (j *JetStreamStorage) Load(ctx context.Context) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// Close closes the storage's NATS connection. Call it after the last Store or Load.
+func (j *JetStreamStorage) Close() error {
+	j.client.Close()
+	return nil
 }
 
 // -------------------------------------------------------------------------------------------------

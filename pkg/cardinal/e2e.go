@@ -192,6 +192,9 @@ func newE2EFixture(t *testing.T, setup E2ESetupFunc) *e2eFixture {
 	w := setup()
 	require.NotNil(t, w, "e2e setup returned nil world")
 
+	// Runs after the run loop and service stop, and before the NATS server shuts down.
+	t.Cleanup(w.closeSnapshotStorage)
+
 	if w.options.NATSConfig == nil {
 		w.options.NATSConfig = &micro.NATSConfig{Name: "e2e-service", URL: natsURL}
 	} else {

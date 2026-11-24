@@ -38,6 +38,9 @@ func ValidateVersion(version uint32) error {
 // Storage persists shard snapshots as opaque bytes.
 //
 // The bytes are a fully encoded Snapshot envelope. Storage never decodes them.
+//
+// A Storage that holds resources, such as a connection, also implements [io.Closer]. Cardinal
+// closes it during shutdown, after the last Store.
 type Storage interface {
 	// Store saves the snapshot bytes, atomically replacing any existing snapshot. The tick is
 	// metadata for logging and keys; the bytes are the record.
