@@ -169,12 +169,12 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 	}
 
 	// Property: every entity in the entity table maps to a valid archetype that contains that entity.
-	for index, slot := range impl.slots {
-		if slot.archetype == noArchetype {
+	for index, record := range impl.entityArch {
+		if record.archetype == noArchetype {
 			continue
 		}
 
-		eid := newEntityID(uint32(index), slot.generation)
+		eid := newEntityID(uint32(index), record.generation)
 
 		aid, exists := impl.archetypeOf(eid)
 		assert.True(t, exists, "entity %d in entities but not in the entity table", eid)
@@ -329,7 +329,7 @@ func TestWorldState_EntityFuzz(t *testing.T) {
 	weights := testutils.RandOpWeights(prng, operations)
 
 	impl := newTestWorldState(t)
-	prevSlots := len(impl.slots)
+	prevLen := len(impl.entityArch)
 
 	for range opsMax {
 		op := testutils.RandWeightedOp(prng, weights)
@@ -338,7 +338,7 @@ func TestWorldState_EntityFuzz(t *testing.T) {
 			impl.newEntity()
 
 		case opRemove:
-			if len(impl.slots) == 0 {
+			if len(impl.entityArch) == 0 {
 				continue
 			}
 
@@ -349,8 +349,8 @@ func TestWorldState_EntityFuzz(t *testing.T) {
 		}
 
 		// Property: the entity table never shrinks.
-		assert.GreaterOrEqual(t, len(impl.slots), prevSlots, "entity table shrank")
-		prevSlots = len(impl.slots)
+		assert.GreaterOrEqual(t, len(impl.entityArch), prevLen, "entity table shrank")
+		prevLen = len(impl.entityArch)
 	}
 
 	assertEntityIDInvariants(t, impl)
@@ -402,7 +402,7 @@ func TestWorldState_EntityFuzzConcurrent(t *testing.T) {
 					var eid EntityID
 
 					ws.mu.Lock()
-					if len(ws.slots) > 0 {
+					if len(ws.entityArch) > 0 {
 						eid = randEntityID(prng, ws)
 					}
 					ws.mu.Unlock()
@@ -430,8 +430,8 @@ func TestWorldState_EntityFuzzConcurrent(t *testing.T) {
 // randEntityID returns an ID at a random index in the entity table. Usually it carries the index's
 // current generation, and otherwise a nearby one, which is stale or not yet issued.
 func randEntityID(prng *rand.Rand, ws *worldState) EntityID {
-	index := uint32(prng.IntN(len(ws.slots)))
-	generation := ws.slots[index].generation
+	index := uint32(prng.IntN(len(ws.entityArch)))
+	generation := ws.entityArch[index].generation
 
 	if prng.Float64() < 0.2 {
 		generation += uint32(prng.IntN(3)) - 1
@@ -447,16 +447,16 @@ func assertEntityIDInvariants(t *testing.T, ws *worldState) {
 
 	// Property: live and free are disjoint, and free indices are within the table and not retired.
 	for _, index := range ws.free {
-		require.Less(t, int(index), len(ws.slots), "free index %d beyond the entity table", index)
-		assert.Equal(t, int32(noArchetype), ws.slots[index].archetype, "index %d is both live and free", index)
-		assert.NotEqual(t, uint32(retiredGeneration), ws.slots[index].generation,
+		require.Less(t, int(index), len(ws.entityArch), "free index %d beyond the entity table", index)
+		assert.Equal(t, int32(noArchetype), ws.entityArch[index].archetype, "index %d is both live and free", index)
+		assert.NotEqual(t, uint32(retiredGeneration), ws.entityArch[index].generation,
 			"index %d is both free and retired", index)
 	}
 
-	// Property: every live entity's slot holds a live generation.
-	for index, slot := range ws.slots {
-		if slot.archetype != noArchetype {
-			assert.NotEqual(t, uint32(retiredGeneration), slot.generation, "live index %d is retired", index)
+	// Property: every live entity's record holds a live generation.
+	for index, record := range ws.entityArch {
+		if record.archetype != noArchetype {
+			assert.NotEqual(t, uint32(retiredGeneration), record.generation, "live index %d is retired", index)
 		}
 	}
 
@@ -540,11 +540,11 @@ func TestWorldState_EntityID_RetiredOnWrap(t *testing.T) {
 	ws := newTestWorldState(t)
 
 	e := ws.newEntity()
-	ws.slots[e.Index()].generation = math.MaxUint32 // As if the index had been reused 2^32-2 times.
+	ws.entityArch[e.Index()].generation = math.MaxUint32 // As if the index had been reused 2^32-2 times.
 	e = newEntityID(e.Index(), math.MaxUint32)
 
 	require.True(t, ws.removeEntity(e))
-	assert.Equal(t, uint32(retiredGeneration), ws.slots[e.Index()].generation)
+	assert.Equal(t, uint32(retiredGeneration), ws.entityArch[e.Index()].generation)
 	assert.Empty(t, ws.free, "a retired index is not freed")
 
 	next := ws.newEntity()
@@ -720,9 +720,9 @@ func assertWorldStateEqual(t *testing.T, ws1, ws2 *worldState) {
 
 // generationsOf returns the generation of every index in the entity table.
 func generationsOf(ws *worldState) []uint32 {
-	out := make([]uint32, len(ws.slots))
-	for index, slot := range ws.slots {
-		out[index] = slot.generation
+	out := make([]uint32, len(ws.entityArch))
+	for index, record := range ws.entityArch {
+		out[index] = record.generation
 	}
 
 	return out
@@ -1076,7 +1076,7 @@ func TestSnapshotWireRejectsBadInput(t *testing.T) {
 
 			_, live := ws.archetypeOf(e)
 			assert.True(t, live, "a refused restore must leave the world untouched")
-			assert.Len(t, ws.slots, 1)
+			assert.Len(t, ws.entityArch, 1)
 		})
 	}
 }
@@ -1134,7 +1134,7 @@ func TestWorldState_ToProtoEncodeFailure(t *testing.T) {
 	pos, err := ws.getComponent[wirePos](good)
 	require.NoError(t, err)
 	assert.Equal(t, wirePos{X: 7}, pos)
-	assert.Len(t, ws.slots, 2)
+	assert.Len(t, ws.entityArch, 2)
 }
 
 type nestedPayload struct {

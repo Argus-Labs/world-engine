@@ -202,12 +202,12 @@ func benchmarkDestroyCreate1024(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; b.Loop(); i++ {
-		slot := i % len(live)
-		if !live[slot].Destroy() {
+		index := i % len(live)
+		if !live[index].Destroy() {
 			b.Fatal("entity was not destroyed")
 		}
 
-		live[slot] = entities.Create()
+		live[index] = entities.Create()
 	}
 }
 

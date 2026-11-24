@@ -12,7 +12,7 @@ World
 │   ├── Component Registry (map[string]ComponentTypeID)
 │   └── Column Factory ([]func() any)
 │
-├── Entity Table ([]entitySlot, one per index: archetype + generation)
+├── Entity Table ([]entityRecord, one per index: archetype + generation)
 │   └── Free Indices ([]uint32, min-heap)
 │
 └── Archetypes ([]archetype)

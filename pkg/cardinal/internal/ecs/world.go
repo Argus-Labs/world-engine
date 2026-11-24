@@ -97,12 +97,12 @@ func (w *World) LiveEntityIDs() []EntityID {
 
 	ids := make([]EntityID, 0)
 
-	for index, slot := range w.state.slots {
-		if slot.archetype == noArchetype {
+	for index, record := range w.state.entityArch {
+		if record.archetype == noArchetype {
 			continue
 		}
 
-		ids = append(ids, newEntityID(uint32(index), slot.generation))
+		ids = append(ids, newEntityID(uint32(index), record.generation))
 	}
 
 	return ids
@@ -219,31 +219,31 @@ func (w *World) CheckWorld(t *testing.T) {
 
 	// Invariant: the entity table matches archetype membership, including the generation.
 	for eid, expectedAid := range liveEntities {
-		require.Less(t, int(eid.Index()), len(ws.slots), "entity %d index beyond the entity table", eid)
-		slot := ws.slots[eid.Index()]
-		require.Equal(t, expectedAid, int(slot.archetype),
-			"entity %d: entity table archetype=%d but in archetype %d", eid, slot.archetype, expectedAid)
-		require.Equal(t, slot.generation, eid.Generation(),
-			"entity %d: entity table generation=%d", eid, slot.generation)
+		require.Less(t, int(eid.Index()), len(ws.entityArch), "entity %d index beyond the entity table", eid)
+		record := ws.entityArch[eid.Index()]
+		require.Equal(t, expectedAid, int(record.archetype),
+			"entity %d: entity table archetype=%d but in archetype %d", eid, record.archetype, expectedAid)
+		require.Equal(t, record.generation, eid.Generation(),
+			"entity %d: entity table generation=%d", eid, record.generation)
 		require.NotEqual(t, uint32(retiredGeneration), eid.Generation(), "entity %d has the retired generation", eid)
 	}
 
-	// Invariant: every occupied slot in the entity table corresponds to a live entity.
+	// Invariant: every occupied entry in the entity table corresponds to a live entity.
 	retired := 0
 
-	for index, slot := range ws.slots {
-		if slot.archetype == noArchetype {
-			if slot.generation == retiredGeneration {
+	for index, record := range ws.entityArch {
+		if record.archetype == noArchetype {
+			if record.generation == retiredGeneration {
 				retired++
 			}
 
 			continue
 		}
 
-		eid := newEntityID(uint32(index), slot.generation)
+		eid := newEntityID(uint32(index), record.generation)
 		_, exists := liveEntities[eid]
 		require.True(t, exists,
-			"entity table has entity %d -> archetype %d but entity not in any archetype", eid, slot.archetype)
+			"entity table has entity %d -> archetype %d but entity not in any archetype", eid, record.archetype)
 	}
 
 	// Invariant: free list has no duplicates, and every free index is unoccupied and not retired.
@@ -253,14 +253,14 @@ func (w *World) CheckWorld(t *testing.T) {
 		require.False(t, dup, "duplicate free index %d", index)
 		freeSeen[index] = struct{}{}
 
-		require.Less(t, int(index), len(ws.slots), "free index %d beyond the entity table", index)
-		slot := ws.slots[index]
-		require.Equal(t, int32(noArchetype), slot.archetype, "index %d is both free and live", index)
-		require.NotEqual(t, uint32(retiredGeneration), slot.generation, "index %d is both free and retired", index)
+		require.Less(t, int(index), len(ws.entityArch), "free index %d beyond the entity table", index)
+		record := ws.entityArch[index]
+		require.Equal(t, int32(noArchetype), record.archetype, "index %d is both free and live", index)
+		require.NotEqual(t, uint32(retiredGeneration), record.generation, "index %d is both free and retired", index)
 	}
 
 	// Invariant: every index is live, free, or retired (no gaps).
-	require.Len(t, ws.slots, len(liveEntities)+len(ws.free)+retired,
-		"entity table has %d slots but live=%d + free=%d + retired=%d",
-		len(ws.slots), len(liveEntities), len(ws.free), retired)
+	require.Len(t, ws.entityArch, len(liveEntities)+len(ws.free)+retired,
+		"entity table has %d entries but live=%d + free=%d + retired=%d",
+		len(ws.entityArch), len(liveEntities), len(ws.free), retired)
 }
