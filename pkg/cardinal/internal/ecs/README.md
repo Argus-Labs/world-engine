@@ -40,6 +40,8 @@ World
    - Destroying an entity advances its index's generation. An ID kept past that point resolves as
      not found, like a destroyed entity, even after a new entity reuses the index
    - Generations start at 1, so the zero ID is never valid
+   - At most 2^32 - 1 indices (0 to `maxEntityIndex`), the same limit as before generations.
+     A retired index still counts against it
    - Freed indices are reused smallest first (a min-heap), so IDs depend only on the operations, not
      on the order entities were freed. Replays and restores produce the same IDs
    - An index whose generation would wrap to zero is retired, never reused, so an old ID
