@@ -115,6 +115,7 @@ func (r *Runner) Register(hooks Hooks) {
 	if hooks.Name == "" {
 		panic("cardinal: hooks need the name of who registers them")
 	}
+
 	label := func(hook string) string { return hooks.Name + "'s " + hook + " hook" }
 	r.registrants = append(r.registrants, registrant{
 		Hooks: hooks,
@@ -128,6 +129,7 @@ func (r *Runner) Begin() {
 	if r == nil {
 		return
 	}
+
 	for i := range r.registrants {
 		if g := &r.registrants[i]; g.Begin != nil {
 			r.run(g.begin, g.Begin)
@@ -141,15 +143,18 @@ func (r *Runner) Admit(cmd command.Command) Verdict {
 	if r == nil {
 		return Verdict{}
 	}
+
 	for i := range r.registrants {
 		g := &r.registrants[i]
 		if g.Admit == nil {
 			continue
 		}
+
 		if verdict := r.admit(g, cmd); verdict.Outcome != Admitted {
 			return verdict
 		}
 	}
+
 	return Verdict{}
 }
 
@@ -162,14 +167,17 @@ func (r *Runner) Emit(kind EmitKind, payload any, recipient string) event.Audien
 	// A hook holds a pointer to r.emit for the length of its call. Putting the outer event back
 	// keeps that true when a hook sends an event of its own.
 	outer := r.emit
+
 	r.emit = Emit{Kind: kind, Payload: payload, Recipient: recipient}
 	for i := range r.registrants {
 		if g := &r.registrants[i]; g.Emit != nil {
 			r.emitTo(g)
 		}
 	}
+
 	audience := r.emit.audience
 	r.emit = outer
+
 	return audience
 }
 
@@ -178,6 +186,7 @@ func (r *Runner) Commit() {
 	if r == nil {
 		return
 	}
+
 	for i := range r.registrants {
 		if g := &r.registrants[i]; g.Commit != nil {
 			r.run(g.commit, g.Commit)
@@ -190,6 +199,7 @@ func (r *Runner) Settle() {
 	if r == nil {
 		return
 	}
+
 	for i := range r.registrants {
 		if g := &r.registrants[i]; g.Settle != nil {
 			r.run(g.settle, g.Settle)
@@ -199,6 +209,7 @@ func (r *Runner) Settle() {
 
 func (r *Runner) run(hook string, fn func()) {
 	defer r.leave(hook, r.world.ReadOnly(hook))
+
 	fn()
 }
 
@@ -209,6 +220,7 @@ func (r *Runner) admit(g *registrant, cmd command.Command) Verdict {
 
 func (r *Runner) emitTo(g *registrant) {
 	defer r.leave(g.emit, r.world.ReadOnly(g.emit))
+
 	g.Emit(&r.emit)
 }
 
@@ -216,10 +228,12 @@ func (r *Runner) emitTo(g *registrant) {
 // turns the hook's panic, if it had one, into a PanicError that names the hook.
 func (r *Runner) leave(hook, previous string) {
 	r.world.ReadOnly(previous)
+
 	if value := recover(); value != nil {
 		if _, named := value.(*PanicError); !named {
 			value = &PanicError{Hook: hook, Value: value}
 		}
+
 		panic(value)
 	}
 }

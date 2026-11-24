@@ -223,16 +223,20 @@ func (w *World) admitCommands() {
 	if w.hooks == nil {
 		return
 	}
+
 	type rejection struct {
 		cmd     command.Command
 		verdict plugin.Verdict
 	}
+
 	var rejected []rejection
+
 	w.commands.Retain(func(cmd command.Command) bool {
 		verdict := w.hooks.Admit(cmd)
 		if verdict.Outcome == plugin.Rejected {
 			rejected = append(rejected, rejection{cmd, verdict})
 		}
+
 		return verdict.Outcome == plugin.Admitted
 	})
 	// Reply only once every command is judged: sending publishes pending changes first.
@@ -241,8 +245,10 @@ func (w *World) admitCommands() {
 			w.SendTo(player, syncstate.CommandRejected{
 				Command: r.cmd.Name, Reason: syncstate.Reason(r.verdict.Reason), CommandID: r.verdict.CommandID,
 			})
+
 			continue
 		}
+
 		w.tel.Logger.Warn().Str("command", r.cmd.Name).Str("sender", r.cmd.Sender.ID()).
 			Str("reason", r.verdict.Reason).Msg("rejected a command from another shard")
 	}

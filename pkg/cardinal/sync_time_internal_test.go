@@ -21,6 +21,7 @@ func syncSeenOf(at int64, f syncstate.Frame) syncSeen {
 	if f.Open != nil {
 		seen.heartbeat = f.Open.Heartbeat
 	}
+
 	return seen
 }
 
@@ -31,6 +32,7 @@ func syncKind(f syncstate.Frame) string {
 	case emptyDelta(f):
 		return "empty"
 	}
+
 	return "delta"
 }
 
@@ -44,8 +46,12 @@ func TestSyncTimesAddUpToEachFrameTick(t *testing.T) {
 	e := w.Create[syncAvatar]()
 	start := time.UnixMilli(1_762_950_000_123).Add(456 * time.Microsecond) // milliseconds are whole
 	startMs := uint64(start.UnixMilli())
-	var seen []syncSeen
-	var sum uint64
+
+	var (
+		seen []syncSeen
+		sum  uint64
+	)
+
 	for at := int64(0); at <= 2300; at += 50 {
 		switch at {
 		case 50:
@@ -61,17 +67,21 @@ func TestSyncTimesAddUpToEachFrameTick(t *testing.T) {
 		case 1250:
 			e.Set(syncHealth{HP: 4})
 		}
+
 		tick := start.Add(time.Duration(at) * time.Millisecond)
 		w.World.Tick(tick)
+
 		for _, f := range syncFrames(t, sub) {
 			if f.Open != nil {
 				sum = 0
 			}
+
 			sum += f.Time
 			require.Equal(t, uint64(tick.UnixMilli()), sum, "frame %d at %d ms", f.Sequence, at)
 			seen = append(seen, syncSeenOf(at, f))
 		}
 	}
+
 	require.Equal(t, []syncSeen{
 		{0, "baseline", startMs, 1000},
 		{50, "delta", 50, 0},
@@ -95,17 +105,23 @@ func TestSyncHeartbeatEveryHeartbeatOfServerTime(t *testing.T) {
 	busy := openStream(t, w.service, "bob", syncstate.EventName, "hurt")
 	e := w.Create[syncAvatar]()
 	e.Set(syncstate.Viewers{Players: players("bob")}) // alice sees nothing, so she hears nothing
+
 	start := time.UnixMilli(1_762_950_000_000)
+
 	var heard []syncSeen
+
 	hp := 0
 	tick := func(at int64) {
 		t.Helper()
+
 		hp++
 		e.Set(syncHealth{HP: hp})
 		w.World.Tick(start.Add(time.Duration(at) * time.Millisecond))
+
 		for _, f := range syncFrames(t, idle) {
 			heard = append(heard, syncSeenOf(at, f))
 		}
+
 		if busy != nil {
 			frames := syncFrames(t, busy)
 			require.Len(t, frames, 1, "bob at %d ms: one frame a tick", at)
@@ -117,15 +133,21 @@ func TestSyncHeartbeatEveryHeartbeatOfServerTime(t *testing.T) {
 	for ; at <= 3000; at += 50 { // 20 ticks a second
 		tick(at)
 	}
+
 	revoked = true // cleared at 3050 and readmitted at 3100: each baseline restarts the clock
+
 	tick(at)
+
 	revoked = false
+
 	for at += 50; at <= 4200; at += 50 {
 		tick(at)
 	}
+
 	for at = 5600; at <= 7100; at += 1500 { // slower than the heartbeat
 		tick(at)
 	}
+
 	require.Equal(t, []syncSeen{
 		{0, "baseline", 1_762_950_000_000, 1000},
 		{1000, "empty", 1000, 0},
@@ -141,11 +163,14 @@ func TestSyncHeartbeatEveryHeartbeatOfServerTime(t *testing.T) {
 	idle.cancel(nil) // still subscribed and seated, but its stream is cancelled
 	setSyncSubscribed(w.service, busy, false)
 	tick(7150) // the tick that closes bob's stream still delivers its commit, before the close
+
 	closed := busy
 	busy = nil
+
 	for at = 7200; at <= 10_000; at += 50 {
 		tick(at)
 	}
+
 	require.Len(t, heard, 9, "a cancelled stream gets no heartbeat")
 	require.Empty(t, syncFrames(t, closed), "a closed stream gets no heartbeat")
 }

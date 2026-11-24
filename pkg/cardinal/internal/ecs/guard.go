@@ -9,6 +9,7 @@ import "fmt"
 func (w *World) ReadOnly(holder string) string {
 	previous := w.state.readOnly
 	w.state.readOnly = holder
+
 	return previous
 }
 

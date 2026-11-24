@@ -213,6 +213,7 @@ func (ws *worldState) moveEntity(eid EntityID, newComponents bitmap.Bitmap) {
 
 	// Update the archetype mapping.
 	ws.entityArch.set(eid, newAid)
+
 	if len(ws.observers) != 0 {
 		oldArchetype.components.Range(func(cid uint32) {
 			if !newComponents.Contains(cid) {
@@ -256,6 +257,7 @@ func (ws *worldState) findOrCreateArchetype(components bitmap.Bitmap) archetypeI
 // it will move the entity to a new archetype and set the value there.
 func (ws *worldState) setComponent[T Component](eid EntityID, component T) error {
 	ws.guardWrite("Set")
+
 	aid, exists := ws.entityArch.get(eid)
 	if !exists {
 		return eris.Wrapf(ErrEntityNotFound, "entity %d", eid)
@@ -338,6 +340,7 @@ func (ws *worldState) getComponent[T Component](eid EntityID) (T, error) {
 // component to remove doesn't exist.
 func (ws *worldState) removeComponent[T Component](eid EntityID) error {
 	ws.guardWrite("Remove")
+
 	var zero T
 
 	aid, exists := ws.entityArch.get(eid)
@@ -429,6 +432,7 @@ const invalidComponentID ComponentID = maxComponentID + 1
 // commits it at the end. Thus a bad snapshot does not change the live world.
 func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 	ws.guardWrite("FromProto")
+
 	if pb == nil {
 		return eris.New("snapshot has no world state")
 	}
@@ -509,6 +513,7 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 	ws.invalidateArchetypes()
 	ws.nextID, ws.free, ws.entityArch, ws.archetypes = next.nextID, next.free, next.entityArch, next.archetypes
 	ws.observeRestore(pb.GetEntities())
+
 	return nil
 }
 
@@ -518,8 +523,10 @@ func (ws *worldState) observeRestore(entities []*cardinalv1.Entity) {
 	if len(ws.observers) == 0 {
 		return
 	}
+
 	ws.notify(Mutation{Kind: Reset})
 	clear(ws.incarnations)
+
 	for _, ent := range entities {
 		ws.born(EntityID(ent.GetId()))
 	}

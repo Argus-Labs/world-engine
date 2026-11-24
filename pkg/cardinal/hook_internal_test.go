@@ -30,21 +30,27 @@ func newHookWorld(t *testing.T, emit func(*plugin.Emit)) (*TestWorld, *streamSub
 		w.hooks.Register(plugin.Hooks{Name: "probe", Emit: emit})
 	})
 	w.World.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
+
 	return w, openStream(t, w.service, "alice", "hook_bench_note")
 }
 
 // An audience runs game code. The service asks it after releasing its lock, so that code can
 // take the lock itself and a slow audience does not hold up streams that subscribe or leave.
 func TestHook_AudienceIsAskedWithoutTheServiceLock(t *testing.T) {
-	var w *TestWorld
-	var lockWasFree []bool
+	var (
+		w           *TestWorld
+		lockWasFree []bool
+	)
+
 	w, sub := newHookWorld(t, func(e *plugin.Emit) {
 		e.Narrow(hookAudience(func(string) bool {
 			free := w.service.mu.TryLock()
 			if free {
 				w.service.mu.Unlock()
 			}
+
 			lockWasFree = append(lockWasFree, free)
+
 			return true
 		}))
 	})
@@ -58,6 +64,7 @@ func TestHook_AudienceIsAskedWithoutTheServiceLock(t *testing.T) {
 // Dispatch only publishes. An audience that writes to the world stops the tick, as a hook does.
 func TestHook_AudienceCannotWriteToTheWorld(t *testing.T) {
 	var w *TestWorld
+
 	w, _ = newHookWorld(t, func(e *plugin.Emit) {
 		e.Narrow(hookAudience(func(string) bool {
 			w.world.Create()
@@ -74,6 +81,7 @@ func TestHook_AudienceCannotWriteToTheWorld(t *testing.T) {
 // may not change it. The panic names the hook it ran in.
 func TestHook_SyncPredicateCannotWriteToTheWorld(t *testing.T) {
 	var w *TestWorld
+
 	w = NewTestWorld(t, func(world *World) {
 		world.RegisterComponent[syncHealth]()
 		world.RegisterComponent[syncPrivate]()
@@ -85,8 +93,10 @@ func TestHook_SyncPredicateCannotWriteToTheWorld(t *testing.T) {
 	openStream(t, w.service, "alice", syncstate.EventName)
 
 	var panicked *plugin.PanicError
+
 	func() {
 		defer func() { panicked, _ = recover().(*plugin.PanicError) }()
+
 		w.Tick()
 	}()
 
@@ -104,6 +114,7 @@ func TestHook_AudiencesNarrowTogetherWithSync(t *testing.T) {
 	avatar := f.Create[syncAvatar]()
 	avatar.Set(syncstate.Viewers{Players: players("alice", "bob")})
 	f.Tick()
+
 	for _, player := range []string{"alice", "bob", "carol"} {
 		f.received(player)
 	}

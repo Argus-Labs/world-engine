@@ -36,6 +36,7 @@ func (b *bitset) word(w int) uint64 {
 	if w < len(*b) {
 		return (*b)[w]
 	}
+
 	return 0
 }
 
@@ -47,11 +48,14 @@ func (b *bitset) put(i int, on bool) {
 		if w < len(*b) {
 			(*b)[w] &^= 1 << (i & 63)
 		}
+
 		return
 	}
+
 	for len(*b) <= w {
 		*b = append(*b, 0)
 	}
+
 	(*b)[w] |= 1 << (i & 63)
 }
 
@@ -59,6 +63,7 @@ func (b *bitset) or(o bitset) {
 	for len(*b) < len(o) {
 		*b = append(*b, 0)
 	}
+
 	for w, word := range o {
 		(*b)[w] |= word
 	}
@@ -82,7 +87,9 @@ func (s *entitySet) take() []EntityID {
 	for _, n := range out {
 		s.in.put(int(n), false)
 	}
+
 	s.list = nil
+
 	return out
 }
 
@@ -121,6 +128,7 @@ func (r *syncRoster) release() {
 		r.readers[s] = syncReader{}
 		r.free = append(r.free, s)
 	}
+
 	r.cooling = r.cooling[:0]
 }
 
@@ -148,14 +156,17 @@ func (l resolvedList) has(player string) bool {
 	if _, ok := slices.BinarySearch(l.players, player); ok {
 		return true
 	}
+
 	for _, g := range l.groups {
 		if g == nil {
 			continue
 		}
+
 		if _, ok := g.members[player]; ok {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -183,6 +194,7 @@ func (p *syncPolicy) words(w int) (uint64, uint64) {
 	if p.src[viewerList] == nil {
 		return ^uint64(0), auth // no sync.Viewers: every reader may view
 	}
+
 	return p.view.word(w) | auth, auth
 }
 
@@ -194,6 +206,7 @@ func (p *syncPolicy) access(player string) syncstate.Access {
 	case p.src[viewerList] == nil || p.lists[viewerList].has(player):
 		return syncstate.View
 	}
+
 	return syncstate.None
 }
 
@@ -206,6 +219,7 @@ func (l *syncList) groupNames() []string {
 	if l == nil {
 		return nil
 	}
+
 	return l.groups
 }
 
@@ -214,6 +228,7 @@ func (l *syncList) written(present bool, players, groups immutable.Slice[string]
 	if l == nil || !present {
 		return l == nil && !present
 	}
+
 	return sameStrings(l.players, players) && sameStrings(l.groups, groups)
 }
 
@@ -221,11 +236,13 @@ func sameStrings(a []string, b immutable.Slice[string]) bool {
 	if len(a) != b.Len() {
 		return false
 	}
+
 	for i, v := range a {
 		if b.At(i) != v {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -299,6 +316,7 @@ func (p *syncPublisher) entry(n EntityID) *syncEntry {
 	if int(n) < len(p.entries) {
 		return p.entries[n]
 	}
+
 	return nil
 }
 
@@ -308,6 +326,7 @@ func (p *syncPublisher) put(n EntityID, now *syncEntry) {
 		p.entries = append(p.entries, nil)
 		p.pos = append(p.pos, 0)
 	}
+
 	old := p.entries[n]
 	if old != nil && (now == nil || now.policy != old.policy) {
 		list, i := old.policy.entities, p.pos[n]
@@ -315,10 +334,12 @@ func (p *syncPublisher) put(n EntityID, now *syncEntry) {
 		list[i], p.pos[last] = last, i
 		old.policy.entities = list[:len(list)-1]
 	}
+
 	if now != nil && (old == nil || now.policy != old.policy) {
 		p.pos[n] = len(now.policy.entities)
 		now.policy.entities = append(now.policy.entities, n)
 	}
+
 	p.entries[n] = now
 }
 
@@ -328,6 +349,7 @@ func (p *syncPublisher) observe(m ecs.Mutation) {
 	if p.admit == nil {
 		return
 	}
+
 	switch m.Kind {
 	case ecs.Reset:
 		for n, e := range p.entries {
@@ -335,11 +357,13 @@ func (p *syncPublisher) observe(m ecs.Mutation) {
 				p.dirty.add(EntityID(n))
 			}
 		}
+
 		clear(p.presence)
 		p.groupsDirty = true
 	case ecs.Created, ecs.Destroyed:
 		p.dirty.add(m.Entity)
 		delete(p.presence, m.Entity)
+
 		if _, held := p.groupHolders[m.Entity]; held {
 			p.groupsDirty = true
 		}
@@ -356,6 +380,7 @@ func (p *syncPublisher) observe(m ecs.Mutation) {
 		case m.Component != p.viewers && m.Component != p.authorities:
 			return
 		}
+
 		p.dirty.add(m.Entity)
 	}
 }
@@ -364,26 +389,32 @@ func (p *syncPublisher) bumpPresence(n EntityID, c ecs.ComponentID) {
 	if p.presence[n] == nil {
 		p.presence[n] = map[ecs.ComponentID]uint64{}
 	}
+
 	p.presence[n][c]++
 }
 
 // intern returns the policy for a pair of lists as written, resolved against today's groups.
 // Its key is both lists as written plus the identity of each group they resolve to.
 func (p *syncPublisher) intern(src [2]*syncList) *syncPolicy {
-	var key strings.Builder
-	var lists [2]resolvedList
+	var (
+		key   strings.Builder
+		lists [2]resolvedList
+	)
 	for i, l := range src {
 		lists[i] = l.resolve(p.groups)
 		writeKey(&key, l, lists[i])
 	}
+
 	if pol := p.policies[key.String()]; pol != nil {
 		pol.stale = false // the key says its groups are today's
 		return pol
 	}
+
 	pol := &syncPolicy{key: key.String(), src: src, lists: lists}
 	p.mask(&pol.view, src[viewerList], lists[viewerList])
 	p.mask(&pol.auth, src[authorityList], lists[authorityList])
 	p.policies[pol.key] = pol
+
 	return pol
 }
 
@@ -394,10 +425,12 @@ func (l *syncList) resolve(groups map[string]*syncGroup) resolvedList {
 	if l == nil {
 		return out
 	}
+
 	out.players = slices.Sorted(slices.Values(l.players))
 	for _, name := range l.groups {
 		out.groups = append(out.groups, groups[name])
 	}
+
 	return out
 }
 
@@ -408,19 +441,25 @@ func writeKey(key *strings.Builder, l *syncList, resolved resolvedList) {
 		key.WriteString("-\x03")
 		return
 	}
+
 	for _, player := range l.players {
 		key.WriteString(player)
 		key.WriteByte('\x00')
 	}
+
 	key.WriteByte('\x01')
+
 	for j, name := range l.groups {
 		key.WriteString(name)
 		key.WriteByte('\x02')
+
 		if g := resolved.groups[j]; g != nil {
 			key.WriteString(strconv.FormatUint(g.serial, 36))
 		}
+
 		key.WriteByte('\x00')
 	}
+
 	key.WriteByte('\x03')
 }
 
@@ -429,11 +468,13 @@ func (p *syncPublisher) mask(bits *bitset, l *syncList, resolved resolvedList) {
 	if l == nil {
 		return
 	}
+
 	for _, player := range l.players {
 		if s, ok := p.roster.slotOf[player]; ok {
 			bits.put(s, true)
 		}
 	}
+
 	for _, g := range resolved.groups {
 		if g != nil {
 			bits.or(g.mask)
@@ -451,6 +492,7 @@ func (p *syncPublisher) policyOf(lists accessLists, old *syncEntry) *syncPolicy 
 			return old.policy
 		}
 	}
+
 	return p.intern(lists.sources())
 }
 
@@ -460,9 +502,11 @@ func (l *accessLists) sources() [2]*syncList {
 	if l.hasViewers {
 		src[viewerList] = &syncList{stringsOf(l.viewers.Players), stringsOf(l.viewers.Groups)}
 	}
+
 	if l.hasAuthorities {
 		src[authorityList] = &syncList{stringsOf(l.authorities.Players), stringsOf(l.authorities.Groups)}
 	}
+
 	return src
 }
 
@@ -471,13 +515,16 @@ func stringsOf(s immutable.Slice[string]) []string { return slices.Collect(s.Val
 // readLists reads an entity's access components and nothing else.
 func readLists(w *World, n EntityID) accessLists {
 	e := w.Entity(n)
+
 	var lists accessLists
 	if lists.hasViewers = e.Has[syncstate.Viewers](); lists.hasViewers {
 		lists.viewers = e.Get[syncstate.Viewers]()
 	}
+
 	if lists.hasAuthorities = e.Has[syncstate.Authorities](); lists.hasAuthorities {
 		lists.authorities = e.Get[syncstate.Authorities]()
 	}
+
 	return lists
 }
 
@@ -488,17 +535,21 @@ func (p *syncPublisher) refreshGroups(w *World) {
 	if !p.groupsDirty {
 		return
 	}
+
 	p.groupsDirty = false
 	live := readGroups(w)
+
 	p.groupHolders = live.holders
 	for _, name := range slices.Sorted(maps.Keys(live.duplicates)) {
 		w.tel.Logger.Error().Str("group", name).Int("count", live.duplicates[name]).
 			Msg("sync group name is not unique; the name has no members until one remains")
 	}
+
 	next := map[string]*syncGroup{}
 	for _, name := range slices.Sorted(maps.Keys(live.members)) {
 		next[name] = p.snapshot(p.groups[name], live.members[name])
 	}
+
 	p.groups = next
 	for _, pol := range p.policies {
 		for i, l := range pol.src {
@@ -506,6 +557,7 @@ func (p *syncPublisher) refreshGroups(w *World) {
 				pol.stale = pol.stale || next[name] != pol.lists[i].groups[j]
 			}
 		}
+
 		if pol.stale {
 			for _, n := range pol.entities {
 				p.dirty.add(n)
@@ -526,31 +578,39 @@ type groupReading struct {
 func readGroups(w *World) groupReading {
 	r := groupReading{members: map[string]map[string]struct{}{}, holders: map[EntityID]struct{}{}}
 	count := map[string]int{}
+
 	var mask bitmap.Bitmap
 	mask.Set(w.sync.group)
+
 	err := w.world.IterEntities(mask, ecs.MatchContains, func(n EntityID) bool {
 		g := w.Entity(n).Get[syncstate.Group]()
 		r.holders[n] = struct{}{}
 		count[g.GroupName]++
+
 		set := map[string]struct{}{}
 		for player := range g.Players.Values() {
 			set[player] = struct{}{}
 		}
+
 		r.members[g.GroupName] = set
+
 		return true
 	})
 	if err != nil {
 		panic(err)
 	}
+
 	for name, c := range count {
 		if c > 1 {
 			if r.duplicates == nil {
 				r.duplicates = map[string]int{}
 			}
+
 			r.duplicates[name] = c
 			delete(r.members, name)
 		}
 	}
+
 	return r
 }
 
@@ -559,13 +619,16 @@ func (p *syncPublisher) snapshot(old *syncGroup, members map[string]struct{}) *s
 	if old != nil && maps.Equal(old.members, members) {
 		return old
 	}
+
 	p.serial++
+
 	g := &syncGroup{serial: p.serial, members: members}
 	for player := range members {
 		if s, ok := p.roster.slotOf[player]; ok {
 			g.mask.put(s, true)
 		}
 	}
+
 	return g
 }
 
@@ -575,6 +638,7 @@ func (p *syncPublisher) lifetime(w *World, n EntityID) (syncstate.ID, bool) {
 	if !e.Alive() || !e.Has[syncstate.Entity]() {
 		return syncstate.ID{}, false
 	}
+
 	return e.SyncID(), true
 }
 
@@ -582,34 +646,45 @@ func (p *syncPublisher) lifetime(w *World, n EntityID) (syncstate.ID, bool) {
 // Marking too much dirty is always safe: an equal entry publishes nothing.
 func (p *syncPublisher) capture(w *World, final bool) []syncTransition {
 	p.refreshGroups(w)
+
 	ids := p.dirty.take()
 	if final {
 		ids = append(ids, p.deferred...)
 		p.deferred = p.deferred[:0]
 	}
+
 	if len(ids) == 0 {
 		return nil
 	}
+
 	slices.Sort(ids)
 	ids = slices.Compact(ids)
+
 	var out []syncTransition
+
 	for _, n := range ids {
 		old := p.entry(n)
+
 		id, synced := p.lifetime(w, n)
 		if old != nil && (!synced || id != old.id) { // gone or replaced
 			out = append(out, syncTransition{entity: n, old: old})
 			p.retired[old.id] = old
 			p.put(n, nil)
+
 			old = nil
 		}
+
 		if !synced {
 			continue
 		}
+
 		if old == nil && !final {
 			p.deferred = append(p.deferred, n) // a new lifetime waits for the end of the tick
 			continue
 		}
+
 		now := p.read(w, n, id, old)
+
 		t := syncTransition{entity: n, old: old, now: now}
 		switch {
 		case old == nil:
@@ -624,12 +699,16 @@ func (p *syncPublisher) capture(w *World, final bool) []syncTransition {
 		default:
 			now.revision, now.record = old.revision, old.record // only access changed
 		}
+
 		if now.record == nil {
 			now.record = encodeRecord(now)
 		}
+
 		p.put(n, now)
+
 		out = append(out, t)
 	}
+
 	return out
 }
 
@@ -638,10 +717,12 @@ func (p *syncPublisher) read(w *World, n EntityID, id syncstate.ID, old *syncEnt
 	if p.names == nil {
 		p.indexComponents()
 	}
+
 	data, err := w.world.ReadObserved(n, p.names)
 	if err != nil {
 		panic(err)
 	}
+
 	now := &syncEntry{
 		id:       id,
 		presence: max(1, p.presence[n][p.marker]),
@@ -652,12 +733,15 @@ func (p *syncPublisher) read(w *World, n EntityID, id syncstate.ID, old *syncEnt
 		if !present {
 			continue
 		}
+
 		now.values = append(
 			now.values,
 			syncstate.Value{Component: p.index[cid], Presence: max(1, p.presence[n][cid]), Data: value},
 		)
 	}
+
 	slices.SortFunc(now.values, func(a, b syncstate.Value) int { return cmp.Compare(a.Component, b.Component) })
+
 	return now
 }
 
@@ -667,11 +751,14 @@ func (p *syncPublisher) indexComponents() {
 	if len(p.components) > math.MaxUint16+1 {
 		panic("sync supports at most 65536 synced components")
 	}
+
 	p.names, p.index = []string{}, map[ecs.ComponentID]uint16{}
 	for _, c := range p.components {
 		p.names = append(p.names, c.Name)
 	}
+
 	slices.Sort(p.names)
+
 	for cid, c := range p.components {
 		i, _ := slices.BinarySearch(p.names, c.Name)
 		p.index[cid] = uint16(i) //nolint:gosec // bounded above
@@ -698,6 +785,7 @@ func encodeRecord(e *syncEntry) msgpack.RawMessage {
 // presence, and every component old has that now lacks.
 func encodePatch(old, now *syncEntry) msgpack.RawMessage {
 	patch := syncstate.Patch{Ref: now.ref(), Revision: now.revision}
+
 	i, j := 0, 0
 	for i < len(old.values) || j < len(now.values) {
 		switch {
@@ -711,9 +799,11 @@ func encodePatch(old, now *syncEntry) msgpack.RawMessage {
 			if !sameValue(old.values[i], now.values[j]) {
 				patch.Changed = append(patch.Changed, now.values[j])
 			}
+
 			i, j = i+1, j+1
 		}
 	}
+
 	return encodeSync(patch)
 }
 
@@ -722,11 +812,14 @@ func encodePatch(old, now *syncEntry) msgpack.RawMessage {
 // encode to equal bytes.
 func encodeSync(v any) []byte {
 	var buf bytes.Buffer
+
 	enc := msgpack.NewEncoder(&buf)
 	enc.UseCompactInts(true)
+
 	if err := enc.Encode(v); err != nil {
 		panic(err)
 	}
+
 	return buf.Bytes()
 }
 
@@ -747,20 +840,24 @@ func (p *syncPublisher) seat(player string) int {
 		r.cooling = slices.DeleteFunc(r.cooling, func(c int) bool { return c == s })
 		return s
 	}
+
 	s := len(r.readers)
 	if len(r.free) > 0 {
 		s, r.free = r.free[len(r.free)-1], r.free[:len(r.free)-1]
 	} else {
 		r.readers = append(r.readers, syncReader{})
 	}
+
 	r.readers[s].player, r.slotOf[player] = player, s
 	for _, g := range p.groups {
 		_, member := g.members[player]
 		g.mask.put(s, member)
 	}
+
 	for _, pol := range p.policies {
 		pol.bind(s, player)
 	}
+
 	return s
 }
 
@@ -769,10 +866,12 @@ func (p *syncPublisher) access(pol *syncPolicy, player string) syncstate.Access 
 	if pol == nil {
 		return syncstate.None
 	}
+
 	s, ok := p.roster.slotOf[player]
 	if !ok {
 		return pol.access(player)
 	}
+
 	hold, auth := pol.words(s >> 6)
 	switch bit := uint64(1) << (s & 63); {
 	case auth&bit != 0:
@@ -780,6 +879,7 @@ func (p *syncPublisher) access(pol *syncPolicy, player string) syncstate.Access 
 	case hold&bit != 0:
 		return syncstate.View
 	}
+
 	return syncstate.None
 }
 
@@ -789,6 +889,7 @@ func (p *syncPublisher) judge(sender string, admitted bool, target syncstate.ID)
 	if e == nil || e.id != target || !admitted {
 		return syncstate.StaleTarget
 	}
+
 	switch p.access(e.policy, sender) {
 	case syncstate.None:
 		return syncstate.StaleTarget // never reveal an entity the sender cannot see
@@ -796,6 +897,7 @@ func (p *syncPublisher) judge(sender string, admitted bool, target syncstate.ID)
 		return syncstate.NoAuthority
 	case syncstate.Authority:
 	}
+
 	return ""
 }
 
@@ -807,10 +909,14 @@ func liveAuthority(w *World, player string) []syncstate.ID {
 	for name, members := range readGroups(w).members {
 		groups[name] = &syncGroup{members: members}
 	}
-	var held []EntityID
-	var mask bitmap.Bitmap
+
+	var (
+		held []EntityID
+		mask bitmap.Bitmap
+	)
 	mask.Set(w.sync.marker)
 	mask.Set(w.sync.authorities)
+
 	err := w.world.IterEntities(mask, ecs.MatchContains, func(n EntityID) bool {
 		held = append(held, n)
 		return true
@@ -818,14 +924,18 @@ func liveAuthority(w *World, player string) []syncstate.ID {
 	if err != nil {
 		panic(err)
 	}
+
 	slices.Sort(held)
+
 	var out []syncstate.ID
+
 	for _, n := range held {
 		lists := readLists(w, n)
 		if lists.sources()[authorityList].resolve(groups).has(player) {
 			out = append(out, w.Entity(n).SyncID())
 		}
 	}
+
 	return out
 }
 
@@ -865,41 +975,53 @@ func foldWord(t syncTransition, w int, open uint64, deltas []syncDelta) {
 	if t.old != nil {
 		h0, a0 = t.old.policy.words(w)
 	}
+
 	if t.now != nil {
 		h1, a1 = t.now.policy.words(w)
 	}
+
 	h0, a0, h1, a1 = h0&open, a0&open, h1&open, a1&open
 
 	removed, record, grant := h0, h1, h1 // a despawn, a spawn, or one lifetime replacing another
+
 	var patch uint64
+
 	if t.old != nil && t.now != nil && t.old.id == t.now.id {
 		removed = h0 &^ h1 // lost view
 		record = h1 &^ h0  // gained view: the whole entity
+
 		switch {
 		case t.patch != nil:
 			patch = h1 & h0 // kept view: only what changed
 		case t.now.revision > t.old.revision:
 			record = h1 // the entity's presence changed: every viewer starts it over
 		}
+
 		grant = h1&^h0 | h1&(a0^a1) // gained view, promoted or demoted
 	}
+
 	for m := removed | record | patch | grant; m != 0; m &= m - 1 {
 		bit := m & -m
+
 		d := &deltas[w<<6+bits.TrailingZeros64(m)]
 		if removed&bit != 0 {
 			d.removed = append(d.removed, t.old.ref())
 		}
+
 		if record&bit != 0 {
 			d.records = append(d.records, t.now.record)
 		}
+
 		if patch&bit != 0 {
 			d.patches = append(d.patches, t.patch)
 		}
+
 		if grant&bit != 0 {
 			access := syncstate.View
 			if a1&bit != 0 {
 				access = syncstate.Authority
 			}
+
 			d.access = append(d.access, syncstate.Grant{Ref: t.now.ref(), Access: access})
 		}
 	}
@@ -908,21 +1030,27 @@ func foldWord(t syncTransition, w int, open uint64, deltas []syncDelta) {
 // baseline is the same question asked of every current entry, for one slot.
 func (p *syncPublisher) baseline(s int) syncDelta {
 	var d syncDelta
+
 	bit := uint64(1) << (s & 63)
+
 	for _, e := range p.entries {
 		if e == nil {
 			continue
 		}
+
 		hold, auth := e.policy.words(s >> 6)
 		if hold&bit == 0 {
 			continue
 		}
+
 		access := syncstate.View
 		if auth&bit != 0 {
 			access = syncstate.Authority
 		}
+
 		d.records = append(d.records, e.record)
 		d.access = append(d.access, syncstate.Grant{Ref: e.ref(), Access: access})
 	}
+
 	return d
 }

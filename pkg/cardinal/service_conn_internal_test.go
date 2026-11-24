@@ -37,6 +37,7 @@ func TestEventStream_StalledConnectionReleasesItsStream(t *testing.T) {
 	// The pings keep their production timing, far longer than this test, so only the write
 	// timeout can close the connection.
 	const writeTimeout = time.Second
+
 	h := startStreamHarness(t, &serviceFixture{svc: w.service, world: w.World},
 		shortenConnTimeouts(writeTimeout, 0, 0))
 	avatar := w.Create[syncAvatar]()
@@ -48,6 +49,7 @@ func TestEventStream_StalledConnectionReleasesItsStream(t *testing.T) {
 	subscriber := h.subscriber(t, "alice")
 
 	conn.stall()
+
 	stalledAt := time.Now()
 	// Every tick changes the avatar, so every tick queues a delta that cannot be written.
 	for hp := 1; h.handlerRunning(stream.id) && time.Since(stalledAt) < writeTimeout+streamLagLimit; hp++ {
@@ -55,6 +57,7 @@ func TestEventStream_StalledConnectionReleasesItsStream(t *testing.T) {
 		w.Tick()
 		time.Sleep(testTickRate)
 	}
+
 	exitedAt := h.awaitHandlerExit(t, stream.id, testTickRate)
 	t.Logf("handler returned %v after the connection stalled", exitedAt.Sub(stalledAt))
 	assert.Less(t, exitedAt.Sub(stalledAt), writeTimeout+time.Second) // Slack for -race.
@@ -74,16 +77,19 @@ func TestEventStream_StalledConnectionReleasesItsStream(t *testing.T) {
 // timing bounds.
 func TestEventStream_SilentIdleConnectionClosedByPing(t *testing.T) {
 	const pingAfter, pingTimeout = 500 * time.Millisecond, 2 * time.Second
+
 	h := newStreamHarness(t, shortenConnTimeouts(0, pingAfter, pingTimeout))
 	stream, conn := h.openOnOwnConn(t, "player-1", "*")
 	stream.read()
 
 	written := conn.written()
+
 	time.Sleep(2 * (pingAfter + pingTimeout))
 	stream.requireOpen(t)
 	require.Greater(t, conn.written(), written, "the server never pinged the idle connection")
 
 	conn.silence()
+
 	silencedAt := time.Now()
 	exitedAt := h.awaitHandlerExit(t, stream.id, 2*(pingAfter+pingTimeout))
 	t.Logf("handler returned %v after the connection fell silent", exitedAt.Sub(silencedAt))
@@ -97,20 +103,25 @@ func TestEventStream_SilentIdleConnectionClosedByPing(t *testing.T) {
 // timing bounds.
 func TestEventStream_SlowReaderKeepsItsConnection(t *testing.T) {
 	const writeTimeout, pingAfter, pingTimeout = 500 * time.Millisecond, 500 * time.Millisecond, 2 * time.Second
+
 	h := newStreamHarness(t, shortenConnTimeouts(writeTimeout, pingAfter, pingTimeout))
 	stream, conn := h.openOnOwnConn(t, "player-1", "*")
 	stream.read()
 
 	// 20 KiB/s: a full 16 KiB frame takes 800 ms, and every 50 ms some bytes get through.
 	conn.slow(1<<10, 50*time.Millisecond)
+
 	start := time.Now()
+
 	const events = 6 // 60 KiB: about three seconds on this link.
 	for range events {
 		h.publish(t, testutils.AnotherEvent{Data: incompressible(10 << 10)}, "player-1")
 	}
+
 	for _, got := range stream.next(t, events) {
 		assert.Contains(t, got, "another_event:<")
 	}
+
 	took := time.Since(start)
 	t.Logf("%d events took %v", events, took)
 	require.Greater(t, took, pingAfter+pingTimeout, "the link was not slow enough to test the timeouts")
@@ -128,6 +139,7 @@ func TestSync_LaggedStreamLeavesSeatWhileHandlerBlocked(t *testing.T) {
 	})
 	h := startStreamHarness(t, &serviceFixture{svc: w.service, world: w.World})
 	another := testutils.AnotherEvent{}.Name()
+
 	w.Create[syncAvatar]()
 
 	stream, conn := h.openOnOwnConn(t, "alice", syncstate.EventName, another)
@@ -169,10 +181,12 @@ func TestEventStream_CancelledStreamDropsQueue(t *testing.T) {
 // stalled, so nothing is written meanwhile.
 func cutLagged(t *testing.T, h *streamHarness, player string, subscriber *streamSubscriber) {
 	t.Helper()
+
 	payload := testutils.AnotherEvent{Data: incompressible(64 << 10)}
 	for published := 0; subscriber.ctx.Err() == nil && published < 512; published++ { // 32 MiB at most.
 		h.publish(t, payload, player)
 	}
+
 	require.ErrorIs(t, context.Cause(subscriber.ctx), errStreamLagged)
 }
 
@@ -199,10 +213,13 @@ func (l *pathListener) Accept() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	c := &pathConn{Conn: conn, wake: make(chan struct{}), closed: make(chan struct{})}
+
 	l.mu.Lock()
 	l.conns[conn.RemoteAddr().String()] = c
 	l.mu.Unlock()
+
 	return c, nil
 }
 
@@ -211,8 +228,10 @@ func (l *pathListener) conn(t *testing.T, clientAddr string) *pathConn {
 	t.Helper()
 	l.mu.Lock()
 	defer l.mu.Unlock()
+
 	c, ok := l.conns[clientAddr]
 	require.True(t, ok, "the server never accepted a connection from %s", clientAddr)
+
 	return c
 }
 
@@ -257,12 +276,14 @@ func (c *pathConn) slow(chunk int, gap time.Duration) {
 func (c *pathConn) written() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	return c.wrote
 }
 
 func (c *pathConn) change(f func()) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	f()
 	close(c.wake)
 	c.wake = make(chan struct{})
@@ -271,6 +292,7 @@ func (c *pathConn) change(f func()) {
 func (c *pathConn) now() (pathState, time.Time, chan struct{}) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	return c.state, c.writeDeadline, c.wake
 }
 
@@ -282,8 +304,10 @@ func (c *pathConn) Read(b []byte) (int, error) {
 			if after, _, _ := c.now(); (after == pathSilent || after == pathStalled) && err == nil {
 				continue // It arrived after the break.
 			}
+
 			return n, err
 		}
+
 		select {
 		case <-wake:
 		case <-c.closed:
@@ -297,6 +321,7 @@ func (c *pathConn) Write(b []byte) (int, error) {
 	c.mu.Lock()
 	c.wrote += n
 	c.mu.Unlock()
+
 	return n, err
 }
 
@@ -312,6 +337,7 @@ func (c *pathConn) write(b []byte) (int, error) {
 			return len(b), nil
 		case pathStalled:
 		}
+
 		if err := c.waitUntil(deadline, wake, 0); err != nil {
 			return 0, err
 		}
@@ -324,17 +350,21 @@ func (c *pathConn) writeSlowly(b []byte, deadline time.Time) (int, error) {
 	c.mu.Lock()
 	chunk, gap := c.chunk, c.gap
 	c.mu.Unlock()
+
 	n := 0
 	for n < len(b) {
 		if err := c.waitUntil(deadline, nil, gap); err != nil {
 			return n, err
 		}
+
 		m, err := c.Conn.Write(b[n:min(n+chunk, len(b))])
+
 		n += m
 		if err != nil {
 			return n, err
 		}
 	}
+
 	return n, nil
 }
 
@@ -342,16 +372,21 @@ func (c *pathConn) writeSlowly(b []byte, deadline time.Time) (int, error) {
 // the write deadline or once the connection is closed.
 func (c *pathConn) waitUntil(deadline time.Time, wake chan struct{}, pause time.Duration) error {
 	var expired, paused <-chan time.Time
+
 	if !deadline.IsZero() {
 		timer := time.NewTimer(time.Until(deadline))
 		defer timer.Stop()
+
 		expired = timer.C
 	}
+
 	if pause > 0 {
 		timer := time.NewTimer(pause)
 		defer timer.Stop()
+
 		paused = timer.C
 	}
+
 	select {
 	case <-wake:
 		return nil

@@ -127,10 +127,12 @@ func (o propOps) Run(*World) {
 	s := *o.sim
 	for range 4 + s.rng.IntN(10) {
 		s.op()
+
 		if s.rng.IntN(3) == 0 {
 			s.checkAuthorityOf(true) // mid-tick: after writes, before the tick's final capture
 		}
 	}
+
 	s.checkAuthorityOf(true)
 }
 
@@ -138,6 +140,7 @@ func (h propHandler) Run(w *World) {
 	for cmd := range w.Commands[propPoke]() {
 		*h.seen = append(*h.seen, propCommandSeen{cmd.Sender(), propPoke{}.Name(), cmd.Target().ID()})
 	}
+
 	for cmd := range w.Commands[propShardOnly]() {
 		*h.seen = append(*h.seen, propCommandSeen{cmd.Sender(), propShardOnly{}.Name(), 0})
 	}
@@ -227,10 +230,12 @@ func (s *propSim) synced(n EntityID) bool {
 
 func (s *propSim) groupMembers() map[string][][]string {
 	out := map[string][][]string{}
+
 	for e := range s.w.Contains[propGroupRefs]().Iter() {
 		g := e.Get[syncstate.Group]()
 		out[g.GroupName] = append(out[g.GroupName], slices.Collect(g.Players.Values()))
 	}
+
 	return out
 }
 
@@ -239,38 +244,47 @@ func (s *propSim) truth(player string, n EntityID, groups map[string][][]string)
 	if !s.synced(n) {
 		return syncstate.None
 	}
+
 	in := func(players, names immutable.Slice[string]) bool {
 		if immutable.Contains(players, player) {
 			return true
 		}
+
 		for name := range names.Values() {
 			if m := groups[name]; len(m) == 1 && slices.Contains(m[0], player) {
 				return true
 			}
 		}
+
 		return false
 	}
+
 	e := s.w.Entity(n)
 	if e.Has[syncstate.Authorities]() {
 		if a := e.Get[syncstate.Authorities](); in(a.Players, a.Groups) {
 			return syncstate.Authority
 		}
 	}
+
 	if !e.Has[syncstate.Viewers]() {
 		return syncstate.View
 	}
+
 	if v := e.Get[syncstate.Viewers](); in(v.Players, v.Groups) {
 		return syncstate.View
 	}
+
 	return syncstate.None
 }
 
 func (s *propSim) truths(n EntityID) map[string]syncstate.Access {
 	groups := s.groupMembers()
+
 	out := map[string]syncstate.Access{}
 	for _, p := range propPlayers {
 		out[p] = s.truth(p, n, groups)
 	}
+
 	return out
 }
 
@@ -285,6 +299,7 @@ func (s *propSim) captured(final bool) {
 			s.ended[id] = last
 		}
 	}
+
 	for _, n := range s.w.World.world.LiveEntityIDs() {
 		id := s.w.Entity(n).SyncID()
 		if _, published := s.lastTruth[id]; s.synced(n) && (published || final) {
@@ -302,6 +317,7 @@ func (s *propSim) connect(r *propReader) {
 	if r.subscribed {
 		events = append(events, syncstate.EventName)
 	}
+
 	r.sub, r.client = openStream(s.t, s.w.service, r.name, events...), s.newPropClient()
 	r.client.fresh = true
 }
@@ -311,6 +327,7 @@ func (s *propSim) disconnect(r *propReader) {
 		s.w.service.removeSubscriber(r.name, r.sub)
 		r.sub.cancel(nil)
 	}
+
 	r.sub, r.client = nil, s.newPropClient()
 }
 
@@ -319,7 +336,9 @@ func (s *propSim) setSubscribed(r *propReader, on bool) {
 	if r.sub == nil {
 		return
 	}
+
 	setSyncSubscribed(s.w.service, r.sub, on)
+
 	if !on { // the client drops its view; deltas already in flight on the old stream are ignored
 		r.client.fresh, r.client.ready = false, false
 		r.client.clear()
@@ -339,8 +358,10 @@ func (s *propSim) drain(r *propReader) {
 	if r.sub == nil {
 		return
 	}
+
 	queued := r.sub.queue
 	r.sub.queue, r.sub.queuedBytes = nil, 0
+
 	for _, q := range queued {
 		evt := q.response.GetEvent()
 		switch evt.GetName() {
@@ -351,12 +372,14 @@ func (s *propSim) drain(r *propReader) {
 			if err := msgpack.Unmarshal(evt.GetPayload(), &payload); err != nil {
 				s.failf("%s: decode event: %v", r.name, err)
 			}
+
 			r.client.events[payload.N] = true
 		case "command_rejected":
 			var payload syncstate.CommandRejected
 			if err := msgpack.Unmarshal(evt.GetPayload(), &payload); err != nil {
 				s.failf("%s: decode rejection: %v", r.name, err)
 			}
+
 			r.client.rejected[payload.Command] = payload
 		}
 	}
@@ -366,6 +389,7 @@ func (s *propSim) drain(r *propReader) {
 // the client rules.
 func (s *propSim) receive(r *propReader, data []byte) {
 	c := r.client
+
 	var f syncstate.Frame
 	if err := msgpack.Unmarshal(data, &f); err != nil {
 		s.failf("%s: decode frame: %v", r.name, err)
@@ -375,6 +399,7 @@ func (s *propSim) receive(r *propReader, data []byte) {
 	if again := encodeSync(f); !bytes.Equal(again, data) {
 		s.failf("%s: frame bytes differ from the struct encoding", r.name)
 	}
+
 	switch {
 	case f.Open != nil:
 		s.stats["baselines"]++
@@ -384,6 +409,7 @@ func (s *propSim) receive(r *propReader, data []byte) {
 	case !c.ready || f.Stream != c.stream:
 		s.failf("%s: delta on stream %d before its baseline (holding %d, ready %v)",
 			r.name, f.Stream, c.stream, c.ready)
+
 		return
 	case emptyDelta(f):
 		s.stats["empty deltas (heartbeats)"]++
@@ -395,11 +421,13 @@ func (s *propSim) receive(r *propReader, data []byte) {
 	for _, ref := range f.Removed {
 		removed[ref] = true
 	}
+
 	for _, pa := range f.Patches {
 		h := c.held[pa.Ref.Entity]
 		if h.Ref == pa.Ref && pa.Revision != h.Revision+1 {
 			s.failf("%s: patch %v to revision %d at %d", r.name, pa.Ref, pa.Revision, h.Revision)
 		}
+
 		for _, v := range h.Components {
 			if !slices.Contains(pa.Dropped, v.Component) && !slices.Contains(componentsOf(pa.Changed), v.Component) {
 				s.stats["patches that keep a held component"]++
@@ -407,19 +435,23 @@ func (s *propSim) receive(r *propReader, data []byte) {
 			}
 		}
 	}
+
 	for _, rec := range f.Records {
 		if h, ok := c.held[rec.Ref.Entity]; f.Open == nil && ok && h.Ref == rec.Ref && !removed[rec.Ref] {
 			if rec.Revision != h.Revision+1 || rec.Presence == h.Presence {
 				s.failf("%s: record %v at revision %d presence %d over revision %d presence %d",
 					r.name, rec.Ref, rec.Revision, rec.Presence, h.Revision, h.Presence)
 			}
+
 			s.stats["records over a held lifetime (new entity presence)"]++
 		}
 	}
+
 	before := c.time
 	if _, err := c.apply(f); err != nil {
 		s.failf("%s: %v", r.name, err)
 	}
+
 	r.frames++
 	s.checkTime(r, f, before)
 	s.checkPromise(r, f)
@@ -434,16 +466,19 @@ func (s *propSim) tally(c *propClient, f syncstate.Frame) {
 			s.stats["access-only deltas"]++
 		}
 	}
+
 	for _, ref := range f.Removed {
 		if n := EntityID(ref.Entity); s.w.Entity(n).Alive() && s.w.Entity(n).SyncID() == c.id(ref) {
 			s.stats["removals of a live entity (lost view)"]++
 		}
 	}
+
 	for _, pa := range f.Patches {
 		s.stats["patches"]++
 		s.stats["patched components changed"] += len(pa.Changed)
 		s.stats["patched components dropped"] += len(pa.Dropped)
 	}
+
 	s.stats["records"] += len(f.Records)
 	s.stats["grants"] += len(f.Access)
 }
@@ -452,27 +487,32 @@ func (s *propSim) tally(c *propClient, f syncstate.Frame) {
 func (s *propSim) decode(r *propReader, rec syncstate.Record) propHeld {
 	h := propHeld{id: r.client.id(rec.Ref), access: r.client.access[rec.Ref.Entity]}
 	contract := s.w.SyncContract()
+
 	for _, v := range rec.Components {
 		if v.Presence == 0 {
 			s.failf("%s: component %d of %v has presence 0", r.name, v.Component, rec.Ref)
 		}
+
 		switch name := contract.Components[v.Component].Name; name {
 		case propValue{}.Name():
 			var value propValue
 			if err := msgpack.Unmarshal(v.Data, &value); err != nil {
 				s.failf("%s: decode value: %v", r.name, err)
 			}
+
 			h.value, h.hasValue = value.V, true
 		case propTag{}.Name():
 			var tag propTag
 			if err := msgpack.Unmarshal(v.Data, &tag); err != nil {
 				s.failf("%s: decode tag: %v", r.name, err)
 			}
+
 			h.tag, h.hasTag = tag.T, true
 		default:
 			s.failf("%s: unexpected component %q", r.name, name)
 		}
 	}
+
 	return h
 }
 
@@ -482,11 +522,13 @@ func (s *propSim) decode(r *propReader, rec syncstate.Record) propHeld {
 
 func (s *propSim) names(from []string) immutable.Slice[string] {
 	var out []string
+
 	for _, v := range from {
 		if s.rng.IntN(3) == 0 {
 			out = append(out, v)
 		}
 	}
+
 	return immutable.SliceOf(out...)
 }
 
@@ -495,6 +537,7 @@ func (s *propSim) setLists(e Entity) {
 		e.Remove[syncstate.Viewers]()
 		return
 	}
+
 	e.Set(syncstate.Viewers{Players: s.names(propPlayers), Groups: s.names(propGroups)})
 }
 
@@ -503,17 +546,20 @@ func (s *propSim) setAuthorities(e Entity) {
 		e.Remove[syncstate.Authorities]()
 		return
 	}
+
 	e.Set(syncstate.Authorities{Players: s.names(propPlayers), Groups: s.names(propGroups)})
 }
 
 // entities returns the live entities that are not group holders.
 func (s *propSim) entities() []EntityID {
 	var out []EntityID
+
 	for _, n := range s.w.World.world.LiveEntityIDs() {
 		if !s.w.Entity(n).Has[syncstate.Group]() {
 			out = append(out, n)
 		}
 	}
+
 	return out
 }
 
@@ -521,6 +567,7 @@ func (s *propSim) pick(ids []EntityID) (EntityID, bool) {
 	if len(ids) == 0 {
 		return 0, false
 	}
+
 	return ids[s.rng.IntN(len(ids))], true
 }
 
@@ -528,19 +575,24 @@ func (s *propSim) create() {
 	if len(s.entities()) >= propMaxEntities {
 		return
 	}
+
 	var e Entity
 	if s.rng.IntN(5) == 0 {
 		e = s.w.Create[propPlain]()
 	} else {
 		e = s.w.Create[propSynced]()
 	}
+
 	e.Set(propValue{V: s.rng.IntN(3)})
+
 	if s.rng.IntN(2) == 0 {
 		e.Set(propTag{T: s.rng.IntN(3)})
 	}
+
 	if s.rng.IntN(2) == 0 {
 		s.setLists(e)
 	}
+
 	if s.rng.IntN(2) == 0 {
 		s.setAuthorities(e)
 	}
@@ -549,16 +601,20 @@ func (s *propSim) create() {
 // emit sends an event about id, judged by the truth at this point in the tick.
 func (s *propSim) emit(id syncstate.ID) {
 	s.nextN++
+
 	ev := &propEvent{n: s.nextN, id: id, occurrence: s.rng.IntN(2) == 0}
 	if s.rng.IntN(4) == 0 {
 		ev.recipient = propPlayers[s.rng.IntN(len(propPlayers))]
 	}
+
 	n := EntityID(id.Entity)
 	alive := s.w.Entity(n).Alive() && s.w.Entity(n).SyncID() == id
+
 	last, published := s.lastTruth[id]
 	if ended, ok := s.ended[id]; ok {
 		last, published = ended, true
 	}
+
 	switch {
 	case alive && s.synced(n):
 		ev.expect = s.truths(n)
@@ -568,12 +624,14 @@ func (s *propSim) emit(id syncstate.ID) {
 		ev.ungated = true // never synced as this lifetime
 	default:
 	}
+
 	stamp := syncstate.For(id)
 	if ev.occurrence {
 		propSend(s.w, ev.recipient, propHit{Event: stamp, Entity: id.Entity, N: ev.n})
 	} else {
 		propSend(s.w, ev.recipient, propSpawn{Event: stamp, Entity: id.Entity, N: ev.n})
 	}
+
 	s.captured(false)
 	s.events = append(s.events, ev)
 }
@@ -584,6 +642,7 @@ func propSend[T Event](w *TestWorld, recipient string, evt T) {
 		w.Broadcast(evt)
 		return
 	}
+
 	w.SendTo(recipient, evt)
 }
 
@@ -592,6 +651,7 @@ func (s *propSim) groupOp() {
 	for e := range s.w.Contains[propGroupRefs]().Iter() {
 		holders = append(holders, e.ID())
 	}
+
 	switch k := s.rng.IntN(4); {
 	case k == 0 || len(holders) == 0:
 		e := s.w.Create[propGroupRefs]()
@@ -637,8 +697,10 @@ func (s *propSim) toggle(e Entity) {
 		} else {
 			e.Set(propValue{V: 1})
 		}
+
 		return
 	}
+
 	if e.Has[propTag]() {
 		e.Remove[propTag]()
 	} else {
@@ -648,6 +710,7 @@ func (s *propSim) toggle(e Entity) {
 
 func (s *propSim) op() {
 	ids := s.entities()
+
 	n, ok := s.pick(ids)
 	switch s.rng.IntN(16) {
 	case 0, 1:
@@ -656,10 +719,12 @@ func (s *propSim) op() {
 		if ok {
 			id := s.w.Entity(n).SyncID()
 			s.w.Entity(n).Destroy()
+
 			s.destroyed = append(s.destroyed, id)
 			if s.rng.IntN(2) == 0 {
 				s.emit(id) // a despawn sent after Destroy, with the identity captured first
 			}
+
 			if s.rng.IntN(3) == 0 {
 				s.create() // the numeric ID is reused within the tick
 			}
@@ -701,6 +766,7 @@ func (s *propSim) op() {
 			case s.rng.IntN(3) == 0 && len(s.destroyed) > 0: // destroyed earlier in the tick
 				id = s.destroyed[s.rng.IntN(len(s.destroyed))]
 			}
+
 			s.emit(id)
 		}
 	case 13, 14:
@@ -711,6 +777,7 @@ func (s *propSim) op() {
 			if err != nil {
 				panic(err)
 			}
+
 			if err := s.w.World.world.FromProto(state); err != nil {
 				panic(err)
 			}
@@ -728,11 +795,13 @@ func (s *propSim) sendCommands() {
 	s.verdicts, s.targets, s.debug = map[string]syncstate.Reason{}, map[string]EntityID{}, map[string]string{}
 	s.ids, s.sent, s.repeats = map[string]uint64{}, map[string]propPoke{}, map[string]bool{}
 	s.judgedAt = int64(s.w.TickHeight())
+
 	ids := s.entities()
 	for _, player := range propPlayers {
 		if s.rng.IntN(3) == 0 {
 			continue
 		}
+
 		key := player + "/prop_poke"
 		if prev, ok := s.recent(player); ok && s.rng.IntN(4) == 0 {
 			// A retry inside the memory gets the first verdict; an admitted one is dropped.
@@ -740,10 +809,13 @@ func (s *propSim) sendCommands() {
 			if prev.verdict == "" {
 				s.verdicts[key] = propDropped
 			}
+
 			s.targets[key], s.ids[key] = EntityID(prev.cmd.TargetEntity), prev.cmd.CommandID
 			s.w.Command(player, prev.cmd)
+
 			continue
 		}
+
 		var target syncstate.ID
 		if n, ok := s.pick(ids); ok {
 			target = s.w.Entity(n).SyncID()
@@ -756,8 +828,10 @@ func (s *propSim) sendCommands() {
 		} else {
 			target = syncstate.ID{Entity: uint32(s.rng.IntN(propMaxEntities))}
 		}
+
 		n := EntityID(target.Entity)
 		want := syncstate.StaleTarget
+
 		if s.synced(n) && s.w.Entity(n).SyncID() == target {
 			switch s.truth(player, n, s.groupMembers()) {
 			case syncstate.Authority:
@@ -767,6 +841,7 @@ func (s *propSim) sendCommands() {
 			case syncstate.None:
 			}
 		}
+
 		s.verdicts[key], s.targets[key] = want, n
 		if en := s.w.sync.entry(n); en != nil {
 			s.debug[key] = fmt.Sprintf(
@@ -781,24 +856,30 @@ func (s *propSim) sendCommands() {
 				en.policy.stale,
 			)
 		}
+
 		cmd := propPoke{Target: syncstate.TargetOf(target), N: s.rng.IntN(100)}
 		if s.rng.IntN(5) != 0 { // else 0: no ID
 			s.nextID++
 			cmd.CommandID = s.nextID
 		}
+
 		s.ids[key], s.sent[key] = cmd.CommandID, cmd
 		s.w.Command(player, cmd)
+
 		if s.rng.IntN(4) == 0 {
 			s.verdicts[player+"/prop_shard_only"] = syncstate.ShardOnly
 			s.w.Command(player, propShardOnly{})
 		}
 	}
+
 	if s.rng.IntN(3) == 0 { // a shard may not send a player-only command
 		shard := micro.GetAddress("other", "shard")
+
 		payload, err := schema.Serialize(propPoke{})
 		if err != nil {
 			panic(err)
 		}
+
 		err = s.w.commands.Enqueue(
 			context.Background(),
 			&iscv1.Command{Name: "prop_poke", Address: s.w.address, Payload: payload},
@@ -807,6 +888,7 @@ func (s *propSim) sendCommands() {
 		if err != nil {
 			panic(err)
 		}
+
 		s.verdicts[command.ShardSender(shard).ID()+"/prop_poke"] = syncstate.PlayerOnly
 	}
 }
@@ -816,14 +898,17 @@ func (s *propSim) sendCommands() {
 // so the 256 cap is never reached here.
 func (s *propSim) recent(player string) (propJudged, bool) {
 	var inside []propJudged
+
 	for _, j := range s.judged[player] {
 		if s.judgedAt-j.at < 30 {
 			inside = append(inside, j)
 		}
 	}
+
 	if len(inside) == 0 {
 		return propJudged{}, false
 	}
+
 	return inside[s.rng.IntN(len(inside))], true
 }
 
@@ -837,16 +922,19 @@ func (s *propSim) checkCommands(admitted map[string]bool) {
 			s.failf("command %s: rejection names CommandID %d, want %d", key, r.CommandID, s.ids[key])
 		}
 	}
+
 	for _, seen := range s.seen {
 		key := seen.sender + "/" + seen.name
 		if _, dup := got[key]; dup {
 			s.failf("command %s both admitted and rejected, or admitted twice", key)
 		}
+
 		got[key] = ""
 		if seen.name == "prop_poke" && seen.target != s.targets[key] {
 			s.failf("command %s: Target() is %d, want %d", key, seen.target, s.targets[key])
 		}
 	}
+
 	for key, want := range s.verdicts {
 		player, name, _ := strings.Cut(key, "/")
 		if (want == "" || want == syncstate.NoAuthority) && !s.repeats[key] {
@@ -854,35 +942,46 @@ func (s *propSim) checkCommands(admitted map[string]bool) {
 				want = syncstate.StaleTarget
 			}
 		}
+
 		if name == "prop_poke" && !s.repeats[key] && s.ids[key] != 0 {
 			s.judged[player] = append(s.judged[player], propJudged{s.sent[key], want, s.judgedAt})
 		}
+
 		reason, known := got[key]
+
 		switch want { //nolint:exhaustive // the rest leave a verdict
 		case syncstate.PlayerOnly: // a shard has no stream: the rejection is only logged
 			if known {
 				s.failf("command %s from a shard reached a handler", key)
 			}
+
 			continue
 		case propDropped:
 			if known {
 				s.failf("repeat %s of an admitted command got %q (\"\": it ran again)", key, reason)
 			}
+
 			s.stats["commands: repeat dropped"]++
+
 			continue
 		}
+
 		if s.repeats[key] {
 			s.stats["commands: repeat rejected again"]++
 		}
+
 		if !known || reason != want {
 			s.failf("command %s: got %q (known %v), want %q; %s", key, reason, known, want, s.debug[key])
 		}
+
 		label := string(want)
 		if want == "" {
 			label = "accepted"
 		}
+
 		s.stats["commands: "+label]++
 	}
+
 	if len(got) != len(s.verdicts)-countUnobserved(s.verdicts) {
 		s.failf("commands: %d verdicts observed, %d expected", len(got), len(s.verdicts))
 	}
@@ -891,11 +990,13 @@ func (s *propSim) checkCommands(admitted map[string]bool) {
 // countUnobserved counts the verdicts that leave neither a handler run nor a rejection.
 func countUnobserved(v map[string]syncstate.Reason) int {
 	n := 0
+
 	for _, r := range v {
 		if r == syncstate.PlayerOnly || r == propDropped {
 			n++
 		}
 	}
+
 	return n
 }
 
@@ -906,6 +1007,7 @@ func countUnobserved(v map[string]syncstate.Reason) int {
 func (s *propSim) step() {
 	s.seen, s.rejects, s.events = nil, map[string]syncstate.CommandRejected{}, nil
 	s.destroyed, s.ended = nil, map[syncstate.ID]map[string]syncstate.Access{}
+
 	reset := s.rng.IntN(60) == 0
 	if reset { // only between ticks, as the debug service does; it drops queued commands
 		s.w.World.reset()
@@ -914,10 +1016,12 @@ func (s *propSim) step() {
 	} else {
 		s.sendCommands()
 	}
+
 	admitted := map[string]bool{}
 	for _, r := range s.readers {
 		admitted[r.name] = r.admitted
 	}
+
 	s.w.Tick() // judges the commands, then runs propOps
 
 	s.captured(true)
@@ -928,6 +1032,7 @@ func (s *propSim) step() {
 			ev.expect, ev.ungated = s.truths(n), false
 		}
 	}
+
 	now := uint64(s.w.Timestamp().UnixMilli())
 	for _, r := range s.readers {
 		wasOpen, before, promise := r.open != nil && r.open == r.sub, r.client.time, r.client.heartbeat
@@ -942,11 +1047,14 @@ func (s *propSim) step() {
 				s.failf("%s did not receive its rejection of %s (%v)", r.name, name, sent)
 			}
 		}
+
 		r.client.rejected = map[string]syncstate.CommandRejected{}
 	}
+
 	if !reset {
 		s.checkCommands(admitted)
 	}
+
 	s.checkEvents()
 	s.checkReplicas()
 }
@@ -956,10 +1064,12 @@ func (s *propSim) step() {
 // whose time went back, as after a reset, adds 0.
 func (s *propSim) checkTime(r *propReader, f syncstate.Frame, before uint64) {
 	now := uint64(s.w.Timestamp().UnixMilli())
+
 	want := max(before, now)
 	if f.Open != nil {
 		want = now
 	}
+
 	if r.client.time != want {
 		s.failf("%s: frame %d's Times add up to %d, its tick is at %d", r.name, f.Sequence, r.client.time, want)
 	}
@@ -971,13 +1081,16 @@ func (s *propSim) checkPromise(r *propReader, f syncstate.Frame) {
 	if f.Open == nil {
 		return
 	}
+
 	want := uint64(0)
 	if r.admitted {
 		want = heartbeatMillis
 	}
+
 	if f.Open.Heartbeat != want {
 		s.failf("%s: baseline promises a heartbeat of %d ms, admitted %v", r.name, f.Open.Heartbeat, r.admitted)
 	}
+
 	s.stats[fmt.Sprintf("baselines promising %d ms", f.Open.Heartbeat)]++
 }
 
@@ -1005,12 +1118,14 @@ func (s *propSim) checkEvents() {
 			default:
 				want = want && (ev.ungated || (r.admitted && ev.expect[r.name] >= syncstate.View))
 			}
+
 			got := r.sub != nil && r.client.events[ev.n]
 			if got != want {
 				s.failf("event %d about %v (occurrence %v, ungated %v, recipient %q) for %s: delivered %v, want %v "+
 					"(open %v, connected %v, admitted %v, truth %v)", ev.n, ev.id, ev.occurrence, ev.ungated, ev.recipient,
 					r.name, got, want, r.open != nil && r.open == r.sub, r.sub != nil, r.admitted, ev.expect)
 			}
+
 			if got {
 				s.stats["events delivered"]++
 			} else {
@@ -1030,10 +1145,12 @@ func (s *propSim) checkReplicas() {
 	groups := s.groupMembers()
 	for _, r := range s.readers {
 		open := r.sub != nil && r.subscribed && r.admitted
+
 		want := map[uint32]propHeld{}
 		if open {
 			want = s.expectedHeld(r.name, groups)
 		}
+
 		got := map[uint32]propHeld{}
 		for k, rec := range r.client.held {
 			got[k] = s.decode(r, rec)
@@ -1045,38 +1162,48 @@ func (s *propSim) checkReplicas() {
 				s.failf("%s holds %+v, a baseline would send %+v", r.name, rec, fresh)
 			}
 		}
+
 		if !maps.Equal(got, want) {
 			s.failf("%s (open %v) holds %v, its slice is %v", r.name, open, got, want)
 		}
+
 		if open && !r.client.ready {
 			s.failf("%s is open but its client has no baseline", r.name)
 		}
+
 		r.open = nil
 		if open {
 			r.open = r.sub
 		}
 	}
+
 	s.checkAuthorityOf(false)
 }
 
 // expectedHeld is what an open reader should hold: every live entity the truth grants it, with its values.
 func (s *propSim) expectedHeld(player string, groups map[string][][]string) map[uint32]propHeld {
 	want := map[uint32]propHeld{}
+
 	for _, n := range s.w.World.world.LiveEntityIDs() {
 		a := s.truth(player, n, groups)
 		if a == syncstate.None {
 			continue
 		}
+
 		e := s.w.Entity(n)
+
 		h := propHeld{id: e.SyncID(), access: a}
 		if e.Has[propValue]() {
 			h.value, h.hasValue = e.Get[propValue]().V, true
 		}
+
 		if e.Has[propTag]() {
 			h.tag, h.hasTag = e.Get[propTag]().T, true
 		}
+
 		want[uint32(n)] = h
 	}
+
 	return want
 }
 
@@ -1086,20 +1213,25 @@ func (s *propSim) checkAuthorityOf(midTick bool) {
 	groups := s.groupMembers()
 	for _, r := range s.readers {
 		var want, got, published []EntityID
+
 		for _, n := range s.w.World.world.LiveEntityIDs() {
 			if r.admitted && s.truth(r.name, n, groups) == syncstate.Authority {
 				want = append(want, n)
 			}
+
 			if e := s.w.sync.entry(n); r.admitted && e != nil && e.policy.access(r.name) == syncstate.Authority {
 				published = append(published, n)
 			}
 		}
+
 		for e := range s.w.AuthorityOf(r.name) {
 			got = append(got, e.ID())
 		}
+
 		if !slices.Equal(got, want) {
 			s.failf("AuthorityOf(%s) = %v, truth %v (mid-tick %v)", r.name, got, want, midTick)
 		}
+
 		if midTick {
 			s.stats["AuthorityOf: mid-tick checks"]++
 			if !slices.Equal(published, want) {
@@ -1114,6 +1246,7 @@ func normalized(r syncstate.Record) syncstate.Record {
 	if len(r.Components) == 0 {
 		r.Components = nil
 	}
+
 	return r
 }
 
@@ -1136,6 +1269,7 @@ func runSyncProperty(t *testing.T, seed uint64, ticks int, stats map[string]int)
 					return r.admitted
 				}
 			}
+
 			return false
 		})
 		w.RegisterCommand[propPoke](syncstate.FromPlayers)
@@ -1150,38 +1284,47 @@ func runSyncProperty(t *testing.T, seed uint64, ticks int, stats map[string]int)
 		if rejected, ok := evt.Payload.(syncstate.CommandRejected); ok {
 			s.rejects[evt.Recipient+"/"+rejected.Command] = rejected
 		}
+
 		return s.w.service.publishDefaultEvent(ctx, evt)
 	})
+
 	for _, p := range propPlayers {
 		r := &propReader{name: p, subscribed: true, admitted: s.rng.IntN(4) != 0}
 		s.readers = append(s.readers, r)
 		s.connect(r)
 	}
+
 	for s.tick = range ticks {
 		s.step()
+
 		s.stats["ticks"]++
 		if s.err != nil {
 			return s.err
 		}
 	}
+
 	return nil
 }
 
 func TestSyncPropertyMatchesIndependentReading(t *testing.T) {
 	seeds := 30
+
 	if v := os.Getenv("SYNC_PROPERTY_SEEDS"); v != "" {
 		parsed, err := strconv.Atoi(v)
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		seeds = parsed
 	}
+
 	stats := map[string]int{}
 	for seed := range uint64(seeds) {
 		if err := runSyncProperty(t, seed, 150, stats); err != nil {
 			t.Fatal(err)
 		}
 	}
+
 	for _, k := range slices.Sorted(maps.Keys(stats)) {
 		t.Logf("%-45s %d", k, stats[k])
 	}

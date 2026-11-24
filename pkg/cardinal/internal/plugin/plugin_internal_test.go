@@ -18,8 +18,11 @@ func (o only) Admits(player string, _ event.Stream) bool { return o[player] }
 
 func TestRunner_RunsHooksInRegistrationOrder(t *testing.T) {
 	t.Parallel()
+
 	r := New(ecs.NewWorld())
+
 	var ran []string
+
 	for _, name := range []string{"first", "second"} {
 		r.Register(Hooks{
 			Name:   name,
@@ -30,6 +33,7 @@ func TestRunner_RunsHooksInRegistrationOrder(t *testing.T) {
 			Settle: func() { ran = append(ran, name+" settle") },
 		})
 	}
+
 	r.Register(Hooks{Name: "third"}) // registers no hook, so nothing of it runs
 
 	r.Begin()
@@ -49,14 +53,18 @@ func TestRunner_RunsHooksInRegistrationOrder(t *testing.T) {
 
 func TestRunner_AdmitStopsAtTheFirstVerdictThatDoesNotAdmit(t *testing.T) {
 	t.Parallel()
+
 	for name, verdict := range map[string]Verdict{
 		"rejected": {Outcome: Rejected, Reason: "no_authority", CommandID: 7},
 		"dropped":  {Outcome: Dropped},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+
 			r := New(ecs.NewWorld())
+
 			var asked []string
+
 			rule := func(name string, verdict Verdict) Hooks {
 				return Hooks{Name: name, Admit: func(command.Command) Verdict {
 					asked = append(asked, name)
@@ -77,6 +85,7 @@ func TestRunner_AdmitStopsAtTheFirstVerdictThatDoesNotAdmit(t *testing.T) {
 
 func TestRunner_AdmitsACommandNoHookRefuses(t *testing.T) {
 	t.Parallel()
+
 	r := New(ecs.NewWorld())
 	r.Register(Hooks{Name: "lenient", Admit: func(command.Command) Verdict { return Verdict{} }})
 
@@ -85,12 +94,16 @@ func TestRunner_AdmitsACommandNoHookRefuses(t *testing.T) {
 
 func TestRunner_EmitHandsHooksTheEvent(t *testing.T) {
 	t.Parallel()
+
 	r := New(ecs.NewWorld())
+
 	var seen Emit
+
 	r.Register(Hooks{Name: "stamper", Emit: func(e *Emit) {
 		seen = Emit{Kind: e.Kind, Payload: e.Payload, Recipient: e.Recipient}
 		*e.Payload.(*string) += " (stamped)" //nolint:forcetypeassert // the test passes a *string
 	}})
+
 	payload := "hit"
 
 	audience := r.Emit(Targeted, &payload, "alice")
@@ -102,6 +115,7 @@ func TestRunner_EmitHandsHooksTheEvent(t *testing.T) {
 
 func TestRunner_NarrowedEventNeedsEveryAudience(t *testing.T) {
 	t.Parallel()
+
 	r := New(ecs.NewWorld())
 	r.Register(Hooks{Name: "team", Emit: func(e *Emit) { e.Narrow(only{"alice": true, "bob": true}) }})
 	r.Register(Hooks{Name: "quiet", Emit: func(e *Emit) { e.Narrow(nil) }}) // narrows nothing
@@ -121,14 +135,18 @@ func TestRunner_NarrowedEventNeedsEveryAudience(t *testing.T) {
 // A hook that sends an event of its own still reads the event it was called for afterwards.
 func TestRunner_EmitHookThatEmitsKeepsItsEvent(t *testing.T) {
 	t.Parallel()
+
 	r := New(ecs.NewWorld())
 	outer, inner := "outer", "inner"
+
 	var after []any
+
 	r.Register(Hooks{Name: "relay", Emit: func(e *Emit) {
 		if e.Payload == &outer {
 			assert.Nil(t, r.Emit(Targeted, &inner, "bob"))
 			e.Narrow(only{"alice": true})
 		}
+
 		after = append(after, e.Payload, e.Recipient)
 	}})
 
@@ -141,7 +159,9 @@ func TestRunner_EmitHookThatEmitsKeepsItsEvent(t *testing.T) {
 
 func TestRunner_HookPanicNamesTheHook(t *testing.T) {
 	t.Parallel()
+
 	errBroken := errors.New("broken")
+
 	hooks := map[string]func(fn func()) Hooks{
 		"Begin":  func(fn func()) Hooks { return Hooks{Begin: fn} },
 		"Admit":  func(fn func()) Hooks { return Hooks{Admit: func(command.Command) Verdict { fn(); return Verdict{} }} },
@@ -152,6 +172,7 @@ func TestRunner_HookPanicNamesTheHook(t *testing.T) {
 	for hook, build := range hooks {
 		t.Run(hook, func(t *testing.T) {
 			t.Parallel()
+
 			world := ecs.NewWorld()
 			r := New(world)
 			h := build(func() { panic(errBroken) })
@@ -172,6 +193,7 @@ func TestRunner_HookPanicNamesTheHook(t *testing.T) {
 
 func TestRunner_HooksCannotWriteToTheWorld(t *testing.T) {
 	t.Parallel()
+
 	world := ecs.NewWorld()
 	r := New(world)
 	r.Register(Hooks{Name: "cheat", Commit: func() { world.Create() }})
@@ -187,6 +209,7 @@ func TestRunner_HooksCannotWriteToTheWorld(t *testing.T) {
 
 func TestRunner_NilRunnerHasNoHooks(t *testing.T) {
 	t.Parallel()
+
 	var r *Runner
 
 	assert.NotPanics(t, func() { runAll(r) })
@@ -211,14 +234,19 @@ func runAll(r *Runner) {
 // recovered runs fn and returns the error it panicked with.
 func recovered(t *testing.T, fn func()) (err error) {
 	t.Helper()
+
 	defer func() {
 		value := recover()
 		require.NotNil(t, value, "expected a panic")
+
 		var ok bool
+
 		err, ok = value.(error)
 		require.True(t, ok, "panicked with %T, want an error", value)
 	}()
+
 	fn()
+
 	return nil
 }
 
@@ -236,20 +264,24 @@ func BenchmarkRunner(b *testing.B) {
 	})
 	cmd := command.Command{Name: "move", Sender: command.PlayerSender("alice")}
 	payload := new(int)
+
 	b.Run("Commit", func(b *testing.B) {
 		b.ReportAllocs()
+
 		for b.Loop() {
 			r.Commit()
 		}
 	})
 	b.Run("Admit", func(b *testing.B) {
 		b.ReportAllocs()
+
 		for b.Loop() {
 			r.Admit(cmd)
 		}
 	})
 	b.Run("Emit", func(b *testing.B) {
 		b.ReportAllocs()
+
 		for b.Loop() {
 			r.Emit(Broadcast, payload, "")
 		}

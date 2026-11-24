@@ -12,14 +12,17 @@ import (
 // ascending index order.
 func (p *syncPublisher) check() {
 	indexed := 0
+
 	for key, pol := range p.policies {
 		assert.That(len(pol.entities) > 0 && !pol.stale && pol.key == key,
 			"sync policy %q kept with %d entities, stale=%v", key, len(pol.entities), pol.stale)
+
 		indexed += len(pol.entities)
 		for _, n := range pol.entities {
 			assert.That(p.entry(n) != nil && p.entry(n).policy == pol,
 				"sync policy %q lists entity %d, which does not use it", key, n)
 		}
+
 		p.forSeated(func(slot int, player string) {
 			view, auth := pol.lists[viewerList].has(player), pol.lists[authorityList].has(player)
 			assert.That(
@@ -31,6 +34,7 @@ func (p *syncPublisher) check() {
 			)
 		})
 	}
+
 	for name, g := range p.groups {
 		p.forSeated(func(slot int, player string) {
 			_, member := g.members[player]
@@ -43,19 +47,25 @@ func (p *syncPublisher) check() {
 			)
 		})
 	}
+
 	published := 0
+
 	for n, e := range p.entries {
 		if e == nil {
 			continue
 		}
+
 		published++
+
 		for i := 1; i < len(e.values); i++ {
 			assert.That(e.values[i-1].Component < e.values[i].Component,
 				"sync entity %d lists component %d after %d; patches need ascending indexes",
 				n, e.values[i].Component, e.values[i-1].Component)
 		}
 	}
+
 	assert.That(indexed == published, "sync policies list %d entities, %d are published", indexed, published)
+
 	for slot, r := range p.roster.readers {
 		assert.That(
 			(r.player != "") == p.roster.live.has(slot) && (r.player == "" || p.roster.slotOf[r.player] == slot),

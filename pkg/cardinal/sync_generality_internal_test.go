@@ -64,6 +64,7 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 	client := newSyncClient(w.SyncContract())
 	cosmetics, loadout := syncIndex(t, w.World, "cosmetics"), syncIndex(t, w.World, "loadout")
 	require.Equal(t, []uint16{0, 1}, []uint16{cosmetics, loadout})
+
 	var raw [][]byte
 	// next takes the one frame the tick sent, applies it by the client rules, and keeps its bytes.
 	next := func() syncstate.Frame {
@@ -74,12 +75,15 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 		applied, err := client.apply(frames[0])
 		require.NoError(t, err)
 		require.True(t, applied)
+
 		return frames[0]
 	}
 	data := func(component any) []byte {
 		t.Helper()
+
 		b, err := schema.Serialize(component.(schema.Serializable))
 		require.NoError(t, err)
+
 		return b
 	}
 	clock := time.UnixMilli(1_762_950_000_000)
@@ -87,11 +91,15 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 		clock = clock.Add(after)
 		w.World.Tick(clock)
 	}
+
 	const step = 50 * time.Millisecond
+
 	held := func(e Entity) syncstate.Record {
 		t.Helper()
+
 		h, ok := client.held[uint32(e.ID())]
 		require.True(t, ok)
+
 		return h
 	}
 
@@ -99,6 +107,7 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 	a.Set(syncLoadout{WeaponID: "wand"})
 	a.Set(syncCosmetics{Tint: ^uint32(0), Opacity: 0.5})
 	a.Set(syncPrivate{Secret: "server only"})
+
 	b := w.Create[syncEquipment]()
 	b.Remove[syncCosmetics]()
 	b.Set(syncLoadout{WeaponID: "axe", Ammo: 2})
@@ -146,6 +155,7 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 	// 4. A patch that adds a component, with a presence the client has not seen.
 	a.Set(syncCosmetics{Tint: 0, Opacity: 1})
 	tick(step)
+
 	added := next()
 	require.Len(t, added.Patches, 1)
 	require.Len(t, added.Patches[0].Changed, 1)
@@ -183,6 +193,7 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 	// 8. Nothing changes for a heartbeat: an empty delta, which still takes a sequence number.
 	tick(time.Second)
 	require.Equal(t, syncstate.Frame{Stream: 1, Sequence: 8, Time: 1000}, next())
+
 	fixture := raw
 
 	// Recovery: the reader unsubscribes, then subscribes again and gets a fresh baseline.
@@ -194,6 +205,7 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 		before()
 		setSyncSubscribed(w.service, sub, true)
 		tick(step)
+
 		return next()
 	}
 	recovered := resubscribe(func() {
@@ -202,9 +214,11 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 	})
 	require.NotNil(t, recovered.Open)
 	require.Greater(t, recovered.Stream, uint64(1))
+
 	var appearance syncCosmetics
 	require.NoError(t, msgpack.Unmarshal(held(a).Components[0].Data, &appearance))
 	require.Equal(t, syncCosmetics{Tint: 123, Opacity: 0.25}, appearance)
+
 	before := held(a)
 	unchanged := resubscribe(func() {})
 	require.Equal(t, recovered.Records, unchanged.Records, "recovery also restates unchanged state")
@@ -212,6 +226,7 @@ func TestSyncMultipleUnrelatedComponents(t *testing.T) {
 	a.Set(syncLoadout{WeaponID: "bow", Ammo: 9})
 	tick(step)
 	require.Empty(t, sub.queue, "equal values do not publish")
+
 	if output := os.Getenv("SYNC_INTEROP_OUTPUT"); output != "" {
 		data, err := json.Marshal(struct {
 			Contract string   `json:"Contract"`

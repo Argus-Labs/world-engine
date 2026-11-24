@@ -38,35 +38,47 @@ func Describe(t reflect.Type, name string) (ComponentSchema, bool, error) {
 	if !marked(t) {
 		return result, false, nil
 	}
+
 	if name == "" || name == "sync" {
 		return result, true, fmt.Errorf("invalid sync component name %q", name)
 	}
+
 	if customCodec(t) {
 		return result, true, fmt.Errorf("sync component %s has a custom codec", name)
 	}
+
 	names := map[string]bool{}
+
 	for f := range t.Fields() {
 		fieldName, encoded, err := wireKey(name, f)
 		if err != nil {
 			return result, true, err
 		}
+
 		if !encoded {
 			continue
 		}
+
 		if names[fieldName] {
 			return result, true, fmt.Errorf("sync %s repeats field %s", name, fieldName)
 		}
+
 		names[fieldName] = true
+
 		wireType := scalar(f.Type)
 		if wireType == "" || customCodec(f.Type) {
 			return result, true, fmt.Errorf("sync %s.%s: unsupported wire type %v", name, f.Name, f.Type)
 		}
+
 		result.Fields = append(result.Fields, Field{Name: fieldName, Type: wireType})
 	}
+
 	if len(result.Fields) == 0 {
 		return result, true, fmt.Errorf("sync component %s has no visible scalar fields", name)
 	}
+
 	slices.SortFunc(result.Fields, func(a, b Field) int { return strings.Compare(a.Name, b.Name) })
+
 	return result, true, nil
 }
 
@@ -74,10 +86,12 @@ func Describe(t reflect.Type, name string) (ComponentSchema, bool, error) {
 func (c Contract) CanonicalJSON() ([]byte, error) {
 	sorted := Contract{Version: c.Version, Components: slices.Clone(c.Components)}
 	slices.SortFunc(sorted.Components, func(a, b ComponentSchema) int { return strings.Compare(a.Name, b.Name) })
+
 	for i := range sorted.Components {
 		sorted.Components[i].Fields = slices.Clone(sorted.Components[i].Fields)
 		slices.SortFunc(sorted.Components[i].Fields, func(a, b Field) int { return strings.Compare(a.Name, b.Name) })
 	}
+
 	return json.Marshal(sorted)
 }
 
@@ -86,7 +100,9 @@ func (c Contract) Fingerprint() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	digest := sha256.Sum256(data)
+
 	return hex.EncodeToString(digest[:]), nil
 }
 
@@ -95,11 +111,13 @@ func marked(t reflect.Type) bool {
 	if t.Kind() != reflect.Struct {
 		return false
 	}
+
 	for f := range t.Fields() {
 		if f.Anonymous && f.Type == reflect.TypeFor[Component]() {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -109,20 +127,25 @@ func wireKey(component string, f reflect.StructField) (string, bool, error) {
 	if f.Type == reflect.TypeFor[Component]() && f.Anonymous {
 		return "", false, nil
 	}
+
 	if !f.IsExported() {
 		return "", false, nil
 	}
+
 	tag := strings.Split(f.Tag.Get("msgpack"), ",")
 	if tag[0] == "-" {
 		return "", false, nil
 	}
+
 	if f.Anonymous || len(tag) > 1 {
 		return "", false, fmt.Errorf("sync %s.%s: embedded fields and MessagePack options are not supported",
 			component, f.Name)
 	}
+
 	if tag[0] != "" {
 		return tag[0], true, nil
 	}
+
 	return f.Name, true, nil
 }
 
@@ -169,5 +192,6 @@ func customCodec(t reflect.Type) bool {
 			return true
 		}
 	}
+
 	return false
 }

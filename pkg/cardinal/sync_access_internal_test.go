@@ -95,6 +95,7 @@ func (f *accessFixture) during(fn func(w *World)) {
 // gives each an empty baseline, which the fixture discards.
 func newAccessFixture(t *testing.T, players ...string) *accessFixture {
 	t.Helper()
+
 	f := &accessFixture{
 		admitted: map[string]bool{}, subs: map[string]*streamSubscriber{}, casts: &[]accessCastSeen{},
 		hook: new(func(*World)),
@@ -112,14 +113,18 @@ func newAccessFixture(t *testing.T, players ...string) *accessFixture {
 		w.RegisterSystem(accessDuring{f.hook})
 	})
 	f.World.events.RegisterHandler(event.KindDefault, f.service.publishDefaultEvent)
+
 	for _, p := range players {
 		f.admitted[p] = true
 		f.connect(t, p)
 	}
+
 	f.Tick()
+
 	for _, p := range players {
 		require.Len(t, syncFrames(t, f.subs[p]), 1)
 	}
+
 	return f
 }
 
@@ -134,6 +139,7 @@ func (f *accessFixture) frame(t *testing.T, player string) syncstate.Frame {
 	t.Helper()
 	frames := syncFrames(t, f.subs[player])
 	require.Len(t, frames, 1, "%s's sync frames", player)
+
 	return frames[0]
 }
 
@@ -141,6 +147,7 @@ func (f *accessFixture) frame(t *testing.T, player string) syncstate.Frame {
 // TestWorld step is due.
 func (f *accessFixture) quiet(t *testing.T, players ...string) {
 	t.Helper()
+
 	for _, p := range players {
 		requireHeartbeat(t, syncFrames(t, f.subs[p]), "%s should be told nothing", p)
 	}
@@ -149,12 +156,15 @@ func (f *accessFixture) quiet(t *testing.T, players ...string) {
 // received returns the names of the non-sync events player received, and clears its queue.
 func (f *accessFixture) received(player string) []string {
 	var names []string
+
 	for _, q := range f.subs[player].queue {
 		if name := q.response.GetEvent().GetName(); name != syncstate.EventName {
 			names = append(names, name)
 		}
 	}
+
 	f.subs[player].queue, f.subs[player].queuedBytes = nil, 0
+
 	return names
 }
 
@@ -163,14 +173,17 @@ func players(names ...string) immutable.Slice[string] { return immutable.SliceOf
 func revisionOf(t *testing.T, f syncstate.Frame) uint64 {
 	t.Helper()
 	require.Len(t, f.Records, 1)
+
 	return f.Records[0].Revision
 }
 
 // value is a component as a frame carries it.
 func (f *accessFixture) value(t *testing.T, name string, presence uint64, component any) syncstate.Value {
 	t.Helper()
+
 	data, err := schema.Serialize(component.(schema.Serializable))
 	require.NoError(t, err)
+
 	return syncstate.Value{Component: syncIndex(t, f.World, name), Presence: presence, Data: data}
 }
 
@@ -186,6 +199,7 @@ func TestSyncFoldTable(t *testing.T) {
 	e.Set(syncstate.Viewers{Players: players("bob")})
 	e.Set(syncstate.Authorities{Players: players("alice")})
 	f.Tick()
+
 	ref := refOf(e)
 	loadout := syncIndex(t, f.World, "loadout")
 
@@ -202,6 +216,7 @@ func TestSyncFoldTable(t *testing.T) {
 	// Kept view, revision rose, entity presence unchanged: a patch holding only what changed.
 	e.Set(syncHealth{HP: 9})
 	f.Tick()
+
 	patch := syncstate.Patch{
 		Ref: ref, Revision: 2, Changed: []syncstate.Value{f.value(t, "health", 1, syncHealth{HP: 9})},
 	}
@@ -211,6 +226,7 @@ func TestSyncFoldTable(t *testing.T) {
 		assert.Empty(t, fr.Records, p)
 		assert.Empty(t, fr.Access, p)
 	}
+
 	f.quiet(t, "carol")
 
 	// Gained view in the same commit that changed the entity: the whole record and a grant, while
@@ -224,6 +240,7 @@ func TestSyncFoldTable(t *testing.T) {
 		f.value(t, "health", 1, syncHealth{HP: 8}), f.value(t, "loadout", 1, syncLoadout{WeaponID: "wand"}),
 	}}}, carol.Records)
 	assert.Equal(t, []syncstate.Grant{{Ref: ref, Access: syncstate.View}}, carol.Access)
+
 	for _, p := range []string{"alice", "bob"} {
 		fr := f.frame(t, p)
 		assert.Equal(t, []syncstate.Patch{{Ref: ref, Revision: 3, Changed: []syncstate.Value{
@@ -236,6 +253,7 @@ func TestSyncFoldTable(t *testing.T) {
 	// A removed component arrives in Dropped.
 	e.Remove[syncLoadout]()
 	f.Tick()
+
 	for _, p := range []string{"alice", "bob", "carol"} {
 		dropped := []syncstate.Patch{{Ref: ref, Revision: 4, Dropped: []uint16{loadout}}}
 		assert.Equal(t, dropped, f.frame(t, p).Patches, p)
@@ -252,6 +270,7 @@ func TestSyncFoldTable(t *testing.T) {
 	assert.Equal(t, []syncstate.Patch{{Ref: ref, Revision: 5, Changed: []syncstate.Value{
 		f.value(t, "loadout", added.Presence, syncLoadout{WeaponID: "bow"}),
 	}}}, readded)
+
 	for _, p := range []string{"alice", "carol"} {
 		assert.Equal(t, readded, f.frame(t, p).Patches, p)
 	}
@@ -290,6 +309,7 @@ func TestSyncFoldTable(t *testing.T) {
 	e.Remove[syncstate.Entity]()
 	e.Set(syncstate.Entity{})
 	f.Tick()
+
 	for _, p := range []string{"alice", "bob", "carol"} {
 		fr := f.frame(t, p)
 		assert.Empty(t, fr.Patches, p)
@@ -320,12 +340,14 @@ func TestSyncFoldTable(t *testing.T) {
 	// Lost view: an empty Viewers leaves the entity to its authorities; bob is told it is gone.
 	e.Set(syncstate.Viewers{})
 	f.Tick()
+
 	for _, p := range []string{"bob", "carol"} {
 		fr := f.frame(t, p)
 		assert.Equal(t, []syncstate.Ref{ref}, fr.Removed, p)
 		assert.Empty(t, fr.Records, p)
 		assert.Empty(t, fr.Patches, p)
 	}
+
 	f.quiet(t, "alice")
 
 	// Gained view of an entity it saw before: the full current record and access.
@@ -343,10 +365,12 @@ func TestSyncFoldTable(t *testing.T) {
 
 	// Numeric ID reused within a tick: removed, then record and access, in one frame.
 	e.Destroy()
+
 	next := f.Create[syncAvatar]()
 	next.Set(syncHealth{HP: 1})
 	f.Tick()
 	require.Equal(t, e.ID(), next.ID())
+
 	for _, p := range []string{"alice", "bob"} {
 		fr := f.frame(t, p)
 		assert.Equal(t, []syncstate.Ref{ref}, fr.Removed, p)
@@ -354,6 +378,7 @@ func TestSyncFoldTable(t *testing.T) {
 		assert.Equal(t, uint64(1), revisionOf(t, fr), p)
 		assert.Empty(t, fr.Patches, p)
 	}
+
 	assert.Len(t, f.frame(t, "carol").Records, 1)
 
 	// Readmission: an empty ledger takes every current entry, as a baseline on a new stream.
@@ -381,15 +406,19 @@ func TestSyncCommandVerdicts(t *testing.T) {
 	f := newAccessFixture(t, "alice", "bob", "dave")
 	avatar := f.Create[syncAvatar]()
 	avatar.Set(syncstate.Authorities{Players: players("alice")})
+
 	stash := f.Create[syncAvatar]()
 	stash.Set(syncstate.Viewers{})
 	stash.Set(syncstate.Authorities{Players: players("carol")})
+
 	gone := f.Create[syncAvatar]()
 	daves := f.Create[syncAvatar]()
 	daves.Set(syncstate.Authorities{Players: players("dave")})
 	f.Tick()
+
 	goneID := gone.SyncID()
 	gone.Destroy()
+
 	f.admitted["dave"] = false
 	f.Tick()
 	syncFrames(t, f.subs["alice"])
@@ -398,6 +427,7 @@ func TestSyncCommandVerdicts(t *testing.T) {
 
 	stale := avatar.SyncID()
 	stale.Incarnation++
+
 	f.Command("alice", accessCast{Target: syncstate.TargetOf(avatar.SyncID())})
 	f.Command("bob", accessCast{Target: syncstate.TargetOf(avatar.SyncID())})
 	f.Command("bob", accessCast{Target: syncstate.TargetOf(stash.SyncID())})
@@ -405,6 +435,7 @@ func TestSyncCommandVerdicts(t *testing.T) {
 	f.Command("alice", accessCast{Target: syncstate.TargetOf(goneID)})
 	f.Command("dave", accessCast{Target: syncstate.TargetOf(daves.SyncID())})
 	f.Command("bob", accessRelay{})
+
 	payload, err := schema.Serialize(accessCast{Target: syncstate.TargetOf(avatar.SyncID())})
 	require.NoError(t, err)
 	require.NoError(t, f.commands.Enqueue(t.Context(),
@@ -418,11 +449,13 @@ func TestSyncCommandVerdicts(t *testing.T) {
 	assert.True(t, (*f.casts)[0].target.Alive())
 
 	got := map[string][]syncstate.Reason{}
+
 	for _, p := range []string{"alice", "bob", "dave"} {
 		for _, r := range f.rejections(t, p) {
 			got[p] = append(got[p], r.Reason)
 		}
 	}
+
 	assert.Equal(
 		t,
 		[]syncstate.Reason{syncstate.StaleTarget, syncstate.StaleTarget},
@@ -455,6 +488,7 @@ func authorityIDs(w *World, player string) []EntityID {
 	for e := range w.AuthorityOf(player) {
 		out = append(out, e.ID())
 	}
+
 	return out
 }
 
@@ -462,8 +496,10 @@ func TestSyncAuthorityOf(t *testing.T) {
 	f := newAccessFixture(t, "alice", "bob")
 	team := f.Create[accessTeam]()
 	team.Set(syncstate.Group{GroupName: "red", Players: players("alice", "bob")})
+
 	mine := f.Create[syncAvatar]()
 	mine.Set(syncstate.Authorities{Players: players("alice")})
+
 	turret := f.Create[syncAvatar]()
 	turret.Set(syncstate.Authorities{Groups: players("red")})
 	f.Create[syncAvatar]() // nobody can target it
@@ -481,8 +517,10 @@ func TestSyncAuthorityOf(t *testing.T) {
 	var seen []EntityID
 	for e := range f.AuthorityOf("alice") {
 		seen = append(seen, e.ID())
+
 		turret.Destroy()
 	}
+
 	assert.Equal(t, []EntityID{mine.ID()}, seen)
 
 	// Ascending entity IDs, whichever archetype holds each entity: the lower ID lands in an
@@ -505,6 +543,7 @@ func TestSyncAuthorityOfReadsTheLiveWorld(t *testing.T) {
 	}
 
 	var avatar, team, dup, turret Entity
+
 	f.during(func(w *World) { // spawn
 		avatar = w.Create[syncAvatar]()
 		avatar.Set(syncstate.Authorities{Players: players("alice")})
@@ -542,7 +581,9 @@ func TestSyncAuthorityOfReadsTheLiveWorld(t *testing.T) {
 		assert.Equal(t, []EntityID{turret.ID()}, authorityIDs(w, "bob"))
 
 		f.admitted["bob"] = false
+
 		assert.Empty(t, authorityIDs(w, "bob"), "authority never bypasses admission")
+
 		f.admitted["bob"] = true
 
 		team.Destroy()
@@ -559,7 +600,9 @@ func TestSyncAuthorityOfNeedsSync(t *testing.T) {
 
 func TestSyncGroupsFailClosed(t *testing.T) {
 	f := newAccessFixture(t, "alice", "bob")
+
 	var logs bytes.Buffer
+
 	f.tel.Logger = zerolog.New(&logs)
 	e := f.Create[syncAvatar]()
 	e.Set(syncstate.Viewers{Groups: players("team")})
@@ -602,6 +645,7 @@ func TestSyncGroupsFailClosed(t *testing.T) {
 	// Renaming the group empties the old name.
 	team.Set(syncstate.Group{GroupName: "renamed", Players: players("alice", "bob")})
 	f.Tick()
+
 	for _, p := range []string{"alice", "bob"} {
 		fr := f.frame(t, p)
 		assert.Equal(t, []syncstate.Ref{refOf(e)}, fr.Removed, p)
@@ -614,6 +658,7 @@ func TestSyncGroupsFailClosed(t *testing.T) {
 	record := f.frame(t, "bob").Records
 	require.Len(t, record, 1)
 	assert.Empty(t, record[0].Components)
+
 	contract, err := f.SyncContract().CanonicalJSON()
 	require.NoError(t, err)
 	assert.NotContains(t, string(contract), "sync_group")
@@ -630,6 +675,7 @@ func TestSyncSlotCoolsUntilDispatch(t *testing.T) {
 	f.quiet(t, "alice")
 
 	secret.Set(syncHealth{HP: 1}) // a transition queued in the tick alice leaves and bob joins
+
 	f.admitted["alice"] = false
 	f.admitted["bob"] = true
 	f.connect(t, "bob")
@@ -718,9 +764,11 @@ func TestSyncFrameLayoutGolden(t *testing.T) {
 	ref := []byte{0x92, byte(e.ID()), byte(e.SyncID().Incarnation)}
 	bin := func(t *testing.T, component any) []byte {
 		t.Helper()
+
 		data, err := schema.Serialize(component.(schema.Serializable))
 		require.NoError(t, err)
 		require.Less(t, len(data), 256)
+
 		return append([]byte{0xc4, byte(len(data))}, data...)
 	}
 	str := func(s string) []byte { return append([]byte{0xd9, byte(len(s))}, s...) }
@@ -735,6 +783,7 @@ func TestSyncFrameLayoutGolden(t *testing.T) {
 	// alice and bob heard nothing for a heartbeat: an empty delta, one second on.
 	for player, stream := range map[string]byte{"alice": 1, "bob": 2} {
 		heartbeat := cat([]byte{0x98, 0xc0, stream, 0x03}, second, []byte{0xc0, 0xc0, 0xc0, 0xc0})
+
 		require.Len(t, f.subs[player].queue, 1, player)
 		assert.Equal(t, heartbeat, f.subs[player].queue[0].response.GetEvent().GetPayload(), player)
 		syncFrames(t, f.subs[player])
@@ -760,15 +809,19 @@ func TestSyncFrameLayoutGolden(t *testing.T) {
 	// One entity with two components moves one: a delta holds a patch with that one component.
 	e.Set(syncLoadout{WeaponID: "bow", Ammo: 3})
 	f.Tick()
+
 	moved := bin(t, syncLoadout{WeaponID: "bow", Ammo: 3})
 	// a patch: ref, revision 2, one changed value (loadout, presence 1), nothing dropped
 	patch := cat([]byte{0x94}, ref, []byte{0x02, 0x91, 0x93, 0x01, 0x01}, moved, []byte{0xc0})
+
 	for player, stream := range map[string]byte{"alice": 1, "bob": 2, "dave": 3} {
 		sequence := byte(4)
 		if player == "dave" {
 			sequence = 2
 		}
+
 		delta := cat([]byte{0x98, 0xc0, stream, sequence}, second, []byte{0xc0, 0x91}, patch, []byte{0xc0, 0xc0})
+
 		require.Len(t, f.subs[player].queue, 1, player)
 		wire := f.subs[player].queue[0].response.GetEvent().GetPayload()
 		assert.Equal(t, delta, wire, player)
@@ -782,6 +835,7 @@ func TestSyncPolicyTellsUnknownGroupsApart(t *testing.T) {
 	f := newAccessFixture(t, "alice")
 	red := f.Create[syncAvatar]()
 	red.Set(syncstate.Viewers{Groups: players("red")})
+
 	blue := f.Create[syncAvatar]()
 	blue.Set(syncstate.Viewers{Groups: players("blue")})
 	f.Tick()

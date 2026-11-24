@@ -43,24 +43,29 @@ func (w *World) reconcileSync() {
 	if !p.enabled() {
 		return
 	}
+
 	type stream struct {
 		player     string
 		subscriber *streamSubscriber
 		generation uint64
 	}
+
 	s := w.service
 	s.mu.RLock()
+
 	subscribed := make([]stream, 0, len(s.subscribers))
 	for player, sub := range s.subscribers {
 		if sub.wantsSync() {
 			subscribed = append(subscribed, stream{player, sub, sub.syncGeneration})
 		}
 	}
+
 	s.mu.RUnlock()
 	slices.SortFunc(subscribed, func(a, b stream) int { return strings.Compare(a.player, b.player) })
 
 	want := map[string]stream{}
 	revoked := map[string]stream{}
+
 	for _, c := range subscribed {
 		if p.admit(c.player) {
 			want[c.player] = c
@@ -68,6 +73,7 @@ func (w *World) reconcileSync() {
 			revoked[c.player] = c
 		}
 	}
+
 	same := func(r syncReader, c stream, ok bool) bool {
 		return ok && c.subscriber == r.subscriber && c.generation == r.generation
 	}
@@ -75,21 +81,26 @@ func (w *World) reconcileSync() {
 		if !p.roster.live.has(slot) {
 			continue
 		}
+
 		if c, ok := want[r.player]; same(r, c, ok) {
 			continue
 		}
+
 		c, ok := revoked[r.player]
 		p.roster.leave(r.player)
 		w.events.Enqueue(event.Event{Kind: event.KindSync, Payload: syncClose{slot: slot, clear: same(r, c, ok)}})
 	}
+
 	for _, c := range subscribed {
 		if _, ok := want[c.player]; !ok {
 			continue
 		}
+
 		if slot, seated := p.roster.slotOf[c.player]; seated && p.roster.live.has(slot) &&
 			same(p.roster.readers[slot], c, true) {
 			continue
 		}
+
 		slot := p.seat(c.player)
 		w.events.Enqueue(event.Event{Kind: event.KindSync, Payload: syncOpen{slot, c.subscriber, c.generation}})
 	}
@@ -107,10 +118,12 @@ func (s *streamSubscriber) wantsSync() bool {
 // the log and the publisher, never the live world.
 func (w *World) dispatchSync(_ context.Context, evt event.Event) error {
 	p := w.sync
+
 	switch item := evt.Payload.(type) {
 	case syncCommit:
 		deltas := p.emptyDeltas()
 		p.fold(item, deltas)
+
 		for slot := range deltas {
 			if !deltas[slot].empty() {
 				w.sendSync(&p.roster.readers[slot], syncContinues, deltas[slot])
@@ -124,12 +137,15 @@ func (w *World) dispatchSync(_ context.Context, evt event.Event) error {
 	case syncClose:
 		r := &p.roster.readers[item.slot]
 		p.roster.live.put(item.slot, false)
+
 		if item.clear {
 			r.stream, r.sequence = p.nextStream(), 0
 			w.sendSync(r, syncClears, syncDelta{})
 		}
+
 		r.subscriber = nil
 	}
+
 	return nil
 }
 
@@ -141,6 +157,7 @@ func (w *World) settleSync() {
 	if !p.enabled() {
 		return
 	}
+
 	w.heartbeatSync()
 	p.roster.release()
 	clear(p.retired)
@@ -157,6 +174,7 @@ const heartbeatMillis = uint64(syncstate.Heartbeat / time.Millisecond)
 func (w *World) heartbeatSync() {
 	p := w.sync
 	now := w.syncTime()
+
 	for word, open := range p.roster.live {
 		for m := open; m != 0; m &= m - 1 {
 			r := &p.roster.readers[word<<6+bits.TrailingZeros64(m)]
@@ -195,35 +213,44 @@ const (
 // the last frame; if the tick's time went back, it is 0 until the time catches up.
 func (w *World) sendSync(r *syncReader, start syncStart, d syncDelta) {
 	baseline := start != syncContinues
+
 	r.sequence++
 	if baseline {
 		r.clock = 0
 	}
+
 	now := w.syncTime()
 	elapsed := now - min(now, r.clock)
+
 	r.clock += elapsed
 	if r.subscriber == nil || r.subscriber.ctx.Err() != nil {
 		return
 	}
+
 	var open []byte
+
 	if baseline {
 		var heartbeat uint64
 		if start == syncOpens {
 			heartbeat = heartbeatMillis
 		}
+
 		p := w.sync
 		if p.fingerprint == "" {
 			fingerprint, err := w.SyncContract().Fingerprint()
 			if err != nil {
 				panic(err)
 			}
+
 			p.fingerprint = fingerprint
 		}
+
 		open = encodeSync(syncstate.Open{
 			Version: syncstate.ProtocolVersion, Fingerprint: p.fingerprint, Session: w.world.Session(),
 			Heartbeat: heartbeat,
 		})
 	}
+
 	payload := appendFrame(nil, open, r.stream, r.sequence, elapsed, d)
 	evt := &iscv1.Event{Name: syncstate.EventName, Payload: payload}
 	// A full queue ends the stream as lagged; the next reconcile closes its slot.
@@ -237,11 +264,13 @@ func (p *syncPublisher) emptyDeltas() []syncDelta {
 	for len(p.deltas) < len(p.roster.readers) {
 		p.deltas = append(p.deltas, syncDelta{})
 	}
+
 	deltas := p.deltas[:len(p.roster.readers)]
 	for i := range deltas {
 		d := &deltas[i]
 		d.records, d.patches, d.removed, d.access = d.records[:0], d.patches[:0], d.removed[:0], d.access[:0]
 	}
+
 	return deltas
 }
 
@@ -252,13 +281,16 @@ func (p *syncPublisher) emptyDeltas() []syncDelta {
 // frame's Time.
 func appendFrame(b []byte, open []byte, stream, sequence, elapsed uint64, d syncDelta) []byte {
 	const refMax, grantMax = 1 + 5 + 9, 1 + (1 + 5 + 9) + 1 // [entity, incarnation], [ref, access]
+
 	size := 1 + max(1, len(open)) + 3*9 + 4*5 + len(d.removed)*refMax + len(d.access)*grantMax
 	for _, raw := range d.records {
 		size += len(raw)
 	}
+
 	for _, raw := range d.patches {
 		size += len(raw)
 	}
+
 	b = slices.Grow(b, size)
 
 	b = append(b, msgpcode.FixedArrayLow|8) // the frame's eight fields
@@ -267,19 +299,23 @@ func appendFrame(b []byte, open []byte, stream, sequence, elapsed uint64, d sync
 	} else {
 		b = append(b, open...)
 	}
+
 	b = appendUint(b, stream)
 	b = appendUint(b, sequence)
 	b = appendUint(b, elapsed)
 	b = appendRaw(b, d.records)
 	b = appendRaw(b, d.patches)
+
 	b = appendArrayLen(b, len(d.removed))
 	for _, ref := range d.removed {
 		b = appendRef(b, ref)
 	}
+
 	b = appendArrayLen(b, len(d.access))
 	for _, g := range d.access {
 		b = appendUint(appendRef(append(b, msgpcode.FixedArrayLow|2), g.Ref), uint64(g.Access))
 	}
+
 	return b
 }
 
@@ -288,6 +324,7 @@ func appendRaw(b []byte, list []msgpack.RawMessage) []byte {
 	for _, raw := range list {
 		b = append(b, raw...)
 	}
+
 	return b
 }
 
@@ -321,5 +358,6 @@ func appendUint(b []byte, n uint64) []byte {
 	case n <= math.MaxUint32:
 		return binary.BigEndian.AppendUint32(append(b, msgpcode.Uint32), uint32(n))
 	}
+
 	return binary.BigEndian.AppendUint64(append(b, msgpcode.Uint64), n)
 }

@@ -21,9 +21,11 @@ func ExportSyncContract(register func(*World)) ([]byte, error) {
 	if register == nil {
 		return nil, fmt.Errorf("sync export requires type registration")
 	}
+
 	w := &World{world: ecs.NewWorld(), commands: command.NewManager(), events: event.NewManager(1)}
 	w.service = newService(w, AuthModeDev, "")
 	register(w)
+
 	return w.SyncContract().CanonicalJSON()
 }
 
@@ -35,25 +37,30 @@ func (w *World) EnableSync(admit func(playerID string) bool) {
 	if w.started {
 		panic(ErrWorldStarted)
 	}
+
 	if admit == nil {
 		panic("sync requires a session audience")
 	}
+
 	w.ensureSync().admit = admit
 }
 
 // SyncContract exports registered, tagged component types without starting the world.
 func (w *World) SyncContract() syncstate.Contract {
 	contract := syncstate.Contract{Version: syncstate.ProtocolVersion, Components: []syncstate.ComponentSchema{}}
+
 	if w.sync != nil {
 		for _, c := range w.sync.components {
 			c.Fields = slices.Clone(c.Fields)
 			contract.Components = append(contract.Components, c)
 		}
 	}
+
 	slices.SortFunc(
 		contract.Components,
 		func(a, b syncstate.ComponentSchema) int { return strings.Compare(a.Name, b.Name) },
 	)
+
 	return contract
 }
 
@@ -69,11 +76,13 @@ func (w *World) AuthorityOf(player string) iter.Seq[Entity] {
 		if !w.sync.enabled() || !w.sync.admit(player) {
 			return
 		}
+
 		for _, id := range liveAuthority(w, player) {
 			e := w.Entity(EntityID(id.Entity))
 			if !e.Alive() || e.SyncID() != id {
 				continue
 			}
+
 			if !yield(e) {
 				return
 			}
@@ -85,6 +94,7 @@ func (w *World) ensureSync() *syncPublisher {
 	if w.sync != nil {
 		return w.sync
 	}
+
 	p := &syncPublisher{
 		components:   map[ecs.ComponentID]syncstate.ComponentSchema{},
 		presence:     map[EntityID]map[ecs.ComponentID]uint64{},
@@ -102,6 +112,7 @@ func (w *World) ensureSync() *syncPublisher {
 	w.world.Observe(p.observe)
 	w.hookSync()
 	w.events.RegisterHandler(event.KindSync, w.dispatchSync)
+
 	return p
 }
 
@@ -110,6 +121,7 @@ func registerBuiltin[T ecs.Component](w *World) ecs.ComponentID {
 	if err != nil {
 		panic(err)
 	}
+
 	return id
 }
 
@@ -118,6 +130,7 @@ func (w *World) registerSync(t reflect.Type, name string, cid ecs.ComponentID) {
 	if err != nil {
 		panic(err)
 	}
+
 	if exposed {
 		p := w.ensureSync()
 		p.components[cid] = c
@@ -131,6 +144,7 @@ func (w *World) captureSync(final bool) {
 	if !w.sync.enabled() {
 		return
 	}
+
 	if commit := w.sync.capture(w, final); len(commit) > 0 {
 		w.events.Enqueue(event.Event{Kind: event.KindSync, Payload: syncCommit(commit)})
 	}
@@ -148,6 +162,7 @@ func (w *World) stampSync(payload any) {
 	if w.sync == nil {
 		return
 	}
+
 	if stamped, ok := payload.(interface {
 		SyncEntity() uint32
 		SetSyncIdentity(syncstate.ID)
@@ -176,18 +191,24 @@ func (w *World) syncAudience(payload any) *syncAudience {
 	if !p.enabled() {
 		return nil
 	}
+
 	_, occurrence := payload.(interface{ SyncOccurrence() })
 	audience := &syncAudience{publisher: p, occurrence: occurrence}
+
 	stamped, ok := payload.(stampedEvent)
 	if !ok {
 		if occurrence {
 			return audience
 		}
+
 		return nil
 	}
+
 	audience.id, audience.stamped = stamped.SyncIdentity(stamped.SyncEntity()), true
 	n := EntityID(audience.id.Entity)
+
 	p.refreshGroups(w)
+
 	last := p.entry(n)
 	switch live, synced := p.lifetime(w, n); {
 	case synced && live == audience.id:
@@ -199,6 +220,7 @@ func (w *World) syncAudience(payload any) *syncAudience {
 	case w.Entity(n).Alive() && w.Entity(n).SyncID() == audience.id:
 		audience.ungated = true // alive, and never synced as this lifetime: not about synced state
 	}
+
 	return audience
 }
 
@@ -208,9 +230,11 @@ func (a *syncAudience) policy() (*syncPolicy, bool) {
 	if !a.stamped {
 		return nil, false
 	}
+
 	if e := a.publisher.entry(EntityID(a.id.Entity)); e != nil && e.id == a.id {
 		return e.policy, true
 	}
+
 	return a.fallback, !a.ungated
 }
 
@@ -219,6 +243,7 @@ func (a *syncAudience) policy() (*syncPolicy, bool) {
 // to its entity, and admission.
 func (a *syncAudience) Admits(player string, stream event.Stream) bool {
 	p := a.publisher
+
 	pol, gated := a.policy()
 	if a.occurrence {
 		slot, seated := p.roster.slotOf[player]
@@ -226,8 +251,10 @@ func (a *syncAudience) Admits(player string, stream event.Stream) bool {
 			(stream != nil && p.roster.readers[slot].subscriber != stream) {
 			return false
 		}
+
 		return !gated || p.access(pol, player) >= syncstate.View
 	}
+
 	return !gated || (p.access(pol, player) >= syncstate.View && p.admit(player))
 }
 
@@ -260,11 +287,13 @@ func (m commandMemory) recall(player string, id uint64) (syncstate.Reason, bool)
 	if id == 0 {
 		return "", false
 	}
+
 	for _, c := range m[player] {
 		if c.id == id {
 			return c.verdict, true
 		}
 	}
+
 	return "", false
 }
 
@@ -273,6 +302,7 @@ func (m commandMemory) remember(player string, c judgedCommand) {
 	if c.id == 0 {
 		return
 	}
+
 	m[player] = append(m[player], c)
 	if over := len(m[player]) - commandMemoryPerPlayer; over > 0 {
 		m[player] = slices.Delete(m[player], 0, over)
@@ -299,6 +329,7 @@ func (w *World) hookSync() {
 	if w.hooks != nil {
 		return
 	}
+
 	w.judged, w.admitted = commandMemory{}, map[string]bool{}
 	w.hooks = plugin.New(w.world)
 	w.hooks.Register(plugin.Hooks{
@@ -326,24 +357,30 @@ func (w *World) judgeCommand(cmd command.Command) plugin.Verdict {
 	if t, ok := cmd.Payload.(targeted); ok {
 		id = t.SyncCommandID()
 	}
+
 	var reason syncstate.Reason
+
 	repeat := false
+
 	player, isPlayer := cmd.Sender.Player() // only players' IDs are remembered
 	if isPlayer {
 		reason, repeat = w.judged.recall(player, id)
 	}
+
 	if !repeat {
 		reason = w.commandVerdict(cmd)
 		if isPlayer {
 			w.judged.remember(player, judgedCommand{id: id, at: w.Timestamp(), verdict: reason})
 		}
 	}
+
 	switch {
 	case reason != "":
 		return plugin.Verdict{Outcome: plugin.Rejected, Reason: string(reason), CommandID: id}
 	case repeat:
 		return plugin.Verdict{Outcome: plugin.Dropped}
 	}
+
 	return plugin.Verdict{}
 }
 
@@ -360,19 +397,23 @@ func (w *World) commandVerdict(cmd command.Command) syncstate.Reason {
 			return syncstate.ShardOnly
 		}
 	}
+
 	target, ok := cmd.Payload.(targeted)
 	if !ok {
 		return ""
 	}
+
 	p := w.sync
 	if !p.enabled() || !isPlayer {
 		return syncstate.StaleTarget // only an admitted player can hold authority
 	}
+
 	allowed, known := w.admitted[player]
 	if !known {
 		allowed = p.admit(player)
 		w.admitted[player] = allowed
 	}
+
 	return p.judge(player, allowed, target.SyncTarget())
 }
 
@@ -380,12 +421,14 @@ func (w *World) commandVerdict(cmd command.Command) syncstate.Reason {
 // the readers who may see it, and publishes the changes made before it, so they arrive first.
 func (w *World) emitSync(e *plugin.Emit) {
 	w.stampSync(e.Payload)
+
 	if e.Kind != plugin.SystemEvent {
 		// Before the capture below can drop a destroyed entity's last entry.
 		if audience := w.syncAudience(e.Payload); audience != nil {
 			e.Narrow(audience)
 		}
 	}
+
 	w.captureSync(false)
 }
 

@@ -44,14 +44,18 @@ func TestSyncAppendFrameMatchesReflectiveEncoding(t *testing.T) {
 		if n == 0 && nilWhenEmpty {
 			return -1
 		}
+
 		return n
 	}
+
 	for i := range 400 {
 		var d syncDelta
+
 		n := func() int {
 			if rng.IntN(8) == 0 {
 				return lengths[rng.IntN(len(lengths))]
 			}
+
 			return rng.IntN(20)
 		}
 		if k := list(n(), rng.IntN(2) == 0); k >= 0 {
@@ -60,18 +64,21 @@ func TestSyncAppendFrameMatchesReflectiveEncoding(t *testing.T) {
 				d.records = append(d.records, raw())
 			}
 		}
+
 		if k := list(n(), rng.IntN(2) == 0); k >= 0 {
 			d.patches = make([]msgpack.RawMessage, 0, k)
 			for range k {
 				d.patches = append(d.patches, raw())
 			}
 		}
+
 		if k := list(n(), rng.IntN(2) == 0); k >= 0 {
 			d.removed = make([]syncstate.Ref, 0, k)
 			for range k {
 				d.removed = append(d.removed, ref())
 			}
 		}
+
 		if k := list(n(), rng.IntN(2) == 0); k >= 0 {
 			d.access = make([]syncstate.Grant, 0, k)
 			for range k {
@@ -79,12 +86,15 @@ func TestSyncAppendFrameMatchesReflectiveEncoding(t *testing.T) {
 				d.access = append(d.access, syncstate.Grant{Ref: ref(), Access: access})
 			}
 		}
+
 		want := reflectFrame{
 			Stream: num(), Sequence: num(), Time: num(),
 			Records: nilIfEmpty(d.records), Patches: nilIfEmpty(d.patches),
 			Removed: nilIfEmpty(d.removed), Access: nilIfEmpty(d.access),
 		}
+
 		var open []byte
+
 		if rng.IntN(4) == 0 {
 			want.Open = &syncstate.Open{
 				Version: syncstate.ProtocolVersion, Fingerprint: fmt.Sprintf("%064x", i), Session: "session",
@@ -92,6 +102,7 @@ func TestSyncAppendFrameMatchesReflectiveEncoding(t *testing.T) {
 			}
 			open = encodeSync(*want.Open)
 		}
+
 		got := appendFrame(nil, open, want.Stream, want.Sequence, want.Time, d)
 		require.Equal(t, encodeSync(want), got, "frame %d", i)
 	}
@@ -101,6 +112,7 @@ func nilIfEmpty[T any](s []T) []T {
 	if len(s) == 0 {
 		return nil
 	}
+
 	return s
 }
 
@@ -108,6 +120,7 @@ func nilIfEmpty[T any](s []T) []T {
 func BenchmarkSyncFrameAssembly(b *testing.B) {
 	data, err := msgpack.Marshal(map[string]float64{"X": 123.456, "Y": 654.321})
 	require.NoError(b, err)
+
 	var d syncDelta
 	for n := range 2600 {
 		d.patches = append(d.patches, encodeSync(syncstate.Patch{
@@ -115,6 +128,7 @@ func BenchmarkSyncFrameAssembly(b *testing.B) {
 			Changed: []syncstate.Value{{Component: 3, Presence: 1, Data: data}},
 		}))
 	}
+
 	b.Run("reflect", func(b *testing.B) {
 		for b.Loop() {
 			_ = encodeSync(reflectFrame{Stream: 7, Sequence: 9000, Time: 50, Patches: d.patches})
@@ -132,34 +146,42 @@ func BenchmarkSyncFrameAssembly(b *testing.B) {
 // the fold, frame assembly and queueing; nothing writes the queued frames.
 func BenchmarkSyncTickLimit(b *testing.B) {
 	const readers, entities, moving = 200, 5000, 2500
+
 	w := NewTestWorld(b, func(w *World) {
 		w.RegisterComponent[syncHealth]()
 		w.RegisterComponent[syncPrivate]()
 		w.EnableSync(func(string) bool { return true })
 	})
+
 	var subs []*streamSubscriber
 	for i := range readers {
 		subs = append(subs, openStream(b, w.service, fmt.Sprintf("bot-%d", i), syncstate.EventName))
 	}
+
 	var all []Entity
+
 	for range entities {
 		e := w.Create[syncAvatar]()
 		e.Set(syncHealth{HP: 1, MaxHP: 100})
 		all = append(all, e)
 	}
+
 	drain := func() {
 		for _, sub := range subs {
 			sub.queue, sub.queuedBytes = nil, 0
 		}
 	}
+
 	w.Tick() // baselines
 	drain()
+
 	hp := 1
 	for b.Loop() {
 		hp++
 		for _, e := range all[:moving] {
 			e.Set(syncHealth{HP: hp, MaxHP: 100})
 		}
+
 		w.Tick()
 		drain()
 	}

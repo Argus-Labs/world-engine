@@ -52,6 +52,7 @@ func newSyncFixture(t *testing.T, admit func(string) bool) (*TestWorld, *streamS
 		w.RegisterEvent[syncReply]()
 	})
 	w.World.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
+
 	return w, openStream(t, w.service, "alice", syncstate.EventName, "hurt")
 }
 
@@ -64,14 +65,17 @@ func openStream(tb testing.TB, s *service, player string, events ...string) *str
 	}
 	addSubscriptions(sub, []*cardinalv1.EventSubscription{{Events: events}})
 	s.addSubscriber(player, sub)
+
 	return sub
 }
 
 // setSyncSubscribed subscribes sub to world_sync or unsubscribes it, as the service's RPCs do.
 func setSyncSubscribed(s *service, sub *streamSubscriber, on bool) {
 	subscriptions := []*cardinalv1.EventSubscription{{Events: []string{syncstate.EventName}}}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	if on {
 		addSubscriptions(sub, subscriptions)
 	} else {
@@ -97,12 +101,15 @@ type syncClient struct {
 
 func newSyncClient(contract syncstate.Contract) *syncClient {
 	c := &syncClient{components: len(contract.Components)}
+
 	fingerprint, err := contract.Fingerprint()
 	if err != nil {
 		panic(err)
 	}
+
 	c.fingerprint = fingerprint
 	c.clear()
+
 	return c
 }
 
@@ -127,6 +134,7 @@ func (c *syncClient) apply(f syncstate.Frame) (bool, error) {
 	if f.Open == nil && (!c.ready || f.Stream != c.stream) {
 		return false, nil
 	}
+
 	if f.Open != nil {
 		switch {
 		case f.Open.Version != syncstate.ProtocolVersion || f.Open.Session == "":
@@ -141,23 +149,29 @@ func (c *syncClient) apply(f syncstate.Frame) (bool, error) {
 	} else if f.Sequence != c.sequence+1 {
 		return false, fmt.Errorf("sequence %d after %d", f.Sequence, c.sequence)
 	}
+
 	held := c.held
 	if f.Open != nil {
 		held = nil // a baseline replaces everything held
 	}
+
 	index := func(i uint16) error {
 		if int(i) >= c.components {
 			return fmt.Errorf("component index %d, the contract has %d", i, c.components)
 		}
+
 		return nil
 	}
+
 	removed, recorded := map[uint32]bool{}, map[syncstate.Ref]bool{}
 	for _, r := range f.Removed {
 		if h, ok := held[r.Entity]; !ok || h.Ref != r || removed[r.Entity] {
 			return false, fmt.Errorf("removes %v, which it does not hold", r)
 		}
+
 		removed[r.Entity] = true
 	}
+
 	for _, rec := range f.Records {
 		h, ok := held[rec.Ref.Entity]
 		switch {
@@ -168,17 +182,21 @@ func (c *syncClient) apply(f syncstate.Frame) (bool, error) {
 		case ok && !removed[rec.Ref.Entity] && rec.Revision <= h.Revision:
 			return false, fmt.Errorf("records %v at revision %d after %d", rec.Ref, rec.Revision, h.Revision)
 		}
+
 		recorded[rec.Ref] = true
 		for i, v := range rec.Components {
 			if err := index(v.Component); err != nil {
 				return false, err
 			}
+
 			if i > 0 && rec.Components[i-1].Component >= v.Component {
 				return false, fmt.Errorf("record %v lists components out of order", rec.Ref)
 			}
 		}
 	}
+
 	patched := map[syncstate.Ref]bool{}
+
 	for _, pa := range f.Patches {
 		h, ok := held[pa.Ref.Entity]
 		switch {
@@ -189,18 +207,23 @@ func (c *syncClient) apply(f syncstate.Frame) (bool, error) {
 		case pa.Revision <= h.Revision:
 			return false, fmt.Errorf("patches %v to revision %d at %d", pa.Ref, pa.Revision, h.Revision)
 		}
+
 		patched[pa.Ref] = true
 		seen := map[uint16]bool{}
+
 		for _, i := range append(componentsOf(pa.Changed), pa.Dropped...) {
 			if err := index(i); err != nil {
 				return false, err
 			}
+
 			if seen[i] {
 				return false, fmt.Errorf("patch %v names component %d twice", pa.Ref, i)
 			}
+
 			seen[i] = true
 		}
 	}
+
 	holds := func(r syncstate.Ref) bool {
 		h, ok := held[r.Entity]
 		return recorded[r] || ok && h.Ref == r && !removed[r.Entity]
@@ -215,29 +238,37 @@ func (c *syncClient) apply(f syncstate.Frame) (bool, error) {
 		c.ready, c.session, c.stream, c.time, c.heartbeat = true, f.Open.Session, f.Stream, 0, f.Open.Heartbeat
 		c.clear()
 	}
+
 	c.sequence = f.Sequence
+
 	c.time += f.Time
 	for _, r := range f.Removed {
 		delete(c.held, r.Entity)
 		delete(c.access, r.Entity)
 	}
+
 	for _, rec := range f.Records {
 		if h, ok := c.held[rec.Ref.Entity]; !ok || h.Ref != rec.Ref {
 			delete(c.access, rec.Ref.Entity)
 		}
+
 		c.held[rec.Ref.Entity] = rec
 	}
+
 	for _, pa := range f.Patches {
 		c.held[pa.Ref.Entity] = merge(c.held[pa.Ref.Entity], pa)
 	}
+
 	for _, g := range f.Access {
 		c.access[g.Ref.Entity] = g.Access
 	}
+
 	for n := range c.held {
 		if c.access[n] == syncstate.None {
 			return true, fmt.Errorf("holds %v without access", c.held[n].Ref)
 		}
 	}
+
 	return true, nil
 }
 
@@ -250,8 +281,10 @@ func merge(h syncstate.Record, pa syncstate.Patch) syncstate.Record {
 			out.Components = append(out.Components, v)
 		}
 	}
+
 	out.Components = append(out.Components, pa.Changed...)
 	slices.SortFunc(out.Components, func(a, b syncstate.Value) int { return int(a.Component) - int(b.Component) })
+
 	return out
 }
 
@@ -260,18 +293,22 @@ func componentsOf(values []syncstate.Value) []uint16 {
 	for _, v := range values {
 		out = append(out, v.Component)
 	}
+
 	return out
 }
 
 // syncIndex is the wire index of a component: its position in the contract.
 func syncIndex(t testing.TB, w *World, name string) uint16 {
 	t.Helper()
+
 	for i, c := range w.SyncContract().Components {
 		if c.Name == name {
 			return uint16(i)
 		}
 	}
+
 	t.Fatalf("component %q is not in the contract", name)
+
 	return 0
 }
 
@@ -292,17 +329,22 @@ func requireHeartbeat(t *testing.T, frames []syncstate.Frame, msgAndArgs ...any)
 
 func syncFrames(t *testing.T, sub *streamSubscriber) []syncstate.Frame {
 	t.Helper()
+
 	var frames []syncstate.Frame
+
 	for _, e := range sub.queue {
 		if e.response.GetEvent().GetName() != syncstate.EventName {
 			continue
 		}
+
 		var frame syncstate.Frame
 		require.NoError(t, msgpack.Unmarshal(e.response.GetEvent().GetPayload(), &frame))
 		frames = append(frames, frame)
 	}
+
 	sub.queue = nil
 	sub.queuedBytes = 0
+
 	return frames
 }
 
@@ -312,6 +354,7 @@ func TestSyncBaselinePrivacyAndDirtyPublication(t *testing.T) {
 	entity.Set(syncHealth{HP: 80, MaxHP: 100})
 	entity.Set(syncPrivate{Secret: "not public"})
 	w.Tick()
+
 	frames := syncFrames(t, sub)
 	require.Len(t, frames, 1)
 	require.NotNil(t, frames[0].Open, "the first frame is a baseline")
@@ -330,6 +373,7 @@ func TestSyncBaselinePrivacyAndDirtyPublication(t *testing.T) {
 	requireHeartbeat(t, syncFrames(t, sub), "a private or equal write publishes nothing")
 	entity.Set(syncHealth{HP: 50, MaxHP: 100})
 	w.Tick()
+
 	frames = syncFrames(t, sub)
 	require.Len(t, frames, 1)
 	require.Nil(t, frames[0].Open)
@@ -345,15 +389,19 @@ func TestSyncReuseAndPresenceNeverAlias(t *testing.T) {
 		t.Helper()
 		frames := syncFrames(t, sub)
 		require.Len(t, frames, 1)
+
 		return frames[0]
 	}
 	entity := w.Create[syncAvatar]()
 	entity.Set(syncHealth{HP: 7})
 	w.Tick()
+
 	first := only().Records[0]
+
 	entity.Remove[syncstate.Entity]()
 	entity.Set(syncstate.Entity{})
 	w.Tick()
+
 	restated := only()
 	require.Empty(t, restated.Patches)
 	require.Len(t, restated.Records, 1, "a new entity presence restates the whole record")
@@ -362,6 +410,7 @@ func TestSyncReuseAndPresenceNeverAlias(t *testing.T) {
 	entity.Remove[syncHealth]()
 	entity.Set(syncHealth{HP: 7})
 	w.Tick()
+
 	patched := only()
 	require.Empty(t, patched.Records)
 	require.Len(t, patched.Patches, 1, "the same data under a new component presence")
@@ -369,10 +418,13 @@ func TestSyncReuseAndPresenceNeverAlias(t *testing.T) {
 	require.Len(t, third.Changed, 1)
 	require.NotEqual(t, second.Components[0].Presence, third.Changed[0].Presence)
 	entity.Destroy()
+
 	next := w.Create[syncAvatar]()
 	next.Set(syncHealth{HP: 7})
 	w.Tick()
+
 	frame := only()
+
 	require.Equal(t, entity.ID(), next.ID())
 	require.NotEqual(t, first.Ref, refOf(next))
 	require.Equal(t, []syncstate.Ref{first.Ref}, frame.Removed)
@@ -395,10 +447,12 @@ func TestSyncCommitPrecedesOccurrenceAndRecoveryIsQuiet(t *testing.T) {
 	require.Equal(t, syncstate.EventName, sub.queue[2].response.GetEvent().GetName())
 	frames := syncFrames(t, sub)
 	require.Len(t, frames, 2)
+
 	for _, f := range frames {
 		require.Len(t, f.Patches, 1)
 		require.Len(t, f.Patches[0].Changed, 1)
 	}
+
 	var health syncHealth
 	require.NoError(t, msgpack.Unmarshal(frames[0].Patches[0].Changed[0].Data, &health))
 	require.Zero(t, health.HP)
@@ -428,17 +482,20 @@ func TestSyncResetAndRestoreReplaceEntityLifetimes(t *testing.T) {
 	entity := w.Create[syncAvatar]()
 	entity.Set(syncHealth{HP: 90})
 	w.Tick()
+
 	old := syncFrames(t, sub)[0]
 	snapshot, err := w.world.ToProto()
 	require.NoError(t, err)
 	require.NoError(t, w.world.FromProto(snapshot))
 	w.Tick()
+
 	frame := syncFrames(t, sub)[0]
 	require.Equal(t, []syncstate.Ref{old.Records[0].Ref}, frame.Removed)
 	require.NotEqual(t, old.Records[0].Ref, frame.Records[0].Ref)
 	// A reset is ordinary transitions on the same stream: every lifetime it ended is removed.
 	w.World.reset()
 	w.Tick()
+
 	frames := syncFrames(t, sub)
 	require.Len(t, frames, 1)
 	require.Nil(t, frames[0].Open)
@@ -452,12 +509,15 @@ func TestSyncInitializationPublishesOnlyTheFinishedEntity(t *testing.T) {
 	w, sub := newSyncFixture(t, func(string) bool { return true })
 	w.Tick()
 	syncFrames(t, sub)
+
 	entity := w.Create[syncAvatar]()
 	w.Broadcast(syncHurt{Amount: 1})
 	entity.Set(syncHealth{HP: 100, MaxHP: 100})
 	w.Tick()
+
 	frames := syncFrames(t, sub)
 	require.Len(t, frames, 1)
+
 	var health syncHealth
 	require.NoError(t, msgpack.Unmarshal(frames[0].Records[0].Components[0].Data, &health))
 	require.Equal(t, 100, health.HP)
@@ -492,8 +552,10 @@ func TestSyncNewSubscriberCannotReceiveBeforeTickBaseline(t *testing.T) {
 func TestSyncDisconnectedOccurrenceAndReplyOnlyCallerAreDenied(t *testing.T) {
 	w, _ := newSyncFixture(t, func(string) bool { return true })
 	w.Tick()
+
 	reply := make(chan *iscv1.Event, 1)
 	w.service.replyWaiters["hurt"] = map[string][]chan *iscv1.Event{"offline": {reply}}
+
 	require.NotPanics(t, func() {
 		w.SendTo("offline", syncHurt{Amount: 1})
 		w.Tick()
@@ -509,10 +571,13 @@ func TestSyncRevocationClearsStateWithoutDroppingCleanupOrRefusal(t *testing.T) 
 	admitted := true
 	w, sub := newSyncFixture(t, func(string) bool { return admitted })
 	sub.events["reply"] = struct{}{}
+
 	w.Create[syncAvatar]()
 	w.Tick()
 	syncFrames(t, sub)
+
 	admitted = false
+
 	w.SendTo("alice", syncReply{Code: "session ended"})
 	w.Tick()
 	require.NoError(t, context.Cause(sub.ctx))
@@ -524,6 +589,7 @@ func TestSyncRevocationClearsStateWithoutDroppingCleanupOrRefusal(t *testing.T) 
 	require.NotNil(t, frames[0].Open, "the cleared view is an empty baseline on a new stream")
 	require.Empty(t, frames[0].Records)
 	require.Zero(t, frames[0].Open.Heartbeat, "a revoked reader is promised no heartbeat")
+
 	reply := make(chan *iscv1.Event, 1)
 	w.service.replyWaiters["reply"] = map[string][]chan *iscv1.Event{"outsider": {reply}}
 	require.NoError(
@@ -534,8 +600,11 @@ func TestSyncRevocationClearsStateWithoutDroppingCleanupOrRefusal(t *testing.T) 
 		),
 	)
 	require.Len(t, reply, 1)
+
 	admitted = true
+
 	w.Tick()
+
 	restored := syncFrames(t, sub)
 	require.Len(t, restored, 1)
 	require.NotNil(t, restored[0].Open)
@@ -589,6 +658,7 @@ func TestSyncComponentIndexIsContractOrder(t *testing.T) {
 	}
 	exported, err := ExportSyncContract(register)
 	require.NoError(t, err)
+
 	var contract syncstate.Contract
 	require.NoError(t, json.Unmarshal(exported, &contract))
 	w := NewTestWorld(t, func(w *World) { register(w); w.EnableSync(func(string) bool { return true }) })
@@ -598,21 +668,27 @@ func TestSyncComponentIndexIsContractOrder(t *testing.T) {
 	e.Set(syncZeta{Z: 26})
 	e.Set(syncAlpha{A: 1})
 	w.Tick()
+
 	frames := syncFrames(t, sub)
 	require.Len(t, frames, 1)
 	require.Len(t, frames[0].Records, 1)
 	values := frames[0].Records[0].Components
 	require.Len(t, values, 3)
+
 	want := map[string]map[string]int64{"Zeta": {"Z": 26}, "alpha": {"A": 1}, "beta": {"B": 2}}
+
 	var names []string
+
 	for _, v := range values {
 		require.Less(t, int(v.Component), len(contract.Components))
 		component := contract.Components[v.Component]
 		names = append(names, component.Name)
+
 		var data map[string]int64
 		require.NoError(t, msgpack.Unmarshal(v.Data, &data))
 		require.Equal(t, want[component.Name], data, "component %d is %s in the contract", v.Component, component.Name)
 		require.Equal(t, component.Fields[0].Name, slices.Collect(maps.Keys(data))[0])
 	}
+
 	require.Equal(t, []string{"Zeta", "alpha", "beta"}, names)
 }

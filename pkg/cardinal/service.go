@@ -319,6 +319,7 @@ func (s *streamSubscriber) enqueue(response *cardinalv1.StartEventStreamResponse
 		return nil
 	default:
 	}
+
 	if s.queuedBytes+size > streamQueueBytes {
 		s.queueMu.Unlock()
 		s.cancel(errStreamLagged)
@@ -344,6 +345,7 @@ func (s *streamSubscriber) enqueue(response *cardinalv1.StartEventStreamResponse
 func (s *streamSubscriber) dropQueue() {
 	s.queueMu.Lock()
 	defer s.queueMu.Unlock()
+
 	s.queue, s.queuedBytes = nil, 0
 }
 
@@ -355,6 +357,7 @@ func (s *streamSubscriber) writeQueued() error {
 		if !ok {
 			return nil
 		}
+
 		if s.ctx.Err() != nil { // Superseded, lagged, or closed.
 			return streamEndError(s.ctx)
 		}
@@ -369,13 +372,16 @@ func (s *streamSubscriber) writeQueued() error {
 func (s *streamSubscriber) dequeue() (queuedEvent, bool) {
 	s.queueMu.Lock()
 	defer s.queueMu.Unlock()
+
 	if len(s.queue) == 0 {
 		return queuedEvent{}, false
 	}
+
 	evt := s.queue[0]
 	s.queue[0] = queuedEvent{} // The queue no longer holds it.
 	s.queue = s.queue[1:]
 	s.queuedBytes -= evt.size
+
 	return evt, true
 }
 
@@ -722,6 +728,7 @@ func addSubscriptions(subscriber *streamSubscriber, subscriptions []*cardinalv1.
 			if _, exists := subscriber.events[eventName]; !exists && eventName == syncstate.EventName {
 				subscriber.syncGeneration++
 			}
+
 			subscriber.events[eventName] = struct{}{}
 		}
 	}
@@ -751,7 +758,6 @@ func countSubscriptions(subscriptions []*cardinalv1.EventSubscription) int {
 
 // TODO: move away from this centralized approach to a actor model for easier(?) synchronization.
 
-//nolint:gocognit // Put everything here so you can understand the logic in one place.
 func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) error {
 	payload, ok := evt.Payload.(event.Payload)
 	if !ok {
@@ -778,55 +784,29 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 	// Read who the event could reach under the lock, and ask its audience only once the lock is
 	// released: an audience runs game code, which must not hold up streams that are subscribing
 	// or leaving.
-	var (
-		subscribers []*streamSubscriber // Streams subscribed to the event
-		recipient   *streamSubscriber   // A targeted event's stream, subscribed or not
-		waiters     []replyWaiter
-	)
-	s.mu.RLock()
-	// A targeted reply resolves only its recipient's waiters. A broadcast is visible to every
-	// player, so it resolves every waiter for the event name.
-	if evt.Recipient != "" {
-		recipient = s.subscribers[evt.Recipient]
-		if recipient != nil && recipient.subscribedTo(eventPb.GetName()) {
-			subscribers = []*streamSubscriber{recipient}
-		}
-		for _, reply := range s.replyWaiters[eventPb.GetName()][evt.Recipient] {
-			waiters = append(waiters, replyWaiter{evt.Recipient, reply})
-		}
-	} else {
-		subscribers = make([]*streamSubscriber, 0, len(s.subscribers))
-		for _, subscriber := range s.subscribers {
-			if subscriber.subscribedTo(eventPb.GetName()) {
-				subscribers = append(subscribers, subscriber)
-			}
-		}
-		for player, replies := range s.replyWaiters[eventPb.GetName()] {
-			for _, reply := range replies {
-				waiters = append(waiters, replyWaiter{player, reply})
-			}
-		}
-	}
-
-	s.mu.RUnlock()
+	subscribers, recipient, waiters := s.eventReach(eventPb.GetName(), evt.Recipient)
 
 	if evt.Recipient != "" && (recipient == nil || !admits(evt.Audience, evt.Recipient, recipient)) {
 		subscribers = nil
+
 		s.log.Debug().
 			Str("recipient", evt.Recipient).
 			Str("event", eventPb.GetName()).
 			Msg("recipient has no open stream")
 	}
+
 	if evt.Audience != nil {
 		if evt.Recipient == "" {
 			subscribers = slices.DeleteFunc(subscribers, func(subscriber *streamSubscriber) bool {
 				return !evt.Audience.Admits(subscriber.player, subscriber)
 			})
 		}
+
 		waiters = slices.DeleteFunc(waiters, func(w replyWaiter) bool {
 			return !evt.Audience.Admits(w.player, nil)
 		})
 	}
+
 	span.SetAttributes(attrEventSubscribers.Int(len(subscribers)), attrEventWaiters.Int(len(waiters)))
 
 	// Send events for SendCommandWithReply channels.
@@ -871,6 +851,50 @@ func (s *service) publishDefaultEvent(ctx context.Context, evt event.Event) erro
 }
 
 // replyWaiter is one SendCommandWithReply call waiting for an event, and the player who made it.
+// eventReach returns, under the service lock, the streams subscribed to the event name, the
+// targeted recipient's stream whether subscribed or not, and the reply waiters the event resolves.
+// A targeted reply resolves only its recipient's waiters. A broadcast is visible to every player,
+// so it resolves every waiter for the event name.
+func (s *service) eventReach(
+	name, recipientID string,
+) ([]*streamSubscriber, *streamSubscriber, []replyWaiter) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var (
+		subscribers []*streamSubscriber
+		waiters     []replyWaiter
+	)
+
+	if recipientID != "" {
+		recipient := s.subscribers[recipientID]
+		if recipient != nil && recipient.subscribedTo(name) {
+			subscribers = []*streamSubscriber{recipient}
+		}
+
+		for _, reply := range s.replyWaiters[name][recipientID] {
+			waiters = append(waiters, replyWaiter{recipientID, reply})
+		}
+
+		return subscribers, recipient, waiters
+	}
+
+	subscribers = make([]*streamSubscriber, 0, len(s.subscribers))
+	for _, subscriber := range s.subscribers {
+		if subscriber.subscribedTo(name) {
+			subscribers = append(subscribers, subscriber)
+		}
+	}
+
+	for player, replies := range s.replyWaiters[name] {
+		for _, reply := range replies {
+			waiters = append(waiters, replyWaiter{player, reply})
+		}
+	}
+
+	return subscribers, nil, waiters
+}
+
 type replyWaiter struct {
 	player string
 	reply  chan *iscv1.Event
@@ -892,6 +916,7 @@ func (s *streamSubscriber) subscribedTo(eventName string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 

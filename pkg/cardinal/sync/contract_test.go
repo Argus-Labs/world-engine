@@ -14,17 +14,20 @@ func TestMarkerDoesNotChangeMessagePack(t *testing.T) {
 		HP    int
 		MaxHP int
 	}
+
 	type public struct {
 		syncstate.Component
 
 		HP    int
 		MaxHP int
 	}
+
 	before, err := msgpack.Marshal(private{HP: 7, MaxHP: 100})
 	require.NoError(t, err)
 	after, err := msgpack.Marshal(public{HP: 7, MaxHP: 100})
 	require.NoError(t, err)
 	require.Equal(t, before, after)
+
 	_, exposed, err := syncstate.Describe(reflect.TypeFor[private](), "health")
 	require.NoError(t, err)
 	require.False(t, exposed)
@@ -42,6 +45,7 @@ func TestContractPinsWidthsAndNames(t *testing.T) {
 		Speed   float32
 		Private int `msgpack:"-"`
 	}
+
 	c, _, err := syncstate.Describe(reflect.TypeFor[health](), "health")
 	require.NoError(t, err)
 	require.Equal(t, []syncstate.Field{{Name: "Speed", Type: "float32"}, {Name: "hp", Type: "int32"}}, c.Fields)
@@ -58,6 +62,7 @@ func TestContractPinsWidthsAndNames(t *testing.T) {
 	bf, err := b.Fingerprint()
 	require.NoError(t, err)
 	require.Equal(t, af, bf)
+
 	b.Components[1].Fields[0].Type = "float64"
 	bf, err = b.Fingerprint()
 	require.NoError(t, err)

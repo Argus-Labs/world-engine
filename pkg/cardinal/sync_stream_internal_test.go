@@ -39,6 +39,7 @@ func TestSyncTwoHTTP2ClientsReconnectAndReadmission(t *testing.T) {
 	bob := bobClient.open(t, "bob", syncstate.EventName)
 	bob.read()
 	w.Tick()
+
 	a := receiveSyncFrame(t, alice)
 	b := receiveSyncFrame(t, bob)
 	require.NotNil(t, a.Open)
@@ -46,15 +47,18 @@ func TestSyncTwoHTTP2ClientsReconnectAndReadmission(t *testing.T) {
 	require.NotEqual(t, a.Stream, b.Stream)
 	require.Equal(t, a.Records, b.Records)
 	require.Len(t, a.Records, 1)
+
 	var names []string
 	for _, component := range a.Records[0].Components {
 		names = append(names, w.SyncContract().Components[component.Component].Name)
 	}
+
 	require.ElementsMatch(t, []string{"loadout", "cosmetics"}, names, "private component is omitted")
 	require.Equal(t, e.SyncID(), a.Records[0].Ref.ID(a.Open.Session))
 
 	e.Set(syncLoadout{WeaponID: "sword", Ammo: 7, Equipped: true})
 	w.Tick()
+
 	aUpdate := receiveSyncFrame(t, alice)
 	bUpdate := receiveSyncFrame(t, bob)
 	require.Nil(t, aUpdate.Open)
@@ -63,13 +67,16 @@ func TestSyncTwoHTTP2ClientsReconnectAndReadmission(t *testing.T) {
 	require.Equal(t, uint16(7), streamLoadout(t, w, bUpdate).Ammo)
 
 	alice.cancel()
+
 	select {
 	case <-alice.done:
 	case <-time.After(5 * time.Second):
 		t.Fatal("disconnected reader did not stop")
 	}
+
 	e.Set(syncLoadout{WeaponID: "bow", Ammo: 9})
 	w.Tick()
+
 	bOffline := receiveSyncFrame(t, bob)
 	require.Equal(t, b.Stream, bOffline.Stream)
 	require.Equal(t, uint16(9), streamLoadout(t, w, bOffline).Ammo)
@@ -78,6 +85,7 @@ func TestSyncTwoHTTP2ClientsReconnectAndReadmission(t *testing.T) {
 	alice.read()
 	aliceClient.subscribe(t, "alice", syncstate.EventName)
 	w.Tick() // No state change: reconnect still needs a complete baseline.
+
 	rejoined := receiveSyncFrame(t, alice)
 	// A reader told nothing for a heartbeat, as at every TestWorld step, gets an empty delta.
 	heartbeat := func() {
@@ -93,8 +101,11 @@ func TestSyncTwoHTTP2ClientsReconnectAndReadmission(t *testing.T) {
 	require.Equal(t, bOffline.Patches[0].Revision, rejoined.Records[0].Revision)
 
 	allowAlice = false
+
 	w.Tick()
+
 	revoked := receiveSyncFrame(t, alice)
+
 	heartbeat()
 	require.NotNil(t, revoked.Open)
 	require.NotEqual(t, rejoined.Stream, revoked.Stream)
@@ -102,9 +113,13 @@ func TestSyncTwoHTTP2ClientsReconnectAndReadmission(t *testing.T) {
 	e.Set(syncLoadout{WeaponID: "staff", Ammo: 11})
 	w.Tick()
 	require.Equal(t, uint16(11), streamLoadout(t, w, receiveSyncFrame(t, bob)).Ammo)
+
 	allowAlice = true
+
 	w.Tick()
+
 	readmitted := receiveSyncFrame(t, alice)
+
 	heartbeat()
 	// If a suspended-segment update leaked, it would arrive before this baseline.
 	require.NotNil(t, readmitted.Open)
@@ -125,15 +140,18 @@ func newSyncStreamHarness(t *testing.T, w *TestWorld) (*streamHarness, *streamHa
 	w.World.events.RegisterHandler(event.KindDefault, w.service.publishDefaultEvent)
 	mux, err := w.service.newMux(authenticatorDev{}.authenticate)
 	require.NoError(t, err)
+
 	server := httptest.NewUnstartedServer(nil)
 	server.Config = newHTTPServer("", mux)
 	server.Start()
 	t.Cleanup(func() { server.CloseClientConnections(); server.Close() })
+
 	newClient := func() *streamHarness {
 		protocols := new(http.Protocols)
 		protocols.SetUnencryptedHTTP2(true)
 		transport := &http.Transport{Protocols: protocols}
 		t.Cleanup(transport.CloseIdleConnections)
+
 		h := &streamHarness{fixture: &serviceFixture{svc: w.service, world: w.World}}
 		h.client = cardinalv1connect.NewCardinalServiceClient(
 			&http.Client{Transport: transport},
@@ -142,19 +160,24 @@ func newSyncStreamHarness(t *testing.T, w *TestWorld) (*streamHarness, *streamHa
 		)
 		h.ctx, h.cancel = context.WithCancel(context.Background())
 		t.Cleanup(h.cancel)
+
 		return h
 	}
+
 	return newClient(), newClient() // Separate transports, as on two machines.
 }
 
 func receiveSyncFrame(t *testing.T, client *clientStream) syncstate.Frame {
 	t.Helper()
+
 	select {
 	case msg := <-client.messages:
 		require.NotNil(t, msg)
 		require.Equal(t, syncstate.EventName, msg.GetEvent().GetName())
+
 		var frame syncstate.Frame
 		require.NoError(t, msgpack.Unmarshal(msg.GetEvent().GetPayload(), &frame))
+
 		return frame
 	case <-client.done:
 		t.Fatalf("sync stream ended early: %v", client.err)
@@ -169,20 +192,25 @@ func receiveSyncFrame(t *testing.T, client *clientStream) syncstate.Frame {
 func streamLoadout(t *testing.T, w *TestWorld, frame syncstate.Frame) syncLoadout {
 	t.Helper()
 	require.Len(t, frame.Records, 1-len(frame.Patches))
+
 	var values []syncstate.Value
 	if len(frame.Records) == 1 {
 		values = frame.Records[0].Components
 	} else {
 		values = frame.Patches[0].Changed
 	}
+
 	for _, component := range values {
 		if component.Component == syncIndex(t, w.World, "loadout") {
 			var value syncLoadout
 			require.NoError(t, msgpack.Unmarshal(component.Data, &value))
+
 			return value
 		}
 	}
+
 	t.Fatal("missing loadout")
+
 	return syncLoadout{}
 }
 
@@ -195,12 +223,19 @@ func TestSyncSubscriptionsRaceTheTick(t *testing.T) {
 		w.RegisterComponent[syncPrivate]()
 		w.EnableSync(func(string) bool { return true })
 	})
-	var mu gosync.Mutex
-	var created []*streamSubscriber
+
+	var (
+		mu      gosync.Mutex
+		created []*streamSubscriber
+	)
+
 	stop := make(chan struct{})
+
 	var wg gosync.WaitGroup
+
 	for i := range 6 {
 		player := fmt.Sprintf("p%d", i)
+
 		wg.Go(func() {
 			for j := 0; ; j++ {
 				select {
@@ -208,34 +243,45 @@ func TestSyncSubscriptionsRaceTheTick(t *testing.T) {
 					return
 				default:
 				}
+
 				sub := openStream(t, w.service, player, syncstate.EventName)
+
 				mu.Lock()
+
 				created = append(created, sub)
 				mu.Unlock()
+
 				if j%3 == 0 { // unsubscribe and subscribe again on the same stream
 					setSyncSubscribed(w.service, sub, false)
 					setSyncSubscribed(w.service, sub, true)
 				}
+
 				if j%4 == 0 {
 					w.service.removeSubscriber(player, sub)
 				}
+
 				time.Sleep(time.Duration(j%3) * 100 * time.Microsecond)
 			}
 		})
 	}
+
 	var live []Entity
 	for i := range 300 {
 		if len(live) < 8 {
 			e := w.Create[syncAvatar]()
 			live = append(live, e)
 		}
+
 		live[i%len(live)].Set(syncHealth{HP: i})
+
 		if i%7 == 0 {
 			live[0].Destroy()
 			live = live[1:]
 		}
+
 		w.Tick()
 	}
+
 	close(stop)
 	wg.Wait()
 	// Every stream any subscriber saw passes the client's checks.
@@ -247,11 +293,14 @@ func TestSyncSubscriptionsRaceTheTick(t *testing.T) {
 	for i := range 6 {
 		final = append(final, openStream(t, w.service, fmt.Sprintf("p%d", i), syncstate.EventName))
 	}
+
 	w.Tick()
+
 	want := map[uint32]syncstate.ID{}
 	for _, e := range live {
 		want[uint32(e.ID())] = e.SyncID()
 	}
+
 	for _, sub := range final {
 		held, ok := checkSyncStream(t, w, sub)
 		require.True(t, ok, "an open stream has a baseline")
@@ -263,19 +312,25 @@ func TestSyncSubscriptionsRaceTheTick(t *testing.T) {
 // what the last stream holds.
 func checkSyncStream(t *testing.T, w *TestWorld, sub *streamSubscriber) (map[uint32]syncstate.ID, bool) {
 	t.Helper()
+
 	client := newSyncClient(w.SyncContract())
+
 	for _, q := range sub.queue {
 		var f syncstate.Frame
 		require.NoError(t, msgpack.Unmarshal(q.response.GetEvent().GetPayload(), &f))
+
 		if f.Open == nil {
 			require.True(t, client.ready, "a delta before any baseline")
 		}
+
 		_, err := client.apply(f) // a delta from an old stream after a resubscribe is ignored
 		require.NoError(t, err)
 	}
+
 	held := map[uint32]syncstate.ID{}
 	for n, r := range client.held {
 		held[n] = client.id(r.Ref)
 	}
+
 	return held, client.ready
 }

@@ -560,11 +560,13 @@ func newStreamHarness(t *testing.T, adjust ...func(*http.Server)) *streamHarness
 // listener whose connections a test can break. Each adjust changes the server before it starts.
 func startStreamHarness(t *testing.T, fixture *serviceFixture, adjust ...func(*http.Server)) *streamHarness {
 	t.Helper()
+
 	mux, err := fixture.svc.newMux(authenticatorDev{}.authenticate)
 	require.NoError(t, err)
 
 	h := &streamHarness{fixture: fixture, exits: make(map[string]time.Time)}
 	server := httptest.NewUnstartedServer(nil)
+
 	server.Config = newHTTPServer("", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mux.ServeHTTP(w, r)
 
@@ -577,6 +579,7 @@ func startStreamHarness(t *testing.T, fixture *serviceFixture, adjust ...func(*h
 	for _, f := range adjust {
 		f(server.Config)
 	}
+
 	h.listener = &pathListener{Listener: server.Listener, conns: make(map[string]*pathConn)}
 	server.Listener = h.listener
 	server.Start()
@@ -597,8 +600,10 @@ func startStreamHarness(t *testing.T, fixture *serviceFixture, adjust ...func(*h
 // the transport opens.
 func newH2CClient(t *testing.T, url string, dialed func(net.Conn)) cardinalv1connect.CardinalServiceClient {
 	t.Helper()
+
 	protocols := new(http.Protocols)
 	protocols.SetUnencryptedHTTP2(true)
+
 	transport := &http.Transport{Protocols: protocols}
 	if dialed != nil {
 		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -606,10 +611,13 @@ func newH2CClient(t *testing.T, url string, dialed func(net.Conn)) cardinalv1con
 			if err == nil {
 				dialed(conn)
 			}
+
 			return conn, err
 		}
 	}
+
 	t.Cleanup(transport.CloseIdleConnections)
+
 	return cardinalv1connect.NewCardinalServiceClient(&http.Client{Transport: transport}, url, connect.WithGRPC())
 }
 
@@ -636,6 +644,7 @@ func (h *streamHarness) tryOpen(player string, events ...string) (*clientStream,
 // that connection.
 func (h *streamHarness) openOnOwnConn(t *testing.T, player string, events ...string) (*clientStream, *pathConn) {
 	t.Helper()
+
 	local := make(chan string, 1)
 	client := newH2CClient(t, h.url, func(conn net.Conn) { local <- conn.LocalAddr().String() })
 	stream, err := h.tryOpenOn(client, player, events...)
@@ -648,10 +657,12 @@ func (h *streamHarness) tryOpenOn(
 	client cardinalv1connect.CardinalServiceClient, player string, events ...string,
 ) (*clientStream, error) {
 	ctx, cancel := context.WithCancel(h.ctx)
+
 	req := connect.NewRequest(&cardinalv1.StartEventStreamRequest{})
 	if len(events) > 0 {
 		req.Msg.Subscriptions = h.subscriptions(events...)
 	}
+
 	req.Header().Set(devPlayerIDHeader, player)
 
 	id := strconv.FormatInt(h.nextID.Add(1), 10)
@@ -719,6 +730,7 @@ func shortenConnTimeouts(write, pingAfter, ping time.Duration) func(*http.Server
 		if h2 == nil {
 			return
 		}
+
 		for _, timeout := range []struct {
 			field *time.Duration
 			to    time.Duration
@@ -736,7 +748,9 @@ func shortenConnTimeouts(write, pingAfter, ping time.Duration) func(*http.Server
 func (h *streamHarness) handlerRunning(id string) bool {
 	h.exitsMu.Lock()
 	defer h.exitsMu.Unlock()
+
 	_, exited := h.exits[id]
+
 	return !exited
 }
 

@@ -426,16 +426,20 @@ func (w *World) RegisterCommand[T Command](senders ...syncstate.Senders) {
 	var zero T
 
 	name := zero.Name()
+
 	var allowed syncstate.Senders
 	for _, s := range senders {
 		allowed |= s
 	}
+
 	if w.commandSenders == nil {
 		w.commandSenders = map[string]syncstate.Senders{}
 	}
+
 	if _, declared := w.commandSenders[name]; !declared {
 		w.commandSenders[name] = allowed
 	}
+
 	w.RegisterEvent[syncstate.CommandRejected]()
 	w.hookSync()
 
@@ -646,6 +650,7 @@ func (w *World) SystemEvents[T ecs.SystemEvent]() iter.Seq[T] {
 // silently would leave every later SystemEvents reader empty.
 func (w *World) EmitSystemEvent[T ecs.SystemEvent](systemEvent T) {
 	w.hooks.Emit(plugin.SystemEvent, &systemEvent, "")
+
 	if err := w.world.EmitSystemEvent(systemEvent); err != nil {
 		panic(eris.Wrapf(err, "system event %T is not registered; call RegisterSystemEvent before StartGame",
 			systemEvent))
@@ -683,10 +688,12 @@ func (w *World) RegisterComponent[T ecs.Component]() {
 	if w.started {
 		panic(ErrWorldStarted)
 	}
+
 	cid, err := w.world.RegisterComponent[T]()
 	if err != nil {
 		panic(eris.Wrapf(err, "failed to register component %T", *new(T)))
 	}
+
 	var zero T
 	w.registerSync(reflect.TypeFor[T](), zero.Name(), cid)
 }

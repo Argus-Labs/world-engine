@@ -28,6 +28,7 @@ func TestEventStream_CompressesOnlyLargeEvents(t *testing.T) {
 	fixture.world.events.RegisterHandler(event.KindDefault, fixture.svc.publishDefaultEvent)
 	mux, err := fixture.svc.newMux(authenticatorDev{}.authenticate)
 	require.NoError(t, err)
+
 	server := httptest.NewUnstartedServer(mux)
 	server.Config.Protocols = h2cProtocols()
 	server.Start()
@@ -41,6 +42,7 @@ func TestEventStream_CompressesOnlyLargeEvents(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
+
 	req := connect.NewRequest(&cardinalv1.StartEventStreamRequest{Subscriptions: []*cardinalv1.EventSubscription{{
 		Address: fixture.world.address, Events: []string{"*"},
 	}}})
@@ -53,11 +55,14 @@ func TestEventStream_CompressesOnlyLargeEvents(t *testing.T) {
 	for _, payload := range []event.Payload{testutils.SimpleEvent{Value: 7}, testutils.AnotherEvent{Data: large}} {
 		fixture.world.events.Enqueue(event.Event{Kind: event.KindDefault, Payload: payload, Recipient: "player-1"})
 	}
+
 	fixture.world.dispatchEvents(context.Background())
+
 	for _, name := range []string{"simple_event", "another_event"} {
 		require.True(t, stream.Receive(), "%s: %v", name, stream.Err())
 		require.Equal(t, name, stream.Msg().GetEvent().GetName())
 	}
+
 	assert.Equal(t, []bool{false, false, true}, wire.compressed(t), "initial, small and large message")
 }
 
@@ -73,6 +78,7 @@ func (r *recordingTransport) RoundTrip(req *http.Request) (*http.Response, error
 	if err == nil {
 		resp.Body = &recordedBody{ReadCloser: resp.Body, r: r}
 	}
+
 	return resp, err
 }
 
@@ -87,6 +93,7 @@ func (b *recordedBody) Read(p []byte) (int, error) {
 	b.r.mu.Lock()
 	b.r.body.Write(p[:n])
 	b.r.mu.Unlock()
+
 	return n, err
 }
 
@@ -96,14 +103,18 @@ func (r *recordingTransport) compressed(t *testing.T) []bool {
 	r.mu.Lock()
 	data := bytes.Clone(r.body.Bytes())
 	r.mu.Unlock()
+
 	var flags []bool
+
 	for len(data) >= 5 {
 		n := int(binary.BigEndian.Uint32(data[1:5]))
 		if len(data) < 5+n {
 			break
 		}
+
 		flags = append(flags, data[0]&1 != 0)
 		data = data[5+n:]
 	}
+
 	return flags
 }

@@ -22,6 +22,7 @@ func newCommandIDFixture(t *testing.T) (*accessFixture, syncstate.ID) {
 	f.Tick()
 	f.rejections(t, "alice")
 	f.rejections(t, "bob")
+
 	return f, avatar.SyncID()
 }
 
@@ -29,22 +30,28 @@ func newCommandIDFixture(t *testing.T) (*accessFixture, syncstate.ID) {
 func castWithID(target syncstate.ID, id uint64) accessCast {
 	cmd := accessCast{Target: syncstate.TargetOf(target)}
 	cmd.CommandID = id
+
 	return cmd
 }
 
 // rejections returns the command_rejected events player received, and clears its queue.
 func (f *accessFixture) rejections(t *testing.T, player string) []syncstate.CommandRejected {
 	t.Helper()
+
 	var got []syncstate.CommandRejected
+
 	for _, q := range f.subs[player].queue {
 		if q.response.GetEvent().GetName() != "command_rejected" {
 			continue
 		}
+
 		var r syncstate.CommandRejected
 		require.NoError(t, msgpack.Unmarshal(q.response.GetEvent().GetPayload(), &r))
 		got = append(got, r)
 	}
+
 	f.subs[player].queue, f.subs[player].queuedBytes = nil, 0
+
 	return got
 }
 
@@ -136,6 +143,7 @@ func TestSyncCommandIDsAreForgottenAfter30Seconds(t *testing.T) {
 	for f.TickHeight() < judgedAt+29 {
 		f.Tick()
 	}
+
 	f.Command("alice", castWithID(avatar, 20))
 	f.Command("bob", castWithID(avatar, 21))
 	f.Tick() // 29 s after the first copies
@@ -153,6 +161,7 @@ func TestSyncCommandIDsAreForgottenAfter30Seconds(t *testing.T) {
 	for f.TickHeight() < judgedAt+61 {
 		f.Tick()
 	}
+
 	assert.Empty(t, f.judged, "a player whose IDs are all forgotten leaves no entry")
 }
 
@@ -162,6 +171,7 @@ func TestSyncCommandIDsKeepThePlayersNewest256(t *testing.T) {
 	for id := range uint64(257) {
 		f.Command("alice", castWithID(avatar, id+1))
 	}
+
 	f.Tick()
 	require.Len(t, *f.casts, 257)
 
@@ -191,6 +201,7 @@ func TestSyncCommandRejectionNamesItsCommandID(t *testing.T) {
 	f, avatar := newCommandIDFixture(t)
 	stale := avatar
 	stale.Incarnation++
+
 	f.Command("bob", castWithID(avatar, 40))
 	f.Command("bob", castWithID(stale, 41))
 	f.Tick()
@@ -227,6 +238,7 @@ func TestSyncCommandIDSurvivesTheWireEncoding(t *testing.T) {
 		encode func(*msgpack.Encoder, uint64) error
 		ids    []uint64
 	}
+
 	forms := []form{
 		{"compact", (*msgpack.Encoder).EncodeUint, []uint64{1, 127, 128, 1 << 16, 1<<53 + 1, 1 << 63, math.MaxUint64}},
 		{"uint8", func(e *msgpack.Encoder, v uint64) error { return e.EncodeUint8(uint8(v)) }, []uint64{1, 255}},
@@ -246,9 +258,11 @@ func TestSyncCommandIDSurvivesTheWireEncoding(t *testing.T) {
 	f, avatar := newCommandIDFixture(t)
 	stale := avatar
 	stale.Incarnation++ // rejected, so the ID comes back
+
 	for _, fm := range forms {
 		for _, id := range fm.ids {
 			var buf bytes.Buffer
+
 			e := msgpack.NewEncoder(&buf)
 			require.NoError(t, e.EncodeMapLen(4))
 			require.NoError(t, e.EncodeString("TargetSession"))
@@ -265,6 +279,7 @@ func TestSyncCommandIDSurvivesTheWireEncoding(t *testing.T) {
 			f.Tick()
 
 			var got []map[string]any
+
 			for _, q := range f.subs["bob"].queue {
 				if evt := q.response.GetEvent(); evt.GetName() == "command_rejected" {
 					var payload map[string]any
@@ -272,7 +287,9 @@ func TestSyncCommandIDSurvivesTheWireEncoding(t *testing.T) {
 					got = append(got, payload)
 				}
 			}
+
 			f.subs["bob"].queue, f.subs["bob"].queuedBytes = nil, 0
+
 			require.Len(t, got, 1, "%s %d", fm.name, id)
 			assert.Equal(t, id, got[0]["CommandID"], "%s %d: the rejection names the ID exactly", fm.name, id)
 		}

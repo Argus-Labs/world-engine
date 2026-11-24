@@ -61,6 +61,8 @@ func (e Entity) SyncID() syncstate.ID {
 	if e.world == nil {
 		return syncstate.ID{}
 	}
+
 	session, incarnation := e.world.Identity(e.id)
+
 	return syncstate.ID{Session: session, Entity: uint32(e.id), Incarnation: incarnation}
 }
