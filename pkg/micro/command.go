@@ -116,7 +116,7 @@ func (c *Client) SendCommand(ctx context.Context, from, to *ServiceAddress, name
 	msg := &nats.Msg{Subject: route.Subject(), Data: payload, Header: nats.Header{}}
 	otel.GetTextMapPropagator().Inject(ctx, headerCarrier(msg.Header))
 
-	reply, err := c.RequestMsgWithContext(ctx, msg)
+	reply, err := c.requestMsg(ctx, msg)
 	if err != nil {
 		return eris.Wrap(err, "failed to send command")
 	}

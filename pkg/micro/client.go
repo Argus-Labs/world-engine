@@ -140,7 +140,7 @@ func (c *Client) Request(
 	reqMsg := &nats.Msg{Subject: Endpoint(address, endpoint), Data: reqBytes, Header: nats.Header{}}
 	otel.GetTextMapPropagator().Inject(ctx, headerCarrier(reqMsg.Header))
 
-	msg, err := c.RequestMsgWithContext(ctx, reqMsg)
+	msg, err := c.requestMsg(ctx, reqMsg)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to send request")
 	}
@@ -204,6 +204,17 @@ func (c *Client) Close() {
 		c.Conn.Close()
 		c.log.Info().Msg("NATS connection closed")
 	}
+}
+
+// requestMsg sends msg and waits for its reply, failing at once while the client is reconnecting.
+// Publishing would fail then anyway (see NewClient), but nats.go keeps the reply waiter of a request
+// whose publish failed, so every request sent during an outage would leak one.
+func (c *Client) requestMsg(ctx context.Context, msg *nats.Msg) (*nats.Msg, error) {
+	if ctx.Err() == nil && c.IsReconnecting() {
+		return nil, nats.ErrConnectionReconnecting
+	}
+
+	return c.RequestMsgWithContext(ctx, msg)
 }
 
 // handleDisconnect handles NATS disconnection events.

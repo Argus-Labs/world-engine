@@ -134,7 +134,9 @@ func TestClient_ReconnectsAfterServerRestart(t *testing.T) {
 // -------------------------------------------------------------------------------------------------
 // A command the sender gave up on while NATS was down must never reach the receiver after the
 // reconnect. One client sends and serves, so on reconnect its subscription is back before anything it
-// buffered is flushed: a buffered command would reach the handler ahead of the barrier command.
+// buffered is flushed: a buffered command would reach the handler ahead of the barrier command. The raw
+// case skips SendCommand's reconnect check, as a send racing the disconnect would, to show that the
+// client does not buffer it either.
 // -------------------------------------------------------------------------------------------------
 
 func TestSendCommand_WhileDisconnected(t *testing.T) {
@@ -144,10 +146,12 @@ func TestSendCommand_WhileDisconnected(t *testing.T) {
 		name         string
 		disconnected bool // NATS is down when the command is sent
 		canceled     bool // ctx is canceled before the call
+		raw          bool // the command is sent with nats.go's own request
 	}{
 		{name: "connected command is delivered"},
 		{name: "command that expired while disconnected is never delivered", disconnected: true},
 		{name: "command canceled before the call is never delivered", disconnected: true, canceled: true},
+		{name: "raw command that expired while disconnected is never delivered", disconnected: true, raw: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -200,7 +204,13 @@ func TestSendCommand_WhileDisconnected(t *testing.T) {
 				cancel()
 			}
 
-			err = client.SendCommand(ctx, from, svc.Address, "mutate", []byte("command"))
+			if tc.raw {
+				route := CommandRoute{To: svc.Address, Name: "mutate", From: from}
+				_, err = client.RequestMsgWithContext(ctx, &nats.Msg{Subject: route.Subject(), Data: []byte("command")})
+			} else {
+				err = client.SendCommand(ctx, from, svc.Address, "mutate", []byte("command"))
+			}
+
 			if !tc.disconnected {
 				require.NoError(t, err)
 				assert.Equal(t, "command", <-received)
