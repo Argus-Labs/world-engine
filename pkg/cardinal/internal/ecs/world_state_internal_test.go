@@ -353,7 +353,7 @@ func TestWorldState_EntityFuzz(t *testing.T) {
 		prevLen = len(impl.entityArch)
 	}
 
-	assertEntityIDInvariants(t, impl)
+	(&World{state: impl}).CheckWorld(t)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -424,7 +424,7 @@ func TestWorldState_EntityFuzzConcurrent(t *testing.T) {
 	assert.Equal(t, int64(numGoroutines*opsPerGoroutine), totalOps,
 		"total operations mismatch: creates=%d, removes=%d", createCount.Load(), removeCount.Load())
 
-	assertEntityIDInvariants(t, ws)
+	(&World{state: ws}).CheckWorld(t)
 }
 
 // randEntityID returns an ID at a random index in the entity table. Usually it carries the index's
@@ -438,35 +438,6 @@ func randEntityID(prng *rand.Rand, ws *worldState) EntityID {
 	}
 
 	return newEntityID(index, generation)
-}
-
-// assertEntityIDInvariants checks entity ID generator properties hold. Normally I'd hardcode this
-// into the test, but this is used in both tests above so extracting this out.
-func assertEntityIDInvariants(t *testing.T, ws *worldState) {
-	t.Helper()
-
-	// Property: live and free are disjoint, and free indices are within the table and not retired.
-	for _, index := range ws.free {
-		require.Less(t, int(index), len(ws.entityArch), "free index %d beyond the entity table", index)
-		assert.Equal(t, int32(noArchetype), ws.entityArch[index].archetype, "index %d is both live and free", index)
-		assert.NotEqual(t, uint32(retiredGeneration), ws.entityArch[index].generation,
-			"index %d is both free and retired", index)
-	}
-
-	// Property: every live entity's record holds a live generation.
-	for index, record := range ws.entityArch {
-		if record.archetype != noArchetype {
-			assert.NotEqual(t, uint32(retiredGeneration), record.generation, "live index %d is retired", index)
-		}
-	}
-
-	// Property: free list has no duplicates.
-	freeSet := make(map[uint32]struct{}, len(ws.free))
-	for _, index := range ws.free {
-		_, exists := freeSet[index]
-		assert.False(t, exists, "duplicate in free list: %d", index)
-		freeSet[index] = struct{}{}
-	}
 }
 
 // -------------------------------------------------------------------------------------------------
