@@ -179,9 +179,9 @@ func benchmarkEntityIteration[T any](b *testing.B) {
 	b.ReportAllocs()
 
 	for b.Loop() {
-		var sum EntityID
+		var sum uint32
 		for id := range entities.Iter() {
-			sum += id.ID()
+			sum += id.ID().Index()
 		}
 
 		if sum != 4950 {
