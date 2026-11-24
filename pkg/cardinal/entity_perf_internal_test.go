@@ -168,6 +168,70 @@ func BenchmarkEntityOperations(b *testing.B) {
 			}
 		}
 	})
+	b.Run("CreateGrowing", benchmarkCreateGrowing)
+	b.Run("DestroyCreate1024", benchmarkDestroyCreate1024)
+	b.Run("Alive1024", benchmarkAlive1024)
+}
+
+// benchmarkCreateGrowing creates entities into a world whose entity table keeps growing.
+func benchmarkCreateGrowing(b *testing.B) {
+	_, entities := newPerfEntityState(b)
+
+	b.ReportAllocs()
+
+	for i := 0; b.Loop(); i++ {
+		if i == 1<<20 { // Keep the world from growing without bound.
+			b.StopTimer()
+
+			_, entities = newPerfEntityState(b)
+			i = 0
+
+			b.StartTimer()
+		}
+
+		entities.Create()
+	}
+}
+
+// benchmarkDestroyCreate1024 destroys an entity and creates one in its place among 1024 live
+// entities, the free-list path.
+func benchmarkDestroyCreate1024(b *testing.B) {
+	_, entities := newPerfEntityState(b)
+	live := newPerfLiveEntities(entities)
+
+	b.ReportAllocs()
+
+	for i := 0; b.Loop(); i++ {
+		slot := i % len(live)
+		if !live[slot].Destroy() {
+			b.Fatal("entity was not destroyed")
+		}
+
+		live[slot] = entities.Create()
+	}
+}
+
+func benchmarkAlive1024(b *testing.B) {
+	_, entities := newPerfEntityState(b)
+	live := newPerfLiveEntities(entities)
+
+	b.ReportAllocs()
+
+	for i := 0; b.Loop(); i++ {
+		if !live[i%len(live)].Alive() {
+			b.Fatal("entity not alive")
+		}
+	}
+}
+
+// newPerfLiveEntities creates 1024 entities, so lookups and reuse spread over a populated table.
+func newPerfLiveEntities(entities Search) []Entity {
+	live := make([]Entity, 1024)
+	for i := range live {
+		live[i] = entities.Create()
+	}
+
+	return live
 }
 
 func benchmarkEntityIteration[T any](b *testing.B) {
