@@ -127,7 +127,7 @@ func TestEntity_ZeroAndMissingHandles(t *testing.T) {
 	t.Parallel()
 
 	w := newEntityTestWorld(t)
-	for _, entity := range []Entity{{}, w.Entity(999)} {
+	for _, entity := range []Entity{{}, w.Entity(0), w.Entity(999)} {
 		assert.False(t, entity.Alive())
 		assert.False(t, entity.Has[testutils.ComponentA]())
 		assert.False(t, entity.Destroy())
@@ -157,7 +157,6 @@ func TestEntity_StaleIDInComponentAfterReuse(t *testing.T) {
 
 	holder := w.Create[struct{ Link entityLink }]()
 	holder.Set(entityLink{Target: target.ID()})
-	assert.False(t, w.Entity(0).Alive(), "the zero ID never refers to an entity")
 
 	require.True(t, target.Destroy())
 
