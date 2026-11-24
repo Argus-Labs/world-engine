@@ -17,17 +17,12 @@ World
 │
 └── Archetypes ([]archetype)
     └── archetype
-       ├── Entity Bitmap
        ├── Component Type Bitmap
-       └── Columns ([]any)
-           ├── Column<T1>
-           │   ├── Sparse Index ([]int)
-           │   ├── Dense Array ([]EntityID)
-           │   └── Data Array ([]T1)
-           └── Column<T2>
-               ├── Sparse Index ([]int)
-               ├── Dense Array ([]EntityID)
-               └── Data Array ([]T2)
+       ├── Rows (sparseSet: entity index to row)
+       ├── Entities ([]EntityID, dense, one per row)
+       └── Columns ([]abstractColumn)
+           ├── Column<T1> ([]T1, one per row)
+           └── Column<T2> ([]T2, one per row)
 ```
 
 ### Core Components
@@ -67,20 +62,20 @@ World
    - Automatically managed during entity mutations
 
 5. **Columns**:
-   - Type-safe component storage containers
-   - Uses sparse set data structure
-   - O(1) component access and modification
-   - Memory-efficient for sparse data
-   - Aligned with cache-friendly access patterns
+   - Type-safe component storage, one column per component type in the archetype
+   - Hold only component data. Row i of every column belongs to the entity in row i of the
+     archetype's entities
 
 ### Key Design Features
 
 1. **Sparse Set Pattern**:
-   - Used in both entity and component management
-   - Provides O(1) operations for common tasks
-   - Enables efficient iteration over active elements
-   - Reduces memory fragmentation
-   - Supports fast component access
+   - Each archetype is a sparse set: `rows` is the sparse array (entity index to row), and
+     `entities` plus the columns are the dense arrays
+   - Removing an entity moves the last row into its place, so the dense arrays stay packed and
+     iteration touches only live entities
+   - The entity table is not a sparse set. It only answers which archetype an entity is in, so it
+     is one array indexed by entity index, with no dense half. Iteration already happens per
+     archetype
 
 2. **Type Safety**:
    - Compile-time type checking for components
