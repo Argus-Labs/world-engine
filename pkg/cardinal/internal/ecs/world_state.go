@@ -108,7 +108,7 @@ func (ws *worldState) invalidateArchetypes() {
 // for an ID whose generation is not its index's current one.
 func (ws *worldState) archetypeOf(eid EntityID) (archetypeID, bool) {
 	index := eid.Index()
-	if uint64(index) >= uint64(len(ws.slots)) {
+	if int(index) >= len(ws.slots) {
 		return 0, false
 	}
 
