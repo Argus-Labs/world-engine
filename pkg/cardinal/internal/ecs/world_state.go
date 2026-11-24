@@ -447,7 +447,7 @@ func (ws *worldState) toProto() (*cardinalv1.WorldState, error) {
 
 // maxRestoreFreeIDs is the maximum number of free IDs that a restore accepts. Without this limit,
 // a large next_id can cause billions of free IDs.
-const maxRestoreFreeIDs = 1 << 24 // 16.7M IDs, about 320 MiB
+const maxRestoreFreeIDs = 1 << 24 // 16.7M IDs, 12 bytes each (slot and free entry): 192 MiB
 
 // invalidComponentID identifies a name table entry that this build does not register.
 const invalidComponentID ComponentID = maxComponentID + 1
