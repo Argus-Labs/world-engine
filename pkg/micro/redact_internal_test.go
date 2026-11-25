@@ -23,6 +23,8 @@ const (
 	fixtureUser     = "fixture-user"
 	fixturePassword = "fixture-password"
 	fixtureToken    = "fixture-token"
+	// fixtureCommaToken is configured percent-encoded, but [url.URL.String] writes the comma literally.
+	fixtureCommaToken = fixtureToken + ",evil.example"
 )
 
 func TestRedactNATSURL(t *testing.T) {
@@ -50,6 +52,7 @@ func TestRedactNATSURL(t *testing.T) {
 			"nats://" + fixtureToken + "@a:4222, nats://" + fixtureUser + ":" + fixturePassword + "@b:4222,,",
 			"nats://a:4222,nats://b:4222",
 		},
+		{"encoded comma in token", "nats://fixture-token%2Cevil.example@nats:4222", "nats://nats:4222"},
 		{"unparseable", "nats://" + fixtureUser + ":" + fixturePassword + "@127.0.0.1:bad port", invalidNATSURL},
 		{"empty", "", ""},
 	}
@@ -59,6 +62,28 @@ func TestRedactNATSURL(t *testing.T) {
 			t.Parallel()
 
 			assertLoggedURL(t, tt.want, redactNATSURL(tt.raw))
+		})
+	}
+}
+
+func TestRedactNATSServerURL(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		// The form nats.Conn.ConnectedUrl returns for a token configured as fixture-token%2Cevil.example.
+		{"literal comma in token", "nats://" + fixtureCommaToken + "@nats:4222", "nats://nats:4222"},
+		{"user and password", "nats://" + fixtureUser + ":" + fixturePassword + "@nats:4222", "nats://nats:4222"},
+		{"empty", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assertLoggedURL(t, tt.want, redactNATSServerURL(tt.raw))
 		})
 	}
 }
@@ -83,7 +108,7 @@ func TestNewClient_InvalidURLErrorOmitsCredentials(t *testing.T) {
 func TestClient_ConnectionLogsOmitCredentials(t *testing.T) {
 	t.Parallel()
 
-	for _, mode := range []string{"no credentials", "password", "token"} {
+	for _, mode := range []string{"no credentials", "password", "token", "token with comma"} {
 		t.Run(mode, func(t *testing.T) {
 			t.Parallel()
 
@@ -100,6 +125,8 @@ func TestClient_ConnectionLogsOmitCredentials(t *testing.T) {
 				opts.Username, opts.Password = fixtureUser, fixturePassword
 			case "token":
 				opts.Authorization = fixtureToken
+			case "token with comma":
+				opts.Authorization = fixtureCommaToken
 			}
 
 			srv := test.RunServer(opts)
@@ -118,10 +145,15 @@ func TestClient_ConnectionLogsOmitCredentials(t *testing.T) {
 				address.User = url.User(fixtureToken)
 			}
 
+			configuredURL := address.String()
+			if mode == "token with comma" {
+				configuredURL = "nats://" + strings.ReplaceAll(fixtureCommaToken, ",", "%2C") + "@" + address.Host
+			}
+
 			logs := &syncBuffer{}
 			client, err := NewClient(
 				WithLogger(zerolog.New(logs)),
-				WithNATSConfig(NATSConfig{Name: "redact-" + mode, URL: address.String()}),
+				WithNATSConfig(NATSConfig{Name: "redact-" + mode, URL: configuredURL}),
 			)
 			require.NoError(t, err)
 			t.Cleanup(client.Close)

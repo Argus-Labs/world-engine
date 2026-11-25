@@ -101,7 +101,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	c.Conn = conn
 
 	c.log.Info().
-		Str("url", redactNATSURL(c.ConnectedUrl())).
+		Str("url", redactNATSServerURL(c.ConnectedUrl())).
 		Str("name", c.natsConfig.Name).
 		Msg("Connected to NATS server")
 
@@ -231,7 +231,7 @@ func (c *Client) handleDisconnect(nc *nats.Conn, err error) {
 // handleReconnect handles NATS reconnection events.
 func (c *Client) handleReconnect(nc *nats.Conn) {
 	c.log.Info().
-		Str("nats_url", redactNATSURL(nc.ConnectedUrl())).
+		Str("nats_url", redactNATSServerURL(nc.ConnectedUrl())).
 		Uint64("reconnect_attempts", nc.Stats().Reconnects).
 		Msg("Reconnected to NATS")
 }
