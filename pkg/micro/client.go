@@ -2,6 +2,7 @@ package micro
 
 import (
 	"context"
+	"net/url"
 	"time"
 
 	microv1 "github.com/argus-labs/world-engine/proto/gen/go/worldengine/micro/v1"
@@ -88,13 +89,19 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	// Create the NATS connection.
 	conn, err := nats.Connect(c.natsConfig.URL, natsOpts...)
 	if err != nil {
+		// A url.Error quotes the raw URL, credentials included.
+		var urlErr *url.Error
+		if eris.As(err, &urlErr) {
+			return nil, eris.New("failed to connect to NATS server: NATS URL is not a valid URL")
+		}
+
 		return nil, eris.Wrap(err, "failed to connect to NATS server")
 	}
 
 	c.Conn = conn
 
 	c.log.Info().
-		Str("url", c.ConnectedUrl()).
+		Str("url", redactNATSServerURL(c.ConnectedUrl())).
 		Str("name", c.natsConfig.Name).
 		Msg("Connected to NATS server")
 
@@ -210,7 +217,7 @@ func (c *Client) Close() {
 // public API for the previously-connected URL during a disconnect.
 func (c *Client) handleDisconnect(nc *nats.Conn, err error) {
 	log := c.log.With().
-		Str("nats_url", c.natsConfig.URL).
+		Str("nats_url", redactNATSURL(c.natsConfig.URL)).
 		Uint64("reconnect_attempts", nc.Stats().Reconnects).
 		Logger()
 
@@ -224,7 +231,7 @@ func (c *Client) handleDisconnect(nc *nats.Conn, err error) {
 // handleReconnect handles NATS reconnection events.
 func (c *Client) handleReconnect(nc *nats.Conn) {
 	c.log.Info().
-		Str("nats_url", nc.ConnectedUrl()).
+		Str("nats_url", redactNATSServerURL(nc.ConnectedUrl())).
 		Uint64("reconnect_attempts", nc.Stats().Reconnects).
 		Msg("Reconnected to NATS")
 }
