@@ -225,18 +225,13 @@ func (w *World) CheckWorld(t *testing.T) {
 			"entity %d: entity table archetype=%d but in archetype %d", eid, record.archetype, expectedAid)
 		require.Equal(t, record.generation, eid.generation(),
 			"entity %d: entity table generation=%d", eid, record.generation)
-		require.NotEqual(t, uint32(retiredGeneration), eid.generation(), "entity %d has the retired generation", eid)
 	}
 
-	// Invariant: every occupied entry in the entity table corresponds to a live entity.
-	retired := 0
-
+	// Invariant: no index has generation 0, and every occupied entry corresponds to a live entity.
 	for index, record := range ws.entityArch {
-		if record.archetype == noArchetype {
-			if record.generation == retiredGeneration {
-				retired++
-			}
+		require.NotEqual(t, uint32(0), record.generation, "index %d has generation 0", index)
 
+		if record.archetype == noArchetype {
 			continue
 		}
 
@@ -246,7 +241,7 @@ func (w *World) CheckWorld(t *testing.T) {
 			"entity table has entity %d -> archetype %d but entity not in any archetype", eid, record.archetype)
 	}
 
-	// Invariant: free list has no duplicates, and every free index is unoccupied and not retired.
+	// Invariant: free list has no duplicates, and every free index is unoccupied.
 	freeSeen := make(map[uint32]struct{}, len(ws.free))
 	for _, index := range ws.free {
 		_, dup := freeSeen[index]
@@ -256,11 +251,10 @@ func (w *World) CheckWorld(t *testing.T) {
 		require.Less(t, int(index), len(ws.entityArch), "free index %d beyond the entity table", index)
 		record := ws.entityArch[index]
 		require.Equal(t, int32(noArchetype), record.archetype, "index %d is both free and live", index)
-		require.NotEqual(t, uint32(retiredGeneration), record.generation, "index %d is both free and retired", index)
 	}
 
-	// Invariant: every index is live, free, or retired (no gaps).
-	require.Len(t, ws.entityArch, len(liveEntities)+len(ws.free)+retired,
-		"entity table has %d entries but live=%d + free=%d + retired=%d",
-		len(ws.entityArch), len(liveEntities), len(ws.free), retired)
+	// Invariant: every index is live or free (no gaps).
+	require.Len(t, ws.entityArch, len(liveEntities)+len(ws.free),
+		"entity table has %d entries but live=%d + free=%d",
+		len(ws.entityArch), len(liveEntities), len(ws.free))
 }

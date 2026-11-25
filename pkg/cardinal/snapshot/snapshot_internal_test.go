@@ -17,7 +17,7 @@ func testWorldState() *cardinalv1.WorldState {
 	return &cardinalv1.WorldState{
 		NextId:      7,
 		Components:  []string{"health", "position"},
-		Generations: []uint32{1, 2, 3, 1, 1, 0, 5}, // index 5 is retired
+		Generations: []uint32{1, 2, 3, 1, 1, 4, 5},
 		Entities: []*cardinalv1.Entity{
 			// MessagePack maps: {"Value": 42} and {"X": 1, "Y": 2}.
 			{Id: 1 << 32, Components: []uint32{0, 1}, Payloads: [][]byte{

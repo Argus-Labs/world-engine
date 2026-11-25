@@ -511,8 +511,9 @@ func TestWorldState_EntityID_StaleAfterReuse(t *testing.T) {
 	assert.Equal(t, testutils.ComponentA{X: 2}, got, "stale writes must not reach the new entity")
 }
 
-// An index whose generation wraps is retired: it is never handed out again, so no old ID can alias.
-func TestWorldState_EntityID_RetiredOnWrap(t *testing.T) {
+// A generation that passes its maximum wraps back to the first generation, skipping zero, and the
+// index is freed and reused as usual.
+func TestWorldState_EntityID_WrapsAtMaxGeneration(t *testing.T) {
 	t.Parallel()
 
 	ws := newTestWorldState(t)
@@ -522,21 +523,23 @@ func TestWorldState_EntityID_RetiredOnWrap(t *testing.T) {
 	e = newEntityID(e.index(), math.MaxUint32)
 
 	require.True(t, ws.removeEntity(e))
-	assert.Equal(t, uint32(retiredGeneration), ws.entityArch[e.index()].generation)
-	assert.Empty(t, ws.free, "a retired index is not freed")
+	assert.Equal(t, uint32(firstGeneration), ws.entityArch[e.index()].generation, "the generation skips zero")
+	assert.Equal(t, []uint32{e.index()}, ws.free, "the index is freed")
 
-	next := ws.newEntity()
-	assert.Equal(t, newEntityID(1, firstGeneration), next, "creation skips the retired index")
-
-	// The retired index survives a snapshot and stays out of the free list.
+	// The wrapped state survives a snapshot, and both worlds reuse the index the same way.
 	var pb cardinalv1.WorldState
 	require.NoError(t, proto.Unmarshal(encodeWorld(t, ws), &pb))
-	assert.Equal(t, []uint32{retiredGeneration, firstGeneration}, pb.GetGenerations())
+	assert.Equal(t, []uint32{firstGeneration}, pb.GetGenerations())
 
 	restored := newTestWorldState(t)
 	require.NoError(t, restored.fromProto(&pb))
-	assert.Empty(t, restored.free)
-	assert.Equal(t, newEntityID(2, firstGeneration), restored.newEntity())
+
+	next := ws.newEntity()
+	assert.Equal(t, newEntityID(e.index(), firstGeneration), next, "the index is reused at the first generation")
+	assert.Equal(t, next, restored.newEntity())
+
+	_, live := ws.archetypeOf(e)
+	assert.False(t, live, "the ID from before the wrap stays stale")
 }
 
 // The same operations produce the same IDs, so replaying ticks reproduces them.
@@ -992,12 +995,11 @@ func TestSnapshotWireRejectsBadInput(t *testing.T) {
 		"entity generation differs from its index": {
 			NextId:      1,
 			Generations: []uint32{2},
-			Entities:    []*cardinalv1.Entity{{Id: wireID(0, 1)}},
+			Entities:    []*cardinalv1.Entity{{Id: wireID(0, 3)}},
 		},
-		"entity at a retired index": {
+		"an index with generation 0": {
 			NextId:      1,
-			Generations: []uint32{retiredGeneration},
-			Entities:    []*cardinalv1.Entity{{Id: wireID(0, retiredGeneration)}},
+			Generations: []uint32{0},
 		},
 		"next_id implies an unbounded free list": {
 			NextId: math.MaxUint32, // 5 bytes of input, 4.3 billion ids
@@ -1059,18 +1061,17 @@ func TestSnapshotWireRejectsBadInput(t *testing.T) {
 	}
 }
 
-// A live entity at a retired index gets its own error rather than a generation mismatch.
-func TestSnapshotWireRetiredIndexError(t *testing.T) {
+// Generation 0 is never valid, so a snapshot holding one is refused before it can issue the zero ID.
+func TestSnapshotWireZeroGenerationError(t *testing.T) {
 	t.Parallel()
 	ws, _, _ := newWireTestWorld(t)
 
 	err := ws.fromProto(&cardinalv1.WorldState{
 		NextId:      1,
-		Generations: []uint32{retiredGeneration},
-		Entities:    []*cardinalv1.Entity{{Id: wireID(0, retiredGeneration)}},
+		Generations: []uint32{0},
 	})
 
-	require.ErrorContains(t, err, "is at retired index 0")
+	require.ErrorContains(t, err, "snapshot index 0 has generation 0")
 }
 
 // An entity whose archetype has no row is an internal corruption, not a valid snapshot.

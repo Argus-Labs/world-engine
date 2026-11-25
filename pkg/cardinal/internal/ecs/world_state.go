@@ -36,13 +36,9 @@ func (e EntityID) String() string { return fmt.Sprintf("%dv%d", e.index(), e.gen
 // maxEntityIndex is the largest index an entity can have.
 const maxEntityIndex = math.MaxUint32 - 1
 
-const (
-	// firstGeneration is the generation of an index's first entity. Zero is never a live generation.
-	firstGeneration = 1
-	// retiredGeneration marks an index whose generation wrapped. It is never reused, so an old ID
-	// can never come back.
-	retiredGeneration = 0
-)
+// firstGeneration is the generation of an index's first entity. Zero is never a live generation, so
+// a generation that passes its maximum wraps back to firstGeneration.
+const firstGeneration = 1
 
 // noArchetype is the entityRecord archetype of an index that holds no entity.
 const noArchetype = -1
@@ -189,15 +185,16 @@ func (ws *worldState) removeEntity(eid EntityID) bool {
 	archetype := ws.archetypes[aid]
 	archetype.removeEntity(eid)
 
-	// Advance the generation so this ID no longer resolves. An index whose generation wraps is
-	// retired rather than freed.
+	// Advance the generation so this ID no longer resolves, skipping zero when it wraps.
 	record := &ws.entityArch[eid.index()]
 	record.archetype = noArchetype
-	record.generation++
 
-	if record.generation != retiredGeneration {
-		ws.pushFree(eid.index())
+	record.generation++
+	if record.generation == 0 {
+		record.generation = firstGeneration
 	}
+
+	ws.pushFree(eid.index())
 
 	return true
 }
@@ -518,6 +515,10 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 	next.archetypes[voidArchetypeID] = next.newArchetype(voidArchetypeID, bitmap.Bitmap{})
 
 	for index, generation := range generations {
+		if generation == 0 {
+			return eris.Errorf("snapshot index %d has generation 0, which is never valid", index)
+		}
+
 		next.entityArch[index] = entityRecord{archetype: noArchetype, generation: generation}
 	}
 
@@ -551,12 +552,12 @@ func (ws *worldState) fromProto(pb *cardinalv1.WorldState) error {
 	return nil
 }
 
-// freeIndices returns the unretired indices without an entity, ascending, which is a valid min-heap.
+// freeIndices returns the indices without an entity, ascending, which is a valid min-heap.
 func freeIndices(entityArch []entityRecord, capacity int64) []uint32 {
 	free := make([]uint32, 0, capacity)
 
 	for index, record := range entityArch {
-		if record.archetype == noArchetype && record.generation != retiredGeneration {
+		if record.archetype == noArchetype {
 			free = append(free, uint32(index))
 		}
 	}
@@ -570,10 +571,6 @@ func (ws *worldState) restoreEntity(
 	eid EntityID, ent *cardinalv1.Entity, table []string, tableCIDs []ComponentID,
 ) error {
 	generation := ws.entityArch[eid.index()].generation
-	if generation == retiredGeneration {
-		return eris.Errorf("snapshot entity %v is at retired index %d", eid, eid.index())
-	}
-
 	if eid.generation() != generation {
 		return eris.Errorf("snapshot entity %v has generation %d, but index %d has generation %d",
 			eid, eid.generation(), eid.index(), generation)

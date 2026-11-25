@@ -40,12 +40,11 @@ World
    - Destroying an entity advances its index's generation. An ID kept past that point resolves as
      not found, like a destroyed entity, even after a new entity reuses the index
    - Generations start at 1, so the zero ID is never valid
-   - At most 2^32 - 1 indices (0 to `maxEntityIndex`), the same limit as before generations.
-     A retired index still counts against it
+   - At most 2^32 - 1 indices (0 to `maxEntityIndex`), the same limit as before generations
    - Freed indices are reused smallest first (a min-heap), so IDs depend only on the operations, not
      on the order entities were freed. Replays and restores produce the same IDs
-   - An index whose generation would wrap to zero is retired, never reused, so an old ID
-     can never alias a new entity
+   - A generation that passes its maximum wraps back to 1, skipping zero. An old ID can then match
+     again only after its index has been reused 2^32 - 1 times
    - A snapshot stores every index's generation. Restore rebuilds the free indices from them, so IDs
      taken before a snapshot are still valid (or still stale) after restore
    - A world reset restarts generations, so a reset world issues the same IDs as a new one
