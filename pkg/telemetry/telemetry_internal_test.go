@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"slices"
 	"sync"
 	"testing"
@@ -398,6 +401,127 @@ func TestShutdownSkipsSentryForStalledMetricsTimeout(t *testing.T) {
 	_ = tel.Shutdown(ctx)
 
 	require.Empty(t, captured, "pure-timeout shutdown must not reach Sentry")
+}
+
+// TestShutdownStopsPosthogFlushWhenContextEnds checks that Shutdown's context bounds the PostHog
+// flush: a collector that never answers cannot hold shutdown past the shared deadline, and the
+// resulting timeout stays out of Sentry. The control confirms queued events still reach a
+// collector that answers. Canceling once the collector holds the batch stands in for the
+// deadline passing mid-upload without racing the TLS handshake.
+func TestShutdownStopsPosthogFlushWhenContextEnds(t *testing.T) {
+	var captured []error
+
+	prev := sentrygo.CurrentHub().Client()
+
+	require.NoError(t, sentrygo.Init(sentrygo.ClientOptions{
+		DisableTelemetryBuffer: true,
+		BeforeSend: func(_ *sentrygo.Event, hint *sentrygo.EventHint) *sentrygo.Event {
+			captured = append(captured, hint.OriginalException)
+			return nil
+		},
+	}))
+	t.Cleanup(func() { sentrygo.CurrentHub().BindClient(prev) })
+
+	const wait = 5 * time.Second
+
+	for _, tc := range []struct {
+		name  string
+		stall bool
+	}{
+		{name: "responsive collector receives queued events", stall: false},
+		{name: "stalled collector cannot outlast the context", stall: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			captured = nil
+			received := make(chan struct{}, 1)
+			release := make(chan struct{})
+
+			ph := newPosthogWithCollector(t, func(w http.ResponseWriter, r *http.Request) {
+				_, _ = io.Copy(io.Discard, r.Body)
+
+				select {
+				case received <- struct{}{}:
+				default:
+				}
+
+				if tc.stall {
+					select {
+					case <-release:
+					case <-r.Context().Done():
+					}
+
+					return
+				}
+
+				_, _ = w.Write([]byte(`{"status":1}`))
+			})
+			// Runs before the collector's Close, which waits for in-flight requests.
+			t.Cleanup(func() { close(release) })
+
+			require.NoError(t, ph.Capture(t.Context(), "test", nil))
+
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+
+			tel := Telemetry{posthog: ph}
+			done := make(chan error, 1)
+
+			go func() { done <- tel.Shutdown(ctx) }()
+
+			select {
+			case <-received:
+			case <-time.After(wait):
+				require.FailNow(t, "collector received no batch")
+			}
+
+			if tc.stall {
+				cancel()
+			}
+
+			select {
+			case err := <-done:
+				if tc.stall {
+					require.ErrorIs(t, err, context.Canceled)
+				} else {
+					require.NoError(t, err)
+				}
+			case <-time.After(wait):
+				require.FailNow(t, "Shutdown did not return after its context ended")
+			}
+
+			require.Empty(t, captured, "a shutdown timeout must not reach Sentry")
+		})
+	}
+}
+
+// newPosthogWithCollector returns an enabled PostHog client whose uploads reach a local TLS
+// collector instead of PostHog. posthog.Options has no endpoint, so the client is built while
+// [http.DefaultTransport] dials the collector; posthog-go clones that transport during
+// construction, so the swap is undone before the client sends anything.
+func newPosthogWithCollector(t *testing.T, handler http.HandlerFunc) *posthog.Client {
+	t.Helper()
+
+	srv := httptest.NewTLSServer(handler)
+	t.Cleanup(srv.Close)
+
+	transport, ok := srv.Client().Transport.(*http.Transport)
+	require.True(t, ok)
+
+	transport = transport.Clone()
+	transport.TLSClientConfig.ServerName = "example.com" // A host the test certificate covers.
+	transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, network, srv.Listener.Addr().String())
+	}
+
+	prev := http.DefaultTransport
+	http.DefaultTransport = transport //nolint:reassign // See the doc comment.
+
+	defer func() { http.DefaultTransport = prev }() //nolint:reassign // Undoes the swap above.
+
+	ph, err := posthog.New(posthog.Options{APIKey: "test-key", DistinctID: "test-player"})
+	require.NoError(t, err)
+
+	return ph
 }
 
 // TestOnlyContextSentinels pins the behavior of the shutdown-capture guard's purity check
