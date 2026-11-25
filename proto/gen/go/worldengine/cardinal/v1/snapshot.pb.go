@@ -112,8 +112,8 @@ type WorldState struct {
 	// appears here (empty components/payloads), so nothing vanishes on restore.
 	Entities []*Entity `protobuf:"bytes,3,rep,name=entities,proto3" json:"entities,omitempty"`
 	// The current generation of every index below next_id, one entry per index. A live entity's id
-	// carries the same generation. A free index holds the generation its next entity gets, and 0 marks
-	// an index retired after its generation wrapped, which is never reused.
+	// carries the same generation. A free index holds the generation its next entity gets. Generations
+	// start at 1 and wrap back to 1, so 0 never appears.
 	Generations   []uint32 `protobuf:"varint,5,rep,packed,name=generations,proto3" json:"generations,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

@@ -494,8 +494,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     private readonly pbc::RepeatedField<uint> generations_ = new pbc::RepeatedField<uint>();
     /// <summary>
     /// The current generation of every index below next_id, one entry per index. A live entity's id
-    /// carries the same generation. A free index holds the generation its next entity gets, and 0 marks
-    /// an index retired after its generation wrapped, which is never reused.
+    /// carries the same generation. A free index holds the generation its next entity gets. Generations
+    /// start at 1 and wrap back to 1, so 0 never appears.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

@@ -88,8 +88,8 @@ export type WorldState = Message<"worldengine.cardinal.v1.WorldState"> & {
 
   /**
    * The current generation of every index below next_id, one entry per index. A live entity's id
-   * carries the same generation. A free index holds the generation its next entity gets, and 0 marks
-   * an index retired after its generation wrapped, which is never reused.
+   * carries the same generation. A free index holds the generation its next entity gets. Generations
+   * start at 1 and wrap back to 1, so 0 never appears.
    *
    * @generated from field: repeated uint32 generations = 5;
    */
