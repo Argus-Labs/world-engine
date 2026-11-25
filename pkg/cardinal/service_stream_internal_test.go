@@ -401,6 +401,50 @@ func TestEventStream_OrderPreservedUnderLoad(t *testing.T) {
 	broadcasts.requireOpen(t)
 }
 
+// SendTo reaches only its recipient. An empty recipient panics in every build mode: an event with
+// no recipient is a broadcast, so a guard compiled out of release builds sent it to every player.
+// The trailing Broadcast is a barrier: a stream that receives it has received every earlier event.
+// moon's test-release task also runs this test with assertions compiled out.
+func TestEventStream_SendToReachesOnlyItsRecipient(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		recipient string
+		wantAlice []string
+	}{
+		{"named recipient", "alice", []string{"simple_event:1", "simple_event:2"}},
+		{"empty recipient", "", []string{"simple_event:2"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newStreamHarness(t)
+			w := h.fixture.world
+			w.RegisterEvent[testutils.SimpleEvent]()
+			w.events.RegisterHandler(event.KindDefault, h.fixture.svc.publishDefaultEvent)
+
+			alice := h.open(t, "alice", "*")
+			bob := h.open(t, "bob", "*")
+
+			alice.read()
+			bob.read()
+
+			send := func() { w.SendTo(tc.recipient, testutils.SimpleEvent{Value: 1}) }
+			if tc.recipient == "" {
+				assert.Panics(t, send)
+			} else {
+				assert.NotPanics(t, send)
+			}
+
+			w.Broadcast(testutils.SimpleEvent{Value: 2})
+			w.dispatchEvents(context.Background())
+
+			assert.Equal(t, tc.wantAlice, alice.next(t, len(tc.wantAlice)))
+			assert.Equal(t, []string{"simple_event:2"}, bob.next(t, 1), "SendTo must not reach bob")
+		})
+	}
+}
+
 // One stopped reader must not slow the world tick or another player's events. Once its oldest
 // pending event has waited streamLagLimit, its stream ends as lagged and frees its handler.
 // Not parallel: it asserts timing bounds.

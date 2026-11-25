@@ -34,8 +34,10 @@ tasks:
       runInCI: true
   test-release:
     inputs: ['pkg/**/*', 'go.mod', 'go.sum', '.prototools', 'moon.yml']
-    description: 'Run immutable tests with assertions compiled out, as in a release build'
-    command: 'go test -tags release -count 1 ./pkg/immutable/'
+    description: 'Run immutable and SendTo routing tests with assertions compiled out, as in a release build'
+    script: |
+      go test -tags release -count 1 ./pkg/immutable/ &&
+      go test -tags release -count 1 -run '^TestEventStream_SendToReachesOnlyItsRecipient$' ./pkg/cardinal/
     options:
       runInCI: true
   build:

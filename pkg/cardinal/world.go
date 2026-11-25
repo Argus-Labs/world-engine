@@ -745,7 +745,8 @@ func (w *World) Broadcast[T Event](evt T) {
 // SendTo enqueues a targeted event that is delivered only to the named recipient (a player ID),
 // provided they have an open event stream subscribed to this event or a pending SendCommandWithReply
 // waiting for it. Otherwise the event is silently dropped. It panics if T was not registered with
-// RegisterEvent.
+// RegisterEvent or if recipient is empty. The empty-recipient check is a plain panic, not
+// assert.That, so it fires in release too: an empty recipient would otherwise be broadcast.
 //
 // Example:
 //
@@ -753,7 +754,9 @@ func (w *World) Broadcast[T Event](evt T) {
 //		w.SendTo(player, Result{OK: true})
 //	}
 func (w *World) SendTo[T Event](recipient string, evt T) {
-	assert.That(recipient != "", "recipient must not be empty (use Broadcast for fan-out)")
+	if recipient == "" {
+		panic(eris.New("SendTo recipient must not be empty; use Broadcast for fan-out"))
+	}
 
 	attrs := w.registeredEvent[T]()
 	w.events.Enqueue(event.Event{
