@@ -29,7 +29,7 @@ func (s *UserChatSystem) Run(w *cardinal.World) {
 		})
 
 		w.Logger().Info().
-			Uint32("entity", uint32(id)).
+			Uint64("entity", uint64(id)).
 			Msgf("Created chat message %s (id: %s)", command.Message, command.ArgusAuthID)
 
 		w.Broadcast(event.UserChat{

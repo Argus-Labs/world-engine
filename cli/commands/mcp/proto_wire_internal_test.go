@@ -205,7 +205,7 @@ func TestCommandAndStateImmutableSlice(t *testing.T) {
 	components := entityComponents([]string{"Numbers"}, [][]byte{state}, componentDescriptors{"Numbers": schema})
 	filter, err := compileStateFilter(GetStateInput{Where: "Numbers.Nums[0] == 9007199254740993"})
 	require.NoError(t, err)
-	matched, err := filter.matchesWhere(1, components)
+	matched, err := filter.matchesWhere("1", components)
 	require.NoError(t, err)
 	assert.True(t, matched)
 }

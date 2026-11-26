@@ -913,8 +913,8 @@ func (w *World) archetype[T any]() (bitmap.Bitmap, error) {
 // Entities
 // -------------------------------------------------------------------------------------------------
 
-// Entity binds a numeric ID to this world. It does not require the entity to exist.
-// Use Alive or Has to check before accessing an optional entity.
+// Entity binds an ID to this world. It does not require the entity to exist, and an ID whose
+// entity was destroyed stays absent. Use Alive or Has to check before accessing an optional entity.
 func (w *World) Entity(id EntityID) Entity {
 	return Entity{world: w.world, id: id}
 }

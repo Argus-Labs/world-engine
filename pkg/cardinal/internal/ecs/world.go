@@ -97,12 +97,12 @@ func (w *World) LiveEntityIDs() []EntityID {
 
 	ids := make([]EntityID, 0)
 
-	for i, aid := range w.state.entityArch {
-		if aid == sparseTombstone {
+	for index, record := range w.state.entityArch {
+		if record.archetype == noArchetype {
 			continue
 		}
 
-		ids = append(ids, EntityID(i))
+		ids = append(ids, newEntityID(uint32(index), record.generation))
 	}
 
 	return ids
@@ -197,7 +197,7 @@ func (w *World) CheckWorld(t *testing.T) {
 		// Invariant: rows sparseSet is a bijection between entities and row indices [0, len).
 		rowsSeen := make(map[int]EntityID, len(arch.entities))
 		for _, eid := range arch.entities {
-			row, exists := arch.rows.get(eid)
+			row, exists := arch.rows.get(eid.index())
 			require.True(t, exists,
 				"archetype %d: entity %d has no row entry", aid, eid)
 			require.Less(t, row, len(arch.entities),
@@ -217,49 +217,44 @@ func (w *World) CheckWorld(t *testing.T) {
 		}
 	}
 
-	// Invariant: entityArch mapping matches archetype membership.
+	// Invariant: the entity table matches archetype membership, including the generation.
 	for eid, expectedAid := range liveEntities {
-		aid, exists := ws.entityArch.get(eid)
-		require.True(t, exists, "entity %d in archetype %d but not in entityArch", eid, expectedAid)
-		require.Equal(t, expectedAid, aid,
-			"entity %d: entityArch=%d but in archetype %d", eid, aid, expectedAid)
+		require.Less(t, int(eid.index()), len(ws.entityArch), "entity %d index beyond the entity table", eid)
+		record := ws.entityArch[eid.index()]
+		require.Equal(t, expectedAid, int(record.archetype),
+			"entity %d: entity table archetype=%d but in archetype %d", eid, record.archetype, expectedAid)
+		require.Equal(t, record.generation, eid.generation(),
+			"entity %d: entity table generation=%d", eid, record.generation)
 	}
 
-	// Invariant: every non-tombstone entry in entityArch corresponds to a live entity.
-	for i, val := range ws.entityArch {
-		if val == sparseTombstone {
+	// Invariant: no index has generation 0, and every occupied entry corresponds to a live entity.
+	for index, record := range ws.entityArch {
+		require.NotEqual(t, uint32(0), record.generation, "index %d has generation 0", index)
+
+		if record.archetype == noArchetype {
 			continue
 		}
 
-		eid := EntityID(i)
+		eid := newEntityID(uint32(index), record.generation)
 		_, exists := liveEntities[eid]
 		require.True(t, exists,
-			"entityArch has entity %d -> archetype %d but entity not in any archetype", eid, val)
+			"entity table has entity %d -> archetype %d but entity not in any archetype", eid, record.archetype)
 	}
 
-	// Invariant: free list has no duplicates.
-	freeSeen := make(map[EntityID]struct{}, len(ws.free))
-	for _, freeID := range ws.free {
-		_, dup := freeSeen[freeID]
-		require.False(t, dup, "duplicate free ID %d", freeID)
-		freeSeen[freeID] = struct{}{}
+	// Invariant: free list has no duplicates, and every free index is unoccupied.
+	freeSeen := make(map[uint32]struct{}, len(ws.free))
+	for _, index := range ws.free {
+		_, dup := freeSeen[index]
+		require.False(t, dup, "duplicate free index %d", index)
+		freeSeen[index] = struct{}{}
+
+		require.Less(t, int(index), len(ws.entityArch), "free index %d beyond the entity table", index)
+		record := ws.entityArch[index]
+		require.Equal(t, int32(noArchetype), record.archetype, "index %d is both free and live", index)
 	}
 
-	// Invariant: no overlap between free IDs and live entity IDs.
-	for _, freeID := range ws.free {
-		aid, exists := liveEntities[freeID]
-		require.False(t, exists, "entity %d is both free and live (archetype %d)", freeID, aid)
-		// Invariant: all free IDs < nextID.
-		require.Less(t, freeID, ws.nextID, "free ID %d >= nextID %d", freeID, ws.nextID)
-	}
-
-	// Invariant: all live IDs < nextID.
-	for eid := range liveEntities {
-		require.Less(t, eid, ws.nextID, "live entity %d >= nextID %d", eid, ws.nextID)
-	}
-
-	// Invariant: every ID below nextID is either live or free (no gaps).
-	require.Equal(t, int(ws.nextID), len(liveEntities)+len(ws.free),
-		"nextID=%d but live=%d + free=%d = %d",
-		ws.nextID, len(liveEntities), len(ws.free), len(liveEntities)+len(ws.free))
+	// Invariant: every index is live or free (no gaps).
+	require.Len(t, ws.entityArch, len(liveEntities)+len(ws.free),
+		"entity table has %d entries but live=%d + free=%d",
+		len(ws.entityArch), len(liveEntities), len(ws.free))
 }

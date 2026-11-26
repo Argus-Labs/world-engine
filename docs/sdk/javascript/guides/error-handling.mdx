@@ -11,17 +11,14 @@ pattern that returns `{ error, data }` instead of throwing errors.
 ## Basic Error Handling
 
 ```typescript
-const { error, data } = await shard.query({
-  // your query parameters
+const { error } = await shard.sendCommand({
+  // your command
 })
 
 if (error) {
   console.log('Error code:', error.code)
   console.log('Error message:', error.message)
   console.log('Raw message:', error.rawMessage)
-} else {
-  // Handle successful response
-  console.log('Data:', data)
 }
 ```
 
@@ -62,8 +59,8 @@ Handle specific error types by matching against error codes:
 ```typescript
 import { ConnectError, Code } from '@argus-labs/sdk'
 
-const { error, data } = await shard.query({
-  // your query parameters
+const { error } = await shard.sendCommand({
+  // your command
 })
 
 if (error) {
@@ -88,9 +85,6 @@ if (error) {
       // Handle other errors
       showGenericError(error.message)
   }
-} else {
-  // Handle successful response
-  processData(data)
 }
 ```
 

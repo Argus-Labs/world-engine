@@ -35,7 +35,7 @@ func (s *OnlineStatusUpdater) Run(w *cardinal.World) {
 			})
 
 			w.Logger().Info().
-				Uint32("entity", uint32(entity)).
+				Uint64("entity", uint64(entity)).
 				Msgf("Player %s (id: %s) is offline", tag.ArgusAuthName, tag.ArgusAuthID)
 		}
 	}

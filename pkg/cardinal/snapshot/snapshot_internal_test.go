@@ -15,16 +15,17 @@ import (
 // testWorldState is a small entity-major world state exercising every field.
 func testWorldState() *cardinalv1.WorldState {
 	return &cardinalv1.WorldState{
-		NextId:     7,
-		Components: []string{"health", "position"},
+		NextId:      7,
+		Components:  []string{"health", "position"},
+		Generations: []uint32{1, 2, 3, 1, 1, 4, 5},
 		Entities: []*cardinalv1.Entity{
 			// MessagePack maps: {"Value": 42} and {"X": 1, "Y": 2}.
-			{Id: 0, Components: []uint32{0, 1}, Payloads: [][]byte{
+			{Id: 1 << 32, Components: []uint32{0, 1}, Payloads: [][]byte{
 				{0x81, 0xa5, 'V', 'a', 'l', 'u', 'e', 0x2a},
 				{0x82, 0xa1, 'X', 0x01, 0xa1, 'Y', 0x02},
 			}},
-			{Id: 2}, // zero components
-			{Id: 4, Components: []uint32{1}, Payloads: [][]byte{{0x80}}}, // empty MessagePack map
+			{Id: 3<<32 | 2}, // zero components
+			{Id: 1<<32 | 4, Components: []uint32{1}, Payloads: [][]byte{{0x80}}}, // empty MessagePack map
 		},
 	}
 }
@@ -56,7 +57,7 @@ func TestEncodeMetadata(t *testing.T) {
 			assert.Equal(t, tc.tick, snap.GetTickHeight())
 			require.NotNil(t, snap.GetTimestamp())
 			assert.True(t, tc.ts.Equal(snap.GetTimestamp().AsTime()))
-			assert.Equal(t, uint32(2), snap.GetVersion())
+			assert.Equal(t, uint32(3), snap.GetVersion())
 			assert.True(t, proto.Equal(testWorldState(), snap.GetWorldState()))
 		})
 	}
@@ -127,6 +128,7 @@ func TestDecodeRejects(t *testing.T) {
 
 	for name, version := range map[string]uint32{
 		"old protobuf payload version": 1,
+		"pre-generation entity IDs":    2,
 		"newer version":                CurrentVersion + 1,
 		"unset version":                0,
 	} {
@@ -163,9 +165,9 @@ func TestValidateVersion(t *testing.T) {
 	t.Parallel()
 
 	require.NoError(t, ValidateVersion(CurrentVersion))
-	assert.Equal(t, uint32(2), CurrentVersion)
+	assert.Equal(t, uint32(3), CurrentVersion)
 
-	for _, v := range []uint32{0, 1, CurrentVersion + 1, 99} {
+	for _, v := range []uint32{0, 1, 2, CurrentVersion + 1, 99} {
 		err := ValidateVersion(v)
 		require.Error(t, err)
 		assert.True(t, eris.Is(err, ErrUnsupportedVersion))

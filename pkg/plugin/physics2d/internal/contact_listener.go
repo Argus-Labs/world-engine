@@ -210,8 +210,8 @@ func applyManifold(buf *BufferedContactEvent, m *box2d.Manifold) {
 func (rt *Runtime) shapeIdentity(sid box2d.ShapeID) (cardinal.EntityID, int) {
 	w := rt.World
 	bodyID := w.ShapeBody(sid)
-	entityID := cardinal.EntityID(uint32(w.BodyUserData(bodyID))) //nolint:gosec // packed from uint32 entity id
-	shapeIndex := int(uint32(w.ShapeUserData(sid)))               //nolint:gosec // packed from small shape index
+	entityID := cardinal.EntityID(w.BodyUserData(bodyID))
+	shapeIndex := int(uint32(w.ShapeUserData(sid))) //nolint:gosec // packed from small shape index
 
 	return entityID, shapeIndex
 }

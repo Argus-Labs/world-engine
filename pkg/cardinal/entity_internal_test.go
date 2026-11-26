@@ -127,7 +127,7 @@ func TestEntity_ZeroAndMissingHandles(t *testing.T) {
 	t.Parallel()
 
 	w := newEntityTestWorld(t)
-	for _, entity := range []Entity{{}, w.Entity(999)} {
+	for _, entity := range []Entity{{}, w.Entity(0), w.Entity(999)} {
 		assert.False(t, entity.Alive())
 		assert.False(t, entity.Has[testutils.ComponentA]())
 		assert.False(t, entity.Destroy())
@@ -135,6 +135,63 @@ func TestEntity_ZeroAndMissingHandles(t *testing.T) {
 		require.Panics(t, func() { entity.Set(testutils.ComponentA{}) })
 		require.Panics(t, func() { entity.Remove[testutils.ComponentA]() })
 	}
+}
+
+// entityLink is a component that refers to another entity by ID.
+type entityLink struct {
+	Target EntityID
+}
+
+func (entityLink) Name() string { return "entity_link" }
+
+// An ID stored in a component outlives its entity. Once a new entity reuses the index, the stored ID
+// must resolve to "not found" rather than to the new entity, before and after a snapshot restore.
+func TestEntity_StaleIDInComponentAfterReuse(t *testing.T) {
+	t.Parallel()
+
+	w := newEntityTestWorld(t)
+	w.RegisterComponent[entityLink]()
+
+	target := w.Create[entityTestArchetype]()
+	target.Set(testutils.ComponentA{X: 1})
+
+	holder := w.Create[struct{ Link entityLink }]()
+	holder.Set(entityLink{Target: target.ID()})
+
+	require.True(t, target.Destroy())
+
+	replacement := w.Create[entityTestArchetype]()
+	replacement.Set(testutils.ComponentA{X: 2})
+
+	assertStale := func(t *testing.T, w *World) {
+		t.Helper()
+
+		stale := w.Entity(holder.Get[entityLink]().Target)
+		assert.False(t, stale.Alive())
+		assert.False(t, stale.Has[testutils.ComponentA]())
+		require.Panics(t, func() { stale.Get[testutils.ComponentA]() })
+		require.Panics(t, func() { stale.Set(testutils.ComponentA{X: 3}) })
+		assert.False(t, stale.Destroy(), "a stale ID must not destroy the replacement")
+
+		_, err := w.Contains[entityTestArchetype]().GetByID(stale.ID())
+		require.ErrorIs(t, err, ecs.ErrEntityNotFound)
+
+		live := w.Entity(replacement.ID())
+		require.True(t, live.Alive())
+		assert.Equal(t, testutils.ComponentA{X: 2}, live.Get[testutils.ComponentA]())
+	}
+
+	assertStale(t, w)
+
+	restored := newEntityTestWorld(t)
+	restored.RegisterComponent[entityLink]()
+
+	var state cardinalv1.WorldState
+	require.NoError(t, proto.Unmarshal(w.world.EncodeState(nil), &state))
+	require.NoError(t, restored.world.FromProto(&state))
+
+	holder = restored.Entity(holder.ID())
+	assertStale(t, restored)
 }
 
 func TestEntity_RegisterComponent(t *testing.T) {

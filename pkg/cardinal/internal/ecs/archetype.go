@@ -16,7 +16,7 @@ type archetypeID = int
 type archetype struct {
 	id         archetypeID      // Corresponds to the index in the archetypes array
 	components bitmap.Bitmap    // Bitmap of components contained in this archetype
-	rows       sparseSet        // Maps entity ID -> row index in entities and columns
+	rows       sparseSet        // Maps entity index -> row index in entities and columns
 	entities   []EntityID       // List of entities of this archetype
 	columns    []abstractColumn // List of columns containing component data
 	compCount  int              // Number of component types in the archetype
@@ -80,14 +80,14 @@ func (a *archetype) newEntity(eid EntityID) {
 	}
 
 	// Map entity ID to its row.
-	a.rows.set(eid, len(a.entities)-1)
+	a.rows.set(eid.index(), len(a.entities)-1)
 }
 
 // removeEntity removes an entity from the archetype. A remove swaps the last entity in the slice
 // with the entity to remove, and returns the swapped entity ID. If the entity is the
 // Expects the caller to check that the entity belongs to this archetype and is alive.
 func (a *archetype) removeEntity(eid EntityID) {
-	row, exists := a.rows.get(eid)
+	row, exists := a.rows.get(eid.index())
 	assert.That(exists, "entity is not in archetype")
 
 	lastIndex := len(a.entities) - 1
@@ -105,7 +105,7 @@ func (a *archetype) removeEntity(eid EntityID) {
 	}
 
 	// Remove the entity from the row mapping.
-	ok := a.rows.remove(eid)
+	ok := a.rows.remove(eid.index())
 	assert.That(ok, "entity isn't removed from sparse set")
 
 	// If the entity is the last item in the slice, nothing is swapped so we can just return.
@@ -115,7 +115,7 @@ func (a *archetype) removeEntity(eid EntityID) {
 
 	// Else, we update the swapped entity metadata to point to the correct row.
 	movedID := a.entities[row]
-	a.rows.set(movedID, row)
+	a.rows.set(movedID.index(), row)
 }
 
 // moveEntity moves an entity from one archetype to another. It creates a new entity in the
@@ -129,12 +129,12 @@ func (a *archetype) moveEntity(destination *archetype, eid EntityID) {
 		return
 	}
 
-	row, exists := a.rows.get(eid)
+	row, exists := a.rows.get(eid.index())
 	assert.That(exists, "entity is not in archetype")
 
 	// Create a new entity in the destination archetype with the id.
 	destination.newEntity(eid)
-	newRow, exists := destination.rows.get(eid)
+	newRow, exists := destination.rows.get(eid.index())
 	assert.That(exists, "new entity isn't created in the destination archetype")
 
 	// Move entity's components to the new archetype.

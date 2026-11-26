@@ -31,20 +31,21 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             "ZXN0YW1wGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJdGlt",
             "ZXN0YW1wEkwKC3dvcmxkX3N0YXRlGAMgASgLMiMud29ybGRlbmdpbmUuY2Fy",
             "ZGluYWwudjEuV29ybGRTdGF0ZUIGukgDyAEBUgp3b3JsZFN0YXRlEhgKB3Zl",
-            "cnNpb24YBCABKA1SB3ZlcnNpb24ilgEKCldvcmxkU3RhdGUSFwoHbmV4dF9p",
+            "cnNpb24YBCABKA1SB3ZlcnNpb24iuAEKCldvcmxkU3RhdGUSFwoHbmV4dF9p",
             "ZBgBIAEoDVIGbmV4dElkEiwKCmNvbXBvbmVudHMYAiADKAlCDLpICZIBBiIE",
             "cgIQAVIKY29tcG9uZW50cxI7CghlbnRpdGllcxgDIAMoCzIfLndvcmxkZW5n",
-            "aW5lLmNhcmRpbmFsLnYxLkVudGl0eVIIZW50aXRpZXNKBAgEEAUiVAoGRW50",
-            "aXR5Eg4KAmlkGAEgASgNUgJpZBIeCgpjb21wb25lbnRzGAIgAygNUgpjb21w",
-            "b25lbnRzEhoKCHBheWxvYWRzGAMgAygMUghwYXlsb2Fkc0J0WlJnaXRodWIu",
-            "Y29tL2FyZ3VzLWxhYnMvd29ybGQtZW5naW5lL3Byb3RvL2dlbi9nby93b3Js",
-            "ZGVuZ2luZS9jYXJkaW5hbC92MTtjYXJkaW5hbHYxqgIdV29ybGRFbmdpbmUu",
-            "UHJvdG8uQ2FyZGluYWwuVjFiBnByb3RvMw=="));
+            "aW5lLmNhcmRpbmFsLnYxLkVudGl0eVIIZW50aXRpZXMSIAoLZ2VuZXJhdGlv",
+            "bnMYBSADKA1SC2dlbmVyYXRpb25zSgQIBBAFIlQKBkVudGl0eRIOCgJpZBgB",
+            "IAEoBFICaWQSHgoKY29tcG9uZW50cxgCIAMoDVIKY29tcG9uZW50cxIaCghw",
+            "YXlsb2FkcxgDIAMoDFIIcGF5bG9hZHNCdFpSZ2l0aHViLmNvbS9hcmd1cy1s",
+            "YWJzL3dvcmxkLWVuZ2luZS9wcm90by9nZW4vZ28vd29ybGRlbmdpbmUvY2Fy",
+            "ZGluYWwvdjE7Y2FyZGluYWx2MaoCHVdvcmxkRW5naW5lLlByb3RvLkNhcmRp",
+            "bmFsLlYxYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Snapshot), global::WorldEngine.Proto.Cardinal.V1.Snapshot.Parser, new[]{ "TickHeight", "Timestamp", "WorldState", "Version" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.WorldState), global::WorldEngine.Proto.Cardinal.V1.WorldState.Parser, new[]{ "NextId", "Components", "Entities" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.WorldState), global::WorldEngine.Proto.Cardinal.V1.WorldState.Parser, new[]{ "NextId", "Components", "Entities", "Generations" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::WorldEngine.Proto.Cardinal.V1.Entity), global::WorldEngine.Proto.Cardinal.V1.Entity.Parser, new[]{ "Id", "Components", "Payloads" }, null, null, null, null)
           }));
     }
@@ -388,7 +389,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
   /// layout (archetypes, index tables, numeric component IDs), so nothing in the file depends on
   /// registration order or creation order — and the producer can stream it in one ascending scan.
   ///
-  /// Order is part of the format: the name table is sorted, entity ids ascend, and each entity's
+  /// Order is part of the format: the name table is sorted, entity indices ascend, and each entity's
   /// component indices ascend. Identical worlds produce identical bytes.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
@@ -429,6 +430,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       nextId_ = other.nextId_;
       components_ = other.components_.Clone();
       entities_ = other.entities_.Clone();
+      generations_ = other.generations_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -442,8 +444,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     public const int NextIdFieldNumber = 1;
     private uint nextId_;
     /// <summary>
-    /// Entity ID counter: the next never-used ID. The free list is not stored — it is every ID below
-    /// next_id that has no entity entry.
+    /// Entity index counter: the next never-used index. The free list is not stored: it is every index
+    /// below next_id that has no entity entry and a non-zero generation.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -476,13 +478,29 @@ namespace WorldEngine.Proto.Cardinal.V1 {
         = pb::FieldCodec.ForMessage(26, global::WorldEngine.Proto.Cardinal.V1.Entity.Parser);
     private readonly pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.Entity> entities_ = new pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.Entity>();
     /// <summary>
-    /// Every live entity exactly once, strictly ascending by id. An entity with no components still
+    /// Every live entity exactly once, strictly ascending by index. An entity with no components still
     /// appears here (empty components/payloads), so nothing vanishes on restore.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public pbc::RepeatedField<global::WorldEngine.Proto.Cardinal.V1.Entity> Entities {
       get { return entities_; }
+    }
+
+    /// <summary>Field number for the "generations" field.</summary>
+    public const int GenerationsFieldNumber = 5;
+    private static readonly pb::FieldCodec<uint> _repeated_generations_codec
+        = pb::FieldCodec.ForUInt32(42);
+    private readonly pbc::RepeatedField<uint> generations_ = new pbc::RepeatedField<uint>();
+    /// <summary>
+    /// The current generation of every index below next_id, one entry per index. A live entity's id
+    /// carries the same generation. A free index holds the generation its next entity gets. Generations
+    /// start at 1 and wrap back to 1, so 0 never appears.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<uint> Generations {
+      get { return generations_; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -503,6 +521,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (NextId != other.NextId) return false;
       if(!components_.Equals(other.components_)) return false;
       if(!entities_.Equals(other.entities_)) return false;
+      if(!generations_.Equals(other.generations_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -513,6 +532,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (NextId != 0) hash ^= NextId.GetHashCode();
       hash ^= components_.GetHashCode();
       hash ^= entities_.GetHashCode();
+      hash ^= generations_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -537,6 +557,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       components_.WriteTo(output, _repeated_components_codec);
       entities_.WriteTo(output, _repeated_entities_codec);
+      generations_.WriteTo(output, _repeated_generations_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -553,6 +574,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       components_.WriteTo(ref output, _repeated_components_codec);
       entities_.WriteTo(ref output, _repeated_entities_codec);
+      generations_.WriteTo(ref output, _repeated_generations_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -568,6 +590,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       size += components_.CalculateSize(_repeated_components_codec);
       size += entities_.CalculateSize(_repeated_entities_codec);
+      size += generations_.CalculateSize(_repeated_generations_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -585,6 +608,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       }
       components_.Add(other.components_);
       entities_.Add(other.entities_);
+      generations_.Add(other.generations_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -616,6 +640,11 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             entities_.AddEntriesFrom(input, _repeated_entities_codec);
             break;
           }
+          case 42:
+          case 40: {
+            generations_.AddEntriesFrom(input, _repeated_generations_codec);
+            break;
+          }
         }
       }
     #endif
@@ -645,6 +674,11 @@ namespace WorldEngine.Proto.Cardinal.V1 {
           }
           case 26: {
             entities_.AddEntriesFrom(ref input, _repeated_entities_codec);
+            break;
+          }
+          case 42:
+          case 40: {
+            generations_.AddEntriesFrom(ref input, _repeated_generations_codec);
             break;
           }
         }
@@ -706,10 +740,13 @@ namespace WorldEngine.Proto.Cardinal.V1 {
 
     /// <summary>Field number for the "id" field.</summary>
     public const int IdFieldNumber = 1;
-    private uint id_;
+    private ulong id_;
+    /// <summary>
+    /// Entity ID: the index in the low 32 bits and the generation in the high 32 bits.
+    /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public uint Id {
+    public ulong Id {
       get { return id_; }
       set {
         id_ = value;
@@ -769,7 +806,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override int GetHashCode() {
       int hash = 1;
-      if (Id != 0) hash ^= Id.GetHashCode();
+      if (Id != 0UL) hash ^= Id.GetHashCode();
       hash ^= components_.GetHashCode();
       hash ^= payloads_.GetHashCode();
       if (_unknownFields != null) {
@@ -790,9 +827,9 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       output.WriteRawMessage(this);
     #else
-      if (Id != 0) {
+      if (Id != 0UL) {
         output.WriteRawTag(8);
-        output.WriteUInt32(Id);
+        output.WriteUInt64(Id);
       }
       components_.WriteTo(output, _repeated_components_codec);
       payloads_.WriteTo(output, _repeated_payloads_codec);
@@ -806,9 +843,9 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (Id != 0) {
+      if (Id != 0UL) {
         output.WriteRawTag(8);
-        output.WriteUInt32(Id);
+        output.WriteUInt64(Id);
       }
       components_.WriteTo(ref output, _repeated_components_codec);
       payloads_.WriteTo(ref output, _repeated_payloads_codec);
@@ -822,8 +859,8 @@ namespace WorldEngine.Proto.Cardinal.V1 {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int CalculateSize() {
       int size = 0;
-      if (Id != 0) {
-        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(Id);
+      if (Id != 0UL) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt64Size(Id);
       }
       size += components_.CalculateSize(_repeated_components_codec);
       size += payloads_.CalculateSize(_repeated_payloads_codec);
@@ -839,7 +876,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
       if (other == null) {
         return;
       }
-      if (other.Id != 0) {
+      if (other.Id != 0UL) {
         Id = other.Id;
       }
       components_.Add(other.components_);
@@ -864,7 +901,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
             break;
           case 8: {
-            Id = input.ReadUInt32();
+            Id = input.ReadUInt64();
             break;
           }
           case 18:
@@ -896,7 +933,7 @@ namespace WorldEngine.Proto.Cardinal.V1 {
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
             break;
           case 8: {
-            Id = input.ReadUInt32();
+            Id = input.ReadUInt64();
             break;
           }
           case 18:

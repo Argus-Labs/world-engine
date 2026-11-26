@@ -54,12 +54,13 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			eid := impl.newEntity()
 			model[eid] = make(map[string]any)
 
-			// Property: new entity should exist in entityArch.
-			_, exists := impl.entityArch.get(eid)
-			assert.True(t, exists, "newEntity(%d) should exist in entityArch", eid)
+			// Property: new entity should exist in the entity table.
+			_, exists := impl.archetypeOf(eid)
+			assert.True(t, exists, "newEntity(%d) should exist in the entity table", eid)
 
 		case opEntityRemove:
-			eid := EntityID(prng.IntN(10_000)) // Default to random (which might not exist).
+			// Default to a random index and generation, which might not exist or might be stale.
+			eid := newEntityID(uint32(prng.IntN(10_000)), uint32(prng.IntN(3)))
 			// Bias toward existing entities (80%) to test actual removal path.
 			if len(model) > 0 && prng.Float64() < 0.8 {
 				eid = testutils.RandMapKey(prng, model)
@@ -72,9 +73,9 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			// Property: removeEntity returns same existence as model.
 			assert.Equal(t, modelOk, implOk, "removeEntity(%d) existence mismatch", eid)
 
-			// Property: entity no longer exists in entityArch after removal.
-			_, exists := impl.entityArch.get(eid)
-			assert.False(t, exists, "removeEntity(%d) should not exist in entityArch", eid)
+			// Property: entity no longer exists in the entity table after removal.
+			_, exists := impl.archetypeOf(eid)
+			assert.False(t, exists, "removeEntity(%d) should not exist in the entity table", eid)
 
 		case opCompSetUpdate:
 			if len(model) == 0 {
@@ -91,14 +92,14 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			// Pick a component the entity already has and update it.
 			name := testutils.RandMapKey(prng, existingComponents)
 			c := randComponentByName(prng, name)
-			aidBefore, ok := impl.entityArch.get(eid)
+			aidBefore, ok := impl.archetypeOf(eid)
 			assert.True(t, ok, "entity %d should exist before update", eid)
 
 			setComponentAbstract(t, impl, eid, c)
 			model[eid][c.Name()] = c
 
 			// Property: archetype should NOT change (update in place).
-			aidAfter, exists := impl.entityArch.get(eid)
+			aidAfter, exists := impl.archetypeOf(eid)
 			assert.True(t, exists, "setComponentUpdate(%d) entity should exist", eid)
 			assert.Equal(t, aidBefore, aidAfter, "setComponentUpdate(%d) archetype should not change", eid)
 
@@ -119,13 +120,13 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 			}
 
 			c := randComponentByName(prng, missing[prng.IntN(len(missing))])
-			aidBefore, _ := impl.entityArch.get(eid)
+			aidBefore, _ := impl.archetypeOf(eid)
 
 			setComponentAbstract(t, impl, eid, c)
 			model[eid][c.Name()] = c
 
 			// Property: archetype should change (move to new archetype).
-			aidAfter, exists := impl.entityArch.get(eid)
+			aidAfter, exists := impl.archetypeOf(eid)
 			assert.True(t, exists, "setComponentMove(%d) entity should exist", eid)
 			assert.NotEqual(t, aidBefore, aidAfter, "setComponentMove(%d) archetype should change", eid)
 
@@ -167,21 +168,21 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 		}
 	}
 
-	// Property: every entity in entityArch maps to a valid archetype that contains that entity.
-	for i, idx := range impl.entityArch {
-		if idx == sparseTombstone {
+	// Property: every entity in the entity table maps to a valid archetype that contains that entity.
+	for index, record := range impl.entityArch {
+		if record.archetype == noArchetype {
 			continue
 		}
 
-		eid := EntityID(i)
+		eid := newEntityID(uint32(index), record.generation)
 
-		aid, exists := impl.entityArch.get(eid)
-		assert.True(t, exists, "entity %d in entities but not in entityArch", eid)
+		aid, exists := impl.archetypeOf(eid)
+		assert.True(t, exists, "entity %d in entities but not in the entity table", eid)
 		assert.Less(t, aid, len(impl.archetypes), "entity %d maps to invalid archetype %d", eid, aid)
 
 		arch := impl.archetypes[aid]
-		row, exists := arch.rows.get(eid)
-		assert.True(t, exists, "entity %d in entityArch but not in archetype %d", eid, aid)
+		row, exists := arch.rows.get(eid.index())
+		assert.True(t, exists, "entity %d in the entity table but not in archetype %d", eid, aid)
 
 		if exists {
 			assert.Equal(t, eid, arch.entities[row], "bijection broken: arch.entities[%d] != %d", row, eid)
@@ -203,7 +204,7 @@ func TestWorldState_ModelFuzz(t *testing.T) {
 
 	// Final state check: verify all entities and components match between impl and model.
 	for eid, modelComponents := range model {
-		_, exists := impl.entityArch.get(eid)
+		_, exists := impl.archetypeOf(eid)
 		assert.True(t, exists, "entity %d in model but not in impl", eid)
 
 		for name, modelValue := range modelComponents {
@@ -309,8 +310,8 @@ func randComponentByName(prng *rand.Rand, name string) Component {
 // Entity ID generator fuzz
 // -------------------------------------------------------------------------------------------------
 // This test runs random sequences of newEntity/removeEntity operations and verifies that the
-// entity ID generator invariants hold: nextID monotonicity, live/free disjointness, all IDs
-// bounded by nextID, and no duplicate live entities.
+// entity ID generator invariants hold: the entity table never shrinks, live/free disjointness, all
+// indices bounded by the table, and no duplicate live entities.
 // -------------------------------------------------------------------------------------------------
 
 func TestWorldState_EntityFuzz(t *testing.T) {
@@ -328,7 +329,7 @@ func TestWorldState_EntityFuzz(t *testing.T) {
 	weights := testutils.RandOpWeights(prng, operations)
 
 	impl := newTestWorldState(t)
-	prevNextID := impl.nextID
+	prevLen := len(impl.entityArch)
 
 	for range opsMax {
 		op := testutils.RandWeightedOp(prng, weights)
@@ -337,23 +338,22 @@ func TestWorldState_EntityFuzz(t *testing.T) {
 			impl.newEntity()
 
 		case opRemove:
-			if impl.nextID == 0 {
+			if len(impl.entityArch) == 0 {
 				continue
 			}
 
-			eid := EntityID(prng.IntN(int(impl.nextID)))
-			impl.removeEntity(eid) // May return false if already removed.
+			impl.removeEntity(randEntityID(prng, impl)) // May return false if removed or stale.
 
 		default:
 			panic("unreachable")
 		}
 
-		// Property: nextID is monotonically non-decreasing.
-		assert.GreaterOrEqual(t, impl.nextID, prevNextID, "nextID decreased")
-		prevNextID = impl.nextID
+		// Property: the entity table never shrinks.
+		assert.GreaterOrEqual(t, len(impl.entityArch), prevLen, "entity table shrank")
+		prevLen = len(impl.entityArch)
 	}
 
-	assertEntityIDInvariants(t, impl)
+	(&World{state: impl}).CheckWorld(t)
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -398,15 +398,16 @@ func TestWorldState_EntityFuzzConcurrent(t *testing.T) {
 					ws.newEntity()
 					createCount.Add(1)
 				} else {
-					// Read nextID under lock to avoid racing with concurrent newEntity calls.
+					// Read the entity table under lock to avoid racing with concurrent newEntity calls.
+					var eid EntityID
+
 					ws.mu.Lock()
-					nextID := ws.nextID
+					if len(ws.entityArch) > 0 {
+						eid = randEntityID(prng, ws)
+					}
 					ws.mu.Unlock()
 
-					if nextID > 0 {
-						eid := EntityID(prng.IntN(int(nextID)))
-						ws.removeEntity(eid)
-					}
+					ws.removeEntity(eid) // The zero ID is never live, so this may remove nothing.
 					// Increment regardless of whether we removed any entities.
 					removeCount.Add(1)
 				}
@@ -423,53 +424,35 @@ func TestWorldState_EntityFuzzConcurrent(t *testing.T) {
 	assert.Equal(t, int64(numGoroutines*opsPerGoroutine), totalOps,
 		"total operations mismatch: creates=%d, removes=%d", createCount.Load(), removeCount.Load())
 
-	assertEntityIDInvariants(t, ws)
+	(&World{state: ws}).CheckWorld(t)
 }
 
-// assertEntityIDInvariants checks entity ID generator properties hold. Normally I'd hardcode this
-// into the test, but this is used in both tests above so extracting this out.
-func assertEntityIDInvariants(t *testing.T, ws *worldState) {
-	t.Helper()
+// randEntityID returns an ID at a random index in the entity table. Usually it carries the index's
+// current generation, and otherwise a nearby one, which is stale or not yet issued.
+func randEntityID(prng *rand.Rand, ws *worldState) EntityID {
+	index := uint32(prng.IntN(len(ws.entityArch)))
+	generation := ws.entityArch[index].generation
 
-	// Property: live and free are disjoint.
-	liveSet := make(map[EntityID]struct{})
-
-	for i, idx := range ws.entityArch {
-		if idx != sparseTombstone {
-			liveSet[EntityID(i)] = struct{}{}
-		}
+	if prng.Float64() < 0.2 {
+		generation += uint32(prng.IntN(3)) - 1
 	}
 
-	for _, freeID := range ws.free {
-		_, isLive := liveSet[freeID]
-		assert.False(t, isLive, "entity %d is both live and free", freeID)
-	}
-
-	// Property: all live and free IDs are < nextID.
-	for liveID := range liveSet {
-		assert.Less(t, liveID, ws.nextID, "live entity %d >= nextID %d", liveID, ws.nextID)
-	}
-
-	for _, freeID := range ws.free {
-		assert.Less(t, freeID, ws.nextID, "free entity %d >= nextID %d", freeID, ws.nextID)
-	}
-
-	// Property: free list has no duplicates.
-	freeSet := make(map[EntityID]struct{}, len(ws.free))
-	for _, freeID := range ws.free {
-		_, exists := freeSet[freeID]
-		assert.False(t, exists, "duplicate in free list: %d", freeID)
-		freeSet[freeID] = struct{}{}
-	}
+	return newEntityID(index, generation)
 }
 
 // -------------------------------------------------------------------------------------------------
-// Entity ID reuse FIFO test
-// -------------------------------------------------------------------------------------------------
-// Simple test to verify FIFO property of entity ID reuse.
+// Entity ID reuse tests
 // -------------------------------------------------------------------------------------------------
 
-func TestWorldState_EntityID_FIFO(t *testing.T) {
+// Freed indices are reused smallest first, each with its generation advanced.
+func TestEntityID_String(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "7v1", newEntityID(7, firstGeneration).String())
+	assert.Equal(t, "0v0", EntityID(0).String())
+}
+
+func TestWorldState_EntityID_Reuse(t *testing.T) {
 	t.Parallel()
 
 	ws := newTestWorldState(t)
@@ -478,13 +461,134 @@ func TestWorldState_EntityID_FIFO(t *testing.T) {
 	e1 := ws.newEntity()
 	e2 := ws.newEntity()
 
+	ws.removeEntity(e2)
 	ws.removeEntity(e0)
 	ws.removeEntity(e1)
-	ws.removeEntity(e2)
 
-	assert.Equal(t, e0, ws.newEntity())
-	assert.Equal(t, e1, ws.newEntity())
-	assert.Equal(t, e2, ws.newEntity())
+	assert.Equal(t, newEntityID(0, 2), ws.newEntity())
+	assert.Equal(t, newEntityID(1, 2), ws.newEntity())
+	assert.Equal(t, newEntityID(2, 2), ws.newEntity())
+}
+
+func TestWorldState_EntityID_ZeroIsNeverLive(t *testing.T) {
+	t.Parallel()
+
+	ws := newTestWorldState(t)
+
+	e := ws.newEntity()
+	assert.Equal(t, newEntityID(0, firstGeneration), e)
+
+	_, live := ws.archetypeOf(0)
+	assert.False(t, live, "the zero ID must not resolve to the entity at index 0")
+}
+
+// An ID kept after its entity was destroyed stays dead when a new entity reuses the index.
+func TestWorldState_EntityID_StaleAfterReuse(t *testing.T) {
+	t.Parallel()
+
+	ws := newTestWorldState(t)
+
+	old := ws.newEntity()
+	require.NoError(t, ws.setComponent(old, testutils.ComponentA{X: 1}))
+	require.True(t, ws.removeEntity(old))
+
+	reused := ws.newEntity()
+	require.Equal(t, old.index(), reused.index(), "the new entity takes the freed index")
+	require.NotEqual(t, old, reused)
+	require.NoError(t, ws.setComponent(reused, testutils.ComponentA{X: 2}))
+
+	_, live := ws.archetypeOf(old)
+	assert.False(t, live)
+	assert.False(t, ws.removeEntity(old), "a stale ID must not destroy the new entity")
+
+	_, err := ws.getComponent[testutils.ComponentA](old)
+	require.ErrorIs(t, err, ErrEntityNotFound)
+	require.ErrorIs(t, ws.setComponent(old, testutils.ComponentA{X: 3}), ErrEntityNotFound)
+	require.ErrorIs(t, ws.removeComponent[testutils.ComponentA](old), ErrEntityNotFound)
+
+	got, err := ws.getComponent[testutils.ComponentA](reused)
+	require.NoError(t, err)
+	assert.Equal(t, testutils.ComponentA{X: 2}, got, "stale writes must not reach the new entity")
+}
+
+// A generation that passes its maximum wraps back to the first generation, skipping zero, and the
+// index is freed and reused as usual.
+func TestWorldState_EntityID_WrapsAtMaxGeneration(t *testing.T) {
+	t.Parallel()
+
+	ws := newTestWorldState(t)
+
+	e := ws.newEntity()
+	ws.entityArch[e.index()].generation = math.MaxUint32 // As if the index had been reused 2^32-2 times.
+	e = newEntityID(e.index(), math.MaxUint32)
+
+	require.True(t, ws.removeEntity(e))
+	assert.Equal(t, uint32(firstGeneration), ws.entityArch[e.index()].generation, "the generation skips zero")
+	assert.Equal(t, []uint32{e.index()}, ws.free, "the index is freed")
+
+	// The wrapped state survives a snapshot, and both worlds reuse the index the same way.
+	var pb cardinalv1.WorldState
+	require.NoError(t, proto.Unmarshal(encodeWorld(t, ws), &pb))
+	assert.Equal(t, []uint32{firstGeneration}, pb.GetGenerations())
+
+	restored := newTestWorldState(t)
+	require.NoError(t, restored.fromProto(&pb))
+
+	next := ws.newEntity()
+	assert.Equal(t, newEntityID(e.index(), firstGeneration), next, "the index is reused at the first generation")
+	assert.Equal(t, next, restored.newEntity())
+
+	_, live := ws.archetypeOf(e)
+	assert.False(t, live, "the ID from before the wrap stays stale")
+}
+
+// The same operations produce the same IDs, so replaying ticks reproduces them.
+func TestWorldState_EntityID_Deterministic(t *testing.T) {
+	t.Parallel()
+
+	seed := testutils.NewRand(t).Uint64()
+
+	run := func() []EntityID {
+		prng := rand.New(rand.NewPCG(seed, 0))
+		ws := newTestWorldState(t)
+
+		var live, issued []EntityID
+
+		for range 4096 {
+			if len(live) == 0 || prng.Float64() < 0.55 {
+				eid := ws.newEntity()
+				live = append(live, eid)
+				issued = append(issued, eid)
+
+				continue
+			}
+
+			i := prng.IntN(len(live))
+			require.True(t, ws.removeEntity(live[i]))
+			live[i] = live[len(live)-1]
+			live = live[:len(live)-1]
+		}
+
+		return issued
+	}
+
+	first, second := run(), run()
+	assert.Equal(t, first, second)
+}
+
+// A reset hands out the same IDs as a new world, so generations restart.
+func TestWorldState_EntityID_ResetRestartsGenerations(t *testing.T) {
+	t.Parallel()
+
+	ws := newTestWorldState(t)
+
+	e := ws.newEntity()
+	require.True(t, ws.removeEntity(e))
+	require.Equal(t, newEntityID(0, 2), ws.newEntity())
+
+	ws.reset()
+
+	assert.Equal(t, newEntityID(0, firstGeneration), ws.newEntity())
 }
 
 func newTestWorldState(t *testing.T) *worldState {
@@ -516,8 +620,11 @@ func TestWorldState_SerializationSmoke(t *testing.T) {
 
 	// Create random entities with random components.
 	entityCount := prng.IntN(entityMax)
+	created := make([]EntityID, 0, entityCount)
+
 	for range entityCount {
 		eid := ws1.newEntity()
+		created = append(created, eid)
 
 		// Randomly add 0-3 components.
 		numComponents := prng.IntN(4)
@@ -533,8 +640,12 @@ func TestWorldState_SerializationSmoke(t *testing.T) {
 	// Remove some entities to populate free list.
 	removeCount := prng.IntN(entityCount/4 + 1) // +1: IntN panics on 0 when entityCount < 4
 	for range removeCount {
-		eid := EntityID(prng.IntN(entityCount))
-		ws1.removeEntity(eid)
+		ws1.removeEntity(created[prng.IntN(entityCount)])
+	}
+
+	// Reuse some freed indices so the snapshot holds generations above the first.
+	for range prng.IntN(removeCount + 1) {
+		ws1.newEntity()
 	}
 
 	data := encodeWorld(t, ws1)
@@ -546,7 +657,7 @@ func TestWorldState_SerializationSmoke(t *testing.T) {
 	require.NoError(t, ws2.fromProto(&pb))
 
 	// Property: deserialize(serialize(x)) describes the same world as x, and re-serializing the
-	// rebuilt world reproduces the same bytes. Runtime layout (archetype ids, rows, entityArch) is
+	// rebuilt world reproduces the same bytes. Runtime layout (archetype ids, rows, entity table) is
 	// deliberately not compared: the file no longer records it, and a rebuild is free to produce a
 	// different but equivalent layout.
 	assertWorldStateEqual(t, ws1, ws2)
@@ -560,7 +671,7 @@ func TestWorldState_SerializationSmoke(t *testing.T) {
 func assertWorldStateEqual(t *testing.T, ws1, ws2 *worldState) {
 	t.Helper()
 
-	assert.Equal(t, ws1.nextID, ws2.nextID)
+	assert.Equal(t, generationsOf(ws1), generationsOf(ws2))
 
 	// free is a min-heap, so two worlds holding the same ids can hold them in different array order.
 	// The guarantee is pop order, asserted in TestSnapshotWireFreeListSurvives; here it is the set.
@@ -571,7 +682,7 @@ func assertWorldStateEqual(t *testing.T, ws1, ws2 *worldState) {
 
 		for _, arch := range ws.archetypes {
 			for _, eid := range arch.entities {
-				row, ok := arch.rows.get(eid)
+				row, ok := arch.rows.get(eid.index())
 				require.True(t, ok)
 
 				comps := make(map[string]Component, len(arch.columns))
@@ -587,6 +698,19 @@ func assertWorldStateEqual(t *testing.T, ws1, ws2 *worldState) {
 	}
 	assert.Equal(t, live(ws1), live(ws2))
 }
+
+// generationsOf returns the generation of every index in the entity table.
+func generationsOf(ws *worldState) []uint32 {
+	out := make([]uint32, len(ws.entityArch))
+	for index, record := range ws.entityArch {
+		out[index] = record.generation
+	}
+
+	return out
+}
+
+// wireID returns the snapshot form of an entity ID.
+func wireID(index, generation uint32) uint64 { return uint64(newEntityID(index, generation)) }
 
 // wirePos needs only a name; MessagePack handles its payload.
 type wirePos struct {
@@ -656,9 +780,10 @@ func TestSnapshotEntityMajorLayout(t *testing.T) {
 	assert.Equal(t, []string{"wire_pos", "simple_component"}, decoded.GetComponents(),
 		"name table in registration order")
 	require.Len(t, decoded.GetEntities(), 3, "e1 destroyed; e0, e2, e3 alive")
-	assert.Equal(t, uint32(0), decoded.GetEntities()[0].GetId())
-	assert.Equal(t, uint32(2), decoded.GetEntities()[1].GetId())
-	assert.Equal(t, uint32(3), decoded.GetEntities()[2].GetId())
+	assert.Equal(t, wireID(0, 1), decoded.GetEntities()[0].GetId())
+	assert.Equal(t, wireID(2, 1), decoded.GetEntities()[1].GetId())
+	assert.Equal(t, wireID(3, 1), decoded.GetEntities()[2].GetId())
+	assert.Equal(t, []uint32{1, 2, 1, 1}, decoded.GetGenerations(), "destroying e1 advanced its generation")
 	assert.Empty(t, decoded.GetEntities()[1].GetComponents(), "zero-component entity is present and empty")
 	assert.Equal(t, []uint32{0, 1}, decoded.GetEntities()[0].GetComponents(), "indices ascend with the table")
 }
@@ -698,7 +823,7 @@ func TestSnapshotWireRoundTrip(t *testing.T) {
 	assert.Equal(t, testutils.SimpleComponent{Value: 11}, simple)
 
 	assert.ElementsMatch(t, ws.free, restored.free)
-	assert.Equal(t, ws.nextID, restored.nextID)
+	assert.Equal(t, generationsOf(ws), generationsOf(restored))
 
 	// Runtime component IDs may change between builds; names remain the restore key.
 	reordered := newWorldState()
@@ -710,18 +835,21 @@ func TestSnapshotWireRoundTrip(t *testing.T) {
 	assertWorldStateEqual(t, ws, reordered)
 }
 
-// TestSnapshotWireFreeListSurvives: ids freed out of order must still be reused in the same order
-// after a restore. The snapshot stores only the gaps, so the allocator has to be order-independent.
+// TestSnapshotWireFreeListSurvives: indices freed out of order must still be reused in the same
+// order, with the same generations, after a restore. The snapshot stores generations but not the
+// free list, so the allocator has to be order-independent.
 func TestSnapshotWireFreeListSurvives(t *testing.T) {
 	t.Parallel()
 
 	ws, _, _ := newWireTestWorld(t)
-	for range 4 { // ids 0..3
-		_ = ws.newEntity()
+
+	ids := make([]EntityID, 4)
+	for i := range ids { // indices 0..3
+		ids[i] = ws.newEntity()
 	}
 
-	require.True(t, ws.removeEntity(2))
-	require.True(t, ws.removeEntity(0)) // freed after 2, but lower
+	require.True(t, ws.removeEntity(ids[2]))
+	require.True(t, ws.removeEntity(ids[0])) // freed after 2, but lower
 
 	data := encodeWorld(t, ws)
 
@@ -735,6 +863,13 @@ func TestSnapshotWireFreeListSurvives(t *testing.T) {
 	assert.Equal(t, ws.newEntity(), restored.newEntity())
 	assert.Equal(t, ws.newEntity(), restored.newEntity())
 	assert.Equal(t, ws.newEntity(), restored.newEntity())
+
+	// Handles taken before the snapshot keep their meaning: live ones resolve, destroyed ones don't.
+	for _, eid := range ids {
+		_, wasLive := ws.archetypeOf(eid)
+		_, isLive := restored.archetypeOf(eid)
+		assert.Equal(t, wasLive, isLive, "entity %d", eid)
+	}
 }
 
 // TestSnapshotWireDeterministic: two worlds reaching the same state through different operation
@@ -836,53 +971,74 @@ func TestSnapshotWireRejectsBadInput(t *testing.T) {
 	cases := map[string]*cardinalv1.WorldState{
 		"nil message": nil,
 		"unknown component": {
-			NextId:     1,
-			Components: []string{"nope"},
-			Entities:   []*cardinalv1.Entity{{Components: []uint32{0}, Payloads: [][]byte{{0x80}}}},
+			NextId:      1,
+			Generations: []uint32{1},
+			Components:  []string{"nope"},
+			Entities:    []*cardinalv1.Entity{{Id: wireID(0, 1), Components: []uint32{0}, Payloads: [][]byte{{0x80}}}},
 		},
 		"duplicate name in table": {
-			NextId:     1,
-			Components: []string{"wire_pos", "wire_pos"},
+			NextId:      1,
+			Generations: []uint32{1},
+			Components:  []string{"wire_pos", "wire_pos"},
 		},
 		"entities not ascending": {
-			NextId: 3,
+			NextId:      3,
+			Generations: []uint32{1, 1, 1},
 			Entities: []*cardinalv1.Entity{
-				{Id: 2}, {Id: 1},
+				{Id: wireID(2, 1)}, {Id: wireID(1, 1)},
 			},
+		},
+		"fewer generations than next_id": {
+			NextId:      2,
+			Generations: []uint32{1},
+		},
+		"entity generation differs from its index": {
+			NextId:      1,
+			Generations: []uint32{2},
+			Entities:    []*cardinalv1.Entity{{Id: wireID(0, 3)}},
+		},
+		"an index with generation 0": {
+			NextId:      1,
+			Generations: []uint32{0},
 		},
 		"next_id implies an unbounded free list": {
 			NextId: math.MaxUint32, // 5 bytes of input, 4.3 billion ids
 		},
-		// The same amplification through one entity at a high id: the gaps below it size both the
-		// free heap and the entityArch sparse index.
+		// The same amplification through one entity at a high index: the gaps below it size both
+		// the free heap and the entity table.
 		"one entity at a high id": {
 			NextId:   math.MaxUint32,
-			Entities: []*cardinalv1.Entity{{Id: math.MaxUint32 - 1}},
+			Entities: []*cardinalv1.Entity{{Id: wireID(math.MaxUint32-1, 1)}},
 		},
 		"more entities than next_id allows": {
-			NextId:   1,
-			Entities: []*cardinalv1.Entity{{Id: 0}, {Id: 0}},
+			NextId:      1,
+			Generations: []uint32{1},
+			Entities:    []*cardinalv1.Entity{{Id: wireID(0, 1)}, {Id: wireID(0, 1)}},
 		},
 		"entity above next_id": {
-			NextId:   1,
-			Entities: []*cardinalv1.Entity{{Id: 5}},
+			NextId:      1,
+			Generations: []uint32{1},
+			Entities:    []*cardinalv1.Entity{{Id: wireID(5, 1)}},
 		},
 		"index outside table": {
-			NextId:     1,
-			Components: []string{"wire_pos"},
-			Entities:   []*cardinalv1.Entity{{Components: []uint32{3}, Payloads: [][]byte{{0x80}}}},
+			NextId:      1,
+			Generations: []uint32{1},
+			Components:  []string{"wire_pos"},
+			Entities:    []*cardinalv1.Entity{{Id: wireID(0, 1), Components: []uint32{3}, Payloads: [][]byte{{0x80}}}},
 		},
 		"payload count mismatch": {
-			NextId:     1,
-			Components: []string{"wire_pos"},
-			Entities:   []*cardinalv1.Entity{{Components: []uint32{0}, Payloads: [][]byte{}}},
+			NextId:      1,
+			Generations: []uint32{1},
+			Components:  []string{"wire_pos"},
+			Entities:    []*cardinalv1.Entity{{Id: wireID(0, 1), Components: []uint32{0}, Payloads: [][]byte{}}},
 		},
 		"corrupt payload after valid entity": {
-			NextId:     2,
-			Components: []string{"wire_pos"},
+			NextId:      2,
+			Generations: []uint32{1, 1},
+			Components:  []string{"wire_pos"},
 			Entities: []*cardinalv1.Entity{
-				{Id: 0, Components: []uint32{0}, Payloads: [][]byte{{0x80}}},
-				{Id: 1, Components: []uint32{0}, Payloads: [][]byte{{0xc1}}},
+				{Id: wireID(0, 1), Components: []uint32{0}, Payloads: [][]byte{{0x80}}},
+				{Id: wireID(1, 1), Components: []uint32{0}, Payloads: [][]byte{{0xc1}}},
 			},
 		},
 	}
@@ -898,11 +1054,24 @@ func TestSnapshotWireRejectsBadInput(t *testing.T) {
 			require.Error(t, ws.fromProto(pb))
 			assert.Equal(t, before, encodeWorld(t, ws), "restore must be transactional")
 
-			_, live := ws.entityArch.get(e)
+			_, live := ws.archetypeOf(e)
 			assert.True(t, live, "a refused restore must leave the world untouched")
-			assert.Equal(t, EntityID(1), ws.nextID)
+			assert.Len(t, ws.entityArch, 1)
 		})
 	}
+}
+
+// Generation 0 is never valid, so a snapshot holding one is refused before it can issue the zero ID.
+func TestSnapshotWireZeroGenerationError(t *testing.T) {
+	t.Parallel()
+	ws, _, _ := newWireTestWorld(t)
+
+	err := ws.fromProto(&cardinalv1.WorldState{
+		NextId:      1,
+		Generations: []uint32{0},
+	})
+
+	require.ErrorContains(t, err, "snapshot index 0 has generation 0")
 }
 
 // An entity whose archetype has no row is an internal corruption, not a valid snapshot.
@@ -915,7 +1084,7 @@ func TestSnapshotWireCorruptionPanics(t *testing.T) {
 	e := ws.newEntityWithArchetype(onlyPos)
 
 	// Corrupt the world: the archetype forgets the entity but the index still points at it.
-	aid, ok := ws.entityArch.get(e)
+	aid, ok := ws.archetypeOf(e)
 	require.True(t, ok)
 	ws.archetypes[aid].removeEntity(e)
 
@@ -944,7 +1113,7 @@ func TestWorldState_ToProtoEncodeFailure(t *testing.T) {
 	pos, err := ws.getComponent[wirePos](good)
 	require.NoError(t, err)
 	assert.Equal(t, wirePos{X: 7}, pos)
-	assert.Equal(t, EntityID(2), ws.nextID)
+	assert.Len(t, ws.entityArch, 2)
 }
 
 type nestedPayload struct {

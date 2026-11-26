@@ -365,7 +365,7 @@ func (f *filler) fill(v reflect.Value) {
 
 	t := v.Type()
 	if len(liveEntityIDs) > 0 &&
-		(t == reflect.TypeFor[uint32]() || t == reflect.TypeFor[EntityID]()) &&
+		(t == reflect.TypeFor[uint64]() || t == reflect.TypeFor[EntityID]()) &&
 		prng.IntN(10) < 9 {
 		eid := liveEntityIDs[prng.IntN(len(liveEntityIDs))]
 		v.SetUint(uint64(eid))

@@ -18,7 +18,7 @@ func newSparseSet() sparseSet {
 }
 
 // get returns the value for a key and whether it exists.
-func (s *sparseSet) get(key EntityID) (int, bool) {
+func (s *sparseSet) get(key uint32) (int, bool) {
 	if int(key) >= len(*s) {
 		return 0, false
 	}
@@ -32,7 +32,7 @@ func (s *sparseSet) get(key EntityID) (int, bool) {
 }
 
 // set stores a value for a key, growing the backing slice if needed.
-func (s *sparseSet) set(key EntityID, value int) {
+func (s *sparseSet) set(key uint32, value int) {
 	assert.That(value >= 0, "value must be a non-negative row index")
 
 	if int(key) >= len(*s) { // Grow slice if needed
@@ -54,7 +54,7 @@ func (s *sparseSet) set(key EntityID, value int) {
 }
 
 // remove sets a key's value to tombstone. Returns true if the key existed.
-func (s *sparseSet) remove(key EntityID) bool {
+func (s *sparseSet) remove(key uint32) bool {
 	if int(key) >= len(*s) {
 		return false
 	}
@@ -66,11 +66,4 @@ func (s *sparseSet) remove(key EntityID) bool {
 	(*s)[key] = sparseTombstone
 
 	return true
-}
-
-// clear clears all entries by filling the existing backing slice with tombstones.
-func (s *sparseSet) clear() {
-	for i := range *s {
-		(*s)[i] = sparseTombstone
-	}
 }

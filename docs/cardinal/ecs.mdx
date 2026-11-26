@@ -268,11 +268,11 @@ order the Go map yields. Compare Maps with `immutable.MapEqual`, or `EqualFunc` 
 not comparable.
 
 <Note>
-  Entity IDs are reused as soon as an entity is destroyed, so a key that is an `EntityID` silently
-  refers to whichever entity takes the slot next, and `Alive` cannot tell the difference (see
-  [Entity Handles and Stored IDs](#entity-handles-and-stored-ids)). Key long-lived data by an ID the
-  game owns, such as the player ID from `cmd.Player()`. If you do key by entity, remove the key in the
-  system that destroys the entity.
+  A key that is an `EntityID` never refers to a different entity: once its entity is destroyed,
+  `w.Entity(key).Alive()` is false, even after a new entity reuses the slot (see
+  [Entity Handles and Stored IDs](#entity-handles-and-stored-ids)). The Map still keeps the key until
+  something deletes it, so remove it in the system that destroys the entity, or key long-lived data by
+  an ID the game owns, such as the player ID from `cmd.Player()`.
 </Note>
 
 ### Tag Components
@@ -405,9 +405,16 @@ if entity.Alive() && entity.Has[Health]() {
 }
 ```
 
-`EntityID` remains a numeric value. Store IDs rather than runtime handles. After snapshot
-restoration, `w.Entity(savedID)` binds an ID to the restored world. IDs belong to one
-world and can be reused after destruction or reset, so discard handles when that happens.
+`EntityID` is a 64-bit number: the entity's index in the low 32 bits and a generation in the
+high 32 bits. Destroying an entity advances its index's generation, so an ID kept after that,
+in a component, a Map key, a command or a client, is no longer alive, even once a new entity
+reuses the index. Lookups treat it exactly like a destroyed entity. The zero ID never refers
+to an entity, so a zero-valued `EntityID` field means "no entity". Store the full value:
+converting it to `uint32` drops the generation.
+
+Store IDs rather than runtime handles. After snapshot restoration, `w.Entity(savedID)` binds
+an ID to the restored world, and IDs saved before the snapshot keep their meaning. IDs belong
+to one world, and a world reset restarts them, so discard stored IDs when that happens.
 Access handles from systems on the world's execution goroutine.
 
 ### Iterating Over Entities
@@ -475,5 +482,6 @@ structural changes while iterating a query, so moving rows cannot skip other mat
 mob.Destroy()
 ```
 
-A zero `Entity` is not alive. Its `Has` and `Destroy` methods return false, and component
-reads or writes panic.
+A zero `Entity`, or one whose entity was destroyed, is not alive. Its `Has` and `Destroy`
+methods return false, and component reads or writes panic. A new entity can reuse the destroyed
+entity's index, but it gets a new generation, so the old ID never refers to it.

@@ -24,7 +24,7 @@ message Snapshot {
 // layout (archetypes, index tables, numeric component IDs), so nothing in the file depends on
 // registration order or creation order — and the producer can stream it in one ascending scan.
 //
-// Order is part of the format: the name table is sorted, entity ids ascend, and each entity's
+// Order is part of the format: the name table is sorted, entity indices ascend, and each entity's
 // component indices ascend. Identical worlds produce identical bytes.
 message WorldState {
   // Tag 4 held `repeated Archetype` before this message was reshaped; never reuse it.
@@ -35,8 +35,8 @@ message WorldState {
   // that stops being true, and reserve rather than reuse from here on.
   reserved 4;
 
-  // Entity ID counter: the next never-used ID. The free list is not stored — it is every ID below
-  // next_id that has no entity entry.
+  // Entity index counter: the next never-used index. The free list is not stored: it is every index
+  // below next_id that has no entity entry and a non-zero generation.
   uint32 next_id = 1;
 
   // Name table: every registered component type, in the writer's registration order, unique.
@@ -44,14 +44,20 @@ message WorldState {
   // position, so the order carries no meaning across builds.
   repeated string components = 2 [(buf.validate.field).repeated.items.string.min_len = 1];
 
-  // Every live entity exactly once, strictly ascending by id. An entity with no components still
+  // Every live entity exactly once, strictly ascending by index. An entity with no components still
   // appears here (empty components/payloads), so nothing vanishes on restore.
   repeated Entity entities = 3;
+
+  // The current generation of every index below next_id, one entry per index. A live entity's id
+  // carries the same generation. A free index holds the generation its next entity gets. Generations
+  // start at 1 and wrap back to 1, so 0 never appears.
+  repeated uint32 generations = 5;
 }
 
 // Entity is one live entity: its id and its component values.
 message Entity {
-  uint32 id = 1;
+  // Entity ID: the index in the low 32 bits and the generation in the high 32 bits.
+  uint64 id = 1;
 
   // Indices into WorldState.components, strictly ascending.
   repeated uint32 components = 2;

@@ -140,7 +140,7 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 			mutate: func(t *testing.T, w fixture, eid EntityID, _ bool) {
 				require.NoError(t, w.Set(eid, testutils.ComponentB{}))
 			},
-			want: []EntityID{0, 1, 2, 3, 4},
+			want: firstIDs(0, 1, 2, 3, 4),
 		},
 		{
 			// The {A} archetype exists before the search and is scanned after {A, B}.
@@ -155,20 +155,22 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 					require.NoError(t, w.Remove[testutils.ComponentB](eid))
 				}
 			},
-			want: []EntityID{0, 1, 2, 3, 4},
+			want: firstIDs(0, 1, 2, 3, 4),
 		},
 		{
-			// The respawn reuses the destroyed ID and fills the archetype slot the search reads next.
+			// The respawn reuses the destroyed index and fills the archetype slot the search reads next.
 			name:    "destroy and respawn skips no entity",
 			matches: []SearchMatch{MatchExact, MatchContains, MatchAll},
 			setup:   func(w fixture) { createN(w, w.onlyA, 4) },
 			mutate: func(t *testing.T, w fixture, eid EntityID, first bool) {
 				if first {
 					require.True(t, w.Destroy(eid))
-					require.Equal(t, eid, w.CreateWithArchetype(w.onlyA))
+					respawned := w.CreateWithArchetype(w.onlyA)
+					require.Equal(t, eid.index(), respawned.index())
+					require.NotEqual(t, eid, respawned, "the respawn gets a new generation")
 				}
 			},
-			want: []EntityID{0, 1, 2, 3},
+			want: firstIDs(0, 1, 2, 3),
 		},
 		{
 			// Entity 3 moves from {B} into {A, B}, which is scanned after {A}.
@@ -181,10 +183,10 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 			},
 			mutate: func(t *testing.T, w fixture, _ EntityID, first bool) {
 				if first {
-					require.NoError(t, w.Set(3, testutils.ComponentA{}))
+					require.NoError(t, w.Set(newEntityID(3, firstGeneration), testutils.ComponentA{}))
 				}
 			},
-			want: []EntityID{0, 1, 2},
+			want: firstIDs(0, 1, 2),
 		},
 		{
 			name:    "destroyed entities are not yielded",
@@ -195,7 +197,7 @@ func TestWorldMethods_IterEntitiesWhileMutating(t *testing.T) {
 					return
 				}
 
-				for other := range EntityID(4) {
+				for _, other := range firstIDs(0, 1, 2, 3) {
 					if other != eid {
 						require.True(t, w.Destroy(other))
 					}
@@ -310,6 +312,16 @@ func TestWorldMethods_IterEntitiesNested(t *testing.T) {
 		return true
 	}))
 
-	assert.ElementsMatch(t, []EntityID{0, 1, 2}, outer)
-	assert.ElementsMatch(t, []EntityID{3, 4, 3, 4, 3, 4}, inner)
+	assert.ElementsMatch(t, firstIDs(0, 1, 2), outer)
+	assert.ElementsMatch(t, firstIDs(3, 4, 3, 4, 3, 4), inner)
+}
+
+// firstIDs returns the IDs of the first entities created at the given indices.
+func firstIDs(indices ...uint32) []EntityID {
+	ids := make([]EntityID, len(indices))
+	for i, index := range indices {
+		ids[i] = newEntityID(index, firstGeneration)
+	}
+
+	return ids
 }

@@ -51,7 +51,7 @@ func (s *PlayerSpawnSystem) Run(w *cardinal.World) {
 		existing[command.ArgusAuthID] = true
 
 		w.Logger().Info().
-			Uint32("entity", uint32(id)).
+			Uint64("entity", uint64(id)).
 			Msgf("Created player %s (id: %s)", command.ArgusAuthName, command.ArgusAuthID)
 
 		// Inform chat shard about the spawn

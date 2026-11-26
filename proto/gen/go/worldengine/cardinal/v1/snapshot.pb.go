@@ -97,20 +97,24 @@ func (x *Snapshot) GetVersion() uint32 {
 // layout (archetypes, index tables, numeric component IDs), so nothing in the file depends on
 // registration order or creation order — and the producer can stream it in one ascending scan.
 //
-// Order is part of the format: the name table is sorted, entity ids ascend, and each entity's
+// Order is part of the format: the name table is sorted, entity indices ascend, and each entity's
 // component indices ascend. Identical worlds produce identical bytes.
 type WorldState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Entity ID counter: the next never-used ID. The free list is not stored — it is every ID below
-	// next_id that has no entity entry.
+	// Entity index counter: the next never-used index. The free list is not stored: it is every index
+	// below next_id that has no entity entry and a non-zero generation.
 	NextId uint32 `protobuf:"varint,1,opt,name=next_id,json=nextId,proto3" json:"next_id,omitempty"`
 	// Name table: every registered component type, in the writer's registration order, unique.
 	// Entity.components holds indices into this table. Readers resolve entries by name, never by
 	// position, so the order carries no meaning across builds.
 	Components []string `protobuf:"bytes,2,rep,name=components,proto3" json:"components,omitempty"`
-	// Every live entity exactly once, strictly ascending by id. An entity with no components still
+	// Every live entity exactly once, strictly ascending by index. An entity with no components still
 	// appears here (empty components/payloads), so nothing vanishes on restore.
-	Entities      []*Entity `protobuf:"bytes,3,rep,name=entities,proto3" json:"entities,omitempty"`
+	Entities []*Entity `protobuf:"bytes,3,rep,name=entities,proto3" json:"entities,omitempty"`
+	// The current generation of every index below next_id, one entry per index. A live entity's id
+	// carries the same generation. A free index holds the generation its next entity gets. Generations
+	// start at 1 and wrap back to 1, so 0 never appears.
+	Generations   []uint32 `protobuf:"varint,5,rep,packed,name=generations,proto3" json:"generations,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -166,10 +170,18 @@ func (x *WorldState) GetEntities() []*Entity {
 	return nil
 }
 
+func (x *WorldState) GetGenerations() []uint32 {
+	if x != nil {
+		return x.Generations
+	}
+	return nil
+}
+
 // Entity is one live entity: its id and its component values.
 type Entity struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Id    uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Entity ID: the index in the low 32 bits and the generation in the high 32 bits.
+	Id uint64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Indices into WorldState.components, strictly ascending.
 	Components []uint32 `protobuf:"varint,2,rep,packed,name=components,proto3" json:"components,omitempty"`
 	// Serialized component values, one per components entry, same order.
@@ -208,7 +220,7 @@ func (*Entity) Descriptor() ([]byte, []int) {
 	return file_worldengine_cardinal_v1_snapshot_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *Entity) GetId() uint32 {
+func (x *Entity) GetId() uint64 {
 	if x != nil {
 		return x.Id
 	}
@@ -240,16 +252,17 @@ const file_worldengine_cardinal_v1_snapshot_proto_rawDesc = "" +
 	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12L\n" +
 	"\vworld_state\x18\x03 \x01(\v2#.worldengine.cardinal.v1.WorldStateB\x06\xbaH\x03\xc8\x01\x01R\n" +
 	"worldState\x12\x18\n" +
-	"\aversion\x18\x04 \x01(\rR\aversion\"\x96\x01\n" +
+	"\aversion\x18\x04 \x01(\rR\aversion\"\xb8\x01\n" +
 	"\n" +
 	"WorldState\x12\x17\n" +
 	"\anext_id\x18\x01 \x01(\rR\x06nextId\x12,\n" +
 	"\n" +
 	"components\x18\x02 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02\x10\x01R\n" +
 	"components\x12;\n" +
-	"\bentities\x18\x03 \x03(\v2\x1f.worldengine.cardinal.v1.EntityR\bentitiesJ\x04\b\x04\x10\x05\"T\n" +
+	"\bentities\x18\x03 \x03(\v2\x1f.worldengine.cardinal.v1.EntityR\bentities\x12 \n" +
+	"\vgenerations\x18\x05 \x03(\rR\vgenerationsJ\x04\b\x04\x10\x05\"T\n" +
 	"\x06Entity\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1e\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x1e\n" +
 	"\n" +
 	"components\x18\x02 \x03(\rR\n" +
 	"components\x12\x1a\n" +

@@ -71,7 +71,7 @@ export const world = createSDK(config)
 ## Registering Shard Client
 
 A shard client connects to a specific Cardinal shard.
-It lets you send commands, query game state, and listen for events from that shard.
+It lets you send commands to that shard and listen for its events.
 
 ```typescript shard.ts
 import { world } from './sdk'
@@ -146,68 +146,9 @@ If you need help, please drop by our [Telegram channel](https://t.me/worldengine
 
 </Accordion>
 
-## Making your first query
-
-You've now spawned your first player. With that, we can `query` the world state and see that the player exists:
-
-```typescript player-query.ts
-import { Match } from '@argus-labs/sdk'
-import { shard } from './shard'
-
-export async function playerQuery() {
-  const { error, data } = await shard.query({
-    find: ['playertag', 'position'],
-    match: Match.CONTAINS,
-  })
-
-  if (error) {
-    console.error(error)
-    return null
-  }
-
-  return data
-}
-```
-
-<Accordion title="I got an error.">
-  The example assumes you scaffolded the project using the World CLI, and have the following
-  components in your cardinal:
-
-```go component/playertag.go
-package component
-
-type PlayerTag struct {
-	ArgusAuthID   string `json:"argus_auth_id"`
-	ArgusAuthName string `json:"argus_auth_name"`
-}
-
-func (PlayerTag) Name() string {
-	return "playertag"
-}
-
-```
-
-```go component/position.go
-package component
-
-type Position struct {
-	X int `json:"x"`
-	Y int `json:"y"`
-}
-
-func (Position) Name() string {
-	return "position"
-}
-
-```
-
-If you need help, please drop by our [Telegram channel](https://t.me/worldengine_dev).
-
-</Accordion>
-
 <Check>
   Congratulations! You've now set up your first World Engine game client using the Argus Labs SDK
-  and learned the basics of **Shard Client**, **Command**, and **Query**.
+  and learned the basics of **Shard Client** and **Command**.
 </Check>
 
 ## Next Step
