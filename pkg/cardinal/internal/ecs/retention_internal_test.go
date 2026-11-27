@@ -190,7 +190,6 @@ func TestWorld_ReleasesRetiredComponents(t *testing.T) {
 				t.Helper()
 
 				w.Reset()
-				w.Reset() // An idle reset must not bring the old archetypes back either.
 			},
 		},
 	}

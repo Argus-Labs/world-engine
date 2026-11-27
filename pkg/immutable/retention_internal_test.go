@@ -1,4 +1,4 @@
-package immutable_test
+package immutable
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 	"unsafe"
 	"weak"
 
-	"github.com/argus-labs/world-engine/pkg/immutable"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,9 +41,9 @@ func reachable(refs []weak.Pointer[byte]) int {
 // yielded under "~"; the last one wins. It doesn't inline, so no value lingers in the caller's frame.
 //
 //go:noinline
-func mapFromDuplicates(distinct, repeats int) (immutable.Map[string, string], []weak.Pointer[byte]) {
+func mapFromDuplicates(distinct, repeats int) (Map[string, string], []weak.Pointer[byte]) {
 	refs := make([]weak.Pointer[byte], 0, repeats)
-	m := immutable.MapFrom(func(yield func(string, string) bool) {
+	m := MapFrom(func(yield func(string, string) bool) {
 		for i := range distinct {
 			if !yield(fmt.Sprintf("k%03d", i), "short") {
 				return
@@ -75,14 +74,25 @@ func TestMapFrom_ReleasesDroppedValues(t *testing.T) {
 	}{
 		// Almost every entry is dropped.
 		{name: "one key", distinct: 0, repeats: 32},
-		// Few are dropped, and they sort last, where compacting in place leaves them behind. Past 256
-		// entries append grows the array by less than double, so MapFrom keeps it rather than copy.
+		// Few are dropped, and they sort last, where compacting in place leaves them behind. MapFrom's
+		// array then holds at most twice the entries it keeps, so shrink keeps it rather than copy,
+		// and only clearing the dropped entries frees them.
 		{name: "few repeats", distinct: 300, repeats: 4},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
+			if tt.distinct > 0 {
+				// MapFrom appends every pair to one array, so this array's capacity is the one it gets.
+				var entries []entry[string, string]
+				for range tt.distinct + tt.repeats {
+					entries = append(entries, entry[string, string]{})
+				}
+
+				require.LessOrEqual(t, cap(entries), 2*(tt.distinct+1), "shrink would copy, so clear goes untested")
+			}
 
 			m, refs := mapFromDuplicates(tt.distinct, tt.repeats)
 			require.Equal(t, tt.distinct+1, m.Len())
