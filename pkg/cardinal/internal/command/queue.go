@@ -73,6 +73,8 @@ func (q *sliceQueue[T]) Drain(target *[]Command) {
 	defer q.mu.Unlock()
 
 	*target = append(*target, q.commands...)
+	// Zero the drained slots so the reused backing array doesn't keep their payloads reachable.
+	clear(q.commands)
 	q.commands = q.commands[:0]
 }
 

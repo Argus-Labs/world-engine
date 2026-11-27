@@ -199,8 +199,10 @@ func (m *Manager) Lookup[T Payload]() (ID, error) {
 // all commands collected thus far (used by the transaction log). Drain is expected to be called at
 // the start of each tick.
 func (m *Manager) Drain() []Command {
-	// Clear buffers from previous tick to reuse the slices.
+	// Clear buffers from previous tick to reuse the slices. Zero them first so the backing arrays
+	// don't keep processed payloads reachable.
 	for id := range m.commands {
+		clear(m.commands[id])
 		m.commands[id] = m.commands[id][:0]
 	}
 
@@ -217,6 +219,7 @@ func (m *Manager) Drain() []Command {
 func (m *Manager) Clear() {
 	for id := range m.queues {
 		m.queues[id].Drain(&m.commands[id])
+		clear(m.commands[id])
 		m.commands[id] = m.commands[id][:0]
 	}
 }

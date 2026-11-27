@@ -2,9 +2,11 @@ package event_test
 
 import (
 	"context"
+	"runtime"
 	"sync"
 	"testing"
 	"testing/synctest"
+	"weak"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/event"
 	"github.com/argus-labs/world-engine/pkg/testutils"
@@ -150,4 +152,85 @@ func TestEvent_EnqueueChannelFull(t *testing.T) {
 			assert.Equal(t, i, evt.Payload, "payload mismatch at index %d", i)
 		}
 	})
+}
+
+// -------------------------------------------------------------------------------------------------
+// Payload retention
+// -------------------------------------------------------------------------------------------------
+// The event buffer is reused every tick. These tests verify that reuse doesn't keep handled or
+// discarded payloads reachable: once Dispatch or Clear retires an event, the GC must be able to
+// free its payload.
+// -------------------------------------------------------------------------------------------------
+
+func TestEvent_RetiredPayloadsAreCollectable(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name   string
+		retire func(*testing.T, *event.Manager)
+	}{
+		{name: "dispatch", retire: func(t *testing.T, m *event.Manager) {
+			require.NoError(t, m.Dispatch(t.Context()))
+		}},
+		{name: "clear", retire: func(_ *testing.T, m *event.Manager) { m.Clear() }},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m, refs := retireRetentionEvents(t, tc.retire)
+			assert.Equal(t, 0, liveRefs(refs), "manager retains retired event payloads")
+			runtime.KeepAlive(m)
+
+			// Control: m is dead past KeepAlive, so with the manager gone nothing else may hold the
+			// payloads. A failure above can then only come from the manager's buffers.
+			assert.Equal(t, 0, liveRefs(refs), "payloads retained outside the manager")
+		})
+	}
+}
+
+// retireRetentionEvents enqueues more events than the channel holds, so they overflow into the
+// buffer, records weak pointers to their payloads, then retires them. It isn't inlined so no
+// payload stays live on the test stack.
+//
+//go:noinline
+func retireRetentionEvents(
+	t *testing.T, retire func(*testing.T, *event.Manager),
+) (*event.Manager, []weak.Pointer[byte]) {
+	t.Helper()
+
+	const (
+		channelCapacity = 4
+		n               = channelCapacity * 4
+	)
+
+	m := event.NewManager(channelCapacity)
+	m.RegisterHandler(event.KindDefault, func(context.Context, event.Event) error { return nil })
+
+	refs := make([]weak.Pointer[byte], 0, n)
+	for range n {
+		payload := make([]byte, 4<<10)
+		refs = append(refs, weak.Make(&payload[0]))
+		m.Enqueue(event.Event{Kind: event.KindDefault, Payload: payload})
+	}
+
+	retire(t, &m)
+
+	return &m, refs
+}
+
+// liveRefs runs a full GC and counts the weak pointers whose targets are still reachable.
+func liveRefs(refs []weak.Pointer[byte]) int {
+	runtime.GC()
+
+	live := 0
+
+	for _, ref := range refs {
+		if ref.Value() != nil {
+			live++
+		}
+	}
+
+	return live
 }

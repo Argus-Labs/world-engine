@@ -93,7 +93,9 @@ func (m *Manager) Clear() {
 		select {
 		case <-m.channel:
 		default:
+			clear(m.buffer)
 			m.buffer = m.buffer[:0]
+
 			return
 		}
 	}
@@ -116,7 +118,9 @@ func (m *Manager) Dispatch(ctx context.Context) error {
 		}
 	}
 
-	// Clear the buffer after processing.
+	// Clear the buffer after processing. Zero it first so the reused backing array doesn't keep
+	// dispatched payloads reachable.
+	clear(m.buffer)
 	m.buffer = m.buffer[:0]
 
 	if len(errs) > 0 {

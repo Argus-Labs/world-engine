@@ -3,8 +3,10 @@ package command_test
 import (
 	"context"
 	"math/rand/v2"
+	"runtime"
 	"sync"
 	"testing"
+	"weak"
 
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/command"
 	"github.com/argus-labs/world-engine/pkg/cardinal/internal/schema"
@@ -409,4 +411,103 @@ func TestCommand_ConcurrentEnqueue(t *testing.T) {
 	expectedTotal := numGoroutines * commandsPerRoutine
 	assert.Len(t, all, expectedTotal, "total command count mismatch")
 	assert.ElementsMatch(t, expected, all, "command content mismatch")
+}
+
+// -------------------------------------------------------------------------------------------------
+// Payload retention
+// -------------------------------------------------------------------------------------------------
+// A long-lived shard reuses its command buffers every tick. These tests verify that reuse doesn't
+// keep processed payloads reachable: once commands have been drained and the next tick (or Clear)
+// retires them, the GC must be able to free their decoded payloads.
+// -------------------------------------------------------------------------------------------------
+
+type retentionCommand struct{ Data []byte }
+
+func (retentionCommand) Name() string { return "retention_command" }
+
+func TestCommand_RetiredPayloadsAreCollectable(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name   string
+		retire func(*command.Manager)
+	}{
+		{name: "next drain", retire: func(m *command.Manager) { m.Drain() }},
+		{name: "clear", retire: func(m *command.Manager) { m.Clear() }},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m, refs := drainRetentionCommands(t, tc.retire)
+			assert.Equal(t, 0, liveRefs(refs), "manager retains retired command payloads")
+			runtime.KeepAlive(m)
+
+			// Control: m is dead past KeepAlive, so with the manager gone nothing else may hold the
+			// payloads. A failure above can then only come from the manager's buffers.
+			assert.Equal(t, 0, liveRefs(refs), "payloads retained outside the manager")
+		})
+	}
+}
+
+// drainRetentionCommands enqueues and drains a batch of commands, records weak pointers to their
+// decoded payloads, then retires them. It isn't inlined so no payload stays live on the test stack.
+//
+//go:noinline
+func drainRetentionCommands(
+	t *testing.T, retire func(*command.Manager),
+) (*command.Manager, []weak.Pointer[byte]) {
+	t.Helper()
+
+	const n = 16
+
+	m := command.NewManager()
+	id, err := m.Register(retentionCommand{}.Name(), command.NewQueue[retentionCommand]())
+	require.NoError(t, err)
+
+	for range n {
+		payload, err := schema.Serialize(retentionCommand{Data: make([]byte, 4<<10)})
+		require.NoError(t, err)
+
+		err = m.Enqueue(t.Context(), &iscv1.Command{
+			Name:    retentionCommand{}.Name(),
+			Address: &microv1.ServiceAddress{},
+			Payload: payload,
+		}, command.PlayerSender("player"))
+		require.NoError(t, err)
+	}
+
+	require.Len(t, m.Drain(), n)
+
+	commands, err := m.Get(id)
+	require.NoError(t, err)
+
+	refs := make([]weak.Pointer[byte], 0, n)
+
+	for _, cmd := range commands {
+		payload, ok := cmd.Payload.(retentionCommand)
+		require.True(t, ok)
+
+		refs = append(refs, weak.Make(&payload.Data[0]))
+	}
+
+	retire(&m)
+
+	return &m, refs
+}
+
+// liveRefs runs a full GC and counts the weak pointers whose targets are still reachable.
+func liveRefs(refs []weak.Pointer[byte]) int {
+	runtime.GC()
+
+	live := 0
+
+	for _, ref := range refs {
+		if ref.Value() != nil {
+			live++
+		}
+	}
+
+	return live
 }
