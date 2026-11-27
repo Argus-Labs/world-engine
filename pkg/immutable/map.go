@@ -100,6 +100,13 @@ func MapFrom[K Key, V any](seq iter.Seq2[K, V]) Map[K, V] {
 		kept = append(kept, e)
 	}
 
+	if len(kept) < len(entries) {
+		// The chunks are windows onto this array, so the dropped entries left past kept would stay
+		// alive with the Map. When many were dropped, shrink copies kept to an array its size.
+		clear(entries[len(kept):])
+		kept = shrink(kept)
+	}
+
 	return mapFromSorted(kept)
 }
 
