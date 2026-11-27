@@ -118,6 +118,10 @@ func (c *column[T]) remove(row int) {
 	// Removing a component is the same as moving the entity to another archetype.
 	// Swap the component to remove with the last component in the array.
 	c.components[row] = c.components[lastIndex]
+	// Zero the vacated slot, which the array still holds, so it doesn't keep the component's data alive.
+	var zero T
+
+	c.components[lastIndex] = zero
 	// Truncate the array to remove the last component.
 	c.components = c.components[:lastIndex]
 }
