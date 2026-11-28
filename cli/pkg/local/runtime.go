@@ -12,6 +12,8 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -54,11 +56,17 @@ type Runtime struct {
 	// developer's running world may hold. Only WaitForShardsReady reads it — deploy,
 	// routes, and layout checks still use service.ShardHostPort.
 	probeHostPort func(int) int
+	// readyTimeout bounds WaitForShardsReady. Defaults to shardReadyTimeout; in-package
+	// tests shorten it rather than wait the full two minutes.
+	readyTimeout time.Duration
 }
 
 // New wraps a Docker client opened on the project (docker.WithClient).
 func New(dc *docker.Client, cfg *service.Config) *Runtime {
-	return &Runtime{docker: dc, cfg: cfg, edge: edge.New(), edgeAddr: EdgeAddr, probeHostPort: service.ShardHostPort}
+	return &Runtime{
+		docker: dc, cfg: cfg, edge: edge.New(), edgeAddr: EdgeAddr,
+		probeHostPort: service.ShardHostPort, readyTimeout: shardReadyTimeout,
+	}
 }
 
 // SetEdgeAddr overrides the address ListenEdge binds, for tests that need a free port
@@ -459,7 +467,9 @@ func shardReady(ctx context.Context, port int) bool {
 
 const (
 	// shardReadyTimeout bounds WaitForShardsReady so a crash-looping shard cannot hang
-	// a reload (or make an MCP call sit silently until its own deadline).
+	// a reload (or make an MCP call sit silently until its own deadline). The probe
+	// round in flight when it expires still finishes, so the wait can run over by up
+	// to shardProbeTimeout.
 	shardReadyTimeout = 2 * time.Minute
 	// shardProbeTimeout bounds one readiness request.
 	shardProbeTimeout = 2 * time.Second
@@ -494,7 +504,7 @@ func (r *Runtime) WaitForShardsReady(
 
 	// The probes use the caller's context, not the deadline's: a probe cancelled by the
 	// deadline would report every instance down and overwrite a true count with 0.
-	deadline, cancel := context.WithTimeout(ctx, shardReadyTimeout)
+	deadline, cancel := context.WithTimeout(ctx, r.readyTimeout)
 	defer cancel()
 
 	last := -1
@@ -503,13 +513,7 @@ func (r *Runtime) WaitForShardsReady(
 	defer ticker.Stop()
 
 	for {
-		ready := 0
-
-		for _, port := range ports {
-			if shardReady(ctx, port) {
-				ready++
-			}
-		}
+		ready := probeShards(ctx, ports)
 
 		if ctx.Err() != nil {
 			// Cancelled mid-round: every probe failed at once, so this round says nothing
@@ -529,12 +533,42 @@ func (r *Runtime) WaitForShardsReady(
 			return ready, expected
 		}
 
+		// A round can outlast the ticker period, leaving a tick buffered. select picks
+		// at random among ready cases, so without this check an expired deadline could
+		// lose to that tick and start another round.
+		if deadline.Err() != nil {
+			return ready, expected
+		}
+
 		select {
 		case <-deadline.Done():
 			return ready, expected
 		case <-ticker.C:
 		}
 	}
+}
+
+// probeShards probes every port at once and counts the ones serving. Probed one at a
+// time, each stalled shard would add a full shardProbeTimeout to the round, so a large
+// pool could overrun shardReadyTimeout by minutes; concurrently, a round takes at most
+// one shardProbeTimeout. Pools are capped at 1024 instances, so the fan-out is bounded.
+func probeShards(ctx context.Context, ports []int) int {
+	var (
+		wg    sync.WaitGroup
+		ready atomic.Int64
+	)
+
+	for _, port := range ports {
+		wg.Go(func() {
+			if shardReady(ctx, port) {
+				ready.Add(1)
+			}
+		})
+	}
+
+	wg.Wait()
+
+	return int(ready.Load())
 }
 
 // RefreshRoutes rebuilds the edge table: every instance in world.toml maps to

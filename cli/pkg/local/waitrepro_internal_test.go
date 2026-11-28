@@ -170,3 +170,62 @@ func TestWaitForShardsReadyAllReadyReturnsImmediately(t *testing.T) {
 	assert.Equal(t, 2, ready)
 	assert.NoError(t, ctx.Err(), "healthy pool should complete before the deadline")
 }
+
+// TestWaitForShardsReadyHonorsTimeoutForLargePools checks that the readiness deadline
+// does not depend on pool size: a pool whose shards accept a request but never answer
+// must stop once the round in flight at readyTimeout ends, not after one probe timeout
+// per instance or another round. The responsive pool is the control: the same size
+// completes well before the deadline.
+func TestWaitForShardsReadyHonorsTimeoutForLargePools(t *testing.T) {
+	const (
+		instances    = 10
+		readyTimeout = 500 * time.Millisecond
+		// Scheduling slack for -race and loaded CI runners. It stays under one more
+		// round (shardProbeTimeout); probing one at a time takes
+		// instances*shardProbeTimeout (20s).
+		slack = time.Second
+	)
+
+	tests := []struct {
+		name      string
+		handler   http.HandlerFunc
+		wantReady int
+		maxWait   time.Duration
+	}{
+		{
+			name:      "ResponsivePool",
+			handler:   func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNotFound) },
+			wantReady: instances,
+			maxWait:   readyTimeout,
+		},
+		{
+			name:      "StalledPool",
+			handler:   func(_ http.ResponseWriter, r *http.Request) { <-r.Context().Done() },
+			wantReady: 0,
+			maxWait:   readyTimeout + shardProbeTimeout + slack,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(tt.handler)
+			defer srv.Close()
+
+			port := srv.Listener.Addr().(*net.TCPAddr).Port
+
+			r := New(nil, &service.Config{Project: "demo", WorldToml: worldtoml.Config{
+				Project: "demo",
+				Shards:  make([]worldtoml.Shard, instances),
+			}})
+			r.probeHostPort = func(int) int { return port }
+			r.readyTimeout = readyTimeout
+
+			start := time.Now()
+			ready, expected := r.WaitForShardsReady(context.Background(), nil, nil)
+			elapsed := time.Since(start)
+
+			assert.Equal(t, instances, expected, "expected")
+			assert.Equal(t, tt.wantReady, ready, "ready")
+			assert.Less(t, elapsed, tt.maxWait, "readiness wait must not scale with pool size")
+		})
+	}
+}
