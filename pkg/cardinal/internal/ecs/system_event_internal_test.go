@@ -346,8 +346,13 @@ func clearRetentionSystemEvents(t *testing.T) (*systemEventManager, []weak.Point
 	return &s, refs
 }
 
-// liveRefs runs a full GC and counts the weak pointers whose targets are still reachable.
+// liveRefs runs two full GCs and counts the weak pointers whose targets are still reachable. A
+// single GC can keep a dead payload for one cycle when it scans an asynchronously preempted frame
+// conservatively; only a real retainer survives the second.
+//
+//go:noinline
 func liveRefs(refs []weak.Pointer[byte]) int {
+	runtime.GC()
 	runtime.GC()
 
 	live := 0
