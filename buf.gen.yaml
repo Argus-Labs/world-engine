@@ -8,7 +8,10 @@ plugins:
     opt: paths=source_relative
   - remote: buf.build/bufbuild/es:v2.2.3
     out: proto/gen/ts
-    opt: target=ts
+    # Node ESM requires the .js extension on relative imports; bundlers accept it too.
+    opt:
+      - target=ts
+      - import_extension=js
     include_imports: true
   - remote: buf.build/protocolbuffers/csharp:v31.1
     out: proto/gen/csharp

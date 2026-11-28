@@ -77,3 +77,8 @@ jobs:
       # cannot drift from the generated modules again.
       - name: Type-check the TypeScript client
         run: moon run proto-ts:build
+
+      # Type-checking resolves extensionless imports that Node ESM rejects, so
+      # emit the client as JavaScript and import every module in Node.
+      - name: Import the emitted TypeScript client in Node ESM
+        run: moon run proto-ts:test
