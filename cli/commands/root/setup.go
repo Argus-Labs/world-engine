@@ -1,7 +1,10 @@
 package root
 
 import (
+	"github.com/rotisserie/eris"
+
 	"github.com/argus-labs/world-engine/cli/commands/root/tui"
+	errorspkg "github.com/argus-labs/world-engine/cli/internal/errors"
 	"github.com/argus-labs/world-engine/cli/internal/telemetry"
 	"github.com/argus-labs/world-engine/cli/internal/tui/kit/program"
 )
@@ -18,9 +21,17 @@ func (c *SetupCmd) Run(rootCmd *Cmd) error {
 	})
 
 	p := program.NewTeaProgram(tui.NewWorldSetupModel(c.Directory, rootCmd.GetEnv(), c.Template))
-	if _, err := p.Run(); err != nil {
+
+	final, err := p.Run()
+	if err != nil {
 		return err
 	}
 
-	return nil
+	m, ok := final.(tui.WorldSetupModel)
+	if !ok {
+		return eris.New("invalid setup model")
+	}
+
+	// The wizard has already rendered the failure; returning it only sets the exit code.
+	return errorspkg.NewSilent(m.Err())
 }
