@@ -427,6 +427,11 @@ func TestSlice_Allocations(t *testing.T) {
 	points := immutable.SliceOf(make([]point, 70)...)
 
 	require.Zero(t, testing.AllocsPerRun(100, func() { d := points; d.Delete(69, 70) }), "Delete in a Slice of structs")
+
+	// Deleting exactly the tail retires nothing of the last leaf, so even with pointers it copies none.
+	names := immutable.SliceOf(make([]string, 64)...)
+
+	require.Zero(t, testing.AllocsPerRun(100, func() { d := names; d.Delete(32, 64) }), "Delete of the whole tail")
 	require.LessOrEqual(t, testing.AllocsPerRun(20, func() {
 		d := big
 		d.UpdateFunc(func(_, v int) int { return v + 1 })

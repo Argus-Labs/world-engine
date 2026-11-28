@@ -220,8 +220,10 @@ func copyItems[T any](items []T) Slice[T] {
 }
 
 // A copier builds a Slice from elements pushed in order, copying them straight into leaves of their
-// own. The rebuilding edits use it for the Slices fromItems would not pack, so that they copy each
-// element once rather than into one array first and then out of it.
+// own. Collect and the rebuilding edits Insert, Delete, DeleteFunc and UpdateFunc use it for the
+// Slices fromItems would not pack, so that they copy each element once rather than into one array
+// first and then out of it. The sorts, Reverse and the decoders need the elements in one array, so
+// they fill one and fromItems copies it into leaves.
 type copier[T any] struct {
 	leaves []*vnode[T]
 	open   *vnode[T] // the chunk being filled; nil before the first element

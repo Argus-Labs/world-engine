@@ -102,9 +102,10 @@ func MapFrom[K Key, V any](seq iter.Seq2[K, V]) Map[K, V] {
 
 	if len(kept) < len(entries) {
 		// The chunks may be windows onto this array, so the dropped entries left past kept would
-		// stay alive with the Map. When many were dropped, shrink copies kept to an array its size.
+		// stay alive with the Map. When many were dropped, shrinkEntries copies kept to an array
+		// its size.
 		clear(entries[len(kept):])
-		kept = shrink(kept)
+		kept = shrinkEntries(kept)
 	}
 
 	return mapFromSorted(kept)
@@ -379,16 +380,27 @@ func (m *Map[K, V]) DeleteFunc(del func(K, V) bool) {
 	}
 
 	if deleted {
-		*m = mapFromSorted(shrink(kept))
+		*m = mapFromSorted(shrinkEntries(kept))
 	}
+}
+
+// shrinkEntries is shrink for entries that mapFromSorted is about to cut. Entries that hold pointers
+// and span more than mapChunkMax cut into several chunks, which ownChunks copies anyway, so it
+// leaves them be rather than copy them twice.
+func shrinkEntries[K Key, V any](kept []entry[K, V]) []entry[K, V] {
+	if len(kept) > mapChunkMax && holdsPointers[entry[K, V]]() {
+		return kept
+	}
+
+	return shrink(kept)
 }
 
 // UpdateFunc replaces each value v under key k with f(k, v), in key order, like ranging over a Go map
 // and storing each result. No key changes, so the Map keeps its shape: it rebuilds once, O(n) with one
 // allocation for the entries and one per index node, where calling Set for every key copies a chunk
 // and its path each time. When entries hold pointers, each chunk gets an array of its own instead, as
-// ownChunks explains. f sees the Map as it was before the call, and a panic in f leaves the Map
-// unchanged.
+// updateChunk makes them; ownChunks explains why. f sees the Map as it was before the call, and a
+// panic in f leaves the Map unchanged.
 func (m *Map[K, V]) UpdateFunc(f func(k K, v V) V) {
 	if m.n == 0 {
 		return

@@ -72,7 +72,16 @@ func SliceOf[T any](items ...T) Slice[T] {
 
 // Collect returns a Slice holding every element of seq, in order.
 func Collect[T any](seq iter.Seq[T]) Slice[T] {
-	return fromItems(slices.Collect(seq))
+	if !holdsPointers[T]() {
+		return fromItems(slices.Collect(seq))
+	}
+
+	var c copier[T]
+	for v := range seq {
+		c.push(v)
+	}
+
+	return c.slice()
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -361,13 +370,26 @@ func (s *Slice[T]) Delete(i, j int) {
 	}
 
 	if off := s.treeLen(); j == s.n && s.root != nil && i > off-chunkSize {
-		// The tail goes and the cut lands in the last leaf, which becomes the tail.
-		s.tail = detach(s.popLeaf()[: i-(off-chunkSize) : i-(off-chunkSize)])
+		// The tail goes and the cut lands in the last leaf, which becomes the tail. When the cut is
+		// the leaf's end, all of it stays and nothing is retired.
+		k := i - (off - chunkSize)
+
+		s.tail = s.popLeaf()[:k:k]
+		if k < chunkSize {
+			s.tail = detach(s.tail)
+		}
+
 		s.n = i
 
 		return
 	}
 
+	s.rebuildWithout(i, j)
+}
+
+// rebuildWithout rebuilds the Slice without the elements in [i, j), a run that no faster Delete path
+// takes.
+func (s *Slice[T]) rebuildWithout(i, j int) {
 	if !packs[T](s.n - (j - i)) {
 		c := newCopier[T](s.n - (j - i))
 		c.pushRange(*s, 0, i)

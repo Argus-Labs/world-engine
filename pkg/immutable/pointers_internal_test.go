@@ -1,6 +1,7 @@
 package immutable
 
 import (
+	"reflect"
 	"testing"
 	"time"
 	"unsafe"
@@ -43,6 +44,9 @@ func TestHoldsPointers(t *testing.T) {
 	assert.True(t, holdsPointers[entry[string, int]](), "a Map entry with a string key")
 	assert.True(t, holdsPointers[unsafe.Pointer](), "unsafe.Pointer")
 	assert.True(t, holdsPointers[any](), "an interface")
-	// A second call answers from the cache.
-	assert.True(t, holdsPointers[nested](), "a struct holding a string, cached")
+	// Arrays and structs are cached; holdsPointers[nested] ran above.
+	cached, ok := pointerTypes.Load(reflect.TypeFor[nested]())
+	assert.True(t, ok, "a struct's answer is cached")
+	assert.Equal(t, true, cached, "the cached answer")
+	assert.True(t, holdsPointers[nested](), "a struct holding a string, from the cache")
 }

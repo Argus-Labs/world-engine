@@ -226,11 +226,15 @@ func testPopLayout[T any](t *testing.T, wrap func(int) T) {
 
 func TestMap_LayoutDependsOnlyOnContents(t *testing.T) {
 	t.Parallel()
-	t.Run("int", func(t *testing.T) { t.Parallel(); testMapLayout(t, identity, identity) })
-	t.Run("string", func(t *testing.T) { t.Parallel(); testMapLayout(t, asString, fromString) })
+	// The string run is shorter: its edits take the same index paths, and only its chunks are copied
+	// differently, so it needs less of the index's depth to cover them.
+	t.Run("int", func(t *testing.T) { t.Parallel(); testMapLayout(t, 2500, 3, identity, identity) })
+	t.Run("string", func(t *testing.T) { t.Parallel(); testMapLayout(t, 600, 2, asString, fromString) })
 }
 
-func testMapLayout[V comparable](t *testing.T, wrap func(int) V, unwrap func(V) int) {
+// testMapLayout edits a Map at random for the given number of steps and requires the index to have
+// reached minPeak levels.
+func testMapLayout[V comparable](t *testing.T, steps, minPeak int, wrap func(int) V, unwrap func(V) int) {
 	r := testutils.NewRand(t)
 
 	var m Map[int, V]
@@ -246,7 +250,7 @@ func testMapLayout[V comparable](t *testing.T, wrap func(int) V, unwrap func(V) 
 
 	keySpace, peak := 20000, 0 // up to about 600 chunks, three levels of index
 
-	for step := range 2500 {
+	for step := range steps {
 		switch op := r.IntN(11); {
 		case op < 5:
 			for range r.IntN(60) {
@@ -296,7 +300,7 @@ func testMapLayout[V comparable](t *testing.T, wrap func(int) V, unwrap func(V) 
 		}
 	}
 
-	require.GreaterOrEqual(t, peak, 3, "the test reached a Map with an index of three levels")
+	require.GreaterOrEqual(t, peak, minPeak, "the test reached a Map with an index of %d levels", minPeak)
 
 	// Empty the Map one key at a time, so the index loses levels and its root shrinks to one child.
 	keys := slices.Collect(maps.Keys(model))

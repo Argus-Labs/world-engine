@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // newPayload returns a value in its own allocation and a weak pointer to it.
@@ -110,17 +111,24 @@ func TestMapFrom_ReleasesDroppedValues(t *testing.T) {
 	}
 }
 
-// payloadSlice returns a Slice of n payloads, built by SliceOf, Collect or Append, and a weak
-// pointer to each.
+// sliceBuilds are the ways payloadSlice builds a Slice: in bulk, by appending, and by each edit that
+// rebuilds it.
+var sliceBuilds = []string{"SliceOf", "Collect", "Append", "Insert", "Delete", "DeleteFunc", "UpdateFunc", "Decode"}
+
+// payloadSlice returns a Slice of n payloads, built the way build names, and a weak pointer to each
+// payload it holds.
 //
 //go:noinline
 func payloadSlice(n int, build string) (Slice[string], []weak.Pointer[byte]) {
 	items := make([]string, n)
-	refs := make([]weak.Pointer[byte], n)
-
 	for i := range items {
-		items[i], refs[i] = newPayload(i)
+		items[i], _ = newPayload(i)
 	}
+
+	const extra = "extra"
+
+	mid := n / 2
+	withExtra := slices.Insert(slices.Clone(items), mid, extra)
 
 	var s Slice[string]
 
@@ -131,8 +139,34 @@ func payloadSlice(n int, build string) (Slice[string], []weak.Pointer[byte]) {
 		s = Collect(slices.Values(items))
 	case "Append":
 		s.Append(items...)
+	case "Insert":
+		s = SliceOf(slices.Delete(slices.Clone(items), mid, mid+1)...)
+		s.Insert(mid, items[mid])
+	case "Delete":
+		s = SliceOf(withExtra...)
+		s.Delete(mid, mid+1)
+	case "DeleteFunc":
+		s = SliceOf(withExtra...)
+		s.DeleteFunc(func(v string) bool { return v == extra })
+	case "UpdateFunc":
+		s = SliceOf(make([]string, n)...)
+		s.UpdateFunc(func(i int, _ string) string { return items[i] })
+	case "Decode":
+		data, err := msgpack.Marshal(SliceOf(items...))
+		if err != nil {
+			panic(err)
+		}
+
+		if err := msgpack.Unmarshal(data, &s); err != nil {
+			panic(err)
+		}
 	default:
 		panic("unknown build " + build)
+	}
+
+	refs := make([]weak.Pointer[byte], 0, n)
+	for _, v := range s.All() {
+		refs = append(refs, weak.Make(unsafe.StringData(v)))
 	}
 
 	return s, refs
@@ -263,13 +297,14 @@ func TestSlice_SetReleasesReplacedValues(t *testing.T) {
 
 	const n = 100 // three leaves and a tail of four
 
-	for _, build := range []string{"SliceOf", "Collect", "Append"} {
-		for _, chunk := range [][2]int{{0, 32}, {32, 64}, {96, n}} {
+	for _, build := range sliceBuilds {
+		// The last range keeps nothing: a control, which every build passes on main too.
+		for _, chunk := range [][2]int{{0, 32}, {32, 64}, {96, n}, {n, n}} {
 			t.Run(fmt.Sprintf("%s/keep [%d:%d]", build, chunk[0], chunk[1]), func(t *testing.T) {
 				t.Parallel()
 
 				s, refs := rewriteSliceOutside(n, chunk[0], chunk[1], build)
-				require.Same(t, refs[chunk[0]].Value(), unsafe.StringData(s.At(chunk[0])))
+				require.Equal(t, n, s.Len())
 
 				assert.Equal(t, chunk[1]-chunk[0], reachable(refs), "replaced values stay reachable from the Slice")
 				runtime.KeepAlive(s)
@@ -278,9 +313,13 @@ func TestSlice_SetReleasesReplacedValues(t *testing.T) {
 	}
 }
 
+// mapBuilds are the ways payloadMap builds a Map.
+var mapBuilds = []string{"MapFrom", "UpdateFunc", "Set", "DeleteFunc", "Decode"}
+
 // payloadMap returns a Map of keys 0 to n-1, each holding a payload, and a weak pointer to each
-// payload. It is built by MapFrom, by MapFrom and then UpdateFunc, or by MapFrom over the even keys
-// and then a Set of each odd key, whose inserts re-cut chunks.
+// payload. It is built by MapFrom; by MapFrom and then UpdateFunc; by MapFrom over the even keys and
+// then a Set of each odd key, whose inserts re-cut chunks; by MapFrom with extra keys past n-1 that
+// DeleteFunc then removes; or by decoding.
 //
 //go:noinline
 func payloadMap(n int, build string) (Map[int, string], []weak.Pointer[byte]) {
@@ -316,6 +355,33 @@ func payloadMap(n int, build string) (Map[int, string], []weak.Pointer[byte]) {
 
 		for i := 1; i < n; i += 2 {
 			m.Set(i, payloads[i])
+		}
+	case "DeleteFunc":
+		m = MapFrom(func(yield func(int, string) bool) {
+			for i := range 2 * n {
+				v := "extra"
+				if i < n {
+					v = payloads[i]
+				}
+
+				if !yield(i, v) {
+					return
+				}
+			}
+		})
+		m.DeleteFunc(func(k int, _ string) bool { return k >= n })
+	case "Decode":
+		data, err := msgpack.Marshal(MapFrom(slices.All(payloads)))
+		if err != nil {
+			panic(err)
+		}
+
+		if err := msgpack.Unmarshal(data, &m); err != nil {
+			panic(err)
+		}
+
+		for k, v := range m.All() {
+			refs[k] = weak.Make(unsafe.StringData(v))
 		}
 	default:
 		panic("unknown build " + build)
@@ -358,7 +424,7 @@ func TestMap_SetReleasesReplacedValues(t *testing.T) {
 
 	const n = 600 // well past mapChunkMax, so several chunks whatever the seed
 
-	for _, build := range []string{"MapFrom", "UpdateFunc", "Set"} {
+	for _, build := range mapBuilds {
 		t.Run(build, func(t *testing.T) {
 			t.Parallel()
 
@@ -380,6 +446,14 @@ func TestMap_SetReleasesReplacedValues(t *testing.T) {
 
 				runtime.KeepAlive(edited)
 			}
+		})
+		t.Run(build+"/rewrite every key", func(t *testing.T) {
+			t.Parallel()
+
+			// A control: with every key rewritten, no payload may stay alive, which holds on main too.
+			edited, refs := rewriteMapOutside(n, n, n, build)
+			assert.Zero(t, reachable(refs), "every value was replaced")
+			runtime.KeepAlive(edited)
 		})
 	}
 }

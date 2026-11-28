@@ -209,9 +209,11 @@ only for element types that hold pointers ([pointers.go](pointers.go)):
   alive while any chunk lives, with the values later edits replaced in the others.
 
 That costs a copy of up to 32 elements per such Delete. A Slice built in bulk allocates one leaf per
-32 elements either way; unpacked, each leaf holds its elements, and the rebuilding edits copy
-straight into the leaves rather than through one array. A Map built in bulk allocates an array per
-chunk, about n/32, where packed it makes one for all.
+32 elements either way; unpacked, each leaf holds its elements. `Collect`, Insert, Delete,
+`DeleteFunc` and `UpdateFunc` copy straight into the leaves; `SliceOf` copies the caller's elements
+into them once; the sorts, `Reverse` and decoding fill one array and then copy it into leaves. A Map
+built in bulk allocates an array per chunk, about n/32, where packed it makes one for all, and its
+rebuilds fill one array first and then copy each chunk out of it.
 
 ## Which functions exist
 
