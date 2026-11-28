@@ -1,9 +1,12 @@
 package service_test
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/moby/moby/api/types/mount"
 
 	"github.com/argus-labs/world-engine/cli/pkg/docker/service"
 
@@ -43,10 +46,16 @@ func TestGameServiceFromConfigImageKind(t *testing.T) {
 	if !slices.Equal(svc.Env, wantEnv) {
 		t.Fatalf("expected env %#v, got %#v", wantEnv, svc.Env)
 	}
-	// Named volume == container name, so purge's volume delete cleans it up.
-	wantBinds := []string{"rampage-postgres-service:/var/lib/postgresql/data"}
-	if !slices.Equal(svc.Binds, wantBinds) {
-		t.Fatalf("expected binds %#v, got %#v", wantBinds, svc.Binds)
+	// Named volume == container name, so purge's volume delete cleans it up. The
+	// project label tells it apart from another project's volume of the same name.
+	wantMounts := []mount.Mount{{
+		Type:          mount.TypeVolume,
+		Source:        "rampage-postgres-service",
+		Target:        "/var/lib/postgresql/data",
+		VolumeOptions: &mount.VolumeOptions{Labels: map[string]string{service.ProjectLabel: "rampage"}},
+	}}
+	if !reflect.DeepEqual(svc.Mounts, wantMounts) {
+		t.Fatalf("expected mounts %#v, got %#v", wantMounts, svc.Mounts)
 	}
 
 	if svc.Labels[service.ProjectLabel] != "rampage" || svc.Labels[service.RoleLabel] != service.RoleService {
@@ -114,8 +123,8 @@ func TestGameServiceFromConfigPathKind(t *testing.T) {
 		t.Fatalf("expected no healthcheck, got %#v", svc.Healthcheck)
 	}
 
-	if len(svc.Binds) != 0 {
-		t.Fatalf("expected no binds, got %#v", svc.Binds)
+	if len(svc.Binds) != 0 || len(svc.Mounts) != 0 {
+		t.Fatalf("expected no volume, got binds %#v mounts %#v", svc.Binds, svc.Mounts)
 	}
 
 	if len(svc.Dependencies) != 2 {

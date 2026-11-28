@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 
 	worldtoml "github.com/argus-labs/world-engine/cli/pkg/toml"
 )
@@ -115,7 +116,14 @@ func buildBaseGameService(cfg *Config, svc worldtoml.GameService) Service {
 
 	if svc.Volume != "" {
 		// Volume name == container name so purge's implicit volume delete cleans it up.
-		out.Binds = []string{fmt.Sprintf("%s:%s", containerName, svc.Volume)}
+		// Names can collide across projects, so Docker labels the volume with its
+		// project when it creates it, and purge leaves another project's volume alone.
+		out.Mounts = []mount.Mount{{
+			Type:          mount.TypeVolume,
+			Source:        containerName,
+			Target:        svc.Volume,
+			VolumeOptions: &mount.VolumeOptions{Labels: map[string]string{ProjectLabel: cfg.WorldToml.Project}},
+		}}
 	}
 
 	if len(svc.Healthcheck) > 0 {

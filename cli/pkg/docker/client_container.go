@@ -59,11 +59,12 @@ func (c *Client) containerExists(ctx context.Context, containerName string) (boo
 }
 
 // removeContainer stops and removes a container; with keepVolumes false its named
-// volumes go too. A missing container is a no-op. A container labelled with another
-// project is an error: names join project and id with hyphens, so project "demo"
-// shard "game-api" and project "demo-game" shard "api" share a name. Stop and remove
-// target the inspected container's ID, not the name, so a container that takes the
-// name after the ownership check is never touched.
+// volumes go too, unless labelled with another project. A missing container is a
+// no-op. A container labelled with another project is an error: names join project
+// and id with hyphens, so project "demo" shard "game-api" and project "demo-game"
+// shard "api" share a name. Stop and remove target the inspected container's ID,
+// not the name, so a container that takes the name after the ownership check is
+// never touched.
 func (c *Client) removeContainer(ctx context.Context, name string, keepVolumes bool) error {
 	res, err := c.client.ContainerInspect(ctx, name, client.ContainerInspectOptions{})
 	if err != nil {
@@ -110,13 +111,8 @@ func (c *Client) removeContainer(ctx context.Context, name string, keepVolumes b
 			continue
 		}
 
-		if _, err := c.client.VolumeRemove(
-			ctx,
-			m.Name,
-			client.VolumeRemoveOptions{Force: true},
-		); err != nil &&
-			!cerrdefs.IsNotFound(err) {
-			return eris.Wrapf(err, "remove volume %s", m.Name)
+		if err := removeVolume(ctx, c.client, c.cfg.WorldToml.Project, m.Name); err != nil {
+			return err
 		}
 	}
 
