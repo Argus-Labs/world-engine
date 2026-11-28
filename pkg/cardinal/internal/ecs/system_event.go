@@ -142,6 +142,7 @@ func (s *systemEventQueue[T]) len() int {
 
 // clear removes all system events from the queue.
 func (s *systemEventQueue[T]) clear() {
+	clear(s.events) // Don't let the reused backing array keep cleared events reachable.
 	s.events = s.events[:0]
 }
 

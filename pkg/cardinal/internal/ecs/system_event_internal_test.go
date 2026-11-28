@@ -3,8 +3,10 @@ package ecs
 import (
 	"bytes"
 	"encoding/gob"
+	"runtime"
 	"strconv"
 	"testing"
+	"weak"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
 	"github.com/stretchr/testify/assert"
@@ -294,4 +296,67 @@ func TestWorld_RegisterSystemEventRejectsNameCollision(t *testing.T) {
 	events, err = w.GetSystemEvents[testutils.SimpleSystemEvent]()
 	require.NoError(t, err)
 	require.Equal(t, []testutils.SimpleSystemEvent{{Value: 42}, {Value: 7}}, events)
+}
+
+// -------------------------------------------------------------------------------------------------
+// Payload retention
+// -------------------------------------------------------------------------------------------------
+// System event queues are reused every tick. This test verifies that clearing a queue doesn't keep
+// the cleared events reachable, so the GC can free whatever they point to.
+// -------------------------------------------------------------------------------------------------
+
+type retentionSystemEvent struct{ Data []byte }
+
+func (retentionSystemEvent) Name() string { return "retention_system_event" }
+
+func TestSystemEvent_ClearedEventsAreCollectable(t *testing.T) {
+	t.Parallel()
+
+	s, refs := clearRetentionSystemEvents(t)
+	assert.Equal(t, 0, liveRefs(refs), "manager retains cleared system events")
+	runtime.KeepAlive(s)
+
+	// Control: s is dead past KeepAlive, so with the manager gone nothing else may hold the events.
+	// A failure above can then only come from the manager's queues.
+	assert.Equal(t, 0, liveRefs(refs), "system events retained outside the manager")
+}
+
+// clearRetentionSystemEvents enqueues a batch of system events, records weak pointers to their data,
+// then clears the manager. It isn't inlined so no event stays live on the test stack.
+//
+//go:noinline
+func clearRetentionSystemEvents(t *testing.T) (*systemEventManager, []weak.Pointer[byte]) {
+	t.Helper()
+
+	const n = 16
+
+	s := newSystemEventManager()
+	_, err := s.register[retentionSystemEvent](retentionSystemEvent{}.Name())
+	require.NoError(t, err)
+
+	refs := make([]weak.Pointer[byte], 0, n)
+	for range n {
+		data := make([]byte, 4<<10)
+		refs = append(refs, weak.Make(&data[0]))
+		require.NoError(t, s.enqueue(retentionSystemEvent{Data: data}))
+	}
+
+	s.clear()
+
+	return &s, refs
+}
+
+// liveRefs runs a full GC and counts the weak pointers whose targets are still reachable.
+func liveRefs(refs []weak.Pointer[byte]) int {
+	runtime.GC()
+
+	live := 0
+
+	for _, ref := range refs {
+		if ref.Value() != nil {
+			live++
+		}
+	}
+
+	return live
 }
