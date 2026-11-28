@@ -7,6 +7,7 @@ package cardinal
 import (
 	"context"
 	"fmt"
+	"io"
 	"iter"
 	"math"
 	"os/signal"
@@ -460,6 +461,7 @@ func (w *World) shutdown() {
 	}
 
 	w.snapshotWriter.Stop(ctx)
+	w.closeSnapshotStorage()
 
 	// Drain queued commands and events.
 	if err := w.service.shutdown(ctx); err != nil {
@@ -473,6 +475,19 @@ func (w *World) shutdown() {
 	}
 
 	w.tel.Logger.Info().Msg("World shutdown complete")
+}
+
+// closeSnapshotStorage releases resources the snapshot storage holds, such as JetStream storage's
+// NATS connection. Call it after the snapshot writer stops.
+func (w *World) closeSnapshotStorage() {
+	closer, ok := w.snapshotStorage.(io.Closer)
+	if !ok {
+		return
+	}
+
+	if err := closer.Close(); err != nil {
+		w.tel.Logger.Error().Err(err).Msg("failed to close snapshot storage")
+	}
 }
 
 func (w *World) reset() {
