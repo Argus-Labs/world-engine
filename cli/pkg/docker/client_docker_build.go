@@ -248,9 +248,8 @@ func (c *Client) buildSingleCardinalWithDocker(
 		return eris.Wrapf(err, "failed to build Cardinal shard image %s", sb.image)
 	}
 
-	// Authoritative success check: the daemon must actually have a tag at the
-	// expected name. This guards against silent successes if BuildKit ever
-	// returns a clean event stream without producing the image.
+	// The stream reported a built image; also require the daemon to have it at
+	// the expected tag.
 	if _, err := c.client.ImageInspect(ctx, sb.image); err != nil {
 		return eris.Wrapf(err, "build for %s returned success but image is not present", sb.image)
 	}
@@ -413,9 +412,9 @@ func writeBuildContextTar(tw *tar.Writer, src io.Reader, dfContent []byte, dfNam
 }
 
 // buildEvent captures the error fields from /build's JSON event stream
-// (covering both the legacy builder and BuildKit shapes), plus BuildKit's
-// trace, whose step output a build error quotes. Other progress is ignored —
-// it's reported via the Progress callback.
+// (covering both the legacy builder and BuildKit shapes), plus the aux payloads:
+// BuildKit's trace, whose step output a build error quotes, and the built
+// image's ID. Other progress is ignored — it's reported via the Progress callback.
 type buildEvent struct {
 	ID          string            `json:"id,omitempty"`
 	Aux         json.RawMessage   `json:"aux,omitempty"`
@@ -427,11 +426,18 @@ type buildErrorDetail struct {
 	Message string `json:"message"`
 }
 
+// drainBuildResponse reads the /build stream to its end. The build succeeded only
+// if the daemon reported the image it built: a stream that is cut off or ends
+// early would otherwise pass, since an earlier build's image still holds the tag.
 func drainBuildResponse(ctx context.Context, body io.Reader, imageName string) error {
-	var output buildOutput
+	var (
+		output buildOutput
+		built  bool
+	)
 
 	decoder := json.NewDecoder(body)
-	for decoder.More() {
+
+	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -441,10 +447,10 @@ func drainBuildResponse(ctx context.Context, body io.Reader, imageName string) e
 		var event buildEvent
 		if err := decoder.Decode(&event); err != nil {
 			if errors.Is(err, io.EOF) {
-				return nil
+				break
 			}
 
-			return eris.Wrapf(err, "decode build event for %s", imageName)
+			return eris.Wrapf(err, "read build output for %s", imageName)
 		}
 
 		if event.ID == buildKitTraceID {
@@ -463,6 +469,17 @@ func drainBuildResponse(ctx context.Context, body io.Reader, imageName string) e
 		if event.Error != "" {
 			return eris.Errorf("build error for %s: %s%s", imageName, event.Error, output.tail())
 		}
+
+		// BuildKit reports the image as {"id":"moby.image.id","aux":{"ID":...}};
+		// the classic builder omits the id.
+		var result struct{ ID string }
+		if len(event.Aux) > 0 && json.Unmarshal(event.Aux, &result) == nil && result.ID != "" {
+			built = true
+		}
+	}
+
+	if !built {
+		return eris.Errorf("build output for %s ended before the daemon reported a built image", imageName)
 	}
 
 	return nil
