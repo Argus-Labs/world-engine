@@ -116,7 +116,7 @@ cardinal.Create(ctx,
 ### Body-type cheat sheet
 
 - **`BodyTypeStatic`** — immovable world geometry. No writeback.
-- **`BodyTypeDynamic`** — full simulation: forces, gravity, collisions. Writeback updates `Transform2D`/`Velocity2D` each tick.
+- **`BodyTypeDynamic`** — full simulation: forces, gravity, collisions. Writeback updates `Transform2D`/`Velocity2D` each tick (velocity only while `Active`; a disabled body's velocity is preserved in ECS and re-applied on re-enable).
 - **`BodyTypeKinematic`** — velocity-driven; Box2D integrates position. Writeback on.
 - **`BodyTypeManual`** — gameplay owns position/velocity; Box2D is used only for contact detection. No writeback; the reconciler pushes ECS → Box2D each tick. Use for characters/enemies driven by input or AI.
 
