@@ -116,7 +116,7 @@ func ComputeHull(points []Vec2) Hull {
 
 	n := 0
 	linearSlop := LinearSlop
-	tolSqr := 16.0 * linearSlop * linearSlop
+	tolSqr := 0.25 * linearSlop * linearSlop
 
 	for i := range count {
 		aabb.LowerBound = Min(aabb.LowerBound, points[i])
@@ -126,8 +126,8 @@ func ComputeHull(points []Vec2) Hull {
 
 		unique := true
 
-		for j := range i {
-			vj := points[j]
+		for j := range n {
+			vj := ps[j]
 
 			distSqr := DistanceSquared(vi, vj)
 			if distSqr < tolSqr {
