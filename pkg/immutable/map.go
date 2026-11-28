@@ -101,10 +101,11 @@ func MapFrom[K Key, V any](seq iter.Seq2[K, V]) Map[K, V] {
 	}
 
 	if len(kept) < len(entries) {
-		// The chunks are windows onto this array, so the dropped entries left past kept would stay
-		// alive with the Map. When many were dropped, shrink copies kept to an array its size.
+		// The chunks may be windows onto this array, so the dropped entries left past kept would
+		// stay alive with the Map. When many were dropped, shrinkEntries copies kept to an array
+		// its size.
 		clear(entries[len(kept):])
-		kept = shrink(kept)
+		kept = shrinkEntries(kept)
 	}
 
 	return mapFromSorted(kept)
@@ -344,7 +345,7 @@ func (m *Map[K, V]) Delete(k K) {
 
 // rechunk replaces the edited chunk, the one at p or the Map's only one, with the chunks edited
 // splits into. edited is a new array that rechunk takes ownership of; the new chunks are windows onto
-// it, capped so that a later append cannot reach a neighbour.
+// it, capped so that a later append cannot reach a neighbour, or copies as ownChunks makes them.
 func (m *Map[K, V]) rechunk(p *mpath[K, V], edited []entry[K, V]) {
 	if m.one == nil {
 		m.rechunkTree(p, edited)
@@ -379,33 +380,61 @@ func (m *Map[K, V]) DeleteFunc(del func(K, V) bool) {
 	}
 
 	if deleted {
-		*m = mapFromSorted(shrink(kept))
+		*m = mapFromSorted(shrinkEntries(kept))
 	}
+}
+
+// shrinkEntries is shrink for entries that mapFromSorted is about to cut. Entries that hold pointers
+// and span more than mapChunkMax cut into several chunks, which ownChunks copies anyway, so it
+// leaves them be rather than copy them twice.
+func shrinkEntries[K Key, V any](kept []entry[K, V]) []entry[K, V] {
+	if len(kept) > mapChunkMax && holdsPointers[entry[K, V]]() {
+		return kept
+	}
+
+	return shrink(kept)
 }
 
 // UpdateFunc replaces each value v under key k with f(k, v), in key order, like ranging over a Go map
 // and storing each result. No key changes, so the Map keeps its shape: it rebuilds once, O(n) with one
 // allocation for the entries and one per index node, where calling Set for every key copies a chunk
-// and its path each time. f sees the Map as it was before the call, and a panic in f leaves the Map
-// unchanged.
+// and its path each time. When entries hold pointers, each chunk gets an array of its own instead, as
+// updateChunk makes them; ownChunks explains why. f sees the Map as it was before the call, and a
+// panic in f leaves the Map unchanged.
 func (m *Map[K, V]) UpdateFunc(f func(k K, v V) V) {
 	if m.n == 0 {
 		return
 	}
 
-	all := make([]entry[K, V], 0, m.n)
 	if m.one != nil {
-		m.one = updateChunk(&all, m.one, f)
+		m.one = updateChunk(nil, m.one, f)
 		return
 	}
 
-	m.root = updateNode(&all, m.root, f)
+	var all *[]entry[K, V]
+
+	if !holdsPointers[entry[K, V]]() {
+		shared := make([]entry[K, V], 0, m.n)
+		all = &shared
+	}
+
+	m.root = updateNode(all, m.root, f)
 }
 
-// updateChunk appends c's entries to *all with their values replaced by f, and returns them as a
-// window onto *all, capped so a later append cannot reach a neighbour. *all never grows past the
-// capacity it was made with, so earlier windows stay valid.
+// updateChunk returns c's entries with their values replaced by f, in an array of their own when all
+// is nil. Otherwise it appends them to *all and returns them as a window onto *all, capped so a later
+// append cannot reach a neighbour. *all never grows past the capacity it was made with, so earlier
+// windows stay valid.
 func updateChunk[K Key, V any](all *[]entry[K, V], c []entry[K, V], f func(K, V) V) []entry[K, V] {
+	if all == nil {
+		edited := make([]entry[K, V], len(c))
+		for i, e := range c {
+			edited[i] = entry[K, V]{e.k, f(e.k, e.v)}
+		}
+
+		return edited
+	}
+
 	start := len(*all)
 	for _, e := range c {
 		*all = append(*all, entry[K, V]{e.k, f(e.k, e.v)})
@@ -473,7 +502,7 @@ func endsChunk[K Key](size int, k K) bool {
 }
 
 // mapFromSorted returns the Map holding entries, which must be sorted by key without repeats. It
-// takes ownership of the array: the chunks are windows onto it.
+// takes ownership of the array: the chunks are windows onto it, or copies as ownChunks makes them.
 func mapFromSorted[K Key, V any](entries []entry[K, V]) Map[K, V] {
 	if len(entries) == 0 {
 		return Map[K, V]{}

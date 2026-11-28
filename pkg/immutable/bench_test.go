@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"math/rand/v2"
+	"slices"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/immutable"
@@ -48,6 +49,75 @@ func benchMap(n int) (immutable.Map[int, benchItem], []int) {
 	})
 
 	return m, keys
+}
+
+// BenchmarkBuild builds a Slice and a Map in bulk, as a component is first filled or a rebuilding
+// edit such as Insert or DeleteFunc stores its result.
+func BenchmarkBuild(b *testing.B) {
+	for _, n := range benchSizes {
+		items := make([]benchItem, n)
+		for i := range items {
+			items[i] = benchItem{ID: int64(i)}
+		}
+
+		keys := rand.New(rand.NewPCG(1, 2)).Perm(n)
+
+		b.Run(fmt.Sprintf("SliceOf/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				sinkSlice = immutable.SliceOf(items...)
+			}
+		})
+		b.Run(fmt.Sprintf("Collect/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				sinkSlice = immutable.Collect(slices.Values(items))
+			}
+		})
+		b.Run(fmt.Sprintf("MapFrom/%d", n), func(b *testing.B) {
+			for b.Loop() {
+				sinkMap = immutable.MapFrom(func(yield func(int, benchItem) bool) {
+					for _, k := range keys {
+						if !yield(k, items[k]) {
+							return
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
+// BenchmarkPop deletes the last element of a stored Slice, the cheapest delete, for an element type
+// with pointers and one without.
+func BenchmarkPop(b *testing.B) {
+	const n = 256
+
+	items := benchSlice(n)
+	ints := immutable.Collect(func(yield func(int64) bool) {
+		for i := range int64(n) {
+			if !yield(i) {
+				return
+			}
+		}
+	})
+
+	var sinkInts immutable.Slice[int64]
+
+	b.Run("Item", func(b *testing.B) {
+		for b.Loop() {
+			s := items
+			s.Delete(n-1, n)
+			sinkSlice = s
+		}
+	})
+	b.Run("Int", func(b *testing.B) {
+		for b.Loop() {
+			s := ints
+			s.Delete(n-1, n)
+			sinkInts = s
+		}
+	})
+
+	_ = sinkInts
 }
 
 // BenchmarkSlice starts every iteration from the stored Slice, as a system starts from the value Get

@@ -7,6 +7,7 @@ import (
 	"math/rand/v2"
 	"reflect"
 	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/argus-labs/world-engine/pkg/testutils"
@@ -16,20 +17,40 @@ import (
 // The layout of a Slice or Map must depend only on its contents, so that reflect.DeepEqual, and with
 // it testify's Equal, compares them by contents. These tests edit large values at random and check
 // after every edit that the result is DeepEqual to the same contents built in one go, and that earlier
-// copies are unchanged.
+// copies are unchanged. Each runs with ints, which Slice and Map pack into shared arrays, and with
+// strings, which hold pointers, so each chunk gets an array of its own.
+
+// asString and fromString carry the tests' integer values as strings.
+func asString(v int) string { return strconv.Itoa(v) }
+
+func fromString(v string) int {
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		panic(err)
+	}
+
+	return n
+}
+
+func identity(v int) int { return v }
 
 func TestSlice_LayoutDependsOnlyOnContents(t *testing.T) {
 	t.Parallel()
+	t.Run("int", func(t *testing.T) { t.Parallel(); testSliceLayout(t, identity, identity) })
+	t.Run("string", func(t *testing.T) { t.Parallel(); testSliceLayout(t, asString, fromString) })
+}
+
+func testSliceLayout[T comparable](t *testing.T, wrap func(int) T, unwrap func(T) int) {
 	r := testutils.NewRand(t)
 
 	var (
-		s     Slice[int]
-		model []int
+		s     Slice[T]
+		model []T
 	)
 
 	type saved struct {
-		s     Slice[int]
-		items []int
+		s     Slice[T]
+		items []T
 	}
 
 	var copies []saved
@@ -39,18 +60,18 @@ func TestSlice_LayoutDependsOnlyOnContents(t *testing.T) {
 		case op < 4:
 			n := r.IntN(80)
 			for range n {
-				v := r.Int()
+				v := wrap(r.Int())
 				s.Append(v)
 				model = append(model, v)
 			}
 		case op < 6 && len(model) > 0:
-			i, v := r.IntN(len(model)), r.Int()
+			i, v := r.IntN(len(model)), wrap(r.Int())
 			s.Set(i, v)
 			model[i] = v
 		case op == 6:
 			i := r.IntN(len(model) + 1)
-			s.Insert(i, step, step)
-			model = slices.Insert(model, i, step, step)
+			s.Insert(i, wrap(step), wrap(step))
+			model = slices.Insert(model, i, wrap(step), wrap(step))
 		case op == 7 && len(model) > 0:
 			i := r.IntN(len(model))
 			j := i + r.IntN(min(40, len(model)-i)+1)
@@ -59,13 +80,13 @@ func TestSlice_LayoutDependsOnlyOnContents(t *testing.T) {
 		case op == 8:
 			mod := 2 + r.IntN(30)
 
-			s.DeleteFunc(func(v int) bool { return v%mod == 0 })
-			model = slices.DeleteFunc(model, func(v int) bool { return v%mod == 0 })
+			s.DeleteFunc(func(v T) bool { return unwrap(v)%mod == 0 })
+			model = slices.DeleteFunc(model, func(v T) bool { return unwrap(v)%mod == 0 })
 		case op == 9:
-			s.UpdateFunc(func(i, v int) int { return v ^ i })
+			s.UpdateFunc(func(i int, v T) T { return wrap(unwrap(v) ^ i) })
 
 			for i := range model {
-				model[i] ^= i
+				model[i] = wrap(unwrap(model[i]) ^ i)
 			}
 		case r.IntN(50) == 0:
 			s.Reset()
@@ -81,17 +102,17 @@ func TestSlice_LayoutDependsOnlyOnContents(t *testing.T) {
 			require.Equal(t, model[i], s.At(i), "step %d", step)
 			j := i + r.IntN(min(100, len(model)-i)+1)
 
-			var got []int
+			var got []T
 			for x, v := range s.Range(i, j) {
 				require.Equal(t, i+len(got), x, "step %d: Range index", step)
 				got = append(got, v)
 			}
 
-			require.Equal(t, model[i:j], append([]int{}, got...), "step %d: Range(%d, %d)", step, i, j)
+			require.Equal(t, model[i:j], append([]T{}, got...), "step %d: Range(%d, %d)", step, i, j)
 		}
 
 		if r.IntN(50) == 0 {
-			var back []int
+			var back []T
 			for _, v := range s.Backward() {
 				back = append(back, v)
 			}
@@ -116,15 +137,75 @@ func TestSlice_LayoutDependsOnlyOnContents(t *testing.T) {
 	}
 }
 
+// Every way of building a Slice must give the layout appending gives. Strings hold pointers, so most
+// of these take the paths that copy into a leaf per chunk; ints take the packed ones.
+func TestSlice_BuildsAgreeOnLayout(t *testing.T) {
+	t.Parallel()
+	t.Run("int", func(t *testing.T) { t.Parallel(); testBuildsAgree(t, identity) })
+	t.Run("string", func(t *testing.T) { t.Parallel(); testBuildsAgree(t, asString) })
+}
+
+func testBuildsAgree[T comparable](t *testing.T, wrap func(int) T) {
+	for _, n := range []int{1, 31, 32, 33, 63, 64, 65, 1024, 1025} {
+		items := make([]T, n)
+		for i := range items {
+			items[i] = wrap(i)
+		}
+
+		var want Slice[T]
+		for _, v := range items {
+			want.Append(v)
+		}
+
+		mid := n / 2
+		extra := wrap(-1)
+		withExtra := slices.Insert(slices.Clone(items), mid, extra)
+
+		inserted := SliceOf(slices.Delete(slices.Clone(items), mid, mid+1)...)
+		inserted.Insert(mid, items[mid])
+
+		deleted := SliceOf(withExtra...)
+		deleted.Delete(mid, mid+1)
+
+		filtered := SliceOf(withExtra...)
+		filtered.DeleteFunc(func(v T) bool { return v == extra })
+
+		updated := SliceOf(make([]T, n)...)
+		updated.UpdateFunc(func(i int, _ T) T { return items[i] })
+
+		builds := []struct {
+			name string
+			s    Slice[T]
+		}{
+			{"SliceOf", SliceOf(items...)},
+			{"Collect", Collect(slices.Values(items))},
+			{"fromItems", fromItems(slices.Clone(items))},
+			{"Insert", inserted},
+			{"Delete", deleted},
+			{"DeleteFunc", filtered},
+			{"UpdateFunc", updated},
+		}
+		for _, b := range builds {
+			require.True(t, reflect.DeepEqual(want, b.s), "%s of %d: layout differs", b.name, n)
+			require.True(t, Equal(want, b.s), "%s of %d: Equal", b.name, n)
+		}
+	}
+}
+
 // TestSlice_PopKeepsLayout deletes from the end one element at a time, and in runs that start inside
 // the last leaf, through every tail and leaf boundary.
 func TestSlice_PopKeepsLayout(t *testing.T) {
 	t.Parallel()
+	t.Run("int", func(t *testing.T) { t.Parallel(); testPopLayout(t, identity) })
+	t.Run("string", func(t *testing.T) { t.Parallel(); testPopLayout(t, asString) })
+}
+
+func testPopLayout[T any](t *testing.T, wrap func(int) T) {
 	r := testutils.NewRand(t)
 
-	items := make([]int, 3*chunkSize*chunkSize+5)
+	items := make([]T, 3*chunkSize*chunkSize+5)
 	for i := range items {
-		items[i] = i
+		items[i] = wrap(i)
 	}
 
 	s := fromItems(slices.Clone(items))
@@ -145,26 +226,35 @@ func TestSlice_PopKeepsLayout(t *testing.T) {
 
 func TestMap_LayoutDependsOnlyOnContents(t *testing.T) {
 	t.Parallel()
+	// The string run is shorter: its edits take the same index paths, and only its chunks are copied
+	// differently, so it needs less of the index's depth to cover them.
+	t.Run("int", func(t *testing.T) { t.Parallel(); testMapLayout(t, 2500, 3, identity, identity) })
+	t.Run("string", func(t *testing.T) { t.Parallel(); testMapLayout(t, 600, 2, asString, fromString) })
+}
+
+// testMapLayout edits a Map at random for the given number of steps and requires the index to have
+// reached minPeak levels.
+func testMapLayout[V comparable](t *testing.T, steps, minPeak int, wrap func(int) V, unwrap func(V) int) {
 	r := testutils.NewRand(t)
 
-	var m Map[int, int]
+	var m Map[int, V]
 
-	model := map[int]int{}
+	model := map[int]V{}
 
 	type saved struct {
-		m     Map[int, int]
-		model map[int]int
+		m     Map[int, V]
+		model map[int]V
 	}
 
 	var copies []saved
 
 	keySpace, peak := 20000, 0 // up to about 600 chunks, three levels of index
 
-	for step := range 2500 {
+	for step := range steps {
 		switch op := r.IntN(11); {
 		case op < 5:
 			for range r.IntN(60) {
-				k, v := r.IntN(keySpace), r.Int()
+				k, v := r.IntN(keySpace), wrap(r.Int())
 				m.Set(k, v)
 				model[k] = v
 			}
@@ -176,14 +266,14 @@ func TestMap_LayoutDependsOnlyOnContents(t *testing.T) {
 			}
 		case op == 8:
 			mod := 50 + r.IntN(200)
-			del := func(k, _ int) bool { return k%mod == 0 }
+			del := func(k int, _ V) bool { return k%mod == 0 }
 			m.DeleteFunc(del)
 			maps.DeleteFunc(model, del)
 		case op == 9:
-			m.UpdateFunc(func(k, v int) int { return v ^ k })
+			m.UpdateFunc(func(k int, v V) V { return wrap(unwrap(v) ^ k) })
 
 			for k, v := range model {
-				model[k] = v ^ k
+				model[k] = wrap(unwrap(v) ^ k)
 			}
 		case r.IntN(100) == 0:
 			m.Clear()
@@ -210,7 +300,7 @@ func TestMap_LayoutDependsOnlyOnContents(t *testing.T) {
 		}
 	}
 
-	require.GreaterOrEqual(t, peak, 3, "the test reached a Map with an index of three levels")
+	require.GreaterOrEqual(t, peak, minPeak, "the test reached a Map with an index of %d levels", minPeak)
 
 	// Empty the Map one key at a time, so the index loses levels and its root shrinks to one child.
 	keys := slices.Collect(maps.Keys(model))
@@ -353,7 +443,7 @@ func TestMap_EqualFuncWalksTheIndex(t *testing.T) {
 
 // requireKeyOrderReads checks MaxKey, and Range over a random window and over windows at the ends,
 // against the model.
-func requireKeyOrderReads(t *testing.T, r *rand.Rand, m Map[int, int], model map[int]int, msg string) {
+func requireKeyOrderReads[V any](t *testing.T, r *rand.Rand, m Map[int, V], model map[int]V, msg string) {
 	t.Helper()
 
 	keys := slices.Sorted(maps.Keys(model))

@@ -36,6 +36,26 @@ type vnode[T any] struct {
 // leafNode wraps items, which must hold exactly chunkSize elements and never be written again.
 func leafNode[T any](items []T) *vnode[T] { return &vnode[T]{items: items} }
 
+// newLeaf returns a leaf of zero values. The node and its array are one allocation, which the leaf
+// alone holds.
+func newLeaf[T any]() *vnode[T] {
+	l := new(struct {
+		node vnode[T]
+		arr  [chunkSize]T
+	})
+	l.node.items = l.arr[:]
+
+	return &l.node
+}
+
+// copyLeaf returns a new leaf holding a copy of items, which must hold exactly chunkSize elements.
+func copyLeaf[T any](items []T) *vnode[T] {
+	l := newLeaf[T]()
+	copy(l.items, items)
+
+	return l
+}
+
 // branchNode returns a branch holding kids. The node and its kid array are one allocation.
 func branchNode[T any](kids ...*vnode[T]) *vnode[T] {
 	b := new(struct {
@@ -63,15 +83,10 @@ func (s Slice[T]) leafAt(i int) []T {
 // setInTree returns a copy of node with index i set to v, copying only the path to it.
 func setInTree[T any](node *vnode[T], shift uint, i int, v T) *vnode[T] {
 	if shift == 0 {
-		l := new(struct {
-			node vnode[T]
-			arr  [chunkSize]T
-		})
-		l.arr = [chunkSize]T(node.items)
-		l.arr[i&chunkMask] = v
-		l.node.items = l.arr[:]
+		l := copyLeaf(node.items)
+		l.items[i&chunkMask] = v
 
-		return &l.node
+		return l
 	}
 
 	b := branchNode(node.kids...)
@@ -162,9 +177,16 @@ func pushInto[T any](node *vnode[T], shift uint, at int, leaf *vnode[T]) *vnode[
 }
 
 // fromItems returns the Slice holding items, taking ownership of the array: neither the caller nor
-// anything else may write to it again. Leaves and the tail are windows onto it, so building costs
-// one node per 32 elements and no copying.
+// anything else may write to it again. When the Slice fits in its tail, or T holds no pointers, the
+// leaves and the tail are windows onto the array, so building costs one node per 32 elements and no
+// copying. Otherwise each gets an array of its own, as copyItems builds them: windows would keep the
+// whole array alive while any one of them is, and with it every value an edit has since replaced in
+// the others. pointers.go explains why that matters only for pointers.
 func fromItems[T any](items []T) Slice[T] {
+	if !packs[T](len(items)) {
+		return copyItems(items)
+	}
+
 	n := len(items)
 	if n == 0 {
 		return Slice[T]{}
@@ -174,13 +196,109 @@ func fromItems[T any](items []T) Slice[T] {
 	s := Slice[T]{tail: items[n-tailLen : n : n], n: n}
 
 	treeLen := n - tailLen
-	if treeLen == 0 {
-		return s
+
+	leaves := make([]*vnode[T], 0, treeLen/chunkSize)
+	for i := 0; i < treeLen; i += chunkSize {
+		leaves = append(leaves, leafNode(items[i:i+chunkSize:i+chunkSize]))
 	}
 
-	level := make([]*vnode[T], 0, treeLen/chunkSize)
-	for i := 0; i < treeLen; i += chunkSize {
-		level = append(level, leafNode(items[i:i+chunkSize:i+chunkSize]))
+	s.setLeaves(leaves)
+
+	return s
+}
+
+// packs reports whether fromItems keeps a Slice of n elements as windows onto one array.
+func packs[T any](n int) bool { return n <= chunkSize || !holdsPointers[T]() }
+
+// copyItems returns the Slice holding a copy of items, each leaf and the tail in an array of its
+// own, so it holds no reference to items.
+func copyItems[T any](items []T) Slice[T] {
+	c := newCopier[T](len(items))
+	c.pushAll(items)
+
+	return c.slice()
+}
+
+// A copier builds a Slice from elements pushed in order, copying them straight into leaves of their
+// own. Collect and the rebuilding edits Insert, Delete, DeleteFunc and UpdateFunc use it for the
+// Slices fromItems would not pack, so that they copy each element once rather than into one array
+// first and then out of it. The sorts, Reverse and the decoders need the elements in one array, so
+// they fill one and fromItems copies it into leaves.
+type copier[T any] struct {
+	leaves []*vnode[T]
+	open   *vnode[T] // the chunk being filled; nil before the first element
+	fill   int       // the elements in open
+}
+
+// newCopier returns a copier with room for the leaves of a Slice of about n elements.
+func newCopier[T any](n int) copier[T] {
+	return copier[T]{leaves: make([]*vnode[T], 0, max(n-1, 0)/chunkSize)}
+}
+
+func (c *copier[T]) push(v T) {
+	if c.open == nil || c.fill == chunkSize {
+		c.next()
+	}
+
+	c.open.items[c.fill] = v
+	c.fill++
+}
+
+func (c *copier[T]) pushAll(items []T) {
+	for len(items) > 0 {
+		if c.open == nil || c.fill == chunkSize {
+			c.next()
+		}
+
+		k := copy(c.open.items[c.fill:], items)
+		c.fill += k
+		items = items[k:]
+	}
+}
+
+// pushRange pushes the elements of s in [i, j).
+func (c *copier[T]) pushRange(s Slice[T], i, j int) {
+	off := 0
+	for chunk := range s.chunks() {
+		if off >= j {
+			return
+		}
+
+		if lo, hi := max(i-off, 0), min(j-off, len(chunk)); lo < hi {
+			c.pushAll(chunk[lo:hi])
+		}
+
+		off += len(chunk)
+	}
+}
+
+// next starts a new chunk. A full chunk becomes a leaf only once another element follows it: the
+// last chunk, full or not, is the tail.
+func (c *copier[T]) next() {
+	if c.open != nil {
+		c.leaves = append(c.leaves, c.open)
+	}
+
+	c.open, c.fill = newLeaf[T](), 0
+}
+
+// slice returns the Slice holding every element pushed. The tail is a window onto its own leaf.
+func (c *copier[T]) slice() Slice[T] {
+	if c.open == nil {
+		return Slice[T]{}
+	}
+
+	s := Slice[T]{tail: c.open.items[:c.fill:c.fill], n: len(c.leaves)*chunkSize + c.fill}
+	s.setLeaves(c.leaves)
+
+	return s
+}
+
+// setLeaves builds the tree over leaves, the Slice's full chunks in order, as the shortest tree
+// filled from the left.
+func (s *Slice[T]) setLeaves(level []*vnode[T]) {
+	if len(level) == 0 {
+		return
 	}
 
 	for len(level) > 1 {
@@ -194,8 +312,17 @@ func fromItems[T any](items []T) Slice[T] {
 	}
 
 	s.root = level[0]
+}
 
-	return s
+// detach returns part, a view of an array whose other elements an edit is retiring. When T holds
+// pointers it returns a copy instead, so that the retired elements are not kept alive with part.
+// It never clears them: other values may share the array.
+func detach[T any](part []T) []T {
+	if holdsPointers[T]() {
+		return slices.Clone(part)
+	}
+
+	return part
 }
 
 // chunks yields the elements in order, one chunk at a time. The chunks must not be written.

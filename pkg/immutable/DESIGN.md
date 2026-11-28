@@ -67,6 +67,8 @@ copying, the structure behind Clojure's and Scala's vectors. Code: [vector.go](v
 - **Delete from the end**: shorten the tail, or move the last leaf into the tail, when the deleted
   run starts in the tail or the last leaf.
 - **Delete from the front of a Slice of up to 32 elements**: take a shorter view of the tail.
+  Both deletes copy what stays instead when the element type holds pointers; see
+  [Retired storage](#retired-storage).
 - **Range(lo, hi)**: go down to the leaf holding `lo` once, then read leaf by leaf: O(log₃₂ n + k).
 - **Any other insert or delete, sorts**: rebuild. Removing element `i` shifts every later element down
   one position, so every leaf after `i` holds different elements. This is the trie's one weakness:
@@ -111,8 +113,9 @@ Code: [map.go](map.go) for the chunks, [mapindex.go](mapindex.go) for the index.
 - **MaxKey**: follow the last child at every level. O(log n).
 - **Range(lo, hi)**: go down to the chunk holding `lo` once, then step to each next chunk through
   the path: O(log n + k).
-- **UpdateFunc**: no key changes, so no boundary moves. It copies every chunk into one new array and
-  every index node with the same keys: one pass, no hashing or re-cutting.
+- **UpdateFunc**: no key changes, so no boundary moves. It copies every chunk into one new array, or
+  each into its own when entries hold pointers, and every index node with the same keys: one pass,
+  no hashing or re-cutting.
 
 **Why sorted.** Iteration and encoding must run in key order so every machine produces the same order
 and bytes. A sorted layout gives that directly, and lets `MapEqual` walk two Maps in one pass.
@@ -188,7 +191,29 @@ brings back a second API with an end call.
 What the package does instead is bulk edits that rebuild once: `DeleteFunc` and `UpdateFunc` touch
 every element in one pass, where a loop of `Set` or `Delete` calls copies a path per element. Slice
 `UpdateFunc` allocates one array and about one node per 32 elements; Map `UpdateFunc` allocates one
-entries array and one per index node.
+entries array and one per index node. For element types that hold pointers, each chunk gets an array of
+its own instead, as the next section explains.
+
+## Retired storage
+
+Shared storage is never written, so an edit cannot clear the part of an array it retires: a copy may
+still read it. Whatever that part holds stays reachable as long as anything holds the array. For a
+type without pointers that costs only the array's own bytes, at most what the value was built with.
+A string, nested Slice or Map, or `time.Time` also keeps what it points at alive, however large. So,
+only for element types that hold pointers ([pointers.go](pointers.go)):
+
+- A Delete that would keep a shorter view of the tail or the last leaf copies the elements that stay.
+- A bulk build (`SliceOf`, `Collect`, decoding, and the rebuilding edits: Insert, Delete, sorts,
+  Slice `UpdateFunc`; for a Map, `MapFrom`, decoding, `DeleteFunc`, `UpdateFunc`, and an edit whose
+  chunk splits) gives each chunk an array of its own. Windows onto one array would keep all of it
+  alive while any chunk lives, with the values later edits replaced in the others.
+
+That costs a copy of up to 32 elements per such Delete. A Slice built in bulk allocates one leaf per
+32 elements either way; unpacked, each leaf holds its elements. `Collect`, Insert, Delete,
+`DeleteFunc` and `UpdateFunc` copy straight into the leaves; `SliceOf` copies the caller's elements
+into them once; the sorts, `Reverse` and decoding fill one array and then copy it into leaves. A Map
+built in bulk allocates an array per chunk, about n/32, where packed it makes one for all, and its
+rebuilds fill one array first and then copy each chunk out of it.
 
 ## Which functions exist
 
