@@ -98,12 +98,9 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 				buildErr = eris.Wrap(buildErr, "initial shard build")
 			}
 
-			if platformErr != nil || buildErr != nil {
-				// They ran concurrently, so report both: the Build box only says "see error below".
-				return errorspkg.JoinFailures(platformErr, buildErr)
-			}
-			// The platform is up. Until the run commits to the log picker, a failure stops it
-			// again, so a failed start does not leave NATS, Postgres and services holding ports.
+			// The platform may be up, even partly. Until the run commits to the log picker, a
+			// failure stops it again, so a failed start does not leave NATS, Postgres and
+			// services holding ports.
 			committed := false
 			defer func() {
 				if committed {
@@ -120,6 +117,10 @@ func (c *StartCmd) run(ctx context.Context, cwd string) error {
 				}
 			}()
 
+			if platformErr != nil || buildErr != nil {
+				// They ran concurrently, so report both: the Build box only says "see error below".
+				return errorspkg.JoinFailures(platformErr, buildErr)
+			}
 			// Instances that never answered are not a reason to stop: the picker below is
 			// where their crash is read, and stopping would take `world logs` down with it.
 			var notReady *shardsNotReadyError
