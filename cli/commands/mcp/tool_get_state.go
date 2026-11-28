@@ -184,7 +184,13 @@ func compileStateFilter(args GetStateInput) (stateFilter, error) {
 		// Compiled as a bool expression, same as the engine's search filter. The
 		// component types aren't known until an entity is in hand, so a non-bool
 		// result can still slip through to evaluation time.
-		program, err := expr.Compile(args.Where, expr.AsBool())
+		if _, err := expr.Compile(args.Where, expr.AsBool()); err != nil {
+			return stateFilter{}, eris.Wrap(err, "failed to parse where clause")
+		}
+
+		// The overloads take operands of any type, so they're compiled in only after the plain
+		// check above has rejected mismatches such as '1 < "a"'.
+		program, err := expr.Compile(args.Where, append(exactIntOperators(), expr.AsBool())...)
 		if err != nil {
 			return stateFilter{}, eris.Wrap(err, "failed to parse where clause")
 		}
