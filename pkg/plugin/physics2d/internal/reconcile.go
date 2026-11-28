@@ -369,10 +369,17 @@ func (rt *Runtime) applyMutableShapeFixtures(
 		if prevShape.Density != sh.Density {
 			densityTouched = true
 		}
-		// Chain slots hold a null ShapeID and are skipped, matching the CGO bridge
-		// (its per-shape setters could not resolve chain shape indices either).
-		if i >= len(slots) || slots[i].IsNull() {
+		// Chain slots hold a null ShapeID; the chain owns its segment shapes.
+		if isChainShape(sh.ShapeType) {
+			if err := rt.applyMutableChainFixtures(entityID, live, i); err != nil {
+				return err
+			}
+
 			continue
+		}
+
+		if i >= len(slots) || slots[i].IsNull() {
+			return fmt.Errorf("physics2d: shapes[%d]: no shape tracked for slot", i)
 		}
 
 		sid := slots[i]
@@ -393,4 +400,54 @@ func (rt *Runtime) applyMutableShapeFixtures(
 	}
 
 	return nil
+}
+
+// applyMutableChainFixtures sets the friction, restitution, and filter of chain-type slot on
+// every segment of the chain built for it, with the material built the way attachShape builds
+// it. Density is skipped: chain segments carry no mass.
+func (rt *Runtime) applyMutableChainFixtures(entityID cardinal.EntityID, live ShapeSlice, slot int) error {
+	// AttachColliderFixtures creates fixtures in slot order, so the k-th chain-type slot owns
+	// the k-th chain.
+	k := 0
+
+	for i, sh := range live.All() {
+		if i == slot {
+			break
+		}
+
+		if isChainShape(sh.ShapeType) {
+			k++
+		}
+	}
+
+	chains := rt.Chains[entityID]
+	if k >= len(chains) {
+		return fmt.Errorf("physics2d: shapes[%d]: no chain tracked for chain slot", slot)
+	}
+
+	chainID := chains[k]
+	sh := live.At(slot)
+
+	material := box2d.DefaultSurfaceMaterial()
+	material.Friction = sh.Friction
+	material.Restitution = sh.Restitution
+	rt.World.SetChainSurfaceMaterial(chainID, material, 0)
+
+	filter := box2d.Filter{
+		CategoryBits: sh.CategoryBits,
+		MaskBits:     sh.MaskBits,
+		GroupIndex:   int(sh.GroupIndex),
+	}
+
+	segments := make([]box2d.ShapeID, rt.World.ChainSegmentCount(chainID))
+	for _, sid := range segments[:rt.World.ChainSegments(chainID, segments)] {
+		rt.World.SetShapeFilter(sid, filter)
+	}
+
+	return nil
+}
+
+// isChainShape reports collider shape types built as a Box2D chain rather than a single shape.
+func isChainShape(t component.ShapeType) bool {
+	return t == component.ShapeTypeStaticChain || t == component.ShapeTypeStaticChainLoop
 }

@@ -247,8 +247,8 @@ func (rt *Runtime) attachShape(
 		def.Filter.GroupIndex = int(sh.GroupIndex)
 		chainID := rt.World.CreateChain(bodyID, &def)
 		rt.Chains[entityID] = append(rt.Chains[entityID], chainID)
-		// Chain slots keep a null ShapeID: mutable per-shape setters skip them, matching
-		// the CGO bridge (chains were not registered in its shapes[] array either).
+		// Chain slots keep a null ShapeID, matching the CGO bridge (chains were not registered
+		// in its shapes[] array either). In-place edits reach the segments through Chains.
 		rt.registerShape(entityID, shapeIndex, box2d.ShapeID{})
 
 	case component.ShapeTypeEdge:
