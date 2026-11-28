@@ -300,6 +300,62 @@ func TestRegisterKeepsCustomFloat32Decoder(t *testing.T) {
 	require.ErrorContains(t, schema.Deserialize(data, &got), "negative percent")
 }
 
+type kilograms float64
+
+type unsignedFloatPayload struct {
+	Single float32
+	Double float64
+	Named  kilograms
+	Ptr    *float64
+	List   []float64
+	Frozen immutable.Slice[float64]
+	Table  immutable.Map[string, float64]
+}
+
+func (unsignedFloatPayload) Name() string { return "unsigned_float_payload" }
+
+// msgpack on its own reads an integer into a float through int64, so a uint64 above
+// [math.MaxInt64] came out negative.
+func TestDeserializeKeepsLargeUnsignedIntegersPositiveInFloats(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		wire any
+		want float64
+	}{
+		{uint64(1 << 63), 1 << 63},
+		{uint64(math.MaxUint64), math.MaxUint64},
+		{uint64(42), 42},
+		{int64(math.MinInt64), math.MinInt64},
+		{float64(1 << 63), 1 << 63},
+	} {
+		data, err := msgpack.Marshal(map[string]any{
+			"Single": tc.wire,
+			"Double": tc.wire,
+			"Named":  tc.wire,
+			"Ptr":    tc.wire,
+			"List":   []any{tc.wire},
+			"Frozen": []any{tc.wire},
+			"Table":  map[string]any{"x": tc.wire},
+		})
+		require.NoError(t, err)
+
+		var got unsignedFloatPayload
+		require.NoError(t, schema.Deserialize(data, &got), "%T(%v)", tc.wire, tc.wire)
+
+		ptr := tc.want
+		assert.Equal(t, unsignedFloatPayload{
+			Single: float32(tc.want),
+			Double: tc.want,
+			Named:  kilograms(tc.want),
+			Ptr:    &ptr,
+			List:   []float64{tc.want},
+			Frozen: immutable.SliceOf(tc.want),
+			Table:  immutable.MapFrom(maps.All(map[string]float64{"x": tc.want})),
+		}, got, "%T(%v)", tc.wire, tc.wire)
+	}
+}
+
 type level uint8
 
 type intPayload struct {

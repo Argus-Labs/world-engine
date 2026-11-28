@@ -158,8 +158,8 @@ func prepare(t reflect.Type) {
 	}
 }
 
-// registerTypes gives every float32 type in t, including named ones such as `type Meters float32`,
-// the decoder decodeFloat32, every integer type the decoder decodeInteger, and every map type the
+// registerTypes gives every float type in t, including named ones such as `type Meters float32`,
+// the decoder decodeFloat, every integer type the decoder decodeInteger, and every map type the
 // encoder encodeSortedMap. msgpack matches registered codecs by exact type, so each named type needs
 // its own registration. It walks unexported fields too, to reach the element types of an
 // immutable.Slice or immutable.Map. A type with its own codec keeps it, since a registered one would
@@ -171,9 +171,9 @@ func registerTypes(t reflect.Type, seen map[reflect.Type]bool) {
 
 	seen[t] = true
 	switch t.Kind() { //nolint:exhaustive // Other kinds hold no number or map.
-	case reflect.Float32:
+	case reflect.Float32, reflect.Float64:
 		if !DecodesItself(t) {
-			msgpack.Register(reflect.Zero(t).Interface(), nil, decodeFloat32)
+			msgpack.Register(reflect.Zero(t).Interface(), nil, decodeFloat)
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
@@ -298,16 +298,34 @@ func EncodesOnlyByPointer(t reflect.Type) bool {
 	return t.Kind() != reflect.Pointer && !EncodesItself(t) && EncodesItself(reflect.PointerTo(t))
 }
 
-// decodeFloat32 accepts any MessagePack number into a float32. Clients without a 32-bit float, such
-// as the MCP tools feeding JSON numbers or C# models using double, send 64-bit floats, which msgpack
-// rejects for float32 on its own. Values outside float32 range are rejected rather than becoming Inf.
-func decodeFloat32(d *msgpack.Decoder, v reflect.Value) error {
+// decodeFloat accepts any MessagePack number into a float32 or float64. Clients without a 32-bit
+// float, such as the MCP tools feeding JSON numbers or C# models using double, send 64-bit floats,
+// which msgpack rejects for float32 on its own. msgpack also reads integers through int64, so a
+// uint64 above [math.MaxInt64] would turn negative. Values outside float32 range are rejected rather
+// than becoming Inf.
+func decodeFloat(d *msgpack.Decoder, v reflect.Value) error {
+	c, err := d.PeekCode()
+	if err != nil {
+		return err
+	}
+
+	if c == msgpcode.Uint64 { // the only integer encoding that can exceed math.MaxInt64
+		n, err := d.DecodeUint64()
+		if err != nil {
+			return err
+		}
+
+		v.SetFloat(float64(n)) // at most about 1.8e19, well within float32 range
+
+		return nil
+	}
+
 	f, err := d.DecodeFloat64()
 	if err != nil {
 		return err
 	}
 
-	if math.Abs(f) > math.MaxFloat32 && !math.IsInf(f, 0) {
+	if v.OverflowFloat(f) { // only a float32 can overflow; Inf and NaN pass through
 		return eris.Errorf("%v overflows float32", f)
 	}
 
