@@ -102,9 +102,9 @@ type (
 type Config struct {
 	// Gravity is applied to the Box2D world (world gravity vector).
 	Gravity Vec2
-	// TickRate is simulation steps per second: each Cardinal tick steps the physics world by 1/TickRate.
-	// Match cardinal.WorldOptions.TickRate so simulated time advances one tick of wall-clock intent per tick.
-	// Zero or negative defaults to 60 (same as historical FixedDT 1/60).
+	// TickRate is simulation steps per second for a world without a tick rate (cardinal.TestWorld,
+	// RunDST): each tick then steps the physics world by 1/TickRate. Otherwise each tick steps by
+	// 1/World.TickRate, so the deployed tick rate wins. Zero or negative defaults to 60.
 	TickRate float64
 	// SubStepCount is the number of sub-steps per physics step. Zero defaults to 4.
 	SubStepCount int
@@ -148,7 +148,13 @@ func (p *Plugin) Register(w *cardinal.World) {
 			"create a separate plugin instance per world"))
 	}
 
-	tickRate := p.config.TickRate
+	// Step by the world's rate, which a deployment's tick_rate can change after compile time, so
+	// bodies move the same distance per second at any deployed rate.
+	tickRate := w.TickRate()
+	if tickRate <= 0 {
+		tickRate = p.config.TickRate
+	}
+
 	if tickRate <= 0 {
 		tickRate = 60
 	}

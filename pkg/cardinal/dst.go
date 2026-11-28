@@ -207,6 +207,10 @@ func newDSTFixture(t *testing.T, cfg dstConfig, setup DSTSetupFunc) *dstFixture 
 	})
 	require.NoError(t, err)
 
+	// The DST clock is synthetic, so report no tick rate, as a TestWorld does. Plugins that pace
+	// themselves by World.TickRate, such as physics2d, then use their own default.
+	w.options.TickRate = 0
+
 	// Register the user's components, commands, events, and systems.
 	setup(w)
 
