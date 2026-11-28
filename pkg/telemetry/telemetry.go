@@ -145,8 +145,11 @@ func (t *Telemetry) Shutdown(ctx context.Context) error {
 		outErr = errors.Join(outErr, eris.Wrap(err, "otel shutdown"))
 	}
 
-	if err := t.posthog.Shutdown(); err != nil {
-		t.CaptureException(ctx, err)
+	if err := t.posthog.Shutdown(ctx); err != nil {
+		if !onlyContextSentinels(err) {
+			t.CaptureException(ctx, err)
+		}
+
 		outErr = errors.Join(outErr, eris.Wrap(err, "posthog shutdown"))
 	}
 

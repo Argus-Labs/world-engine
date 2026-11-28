@@ -75,13 +75,14 @@ func (c *Client) Capture(ctx context.Context, event string, properties map[strin
 	})
 }
 
-// Shutdown closes the client and flushes queued events. When disabled, it is a no-op.
-func (c *Client) Shutdown() error {
+// Shutdown closes the client and flushes queued events until ctx ends, then drops whatever is
+// still unsent. When disabled, it is a no-op.
+func (c *Client) Shutdown(ctx context.Context) error {
 	if !c.isInitialized() {
 		return nil
 	}
 
-	return c.client.Close()
+	return c.client.CloseWithContext(ctx)
 }
 
 func (c *Client) isInitialized() bool {
