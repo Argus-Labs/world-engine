@@ -69,9 +69,12 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 
 	// Init NATS options with validated configuration.
 	// Reconnection strategy mirrors the NATS CLI: infinite retries with exponential backoff.
+	// Publishing while disconnected fails instead of buffering until the reconnect: a request's
+	// deadline cannot remove its buffered message, so a command the sender gave up on would still run.
 	natsOpts := []nats.Option{
 		nats.Name(c.natsConfig.Name),
 		nats.MaxReconnects(-1),
+		nats.ReconnectBufSize(-1),
 		nats.IgnoreAuthErrorAbort(),
 		nats.CustomReconnectDelay(reconnectDelay),
 		nats.DisconnectErrHandler(c.handleDisconnect),
@@ -110,7 +113,8 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 
 // Request sends a request to a subject and waits for a response (request-reply pattern).
 // The timeout should be set in ctx. A non-OK response status is returned as a gRPC status
-// error carrying the response's code, message, and details.
+// error carrying the response's code, message, and details. It fails at once while the client
+// is disconnected from NATS, and the request is not sent after the reconnect.
 func (c *Client) Request(
 	ctx context.Context,
 	address *ServiceAddress,
@@ -143,7 +147,7 @@ func (c *Client) Request(
 	reqMsg := &nats.Msg{Subject: Endpoint(address, endpoint), Data: reqBytes, Header: nats.Header{}}
 	otel.GetTextMapPropagator().Inject(ctx, headerCarrier(reqMsg.Header))
 
-	msg, err := c.RequestMsgWithContext(ctx, reqMsg)
+	msg, err := c.requestMsg(ctx, reqMsg)
 	if err != nil {
 		return nil, eris.Wrap(err, "failed to send request")
 	}
@@ -207,6 +211,17 @@ func (c *Client) Close() {
 		c.Conn.Close()
 		c.log.Info().Msg("NATS connection closed")
 	}
+}
+
+// requestMsg sends msg and waits for its reply, failing at once while the client is reconnecting.
+// Publishing would fail then anyway (see NewClient), but nats.go keeps the reply waiter of a request
+// whose publish failed, so every request sent during an outage would leak one.
+func (c *Client) requestMsg(ctx context.Context, msg *nats.Msg) (*nats.Msg, error) {
+	if ctx.Err() == nil && c.IsReconnecting() {
+		return nil, nats.ErrConnectionReconnecting
+	}
+
+	return c.RequestMsgWithContext(ctx, msg)
 }
 
 // handleDisconnect handles NATS disconnection events.

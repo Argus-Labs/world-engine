@@ -105,7 +105,8 @@ func ParseCommandSubject(subject string) (CommandRoute, error) {
 }
 
 // SendCommand sends a command and waits for the receiver to accept it. The timeout should be set in
-// ctx. A rejection is returned as a gRPC status error carrying the receiver's code.
+// ctx. A rejection is returned as a gRPC status error carrying the receiver's code. It fails at once
+// while the client is disconnected from NATS, and the command is not sent after the reconnect.
 func (c *Client) SendCommand(ctx context.Context, from, to *ServiceAddress, name string, payload []byte) error {
 	if !commandName.MatchString(name) {
 		return eris.Errorf("invalid command name %q", name)
@@ -115,7 +116,7 @@ func (c *Client) SendCommand(ctx context.Context, from, to *ServiceAddress, name
 	msg := &nats.Msg{Subject: route.Subject(), Data: payload, Header: nats.Header{}}
 	otel.GetTextMapPropagator().Inject(ctx, headerCarrier(msg.Header))
 
-	reply, err := c.RequestMsgWithContext(ctx, msg)
+	reply, err := c.requestMsg(ctx, msg)
 	if err != nil {
 		return eris.Wrap(err, "failed to send command")
 	}

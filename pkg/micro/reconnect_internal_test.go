@@ -1,10 +1,12 @@
 package micro
 
 import (
+	"context"
 	"net"
 	"testing"
 	"time"
 
+	"github.com/argus-labs/world-engine/pkg/telemetry"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats-server/v2/test"
 	"github.com/nats-io/nats.go"
@@ -125,4 +127,115 @@ func TestClient_ReconnectsAfterServerRestart(t *testing.T) {
 	}, 5*time.Second, 200*time.Millisecond, "request-reply should work after reconnect")
 
 	assert.Equal(t, "pong", string(reconnectedMsg.Data))
+}
+
+// -------------------------------------------------------------------------------------------------
+// Commands sent while disconnected
+// -------------------------------------------------------------------------------------------------
+// A command the sender gave up on while NATS was down must never reach the receiver after the
+// reconnect. One client sends and serves, so on reconnect its subscription is back before anything it
+// buffered is flushed: a buffered command would reach the handler ahead of the barrier command. The raw
+// case skips SendCommand's reconnect check, as a send racing the disconnect would, to show that the
+// client does not buffer it either.
+// -------------------------------------------------------------------------------------------------
+
+func TestSendCommand_WhileDisconnected(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name         string
+		disconnected bool // NATS is down when the command is sent
+		canceled     bool // ctx is canceled before the call
+		raw          bool // the command is sent with nats.go's own request
+	}{
+		{name: "connected command is delivered"},
+		{name: "command that expired while disconnected is never delivered", disconnected: true},
+		{name: "command canceled before the call is never delivered", disconnected: true, canceled: true},
+		{name: "raw command that expired while disconnected is never delivered", disconnected: true, raw: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			opts := &server.Options{
+				Host:                  "127.0.0.1",
+				Port:                  -1,
+				NoLog:                 true,
+				NoSigs:                true,
+				MaxControlLine:        4096,
+				DisableShortFirstPing: true,
+				StoreDir:              t.TempDir(),
+			}
+			srv := test.RunServer(opts)
+
+			t.Cleanup(func() { srv.Shutdown() })
+
+			client, err := NewClient(
+				WithNATSConfig(NATSConfig{Name: "disconnected-command-test", URL: srv.ClientURL()}),
+				WithLogger(zerolog.Nop()),
+			)
+			require.NoError(t, err)
+			t.Cleanup(client.Close)
+
+			svc, err := NewService(client, GetAddress("test", "receiver"), &telemetry.Telemetry{Logger: zerolog.Nop()})
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = svc.Close() })
+
+			received := make(chan string, 2)
+
+			require.NoError(t, svc.AddCommand("mutate", func(_ context.Context, cmd Command) error {
+				received <- string(cmd.Payload)
+				return nil
+			}))
+			require.NoError(t, client.Flush())
+
+			from := GetAddress("test", "sender")
+			port := srv.Addr().(*net.TCPAddr).Port
+
+			if tc.disconnected {
+				srv.Shutdown()
+				srv.WaitForShutdown()
+				require.Eventually(t, client.IsReconnecting, 5*time.Second, 10*time.Millisecond)
+			}
+
+			ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+			defer cancel()
+
+			if tc.canceled {
+				cancel()
+			}
+
+			if tc.raw {
+				route := CommandRoute{To: svc.Address, Name: "mutate", From: from}
+				_, err = client.RequestMsgWithContext(ctx, &nats.Msg{Subject: route.Subject(), Data: []byte("command")})
+			} else {
+				err = client.SendCommand(ctx, from, svc.Address, "mutate", []byte("command"))
+			}
+
+			if !tc.disconnected {
+				require.NoError(t, err)
+				assert.Equal(t, "command", <-received)
+
+				return
+			}
+
+			require.Error(t, err)
+
+			if tc.canceled {
+				require.ErrorIs(t, err, context.Canceled)
+			}
+
+			opts.Port = port
+			srv = test.RunServer(opts)
+
+			require.Eventually(t, client.IsConnected, 10*time.Second, 10*time.Millisecond)
+
+			// The barrier is acknowledged after its handler ran, so anything delivered before it is in
+			// received by now.
+			barrierCtx, barrierCancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer barrierCancel()
+
+			require.NoError(t, client.SendCommand(barrierCtx, from, svc.Address, "mutate", []byte("barrier")))
+			assert.Equal(t, "barrier", <-received, "a command the sender gave up on ran after the reconnect")
+		})
+	}
 }
