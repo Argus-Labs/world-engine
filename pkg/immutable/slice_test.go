@@ -420,6 +420,13 @@ func TestSlice_Allocations(t *testing.T) {
 	require.InDelta(t, 3, testing.AllocsPerRun(100, func() { d := big; d.Set(1000, 9) }), 0,
 		"Set in a 5000-element Slice: the chunk and the two nodes above it")
 	require.InDelta(t, 1, testing.AllocsPerRun(100, func() { d := big; d.Append(9) }), 0, "Append: the last chunk")
+	// Without pointers, the deletes that keep a shorter view of the tail or the last leaf copy nothing.
+	require.Zero(t, testing.AllocsPerRun(100, func() { d := s; d.Delete(0, 2) }), "Delete from the front of the tail")
+	require.Zero(t, testing.AllocsPerRun(100, func() { d := big; d.Delete(4999, 5000) }), "Delete from the end")
+
+	points := immutable.SliceOf(make([]point, 70)...)
+
+	require.Zero(t, testing.AllocsPerRun(100, func() { d := points; d.Delete(69, 70) }), "Delete in a Slice of structs")
 	require.LessOrEqual(t, testing.AllocsPerRun(20, func() {
 		d := big
 		d.UpdateFunc(func(_, v int) int { return v + 1 })

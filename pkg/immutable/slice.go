@@ -63,6 +63,10 @@ type Slice[T any] struct {
 // SliceOf returns a Slice holding a copy of items. Later changes to the caller's slice do not reach
 // the returned value.
 func SliceOf[T any](items ...T) Slice[T] {
+	if !packs[T](len(items)) {
+		return copyItems(items)
+	}
+
 	return fromItems(slices.Clone(items))
 }
 
@@ -309,6 +313,16 @@ func (s *Slice[T]) Insert(i int, items ...T) {
 		return
 	}
 
+	if !packs[T](s.n + len(items)) {
+		c := newCopier[T](s.n + len(items))
+		c.pushRange(*s, 0, i)
+		c.pushAll(items)
+		c.pushRange(*s, i, s.n)
+		*s = c.slice()
+
+		return
+	}
+
 	all := s.toItems(len(items))
 	*s = fromItems(slices.Insert(all, i, items...))
 }
@@ -325,20 +339,22 @@ func (s *Slice[T]) Delete(i, j int) {
 	}
 
 	if s.root == nil && i == 0 {
-		// Every element is in the tail, which stays canonical as a later view of the same array.
-		s.tail = s.tail[j:]
-
+		// Every element is in the tail, which stays canonical as a later view of the same array, or
+		// as a copy when detach makes one.
 		s.n -= j
 		if s.n == 0 {
 			s.tail = nil
+		} else {
+			s.tail = detach(s.tail[j:])
 		}
 
 		return
 	}
 
 	if off := s.treeLen(); j == s.n && i > off {
-		// Only the end of the tail goes, and some of it stays: a shorter view of the same tail.
-		s.tail = s.tail[: i-off : i-off]
+		// Only the end of the tail goes, and some of it stays: a shorter view of the same tail, or a
+		// copy of what stays.
+		s.tail = detach(s.tail[: i-off : i-off])
 		s.n = i
 
 		return
@@ -346,8 +362,17 @@ func (s *Slice[T]) Delete(i, j int) {
 
 	if off := s.treeLen(); j == s.n && s.root != nil && i > off-chunkSize {
 		// The tail goes and the cut lands in the last leaf, which becomes the tail.
-		s.tail = s.popLeaf()[: i-(off-chunkSize) : i-(off-chunkSize)]
+		s.tail = detach(s.popLeaf()[: i-(off-chunkSize) : i-(off-chunkSize)])
 		s.n = i
+
+		return
+	}
+
+	if !packs[T](s.n - (j - i)) {
+		c := newCopier[T](s.n - (j - i))
+		c.pushRange(*s, 0, i)
+		c.pushRange(*s, j, s.n)
+		*s = c.slice()
 
 		return
 	}
@@ -370,6 +395,11 @@ func (s *Slice[T]) Delete(i, j int) {
 
 // DeleteFunc removes every element for which del is true, keeping the rest in order.
 func (s *Slice[T]) DeleteFunc(del func(T) bool) {
+	if !packs[T](s.n - 1) {
+		s.copyDeleteFunc(del)
+		return
+	}
+
 	var kept []T
 
 	k := 0
@@ -397,8 +427,38 @@ func (s *Slice[T]) DeleteFunc(del func(T) bool) {
 	}
 }
 
+// copyDeleteFunc is DeleteFunc for a Slice whose result fromItems may not pack. It copies the kept
+// elements straight into leaves of their own.
+func (s *Slice[T]) copyDeleteFunc(del func(T) bool) {
+	var c copier[T]
+
+	k := 0
+	deleted := false
+
+	for chunk := range s.chunks() {
+		for _, v := range chunk {
+			switch {
+			case del(v):
+				if !deleted {
+					deleted = true
+					c = newCopier[T](s.n - 1)
+					c.pushRange(*s, 0, k)
+				}
+			case deleted:
+				c.push(v)
+			}
+
+			k++
+		}
+	}
+
+	if deleted {
+		*s = c.slice()
+	}
+}
+
 // shrink returns kept, or a copy of it when it uses less than half its array. The result's chunks
-// are windows onto the array, so without the copy a few survivors of a large DeleteFunc would keep
+// may be windows onto the array, so without the copy a few survivors of a large DeleteFunc would keep
 // the whole array alive.
 func shrink[T any](kept []T) []T {
 	if cap(kept) > 2*len(kept) {
@@ -414,6 +474,22 @@ func shrink[T any](kept []T) []T {
 // the Slice unchanged.
 func (s *Slice[T]) UpdateFunc(f func(i int, v T) T) {
 	if s.n == 0 {
+		return
+	}
+
+	if !packs[T](s.n) {
+		c := newCopier[T](s.n)
+		i := 0
+
+		for chunk := range s.chunks() {
+			for _, v := range chunk {
+				c.push(f(i, v))
+				i++
+			}
+		}
+
+		*s = c.slice()
+
 		return
 	}
 

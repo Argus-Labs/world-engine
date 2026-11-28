@@ -257,6 +257,8 @@ func (m *Map[K, V]) rechunkTree(p *mpath[K, V], edited []entry[K, V]) {
 		rep = append(rep, mchild[K, V]{k: edited[start].k, chunk: edited[start:len(edited):len(edited)]})
 	}
 
+	ownChunks(rep)
+
 	if keepsCuts(p, &cur, 0, rep) {
 		m.replaceAbove(p, 0, rep[0])
 		return
@@ -357,9 +359,9 @@ func (m *Map[K, V]) setTop(level []mchild[K, V], l int) {
 }
 
 // cutEntries cuts sorted entries into chunks, appending them to dst. The chunks are windows onto
-// entries.
+// entries, or copies of them as ownChunks makes.
 func cutEntries[K Key, V any](dst []mchild[K, V], entries []entry[K, V]) []mchild[K, V] {
-	start := 0
+	first, start := len(dst), 0
 	for i, e := range entries {
 		if endsChunk(i+1-start, e.k) {
 			dst = append(dst, mchild[K, V]{k: entries[start].k, chunk: entries[start : i+1 : i+1]})
@@ -371,7 +373,23 @@ func cutEntries[K Key, V any](dst []mchild[K, V], entries []entry[K, V]) []mchil
 		dst = append(dst, mchild[K, V]{k: entries[start].k, chunk: entries[start:len(entries):len(entries)]})
 	}
 
+	ownChunks(dst[first:])
+
 	return dst
+}
+
+// ownChunks gives each of cut, chunks cut from one or more arrays, an array of its own when entries
+// hold pointers. Windows onto one array keep all of it alive while any one of them is, and with it
+// every entry an edit has since replaced in the others; pointers.go explains why that matters only
+// for pointers. A single chunk is the whole of the array it was cut from, so it stays a window.
+func ownChunks[K Key, V any](cut []mchild[K, V]) {
+	if len(cut) < 2 || !holdsPointers[entry[K, V]]() {
+		return
+	}
+
+	for i := range cut {
+		cut[i].chunk = slices.Clone(cut[i].chunk)
+	}
 }
 
 // walkChunks yields the chunks under node in key order.
